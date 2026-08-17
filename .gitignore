@@ -6,3 +6,5 @@ build/
 .expo/
 *.apk
 .pnpm-store/
+.svelte-kit/
+.vercel/
