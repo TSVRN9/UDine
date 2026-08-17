@@ -32,10 +32,13 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   hitting `GET https://ubogyqskqzvkcqboqbhw.supabase.co/auth/v1/authorize?provider=google`, which
   302s to a real `accounts.google.com` consent screen with the correct callback URL — don't re-verify
   by reading dashboard config (no MCP tool exposes it), re-run this same curl check instead.
-- **`@umass.edu` restriction — migration applied, hook registration CONFIRMED NOT LIVE (2026-08-17).**
-  Tested by POSTing a real signup with a `@gmail.com` address to `/auth/v1/signup` — it succeeded
-  (HTTP 200, real `auth.users` row created, since deleted). **Anyone with any Google account can sign
-  in right now, not just @umass.edu.** Implemented as a
+- **`@umass.edu` restriction — CONFIRMED LIVE (2026-08-17).** Re-tested after the user enabled the
+  hook in the dashboard: POSTing a `@gmail.com` signup to `/auth/v1/signup` now correctly gets
+  `403 {"msg":"UDine accounts require a @umass.edu email address."}`, not a created user. A parallel
+  `@umass.edu` signup was NOT rejected by the hook (no 403/custom-message) — it got past that check and
+  hit Supabase's own free-tier email-send rate limit (`429 over_email_send_rate_limit`) instead, a
+  separate, expected platform constraint, not a hook bug. No stray test rows were left in `auth.users`.
+  Implemented as a
   **Before User Created Auth Hook** (confirmed available on this project) —
   `hook_restrict_signup_by_umass_domain` in
   `supabase/migrations/20260817210000_restrict_signup_by_umass_domain.sql` (+ a follow-up migration
