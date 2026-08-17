@@ -24,15 +24,19 @@ A calorie/macro tracker for UMass Dining, built as a superset of the official UM
   project not yet created/shared) — treat as a documented TODO until provided; do not stub in fake
   keys.
 - **`@umass.edu` restriction is NOT enforced by Google's `hd=` param** — that's a client-side UI hint,
-  trivially bypassed. Enforce it server-side: a Postgres trigger on `auth.users` (or a Supabase Auth
-  hook) that checks `email_confirmed_at` + `email ILIKE '%@umass.edu'` and rejects/deletes the row
-  otherwise. Write this before wiring up the OAuth button, not after.
+  trivially bypassed. An `AFTER INSERT` trigger on `auth.users` that deletes non-umass rows leaves a
+  race window and isn't the supported path. Use a **Before User Created Auth Hook** (check current
+  Supabase project capabilities before assuming this is available) to reject the signup outright; if
+  that's not available on this project, fall back to leaving the auth row but enforcing
+  `email ILIKE '%@umass.edu'` as a predicate in every RLS policy and in the profile-creation path, so
+  a non-umass account can exist but do nothing. Decide which path is actually available before writing
+  the migration — don't assume.
 
 ## Data sources
 
 | Source | What it gives us | Notes |
 |---|---|---|
-| `umassdining.com/foodpro-menu-ajax` | Menu items per dining hall/date/meal | Exact query params unconfirmed (see RE doc) — validate against live requests, don't guess-and-ship |
+| `umassdining.com/foodpro-menu-ajax?tid=<term_id>&date=MM%2FDD%2FYYYY` | Menu items + full nutrition panel per dining hall/date/meal | **Confirmed live** (see RE doc) — `tid` is a Drupal taxonomy term id, not a FoodPro location number: Worcester=1, Franklin=2, Hampshire=3, Berkshire=4. Response is meal-period → category → HTML fragment; parse the `data-*` attributes on each `<a data-dish-name=...>`, don't treat it as structured JSON. |
 | `umassdining.com/uapp/get_beacons_events` | Dining hall events | |
 | `umassdining.com/uapp/get_press*` | Press releases | |
 | `umassdining.com/uapp/get_notice`, `get_updates`, `get_new_faq*` | Notices/FAQ | Lower priority |
@@ -71,16 +75,16 @@ the user explicitly exports it.** This constrains every feature that touches foo
 |---|---|---|
 | Consumption log (what/when eaten, portions) | **Device only** (SQLite on mobile / IndexedDB on web) | Core privacy requirement — this is the data the user asked to never leave the device |
 | Calorie/macro history, daily totals | **Device only**, derived from the log above | Same |
-| Menu cache (dining hall items, nutrition facts) | Server (Supabase) or direct API passthrough | Public data, not personal |
-| Dish/location ranking **inputs** (raw pairwise comparisons) | **Device only** | These are derived from what the user ate — same sensitivity as the log |
-| Dish/location ranking **outputs** (computed rank order, "favorite dining hall") | Server, if the user is signed in | Needed for friend pings ("come eat with me at your favorite spot") and cross-device sync; user must opt in by signing in — anonymous users keep rankings device-only |
+| Menu cache (dining hall items, nutrition facts) | **Device only**, fetched directly from UMass Dining APIs | Public data, but keeping it off Supabase keeps the anonymous path truly account-free — no DB, no RLS surface, for the core no-account flow |
+| Dish/location ranking (pairwise comparisons AND computed per-dish order) | **Device only**, always | A per-dish rank order is reconstructible into "what/how much they ate" — same sensitivity as the log itself, so it doesn't get a server exception |
+| Favorite **dining halls** (a handful of location IDs, derived on-device from ranking) | Server, if the user is signed in | This is the only ranking-derived thing the server sees — coarse enough (which building, not which dish) to support "come eat with me" pings without exposing food history; user must opt in by signing in |
 | Favorited foods (for "spotted elsewhere" alerts) | Server, only if signed in and notifications enabled | Requires server-side matching against the menu feed to push a notification; anonymous users can still favorite locally but get no alerts |
 | Friends, pings, profile | Server (requires account by definition) | |
 | Auth identity (email, Google sub) | Server (Supabase Auth) | |
 
 Anonymous-first: menus, nutrition lookup, events, press releases, FAQ, dietary filters, and local
 logging/ranking must all work with **zero account**. Signing in only gates: friends, pings,
-cross-device sync, favorited-food push alerts, and server-stored ranking outputs. If a feature can be
+cross-device sync, favorited-food push alerts, and server-stored favorite dining halls. If a feature can be
 built to work locally-only, prefer that over requiring an account — check this before adding an
 `auth.uid()` check to a query.
 

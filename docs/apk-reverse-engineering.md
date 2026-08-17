@@ -63,9 +63,47 @@ This is the existing app's version of "favorite foods/locations" and "dietary fi
 - Social share links: Instagram, Twitter/X, TikTok, YouTube, Facebook links present (marketing, not API integration)
 - No Google Maps API key or Firebase config secret found in the bundle (searched for `AIza...` and firebase/google-services strings — none matched as embedded credentials, only generic library code)
 
+## `foodpro-menu-ajax` — CONFIRMED via live browser network capture (2026-08-17)
+
+The strings-only pass above couldn't recover query params for the core menu endpoint. Verified by
+loading `www.umassdining.com/locations-menus/hampshire/menu` in a real browser and triggering the
+"Upcoming Menus" date `<select>` (`#upcoming-foodpro`), which fires exactly this request:
+
+```
+GET https://www.umassdining.com/foodpro-menu-ajax?tid=<drupal_taxonomy_term_id>&date=MM%2FDD%2FYYYY
+```
+
+- `tid` is the Drupal taxonomy term ID for the dining location — **not** a FoodPro location number.
+  Confirmed for all four residential dining commons via `data-drupal-link-system-path="taxonomy/term/N"`
+  on the location nav links: **Worcester=1, Franklin=2, Hampshire=3, Berkshire=4**. (Other tids exist
+  for Campus Center=5, Around Campus=6, Grab 'N Go=53, Student Businesses=54, Off-Campus=46 — lower
+  priority, not verified against live menu data.)
+- `date` is `MM/DD/YYYY`, URL-encoded (`/` → `%2F`).
+- No auth required.
+- Response shape: `{ "breakfast": { "<category name>": "<html fragment>", ... }, "lunch": {...},
+  "dinner": {...} }` — meal periods missing from the day (e.g. no breakfast served) are simply absent
+  as keys, not present-with-empty-array. Each HTML fragment is a `<li class="lightbox-nutrition">` list;
+  parse it, don't treat it as structured JSON. Each `<li><a data-*=... >Item Name</a></li>` carries the
+  full nutrition panel as data attributes on the `<a>` tag:
+  `data-serving-size`, `data-calories`, `data-calories-from-fat`, `data-total-fat[-dv]`, `data-sat-fat[-dv]`,
+  `data-trans-fat`, `data-cholesterol[_dv]`, `data-sodium[-dv]`, `data-total-carb[-dv]`, `data-dietary-fiber[-dv]`,
+  `data-sugars[-dv]`, `data-protein[-dv]`, `data-allergens`, `data-ingredient-list`, `data-clean-diet-str`
+  (e.g. "Halal, Local, Sustainable, Plant Based, Whole Grain"), `data-healthfulness`, `data-carbon-list`,
+  `data-recipe-webcode`, `data-dish-name`. The link text is the display name; `data-dish-name` is the
+  canonical name to key on.
+- Requesting a day with no live data returns `{}` (empty object) — not an error, not `[]`. (An earlier,
+  no-params probe returned `[]`; that shape has not been seen with valid `tid`+`date`, treat `[]` as the
+  "malformed request" shape and `{}` as "valid request, no menu that day".)
+- The current redesigned website (`umass_dining_new` Drupal theme) does **not** call this endpoint on
+  initial page load — the day's default menu is server-rendered directly into the page HTML using the
+  same data-attribute format. `foodpro-menu-ajax` only fires client-side when switching days via the
+  date picker. Either source (initial HTML scrape or the ajax endpoint with an explicit date) works;
+  the ajax endpoint is more directly usable as an API since it returns clean JSON instead of a full page.
+
 ## Gaps / what we couldn't determine
 
-- **Exact query params and POST bodies** for every endpoint above — Hermes string-table entries can't be reliably delimited with `strings`; would need a proper Hermes bytecode string-table parse (function/string index tables) or a live traffic capture (mitmproxy + the real app) to get exact param names, types, and auth header format.
+- **POST bodies** for the `mobileapp.umassdining.com/umassapi2/public/...` account endpoints — out of
+  scope for UDine anyway (see CLAUDE.md: we don't replicate UMass Dining's own account system).
 - **AndroidManifest.xml permissions/meta-data** — it's binary XML and no `aapt`/`aapt2`/`apktool` was available on this machine to decode it, so we could not get a definitive permissions list or OneSignal/Maps app-id meta-data values. Worth running `apktool d` once installed if the permission list matters (e.g. confirming calendar/contacts/camera access).
 - **`ambassador.umassdining.com/login`** purpose is unclear — could be a separate SSO/ambassador-program login, not necessarily relevant to core account auth.
 - Whether `user_token` is a long-lived token or session-scoped, and how it's obtained (no explicit `/login` or `/authenticate` path was found under `mobileapp.umassdining.com` — auth may happen through `ambassador.umassdining.com/login` and hand off a token).
