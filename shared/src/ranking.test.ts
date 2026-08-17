@@ -54,14 +54,17 @@ test("rankDishes sorts highest rating first", () => {
   );
 });
 
-test("favoriteDiningHalls ranks halls by average dish rating, highest first", () => {
+test("favoriteDiningHalls ranks halls by average dish rating, highest first, with 1-based rank", () => {
   const dishes: RankedDish[] = [
     { dishName: "A1", hallTid: 1, rating: 1400, comparisonCount: 1 },
     { dishName: "A2", hallTid: 1, rating: 1400, comparisonCount: 1 },
     { dishName: "B1", hallTid: 2, rating: 1700, comparisonCount: 1 },
     { dishName: "B2", hallTid: 2, rating: 1700, comparisonCount: 1 },
   ];
-  assert.deepEqual(favoriteDiningHalls(dishes), [2, 1]);
+  assert.deepEqual(favoriteDiningHalls(dishes), [
+    { hallTid: 2, rank: 1 },
+    { hallTid: 1, rank: 2 },
+  ]);
 });
 
 test("favoriteDiningHalls excludes halls below the minimum rated-dish threshold", () => {
@@ -70,7 +73,7 @@ test("favoriteDiningHalls excludes halls below the minimum rated-dish threshold"
     { dishName: "B1", hallTid: 2, rating: 1500, comparisonCount: 1 },
     { dishName: "B2", hallTid: 2, rating: 1500, comparisonCount: 1 },
   ];
-  assert.deepEqual(favoriteDiningHalls(dishes), [2]);
+  assert.deepEqual(favoriteDiningHalls(dishes), [{ hallTid: 2, rank: 1 }]);
 });
 
 test("favoriteDiningHalls respects topN", () => {

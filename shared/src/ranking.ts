@@ -53,8 +53,14 @@ export function rankDishes(dishes: RankedDish[]): RankedDish[] {
 // results feel noisy in practice.
 const MIN_RATED_DISHES_PER_HALL = 2;
 
+export interface FavoriteDiningHall {
+  hallTid: number;
+  /** 1-based position, 1 = most favorite. Matches the `rank` column in the `favorite_dining_halls` table (supabase/migrations) — write this value directly, don't re-derive an index. */
+  rank: number;
+}
+
 /** Dining halls with the highest average dish rating, highest first — the only ranking-derived signal allowed to sync to the server (see RankingStorage doc comment). */
-export function favoriteDiningHalls(dishes: RankedDish[], topN = 3): number[] {
+export function favoriteDiningHalls(dishes: RankedDish[], topN = 3): FavoriteDiningHall[] {
   const byHall = new Map<number, number[]>();
   for (const dish of dishes) {
     const ratings = byHall.get(dish.hallTid) ?? [];
@@ -67,5 +73,5 @@ export function favoriteDiningHalls(dishes: RankedDish[], topN = 3): number[] {
     .map(([hallTid, ratings]) => ({ hallTid, average: ratings.reduce((a, b) => a + b, 0) / ratings.length }));
 
   averages.sort((a, b) => b.average - a.average);
-  return averages.slice(0, topN).map((a) => a.hallTid);
+  return averages.slice(0, topN).map((a, i) => ({ hallTid: a.hallTid, rank: i + 1 }));
 }
