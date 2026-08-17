@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "UDine",
+    "slug": "udine",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "udine",
     "userInterfaceStyle": "automatic",
     "android": {
       "adaptiveIcon": {
