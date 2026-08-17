@@ -1,11 +1,10 @@
-import { applyComparison, DINING_HALLS, favoriteDiningHalls, rankDishes, type LogEntry, type RankedDish } from "@udine/shared";
+import { applyComparison, DINING_HALLS, favoriteDiningHalls, rankDishes, syncFavoriteHalls, type LogEntry, type RankedDish } from "@udine/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { supabase } from "../lib/supabase";
-import { syncFavoriteHalls } from "../lib/syncFavoriteHalls";
 
 type Dish = { dishName: string; hallTid: number };
 

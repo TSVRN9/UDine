@@ -5,3 +5,4 @@ export * from "./macros.ts";
 export * from "./storage.ts";
 export * from "./content.ts";
 export * from "./ranking.ts";
+export * from "./sync.ts";

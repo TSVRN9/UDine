@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
-	import { applyComparison, DINING_HALLS, favoriteDiningHalls, rankDishes, type LogEntry, type RankedDish } from "@udine/shared";
+	import { applyComparison, DINING_HALLS, favoriteDiningHalls, rankDishes, syncFavoriteHalls, type LogEntry, type RankedDish } from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
-	import { syncFavoriteHalls } from "$lib/syncFavoriteHalls";
 
 	type Dish = { dishName: string; hallTid: number };
 

@@ -9,8 +9,12 @@
   "scripts": {
     "test": "node --experimental-strip-types --test src/*.test.ts"
   },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.112.3"
+  },
   "devDependencies": {
     "typescript": "^5.7.0",
-    "@types/node": "^22.10.0"
+    "@types/node": "^22.10.0",
+    "@supabase/supabase-js": "^2.112.3"
   }
 }
