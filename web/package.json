@@ -4,6 +4,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"dependencies": {
+		"@supabase/ssr": "^0.12.4",
+		"@supabase/supabase-js": "^2.112.3",
 		"@udine/shared": "workspace:*"
 	},
 	"scripts": {
