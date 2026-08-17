@@ -1,27 +1,5 @@
 import type { LogEntry, LogStorage } from "@udine/shared";
-import * as SQLite from "expo-sqlite";
-
-const DB_NAME = "udine.db";
-
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
-function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync(DB_NAME).then(async (db) => {
-      await db.execAsync(
-        `CREATE TABLE IF NOT EXISTS log_entries (
-           id TEXT PRIMARY KEY NOT NULL,
-           logged_at TEXT NOT NULL,
-           source_json TEXT NOT NULL,
-           servings REAL NOT NULL,
-           nutrition_json TEXT NOT NULL
-         );`,
-      );
-      return db;
-    });
-  }
-  return dbPromise;
-}
+import { getDb } from "./db";
 
 interface Row {
   id: string;
