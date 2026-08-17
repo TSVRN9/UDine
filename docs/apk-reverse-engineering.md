@@ -17,18 +17,18 @@ Also present: `ambassador.umassdining.com` (separate login-related host, purpose
 |---|---|---|---|---|
 | umassdining.com | GET | `/foodpro-menu-ajax` | none | **Menu/nutrition data — the core endpoint.** High confidence on the path itself; params not recoverable from strings (likely location/date/meal query params based on nearby `getMealsByLocationIdandDate`, `meal_period`, `location_id`-shaped identifiers found elsewhere in the bundle). |
 | umassdining.com | GET | `/main-location-foodpro...` | none | Location/menu listing; exact suffix uncertain, trails into garbage. |
-| umassdining.com | GET | `/uapp/get_infov2` | none | General app config/info blob. |
-| umassdining.com | GET | `/uapp/get_updates` | none | App update notices. |
-| umassdining.com | GET | `/uapp/get_notice` | none | Notices/alerts (possibly `get_noticeEvent`, uncertain suffix). |
-| umassdining.com | GET | `/uapp/get_new_faq` | none | FAQ (possibly `get_new_faqDetail`, uncertain suffix). |
-| umassdining.com | GET | `/uapp/get_about` | none | About page content. |
-| umassdining.com | GET | `/uapp/get_press` | none | **Press releases** (uncertain suffix, e.g. `get_pressReleases`) — maps directly to the requested press-release feature. |
-| umassdining.com | GET | `/uapp/get_staff` | none | Staff directory (possibly `get_staffName`). |
-| umassdining.com | GET | `/uapp/get_newsletter` | none | Newsletter content/subscribe status. |
-| umassdining.com | GET | `/uapp/get_galleries` | none | Photo galleries. |
-| umassdining.com | GET | `/uapp/get_videos` | none | Video content. |
-| umassdining.com | GET | `/uapp/get_online_ordering` | none | Online ordering info/links. |
-| umassdining.com | GET | `/uapp/get_beacons_events` | none | **Events tied to BLE beacons** — see beacon feature below; likely dining-hall event feed. |
+| umassdining.com | GET | `/uapp/get_infov2` | none | **CONFIRMED** (2026-08-17, `curl -L` through the www redirect — all `/uapp/*` 301 from bare `umassdining.com` to `www.umassdining.com`, then 200 JSON). Array of 40 objects, one per dining location: `opening_hours`, `closing_hours`, `location_title`, `breakfast/lunch/dinner_open_time`/`close_time`/`menu`, `latenight_menu`, `locations` (HTML blob of full hours table). Hours/status, not menu content — lower priority than `foodpro-menu-ajax`. |
+| umassdining.com | GET | `/uapp/get_updates` | none | **CONFIRMED**. Array of `{title, url, image, date}`. Data returned is stale (dated 2020) — likely an unmaintained feed, deprioritize. |
+| umassdining.com | GET | `/uapp/get_notice` | none | **CONFIRMED**. Shape is `{"value": ""}` — single string field, currently empty. Not an array; don't assume list semantics. |
+| umassdining.com | GET | `/uapp/get_new_faq` | none | **CONFIRMED**, exact suffix is just `get_new_faq` (no `Detail`). Shape: object keyed by category name (e.g. `"General"`) → array of `{title, content}`, `content` is an HTML string. |
+| umassdining.com | GET | `/uapp/get_about` | none | Not independently verified this pass; same host/auth pattern as the confirmed siblings, low risk. |
+| umassdining.com | GET | `/uapp/get_press` | none | **CONFIRMED**, exact path is just `/uapp/get_press` (no `Releases` suffix). Array of `{title, url, image, date}` — maps directly to the requested press-release feature. |
+| umassdining.com | GET | `/uapp/get_staff` | none | Not independently verified this pass. |
+| umassdining.com | GET | `/uapp/get_newsletter` | none | Not independently verified this pass. |
+| umassdining.com | GET | `/uapp/get_galleries` | none | Not independently verified this pass. |
+| umassdining.com | GET | `/uapp/get_videos` | none | Not independently verified this pass. |
+| umassdining.com | GET | `/uapp/get_online_ordering` | none | Not independently verified this pass. |
+| umassdining.com | GET | `/uapp/get_beacons_events` | none | **CONFIRMED**. Shape: `{"beacons": [{id, uuid, major, minor}], "events": [{title, featured_image, pdf_link, external_link, expiration_date (unix seconds), is_featured}]}`. The `events` array is exactly the dining-hall-events feature the user asked for and needs **no beacon involvement at all** — ignore `beacons` (BLE check-ins are an explicit non-goal, see CLAUDE.md) and just consume `events`. |
 | umassdining.com | POST | `/uapp/save_coordinateForPoint` | none observed | Geolocation/beacon check-in — logs a coordinate against a point of interest. |
 | ambassador.umassdining.com | ? | `/login` | ? | Separate login-adjacent host from the main content host; purpose (student ambassador program? alternate auth?) not determined. |
 | mobileapp.umassdining.com | GET | `/umassapi2/public/get_employee?user_token=` | `user_token` query param | Fetch logged-in user's profile. "Employee" naming suggests this system was originally built for dining-hall staff, then reused for the general user account. |
