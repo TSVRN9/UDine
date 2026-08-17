@@ -52,6 +52,30 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   @umass.edu email address.", not silently succeed. Once confirmed live, profile/RLS policies don't
   need to re-check the email domain — `auth.uid()` scoping is sufficient, since the hook already
   guarantees no non-umass row can exist.
+- **Friends/pings/favorited-food-alerts schema: DONE and verified.** `profiles` (auto-created via an
+  `after insert on auth.users` trigger — not a security boundary, just row creation),
+  `friendships` (canonically ordered `user_a < user_b`, always insert via the `request_friendship(uuid)`
+  RPC rather than a raw insert), `pings` (insert requires an `accepted` friendship, enforced in the RLS
+  policy, not trusted to the client), `favorited_foods`, `push_tokens`, `food_sightings`. Verified
+  end-to-end with real signed-up test users + simulated JWT claims (`set local request.jwt.claims`):
+  trigger fires, `request_friendship` orders correctly, a third party can't read others' friendships,
+  friends can ping each other, non-friends are rejected by RLS. All test rows cleaned up afterward.
+- **`check-favorited-foods` Edge Function: matching logic verified, push delivery NOT implemented.**
+  Fetches live `foodpro-menu-ajax` data for all 4 halls, matches against `favorited_foods` for users
+  with `notifications_enabled`, upserts `food_sightings`. The dish-name-extraction regex was
+  independently verified against live data (93 real dishes at Hampshire, including known items).
+  A real bug was caught and fixed here: the first deploy used `profiles!inner(...)` as an embedded
+  PostgREST join, which fails because `favorited_foods` and `profiles` both reference `auth.users`
+  independently with no direct FK between them — PostgREST can't infer that join path. Fixed with two
+  plain queries instead. Re-invoked after the fix: runs cleanly (`checkedHalls: 4`), correct empty-state
+  output. **The actual positive-match path (a real favorite → a real `food_sightings` row) is
+  unverified** — blocked by Supabase's free-tier email-send rate limit preventing a second test-user
+  signup, and there's no service-role/Admin API access available to route around it. Push dispatch
+  itself is explicitly stubbed — `pushConfigured` correctly reports `false`. **This needs from the
+  user**: a VAPID keypair (Web Push, for `/web`) and Firebase/FCM project config (for Expo push on
+  `/mobile`), set as Edge Function secrets (`VAPID_PRIVATE_KEY`, `EXPO_ACCESS_TOKEN` or equivalent) —
+  same category of dashboard/console setup as the OAuth credentials and redirect URLs. Nothing should
+  attempt real push dispatch until these exist.
 
 ## Data sources
 
