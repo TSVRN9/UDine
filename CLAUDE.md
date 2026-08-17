@@ -14,6 +14,13 @@ A calorie/macro tracker for UMass Dining, built as a superset of the official UM
 /docs       apk-reverse-engineering.md and other reference notes
 ```
 
+## Local dev note: Android native builds need JDK 17
+
+The system default JDK on this machine is 25, which breaks `expo run:android` (`react-native-worklets`
+hits an NDK/CMake "restricted method" incompatibility on JDK 25). JDK 17 (Temurin) is installed
+alongside it — build with `JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk PATH="/usr/lib/jvm/java-17-temurin-jdk/bin:$PATH" npx expo run:android`
+from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-08-17).
+
 ## Backend
 
 - Supabase project: **UDine** (`ubogyqskqzvkcqboqbhw`, org `tsvrn`, us-east-1, free tier).
