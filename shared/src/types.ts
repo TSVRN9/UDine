@@ -49,3 +49,54 @@ export interface DailyMacroTotals {
   totalCarbG: number;
   totalFatG: number;
 }
+
+/** Dietary/allergen filter preferences. Device-local — not health data, but no reason to sync it either. */
+export interface FoodPreferences {
+  allergensToAvoid: string[]; // matches values in MenuItem.allergens, e.g. "Milk", "Gluten"
+  requiredDietTags: string[]; // matches values in MenuItem.dietTags, e.g. "Vegan", "Halal" — item must have ALL of these
+}
+
+export function menuItemMatchesPreferences(item: MenuItem, prefs: FoodPreferences): boolean {
+  const hasExcludedAllergen = item.allergens.some((a) => prefs.allergensToAvoid.includes(a));
+  if (hasExcludedAllergen) return false;
+  return prefs.requiredDietTags.every((tag) => item.dietTags.includes(tag));
+}
+
+export type Favorite = { type: "dish"; dishName: string } | { type: "location"; hallTid: number };
+
+/** Binary favorites (dish or location) — device-local for anonymous users, see CLAUDE.md data residency table. */
+export interface FavoritesStorage {
+  addFavorite(favorite: Favorite): Promise<void>;
+  removeFavorite(favorite: Favorite): Promise<void>;
+  getFavorites(): Promise<Favorite[]>;
+}
+
+export function favoriteKey(favorite: Favorite): string {
+  return favorite.type === "dish" ? `dish:${favorite.dishName}` : `location:${favorite.hallTid}`;
+}
+
+export interface PressRelease {
+  title: string;
+  url: string;
+  image: string;
+  date: string; // YYYY-MM-DD
+}
+
+export interface DiningEvent {
+  title: string;
+  featuredImage: string;
+  pdfLink: string;
+  externalLink: string;
+  expirationDate: string; // ISO 8601, converted from the API's unix-seconds field
+  isFeatured: boolean;
+}
+
+export interface FaqItem {
+  title: string;
+  content: string; // HTML
+}
+
+export interface FaqCategory {
+  name: string;
+  items: FaqItem[];
+}
