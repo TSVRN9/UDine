@@ -27,17 +27,28 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
 - An older unrelated project **bricktime** (`nhxsplkkwcscoyhibotc`) still exists in the same org —
   the user asked to delete it, but the Supabase MCP toolset has no `delete_project` call. Delete it
   manually from the dashboard if it's still unwanted; do not attempt to repurpose it.
-- Auth: Supabase Auth, Google OAuth provider. Client ID/secret supplied by the user (Google Cloud
-  project not yet created/shared) — treat as a documented TODO until provided; do not stub in fake
-  keys.
-- **`@umass.edu` restriction is NOT enforced by Google's `hd=` param** — that's a client-side UI hint,
-  trivially bypassed. An `AFTER INSERT` trigger on `auth.users` that deletes non-umass rows leaves a
-  race window and isn't the supported path. Use a **Before User Created Auth Hook** (check current
-  Supabase project capabilities before assuming this is available) to reject the signup outright; if
-  that's not available on this project, fall back to leaving the auth row but enforcing
-  `email ILIKE '%@umass.edu'` as a predicate in every RLS policy and in the profile-creation path, so
-  a non-umass account can exist but do nothing. Decide which path is actually available before writing
-  the migration — don't assume.
+- **Auth: DONE.** Supabase Auth, Google OAuth provider — client ID/secret configured by the user
+  directly in the Supabase dashboard (Authentication > Providers). Verified live (2026-08-17) by
+  hitting `GET https://ubogyqskqzvkcqboqbhw.supabase.co/auth/v1/authorize?provider=google`, which
+  302s to a real `accounts.google.com` consent screen with the correct callback URL — don't re-verify
+  by reading dashboard config (no MCP tool exposes it), re-run this same curl check instead.
+- **`@umass.edu` restriction — migration applied, hook registration CONFIRMED NOT LIVE (2026-08-17).**
+  Tested by POSTing a real signup with a `@gmail.com` address to `/auth/v1/signup` — it succeeded
+  (HTTP 200, real `auth.users` row created, since deleted). **Anyone with any Google account can sign
+  in right now, not just @umass.edu.** Implemented as a
+  **Before User Created Auth Hook** (confirmed available on this project) —
+  `hook_restrict_signup_by_umass_domain` in
+  `supabase/migrations/20260817210000_restrict_signup_by_umass_domain.sql` (+ a follow-up migration
+  pinning `search_path` per the security advisor). Rejects any signup whose email doesn't end in
+  `@umass.edu` (case-insensitive, anchored so `evil.com/notumass.edu` tricks don't pass) before the
+  `auth.users` row is ever created — no race window, no orphaned non-umass rows. **Applying the
+  migration only creates the function — it does not enable the hook.** Registration is dashboard-only
+  (Authentication > Hooks (Beta) > select `hook_restrict_signup_by_umass_domain` from the "Before User
+  Created" dropdown); confirm this is actually selected before treating the restriction as live — a
+  real signup attempt with a non-umass email should get rejected with "UDine accounts require a
+  @umass.edu email address.", not silently succeed. Once confirmed live, profile/RLS policies don't
+  need to re-check the email domain — `auth.uid()` scoping is sufficient, since the hook already
+  guarantees no non-umass row can exist.
 
 ## Data sources
 
