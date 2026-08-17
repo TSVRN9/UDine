@@ -50,6 +50,7 @@
 <p>
 	<a href="/today">Today's macros</a> | <a href="/filters">Filters</a> | <a href="/favorites">Favorites</a> |
 	<a href="/rank">Rank dishes</a> |
+	<a href="/friends">Friends</a> | <a href="/notifications">Notifications</a> |
 	<a href="/press">Press</a> | <a href="/events">Events</a> | <a href="/faq">FAQ</a>
 </p>
 
