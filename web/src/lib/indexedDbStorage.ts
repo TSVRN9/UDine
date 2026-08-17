@@ -1,18 +1,7 @@
 import type { LogEntry, LogStorage } from "@udine/shared";
+import { openDb, STORES } from "./db";
 
-const DB_NAME = "udine";
-const STORE = "logEntries";
-
-function openDb(): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(DB_NAME, 1);
-		req.onupgradeneeded = () => {
-			req.result.createObjectStore(STORE, { keyPath: "id" });
-		};
-		req.onsuccess = () => resolve(req.result);
-		req.onerror = () => reject(req.error);
-	});
-}
+const STORE = STORES.logEntries;
 
 /** IndexedDB implementation of LogStorage — see @udine/shared's LogStorage contract. Browser-only. */
 export class IndexedDbLogStorage implements LogStorage {
