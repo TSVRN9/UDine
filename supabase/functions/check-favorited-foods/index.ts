@@ -33,6 +33,11 @@ function decodeEntities(s: string): string {
  * this function only needs to know which dish names are being served today, not their macros, and
  * @udine/shared (a local workspace package) isn't published anywhere Deno's `npm:`/`jsr:` resolvers
  * could import it from.
+ *
+ * ponytail: accepted duplication, not a shared module — this and parseCategoryItems() in
+ * shared/src/umassDining.ts independently parse the same UMass Dining HTML. If a markup change
+ * breaks dish-name extraction, check both; upgrade path is publishing @udine/shared to JSR (or
+ * vendoring this function via a build step) if drift ever actually bites.
  */
 async function fetchDishNamesForHall(hallTid: number): Promise<Set<string>> {
   const url = `https://www.umassdining.com/foodpro-menu-ajax?tid=${hallTid}&date=${encodeURIComponent(todayDateParam())}`;

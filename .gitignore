@@ -8,3 +8,12 @@ build/
 .pnpm-store/
 .svelte-kit/
 .vercel/
+
+# Firebase service-account keys (FCM V1) — full Firebase admin/messaging access, never commit
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+firebase-service-account*.json
+/udine-*.json
+
+# Supabase CLI local session/cache
+supabase/.temp/
