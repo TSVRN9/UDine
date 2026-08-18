@@ -12,15 +12,28 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const HALL_TIDS = [1, 2, 3, 4]; // Worcester, Franklin, Hampshire, Berkshire — see docs/apk-reverse-engineering.md
 
-function todayDateParam(): string {
-  const now = new Date();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${mm}/${dd}/${now.getFullYear()}`;
+// UMass Dining's calendar day and dining hours run on US/Eastern, not the Edge runtime's clock
+// (UTC on Deno Deploy) — deriving "today" from Intl instead of local getters/toISOString keeps
+// runs between ~8pm-midnight Eastern from fetching/recording the next UTC day by mistake.
+function easternDateParts(): { year: string; month: string; day: string } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return { year: get("year"), month: get("month"), day: get("day") };
 }
 
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
+export function todayDateParam(): string {
+  const { year, month, day } = easternDateParts();
+  return `${month}/${day}/${year}`;
+}
+
+export function todayIsoDate(): string {
+  const { year, month, day } = easternDateParts();
+  return `${year}-${month}-${day}`;
 }
 
 const ENTITIES: Record<string, string> = { "&amp;": "&", "&#039;": "'", "&quot;": '"', "&lt;": "<", "&gt;": ">" };
