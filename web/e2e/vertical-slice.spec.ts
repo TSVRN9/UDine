@@ -59,9 +59,15 @@ test("browse a hall's menu, log a dish, and see it reflected in today's macro to
 
 	await hampshireRow.getByRole("link", { name: "Hampshire" }).click();
 
+	// Check this before the visibility assertion below: if the mock never fired, the page instead
+	// renders the real live Hampshire menu, and `dishRow` just times out with a generic "element(s)
+	// not found" — this gets the actual cause ("would have hit real umassdining.com") reported first.
+	await expect
+		.poll(() => menuRequests, { message: "menu mock never fired — this would have hit real umassdining.com" })
+		.toBeGreaterThan(0);
+
 	const dishRow = page.getByRole("listitem").filter({ hasText: "French Toast" });
 	await expect(dishRow).toBeVisible();
-	expect(menuRequests, "menu mock never fired — this would have hit real umassdining.com").toBeGreaterThan(0);
 	await dishRow.getByRole("button", { name: "Log" }).click();
 
 	await expect(page.getByRole("status")).toHaveText("Logged 1 × French Toast");

@@ -20,7 +20,9 @@ export default defineConfig({
 		// otherwise this test only passes by accident of GitHub Actions runners defaulting to UTC,
 		// and a contributor running it locally after ~8pm US-Eastern gets a spurious "Calories: 0".
 		timezoneId: "UTC",
-		trace: "on-first-retry",
+		// retries is 0 (see above), so "on-first-retry" would never fire — capture on failure instead,
+		// so a red run in CI (where we can't just re-run headed) still ships a usable trace.
+		trace: "retain-on-failure",
 	},
 	projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 	webServer: {
