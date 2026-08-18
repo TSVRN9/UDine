@@ -52,7 +52,11 @@ const FRUIT_DISH: MenuItem = {
 const MENU_ITEMS = [MILK_DISH, FRUIT_DISH];
 
 test("setting an allergen filter hides a conflicting dish and keeps a non-conflicting one visible", async ({ page }) => {
-	await page.route("**/api/menu**", (route) => route.fulfill({ json: MENU_ITEMS }));
+	let menuRequests = 0;
+	await page.route("**/api/menu**", (route) => {
+		menuRequests++;
+		return route.fulfill({ json: MENU_ITEMS });
+	});
 
 	await page.goto("/");
 
@@ -75,6 +79,13 @@ test("setting an allergen filter hides a conflicting dish and keeps a non-confli
 
 	await page.getByRole("link", { name: "Dining Halls" }).click();
 	await hampshireRow.getByRole("link", { name: "Hampshire" }).click();
+
+	// If the mock never fired (e.g. a pre-hydration click fell through to a full navigation), the
+	// page would instead hit real umassdining.com — fail loudly with that cause rather than letting
+	// the assertions below pass or fail against live data.
+	await expect
+		.poll(() => menuRequests, { message: "menu mock never fired — this would have hit real umassdining.com" })
+		.toBeGreaterThan(0);
 
 	await expect(page.getByRole("listitem").filter({ hasText: "Fruit Salad" })).toBeVisible();
 	await expect(page.getByRole("listitem").filter({ hasText: "Milk Pancakes" })).toHaveCount(0);
