@@ -1,7 +1,18 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
-	import { applyComparison, DINING_HALLS, rankDiningHalls, rankDishes, syncDiningHallRanks, type LogEntry, type RankedDish } from "@udine/shared";
+	import {
+		applyComparison,
+		applyFoodComparison,
+		DINING_HALLS,
+		rankDiningHalls,
+		rankDishes,
+		rankFoods,
+		syncDiningHallRanks,
+		type LogEntry,
+		type RankedDish,
+		type RankedFood,
+	} from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
 
@@ -12,6 +23,7 @@
 
 	let loggedDishes: Dish[] = $state([]);
 	let rankedDishes: RankedDish[] = $state([]);
+	let rankedFoods: RankedFood[] = $state([]);
 	let pair: [Dish, Dish] | null = $state(null);
 	let hallRanking = $derived(rankDiningHalls(rankedDishes));
 	let lastPair: [Dish, Dish] | null = null;
@@ -73,6 +85,7 @@
 			loggedDishes.push(dish);
 		}
 		rankedDishes = await rankingStorage.getRankedDishes();
+		rankedFoods = await rankingStorage.getRankedFoods();
 		pair = pickPair();
 	}
 
@@ -80,10 +93,13 @@
 
 	async function choose(winner: Dish, loser: Dish) {
 		rankedDishes = applyComparison(rankedDishes, winner, loser);
+		rankedFoods = applyFoodComparison(rankedFoods, winner, loser);
 		// $state arrays are deep-proxied by Svelte on assignment; IndexedDB's structured-clone can't
 		// serialize a Proxy (DataCloneError), so snapshot to a plain object before persisting.
 		const snapshot = $state.snapshot(rankedDishes);
+		const foodSnapshot = $state.snapshot(rankedFoods);
 		await rankingStorage.saveRankedDishes(snapshot);
+		await rankingStorage.saveRankedFoods(foodSnapshot);
 
 		const session = page.data.session;
 		if (session && page.data.supabase) {
@@ -124,6 +140,18 @@
 	<ol>
 		{#each rankDishes(rankedDishes) as dish (dishKey(dish))}
 			<li>{dish.dishName} <small>({hallName(dish.hallTid)}) &mdash; {Math.round(dish.rating)}</small></li>
+		{/each}
+	</ol>
+{/if}
+
+<h2>Favorite Foods</h2>
+<p><small>Your favorite dishes by name, regardless of which hall serves them.</small></p>
+{#if rankedFoods.length === 0}
+	<p>No comparisons yet.</p>
+{:else}
+	<ol>
+		{#each rankFoods(rankedFoods) as food (food.dishName)}
+			<li>{food.dishName} <small>&mdash; {Math.round(food.rating)}</small></li>
 		{/each}
 	</ol>
 {/if}
