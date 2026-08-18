@@ -124,3 +124,26 @@ export interface RankingStorage {
   getRankedDishes(): Promise<RankedDish[]>;
   saveRankedDishes(dishes: RankedDish[]): Promise<void>;
 }
+
+/**
+ * A dish's identity by name alone, independent of which hall serves it — the cross-hall "Favorite
+ * Food" Elo track, see docs/adr/0001-two-elo-tracks-for-dish-ranking.md. Two halls both serving
+ * "Chicken Parm" feed the same RankedFood. Updated by the same Pairwise Comparison event as
+ * RankedDish, except a comparison between the same dishName at two different halls, which updates
+ * only the per-hall RankedDish and leaves this track untouched (see ranking.ts's applyFoodComparison).
+ */
+export interface RankedFood {
+  dishName: string;
+  rating: number;
+  comparisonCount: number;
+}
+
+/**
+ * Device-only, always, same as RankingStorage above and for the same reason — a cross-hall favorite
+ * food ranking is exactly as reconstructible into "what/how much they ate" as the per-hall one, so it
+ * gets the same data residency treatment per CLAUDE.md: never synced to Supabase, no network call, ever.
+ */
+export interface FoodRankingStorage {
+  getRankedFoods(): Promise<RankedFood[]>;
+  saveRankedFoods(foods: RankedFood[]): Promise<void>;
+}

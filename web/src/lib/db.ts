@@ -1,7 +1,7 @@
 const DB_NAME = "udine";
-const VERSION = 3;
+const VERSION = 4;
 
-export const STORES = { logEntries: "logEntries", favorites: "favorites", rankedDishes: "rankedDishes" } as const;
+export const STORES = { logEntries: "logEntries", favorites: "favorites", rankedDishes: "rankedDishes", rankedFoods: "rankedFoods" } as const;
 
 /** Single shared IndexedDB connection/upgrade path — every store lives in one DB, one version. */
 export function openDb(): Promise<IDBDatabase> {
@@ -16,6 +16,9 @@ export function openDb(): Promise<IDBDatabase> {
 			}
 			if (!req.result.objectStoreNames.contains(STORES.rankedDishes)) {
 				req.result.createObjectStore(STORES.rankedDishes, { keyPath: "key" });
+			}
+			if (!req.result.objectStoreNames.contains(STORES.rankedFoods)) {
+				req.result.createObjectStore(STORES.rankedFoods, { keyPath: "dishName" });
 			}
 		};
 		req.onsuccess = () => resolve(req.result);
