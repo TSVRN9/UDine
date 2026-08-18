@@ -82,10 +82,20 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   `npx eas-cli credentials` from `mobile/` and check Push Notifications shows a configured service
   account before treating Android push delivery as reliable. Web Push subscription registration
   (`/web`) and Expo push-token registration (`/mobile`) are both implemented, writing to
-  `push_tokens`. Push *dispatch* — actually sending a notification per new `food_sightings` row —
-  see `docs/agents/` issue tracker, tickets #9 (dispatch implementation) and #10 (pg_cron scheduling,
-  deliberately deferred until #9 lands — see `docs/adr/0002-defer-check-favorited-foods-cron.md`)
-  for current status; update this paragraph once #9 merges rather than trusting it silently.
+  `push_tokens`. **Push dispatch: implemented and deployed (2026-08-18, function v7).** Sends Web
+  Push (via `npm:web-push`) and Expo push per new `food_sightings` row, deletes permanently-dead
+  tokens, gates each platform on its own secrets independently. Deployed live and invoked directly
+  (`curl` against the function URL) to confirm it actually boots and runs on the real Supabase Edge
+  Runtime — this mattered because `npm:web-push` was only ever tested locally before deploying, and
+  a broken import there would have crashed the whole function, including the previously-working
+  matching logic. **Result: `npm:web-push` imports and runs fine on the real Edge Runtime** — the
+  first live invocation 500'd, but from a much smaller, unrelated bug: the `VAPID_SUBJECT` secret
+  was set to a bare email (`udine.dlbo0@aleeas.com`) instead of a `mailto:` URI, which `web-push`'s
+  `setVapidDetails` requires. Fixed by resetting the secret to `mailto:udine.dlbo0@aleeas.com`; a
+  follow-up invocation returned `200 {"checkedHalls":4,...,"pushConfigured":true,"pushSent":0,...}`
+  cleanly. **Still unverified**: an actual push landing on a real device/browser — no registered
+  token exists yet to send to, and Android delivery additionally depends on the still-unconfirmed
+  FCM V1 upload noted above. `pg_cron` scheduling (ticket #10) remains deferred per ADR 0002.
 
 ## Data sources
 
