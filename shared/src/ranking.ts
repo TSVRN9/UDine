@@ -2,7 +2,21 @@ import { DINING_HALLS } from "./umassDining.ts";
 import type { RankedDish } from "./types.ts";
 
 const DEFAULT_RATING = 1500;
-const K_FACTOR = 32;
+
+const MAX_K = 32;
+const MIN_K = 8;
+const K_DECAY = 10;
+
+/**
+ * Provisional K-factor: high (matching the old fixed 32) for a dish's first few comparisons, then
+ * tapering toward a floor as comparisonCount grows so an established dish's rating stabilizes
+ * instead of swinging as hard as a brand-new dish's. Exported so other Elo-update code (e.g. the
+ * Favorite Food cross-hall track, see docs/adr/0001-two-elo-tracks-for-dish-ranking.md) can reuse
+ * the same taper instead of duplicating it.
+ */
+export function kFactorFor(comparisonCount: number): number {
+  return Math.max(MIN_K, MAX_K / (1 + Math.max(0, comparisonCount) / K_DECAY));
+}
 
 function dishKey(dishName: string, hallTid: number): string {
   return `${dishName}::${hallTid}`;
@@ -28,12 +42,12 @@ export function applyComparison(dishes: RankedDish[], winner: { dishName: string
 
   const updatedWinner: RankedDish = {
     ...winnerDish,
-    rating: winnerDish.rating + K_FACTOR * (1 - expectedWinner),
+    rating: winnerDish.rating + kFactorFor(winnerDish.comparisonCount) * (1 - expectedWinner),
     comparisonCount: winnerDish.comparisonCount + 1,
   };
   const updatedLoser: RankedDish = {
     ...loserDish,
-    rating: loserDish.rating + K_FACTOR * (0 - expectedLoser),
+    rating: loserDish.rating + kFactorFor(loserDish.comparisonCount) * (0 - expectedLoser),
     comparisonCount: loserDish.comparisonCount + 1,
   };
 

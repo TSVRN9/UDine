@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyComparison, rankDiningHalls, rankDishes } from "./ranking.ts";
+import { applyComparison, kFactorFor, rankDiningHalls, rankDishes } from "./ranking.ts";
 import { DINING_HALLS } from "./umassDining.ts";
 import type { RankedDish } from "./types.ts";
 
@@ -41,6 +41,36 @@ test("an upset (lower-rated dish beats a higher-rated one) gains more rating tha
   const gainOnExpectedWin = expectedWin.find((d) => d.dishName === "Favorite")!.rating - 1800;
   const gainOnUpset = upset.find((d) => d.dishName === "Underdog")!.rating - 1200;
   assert.ok(gainOnUpset > gainOnExpectedWin, `upset gain (${gainOnUpset}) should exceed expected-win gain (${gainOnExpectedWin})`);
+});
+
+test("kFactorFor is high near comparisonCount 0, comparable to the old fixed 32, and decreases monotonically", () => {
+  assert.equal(kFactorFor(0), 32);
+  let previous = kFactorFor(0);
+  for (const count of [1, 2, 5, 10, 20, 50, 100]) {
+    const k = kFactorFor(count);
+    assert.ok(k <= previous, `kFactorFor(${count})=${k} should not exceed the previous count's K`);
+    previous = k;
+  }
+});
+
+test("kFactorFor floors at MIN_K for high comparisonCount", () => {
+  assert.equal(kFactorFor(1_000_000), 8);
+});
+
+test("applyComparison swings a fresh dish's rating more than an established (high-comparisonCount) dish's, given the same win/loss outcome", () => {
+  const seeded: RankedDish[] = [
+    { dishName: "Fresh", hallTid: 1, rating: 1500, comparisonCount: 0 },
+    { dishName: "Established", hallTid: 1, rating: 1500, comparisonCount: 50 },
+    { dishName: "Opponent A", hallTid: 1, rating: 1500, comparisonCount: 0 },
+    { dishName: "Opponent B", hallTid: 1, rating: 1500, comparisonCount: 0 },
+  ];
+
+  const freshResult = applyComparison(seeded, { dishName: "Fresh", hallTid: 1 }, { dishName: "Opponent A", hallTid: 1 });
+  const establishedResult = applyComparison(seeded, { dishName: "Established", hallTid: 1 }, { dishName: "Opponent B", hallTid: 1 });
+
+  const freshGain = freshResult.find((d) => d.dishName === "Fresh")!.rating - 1500;
+  const establishedGain = establishedResult.find((d) => d.dishName === "Established")!.rating - 1500;
+  assert.ok(freshGain > establishedGain, `fresh gain (${freshGain}) should exceed established gain (${establishedGain})`);
 });
 
 test("rankDishes sorts highest rating first", () => {
