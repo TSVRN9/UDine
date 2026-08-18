@@ -1,9 +1,13 @@
 // Standalone verification for the US/Eastern date fix (issue #3) — no test runner is configured
 // for supabase/functions, so this is run directly with `deno test`.
 //
-// Run: deno test --node-modules-dir=none supabase/functions/check-favorited-foods/date.test.ts
+// Run: deno test --node-modules-dir=none --allow-env supabase/functions/check-favorited-foods/date.test.ts
 // (--node-modules-dir=none is required: without it, plain `deno test` in this repo detects the
-// pnpm-workspace.yaml and silently migrates it into a "workspaces" key in package.json.)
+// pnpm-workspace.yaml and silently migrates it into a "workspaces" key in package.json.
+// --allow-env is required as of issue #9: index.ts now imports npm:web-push at module top level,
+// and one of its transitive deps (http_ece) reads process.env.ECE_KEYLOG at import time — that's
+// enough to trip Deno's permission check even though this test never calls any push code. Not an
+// issue in the deployed Edge Function, which runs with full env/net access already.)
 //
 // index.ts calls Deno.serve(...) at module top-level (it's an Edge Function entrypoint), which
 // would try to bind a listener on import. Stub it out to a no-op before importing so this stays a
