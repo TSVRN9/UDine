@@ -40,3 +40,12 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Testing
+
+Copy `.env.example` to `.env` first (`svelte-check`, `dev`, and the e2e test all read `PUBLIC_*` vars via `$env/static/public` and throw if unset — placeholder values are fine, the e2e flow never contacts Supabase).
+
+- Type check: `pnpm check`
+- End-to-end (Playwright, covers the browse-menu -> log -> today vertical slice): `npx playwright install chromium` once, then `npx playwright test`. Add `--headed` to watch it run or `--debug` to step through it; `npx playwright show-report` opens the last HTML report. The dev server is started automatically (`playwright.config.ts`'s `webServer`).
+
+See `.github/workflows/ci.yml` for the full CI gate, including `@udine/shared` tests, `mobile`'s `npx tsc --noEmit`, and `supabase/functions`'s `deno test`.

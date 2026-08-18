@@ -9,6 +9,11 @@ build/
 .svelte-kit/
 .vercel/
 
+# Playwright
+/web/test-results/
+/web/playwright-report/
+/web/blob-report/
+
 # Firebase service-account keys (FCM V1) — full Firebase admin/messaging access, never commit
 *firebase-adminsdk*.json
 *-firebase-adminsdk-*.json
