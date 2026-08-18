@@ -1,3 +1,4 @@
+import { DINING_HALLS } from "./umassDining.ts";
 import type { RankedDish } from "./types.ts";
 
 const DEFAULT_RATING = 1500;
@@ -53,14 +54,19 @@ export function rankDishes(dishes: RankedDish[]): RankedDish[] {
 // results feel noisy in practice.
 const MIN_RATED_DISHES_PER_HALL = 2;
 
-export interface FavoriteDiningHall {
+export interface DiningHallRank {
   hallTid: number;
-  /** 1-based position, 1 = most favorite. Matches the `rank` column in the `favorite_dining_halls` table (supabase/migrations) — write this value directly, don't re-derive an index. */
+  /** 1-based position, 1 = highest average rating. Matches the `rank` column in the `favorite_dining_halls` table (supabase/migrations) — write this value directly, don't re-derive an index. */
   rank: number;
 }
 
-/** Dining halls with the highest average dish rating, highest first — the only ranking-derived signal allowed to sync to the server (see RankingStorage doc comment). */
-export function favoriteDiningHalls(dishes: RankedDish[], topN = 3): FavoriteDiningHall[] {
+/**
+ * The full ordering of all 4 dining halls by average dish rating (CONTEXT.md glossary: "Dining Hall
+ * Ranking"). Always accounts for all 4 halls — those with enough rated dishes come back ranked,
+ * highest average first; the rest come back unranked rather than omitted. Only `ranked` is coarse
+ * enough to sync to the server (see RankingStorage doc comment) — an unranked hall has no real signal.
+ */
+export function rankDiningHalls(dishes: RankedDish[]): { ranked: DiningHallRank[]; unranked: { hallTid: number }[] } {
   const byHall = new Map<number, number[]>();
   for (const dish of dishes) {
     const ratings = byHall.get(dish.hallTid) ?? [];
@@ -71,7 +77,11 @@ export function favoriteDiningHalls(dishes: RankedDish[], topN = 3): FavoriteDin
   const averages = [...byHall.entries()]
     .filter(([, ratings]) => ratings.length >= MIN_RATED_DISHES_PER_HALL)
     .map(([hallTid, ratings]) => ({ hallTid, average: ratings.reduce((a, b) => a + b, 0) / ratings.length }));
-
   averages.sort((a, b) => b.average - a.average);
-  return averages.slice(0, topN).map((a, i) => ({ hallTid: a.hallTid, rank: i + 1 }));
+
+  const ranked = averages.map((a, i) => ({ hallTid: a.hallTid, rank: i + 1 }));
+  const rankedIds = new Set(ranked.map((r) => r.hallTid));
+  const unranked = DINING_HALLS.filter((h) => !rankedIds.has(h.tid)).map((h) => ({ hallTid: h.tid }));
+
+  return { ranked, unranked };
 }

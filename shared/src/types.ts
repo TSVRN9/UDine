@@ -116,8 +116,9 @@ export interface RankedDish {
 /**
  * The ranking system — pairwise comparisons AND the computed rank order they produce — is
  * device-only, always, per CLAUDE.md's data residency table: a per-dish rank order is reconstructible
- * into "what/how much they ate," the same sensitivity as the raw log. Only `favoriteDiningHalls`
- * (ranking.ts), a coarse hall-level summary, may ever leave the device, and only if the user signs in.
+ * into "what/how much they ate," the same sensitivity as the raw log. Only the ranked portion of
+ * `rankDiningHalls`'s output (ranking.ts), a coarse hall-level summary, may ever leave the device, and
+ * only if the user signs in.
  */
 export interface RankingStorage {
   getRankedDishes(): Promise<RankedDish[]>;
