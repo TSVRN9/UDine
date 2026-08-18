@@ -7,6 +7,7 @@
 #   cd mobile && npx tsc --noEmit           # mobile typecheck (don't run `expo lint` here — a
 #                                            # bare first run bootstraps ESLint config as a side
 #                                            # effect, see CLAUDE.md)
+#   pnpm --filter mobile test               # mobile unit tests (jest-expo)
 #   deno test --node-modules-dir=none --allow-env supabase/functions
 #                                            # --node-modules-dir=none: without it, deno test
 #                                            # detects pnpm-workspace.yaml and rewrites
@@ -16,6 +17,14 @@
 #   cd web && npx playwright test           # e2e (needs `npx playwright install chromium` once).
 #                                            # Add --headed or --debug to watch/step through it;
 #                                            # `npx playwright show-report` opens the last HTML report.
+#   supabase start && supabase test db      # pgTAP RLS/schema tests (issue #27) — needs Docker and
+#                                            # the Supabase CLI (`npx supabase`). Runs against a
+#                                            # local, throwaway Postgres with all migrations
+#                                            # applied; never touches the live project. Follow with
+#                                            # `supabase stop --no-backup` to tear down. CI passes
+#                                            # `-x ...` to `start` to skip services the tests don't
+#                                            # need (see the job's own comment) — safe to skip
+#                                            # locally too, or leave it off to poke around in Studio.
 #
 # web check/dev/preview all read PUBLIC_* vars via $env/static/public, which throws if unset — see
 # web/.env.example and the "Create web/.env" step below; the e2e test never contacts Supabase, so
@@ -69,6 +78,19 @@ jobs:
       - run: npx tsc --noEmit
         working-directory: mobile
 
+  mobile-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter mobile test
+
   supabase-functions-test:
     runs-on: ubuntu-latest
     steps:
@@ -102,3 +124,24 @@ jobs:
           name: playwright-report
           path: web/playwright-report/
           retention-days: 14
+
+  supabase-rls-tests:
+    # pgTAP suite (issue #27), replacing the one-time manual RLS verification noted in CLAUDE.md.
+    # Runs against a local, Docker-based Postgres with all migrations applied — never the live
+    # project. `supabase start` normally boots ~13 containers (auth, storage, realtime, Studio,
+    # edge-runtime, analytics, ...) but `supabase test db` only ever talks to Postgres directly
+    # (auth.users rows are inserted by the tests themselves, not via the gotrue API) — `-x` excludes
+    # every service except the database itself, cutting this down to one container instead of ~13.
+    # Still the slowest job in this workflow (Docker image pull + Postgres init + migrations vs. a
+    # plain Node/Deno process for everything else), but no longer "~10 image pulls" slow.
+    # ubuntu-latest ships Docker preinstalled so no extra setup is needed for that part.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.115.0
+      - run: supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - run: supabase test db
+      - run: supabase stop --no-backup
+        if: always()
