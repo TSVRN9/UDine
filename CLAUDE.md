@@ -60,6 +60,19 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   end-to-end with real signed-up test users + simulated JWT claims (`set local request.jwt.claims`):
   trigger fires, `request_friendship` orders correctly, a third party can't read others' friendships,
   friends can ping each other, non-friends are rejected by RLS. All test rows cleaned up afterward.
+  That manual verification is now also automated — `supabase/tests/database/` (pgTAP, runs in CI
+  against a local stack, never the live project) covers the same ground repeatably. Building it
+  surfaced a real, previously-invisible risk: none of these tables had an explicit `GRANT` — they
+  only worked via Supabase's "legacy auto-expose" default, which grants base table privileges to
+  `authenticated`/`service_role` automatically but is being **removed entirely on 2026-10-30**
+  (confirmed via `supabase/config.toml`'s own `auto_expose_new_tables` comment). Without an explicit
+  grant, RLS never even gets evaluated — Postgres denies at the table-privilege level first. Fixed
+  via `20260818130000_grant_authenticated_table_access.sql`, scoped to exactly what each table's
+  existing RLS policies already allow (does not widen access, RLS still fully gates every row) —
+  applied to the live project 2026-08-18, confirmed via `information_schema.role_table_grants` that
+  the grants already existed there too (same legacy default, just not migration-tracked before now),
+  so this was a preemptive fix, not a live-breakage repair — but would have become one in October
+  without it.
 - **`check-favorited-foods` Edge Function: matching logic verified, push dispatch implemented and scheduled (see full status further down this bullet).**
   Fetches live `foodpro-menu-ajax` data for all 4 halls, matches against `favorited_foods` for users
   with `notifications_enabled`, upserts `food_sightings`. The dish-name-extraction regex was
