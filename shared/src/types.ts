@@ -101,6 +101,22 @@ export interface FaqCategory {
   items: FaqItem[];
 }
 
+export interface StaffMember {
+  name: string;
+  title: string;
+  department: string;
+  email?: string; // absent for a few entries (e.g. "Student Ambassadors"), verified live 2026-08-18
+  bio: string; // HTML
+  profileImage: string;
+}
+
+/** One newsletter issue — a link to externally-hosted content, not an in-app article (see fetchNewsletter). */
+export interface NewsletterIssue {
+  period: string; // e.g. "February 2020"
+  link: string; // external URL, mostly Mailchimp/campaign-archive
+  content: string; // HTML, usually empty — real content lives at `link`
+}
+
 /**
  * A dish the user has rated via pairwise comparison, plus the dining hall it was rated at (the same
  * dish name can be rated separately per hall — "chicken at Worcester" and "chicken at Berkshire" are

@@ -23,8 +23,8 @@ Also present: `ambassador.umassdining.com` (separate login-related host, purpose
 | umassdining.com | GET | `/uapp/get_new_faq` | none | **CONFIRMED**, exact suffix is just `get_new_faq` (no `Detail`). Shape: object keyed by category name (e.g. `"General"`) → array of `{title, content}`, `content` is an HTML string. |
 | umassdining.com | GET | `/uapp/get_about` | none | Not independently verified this pass; same host/auth pattern as the confirmed siblings, low risk. |
 | umassdining.com | GET | `/uapp/get_press` | none | **CONFIRMED**, exact path is just `/uapp/get_press` (no `Releases` suffix). Array of `{title, url, image, date}` — maps directly to the requested press-release feature. |
-| umassdining.com | GET | `/uapp/get_staff` | none | Not independently verified this pass. |
-| umassdining.com | GET | `/uapp/get_newsletter` | none | Not independently verified this pass. |
+| umassdining.com | GET | `/uapp/get_staff` | none | **CONFIRMED** (2026-08-18, `curl -L` through the www redirect). Array of `{name, bio (HTML), title, department, email, profile_image, order}` — `order` is a string and missing on ~5 of 31 real entries, so it's not usable as a reliable sort key; the array itself already comes back in display order. `email` is also occasionally absent (e.g. "Student Ambassadors"). |
+| umassdining.com | GET | `/uapp/get_newsletter` | none | **CONFIRMED** (2026-08-18, `curl -L` through the www redirect). Array of `{content (HTML, usually empty), period, link}` — a list of links to externally-hosted newsletter issues (mostly Mailchimp/campaign-archive), not in-app content. |
 | umassdining.com | GET | `/uapp/get_galleries` | none | Not independently verified this pass. |
 | umassdining.com | GET | `/uapp/get_videos` | none | Not independently verified this pass. |
 | umassdining.com | GET | `/uapp/get_online_ordering` | none | Not independently verified this pass. |
