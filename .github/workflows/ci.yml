@@ -7,6 +7,7 @@
 #   cd mobile && npx tsc --noEmit           # mobile typecheck (don't run `expo lint` here — a
 #                                            # bare first run bootstraps ESLint config as a side
 #                                            # effect, see CLAUDE.md)
+#   pnpm --filter mobile test               # mobile unit tests (jest-expo)
 #   deno test --node-modules-dir=none --allow-env supabase/functions
 #                                            # --node-modules-dir=none: without it, deno test
 #                                            # detects pnpm-workspace.yaml and rewrites
@@ -68,6 +69,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: npx tsc --noEmit
         working-directory: mobile
+
+  mobile-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter mobile test
 
   supabase-functions-test:
     runs-on: ubuntu-latest
