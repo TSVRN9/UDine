@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyComparison, kFactorFor, rankDiningHalls, rankDishes } from "./ranking.ts";
+import { applyComparison, applyFoodComparison, kFactorFor, rankDiningHalls, rankDishes, rankFoods } from "./ranking.ts";
 import { DINING_HALLS } from "./umassDining.ts";
-import type { RankedDish } from "./types.ts";
+import type { RankedDish, RankedFood } from "./types.ts";
 
 test("applyComparison creates both dishes at default rating 1500 on their first comparison, then updates them", () => {
   const result = applyComparison([], { dishName: "Black Beans", hallTid: 3 }, { dishName: "Fried Plantain", hallTid: 3 });
@@ -125,4 +125,43 @@ test("rankDiningHalls with no rated dishes returns all halls unranked", () => {
   const { ranked, unranked } = rankDiningHalls([]);
   assert.deepEqual(ranked, []);
   assert.equal(unranked.length, DINING_HALLS.length);
+});
+
+test("applyFoodComparison is a no-op when winner and loser share a dishName (same dish, different halls)", () => {
+  const before: RankedFood[] = [{ dishName: "Chicken", rating: 1500, comparisonCount: 3 }];
+  const after = applyFoodComparison(before, { dishName: "Chicken" }, { dishName: "Chicken" });
+  assert.deepEqual(after, before);
+
+  // also true for a food that hasn't been rated yet — no phantom entry should be created
+  const fromEmpty = applyFoodComparison([], { dishName: "Chicken" }, { dishName: "Chicken" });
+  assert.deepEqual(fromEmpty, []);
+});
+
+test("applyFoodComparison updates both foods on different dish names", () => {
+  const after = applyFoodComparison([], { dishName: "Black Beans" }, { dishName: "Fried Plantain" });
+  assert.equal(after.length, 2);
+  assert.ok(after.find((f) => f.dishName === "Black Beans")!.rating > 1500);
+  assert.ok(after.find((f) => f.dishName === "Fried Plantain")!.rating < 1500);
+});
+
+test("applyFoodComparison reuses kFactorFor from #1 — winner's rating delta at equal ratings equals kFactorFor(comparisonCount)/2", () => {
+  const seeded: RankedFood[] = [
+    { dishName: "A", rating: 1500, comparisonCount: 5 },
+    { dishName: "B", rating: 1500, comparisonCount: 5 },
+  ];
+  const after = applyFoodComparison(seeded, { dishName: "A" }, { dishName: "B" });
+  // equal starting ratings -> expected score 0.5 -> new rating is exactly half the K-factor above 1500
+  assert.equal(after.find((f) => f.dishName === "A")!.rating, 1500 + kFactorFor(5) * 0.5);
+});
+
+test("rankFoods sorts highest rating first", () => {
+  const foods: RankedFood[] = [
+    { dishName: "Low", rating: 1400, comparisonCount: 1 },
+    { dishName: "High", rating: 1600, comparisonCount: 1 },
+    { dishName: "Mid", rating: 1500, comparisonCount: 1 },
+  ];
+  assert.deepEqual(
+    rankFoods(foods).map((f) => f.dishName),
+    ["High", "Mid", "Low"],
+  );
 });
