@@ -8,6 +8,16 @@
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
 sw.addEventListener("push", (event) => {
-	const text = event.data?.text() ?? "You have a new UDine notification";
-	event.waitUntil(sw.registration.showNotification("UDine", { body: text }));
+	// Server sends JSON.stringify({ title, body }) (see supabase/functions/check-favorited-foods) —
+	// parse that shape, but fall back to plain text so a non-JSON payload doesn't just get dropped.
+	let title = "UDine";
+	let body = "You have a new UDine notification";
+	try {
+		const payload = event.data?.json() as { title?: string; body?: string } | undefined;
+		if (payload?.title) title = payload.title;
+		if (payload?.body) body = payload.body;
+	} catch {
+		body = event.data?.text() ?? body;
+	}
+	event.waitUntil(sw.registration.showNotification(title, { body }));
 });
