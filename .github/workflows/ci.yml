@@ -16,6 +16,11 @@
 #   cd web && npx playwright test           # e2e (needs `npx playwright install chromium` once).
 #                                            # Add --headed or --debug to watch/step through it;
 #                                            # `npx playwright show-report` opens the last HTML report.
+#   supabase start && supabase test db      # pgTAP RLS/schema tests (issue #27) — needs Docker and
+#                                            # the Supabase CLI (`npx supabase`). Runs against a
+#                                            # local, throwaway Postgres with all migrations
+#                                            # applied; never touches the live project. Follow with
+#                                            # `supabase stop --no-backup` to tear down.
 #
 # web check/dev/preview all read PUBLIC_* vars via $env/static/public, which throws if unset — see
 # web/.env.example and the "Create web/.env" step below; the e2e test never contacts Supabase, so
@@ -102,3 +107,22 @@ jobs:
           name: playwright-report
           path: web/playwright-report/
           retention-days: 14
+
+  supabase-rls-tests:
+    # pgTAP suite (issue #27), replacing the one-time manual RLS verification noted in CLAUDE.md.
+    # Runs against a local, Docker-based Supabase stack with all migrations applied — never the
+    # live project. This job is meaningfully slower than the others (Docker pulls ~10 Supabase
+    # service images on a cold cache, then Postgres init + migrations) — expect it to be the long
+    # pole in this workflow, roughly 1-3 minutes depending on runner image cache state, versus
+    # well under a minute for the Node/Deno-only jobs above. ubuntu-latest ships Docker preinstalled
+    # so no extra setup is needed for that part.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.115.0
+      - run: supabase start
+      - run: supabase test db
+      - run: supabase stop --no-backup
+        if: always()
