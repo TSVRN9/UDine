@@ -1,10 +1,34 @@
 import { DINING_HALLS, syncFavoritedFoods, type Favorite } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
+import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { supabase } from "../lib/supabase";
+
+const PLATFORM = "expo" as const;
+
+/** Requests permission and returns an Expo push token, or null if denied/unavailable (e.g. no FCM creds yet). */
+async function registerForPushToken(): Promise<string | null> {
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  let status = existing;
+  if (status !== "granted") {
+    ({ status } = await Notifications.requestPermissionsAsync());
+  }
+  if (status !== "granted") return null;
+
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+  try {
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    return data;
+  } catch (e) {
+    // FCM credentials may not be uploaded to EAS yet — don't block the in-app feature on it.
+    console.warn("[push] getExpoPushTokenAsync failed (FCM V1 creds may not be uploaded to EAS)", e);
+    return null;
+  }
+}
 
 type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date: string; read_at: string | null; created_at: string };
 
@@ -51,6 +75,17 @@ export default function NotificationsScreen() {
     // signed in AND notifications_enabled.
     const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
     await syncFavoritedFoods(supabase, session.user.id, favorites);
+
+    if (next) {
+      // Best-effort: permission may be denied, or getExpoPushTokenAsync may fail if FCM creds
+      // aren't uploaded to EAS yet. Either way, in-app notifications_enabled above still stands.
+      const token = await registerForPushToken();
+      if (token) {
+        await supabase.from("push_tokens").upsert({ user_id: session.user.id, platform: PLATFORM, token });
+      }
+    } else {
+      await supabase.from("push_tokens").delete().eq("user_id", session.user.id).eq("platform", PLATFORM);
+    }
   }
 
   async function markRead(sighting: Sighting) {
@@ -74,7 +109,7 @@ export default function NotificationsScreen() {
         <Text style={styles.toggleLabel}>Notify me when a favorited dish shows up on the menu</Text>
         <Switch value={notificationsEnabled} onValueChange={toggleNotifications} />
       </View>
-      <Text style={styles.hint}>Push delivery isn't wired up yet — this is the notification feed for now. See CLAUDE.md.</Text>
+      <Text style={styles.hint}>Push delivery isn&apos;t wired up yet — this is the notification feed for now. See CLAUDE.md.</Text>
 
       <Text style={styles.sectionTitle}>Sightings</Text>
       {sightings.length === 0 ? (
