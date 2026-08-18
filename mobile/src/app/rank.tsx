@@ -1,6 +1,6 @@
 import { applyComparison, DINING_HALLS, favoriteDiningHalls, rankDishes, syncFavoriteHalls, type LogEntry, type RankedDish } from "@udine/shared";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
@@ -19,20 +19,46 @@ function dishKey(d: Dish): string {
   return `${d.dishName}::${d.hallTid}`;
 }
 
-function pickPair(loggedDishes: Dish[]): [Dish, Dish] | null {
-  if (loggedDishes.length < 2) return null;
-  const a = loggedDishes[Math.floor(Math.random() * loggedDishes.length)];
-  let b = a;
-  while (dishKey(b) === dishKey(a)) {
-    b = loggedDishes[Math.floor(Math.random() * loggedDishes.length)];
+function comparisonCountFor(d: Dish, rankedDishes: RankedDish[]): number {
+  return rankedDishes.find((r) => dishKey(r) === dishKey(d))?.comparisonCount ?? 0;
+}
+
+// Sample a couple of candidates and keep the least-compared one, instead of pure uniform
+// random, so under-compared dishes surface more often.
+function pickLeastCompared(pool: Dish[], rankedDishes: RankedDish[]): Dish {
+  let best = pool[Math.floor(Math.random() * pool.length)];
+  for (let i = 0; i < 2; i++) {
+    const candidate = pool[Math.floor(Math.random() * pool.length)];
+    if (comparisonCountFor(candidate, rankedDishes) < comparisonCountFor(best, rankedDishes)) best = candidate;
   }
-  return [a, b];
+  return best;
+}
+
+function samePair(p: [Dish, Dish], other: [Dish, Dish]): boolean {
+  const [a, b] = [dishKey(p[0]), dishKey(p[1])];
+  const [x, y] = [dishKey(other[0]), dishKey(other[1])];
+  return (a === x && b === y) || (a === y && b === x);
+}
+
+function pickPair(loggedDishes: Dish[], rankedDishes: RankedDish[], exclude: [Dish, Dish] | null): [Dish, Dish] | null {
+  if (loggedDishes.length < 2) return null;
+  let candidate: [Dish, Dish];
+  do {
+    const a = pickLeastCompared(loggedDishes, rankedDishes);
+    let b = a;
+    while (dishKey(b) === dishKey(a)) {
+      b = pickLeastCompared(loggedDishes, rankedDishes);
+    }
+    candidate = [a, b];
+  } while (loggedDishes.length > 2 && exclude && samePair(candidate, exclude));
+  return candidate;
 }
 
 export default function RankScreen() {
   const [loggedDishes, setLoggedDishes] = useState<Dish[]>([]);
   const [rankedDishes, setRankedDishes] = useState<RankedDish[]>([]);
   const [pair, setPair] = useState<[Dish, Dish] | null>(null);
+  const lastPairRef = useRef<[Dish, Dish] | null>(null);
 
   const refresh = useCallback(() => {
     (async () => {
@@ -50,7 +76,9 @@ export default function RankScreen() {
       const ranked = await rankingStorage.getRankedDishes();
       setLoggedDishes(dishes);
       setRankedDishes(ranked);
-      setPair(pickPair(dishes));
+      const next = pickPair(dishes, ranked, lastPairRef.current);
+      lastPairRef.current = next;
+      setPair(next);
     })();
   }, []);
 
@@ -68,11 +96,15 @@ export default function RankScreen() {
       await syncFavoriteHalls(supabase, session.user.id, updated);
     }
 
-    setPair(pickPair(loggedDishes));
+    const next = pickPair(loggedDishes, updated, lastPairRef.current);
+    lastPairRef.current = next;
+    setPair(next);
   }
 
   function skip() {
-    setPair(pickPair(loggedDishes));
+    const next = pickPair(loggedDishes, rankedDishes, lastPairRef.current);
+    lastPairRef.current = next;
+    setPair(next);
   }
 
   const favorites = favoriteDiningHalls(rankedDishes);
