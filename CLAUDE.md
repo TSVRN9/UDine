@@ -70,12 +70,22 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   plain queries instead. Re-invoked after the fix: runs cleanly (`checkedHalls: 4`), correct empty-state
   output. **The actual positive-match path (a real favorite → a real `food_sightings` row) is
   unverified** — blocked by Supabase's free-tier email-send rate limit preventing a second test-user
-  signup, and there's no service-role/Admin API access available to route around it. Push dispatch
-  itself is explicitly stubbed — `pushConfigured` correctly reports `false`. **This needs from the
-  user**: a VAPID keypair (Web Push, for `/web`) and Firebase/FCM project config (for Expo push on
-  `/mobile`), set as Edge Function secrets (`VAPID_PRIVATE_KEY`, `EXPO_ACCESS_TOKEN` or equivalent) —
-  same category of dashboard/console setup as the OAuth credentials and redirect URLs. Nothing should
-  attempt real push dispatch until these exist.
+  signup, and there's no service-role/Admin API access available to route around it. **Push
+  credentials: DONE (2026-08-18).** VAPID keypair (Web Push, `/web`) and an Expo access token +
+  Firebase/FCM project (Android push, `/mobile`) are configured — Supabase Edge Function secrets
+  `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `EXPO_ACCESS_TOKEN` all set; `mobile/`
+  has an EAS project link (`eas.json`, `app.json`'s `extra.eas.projectId`), `google-services.json`,
+  and the Android package renamed to `com.udinetogether.udine` (Firebase Android app registration
+  needs a real, lowercase package name). **Unconfirmed**: whether the FCM V1 service-account key
+  was actually uploaded to EAS via `eas credentials` — that step needs a real TTY (couldn't be
+  driven non-interactively) and its completion was never independently verified; run
+  `npx eas-cli credentials` from `mobile/` and check Push Notifications shows a configured service
+  account before treating Android push delivery as reliable. Web Push subscription registration
+  (`/web`) and Expo push-token registration (`/mobile`) are both implemented, writing to
+  `push_tokens`. Push *dispatch* — actually sending a notification per new `food_sightings` row —
+  see `docs/agents/` issue tracker, tickets #9 (dispatch implementation) and #10 (pg_cron scheduling,
+  deliberately deferred until #9 lands — see `docs/adr/0002-defer-check-favorited-foods-cron.md`)
+  for current status; update this paragraph once #9 merges rather than trusting it silently.
 
 ## Data sources
 
