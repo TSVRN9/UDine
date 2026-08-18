@@ -157,3 +157,17 @@ menu-fetch + macro-math + local-storage layer right first; everything else is UI
 - Porting UMass Dining's own account system (`umassapi2`) — we have our own via Supabase.
 - SMS-based verification — Google OAuth replaces it.
 - Digital signage integration (`portal.touchwork.com`) — irrelevant outside dining hall TVs.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
