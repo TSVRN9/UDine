@@ -1,4 +1,15 @@
-import { applyComparison, DINING_HALLS, rankDiningHalls, rankDishes, syncDiningHallRanks, type LogEntry, type RankedDish } from "@udine/shared";
+import {
+  applyComparison,
+  applyFoodComparison,
+  DINING_HALLS,
+  rankDiningHalls,
+  rankDishes,
+  rankFoods,
+  syncDiningHallRanks,
+  type LogEntry,
+  type RankedDish,
+  type RankedFood,
+} from "@udine/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -57,6 +68,7 @@ function pickPair(loggedDishes: Dish[], rankedDishes: RankedDish[], exclude: [Di
 export default function RankScreen() {
   const [loggedDishes, setLoggedDishes] = useState<Dish[]>([]);
   const [rankedDishes, setRankedDishes] = useState<RankedDish[]>([]);
+  const [rankedFoods, setRankedFoods] = useState<RankedFood[]>([]);
   const [pair, setPair] = useState<[Dish, Dish] | null>(null);
   const lastPairRef = useRef<[Dish, Dish] | null>(null);
 
@@ -74,8 +86,10 @@ export default function RankScreen() {
         dishes.push(dish);
       }
       const ranked = await rankingStorage.getRankedDishes();
+      const rankedFoodsResult = await rankingStorage.getRankedFoods();
       setLoggedDishes(dishes);
       setRankedDishes(ranked);
+      setRankedFoods(rankedFoodsResult);
       const next = pickPair(dishes, ranked, lastPairRef.current);
       lastPairRef.current = next;
       setPair(next);
@@ -86,8 +100,11 @@ export default function RankScreen() {
 
   async function choose(winner: Dish, loser: Dish) {
     const updated = applyComparison(rankedDishes, winner, loser);
+    const updatedFoods = applyFoodComparison(rankedFoods, winner, loser);
     setRankedDishes(updated);
+    setRankedFoods(updatedFoods);
     await rankingStorage.saveRankedDishes(updated);
+    await rankingStorage.saveRankedFoods(updatedFoods);
 
     const {
       data: { session },
@@ -143,6 +160,18 @@ export default function RankScreen() {
         rankDishes(rankedDishes).map((dish, i) => (
           <Text key={dishKey(dish)} style={styles.rankRow}>
             {i + 1}. {dish.dishName} ({hallName(dish.hallTid)}) — {Math.round(dish.rating)}
+          </Text>
+        ))
+      )}
+
+      <Text style={styles.heading}>Favorite Foods</Text>
+      <Text style={styles.hint}>Your favorite dishes by name, regardless of which hall serves them.</Text>
+      {rankedFoods.length === 0 ? (
+        <Text>No comparisons yet.</Text>
+      ) : (
+        rankFoods(rankedFoods).map((food, i) => (
+          <Text key={food.dishName} style={styles.rankRow}>
+            {i + 1}. {food.dishName} — {Math.round(food.rating)}
           </Text>
         ))
       )}

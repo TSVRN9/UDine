@@ -1,5 +1,5 @@
 import { DINING_HALLS } from "./umassDining.ts";
-import type { RankedDish } from "./types.ts";
+import type { RankedDish, RankedFood } from "./types.ts";
 
 const DEFAULT_RATING = 1500;
 
@@ -60,6 +60,46 @@ export function applyComparison(dishes: RankedDish[], winner: { dishName: string
 /** Highest-rated dishes first. */
 export function rankDishes(dishes: RankedDish[]): RankedDish[] {
   return [...dishes].sort((a, b) => b.rating - a.rating);
+}
+
+function findOrCreateFood(foods: RankedFood[], dishName: string): RankedFood {
+  return foods.find((f) => f.dishName === dishName) ?? { dishName, rating: DEFAULT_RATING, comparisonCount: 0 };
+}
+
+/**
+ * The cross-hall "Favorite Food" Elo track — see docs/adr/0001-two-elo-tracks-for-dish-ranking.md and
+ * RankedFood's doc comment. Same Elo math and kFactorFor taper as applyComparison, except when winner
+ * and loser share a dishName (i.e. the underlying comparison was the same dish at two different halls):
+ * there's nothing meaningful to compare when both sides of this track's key are identical, so it's
+ * returned unchanged — the per-hall applyComparison call still updates RankedDish regardless.
+ */
+export function applyFoodComparison(foods: RankedFood[], winner: { dishName: string }, loser: { dishName: string }): RankedFood[] {
+  if (winner.dishName === loser.dishName) return foods;
+
+  const winnerFood = findOrCreateFood(foods, winner.dishName);
+  const loserFood = findOrCreateFood(foods, loser.dishName);
+
+  const expectedWinner = 1 / (1 + 10 ** ((loserFood.rating - winnerFood.rating) / 400));
+  const expectedLoser = 1 - expectedWinner;
+
+  const updatedWinner: RankedFood = {
+    ...winnerFood,
+    rating: winnerFood.rating + kFactorFor(winnerFood.comparisonCount) * (1 - expectedWinner),
+    comparisonCount: winnerFood.comparisonCount + 1,
+  };
+  const updatedLoser: RankedFood = {
+    ...loserFood,
+    rating: loserFood.rating + kFactorFor(loserFood.comparisonCount) * (0 - expectedLoser),
+    comparisonCount: loserFood.comparisonCount + 1,
+  };
+
+  const rest = foods.filter((f) => f.dishName !== winner.dishName && f.dishName !== loser.dishName);
+  return [...rest, updatedWinner, updatedLoser];
+}
+
+/** Highest-rated foods first. */
+export function rankFoods(foods: RankedFood[]): RankedFood[] {
+  return [...foods].sort((a, b) => b.rating - a.rating);
 }
 
 // ponytail: plain average rating per hall, no confidence weighting for halls with only 1-2 rated
