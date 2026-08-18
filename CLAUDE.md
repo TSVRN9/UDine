@@ -60,7 +60,7 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   end-to-end with real signed-up test users + simulated JWT claims (`set local request.jwt.claims`):
   trigger fires, `request_friendship` orders correctly, a third party can't read others' friendships,
   friends can ping each other, non-friends are rejected by RLS. All test rows cleaned up afterward.
-- **`check-favorited-foods` Edge Function: matching logic verified, push delivery NOT implemented.**
+- **`check-favorited-foods` Edge Function: matching logic verified, push dispatch implemented and scheduled (see full status further down this bullet).**
   Fetches live `foodpro-menu-ajax` data for all 4 halls, matches against `favorited_foods` for users
   with `notifications_enabled`, upserts `food_sightings`. The dish-name-extraction regex was
   independently verified against live data (93 real dishes at Hampshire, including known items).
