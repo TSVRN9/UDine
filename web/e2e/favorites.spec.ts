@@ -18,7 +18,11 @@ const HAMPSHIRE_TID = 3;
 const MENU_ITEMS = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", HAMPSHIRE_TID, "2026-08-18");
 
 test("favoriting a dish from the menu shows it on /favorites, un-favoriting removes it", async ({ page }) => {
-	await page.route("**/api/menu**", (route) => route.fulfill({ json: MENU_ITEMS }));
+	let menuRequests = 0;
+	await page.route("**/api/menu**", (route) => {
+		menuRequests++;
+		return route.fulfill({ json: MENU_ITEMS });
+	});
 
 	await page.goto("/");
 
@@ -32,6 +36,13 @@ test("favoriting a dish from the menu shows it on /favorites, un-favoriting remo
 	}).toPass({ timeout: 10_000 });
 
 	await hampshireRow.getByRole("link", { name: "Hampshire" }).click();
+
+	// If the mock never fired (e.g. a pre-hydration click fell through to a full navigation), the
+	// page would instead hit real umassdining.com — fail loudly with that cause rather than letting
+	// "French Toast" (a real Hampshire dish) resolve against live data and pass by accident.
+	await expect
+		.poll(() => menuRequests, { message: "menu mock never fired — this would have hit real umassdining.com" })
+		.toBeGreaterThan(0);
 
 	const dishRow = page.getByRole("listitem").filter({ hasText: "French Toast" });
 	const dishStar = dishRow.getByRole("button", { name: "favorite" });
