@@ -95,7 +95,18 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   follow-up invocation returned `200 {"checkedHalls":4,...,"pushConfigured":true,"pushSent":0,...}`
   cleanly. **Still unverified**: an actual push landing on a real device/browser — no registered
   token exists yet to send to, and Android delivery additionally depends on the still-unconfirmed
-  FCM V1 upload noted above. `pg_cron` scheduling (ticket #10) remains deferred per ADR 0002.
+  FCM V1 upload noted above. **`pg_cron` scheduling: DONE (2026-08-18).** ADR 0002's deferral
+  condition (push dispatch verified working) was met, so the job was wired up and applied to the
+  live project — `pg_cron`/`pg_net` extensions enabled, `cron.job` shows
+  `check-favorited-foods-hourly` active on schedule `0 11-23,0-1 * * *` (hourly, ~7am–9pm Eastern,
+  hand-converted to UTC — does not auto-adjust for DST, see the migration's own comment for the
+  twice-a-year fix). Auth uses the anon/publishable key from Supabase Vault (`check_favorited_foods_
+  auth_token`), not the service-role key — least-privilege, since the function ignores the incoming
+  request and does its own DB access with its own service-role secret. Verified end-to-end, not
+  just applied: manually triggered the same `net.http_post` call the cron job runs and confirmed
+  via `net._http_response` that it actually got back a live `200` with the function's normal JSON
+  body, not just that `net.http_post` returned a request id (which it does unconditionally,
+  regardless of the HTTP outcome — see the migration's own comment on this pitfall).
 
 ## Data sources
 
