@@ -86,6 +86,8 @@ export default function HallListScreen() {
         <NavButton href="/favorites" label="Favorites" />
         <NavButton href="/filters" label="Dietary filters" />
         <NavButton href="/rank" label="Rank dishes" />
+        <NavButton href="/friends" label="Friends" />
+        <NavButton href="/notifications" label="Notifications" />
         <NavButton href="/events" label="Events" />
         <NavButton href="/press" label="Press" />
         <NavButton href="/faq" label="FAQ" />
