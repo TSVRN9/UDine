@@ -13,6 +13,7 @@
 	let loggedDishes: Dish[] = $state([]);
 	let rankedDishes: RankedDish[] = $state([]);
 	let pair: [Dish, Dish] | null = $state(null);
+	let lastPair: [Dish, Dish] | null = null;
 
 	function hallName(hallTid: number): string {
 		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
@@ -22,14 +23,40 @@
 		return `${d.dishName}::${d.hallTid}`;
 	}
 
+	function comparisonCountFor(d: Dish): number {
+		return rankedDishes.find((r) => dishKey(r) === dishKey(d))?.comparisonCount ?? 0;
+	}
+
+	// Sample a couple of candidates and keep the least-compared one, instead of pure uniform
+	// random, so under-compared dishes surface more often.
+	function pickLeastCompared(pool: Dish[]): Dish {
+		let best = pool[Math.floor(Math.random() * pool.length)];
+		for (let i = 0; i < 2; i++) {
+			const candidate = pool[Math.floor(Math.random() * pool.length)];
+			if (comparisonCountFor(candidate) < comparisonCountFor(best)) best = candidate;
+		}
+		return best;
+	}
+
+	function samePair(p: [Dish, Dish], other: [Dish, Dish]): boolean {
+		const [a, b] = [dishKey(p[0]), dishKey(p[1])];
+		const [x, y] = [dishKey(other[0]), dishKey(other[1])];
+		return (a === x && b === y) || (a === y && b === x);
+	}
+
 	function pickPair(): [Dish, Dish] | null {
 		if (loggedDishes.length < 2) return null;
-		const a = loggedDishes[Math.floor(Math.random() * loggedDishes.length)];
-		let b = a;
-		while (dishKey(b) === dishKey(a)) {
-			b = loggedDishes[Math.floor(Math.random() * loggedDishes.length)];
-		}
-		return [a, b];
+		let candidate: [Dish, Dish];
+		do {
+			const a = pickLeastCompared(loggedDishes);
+			let b = a;
+			while (dishKey(b) === dishKey(a)) {
+				b = pickLeastCompared(loggedDishes);
+			}
+			candidate = [a, b];
+		} while (loggedDishes.length > 2 && lastPair && samePair(candidate, lastPair));
+		lastPair = candidate;
+		return candidate;
 	}
 
 	async function refresh() {
