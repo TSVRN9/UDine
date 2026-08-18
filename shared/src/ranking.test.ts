@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyComparison, favoriteDiningHalls, rankDishes } from "./ranking.ts";
+import { applyComparison, rankDiningHalls, rankDishes } from "./ranking.ts";
+import { DINING_HALLS } from "./umassDining.ts";
 import type { RankedDish } from "./types.ts";
 
 test("applyComparison creates both dishes at default rating 1500 on their first comparison, then updates them", () => {
@@ -54,32 +55,44 @@ test("rankDishes sorts highest rating first", () => {
   );
 });
 
-test("favoriteDiningHalls ranks halls by average dish rating, highest first, with 1-based rank", () => {
+test("rankDiningHalls ranks halls by average dish rating, highest first, with 1-based rank", () => {
   const dishes: RankedDish[] = [
     { dishName: "A1", hallTid: 1, rating: 1400, comparisonCount: 1 },
     { dishName: "A2", hallTid: 1, rating: 1400, comparisonCount: 1 },
     { dishName: "B1", hallTid: 2, rating: 1700, comparisonCount: 1 },
     { dishName: "B2", hallTid: 2, rating: 1700, comparisonCount: 1 },
   ];
-  assert.deepEqual(favoriteDiningHalls(dishes), [
+  assert.deepEqual(rankDiningHalls(dishes).ranked, [
     { hallTid: 2, rank: 1 },
     { hallTid: 1, rank: 2 },
   ]);
 });
 
-test("favoriteDiningHalls excludes halls below the minimum rated-dish threshold", () => {
+test("rankDiningHalls moves halls below the minimum rated-dish threshold to unranked, not omitted", () => {
   const dishes: RankedDish[] = [
-    { dishName: "OneHit", hallTid: 9, rating: 2000, comparisonCount: 1 }, // only 1 rated dish at hall 9
+    { dishName: "OneHit", hallTid: 3, rating: 2000, comparisonCount: 1 }, // only 1 rated dish at hall 3
     { dishName: "B1", hallTid: 2, rating: 1500, comparisonCount: 1 },
     { dishName: "B2", hallTid: 2, rating: 1500, comparisonCount: 1 },
   ];
-  assert.deepEqual(favoriteDiningHalls(dishes), [{ hallTid: 2, rank: 1 }]);
+  const { ranked, unranked } = rankDiningHalls(dishes);
+  assert.deepEqual(ranked, [{ hallTid: 2, rank: 1 }]);
+  assert.deepEqual(
+    unranked.map((u) => u.hallTid).sort(),
+    [1, 3, 4],
+  );
 });
 
-test("favoriteDiningHalls respects topN", () => {
-  const dishes: RankedDish[] = [1, 2, 3].flatMap((hallTid) => [
+test("rankDiningHalls always accounts for all 4 halls, ranked and unranked combined", () => {
+  const dishes: RankedDish[] = [1, 2].flatMap((hallTid) => [
     { dishName: `${hallTid}a`, hallTid, rating: 1500 + hallTid, comparisonCount: 1 },
     { dishName: `${hallTid}b`, hallTid, rating: 1500 + hallTid, comparisonCount: 1 },
   ]);
-  assert.equal(favoriteDiningHalls(dishes, 2).length, 2);
+  const { ranked, unranked } = rankDiningHalls(dishes);
+  assert.equal(ranked.length + unranked.length, DINING_HALLS.length);
+});
+
+test("rankDiningHalls with no rated dishes returns all halls unranked", () => {
+  const { ranked, unranked } = rankDiningHalls([]);
+  assert.deepEqual(ranked, []);
+  assert.equal(unranked.length, DINING_HALLS.length);
 });

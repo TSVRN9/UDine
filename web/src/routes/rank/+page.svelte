@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
-	import { applyComparison, DINING_HALLS, favoriteDiningHalls, rankDishes, syncFavoriteHalls, type LogEntry, type RankedDish } from "@udine/shared";
+	import { applyComparison, DINING_HALLS, rankDiningHalls, rankDishes, syncDiningHallRanks, type LogEntry, type RankedDish } from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
 
@@ -13,6 +13,7 @@
 	let loggedDishes: Dish[] = $state([]);
 	let rankedDishes: RankedDish[] = $state([]);
 	let pair: [Dish, Dish] | null = $state(null);
+	let hallRanking = $derived(rankDiningHalls(rankedDishes));
 
 	function hallName(hallTid: number): string {
 		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
@@ -59,7 +60,9 @@
 
 		const session = page.data.session;
 		if (session && page.data.supabase) {
-			await syncFavoriteHalls(page.data.supabase, session.user.id, snapshot);
+			// Fire-and-forget: don't block advancing to the next pair on the network round-trip.
+			// syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
+			void syncDiningHallRanks(page.data.supabase, session.user.id, snapshot);
 		}
 
 		pair = pickPair();
@@ -98,13 +101,16 @@
 	</ol>
 {/if}
 
-<h2>Favorite dining halls {page.data.session ? "(synced)" : "(local only — sign in to sync)"}</h2>
-{#if favoriteDiningHalls(rankedDishes).length === 0}
-	<p>Not enough ranked dishes per hall yet.</p>
-{:else}
-	<ol>
-		{#each favoriteDiningHalls(rankedDishes) as fav (fav.hallTid)}
-			<li>{hallName(fav.hallTid)}</li>
+<h2>Dining hall ranking {page.data.session ? "(synced)" : "(local only — sign in to sync)"}</h2>
+<ol>
+	{#each hallRanking.ranked as hall (hall.hallTid)}
+		<li>{hallName(hall.hallTid)}</li>
+	{/each}
+</ol>
+{#if hallRanking.unranked.length > 0}
+	<ul>
+		{#each hallRanking.unranked as hall (hall.hallTid)}
+			<li>{hallName(hall.hallTid)} <small>(not enough data yet)</small></li>
 		{/each}
-	</ol>
+	</ul>
 {/if}

@@ -1,4 +1,4 @@
-import { applyComparison, DINING_HALLS, favoriteDiningHalls, rankDishes, syncFavoriteHalls, type LogEntry, type RankedDish } from "@udine/shared";
+import { applyComparison, DINING_HALLS, rankDiningHalls, rankDishes, syncDiningHallRanks, type LogEntry, type RankedDish } from "@udine/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -65,7 +65,9 @@ export default function RankScreen() {
       data: { session },
     } = await supabase.auth.getSession();
     if (session) {
-      await syncFavoriteHalls(supabase, session.user.id, updated);
+      // Fire-and-forget: don't block advancing to the next pair on the network round-trip.
+      // syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
+      void syncDiningHallRanks(supabase, session.user.id, updated);
     }
 
     setPair(pickPair(loggedDishes));
@@ -75,7 +77,7 @@ export default function RankScreen() {
     setPair(pickPair(loggedDishes));
   }
 
-  const favorites = favoriteDiningHalls(rankedDishes);
+  const hallRanking = rankDiningHalls(rankedDishes);
 
   return (
     <View style={styles.container}>
@@ -113,16 +115,17 @@ export default function RankScreen() {
         ))
       )}
 
-      <Text style={styles.heading}>Favorite dining halls</Text>
-      {favorites.length === 0 ? (
-        <Text>Not enough ranked dishes per hall yet.</Text>
-      ) : (
-        favorites.map((fav) => (
-          <Text key={fav.hallTid} style={styles.rankRow}>
-            {fav.rank}. {hallName(fav.hallTid)}
-          </Text>
-        ))
-      )}
+      <Text style={styles.heading}>Dining hall ranking</Text>
+      {hallRanking.ranked.map((hall) => (
+        <Text key={hall.hallTid} style={styles.rankRow}>
+          {hall.rank}. {hallName(hall.hallTid)}
+        </Text>
+      ))}
+      {hallRanking.unranked.map((hall) => (
+        <Text key={hall.hallTid} style={styles.rankRow}>
+          {hallName(hall.hallTid)} — not enough data yet
+        </Text>
+      ))}
     </View>
   );
 }
