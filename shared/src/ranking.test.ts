@@ -1,8 +1,41 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyComparison, applyFoodComparison, kFactorFor, rankDiningHalls, rankDishes, rankFoods } from "./ranking.ts";
+import {
+  applyComparison,
+  applyFoodComparison,
+  distinctLoggedDishes,
+  kFactorFor,
+  pickPostLogComparisonPair,
+  rankDiningHalls,
+  rankDishes,
+  rankFoods,
+} from "./ranking.ts";
 import { DINING_HALLS } from "./umassDining.ts";
-import type { RankedDish, RankedFood } from "./types.ts";
+import type { LogEntry, RankedDish, RankedFood } from "./types.ts";
+
+function entry(overrides: Partial<LogEntry>): LogEntry {
+  return {
+    id: "1",
+    loggedAt: "2026-08-17T12:00:00.000Z",
+    source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 },
+    servings: 1,
+    nutrition: {
+      servingSize: "1 serving",
+      calories: 100,
+      caloriesFromFat: 10,
+      totalFatG: 5,
+      satFatG: 1,
+      transFatG: 0,
+      cholesterolMg: 0,
+      sodiumMg: 0,
+      totalCarbG: 10,
+      dietaryFiberG: 1,
+      sugarsG: 1,
+      proteinG: 20,
+    },
+    ...overrides,
+  };
+}
 
 test("applyComparison creates both dishes at default rating 1500 on their first comparison, then updates them", () => {
   const result = applyComparison([], { dishName: "Black Beans", hallTid: 3 }, { dishName: "Fried Plantain", hallTid: 3 });
@@ -164,4 +197,98 @@ test("rankFoods sorts highest rating first", () => {
     rankFoods(foods).map((f) => f.dishName),
     ["High", "Mid", "Low"],
   );
+});
+
+// --- #67: post-log comparison prompt pair-selection --------------------------------------------
+
+test("distinctLoggedDishes de-duplicates repeated logs of the same dish+hall, preserving first-seen order", () => {
+  const entries = [
+    entry({ id: "1", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }),
+    entry({ id: "2", source: { type: "umass-menu", dishName: "Beans", hallTid: 1 } }),
+    entry({ id: "3", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }), // repeat
+  ];
+  assert.deepEqual(distinctLoggedDishes(entries), [
+    { dishName: "Chicken", hallTid: 1 },
+    { dishName: "Beans", hallTid: 1 },
+  ]);
+});
+
+test("distinctLoggedDishes treats the same dish name at different halls as distinct entries", () => {
+  const entries = [
+    entry({ id: "1", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }),
+    entry({ id: "2", source: { type: "umass-menu", dishName: "Chicken", hallTid: 2 } }),
+  ];
+  assert.deepEqual(distinctLoggedDishes(entries), [
+    { dishName: "Chicken", hallTid: 1 },
+    { dishName: "Chicken", hallTid: 2 },
+  ]);
+});
+
+test("distinctLoggedDishes ignores non-umass-menu (e.g. barcode-logged) entries", () => {
+  const entries = [entry({ id: "1", source: { type: "off", barcode: "012345", productName: "Granola Bar" } })];
+  assert.deepEqual(distinctLoggedDishes(entries), []);
+});
+
+test("pickPostLogComparisonPair returns null when justLogged is the only distinct dish logged so far", () => {
+  const entries = [entry({ id: "1", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } })];
+  const pair = pickPostLogComparisonPair(entries, { dishName: "Chicken", hallTid: 1 }, []);
+  assert.equal(pair, null);
+});
+
+test("pickPostLogComparisonPair returns null when there are no logged dishes at all", () => {
+  const pair = pickPostLogComparisonPair([], { dishName: "Chicken", hallTid: 1 }, []);
+  assert.equal(pair, null);
+});
+
+test("pickPostLogComparisonPair pairs justLogged with the only other distinct logged dish", () => {
+  const entries = [
+    entry({ id: "1", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }),
+    entry({ id: "2", source: { type: "umass-menu", dishName: "Beans", hallTid: 1 } }),
+  ];
+  const pair = pickPostLogComparisonPair(entries, { dishName: "Beans", hallTid: 1 }, []);
+  assert.deepEqual(pair, [
+    { dishName: "Beans", hallTid: 1 },
+    { dishName: "Chicken", hallTid: 1 },
+  ]);
+});
+
+test("pickPostLogComparisonPair never offers justLogged as its own opponent, even if it was logged repeatedly", () => {
+  const entries = [
+    entry({ id: "1", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }),
+    entry({ id: "2", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }),
+  ];
+  const pair = pickPostLogComparisonPair(entries, { dishName: "Chicken", hallTid: 1 }, []);
+  assert.equal(pair, null);
+});
+
+test("pickPostLogComparisonPair prefers the least-compared candidate — same signal /rank's own picker uses", () => {
+  const entries = [
+    entry({ id: "1", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }),
+    entry({ id: "2", source: { type: "umass-menu", dishName: "Beans", hallTid: 1 } }),
+    entry({ id: "3", source: { type: "umass-menu", dishName: "Rice", hallTid: 1 } }),
+  ];
+  const rankedDishes: RankedDish[] = [
+    { dishName: "Beans", hallTid: 1, rating: 1500, comparisonCount: 5 },
+    { dishName: "Rice", hallTid: 1, rating: 1500, comparisonCount: 1 }, // least-compared candidate
+  ];
+  const pair = pickPostLogComparisonPair(entries, { dishName: "Chicken", hallTid: 1 }, rankedDishes);
+  assert.deepEqual(pair, [
+    { dishName: "Chicken", hallTid: 1 },
+    { dishName: "Rice", hallTid: 1 },
+  ]);
+});
+
+test("pickPostLogComparisonPair treats a never-compared candidate (comparisonCount 0, absent from rankedDishes) as least-compared", () => {
+  const entries = [
+    entry({ id: "1", source: { type: "umass-menu", dishName: "Chicken", hallTid: 1 } }),
+    entry({ id: "2", source: { type: "umass-menu", dishName: "Beans", hallTid: 1 } }),
+    entry({ id: "3", source: { type: "umass-menu", dishName: "Rice", hallTid: 1 } }),
+  ];
+  // Beans has been compared before; Rice has never been rated at all (absent from rankedDishes).
+  const rankedDishes: RankedDish[] = [{ dishName: "Beans", hallTid: 1, rating: 1500, comparisonCount: 3 }];
+  const pair = pickPostLogComparisonPair(entries, { dishName: "Chicken", hallTid: 1 }, rankedDishes);
+  assert.deepEqual(pair, [
+    { dishName: "Chicken", hallTid: 1 },
+    { dishName: "Rice", hallTid: 1 },
+  ]);
 });
