@@ -91,9 +91,19 @@ GET https://www.umassdining.com/foodpro-menu-ajax?tid=<drupal_taxonomy_term_id>&
   (e.g. "Halal, Local, Sustainable, Plant Based, Whole Grain"), `data-healthfulness`, `data-carbon-list`,
   `data-recipe-webcode`, `data-dish-name`. The link text is the display name; `data-dish-name` is the
   canonical name to key on.
-- Requesting a day with no live data returns `{}` (empty object) — not an error, not `[]`. (An earlier,
-  no-params probe returned `[]`; that shape has not been seen with valid `tid`+`date`, treat `[]` as the
-  "malformed request" shape and `{}` as "valid request, no menu that day".)
+- Requesting a day with no live data returns `[]` (empty array) with HTTP 200 — not an error, and not
+  `{}`. **Correction (2026-08-19):** an earlier note here guessed `[]` was the "malformed request" shape
+  and `{}` the "no menu" shape; live probing valid `tid`+`date` pairs outside the data window (past dates,
+  +14 days, +1 year) shows they all return `[]`. Treat any non-object response as "no menu available".
+- **Future dates — CONFIRMED (2026-08-19), same endpoint, rolling ~2-week window.** The official app's
+  upcoming-menu support is this same endpoint with a future `date` param, not a separate API: the Hermes
+  bundle carries the literal string `https://umassdining.com/foodpro-menu-ajax` alongside
+  `getMealsByLocationIdandDate` and an `MM/DD/YYYY` format string, and the website's "Upcoming Menus"
+  `<select>` fires it (capture above). Live probe from 2026-08-19 (tid=3): every day from **today through
+  +13 days** returned full menus (~200–250KB); **+14 days and beyond returned `[]`**, and **all past dates
+  (even yesterday) returned `[]`** — no history, forward-only. The exact horizon presumably rolls with
+  UMass's menu-publishing cycle (observed boundary landed on 09/01 vs 09/02); clients should treat the
+  window as "today plus roughly two weeks, discovered empirically per request" rather than hardcoding 13.
 - The current redesigned website (`umass_dining_new` Drupal theme) does **not** call this endpoint on
   initial page load — the day's default menu is server-rendered directly into the page HTML using the
   same data-attribute format. `foodpro-menu-ajax` only fires client-side when switching days via the
