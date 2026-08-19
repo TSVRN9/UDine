@@ -1,5 +1,11 @@
-# CI gate (issue #20). Runs on every PR and on push to main; each job below must pass or the
-# check status goes red.
+# CI gate (issue #20) — REMOTE RUNS DISABLED (2026-08-19, owner request: hosted-runner usage).
+# Triggers are workflow_dispatch-only; required-status-check branch protection was removed to match.
+# The gate did not go away — it moved local: run every lane below on the PR head before merging,
+# either directly with the host commands in this comment, or with CI parity via `gh act`
+# (nektos/act; Docker required): `gh act -j <job>` from the repo root, e.g. `gh act -j shared-tests`.
+# The `supabase-rls-tests` job runs Docker-in-Docker under act — prefer its host-direct form
+# (`supabase start … && supabase test db`) instead. Re-enable remote CI by restoring the
+# pull_request/push triggers below and re-adding the required status checks to branch protection.
 #
 # Run the same checks locally:
 #   pnpm --filter @udine/shared test        # shared unit tests (node --test)
@@ -32,9 +38,7 @@
 name: CI
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   shared-tests:
