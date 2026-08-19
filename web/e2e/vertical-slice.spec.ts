@@ -73,6 +73,11 @@ test("browse a hall's menu, log a dish, and see it reflected in today's macro to
 	await expect(page.getByRole("status")).toHaveText("Logged 1 × French Toast");
 
 	await page.getByRole("link", { name: "Dining Halls" }).click();
+
+	// #64: the home dashboard itself shows today's macro stats -- the whole point of the Today-first
+	// IA change is that this doesn't require a further click into /today to see.
+	await expect(page.getByText("Calories: 127")).toBeVisible();
+
 	await page.getByRole("link", { name: "Today's macros" }).click();
 
 	await expect(page.getByRole("heading", { name: /^Today/ })).toBeVisible();

@@ -3,6 +3,8 @@
 	import { computeDailyTotals, exportEntriesAsCsv, exportEntriesAsJson, type DailyMacroTotals, type LogEntry } from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { todayIso } from "$lib/date";
+	import { macroCalorieBreakdown } from "$lib/macroShares";
+	import MacroStats from "$lib/MacroStats.svelte";
 
 	// IndexedDB only exists in the browser — this page has no SSR-safe data to render on
 	// its own, so the storage instance and the initial load both wait for the client.
@@ -23,20 +25,10 @@
 		day: "numeric",
 	});
 
-	// Calories contributed by each macro (4/4/9 kcal per gram) as a share of the day. This is the
-	// cheap honest answer to "is 1800 a lot?" — it needs no goal, no profile and no server: it
-	// describes the composition of what you logged rather than judging the amount. A target/goal
-	// feature would be device-only per CLAUDE.md's data-residency table; deliberately not built here.
-	const macroCalories = $derived({
-		protein: totals.proteinG * 4,
-		carbs: totals.totalCarbG * 4,
-		fat: totals.totalFatG * 9,
-	});
-	const macroCalorieTotal = $derived(macroCalories.protein + macroCalories.carbs + macroCalories.fat);
-
-	function share(kind: "protein" | "carbs" | "fat"): number {
-		return macroCalorieTotal > 0 ? Math.round((macroCalories[kind] / macroCalorieTotal) * 100) : 0;
-	}
+	// A target/goal feature (e.g. "is 1800 a lot?") would be device-only per CLAUDE.md's
+	// data-residency table; deliberately not built here. The per-macro % of calories this page and
+	// the home dashboard both show is the cheap honest substitute — see macroShares.ts.
+	const breakdown = $derived(macroCalorieBreakdown(totals));
 
 	function entryName(entry: LogEntry): string {
 		return entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
@@ -109,34 +101,13 @@
 </header>
 
 <section class="card mt-6 px-5 py-5">
-	<div class="grid grid-cols-2 gap-5 sm:grid-cols-4">
-		<div class="stat">
-			<span class="stat-label">Calories:</span>
-			<span class="stat-value">{totals.calories}</span>
-			<span class="mt-1 block text-xs text-ink-900/50">from {entries.length} {entries.length === 1 ? "entry" : "entries"}</span>
-		</div>
-		<div class="stat">
-			<span class="stat-label">Protein:</span>
-			<span class="stat-value">{totals.proteinG.toFixed(1)}g</span>
-			<span class="mt-1 block text-xs text-ink-900/50">{share("protein")}% of calories</span>
-		</div>
-		<div class="stat">
-			<span class="stat-label">Carbs:</span>
-			<span class="stat-value">{totals.totalCarbG.toFixed(1)}g</span>
-			<span class="mt-1 block text-xs text-ink-900/50">{share("carbs")}% of calories</span>
-		</div>
-		<div class="stat">
-			<span class="stat-label">Fat:</span>
-			<span class="stat-value">{totals.totalFatG.toFixed(1)}g</span>
-			<span class="mt-1 block text-xs text-ink-900/50">{share("fat")}% of calories</span>
-		</div>
-	</div>
+	<MacroStats {totals} entryCount={entries.length} />
 
-	{#if macroCalorieTotal > 0}
+	{#if breakdown.total > 0}
 		<div class="mt-5 flex h-2 overflow-hidden rounded-sm" aria-hidden="true">
-			<div class="bg-maroon-900" style="width: {share('protein')}%"></div>
-			<div class="bg-maroon-600" style="width: {share('carbs')}%"></div>
-			<div class="bg-gold-500" style="width: {share('fat')}%"></div>
+			<div class="bg-maroon-900" style="width: {breakdown.shares.protein}%"></div>
+			<div class="bg-maroon-600" style="width: {breakdown.shares.carbs}%"></div>
+			<div class="bg-gold-500" style="width: {breakdown.shares.fat}%"></div>
 		</div>
 		<p class="mt-2 flex flex-wrap gap-x-4 text-xs text-ink-900/60">
 			<span><span class="mr-1 inline-block size-2 rounded-xs bg-maroon-900 align-middle"></span>Protein</span>
