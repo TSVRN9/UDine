@@ -4,6 +4,7 @@ import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Badge, Card, Stat } from "../components/ui";
+import { FirstRunCard } from "../components/FirstRunCard";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
@@ -88,6 +89,8 @@ export default function HomeScreen() {
 
       <Text style={styles.pageTitle}>Today</Text>
       <View style={styles.rule} />
+
+      <FirstRunCard />
 
       <Link href="/today" asChild>
         <Pressable>
