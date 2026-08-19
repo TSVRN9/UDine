@@ -1,0 +1,5 @@
+# Config for `gh act` / act (local GitHub Actions runs) — remote CI is disabled, see ci.yml.
+# catthehacker/ubuntu:act-latest is the standard medium-size act image; the workflow's own
+# setup actions (setup-node, pnpm/action-setup, setup-deno) install their tools on top of it.
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+--container-architecture linux/amd64
