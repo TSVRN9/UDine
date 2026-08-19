@@ -237,7 +237,10 @@ test.describe("Notifications — signed in", () => {
 
 		await page.goto("/notifications");
 
-		const badge = page.locator(".badge").first();
+		// Scoped to the toggle's own section rather than ".badge".first() -- the feed below can also
+		// render "New" badges, and .first() would silently start matching the wrong one if their DOM
+		// order ever changed instead of failing loudly.
+		const badge = page.locator("section", { hasText: "Favorited-dish alerts" }).locator(".badge");
 		await expect(badge).toHaveText("Alerts off", { timeout: 15_000 }); // hydration proof: reflects the mocked profile fetch
 
 		const toggle = page.getByRole("checkbox");
@@ -317,9 +320,11 @@ test.describe("Notifications — signed in", () => {
 		const row = page.locator("li", { hasText: "French Toast" });
 		await expect(row.locator(".badge", { hasText: "New" })).toBeVisible({ timeout: 15_000 });
 
-		// Keyboard only: focus the button and press Enter, never a mouse event.
+		// Keyboard only: focus the button (proving it's actually in the tab order, not just
+		// clickable) and press Enter, never a mouse event -- #62 asks for a keyboard-only walkthrough.
 		const markReadButton = row.getByRole("button", { name: "Mark as read" });
 		await markReadButton.focus();
+		await expect(markReadButton).toBeFocused();
 		await markReadButton.press("Enter");
 
 		const patch = await waitForRequest(requests, "food_sightings", "PATCH");

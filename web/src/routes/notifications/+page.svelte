@@ -124,9 +124,9 @@
 		const { data: sightingRows } = await supabase.from("food_sightings").select("*").eq("user_id", myId).order("created_at", { ascending: false });
 		sightings = sightingRows ?? [];
 
-		const { data: pingRows } = await supabase.from("pings").select("*").eq("receiver_id", myId).order("created_at", { ascending: false });
-		pings = pingRows ?? [];
-
+		// Friends resolved *before* pings assigns below -- friendNameById needs to already be
+		// populated when a ping first renders, or a sender briefly shows as the "A friend" fallback
+		// until this catches up.
 		const { data: fs } = await supabase.from("friendships").select("*").or(`user_a.eq.${myId},user_b.eq.${myId}`).eq("status", "accepted");
 		const otherIds = (fs ?? []).map((f: { user_a: string; user_b: string }) => (f.user_a === myId ? f.user_b : f.user_a));
 		if (otherIds.length > 0) {
@@ -135,6 +135,9 @@
 		} else {
 			friends = [];
 		}
+
+		const { data: pingRows } = await supabase.from("pings").select("*").eq("receiver_id", myId).order("created_at", { ascending: false });
+		pings = pingRows ?? [];
 	}
 
 	onMount(() => {
