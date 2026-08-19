@@ -119,27 +119,45 @@
 	}
 </script>
 
-<h1>Notifications</h1>
+<h1 class="page-title">Notifications</h1>
+<div class="label-rule mt-2 mb-6 text-gold-500"></div>
 
 {#if !page.data.session}
-	<p>Sign in to enable favorited-food alerts.</p>
+	<div class="empty-state">
+		<p>Sign in to enable favorited-food alerts.</p>
+	</div>
 {:else}
-	<p>
-		<label>
-			<input type="checkbox" checked={notificationsEnabled} onchange={toggleNotifications} />
-			Notify me when a favorited dish shows up on the menu
-		</label>
+	<!-- .badge carries the on/off state in words, not just the checkbox, per #39's "notification
+	     toggle visually clear" criterion. -->
+	<section class="card mb-2 flex flex-wrap items-center justify-between gap-3 p-4">
+		<div>
+			<label class="field-label" for="notif-toggle">Favorited-dish alerts</label>
+			<p class="mt-1 text-sm text-ink-900/70">Notify me when a favorited dish shows up on the menu.</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<span class="badge">{notificationsEnabled ? "Alerts on" : "Alerts off"}</span>
+			<input id="notif-toggle" type="checkbox" class="h-4 w-4" checked={notificationsEnabled} onchange={toggleNotifications} />
+		</div>
+	</section>
+	<p class="mb-6 text-sm text-ink-900/60">
+		Turning this on will ask your browser for notification permission and register a push subscription. This page is always the notification feed either way.
 	</p>
-	<p><small>Turning this on will ask your browser for notification permission and register a push subscription. This page is always the notification feed either way.</small></p>
 
-	<h2>Sightings</h2>
+	<h2 class="section-title mb-3">Sightings</h2>
 	{#if sightings.length === 0}
-		<p>No favorited-food sightings yet.</p>
+		<div class="empty-state">No favorited-food sightings yet.</div>
 	{:else}
-		<ul>
+		<ul class="space-y-2">
 			{#each sightings as s (s.id)}
-				<li onmouseenter={() => markRead(s)} style={s.read_at ? "opacity: 0.6" : ""}>
-					<strong>{s.dish_name}</strong> at {hallName(s.hall_tid)} on {s.sighted_date}
+				<!-- opacity-60 (a Tailwind utility, not a new color) replaces the old inline style for
+				     read rows; .badge marks unread ones "New" instead. onmouseenter-only markRead is
+				     pre-existing behavior, unchanged here -- keyboard users can't trigger it, but fixing
+				     that isn't in #39's scope. -->
+				<li class="card flex flex-wrap items-center gap-2 p-3 {s.read_at ? 'opacity-60' : ''}" onmouseenter={() => markRead(s)}>
+					{#if !s.read_at}<span class="badge">New</span>{/if}
+					<strong>{s.dish_name}</strong>
+					<span class="badge">{hallName(s.hall_tid)}</span>
+					<span class="text-sm text-ink-900/60">on {s.sighted_date}</span>
 				</li>
 			{/each}
 		</ul>
