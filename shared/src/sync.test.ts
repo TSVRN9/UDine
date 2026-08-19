@@ -102,22 +102,29 @@ test("syncFavoritedFoods skips the insert call entirely when there are no dish f
 // #45: syncFavoritedFoods used to await supabase.from(...).delete()/.insert() without checking
 // the returned { error } — a PostgREST failure (RLS denial, expired session, ...) resolved
 // normally and was silently discarded, so the caller's await chain continued as if it had
-// succeeded even though no row existed. Unlike syncDiningHallRanks (documented fire-and-forget,
-// never throws), this function is awaited synchronously and sits between the
-// notifications_enabled write and push-token registration in mobile's toggle handler, so a
-// swallowed error here looked identical to a hang further down the chain. It must throw now.
-test("syncFavoritedFoods throws when the delete reports a PostgREST error", async () => {
+// succeeded even though no row existed. It has two call sites (mobile and web), neither wraps it
+// in a try/catch, so it must never throw/reject — same contract as syncDiningHallRanks. Instead
+// it returns { error } so each caller can log it and keep going (mobile: still reach
+// push_tokens; web: still reach enablePush/disablePush).
+test("syncFavoritedFoods resolves with the delete's error instead of throwing", async () => {
   const inserted: { table: string; rows: unknown[] }[] = [];
-  await assert.rejects(
-    () => syncFavoritedFoods(makeFavoritedFoodsSupabaseMock(inserted, { deleteError: { message: "permission denied" } }), "user-1", [{ type: "dish", dishName: "Pizza" }]),
-    /delete failed/,
-  );
+  const result = await syncFavoritedFoods(makeFavoritedFoodsSupabaseMock(inserted, { deleteError: { message: "permission denied" } }), "user-1", [
+    { type: "dish", dishName: "Pizza" },
+  ]);
+  assert.deepEqual(result, { error: { message: "permission denied" } });
+  assert.equal(inserted.length, 0, "should not attempt the insert once the delete failed");
 });
 
-test("syncFavoritedFoods throws when the insert reports a PostgREST error", async () => {
+test("syncFavoritedFoods resolves with the insert's error instead of throwing", async () => {
   const inserted: { table: string; rows: unknown[] }[] = [];
-  await assert.rejects(
-    () => syncFavoritedFoods(makeFavoritedFoodsSupabaseMock(inserted, { insertError: { message: "permission denied" } }), "user-1", [{ type: "dish", dishName: "Pizza" }]),
-    /insert failed/,
-  );
+  const result = await syncFavoritedFoods(makeFavoritedFoodsSupabaseMock(inserted, { insertError: { message: "permission denied" } }), "user-1", [
+    { type: "dish", dishName: "Pizza" },
+  ]);
+  assert.deepEqual(result, { error: { message: "permission denied" } });
+});
+
+test("syncFavoritedFoods resolves with { error: null } on success", async () => {
+  const inserted: { table: string; rows: unknown[] }[] = [];
+  const result = await syncFavoritedFoods(makeFavoritedFoodsSupabaseMock(inserted), "user-1", [{ type: "dish", dishName: "Pizza" }]);
+  assert.deepEqual(result, { error: null });
 });

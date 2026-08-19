@@ -103,7 +103,12 @@ export default function NotificationsScreen() {
       // signed in AND notifications_enabled.
       const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
       console.log(`[push] toggleNotifications(${next}): syncing favorited_foods (${favorites.length})...`);
-      await withTimeout(syncFavoritedFoods(supabase, session.user.id, favorites), STEP_TIMEOUT_MS, "syncFavoritedFoods");
+      // syncFavoritedFoods never throws (see its doc comment) — log a failure and keep going
+      // rather than aborting the rest of the chain. That matters most on toggle-OFF: aborting
+      // here would skip push_tokens.delete below and leave a live token on a device the user
+      // just asked to stop notifying.
+      const { error: favoritesSyncError } = await withTimeout(syncFavoritedFoods(supabase, session.user.id, favorites), STEP_TIMEOUT_MS, "syncFavoritedFoods");
+      if (favoritesSyncError) console.warn(`[push] toggleNotifications(${next}): syncFavoritedFoods failed`, favoritesSyncError);
 
       if (next) {
         // Best-effort: permission may be denied, or getExpoPushTokenAsync may fail if FCM creds
@@ -128,7 +133,11 @@ export default function NotificationsScreen() {
           STEP_TIMEOUT_MS,
           "push_tokens.delete",
         );
-        if (deleteError) console.warn("[push] toggleNotifications: push_tokens.delete failed", deleteError);
+        if (deleteError) {
+          console.warn("[push] toggleNotifications: push_tokens.delete failed", deleteError);
+        } else {
+          console.log("[push] toggleNotifications: push_tokens row deleted");
+        }
       }
     } catch (e) {
       // A timeout here means some step in the chain stalled — see the [push] logs above for
