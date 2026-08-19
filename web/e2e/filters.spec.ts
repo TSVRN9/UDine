@@ -73,7 +73,16 @@ test("setting an allergen filter hides a conflicting dish and keeps a non-confli
 
 	await page.getByRole("link", { name: "Filters" }).click();
 
+	// #40: filters are toggle/checkbox-heavy and need a clear on/off state — a checked filter must
+	// be visually distinct from an unchecked one, not just carry a different checkbox attribute.
+	// Scoped through the checkbox's own accessible name (not a listitem text filter) so this stays
+	// unambiguous even if another allergen option's name contains "Milk" as a substring.
+	const milkLabel = page.getByRole("checkbox", { name: "Milk" }).locator("xpath=..");
+	const milkBgBeforeCheck = await milkLabel.evaluate((el) => getComputedStyle(el).backgroundColor);
+
 	await page.getByRole("checkbox", { name: "Milk" }).check();
+	await expect(milkLabel).not.toHaveCSS("background-color", milkBgBeforeCheck);
+
 	await page.getByRole("button", { name: "Save" }).click();
 	await expect(page.getByRole("status")).toHaveText("Saved");
 
