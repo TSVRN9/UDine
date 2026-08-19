@@ -4,9 +4,16 @@
 	import type { SupabaseClient } from "@supabase/supabase-js";
 	import { DINING_HALLS, syncFavoritedFoods, type Favorite } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
+	import { loadFeedLastSeen, saveFeedLastSeen } from "$lib/feedLastSeen";
 	import { PUBLIC_VAPID_KEY } from "$env/static/public";
 
 	type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date: string; read_at: string | null; created_at: string };
+	type Ping = { id: string; sender_id: string; hall_tid: number | null; message: string | null; created_at: string };
+	type Profile = { user_id: string; display_name: string };
+
+	type FeedItem =
+		| { kind: "sighting"; id: string; createdAt: string; dishName: string; hallTid: number; sightedDate: string; readAt: string | null }
+		| { kind: "ping"; id: string; createdAt: string; senderName: string; hallTid: number | null; message: string | null };
 
 	// Standard urlBase64-to-Uint8Array conversion PushManager.subscribe needs for applicationServerKey.
 	function urlBase64ToUint8Array(base64: string): Uint8Array {
@@ -63,31 +70,92 @@
 
 	let notificationsEnabled = $state(false);
 	let sightings: Sighting[] = $state([]);
+	let pings: Ping[] = $state([]);
+	// Accepted friends only — enough to populate the "ping a friend" composer and to resolve a
+	// ping's sender name. Friend search/request/accept itself stays on /friends (see #66).
+	let friends: Profile[] = $state([]);
+	// Snapshot of "last time this feed was viewed", read once at mount before it's overwritten below
+	// -- deliberately a plain variable, not $state, so a ping's unread badge doesn't flip off mid-visit.
+	let feedLastSeenAt = "";
 
-	function hallName(hallTid: number): string {
-		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
+	let selectedFriendId = $state("");
+	let pingHallTid = $state("");
+	let pingMessage = $state("");
+	let pingSent = $state(false);
+
+	function hallName(hallTid: number | null): string {
+		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? "somewhere";
+	}
+
+	let friendNameById = $derived(new Map(friends.map((f) => [f.user_id, f.display_name])));
+
+	let feedItems: FeedItem[] = $derived(
+		[
+			...sightings.map(
+				(s): FeedItem => ({ kind: "sighting", id: s.id, createdAt: s.created_at, dishName: s.dish_name, hallTid: s.hall_tid, sightedDate: s.sighted_date, readAt: s.read_at }),
+			),
+			...pings.map(
+				(p): FeedItem => ({ kind: "ping", id: p.id, createdAt: p.created_at, senderName: friendNameById.get(p.sender_id) ?? "A friend", hallTid: p.hall_tid, message: p.message }),
+			),
+		].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
+	);
+
+	function isUnread(item: FeedItem): boolean {
+		if (item.kind === "sighting") return item.readAt === null;
+		return item.createdAt > feedLastSeenAt;
 	}
 
 	async function refresh() {
 		const supabase = page.data.supabase;
 		const session = page.data.session;
 		if (!supabase || !session) return;
+		const myId = session.user.id;
 
-		const { data: profile } = await supabase.from("profiles").select("notifications_enabled").eq("user_id", session.user.id).single();
+		const { data: profile } = await supabase.from("profiles").select("notifications_enabled").eq("user_id", myId).single();
 		notificationsEnabled = profile?.notifications_enabled ?? false;
 
 		// Browser permission can be revoked outside this page (browser settings) without us hearing
 		// about it — if that happened, the stored push_tokens row is now dead, so clear it. The
 		// in-app notifications_enabled flag (and food_sightings feed) is untouched either way.
 		if (notificationsEnabled && pushSupported() && Notification.permission !== "granted") {
-			await clearStoredPushTokens(supabase, session.user.id);
+			await clearStoredPushTokens(supabase, myId);
 		}
 
-		const { data } = await supabase.from("food_sightings").select("*").eq("user_id", session.user.id).order("created_at", { ascending: false });
-		sightings = data ?? [];
+		const { data: sightingRows } = await supabase.from("food_sightings").select("*").eq("user_id", myId).order("created_at", { ascending: false });
+		sightings = sightingRows ?? [];
+
+		const { data: pingRows } = await supabase.from("pings").select("*").eq("receiver_id", myId).order("created_at", { ascending: false });
+		pings = pingRows ?? [];
+
+		const { data: fs } = await supabase.from("friendships").select("*").or(`user_a.eq.${myId},user_b.eq.${myId}`).eq("status", "accepted");
+		const otherIds = (fs ?? []).map((f: { user_a: string; user_b: string }) => (f.user_a === myId ? f.user_b : f.user_a));
+		if (otherIds.length > 0) {
+			const { data: profs } = await supabase.from("profiles").select("user_id, display_name").in("user_id", otherIds);
+			friends = profs ?? [];
+		} else {
+			friends = [];
+		}
 	}
 
-	onMount(refresh);
+	onMount(() => {
+		feedLastSeenAt = loadFeedLastSeen();
+		refresh().then(() => saveFeedLastSeen(new Date().toISOString()));
+
+		const supabase = page.data.supabase;
+		const myId = page.data.session?.user.id;
+		if (!supabase || !myId) return;
+
+		// Moved here from /friends (#66) — the pings inbox now lives in this feed, not buried in the
+		// friends page's accepted-friends list.
+		const channel = supabase
+			.channel("pings-inbox")
+			.on("postgres_changes", { event: "INSERT", schema: "public", table: "pings", filter: `receiver_id=eq.${myId}` }, refresh)
+			.subscribe();
+
+		return () => {
+			supabase.removeChannel(channel);
+		};
+	});
 
 	async function toggleNotifications() {
 		const supabase = page.data.supabase;
@@ -110,12 +178,28 @@
 		}
 	}
 
-	async function markRead(sighting: Sighting) {
+	async function markRead(sightingId: string) {
 		const supabase = page.data.supabase;
-		if (!supabase || sighting.read_at) return;
+		const sighting = sightings.find((s) => s.id === sightingId);
+		if (!supabase || !sighting || sighting.read_at) return;
 		const readAt = new Date().toISOString();
-		await supabase.from("food_sightings").update({ read_at: readAt }).eq("id", sighting.id);
+		await supabase.from("food_sightings").update({ read_at: readAt }).eq("id", sightingId);
 		sighting.read_at = readAt;
+	}
+
+	async function sendPing() {
+		const supabase = page.data.supabase;
+		const myId = page.data.session?.user.id;
+		if (!supabase || !myId || !selectedFriendId) return;
+		await supabase.from("pings").insert({
+			sender_id: myId,
+			receiver_id: selectedFriendId,
+			hall_tid: pingHallTid ? Number(pingHallTid) : null,
+			message: pingMessage || null,
+		});
+		pingMessage = "";
+		pingSent = true;
+		setTimeout(() => (pingSent = false), 1500);
 	}
 </script>
 
@@ -124,12 +208,13 @@
 
 {#if !page.data.session}
 	<div class="empty-state">
-		<p>Sign in to enable favorited-food alerts.</p>
+		<p>Sign in to see this feed — pings from friends and favorited-dish alerts, all in one place.</p>
+		<p class="mt-2 text-sm text-ink-900/70">Use "Sign in with Google" above to get started.</p>
 	</div>
 {:else}
 	<!-- .badge carries the on/off state in words, not just the checkbox, per #39's "notification
 	     toggle visually clear" criterion. -->
-	<section class="card mb-2 flex flex-wrap items-center justify-between gap-3 p-4">
+	<section class="card mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
 		<div>
 			<label class="field-label" for="notif-toggle">Favorited-dish alerts</label>
 			<p class="mt-1 text-sm text-ink-900/70">Notify me when a favorited dish shows up on the menu.</p>
@@ -139,25 +224,69 @@
 			<input id="notif-toggle" type="checkbox" class="h-4 w-4" checked={notificationsEnabled} onchange={toggleNotifications} />
 		</div>
 	</section>
-	<p class="mb-6 text-sm text-ink-900/60">
-		Turning this on will ask your browser for notification permission and register a push subscription. This page is always the notification feed either way.
-	</p>
 
-	<h2 class="section-title mb-3">Sightings</h2>
-	{#if sightings.length === 0}
-		<div class="empty-state">No favorited-food sightings yet.</div>
+	<!-- "Ping a friend" as a first-class action of the feed itself (#66), not buried in the friends
+	     page's accepted-friends list. -->
+	<section class="card mb-6 p-4">
+		<h2 class="section-title mb-3">Ping a friend</h2>
+		{#if friends.length === 0}
+			<p class="text-sm text-ink-900/60">Add friends on the <a href="/friends">Friends page</a> to send pings.</p>
+		{:else}
+			<div class="flex flex-wrap items-end gap-2">
+				<div>
+					<label class="field-label" for="ping-friend">Friend</label>
+					<select id="ping-friend" class="input" bind:value={selectedFriendId}>
+						<option value="">Choose a friend</option>
+						{#each friends as f (f.user_id)}
+							<option value={f.user_id}>{f.display_name}</option>
+						{/each}
+					</select>
+				</div>
+				<div>
+					<label class="field-label" for="ping-hall">Hall</label>
+					<select id="ping-hall" class="input" bind:value={pingHallTid}>
+						<option value="">(no hall)</option>
+						{#each DINING_HALLS as hall (hall.tid)}
+							<option value={hall.tid}>{hall.name}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="flex-1">
+					<label class="field-label" for="ping-message">Message (optional)</label>
+					<input id="ping-message" class="input w-full" bind:value={pingMessage} placeholder="message (optional)" />
+				</div>
+				<button class="btn btn-primary btn-sm" onclick={sendPing} disabled={!selectedFriendId}>Send ping</button>
+			</div>
+			{#if pingSent}<p role="status" class="badge mt-2">Ping sent</p>{/if}
+		{/if}
+	</section>
+
+	<h2 class="section-title mb-3">Activity</h2>
+	{#if feedItems.length === 0}
+		<div class="empty-state">Nothing here yet — pings from friends and favorited-dish sightings will show up here.</div>
 	{:else}
-		<ul class="space-y-2">
-			{#each sightings as s (s.id)}
-				<!-- opacity-60 (a Tailwind utility, not a new color) replaces the old inline style for
-				     read rows; .badge marks unread ones "New" instead. onmouseenter-only markRead is
-				     pre-existing behavior, unchanged here -- keyboard users can't trigger it, but fixing
-				     that isn't in #39's scope. -->
-				<li class="card flex flex-wrap items-center gap-2 p-3 {s.read_at ? 'opacity-60' : ''}" onmouseenter={() => markRead(s)}>
-					{#if !s.read_at}<span class="badge">New</span>{/if}
-					<strong>{s.dish_name}</strong>
-					<span class="badge">{hallName(s.hall_tid)}</span>
-					<span class="text-sm text-ink-900/60">on {s.sighted_date}</span>
+		<ul class="space-y-2" aria-label="Activity feed">
+			{#each feedItems as item (item.kind + item.id)}
+				{@const unread = isUnread(item)}
+				<!-- opacity-60 (a Tailwind utility, not a new color) marks read rows; .badge marks
+				     unread ones "New". Sightings get an explicit "Mark as read" button (keyboard
+				     reachable, closes #62) alongside the pre-existing onmouseenter, which stays for
+				     mouse users. -->
+				<li class="card flex flex-wrap items-center gap-2 p-3 {unread ? '' : 'opacity-60'}" onmouseenter={item.kind === "sighting" ? () => markRead(item.id) : undefined}>
+					{#if unread}<span class="badge">New</span>{/if}
+					{#if item.kind === "sighting"}
+						<strong>{item.dishName}</strong>
+						<span class="badge">{hallName(item.hallTid)}</span>
+						<span class="text-sm text-ink-900/60">spotted on {item.sightedDate}</span>
+						{#if unread}
+							<button class="btn btn-secondary btn-sm" onclick={() => markRead(item.id)}>Mark as read</button>
+						{/if}
+					{:else}
+						<span class="badge">Ping</span>
+						<strong>{item.senderName}</strong> wants to eat
+						{#if item.hallTid}<span class="badge">{hallName(item.hallTid)}</span>{/if}
+						{#if item.message}<span class="block text-ink-900/70">&mdash; "{item.message}"</span>{/if}
+					{/if}
 				</li>
 			{/each}
 		</ul>
