@@ -22,3 +22,7 @@ firebase-service-account*.json
 
 # Supabase CLI local session/cache
 supabase/.temp/
+
+# Agent session scratch — never commit
+.claude/
+.scratch/
