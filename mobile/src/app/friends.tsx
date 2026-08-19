@@ -1,6 +1,6 @@
 import { DINING_HALLS } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Button, Card, EmptyState } from "../components/ui";
@@ -19,7 +19,13 @@ function otherUserId(f: Friendship, myId: string): string {
   return f.user_a === myId ? f.user_b : f.user_a;
 }
 
-export default function FriendsScreen() {
+/**
+ * Friends screen content, extracted from the outer ScrollView so it can be mounted both as the
+ * standalone `/friends` route (see FriendsScreen below) AND inside the Social pane's own single
+ * ScrollView in the swipe shell (see app/index.tsx) without nesting two vertical ScrollViews.
+ * #93 replaces the Social pane's internals; this stays the standalone route's content either way.
+ */
+export function FriendsBody() {
   const [session, setSession] = useState<Session | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
@@ -60,17 +66,22 @@ export default function FriendsScreen() {
     }, [refresh]),
   );
 
+  // #90: this now also mounts inside the Social pane alongside the standalone /friends route
+  // (index route stays mounted under a pushed /friends, so both can be live at once) — a fixed
+  // channel name would have the second instance's unsubscribe tear down the first's
+  // subscription. useId() keeps each mounted instance on its own realtime topic.
+  const instanceId = useId();
   useEffect(() => {
     const myId = session?.user.id;
     if (!myId) return;
     const channel = supabase
-      .channel("pings-inbox")
+      .channel(`pings-inbox-${instanceId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "pings", filter: `receiver_id=eq.${myId}` }, refresh)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session, refresh]);
+  }, [session, refresh, instanceId]);
 
   async function search(text: string) {
     setQuery(text);
@@ -103,11 +114,7 @@ export default function FriendsScreen() {
   }
 
   if (!session) {
-    return (
-      <View style={styles.screen}>
-        <EmptyState title="Sign in required" message="Sign in to add friends and send pings." />
-      </View>
-    );
+    return <EmptyState title="Sign in required" message="Sign in to add friends and send pings." />;
   }
 
   const myId = session.user.id;
@@ -115,7 +122,7 @@ export default function FriendsScreen() {
   const accepted = friendships.filter((f) => f.status === "accepted");
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <>
       <Text style={styles.pageTitle}>Friends</Text>
       <View style={styles.rule} />
 
@@ -192,6 +199,15 @@ export default function FriendsScreen() {
           {p.message ? ` — "${p.message}"` : ""}
         </Text>
       ))}
+    </>
+  );
+}
+
+/** Standalone `/friends` route — thin ScrollView wrapper around FriendsBody. */
+export default function FriendsScreen() {
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <FriendsBody />
     </ScrollView>
   );
 }
