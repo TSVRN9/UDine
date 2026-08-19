@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchNewsletter, mapEvent } from "./content.ts";
+import { fetchNewsletter, fetchPressReleases, mapEvent } from "./content.ts";
 
 // See openFoodFacts.test.ts for the same withFetch pattern — swaps globalThis.fetch for a stub.
 function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
@@ -33,6 +33,43 @@ test("event mapping converts unix-seconds expiration and featured flag correctly
 test("event mapping treats is_featured '1' as true", () => {
   const mapped = mapEvent({ title: "x", featured_image: "", pdf_link: "", external_link: "", expiration_date: 0, is_featured: "1" });
   assert.equal(mapped.isFeatured, true);
+});
+
+// Real bug, real shape: GET /uapp/get_beacons_events and GET /uapp/get_press both return image
+// URLs with a literal host of "default" (e.g. https://default/sites/default/files/press/images.png)
+// -- present but unresolvable. Truthy, so `{#if image}` guards in web pass and render a visible
+// broken-image glyph. Blank these at the source so every caller (web + mobile) gets a clean "no
+// image" signal instead of a dead URL.
+test("event mapping blanks a featured_image with an unresolvable 'default' host", () => {
+  const mapped = mapEvent({
+    title: "x",
+    featured_image: "https://default/sites/default/files/events/banner.jpg",
+    pdf_link: "",
+    external_link: "",
+    expiration_date: 0,
+    is_featured: "0",
+  });
+  assert.equal(mapped.featuredImage, "");
+});
+
+test("fetchPressReleases blanks an image with an unresolvable 'default' host", async () => {
+  const result = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => [
+          {
+            title: "Real press release",
+            url: "https://umassdining.com/press/real",
+            image: "https://default/sites/default/files/press/images.png",
+            date: "2026-08-19",
+          },
+        ],
+      }) as Response,
+    fetchPressReleases,
+  );
+  assert.equal(result[0]?.image, "");
 });
 
 // fetchNewsletter is a thin passthrough (field names already match NewsletterIssue), same as

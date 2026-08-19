@@ -2,6 +2,24 @@ import type { DiningEvent, NewsletterIssue, PressRelease } from "./types.ts";
 
 const BASE = "https://www.umassdining.com/uapp";
 
+/**
+ * UMass Dining's press/events feeds sometimes return an image URL with a literal host of
+ * `default` (e.g. `https://default/sites/default/files/press/images.png`) -- present and
+ * truthy, but unresolvable. Blank anything without a plausible hostname (must contain a dot,
+ * or be localhost) so callers get a clean "no image" signal instead of a dead URL that trips
+ * `{#if image}`-style truthiness guards and renders a broken-image glyph.
+ */
+export function sanitizeImageUrl(url: string): string {
+  if (!url) return "";
+  try {
+    const { hostname } = new URL(url);
+    if (hostname === "localhost" || hostname.includes(".")) return url;
+    return "";
+  } catch {
+    return "";
+  }
+}
+
 interface PressApiItem {
   title: string;
   url: string;
@@ -14,7 +32,7 @@ export async function fetchPressReleases(): Promise<PressRelease[]> {
   const res = await fetch(`${BASE}/get_press`);
   if (!res.ok) throw new Error(`get_press ${res.status}`);
   const data = (await res.json()) as PressApiItem[];
-  return data;
+  return data.map((item) => ({ ...item, image: sanitizeImageUrl(item.image) }));
 }
 
 interface EventsApiResponse {
@@ -33,7 +51,7 @@ interface EventsApiResponse {
 export function mapEvent(e: EventsApiResponse["events"][number]): DiningEvent {
   return {
     title: e.title,
-    featuredImage: e.featured_image,
+    featuredImage: sanitizeImageUrl(e.featured_image),
     pdfLink: e.pdf_link,
     externalLink: e.external_link,
     expirationDate: new Date(e.expiration_date * 1000).toISOString(),
