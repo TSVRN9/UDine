@@ -32,7 +32,7 @@ jest.mock("expo-router", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
-import { HomePane } from "./index";
+import { HomePane } from "../app/index";
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
