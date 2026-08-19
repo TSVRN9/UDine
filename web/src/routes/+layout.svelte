@@ -12,7 +12,8 @@
 	//
 	// Friends/Notifications live here rather than behind the disclosure below: they're the two
 	// destinations with incoming, time-sensitive content (a friend request, a favorited dish
-	// spotted today), which is exactly what shouldn't be one click further away than the FAQ.
+	// spotted today), which is exactly what shouldn't be one click further away than static
+	// read-only content.
 	const primaryNav = [
 		{ href: "/today", label: "Today's macros" },
 		{ href: "/rank", label: "Rank dishes" },
