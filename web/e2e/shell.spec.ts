@@ -30,15 +30,23 @@ test("a loading indicator appears while a route's load is in flight, then clears
 		return route.fulfill({ json: [] });
 	});
 
-	await page.goto("/");
-	await disablePreload(page);
-	// Press lives behind the Dining Info disclosure — open it first, same as the
-	// disclosure-closes-on-navigation test below.
-	await page.locator("details summary").click();
-	await page.getByRole("link", { name: "Press" }).click();
-
 	const indicator = page.locator('[aria-hidden="true"].animate-pulse');
-	await expect(indicator).toBeVisible();
+
+	// Same hydration pitfall vertical-slice.spec.ts documents: a click that lands before SvelteKit's
+	// client router has attached falls through to a native full-page navigation instead of a
+	// client-side one — which skips the `navigating` store entirely, so the indicator this test is
+	// checking for never appears (seen flaking in CI, where the runner is slower to hydrate). Retry
+	// the whole interaction from a fresh "/" until a click actually lands post-hydration, rather than
+	// a single unretried click.
+	await expect(async () => {
+		await page.goto("/");
+		await disablePreload(page);
+		// Press lives behind the Dining Info disclosure — open it first, same as the
+		// disclosure-closes-on-navigation test below.
+		await page.locator("details summary").click();
+		await page.getByRole("link", { name: "Press" }).click();
+		await expect(indicator).toBeVisible({ timeout: 2_000 });
+	}).toPass({ timeout: 15_000 });
 
 	await expect(page).toHaveURL(/\/press$/);
 	await expect(indicator).toBeHidden();
