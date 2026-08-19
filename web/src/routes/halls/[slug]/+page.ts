@@ -1,13 +1,34 @@
-import { DINING_HALLS, type MenuItem } from "@udine/shared";
-import { error } from "@sveltejs/kit";
+import { DINING_HALLS, resolveMenuDate, type MenuItem } from "@udine/shared";
+import { error, redirect } from "@sveltejs/kit";
 import { todayIso } from "$lib/date";
 import type { PageLoad } from "./$types";
 
-export const load: PageLoad = async ({ params, fetch }) => {
+export const load: PageLoad = async ({ params, url, fetch }) => {
 	const hall = DINING_HALLS.find((h) => h.slug === params.slug);
 	if (!hall) throw error(404, "unknown dining hall");
 
-	const date = todayIso();
+	// #72: browse upcoming days via ?date=YYYY-MM-DD. Clamped to today rather than rejected — the
+	// API has no history (past dates return `[]`) and the UI's own prev-day control already
+	// refuses to go earlier than today, so this just applies the same rule to a hand-typed or
+	// stale deep link instead of trusting the query param outright. Validation (shape, range,
+	// past-date clamp) lives in @udine/shared's resolveMenuDate so it's actually unit-tested — see
+	// shared/src/date.test.ts.
+	const today = todayIso();
+	const dateParam = url.searchParams.get("date");
+	const date = resolveMenuDate(dateParam, today);
+
+	// A clamped date means the URL explicitly asked for something we didn't honor (garbage, an
+	// impossible date, or a past date) — rewrite the URL so it doesn't keep lying about what's
+	// being shown. Only when a `?date=` was actually given: a bare `/halls/hampshire` with no
+	// param at all isn't lying about anything, so it's left alone rather than growing a
+	// `?date=<today>` on every plain visit. 3xx here is a redirect during `load`, not a client
+	// nav, so no history entry is added for the bad URL.
+	if (dateParam && dateParam !== date) {
+		const target = new URL(url);
+		target.searchParams.set("date", date);
+		throw redirect(307, `${target.pathname}${target.search}`);
+	}
+
 	const res = await fetch(`/api/menu?tid=${hall.tid}&date=${date}`);
 	if (!res.ok) throw error(res.status, "failed to load menu");
 	const items: MenuItem[] = await res.json();
