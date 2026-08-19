@@ -10,7 +10,7 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
@@ -251,24 +251,33 @@ function YouPane({ activeIndex }: { activeIndex: number }) {
 
 /**
  * The 3-pane swipe shell (Social ← Home → You). RN core only — a horizontal, paging ScrollView
- * with each pane exactly one window-width wide (via useWindowDimensions, not a manual onLayout
- * measurement — it's synchronous on first render, no measure-then-scroll race). Lands on Home by
- * scrolling there once after mount via a ref (contentOffset alone is unreliable on Android).
+ * with each pane sized to the pager's own laid-out width/height (via onLayout on the ScrollView
+ * itself, not useWindowDimensions — the window is taller than the pager's actual content area
+ * once the Stack header is subtracted, and an unsized/overshot page height would let YouPane's
+ * `flex: 1` wrapper around TodayScreen collapse to zero — a flex child needs a parent with a
+ * *resolved* height, which the window height alone doesn't give it here). Lands on Home by
+ * scrolling there once after the first layout via a ref (contentOffset alone is unreliable on
+ * Android).
  */
 export default function PaneShellScreen() {
-  const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
+  const [paneSize, setPaneSize] = useState({ width: 0, height: 0 });
   const [activeIndex, setActiveIndex] = useState(HOME_PANE_INDEX);
   const landedOnHome = useRef(false);
 
+  function handleLayout(e: LayoutChangeEvent) {
+    const { width, height } = e.nativeEvent.layout;
+    setPaneSize({ width, height });
+  }
+
   useEffect(() => {
-    if (landedOnHome.current || width <= 0) return;
+    if (landedOnHome.current || paneSize.width <= 0) return;
     landedOnHome.current = true;
-    scrollRef.current?.scrollTo({ x: initialPaneOffset(width), animated: false });
-  }, [width]);
+    scrollRef.current?.scrollTo({ x: initialPaneOffset(paneSize.width), animated: false });
+  }, [paneSize.width]);
 
   function handleScrollSettle(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    setActiveIndex(paneIndexForScrollOffset(e.nativeEvent.contentOffset.x, width));
+    setActiveIndex(paneIndexForScrollOffset(e.nativeEvent.contentOffset.x, paneSize.width));
   }
 
   return (
@@ -277,17 +286,18 @@ export default function PaneShellScreen() {
       horizontal
       pagingEnabled
       showsHorizontalScrollIndicator={false}
+      onLayout={handleLayout}
       onMomentumScrollEnd={handleScrollSettle}
       onScrollEndDrag={handleScrollSettle}
       style={styles.pager}
     >
-      <View style={{ width }}>
+      <View style={paneSize}>
         <SocialPane activeIndex={activeIndex} />
       </View>
-      <View style={{ width }}>
+      <View style={paneSize}>
         <HomePane activeIndex={activeIndex} />
       </View>
-      <View style={{ width }}>
+      <View style={paneSize}>
         <YouPane activeIndex={activeIndex} />
       </View>
     </ScrollView>
