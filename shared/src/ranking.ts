@@ -149,7 +149,7 @@ export interface LoggedDish {
 }
 
 function loggedDishKey(d: LoggedDish): string {
-  return `${d.dishName}::${d.hallTid}`;
+  return dishKey(d.dishName, d.hallTid);
 }
 
 /**

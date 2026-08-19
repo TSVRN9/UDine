@@ -44,6 +44,21 @@ const REAL_FRAGMENT =
 const HAMPSHIRE_TID = 3;
 const MENU_ITEMS = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", HAMPSHIRE_TID, "2026-08-18");
 
+// A realistic-length menu (~40 dishes, one category) -- the 2-dish fixture above can't reach the
+// prompt-placement ceiling this section covers: with only 2 dishes on the page, any placement is
+// "in the viewport" by accident. Synthetic names/nutrition (real values aren't the point here, only
+// list length is), still run through the real parseCategoryItems so the fixture has the same shape
+// live data does.
+function longMenuFragment(count: number): string {
+	let html = "";
+	for (let i = 1; i <= count; i++) {
+		const name = `Dish ${String(i).padStart(2, "0")}`;
+		html += `<a data-dish-name="${name}" data-calories="100" data-protein="5g" data-total-carb="10g" data-total-fat="2g" data-serving-size="1 each" href="#inline">${name}</a>`;
+	}
+	return html;
+}
+const LONG_MENU_ITEMS = parseCategoryItems(longMenuFragment(40), "Entrees", "breakfast", HAMPSHIRE_TID, "2026-08-18");
+
 async function gotoHampshireMenu(page: Page) {
 	await page.route("**/api/menu**", (route) => route.fulfill({ json: MENU_ITEMS }));
 	await page.goto("/");
@@ -174,17 +189,73 @@ test("home's Your Top Dishes module shows a real comparison's winner, ranked, li
 	await expect(topDishesSection.getByRole("link", { name: "Full ranking" })).toBeVisible();
 });
 
-test("home's ranking module issues zero API requests -- ranking data is device-local, not a server call", async ({
+// #66/#69: home's own residency guard (home-dashboard.spec.ts's page.on("request") check) already
+// covers "/" -- a page.route("**/api/**") guard here would be the same retired pattern that test's
+// own comment documents as blind to a direct cross-origin fetch(..., { mode: "no-cors" }) call, not
+// a second, independent proof.
+
+test("post-log comparison prompt is visible in the viewport after logging a dish far down a long menu", async ({
 	page,
 }) => {
-	let apiRequests = 0;
-	await page.route("**/api/**", (route) => {
-		apiRequests++;
-		return route.continue();
-	});
-
+	await page.route("**/api/menu**", (route) => route.fulfill({ json: LONG_MENU_ITEMS }));
 	await page.goto("/");
 	await proveHydrated(page);
-	await page.waitForTimeout(500);
-	expect(apiRequests).toBe(0);
+	await page
+		.getByRole("listitem")
+		.filter({ hasText: "Hampshire" })
+		.getByRole("link", { name: "Hampshire" })
+		.click();
+
+	// Log the first dish so a second log later on has a valid opponent to pair against.
+	await page.getByRole("listitem").filter({ hasText: "Dish 01" }).getByRole("button", { name: "Log" }).click();
+	await expect(page.getByRole("status")).toHaveText("Logged 1 × Dish 01");
+
+	// Log a dish far down a realistic-length menu -- this is the reviewer's probe for the header-flow
+	// ceiling: a prompt rendered in document flow directly under the date nav sits far above the
+	// viewport once the page has scrolled this deep, "offered" only in the DOM, not to the user.
+	const farDish = page.getByRole("listitem").filter({ hasText: "Dish 35" }).getByRole("button", { name: "Log" });
+	await farDish.scrollIntoViewIfNeeded();
+	await farDish.click();
+	await expect(page.getByRole("status")).toHaveText("Logged 1 × Dish 35");
+
+	await expect(comparePrompt(page)).toBeInViewport();
+});
+
+test("scrolled deep in a long menu, the comparison prompt and the header nav/status toast all stay tappable and non-overlapping", async ({
+	page,
+}) => {
+	await page.route("**/api/menu**", (route) => route.fulfill({ json: LONG_MENU_ITEMS }));
+	await page.goto("/");
+	await proveHydrated(page);
+	await page
+		.getByRole("listitem")
+		.filter({ hasText: "Hampshire" })
+		.getByRole("link", { name: "Hampshire" })
+		.click();
+
+	await page.getByRole("listitem").filter({ hasText: "Dish 01" }).getByRole("button", { name: "Log" }).click();
+	const farDish = page.getByRole("listitem").filter({ hasText: "Dish 35" }).getByRole("button", { name: "Log" });
+	await farDish.scrollIntoViewIfNeeded();
+	await farDish.click();
+	await expect(comparePrompt(page)).toBeInViewport();
+
+	// Both the prompt and the status toast are anchored to the viewport bottom and can be visible at
+	// the same time right after logging -- confirm they stack instead of overlapping. Captured
+	// immediately after the log, before the trial clicks below, since loggedMessage self-clears after
+	// 2s (logItem's own setTimeout) and the toast must still be up for this comparison to mean anything.
+	await expect(page.getByRole("status")).toBeVisible();
+	const toastBox = await page.getByRole("status").boundingBox();
+	const promptBox = await comparePrompt(page).boundingBox();
+	expect(toastBox).not.toBeNull();
+	expect(promptBox).not.toBeNull();
+	expect(promptBox!.y + promptBox!.height).toBeLessThanOrEqual(toastBox!.y + 1);
+
+	// A real click auto-scrolls its target into view first, so it can't tell "reachable after
+	// scrolling" apart from "blocked by an overlay right where it already was" -- the same gap
+	// rank.spec.ts:80 exists to catch, but at scroll 0, which a long menu never leaves the prompt at.
+	// Running the same trial-click actionability check at this actually-scrolled position is the
+	// point: it proves the bottom-anchored fix doesn't just move the interception from the header to
+	// the status toast (or vice versa).
+	await comparePrompt(page).getByRole("button", { name: /Dish 01/ }).click({ trial: true });
+	await page.getByRole("link", { name: "Dining Halls" }).click({ trial: true });
 });

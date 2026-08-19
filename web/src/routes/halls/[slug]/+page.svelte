@@ -169,49 +169,6 @@
 	<button class="btn btn-secondary btn-sm" onclick={() => goToDate(addDaysIso(data.date, 1))}>Next day &rsaquo;</button>
 </nav>
 
-<!-- #67: post-log comparison prompt. Plain document flow -- no `fixed`, no `sticky`. A `fixed top-*`
-     overlay near the top of the page collided with (intercepted clicks on) the site header's own
-     nav, caught by the existing rank.spec.ts. `sticky` looked like a fix (it doesn't collide on
-     initial render) but re-introduces the exact same interception once pinned: it becomes an opaque
-     band dish rows scroll underneath, so a Log button under it is unclickable mid-scroll -- the trial
-     click check below can't see that failure mode either, since it only runs at scroll position 0.
-     "Logging stays one tap" is a hard requirement here, so plain flow (zero interception surface) beats
-     a nicety that can swallow a tap.
-     ponytail: this means the prompt can render off-screen (above the fold) when logging from deep in
-     a long dish list -- the bottom-fixed status toast still confirms the log itself, so nothing the
-     issue asked for is lost, but the compare prompt itself may go unnoticed on a long menu. Upgrade
-     path: a bottom-anchored placement (clear of the header entirely) plus a scrolled trial-click spec
-     that proves it, if this turns out to matter in practice.
-     Dismissible, never modal-blocking -- logging another dish works exactly the same whether this is
-     showing or not (no overlay, no focus trap). Deliberately not role="status": this page's specs
-     assert exactly one status region, and this isn't a passive announcement, it's an interactive
-     prompt. -->
-{#if comparePrompt}
-	<section aria-label="Compare dishes" class="card mt-4 px-4 py-3">
-		<div class="flex items-start justify-between gap-3">
-			<p class="font-display text-sm tracking-wide text-maroon-900 uppercase">Which did you like more?</p>
-			<button
-				onclick={dismissComparePrompt}
-				aria-label="Dismiss comparison prompt"
-				class="shrink-0 text-lg leading-none text-ink-900/40 hover:text-ink-900"
-			>
-				&times;
-			</button>
-		</div>
-		<div class="mt-2 flex flex-col gap-2 sm:flex-row">
-			{#each [comparePrompt[0], comparePrompt[1]] as choice, i (choice.dishName + '::' + choice.hallTid)}
-				<button
-					onclick={() => chooseCompare(choice, comparePrompt![1 - i])}
-					class="flex-1 cursor-pointer rounded-sm border border-maroon-900/25 px-3 py-2 text-left transition-colors hover:border-gold-500 hover:bg-gold-500/10"
-				>
-					<span class="block text-sm font-semibold text-maroon-900">{choice.dishName}</span>
-					<span class="badge mt-1">{hallName(choice.hallTid)}</span>
-				</button>
-			{/each}
-		</div>
-	</section>
-{/if}
-
 {#if hiddenCount > 0 && hiddenCount < data.items.length}
 	<p class="mt-4 rounded-md border border-gold-500/50 bg-gold-500/10 px-4 py-3 text-sm">
 		Your dietary filters are hiding {hiddenCount}
@@ -337,14 +294,59 @@
 	{/if}
 {/each}
 
-<!-- Fixed rather than inline at the top of the page: a menu runs to a few hundred dishes, so
-     confirmation rendered above the fold is invisible at the moment you actually press Log. Single
-     role="status" region on this page by design — the e2e specs assert on exactly one. -->
-{#if loggedMessage}
-	<p
-		role="status"
-		class="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-md bg-maroon-900 px-4 py-2 text-sm font-semibold text-paper-50 shadow-lg"
-	>
-		{loggedMessage}
-	</p>
-{/if}
+<!-- Fixed to the viewport bottom rather than inline in document flow: a menu runs to a few hundred
+     dishes, so anything rendered above the fold (including near the top, under the date nav) is
+     invisible at the moment you actually press Log -- the ceiling the #67 review caught (see
+     rank-surfaces.spec.ts's long-menu spec). Status toast and comparison prompt share one bottom-
+     anchored, flex-col-reverse stack (toast markup first, prompt second) so whichever of them is
+     showing lands at the very bottom and the other stacks above it -- they can both be visible at
+     once right after a second log, and this ordering keeps them from ever overlapping regardless of
+     either one's height, without a hardcoded pixel gap. The wrapper itself is pointer-events-none
+     (it spans the full width) so it never intercepts clicks on the page below/behind it; each child
+     re-enables pointer-events for its own bounds. Single role="status" region on this page by
+     design — the e2e specs assert on exactly one.
+     ponytail: the prompt's width (min(92vw, 28rem)) can still sit over the last dish row's Log
+     button on a narrow viewport scrolled to the very bottom -- rank-surfaces.spec.ts only runs
+     Desktop Chrome (this repo's one configured project), so that geometry is untested. Upgrade path
+     if it turns out to matter: add a mobile-viewport project, or give the last dish row(s)
+     scroll-margin/padding clear of the stack's max height. -->
+<div class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex flex-col-reverse items-center gap-2 px-4">
+	{#if loggedMessage}
+		<p
+			role="status"
+			class="pointer-events-auto rounded-md bg-maroon-900 px-4 py-2 text-sm font-semibold text-paper-50 shadow-lg"
+		>
+			{loggedMessage}
+		</p>
+	{/if}
+
+	<!-- #67: post-log comparison prompt. Dismissible, never modal-blocking -- logging another dish
+	     works exactly the same whether this is showing or not (no overlay, no focus trap).
+	     Deliberately not role="status": this page's specs assert exactly one status region, and this
+	     isn't a passive announcement, it's an interactive prompt. -->
+	{#if comparePrompt}
+		<section aria-label="Compare dishes" class="card pointer-events-auto w-[min(92vw,28rem)] px-4 py-3">
+			<div class="flex items-start justify-between gap-3">
+				<p class="font-display text-sm tracking-wide text-maroon-900 uppercase">Which did you like more?</p>
+				<button
+					onclick={dismissComparePrompt}
+					aria-label="Dismiss comparison prompt"
+					class="shrink-0 text-lg leading-none text-ink-900/40 hover:text-ink-900"
+				>
+					&times;
+				</button>
+			</div>
+			<div class="mt-2 flex flex-col gap-2 sm:flex-row">
+				{#each [comparePrompt[0], comparePrompt[1]] as choice, i (choice.dishName + '::' + choice.hallTid)}
+					<button
+						onclick={() => chooseCompare(choice, comparePrompt![1 - i])}
+						class="flex-1 cursor-pointer rounded-sm border border-maroon-900/25 px-3 py-2 text-left transition-colors hover:border-gold-500 hover:bg-gold-500/10"
+					>
+						<span class="block text-sm font-semibold text-maroon-900">{choice.dishName}</span>
+						<span class="badge mt-1">{hallName(choice.hallTid)}</span>
+					</button>
+				{/each}
+			</div>
+		</section>
+	{/if}
+</div>
