@@ -15,6 +15,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { Card } from "../components/ui";
+import { FirstRunCard } from "../components/FirstRunCard";
 import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { HOME_PANE_INDEX, initialPaneOffset, paneDots, paneIndexForScrollOffset } from "../lib/paneShell";
@@ -120,7 +121,9 @@ function HallCard({
   );
 }
 
-function HomePane({ activeIndex }: { activeIndex: number }) {
+// Exported so it's independently testable (#104 review round) without pulling in SocialPane's/
+// YouPane's own network- and storage-backed siblings, which the pager mounts eagerly alongside it.
+export function HomePane({ activeIndex }: { activeIndex: number }) {
   const [session, setSession] = useState<Session | null>(null);
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +174,10 @@ function HomePane({ activeIndex }: { activeIndex: number }) {
   return (
     <ScrollView style={styles.paneScroll} contentContainerStyle={styles.paneContainer}>
       <PaneHeader title="Home" activeIndex={activeIndex} />
+
+      {/* First-run onboarding card (#68/#63) -- dropped when #90's pane shell replaced the old
+          home screen; re-mounted here at its old top-of-content position (#104 review blocker 2). */}
+      <FirstRunCard />
 
       <View style={styles.authRow}>
         {session ? (

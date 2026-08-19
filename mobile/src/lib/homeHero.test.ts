@@ -53,6 +53,26 @@ describe("deriveHomeHero", () => {
     expect(hero.period).toBe("breakfast");
   });
 
+  it("closes at the meal window's own end, not the hall's general-hours close (#104 blocker 1)", () => {
+    const halls = [hall({ hallTid: 1, general: window("7:00 AM", "10:00 PM"), lunch: window("11:00 AM", "2:30 PM") })];
+    const hero = deriveHomeHero(halls, NOON);
+    expect(hero.kind).toBe("meal");
+    if (hero.kind !== "meal") throw new Error("expected meal");
+    expect(hero.period).toBe("lunch");
+    expect(hero.closesAt.getHours()).toBe(14);
+    expect(hero.closesAt.getMinutes()).toBe(30);
+  });
+
+  it("closes at the meal window's own end with contiguous per-meal windows and no general hours (#104 blocker 1)", () => {
+    const halls = [hall({ hallTid: 1, lunch: window("11:00 AM", "2:30 PM"), dinner: window("2:30 PM", "10:00 PM") })];
+    const hero = deriveHomeHero(halls, NOON);
+    expect(hero.kind).toBe("meal");
+    if (hero.kind !== "meal") throw new Error("expected meal");
+    expect(hero.period).toBe("lunch");
+    expect(hero.closesAt.getHours()).toBe(14);
+    expect(hero.closesAt.getMinutes()).toBe(30);
+  });
+
   it("reports open-with-general-hours-only when no hall has an active named meal period but one is open", () => {
     const halls = [hall({ hallTid: 3, general: window("7:00 AM", "9:00 PM") })];
     const hero = deriveHomeHero(halls, NOON);

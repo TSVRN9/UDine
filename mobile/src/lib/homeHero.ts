@@ -1,4 +1,4 @@
-import { currentMealPeriod, openStatus, type DiningHallHours, type MealStatus, type OpenStatus, type RetailLocationHours } from "@udine/shared";
+import { currentMealPeriod, openStatus, type DiningHallHours, type MealStatus, type OpenStatus, type RetailLocationHours, type TimeWindow } from "@udine/shared";
 
 type NamedMealPeriod = Exclude<MealStatus, "closed">;
 
@@ -31,19 +31,27 @@ const MEAL_ORDER: NamedMealPeriod[] = ["breakfast", "lunch", "dinner", "latenigh
 /** Derives the aggregate hero state from all halls' hours as of `now`. The meal period is a
  * function of the clock, not a vote across halls: scans breakfast → lunch → dinner → latenight in
  * that canonical order and takes the first one any open hall is currently serving, with `closesAt`
- * as the latest close among halls sharing that period (mirrors openStatus's own "latest close
- * wins" rule for overlapping windows). */
+ * as the latest close among halls sharing that period -- each hall's own close for *that meal
+ * window specifically*, not openStatus's hall-wide close (which would fold in general hours or any
+ * other window also open right now; see #104 review blocker 1). */
 export function deriveHomeHero(halls: DiningHallHours[], now: Date): HomeHero {
-  const perHall = halls.map((h) => ({ period: currentMealPeriod(h, now), status: openStatus(h, now) }));
+  const perHall = halls.map((h) => ({ hall: h, period: currentMealPeriod(h, now), status: openStatus(h, now) }));
 
   for (const period of MEAL_ORDER) {
     const serving = perHall.filter((h) => h.period === period && h.status.open);
     if (serving.length === 0) continue;
-    let closesAt = (serving[0].status as { open: true; closesAt: Date }).closesAt;
+    // closesAt must come from the serving halls' own current-meal window, not from openStatus's
+    // hall-wide closesAt -- openStatus takes the latest close across ALL currently-open windows
+    // (general hours included), so a hall with both general hours and a narrower meal window would
+    // otherwise report the meal as open past its own window's end (#104 review blocker 1).
+    let closesAt: Date | null = null;
     for (const h of serving) {
-      const c = (h.status as { open: true; closesAt: Date }).closesAt;
-      if (c > closesAt) closesAt = c;
+      const window = h.hall[period];
+      if (!window) continue; // currentMealPeriod matched this key, so this shouldn't happen
+      const mealStatus = singleWindowStatus(window, now);
+      if (mealStatus.open && (closesAt === null || mealStatus.closesAt > closesAt)) closesAt = mealStatus.closesAt;
     }
+    if (closesAt === null) continue; // defensive: no resolvable window, fall through to "open"
     return { kind: "meal", period, closesAt };
   }
 
@@ -87,6 +95,14 @@ export function formatHeroLine(hero: HomeHero): { title: string; subtitle: strin
     case "closedForDay":
       return { title: "CLOSED", subtitle: "nothing open right now" };
   }
+}
+
+/** Resolves a single time window's own open/close status, ignoring every other window on the hall
+ * -- reused by deriveHomeHero to get a meal period's own closesAt instead of openStatus's hall-wide
+ * "latest close among all currently-open windows" answer. Same wrapping trick as retailOpenStatus
+ * below. */
+function singleWindowStatus(window: TimeWindow, now: Date): OpenStatus {
+  return openStatus({ hallTid: -1, breakfast: null, lunch: null, dinner: null, latenight: null, general: window }, now);
 }
 
 /** Reuses shared's openStatus by wrapping a retail location's single published window as a
