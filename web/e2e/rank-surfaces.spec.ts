@@ -1,3 +1,6 @@
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { test, expect, type Page } from "@playwright/test";
 import { parseCategoryItems } from "@udine/shared";
 
@@ -258,4 +261,213 @@ test("scrolled deep in a long menu, the comparison prompt and the header nav/sta
 	// the status toast (or vice versa).
 	await comparePrompt(page).getByRole("button", { name: /Dish 01/ }).click({ trial: true });
 	await page.getByRole("link", { name: "Dining Halls" }).click({ trial: true });
+});
+
+// #81: the { trial: true } actionability checks above scroll their target into view first, so they
+// can't tell "reachable after scrolling" apart from "blocked by an overlay right where it already
+// was" -- PR #78's review found exactly that gap. All 10 other specs in this file stay green even
+// with the wrapper's pointer-events-none class removed (confirmed red-first below: 1 failed -- this
+// spec -- 10 passed), because nothing else here asks "what's actually at this pixel" without a
+// click/trial-click auto-scrolling first. elementFromPoint at a fixed, already-in-view point is the
+// discriminating check.
+test("desktop: the element at the last dish row's Log button center is the button itself, not the compare-prompt stack wrapper", async ({
+	page,
+}) => {
+	await page.route("**/api/menu**", (route) => route.fulfill({ json: LONG_MENU_ITEMS }));
+	await page.goto("/");
+	await proveHydrated(page);
+	await page
+		.getByRole("listitem")
+		.filter({ hasText: "Hampshire" })
+		.getByRole("link", { name: "Hampshire" })
+		.click();
+
+	await page.getByRole("listitem").filter({ hasText: "Dish 01" }).getByRole("button", { name: "Log" }).click();
+	const secondDish = page.getByRole("listitem").filter({ hasText: "Dish 39" }).getByRole("button", { name: "Log" });
+	await secondDish.scrollIntoViewIfNeeded();
+	await secondDish.click();
+	await expect(comparePrompt(page)).toBeVisible();
+
+	// Bottom of the page, not just "scrolled to the far dish" -- the last dish row (Dish 40) is what
+	// #81/#82 are about, and elementFromPoint returns null for a point outside the viewport, so the
+	// probe point has to actually be on-screen.
+	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+	const lastLogButton = page.getByRole("listitem").filter({ hasText: "Dish 40" }).getByRole("button", { name: "Log" });
+	// Selector deliberately omits pointer-events-none: that's the class this test is mutation-testing
+	// (removed to prove red-first), so keying the locator on it would make the wrapper unfindable
+	// under the exact mutation this test exists to catch.
+	const wrapperBox = await page.locator("div.fixed.inset-x-0.bottom-5.z-40").boundingBox();
+	const buttonBox = await lastLogButton.boundingBox();
+	expect(wrapperBox).not.toBeNull();
+	expect(buttonBox).not.toBeNull();
+
+	const cx = buttonBox!.x + buttonBox!.width / 2;
+	const cy = buttonBox!.y + buttonBox!.height / 2;
+
+	// Precondition: the probe point actually falls inside the stack wrapper's band. Without this,
+	// a future layout change could silently turn this test into a no-op that never exercises the bug.
+	expect(cy).toBeGreaterThanOrEqual(wrapperBox!.y);
+	expect(cy).toBeLessThanOrEqual(wrapperBox!.y + wrapperBox!.height);
+
+	const hit = await page.evaluate(
+		({ x, y }) => {
+			const el = document.elementFromPoint(x, y);
+			return { tag: el?.tagName ?? null, text: el?.textContent?.trim() ?? null, inLastRow: !!el?.closest("li")?.textContent?.includes("Dish 40") };
+		},
+		{ x: cx, y: cy },
+	);
+	expect(hit).toEqual({ tag: "BUTTON", text: "Log", inLastRow: true });
+});
+
+// #80: chooseCompare() should sync favorite dining halls the same way /rank's choose() does, but only
+// when a session exists -- CLAUDE.md's residency table allows coarse hall-level ranks to leave the
+// device for a signed-in user, but never for a signed-out one. Session-mocking technique (cookie +
+// rest/v1 route mock) copied from friends-notifications.spec.ts, the only other spec that needs it.
+const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SYNC_USER_ID = "44444444-4444-4444-8444-444444444444";
+
+function supabaseCookieName(): string {
+	const envPath = existsSync(path.join(WEB_DIR, ".env")) ? path.join(WEB_DIR, ".env") : path.join(WEB_DIR, ".env.example");
+	const match = readFileSync(envPath, "utf-8").match(/^PUBLIC_SUPABASE_URL=(.+)$/m);
+	if (!match) throw new Error(`PUBLIC_SUPABASE_URL not found in ${envPath}`);
+	const projectRef = new URL(match[1].trim()).hostname.split(".")[0];
+	return `sb-${projectRef}-auth-token`;
+}
+
+async function signIn(page: Page) {
+	const now = Math.floor(Date.now() / 1000);
+	const exp = now + 3600; // well past auth-js's refresh margin -- no refresh-token network call
+	const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString("base64url");
+	const accessToken = [b64url({ alg: "HS256", typ: "JWT" }), b64url({ sub: SYNC_USER_ID, role: "authenticated", exp }), "fakesig"].join(".");
+	const session = {
+		access_token: accessToken,
+		token_type: "bearer",
+		expires_in: 3600,
+		expires_at: exp,
+		refresh_token: "fake-refresh-token",
+		user: { id: SYNC_USER_ID, aud: "authenticated", role: "authenticated", email: "sync@umass.edu", app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() },
+	};
+	const value = "base64-" + Buffer.from(JSON.stringify(session)).toString("base64url");
+	await page.addInitScript(([n, v]) => {
+		document.cookie = `${n}=${v}; path=/`;
+	}, [supabaseCookieName(), value]);
+	// Belt-and-braces, same as friends-notifications.spec.ts: getSession() is satisfied from the
+	// cookie, but keep any stray auth call off the live project too.
+	await page.route("**/auth/v1/**", (route) => route.fulfill({ json: {} }));
+}
+
+async function loggedTwoHampshireDishesAndChoseWinner(page: Page) {
+	await page.route("**/api/menu**", (route) => route.fulfill({ json: MENU_ITEMS }));
+	await page.goto("/");
+	await proveHydrated(page);
+	await page
+		.getByRole("listitem")
+		.filter({ hasText: "Hampshire" })
+		.getByRole("link", { name: "Hampshire" })
+		.click();
+
+	await page.getByRole("listitem").filter({ hasText: "French Toast" }).getByRole("button", { name: "Log" }).click();
+	await page.getByRole("listitem").filter({ hasText: "Fried Plantain" }).getByRole("button", { name: "Log" }).click();
+	await expect(comparePrompt(page)).toBeVisible();
+	await comparePrompt(page).getByRole("button", { name: /French Toast/ }).click();
+	await expect(comparePrompt(page)).toHaveCount(0);
+}
+
+test("signed-in: choosing a winner in the post-log prompt syncs favorite dining halls to Supabase", async ({ page }) => {
+	await signIn(page);
+	const syncRequests: string[] = [];
+	// halls/[slug] never queries any other rest/v1 table -- favorite_dining_halls is the only one
+	// chooseCompare's sync touches -- so one route covers everything this test needs.
+	await page.route("**/rest/v1/favorite_dining_halls**", async (route) => {
+		syncRequests.push(route.request().method());
+		if (route.request().method() === "DELETE") return route.fulfill({ json: [] });
+		return route.fulfill({ json: [{ user_id: SYNC_USER_ID, hall_tid: HAMPSHIRE_TID, rank: 1 }] });
+	});
+
+	await loggedTwoHampshireDishesAndChoseWinner(page);
+
+	// Both French Toast and Fried Plantain are Hampshire, so a single comparison rates 2 dishes at
+	// that hall -- MIN_RATED_DISHES_PER_HALL (shared/src/ranking.ts) is met, so both the unconditional
+	// delete and the insert fire; asserting both (not just the delete) proves a rank actually got
+	// pushed, not just that syncDiningHallRanks was called and no-opped. Poll: chooseCompare's sync is
+	// fire-and-forget, not awaited by the click.
+	await expect.poll(() => syncRequests, { message: "expected chooseCompare to sync favorite_dining_halls when signed in" }).toContain("DELETE");
+	await expect.poll(() => syncRequests, { message: "expected the Hampshire hall (2 rated dishes) to actually be inserted" }).toContain("POST");
+});
+
+test("signed-out: choosing a winner in the post-log prompt makes no Supabase/cross-origin request (residency guard)", async ({ page, baseURL }) => {
+	// This IS the residency guard for #80 -- home-dashboard.spec.ts's own guard only ever watches "/".
+	// page.on("request"), not page.route counting: a page.route("**/api/**")-shaped guard only sees
+	// requests matching that glob and is blind to a direct cross-origin fetch(..., { mode: "no-cors" }),
+	// per the same finding home-dashboard.spec.ts's guard comment documents.
+	const ALLOWED_CROSS_ORIGIN_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
+	const offenders: string[] = [];
+	const sameOrigin = new URL(baseURL!).origin;
+	page.on("request", (req) => {
+		const url = new URL(req.url());
+		if (url.protocol !== "http:" && url.protocol !== "https:") return; // data:/blob: aren't egress
+		if (url.origin === sameOrigin) {
+			// /api/menu is this page's own, legitimate menu fetch -- not a residency leak. Any other
+			// same-origin /api/ path would be.
+			if (url.pathname.includes("/api/") && !url.pathname.includes("/api/menu")) offenders.push(req.url());
+			return;
+		}
+		if (!ALLOWED_CROSS_ORIGIN_HOSTS.has(url.hostname)) offenders.push(req.url());
+	});
+
+	// No signIn() call -- genuinely signed out, no session cookie at all.
+	await loggedTwoHampshireDishesAndChoseWinner(page);
+
+	await page.waitForTimeout(500);
+	expect(offenders, `unexpected /api/ or cross-origin request(s): ${offenders.join(", ")}`).toEqual([]);
+});
+
+// #82: PR #78's review measured that at 375x667 the bottom-anchored stack's min(92vw, 28rem) width
+// nearly fills the screen, so scrolled to the bottom of a long menu it sits directly on top of the
+// last dish row's Log button until the prompt is dismissed -- a real mobile-web regression (pre-#78
+// that spot was only occluded ~2s by the auto-clearing toast). Same elementFromPoint technique as
+// #81's desktop probe, at a viewport this repo's one configured Playwright project never runs.
+test("narrow viewport (375x667): the last dish row's Log button stays reachable while the compare prompt is up", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 375, height: 667 });
+	await page.route("**/api/menu**", (route) => route.fulfill({ json: LONG_MENU_ITEMS }));
+	await page.goto("/");
+	await proveHydrated(page);
+	await page
+		.getByRole("listitem")
+		.filter({ hasText: "Hampshire" })
+		.getByRole("link", { name: "Hampshire" })
+		.click();
+
+	await page.getByRole("listitem").filter({ hasText: "Dish 01" }).getByRole("button", { name: "Log" }).click();
+	const secondDish = page.getByRole("listitem").filter({ hasText: "Dish 39" }).getByRole("button", { name: "Log" });
+	await secondDish.scrollIntoViewIfNeeded();
+	await secondDish.click();
+	await expect(comparePrompt(page)).toBeVisible();
+
+	// Settle the toast BEFORE measuring: it auto-clears at 2s, which shrinks the spacer and
+	// re-clamps scrollY mid-probe — a real race this spec lost ~10% of the time under 4 workers
+	// (boundingBox taken pre-relayout, elementFromPoint after). Production self-corrects (the
+	// browser re-clamps and the button stays reachable); only the measurement needs the quiet DOM.
+	await expect(page.getByRole("status")).toHaveCount(0, { timeout: 5000 });
+
+	// Worst case: scrolled all the way to the bottom, prompt still up.
+	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+	const lastLogButton = page.getByRole("listitem").filter({ hasText: "Dish 40" }).getByRole("button", { name: "Log" });
+	const buttonBox = await lastLogButton.boundingBox();
+	expect(buttonBox).not.toBeNull();
+	const cx = buttonBox!.x + buttonBox!.width / 2;
+	const cy = buttonBox!.y + buttonBox!.height / 2;
+
+	const hit = await page.evaluate(
+		({ x, y }) => {
+			const el = document.elementFromPoint(x, y);
+			return { tag: el?.tagName ?? null, text: el?.textContent?.trim() ?? null, inLastRow: !!el?.closest("li")?.textContent?.includes("Dish 40") };
+		},
+		{ x: cx, y: cy },
+	);
+	expect(hit).toEqual({ tag: "BUTTON", text: "Log", inLastRow: true });
 });
