@@ -54,7 +54,21 @@ test("favoriting a dish from the menu shows it on /favorites, un-favoriting remo
 	const favoriteRow = page.getByRole("listitem").filter({ hasText: "French Toast" });
 	await expect(favoriteRow).toBeVisible();
 
+	// #40: favorites list rows need the same card treatment as the other list screens (dining
+	// halls, hall menu) — a non-transparent surface visually distinct from the page background,
+	// not the page's `<body>` color leaking straight through into every row.
+	const pageBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+	const rowBg = await favoriteRow.evaluate((el) => getComputedStyle(el).backgroundColor);
+	expect(rowBg).not.toBe("rgba(0, 0, 0, 0)");
+	expect(rowBg).not.toBe(pageBg);
+
 	await favoriteRow.getByRole("button", { name: "Remove" }).click();
 	await expect(page.getByText("No favorite dishes yet.")).toBeVisible();
 	await expect(favoriteRow).toHaveCount(0);
+
+	// #40: the empty state needs the shared dashed-outline `.empty-state` treatment used elsewhere
+	// in the app, not a bare unstyled paragraph — checked via the one CSS property that treatment
+	// actually produces, not by naming the class.
+	const emptyState = page.getByText("No favorite dishes yet.").locator("xpath=..");
+	await expect(emptyState).toHaveCSS("border-style", "dashed");
 });
