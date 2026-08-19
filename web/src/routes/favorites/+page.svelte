@@ -30,24 +30,47 @@
 	}
 </script>
 
-<h1>Favorites</h1>
+<header>
+	<h1 class="page-title">Favorites</h1>
+	<div class="label-rule mt-2 text-gold-500"></div>
+</header>
 
-<h2>Dishes</h2>
-{#if favorites.filter(isDish).length === 0}
-	<p>No favorite dishes yet.</p>
-{/if}
-<ul>
-	{#each favorites.filter(isDish) as favorite (favorite.dishName)}
-		<li>{favorite.dishName} <button onclick={() => remove(favorite)}>Remove</button></li>
-	{/each}
-</ul>
+<section class="mt-8">
+	<h2 class="section-title">Dishes</h2>
+	<div class="label-rule mt-1 text-ink-900/25"></div>
 
-<h2>Dining Halls</h2>
-{#if favorites.filter(isLocation).length === 0}
-	<p>No favorite dining halls yet.</p>
-{/if}
-<ul>
-	{#each favorites.filter(isLocation) as favorite (favorite.hallTid)}
-		<li>{hallName(favorite.hallTid)} <button onclick={() => remove(favorite)}>Remove</button></li>
-	{/each}
-</ul>
+	{#if favorites.filter(isDish).length === 0}
+		<div class="empty-state mt-4">
+			<p>No favorite dishes yet.</p>
+		</div>
+	{:else}
+		<ul class="mt-4 flex flex-col gap-2">
+			{#each favorites.filter(isDish) as favorite (favorite.dishName)}
+				<li class="card flex items-center justify-between gap-3 px-4 py-3">
+					<span class="font-display text-lg font-semibold text-maroon-900">{favorite.dishName}</span>
+					<button onclick={() => remove(favorite)} class="btn btn-ghost btn-sm">Remove</button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</section>
+
+<section class="mt-8">
+	<h2 class="section-title">Dining Halls</h2>
+	<div class="label-rule mt-1 text-ink-900/25"></div>
+
+	{#if favorites.filter(isLocation).length === 0}
+		<div class="empty-state mt-4">
+			<p>No favorite dining halls yet.</p>
+		</div>
+	{:else}
+		<ul class="mt-4 flex flex-col gap-2">
+			{#each favorites.filter(isLocation) as favorite (favorite.hallTid)}
+				<li class="card flex items-center justify-between gap-3 px-4 py-3">
+					<span class="font-display text-lg font-semibold text-maroon-900">{hallName(favorite.hallTid)}</span>
+					<button onclick={() => remove(favorite)} class="btn btn-ghost btn-sm">Remove</button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</section>
