@@ -55,7 +55,6 @@
 	}
 </script>
 
-<a href="/">&larr; Dining Halls</a> | <a href="/filters">Filters</a> | <a href="/favorites">Favorites</a>
 <h1>{data.hall.name} &mdash; {data.date}</h1>
 
 {#if loggedMessage}<p role="status">{loggedMessage}</p>{/if}

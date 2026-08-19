@@ -90,7 +90,6 @@
 	}
 </script>
 
-<a href="/">&larr; Dining Halls</a>
 <h1>Friends</h1>
 
 {#if !page.data.session}

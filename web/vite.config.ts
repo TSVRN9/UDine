@@ -1,9 +1,13 @@
 import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [
+		// Must come before sveltekit() — @tailwindcss/vite needs to see .svelte files as source
+		// before SvelteKit's own transform pipeline touches them.
+		tailwindcss(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

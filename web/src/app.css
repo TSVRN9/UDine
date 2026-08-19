@@ -1,0 +1,102 @@
+/* Global stylesheet — imported once in src/routes/+layout.svelte so every route inherits it.
+   Tailwind v4 (@tailwindcss/vite, see vite.config.ts) — no tailwind.config.js, theme lives in the
+   @theme block below via CSS custom properties.
+
+   Real @import statements must come before @import "tailwindcss" — Tailwind's own import expands
+   into content during the build, which otherwise pushes a later @import past CSS's "imports must
+   be first" rule. */
+
+/* Two webfonts only (CI-risk / ponytail: more faces = more remote fetches for no real gain).
+   Oswald: condensed, heavy-cut display face — reads like dining-hall menu-board signage.
+   Libre Franklin: humanist body face — also a small nod to the Franklin dining hall. */
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------------------------
+ * DESIGN TOKENS — read this before ticket #36-#41 add screen styling.
+ *
+ * Direction: "dining hall menu board" — UMass maroon + chalkboard gold on a warm cafeteria-paper
+ * ground, condensed display type for headers, a humanist body face, tabular system-mono for
+ * calorie/macro figures (nutrition-label register). Signature motif: a thick/thin double rule
+ * (`.label-rule`, defined below) lifted straight from the bold rule under "Nutrition Facts" on a
+ * real nutrition label — reuse it under page headers or between stat panels, don't invent a new
+ * divider style per screen.
+ *
+ * Color — 6 named tokens, all in the Tailwind theme as `bg-maroon-900`, `text-gold-500`, etc.:
+ *   --color-maroon-900 #3b0a0f  deep brand — header/nav bar, high-emphasis surfaces
+ *   --color-maroon-600 #7c2430  primary accent — links, buttons, active state
+ *   --color-gold-500   #c99a2e  signature accent — rules, focus ring, badges. Use sparingly.
+ *   --color-cream-100  #f3ead8  page background (tray-liner paper)
+ *   --color-paper-50   #fbf7ef  card/content surface, sits on cream-100
+ *   --color-ink-900    #241a14  body text
+ * Secondary/muted text: ink-900 at reduced opacity (`text-ink-900/60`) rather than a 7th token.
+ *
+ * Type:
+ *   --font-display  Oswald — headings/nav, condensed+bold, uppercase with tracking
+ *   --font-body     Libre Franklin — paragraphs, labels, buttons
+ *   --font-mono     system mono stack (no webfont) — calorie/macro numbers, nutrition-style data
+ *
+ * Spacing/radius: Tailwind's default 4px spacing scale, used as-is (no override needed).
+ *   --radius-sm   2px  crisp corners on badges/inputs — printed-label feel, not soft/blobby
+ *   --radius-md   6px  cards, panels
+ *   --radius-pill 999px  the sign-in/sign-out pill, and only that
+ * ------------------------------------------------------------------------------------------- */
+@theme {
+	--color-maroon-900: #3b0a0f;
+	--color-maroon-600: #7c2430;
+	--color-gold-500: #c99a2e;
+	--color-cream-100: #f3ead8;
+	--color-paper-50: #fbf7ef;
+	--color-ink-900: #241a14;
+
+	--font-display: "Oswald", "Arial Narrow", sans-serif;
+	--font-body: "Libre Franklin", ui-sans-serif, system-ui, sans-serif;
+	--font-mono:
+		ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+
+	--radius-sm: 2px;
+	--radius-md: 6px;
+	--radius-pill: 999px;
+}
+
+body {
+	background-color: var(--color-cream-100);
+	color: var(--color-ink-900);
+	font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+	font-family: var(--font-display);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+a {
+	color: var(--color-maroon-600);
+}
+
+/* Signature motif — thick/thin double rule, borrowed from the bold rule under "Nutrition Facts"
+   on a real nutrition label. Reuse under page headers or between stat panels: pair `.label-rule`
+   with a `text-*` color utility (e.g. `label-rule text-gold-500`) to set the rule's color via
+   currentColor, so the same thickness pattern works on any background. */
+.label-rule {
+	border-top: 4px solid currentColor;
+	border-bottom: 1px solid currentColor;
+	height: 0;
+}
+
+/* Visible keyboard focus everywhere, not just on links/buttons the skill happened to style. */
+:focus-visible {
+	outline: 2px solid var(--color-gold-500);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

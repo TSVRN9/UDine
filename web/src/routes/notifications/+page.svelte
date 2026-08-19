@@ -119,7 +119,6 @@
 	}
 </script>
 
-<a href="/">&larr; Dining Halls</a>
 <h1>Notifications</h1>
 
 {#if !page.data.session}
