@@ -27,6 +27,13 @@
 	let pair: [Dish, Dish] | null = $state(null);
 	let hallRanking = $derived(rankDiningHalls(rankedDishes));
 	let lastPair: [Dish, Dish] | null = null;
+	// With only two logged dishes pickPair() legitimately returns the same pair every time, so
+	// choosing a winner changes nothing on screen above the fold and the tap reads as a dead click.
+	// This line is the acknowledgement.
+	let lastChoice = $state("");
+
+	// Each comparison bumps comparisonCount on both dishes, so the sum double-counts.
+	const comparisonsMade = $derived(Math.round(rankedDishes.reduce((sum, d) => sum + d.comparisonCount, 0) / 2));
 
 	function hallName(hallTid: number): string {
 		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
@@ -108,63 +115,160 @@
 			void syncDiningHallRanks(page.data.supabase, session.user.id, snapshot);
 		}
 
+		lastChoice = `${winner.dishName} over ${loser.dishName}`;
 		pair = pickPair();
 	}
 
 	function skip() {
+		lastChoice = "";
 		pair = pickPair();
 	}
 </script>
 
-<h1>Rank Dishes</h1>
-<p>Compare dishes you've actually logged &mdash; ranking is built from what you've eaten, not the full menu.</p>
+<header>
+	<h1 class="page-title">Rank Dishes</h1>
+	<div class="label-rule mt-2 text-gold-500"></div>
+	<p class="mt-3 max-w-prose text-ink-900/70">
+		Compare dishes you&rsquo;ve actually logged &mdash; ranking is built from what you&rsquo;ve eaten, not
+		the full menu. Every comparison stays on this device.
+	</p>
+</header>
 
 {#if loggedDishes.length < 2}
-	<p>Log a couple of meals first, then come back here to rank them.</p>
+	<div class="empty-state mt-6">
+		<p class="font-display text-lg uppercase">Nothing to compare yet</p>
+		<p class="mt-2 text-sm">
+			Ranking needs at least two different dishes in your log. You have {loggedDishes.length}.
+			Log a couple of meals first, then come back here to rank them.
+		</p>
+		<p class="mt-4"><a href="/" class="btn btn-primary no-underline">Find something to eat</a></p>
+	</div>
 {:else if pair}
-	<h2>Which did you like more?</h2>
-	<button onclick={() => choose(pair![0], pair![1])}>
-		{pair[0].dishName} <small>({hallName(pair[0].hallTid)})</small>
-	</button>
-	<button onclick={() => choose(pair![1], pair![0])}>
-		{pair[1].dishName} <small>({hallName(pair[1].hallTid)})</small>
-	</button>
-	<button onclick={skip}>Skip</button>
+	<!-- The focal point of the page: a full-width panel in the header colours, with the two choices as
+	     large equal-weight cards and Skip deliberately demoted to a ghost button underneath. -->
+	<section class="mt-6 rounded-md bg-maroon-900 px-5 py-6 text-paper-50 sm:px-8 sm:py-8">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<h2 class="text-center font-display text-xl tracking-wide text-paper-50 uppercase sm:text-2xl">
+				Which did you like more?
+			</h2>
+			<span class="font-mono text-xs tracking-widest text-paper-50/60 uppercase">
+				{comparisonsMade}
+				{comparisonsMade === 1 ? "comparison" : "comparisons"} so far
+			</span>
+		</div>
+		<div class="label-rule mt-2 text-gold-500"></div>
+
+		<div class="mt-6 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+			{#each [pair[0], pair[1]] as choice, i (dishKey(choice))}
+				{#if i === 1}
+					<span aria-hidden="true" class="self-center font-display text-sm tracking-widest text-gold-500 uppercase">
+						vs
+					</span>
+				{/if}
+				<button
+					onclick={() => choose(choice, pair![1 - i])}
+					class="flex-1 cursor-pointer rounded-md border-2 border-paper-50/25 bg-paper-50/5 px-5 py-6 text-left transition-colors hover:border-gold-500 hover:bg-paper-50/10"
+				>
+					<span class="block font-display text-xl leading-tight font-semibold text-paper-50">
+						{choice.dishName}
+					</span>
+					<span class="mt-1 block font-mono text-xs tracking-widest text-gold-500 uppercase">
+						{hallName(choice.hallTid)}
+					</span>
+				</button>
+			{/each}
+		</div>
+
+		<div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+			<button onclick={skip} class="btn btn-ghost text-paper-50/70 hover:bg-paper-50/10 hover:text-paper-50">
+				Skip this pair
+			</button>
+			<!-- Not a button, on purpose: rank.spec.ts locates the choice buttons with
+			     getByRole("button", { name: /French Toast/ }), and a second button carrying a dish name
+			     would make that ambiguous. -->
+			<p role="status" class="font-mono text-xs text-gold-500">
+				{#if lastChoice}Recorded: {lastChoice}{/if}
+			</p>
+		</div>
+	</section>
 {/if}
 
-<h2>Your ranking</h2>
-{#if rankedDishes.length === 0}
-	<p>No comparisons yet.</p>
-{:else}
-	<ol>
-		{#each rankDishes(rankedDishes) as dish (dishKey(dish))}
-			<li>{dish.dishName} <small>({hallName(dish.hallTid)}) &mdash; {Math.round(dish.rating)}</small></li>
+<!-- The three lists below are reference output. Each <ol>/<ul> must stay a DIRECT sibling of its own
+     <h2> with no wrapper in between: rank.spec.ts locates them by nearest-preceding-h2 xpath. The
+     empty branches must stay a <p>, not an empty <ol>, for the same reason (it asserts count 0). -->
+<section class="mt-10">
+	<h2 class="section-title">Your ranking</h2>
+	<div class="label-rule mt-1 text-ink-900/25"></div>
+	{#if rankedDishes.length === 0}
+		<p class="mt-3 text-sm text-ink-900/60">
+			No comparisons yet &mdash; pick a winner above and your dishes start ordering themselves.
+		</p>
+	{:else}
+		<ol class="mt-3 flex flex-col gap-1.5">
+			{#each rankDishes(rankedDishes) as dish, i (dishKey(dish))}
+				<li class="card flex items-center gap-3 px-4 py-2.5">
+					<span class="w-7 shrink-0 font-display text-lg text-ink-900/35 tabular-nums">{i + 1}</span>
+					<span class="min-w-0 flex-1 font-semibold">{dish.dishName}</span>
+					<span class="badge">{hallName(dish.hallTid)}</span>
+					<span class="w-12 shrink-0 text-right font-mono text-sm text-ink-900/55">{Math.round(dish.rating)}</span>
+				</li>
+			{/each}
+		</ol>
+		<p class="mt-2 text-xs text-ink-900/50">
+			The number on the right is a rating, not calories &mdash; it starts at 1000 and moves as you
+			compare. Only the order matters.
+		</p>
+	{/if}
+</section>
+
+<section class="mt-10">
+	<h2 class="section-title">Favorite Foods</h2>
+	<div class="label-rule mt-1 text-ink-900/25"></div>
+	<p class="mt-2 max-w-prose text-sm text-ink-900/60">
+		Your favorite dishes by name, regardless of which hall serves them.
+	</p>
+	{#if rankedFoods.length === 0}
+		<p class="mt-3 text-sm text-ink-900/60">No comparisons yet.</p>
+	{:else}
+		<ol class="mt-3 flex flex-col gap-1.5">
+			{#each rankFoods(rankedFoods) as food, i (food.dishName)}
+				<li class="card flex items-center gap-3 px-4 py-2.5">
+					<span class="w-7 shrink-0 font-display text-lg text-ink-900/35 tabular-nums">{i + 1}</span>
+					<span class="min-w-0 flex-1 font-semibold">{food.dishName}</span>
+					<span class="w-12 shrink-0 text-right font-mono text-sm text-ink-900/55">{Math.round(food.rating)}</span>
+				</li>
+			{/each}
+		</ol>
+	{/if}
+</section>
+
+<section class="mt-10">
+	<h2 class="section-title">
+		Dining hall ranking {page.data.session ? "(synced)" : "(local only — sign in to sync)"}
+	</h2>
+	<div class="label-rule mt-1 text-ink-900/25"></div>
+	<ol class="mt-3 flex flex-col gap-1.5">
+		{#each hallRanking.ranked as hall, i (hall.hallTid)}
+			<li class="card flex items-center gap-3 border-l-4 border-l-gold-500 px-4 py-3">
+				<span class="w-7 shrink-0 font-display text-xl text-gold-500 tabular-nums">{i + 1}</span>
+				<span class="font-display text-lg font-semibold text-maroon-900 uppercase">{hallName(hall.hallTid)}</span>
+			</li>
 		{/each}
 	</ol>
-{/if}
-
-<h2>Favorite Foods</h2>
-<p><small>Your favorite dishes by name, regardless of which hall serves them.</small></p>
-{#if rankedFoods.length === 0}
-	<p>No comparisons yet.</p>
-{:else}
-	<ol>
-		{#each rankFoods(rankedFoods) as food (food.dishName)}
-			<li>{food.dishName} <small>&mdash; {Math.round(food.rating)}</small></li>
-		{/each}
-	</ol>
-{/if}
-
-<h2>Dining hall ranking {page.data.session ? "(synced)" : "(local only — sign in to sync)"}</h2>
-<ol>
-	{#each hallRanking.ranked as hall (hall.hallTid)}
-		<li>{hallName(hall.hallTid)}</li>
-	{/each}
-</ol>
-{#if hallRanking.unranked.length > 0}
-	<ul>
-		{#each hallRanking.unranked as hall (hall.hallTid)}
-			<li>{hallName(hall.hallTid)} <small>(not enough data yet)</small></li>
-		{/each}
-	</ul>
-{/if}
+	{#if hallRanking.unranked.length > 0}
+		<!-- Unranked halls are visually demoted rather than only carrying the words "not enough data
+		     yet": no card surface, no rank number, dashed rule -- so the split reads at a glance. -->
+		<ul class="mt-3 flex flex-col gap-1.5 border-t border-dashed border-ink-900/20 pt-3">
+			{#each hallRanking.unranked as hall (hall.hallTid)}
+				<li class="flex items-center gap-3 px-4 py-1.5 text-ink-900/55">
+					<span aria-hidden="true" class="w-7 shrink-0 text-center font-display text-lg">&ndash;</span>
+					<span class="font-display uppercase">{hallName(hall.hallTid)}</span>
+					<span class="text-xs">(not enough data yet)</span>
+				</li>
+			{/each}
+		</ul>
+		<p class="mt-2 text-xs text-ink-900/50">
+			A hall needs at least 2 rated dishes before it can be placed.
+		</p>
+	{/if}
+</section>

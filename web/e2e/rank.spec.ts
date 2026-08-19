@@ -119,4 +119,11 @@ test("log 2 dishes, make a ranking comparison, and see Your ranking / Favorite F
 		await expect(unrankedHalls).toContainText(hall);
 	}
 	await expect(unrankedHalls.locator("li")).toContainText(["not enough data yet", "not enough data yet", "not enough data yet"]);
+
+	// #38 AC2: ranked vs. unranked halls must be visually distinguishable, "not just text saying
+	// 'not enough data yet'". Pin that to the actual visual treatment (the shared .card surface),
+	// not just the wording already asserted above, so a regression that quietly drops the card
+	// styling back to plain rows can't hide behind a still-passing "contains the right words" check.
+	await expect(rankedHalls.locator("li").first()).toHaveClass(/card/);
+	await expect(unrankedHalls.locator("li").first()).not.toHaveClass(/card/);
 });
