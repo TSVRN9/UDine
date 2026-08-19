@@ -109,6 +109,7 @@ test("the Dining Info disclosure closes after a client-side navigation through i
 	await page.route("**/api/newsletter**", (route) => route.fulfill({ json: [] }));
 
 	await page.goto("/");
+	await proveHydrated(page);
 	const details = page.locator("details");
 	await details.locator("summary").click();
 	await expect(details).toHaveJSProperty("open", true);
