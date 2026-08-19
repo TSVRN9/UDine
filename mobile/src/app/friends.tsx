@@ -3,6 +3,8 @@ import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Button, Card, EmptyState } from "../components/ui";
+import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 
 type Profile = { user_id: string; display_name: string };
@@ -102,8 +104,8 @@ export default function FriendsScreen() {
 
   if (!session) {
     return (
-      <View style={styles.container}>
-        <Text>Sign in to add friends and send pings.</Text>
+      <View style={styles.screen}>
+        <EmptyState title="Sign in required" message="Sign in to add friends and send pings." />
       </View>
     );
   }
@@ -113,98 +115,121 @@ export default function FriendsScreen() {
   const accepted = friendships.filter((f) => f.status === "accepted");
 
   return (
-    <ScrollView style={styles.container}>
-      <View>
-        <Text style={styles.sectionTitle}>Find friends</Text>
-        <TextInput style={styles.input} value={query} onChangeText={search} placeholder="Search by name" />
-        {searchResults.map((p) => (
-          <View key={p.user_id} style={styles.row}>
-            <Text style={styles.rowText}>{p.display_name}</Text>
-            <Pressable onPress={() => requestFriend(p.user_id)}>
-              <Text style={styles.actionText}>Add friend</Text>
-            </Pressable>
-          </View>
-        ))}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <Text style={styles.pageTitle}>Friends</Text>
+      <View style={styles.rule} />
 
-        <Text style={styles.sectionTitle}>Friend requests</Text>
-        {pending.length === 0 && <Text style={styles.empty}>No pending requests.</Text>}
-        {pending.map((f) => {
-          const other = profilesById.get(otherUserId(f, myId));
-          return (
-            <View key={f.user_a + f.user_b} style={styles.row}>
-              <Text style={styles.rowText}>{other?.display_name ?? "..."}</Text>
-              {f.requested_by === myId ? (
-                <Text style={styles.pendingText}>pending</Text>
-              ) : (
-                <Pressable onPress={() => acceptFriend(f)}>
-                  <Text style={styles.actionText}>Accept</Text>
-                </Pressable>
-              )}
-            </View>
-          );
-        })}
+      <Text style={styles.sectionTitle}>Find friends</Text>
+      <View style={styles.thinRule} />
+      <TextInput style={styles.input} value={query} onChangeText={search} placeholder="Search by name" />
+      {searchResults.map((p) => (
+        <Card key={p.user_id} style={styles.row}>
+          <Text style={styles.rowText}>{p.display_name}</Text>
+          <Pressable onPress={() => requestFriend(p.user_id)}>
+            <Text style={styles.actionText}>Add friend</Text>
+          </Pressable>
+        </Card>
+      ))}
 
-        <Text style={styles.sectionTitle}>Your friends</Text>
-        {accepted.length === 0 && <Text style={styles.empty}>No friends yet.</Text>}
-        {accepted.map((f) => {
-          const otherId = otherUserId(f, myId);
-          const other = profilesById.get(otherId);
-          return (
-            <View key={f.user_a + f.user_b} style={styles.friendCard}>
-              <Text style={styles.rowText}>{other?.display_name ?? "..."}</Text>
-              <View style={styles.chipRow}>
-                {DINING_HALLS.map((hall) => (
-                  <Pressable
-                    key={hall.tid}
-                    style={[styles.chip, pingHallTid[otherId] === hall.tid && styles.chipActive]}
-                    onPress={() => setPingHallTid((prev) => ({ ...prev, [otherId]: prev[otherId] === hall.tid ? null : hall.tid }))}
-                  >
-                    <Text style={[styles.chipText, pingHallTid[otherId] === hall.tid && styles.chipTextActive]}>{hall.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <TextInput
-                style={styles.input}
-                value={pingMessage[otherId] ?? ""}
-                onChangeText={(text) => setPingMessage((prev) => ({ ...prev, [otherId]: text }))}
-                placeholder="message (optional)"
-              />
-              <Pressable style={styles.pingButton} onPress={() => sendPing(otherId)}>
-                <Text style={styles.pingButtonText}>Ping "come eat with me"</Text>
+      <Text style={styles.sectionTitle}>Friend requests</Text>
+      <View style={styles.thinRule} />
+      {pending.length === 0 && <Text style={styles.empty}>No pending requests.</Text>}
+      {pending.map((f) => {
+        const other = profilesById.get(otherUserId(f, myId));
+        return (
+          <Card key={f.user_a + f.user_b} style={styles.row}>
+            <Text style={styles.rowText}>{other?.display_name ?? "..."}</Text>
+            {f.requested_by === myId ? (
+              <Text style={styles.pendingText}>pending</Text>
+            ) : (
+              <Pressable onPress={() => acceptFriend(f)}>
+                <Text style={styles.actionText}>Accept</Text>
               </Pressable>
-            </View>
-          );
-        })}
+            )}
+          </Card>
+        );
+      })}
 
-        <Text style={styles.sectionTitle}>Pings you've received</Text>
-        {inbox.length === 0 && <Text style={styles.empty}>No pings yet.</Text>}
-        {inbox.map((p) => (
-          <Text key={p.id} style={styles.pingRow}>
-            {profilesById.get(p.sender_id)?.display_name ?? "Someone"} wants to eat {p.hall_tid ? `at ${hallName(p.hall_tid)}` : ""}
-            {p.message ? ` — "${p.message}"` : ""}
-          </Text>
-        ))}
-      </View>
+      <Text style={styles.sectionTitle}>Your friends</Text>
+      <View style={styles.thinRule} />
+      {accepted.length === 0 && <Text style={styles.empty}>No friends yet.</Text>}
+      {accepted.map((f) => {
+        const otherId = otherUserId(f, myId);
+        const other = profilesById.get(otherId);
+        return (
+          <Card key={f.user_a + f.user_b} style={styles.friendCard}>
+            <Text style={styles.rowText}>{other?.display_name ?? "..."}</Text>
+            <View style={styles.chipRow}>
+              {DINING_HALLS.map((hall) => (
+                <Pressable
+                  key={hall.tid}
+                  style={[styles.chip, pingHallTid[otherId] === hall.tid && styles.chipActive]}
+                  onPress={() => setPingHallTid((prev) => ({ ...prev, [otherId]: prev[otherId] === hall.tid ? null : hall.tid }))}
+                >
+                  <Text style={[styles.chipText, pingHallTid[otherId] === hall.tid && styles.chipTextActive]}>{hall.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextInput
+              style={styles.input}
+              value={pingMessage[otherId] ?? ""}
+              onChangeText={(text) => setPingMessage((prev) => ({ ...prev, [otherId]: text }))}
+              placeholder="message (optional)"
+            />
+            <Button variant="primary" onPress={() => sendPing(otherId)}>
+              Ping "come eat with me"
+            </Button>
+          </Card>
+        );
+      })}
+
+      <Text style={styles.sectionTitle}>Pings you've received</Text>
+      <View style={styles.thinRule} />
+      {inbox.length === 0 && <Text style={styles.empty}>No pings yet.</Text>}
+      {inbox.map((p) => (
+        <Text key={p.id} style={styles.pingRow}>
+          {profilesById.get(p.sender_id)?.display_name ?? "Someone"} wants to eat {p.hall_tid ? `at ${hallName(p.hall_tid)}` : ""}
+          {p.message ? ` — "${p.message}"` : ""}
+        </Text>
+      ))}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: "600", marginTop: 20, marginBottom: 8 },
-  input: { borderWidth: StyleSheet.hairlineWidth, borderColor: "#ccc", borderRadius: 8, padding: 10 },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#eee" },
-  rowText: { fontSize: 16 },
-  actionText: { color: "#208AEF", fontWeight: "600" },
-  pendingText: { color: "#888" },
-  empty: { color: "#888" },
-  friendCard: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#eee" },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginVertical: 6 },
-  chip: { borderWidth: 1, borderColor: "#208AEF", borderRadius: 16, paddingVertical: 4, paddingHorizontal: 10 },
-  chipActive: { backgroundColor: "#208AEF" },
-  chipText: { color: "#208AEF" },
-  chipTextActive: { color: "white" },
-  pingButton: { backgroundColor: "#208AEF", borderRadius: 8, padding: 10, alignItems: "center", marginTop: 4 },
-  pingButtonText: { color: "white", fontWeight: "600" },
-  pingRow: { paddingVertical: 6 },
+  screen: { flex: 1, backgroundColor: colors.cream100 },
+  container: { padding: spacing(4), paddingBottom: spacing(10) },
+  pageTitle: { fontFamily: fonts.display, fontSize: 24, fontWeight: "700", textTransform: "uppercase", color: colors.maroon900 },
+  rule: { marginTop: spacing(2), marginBottom: spacing(2), height: 0, borderTopWidth: 4, borderBottomWidth: 1, borderColor: colors.gold500 },
+  sectionTitle: {
+    marginTop: spacing(6),
+    fontFamily: fonts.display,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.maroon900,
+  },
+  thinRule: { marginTop: spacing(1), marginBottom: spacing(3), height: 1, backgroundColor: withOpacity(colors.ink900, 25) },
+  input: {
+    borderWidth: 1,
+    borderColor: withOpacity(colors.ink900, 25),
+    borderRadius: 2,
+    padding: spacing(2.5),
+    fontFamily: fonts.body,
+    color: colors.ink900,
+    backgroundColor: colors.paper50,
+  },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing(3), marginTop: spacing(2) },
+  rowText: { fontSize: 15, fontFamily: fonts.body, color: colors.ink900 },
+  actionText: { color: colors.maroon600, fontFamily: fonts.body, fontWeight: "600" },
+  pendingText: { color: withOpacity(colors.ink900, 50), fontFamily: fonts.body },
+  empty: { color: withOpacity(colors.ink900, 55), fontFamily: fonts.body, marginTop: spacing(1) },
+  friendCard: { padding: spacing(3), marginTop: spacing(2), gap: spacing(2) },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing(1.5) },
+  chip: { borderWidth: 1, borderColor: colors.maroon600, borderRadius: 999, paddingVertical: spacing(1), paddingHorizontal: spacing(2.5) },
+  chipActive: { backgroundColor: colors.maroon600 },
+  chipText: { color: colors.maroon600, fontFamily: fonts.body, fontSize: 13 },
+  chipTextActive: { color: colors.paper50 },
+  pingRow: { fontFamily: fonts.body, fontSize: 14, color: colors.ink900, paddingVertical: spacing(1.5) },
 });

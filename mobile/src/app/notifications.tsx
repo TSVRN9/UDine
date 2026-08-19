@@ -5,6 +5,8 @@ import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { EmptyState } from "../components/ui";
+import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { supabase } from "../lib/supabase";
 
@@ -97,23 +99,27 @@ export default function NotificationsScreen() {
 
   if (!session) {
     return (
-      <View style={styles.container}>
-        <Text>Sign in to enable favorited-food alerts.</Text>
+      <View style={styles.screen}>
+        <EmptyState title="Sign in required" message="Sign in to enable favorited-food alerts." />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <Text style={styles.pageTitle}>Notifications</Text>
+      <View style={styles.rule} />
+
       <View style={styles.toggleRow}>
         <Text style={styles.toggleLabel}>Notify me when a favorited dish shows up on the menu</Text>
-        <Switch value={notificationsEnabled} onValueChange={toggleNotifications} />
+        <Switch value={notificationsEnabled} onValueChange={toggleNotifications} trackColor={{ true: colors.maroon600 }} />
       </View>
       <Text style={styles.hint}>Turning this on will request notification permission and register your device for push. This is always the notification feed either way.</Text>
 
       <Text style={styles.sectionTitle}>Sightings</Text>
+      <View style={styles.thinRule} />
       {sightings.length === 0 ? (
-        <Text style={styles.empty}>No favorited-food sightings yet.</Text>
+        <EmptyState title="No sightings yet" message="No favorited-food sightings yet." />
       ) : (
         sightings.map((s) => (
           <Pressable key={s.id} onPress={() => markRead(s)} style={[styles.sightingRow, s.read_at ? styles.sightingRead : null]}>
@@ -128,14 +134,25 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  toggleLabel: { flex: 1, fontSize: 16 },
-  hint: { color: "#888", fontSize: 12, marginTop: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: "600", marginTop: 20, marginBottom: 8 },
-  empty: { color: "#888" },
-  sightingRow: { paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#eee" },
+  screen: { flex: 1, backgroundColor: colors.cream100 },
+  container: { padding: spacing(4), paddingBottom: spacing(10) },
+  pageTitle: { fontFamily: fonts.display, fontSize: 24, fontWeight: "700", textTransform: "uppercase", color: colors.maroon900 },
+  rule: { marginTop: spacing(2), marginBottom: spacing(4), height: 0, borderTopWidth: 4, borderBottomWidth: 1, borderColor: colors.gold500 },
+  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing(3) },
+  toggleLabel: { flex: 1, fontSize: 15, fontFamily: fonts.body, color: colors.ink900 },
+  hint: { color: withOpacity(colors.ink900, 55), fontSize: 12, fontFamily: fonts.body, marginTop: spacing(2) },
+  sectionTitle: {
+    marginTop: spacing(6),
+    fontFamily: fonts.display,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.maroon900,
+  },
+  thinRule: { marginTop: spacing(1), marginBottom: spacing(3), height: 1, backgroundColor: withOpacity(colors.ink900, 25) },
+  sightingRow: { paddingVertical: spacing(2), borderBottomWidth: StyleSheet.hairlineWidth, borderColor: withOpacity(colors.ink900, 15) },
   sightingRead: { opacity: 0.6 },
-  sightingText: { fontSize: 16 },
-  sightingDish: { fontWeight: "600" },
+  sightingText: { fontSize: 15, fontFamily: fonts.body, color: colors.ink900 },
+  sightingDish: { fontWeight: "700", color: colors.maroon900 },
 });

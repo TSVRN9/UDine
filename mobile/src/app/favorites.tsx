@@ -2,6 +2,8 @@ import { DINING_HALLS, type Favorite } from "@udine/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Badge, Card, EmptyState } from "../components/ui";
+import { colors, fonts, spacing } from "../lib/theme";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 
 const storage = new SqliteFavoritesStorage();
@@ -17,24 +19,34 @@ export default function FavoritesScreen() {
 
   return (
     <FlatList
-      style={styles.container}
+      style={styles.screen}
+      contentContainerStyle={styles.container}
       data={favorites}
       keyExtractor={(f, i) => `${f.type}-${i}`}
-      renderItem={({ item }) => (
-        <View style={styles.row}>
-          <Text style={styles.badge}>{item.type === "dish" ? "Dish" : "Hall"}</Text>
-          <Text style={styles.rowText}>{item.type === "dish" ? item.dishName : DINING_HALLS.find((h) => h.tid === item.hallTid)?.name ?? item.hallTid}</Text>
+      ListHeaderComponent={
+        <View>
+          <Text style={styles.pageTitle}>Favorites</Text>
+          <View style={styles.rule} />
         </View>
+      }
+      renderItem={({ item }) => (
+        <Card style={styles.row}>
+          <Badge>{item.type === "dish" ? "Dish" : "Hall"}</Badge>
+          <Text style={styles.rowText}>{item.type === "dish" ? item.dishName : DINING_HALLS.find((h) => h.tid === item.hallTid)?.name ?? item.hallTid}</Text>
+        </Card>
       )}
-      ListEmptyComponent={<Text style={styles.empty}>No favorites yet — star a dish or dining hall to add one.</Text>}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      ListEmptyComponent={<EmptyState title="No favorites yet" message="Star a dish or dining hall to add one." />}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  row: { flexDirection: "row", alignItems: "center", padding: 12, gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#ccc" },
-  badge: { fontSize: 11, fontWeight: "700", color: "#208AEF", borderWidth: 1, borderColor: "#208AEF", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  rowText: { fontSize: 16 },
-  empty: { padding: 16, color: "#666" },
+  screen: { flex: 1, backgroundColor: colors.cream100 },
+  container: { padding: spacing(4), paddingBottom: spacing(10) },
+  pageTitle: { fontFamily: fonts.display, fontSize: 24, fontWeight: "700", textTransform: "uppercase", color: colors.maroon900 },
+  rule: { marginTop: spacing(2), marginBottom: spacing(2), height: 0, borderTopWidth: 4, borderBottomWidth: 1, borderColor: colors.gold500 },
+  row: { flexDirection: "row", alignItems: "center", padding: spacing(3), gap: spacing(2.5) },
+  rowText: { fontSize: 15, fontFamily: fonts.body, color: colors.ink900 },
+  separator: { height: spacing(2) },
 });

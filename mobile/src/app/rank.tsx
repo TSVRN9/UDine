@@ -12,7 +12,9 @@ import {
 } from "@udine/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Button, Card } from "../components/ui";
+import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { supabase } from "../lib/supabase";
@@ -89,33 +91,31 @@ export default function RankScreen() {
   const hallRanking = rankDiningHalls(rankedDishes);
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <Text style={styles.pageTitle}>Rank Dishes</Text>
+      <View style={styles.rule} />
       <Text style={styles.hint}>Compare dishes you've actually logged — ranking is built from what you've eaten, not the full menu.</Text>
 
       {loggedDishes.length < 2 ? (
         <Text style={styles.hint}>Log a couple of meals first, then come back here to rank them.</Text>
       ) : pair ? (
-        <View>
+        <Card style={styles.compareCard}>
           <Text style={styles.heading}>Which did you like more?</Text>
-          <Pressable style={styles.choiceButton} onPress={() => choose(pair[0], pair[1])}>
-            <Text style={styles.choiceButtonText}>
-              {pair[0].dishName} ({hallName(pair[0].hallTid)})
-            </Text>
-          </Pressable>
-          <Pressable style={styles.choiceButton} onPress={() => choose(pair[1], pair[0])}>
-            <Text style={styles.choiceButtonText}>
-              {pair[1].dishName} ({hallName(pair[1].hallTid)})
-            </Text>
-          </Pressable>
-          <Pressable onPress={skip}>
-            <Text style={styles.skip}>Skip</Text>
-          </Pressable>
-        </View>
+          <Button variant="primary" style={styles.choiceButton} onPress={() => choose(pair[0], pair[1])}>
+            {`${pair[0].dishName} (${hallName(pair[0].hallTid)})`}
+          </Button>
+          <Button variant="primary" style={styles.choiceButton} onPress={() => choose(pair[1], pair[0])}>
+            {`${pair[1].dishName} (${hallName(pair[1].hallTid)})`}
+          </Button>
+          <Button variant="ghost" onPress={skip}>
+            Skip
+          </Button>
+        </Card>
       ) : null}
 
       <Text style={styles.heading}>Your ranking</Text>
       {rankedDishes.length === 0 ? (
-        <Text>No comparisons yet.</Text>
+        <Text style={styles.hint}>No comparisons yet.</Text>
       ) : (
         rankDishes(rankedDishes).map((dish, i) => (
           <Text key={dishKey(dish)} style={styles.rankRow}>
@@ -127,7 +127,7 @@ export default function RankScreen() {
       <Text style={styles.heading}>Favorite Foods</Text>
       <Text style={styles.hint}>Your favorite dishes by name, regardless of which hall serves them.</Text>
       {rankedFoods.length === 0 ? (
-        <Text>No comparisons yet.</Text>
+        <Text style={styles.hint}>No comparisons yet.</Text>
       ) : (
         rankFoods(rankedFoods).map((food, i) => (
           <Text key={food.dishName} style={styles.rankRow}>
@@ -143,20 +143,32 @@ export default function RankScreen() {
         </Text>
       ))}
       {hallRanking.unranked.map((hall) => (
-        <Text key={hall.hallTid} style={styles.rankRow}>
+        <Text key={hall.hallTid} style={styles.rankRowMuted}>
           {hallName(hall.hallTid)} — not enough data yet
         </Text>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  hint: { color: "#555", marginBottom: 12 },
-  heading: { fontSize: 18, fontWeight: "600", marginTop: 20, marginBottom: 8 },
-  choiceButton: { backgroundColor: "#208AEF", borderRadius: 8, padding: 14, marginBottom: 8 },
-  choiceButtonText: { color: "white", fontWeight: "600", textAlign: "center" },
-  skip: { color: "#888", textAlign: "center", marginTop: 4 },
-  rankRow: { paddingVertical: 4 },
+  screen: { flex: 1, backgroundColor: colors.cream100 },
+  container: { padding: spacing(4), paddingBottom: spacing(10) },
+  pageTitle: { fontFamily: fonts.display, fontSize: 24, fontWeight: "700", textTransform: "uppercase", color: colors.maroon900 },
+  rule: { marginTop: spacing(2), marginBottom: spacing(3), height: 0, borderTopWidth: 4, borderBottomWidth: 1, borderColor: colors.gold500 },
+  hint: { fontFamily: fonts.body, color: withOpacity(colors.ink900, 65), marginBottom: spacing(3) },
+  heading: {
+    fontFamily: fonts.display,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.maroon900,
+    marginTop: spacing(5),
+    marginBottom: spacing(2),
+  },
+  compareCard: { padding: spacing(4), gap: spacing(2) },
+  choiceButton: { marginBottom: spacing(0) },
+  rankRow: { fontFamily: fonts.body, fontSize: 14, color: colors.ink900, paddingVertical: spacing(1) },
+  rankRowMuted: { fontFamily: fonts.body, fontSize: 14, color: withOpacity(colors.ink900, 50), paddingVertical: spacing(1) },
 });

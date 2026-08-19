@@ -1,6 +1,8 @@
 import { fetchNewsletter, type NewsletterIssue } from "@udine/shared";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Card, EmptyState } from "../components/ui";
+import { colors, fonts, spacing } from "../lib/theme";
 
 export default function NewsletterScreen() {
   const [issues, setIssues] = useState<NewsletterIssue[] | null>(null);
@@ -11,27 +13,33 @@ export default function NewsletterScreen() {
   }, []);
 
   if (error) return <Text style={styles.error}>Failed to load newsletter: {error}</Text>;
-  if (!issues) return <ActivityIndicator style={styles.container} />;
+  if (!issues) return <ActivityIndicator style={styles.loading} color={colors.maroon600} />;
 
   return (
     <FlatList
-      style={styles.container}
+      style={styles.screen}
+      contentContainerStyle={styles.container}
       data={issues}
       keyExtractor={(item, i) => `${item.link}-${i}`}
       renderItem={({ item }) => (
-        <Pressable style={styles.row} onPress={() => Linking.openURL(item.link)}>
-          <Text style={styles.period}>{item.period}</Text>
+        <Pressable onPress={() => Linking.openURL(item.link)}>
+          <Card style={styles.row}>
+            <Text style={styles.period}>{item.period}</Text>
+          </Card>
         </Pressable>
       )}
-      ListEmptyComponent={<Text style={styles.empty}>No newsletter issues right now.</Text>}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      ListEmptyComponent={<EmptyState title="No newsletter issues" message="No newsletter issues right now." />}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  row: { padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#ccc" },
-  period: { fontSize: 16, fontWeight: "600" },
-  error: { padding: 16, color: "red" },
-  empty: { padding: 16, color: "#666" },
+  screen: { flex: 1, backgroundColor: colors.cream100 },
+  container: { padding: spacing(4), paddingBottom: spacing(10) },
+  loading: { flex: 1, backgroundColor: colors.cream100 },
+  row: { padding: spacing(3) },
+  period: { fontSize: 16, fontWeight: "700", fontFamily: fonts.display, color: colors.maroon900 },
+  error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body },
+  separator: { height: spacing(2) },
 });

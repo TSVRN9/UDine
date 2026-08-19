@@ -12,6 +12,8 @@ import {
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from "react-native";
+import { Button, EmptyState } from "../../components/ui";
+import { colors, fonts, spacing, withOpacity } from "../../lib/theme";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
 import { getPreferences } from "../../lib/preferences";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
@@ -58,7 +60,7 @@ export default function HallMenuScreen() {
 
   if (!hall) return <Text style={styles.error}>Unknown dining hall</Text>;
   if (error) return <Text style={styles.error}>Failed to load menu: {error}</Text>;
-  if (!items) return <ActivityIndicator style={styles.container} />;
+  if (!items) return <ActivityIndicator style={styles.loading} color={colors.maroon600} />;
 
   async function toggleDishFavorite(dishName: string) {
     const favorite: Favorite = { type: "dish", dishName };
@@ -91,7 +93,7 @@ export default function HallMenuScreen() {
   return (
     <View style={styles.container}>
       {sections.length === 0 ? (
-        <Text style={styles.empty}>No menu matches your filters at {hall.name} today.</Text>
+        <EmptyState title="No matching dishes" message={`No menu matches your filters at ${hall.name} today.`} />
       ) : (
         <SectionList
           sections={sections}
@@ -104,23 +106,29 @@ export default function HallMenuScreen() {
                 <Text style={styles.rowCalories}>{item.nutrition.calories} cal</Text>
               </Pressable>
               <Pressable onPress={() => toggleDishFavorite(item.dishName)} hitSlop={8}>
-                <Text style={styles.star}>{favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName })) ? "★" : "☆"}</Text>
+                <Text style={[styles.star, favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName })) && styles.starActive]}>
+                  {favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName })) ? "★" : "☆"}
+                </Text>
               </Pressable>
             </View>
           )}
         />
       )}
-      {logged && <Text style={styles.loggedBanner}>{logged}</Text>}
+      {logged && (
+        <View style={styles.loggedBanner}>
+          <Text style={styles.loggedBannerText}>{logged}</Text>
+        </View>
+      )}
       {selected && (
         <View style={styles.logBar}>
           <Text style={styles.logBarTitle}>{selected.dishName}</Text>
           <TextInput style={styles.servingsInput} keyboardType="numeric" value={servings} onChangeText={setServings} />
-          <Pressable style={styles.logButton} onPress={logSelected}>
-            <Text style={styles.logButtonText}>Log</Text>
-          </Pressable>
-          <Pressable style={styles.cancelButton} onPress={() => setSelected(null)}>
-            <Text>Cancel</Text>
-          </Pressable>
+          <Button variant="primary" size="sm" onPress={logSelected}>
+            Log
+          </Button>
+          <Button variant="ghost" size="sm" onPress={() => setSelected(null)}>
+            Cancel
+          </Button>
         </View>
       )}
     </View>
@@ -128,20 +136,46 @@ export default function HallMenuScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  error: { padding: 16, color: "red" },
-  empty: { padding: 16 },
-  sectionHeader: { fontSize: 16, fontWeight: "700", backgroundColor: "#eee", padding: 8, textTransform: "capitalize" },
-  row: { flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#ccc" },
-  rowMain: { flex: 1, flexDirection: "row", justifyContent: "space-between", padding: 12 },
-  rowText: { fontSize: 15, flex: 1 },
-  rowCalories: { fontSize: 13, color: "#666" },
-  star: { fontSize: 20, color: "#e0a800", paddingHorizontal: 12 },
-  loggedBanner: { backgroundColor: "#d4edda", padding: 8, textAlign: "center" },
-  logBar: { flexDirection: "row", alignItems: "center", padding: 12, gap: 8, borderTopWidth: 1, borderColor: "#ccc", backgroundColor: "#fafafa" },
-  logBarTitle: { flex: 1, fontWeight: "600" },
-  servingsInput: { borderWidth: 1, borderColor: "#ccc", borderRadius: 6, padding: 6, width: 50, textAlign: "center" },
-  logButton: { backgroundColor: "#208AEF", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6 },
-  logButtonText: { color: "white", fontWeight: "600" },
-  cancelButton: { padding: 8 },
+  container: { flex: 1, backgroundColor: colors.cream100 },
+  loading: { flex: 1, backgroundColor: colors.cream100 },
+  error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body },
+  sectionHeader: {
+    fontFamily: fonts.display,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    backgroundColor: colors.cream100,
+    color: colors.maroon900,
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(2),
+  },
+  row: { flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderColor: withOpacity(colors.ink900, 15), backgroundColor: colors.paper50 },
+  rowMain: { flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing(3) },
+  rowText: { fontSize: 15, flex: 1, fontFamily: fonts.body, color: colors.ink900 },
+  rowCalories: { fontSize: 13, fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
+  star: { fontSize: 20, color: withOpacity(colors.ink900, 30), paddingHorizontal: spacing(3) },
+  starActive: { color: colors.gold500 },
+  loggedBanner: { backgroundColor: colors.maroon900, padding: spacing(2) },
+  loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body, fontSize: 13 },
+  logBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing(3),
+    gap: spacing(2),
+    borderTopWidth: 1,
+    borderColor: withOpacity(colors.ink900, 15),
+    backgroundColor: colors.paper50,
+  },
+  logBarTitle: { flex: 1, fontFamily: fonts.body, fontWeight: "600", color: colors.ink900 },
+  servingsInput: {
+    borderWidth: 1,
+    borderColor: withOpacity(colors.ink900, 25),
+    borderRadius: 2,
+    padding: spacing(1.5),
+    width: 50,
+    textAlign: "center",
+    fontFamily: fonts.mono,
+    color: colors.ink900,
+  },
 });
