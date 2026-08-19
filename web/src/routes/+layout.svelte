@@ -21,8 +21,6 @@
 		{ href: "/notifications", label: "Notifications" },
 		{ href: "/press", label: "Press" },
 		{ href: "/events", label: "Events" },
-		{ href: "/faq", label: "FAQ" },
-		{ href: "/staff", label: "Staff Directory" },
 		{ href: "/newsletter", label: "Newsletter" },
 	];
 

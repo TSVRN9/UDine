@@ -90,8 +90,6 @@ export default function HallListScreen() {
         <NavButton href="/notifications" label="Notifications" />
         <NavButton href="/events" label="Events" />
         <NavButton href="/press" label="Press" />
-        <NavButton href="/faq" label="FAQ" />
-        <NavButton href="/staff" label="Staff Directory" />
         <NavButton href="/newsletter" label="Newsletter" />
       </View>
     </View>

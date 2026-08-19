@@ -1,4 +1,4 @@
-import type { DiningEvent, FaqCategory, NewsletterIssue, PressRelease, StaffMember } from "./types.ts";
+import type { DiningEvent, NewsletterIssue, PressRelease } from "./types.ts";
 
 const BASE = "https://www.umassdining.com/uapp";
 
@@ -47,51 +47,6 @@ export async function fetchEvents(): Promise<DiningEvent[]> {
   if (!res.ok) throw new Error(`get_beacons_events ${res.status}`);
   const data = (await res.json()) as EventsApiResponse;
   return data.events.map(mapEvent);
-}
-
-interface FaqApiItem {
-  title: string;
-  content: string;
-}
-
-/** GET /uapp/get_new_faq — confirmed live. Response is an object keyed by category name. */
-export async function fetchFaq(): Promise<FaqCategory[]> {
-  const res = await fetch(`${BASE}/get_new_faq`);
-  if (!res.ok) throw new Error(`get_new_faq ${res.status}`);
-  const data = (await res.json()) as Record<string, FaqApiItem[]>;
-  return Object.entries(data).map(([name, items]) => ({ name, items }));
-}
-
-interface StaffApiItem {
-  name: string;
-  bio: string;
-  title: string;
-  department: string;
-  email?: string;
-  profile_image: string;
-  // Also has an `order` field, but it's a string ("0", "2", ...) and missing on ~5 of 31 real
-  // entries (verified live 2026-08-18) — the array itself already comes back in display order, so
-  // it's dropped rather than sorted on; sorting by a partially-missing field would scramble entries
-  // that lack it.
-}
-
-export function mapStaffMember(s: StaffApiItem): StaffMember {
-  return {
-    name: s.name,
-    title: s.title,
-    department: s.department,
-    email: s.email,
-    bio: s.bio,
-    profileImage: s.profile_image,
-  };
-}
-
-/** GET /uapp/get_staff — confirmed live (2026-08-18). Response is already in display order. */
-export async function fetchStaff(): Promise<StaffMember[]> {
-  const res = await fetch(`${BASE}/get_staff`);
-  if (!res.ok) throw new Error(`get_staff ${res.status}`);
-  const data = (await res.json()) as StaffApiItem[];
-  return data.map(mapStaffMember);
 }
 
 /**
