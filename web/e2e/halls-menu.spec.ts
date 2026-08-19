@@ -160,3 +160,127 @@ test("clearing the servings input and logging falls back to 1 serving instead of
 
 	await expect(page.getByRole("status")).toHaveText("Logged 1 × Milk Pancakes");
 });
+
+// --- #72: browse upcoming days' menus ---------------------------------------------------------
+//
+// Real wall-clock "today", computed the same way today.spec.ts does (UTC ISO slice, matched by
+// Playwright config's `timezoneId: "UTC"` pinning the *browser's* local date to agree with it —
+// see playwright.config.ts's own comment on this). Deliberately not page.clock-frozen: the rest
+// of this file, and every other e2e spec in this app, already relies on the same real-time +
+// UTC-pinning convention, so introducing a fake clock here would just make this one file behave
+// differently from its neighbors for no real gain.
+const NOW = new Date();
+const TODAY = NOW.toISOString().slice(0, 10);
+const TOMORROW = new Date(NOW.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const DAY_AFTER = new Date(NOW.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+const TODAY_DISH: MenuItem = { ...MILK_DISH, dishName: "Today Pancakes", date: TODAY };
+const TOMORROW_DISH: MenuItem = { ...MILK_DISH, dishName: "Tomorrow Waffles", date: TOMORROW };
+const DAY_AFTER_DISH: MenuItem = { ...MILK_DISH, dishName: "Day-After Bagels", date: DAY_AFTER };
+
+// Mocks /api/menu per requested `date`, so today vs. tomorrow are provably different payloads
+// rather than the same fixture replayed regardless of what the UI asked for.
+async function mockMenuByDate(page: Page, byDate: Record<string, MenuItem[]>) {
+	await page.route("**/api/menu**", (route) => {
+		const date = new URL(route.request().url()).searchParams.get("date");
+		route.fulfill({ json: (date && byDate[date]) ?? [] });
+	});
+}
+
+test("prev is disabled at today; next advances to a real, distinct day", async ({ page }) => {
+	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH], [TOMORROW]: [TOMORROW_DISH] });
+	await gotoHampshireMenu(page);
+
+	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "‹ Prev day" })).toBeDisabled();
+
+	await page.getByRole("button", { name: "Next day ›" }).click();
+
+	await expect(page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" })).toBeVisible();
+	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toHaveCount(0);
+	await expect(page.getByRole("button", { name: "‹ Prev day" })).toBeEnabled();
+
+	await page.getByRole("button", { name: "‹ Prev day" }).click();
+
+	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "‹ Prev day" })).toBeDisabled();
+});
+
+// A day the mock says has nothing (`[]`) stands in for "past the publish window" -- the client
+// deliberately never hardcodes the ~13-day horizon (see docs/apk-reverse-engineering.md's "Future
+// dates" bullet: the window "rolls" and should be discovered per-request, not assumed), so from
+// the UI's perspective an unpublished tomorrow and an out-of-window +30 days look identical: not
+// today, and `[]` back. Exercising it via a single Next click (rather than clicking 30 times to a
+// literal +30 day target) tests the actual condition the component branches on.
+test("a future day with no menu shows the publish-window empty state, not the no-menu-today copy", async ({
+	page,
+}) => {
+	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH] }); // no entry for TOMORROW -> mockMenuByDate falls back to []
+	await gotoHampshireMenu(page);
+	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
+
+	await page.getByRole("button", { name: "Next day ›" }).click();
+
+	await expect(page.getByText("Menu not posted yet — UMass publishes about two weeks ahead.")).toBeVisible();
+	await expect(page.getByText("No menu posted for today.")).toHaveCount(0);
+	// Not today, so prev must be reachable, not stuck disabled the way it is on today's own
+	// empty state.
+	await expect(page.getByRole("button", { name: "‹ Prev day" })).toBeEnabled();
+
+	// The empty state's own way back also works, and returns to real content.
+	await page.getByRole("button", { name: "Back to today" }).click();
+	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
+});
+
+// SvelteKit's SSR "inlines" a `load` function's same-origin fetch server-side, invisible to
+// page.route() (see vertical-slice.spec.ts's comment on this) -- so a literal page.goto() straight
+// to a ?date=... URL can't be mocked here, only client-side navigation can. Browser back/forward
+// on an app-pushed history entry stays client-side (no full reload), which is exactly the
+// "shareable, back-button friendly" URL-state contract the issue asks for -- proven here via
+// goBack()/goForward() rather than a second goto(). Bookmarking/typing a real deep-link URL is
+// covered separately by the mandatory live-API verification step (see the issue's AC and the PR
+// description), since that's real navigation and can only be checked against the real API.
+test("?date= URL state round-trips through browser back/forward, across multiple hops", async ({ page }) => {
+	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH], [TOMORROW]: [TOMORROW_DISH], [DAY_AFTER]: [DAY_AFTER_DISH] });
+	await gotoHampshireMenu(page);
+
+	await page.getByRole("button", { name: "Next day ›" }).click();
+	await expect(page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" })).toBeVisible();
+	expect(new URL(page.url()).searchParams.get("date")).toBe(TOMORROW);
+
+	// A second consecutive hop, from an already-?date=-parameterized URL -- proves the Next button
+	// advances relative to the *browsed* day (data.date), not always relative to today.
+	await page.getByRole("button", { name: "Next day ›" }).click();
+	await expect(page.getByRole("listitem").filter({ hasText: "Day-After Bagels" })).toBeVisible();
+	expect(new URL(page.url()).searchParams.get("date")).toBe(DAY_AFTER);
+
+	await page.goBack();
+	await expect(page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" })).toBeVisible();
+
+	await page.goBack();
+	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
+
+	await page.goForward();
+	await expect(page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" })).toBeVisible();
+
+	await page.goForward();
+	await expect(page.getByRole("listitem").filter({ hasText: "Day-After Bagels" })).toBeVisible();
+	expect(new URL(page.url()).searchParams.get("date")).toBe(DAY_AFTER);
+});
+
+test("logging from a future day's menu records at now, not the browsed future date", async ({ page }) => {
+	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH], [TOMORROW]: [TOMORROW_DISH] });
+	await gotoHampshireMenu(page);
+
+	await page.getByRole("button", { name: "Next day ›" }).click();
+	const dishRow = page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" });
+	await expect(dishRow).toBeVisible();
+	await dishRow.getByRole("button", { name: "Log" }).click();
+	await expect(page.getByRole("status")).toHaveText("Logged 1 × Tomorrow Waffles");
+
+	// /today filters IndexedDB entries by `loggedAt.startsWith(<today's iso date>)` (see
+	// web/src/lib/indexedDbStorage.ts's getEntriesForDate). If logging from tomorrow's menu had
+	// future-dated the entry instead of stamping it `now`, it would NOT show up here.
+	await page.goto("/today");
+	await expect(page.getByText("Tomorrow Waffles × 1")).toBeVisible();
+});
