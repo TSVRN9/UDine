@@ -128,7 +128,7 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
 | `umassdining.com/foodpro-menu-ajax?tid=<term_id>&date=MM%2FDD%2FYYYY` | Menu items + full nutrition panel per dining hall/date/meal | **Confirmed live** (see RE doc) — `tid` is a Drupal taxonomy term id, not a FoodPro location number: Worcester=1, Franklin=2, Hampshire=3, Berkshire=4. Response is meal-period → category → HTML fragment; parse the `data-*` attributes on each `<a data-dish-name=...>`, don't treat it as structured JSON. |
 | `umassdining.com/uapp/get_beacons_events` | Dining hall events | |
 | `umassdining.com/uapp/get_press*` | Press releases | |
-| `umassdining.com/uapp/get_notice`, `get_updates`, `get_new_faq*` | Notices/FAQ | Lower priority |
+| `umassdining.com/uapp/get_notice`, `get_updates` | Notices | Lower priority |
 | OpenFoodFacts API | Barcode lookup, packaged-food macros | For foods not on the UMass menu (off-campus, brought-from-home) |
 
 UMass Dining's own nutrition numbers are the source of truth for on-campus items; OpenFoodFacts fills
@@ -139,7 +139,7 @@ that's UMass Dining's own user system (employee-token auth), unrelated to our Su
 
 The official app already has: dish/location favorites (binary, not ranked), allergen/diet filters,
 push (OneSignal) + local notifications, BLE-beacon dining-hall check-ins tied to events, press
-releases, FAQ, staff directory, newsletter. UDine must cover all of this and add:
+releases, FAQ, staff directory, newsletter. UDine must cover most of this and add:
 
 - Calorie/macro tracking (the official app has none — `nutrition`/`calories_from_fat` strings exist
   only as display fields, no logging).
@@ -151,9 +151,15 @@ releases, FAQ, staff directory, newsletter. UDine must cover all of this and add
 - Data export.
 - No-account-required core usage.
 
-BLE beacon check-ins are the one official feature we're explicitly **not** porting for v1 — it needs
+BLE beacon check-ins are one official feature we're explicitly **not** porting for v1 — it needs
 physical beacon hardware/IDs we don't have and isn't in the user's feature list. Note it, skip it,
 revisit only if asked.
+
+FAQ and staff directory (issue #50, product decision 2026-08-19) are explicitly **cut, not
+deferred** — official-app parity items, but UDine is a macro-tracking/social app connected to the
+UMass menu, and these content screens don't serve that; they were removed entirely from web,
+mobile, and shared (fetchers, types, nav links, tests). Newsletter, press, and events stay — they
+were not part of this cut.
 
 ## Data residency — read this before adding any table or any client→Supabase call
 
@@ -171,7 +177,7 @@ the user explicitly exports it.** This constrains every feature that touches foo
 | Friends, pings, profile | Server (requires account by definition) | |
 | Auth identity (email, Google sub) | Server (Supabase Auth) | |
 
-Anonymous-first: menus, nutrition lookup, events, press releases, FAQ, dietary filters, and local
+Anonymous-first: menus, nutrition lookup, events, press releases, dietary filters, and local
 logging/ranking must all work with **zero account**. Signing in only gates: friends, pings,
 cross-device sync, favorited-food push alerts, and server-stored favorite dining halls. If a feature can be
 built to work locally-only, prefer that over requiring an account — check this before adding an
@@ -190,7 +196,7 @@ menu-fetch + macro-math + local-storage layer right first; everything else is UI
 1. `@udine/shared`: types for dining hall/menu item/log entry, UMass Dining API client, OpenFoodFacts
    client, macro math, local-storage interface (implemented per-platform).
 2. Web + mobile: menu browse → log → daily macro view. No auth required.
-3. Dietary/allergen filters, favorites (binary), press/events/FAQ content screens.
+3. Dietary/allergen filters, favorites (binary), press/events content screens.
 4. Auth (anonymous → Google OAuth sign-in), ranking system (pairwise comparisons → computed order),
    data export.
 5. Friends, pings, favorited-food-elsewhere push notifications.
