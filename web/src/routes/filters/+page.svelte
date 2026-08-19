@@ -32,7 +32,6 @@
 	}
 </script>
 
-<a href="/">&larr; Dining Halls</a>
 <h1>Dietary Filters</h1>
 <p>Applied to menus on the dining hall pages. Stored on this device only.</p>
 

@@ -52,7 +52,6 @@
 	}
 </script>
 
-<a href="/">&larr; Dining Halls</a>
 <h1>Today &mdash; {date}</h1>
 
 <ul>

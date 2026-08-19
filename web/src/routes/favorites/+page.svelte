@@ -30,7 +30,6 @@
 	}
 </script>
 
-<a href="/">&larr; Dining Halls</a>
 <h1>Favorites</h1>
 
 <h2>Dishes</h2>
