@@ -26,9 +26,15 @@
 	// Recomputed client-side (not just trusted from the loader) so a future-dated deep link
 	// still gets an accurate prev/empty-state decision after hydration.
 	const isToday = $derived(data.date === todayIso());
+	// The filter-banner and "everything filtered out" copy below reads as wrong when browsing a
+	// future day and it still says "today's menu" -- neutral wording covers both cases.
+	const menuPossessive = $derived(isToday ? "today’s" : "this day’s");
 
 	function goToDate(dateIso: string) {
-		goto(`?date=${dateIso}`);
+		// keepFocus: these are keyboard-operable date-nav buttons; without it SvelteKit's default
+		// nav behavior moves focus to <body> on every click, dropping a keyboard user back to the
+		// top of the page instead of leaving them on the button they just pressed.
+		goto(`?date=${dateIso}`, { keepFocus: true });
 	}
 
 	// How many of today's dishes the user's own filters are removing. Without this the page just
@@ -36,9 +42,18 @@
 	// the single most confusing thing the filter feature can do.
 	const hiddenCount = $derived(data.items.filter((i) => !menuItemMatchesPreferences(i, prefs)).length);
 
+	// A same-route ?date= nav swaps `data.items` without remounting the component, so seeding must
+	// react to `data.items` itself rather than run once in onMount -- otherwise a new day's dishes
+	// never get their default `servings` entry and render blank (#76 review finding). Existence
+	// check (`in`), not `??=`: clearing the input leaves `null` behind (see logItem's own comment
+	// on this), and `??=` would read that as unset and stomp it back to 1 out from under a user
+	// who's actively clearing the field -- `in` only seeds a key that has never been set at all.
+	$effect(() => {
+		for (const item of data.items) if (!(item.dishName in servings)) servings[item.dishName] = 1;
+	});
+
 	onMount(async () => {
 		prefs = loadPreferences();
-		for (const item of data.items) servings[item.dishName] ??= 1;
 		const favorites = await favoritesStorage.getFavorites();
 		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
 	});
@@ -108,7 +123,7 @@
 {#if hiddenCount > 0 && hiddenCount < data.items.length}
 	<p class="mt-4 rounded-md border border-gold-500/50 bg-gold-500/10 px-4 py-3 text-sm">
 		Your dietary filters are hiding {hiddenCount}
-		{hiddenCount === 1 ? "dish" : "dishes"} on today&rsquo;s menu.
+		{hiddenCount === 1 ? "dish" : "dishes"} on {menuPossessive} menu.
 		<a href="/filters" class="font-semibold">Edit dietary preferences</a>
 	</p>
 {/if}
@@ -139,7 +154,7 @@
 	<div class="empty-state mt-6">
 		<p class="font-display text-lg uppercase">Everything is filtered out</p>
 		<p class="mt-2 text-sm">
-			All {data.items.length} dishes on today&rsquo;s menu conflict with your dietary filters.
+			All {data.items.length} dishes on {menuPossessive} menu conflict with your dietary filters.
 		</p>
 		<p class="mt-4"><a href="/filters" class="btn btn-secondary no-underline">Edit dietary preferences</a></p>
 	</div>

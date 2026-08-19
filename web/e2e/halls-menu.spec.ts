@@ -156,6 +156,9 @@ test("clearing the servings input and logging falls back to 1 serving instead of
 	const servingsInput = dishRow.getByLabel("Servings");
 	await expect(servingsInput).toHaveValue("1");
 	await servingsInput.fill("");
+	// The servings-seed effect (needed for Finding 2, #76 review) must not fight a user actively
+	// clearing the field back to "1" out from under them.
+	await expect(servingsInput).toHaveValue("");
 	await dishRow.getByRole("button", { name: "Log" }).click();
 
 	await expect(page.getByRole("status")).toHaveText("Logged 1 × Milk Pancakes");
@@ -199,6 +202,11 @@ test("prev is disabled at today; next advances to a real, distinct day", async (
 	await expect(page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" })).toBeVisible();
 	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toHaveCount(0);
 	await expect(page.getByRole("button", { name: "‹ Prev day" })).toBeEnabled();
+	// The servings input for the new day's dish must be seeded (not blank) -- onMount only runs
+	// once per component instance, and a same-route ?date= change doesn't remount it.
+	await expect(
+		page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" }).getByRole("spinbutton"),
+	).toHaveValue("1");
 
 	await page.getByRole("button", { name: "‹ Prev day" }).click();
 
