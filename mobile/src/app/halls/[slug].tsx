@@ -114,8 +114,20 @@ export default function HallMenuScreen() {
 
   async function logPlate() {
     const entries = toLogEntries(plate, new Date().toISOString());
-    for (const entry of entries) {
-      await storage.addEntry(entry);
+    try {
+      for (const entry of entries) {
+        await storage.addEntry(entry);
+      }
+    } catch (e) {
+      // ponytail: no transaction wrapping this loop, so a failure partway through leaves
+      // whatever already succeeded committed, and the plate stays put (not cleared) so the user
+      // doesn't lose their selection -- but retrying re-logs everything with fresh ids
+      // (toLogEntries mints new random ids each call), so anything that already committed
+      // becomes a duplicate row rather than being replaced. Acceptable for a UI feature where
+      // each addEntry is one single-row insert unlikely to fail independently; upgrade to one
+      // transactional bulk insert on SqliteLogStorage if this shows up in practice.
+      setLogged(`Couldn't log everything: ${String(e)}`);
+      return;
     }
     const count = totalItemCount(plate);
     setPlate([]);
