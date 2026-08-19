@@ -57,8 +57,8 @@
 	}
 
 	async function logItem(item: MenuItem) {
-		// Clearing the number input leaves null/NaN behind, which used to log a NaN-serving entry and
-		// render "Logged  × French Toast" — fall back to a single serving instead.
+		// Clearing the number input leaves null behind (Svelte's number binding maps "" to null,
+		// never NaN); fall back to a single serving for that and any other non-numeric state.
 		const qty = Number(servings[item.dishName]) || 1;
 		const entry: LogEntry = {
 			id: crypto.randomUUID(),
