@@ -182,6 +182,16 @@ test("home's Your Top Dishes module shows a real comparison's winner, ranked, li
 	await page.getByRole("listitem").filter({ hasText: "French Toast" }).getByRole("button", { name: "Log" }).click();
 	await page.getByRole("listitem").filter({ hasText: "Fried Plantain" }).getByRole("button", { name: "Log" }).click();
 	await comparePrompt(page).getByRole("button", { name: /French Toast/ }).click();
+	// Barrier, not decoration: chooseCompare (halls/[slug]/+page.svelte) only sets comparePrompt =
+	// null as its LAST statement, after awaiting both rankingStorage.saveRankedDishes/saveRankedFoods.
+	// click() itself only waits for the click to dispatch, not for that onclick handler's promise to
+	// settle -- without this wait, page.goto("/") below can fire (and tear down this page's JS/
+	// IndexedDB-transaction context) before the write actually commits. Invisible in a fast/serial
+	// run; under 4-worker CPU contention this is issue #85's flake -- reproduced red-first (2/130 at
+	// --repeat-each=10 --workers=4, "No comparisons yet" still showing at the toContainText timeout,
+	// i.e. the write from the previous page really did lose the race). Same pattern the "choosing a
+	// winner..." (line ~154) and "signed-in: ...syncs favorite dining halls" tests already rely on.
+	await expect(comparePrompt(page)).toHaveCount(0);
 
 	await page.goto("/");
 	await expect(page.getByRole("heading", { name: "Your Top Dishes" })).toBeVisible();
