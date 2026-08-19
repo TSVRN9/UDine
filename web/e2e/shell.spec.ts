@@ -13,6 +13,30 @@ async function disablePreload(page: Page) {
 	await page.evaluate(() => document.body.setAttribute("data-sveltekit-preload-data", "off"));
 }
 
+// Same hydration pitfall vertical-slice.spec.ts documents and works around: a click that lands
+// before SvelteKit's client router has attached falls through to a native full-page navigation
+// instead of a client-side one. For the Press link (a real <a href>) that's not an outright
+// failure -- the browser still ends up on /press -- but it skips the `navigating` store entirely,
+// so a test asserting on the loading indicator would never see it, and it's slower besides (a full
+// SSR round-trip instead of a client-side fetch). CI's runner hydrates measurably slower than a
+// local dev machine, so this needs a real hydration proof, not just a generous timeout.
+//
+// Reuses vertical-slice.spec.ts's own technique: retry a cheap, client-only, side-effect-isolated
+// interaction (the favorite star's onclick has no native fallback at all, so it only succeeds once
+// hydration has actually attached) until it visibly took effect. Once that's passed, hydration is
+// guaranteed complete and the real interaction below it is a single, un-retried click.
+async function proveHydrated(page: Page) {
+	const star = page.getByRole("button", { name: "favorite" }).first();
+	// Every hall starts un-favorited ("☆") in a fresh browser context (Playwright gives each test
+	// its own context, so IndexedDB is always empty here) -- a click that actually landed
+	// post-hydration flips it to "★"; a pre-hydration click is silently lost (no native fallback),
+	// so the glyph never changes and toPass retries with a fresh click.
+	await expect(async () => {
+		await star.click();
+		await expect(star).toHaveText("★");
+	}).toPass({ timeout: 15_000 });
+}
+
 test("exactly one nav element renders on every route", async ({ page }) => {
 	for (const path of ["/", "/today", "/rank"]) {
 		await page.goto(path);
@@ -30,26 +54,24 @@ test("a loading indicator appears while a route's load is in flight, then clears
 		return route.fulfill({ json: [] });
 	});
 
+	await page.goto("/");
+	await disablePreload(page);
+	await proveHydrated(page);
+
+	// Press lives behind the Dining Info disclosure — open it first, same as the
+	// disclosure-closes-on-navigation test below. Hydration is proven above, so this is a single,
+	// un-retried click that's guaranteed to be intercepted client-side.
+	await page.locator("details summary").click();
+	await page.getByRole("link", { name: "Press" }).click();
+
+	// The indicator itself should flip immediately -- `navigating.to` is set synchronously when a
+	// client-side nav starts, before the (mocked, artificially delayed) load resolves -- but the URL
+	// and hidden checks wait out the delay plus /press's first, possibly-cold module compile.
 	const indicator = page.locator('[aria-hidden="true"].animate-pulse');
+	await expect(indicator).toBeVisible();
 
-	// Same hydration pitfall vertical-slice.spec.ts documents: a click that lands before SvelteKit's
-	// client router has attached falls through to a native full-page navigation instead of a
-	// client-side one — which skips the `navigating` store entirely, so the indicator this test is
-	// checking for never appears (seen flaking in CI, where the runner is slower to hydrate). Retry
-	// the whole interaction from a fresh "/" until a click actually lands post-hydration, rather than
-	// a single unretried click.
-	await expect(async () => {
-		await page.goto("/");
-		await disablePreload(page);
-		// Press lives behind the Dining Info disclosure — open it first, same as the
-		// disclosure-closes-on-navigation test below.
-		await page.locator("details summary").click();
-		await page.getByRole("link", { name: "Press" }).click();
-		await expect(indicator).toBeVisible({ timeout: 2_000 });
-	}).toPass({ timeout: 15_000 });
-
-	await expect(page).toHaveURL(/\/press$/);
-	await expect(indicator).toBeHidden();
+	await expect(page).toHaveURL(/\/press$/, { timeout: 15_000 });
+	await expect(indicator).toBeHidden({ timeout: 15_000 });
 });
 
 test("hitting an unknown route renders the on-brand error page with a route back", async ({ page }) => {
@@ -66,6 +88,7 @@ test("an upstream fetch failure renders the on-brand error page, not SvelteKit's
 	// a client-side navigation into /press so the mocked route is the one that actually gets hit.
 	await page.goto("/");
 	await disablePreload(page);
+	await proveHydrated(page);
 	await page.route("**/api/press**", (route) => route.fulfill({ status: 502, body: "bad gateway" }));
 	await page.locator("details summary").click();
 	await page.getByRole("link", { name: "Press" }).click();
@@ -74,8 +97,11 @@ test("an upstream fetch failure renders the on-brand error page, not SvelteKit's
 	// cold cache can take a few seconds and has nothing to do with whether the error page is correct.
 	await page.waitForURL(/\/press$/, { timeout: 15_000 });
 	// Regex, not a literal string: the rendered heading uses a typographic right single quote
-	// (&rsquo;, U+2019) — "Couldn't" with a straight ASCII apostrophe never matches it.
-	await expect(page.getByRole("heading", { name: /Couldn.t reach UMass Dining/ })).toBeVisible();
+	// (&rsquo;, U+2019) — "Couldn't" with a straight ASCII apostrophe never matches it. Generous
+	// timeout for the same cold-compile reason as the waitForURL above -- the URL can update before
+	// the client has finished rendering the new page's content, especially with hydration proven but
+	// still-cold vite module compiles.
+	await expect(page.getByRole("heading", { name: /Couldn.t reach UMass Dining/ })).toBeVisible({ timeout: 15_000 });
 	await expect(page.getByRole("link", { name: "Back to dining halls" })).toBeVisible();
 });
 
