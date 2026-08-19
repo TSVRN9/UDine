@@ -61,4 +61,30 @@ describe("FirstRunCard", () => {
     expect(mockedFirstRun.dismissFirstRun).toHaveBeenCalledTimes(1);
     expect(root.root.findAllByType(Pressable)).toHaveLength(0);
   });
+
+  it("stays hidden on a fresh mount after dismissal -- the same wiring a reload exercises", async () => {
+    // Wires the two mocked functions to one shared flag, the same relationship
+    // src/lib/firstRun.ts's real AsyncStorage-backed get/set has (proven directly in
+    // firstRun.test.ts). This is what makes "stays dismissed across reloads" a property of
+    // FirstRunCard's own effect/handler wiring, not just of the storage module in isolation.
+    let dismissed = false;
+    mockedFirstRun.isFirstRunDismissed.mockImplementation(async () => dismissed);
+    mockedFirstRun.dismissFirstRun.mockImplementation(async () => {
+      dismissed = true;
+    });
+
+    let first!: renderer.ReactTestRenderer;
+    await act(async () => {
+      first = renderer.create(<FirstRunCard />);
+    });
+    await act(async () => {
+      first.root.findByProps({ accessibilityLabel: "Dismiss welcome message" }).props.onPress();
+    });
+
+    let second!: renderer.ReactTestRenderer;
+    await act(async () => {
+      second = renderer.create(<FirstRunCard />);
+    });
+    expect(second.root.findAllByType(Text)).toHaveLength(0);
+  });
 });
