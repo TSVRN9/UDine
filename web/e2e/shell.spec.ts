@@ -126,6 +126,20 @@ test("Friends and Notifications are in primary nav, not behind the disclosure", 
 	await expect(nav.getByRole("link", { name: "Notifications" })).toBeVisible();
 });
 
+// #64: the home route becomes a Today-first dashboard, and nav order should say so -- "Today's
+// macros" is the identity's primary destination, not one entry among ten after the "Dining Halls"
+// home link. Labels are untouched (renaming "Dining Halls" would break the locator every other
+// spec in this suite uses to get back home), only the order changes.
+test("Today's macros precedes the Dining Halls home link in primary nav", async ({ page }) => {
+	await page.goto("/");
+	const linkNames = await page.locator("nav").getByRole("link").allTextContents();
+	const todayIndex = linkNames.findIndex((name) => name.includes("Today's macros"));
+	const diningHallsIndex = linkNames.findIndex((name) => name.includes("Dining Halls"));
+	expect(todayIndex).toBeGreaterThanOrEqual(0);
+	expect(diningHallsIndex).toBeGreaterThanOrEqual(0);
+	expect(todayIndex).toBeLessThan(diningHallsIndex);
+});
+
 test("a skip-to-content link and a device-only-data footer are present", async ({ page }) => {
 	await page.goto("/");
 	await expect(page.getByRole("link", { name: "Skip to content" })).toBeAttached();

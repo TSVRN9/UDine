@@ -101,13 +101,10 @@
 			aria-label="Main"
 			class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 font-display text-sm tracking-wide uppercase sm:px-6"
 		>
-			<a
-				href="/"
-				aria-current={isActive("/") ? "page" : undefined}
-				class="border-b-2 border-transparent text-paper-50/90 no-underline hover:text-gold-500 aria-[current=page]:border-gold-500 aria-[current=page]:text-gold-500"
-			>
-				Dining Halls
-			</a>
+			<!-- #64: Today's macros leads, "Dining Halls" (now the Today-first dashboard's own route)
+			     follows the rest of primaryNav — reflects the Today-first IA without touching any label,
+			     so every spec's getByRole("link", { name: "Dining Halls" | "Today's macros" | ... })
+			     locator still resolves to the same element it always did. -->
 			{#each primaryNav as item (item.href)}
 				<a
 					href={item.href}
@@ -117,6 +114,13 @@
 					{item.label}
 				</a>
 			{/each}
+			<a
+				href="/"
+				aria-current={isActive("/") ? "page" : undefined}
+				class="border-b-2 border-transparent text-paper-50/90 no-underline hover:text-gold-500 aria-[current=page]:border-gold-500 aria-[current=page]:text-gold-500"
+			>
+				Dining Halls
+			</a>
 
 			<!-- Keyed on the path so a client-side navigation destroys and recreates the <details>,
 			     which is what actually closes it — a <details> holds `open` across SvelteKit's
