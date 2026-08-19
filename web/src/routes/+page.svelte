@@ -5,6 +5,7 @@
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { todayIso } from "$lib/date";
 	import MacroStats from "$lib/MacroStats.svelte";
+	import { dismissFirstRun, isFirstRunDismissed } from "$lib/firstRun";
 
 	// #64 (web IA: Today-first home): `/` is now a dashboard — today's macro stats (device-local,
 	// no auth, no server call — see CLAUDE.md's data-residency table), then the four halls as compact
@@ -22,6 +23,11 @@
 	// with real logged food briefly flashes the "nothing logged" empty state.
 	let loaded = $state(false);
 
+	// #68 (onboarding/first-run): shown once, device-local (localStorage), zero server calls -- see
+	// $lib/firstRun.ts. Starts hidden (SSR has no localStorage) and flips on in onMount only if the
+	// user hasn't dismissed it before, same "hidden until checked" shape as `loaded` above.
+	let showFirstRun = $state(false);
+
 	const today = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
 		weekday: "long",
 		month: "long",
@@ -32,7 +38,13 @@
 		logStorage = new IndexedDbLogStorage();
 		refreshFavorites();
 		refreshLog();
+		showFirstRun = !isFirstRunDismissed();
 	});
+
+	function closeFirstRun() {
+		dismissFirstRun();
+		showFirstRun = false;
+	}
 
 	async function refreshFavorites() {
 		const favorites = await favoritesStorage.getFavorites();
@@ -65,6 +77,31 @@
 	</p>
 	<p class="mt-1 font-mono text-xs tracking-widest text-ink-900/50 uppercase">{today}</p>
 </header>
+
+{#if showFirstRun}
+	<section class="card mt-6 px-5 py-5" data-testid="first-run-card">
+		<div class="flex items-start justify-between gap-4">
+			<div>
+				<p class="font-display text-lg uppercase text-maroon-900">Welcome to UDine</p>
+				<p class="mt-2 max-w-prose text-sm text-ink-900/80">
+					Menus, logging, macros and dish rankings all work with no account &mdash; what you eat
+					never leaves this device. Export your full history any time from Today&rsquo;s macros.
+				</p>
+				<p class="mt-2 max-w-prose text-sm text-ink-900/80">
+					Signing in only adds friends, pings, cross-device favorites and favorited-dish push
+					alerts &mdash; nothing else.
+				</p>
+			</div>
+			<button
+				onclick={closeFirstRun}
+				aria-label="Dismiss welcome message"
+				class="btn btn-ghost btn-sm shrink-0"
+			>
+				Got it
+			</button>
+		</div>
+	</section>
+{/if}
 
 <section class="mt-6">
 	{#if loaded && entries.length === 0}
