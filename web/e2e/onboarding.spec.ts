@@ -83,6 +83,10 @@ test.describe("first-run card on the home dashboard", () => {
 		}).toPass({ timeout: 10_000 });
 
 		await page.reload();
+		// Post-hydration barrier: toHaveCount(0) would otherwise resolve against the pre-hydration SSR
+		// DOM (showFirstRun starts false), passing even if onMount re-shows the card. Waiting for the
+		// dashboard's onMount-driven empty state guarantees hydration ran before we assert absence.
+		await expect(page.getByText("Nothing logged yet today.")).toBeVisible();
 		await expect(page.getByTestId("first-run-card")).toHaveCount(0);
 	});
 
@@ -95,6 +99,8 @@ test.describe("first-run card on the home dashboard", () => {
 
 		await page.goto("/today");
 		await page.goto("/");
+		// Same post-hydration barrier as the reload test above.
+		await expect(page.getByText("Nothing logged yet today.")).toBeVisible();
 		await expect(page.getByTestId("first-run-card")).toHaveCount(0);
 	});
 });
