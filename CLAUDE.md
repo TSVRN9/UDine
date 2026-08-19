@@ -187,6 +187,16 @@ Data export: every device-local table needs a JSON/CSV export path in both apps 
 `@udine/shared`). This is not optional/later — it's the release valve for "data never leaves the
 device" being true without also being a trap.
 
+## CI is local-only — do not wait on remote checks
+
+Remote GitHub Actions runs are **disabled** (2026-08-19, owner request — hosted-runner usage): the
+workflow is `workflow_dispatch`-only and branch protection no longer requires status checks. The
+gate moved local, it did not go away: before merging any PR, run every lane from the comment at the
+top of `.github/workflows/ci.yml` on the PR head — directly on the host (fastest), or with CI parity
+via `gh act -j <job>` (config in `.actrc`, Docker required; validated working). `supabase-rls-tests`
+runs host-direct (`supabase start … && supabase test db`), not under act. Don't `gh pr checks --watch`
+or block on remote CI — nothing will report.
+
 ## Build order
 
 Ship one vertical slice — browse menu → log a food item → see today's macros — working end-to-end in
