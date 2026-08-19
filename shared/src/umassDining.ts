@@ -44,6 +44,12 @@ function num(s: string): number {
   return match ? Number.parseFloat(match[0]) : 0;
 }
 
+/** %DV attributes come through blank (not absent) when the dish/nutrient has no established FDA
+ * daily value (e.g. trans fat) — blank means null, not 0. */
+function dv(s: string): number | null {
+  return s === "" ? null : num(s);
+}
+
 function csvList(s: string): string[] {
   return s
     .split(",")
@@ -77,6 +83,17 @@ export function parseCategoryItems(html: string, category: string, mealPeriod: M
       dietaryFiberG: num(getAttr(attrs, "data-dietary-fiber")),
       sugarsG: num(getAttr(attrs, "data-sugars")),
       proteinG: num(getAttr(attrs, "data-protein")),
+      // #91: real captured fragments (see umassDining.test.ts) — every -dv attribute is hyphenated
+      // except cholesterol, which the feed spells with an underscore (data-cholesterol_dv). Not a typo
+      // to "fix": getAttr must match the real attribute name or this field silently comes back blank.
+      totalFatDv: dv(getAttr(attrs, "data-total-fat-dv")),
+      satFatDv: dv(getAttr(attrs, "data-sat-fat-dv")),
+      cholesterolDv: dv(getAttr(attrs, "data-cholesterol_dv")),
+      sodiumDv: dv(getAttr(attrs, "data-sodium-dv")),
+      totalCarbDv: dv(getAttr(attrs, "data-total-carb-dv")),
+      dietaryFiberDv: dv(getAttr(attrs, "data-dietary-fiber-dv")),
+      sugarsDv: dv(getAttr(attrs, "data-sugars-dv")),
+      proteinDv: dv(getAttr(attrs, "data-protein-dv")),
     };
     items.push({
       dishName,

@@ -20,6 +20,19 @@ export interface NutritionFacts {
   dietaryFiberG: number;
   sugarsG: number;
   proteinG: number;
+  // %DV fields, additive (#91) — scraped straight from foodpro-menu-ajax's own data-*-dv attributes,
+  // not computed client-side. Optional: OpenFoodFacts-sourced items never populate these (OFF has no
+  // %DV field), and web/existing constructors of NutritionFacts predate this and don't set them either.
+  // null means the attribute was present but blank (e.g. trans fat has no established FDA %DV);
+  // undefined means the source has no concept of %DV at all (e.g. OpenFoodFacts).
+  totalFatDv?: number | null;
+  satFatDv?: number | null;
+  cholesterolDv?: number | null;
+  sodiumDv?: number | null;
+  totalCarbDv?: number | null;
+  dietaryFiberDv?: number | null;
+  sugarsDv?: number | null;
+  proteinDv?: number | null;
 }
 
 export interface MenuItem {

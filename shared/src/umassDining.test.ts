@@ -27,6 +27,18 @@ test("parseCategoryItems extracts both dishes with correct nutrition and decodes
   assert.equal(plantain.nutrition.calories, 69);
 });
 
+test("parseCategoryItems captures %DV attributes, including the cholesterol_dv underscore quirk, with blanks as null", () => {
+  const [toast] = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", 3, "2026-08-19");
+  assert.equal(toast.nutrition.totalFatDv, 4);
+  assert.equal(toast.nutrition.satFatDv, null); // data-sat-fat-dv="" in the real fragment
+  assert.equal(toast.nutrition.cholesterolDv, null); // data-cholesterol_dv="" — underscore, not hyphen
+  assert.equal(toast.nutrition.sodiumDv, 10);
+  assert.equal(toast.nutrition.totalCarbDv, 16);
+  assert.equal(toast.nutrition.dietaryFiberDv, 3);
+  assert.equal(toast.nutrition.sugarsDv, null); // data-sugars-dv="" in the real fragment
+  assert.equal(toast.nutrition.proteinDv, 9);
+});
+
 test("parseCategoryItems returns nothing for a fragment with no dishes", () => {
   assert.deepEqual(parseCategoryItems("<h2>Closed today</h2>", "x", "breakfast", 3, "2026-08-19"), []);
 });
