@@ -81,6 +81,19 @@ describe("deriveHomeHero", () => {
     const hero = deriveHomeHero(halls, lateNight);
     expect(hero.kind).toBe("closedForDay");
   });
+
+  // Live get_infov2 data never populates `latenight` (always null — see #98's KNOWN CONSUMER
+  // NOTE), but currentMealPeriod/openStatus both handle it generically for a future data source
+  // (hours.ts's own doc comment) — deriveHomeHero must not silently drop it.
+  it("reports a named meal period for latenight, after dinner in the scan order", () => {
+    const lateNightNow = new Date(2026, 7, 19, 23, 0, 0, 0);
+    const halls = [hall({ hallTid: 1, latenight: window("10:00 PM", "1:00 AM") })];
+    const hero = deriveHomeHero(halls, lateNightNow);
+    expect(hero.kind).toBe("meal");
+    if (hero.kind !== "meal") throw new Error("expected meal");
+    expect(hero.period).toBe("latenight");
+    expect(hero.closesAt.getHours()).toBe(1);
+  });
 });
 
 describe("formatHeroLine", () => {
@@ -88,6 +101,12 @@ describe("formatHeroLine", () => {
     const line = formatHeroLine({ kind: "meal", period: "lunch", closesAt: new Date(2026, 7, 19, 14, 30) });
     expect(line.title).toBe("LUNCH");
     expect(line.subtitle).toBe("served now · until 2:30 PM");
+  });
+
+  it("formats a named latenight period the same as any other named meal period", () => {
+    const line = formatHeroLine({ kind: "meal", period: "latenight", closesAt: new Date(2026, 7, 20, 1, 0) });
+    expect(line.title).toBe("LATENIGHT");
+    expect(line.subtitle).toBe("served now · until 1:00 AM");
   });
 
   it("formats open-with-general-hours as OPEN with no meal name", () => {

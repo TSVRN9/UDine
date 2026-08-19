@@ -1,4 +1,6 @@
-import { currentMealPeriod, openStatus, type DiningHallHours, type MealPeriod, type OpenStatus, type RetailLocationHours } from "@udine/shared";
+import { currentMealPeriod, openStatus, type DiningHallHours, type MealStatus, type OpenStatus, type RetailLocationHours } from "@udine/shared";
+
+type NamedMealPeriod = Exclude<MealStatus, "closed">;
 
 /**
  * The Home pane's mealtime hero, aggregated across all 4 commons for one "what's being served
@@ -15,16 +17,20 @@ import { currentMealPeriod, openStatus, type DiningHallHours, type MealPeriod, t
  *    which is an acceptable simplification (no day-rollover lookahead) rather than a gap.
  */
 export type HomeHero =
-  | { kind: "meal"; period: MealPeriod; closesAt: Date }
+  | { kind: "meal"; period: NamedMealPeriod; closesAt: Date }
   | { kind: "open"; closesAt: Date }
   | { kind: "closed"; opensAt: Date }
   | { kind: "closedForDay" };
 
-const MEAL_ORDER: MealPeriod[] = ["breakfast", "lunch", "dinner"];
+// Live get_infov2 data never populates latenight (always null — see #98's KNOWN CONSUMER NOTE),
+// but currentMealPeriod/openStatus both handle it generically for a future data source (hours.ts's
+// own doc comment) — this scan order must too, or a populated latenight window would silently fall
+// into the "open, no named meal" bucket instead of getting its own hero line.
+const MEAL_ORDER: NamedMealPeriod[] = ["breakfast", "lunch", "dinner", "latenight"];
 
 /** Derives the aggregate hero state from all halls' hours as of `now`. The meal period is a
- * function of the clock, not a vote across halls: scans breakfast → lunch → dinner in that
- * canonical order and takes the first one any open hall is currently serving, with `closesAt`
+ * function of the clock, not a vote across halls: scans breakfast → lunch → dinner → latenight in
+ * that canonical order and takes the first one any open hall is currently serving, with `closesAt`
  * as the latest close among halls sharing that period (mirrors openStatus's own "latest close
  * wins" rule for overlapping windows). */
 export function deriveHomeHero(halls: DiningHallHours[], now: Date): HomeHero {
