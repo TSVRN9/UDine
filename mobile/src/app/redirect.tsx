@@ -1,5 +1,6 @@
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
+import { Alert } from "react-native";
 import { exchangeCode, isSignInInFlight, shouldExchangeCode } from "../lib/auth";
 
 /**
@@ -26,7 +27,14 @@ export default function RedirectScreen() {
 
   useEffect(() => {
     if (shouldExchangeCode(code, isSignInInFlight())) {
-      exchangeCode(code).catch((err) => console.error("OAuth cold-start code exchange failed", err));
+      // console.error alone is invisible in a release build — a user whose cold exchange fails
+      // (e.g. an expired code) would complete Google consent and land silently signed out, which
+      // is exactly #54's complaint. Alert.alert is native, so it survives this screen's immediate
+      // <Redirect> unmount, same as the warm path's identical failure surface (index.tsx).
+      exchangeCode(code).catch((err) => {
+        console.error("OAuth cold-start code exchange failed", err);
+        Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
+      });
     }
   }, [code]);
 

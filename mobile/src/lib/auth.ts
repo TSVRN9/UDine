@@ -16,8 +16,9 @@ export function isSignInInFlight(): boolean {
 /**
  * Pure "should redirect.tsx exchange this code itself" decision, split out from the side-effecting
  * exchange so it's testable without mocking supabase/Linking. False whenever the warm sign-in path
- * (signInWithGoogle, below) is already mid-exchange for the same code — exchanging twice fails
- * because the code is single-use.
+ * (signInWithGoogle, below) is already in flight — `inFlight` isn't keyed to a specific code, but
+ * there's only ever one OAuth round-trip active at a time, so "a sign-in is in flight" already
+ * means "it's this code's flow." Exchanging twice fails because the code is single-use.
  */
 export function shouldExchangeCode(code: unknown, inFlight: boolean): code is string {
   return typeof code === "string" && !inFlight;
