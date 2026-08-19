@@ -3,6 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 // Anonymous-first vertical slice (browse -> log -> today), see e2e/vertical-slice.spec.ts.
 // Local run: `npx playwright test` from web/ (add `--headed` or `--debug` to watch/step through it).
 // `webServer` boots the SvelteKit dev server itself, so `pnpm dev` doesn't need to be running first.
+// Port comes from PORT (default 4173) so concurrent suite runs in separate worktrees/checkouts can
+// each claim their own port instead of colliding on the default — run with `PORT=<n> npx playwright test`.
+const port = process.env.PORT || "4173";
+
 export default defineConfig({
 	testDir: "./e2e",
 	fullyParallel: true,
@@ -14,7 +18,7 @@ export default defineConfig({
 	retries: 0,
 	reporter: [["line"], ["html", { open: "never" }]],
 	use: {
-		baseURL: "http://localhost:4173",
+		baseURL: `http://localhost:${port}`,
 		// Pins the *browser's* clock so todayIso() (browser-local date) and LogEntry.loggedAt
 		// (toISOString(), UTC) always agree, regardless of the machine/CI runner's own timezone —
 		// otherwise this test only passes by accident of GitHub Actions runners defaulting to UTC,
@@ -26,8 +30,8 @@ export default defineConfig({
 	},
 	projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 	webServer: {
-		command: "npx vite dev --port 4173",
-		url: "http://localhost:4173",
+		command: `npx vite dev --port ${port}`,
+		url: `http://localhost:${port}`,
 		reuseExistingServer: !process.env.CI,
 		timeout: 60_000,
 	},
