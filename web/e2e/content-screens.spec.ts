@@ -103,13 +103,34 @@ test.describe("press", () => {
 		await expect(withoutImage.getByRole("link", { name: RELEASES[1].title })).toHaveAttribute("href", RELEASES[1].url);
 	});
 
+	// Real bug, reviewer-verified against live data: GET /uapp/get_press returns image URLs with a
+	// literal host of "default" (e.g. https://default/sites/default/files/press/images.png) for
+	// every release -- present, so `{#if release.image}` alone doesn't catch it, but unresolvable,
+	// so the browser renders a visible broken-image glyph inside the fixed h-16 box. Primary fix is
+	// shared/src/content.ts's sanitizeImageUrl (see content.test.ts); this asserts the web app never
+	// shows the broken box even if a bad URL reaches this page's data by some other path.
+	test("a present but unresolvable image host renders no visible broken-image box", async ({ page }) => {
+		const releaseWithBadImage: PressRelease = {
+			title: "Bad Image Host Release",
+			url: "https://umassdining.com/press/bad-image",
+			image: "https://default/sites/default/files/press/images.png",
+			date: "2026-08-19",
+		};
+		await page.route("**/api/press**", (route) => route.fulfill({ json: [releaseWithBadImage] }));
+		await gotoContentPage(page, "Press");
+		await expect(page).toHaveURL(/\/press$/);
+
+		const card = page.locator("main li.card").filter({ hasText: releaseWithBadImage.title });
+		await expect(card).toBeVisible();
+		await expect(card.locator("img")).toHaveCount(0);
+	});
+
 	test("no releases shows the shared empty-state panel, not a bare paragraph", async ({ page }) => {
 		await page.route("**/api/press**", (route) => route.fulfill({ json: [] }));
 		await gotoContentPage(page, "Press");
 		await expect(page).toHaveURL(/\/press$/);
 
 		await expect(page.locator(".empty-state")).toBeVisible();
-		await expect(page.locator("main li.card")).toHaveCount(0);
 	});
 
 	test("an upstream failure renders the shared error page, not a styled-but-broken press screen", async ({ page }) => {
@@ -147,13 +168,32 @@ test.describe("events", () => {
 		await expect(plain.getByRole("link", { name: "More info" })).toHaveAttribute("href", EVENTS[1].externalLink);
 	});
 
+	// Same reviewer-verified bug as press's equivalent test above -- GET /uapp/get_beacons_events
+	// returns featured_image with the same unresolvable "default" host.
+	test("a present but unresolvable image host renders no visible broken-image box", async ({ page }) => {
+		const eventWithBadImage: DiningEvent = {
+			title: "Bad Image Host Event",
+			featuredImage: "https://default/sites/default/files/events/banner.jpg",
+			pdfLink: "",
+			externalLink: "",
+			expirationDate: "2026-09-01T00:00:00.000Z",
+			isFeatured: false,
+		};
+		await page.route("**/api/events**", (route) => route.fulfill({ json: [eventWithBadImage] }));
+		await gotoContentPage(page, "Events");
+		await expect(page).toHaveURL(/\/events$/);
+
+		const card = page.locator("main li.card").filter({ hasText: eventWithBadImage.title });
+		await expect(card).toBeVisible();
+		await expect(card.locator("img")).toHaveCount(0);
+	});
+
 	test("no events shows the shared empty-state panel", async ({ page }) => {
 		await page.route("**/api/events**", (route) => route.fulfill({ json: [] }));
 		await gotoContentPage(page, "Events");
 		await expect(page).toHaveURL(/\/events$/);
 
 		await expect(page.locator(".empty-state")).toBeVisible();
-		await expect(page.locator("main li.card")).toHaveCount(0);
 	});
 
 	test("an upstream failure renders the shared error page", async ({ page }) => {
@@ -189,7 +229,6 @@ test.describe("newsletter", () => {
 		await expect(page).toHaveURL(/\/newsletter$/);
 
 		await expect(page.locator(".empty-state")).toBeVisible();
-		await expect(page.locator("main li.card")).toHaveCount(0);
 	});
 
 	test("an upstream failure renders the shared error page", async ({ page }) => {
