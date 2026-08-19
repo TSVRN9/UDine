@@ -217,3 +217,60 @@ test("openStatus falls back to general hours when there's no per-meal breakdown"
   assert.equal(status.open, true);
   assert.deepEqual(status.open ? status.closesAt : null, new Date(2026, 7, 19, 21, 0));
 });
+
+// --- hardening follow-ups from PR #98's review (issue #100) ---
+
+test("openStatus chains into a contiguous adjacent window instead of reporting the first window's close (issue #100 item 1)", () => {
+  // Breakfast 7-10 adjacent to lunch 10-2: at 9 AM the hall is still open straight through lunch,
+  // so closesAt must be 2 PM (lunch's close), not 10 AM (breakfast's close) -- unreachable through
+  // mapInfoV2 today (open locations publish a whole-day general window instead of adjacent per-meal
+  // windows) but real the moment a latenight/per-meal source with back-to-back windows is injected.
+  const BREAKFAST: TimeWindow = { openTime: "7:00 AM", closeTime: "10:00 AM" };
+  const CONTIGUOUS_LUNCH: TimeWindow = { openTime: "10:00 AM", closeTime: "2:00 PM" };
+  const hall = hallWith({ breakfast: BREAKFAST, lunch: CONTIGUOUS_LUNCH });
+  const status = openStatus(hall, new Date(2026, 7, 19, 9, 0));
+  assert.equal(status.open, true);
+  assert.deepEqual(status.open ? status.closesAt : null, new Date(2026, 7, 19, 14, 0));
+});
+
+test("openStatus does not throw on a hand-built window using a non-standard time word like 'Midnight', and treats it as no window (issue #100 item 3)", () => {
+  // Hand-built windows (tests, or a future latenight source) bypass windowOrNull's TIME_PATTERN
+  // check, which is the only thing currently protecting parseTimeOfDay from throwing.
+  const hall = hallWith({ latenight: { openTime: "11:00 PM", closeTime: "Midnight" } });
+  const status = openStatus(hall, new Date(2026, 7, 19, 23, 30));
+  assert.equal(status.open, false);
+  assert.equal(status.open ? "unreachable" : status.opensAt, null);
+});
+
+test("currentMealPeriod does not throw on a hand-built window using a non-standard time word like 'Midnight' (issue #100 item 3)", () => {
+  const hall = hallWith({ latenight: { openTime: "11:00 PM", closeTime: "Midnight" } });
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 19, 23, 30)), "closed");
+});
+
+test("openStatus treats openTime === closeTime as closed, not a 24h-open window (issue #100 item 4)", () => {
+  // crossesMidnight uses <=, so an equal open/close time would otherwise resolve to a full 24h
+  // "open" span. That's almost certainly a data error, not a real close-at-open-time schedule --
+  // pinned fallback: treat it as no window (closed) rather than open all day.
+  const hall = hallWith({ general: { openTime: "09:00 AM", closeTime: "09:00 AM" } });
+  const status = openStatus(hall, new Date(2026, 7, 19, 12, 0));
+  assert.equal(status.open, false);
+  assert.equal(status.open ? "unreachable" : status.opensAt, null);
+});
+
+// Real capture: 19 of the 40 live get_infov2 objects omit the six per-meal fields entirely rather
+// than publishing them as null (issue #100 item 2) -- e.g. some retail locations. `InfoV2Location`
+// currently types them as required, so this fixture fails to typecheck against it even though
+// mapInfoV2/windowOrNull already handle `undefined` safely at runtime (same "falsy" branch as `""`
+// and `null`).
+const INFOV2_MISSING_MEAL_FIELDS = [
+  {
+    location_title: "Paciugo",
+    opening_hours: "11:00 AM",
+    closing_hours: "06:00 PM",
+  },
+] satisfies InfoV2Location[];
+
+test("mapInfoV2 handles a fixture object that omits the six per-meal fields entirely, not just sets them null (issue #100 item 2)", () => {
+  const feed = mapInfoV2(INFOV2_MISSING_MEAL_FIELDS);
+  assert.deepEqual(feed.retail[0]?.hours, { openTime: "11:00 AM", closeTime: "06:00 PM" });
+});
