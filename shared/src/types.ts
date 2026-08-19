@@ -144,3 +144,36 @@ export interface FoodRankingStorage {
   getRankedFoods(): Promise<RankedFood[]>;
   saveRankedFoods(foods: RankedFood[]): Promise<void>;
 }
+
+/** One open/close window in the feed's published wall-clock time (Eastern, no offset in the feed
+ * itself -- see hours.ts's atLocalTime doc). */
+export interface TimeWindow {
+  openTime: string; // "H:MM AM/PM" or "HH:MM AM/PM" as published by get_infov2
+  closeTime: string;
+}
+
+/** breakfast/lunch/dinner/late-night derivation states, plus "closed" -- see hours.ts's
+ * currentMealPeriod. */
+export type MealStatus = MealPeriod | "latenight" | "closed";
+
+/** One dining hall's hours for "today" as published by get_infov2, keyed to DINING_HALLS by tid. */
+export interface DiningHallHours {
+  hallTid: number;
+  breakfast: TimeWindow | null;
+  lunch: TimeWindow | null;
+  dinner: TimeWindow | null;
+  latenight: TimeWindow | null;
+  general: TimeWindow | null; // opening_hours/closing_hours -- published when there's no per-meal breakdown
+}
+
+export interface RetailLocationHours {
+  name: string;
+  hours: TimeWindow | null; // null when the feed reports "Closed"
+}
+
+export interface DiningHoursFeed {
+  halls: DiningHallHours[]; // exactly the 4 DINING_HALLS, matched by name
+  retail: RetailLocationHours[]; // everything else in the get_infov2 feed
+}
+
+export type OpenStatus = { open: true; closesAt: Date } | { open: false; opensAt: Date | null };
