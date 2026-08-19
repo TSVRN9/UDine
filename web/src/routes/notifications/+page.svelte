@@ -130,7 +130,7 @@
 			Notify me when a favorited dish shows up on the menu
 		</label>
 	</p>
-	<p><small>Turning this on will ask your browser for notification permission and register a push subscription. Server-side push dispatch is still a work in progress — see CLAUDE.md — but this page is always the notification feed.</small></p>
+	<p><small>Turning this on will ask your browser for notification permission and register a push subscription. This page is always the notification feed either way.</small></p>
 
 	<h2>Sightings</h2>
 	{#if sightings.length === 0}

@@ -109,7 +109,7 @@ export default function NotificationsScreen() {
         <Text style={styles.toggleLabel}>Notify me when a favorited dish shows up on the menu</Text>
         <Switch value={notificationsEnabled} onValueChange={toggleNotifications} />
       </View>
-      <Text style={styles.hint}>Push delivery isn&apos;t wired up yet — this is the notification feed for now. See CLAUDE.md.</Text>
+      <Text style={styles.hint}>Turning this on will request notification permission and register your device for push. This is always the notification feed either way.</Text>
 
       <Text style={styles.sectionTitle}>Sightings</Text>
       {sightings.length === 0 ? (
