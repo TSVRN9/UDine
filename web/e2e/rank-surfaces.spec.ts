@@ -447,6 +447,12 @@ test("narrow viewport (375x667): the last dish row's Log button stays reachable 
 	await secondDish.click();
 	await expect(comparePrompt(page)).toBeVisible();
 
+	// Settle the toast BEFORE measuring: it auto-clears at 2s, which shrinks the spacer and
+	// re-clamps scrollY mid-probe — a real race this spec lost ~10% of the time under 4 workers
+	// (boundingBox taken pre-relayout, elementFromPoint after). Production self-corrects (the
+	// browser re-clamps and the button stays reachable); only the measurement needs the quiet DOM.
+	await expect(page.getByRole("status")).toHaveCount(0, { timeout: 5000 });
+
 	// Worst case: scrolled all the way to the bottom, prompt still up.
 	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 

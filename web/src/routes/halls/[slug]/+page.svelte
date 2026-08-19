@@ -324,7 +324,9 @@
      keeps their scroll position stable and they scroll roughly one stack-height further to reach it.
      That's the sanctioned tradeoff (bottom padding equal to the stack height, per #82's decision) --
      before this fix there was no scroll that helped at all, the row was permanently pinned under a
-     fixed-position stack.
+     fixed-position stack. Same transient in the other direction: the toast auto-clearing at 2s
+     shrinks the spacer and the browser re-clamps scrollY -- verified self-correcting (button stays
+     reachable), so only tests that measure mid-clear need to wait the toast out.
      ponytail: +20 below duplicates the wrapper's own `bottom-5` (1.25rem) instead of reading it from
      one shared source -- fine while there's only one bottom-anchored offset in this file; extract a
      CSS var if a second one with a different offset shows up. -->
