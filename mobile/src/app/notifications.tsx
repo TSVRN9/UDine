@@ -9,25 +9,41 @@ import { EmptyState } from "../components/ui";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { supabase } from "../lib/supabase";
+import { withTimeout } from "../lib/withTimeout";
 
 const PLATFORM = "expo" as const;
 
+// #45: the toggle handler used to await several network/native calls back-to-back with no
+// timeout on any of them. One of them could stall silently — no throw, no log, no crash — and
+// because the only error handling in the whole chain was a console.warn around
+// getExpoPushTokenAsync specifically, a hang anywhere *earlier* in the chain (e.g. the
+// favorited_foods sync) looked identical to "push token registration hangs" even though
+// registration was never reached. Every awaited step below is now timeout-bounded and logged
+// with its own label, so a future stall is localized instead of silent.
+const STEP_TIMEOUT_MS = 15000;
+
 /** Requests permission and returns an Expo push token, or null if denied/unavailable (e.g. no FCM creds yet). */
 async function registerForPushToken(): Promise<string | null> {
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let status = existing;
-  if (status !== "granted") {
-    ({ status } = await Notifications.requestPermissionsAsync());
-  }
-  if (status !== "granted") return null;
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   try {
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    console.log("[push] checking notification permission...");
+    const { status: existing } = await withTimeout(Notifications.getPermissionsAsync(), STEP_TIMEOUT_MS, "getPermissionsAsync");
+    let status = existing;
+    if (status !== "granted") {
+      ({ status } = await withTimeout(Notifications.requestPermissionsAsync(), STEP_TIMEOUT_MS, "requestPermissionsAsync"));
+    }
+    console.log(`[push] permission status=${status}`);
+    if (status !== "granted") return null;
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    console.log(`[push] resolved projectId=${JSON.stringify(projectId)}`);
+    console.log("[push] calling getExpoPushTokenAsync...");
+    const { data } = await withTimeout(Notifications.getExpoPushTokenAsync({ projectId }), STEP_TIMEOUT_MS, "getExpoPushTokenAsync");
+    console.log(`[push] getExpoPushTokenAsync resolved: ${data}`);
     return data;
   } catch (e) {
-    // FCM credentials may not be uploaded to EAS yet — don't block the in-app feature on it.
-    console.warn("[push] getExpoPushTokenAsync failed (FCM V1 creds may not be uploaded to EAS)", e);
+    // Permission calls or getExpoPushTokenAsync failed/timed out, or FCM credentials aren't
+    // uploaded to EAS yet — don't block the in-app feature on it.
+    console.warn("[push] registerForPushToken failed or timed out", e);
     return null;
   }
 }
@@ -70,23 +86,64 @@ export default function NotificationsScreen() {
 
   async function toggleNotifications(next: boolean) {
     if (!session) return;
-    await supabase.from("profiles").update({ notifications_enabled: next }).eq("user_id", session.user.id);
-    setNotificationsEnabled(next);
+    try {
+      console.log(`[push] toggleNotifications(${next}): writing notifications_enabled...`);
+      const { error: profileError } = await withTimeout(
+        supabase.from("profiles").update({ notifications_enabled: next }).eq("user_id", session.user.id),
+        STEP_TIMEOUT_MS,
+        "profiles.update(notifications_enabled)",
+      );
+      // supabase-js resolves with { error } on a PostgREST failure (RLS denial, constraint
+      // violation, expired session, ...) rather than rejecting — awaiting it alone silently
+      // swallows that error. Same for the push_tokens calls below.
+      if (profileError) console.warn(`[push] toggleNotifications(${next}): profiles.update failed`, profileError);
+      setNotificationsEnabled(next);
 
-    // Sync (or clear) favorited_foods to match — see CLAUDE.md: favorited_foods only syncs when
-    // signed in AND notifications_enabled.
-    const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
-    await syncFavoritedFoods(supabase, session.user.id, favorites);
+      // Sync (or clear) favorited_foods to match — see CLAUDE.md: favorited_foods only syncs when
+      // signed in AND notifications_enabled.
+      const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
+      console.log(`[push] toggleNotifications(${next}): syncing favorited_foods (${favorites.length})...`);
+      // syncFavoritedFoods never throws (see its doc comment) — log a failure and keep going
+      // rather than aborting the rest of the chain. That matters most on toggle-OFF: aborting
+      // here would skip push_tokens.delete below and leave a live token on a device the user
+      // just asked to stop notifying.
+      const { error: favoritesSyncError } = await withTimeout(syncFavoritedFoods(supabase, session.user.id, favorites), STEP_TIMEOUT_MS, "syncFavoritedFoods");
+      if (favoritesSyncError) console.warn(`[push] toggleNotifications(${next}): syncFavoritedFoods failed`, favoritesSyncError);
 
-    if (next) {
-      // Best-effort: permission may be denied, or getExpoPushTokenAsync may fail if FCM creds
-      // aren't uploaded to EAS yet. Either way, in-app notifications_enabled above still stands.
-      const token = await registerForPushToken();
-      if (token) {
-        await supabase.from("push_tokens").upsert({ user_id: session.user.id, platform: PLATFORM, token });
+      if (next) {
+        // Best-effort: permission may be denied, or getExpoPushTokenAsync may fail if FCM creds
+        // aren't uploaded to EAS yet. Either way, in-app notifications_enabled above still stands.
+        const token = await registerForPushToken();
+        if (token) {
+          console.log("[push] toggleNotifications: upserting push_tokens row...");
+          const { error: upsertError } = await withTimeout(
+            supabase.from("push_tokens").upsert({ user_id: session.user.id, platform: PLATFORM, token }),
+            STEP_TIMEOUT_MS,
+            "push_tokens.upsert",
+          );
+          if (upsertError) {
+            console.warn("[push] toggleNotifications: push_tokens.upsert failed", upsertError);
+          } else {
+            console.log("[push] toggleNotifications: push_tokens row upserted");
+          }
+        }
+      } else {
+        const { error: deleteError } = await withTimeout(
+          supabase.from("push_tokens").delete().eq("user_id", session.user.id).eq("platform", PLATFORM),
+          STEP_TIMEOUT_MS,
+          "push_tokens.delete",
+        );
+        if (deleteError) {
+          console.warn("[push] toggleNotifications: push_tokens.delete failed", deleteError);
+        } else {
+          console.log("[push] toggleNotifications: push_tokens row deleted");
+        }
       }
-    } else {
-      await supabase.from("push_tokens").delete().eq("user_id", session.user.id).eq("platform", PLATFORM);
+    } catch (e) {
+      // A timeout here means some step in the chain stalled — see the [push] logs above for
+      // which one got as far as starting but never finished. Previously this could hang forever
+      // with zero output; now it fails visibly within STEP_TIMEOUT_MS.
+      console.warn(`[push] toggleNotifications(${next}) failed`, e);
     }
   }
 
