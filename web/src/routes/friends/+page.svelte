@@ -14,6 +14,8 @@
 	let inbox: Ping[] = $state([]);
 	let pingHallTid: Record<string, string> = $state({});
 	let pingMessage: Record<string, string> = $state({});
+	let pending = $derived(friendships.filter((f) => f.status === "pending"));
+	let accepted = $derived(friendships.filter((f) => f.status === "accepted"));
 
 	function hallName(hallTid: number | null): string {
 		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? "somewhere";
@@ -90,64 +92,111 @@
 	}
 </script>
 
-<h1>Friends</h1>
+<h1 class="page-title">Friends</h1>
+<div class="label-rule mt-2 mb-6 text-gold-500"></div>
 
 {#if !page.data.session}
-	<p>Sign in to add friends and send pings.</p>
+	<div class="empty-state">
+		<p>Sign in to add friends and send pings.</p>
+	</div>
 {:else}
-	<h2>Find friends</h2>
-	<input bind:value={query} oninput={search} placeholder="Search by name" />
-	{#if searchResults.length > 0}
-		<ul>
-			{#each searchResults as p (p.user_id)}
-				<li>{p.display_name} <button onclick={() => requestFriend(p.user_id)}>Add friend</button></li>
-			{/each}
-		</ul>
-	{/if}
-
-	<h2>Friend requests</h2>
-	{#each friendships.filter((f) => f.status === "pending") as f (f.user_a + f.user_b)}
-		{@const myId = page.data.session.user.id}
-		{@const other = profilesById.get(otherUserId(f, myId))}
-		<p>
-			{other?.display_name ?? "..."}
-			{#if f.requested_by === myId}
-				(pending)
-			{:else}
-				wants to be friends <button onclick={() => acceptFriend(f)}>Accept</button>
-			{/if}
-		</p>
-	{/each}
-
-	<h2>Your friends</h2>
-	{#each friendships.filter((f) => f.status === "accepted") as f (f.user_a + f.user_b)}
-		{@const myId = page.data.session.user.id}
-		{@const otherId = otherUserId(f, myId)}
-		{@const other = profilesById.get(otherId)}
-		<div>
-			<strong>{other?.display_name ?? "..."}</strong>
-			<select bind:value={pingHallTid[otherId]}>
-				<option value="">(no hall)</option>
-				{#each DINING_HALLS as hall (hall.tid)}
-					<option value={hall.tid}>{hall.name}</option>
+	<!-- .card wraps the search box; .btn-primary is called out in app.css's own component-layer
+	     comment as the "Add friend" example of a region's main action. -->
+	<section class="card mb-6 p-4">
+		<h2 class="section-title mb-3">Find friends</h2>
+		<label class="field-label" for="friend-search">Search by name</label>
+		<input id="friend-search" class="input mt-1 w-full sm:w-64" bind:value={query} oninput={search} placeholder="Search by name" />
+		{#if searchResults.length > 0}
+			<ul class="mt-3 space-y-2">
+				{#each searchResults as p (p.user_id)}
+					<li class="flex items-center justify-between gap-3">
+						<span>{p.display_name}</span>
+						<button class="btn btn-primary btn-sm" onclick={() => requestFriend(p.user_id)}>Add friend</button>
+					</li>
 				{/each}
-			</select>
-			<input bind:value={pingMessage[otherId]} placeholder="message (optional)" />
-			<button onclick={() => sendPing(otherId)}>Ping "come eat with me"</button>
-		</div>
-	{/each}
+			</ul>
+		{/if}
+	</section>
 
-	<h2>Pings you've received</h2>
-	{#if inbox.length === 0}
-		<p>No pings yet.</p>
-	{:else}
-		<ul>
-			{#each inbox as p (p.id)}
-				<li>
-					{profilesById.get(p.sender_id)?.display_name ?? "Someone"} wants to eat {p.hall_tid ? `at ${hallName(p.hall_tid)}` : ""}
-					{#if p.message}&mdash; "{p.message}"{/if}
-				</li>
-			{/each}
-		</ul>
-	{/if}
+	<!-- .badge distinguishes "I'm waiting on them" (Pending) from "they're waiting on me" (Wants to
+	     be friends + an Accept action) -- the pending/accepted visual clarity #39 asks for. -->
+	<section class="mb-6">
+		<h2 class="section-title mb-3">Friend requests</h2>
+		{#if pending.length === 0}
+			<div class="empty-state">No pending requests.</div>
+		{:else}
+			<ul class="space-y-2">
+				{#each pending as f (f.user_a + f.user_b)}
+					{@const myId = page.data.session.user.id}
+					{@const other = profilesById.get(otherUserId(f, myId))}
+					<li class="card flex items-center justify-between gap-3 p-3">
+						<span>{other?.display_name ?? "…"}</span>
+						{#if f.requested_by === myId}
+							<span class="badge">Pending</span>
+						{:else}
+							<span class="flex items-center gap-2">
+								<span class="badge">Wants to be friends</span>
+								<button class="btn btn-primary btn-sm" onclick={() => acceptFriend(f)}>Accept</button>
+							</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+
+	<section class="mb-6">
+		<h2 class="section-title mb-3">Your friends</h2>
+		{#if accepted.length === 0}
+			<div class="empty-state">No friends yet — search above to add some.</div>
+		{:else}
+			<ul class="space-y-3">
+				{#each accepted as f (f.user_a + f.user_b)}
+					{@const myId = page.data.session.user.id}
+					{@const otherId = otherUserId(f, myId)}
+					{@const other = profilesById.get(otherId)}
+					<li class="card p-3">
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="badge">Friend</span>
+							<strong>{other?.display_name ?? "…"}</strong>
+						</div>
+						<!-- .btn-secondary: app.css calls out "ping" by name as its equal-weight-alternative example. -->
+						<div class="mt-3 flex flex-wrap items-end gap-2">
+							<div>
+								<label class="field-label" for={`hall-${otherId}`}>Hall</label>
+								<select id={`hall-${otherId}`} class="input" bind:value={pingHallTid[otherId]}>
+									<option value="">(no hall)</option>
+									{#each DINING_HALLS as hall (hall.tid)}
+										<option value={hall.tid}>{hall.name}</option>
+									{/each}
+								</select>
+							</div>
+							<div class="flex-1">
+								<label class="field-label" for={`msg-${otherId}`}>Message (optional)</label>
+								<input id={`msg-${otherId}`} class="input w-full" bind:value={pingMessage[otherId]} placeholder="message (optional)" />
+							</div>
+							<button class="btn btn-secondary btn-sm" onclick={() => sendPing(otherId)}>Ping "come eat with me"</button>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+
+	<section>
+		<h2 class="section-title mb-3">Pings you've received</h2>
+		{#if inbox.length === 0}
+			<div class="empty-state">No pings yet.</div>
+		{:else}
+			<ul class="space-y-2">
+				{#each inbox as p (p.id)}
+					<li class="card p-3">
+						<strong>{profilesById.get(p.sender_id)?.display_name ?? "Someone"}</strong> wants to eat
+						{#if p.hall_tid}<span class="badge">{hallName(p.hall_tid)}</span>{/if}
+						{#if p.message}<span class="block text-ink-900/70">&mdash; "{p.message}"</span>{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 {/if}
