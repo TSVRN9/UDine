@@ -1,6 +1,8 @@
 import { fetchPressReleases, type PressRelease } from "@udine/shared";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Linking, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, FlatList, Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Card, EmptyState } from "../components/ui";
+import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 
 export default function PressScreen() {
   const [items, setItems] = useState<PressRelease[] | null>(null);
@@ -11,31 +13,37 @@ export default function PressScreen() {
   }, []);
 
   if (error) return <Text style={styles.error}>Failed to load press releases: {error}</Text>;
-  if (!items) return <ActivityIndicator style={styles.container} />;
+  if (!items) return <ActivityIndicator style={styles.loading} color={colors.maroon600} />;
 
   return (
     <FlatList
-      style={styles.container}
+      style={styles.screen}
+      contentContainerStyle={styles.container}
       data={items}
       keyExtractor={(item, i) => `${item.url}-${i}`}
       renderItem={({ item }) => (
-        <Pressable style={styles.row} onPress={() => Linking.openURL(item.url)}>
-          {!!item.image && <Image source={{ uri: item.image }} style={styles.image} />}
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.date}>{item.date}</Text>
+        <Pressable onPress={() => Linking.openURL(item.url)}>
+          <Card style={styles.row}>
+            {!!item.image && <Image source={{ uri: item.image }} style={styles.image} />}
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.date}>{item.date}</Text>
+          </Card>
         </Pressable>
       )}
-      ListEmptyComponent={<Text style={styles.empty}>No press releases right now.</Text>}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      ListEmptyComponent={<EmptyState title="No press releases" message="No press releases right now." />}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  row: { padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#ccc" },
-  image: { width: "100%", height: 140, borderRadius: 6, marginBottom: 8, backgroundColor: "#eee" },
-  title: { fontSize: 16, fontWeight: "600" },
-  date: { fontSize: 13, color: "#666", marginTop: 4 },
-  error: { padding: 16, color: "red" },
-  empty: { padding: 16, color: "#666" },
+  screen: { flex: 1, backgroundColor: colors.cream100 },
+  container: { padding: spacing(4), paddingBottom: spacing(10) },
+  loading: { flex: 1, backgroundColor: colors.cream100 },
+  row: { padding: spacing(3) },
+  image: { width: "100%", height: 140, borderRadius: 6, marginBottom: spacing(2), backgroundColor: withOpacity(colors.ink900, 8) },
+  title: { fontSize: 16, fontWeight: "700", fontFamily: fonts.display, color: colors.maroon900 },
+  date: { fontSize: 13, fontFamily: fonts.mono, color: withOpacity(colors.ink900, 55), marginTop: spacing(1) },
+  error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body },
+  separator: { height: spacing(2) },
 });

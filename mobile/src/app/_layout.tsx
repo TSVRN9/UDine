@@ -1,8 +1,16 @@
 import { Stack } from "expo-router";
+import { colors, fonts } from "../lib/theme";
 
 export default function RootLayout() {
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.maroon900 },
+        headerTintColor: colors.paper50,
+        headerTitleStyle: { fontFamily: fonts.display, fontWeight: "700" },
+        contentStyle: { backgroundColor: colors.cream100 },
+      }}
+    >
       <Stack.Screen name="index" options={{ title: "UDine" }} />
       <Stack.Screen name="redirect" options={{ headerShown: false, animation: "none" }} />
       <Stack.Screen name="halls/[slug]" options={{ title: "Menu" }} />
