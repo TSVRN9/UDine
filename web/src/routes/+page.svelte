@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { DINING_HALLS, computeDailyTotals, type DailyMacroTotals, type Favorite, type LogEntry } from "@udine/shared";
+	import { DINING_HALLS, computeDailyTotals, rankDishes, type DailyMacroTotals, type Favorite, type LogEntry, type RankedDish } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
+	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
 	import { todayIso } from "$lib/date";
 	import MacroStats from "$lib/MacroStats.svelte";
 	import { dismissFirstRun, isFirstRunDismissed } from "$lib/firstRun";
@@ -28,6 +29,18 @@
 	// user hasn't dismissed it before, same "hidden until checked" shape as `loaded` above.
 	let showFirstRun = $state(false);
 
+	// #67: "Your top dishes" module -- top 3 ranked dishes, device-local (IndexedDB), same
+	// residency/no-auth rule as the macro stats above. rankedLoaded exists for the same reason
+	// `loaded` does: without it, a fresh visit with real rankings briefly flashes the empty state.
+	const rankingStorage = new IndexedDbRankingStorage();
+	let rankedDishes: RankedDish[] = $state([]);
+	let rankedLoaded = $state(false);
+	const topDishes = $derived(rankDishes(rankedDishes).slice(0, 3));
+
+	function hallName(hallTid: number): string {
+		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
+	}
+
 	const today = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
 		weekday: "long",
 		month: "long",
@@ -38,8 +51,14 @@
 		logStorage = new IndexedDbLogStorage();
 		refreshFavorites();
 		refreshLog();
+		refreshRanking();
 		showFirstRun = !isFirstRunDismissed();
 	});
+
+	async function refreshRanking() {
+		rankedDishes = await rankingStorage.getRankedDishes();
+		rankedLoaded = true;
+	}
 
 	function closeFirstRun() {
 		dismissFirstRun();
@@ -118,6 +137,44 @@
 				Full day &rarr;
 			</a>
 		</p>
+	{/if}
+</section>
+
+<!-- #67: rank-informed home surface -- top 3 device-local ranked dishes, empty state when the user
+     hasn't compared anything yet. Additive: sits between today's stats and the halls grid, doesn't
+     restructure either. -->
+<section class="mt-8">
+	<h2 class="section-title">Your Top Dishes</h2>
+	<div class="label-rule mt-1 text-ink-900/25"></div>
+
+	{#if topDishes.length > 0}
+		<ol class="mt-3 flex flex-col gap-1.5">
+			{#each topDishes as dish, i (dish.dishName + '::' + dish.hallTid)}
+				<li class="card flex items-center gap-3 px-4 py-2.5">
+					<span class="w-7 shrink-0 font-display text-lg text-ink-900/35 tabular-nums">{i + 1}</span>
+					<span class="min-w-0 flex-1 font-semibold">{dish.dishName}</span>
+					<span class="badge">{hallName(dish.hallTid)}</span>
+				</li>
+			{/each}
+		</ol>
+		<p class="mt-3">
+			<a href="/rank" class="text-sm font-semibold text-maroon-600 no-underline hover:text-maroon-900">
+				Full ranking &rarr;
+			</a>
+		</p>
+	{:else if rankedLoaded}
+		<!-- Gated on rankedLoaded, not just "topDishes.length === 0" -- SSR (and the pre-onMount client
+		     render) has no IndexedDB, so topDishes is always [] until the read resolves. Without this
+		     gate this branch would render (and briefly flash) the empty state even when the device has
+		     real ranking data -- see #63's own review note on the equivalent one-directional `loaded`
+		     guard elsewhere on this page. -->
+		<p class="mt-3 text-sm text-ink-900/60">
+			No comparisons yet &mdash; rank the dishes you've logged and your favorites show up here.
+		</p>
+		<!-- "Start ranking", not "Compare dishes" -- the "More" section below already has a link named
+		     "Compare dishes" (see home-dashboard.spec.ts), and a second link with the same accessible
+		     name would make that spec's getByRole("link", { name: "Compare dishes" }) ambiguous. -->
+		<p class="mt-3"><a href="/rank" class="btn btn-secondary no-underline">Start ranking</a></p>
 	{/if}
 </section>
 

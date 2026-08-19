@@ -1,5 +1,5 @@
 import { DINING_HALLS } from "./umassDining.ts";
-import type { RankedDish, RankedFood } from "./types.ts";
+import type { LogEntry, RankedDish, RankedFood } from "./types.ts";
 
 const DEFAULT_RATING = 1500;
 
@@ -138,4 +138,65 @@ export function rankDiningHalls(dishes: RankedDish[]): { ranked: DiningHallRank[
   const unranked = DINING_HALLS.filter((h) => !rankedIds.has(h.tid)).map((h) => ({ hallTid: h.tid }));
 
   return { ranked, unranked };
+}
+
+// --- #67: rank-informed surfaces (post-log comparison prompt) ----------------------------------
+
+/** A logged dish's identity — same (dishName, hallTid) pairing RankedDish uses, without the rating. */
+export interface LoggedDish {
+  dishName: string;
+  hallTid: number;
+}
+
+function loggedDishKey(d: LoggedDish): string {
+  return `${d.dishName}::${d.hallTid}`;
+}
+
+/**
+ * Extracts the distinct umass-menu dishes a user has logged, in first-seen order — the same
+ * de-duplication web/src/routes/rank/+page.svelte's `refresh()` already does inline (barcode/`off`
+ * entries excluded, repeats of the same dish+hall collapsed to one), factored out here so
+ * pickPostLogComparisonPair below doesn't re-derive it differently.
+ */
+export function distinctLoggedDishes(entries: LogEntry[]): LoggedDish[] {
+  const seen = new Set<string>();
+  const dishes: LoggedDish[] = [];
+  for (const entry of entries) {
+    if (entry.source.type !== "umass-menu") continue;
+    const dish = { dishName: entry.source.dishName, hallTid: entry.source.hallTid };
+    const key = loggedDishKey(dish);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    dishes.push(dish);
+  }
+  return dishes;
+}
+
+/**
+ * Decides whether to offer a one-tap comparison prompt right after logging `justLogged`, and if so,
+ * which other previously-logged dish to pair it against (#67's "when to offer, which pair" shared
+ * logic). Reuses applyComparison's dish identity (dishName+hallTid) and RankedDish's
+ * comparisonCount — the same signal /rank's own pair-picker (`pickLeastCompared` in
+ * web/src/routes/rank/+page.svelte) prefers under-compared dishes with, instead of inventing a
+ * parallel notion of "pairable."
+ *
+ * Returns null when there's no valid opponent: `justLogged` is the only distinct dish logged so far.
+ * Deterministic (always the least-compared opponent) rather than randomized like /rank's sampler —
+ * a post-log prompt fires once per log, so there's no continuously-visible "same pair every time"
+ * staleness to guard against the way /rank's picker has to.
+ */
+export function pickPostLogComparisonPair(
+  entries: LogEntry[],
+  justLogged: LoggedDish,
+  rankedDishes: RankedDish[],
+): [LoggedDish, LoggedDish] | null {
+  const justLoggedKey = loggedDishKey(justLogged);
+  const candidates = distinctLoggedDishes(entries).filter((d) => loggedDishKey(d) !== justLoggedKey);
+  if (candidates.length === 0) return null;
+
+  const comparisonCountFor = (d: LoggedDish): number =>
+    rankedDishes.find((r) => loggedDishKey(r) === loggedDishKey(d))?.comparisonCount ?? 0;
+
+  const opponent = candidates.reduce((least, d) => (comparisonCountFor(d) < comparisonCountFor(least) ? d : least));
+  return [justLogged, opponent];
 }

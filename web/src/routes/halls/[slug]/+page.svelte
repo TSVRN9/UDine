@@ -1,10 +1,23 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
-	import { menuItemMatchesPreferences, type Favorite, type FoodPreferences, type LogEntry, type MealPeriod, type MenuItem } from "@udine/shared";
+	import {
+		applyComparison,
+		applyFoodComparison,
+		DINING_HALLS,
+		menuItemMatchesPreferences,
+		pickPostLogComparisonPair,
+		type Favorite,
+		type FoodPreferences,
+		type LogEntry,
+		type LoggedDish,
+		type MealPeriod,
+		type MenuItem,
+	} from "@udine/shared";
 	import { favoriteKey } from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
+	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
 	import { loadPreferences } from "$lib/preferences";
 	import { addDaysIso, todayIso } from "$lib/date";
 	import type { PageProps } from "./$types";
@@ -13,12 +26,22 @@
 
 	const storage = new IndexedDbLogStorage();
 	const favoritesStorage = new IndexedDbFavoritesStorage();
+	const rankingStorage = new IndexedDbRankingStorage();
 	const mealPeriods: MealPeriod[] = ["breakfast", "lunch", "dinner"];
 
 	let servings: Record<string, number> = $state({});
 	let loggedMessage = $state("");
 	let prefs: FoodPreferences = $state({ allergensToAvoid: [], requiredDietTags: [] });
 	let favoriteDishKeys: Set<string> = $state(new Set());
+	// #67: post-log comparison prompt. Dismissible, never modal-blocking -- logging another dish
+	// works exactly the same whether this is showing or not (no overlay, no focus trap). Pair
+	// selection itself lives in @udine/shared (pickPostLogComparisonPair) -- this page only wires
+	// it up to IndexedDB reads and the applyComparison/applyFoodComparison write-back.
+	let comparePrompt: [LoggedDish, LoggedDish] | null = $state(null);
+
+	function hallName(hallTid: number): string {
+		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
+	}
 
 	const dateLabel = $derived(
 		new Date(`${data.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
@@ -94,6 +117,32 @@
 		await storage.addEntry(entry);
 		loggedMessage = `Logged ${qty} × ${item.dishName}`;
 		setTimeout(() => (loggedMessage = ""), 2000);
+
+		// Offer a one-tap comparison against another logged dish, if a valid pair exists. Fire-and-forget
+		// relative to the toast above -- logging stays one tap regardless of whether this resolves to a
+		// pair or null.
+		const allEntries = await storage.getAllEntries();
+		const rankedDishes = await rankingStorage.getRankedDishes();
+		comparePrompt = pickPostLogComparisonPair(allEntries, { dishName: item.dishName, hallTid: item.hallTid }, rankedDishes);
+	}
+
+	// Updates both Elo tracks (RankedDish + RankedFood), same as /rank's own choose() -- see ADR 0001's
+	// Consequences clause, which requires any new code reacting to a Pairwise Comparison to touch both
+	// tracks or justify touching only one. Deliberately NOT calling syncDiningHallRanks here, unlike
+	// /rank's choose(): that would put a Supabase network call on the logging surface, beyond what #67
+	// asks for (and #67's own constraint is zero server calls here). Known, declared gap: a signed-in
+	// user who only ever compares via this prompt never syncs their favorite dining halls -- flagged
+	// as a follow-up in #67's PR rather than silently fixed here.
+	async function chooseCompare(winner: LoggedDish, loser: LoggedDish) {
+		const rankedDishes = applyComparison(await rankingStorage.getRankedDishes(), winner, loser);
+		const rankedFoods = applyFoodComparison(await rankingStorage.getRankedFoods(), winner, loser);
+		await rankingStorage.saveRankedDishes(rankedDishes);
+		await rankingStorage.saveRankedFoods(rankedFoods);
+		comparePrompt = null;
+	}
+
+	function dismissComparePrompt() {
+		comparePrompt = null;
 	}
 </script>
 
@@ -119,6 +168,49 @@
 	<button class="btn btn-ghost btn-sm" disabled={isToday} onclick={() => goToDate(todayIso())}>Today</button>
 	<button class="btn btn-secondary btn-sm" onclick={() => goToDate(addDaysIso(data.date, 1))}>Next day &rsaquo;</button>
 </nav>
+
+<!-- #67: post-log comparison prompt. Plain document flow -- no `fixed`, no `sticky`. A `fixed top-*`
+     overlay near the top of the page collided with (intercepted clicks on) the site header's own
+     nav, caught by the existing rank.spec.ts. `sticky` looked like a fix (it doesn't collide on
+     initial render) but re-introduces the exact same interception once pinned: it becomes an opaque
+     band dish rows scroll underneath, so a Log button under it is unclickable mid-scroll -- the trial
+     click check below can't see that failure mode either, since it only runs at scroll position 0.
+     "Logging stays one tap" is a hard requirement here, so plain flow (zero interception surface) beats
+     a nicety that can swallow a tap.
+     ponytail: this means the prompt can render off-screen (above the fold) when logging from deep in
+     a long dish list -- the bottom-fixed status toast still confirms the log itself, so nothing the
+     issue asked for is lost, but the compare prompt itself may go unnoticed on a long menu. Upgrade
+     path: a bottom-anchored placement (clear of the header entirely) plus a scrolled trial-click spec
+     that proves it, if this turns out to matter in practice.
+     Dismissible, never modal-blocking -- logging another dish works exactly the same whether this is
+     showing or not (no overlay, no focus trap). Deliberately not role="status": this page's specs
+     assert exactly one status region, and this isn't a passive announcement, it's an interactive
+     prompt. -->
+{#if comparePrompt}
+	<section aria-label="Compare dishes" class="card mt-4 px-4 py-3">
+		<div class="flex items-start justify-between gap-3">
+			<p class="font-display text-sm tracking-wide text-maroon-900 uppercase">Which did you like more?</p>
+			<button
+				onclick={dismissComparePrompt}
+				aria-label="Dismiss comparison prompt"
+				class="shrink-0 text-lg leading-none text-ink-900/40 hover:text-ink-900"
+			>
+				&times;
+			</button>
+		</div>
+		<div class="mt-2 flex flex-col gap-2 sm:flex-row">
+			{#each [comparePrompt[0], comparePrompt[1]] as choice, i (choice.dishName + '::' + choice.hallTid)}
+				<button
+					onclick={() => chooseCompare(choice, comparePrompt![1 - i])}
+					class="flex-1 cursor-pointer rounded-sm border border-maroon-900/25 px-3 py-2 text-left transition-colors hover:border-gold-500 hover:bg-gold-500/10"
+				>
+					<span class="block text-sm font-semibold text-maroon-900">{choice.dishName}</span>
+					<span class="badge mt-1">{hallName(choice.hallTid)}</span>
+				</button>
+			{/each}
+		</div>
+	</section>
+{/if}
 
 {#if hiddenCount > 0 && hiddenCount < data.items.length}
 	<p class="mt-4 rounded-md border border-gold-500/50 bg-gold-500/10 px-4 py-3 text-sm">
