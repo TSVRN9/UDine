@@ -101,11 +101,28 @@ test("quick links reach Rank and Favorites without ambiguity against the primary
 	await expect(page.getByRole("heading", { name: "Favorites", level: 1 })).toBeVisible();
 });
 
-test("home issues zero API requests -- macro stats are device-local, not a server call", async ({ page }) => {
-	let apiRequests = 0;
-	await page.route("**/api/**", (route) => {
-		apiRequests++;
-		return route.continue();
+// app.css (#42) @imports Google Fonts, so every page -- including this one -- legitimately makes a
+// cross-origin request for it. Not a residency leak: it's a stylesheet fetch, not data leaving the
+// device. Anything else cross-origin, or any same-origin /api/ path, is what this guard exists to
+// catch.
+const ALLOWED_CROSS_ORIGIN_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
+
+test("home issues zero API/cross-origin requests -- macro stats are device-local, not a server call", async ({ page, baseURL }) => {
+	// Carry-over from PR #69's review (see issue #66's tracker comment): a page.route("**/api/**")
+	// guard only ever sees requests matching that glob, so a direct cross-origin fetch to
+	// *.supabase.co silently passes it -- proven by mutating this page with a
+	// fetch(..., { mode: "no-cors" }) call and watching the old guard stay green. page.on("request")
+	// fires for every request the page issues, no-cors included, so nothing routes around it.
+	const offenders: string[] = [];
+	const sameOrigin = new URL(baseURL!).origin;
+	page.on("request", (req) => {
+		const url = new URL(req.url());
+		if (url.protocol !== "http:" && url.protocol !== "https:") return; // data:/blob: aren't egress
+		if (url.origin === sameOrigin) {
+			if (url.pathname.includes("/api/")) offenders.push(req.url());
+			return;
+		}
+		if (!ALLOWED_CROSS_ORIGIN_HOSTS.has(url.hostname)) offenders.push(req.url());
 	});
 
 	await page.goto("/");
@@ -113,5 +130,5 @@ test("home issues zero API requests -- macro stats are device-local, not a serve
 
 	// Give any accidental fetch a beat to land before asserting its absence.
 	await page.waitForTimeout(500);
-	expect(apiRequests).toBe(0);
+	expect(offenders, `unexpected /api/ or cross-origin request(s): ${offenders.join(", ")}`).toEqual([]);
 });
