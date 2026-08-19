@@ -91,25 +91,6 @@ export interface DiningEvent {
   isFeatured: boolean;
 }
 
-export interface FaqItem {
-  title: string;
-  content: string; // HTML
-}
-
-export interface FaqCategory {
-  name: string;
-  items: FaqItem[];
-}
-
-export interface StaffMember {
-  name: string;
-  title: string;
-  department: string;
-  email?: string; // absent for a few entries (e.g. "Student Ambassadors"), verified live 2026-08-18
-  bio: string; // HTML
-  profileImage: string;
-}
-
 /** One newsletter issue — a link to externally-hosted content, not an in-app article (see fetchNewsletter). */
 export interface NewsletterIssue {
   period: string; // e.g. "February 2020"
