@@ -1,10 +1,23 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
-	import { menuItemMatchesPreferences, type Favorite, type FoodPreferences, type LogEntry, type MealPeriod, type MenuItem } from "@udine/shared";
+	import {
+		applyComparison,
+		applyFoodComparison,
+		DINING_HALLS,
+		menuItemMatchesPreferences,
+		pickPostLogComparisonPair,
+		type Favorite,
+		type FoodPreferences,
+		type LogEntry,
+		type LoggedDish,
+		type MealPeriod,
+		type MenuItem,
+	} from "@udine/shared";
 	import { favoriteKey } from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
+	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
 	import { loadPreferences } from "$lib/preferences";
 	import { addDaysIso, todayIso } from "$lib/date";
 	import type { PageProps } from "./$types";
@@ -13,12 +26,22 @@
 
 	const storage = new IndexedDbLogStorage();
 	const favoritesStorage = new IndexedDbFavoritesStorage();
+	const rankingStorage = new IndexedDbRankingStorage();
 	const mealPeriods: MealPeriod[] = ["breakfast", "lunch", "dinner"];
 
 	let servings: Record<string, number> = $state({});
 	let loggedMessage = $state("");
 	let prefs: FoodPreferences = $state({ allergensToAvoid: [], requiredDietTags: [] });
 	let favoriteDishKeys: Set<string> = $state(new Set());
+	// #67: post-log comparison prompt. Dismissible, never modal-blocking -- logging another dish
+	// works exactly the same whether this is showing or not (no overlay, no focus trap). Pair
+	// selection itself lives in @udine/shared (pickPostLogComparisonPair) -- this page only wires
+	// it up to IndexedDB reads and the applyComparison/applyFoodComparison write-back.
+	let comparePrompt: [LoggedDish, LoggedDish] | null = $state(null);
+
+	function hallName(hallTid: number): string {
+		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
+	}
 
 	const dateLabel = $derived(
 		new Date(`${data.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
@@ -94,6 +117,32 @@
 		await storage.addEntry(entry);
 		loggedMessage = `Logged ${qty} × ${item.dishName}`;
 		setTimeout(() => (loggedMessage = ""), 2000);
+
+		// Offer a one-tap comparison against another logged dish, if a valid pair exists. Fire-and-forget
+		// relative to the toast above -- logging stays one tap regardless of whether this resolves to a
+		// pair or null.
+		const allEntries = await storage.getAllEntries();
+		const rankedDishes = await rankingStorage.getRankedDishes();
+		comparePrompt = pickPostLogComparisonPair(allEntries, { dishName: item.dishName, hallTid: item.hallTid }, rankedDishes);
+	}
+
+	// Updates both Elo tracks (RankedDish + RankedFood), same as /rank's own choose() -- see ADR 0001's
+	// Consequences clause, which requires any new code reacting to a Pairwise Comparison to touch both
+	// tracks or justify touching only one. Deliberately NOT calling syncDiningHallRanks here, unlike
+	// /rank's choose(): that would put a Supabase network call on the logging surface, beyond what #67
+	// asks for (and #67's own constraint is zero server calls here). Known, declared gap: a signed-in
+	// user who only ever compares via this prompt never syncs their favorite dining halls -- flagged
+	// as a follow-up in #67's PR rather than silently fixed here.
+	async function chooseCompare(winner: LoggedDish, loser: LoggedDish) {
+		const rankedDishes = applyComparison(await rankingStorage.getRankedDishes(), winner, loser);
+		const rankedFoods = applyFoodComparison(await rankingStorage.getRankedFoods(), winner, loser);
+		await rankingStorage.saveRankedDishes(rankedDishes);
+		await rankingStorage.saveRankedFoods(rankedFoods);
+		comparePrompt = null;
+	}
+
+	function dismissComparePrompt() {
+		comparePrompt = null;
 	}
 </script>
 
@@ -245,14 +294,59 @@
 	{/if}
 {/each}
 
-<!-- Fixed rather than inline at the top of the page: a menu runs to a few hundred dishes, so
-     confirmation rendered above the fold is invisible at the moment you actually press Log. Single
-     role="status" region on this page by design — the e2e specs assert on exactly one. -->
-{#if loggedMessage}
-	<p
-		role="status"
-		class="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-md bg-maroon-900 px-4 py-2 text-sm font-semibold text-paper-50 shadow-lg"
-	>
-		{loggedMessage}
-	</p>
-{/if}
+<!-- Fixed to the viewport bottom rather than inline in document flow: a menu runs to a few hundred
+     dishes, so anything rendered above the fold (including near the top, under the date nav) is
+     invisible at the moment you actually press Log -- the ceiling the #67 review caught (see
+     rank-surfaces.spec.ts's long-menu spec). Status toast and comparison prompt share one bottom-
+     anchored, flex-col-reverse stack (toast markup first, prompt second) so whichever of them is
+     showing lands at the very bottom and the other stacks above it -- they can both be visible at
+     once right after a second log, and this ordering keeps them from ever overlapping regardless of
+     either one's height, without a hardcoded pixel gap. The wrapper itself is pointer-events-none
+     (it spans the full width) so it never intercepts clicks on the page below/behind it; each child
+     re-enables pointer-events for its own bounds. Single role="status" region on this page by
+     design — the e2e specs assert on exactly one.
+     ponytail: the prompt's width (min(92vw, 28rem)) can still sit over the last dish row's Log
+     button on a narrow viewport scrolled to the very bottom -- rank-surfaces.spec.ts only runs
+     Desktop Chrome (this repo's one configured project), so that geometry is untested. Upgrade path
+     if it turns out to matter: add a mobile-viewport project, or give the last dish row(s)
+     scroll-margin/padding clear of the stack's max height. -->
+<div class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex flex-col-reverse items-center gap-2 px-4">
+	{#if loggedMessage}
+		<p
+			role="status"
+			class="pointer-events-auto rounded-md bg-maroon-900 px-4 py-2 text-sm font-semibold text-paper-50 shadow-lg"
+		>
+			{loggedMessage}
+		</p>
+	{/if}
+
+	<!-- #67: post-log comparison prompt. Dismissible, never modal-blocking -- logging another dish
+	     works exactly the same whether this is showing or not (no overlay, no focus trap).
+	     Deliberately not role="status": this page's specs assert exactly one status region, and this
+	     isn't a passive announcement, it's an interactive prompt. -->
+	{#if comparePrompt}
+		<section aria-label="Compare dishes" class="card pointer-events-auto w-[min(92vw,28rem)] px-4 py-3">
+			<div class="flex items-start justify-between gap-3">
+				<p class="font-display text-sm tracking-wide text-maroon-900 uppercase">Which did you like more?</p>
+				<button
+					onclick={dismissComparePrompt}
+					aria-label="Dismiss comparison prompt"
+					class="shrink-0 text-lg leading-none text-ink-900/40 hover:text-ink-900"
+				>
+					&times;
+				</button>
+			</div>
+			<div class="mt-2 flex flex-col gap-2 sm:flex-row">
+				{#each [comparePrompt[0], comparePrompt[1]] as choice, i (choice.dishName + '::' + choice.hallTid)}
+					<button
+						onclick={() => chooseCompare(choice, comparePrompt![1 - i])}
+						class="flex-1 cursor-pointer rounded-sm border border-maroon-900/25 px-3 py-2 text-left transition-colors hover:border-gold-500 hover:bg-gold-500/10"
+					>
+						<span class="block text-sm font-semibold text-maroon-900">{choice.dishName}</span>
+						<span class="badge mt-1">{hallName(choice.hallTid)}</span>
+					</button>
+				{/each}
+			</div>
+		</section>
+	{/if}
+</div>
