@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { goto } from "$app/navigation";
 	import { menuItemMatchesPreferences, type Favorite, type FoodPreferences, type LogEntry, type MealPeriod, type MenuItem } from "@udine/shared";
 	import { favoriteKey } from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { loadPreferences } from "$lib/preferences";
+	import { addDaysIso, todayIso } from "$lib/date";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -21,15 +23,37 @@
 	const dateLabel = $derived(
 		new Date(`${data.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
 	);
+	// Recomputed client-side (not just trusted from the loader) so a future-dated deep link
+	// still gets an accurate prev/empty-state decision after hydration.
+	const isToday = $derived(data.date === todayIso());
+	// The filter-banner and "everything filtered out" copy below reads as wrong when browsing a
+	// future day and it still says "today's menu" -- neutral wording covers both cases.
+	const menuPossessive = $derived(isToday ? "today’s" : "this day’s");
+
+	function goToDate(dateIso: string) {
+		// keepFocus: these are keyboard-operable date-nav buttons; without it SvelteKit's default
+		// nav behavior moves focus to <body> on every click, dropping a keyboard user back to the
+		// top of the page instead of leaving them on the button they just pressed.
+		goto(`?date=${dateIso}`, { keepFocus: true });
+	}
 
 	// How many of today's dishes the user's own filters are removing. Without this the page just
 	// quietly shows fewer dishes (or an empty meal period) and looks like UMass posted nothing —
 	// the single most confusing thing the filter feature can do.
 	const hiddenCount = $derived(data.items.filter((i) => !menuItemMatchesPreferences(i, prefs)).length);
 
+	// A same-route ?date= nav swaps `data.items` without remounting the component, so seeding must
+	// react to `data.items` itself rather than run once in onMount -- otherwise a new day's dishes
+	// never get their default `servings` entry and render blank (#76 review finding). Existence
+	// check (`in`), not `??=`: clearing the input leaves `null` behind (see logItem's own comment
+	// on this), and `??=` would read that as unset and stomp it back to 1 out from under a user
+	// who's actively clearing the field -- `in` only seeds a key that has never been set at all.
+	$effect(() => {
+		for (const item of data.items) if (!(item.dishName in servings)) servings[item.dishName] = 1;
+	});
+
 	onMount(async () => {
 		prefs = loadPreferences();
-		for (const item of data.items) servings[item.dishName] ??= 1;
 		const favorites = await favoritesStorage.getFavorites();
 		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
 	});
@@ -84,22 +108,45 @@
 	<div class="label-rule mt-2 text-gold-500"></div>
 </header>
 
+<!-- #72: no past nav (API has no history -- prev is disabled once we're already on today) and no
+     forward cap (UMass's publish window rolls and isn't hardcoded here -- see
+     docs/apk-reverse-engineering.md's "Future dates" bullet; an out-of-window day just renders
+     the empty state below instead of disabling Next). -->
+<nav class="mt-4 flex flex-wrap items-center gap-2" aria-label="Menu date">
+	<button class="btn btn-secondary btn-sm" disabled={isToday} onclick={() => goToDate(addDaysIso(data.date, -1))}>
+		&lsaquo; Prev day
+	</button>
+	<button class="btn btn-ghost btn-sm" disabled={isToday} onclick={() => goToDate(todayIso())}>Today</button>
+	<button class="btn btn-secondary btn-sm" onclick={() => goToDate(addDaysIso(data.date, 1))}>Next day &rsaquo;</button>
+</nav>
+
 {#if hiddenCount > 0 && hiddenCount < data.items.length}
 	<p class="mt-4 rounded-md border border-gold-500/50 bg-gold-500/10 px-4 py-3 text-sm">
 		Your dietary filters are hiding {hiddenCount}
-		{hiddenCount === 1 ? "dish" : "dishes"} on today&rsquo;s menu.
+		{hiddenCount === 1 ? "dish" : "dishes"} on {menuPossessive} menu.
 		<a href="/filters" class="font-semibold">Edit dietary preferences</a>
 	</p>
 {/if}
 
 {#if data.items.length === 0}
 	<div class="empty-state mt-6">
-		<p class="font-display text-lg uppercase">No menu posted for today.</p>
-		<p class="mt-2 text-sm">
-			UMass Dining hasn&rsquo;t published {data.hall.name}&rsquo;s menu for {dateLabel} yet. It usually
-			appears the morning of.
-		</p>
-		<p class="mt-4"><a href="/" class="btn btn-secondary no-underline">Try another hall</a></p>
+		{#if isToday}
+			<p class="font-display text-lg uppercase">No menu posted for today.</p>
+			<p class="mt-2 text-sm">
+				UMass Dining hasn&rsquo;t published {data.hall.name}&rsquo;s menu for {dateLabel} yet. It usually
+				appears the morning of.
+			</p>
+			<p class="mt-4"><a href="/" class="btn btn-secondary no-underline">Try another hall</a></p>
+		{:else}
+			<!-- #72: a future day outside UMass's rolling publish window (or simply not posted yet)
+			     also comes back as `[]` -- distinct copy from the today case above, since "hasn't
+			     published yet" reads as broken for a day that was never going to have a menu today. -->
+			<p class="font-display text-lg uppercase">Not posted yet</p>
+			<p class="mt-2 text-sm">Menu not posted yet &mdash; UMass publishes about two weeks ahead.</p>
+			<p class="mt-4">
+				<button class="btn btn-secondary" onclick={() => goToDate(todayIso())}>Back to today</button>
+			</p>
+		{/if}
 	</div>
 {:else if hiddenCount === data.items.length}
 	<!-- A menu exists but the user's own filters removed all of it. Without this branch the page
@@ -107,7 +154,7 @@
 	<div class="empty-state mt-6">
 		<p class="font-display text-lg uppercase">Everything is filtered out</p>
 		<p class="mt-2 text-sm">
-			All {data.items.length} dishes on today&rsquo;s menu conflict with your dietary filters.
+			All {data.items.length} dishes on {menuPossessive} menu conflict with your dietary filters.
 		</p>
 		<p class="mt-4"><a href="/filters" class="btn btn-secondary no-underline">Edit dietary preferences</a></p>
 	</div>

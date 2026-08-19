@@ -1,4 +1,5 @@
 export * from "./types.ts";
+export * from "./date.ts";
 export * from "./umassDining.ts";
 export * from "./openFoodFacts.ts";
 export * from "./macros.ts";
