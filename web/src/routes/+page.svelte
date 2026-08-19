@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { page } from "$app/state";
 	import { DINING_HALLS, type Favorite } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 
@@ -23,46 +22,16 @@
 		}
 		await refresh();
 	}
-
-	async function signInWithGoogle() {
-		if (!page.data.supabase) return;
-		await page.data.supabase.auth.signInWithOAuth({
-			provider: "google",
-			options: { redirectTo: `${location.origin}/auth/callback` },
-		});
-	}
-
-	async function signOut() {
-		if (!page.data.supabase) return;
-		await page.data.supabase.auth.signOut();
-		location.reload();
-	}
 </script>
 
-<h1>UDine</h1>
-<p>
-	{#if page.data.session}
-		Signed in as {page.data.session.user.email} <button onclick={signOut}>Sign out</button>
-	{:else}
-		<button onclick={signInWithGoogle}>Sign in with Google</button>
-	{/if}
-</p>
-<p>
-	<a href="/today">Today's macros</a> | <a href="/filters">Filters</a> | <a href="/favorites">Favorites</a> |
-	<a href="/rank">Rank dishes</a> |
-	<a href="/friends">Friends</a> | <a href="/notifications">Notifications</a> |
-	<a href="/press">Press</a> | <a href="/events">Events</a> | <a href="/faq">FAQ</a> |
-	<a href="/staff">Staff Directory</a> | <a href="/newsletter">Newsletter</a>
-</p>
-
-<h2>Dining Halls</h2>
-<ul>
+<h1 class="mb-4 text-2xl">Dining Halls</h1>
+<ul class="flex flex-col gap-2">
 	{#each DINING_HALLS as hall (hall.tid)}
-		<li>
-			<button onclick={() => toggleFavoriteHall(hall.tid)} aria-label="favorite">
+		<li class="flex items-center gap-2 rounded-md bg-paper-50 px-4 py-3">
+			<button onclick={() => toggleFavoriteHall(hall.tid)} aria-label="favorite" class="text-gold-500">
 				{favoriteHallTids.has(hall.tid) ? '★' : '☆'}
 			</button>
-			<a href="/halls/{hall.slug}">{hall.name}</a>
+			<a href="/halls/{hall.slug}" class="font-display font-medium no-underline hover:text-maroon-600">{hall.name}</a>
 		</li>
 	{/each}
 </ul>

@@ -116,7 +116,6 @@
 	}
 </script>
 
-<a href="/">&larr; Dining Halls</a>
 <h1>Rank Dishes</h1>
 <p>Compare dishes you've actually logged &mdash; ranking is built from what you've eaten, not the full menu.</p>
 

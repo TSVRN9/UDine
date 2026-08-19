@@ -3,7 +3,6 @@
 	let { data }: PageProps = $props();
 </script>
 
-<a href="/">&larr; Dining Halls</a>
 <h1>Events</h1>
 
 {#if data.events.length === 0}
