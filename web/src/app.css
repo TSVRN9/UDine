@@ -60,22 +60,29 @@
 	--radius-pill: 999px;
 }
 
-body {
-	background-color: var(--color-cream-100);
-	color: var(--color-ink-900);
-	font-family: var(--font-body);
-}
+/* These MUST stay inside @layer base. Unlayered CSS beats *everything* in a layer, so an unlayered
+   `a { color: … }` outranks `text-paper-50` and every other Tailwind color utility applied to a
+   link — which silently painted the whole nav maroon-on-maroon. Tailwind v4 declares the
+   theme/base/components/utilities layer order in its own import; being in `base` puts these below
+   utilities where element defaults belong. */
+@layer base {
+	body {
+		background-color: var(--color-cream-100);
+		color: var(--color-ink-900);
+		font-family: var(--font-body);
+	}
 
-h1,
-h2,
-h3 {
-	font-family: var(--font-display);
-	font-weight: 600;
-	letter-spacing: 0.02em;
-}
+	h1,
+	h2,
+	h3 {
+		font-family: var(--font-display);
+		font-weight: 600;
+		letter-spacing: 0.02em;
+	}
 
-a {
-	color: var(--color-maroon-600);
+	a {
+		color: var(--color-maroon-600);
+	}
 }
 
 /* Signature motif — thick/thin double rule, borrowed from the bold rule under "Nutrition Facts"
@@ -92,6 +99,170 @@ a {
 :focus-visible {
 	outline: 2px solid var(--color-gold-500);
 	outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * COMPONENT LAYER (#43) — the recurring pieces every screen needs, so #36-#41 don't each invent
+ * their own button and panel. Built only from the tokens above; adding a screen-local variant is
+ * fine, adding a screen-local *color* is not.
+ *
+ *   .card            paper surface on the cream ground — the default container for a list/panel
+ *   .page-title      h1 + the signature double rule, used once at the top of every route
+ *   .section-title   h2 with a thin gold rule — sections within a page
+ *   .btn             base button; pair with exactly one of:
+ *     .btn-primary     maroon fill — the main action in a region (Log, Save, Add friend)
+ *     .btn-secondary   outlined — equal-weight alternatives (export, ping)
+ *     .btn-ghost       borderless — low-stakes/destructive-lite (Remove, Skip)
+ *   .btn-sm          smaller padding, for buttons inside list rows
+ *   .stat            label-over-number block, mono numerals (nutrition-label register)
+ *   .empty-state     dashed-outline panel for "nothing here yet" + what to do about it
+ *   .badge           small uppercase chip for metadata (allergens, status, hall names)
+ *   .field-label     the small caps label above an input
+ *   .input           text/number/select input
+ * ------------------------------------------------------------------------------------------- */
+
+@layer components {
+	.card {
+		background-color: var(--color-paper-50);
+		border: 1px solid color-mix(in srgb, var(--color-ink-900) 12%, transparent);
+		border-radius: var(--radius-md);
+	}
+
+	.page-title {
+		font-size: 1.875rem;
+		line-height: 1.15;
+		text-transform: uppercase;
+		color: var(--color-maroon-900);
+	}
+
+	.section-title {
+		font-size: 1.125rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--color-maroon-900);
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.375rem;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		padding: 0.5rem 0.875rem;
+		font-family: var(--font-body);
+		font-size: 0.875rem;
+		font-weight: 600;
+		line-height: 1.2;
+		cursor: pointer;
+		transition:
+			background-color 120ms ease,
+			color 120ms ease,
+			border-color 120ms ease;
+	}
+
+	.btn:disabled {
+		cursor: not-allowed;
+		opacity: 0.45;
+	}
+
+	.btn-sm {
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8125rem;
+	}
+
+	.btn-primary {
+		background-color: var(--color-maroon-600);
+		color: var(--color-paper-50);
+	}
+
+	.btn-primary:hover:not(:disabled) {
+		background-color: var(--color-maroon-900);
+	}
+
+	.btn-secondary {
+		border-color: color-mix(in srgb, var(--color-maroon-600) 45%, transparent);
+		color: var(--color-maroon-600);
+	}
+
+	.btn-secondary:hover:not(:disabled) {
+		border-color: var(--color-maroon-600);
+		background-color: color-mix(in srgb, var(--color-maroon-600) 8%, transparent);
+	}
+
+	.btn-ghost {
+		color: color-mix(in srgb, var(--color-ink-900) 65%, transparent);
+	}
+
+	.btn-ghost:hover:not(:disabled) {
+		color: var(--color-maroon-600);
+		background-color: color-mix(in srgb, var(--color-ink-900) 6%, transparent);
+	}
+
+	.stat {
+		display: block;
+	}
+
+	.stat > .stat-label {
+		display: block;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: color-mix(in srgb, var(--color-ink-900) 60%, transparent);
+	}
+
+	.stat > .stat-value {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: 1.75rem;
+		font-variant-numeric: tabular-nums;
+		line-height: 1.1;
+		color: var(--color-maroon-900);
+	}
+
+	.empty-state {
+		border: 1px dashed color-mix(in srgb, var(--color-ink-900) 25%, transparent);
+		border-radius: var(--radius-md);
+		padding: 1.5rem;
+		text-align: center;
+		color: color-mix(in srgb, var(--color-ink-900) 70%, transparent);
+	}
+
+	.badge {
+		display: inline-block;
+		border-radius: var(--radius-sm);
+		background-color: color-mix(in srgb, var(--color-ink-900) 8%, transparent);
+		padding: 0.0625rem 0.375rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: color-mix(in srgb, var(--color-ink-900) 70%, transparent);
+	}
+
+	.field-label {
+		display: block;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: color-mix(in srgb, var(--color-ink-900) 60%, transparent);
+	}
+
+	.input {
+		border: 1px solid color-mix(in srgb, var(--color-ink-900) 25%, transparent);
+		border-radius: var(--radius-sm);
+		background-color: var(--color-paper-50);
+		padding: 0.375rem 0.5rem;
+		font-family: var(--font-body);
+		font-size: 0.875rem;
+		color: var(--color-ink-900);
+	}
+
+	.input:focus {
+		border-color: var(--color-maroon-600);
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
