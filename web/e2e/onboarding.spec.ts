@@ -43,14 +43,31 @@ test.describe("firstRun flag logic (no browser -- plain localStorage shim)", () 
 	});
 });
 
+// #81: app.css (#42) @imports Google Fonts, so every page -- including this one -- legitimately makes
+// a cross-origin request for it; not a residency leak. Same allowlist as home-dashboard.spec.ts.
+const ALLOWED_CROSS_ORIGIN_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
+
 test.describe("first-run card on the home dashboard", () => {
 	test("shows once on a fresh visit, states device-only data + export path + what sign-in adds, and makes zero server calls", async ({
 		page,
+		baseURL,
 	}) => {
-		let apiRequests = 0;
-		await page.route("**/api/**", (route) => {
-			apiRequests++;
-			return route.continue();
+		// #81: replaces a retired page.route("**/api/**") guard, which only ever sees requests matching
+		// that glob -- a direct cross-origin fetch(..., { mode: "no-cors" }) sails past it. Mutation-
+		// verified during development (temporarily injecting page.addInitScript(() =>
+		// fetch("https://example.com/x", { mode: "no-cors" })) and confirming this guard flags it,
+		// same technique home-dashboard.spec.ts's own guard comment documents). page.on("request")
+		// fires for every request the page issues, no-cors included, so nothing routes around it.
+		const offenders: string[] = [];
+		const sameOrigin = new URL(baseURL!).origin;
+		page.on("request", (req) => {
+			const url = new URL(req.url());
+			if (url.protocol !== "http:" && url.protocol !== "https:") return; // data:/blob: aren't egress
+			if (url.origin === sameOrigin) {
+				if (url.pathname.includes("/api/")) offenders.push(req.url());
+				return;
+			}
+			if (!ALLOWED_CROSS_ORIGIN_HOSTS.has(url.hostname)) offenders.push(req.url());
 		});
 
 		await page.goto("/");
@@ -65,7 +82,7 @@ test.describe("first-run card on the home dashboard", () => {
 		await expect(card).toContainText("push");
 
 		await page.waitForTimeout(500);
-		expect(apiRequests).toBe(0);
+		expect(offenders, `unexpected /api/ or cross-origin request(s): ${offenders.join(", ")}`).toEqual([]);
 	});
 
 	test("dismissing the card hides it and it stays dismissed across a reload", async ({ page }) => {

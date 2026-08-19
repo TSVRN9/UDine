@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
+	import { page } from "$app/state";
 	import {
 		applyComparison,
 		applyFoodComparison,
 		DINING_HALLS,
 		menuItemMatchesPreferences,
 		pickPostLogComparisonPair,
+		syncDiningHallRanks,
 		type Favorite,
 		type FoodPreferences,
 		type LogEntry,
@@ -38,6 +40,11 @@
 	// selection itself lives in @udine/shared (pickPostLogComparisonPair) -- this page only wires
 	// it up to IndexedDB reads and the applyComparison/applyFoodComparison write-back.
 	let comparePrompt: [LoggedDish, LoggedDish] | null = $state(null);
+	// #82: the bottom-anchored toast/prompt stack's own rendered height, tracked via bind:clientHeight
+	// below (Svelte wires this to a ResizeObserver, so it stays current as the stack's content
+	// changes -- e.g. the prompt appearing/disappearing -- with no manual effect needed). Used to size
+	// the narrow-viewport spacer that reserves clearance for the last dish row's Log button.
+	let stackHeight = $state(0);
 
 	function hallName(hallTid: number): string {
 		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
@@ -128,16 +135,26 @@
 
 	// Updates both Elo tracks (RankedDish + RankedFood), same as /rank's own choose() -- see ADR 0001's
 	// Consequences clause, which requires any new code reacting to a Pairwise Comparison to touch both
-	// tracks or justify touching only one. Deliberately NOT calling syncDiningHallRanks here, unlike
-	// /rank's choose(): that would put a Supabase network call on the logging surface, beyond what #67
-	// asks for (and #67's own constraint is zero server calls here). Known, declared gap: a signed-in
-	// user who only ever compares via this prompt never syncs their favorite dining halls -- flagged
-	// as a follow-up in #67's PR rather than silently fixed here.
+	// tracks or justify touching only one. Also syncs favorite dining halls the same way /rank's
+	// choose() does, when a session exists (#80 -- supersedes #67's stricter zero-server-calls
+	// constraint for this surface, now that #67 is closed): a signed-in user who only ever compares via
+	// this prompt was otherwise never syncing their favorite dining halls, leaving pings/friends
+	// features working off stale data until their next /rank visit. Sanctioned by CLAUDE.md's data
+	// residency table -- favorite dining halls (coarse, hall-level, not dish-level) are the one
+	// ranking-derived thing the server may see, and only for a signed-in user.
 	async function chooseCompare(winner: LoggedDish, loser: LoggedDish) {
 		const rankedDishes = applyComparison(await rankingStorage.getRankedDishes(), winner, loser);
 		const rankedFoods = applyFoodComparison(await rankingStorage.getRankedFoods(), winner, loser);
 		await rankingStorage.saveRankedDishes(rankedDishes);
 		await rankingStorage.saveRankedFoods(rankedFoods);
+
+		const session = page.data.session;
+		if (session && page.data.supabase) {
+			// Fire-and-forget: don't block dismissing the prompt on the network round-trip.
+			// syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
+			void syncDiningHallRanks(page.data.supabase, session.user.id, rankedDishes);
+		}
+
 		comparePrompt = null;
 	}
 
@@ -294,6 +311,27 @@
 	{/if}
 {/each}
 
+<!-- #82: reserves clearance below the last dish row for the bottom-anchored stack below, at narrow
+     widths only. At >=640px (Tailwind's `sm`) the stack tops out at 28rem wide against a much wider
+     list, so desktop geometry is unaffected (sm:hidden collapses this to nothing there) -- #81's
+     desktop elementFromPoint probe stays meaningful. Below that, the stack's min(92vw, 28rem) width
+     nearly fills the screen, so on a narrow viewport scrolled to the very bottom it would otherwise
+     sit on top of the last row's Log button (measured in #82's review, reproduced red-first in
+     rank-surfaces.spec.ts). stackHeight (bind:clientHeight below) tracks the stack's own rendered
+     height reactively, no manual effect required. The spacer only exists while the stack is up (its
+     height collapses to 0 with it), so a user already scrolled to the exact document bottom the
+     instant the prompt appears doesn't get the Log button moved to them -- Chrome's scroll anchoring
+     keeps their scroll position stable and they scroll roughly one stack-height further to reach it.
+     That's the sanctioned tradeoff (bottom padding equal to the stack height, per #82's decision) --
+     before this fix there was no scroll that helped at all, the row was permanently pinned under a
+     fixed-position stack. Same transient in the other direction: the toast auto-clearing at 2s
+     shrinks the spacer and the browser re-clamps scrollY -- verified self-correcting (button stays
+     reachable), so only tests that measure mid-clear need to wait the toast out.
+     ponytail: +20 below duplicates the wrapper's own `bottom-5` (1.25rem) instead of reading it from
+     one shared source -- fine while there's only one bottom-anchored offset in this file; extract a
+     CSS var if a second one with a different offset shows up. -->
+<div aria-hidden="true" class="sm:hidden" style="height: {stackHeight > 0 ? stackHeight + 20 : 0}px"></div>
+
 <!-- Fixed to the viewport bottom rather than inline in document flow: a menu runs to a few hundred
      dishes, so anything rendered above the fold (including near the top, under the date nav) is
      invisible at the moment you actually press Log -- the ceiling the #67 review caught (see
@@ -304,13 +342,8 @@
      either one's height, without a hardcoded pixel gap. The wrapper itself is pointer-events-none
      (it spans the full width) so it never intercepts clicks on the page below/behind it; each child
      re-enables pointer-events for its own bounds. Single role="status" region on this page by
-     design — the e2e specs assert on exactly one.
-     ponytail: the prompt's width (min(92vw, 28rem)) can still sit over the last dish row's Log
-     button on a narrow viewport scrolled to the very bottom -- rank-surfaces.spec.ts only runs
-     Desktop Chrome (this repo's one configured project), so that geometry is untested. Upgrade path
-     if it turns out to matter: add a mobile-viewport project, or give the last dish row(s)
-     scroll-margin/padding clear of the stack's max height. -->
-<div class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex flex-col-reverse items-center gap-2 px-4">
+     design — the e2e specs assert on exactly one. -->
+<div bind:clientHeight={stackHeight} class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex flex-col-reverse items-center gap-2 px-4">
 	{#if loggedMessage}
 		<p
 			role="status"
