@@ -1,7 +1,10 @@
 import { DINING_HALLS } from "./umassDining.ts";
 import type { LogEntry, RankedDish, RankedFood } from "./types.ts";
 
-const DEFAULT_RATING = 1500;
+/** Starting Elo rating for a dish/food's first comparison. Exported so other rating-derived code
+ * (e.g. scores.ts's 0-10 display mapping, #89) can anchor to the same baseline instead of
+ * duplicating the magic number. */
+export const DEFAULT_RATING = 1500;
 
 const MAX_K = 32;
 const MIN_K = 8;
