@@ -82,6 +82,7 @@
 	let pingHallTid = $state("");
 	let pingMessage = $state("");
 	let pingSent = $state(false);
+	let pingError = $state(false);
 
 	function hallName(hallTid: number | null): string {
 		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? "somewhere";
@@ -97,7 +98,11 @@
 			...pings.map(
 				(p): FeedItem => ({ kind: "ping", id: p.id, createdAt: p.created_at, senderName: friendNameById.get(p.sender_id) ?? "A friend", hallTid: p.hall_tid, message: p.message }),
 			),
-		].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
+			// b.localeCompare(a) for descending (newest-first) order. The previous `a < b ? 1 : -1`
+			// returned -1 for BOTH orderings of two equal-timestamp items (cmp(a,b) and cmp(b,a) both
+			// said "I go first"), an invalid comparator that Array.sort doesn't guarantee stable/correct
+			// results for.
+		].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
 	);
 
 	function isUnread(item: FeedItem): boolean {
@@ -141,11 +146,19 @@
 	}
 
 	onMount(() => {
-		feedLastSeenAt = loadFeedLastSeen();
-		refresh().then(() => saveFeedLastSeen(new Date().toISOString()));
+		const myId = page.data.session?.user.id;
+		feedLastSeenAt = myId ? loadFeedLastSeen(myId) : "";
+		refresh().then(() => {
+			// Only stamp when a session actually exists -- refresh() early-returns with no session
+			// (nothing rendered), and previously this ran unconditionally, silently marking every
+			// older ping as seen on a zero-item anonymous visit. Stamp from the newest rendered item's
+			// own created_at (Postgres clock), not the browser's clock -- avoids drift between the two
+			// making a just-created ping look already-seen.
+			const newestCreatedAt = feedItems[0]?.createdAt;
+			if (myId && newestCreatedAt) saveFeedLastSeen(myId, newestCreatedAt);
+		});
 
 		const supabase = page.data.supabase;
-		const myId = page.data.session?.user.id;
 		if (!supabase || !myId) return;
 
 		// Moved here from /friends (#66) — the pings inbox now lives in this feed, not buried in the
@@ -194,13 +207,22 @@
 		const supabase = page.data.supabase;
 		const myId = page.data.session?.user.id;
 		if (!supabase || !myId || !selectedFriendId) return;
-		await supabase.from("pings").insert({
+		const { error } = await supabase.from("pings").insert({
 			sender_id: myId,
 			receiver_id: selectedFriendId,
 			hall_tid: pingHallTid ? Number(pingHallTid) : null,
 			message: pingMessage || null,
 		});
+		if (error) {
+			// e.g. RLS rejects the insert (not actually friends, receiver blocked). Previously this was
+			// never checked -- "Ping sent" showed unconditionally even when nothing was sent.
+			pingSent = false; // in case a still-live success badge from an earlier attempt is showing
+			pingError = true;
+			setTimeout(() => (pingError = false), 3000);
+			return;
+		}
 		pingMessage = "";
+		pingError = false; // in case a still-live failure badge from an earlier attempt is showing
 		pingSent = true;
 		setTimeout(() => (pingSent = false), 1500);
 	}
@@ -261,6 +283,7 @@
 				<button class="btn btn-primary btn-sm" onclick={sendPing} disabled={!selectedFriendId}>Send ping</button>
 			</div>
 			{#if pingSent}<p role="status" class="badge mt-2">Ping sent</p>{/if}
+			{#if pingError}<p role="alert" class="badge mt-2">Couldn't send ping — try again.</p>{/if}
 		{/if}
 	</section>
 

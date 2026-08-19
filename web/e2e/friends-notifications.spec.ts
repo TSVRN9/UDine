@@ -305,6 +305,36 @@ test.describe("Notifications — signed in", () => {
 		await expect(page.getByRole("status")).toHaveText("Ping sent");
 	});
 
+	// Review nit on #75: sendPing() previously set pingSent = true unconditionally, without
+	// checking the insert's result -- an RLS rejection (not actually friends any more, blocked,
+	// etc.) still showed "Ping sent".
+	test("a failed ping insert (RLS rejection) shows a failure state, not a false 'Ping sent'", async ({ page }) => {
+		await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: false }, [{ user_id: FRIEND_ID, display_name: "Casey Friend" }]),
+			friendships: (route) => route.fulfill({ json: [{ user_a: USER_ID < FRIEND_ID ? USER_ID : FRIEND_ID, user_b: USER_ID < FRIEND_ID ? FRIEND_ID : USER_ID, status: "accepted" }] }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: async (route) => {
+				if (route.request().method() === "POST") {
+					// Shape of a real PostgREST/RLS rejection: non-2xx status, PostgrestError-shaped body.
+					return route.fulfill({
+						status: 403,
+						json: { code: "42501", message: 'new row violates row-level security policy for table "pings"', details: null, hint: null },
+					});
+				}
+				return route.fulfill({ json: [] });
+			},
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Ping a friend" })).toBeVisible({ timeout: 15_000 });
+
+		await page.getByLabel("Friend").selectOption(FRIEND_ID);
+		await page.getByRole("button", { name: "Send ping" }).click();
+
+		await expect(page.getByRole("alert")).toBeVisible();
+		await expect(page.getByText("Ping sent")).toHaveCount(0);
+	});
+
 	test("unread sighting mark-as-read is reachable by keyboard, not just onmouseenter (closes #62)", async ({ page }) => {
 		const requests = await signInAndMockSupabase(page, {
 			profiles: profilesHandler({ notifications_enabled: true }),
@@ -349,5 +379,77 @@ test.describe("Notifications — signed in", () => {
 		await expect(readRow.locator(".badge", { hasText: "New" })).toHaveCount(0);
 		await expect(readRow.locator(".badge", { hasText: "Worcester" })).toBeVisible();
 		await expect(readRow.getByRole("button", { name: "Mark as read" })).toHaveCount(0);
+	});
+
+	// Review findings on #66's PR (#75), F1 + F2: the previous `refresh().then(() =>
+	// saveFeedLastSeen(new Date().toISOString()))` stamped the device-local unread watermark
+	// unconditionally -- including when refresh() early-returned with no session -- and
+	// feedLastSeen.ts itself had no test that would fail if isUnread()'s ping branch were hardcoded
+	// to `return true` or if the saveFeedLastSeen() call were deleted outright. These two tests
+	// close both gaps.
+	test("a seeded watermark suppresses the New badge on an older ping while a newer ping stays badged", async ({ page }) => {
+		const older = new Date(Date.now() - 60_000).toISOString();
+		const watermark = new Date(Date.now() - 30_000).toISOString();
+		const newer = new Date().toISOString();
+
+		// Seed the watermark before any app script runs, same technique as the session cookie below.
+		// Key format (`${prefix}:${userId}`) must match feedLastSeen.ts.
+		await page.addInitScript(
+			([key, value]) => localStorage.setItem(key, value),
+			[`udine-feed-last-seen:${USER_ID}`, watermark],
+		);
+
+		await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }, [{ user_id: FRIEND_ID, display_name: "Casey Friend" }]),
+			friendships: (route) => route.fulfill({ json: [{ user_a: USER_ID < FRIEND_ID ? USER_ID : FRIEND_ID, user_b: USER_ID < FRIEND_ID ? FRIEND_ID : USER_ID, status: "accepted" }] }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) =>
+				route.fulfill({
+					json: [
+						{ id: "p-old", sender_id: FRIEND_ID, hall_tid: null, message: "old ping", created_at: older },
+						{ id: "p-new", sender_id: FRIEND_ID, hall_tid: null, message: "new ping", created_at: newer },
+					],
+				}),
+		});
+
+		await page.goto("/notifications");
+		const feed = page.getByRole("list", { name: "Activity feed" });
+		const items = feed.getByRole("listitem");
+		await expect(items).toHaveCount(2, { timeout: 15_000 }); // hydration proof
+
+		// Newest first (sort order, unrelated to this test's point, but asserted so nth(0)/nth(1) below
+		// are unambiguous).
+		const newItem = items.nth(0);
+		const oldItem = items.nth(1);
+		await expect(newItem).toContainText("new ping");
+		await expect(oldItem).toContainText("old ping");
+
+		// The point: older-than-watermark ping is read, newer-than-watermark ping is unread.
+		await expect(newItem.locator(".badge", { hasText: "New" })).toBeVisible();
+		await expect(oldItem.locator(".badge", { hasText: "New" })).toHaveCount(0);
+
+		// Also catches the other mutation the review proved green under the old suite: deleting the
+		// saveFeedLastSeen() call outright. If that call were gone, the seeded watermark above would
+		// still sit untouched at 30s-ago instead of advancing to the newest item's own created_at.
+		await expect
+			.poll(() => page.evaluate((k) => localStorage.getItem(k), `udine-feed-last-seen:${USER_ID}`))
+			.toBe(newer);
+	});
+
+	test("a signed-out visit does not stamp the feed-last-seen watermark", async ({ page }) => {
+		await page.goto("/notifications");
+		await expect(page.locator(".empty-state")).toBeVisible();
+
+		// This branch renders identically whether or not onMount/hydration has run yet (nothing here
+		// is session-gated content that would prove hydration, unlike other specs' star-click proof),
+		// so give onMount's async refresh().then() a real beat to land before asserting its absence --
+		// same idea as home-dashboard.spec.ts's post-hydration `waitForTimeout(500)`, just longer since
+		// there's no separate hydration-proof step here to already have consumed that time.
+		await page.waitForTimeout(1500);
+
+		// Regression check for the finding above: refresh() early-returns with no session (nothing
+		// rendered), so nothing should be written to localStorage at all.
+		const keys = await page.evaluate(() => Object.keys(localStorage));
+		expect(keys.some((k) => k.startsWith("udine-feed-last-seen"))).toBe(false);
 	});
 });
