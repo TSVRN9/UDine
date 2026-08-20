@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, spacing, withOpacity } from "../../lib/theme";
+import { colors, fonts, fs, spacing, withOpacity } from "../../lib/theme";
 
 /**
  * Canvas section header: condensed uppercase label with the gold rule filling the rest of the row.
@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing(2.5) },
   title: {
     fontFamily: fonts.display600,
-    fontSize: 13,
+    fontSize: fs(13),
     letterSpacing: 1.5,
     textTransform: "uppercase",
     color: colors.maroon900,

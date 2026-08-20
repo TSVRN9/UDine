@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { paneDots } from "../lib/paneShell";
 
 /** Pane header per the canvas: condensed title (UDINE / SOCIAL / YOU) with the position dots
@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
   paneHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   pageTitle: {
     fontFamily: fonts.display700,
-    fontSize: 20,
+    fontSize: fs(20),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.maroon900,

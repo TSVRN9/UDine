@@ -12,7 +12,7 @@
  * and do NOT pair them with `fontWeight`, which fake-bolds an already-weighted family on Android.
  * The unweighted `display`/`body` keys are legacy aliases for screens not yet on the v2 canvas.
  */
-import { Platform } from "react-native";
+import { Dimensions, Platform } from "react-native";
 
 export const colors = {
   maroon900: "#3b0a0f",
@@ -63,6 +63,20 @@ export const fonts = {
   display: "Oswald_600SemiBold",
   body: "LibreFranklin_400Regular",
 } as const;
+
+/**
+ * Width-proportional type scale. The canvas artboards are drawn at 390dp; their font sizes are
+ * used verbatim on 390dp-and-wider screens (capped at 1 — never upscales) and scale down
+ * proportionally on narrower ones, so text keeps the artboard's layout ratios instead of wrapping.
+ * Fonts and lineHeights only — paddings and touch targets (44dp) deliberately don't scale.
+ * ponytail: window width read once at module load — fine for phones; revisit with a
+ * useWindowDimensions-driven scale if tablets/rotation ever matter.
+ */
+const DESIGN_WIDTH = 390;
+const typeScale = Math.min(1, Dimensions.get("window").width / DESIGN_WIDTH);
+export function fs(size: number): number {
+  return Math.round(size * typeScale);
+}
 
 export const radii = {
   sm: 2,

@@ -19,7 +19,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PaneHeader } from "../components/PaneHeader";
 import { Button, Card, EmptyState, SectionHeader, Stat } from "../components/ui";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
 import { signInWithGoogle, signOut } from "../lib/auth";
 import { supabase } from "../lib/supabase";
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   paneContainer: { paddingHorizontal: spacing(5), paddingBottom: spacing(10) },
 
   section: { marginTop: spacing(4), gap: spacing(2.5) },
-  hint: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 55) },
+  hint: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
 
   statsCard: { marginTop: spacing(3.5), padding: spacing(3.5), flexDirection: "row", gap: spacing(2.5) },
   statCell: { flex: 1 },
@@ -297,17 +297,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
   },
   logInfo: { flex: 1, gap: 1 },
-  logName: { fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
-  logSub: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 55) },
+  logName: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  logSub: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   logRight: { alignItems: "flex-end", gap: 2 },
-  logCalories: { fontFamily: fonts.mono, fontSize: 13, color: withOpacity(colors.ink900, 70) },
-  logRemove: { fontFamily: fonts.body600, fontSize: 11, color: colors.maroon600 },
+  logCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 70) },
+  logRemove: { fontFamily: fonts.body600, fontSize: fs(11), color: colors.maroon600 },
 
   completionCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2.5) },
   completionRow: { gap: spacing(1) },
   completionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: spacing(2) },
-  completionHall: { fontFamily: fonts.body600, fontSize: 12, color: colors.ink900 },
-  completionCounts: { fontFamily: fonts.mono, fontSize: 12, color: withOpacity(colors.ink900, 70) },
+  completionHall: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.ink900 },
+  completionCounts: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 70) },
   completionTrack: { height: 6, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 10), overflow: "hidden" },
   completionFill: { height: "100%", borderRadius: radii.pill, backgroundColor: colors.maroon600 },
   completionFillGold: { backgroundColor: colors.gold500 },
@@ -321,12 +321,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
   },
   topFoodInfo: { flex: 1, gap: 1 },
-  topFoodName: { fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
-  topFoodHall: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 55) },
+  topFoodName: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  topFoodHall: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   scorePill: { minWidth: 44, alignItems: "center", borderRadius: radii.pill, paddingVertical: spacing(1.25) },
   scorePillGold: { backgroundColor: colors.gold500 },
   scorePillMaroon: { backgroundColor: colors.maroon600 },
-  scorePillText: { fontFamily: fonts.mono, fontSize: 14, fontWeight: "600" },
+  scorePillText: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600" },
   scorePillTextGold: { color: colors.maroon900 },
   scorePillTextMaroon: { color: colors.paper50 },
 
@@ -340,9 +340,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3),
   },
   favoriteHallCardTop: { borderColor: colors.gold500 },
-  favoriteHallRank: { fontFamily: fonts.display700, fontSize: 16, color: withOpacity(colors.ink900, 40) },
+  favoriteHallRank: { fontFamily: fonts.display700, fontSize: fs(16), color: withOpacity(colors.ink900, 40) },
   favoriteHallRankTop: { color: colors.gold500 },
-  favoriteHallName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: 13, color: colors.ink900 },
+  favoriteHallName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
 
   accountCard: {
     flexDirection: "row",
@@ -353,8 +353,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
     minHeight: 44,
   },
-  accountText: { flexShrink: 1, color: withOpacity(colors.ink900, 60), fontFamily: fonts.body400, fontSize: 13 },
-  accountLink: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: 13 },
+  accountText: { flexShrink: 1, color: withOpacity(colors.ink900, 60), fontFamily: fonts.body400, fontSize: fs(13) },
+  accountLink: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: fs(13) },
   friendsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -363,8 +363,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
     minHeight: 44,
   },
-  friendsText: { fontFamily: fonts.body600, fontSize: 13, color: colors.ink900 },
-  friendsChevron: { fontFamily: fonts.body400, fontSize: 18, lineHeight: 20, color: colors.maroon600 },
+  friendsText: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
+  friendsChevron: { fontFamily: fonts.body400, fontSize: fs(18), lineHeight: fs(20), color: colors.maroon600 },
 
   exportRow: { flexDirection: "row", gap: spacing(2) },
   exportButton: { flex: 1 },

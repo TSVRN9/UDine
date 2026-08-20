@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { signInWithGoogle } from "../lib/auth";
 import { dismissFirstRun } from "../lib/firstRun";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /**
  * First-launch screen (#96, canvas: "Login / first launch"). Pushed once over the pane shell on a
@@ -77,15 +77,15 @@ const styles = StyleSheet.create({
     right: -60,
     top: 40,
     fontFamily: fonts.display700,
-    fontSize: 360,
-    lineHeight: 360,
+    fontSize: fs(360),
+    lineHeight: fs(360),
     color: withOpacity(colors.paper50, 4),
   },
   top: { paddingTop: 110, paddingHorizontal: spacing(8), gap: spacing(4) },
-  brand: { fontFamily: fonts.display700, fontSize: 56, lineHeight: 60, letterSpacing: 2, color: colors.paper50 },
+  brand: { fontFamily: fonts.display700, fontSize: fs(56), lineHeight: fs(60), letterSpacing: 2, color: colors.paper50 },
   goldBar: { marginTop: spacing(1.5), height: 4, width: 88, backgroundColor: colors.gold500 },
-  pitch: { fontFamily: fonts.body400, fontSize: 17, lineHeight: 25, color: withOpacity(colors.paper50, 85), maxWidth: 300 },
-  privacy: { fontFamily: fonts.body400, fontSize: 13, lineHeight: 19, color: withOpacity(colors.paper50, 55), maxWidth: 300 },
+  pitch: { fontFamily: fonts.body400, fontSize: fs(17), lineHeight: fs(25), color: withOpacity(colors.paper50, 85), maxWidth: 300 },
+  privacy: { fontFamily: fonts.body400, fontSize: fs(13), lineHeight: fs(19), color: withOpacity(colors.paper50, 55), maxWidth: 300 },
 
   bottom: { paddingHorizontal: spacing(6), paddingBottom: 44, gap: spacing(3) },
   googleButton: {
@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper50,
   },
   googleGlyphCircle: { width: 22, height: 22, borderRadius: radii.pill, alignItems: "center", justifyContent: "center", backgroundColor: "#4285F4" },
-  googleGlyph: { fontFamily: fonts.body600, fontSize: 13, color: "#ffffff" },
-  googleButtonText: { fontFamily: fonts.body600, fontSize: 15, color: colors.ink900 },
+  googleGlyph: { fontFamily: fonts.body600, fontSize: fs(13), color: "#ffffff" },
+  googleButtonText: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.ink900 },
   skipButton: {
     height: 52,
     marginTop: spacing(2),
@@ -109,6 +109,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  skipButtonText: { fontFamily: fonts.body600, fontSize: 15, color: colors.paper50 },
-  caption: { textAlign: "center", fontFamily: fonts.body400, fontSize: 12, lineHeight: 17, color: withOpacity(colors.paper50, 50) },
+  skipButtonText: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.paper50 },
+  caption: { textAlign: "center", fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(17), color: withOpacity(colors.paper50, 50) },
 });
