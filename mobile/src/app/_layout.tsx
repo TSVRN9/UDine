@@ -14,7 +14,6 @@ export default function RootLayout() {
       <Stack.Screen name="index" options={{ title: "UDine" }} />
       <Stack.Screen name="redirect" options={{ headerShown: false, animation: "none" }} />
       <Stack.Screen name="halls/[slug]" options={{ title: "Menu" }} />
-      <Stack.Screen name="today" options={{ title: "Today" }} />
       <Stack.Screen name="filters" options={{ title: "Dietary Filters" }} />
       <Stack.Screen name="favorites" options={{ title: "Favorites" }} />
       <Stack.Screen name="rank" options={{ title: "Rank Dishes" }} />
