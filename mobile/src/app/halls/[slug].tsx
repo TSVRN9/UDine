@@ -1,24 +1,27 @@
 import {
   computeDailyTotals,
   DINING_HALLS,
+  fetchDiningHours,
   fetchMenu,
   favoriteKey,
   menuItemMatchesPreferences,
+  type DiningHoursFeed,
   type Favorite,
   type FoodPreferences,
   type MealPeriod,
   type MenuItem,
   type OffSearchResult,
 } from "@udine/shared";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EmptyState } from "../../components/ui";
+import { EmptyState, SectionHeader } from "../../components/ui";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
-import { colors, fonts, spacing, withOpacity } from "../../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
+import { hallHeaderSubtitle } from "../../lib/homeHero";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
 import {
   addOrIncrement,
@@ -44,6 +47,21 @@ const favoritesStorage = new SqliteFavoritesStorage();
 // round-trip through router search params (Expo Router params are strings only), and neither needs
 // a back-stack entry of its own. Register in _layout.tsx only if that changes.
 
+/** Filled maroon pill stepper — the canvas's in-plate control on a dish row. */
+function RowStepper({ count, dishName, onStep }: { count: number; dishName: string; onStep: (delta: number) => void }) {
+  return (
+    <View style={styles.stepper}>
+      <Pressable style={styles.stepperButton} onPress={() => onStep(-1)} accessibilityRole="button" accessibilityLabel={`Remove one ${dishName}`}>
+        <Text style={styles.stepperButtonText}>−</Text>
+      </Pressable>
+      <Text style={styles.stepperCount}>{count}</Text>
+      <Pressable style={styles.stepperButton} onPress={() => onStep(1)} accessibilityRole="button" accessibilityLabel={`Add one ${dishName}`}>
+        <Text style={styles.stepperButtonText}>+</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function HallMenuScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const hall = DINING_HALLS.find((h) => h.slug === slug);
@@ -51,6 +69,7 @@ export default function HallMenuScreen() {
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
   const [favoriteDishKeys, setFavoriteDishKeys] = useState<Set<string>>(new Set());
+  const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
 
   const [plate, setPlate] = useState<PlateEntry[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -65,6 +84,10 @@ export default function HallMenuScreen() {
     fetchMenu(hall.tid, new Date())
       .then(setItems)
       .catch((e) => setError(String(e)));
+    // Header subtitle only — a failure here just leaves the subtitle blank, never blocks the menu.
+    fetchDiningHours()
+      .then(setHoursFeed)
+      .catch(() => {});
   }, [hall]);
 
   useFocusEffect(
@@ -96,8 +119,9 @@ export default function HallMenuScreen() {
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
 
   if (!hall) return <Text style={styles.error}>Unknown dining hall</Text>;
-  if (error) return <Text style={styles.error}>Failed to load menu: {error}</Text>;
-  if (!items) return <ActivityIndicator style={styles.loading} color={colors.maroon600} />;
+
+  const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
+  const subtitle = hallHours ? hallHeaderSubtitle(hallHours, new Date()) : "";
 
   async function toggleDishFavorite(dishName: string) {
     const favorite: Favorite = { type: "dish", dishName };
@@ -111,8 +135,12 @@ export default function HallMenuScreen() {
     setFavoriteDishKeys(new Set(favs.filter((f) => f.type === "dish").map(favoriteKey)));
   }
 
-  function addToPlate(item: MenuItem) {
-    setPlate((p) => addOrIncrement(p, menuItemToPlateEntry(item)));
+  function addToPlate(item: MenuItem, count = 1) {
+    setPlate((p) => {
+      let next = p;
+      for (let i = 0; i < count; i++) next = addOrIncrement(next, menuItemToPlateEntry(item));
+      return next;
+    });
   }
 
   function stepPlateItem(item: MenuItem, delta: number) {
@@ -148,39 +176,57 @@ export default function HallMenuScreen() {
 
   return (
     <View style={styles.container}>
-      {sections.length === 0 ? (
+      <View style={[styles.header, { paddingTop: insets.top + spacing(4.5) }]}>
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Text style={styles.backChevron}>‹</Text>
+        </Pressable>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>{hall.name}</Text>
+          {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+        </View>
+      </View>
+
+      {error ? (
+        <Text style={styles.error}>Failed to load menu: {error}</Text>
+      ) : !items ? (
+        <ActivityIndicator style={styles.loading} color={colors.maroon600} />
+      ) : sections.length === 0 ? (
         <EmptyState title="No matching dishes" message={`No menu matches your filters at ${hall.name} today.`} />
       ) : (
         <SectionList
           sections={sections}
           keyExtractor={(item, index) => `${item.mealPeriod}-${item.dishName}-${index}`}
           contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, plate.length > 0) + (logged ? bannerHeight : 0) }}
-          renderSectionHeader={({ section }) => <Text style={styles.sectionHeader}>{section.title}</Text>}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeaderWrap}>
+              <SectionHeader title={section.title} />
+            </View>
+          )}
           renderItem={({ item }) => {
             const plateEntry = plate.find((p) => p.key === plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid }));
             const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
             return (
-              <View style={styles.row}>
+              <View style={[styles.row, plateEntry && styles.rowInPlate]}>
                 <Pressable onPress={() => toggleDishFavorite(item.dishName)} hitSlop={8}>
                   <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
                 </Pressable>
                 <View style={styles.rowMain}>
                   <Text style={styles.rowText}>{item.dishName}</Text>
-                  <Text style={styles.rowCalories}>{item.nutrition.calories} cal</Text>
+                  <Text style={styles.rowCalories}>
+                    {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
+                  </Text>
                 </View>
-                <Pressable onPress={() => setLabelItem(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Nutrition facts for ${item.dishName}`}>
+                <Pressable
+                  style={styles.infoButton}
+                  onPress={() => setLabelItem(item)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Nutrition facts for ${item.dishName}`}
+                >
                   <Text style={styles.infoIcon}>ⓘ</Text>
                 </Pressable>
                 {plateEntry ? (
-                  <View style={styles.stepper}>
-                    <Pressable style={styles.stepperButton} onPress={() => stepPlateItem(item, -1)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove one ${item.dishName}`}>
-                      <Text style={styles.stepperButtonText}>−</Text>
-                    </Pressable>
-                    <Text style={styles.stepperCount}>{plateEntry.count}</Text>
-                    <Pressable style={styles.stepperButton} onPress={() => stepPlateItem(item, 1)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add one ${item.dishName}`}>
-                      <Text style={styles.stepperButtonText}>+</Text>
-                    </Pressable>
-                  </View>
+                  <RowStepper count={plateEntry.count} dishName={item.dishName} onStep={(delta) => stepPlateItem(item, delta)} />
                 ) : (
                   <Pressable style={styles.addButton} onPress={() => addToPlate(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add ${item.dishName} to plate`}>
                     <Text style={styles.addButtonText}>+</Text>
@@ -214,6 +260,7 @@ export default function HallMenuScreen() {
         visible={sheetOpen}
         plate={plate}
         totals={totals}
+        contextLabel={hall.name}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onAddOffResult={addOffResult}
         onLog={logPlate}
@@ -223,9 +270,16 @@ export default function HallMenuScreen() {
         <NutritionLabel
           visible={!!labelItem}
           dishName={labelItem.dishName}
+          // The feed's category already carries the meal period ("Breakfast Entrees") — don't
+          // prefix mealPeriod again.
+          subtitle={`${hall.name} · ${labelItem.category}`}
           nutrition={labelItem.nutrition}
           allergens={labelItem.allergens}
           dietTags={labelItem.dietTags}
+          onAddToPlate={(count) => {
+            addToPlate(labelItem, count);
+            setLabelItem(null);
+          }}
           onClose={() => setLabelItem(null)}
         />
       )}
@@ -236,31 +290,71 @@ export default function HallMenuScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream100 },
   loading: { flex: 1, backgroundColor: colors.cream100 },
-  error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body },
-  sectionHeader: {
-    fontFamily: fonts.display,
-    fontSize: 14,
-    fontWeight: "700",
+  error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body400 },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
+    paddingHorizontal: spacing(5),
+    paddingBottom: spacing(3),
+  },
+  backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
+  headerText: { flex: 1 },
+  headerTitle: {
+    fontFamily: fonts.display700,
+    fontSize: fs(22),
     letterSpacing: 1,
     textTransform: "uppercase",
-    backgroundColor: colors.cream100,
     color: colors.maroon900,
-    paddingHorizontal: spacing(4),
-    paddingVertical: spacing(2),
   },
-  row: { flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderColor: withOpacity(colors.ink900, 15), backgroundColor: colors.paper50, paddingVertical: spacing(2), paddingHorizontal: spacing(3), gap: spacing(2) },
-  rowMain: { flex: 1 },
-  rowText: { fontSize: 15, fontFamily: fonts.body, color: colors.ink900 },
-  rowCalories: { fontSize: 13, fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
-  star: { fontSize: 20, color: withOpacity(colors.ink900, 30) },
+  headerSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
+
+  sectionHeaderWrap: {
+    paddingHorizontal: spacing(5),
+    paddingTop: spacing(3),
+    paddingBottom: spacing(2),
+    backgroundColor: colors.cream100,
+  },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    marginHorizontal: spacing(5),
+    marginBottom: spacing(2),
+    backgroundColor: colors.paper50,
+    borderWidth: 1,
+    borderColor: withOpacity(colors.ink900, 12),
+    borderRadius: radii.md,
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(3),
+  },
+  rowInPlate: { borderColor: colors.gold500 },
+  rowMain: { flex: 1, gap: 1 },
+  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
+  rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
+  star: { fontSize: fs(20), color: withOpacity(colors.ink900, 30) },
   starActive: { color: colors.gold500 },
-  infoIcon: { fontSize: 18, color: withOpacity(colors.maroon600, 80) },
-  addButton: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: colors.maroon600, alignItems: "center", justifyContent: "center" },
-  addButtonText: { fontSize: 18, fontWeight: "700", color: colors.maroon600, lineHeight: 20 },
-  stepper: { flexDirection: "row", alignItems: "center", gap: spacing(1.5) },
-  stepperButton: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: colors.maroon600, alignItems: "center", justifyContent: "center" },
-  stepperButtonText: { fontSize: 15, fontWeight: "700", color: colors.maroon600 },
-  stepperCount: { fontFamily: fonts.mono, fontSize: 14, minWidth: 16, textAlign: "center", color: colors.ink900 },
+  infoButton: { width: fs(30), height: fs(44), alignItems: "center", justifyContent: "center" },
+  infoIcon: { fontSize: fs(18), color: withOpacity(colors.ink900, 40) },
+
+  addButton: {
+    width: fs(44),
+    height: fs(44),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: withOpacity(colors.maroon600, 45),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addButtonText: { fontSize: fs(20), color: colors.maroon600, lineHeight: fs(22) },
+
+  stepper: { flexDirection: "row", alignItems: "center", backgroundColor: colors.maroon600, borderRadius: radii.pill },
+  stepperButton: { width: fs(34), height: fs(44), alignItems: "center", justifyContent: "center" },
+  stepperButtonText: { fontSize: fs(18), color: colors.paper50 },
+  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 16, textAlign: "center", color: colors.paper50 },
+
   loggedBanner: { backgroundColor: colors.maroon900, padding: spacing(2) },
-  loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body, fontSize: 13 },
+  loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body400, fontSize: fs(13) },
 });

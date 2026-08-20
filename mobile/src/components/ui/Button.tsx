@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
-import { buttonColors, fonts, radii, spacing, type ButtonVariant } from "../../lib/theme";
+import { buttonColors, fonts, fs, radii, spacing, type ButtonVariant } from "../../lib/theme";
 
 type Props = Omit<PressableProps, "style"> & {
   variant?: ButtonVariant;
@@ -55,10 +55,10 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: fonts.body,
-    fontSize: 14,
+    fontSize: fs(14),
     fontWeight: "600",
   },
   textSm: {
-    fontSize: 13,
+    fontSize: fs(13),
   },
 });

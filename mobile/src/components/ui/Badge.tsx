@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, fonts, radii, spacing, withOpacity } from "../../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 
 /** Small uppercase chip for metadata (allergens, status, hall names). Mirrors .badge. */
 export function Badge({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: fs(11),
     fontWeight: "600",
     letterSpacing: 0.6,
     textTransform: "uppercase",
