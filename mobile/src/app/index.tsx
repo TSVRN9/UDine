@@ -23,8 +23,7 @@ import { HOME_PANE_INDEX, hallCardSide, initialPaneOffset, paneIndexForScrollOff
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { signInWithGoogle, signOut } from "../lib/auth";
 import { supabase } from "../lib/supabase";
-import { FriendsBody } from "./friends";
-import { NotificationsBody } from "./notifications";
+import { SocialPane } from "../panes/SocialPane";
 import { YouPane } from "../panes/YouPane";
 
 const favoritesStorage = new SqliteFavoritesStorage();
@@ -32,6 +31,9 @@ const favoritesStorage = new SqliteFavoritesStorage();
 // #90 canvas doesn't carry these (its Home artboard is hero + hall cards + cafés/markets), but
 // dropping them would strand /filters, /favorites, /rank, /events, /press, /newsletter with no
 // in-app entry point — #91-#93 re-home this list as they replace each pane's internals.
+// #93: the new SocialPane drops NotificationsBody (not in the canvas's Social artboard, which is
+// just PING A FRIEND + EVENTS) -- /notifications would otherwise lose its only in-app entry point
+// the same way, so it re-homes here alongside the rest of this list.
 const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/filters", label: "Dietary filters" },
   { href: "/favorites", label: "Favorites" },
@@ -39,6 +41,7 @@ const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/events", label: "Events" },
   { href: "/press", label: "Press" },
   { href: "/newsletter", label: "Newsletter" },
+  { href: "/notifications", label: "Notifications" },
 ];
 
 // Cosmetic-only accent alternation for the hall-card "gradient" placeholder — no meaning beyond
@@ -220,16 +223,6 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
           </Link>
         ))}
       </View>
-    </ScrollView>
-  );
-}
-
-function SocialPane({ activeIndex }: { activeIndex: number }) {
-  return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={styles.paneContainer}>
-      <PaneHeader title="Social" activeIndex={activeIndex} />
-      <FriendsBody />
-      <NotificationsBody />
     </ScrollView>
   );
 }
