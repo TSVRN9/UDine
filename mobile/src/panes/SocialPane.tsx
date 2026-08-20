@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PaneHeader } from "../components/PaneHeader";
 import { Button, Card, EmptyState, SectionHeader } from "../components/ui";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { signInWithGoogle } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import {
@@ -140,8 +140,9 @@ export function SocialPane({ activeIndex }: { activeIndex: number }) {
     const myId = session?.user.id;
     if (!myId) return;
 
-    const { data: fs } = await supabase.from("friendships").select("user_a, user_b").eq("status", "accepted").or(`user_a.eq.${myId},user_b.eq.${myId}`);
-    const otherIds = (fs ?? []).map((f) => otherUserId(f, myId));
+    // Named to avoid shadowing the theme's `fs()` type-scale import within this scope.
+    const { data: friendshipRows } = await supabase.from("friendships").select("user_a, user_b").eq("status", "accepted").or(`user_a.eq.${myId},user_b.eq.${myId}`);
+    const otherIds = (friendshipRows ?? []).map((f) => otherUserId(f, myId));
     if (otherIds.length > 0) {
       // Ordered, not left to whatever order .in() happens to return -- the first avatar gets the
       // gold "highlighted" ring (canvas), so which friend that is must be stable across refreshes.
@@ -359,28 +360,28 @@ const styles = StyleSheet.create({
   paneContainer: { paddingHorizontal: spacing(5), paddingBottom: spacing(10) },
 
   section: { marginTop: spacing(4), gap: spacing(2.5) },
-  empty: { color: withOpacity(colors.ink900, 55), fontFamily: fonts.body400, fontSize: 13, marginTop: spacing(1) },
-  error: { color: "#b00020", fontFamily: fonts.body400, fontSize: 13, marginTop: spacing(1) },
+  empty: { color: withOpacity(colors.ink900, 55), fontFamily: fonts.body400, fontSize: fs(13), marginTop: spacing(1) },
+  error: { color: "#b00020", fontFamily: fonts.body400, fontSize: fs(13), marginTop: spacing(1) },
 
   pingCard: { padding: spacing(3.5), gap: spacing(2.5) },
   avatarRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing(3.5) },
   avatarSlot: { width: 60, alignItems: "center", gap: spacing(1) },
   avatarCircle: { width: 52, height: 52, borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
   avatarCircleGold: { borderWidth: 2, borderColor: colors.gold500 },
-  avatarInitial: { fontFamily: fonts.display600, fontSize: 18, color: colors.paper50 },
+  avatarInitial: { fontFamily: fonts.display600, fontSize: fs(18), color: colors.paper50 },
   avatarAdd: { backgroundColor: "transparent", borderWidth: 1, borderStyle: "dashed", borderColor: withOpacity(colors.maroon600, 55) },
-  avatarAddPlus: { fontFamily: fonts.display600, fontSize: 20, color: colors.maroon600 },
-  avatarName: { fontFamily: fonts.body400, fontSize: 11, color: withOpacity(colors.ink900, 70) },
-  pingHint: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 55) },
+  avatarAddPlus: { fontFamily: fonts.display600, fontSize: fs(20), color: colors.maroon600 },
+  avatarName: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 70) },
+  pingHint: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
 
   eventsList: { gap: spacing(2.5) },
   eventCard: { overflow: "hidden" },
   eventBanner: { width: "100%", height: 84, backgroundColor: withOpacity(colors.ink900, 8) },
   eventRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing(2), padding: spacing(3.5) },
   eventInfo: { flex: 1, gap: 1 },
-  eventTitle: { fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
-  eventSubtitle: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 65) },
-  eventDetails: { fontFamily: fonts.body600, fontSize: 11, letterSpacing: 0.5, color: colors.maroon600 },
+  eventTitle: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  eventSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 65) },
+  eventDetails: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
 
   overlayDim: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: withOpacity(colors.ink900, 62) },
 
@@ -398,7 +399,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  heldAvatarInitial: { fontFamily: fonts.display600, fontSize: 24, color: colors.paper50 },
+  heldAvatarInitial: { fontFamily: fonts.display600, fontSize: fs(24), color: colors.paper50 },
   bubble: {
     position: "relative",
     backgroundColor: colors.paper50,
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper50,
     transform: [{ rotate: "45deg" }],
   },
-  bubbleMessage: { fontFamily: fonts.body600, fontSize: 18, color: colors.maroon900, textAlign: "center" },
+  bubbleMessage: { fontFamily: fonts.body600, fontSize: fs(18), color: colors.maroon900, textAlign: "center" },
 
   hallRowsWrap: { position: "absolute", top: "45%", left: spacing(5), right: spacing(5), gap: spacing(2.5) },
   hallRow: {
@@ -433,12 +434,12 @@ const styles = StyleSheet.create({
   hallRowActive: { backgroundColor: colors.gold500, justifyContent: "space-between" },
   hallRowMonogram: { width: 44, height: 44, borderRadius: radii.pill, backgroundColor: withOpacity(colors.maroon600, 12), alignItems: "center", justifyContent: "center" },
   hallRowMonogramActive: { backgroundColor: colors.maroon900 },
-  hallRowMonogramText: { fontFamily: fonts.display700, fontSize: 18, color: colors.maroon600 },
+  hallRowMonogramText: { fontFamily: fonts.display700, fontSize: fs(18), color: colors.maroon600 },
   hallRowMonogramTextActive: { color: colors.gold500 },
-  hallRowText: { fontFamily: fonts.body600, fontSize: 15, color: colors.maroon900 },
+  hallRowText: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.maroon900 },
   hallRowTextActive: { color: colors.maroon900 },
-  hallRowReleaseHint: { fontFamily: fonts.body600, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", color: colors.maroon900, marginRight: spacing(2) },
+  hallRowReleaseHint: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, textTransform: "uppercase", color: colors.maroon900, marginRight: spacing(2) },
 
-  bottomHint: { position: "absolute", bottom: spacing(20), left: spacing(5), right: spacing(5), textAlign: "center", fontFamily: fonts.body400, fontSize: 13, color: withOpacity(colors.paper50, 90) },
+  bottomHint: { position: "absolute", bottom: spacing(20), left: spacing(5), right: spacing(5), textAlign: "center", fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.paper50, 90) },
   bottomHintStrong: { fontFamily: fonts.body600, color: colors.gold500 },
 });
