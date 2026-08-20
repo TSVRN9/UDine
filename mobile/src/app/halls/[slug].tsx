@@ -270,7 +270,9 @@ export default function HallMenuScreen() {
         <NutritionLabel
           visible={!!labelItem}
           dishName={labelItem.dishName}
-          subtitle={`${hall.name} · ${labelItem.mealPeriod.charAt(0).toUpperCase()}${labelItem.mealPeriod.slice(1)} ${labelItem.category}`}
+          // The feed's category already carries the meal period ("Breakfast Entrees") — don't
+          // prefix mealPeriod again.
+          subtitle={`${hall.name} · ${labelItem.category}`}
           nutrition={labelItem.nutrition}
           allergens={labelItem.allergens}
           dietTags={labelItem.dietTags}

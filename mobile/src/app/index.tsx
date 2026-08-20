@@ -221,7 +221,11 @@ export default function PaneShellScreen() {
   function handleContentSizeChange(contentWidth: number) {
     if (!shouldLandOnHome(contentWidth, paneSize.width, landedOnHome.current)) return;
     landedOnHome.current = true;
-    scrollRef.current?.scrollTo({ x: initialPaneOffset(paneSize.width), animated: false });
+    // One frame later, not synchronously: with the Stack header gone (v2 canvas headers) this
+    // callback again races the native scrollable-range update, and a same-frame scrollTo clamps
+    // to x=0, stranding the shell on Social (the exact failure #104's comment describes).
+    const x = initialPaneOffset(paneSize.width);
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ x, animated: false }));
   }
 
   function handleScrollSettle(e: NativeSyntheticEvent<NativeScrollEvent>) {

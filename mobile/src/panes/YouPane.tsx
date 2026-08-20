@@ -155,13 +155,13 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
           <Stat label="Calories" value={String(Math.round(totals.calories))} />
         </View>
         <View style={styles.statCell}>
-          <Stat label="Protein" value={`${totals.proteinG.toFixed(1)}g`} />
+          <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
         </View>
         <View style={styles.statCell}>
-          <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(1)}g`} />
+          <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(0)}g`} />
         </View>
         <View style={styles.statCell}>
-          <Stat label="Fat" value={`${totals.totalFatG.toFixed(1)}g`} />
+          <Stat label="Fat" value={`${totals.totalFatG.toFixed(0)}g`} />
         </View>
       </Card>
 
