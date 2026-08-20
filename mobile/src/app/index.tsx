@@ -21,15 +21,17 @@ import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, t
 import { HOME_PANE_INDEX, initialPaneOffset, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { isFirstRunDismissed } from "../lib/firstRun";
-import { FriendsBody } from "./friends";
-import { NotificationsBody } from "./notifications";
+import { SocialPane } from "../panes/SocialPane";
 import { YouPane } from "../panes/YouPane";
 
 const favoritesStorage = new SqliteFavoritesStorage();
 
 // #90 canvas doesn't carry these (its Home artboard is hero + hall cards + cafés/markets), but
 // dropping them would strand /filters, /favorites, /rank, /events, /press, /newsletter with no
-// in-app entry point — #91-#93 re-home this list as they replace each pane's internals.
+// in-app entry point — #91-#93 re-home this list as they replace each pane's internals. #93's
+// SocialPane doesn't mount NotificationsBody (the Social artboard has no notifications toggle/
+// sightings feed) -- /notifications is added here so that feature (and the cron job/Edge Function
+// behind it) stays reachable from the UI.
 const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/filters", label: "Dietary filters" },
   { href: "/favorites", label: "Favorites" },
@@ -37,6 +39,7 @@ const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/events", label: "Events" },
   { href: "/press", label: "Press" },
   { href: "/newsletter", label: "Newsletter" },
+  { href: "/notifications", label: "Notifications" },
 ];
 
 function HeroBlock({ hero, now }: { hero: HomeHero; now: Date }) {
@@ -172,17 +175,6 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
           ))}
         </View>
       </View>
-    </ScrollView>
-  );
-}
-
-function SocialPane({ activeIndex }: { activeIndex: number }) {
-  const insets = useSafeAreaInsets();
-  return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + spacing(4.5) }]}>
-      <PaneHeader title="Social" activeIndex={activeIndex} />
-      <FriendsBody />
-      <NotificationsBody />
     </ScrollView>
   );
 }
