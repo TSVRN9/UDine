@@ -84,9 +84,11 @@ export const radii = {
   pill: 999,
 } as const;
 
-/** Tailwind's default 4px spacing step, used as-is on web — same step here. */
+/** Tailwind's default 4px spacing step, scaled by the same width-proportional factor as type
+ * (see fs above) — the canvas's paddings/gaps are drawn at 390dp too, and unscaled whitespace
+ * around scaled text reads oversized on narrow screens (owner feedback, 2026-08-20). */
 export function spacing(steps: number): number {
-  return steps * 4;
+  return Math.round(steps * 4 * typeScale);
 }
 
 export type ButtonVariant = "primary" | "secondary" | "ghost";

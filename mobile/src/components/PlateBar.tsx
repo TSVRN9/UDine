@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   logButton: {
     backgroundColor: colors.gold500,
     borderRadius: radii.md,
-    height: 48,
+    height: fs(48),
     paddingHorizontal: spacing(6.5),
     alignItems: "center",
     justifyContent: "center",

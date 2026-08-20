@@ -164,10 +164,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     paddingTop: spacing(2.5),
     paddingHorizontal: spacing(5),
-    maxHeight: 640,
+    maxHeight: fs(640),
   },
   handleRow: { alignItems: "center", marginBottom: spacing(2.5) },
-  handle: { width: 40, height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
+  handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: spacing(3) },
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   context: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     borderColor: withOpacity(colors.maroon600, 45),
     borderRadius: radii.pill,
   },
-  stepperButton: { width: 42, height: 44, alignItems: "center", justifyContent: "center" },
+  stepperButton: { width: fs(42), height: fs(44), alignItems: "center", justifyContent: "center" },
   stepperButtonText: { fontSize: fs(18), color: colors.maroon600 },
   stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 24, textAlign: "center", color: colors.ink900 },
 
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   totalsRow: { flexDirection: "row", gap: spacing(2.5), marginBottom: spacing(3.5) },
   totalCell: { flex: 1 },
 
-  logButton: { height: 52, borderRadius: radii.md },
+  logButton: { height: fs(52), borderRadius: radii.md },
   logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
   addSection: {

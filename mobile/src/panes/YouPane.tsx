@@ -121,11 +121,6 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
     }
   }
 
-  async function remove(id: string) {
-    await logStorage.removeEntry(id);
-    load();
-  }
-
   async function exportData(format: "json" | "csv") {
     // Fresh read, not the `allEntries` state closure -- a just-removed entry can otherwise still be
     // in the current render's `allEntries` if export is tapped before remove()'s reload flushes.
@@ -183,12 +178,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
                     {formatLogTime(entry.loggedAt)}
                   </Text>
                 </View>
-                <View style={styles.logRight}>
-                  <Text style={styles.logCalories}>{Math.round(entry.nutrition.calories * entry.servings)} cal</Text>
-                  <Pressable onPress={() => remove(entry.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove ${entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName}`}>
-                    <Text style={styles.logRemove}>Remove</Text>
-                  </Pressable>
-                </View>
+                <Text style={styles.logCalories}>{Math.round(entry.nutrition.calories * entry.servings)} cal</Text>
               </Card>
             ))}
           </View>
@@ -299,9 +289,7 @@ const styles = StyleSheet.create({
   logInfo: { flex: 1, gap: 1 },
   logName: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   logSub: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
-  logRight: { alignItems: "flex-end", gap: 2 },
   logCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 70) },
-  logRemove: { fontFamily: fonts.body600, fontSize: fs(11), color: colors.maroon600 },
 
   completionCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2.5) },
   completionRow: { gap: spacing(1) },
@@ -323,7 +311,7 @@ const styles = StyleSheet.create({
   topFoodInfo: { flex: 1, gap: 1 },
   topFoodName: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   topFoodHall: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
-  scorePill: { minWidth: 44, alignItems: "center", borderRadius: radii.pill, paddingVertical: spacing(1.25) },
+  scorePill: { minWidth: fs(44), alignItems: "center", borderRadius: radii.pill, paddingVertical: spacing(1.25) },
   scorePillGold: { backgroundColor: colors.gold500 },
   scorePillMaroon: { backgroundColor: colors.maroon600 },
   scorePillText: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600" },
@@ -351,7 +339,7 @@ const styles = StyleSheet.create({
     gap: spacing(2),
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
-    minHeight: 44,
+    minHeight: fs(44),
   },
   accountText: { flexShrink: 1, color: withOpacity(colors.ink900, 60), fontFamily: fonts.body400, fontSize: fs(13) },
   accountLink: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: fs(13) },
@@ -361,7 +349,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
-    minHeight: 44,
+    minHeight: fs(44),
   },
   friendsText: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
   friendsChevron: { fontFamily: fonts.body400, fontSize: fs(18), lineHeight: fs(20), color: colors.maroon600 },

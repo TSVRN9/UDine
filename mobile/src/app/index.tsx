@@ -287,11 +287,11 @@ const styles = StyleSheet.create({
   heroGoldBar: { marginTop: spacing(1.5), height: 3, width: 72, backgroundColor: colors.gold500 },
 
   hallList: { gap: spacing(2.5) },
-  hallCard: { height: 106, borderRadius: radii.md, overflow: "hidden", justifyContent: "flex-end" },
+  hallCard: { height: fs(106), borderRadius: radii.md, overflow: "hidden", justifyContent: "flex-end" },
   hallMonogram: {
     position: "absolute",
-    right: -8,
-    top: -22,
+    right: fs(-8),
+    top: fs(-22),
     fontFamily: fonts.display700,
     fontSize: fs(120),
     lineHeight: fs(120),
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     gap: spacing(2),
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
-    minHeight: 44,
+    minHeight: fs(44),
   },
   retailName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   retailStatus: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.3, textTransform: "uppercase" },
