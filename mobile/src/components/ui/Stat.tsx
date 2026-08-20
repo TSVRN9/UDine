@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, withOpacity } from "../../lib/theme";
+import { colors, fonts, fs, withOpacity } from "../../lib/theme";
 
-/** Label-over-number block, mono numerals (nutrition-label register). Mirrors .stat. */
+/** Label-over-number block, mono numerals — canvas macro-summary register (You / plate sheet). */
 export function Stat({ label, value, caption }: { label: string; value: string; caption?: string }) {
   return (
     <View>
@@ -14,23 +14,25 @@ export function Stat({ label, value, caption }: { label: string; value: string; 
 
 const styles = StyleSheet.create({
   label: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    fontWeight: "600",
+    fontFamily: fonts.body600,
+    fontSize: fs(10),
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: withOpacity(colors.ink900, 60),
+    color: withOpacity(colors.ink900, 55),
+    marginBottom: 2,
   },
   value: {
     fontFamily: fonts.mono,
-    fontSize: 28,
+    fontSize: fs(19),
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
-    lineHeight: 32,
+    lineHeight: fs(24),
     color: colors.maroon900,
   },
   caption: {
     marginTop: 2,
-    fontSize: 12,
+    fontFamily: fonts.body400,
+    fontSize: fs(12),
     color: withOpacity(colors.ink900, 50),
   },
 });

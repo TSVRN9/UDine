@@ -48,6 +48,12 @@ jest.mock("../lib/date", () => ({ todayIso: () => "2026-08-19" }));
 jest.mock("expo-file-system/legacy", () => ({ cacheDirectory: "file:///cache/", writeAsStringAsync: jest.fn() }));
 jest.mock("expo-sharing", () => ({ isAvailableAsync: jest.fn().mockResolvedValue(false), shareAsync: jest.fn() }));
 
+// YouPane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
+// hallMenu.test.tsx).
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
 // YouPane always renders a Link (the Friends row) -- stub it flat since there's no navigator here.
 jest.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
@@ -183,11 +189,12 @@ describe("YouPane", () => {
     expect(body).toMatch(/500/); // calorie total
     expect(body).toMatch(/6\.5/); // the actual score, not a placeholder/constant
 
-    // The pill wiring itself: the gold-backgrounded pill must be the one showing 6.5, not some
-    // other element coincidentally matching the regex above.
-    const goldPill = root.root.findAllByType(View).find((v) => flatStyle(v.props.style).backgroundColor === colors.gold500);
-    expect(goldPill).toBeDefined();
-    expect(textsOf(goldPill!)).toMatch(/6\.5/);
+    // The pill wiring itself: a gold-backgrounded pill must be the one showing 6.5, not some
+    // other element coincidentally matching the regex above. (Several gold-filled Views exist now
+    // — e.g. the top hall's completion bar fill — so scan them all for the score.)
+    const goldViews = root.root.findAllByType(View).filter((v) => flatStyle(v.props.style).backgroundColor === colors.gold500);
+    expect(goldViews.length).toBeGreaterThan(0);
+    expect(goldViews.some((v) => /6\.5/.test(textsOf(v)))).toBe(true);
   });
 });
 
@@ -203,9 +210,9 @@ describe("YouPane hall completion display", () => {
 
     const root = await renderYouPane();
     const body = texts(root);
-    // texts() joins each Text's children array with " " (e.g. the count Text's children are
-    // [199, "/", 200, " · ", 99, "%"]), so allow the join-inserted spacing around "/" and "%".
-    expect(body).toMatch(/199 ?\/ ?200/);
+    // texts() joins each Text's children array with " " (the count Text's children are
+    // [99, "%", " · ", 199, " of ", 200, " dishes"]), so allow join-inserted spacing.
+    expect(body).toMatch(/199\s+of\s+200/);
     expect(body).toMatch(/99 ?%/);
     expect(body).not.toMatch(/100 ?%/);
   });

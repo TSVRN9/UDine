@@ -26,7 +26,7 @@ describe("PlateBar", () => {
     const body = texts(root).flat().join(" ");
     expect(body).toMatch(/3\s+items\s+·\s+640\s+cal/);
     expect(body).toMatch(/30\s*g protein/);
-    expect(body).toMatch(/LOG/);
+    expect(body).toMatch(/Log/i);
   });
 
   it("calls onPress when tapped", () => {

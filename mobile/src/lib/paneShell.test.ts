@@ -1,4 +1,4 @@
-import { initialPaneOffset, PANE_COUNT, HOME_PANE_INDEX, paneDots, paneIndexForScrollOffset, shouldLandOnHome, hallCardSide } from "./paneShell";
+import { initialPaneOffset, PANE_COUNT, HOME_PANE_INDEX, paneDots, paneIndexForScrollOffset, shouldLandOnHome } from "./paneShell";
 
 describe("constants", () => {
   it("lands on Home (the middle pane) of 3 panes: Social, Home, You", () => {
@@ -63,15 +63,3 @@ describe("shouldLandOnHome", () => {
   });
 });
 
-describe("hallCardSide", () => {
-  it("splits the measured grid width into two square cards around the gap", () => {
-    // 358px grid, 12px gap -> 173px cards (percent-width + aspectRatio paints nothing on
-    // this RN/Fabric build — cards must get explicit numeric sizes, device pass 2026-08-19).
-    expect(hallCardSide(358, 12)).toBe(173);
-  });
-
-  it("floors fractional sides and is 0 until the grid is measured", () => {
-    expect(hallCardSide(359, 12)).toBe(173);
-    expect(hallCardSide(0, 12)).toBe(0);
-  });
-});

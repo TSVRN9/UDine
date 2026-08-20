@@ -105,6 +105,23 @@ function singleWindowStatus(window: TimeWindow, now: Date): OpenStatus {
   return openStatus({ hallTid: -1, breakfast: null, lunch: null, dinner: null, latenight: null, general: window }, now);
 }
 
+/** Hall-menu header subtitle per the canvas ("Lunch · being served now · until 2:30 PM"): the
+ * hall's own current meal period when one is active, its plain open/closed status otherwise. */
+export function hallHeaderSubtitle(hours: DiningHallHours, now: Date): string {
+  const period = currentMealPeriod(hours, now);
+  const status = openStatus(hours, now);
+  if (status.open && period !== "closed") {
+    const window = hours[period];
+    const mealStatus = window ? singleWindowStatus(window, now) : status;
+    const closesAt = mealStatus.open ? mealStatus.closesAt : status.closesAt;
+    const label = period.charAt(0).toUpperCase() + period.slice(1);
+    return `${label} · being served now · until ${formatTime(closesAt)}`;
+  }
+  if (status.open) return `Open · until ${formatTime(status.closesAt)}`;
+  if (status.opensAt) return `Closed · opens ${formatTime(status.opensAt)}`;
+  return "Closed today";
+}
+
 /** Reuses shared's openStatus by wrapping a retail location's single published window as a
  * hall's "general" window — retail/café locations don't have meal-period breakdowns, just one
  * open/close window (or none, when the feed reports "Closed"). Keeps this mobile-only: no new

@@ -178,3 +178,23 @@ describe("formatLocationChip", () => {
     expect(chip).toEqual({ open: false, text: "CLOSED" });
   });
 });
+
+describe("hallHeaderSubtitle", () => {
+  const { hallHeaderSubtitle } = require("./homeHero") as typeof import("./homeHero");
+
+  it("names the active meal period with its own close time", () => {
+    const h = hall({ lunch: window("11:00 AM", "2:30 PM"), general: window("7:00 AM", "9:00 PM") });
+    expect(hallHeaderSubtitle(h, NOON)).toBe("Lunch · being served now · until 2:30 PM");
+  });
+
+  it("falls back to plain open status when no named meal is active", () => {
+    const h = hall({ general: window("7:00 AM", "9:00 PM") });
+    expect(hallHeaderSubtitle(h, NOON)).toBe("Open · until 9:00 PM");
+  });
+
+  it("shows the next opening when closed, and 'Closed today' when nothing is left", () => {
+    const h = hall({ dinner: window("4:30 PM", "9:00 PM") });
+    expect(hallHeaderSubtitle(h, NOON)).toBe("Closed · opens 4:30 PM");
+    expect(hallHeaderSubtitle(hall(), NOON)).toBe("Closed today");
+  });
+});
