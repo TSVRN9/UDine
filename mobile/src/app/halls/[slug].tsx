@@ -336,12 +336,12 @@ const styles = StyleSheet.create({
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   star: { fontSize: fs(20), color: withOpacity(colors.ink900, 30) },
   starActive: { color: colors.gold500 },
-  infoButton: { width: 30, height: 44, alignItems: "center", justifyContent: "center" },
+  infoButton: { width: fs(30), height: fs(44), alignItems: "center", justifyContent: "center" },
   infoIcon: { fontSize: fs(18), color: withOpacity(colors.ink900, 40) },
 
   addButton: {
-    width: 44,
-    height: 44,
+    width: fs(44),
+    height: fs(44),
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: withOpacity(colors.maroon600, 45),
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   addButtonText: { fontSize: fs(20), color: colors.maroon600, lineHeight: fs(22) },
 
   stepper: { flexDirection: "row", alignItems: "center", backgroundColor: colors.maroon600, borderRadius: radii.pill },
-  stepperButton: { width: 34, height: 44, alignItems: "center", justifyContent: "center" },
+  stepperButton: { width: fs(34), height: fs(44), alignItems: "center", justifyContent: "center" },
   stepperButtonText: { fontSize: fs(18), color: colors.paper50 },
   stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 16, textAlign: "center", color: colors.paper50 },
 
