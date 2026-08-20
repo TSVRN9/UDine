@@ -7,7 +7,7 @@ import renderer, { act } from "react-test-renderer";
 import { Text, TextInput } from "react-native";
 import { searchProducts } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
-import { menuItemToPlateEntry } from "../lib/plate";
+import { menuItemToPlateEntry, offResultToPlateEntry } from "../lib/plate";
 import type { MenuItem } from "@udine/shared";
 
 const mockedSearchProducts = searchProducts as jest.Mock;
@@ -128,5 +128,73 @@ describe("PlateSheet", () => {
       root.root.findByProps({ accessibilityLabel: "Add Trail Mix to plate" }).props.onPress();
     });
     expect(onAddOffResult).toHaveBeenCalledWith({ barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } });
+  });
+
+  it("flags a per-100g-estimated OFF result on both the search-result row and once it's a plate row", async () => {
+    // shared/src/openFoodFacts.ts's searchProducts marks a per-100g fallback with the literal
+    // servingSize "per 100g" -- this is the finding-4 fix: that marker previously existed in shared
+    // but nothing in the UI read it, so 100g numbers silently logged as "1 serving".
+    mockedSearchProducts.mockResolvedValue([
+      { barcode: "999", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150, servingSize: "per 100g" } },
+    ]);
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PlateSheet
+          visible
+          plate={[]}
+          totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
+          onStep={() => {}}
+          onAddOffResult={() => {}}
+          onLog={() => {}}
+          onClose={() => {}}
+        />,
+      );
+    });
+    act(() => {
+      root.root.findByType(TextInput).props.onChangeText("trail mix");
+    });
+    await act(async () => {
+      root.root.findByType(TextInput).props.onSubmitEditing();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/est\. per 100g/);
+
+    // Once it's on the plate (a row the parent passes back in via the `plate` prop), the same
+    // estimate flag must still show -- this is where a real user actually sees the number they're
+    // about to log, not just in the pre-pick search results.
+    let plateRoot!: renderer.ReactTestRenderer;
+    act(() => {
+      plateRoot = renderer.create(
+        <PlateSheet
+          visible
+          plate={[offResultToPlateEntry({ barcode: "999", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150, servingSize: "per 100g" } })]}
+          totals={{ date: "x", calories: 150, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
+          onStep={() => {}}
+          onAddOffResult={() => {}}
+          onLog={() => {}}
+          onClose={() => {}}
+        />,
+      );
+    });
+    expect(texts(plateRoot).flat().join(" ")).toMatch(/est\. per 100g/);
+  });
+
+  it("does not flag a normal per-serving plate row as an estimate", () => {
+    const plate = [{ ...menuItemToPlateEntry(DISH), count: 1 }]; // DISH.nutrition.servingSize is "1 slice"
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PlateSheet
+          visible
+          plate={plate}
+          totals={{ date: "x", calories: 200, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
+          onStep={() => {}}
+          onAddOffResult={() => {}}
+          onLog={() => {}}
+          onClose={() => {}}
+        />,
+      );
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/est\./);
   });
 });

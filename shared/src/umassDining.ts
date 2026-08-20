@@ -34,9 +34,16 @@ function decodeEntities(s: string): string {
   return s.replace(/&(amp|#039|quot|lt|gt);/g, (m) => ENTITIES[m] ?? m);
 }
 
-function getAttr(attrs: string, name: string): string {
+/** undefined when the attribute isn't in the tag at all; "" when it's present but empty (e.g.
+ * data-sat-fat-dv=""). getAttr collapses that distinction on purpose (every non-DV caller wants a
+ * plain default-"" string) — dv() below needs the distinction back, so it goes around getAttr. */
+function getAttrRaw(attrs: string, name: string): string | undefined {
   const match = attrs.match(new RegExp(`${name}="([^"]*)"`));
-  return match ? decodeEntities(match[1]).trim() : "";
+  return match ? decodeEntities(match[1]).trim() : undefined;
+}
+
+function getAttr(attrs: string, name: string): string {
+  return getAttrRaw(attrs, name) ?? "";
 }
 
 function num(s: string): number {
@@ -44,10 +51,17 @@ function num(s: string): number {
   return match ? Number.parseFloat(match[0]) : 0;
 }
 
-/** %DV attributes come through blank (not absent) when the dish/nutrient has no established FDA
- * daily value (e.g. trans fat) — blank means null, not 0. */
-function dv(s: string): number | null {
-  return s === "" ? null : num(s);
+/**
+ * %DV attributes come through three ways: a real number, present-but-blank (the dish/nutrient has
+ * no established FDA daily value, e.g. trans fat), or entirely absent from the tag. The first two
+ * are indistinguishable if this goes through getAttr's "" default for both -- so it reads the
+ * attribute directly, and implements the undefined/null contract shared/src/types.ts documents on
+ * NutritionFacts's *Dv fields: undefined = attribute absent, null = present but blank.
+ */
+function dv(attrs: string, name: string): number | null | undefined {
+  const raw = getAttrRaw(attrs, name);
+  if (raw === undefined) return undefined;
+  return raw === "" ? null : num(raw);
 }
 
 function csvList(s: string): string[] {
@@ -86,14 +100,14 @@ export function parseCategoryItems(html: string, category: string, mealPeriod: M
       // #91: real captured fragments (see umassDining.test.ts) — every -dv attribute is hyphenated
       // except cholesterol, which the feed spells with an underscore (data-cholesterol_dv). Not a typo
       // to "fix": getAttr must match the real attribute name or this field silently comes back blank.
-      totalFatDv: dv(getAttr(attrs, "data-total-fat-dv")),
-      satFatDv: dv(getAttr(attrs, "data-sat-fat-dv")),
-      cholesterolDv: dv(getAttr(attrs, "data-cholesterol_dv")),
-      sodiumDv: dv(getAttr(attrs, "data-sodium-dv")),
-      totalCarbDv: dv(getAttr(attrs, "data-total-carb-dv")),
-      dietaryFiberDv: dv(getAttr(attrs, "data-dietary-fiber-dv")),
-      sugarsDv: dv(getAttr(attrs, "data-sugars-dv")),
-      proteinDv: dv(getAttr(attrs, "data-protein-dv")),
+      totalFatDv: dv(attrs, "data-total-fat-dv"),
+      satFatDv: dv(attrs, "data-sat-fat-dv"),
+      cholesterolDv: dv(attrs, "data-cholesterol_dv"),
+      sodiumDv: dv(attrs, "data-sodium-dv"),
+      totalCarbDv: dv(attrs, "data-total-carb-dv"),
+      dietaryFiberDv: dv(attrs, "data-dietary-fiber-dv"),
+      sugarsDv: dv(attrs, "data-sugars-dv"),
+      proteinDv: dv(attrs, "data-protein-dv"),
     };
     items.push({
       dishName,

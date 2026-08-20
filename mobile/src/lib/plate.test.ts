@@ -1,6 +1,7 @@
 import type { MenuItem, NutritionFacts, OffSearchResult } from "@udine/shared";
 import {
   addOrIncrement,
+  isEstimatedServing,
   listBottomPadding,
   menuItemToPlateEntry,
   offResultToPlateEntry,
@@ -176,5 +177,22 @@ describe("offResultToPlateEntry", () => {
     expect(entry.count).toBe(1);
     expect(entry.label).toBe("Chips");
     expect(entry.key).toBe(plateKeyFor({ type: "off", barcode: "999", productName: "Chips" }));
+  });
+});
+
+describe("isEstimatedServing", () => {
+  // searchProducts (shared/src/openFoodFacts.ts) falls back to per-100g nutriments when a hit has
+  // no per-serving data, and marks that by setting nutrition.servingSize to the literal "per 100g"
+  // -- this is the flip side of that marker actually reaching the UI, not just existing in shared.
+  it("flags OFF results that fell back to per-100g nutriments", () => {
+    expect(isEstimatedServing({ ...nutrition(160), servingSize: "per 100g" })).toBe(true);
+  });
+
+  it("does not flag a real per-serving nutrition snapshot", () => {
+    expect(isEstimatedServing({ ...nutrition(160), servingSize: "28 g" })).toBe(false);
+  });
+
+  it("does not flag a umass-menu item (servingSize is never the literal marker string)", () => {
+    expect(isEstimatedServing({ ...nutrition(160), servingSize: "1 each" })).toBe(false);
   });
 });

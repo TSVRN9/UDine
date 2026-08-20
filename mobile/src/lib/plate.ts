@@ -28,6 +28,14 @@ export function offResultToPlateEntry(result: OffSearchResult, count = 1): Plate
   return { key: plateKeyFor(source), label: result.productName, nutrition: result.nutrition, source, count };
 }
 
+/** True when this nutrition snapshot came from OFF's per-100g fallback rather than the product's
+ * own serving size (shared/src/openFoodFacts.ts's searchProducts sets the literal "per 100g" marker
+ * when a search hit has no per-serving nutriments) -- lets the UI flag it as an estimate instead of
+ * silently presenting 100g numbers as "1 serving". */
+export function isEstimatedServing(nutrition: NutritionFacts): boolean {
+  return nutrition.servingSize === "per 100g";
+}
+
 /** Adds a new row, or merges into the existing row for the same key (stepper reflects the combined
  * count instead of the row appearing twice). */
 export function addOrIncrement(plate: PlateEntry[], entry: PlateEntry): PlateEntry[] {
@@ -55,12 +63,6 @@ export function totalItemCount(plate: PlateEntry[]): number {
   return plate.reduce((sum, p) => sum + p.count, 0);
 }
 
-/**
- * One LogEntry per plate row (not one per unit of count) — mirrors how today.tsx already displays
- * and lets you remove a logged item ("Dish × N"), and how rank.tsx dedupes its comparison pool by
- * dish key: N separate 1-serving rows for the same dish would just be N duplicates there, not N
- * independent comparison candidates.
- */
 /** Bottom padding a scrollable dish list needs to keep its last row reachable while the plate bar
  * floats over it (the occlusion-bug class from PR #78/#84) — always 0 once the plate is empty, even
  * though the bar's last-measured height is still sitting in the caller's state (the bar itself
@@ -69,6 +71,12 @@ export function listBottomPadding(barHeight: number, plateHasItems: boolean): nu
   return plateHasItems ? barHeight : 0;
 }
 
+/**
+ * One LogEntry per plate row (not one per unit of count) — mirrors how today.tsx already displays
+ * and lets you remove a logged item ("Dish × N"), and how rank.tsx dedupes its comparison pool by
+ * dish key: N separate 1-serving rows for the same dish would just be N duplicates there, not N
+ * independent comparison candidates.
+ */
 export function toLogEntries(plate: PlateEntry[], loggedAt: string): LogEntry[] {
   return plate.map((p, i) => ({
     id: `${loggedAt}-${i}-${Math.random().toString(36).slice(2)}`,

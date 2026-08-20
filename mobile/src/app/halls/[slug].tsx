@@ -181,7 +181,12 @@ export default function HallMenuScreen() {
         />
       )}
       {logged && (
-        <View style={styles.loggedBanner}>
+        // Same occlusion-bug class as the list's own bottom padding above (PR #78/#84): this banner
+        // is the one surface a LOG failure actually shows on (the plate is deliberately retained, not
+        // cleared, so the bar stays mounted right where an in-flow bottom banner would otherwise sit,
+        // opaque and on top of it). Anchored clear of the bar's measured height via the same
+        // listBottomPadding reuse -- 0 when there's no bar, right above it when there is.
+        <View style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight, plate.length > 0) }]}>
           <Text style={styles.loggedBannerText}>{logged}</Text>
         </View>
       )}
