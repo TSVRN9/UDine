@@ -16,15 +16,16 @@ import {
 } from "react-native";
 import { Card } from "../components/ui";
 import { FirstRunCard } from "../components/FirstRunCard";
+import { PaneHeader } from "../components/PaneHeader";
 import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
-import { HOME_PANE_INDEX, hallCardSide, initialPaneOffset, paneDots, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
+import { HOME_PANE_INDEX, hallCardSide, initialPaneOffset, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { signInWithGoogle, signOut } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { FriendsBody } from "./friends";
 import { NotificationsBody } from "./notifications";
-import TodayScreen from "./today";
+import { YouPane } from "../panes/YouPane";
 
 const favoritesStorage = new SqliteFavoritesStorage();
 
@@ -43,23 +44,6 @@ const QUICK_LINKS: { href: string; label: string }[] = [
 // Cosmetic-only accent alternation for the hall-card "gradient" placeholder — no meaning beyond
 // visual variety across the 4 cards.
 const HALL_ACCENTS = [colors.gold500, colors.maroon600, colors.gold500, colors.maroon600];
-
-/** Pane header: title + position dots, per #90 ("position dots in each pane's header"). */
-function PaneHeader({ title, activeIndex }: { title: string; activeIndex: number }) {
-  return (
-    <View>
-      <View style={styles.paneHeaderRow}>
-        <Text style={styles.pageTitle}>{title}</Text>
-        <View style={styles.dotsRow}>
-          {paneDots(activeIndex).map((active, i) => (
-            <View key={i} style={[styles.dot, active && styles.dotActive]} />
-          ))}
-        </View>
-      </View>
-      <View style={styles.rule} />
-    </View>
-  );
-}
 
 /** `tone` picks the CLOSED-chip palette for the surface it sits on: "light" for the paper/cream
  * café & market rows, "dark" for the hall cards' maroon scrim. The OPEN (gold) chip has enough
@@ -250,23 +234,12 @@ function SocialPane({ activeIndex }: { activeIndex: number }) {
   );
 }
 
-function YouPane({ activeIndex }: { activeIndex: number }) {
-  return (
-    <View style={styles.paneFlex}>
-      <PaneHeader title="You" activeIndex={activeIndex} />
-      <View style={styles.paneFlex}>
-        <TodayScreen />
-      </View>
-    </View>
-  );
-}
-
 /**
  * The 3-pane swipe shell (Social ← Home → You). RN core only — a horizontal, paging ScrollView
  * with each pane sized to the pager's own laid-out width/height (via onLayout on the ScrollView
  * itself, not useWindowDimensions — the window is taller than the pager's actual content area
- * once the Stack header is subtracted, and an unsized/overshot page height would let YouPane's
- * `flex: 1` wrapper around TodayScreen collapse to zero — a flex child needs a parent with a
+ * once the Stack header is subtracted, and an unsized/overshot page height would let a pane's
+ * `flex: 1` wrapper (see YouPane.tsx) collapse to zero — a flex child needs a parent with a
  * *resolved* height, which the window height alone doesn't give it here). Lands on Home by
  * scrolling once from onContentSizeChange, only after the native content has reached its full
  * 3-pane width — scrolling from the same commit that sizes the panes races the native contentSize
@@ -321,22 +294,8 @@ export default function PaneShellScreen() {
 
 const styles = StyleSheet.create({
   pager: { flex: 1, backgroundColor: colors.cream100 },
-  paneFlex: { flex: 1, backgroundColor: colors.cream100 },
   paneScroll: { flex: 1, backgroundColor: colors.cream100 },
   paneContainer: { padding: spacing(4), paddingBottom: spacing(10) },
-
-  paneHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  pageTitle: {
-    fontFamily: fonts.display,
-    fontSize: 24,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    color: colors.maroon900,
-  },
-  dotsRow: { flexDirection: "row", gap: spacing(1) },
-  dot: { width: 6, height: 6, borderRadius: radii.pill, backgroundColor: withOpacity(colors.maroon900, 25) },
-  dotActive: { backgroundColor: colors.maroon900 },
-  rule: { marginTop: spacing(2), marginBottom: spacing(3), height: 0, borderTopWidth: 4, borderBottomWidth: 1, borderColor: colors.gold500 },
 
   authRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing(4) },
   authText: { color: withOpacity(colors.ink900, 60), fontFamily: fonts.body, fontSize: 13 },
