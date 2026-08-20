@@ -56,7 +56,14 @@ function hallName(hallTid: number): string {
   return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
 }
 
-export default function NotificationsScreen() {
+/**
+ * Notifications screen content, extracted from the outer ScrollView so it can be mounted both as
+ * the standalone `/notifications` route (see NotificationsScreen below) AND inside the Social
+ * pane's own single ScrollView in the swipe shell (see app/index.tsx) without nesting two
+ * vertical ScrollViews. #93 replaces the Social pane's internals; this stays the standalone
+ * route's content either way.
+ */
+export function NotificationsBody() {
   const [session, setSession] = useState<Session | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [sightings, setSightings] = useState<Sighting[]>([]);
@@ -155,15 +162,11 @@ export default function NotificationsScreen() {
   }
 
   if (!session) {
-    return (
-      <View style={styles.screen}>
-        <EmptyState title="Sign in required" message="Sign in to enable favorited-food alerts." />
-      </View>
-    );
+    return <EmptyState title="Sign in required" message="Sign in to enable favorited-food alerts." />;
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <>
       <Text style={styles.pageTitle}>Notifications</Text>
       <View style={styles.rule} />
 
@@ -186,6 +189,15 @@ export default function NotificationsScreen() {
           </Pressable>
         ))
       )}
+    </>
+  );
+}
+
+/** Standalone `/notifications` route — thin ScrollView wrapper around NotificationsBody. */
+export default function NotificationsScreen() {
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <NotificationsBody />
     </ScrollView>
   );
 }
