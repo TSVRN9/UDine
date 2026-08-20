@@ -13,6 +13,7 @@ import {
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../../components/ui";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
@@ -56,6 +57,8 @@ export default function HallMenuScreen() {
   const [labelItem, setLabelItem] = useState<MenuItem | null>(null);
   const [barHeight, setBarHeight] = useState(0);
   const [logged, setLogged] = useState<string | null>(null);
+  const [bannerHeight, setBannerHeight] = useState(0);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!hall) return;
@@ -72,6 +75,14 @@ export default function HallMenuScreen() {
       });
     }, []),
   );
+
+  // Device-pass finding: the logged banner never dismissed on its own, permanently covering the
+  // last menu row until the plate was repopulated. Auto-dismiss a few seconds after it appears.
+  useEffect(() => {
+    if (!logged) return;
+    const timer = setTimeout(() => setLogged(null), 4000);
+    return () => clearTimeout(timer);
+  }, [logged]);
 
   const sections = useMemo(() => {
     if (!items) return [];
@@ -143,7 +154,7 @@ export default function HallMenuScreen() {
         <SectionList
           sections={sections}
           keyExtractor={(item, index) => `${item.mealPeriod}-${item.dishName}-${index}`}
-          contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, plate.length > 0) }}
+          contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, plate.length > 0) + (logged ? bannerHeight : 0) }}
           renderSectionHeader={({ section }) => <Text style={styles.sectionHeader}>{section.title}</Text>}
           renderItem={({ item }) => {
             const plateEntry = plate.find((p) => p.key === plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid }));
@@ -185,8 +196,14 @@ export default function HallMenuScreen() {
         // is the one surface a LOG failure actually shows on (the plate is deliberately retained, not
         // cleared, so the bar stays mounted right where an in-flow bottom banner would otherwise sit,
         // opaque and on top of it). Anchored clear of the bar's measured height via the same
-        // listBottomPadding reuse -- 0 when there's no bar, right above it when there is.
-        <View style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight, plate.length > 0) }]}>
+        // listBottomPadding reuse -- 0 when there's no bar, right above it when there is. Device-pass
+        // finding: also pads for the bottom safe-area inset itself (else its own text gets clipped by
+        // gesture nav when there's no bar to already clear that space), and reports its own measured
+        // height via onLayout so the list's paddingBottom above can add it in while it's showing.
+        <View
+          style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight, plate.length > 0), paddingBottom: spacing(2) + insets.bottom }]}
+          onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
+        >
           <Text style={styles.loggedBannerText}>{logged}</Text>
         </View>
       )}
