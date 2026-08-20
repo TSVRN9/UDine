@@ -56,7 +56,7 @@ jest.mock("expo-router", () => ({
 }));
 
 import renderer, { act } from "react-test-renderer";
-import { Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { DINING_HALLS } from "@udine/shared";
 import { SocialPane } from "./SocialPane";
@@ -191,18 +191,26 @@ describe("SocialPane", () => {
     expect(goldBorderedViews.length).toBeGreaterThan(0);
   });
 
-  it("events: renders both a banner (featuredImage) event and a plain-row event, each opening its link", async () => {
+  it("events: renders both a banner (featuredImage) event and a plain-row event, title always in the row (never overlaid on the image) and never duplicated", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
     mockFetchEvents.mockResolvedValue([harvestDinner, fallFest]);
 
     const root = await renderSocialPane();
     const allTexts = root.root.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
-    expect(allTexts.some((t) => /Local Harvest Dinner/.test(t))).toBe(true);
+
+    // Live fetchEvents banner images are full poster graphics that already contain their own
+    // title art -- overlaying our own title text on top duplicates it and reads illegibly over
+    // busy artwork, so the title must render exactly once, in the row below the image, never
+    // overlaid on it.
+    expect(allTexts.filter((t) => /Local Harvest Dinner/.test(t)).length).toBe(1);
     expect(allTexts.some((t) => /Fall Fest/.test(t))).toBe(true);
     expect(allTexts.filter((t) => /DETAILS/.test(t)).length).toBe(2);
-    // The banner event's subtitle ("Through Aug 27") must render exactly once, not once inside the
-    // banner-overlay title slot and again in the row below it.
+    // The banner event's subtitle ("Through Aug 27") must also render exactly once.
     expect(allTexts.filter((t) => /Through Aug 27/.test(t)).length).toBe(1);
+
+    // The banner event actually renders its image (clean, no overlay).
+    const images = root.root.findAllByType(Image);
+    expect(images.some((img) => img.props.source?.uri === harvestDinner.featuredImage)).toBe(true);
   });
 
   it("events load error: shows an error line instead of hanging on a loading state forever", async () => {

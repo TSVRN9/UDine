@@ -76,23 +76,16 @@ function EventCard({ item }: { item: DiningEvent }) {
   return (
     <Pressable onPress={() => Linking.openURL(item.externalLink || item.pdfLink)}>
       <Card style={styles.eventCard}>
-        {item.featuredImage ? (
-          <View style={styles.eventBanner}>
-            <Image source={{ uri: item.featuredImage }} style={StyleSheet.absoluteFill} />
-            <Text style={styles.eventBannerTitle} numberOfLines={2}>
+        {/* No title overlay on the image -- live fetchEvents banners are full poster graphics that
+            already contain their own title art (the artboard's overlay only worked because its
+            placeholder was a plain gradient). Title always renders in the row below instead. */}
+        {item.featuredImage ? <Image source={{ uri: item.featuredImage }} style={styles.eventBanner} resizeMode="cover" /> : null}
+        <View style={styles.eventRow}>
+          <View style={styles.eventInfo}>
+            <Text style={styles.eventTitle} numberOfLines={1}>
               {item.isFeatured ? "★ " : ""}
               {item.title}
             </Text>
-          </View>
-        ) : null}
-        <View style={styles.eventRow}>
-          <View style={styles.eventInfo}>
-            {!item.featuredImage && (
-              <Text style={styles.eventTitle} numberOfLines={1}>
-                {item.isFeatured ? "★ " : ""}
-                {item.title}
-              </Text>
-            )}
             {subtitle ? <Text style={styles.eventSubtitle}>{subtitle}</Text> : null}
           </View>
           <Text style={styles.eventDetails}>DETAILS</Text>
@@ -382,8 +375,7 @@ const styles = StyleSheet.create({
 
   eventsList: { gap: spacing(2.5) },
   eventCard: { overflow: "hidden" },
-  eventBanner: { height: 84, justifyContent: "flex-end", padding: spacing(3.5), backgroundColor: colors.gold500 },
-  eventBannerTitle: { fontFamily: fonts.display600, fontSize: 18, letterSpacing: 0.5, textTransform: "uppercase", color: colors.paper50 },
+  eventBanner: { width: "100%", height: 84, backgroundColor: withOpacity(colors.ink900, 8) },
   eventRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing(2), padding: spacing(3.5) },
   eventInfo: { flex: 1, gap: 1 },
   eventTitle: { fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
