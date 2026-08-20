@@ -1,7 +1,7 @@
 import type { DailyMacroTotals } from "@udine/shared";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts, spacing } from "../lib/theme";
+import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
   itemCount: number;
@@ -21,17 +21,20 @@ interface Props {
 export function PlateBar({ itemCount, totals, onPress, onLayout }: Props) {
   const insets = useSafeAreaInsets();
   return (
-    <Pressable style={[styles.bar, { paddingBottom: spacing(3) + insets.bottom }]} onPress={onPress} onLayout={onLayout} accessibilityRole="button">
+    <Pressable style={[styles.bar, { paddingBottom: spacing(4) + insets.bottom }]} onPress={onPress} onLayout={onLayout} accessibilityRole="button">
       <View style={styles.summary}>
-        <Text style={styles.headline}>
-          {itemCount} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal
-        </Text>
+        <View style={styles.headlineRow}>
+          <Text style={styles.chevron}>⌃</Text>
+          <Text style={styles.headline}>
+            {itemCount} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal
+          </Text>
+        </View>
         <Text style={styles.macros}>
           {totals.proteinG.toFixed(0)}g protein · {totals.totalCarbG.toFixed(0)}g carbs · {totals.totalFatG.toFixed(0)}g fat
         </Text>
       </View>
       <View style={styles.logButton}>
-        <Text style={styles.logButtonText}>LOG</Text>
+        <Text style={styles.logButtonText}>Log</Text>
       </View>
     </Pressable>
   );
@@ -47,13 +50,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: colors.maroon900,
-    paddingHorizontal: spacing(4),
-    paddingVertical: spacing(3),
-    gap: spacing(3),
+    paddingHorizontal: spacing(5),
+    paddingTop: spacing(3),
+    gap: spacing(3.5),
   },
-  summary: { flex: 1 },
-  headline: { fontFamily: fonts.display, fontSize: 16, fontWeight: "700", color: colors.paper50 },
-  macros: { fontFamily: fonts.body, fontSize: 12, color: colors.paper50, opacity: 0.8, marginTop: spacing(0.5) },
-  logButton: { backgroundColor: colors.gold500, borderRadius: 2, paddingVertical: spacing(2), paddingHorizontal: spacing(4) },
-  logButtonText: { fontFamily: fonts.body, fontSize: 13, fontWeight: "700", letterSpacing: 1, color: colors.maroon900 },
+  summary: { flex: 1, gap: 2 },
+  headlineRow: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
+  chevron: { fontFamily: fonts.body600, fontSize: 13, lineHeight: 16, color: withOpacity(colors.paper50, 60) },
+  headline: { fontFamily: fonts.body600, fontSize: 15, color: colors.paper50 },
+  macros: { fontFamily: fonts.mono, fontSize: 12, color: withOpacity(colors.paper50, 65) },
+  logButton: {
+    backgroundColor: colors.gold500,
+    borderRadius: radii.md,
+    height: 48,
+    paddingHorizontal: spacing(6.5),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logButtonText: {
+    fontFamily: fonts.display600,
+    fontSize: 16,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.maroon900,
+  },
 });
