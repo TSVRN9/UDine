@@ -19,6 +19,11 @@ const ON_NEW_INTENT_OVERRIDE = `
   }
 `;
 
+// How far past "fun onNewIntent(" to look for its setIntent() call. Generous for a
+// hand-sized override; a real function body blowing past this is a sign something else is
+// going on, not a reason to widen the window.
+const ON_NEW_INTENT_SCAN_WINDOW = 400;
+
 function addOAuthColdStartIntentFix(mainActivity) {
   if (mainActivity.language !== "kt") {
     throw new Error(
@@ -32,16 +37,31 @@ function addOAuthColdStartIntentFix(mainActivity) {
 
   // Idempotent: don't stack a second override if this already ran, or if MainActivity already
   // overrides onNewIntent for some other reason.
-  if (contents.includes("fun onNewIntent(")) {
-    return mainActivity;
+  const alreadyOverridden = contents.includes("fun onNewIntent(");
+
+  if (!alreadyOverridden) {
+    if (!contents.includes(IMPORT_LINE)) {
+      contents = contents.replace(/^(package [^\n]+\n)/, `$1${IMPORT_LINE}\n`);
+    }
+
+    // The class's closing brace is the last non-whitespace character in the generated file.
+    // (If this doesn't match — e.g. trailing content after the brace — contents comes back
+    // unchanged and the post-condition below catches it.)
+    contents = contents.replace(/\}\s*$/, `${ON_NEW_INTENT_OVERRIDE}}\n`);
   }
 
-  if (!contents.includes(IMPORT_LINE)) {
-    contents = contents.replace(/^(package [^\n]+\n)/, `$1${IMPORT_LINE}\n`);
+  // Post-condition, checked on every path (freshly injected AND already-overridden): whatever
+  // onNewIntent ends up in the file, it must call setIntent(), or #101 (the cold-start OAuth
+  // redirect silently dropped) comes back. Catches both the injection silently no-op'ing above
+  // and a future template shipping its own onNewIntent that doesn't call setIntent().
+  const idx = contents.indexOf("fun onNewIntent(");
+  const scanned = idx === -1 ? "" : contents.slice(idx, idx + ON_NEW_INTENT_SCAN_WINDOW);
+  if (!scanned.includes("setIntent(")) {
+    throw new Error(
+      "withOAuthColdStartIntentFix (#101): MainActivity.onNewIntent doesn't call setIntent() — " +
+        "the cold-start OAuth redirect fix did not take effect."
+    );
   }
-
-  // The class's closing brace is the last non-whitespace character in the generated file.
-  contents = contents.replace(/\}\s*$/, `${ON_NEW_INTENT_OVERRIDE}}\n`);
 
   return { ...mainActivity, contents };
 }
@@ -52,3 +72,6 @@ module.exports = function withOAuthColdStartIntentFix(config) {
     return config;
   });
 };
+
+// Exposed for unit testing the pure transform without running a full prebuild.
+module.exports.transform = addOAuthColdStartIntentFix;
