@@ -1,7 +1,7 @@
 import type { DailyMacroTotals } from "@udine/shared";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
   itemCount: number;
@@ -56,9 +56,9 @@ const styles = StyleSheet.create({
   },
   summary: { flex: 1, gap: 2 },
   headlineRow: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
-  chevron: { fontFamily: fonts.body600, fontSize: 13, lineHeight: 16, color: withOpacity(colors.paper50, 60) },
-  headline: { fontFamily: fonts.body600, fontSize: 15, color: colors.paper50 },
-  macros: { fontFamily: fonts.mono, fontSize: 12, color: withOpacity(colors.paper50, 65) },
+  chevron: { fontFamily: fonts.body600, fontSize: fs(13), lineHeight: fs(16), color: withOpacity(colors.paper50, 60) },
+  headline: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.paper50 },
+  macros: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.paper50, 65) },
   logButton: {
     backgroundColor: colors.gold500,
     borderRadius: radii.md,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   },
   logButtonText: {
     fontFamily: fonts.display600,
-    fontSize: 16,
+    fontSize: fs(16),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.maroon900,

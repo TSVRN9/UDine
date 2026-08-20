@@ -4,7 +4,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, Sc
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
 import { Button, Stat } from "./ui";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
   visible: boolean;
@@ -169,15 +169,15 @@ const styles = StyleSheet.create({
   handleRow: { alignItems: "center", marginBottom: spacing(2.5) },
   handle: { width: 40, height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: spacing(3) },
-  title: { fontFamily: fonts.display700, fontSize: 20, letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
-  context: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 55) },
+  title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
+  context: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   scroll: { flexGrow: 0 },
 
   itemList: { gap: spacing(2.5) },
   itemRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing(2.5) },
   itemInfo: { flex: 1, gap: 1 },
-  itemLabel: { fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
-  itemCalories: { fontFamily: fonts.mono, fontSize: 12, color: withOpacity(colors.ink900, 60) },
+  itemLabel: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  itemCalories: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
   stepper: {
     flexDirection: "row",
     alignItems: "center",
@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   stepperButton: { width: 42, height: 44, alignItems: "center", justifyContent: "center" },
-  stepperButtonText: { fontSize: 18, color: colors.maroon600 },
-  stepperCount: { fontFamily: fonts.mono, fontSize: 14, fontWeight: "600", minWidth: 24, textAlign: "center", color: colors.ink900 },
+  stepperButtonText: { fontSize: fs(18), color: colors.maroon600 },
+  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 24, textAlign: "center", color: colors.ink900 },
 
   divider: { height: 1, backgroundColor: withOpacity(colors.ink900, 12), marginVertical: spacing(3.5) },
 
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   totalCell: { flex: 1 },
 
   logButton: { height: 52, borderRadius: radii.md },
-  logButtonText: { fontFamily: fonts.display600, fontSize: 16, letterSpacing: 1, textTransform: "uppercase" },
+  logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
   addSection: {
     marginTop: spacing(3.5),
@@ -206,8 +206,8 @@ const styles = StyleSheet.create({
     padding: spacing(3.5),
     gap: spacing(1),
   },
-  addHeading: { fontFamily: fonts.body600, fontSize: 13, color: colors.maroon600 },
-  addSub: { fontFamily: fonts.body400, fontSize: 11, color: withOpacity(colors.ink900, 55) },
+  addHeading: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
+  addSub: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center", marginTop: spacing(1.5) },
   searchInput: {
     flex: 1,
@@ -220,9 +220,9 @@ const styles = StyleSheet.create({
     color: colors.ink900,
   },
   searchSpinner: { marginTop: spacing(2) },
-  searchError: { fontFamily: fonts.body400, fontSize: 13, color: "#b00020", marginTop: spacing(2) },
-  searchHint: { fontFamily: fonts.body400, fontSize: 13, color: withOpacity(colors.ink900, 55), marginTop: spacing(2) },
+  searchError: { fontFamily: fonts.body400, fontSize: fs(13), color: "#b00020", marginTop: spacing(2) },
+  searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55), marginTop: spacing(2) },
   resultRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing(2), borderBottomWidth: StyleSheet.hairlineWidth, borderColor: withOpacity(colors.ink900, 15) },
-  resultLabel: { flex: 1, fontFamily: fonts.body400, fontSize: 14, color: colors.ink900 },
-  resultCalories: { fontFamily: fonts.mono, fontSize: 13, color: withOpacity(colors.ink900, 60) },
+  resultLabel: { flex: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
+  resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
 });

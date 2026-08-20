@@ -20,7 +20,7 @@ import { EmptyState, SectionHeader } from "../../components/ui";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
-import { colors, fonts, radii, spacing, withOpacity } from "../../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { hallHeaderSubtitle } from "../../lib/homeHero";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
 import {
@@ -299,16 +299,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(5),
     paddingBottom: spacing(3),
   },
-  backChevron: { fontFamily: fonts.body400, fontSize: 32, lineHeight: 34, color: colors.maroon900, marginTop: -4 },
+  backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
   headerText: { flex: 1 },
   headerTitle: {
     fontFamily: fonts.display700,
-    fontSize: 22,
+    fontSize: fs(22),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.maroon900,
   },
-  headerSubtitle: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 60) },
+  headerSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
 
   sectionHeaderWrap: {
     paddingHorizontal: spacing(5),
@@ -332,12 +332,12 @@ const styles = StyleSheet.create({
   },
   rowInPlate: { borderColor: colors.gold500 },
   rowMain: { flex: 1, gap: 1 },
-  rowText: { fontSize: 14, fontFamily: fonts.body600, color: colors.ink900 },
-  rowCalories: { fontSize: 12, fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
-  star: { fontSize: 20, color: withOpacity(colors.ink900, 30) },
+  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
+  rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
+  star: { fontSize: fs(20), color: withOpacity(colors.ink900, 30) },
   starActive: { color: colors.gold500 },
-  infoButton: { width: 36, height: 44, alignItems: "center", justifyContent: "center" },
-  infoIcon: { fontSize: 18, color: withOpacity(colors.ink900, 40) },
+  infoButton: { width: 30, height: 44, alignItems: "center", justifyContent: "center" },
+  infoIcon: { fontSize: fs(18), color: withOpacity(colors.ink900, 40) },
 
   addButton: {
     width: 44,
@@ -348,13 +348,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  addButtonText: { fontSize: 20, color: colors.maroon600, lineHeight: 22 },
+  addButtonText: { fontSize: fs(20), color: colors.maroon600, lineHeight: fs(22) },
 
   stepper: { flexDirection: "row", alignItems: "center", backgroundColor: colors.maroon600, borderRadius: radii.pill },
-  stepperButton: { width: 38, height: 44, alignItems: "center", justifyContent: "center" },
-  stepperButtonText: { fontSize: 18, color: colors.paper50 },
-  stepperCount: { fontFamily: fonts.mono, fontSize: 14, fontWeight: "600", minWidth: 16, textAlign: "center", color: colors.paper50 },
+  stepperButton: { width: 34, height: 44, alignItems: "center", justifyContent: "center" },
+  stepperButtonText: { fontSize: fs(18), color: colors.paper50 },
+  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 16, textAlign: "center", color: colors.paper50 },
 
   loggedBanner: { backgroundColor: colors.maroon900, padding: spacing(2) },
-  loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body400, fontSize: 13 },
+  loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body400, fontSize: fs(13) },
 });

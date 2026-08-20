@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, SectionHeader } from "../components/ui";
 import { PaneHeader } from "../components/PaneHeader";
-import { colors, fonts, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { HOME_PANE_INDEX, initialPaneOffset, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   hero: { paddingTop: spacing(1), paddingBottom: spacing(3.5) },
   heroKicker: {
     fontFamily: fonts.body600,
-    fontSize: 12,
+    fontSize: fs(12),
     letterSpacing: 1.5,
     textTransform: "uppercase",
     color: withOpacity(colors.ink900, 55),
@@ -277,13 +277,13 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: "row", alignItems: "baseline", gap: spacing(3) },
   heroTitle: {
     fontFamily: fonts.display700,
-    fontSize: 44,
-    lineHeight: 48,
+    fontSize: fs(44),
+    lineHeight: fs(48),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.maroon900,
   },
-  heroSubtitle: { flexShrink: 1, fontFamily: fonts.body500, fontSize: 13, color: withOpacity(colors.ink900, 65) },
+  heroSubtitle: { flexShrink: 1, fontFamily: fonts.body500, fontSize: fs(13), color: withOpacity(colors.ink900, 65) },
   heroGoldBar: { marginTop: spacing(1.5), height: 3, width: 72, backgroundColor: colors.gold500 },
 
   hallList: { gap: spacing(2.5) },
@@ -293,8 +293,8 @@ const styles = StyleSheet.create({
     right: -8,
     top: -22,
     fontFamily: fonts.display700,
-    fontSize: 120,
-    lineHeight: 120,
+    fontSize: fs(120),
+    lineHeight: fs(120),
     color: withOpacity(colors.paper50, 8),
   },
   hallMonogramClosed: { color: withOpacity(colors.paper50, 6) },
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
     paddingBottom: spacing(3),
     fontFamily: fonts.display600,
-    fontSize: 22,
+    fontSize: fs(22),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.paper50,
@@ -318,11 +318,11 @@ const styles = StyleSheet.create({
   },
   hallChipOpen: { backgroundColor: colors.gold500 },
   hallChipClosed: { backgroundColor: withOpacity(colors.paper50, 18) },
-  hallChipText: { fontFamily: fonts.body600, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase" },
+  hallChipText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, textTransform: "uppercase" },
   hallChipTextOpen: { color: colors.maroon900 },
   hallChipTextClosed: { color: colors.paper50 },
   hallCardStar: { position: "absolute", top: spacing(1), left: spacing(1.5), padding: spacing(1) },
-  star: { fontSize: 18, color: withOpacity(colors.paper50, 45) },
+  star: { fontSize: fs(18), color: withOpacity(colors.paper50, 45) },
   starActive: { color: colors.gold500 },
 
   section: { marginTop: spacing(5), gap: spacing(2.5) },
@@ -337,8 +337,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
     minHeight: 44,
   },
-  retailName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
-  retailStatus: { fontFamily: fonts.body600, fontSize: 11, letterSpacing: 0.3, textTransform: "uppercase" },
+  retailName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  retailStatus: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.3, textTransform: "uppercase" },
   retailStatusOpen: { color: colors.maroon600 },
   retailStatusClosed: { color: withOpacity(colors.ink900, 45) },
 
@@ -351,5 +351,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(2),
     paddingHorizontal: spacing(3),
   },
-  quickLinkText: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: 13 },
+  quickLinkText: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: fs(13) },
 });

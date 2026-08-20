@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { buildLabelRows } from "../lib/nutritionLabel";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
   visible: boolean;
@@ -130,10 +130,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(5),
     paddingBottom: spacing(3),
   },
-  backChevron: { fontFamily: fonts.body400, fontSize: 32, lineHeight: 34, color: colors.maroon900, marginTop: -4 },
+  backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
   headerText: { flex: 1 },
-  dishName: { fontFamily: fonts.display700, fontSize: 22, letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
-  headerSubtitle: { fontFamily: fonts.body400, fontSize: 12, color: withOpacity(colors.ink900, 60) },
+  dishName: { fontFamily: fonts.display700, fontSize: fs(22), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
+  headerSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
 
   body: { paddingHorizontal: spacing(5), paddingBottom: spacing(6), gap: spacing(2) },
 
@@ -146,18 +146,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
     marginBottom: spacing(2),
   },
-  title: { fontFamily: fonts.display700, fontSize: 26, letterSpacing: 0.5, color: colors.ink900 },
-  servingSize: { fontFamily: fonts.body400, fontSize: 13, color: colors.ink900, marginTop: spacing(1) },
+  title: { fontFamily: fonts.display700, fontSize: fs(26), letterSpacing: 0.5, color: colors.ink900 },
+  servingSize: { fontFamily: fonts.body400, fontSize: fs(13), color: colors.ink900, marginTop: spacing(1) },
   servingSizeValue: { fontFamily: fonts.mono, fontWeight: "600" },
   thickRule: { height: 8, backgroundColor: colors.ink900, marginVertical: spacing(1.5) },
   mediumRule: { height: 4, backgroundColor: colors.ink900, marginVertical: spacing(1.5) },
   caloriesRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  caloriesLabel: { fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
-  caloriesValue: { fontFamily: fonts.mono, fontSize: 30, fontWeight: "600", lineHeight: 32, color: colors.ink900 },
+  caloriesLabel: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  caloriesValue: { fontFamily: fonts.mono, fontSize: fs(30), fontWeight: "600", lineHeight: fs(32), color: colors.ink900 },
   dvHeader: {
     textAlign: "right",
     fontFamily: fonts.body600,
-    fontSize: 12,
+    fontSize: fs(12),
     color: colors.ink900,
     borderBottomWidth: 1,
     borderColor: withOpacity(colors.ink900, 25),
@@ -172,16 +172,16 @@ const styles = StyleSheet.create({
     borderColor: withOpacity(colors.ink900, 25),
   },
   rowIndent: { paddingLeft: spacing(4) },
-  rowLabel: { fontFamily: fonts.body600, fontSize: 13, color: colors.ink900 },
+  rowLabel: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
   rowLabelIndent: { fontFamily: fonts.body400 },
   rowAmount: { fontFamily: fonts.mono, fontWeight: "400" },
-  rowDv: { fontFamily: fonts.mono, fontSize: 13, fontWeight: "600", color: colors.ink900 },
-  footnote: { fontFamily: fonts.body400, fontSize: 11, color: withOpacity(colors.ink900, 65), marginTop: spacing(2) },
+  rowDv: { fontFamily: fonts.mono, fontSize: fs(13), fontWeight: "600", color: colors.ink900 },
+  footnote: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 65), marginTop: spacing(2) },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing(1.5), marginTop: spacing(1) },
   chipHeading: {
     fontFamily: fonts.body600,
-    fontSize: 11,
+    fontSize: fs(11),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: withOpacity(colors.ink900, 55),
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(1),
     paddingHorizontal: spacing(2.5),
   },
-  allergenPillText: { fontFamily: fonts.body600, fontSize: 12, color: colors.maroon600 },
+  allergenPillText: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.maroon600 },
   dietPill: {
     borderWidth: 1,
     borderColor: withOpacity(colors.gold500, 70),
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(1),
     paddingHorizontal: spacing(2.5),
   },
-  dietPillText: { fontFamily: fonts.body600, fontSize: 12, color: colors.ink900 },
+  dietPillText: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.ink900 },
 
   footer: {
     flexDirection: "row",
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   stepperButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  stepperButtonText: { fontSize: 18, color: colors.maroon600 },
-  stepperCount: { fontFamily: fonts.mono, fontSize: 14, fontWeight: "600", minWidth: 24, textAlign: "center", color: colors.ink900 },
+  stepperButtonText: { fontSize: fs(18), color: colors.maroon600 },
+  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 24, textAlign: "center", color: colors.ink900 },
   addButton: {
     flex: 1,
     height: 48,
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontFamily: fonts.display600,
-    fontSize: 15,
+    fontSize: fs(15),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.paper50,
