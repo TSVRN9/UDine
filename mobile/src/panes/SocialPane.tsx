@@ -365,8 +365,8 @@ const styles = StyleSheet.create({
 
   pingCard: { padding: spacing(3.5), gap: spacing(2.5) },
   avatarRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing(3.5) },
-  avatarSlot: { width: 60, alignItems: "center", gap: spacing(1) },
-  avatarCircle: { width: 52, height: 52, borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
+  avatarSlot: { width: fs(60), alignItems: "center", gap: spacing(1) },
+  avatarCircle: { width: fs(52), height: fs(52), borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
   avatarCircleGold: { borderWidth: 2, borderColor: colors.gold500 },
   avatarInitial: { fontFamily: fonts.display600, fontSize: fs(18), color: colors.paper50 },
   avatarAdd: { backgroundColor: "transparent", borderWidth: 1, borderStyle: "dashed", borderColor: withOpacity(colors.maroon600, 55) },
@@ -376,8 +376,10 @@ const styles = StyleSheet.create({
 
   eventsList: { gap: spacing(2.5) },
   eventCard: { overflow: "hidden" },
-  eventBanner: { width: "100%", height: 84, backgroundColor: withOpacity(colors.ink900, 8) },
-  eventRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing(2), padding: spacing(3.5) },
+  eventBanner: { width: "100%", height: fs(84), backgroundColor: withOpacity(colors.ink900, 8) },
+  // Matches the artboard exactly (10px 14px, not the wider 14px 14px it read as before -- owner
+  // feedback: "the space around the caption for events is huge").
+  eventRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing(2), paddingVertical: spacing(2.5), paddingHorizontal: spacing(3.5) },
   eventInfo: { flex: 1, gap: 1 },
   eventTitle: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   eventSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 65) },
@@ -390,8 +392,8 @@ const styles = StyleSheet.create({
   heldAvatarWrap: { position: "absolute", top: "10%", left: spacing(9), right: spacing(9), alignItems: "center", gap: spacing(3.5) },
   heldAvatarGlow: { borderRadius: radii.pill, padding: spacing(2.5), backgroundColor: withOpacity(colors.gold500, 18) },
   heldAvatarCircle: {
-    width: 72,
-    height: 72,
+    width: fs(72),
+    height: fs(72),
     borderRadius: radii.pill,
     backgroundColor: colors.maroon600,
     borderWidth: 3,
@@ -429,10 +431,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     paddingVertical: spacing(1.5),
     paddingHorizontal: spacing(1.5),
-    minHeight: 56,
+    minHeight: fs(56),
   },
   hallRowActive: { backgroundColor: colors.gold500, justifyContent: "space-between" },
-  hallRowMonogram: { width: 44, height: 44, borderRadius: radii.pill, backgroundColor: withOpacity(colors.maroon600, 12), alignItems: "center", justifyContent: "center" },
+  hallRowMonogram: { width: fs(44), height: fs(44), borderRadius: radii.pill, backgroundColor: withOpacity(colors.maroon600, 12), alignItems: "center", justifyContent: "center" },
   hallRowMonogramActive: { backgroundColor: colors.maroon900 },
   hallRowMonogramText: { fontFamily: fonts.display700, fontSize: fs(18), color: colors.maroon600 },
   hallRowMonogramTextActive: { color: colors.gold500 },
