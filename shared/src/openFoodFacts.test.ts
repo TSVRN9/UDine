@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { lookupBarcode } from "./openFoodFacts.ts";
+import { lookupBarcode, searchProducts } from "./openFoodFacts.ts";
 
 // lookupBarcode calls the global fetch directly (no injectable client), so these tests swap
 // globalThis.fetch for a stub and restore it afterward rather than hitting the real API.
@@ -152,5 +152,131 @@ test("lookupBarcode throws when the HTTP response is not ok", async () => {
         () => lookupBarcode("222222222222"),
       ),
     /OpenFoodFacts 503/,
+  );
+});
+
+// searchProducts: the mobile plate sheet's "Add something else" row (#91), SEARCH only — barcode
+// scanning needs a native dep, out of scope for #91.
+
+test("searchProducts maps hits with per-serving nutriments, using the product's own serving size", async () => {
+  const result = await withFetch(
+    async (url) => {
+      const u = new URL(String(url));
+      assert.equal(u.origin + u.pathname, "https://world.openfoodfacts.org/cgi/search.pl");
+      assert.equal(u.searchParams.get("search_terms"), "cheerios");
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          products: [
+            {
+              code: "016000275270",
+              product_name: "Cheerios",
+              serving_size: "28 g",
+              nutriments: {
+                "energy-kcal_serving": 110,
+                "fat_serving": 2,
+                "saturated-fat_serving": 0.5,
+                "trans-fat_serving": 0,
+                "cholesterol_serving": 0,
+                "sodium_serving": 0.15,
+                "carbohydrates_serving": 22,
+                "fiber_serving": 3,
+                "sugars_serving": 1,
+                "proteins_serving": 3,
+              },
+            },
+          ],
+        }),
+      } as Response;
+    },
+    () => searchProducts("cheerios"),
+  );
+
+  assert.deepEqual(result, [
+    {
+      barcode: "016000275270",
+      productName: "Cheerios",
+      nutrition: {
+        servingSize: "28 g",
+        calories: 110,
+        caloriesFromFat: 0,
+        totalFatG: 2,
+        satFatG: 0.5,
+        transFatG: 0,
+        cholesterolMg: 0,
+        sodiumMg: 150,
+        totalCarbG: 22,
+        dietaryFiberG: 3,
+        sugarsG: 1,
+        proteinG: 3,
+      },
+    },
+  ]);
+});
+
+test("searchProducts falls back to per-100g nutriments and marks the serving size as an estimate when a hit has no per-serving data", async () => {
+  const result = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          products: [
+            {
+              code: "3017620422003",
+              product_name: "Nutella",
+              nutriments: {
+                "energy-kcal_100g": 539,
+                "fat_100g": 30.9,
+                "saturated-fat_100g": 10.6,
+                "carbohydrates_100g": 57.5,
+                "sugars_100g": 56.3,
+                "proteins_100g": 6.3,
+              },
+            },
+          ],
+        }),
+      }) as Response,
+    () => searchProducts("nutella"),
+  );
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].nutrition.servingSize, "per 100g");
+  assert.equal(result[0].nutrition.calories, 539);
+  assert.equal(result[0].nutrition.proteinG, 6.3);
+});
+
+test("searchProducts drops hits missing a barcode or product name", async () => {
+  const result = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          products: [{ code: "111", nutriments: {} }, { product_name: "No barcode", nutriments: {} }, {}],
+        }),
+      }) as Response,
+    () => searchProducts("x"),
+  );
+  assert.deepEqual(result, []);
+});
+
+test("searchProducts returns an empty array when the response has no products field", async () => {
+  const result = await withFetch(
+    async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response,
+    () => searchProducts("x"),
+  );
+  assert.deepEqual(result, []);
+});
+
+test("searchProducts throws when the HTTP response is not ok", async () => {
+  await assert.rejects(
+    () =>
+      withFetch(
+        async () => ({ ok: false, status: 503, json: async () => ({}) }) as Response,
+        () => searchProducts("x"),
+      ),
+    /OpenFoodFacts search 503/,
   );
 });
