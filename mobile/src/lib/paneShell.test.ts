@@ -1,4 +1,4 @@
-import { initialPaneOffset, PANE_COUNT, HOME_PANE_INDEX, paneDots, paneIndexForScrollOffset } from "./paneShell";
+import { initialPaneOffset, PANE_COUNT, HOME_PANE_INDEX, paneDots, paneIndexForScrollOffset, shouldLandOnHome, hallCardSide } from "./paneShell";
 
 describe("constants", () => {
   it("lands on Home (the middle pane) of 3 panes: Social, Home, You", () => {
@@ -45,5 +45,33 @@ describe("paneDots", () => {
     expect(paneDots(0)).toEqual([true, false, false]);
     expect(paneDots(1)).toEqual([false, true, false]);
     expect(paneDots(2)).toEqual([false, false, true]);
+  });
+});
+
+describe("shouldLandOnHome", () => {
+  it("fires only once the native content is a full PANE_COUNT panes wide", () => {
+    // The device-pass bug: scrollTo fired while contentWidth was still the pre-layout 0,
+    // so the scroll clamped to x=0 and stranded the user on Social. 7/7 cold launches.
+    expect(shouldLandOnHome(0, 400, false)).toBe(false);
+    expect(shouldLandOnHome(400, 400, false)).toBe(false);
+    expect(shouldLandOnHome(1200, 400, false)).toBe(true);
+  });
+
+  it("never fires before layout or after it has already landed", () => {
+    expect(shouldLandOnHome(1200, 0, false)).toBe(false);
+    expect(shouldLandOnHome(1200, 400, true)).toBe(false);
+  });
+});
+
+describe("hallCardSide", () => {
+  it("splits the measured grid width into two square cards around the gap", () => {
+    // 358px grid, 12px gap -> 173px cards (percent-width + aspectRatio paints nothing on
+    // this RN/Fabric build — cards must get explicit numeric sizes, device pass 2026-08-19).
+    expect(hallCardSide(358, 12)).toBe(173);
+  });
+
+  it("floors fractional sides and is 0 until the grid is measured", () => {
+    expect(hallCardSide(359, 12)).toBe(173);
+    expect(hallCardSide(0, 12)).toBe(0);
   });
 });

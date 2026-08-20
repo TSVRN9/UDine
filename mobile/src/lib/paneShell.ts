@@ -21,3 +21,20 @@ export function initialPaneOffset(paneWidth: number): number {
 export function paneDots(activeIndex: number): boolean[] {
   return Array.from({ length: PANE_COUNT }, (_, i) => i === activeIndex);
 }
+
+/** True exactly once: the pager's native content has reached its full PANE_COUNT-panes width and
+ * the initial land-on-Home scroll hasn't happened yet. Keyed to onContentSizeChange, NOT to the
+ * commit that sizes the panes — scrolling in that same commit races the native contentSize update
+ * and clamps to x=0, stranding the user on Social (device pass 2026-08-19, 7/7 cold launches). */
+export function shouldLandOnHome(contentWidth: number, paneWidth: number, alreadyLanded: boolean): boolean {
+  if (alreadyLanded || paneWidth <= 0) return false;
+  return contentWidth >= paneWidth * PANE_COUNT;
+}
+
+/** Side of one square hall card in the 2-up wrapped grid, from the grid's measured width.
+ * Explicit numeric sizes only: width:"47%" + aspectRatio paints nothing on this RN/Fabric build
+ * (cards reserved layout but had no pixels/taps — device pass 2026-08-19). 0 until measured. */
+export function hallCardSide(gridWidth: number, gap: number): number {
+  if (gridWidth <= 0) return 0;
+  return Math.floor((gridWidth - gap) / 2);
+}

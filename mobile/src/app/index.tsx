@@ -18,7 +18,7 @@ import { Card } from "../components/ui";
 import { FirstRunCard } from "../components/FirstRunCard";
 import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
-import { HOME_PANE_INDEX, initialPaneOffset, paneDots, paneIndexForScrollOffset } from "../lib/paneShell";
+import { HOME_PANE_INDEX, hallCardSide, initialPaneOffset, paneDots, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { signInWithGoogle, signOut } from "../lib/auth";
 import { supabase } from "../lib/supabase";
@@ -89,18 +89,20 @@ function HallCard({
   hall,
   index,
   chip,
+  side,
   isFavorite,
   onToggleFavorite,
 }: {
   hall: { slug: string; name: string; tid: number };
   index: number;
+  side: number;
   chip: { open: boolean; text: string };
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
   const accent = HALL_ACCENTS[index % HALL_ACCENTS.length];
   return (
-    <View style={styles.hallCard}>
+    <View style={[styles.hallCard, { width: side, height: side }]}>
       <View style={styles.hallCardBg} />
       <View style={[styles.hallCardGlow, { backgroundColor: withOpacity(accent, 35) }]} />
       <Text style={styles.hallMonogram}>{hall.name.charAt(0)}</Text>
@@ -129,6 +131,8 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
   const [error, setError] = useState<string | null>(null);
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
+  const [hallGridWidth, setHallGridWidth] = useState(0);
+  const cardSide = hallCardSide(hallGridWidth, spacing(3));
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -200,13 +204,14 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
 
       <Text style={styles.sectionTitle}>Dining halls</Text>
       <View style={styles.thinRule} />
-      <View style={styles.hallGrid}>
-        {DINING_HALLS.map((hall, i) => {
-          const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
-          const chip = hallHours ? formatLocationChip(openStatus(hallHours, now)) : { open: false, text: "" };
-          const isFavorite = favoriteHallKeys.has(favoriteKey({ type: "location", hallTid: hall.tid }));
-          return <HallCard key={hall.slug} hall={hall} index={i} chip={chip} isFavorite={isFavorite} onToggleFavorite={() => toggleHall(hall.tid)} />;
-        })}
+      <View style={styles.hallGrid} onLayout={(e) => setHallGridWidth(e.nativeEvent.layout.width)}>
+        {cardSide > 0 &&
+          DINING_HALLS.map((hall, i) => {
+            const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
+            const chip = hallHours ? formatLocationChip(openStatus(hallHours, now)) : { open: false, text: "" };
+            const isFavorite = favoriteHallKeys.has(favoriteKey({ type: "location", hallTid: hall.tid }));
+            return <HallCard key={hall.slug} hall={hall} index={i} side={cardSide} chip={chip} isFavorite={isFavorite} onToggleFavorite={() => toggleHall(hall.tid)} />;
+          })}
       </View>
 
       <Text style={styles.sectionTitle}>Cafés &amp; Markets</Text>
@@ -263,8 +268,10 @@ function YouPane({ activeIndex }: { activeIndex: number }) {
  * once the Stack header is subtracted, and an unsized/overshot page height would let YouPane's
  * `flex: 1` wrapper around TodayScreen collapse to zero — a flex child needs a parent with a
  * *resolved* height, which the window height alone doesn't give it here). Lands on Home by
- * scrolling there once after the first layout via a ref (contentOffset alone is unreliable on
- * Android).
+ * scrolling once from onContentSizeChange, only after the native content has reached its full
+ * 3-pane width — scrolling from the same commit that sizes the panes races the native contentSize
+ * update and clamps to x=0, stranding the user on Social (contentOffset alone is also unreliable
+ * on Android).
  */
 export default function PaneShellScreen() {
   const scrollRef = useRef<ScrollView>(null);
@@ -277,11 +284,11 @@ export default function PaneShellScreen() {
     setPaneSize({ width, height });
   }
 
-  useEffect(() => {
-    if (landedOnHome.current || paneSize.width <= 0) return;
+  function handleContentSizeChange(contentWidth: number) {
+    if (!shouldLandOnHome(contentWidth, paneSize.width, landedOnHome.current)) return;
     landedOnHome.current = true;
     scrollRef.current?.scrollTo({ x: initialPaneOffset(paneSize.width), animated: false });
-  }, [paneSize.width]);
+  }
 
   function handleScrollSettle(e: NativeSyntheticEvent<NativeScrollEvent>) {
     setActiveIndex(paneIndexForScrollOffset(e.nativeEvent.contentOffset.x, paneSize.width));
@@ -294,6 +301,7 @@ export default function PaneShellScreen() {
       pagingEnabled
       showsHorizontalScrollIndicator={false}
       onLayout={handleLayout}
+      onContentSizeChange={handleContentSizeChange}
       onMomentumScrollEnd={handleScrollSettle}
       onScrollEndDrag={handleScrollSettle}
       style={styles.pager}
@@ -372,8 +380,8 @@ const styles = StyleSheet.create({
 
   hallGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing(3) },
   hallCard: {
-    width: "47%",
-    aspectRatio: 1,
+    // Sized numerically per-card from the grid's measured width (hallCardSide) — width:"47%"
+    // + aspectRatio:1 reserves layout but paints nothing on this RN/Fabric build.
     borderRadius: radii.md,
     overflow: "hidden",
     backgroundColor: colors.maroon900,
