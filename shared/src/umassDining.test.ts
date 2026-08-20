@@ -27,6 +27,40 @@ test("parseCategoryItems extracts both dishes with correct nutrition and decodes
   assert.equal(plantain.nutrition.calories, 69);
 });
 
+test("parseCategoryItems captures %DV attributes, including the cholesterol_dv underscore quirk, with blanks as null", () => {
+  const [toast] = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", 3, "2026-08-19");
+  assert.equal(toast.nutrition.totalFatDv, 4);
+  assert.equal(toast.nutrition.satFatDv, null); // data-sat-fat-dv="" in the real fragment
+  assert.equal(toast.nutrition.cholesterolDv, null); // data-cholesterol_dv="" — underscore, not hyphen
+  assert.equal(toast.nutrition.sodiumDv, 10);
+  assert.equal(toast.nutrition.totalCarbDv, 16);
+  assert.equal(toast.nutrition.dietaryFiberDv, 3);
+  assert.equal(toast.nutrition.sugarsDv, null); // data-sugars-dv="" in the real fragment
+  assert.equal(toast.nutrition.proteinDv, 9);
+});
+
+// Synthetic — a fragment where a -dv attribute is entirely ABSENT from the tag, not just blank
+// (data-cholesterol_dv="" like the real fragment above). getAttr previously returned "" for both
+// "no such attribute" and "attribute present but empty", so dv() collapsed both to null and a
+// mutated/misspelled attribute name (e.g. the cholesterol_dv underscore -> hyphen) was
+// indistinguishable from a legitimately blank one — the exact case types.ts:24-27 already
+// documents (undefined = source has no %DV concept for this field at all, null = present but blank).
+const FRAGMENT_MISSING_DV_ATTR = `<a data-serving-size="1 each" data-calories="100" data-calories-from-fat="0" data-total-fat="1g" data-total-fat-dv="2" data-sat-fat="0g" data-trans-fat="0g" data-cholesterol="0mg" data-sodium="0mg" data-total-carb="0g" data-dietary-fiber="0g" data-sugars="0g" data-protein="0g" data-dish-name="No DV Dish" href="#inline">No DV Dish</a>`;
+
+test("parseCategoryItems distinguishes an absent %DV attribute (undefined) from a present-but-blank one (null)", () => {
+  const [item] = parseCategoryItems(FRAGMENT_MISSING_DV_ATTR, "x", "breakfast", 3, "2026-08-19");
+  // data-total-fat-dv="2" IS present -> a real number.
+  assert.equal(item.nutrition.totalFatDv, 2);
+  // data-sat-fat-dv is entirely absent from this tag (not ="") -> undefined, not null.
+  assert.equal(item.nutrition.satFatDv, undefined);
+  assert.notEqual(item.nutrition.satFatDv, null); // undefined !== null: absent is not the same as blank
+
+  // The real fragment's blanks (="") are still null, not undefined -- present, just empty.
+  const [toast] = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", 3, "2026-08-19");
+  assert.equal(toast.nutrition.cholesterolDv, null);
+  assert.notEqual(toast.nutrition.cholesterolDv, undefined);
+});
+
 test("parseCategoryItems returns nothing for a fragment with no dishes", () => {
   assert.deepEqual(parseCategoryItems("<h2>Closed today</h2>", "x", "breakfast", 3, "2026-08-19"), []);
 });
