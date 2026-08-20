@@ -78,8 +78,11 @@ interface OffSearchApiResponse {
  * (the long-documented, stable text-search endpoint) rather than the newer search-a-licious service,
  * and requests only the fields the plate needs — OFF product records otherwise carry dozens of
  * unrelated fields. Search hits usually lack per-serving nutriments (unlike single-product lookups
- * via lookupBarcode), so this falls back to per-100g like lookupBarcode does, and marks servingSize
- * as an estimate rather than silently presenting 100g numbers as "1 serving".
+ * via lookupBarcode), so this falls back to per-100g like lookupBarcode does, marking servingSize
+ * with the literal "per 100g" so the UI can flag it as an estimate instead of silently presenting
+ * 100g numbers as "1 serving" — see mobile/src/lib/plate.ts's isEstimatedServing, which reads this
+ * exact marker, and PlateSheet.tsx, which renders it on both the search-result row and the row the
+ * item becomes once added to the plate.
  */
 export async function searchProducts(query: string): Promise<OffSearchResult[]> {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20&fields=code,product_name,serving_size,nutriments`;

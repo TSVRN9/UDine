@@ -1,7 +1,7 @@
 import { searchProducts, type DailyMacroTotals, type OffSearchResult } from "@udine/shared";
 import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { totalItemCount, type PlateEntry } from "../lib/plate";
+import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
 import { Button } from "./ui";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 
@@ -64,7 +64,9 @@ export function PlateSheet({ visible, plate, totals, onStep, onAddOffResult, onL
             <View key={entry.key} style={styles.itemRow}>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemLabel}>{entry.label}</Text>
-                <Text style={styles.itemCalories}>{Math.round(entry.nutrition.calories * entry.count)} cal</Text>
+                <Text style={styles.itemCalories}>
+                  {Math.round(entry.nutrition.calories * entry.count)} cal{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
+                </Text>
               </View>
               <View style={styles.stepper}>
                 <Pressable style={styles.stepperButton} onPress={() => onStep(entry.key, -1)} accessibilityRole="button" accessibilityLabel={`Remove one ${entry.label}`}>
@@ -125,7 +127,9 @@ export function PlateSheet({ visible, plate, totals, onStep, onAddOffResult, onL
                 accessibilityLabel={`Add ${r.productName} to plate`}
               >
                 <Text style={styles.resultLabel}>{r.productName}</Text>
-                <Text style={styles.resultCalories}>{Math.round(r.nutrition.calories)} cal</Text>
+                <Text style={styles.resultCalories}>
+                  {Math.round(r.nutrition.calories)} cal{isEstimatedServing(r.nutrition) ? " · est. per 100g" : ""}
+                </Text>
               </Pressable>
             ))}
           </View>
