@@ -1,10 +1,9 @@
 import { DINING_HALLS, fetchDiningHours, favoriteKey, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
-import type { Session } from "@supabase/supabase-js";
-import { Link, useFocusEffect } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Link, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,15 +13,14 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
-import { Card } from "../components/ui";
-import { FirstRunCard } from "../components/FirstRunCard";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Card, SectionHeader } from "../components/ui";
 import { PaneHeader } from "../components/PaneHeader";
-import { colors, fonts, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
-import { HOME_PANE_INDEX, hallCardSide, initialPaneOffset, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
+import { HOME_PANE_INDEX, initialPaneOffset, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
-import { signInWithGoogle, signOut } from "../lib/auth";
-import { supabase } from "../lib/supabase";
+import { isFirstRunDismissed } from "../lib/firstRun";
 import { FriendsBody } from "./friends";
 import { NotificationsBody } from "./notifications";
 import { YouPane } from "../panes/YouPane";
@@ -41,65 +39,54 @@ const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/newsletter", label: "Newsletter" },
 ];
 
-// Cosmetic-only accent alternation for the hall-card "gradient" placeholder — no meaning beyond
-// visual variety across the 4 cards.
-const HALL_ACCENTS = [colors.gold500, colors.maroon600, colors.gold500, colors.maroon600];
-
-/** `tone` picks the CLOSED-chip palette for the surface it sits on: "light" for the paper/cream
- * café & market rows, "dark" for the hall cards' maroon scrim. The OPEN (gold) chip has enough
- * contrast on either, so only the CLOSED variant needs to branch. */
-function StatusChip({ chip, tone = "light" }: { chip: { open: boolean; text: string }; tone?: "light" | "dark" }) {
-  if (!chip.text) return null;
-  return (
-    <View style={[styles.chip, chip.open ? styles.chipOpen : tone === "dark" ? styles.chipClosedDark : styles.chipClosedLight]}>
-      <Text style={[styles.chipText, chip.open ? styles.chipTextOpen : tone === "dark" ? styles.chipTextClosedDark : styles.chipTextClosedLight]}>
-        {chip.text}
-      </Text>
-    </View>
-  );
-}
-
-function HeroCard({ hero }: { hero: HomeHero }) {
+function HeroBlock({ hero, now }: { hero: HomeHero; now: Date }) {
   const { title, subtitle } = formatHeroLine(hero);
+  const dateLine = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   return (
     <View style={styles.hero}>
-      <Text style={styles.heroTitle}>{title}</Text>
-      <Text style={styles.heroSubtitle}>{subtitle}</Text>
+      <Text style={styles.heroKicker}>{dateLine}</Text>
+      <View style={styles.heroRow}>
+        <Text style={styles.heroTitle}>{title}</Text>
+        <Text style={styles.heroSubtitle}>{subtitle}</Text>
+      </View>
+      <View style={styles.heroGoldBar} />
     </View>
   );
 }
 
+/** Full-width gradient hall card per the canvas: giant clipped monogram top-right, status pill,
+ * condensed name bottom-left. Closed halls get the shared washed-out gradient + dimmed name. */
 function HallCard({
   hall,
-  index,
   chip,
-  side,
   isFavorite,
   onToggleFavorite,
 }: {
   hall: { slug: string; name: string; tid: number };
-  index: number;
-  side: number;
   chip: { open: boolean; text: string };
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
-  const accent = HALL_ACCENTS[index % HALL_ACCENTS.length];
+  const gradient = chip.open ? (hallGradients[hall.slug] ?? hallGradients.worcester) : hallGradientClosed;
   return (
-    <View style={[styles.hallCard, { width: side, height: side }]}>
-      <View style={styles.hallCardBg} />
-      <View style={[styles.hallCardGlow, { backgroundColor: withOpacity(accent, 35) }]} />
-      <Text style={styles.hallMonogram}>{hall.name.charAt(0)}</Text>
-      <View style={styles.hallCardScrim} />
+    <View style={styles.hallCard}>
+      <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.6 }} style={StyleSheet.absoluteFill} />
+      <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]}>{hall.name.charAt(0)}</Text>
       {/* Sibling absolute-fill Pressable (not a parent of the star below) so the two touch
           targets don't nest — nested Pressables in RN double-fire/steal gestures. */}
       <Link href={`/halls/${hall.slug}`} asChild>
         <Pressable style={StyleSheet.absoluteFill} />
       </Link>
-      <View style={styles.hallCardFooter} pointerEvents="none">
-        <Text style={styles.hallCardName}>{hall.name}</Text>
-        <StatusChip chip={chip} tone="dark" />
-      </View>
+      {chip.text ? (
+        <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]} pointerEvents="none">
+          <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
+        </View>
+      ) : null}
+      <Text style={[styles.hallCardName, !chip.open && styles.hallCardNameClosed]} pointerEvents="none">
+        {hall.name}
+      </Text>
+      {/* Not on the artboard, but /favorites only lists — this star is the sole way to favorite a
+          hall, so it stays (top-left; the canvas's top-right corner belongs to the status pill). */}
       <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.hallCardStar}>
         <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
       </Pressable>
@@ -110,21 +97,11 @@ function HallCard({
 // Exported so it's independently testable (#104 review round) without pulling in SocialPane's/
 // YouPane's own network- and storage-backed siblings, which the pager mounts eagerly alongside it.
 export function HomePane({ activeIndex }: { activeIndex: number }) {
-  const [session, setSession] = useState<Session | null>(null);
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
-  const [hallGridWidth, setHallGridWidth] = useState(0);
-  const cardSide = hallCardSide(hallGridWidth, spacing(3));
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
-    return () => subscription.unsubscribe();
-  }, []);
+  const insets = useSafeAreaInsets();
 
   const load = useCallback(() => {
     setNow(new Date());
@@ -135,14 +112,6 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
   }, []);
 
   useFocusEffect(load);
-
-  async function handleSignIn() {
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
-    }
-  }
 
   async function toggleHall(hallTid: number) {
     const favorite: Favorite = { type: "location", hallTid };
@@ -160,73 +129,57 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
   const hero = hoursFeed ? deriveHomeHero(hoursFeed.halls, now) : null;
 
   return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={styles.paneContainer}>
-      <PaneHeader title="Home" activeIndex={activeIndex} />
-
-      {/* First-run onboarding card (#68/#63) -- dropped when #90's pane shell replaced the old
-          home screen; re-mounted here at its old top-of-content position (#104 review blocker 2). */}
-      <FirstRunCard />
-
-      <View style={styles.authRow}>
-        {session ? (
-          <>
-            <Text style={styles.authText}>Signed in as {session.user.email}</Text>
-            <Pressable onPress={() => signOut()}>
-              <Text style={styles.authLink}>Sign out</Text>
-            </Pressable>
-          </>
-        ) : (
-          <Pressable onPress={handleSignIn}>
-            <Text style={styles.authLink}>Sign in with Google</Text>
-          </Pressable>
-        )}
-      </View>
+    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + spacing(4.5) }]}>
+      <PaneHeader title="UDine" activeIndex={activeIndex} />
 
       {error && <Text style={styles.error}>Couldn't load dining hours: {error}</Text>}
       {!hoursFeed && !error && <ActivityIndicator color={colors.maroon600} style={styles.loading} />}
-      {hero && <HeroCard hero={hero} />}
+      {hero && <HeroBlock hero={hero} now={now} />}
 
-      <Text style={styles.sectionTitle}>Dining halls</Text>
-      <View style={styles.thinRule} />
-      <View style={styles.hallGrid} onLayout={(e) => setHallGridWidth(e.nativeEvent.layout.width)}>
-        {cardSide > 0 &&
-          DINING_HALLS.map((hall, i) => {
-            const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
-            const chip = hallHours ? formatLocationChip(openStatus(hallHours, now)) : { open: false, text: "" };
-            const isFavorite = favoriteHallKeys.has(favoriteKey({ type: "location", hallTid: hall.tid }));
-            return <HallCard key={hall.slug} hall={hall} index={i} side={cardSide} chip={chip} isFavorite={isFavorite} onToggleFavorite={() => toggleHall(hall.tid)} />;
+      <View style={styles.hallList}>
+        {DINING_HALLS.map((hall) => {
+          const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
+          const chip = hallHours ? formatLocationChip(openStatus(hallHours, now)) : { open: false, text: "" };
+          const isFavorite = favoriteHallKeys.has(favoriteKey({ type: "location", hallTid: hall.tid }));
+          return <HallCard key={hall.slug} hall={hall} chip={chip} isFavorite={isFavorite} onToggleFavorite={() => toggleHall(hall.tid)} />;
+        })}
+      </View>
+
+      <View style={styles.section}>
+        <SectionHeader title="Cafés & Markets" />
+        <View style={styles.retailList}>
+          {(hoursFeed?.retail ?? []).map((loc) => {
+            const chip = formatLocationChip(retailOpenStatus(loc, now));
+            return (
+              <Card key={loc.name} style={styles.retailRow}>
+                <Text style={styles.retailName}>{loc.name}</Text>
+                <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
+              </Card>
+            );
           })}
+        </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Cafés &amp; Markets</Text>
-      <View style={styles.thinRule} />
-      <View style={styles.retailList}>
-        {(hoursFeed?.retail ?? []).map((loc) => (
-          <Card key={loc.name} style={styles.retailRow}>
-            <Text style={styles.retailName}>{loc.name}</Text>
-            <StatusChip chip={formatLocationChip(retailOpenStatus(loc, now))} />
-          </Card>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>More</Text>
-      <View style={styles.thinRule} />
-      <View style={styles.quickLinks}>
-        {QUICK_LINKS.map((link) => (
-          <Link key={link.href} href={link.href as never} asChild>
-            <Pressable style={styles.quickLink}>
-              <Text style={styles.quickLinkText}>{link.label}</Text>
-            </Pressable>
-          </Link>
-        ))}
+      <View style={styles.section}>
+        <SectionHeader title="More" />
+        <View style={styles.quickLinks}>
+          {QUICK_LINKS.map((link) => (
+            <Link key={link.href} href={link.href as never} asChild>
+              <Pressable style={styles.quickLink}>
+                <Text style={styles.quickLinkText}>{link.label}</Text>
+              </Pressable>
+            </Link>
+          ))}
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 function SocialPane({ activeIndex }: { activeIndex: number }) {
+  const insets = useSafeAreaInsets();
   return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={styles.paneContainer}>
+    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + spacing(4.5) }]}>
       <PaneHeader title="Social" activeIndex={activeIndex} />
       <FriendsBody />
       <NotificationsBody />
@@ -251,6 +204,14 @@ export default function PaneShellScreen() {
   const [paneSize, setPaneSize] = useState({ width: 0, height: 0 });
   const [activeIndex, setActiveIndex] = useState(HOME_PANE_INDEX);
   const landedOnHome = useRef(false);
+
+  // First launch → the full-screen login/value-prop screen (#96, replaces #68's FirstRunCard).
+  // Pushed (not replaced) so both of its exits just pop back to the shell.
+  useEffect(() => {
+    isFirstRunDismissed().then((dismissed) => {
+      if (!dismissed) router.push("/login");
+    });
+  }, []);
 
   function handleLayout(e: LayoutChangeEvent) {
     const { width, height } = e.nativeEvent.layout;
@@ -295,114 +256,96 @@ export default function PaneShellScreen() {
 const styles = StyleSheet.create({
   pager: { flex: 1, backgroundColor: colors.cream100 },
   paneScroll: { flex: 1, backgroundColor: colors.cream100 },
-  paneContainer: { padding: spacing(4), paddingBottom: spacing(10) },
+  paneContainer: { paddingHorizontal: spacing(5), paddingBottom: spacing(10) },
 
-  authRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing(4) },
-  authText: { color: withOpacity(colors.ink900, 60), fontFamily: fonts.body, fontSize: 13 },
-  authLink: { color: colors.maroon600, fontFamily: fonts.body, fontWeight: "600", fontSize: 13 },
+  error: { color: "#b00020", fontFamily: fonts.body400, marginVertical: spacing(3) },
+  loading: { marginVertical: spacing(3) },
 
-  error: { color: "#b00020", fontFamily: fonts.body, marginBottom: spacing(3) },
-  loading: { marginBottom: spacing(3) },
-
-  hero: {
-    backgroundColor: colors.maroon900,
-    borderRadius: radii.md,
-    paddingVertical: spacing(6),
-    paddingHorizontal: spacing(4),
-    alignItems: "center",
-    marginBottom: spacing(2),
+  hero: { paddingTop: spacing(1), paddingBottom: spacing(3.5) },
+  heroKicker: {
+    fontFamily: fonts.body600,
+    fontSize: 12,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    color: withOpacity(colors.ink900, 55),
+    marginBottom: spacing(0.5),
   },
+  heroRow: { flexDirection: "row", alignItems: "baseline", gap: spacing(3) },
   heroTitle: {
-    fontFamily: fonts.display,
-    fontSize: 40,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: colors.paper50,
-  },
-  heroSubtitle: {
-    marginTop: spacing(1),
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: withOpacity(colors.paper50, 80),
-  },
-
-  sectionTitle: {
-    marginTop: spacing(6),
-    fontFamily: fonts.display,
-    fontSize: 15,
-    fontWeight: "700",
+    fontFamily: fonts.display700,
+    fontSize: 44,
+    lineHeight: 48,
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.maroon900,
   },
-  thinRule: { marginTop: spacing(1), marginBottom: spacing(3), height: 1, backgroundColor: withOpacity(colors.ink900, 25) },
+  heroSubtitle: { flexShrink: 1, fontFamily: fonts.body500, fontSize: 13, color: withOpacity(colors.ink900, 65) },
+  heroGoldBar: { marginTop: spacing(1.5), height: 3, width: 72, backgroundColor: colors.gold500 },
 
-  hallGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing(3) },
-  hallCard: {
-    // Sized numerically per-card from the grid's measured width (hallCardSide) — width:"47%"
-    // + aspectRatio:1 reserves layout but paints nothing on this RN/Fabric build.
-    borderRadius: radii.md,
-    overflow: "hidden",
-    backgroundColor: colors.maroon900,
-  },
-  hallCardBg: { ...StyleSheet.absoluteFill, backgroundColor: colors.maroon900 },
-  hallCardGlow: {
-    position: "absolute",
-    top: -20,
-    right: -20,
-    width: 90,
-    height: 90,
-    borderRadius: radii.pill,
-  },
+  hallList: { gap: spacing(2.5) },
+  hallCard: { height: 106, borderRadius: radii.md, overflow: "hidden", justifyContent: "flex-end" },
   hallMonogram: {
     position: "absolute",
-    top: "30%",
-    alignSelf: "center",
-    fontFamily: fonts.display,
-    fontSize: 44,
-    fontWeight: "700",
-    color: withOpacity(colors.paper50, 55),
+    right: -8,
+    top: -22,
+    fontFamily: fonts.display700,
+    fontSize: 120,
+    lineHeight: 120,
+    color: withOpacity(colors.paper50, 8),
   },
-  hallCardScrim: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "45%",
-    backgroundColor: withOpacity(colors.ink900, 55),
-  },
-  hallCardFooter: { position: "absolute", left: 0, right: 0, bottom: 0, padding: spacing(2.5), gap: spacing(1) },
+  hallMonogramClosed: { color: withOpacity(colors.paper50, 6) },
   hallCardName: {
-    fontFamily: fonts.display,
-    fontSize: 15,
-    fontWeight: "700",
+    paddingHorizontal: spacing(3.5),
+    paddingBottom: spacing(3),
+    fontFamily: fonts.display600,
+    fontSize: 22,
+    letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.paper50,
   },
-  hallCardStar: { position: "absolute", top: spacing(1.5), right: spacing(1.5), padding: spacing(1) },
-  star: { fontSize: 20, color: withOpacity(colors.paper50, 55) },
+  hallCardNameClosed: { color: withOpacity(colors.paper50, 75) },
+  hallChip: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    borderRadius: radii.pill,
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(2.5),
+  },
+  hallChipOpen: { backgroundColor: colors.gold500 },
+  hallChipClosed: { backgroundColor: withOpacity(colors.paper50, 18) },
+  hallChipText: { fontFamily: fonts.body600, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase" },
+  hallChipTextOpen: { color: colors.maroon900 },
+  hallChipTextClosed: { color: colors.paper50 },
+  hallCardStar: { position: "absolute", top: spacing(1), left: spacing(1.5), padding: spacing(1) },
+  star: { fontSize: 18, color: withOpacity(colors.paper50, 45) },
   starActive: { color: colors.gold500 },
 
-  chip: { alignSelf: "flex-start", borderRadius: radii.sm, paddingVertical: 2, paddingHorizontal: spacing(1.5) },
-  chipOpen: { backgroundColor: colors.gold500 },
-  chipClosedDark: { backgroundColor: withOpacity(colors.paper50, 22) },
-  chipClosedLight: { backgroundColor: withOpacity(colors.ink900, 10) },
-  chipText: { fontFamily: fonts.body, fontSize: 10, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" },
-  chipTextOpen: { color: colors.maroon900 },
-  chipTextClosedDark: { color: withOpacity(colors.paper50, 90) },
-  chipTextClosedLight: { color: withOpacity(colors.ink900, 60) },
+  section: { marginTop: spacing(5), gap: spacing(2.5) },
 
-  retailList: { gap: spacing(2) },
-  retailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing(3) },
-  retailName: { flex: 1, fontFamily: fonts.body, fontSize: 14, color: colors.ink900 },
+  retailList: { gap: spacing(2.5) },
+  retailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing(2),
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
+    minHeight: 44,
+  },
+  retailName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: 14, color: colors.ink900 },
+  retailStatus: { fontFamily: fonts.body600, fontSize: 11, letterSpacing: 0.3, textTransform: "uppercase" },
+  retailStatusOpen: { color: colors.maroon600 },
+  retailStatusClosed: { color: withOpacity(colors.ink900, 45) },
 
   quickLinks: { flexDirection: "row", flexWrap: "wrap", gap: spacing(2) },
   quickLink: {
     borderWidth: 1,
-    borderColor: withOpacity(colors.maroon600, 45),
-    borderRadius: 2,
-    paddingVertical: spacing(1.5),
+    borderColor: withOpacity(colors.ink900, 12),
+    backgroundColor: colors.paper50,
+    borderRadius: radii.md,
+    paddingVertical: spacing(2),
     paddingHorizontal: spacing(3),
   },
-  quickLinkText: { color: colors.maroon600, fontFamily: fonts.body, fontWeight: "600", fontSize: 13 },
+  quickLinkText: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: 13 },
 });

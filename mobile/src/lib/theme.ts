@@ -1,17 +1,16 @@
 /**
  * Mobile design tokens — ports web/src/app.css's @theme block to React Native (StyleSheet only,
- * no component library, no new dependencies). Same names, same roles as web:
+ * no component library). Same names, same roles as web:
  *
  *   maroon900/maroon600  brand + primary accent
  *   gold500               signature accent, used sparingly
  *   cream100/paper50       page ground / card surface
  *   ink900                 body text (muted via withOpacity, mirroring web's color-mix opacity trick)
  *
- * Web loads Oswald (display) + Libre Franklin (body) as webfonts. Mobile has no bundled font
- * assets (adding them would be a new dependency/asset pipeline this ticket doesn't call for), so
- * `fonts` mirrors the *role* — display/body/mono — using each platform's built-in font stack
- * instead of the exact typeface. Consuming styles still apply the uppercase+tracking+weight that
- * gives headings their condensed-signage feel.
+ * Fonts are the real Oswald/Libre Franklin families (@expo-google-fonts, loaded in _layout.tsx).
+ * Each weight is its own family name on RN — use the weighted keys (`display700`, `body600`, …)
+ * and do NOT pair them with `fontWeight`, which fake-bolds an already-weighted family on Android.
+ * The unweighted `display`/`body` keys are legacy aliases for screens not yet on the v2 canvas.
  */
 import { Platform } from "react-native";
 
@@ -23,6 +22,20 @@ export const colors = {
   paper50: "#fbf7ef",
   ink900: "#241a14",
 } as const;
+
+/**
+ * Per-hall card gradients from the canvas's Home artboard (120° top-left → bottom-right).
+ * Berkshire's open pair reuses the canvas's dark-maroon gradient (PushAlerts backdrop) since its
+ * artboard card only shows the closed state. `hallGradientClosed` is that closed state: a washed
+ * translucent pair over the cream ground, shared by every hall.
+ */
+export const hallGradients: Record<string, [string, string]> = {
+  worcester: ["#7c2430", "#3b0a0f"],
+  franklin: ["#8a3a2c", "#3b0a0f"],
+  hampshire: ["#6b2f1e", "#2c0a08"],
+  berkshire: ["#4a1218", "#241a14"],
+};
+export const hallGradientClosed: [string, string] = ["rgba(59,10,15,0.55)", "rgba(36,26,20,0.75)"];
 
 /**
  * `hex` at `opacityPct`, as a hex-with-alpha string. Mirrors web's
@@ -38,9 +51,17 @@ export function withOpacity(hex: string, opacityPct: number): string {
 }
 
 export const fonts = {
-  display: Platform.select({ ios: "System", android: "sans-serif-condensed", default: "System" }),
-  body: Platform.select({ ios: "System", android: "sans-serif", default: "System" }),
+  display500: "Oswald_500Medium",
+  display600: "Oswald_600SemiBold",
+  display700: "Oswald_700Bold",
+  body400: "LibreFranklin_400Regular",
+  body500: "LibreFranklin_500Medium",
+  body600: "LibreFranklin_600SemiBold",
   mono: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
+  // Legacy aliases — screens the v2 canvas hasn't reached yet still say fonts.display/fonts.body,
+  // sometimes with a fontWeight alongside (harmless fake-bold on Android, correct on iOS).
+  display: "Oswald_600SemiBold",
+  body: "LibreFranklin_400Regular",
 } as const;
 
 export const radii = {

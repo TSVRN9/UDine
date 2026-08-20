@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 
-// Same rationale as FirstRunCard.test.tsx: explicit factories, not bare automocks -- automock still
-// imports the real module to derive its shape, and the real ../lib/supabase / ../lib/firstRun both
-// drag in native bindings (AsyncStorage, the Supabase client's url/key validation) unavailable
-// outside jest-expo's native harness.
+// Explicit factories, not bare automocks -- automock still imports the real module to derive its
+// shape, and the real ../lib/supabase / ../lib/firstRun both drag in native bindings (AsyncStorage,
+// the Supabase client's url/key validation) unavailable outside jest-expo's native harness.
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -19,14 +18,21 @@ jest.mock("../lib/auth", () => ({
 }));
 
 jest.mock("../lib/firstRun", () => ({
-  isFirstRunDismissed: jest.fn().mockResolvedValue(false),
+  isFirstRunDismissed: jest.fn().mockResolvedValue(true),
   dismissFirstRun: jest.fn(),
+}));
+
+// HomePane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
+// hallMenu.test.tsx).
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 // HomePane always renders Links (hall cards, quick links) -- stub them out flat since there's no
 // navigator in this render tree.
 jest.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn() },
   useFocusEffect: (_callback: () => void) => {},
 }));
 
@@ -39,17 +45,16 @@ function texts(root: renderer.ReactTestRenderer) {
 }
 
 describe("HomePane", () => {
-  // #104 review blocker 2: the old home screen mounted FirstRunCard (first-run onboarding, #68);
-  // it got dropped when #90's pane shell replaced that screen, leaving the no-account/
-  // data-never-leaves-device messaging dead code.
-  it("mounts the first-run onboarding card", async () => {
+  it("renders the brand header and all four hall cards", async () => {
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
       root = renderer.create(<HomePane activeIndex={1} />);
     });
 
-    const body = texts(root).join(" ");
-    expect(body).toMatch(/Welcome to UDine/);
-    expect(body).toMatch(/never leaves this device/);
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/UDine/);
+    for (const hall of ["Worcester", "Franklin", "Hampshire", "Berkshire"]) {
+      expect(body).toMatch(new RegExp(hall));
+    }
   });
 });
