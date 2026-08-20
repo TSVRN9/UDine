@@ -114,7 +114,11 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
   }
 
   async function exportData(format: "json" | "csv") {
-    const content = format === "json" ? exportEntriesAsJson(allEntries) : exportEntriesAsCsv(allEntries);
+    // Fresh read, not the `allEntries` state closure -- a just-removed entry can otherwise still be
+    // in the current render's `allEntries` if export is tapped before remove()'s reload flushes.
+    // Matches today.tsx's original behavior (ported from, see PR #105's review).
+    const entries = await logStorage.getAllEntries();
+    const content = format === "json" ? exportEntriesAsJson(entries) : exportEntriesAsCsv(entries);
     const path = `${FileSystem.cacheDirectory}udine-export.${format}`;
     await FileSystem.writeAsStringAsync(path, content);
     if (await Sharing.isAvailableAsync()) {
