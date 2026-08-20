@@ -2,7 +2,6 @@ import {
   computeDailyTotals,
   DINING_HALLS,
   fetchDiningHours,
-  fetchMenu,
   favoriteKey,
   menuItemMatchesPreferences,
   type DiningHoursFeed,
@@ -23,6 +22,7 @@ import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { hallHeaderSubtitle } from "../../lib/homeHero";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
+import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import {
   addOrIncrement,
   listBottomPadding,
@@ -81,7 +81,7 @@ export default function HallMenuScreen() {
 
   useEffect(() => {
     if (!hall) return;
-    fetchMenu(hall.tid, new Date())
+    fetchMenuAndRecordSeen(hall.tid, new Date())
       .then(setItems)
       .catch((e) => setError(String(e)));
     // Header subtitle only — a failure here just leaves the subtitle blank, never blocks the menu.

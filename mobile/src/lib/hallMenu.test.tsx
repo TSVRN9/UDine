@@ -47,6 +47,15 @@ jest.mock("@udine/shared", () => ({
   fetchMenu: jest.fn(),
 }));
 
+// #107: the screen must route its menu fetch through menuFetchWithSeenTracking.ts (not call
+// shared's fetchMenu directly) so HALL COMPLETION's denominator gets populated. Mock the
+// *underlying* seenDishesStorage singleton, not the wrapper itself, so the real
+// fetchMenuAndRecordSeen wiring actually runs end-to-end -- a test that mocked the wrapper away
+// would pass even if the screen still called fetchMenu directly.
+jest.mock("./seenDishesStorage", () => ({
+  SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ recordSeen: jest.fn() })),
+}));
+
 import renderer, { act } from "react-test-renderer";
 import { Text, SectionList } from "react-native";
 import { fetchMenu, type MenuItem } from "@udine/shared";
@@ -54,8 +63,17 @@ import HallMenuScreen from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
 import { SqliteLogStorage } from "./sqliteStorage";
+import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
+// menuFetchWithSeenTracking.ts instantiates SqliteSeenDishesStorage eagerly at module scope, but
+// only if something actually imports that wrapper -- until #107's wiring lands, the screen doesn't,
+// so the constructor never runs and `.mock.results` is empty. Read this lazily (inside the test,
+// not at module scope) so that missing wiring fails one assertion instead of crashing the whole
+// suite's module-load phase (which would also take out the unrelated plate-wiring tests below).
+function recordSeenMock(): jest.Mock | undefined {
+  return (SqliteSeenDishesStorage as unknown as jest.Mock).mock.results[0]?.value?.recordSeen;
+}
 // halls/[slug].tsx's `const storage = new SqliteLogStorage();` (module top level) already ran by
 // the time this line executes -- importing HallMenuScreen above is what loaded that module.
 const mockAddEntry = (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.addEntry as jest.Mock;
@@ -156,6 +174,18 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+describe("HallMenuScreen seen-dish tracking (#107)", () => {
+  it("records the fetched hall's distinct dish names as seen, through the real menuFetchWithSeenTracking wrapper", async () => {
+    await renderScreen([PIZZA, SALAD]);
+    const mockRecordSeen = recordSeenMock();
+    expect(mockRecordSeen).toBeDefined();
+    expect(mockRecordSeen).toHaveBeenCalledTimes(1);
+    const [hallTid, dishNames] = mockRecordSeen!.mock.calls[0];
+    expect(hallTid).toBe(PIZZA.hallTid);
+    expect(dishNames.sort()).toEqual(["Pizza", "Salad"]);
+  });
 });
 
 describe("HallMenuScreen plate wiring", () => {
