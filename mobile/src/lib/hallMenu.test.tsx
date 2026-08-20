@@ -124,6 +124,11 @@ function stepPlate(root: renderer.ReactTestRenderer, dishName: string, dir: "Add
   });
 }
 
+function findBannerContainer(root: renderer.ReactTestRenderer, matching: RegExp) {
+  const bannerText = root.root.findAllByType(Text).find((n) => typeof n.props.children === "string" && matching.test(n.props.children));
+  return bannerText?.parent ?? null;
+}
+
 async function openSheetAndLog(root: renderer.ReactTestRenderer) {
   act(() => {
     root.root.findByType(PlateBar).props.onPress();
@@ -139,6 +144,19 @@ async function openSheetAndLog(root: renderer.ReactTestRenderer) {
     await button.props.onPress();
   });
 }
+
+// File-wide, not just the banner-lifecycle describe below: logPlate's success AND failure paths
+// both now schedule a real setTimeout (the banner auto-dismiss), and none of these tests ever
+// unmount their renderer -- a real timer would otherwise fire ~4s after a test finishes, well
+// past teardown, calling setLogged on a destroyed tree and crashing the whole run with
+// "window.dispatchEvent is not a function" instead of just failing the one test.
+beforeEach(() => {
+  jest.useFakeTimers();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe("HallMenuScreen plate wiring", () => {
   beforeEach(() => {
@@ -219,9 +237,61 @@ describe("HallMenuScreen plate wiring", () => {
     act(() => {
       root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
     });
-    const bannerText = root.root.findAllByType(Text).find((n) => typeof n.props.children === "string" && n.props.children.includes("Couldn't log everything"));
-    const bannerContainer = bannerText?.parent;
+    const bannerContainer = findBannerContainer(root, /Couldn't log everything/);
     const bottomOffset = bannerContainer?.props.style?.find?.((s: { bottom?: number }) => typeof s?.bottom === "number")?.bottom ?? bannerContainer?.props.style?.bottom;
     expect(bottomOffset).toBe(88);
+  });
+});
+
+describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner never dismisses, occludes last row)", () => {
+  beforeEach(() => {
+    mockAddEntry.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("auto-dismisses the logged banner a few seconds after it appears", async () => {
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+
+    expect(texts(root).flat().join(" ")).toMatch(/Logged 1 item/);
+
+    // Comfortably short of any reasonable "a few seconds" timeout -- still showing.
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Logged 1 item/);
+
+    // Comfortably past it -- gone on its own, no further interaction.
+    act(() => {
+      jest.advanceTimersByTime(4500);
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/Logged 1 item/);
+  });
+
+  it("keeps the list's bottom padding banner-aware while the banner alone is visible (no bar, plate just cleared)", async () => {
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root); // success: plate clears, bar unmounts, banner shows
+
+    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    act(() => {
+      findBannerContainer(root, /Logged 1 item/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
+    });
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(40);
+  });
+
+  it("adds the banner's measured height on top of the bar's clearance when both are visible (failure path)", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root); // failure: plate retained, bar stays up, banner shows too
+
+    act(() => {
+      root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
+    });
+    act(() => {
+      findBannerContainer(root, /Couldn't log everything/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
+    });
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(128);
   });
 });
