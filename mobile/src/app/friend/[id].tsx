@@ -99,14 +99,23 @@ export default function FriendProfileScreen() {
     setSession(sessionData.session);
     if (!myId || !id) return;
 
-    const [{ data: prof }, { data: friendships }, { data: sharedStats }] = await Promise.all([
+    // Canonical order, same as friendships' own PK -- fetches exactly the one pair instead of
+    // every friendship the caller has. Filtered to status = 'accepted' at the query level: a
+    // pending (not-yet-mutual) request must never render "Friends since" as if it were fact
+    // (review finding #4) -- shared_stats' own RLS already hid the *stats* from a pending
+    // connection, but this screen was independently asserting friendship as true from unfiltered
+    // data.
+    const a = myId < id ? myId : id;
+    const b = myId < id ? id : myId;
+
+    const [{ data: prof }, { data: friendshipRow }, { data: sharedStats }] = await Promise.all([
       supabase.from("profiles").select("user_id, display_name").eq("user_id", id).maybeSingle(),
-      supabase.from("friendships").select("user_a, user_b, created_at").or(`user_a.eq.${myId},user_b.eq.${myId}`),
+      supabase.from("friendships").select("user_a, user_b, created_at").eq("user_a", a).eq("user_b", b).eq("status", "accepted").maybeSingle(),
       supabase.from("shared_stats").select("completion, top_foods, hall_ranks").eq("user_id", id).maybeSingle(),
     ]);
 
     setProfile(prof ?? null);
-    setFriendship((friendships ?? []).find((f) => f.user_a === id || f.user_b === id) ?? null);
+    setFriendship(friendshipRow ?? null);
     setStats(sharedStats ?? null);
   }, [id]);
 
@@ -119,7 +128,15 @@ export default function FriendProfileScreen() {
   async function sendPing() {
     const myId = session?.user.id;
     if (!myId || !id) return;
-    await supabase.from("pings").insert({ sender_id: myId, receiver_id: id, message: null, hall_tid: null });
+    // supabase-js resolves { error } on an RLS/PostgREST failure rather than rejecting -- this
+    // screen is reachable for any user id (deep link, or a friendship that later lapses), and the
+    // pings insert policy requires an accepted friendship, so a discarded error here used to alert
+    // a confirmed "sent" for a ping that never existed (review finding #2).
+    const { error } = await supabase.from("pings").insert({ sender_id: myId, receiver_id: id, message: null, hall_tid: null });
+    if (error) {
+      Alert.alert("Couldn't send ping", "You may not be friends with this person (yet).");
+      return;
+    }
     Alert.alert("Ping sent", `${profile?.display_name ?? "They"}'ll see it in their pings.`);
   }
 
@@ -160,14 +177,22 @@ export default function FriendProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Foods</Text>
-          {topFoods && topFoods.length > 0 ? (
+          {topFoods === null ? (
+            // Not opted in -- absent (SQL NULL), the honest "doesn't share this" state.
+            <NotSharedNote name={name} />
+          ) : topFoods.length > 0 ? (
             <View style={styles.rowList}>
               {topFoods.map((f) => (
                 <TopFoodRow key={f.dishName} f={f} maxScore={maxScore} />
               ))}
             </View>
           ) : (
-            <NotSharedNote name={name} />
+            // Opted in, but nothing qualifies yet -- an empty array is NOT the same as "doesn't
+            // share this" (review finding #5): the friend chose to share, there's just nothing to
+            // show yet. Rendering NotSharedNote here would be a false statement about their choice.
+            <StatCard>
+              <Text style={styles.notSharedText}>{name} hasn&apos;t rated enough foods yet.</Text>
+            </StatCard>
           )}
         </View>
 

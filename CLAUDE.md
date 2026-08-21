@@ -189,7 +189,8 @@ were not part of this cut.
 ## Data residency — read this before adding any table or any client→Supabase call
 
 Health data (what/how much a user ate, calorie and macro history) **never leaves the device unless
-the user explicitly exports it.** This constrains every feature that touches food-logging:
+the user explicitly exports it, or opts a truncated summary in per the Shared stats row below.**
+This constrains every feature that touches food-logging:
 
 | Feature | Lives | Why |
 |---|---|---|
