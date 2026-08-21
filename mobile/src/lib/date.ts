@@ -16,8 +16,8 @@ export function todayIso(): string {
 // `isoDateOf` (`@udine/shared`, shared/src/macros.ts) rather than re-deriving it.
 //
 // A bare (no "Z"/offset) ISO-shaped string is parsed back as local time by `new Date(str)` per the
-// ECMA-262 Date Time String spec, so downstream `new Date(loggedAt).getHours()` (YouPane's
-// formatLogTime) and lexicographic sort/SQL ORDER BY both keep working unchanged.
+// ECMA-262 Date Time String spec, so downstream `new Date(loggedAt).getHours()` (youPaneFormat.ts's
+// mealPeriodForTime) and lexicographic sort/SQL ORDER BY both keep working unchanged.
 export function nowLocalIso(d: Date = new Date()): string {
   const pad = (n: number, width = 2) => String(n).padStart(width, "0");
   const datePart = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
