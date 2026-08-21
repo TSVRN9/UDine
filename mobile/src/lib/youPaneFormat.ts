@@ -123,12 +123,20 @@ const MEAL_ORDER: MealPeriod[] = ["breakfast", "lunch", "dinner", "latenight"];
 
 /**
  * Buckets entries by mealPeriodForTime into canvas-order groups (Breakfast, Lunch, Dinner, Late
- * Night), omitting any period with no entries. Each group's `totalCalories` sums calories*servings
- * over exactly that group's entries -- since the groups partition the input, summing every group's
- * totalCalories always reconciles with computeDailyTotals's calorie total for the same entries
- * (issue #118's "group subtotals must agree with the day totals" ask). Entries keep their input
- * order within a group; callers already read entries chronologically (SqliteLogStorage orders by
- * logged_at), so groups render chronologically too without an extra sort here.
+ * Night), omitting any period with no entries. Each group's `totalCalories` sums the same *rounded*
+ * per-entry calories the item rows themselves display (`Math.round(calories * servings)`), NOT the
+ * raw float sum -- integer addition is exactly associative, so summing every group's totalCalories
+ * always equals the sum over ALL entries computed the same way, regardless of how they're
+ * partitioned into groups. That's what makes issue #118's "group subtotals must agree with the day
+ * totals" ask hold *exactly*, not just approximately: rounding the raw float sum once at the end
+ * (`Math.round(sum of raw calories)`) and rounding per-entry-then-summing can legitimately disagree
+ * by a calorie whenever a source contributes fractional calories (UMass menu calories are whole
+ * numbers, but OpenFoodFacts-sourced "off" entries aren't, e.g. `energy-kcal_serving: 137.5`) --
+ * two 100.5-calorie entries in different meal groups each round to 101 (202 combined) while their
+ * raw sum of 201.0 rounds to 201, a real off-by-one otherwise. Pre-rounding avoids that entirely.
+ * Entries keep their input order within a group; callers already read entries chronologically
+ * (SqliteLogStorage orders by logged_at), so groups render chronologically too without an extra
+ * sort here.
  */
 export function groupEntriesByMeal(entries: LogEntry[]): MealLogGroup[] {
   const byPeriod = new Map<MealPeriod, LogEntry[]>();
@@ -140,7 +148,7 @@ export function groupEntriesByMeal(entries: LogEntry[]): MealLogGroup[] {
   }
   return MEAL_ORDER.filter((period) => byPeriod.has(period)).map((period) => {
     const groupEntries = byPeriod.get(period)!;
-    const totalCalories = groupEntries.reduce((sum, e) => sum + e.nutrition.calories * e.servings, 0);
+    const totalCalories = groupEntries.reduce((sum, e) => sum + Math.round(e.nutrition.calories * e.servings), 0);
     return { period, label: MEAL_LABELS[period], entries: groupEntries, totalCalories };
   });
 }

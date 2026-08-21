@@ -231,4 +231,22 @@ describe("groupEntriesByMeal", () => {
     const [breakfast] = groupEntriesByMeal(entries);
     expect(breakfast.entries.map((e) => e.id)).toEqual(["first", "second"]);
   });
+
+  it("reconciles exactly with the sum of ALL entries' rounded calories, even split across groups with fractional per-entry calories", () => {
+    // Reachable via an OpenFoodFacts-sourced "off" entry (e.g. energy-kcal_serving: 100.5) --
+    // UMass menu calories are always whole numbers, but barcode-lookup ones aren't. Two 100.5-cal
+    // entries in DIFFERENT meal groups: round-each-then-sum (what this function does) gives
+    // 101 + 101 = 202. The naive alternative -- sum the raw floats once, then round -- would give
+    // Math.round(201.0) = 201, a real 1-calorie disagreement against the stat card if the stat
+    // card used that approach instead (issue #118's "must agree with the day totals" ask).
+    const entries = [
+      mealEntry("breakfast-1", "2026-08-20T07:00:00.000", 100.5),
+      mealEntry("dinner-1", "2026-08-20T18:00:00.000", 100.5),
+    ];
+    const groups = groupEntriesByMeal(entries);
+    expect(groups.map((g) => g.totalCalories)).toEqual([101, 101]);
+    const displayedTotal = groups.reduce((sum, g) => sum + g.totalCalories, 0);
+    expect(displayedTotal).toBe(202);
+    expect(displayedTotal).not.toBe(Math.round(100.5 + 100.5)); // the naive round-once total (201)
+  });
 });

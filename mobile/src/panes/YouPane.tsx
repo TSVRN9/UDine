@@ -150,6 +150,11 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
   const todaysEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === date);
   const totals = computeDailyTotals(date, todaysEntries);
   const mealGroups = groupEntriesByMeal(todaysEntries);
+  // Derived from the SAME rounded-per-entry sums the meal groups themselves use (not
+  // Math.round(totals.calories), a separately-rounded raw-float sum) so this always agrees with
+  // the meal groups' subtotals exactly, not just approximately -- see groupEntriesByMeal's doc
+  // comment on why "round the total once" and "round each entry, then sum" can otherwise differ.
+  const displayedCalories = mealGroups.reduce((sum, g) => sum + g.totalCalories, 0);
   const completions = hallCompletion(seenByHall, allEntries);
   const hallRanking = rankDiningHalls(rankedDishes);
   const topFoods = buildTopFoods(rankedFoods, rankedDishes, allEntries, TOP_FOODS_LIMIT);
@@ -160,7 +165,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
 
       <Card style={styles.statsCard}>
         <View style={styles.statCell}>
-          <Stat label="Calories" value={String(Math.round(totals.calories))} />
+          <Stat label="Calories" value={String(displayedCalories)} />
         </View>
         <View style={styles.statCell}>
           <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
@@ -193,7 +198,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
                 <View style={styles.mealGroup}>
                   <View style={styles.mealHeaderRow}>
                     <Text style={styles.mealHeaderLabel}>{group.label}</Text>
-                    <Text style={styles.mealHeaderTotal}>{Math.round(group.totalCalories)} cal</Text>
+                    <Text style={styles.mealHeaderTotal}>{group.totalCalories} cal</Text>
                   </View>
                   {group.entries.map((entry) => (
                     <View key={entry.id} style={styles.mealItemRow}>

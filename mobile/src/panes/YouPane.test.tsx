@@ -273,6 +273,21 @@ describe("YouPane Today's Log meal grouping", () => {
     expect(body).toMatch(/Grilled Chicken · Worcester/);
   });
 
+  it("shows the serving count in the item line when it isn't 1 (canvas format: \"<dish> × <qty> · <hall>\")", async () => {
+    const twoServings: LogEntry = {
+      id: "1",
+      loggedAt: "2026-08-19T07:00:00.000",
+      source: { type: "umass-menu", dishName: "French Toast", hallTid: 3 },
+      servings: 2,
+      nutrition: NUTRITION,
+    };
+    logMock.getAllEntries.mockResolvedValue([twoServings]);
+
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/French Toast × 2 · Hampshire/);
+  });
+
   it("renders the ALL LOGS link, and tapping it navigates to /logs without throwing", async () => {
     logMock.getAllEntries.mockResolvedValue([logEntry("1", "French Toast", 3, "2026-08-19T07:00:00.000")]);
 
