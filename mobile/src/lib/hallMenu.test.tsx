@@ -52,8 +52,11 @@ jest.mock("@udine/shared", () => ({
 // *underlying* seenDishesStorage singleton, not the wrapper itself, so the real
 // fetchMenuAndRecordSeen wiring actually runs end-to-end -- a test that mocked the wrapper away
 // would pass even if the screen still called fetchMenu directly.
+// recordSeen must resolve, not return undefined -- the wrapper does
+// `.catch(() => {})` on its return value (PR #123 review), which throws on a bare jest.fn()'s
+// undefined return.
 jest.mock("./seenDishesStorage", () => ({
-  SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ recordSeen: jest.fn() })),
+  SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ recordSeen: jest.fn().mockResolvedValue(undefined) })),
 }));
 
 import renderer, { act } from "react-test-renderer";
@@ -185,6 +188,19 @@ describe("HallMenuScreen seen-dish tracking (#107)", () => {
     const [hallTid, dishNames] = mockRecordSeen!.mock.calls[0];
     expect(hallTid).toBe(PIZZA.hallTid);
     expect(dishNames.sort()).toEqual(["Pizza", "Salad"]);
+  });
+
+  // PR #123 review: recordSeen used to be awaited on the menu-render critical path, so a rejecting
+  // write (SQLITE_BUSY, full disk) replaced the whole SectionList with an error banner. Now
+  // fire-and-forget -- the menu must render in full regardless of what recordSeen does.
+  it("still renders the full menu when recordSeen rejects", async () => {
+    const mockRecordSeen = recordSeenMock();
+    mockRecordSeen?.mockRejectedValueOnce(new Error("database is locked"));
+
+    const root = await renderScreen([PIZZA, SALAD]);
+
+    expect(root.root.findAllByType(SectionList)).toHaveLength(1);
+    expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load menu/);
   });
 });
 
