@@ -46,8 +46,13 @@ jest.mock("react-native-safe-area-context", () => ({
 // (i.e. once per `[session]` dependency change: once as a no-op before session loads, once for
 // real once it does) is a closer approximation of the real hook and avoids that.
 const mockSeenFocusCallbacks = new WeakSet<() => void>();
+// router: SocialPane's avatar tap-to-profile (#94) calls the top-level `router.push` singleton
+// directly (same import shape as app/index.tsx), not the useRouter() hook -- exported flat here
+// too, same treatment as Link/useFocusEffect below.
+const mockRouterPush = jest.fn();
 jest.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
+  router: { push: (...args: unknown[]) => mockRouterPush(...args) },
   useFocusEffect: (callback: () => void) => {
     if (mockSeenFocusCallbacks.has(callback)) return;
     mockSeenFocusCallbacks.add(callback);
@@ -262,6 +267,37 @@ describe("SocialPane", () => {
       expect(mockFrom).not.toHaveBeenCalledWith("pings");
       // Bubble closes back to idle.
       expect(texts(root)).not.toMatch(new RegExp(PING_MESSAGES.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("#94: a quick tap (release before LONG_PRESS_MS, no movement) navigates to that friend's profile instead of sending a ping", async () => {
+    jest.useFakeTimers();
+    try {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "friendships") return queryResult([{ user_a: "me", user_b: "friend-1" }]);
+        if (table === "profiles") return queryResult([{ user_id: "friend-1", display_name: "Alex" }]);
+        return queryResult([]);
+      });
+
+      const root = await renderSocialPane();
+      const avatarViews = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function");
+      const { onResponderGrant, onResponderRelease } = avatarViews[0].props;
+
+      act(() => {
+        onResponderGrant(fakeTouchEvent(10, 10, 1));
+      });
+      // Release immediately -- well under LONG_PRESS_MS, so HOLD_START never fired and the gesture
+      // never entered "holding". Same page coordinates as the grant, so dx/dy is 0 (a tap, not a
+      // drag that happened to release quickly).
+      act(() => {
+        onResponderRelease(fakeTouchEvent(10, 10, 2));
+      });
+
+      expect(mockRouterPush).toHaveBeenCalledWith("/friend/friend-1");
+      expect(mockFrom).not.toHaveBeenCalledWith("pings");
     } finally {
       jest.useRealTimers();
     }
