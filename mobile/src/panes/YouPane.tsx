@@ -27,7 +27,7 @@ import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
-import { buildTopFoods, displayCompletionPct, groupEntriesByMeal } from "../lib/youPaneFormat";
+import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal } from "../lib/youPaneFormat";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -50,15 +50,14 @@ function logItemLine(entry: LogEntry): string {
   return `${name}${qty}${hall}`;
 }
 
-/** #119's Logs & stats screen hasn't shipped yet -- guarded so tapping ALL LOGS on a build without
- * it doesn't crash (expo-router's own not-found screen would otherwise be the only thing catching
- * an unmatched route; the try/catch is defensive belt-and-suspenders on top of that). */
+/** #119's Logs & stats screen hasn't shipped yet -- `/logs` doesn't match a route until it does.
+ * expo-router doesn't throw for an unmatched push (it renders its own `+not-found` screen), so no
+ * try/catch here: review caught that the earlier version's catch was a real-error suppressor, not
+ * a crash guard -- it's what silently swallowed a genuine `jest.mock` hoisting bug during
+ * development. `as Href` stays: `app.json`'s `experiments.typedRoutes` rejects an unknown route at
+ * compile time until #119 adds `app/logs.tsx`. */
 function goToAllLogs() {
-  try {
-    router.push("/logs" as Href);
-  } catch {
-    // no-op -- see doc comment above.
-  }
+  router.push("/logs" as Href);
 }
 
 /** One completion bar inside the shared card — gold fill for the top (first) hall, maroon for the
@@ -203,7 +202,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
                   {group.entries.map((entry) => (
                     <View key={entry.id} style={styles.mealItemRow}>
                       <Text style={styles.mealItemName}>{logItemLine(entry)}</Text>
-                      <Text style={styles.mealItemCalories}>{Math.round(entry.nutrition.calories * entry.servings)}</Text>
+                      <Text style={styles.mealItemCalories}>{entryCalories(entry)}</Text>
                     </View>
                   ))}
                 </View>

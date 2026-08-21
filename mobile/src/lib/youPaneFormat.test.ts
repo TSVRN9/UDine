@@ -232,6 +232,21 @@ describe("groupEntriesByMeal", () => {
     expect(breakfast.entries.map((e) => e.id)).toEqual(["first", "second"]);
   });
 
+  it("groups a pre-5AM entry into Late Night alongside a same-day evening entry (cross-midnight, review nit 4)", () => {
+    // 12:30 AM and 10:00 PM on the same calendar day -- both Late Night by mealPeriodForTime's
+    // wrap, and both land on THIS day's Today's Log (the caller's isoDateOf/todayIso filter decides
+    // which day's card an entry appears on; groupEntriesByMeal only decides which meal bucket
+    // within that card -- see the doc comment above MEAL_BOUNDARIES).
+    const entries = [
+      mealEntry("late-night-early", "2026-08-20T00:30:00.000", 150),
+      mealEntry("late-night-evening", "2026-08-20T22:00:00.000", 150),
+    ];
+    const groups = groupEntriesByMeal(entries);
+    expect(groups.map((g) => g.period)).toEqual(["latenight"]);
+    expect(groups[0].entries.map((e) => e.id)).toEqual(["late-night-early", "late-night-evening"]);
+    expect(groups[0].totalCalories).toBe(300);
+  });
+
   it("sums a group's PER-ENTRY rounded calories, not the group's raw total rounded once (reachable via fractional-calorie OpenFoodFacts entries)", () => {
     // Two 50.5-cal entries in the SAME group -- UMass menu calories are always whole numbers, but
     // OpenFoodFacts-sourced "off" entries aren't (e.g. energy-kcal_serving: 50.5). Round-each-then-

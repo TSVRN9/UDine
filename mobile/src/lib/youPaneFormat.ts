@@ -87,8 +87,11 @@ const MEAL_LABELS: Record<MealPeriod, string> = {
  * the next morning), so every entry falls inside exactly one enclosing period by construction --
  * satisfying the issue's "outside any window falls to the nearest/enclosing period" ask without a
  * separate fallback branch. Sorted ascending; the last boundary <= the entry's minute-of-day wins,
- * with "latenight" as the default for minutes before breakfast's 5:00 AM start (still last night's
- * window, per the crossesMidnight wrap).
+ * with "latenight" as the default for minutes before breakfast's 5:00 AM start (the crossesMidnight
+ * wrap). NOTE: this only decides which MEAL GROUP a 12:30 AM entry lands in (Late Night); which
+ * DAY's card it renders on is a separate decision made upstream by the caller's own
+ * `isoDateOf(loggedAt) === todayIso()` filter -- so a 12:30 AM entry shows in *today's* Today's Log,
+ * grouped under Late Night alongside tonight's later entries, not "yesterday's" card.
  */
 const MEAL_BOUNDARIES: { period: MealPeriod; startMinutes: number }[] = [
   { period: "breakfast", startMinutes: 5 * 60 }, // 5:00 AM
@@ -110,6 +113,16 @@ export function mealPeriodForTime(loggedAt: string): MealPeriod {
     if (minutes >= b.startMinutes) period = b.period;
   }
   return period;
+}
+
+/** The one rounding definition for "this entry's calories, as displayed" -- used by both the item
+ * row and the group subtotal (and, transitively, the stat card total derived from group subtotals
+ * in YouPane.tsx) so the three render seams can't drift out of agreement with each other. Review
+ * finding on #118's PR: writing `Math.round(calories * servings)` out twice (once here, once
+ * inline in YouPane.tsx) left that agreement untested and unenforced -- a future edit to one site
+ * and not the other would silently break the reconciliation this PR exists to guarantee. */
+export function entryCalories(entry: LogEntry): number {
+  return Math.round(entry.nutrition.calories * entry.servings);
 }
 
 export interface MealLogGroup {
@@ -148,7 +161,7 @@ export function groupEntriesByMeal(entries: LogEntry[]): MealLogGroup[] {
   }
   return MEAL_ORDER.filter((period) => byPeriod.has(period)).map((period) => {
     const groupEntries = byPeriod.get(period)!;
-    const totalCalories = groupEntries.reduce((sum, e) => sum + Math.round(e.nutrition.calories * e.servings), 0);
+    const totalCalories = groupEntries.reduce((sum, e) => sum + entryCalories(e), 0);
     return { period, label: MEAL_LABELS[period], entries: groupEntries, totalCalories };
   });
 }
