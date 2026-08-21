@@ -282,7 +282,7 @@ export default function HallMenuScreen() {
       ) : !items ? (
         <ActivityIndicator style={styles.loading} color={colors.maroon600} />
       ) : sections.length === 0 ? (
-        <EmptyState title="No matching dishes" message={`No menu matches your filters at ${hall.name} today.`} />
+        <EmptyState title="No matching dishes" message={`No ${mealTabLabel(selectedMeal).toLowerCase()} menu matches your filters at ${hall.name} today.`} />
       ) : (
         <SectionList
           sections={sections}
