@@ -34,6 +34,7 @@ jest.mock("expo-router", () => ({
   // focus-effect callback would resolve to (empty favorites, default prefs), so nothing here needs
   // to actually fire it for these findings.
   useFocusEffect: (_callback: () => void) => {},
+  router: { back: jest.fn(), push: jest.fn() },
 }));
 
 // PlateBar reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
@@ -45,6 +46,10 @@ jest.mock("react-native-safe-area-context", () => ({
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),
+  // #117: real fetchDiningHours hits the network; a resolved-empty default keeps the screen's
+  // hours effect from throwing (calling .then on an unmocked jest.fn()'s undefined return) while
+  // individual tests can still override with mockResolvedValueOnce for subtitle-specific cases.
+  fetchDiningHours: jest.fn().mockResolvedValue({ halls: [], retail: [] }),
 }));
 
 // #107: the screen must route its menu fetch through menuFetchWithSeenTracking.ts (not call
@@ -61,14 +66,17 @@ jest.mock("./seenDishesStorage", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { Text, SectionList } from "react-native";
-import { fetchMenu, type MenuItem } from "@udine/shared";
+import { router } from "expo-router";
+import { fetchDiningHours, fetchMenu, type MenuItem } from "@udine/shared";
 import HallMenuScreen from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
+import { stepDate } from "./hallMenuTabs";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
+const mockedRouterPush = router.push as jest.Mock;
 // menuFetchWithSeenTracking.ts instantiates SqliteSeenDishesStorage eagerly at module scope, but
 // only if something actually imports that wrapper -- until #107's wiring lands, the screen doesn't,
 // so the constructor never runs and `.mock.results` is empty. Read this lazily (inside the test,
@@ -120,6 +128,17 @@ const SALAD: MenuItem = {
   hallTid: 1,
   date: "2026-08-19",
   nutrition: nutrition(80),
+  allergens: [],
+  dietTags: ["Halal", "Gluten-Free"],
+};
+
+const OATMEAL: MenuItem = {
+  dishName: "Oatmeal",
+  category: "Breakfast Entrees",
+  mealPeriod: "breakfast",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(150),
   allergens: [],
   dietTags: [],
 };
@@ -201,6 +220,104 @@ describe("HallMenuScreen seen-dish tracking (#107)", () => {
 
     expect(root.root.findAllByType(SectionList)).toHaveLength(1);
     expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load menu/);
+  });
+});
+
+describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () => {
+  it("defaults to the Lunch tab -- lunch items show, other meal periods' items don't", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Pizza/);
+    expect(body).not.toMatch(/Oatmeal/);
+  });
+
+  it("switching to the Breakfast tab shows breakfast items and hides the previously-shown lunch items", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Breakfast menu" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Oatmeal/);
+    expect(body).not.toMatch(/Pizza/);
+  });
+
+  it("steps the date forward by exactly one calendar day and refetches the menu for it", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    // mockedFetchMenu is a module-level mock shared across this whole file's tests, never reset --
+    // index off "the call count so far", not a fixed index, so this doesn't depend on test order.
+    const callsBefore = mockedFetchMenu.mock.calls.length;
+    const [, initialDate] = mockedFetchMenu.mock.calls[callsBefore - 1];
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    expect(mockedFetchMenu.mock.calls.length).toBe(callsBefore + 1);
+    const [, steppedDate] = mockedFetchMenu.mock.calls[callsBefore];
+    expect(steppedDate.getTime()).toBe(stepDate(initialDate, 1).getTime());
+  });
+
+  it("navigates to the hall's Grab 'N Go route when its tab is pressed", async () => {
+    const root = await renderScreen([PIZZA]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+    expect(mockedRouterPush).toHaveBeenCalledWith("/grab-n-go/worcester");
+  });
+});
+
+describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info button)", () => {
+  it("doesn't show serving/macro detail or the nutrition-label link until a card is tapped", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    expect(texts(root).flat().join(" ")).not.toMatch(/FULL NUTRITION LABEL/);
+  });
+
+  it("tapping a collapsed card expands it in place: serving summary, diet chips, and the nutrition-label link all appear", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Per serving 1 each/);
+    expect(body).toMatch(/HALAL/);
+    expect(body).toMatch(/GLUTEN-FREE/);
+    expect(body).toMatch(/FULL NUTRITION LABEL/);
+  });
+
+  it("tapping an already-expanded card collapses it again", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Collapse Salad" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/FULL NUTRITION LABEL/);
+  });
+
+  it("opens the full NutritionLabel modal (existing label screen) from the expanded card's link", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Full nutrition label for Salad" }).props.onPress();
+    });
+    // The modal's subtitle ("<hall> · <category>") only comes from NutritionLabel actually mounting
+    // with this dish -- a more specific signal than "Salad" text alone, which the row already shows.
+    expect(texts(root).flat()).toContain("Worcester · Entrees");
+  });
+});
+
+describe("HallMenuScreen tab-row subtitle wiring (#117)", () => {
+  it("shows 'being served now' once the fetched hours confirm the selected tab is what's serving right now", async () => {
+    (fetchDiningHours as jest.Mock).mockResolvedValueOnce({
+      halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "12:00 AM", closeTime: "11:59 PM" }, dinner: null, latenight: null, general: null }],
+      retail: [],
+    });
+    const root = await renderScreen([PIZZA]);
+    await act(async () => {}); // flush fetchDiningHours' resolution
+    expect(texts(root).flat().join(" ")).toMatch(/being served now/);
   });
 });
 
