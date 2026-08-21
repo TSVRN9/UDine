@@ -1,6 +1,5 @@
 import {
   computeDailyTotals,
-  DINING_HALLS,
   exportEntriesAsCsv,
   exportEntriesAsJson,
   hallCompletion,
@@ -14,7 +13,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import { Link, router, useFocusEffect, type Href } from "expo-router";
+import { Link, router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,7 +26,7 @@ import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
-import { buildTopFoods, displayCompletionPct, groupEntriesByMeal } from "../lib/youPaneFormat";
+import { buildTopFoods, displayCompletionPct, groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -37,28 +36,10 @@ const seenDishesStorage = new SqliteSeenDishesStorage();
 // rendering every food that ever cleared the scoring gate.
 const TOP_FOODS_LIMIT = 5;
 
-function hallName(hallTid: number): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-}
-
-/** Single-line item text per the canvas: "<dish> × <qty> · <hall>", qty omitted when it's 1, hall
- * omitted for off-menu (barcode) entries that don't have one. */
-function logItemLine(entry: LogEntry): string {
-  const name = entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
-  const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
-  const hall = entry.source.type === "umass-menu" ? ` · ${hallName(entry.source.hallTid)}` : "";
-  return `${name}${qty}${hall}`;
-}
-
-/** #119's Logs & stats screen hasn't shipped yet -- guarded so tapping ALL LOGS on a build without
- * it doesn't crash (expo-router's own not-found screen would otherwise be the only thing catching
- * an unmatched route; the try/catch is defensive belt-and-suspenders on top of that). */
+/** #119 has shipped `app/logs.tsx` -- no more `as Href` cast / try-catch guard against a route that
+ * didn't exist yet (see #128's PR body, which flagged this as the intended follow-up cleanup). */
 function goToAllLogs() {
-  try {
-    router.push("/logs" as Href);
-  } catch {
-    // no-op -- see doc comment above.
-  }
+  router.push("/logs");
 }
 
 /** One completion bar inside the shared card — gold fill for the top (first) hall, maroon for the
