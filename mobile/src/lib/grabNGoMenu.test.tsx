@@ -124,3 +124,20 @@ it("the date stepper's next-day button advances the fetched date by one day", as
   const secondCallDate = mockedFetchMenu.mock.calls[mockedFetchMenu.mock.calls.length - 1][1] as Date;
   expect(secondCallDate.getTime() - firstCallDate.getTime()).toBe(24 * 60 * 60 * 1000);
 });
+
+it("clears a previous date's fetch error once a later date's fetch succeeds, instead of pinning the error screen", async () => {
+  mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
+  let root!: renderer.ReactTestRenderer;
+  await act(async () => {
+    root = renderer.create(<GrabNGoScreen />);
+  });
+  expect(texts(root).flat().join(" ")).toMatch(/Failed to load menu:.*network down/);
+
+  mockedFetchMenu.mockResolvedValueOnce([item("Chicken Wrap", "Grab n'Go Hot ", "lunch")]);
+  await act(async () => {
+    root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+  });
+
+  expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load menu/);
+  expect(texts(root).flat().join(" ")).toMatch(/Chicken Wrap/);
+});

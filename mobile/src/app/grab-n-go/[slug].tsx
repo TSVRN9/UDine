@@ -112,6 +112,7 @@ export default function GrabNGoScreen() {
   useEffect(() => {
     if (!gngTid) return;
     setItems(null);
+    setError(null); // clear a previous date's fetch failure -- else it pins the error screen across every later date step
     fetchMenu(gngTid, date)
       .then(setItems)
       .catch((e) => setError(String(e)));

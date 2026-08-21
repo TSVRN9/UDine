@@ -160,6 +160,31 @@ test("rankDiningHalls with no rated dishes returns all halls unranked", () => {
   assert.equal(unranked.length, DINING_HALLS.length);
 });
 
+// #115: Grab 'N Go locations have their own tid (e.g. 10715), distinct from the 4 DINING_HALLS,
+// but log entries for dishes eaten there carry that tid through distinctLoggedDishes into the same
+// RankedDish pool the rank screen compares -- so a user who ranks 2+ Grab 'N Go dishes could
+// otherwise produce a `ranked` entry for hallTid 10715. Only `ranked` gets synced to the server as
+// a "favorite dining hall" (see this function's doc comment + CLAUDE.md's data-residency table) --
+// a non-hall location id in that sync payload is exactly the kind of thing downstream code (which
+// assumes every favorite-hall row maps to one of the 4 DINING_HALLS) isn't built to handle.
+test("rankDiningHalls never ranks or unranks a dish's hallTid that isn't one of the 4 DINING_HALLS (e.g. a Grab 'N Go location)", () => {
+  const dishes: RankedDish[] = [
+    { dishName: "GNG1", hallTid: 10715, rating: 2000, comparisonCount: 1 },
+    { dishName: "GNG2", hallTid: 10715, rating: 2000, comparisonCount: 1 },
+    { dishName: "B1", hallTid: 2, rating: 1500, comparisonCount: 1 },
+    { dishName: "B2", hallTid: 2, rating: 1500, comparisonCount: 1 },
+  ];
+  const { ranked, unranked } = rankDiningHalls(dishes);
+  assert.deepEqual(
+    ranked.map((r) => r.hallTid),
+    [2],
+  );
+  assert.deepEqual(
+    unranked.map((u) => u.hallTid).sort((a, b) => a - b),
+    [1, 3, 4],
+  );
+});
+
 test("applyFoodComparison is a no-op when winner and loser share a dishName (same dish, different halls)", () => {
   const before: RankedFood[] = [{ dishName: "Chicken", rating: 1500, comparisonCount: 3 }];
   const after = applyFoodComparison(before, { dishName: "Chicken" }, { dishName: "Chicken" });
