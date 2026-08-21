@@ -1,6 +1,6 @@
 import { DINING_HALLS, fetchEvents, type DiningEvent } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
-import { Link, useFocusEffect } from "expo-router";
+import { Link, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -44,6 +44,12 @@ const LONG_PRESS_MS = 350;
 // Cycled per avatar index -- the Social artboard varies each friend's fill so the row doesn't read
 // as one flat block of maroon.
 const AVATAR_FILLS = [colors.maroon600, colors.maroon900] as const;
+
+// #94: a release that never entered "holding" (the HOLD_START timer didn't fire) and barely moved
+// is a tap, not an abandoned drag/scroll attempt -- navigate to that friend's profile. Anything
+// that moved further than this before releasing is left alone (does nothing, same as before #94),
+// so a scroll gesture that happens to start on an avatar doesn't get misread as "tap -> navigate".
+const TAP_MOVE_THRESHOLD = 10;
 
 function otherUserId(f: Friendship, myId: string): string {
   return f.user_a === myId ? f.user_b : f.user_a;
@@ -222,11 +228,17 @@ export function SocialPane({ activeIndex }: { activeIndex: number }) {
         const rects = Array.from(hallRectsRef.current.entries()).map(([hallTid, rect]) => ({ hallTid, rect }));
         dispatch({ type: "HOVER", hallTid: hallAtPoint({ x: gestureState.moveX, y: gestureState.moveY }, rects) });
       },
-      onPanResponderRelease: () => {
+      onPanResponderRelease: (_e: GestureResponderEvent, gestureState: PanResponderGestureState) => {
         clearHoldTimer(friendId);
+        const wasHolding = gestureRef.current.phase === "holding";
         const payload = buildPingPayload(gestureRef.current);
         dispatch({ type: "RELEASE" });
-        if (payload) sendPing(payload);
+        if (payload) {
+          sendPing(payload);
+        } else if (!wasHolding && Math.abs(gestureState.dx) < TAP_MOVE_THRESHOLD && Math.abs(gestureState.dy) < TAP_MOVE_THRESHOLD) {
+          // #94: tap (not hold-and-release) an avatar -> that friend's shared-stats profile.
+          router.push(`/friend/${friendId}`);
+        }
       },
       onPanResponderTerminate: () => {
         clearHoldTimer(friendId);

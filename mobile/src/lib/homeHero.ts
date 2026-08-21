@@ -74,7 +74,9 @@ export function deriveHomeHero(halls: DiningHallHours[], now: Date): HomeHero {
   return { kind: "closed", opensAt };
 }
 
-function formatTime(date: Date): string {
+// Exported so grabStrip.ts (Home split-card Grab 'N Go strip, #116) can reuse the exact same
+// H:MM AM/PM formatting instead of a second implementation.
+export function formatTime(date: Date): string {
   let hour = date.getHours();
   const minute = date.getMinutes();
   const suffix = hour >= 12 ? "PM" : "AM";
@@ -136,4 +138,13 @@ export function formatLocationChip(status: OpenStatus): { open: boolean; text: s
   if (status.open) return { open: true, text: `OPEN · closes ${formatTime(status.closesAt)}` };
   if (status.opensAt) return { open: false, text: `CLOSED · opens ${formatTime(status.opensAt)}` };
   return { open: false, text: "CLOSED" };
+}
+
+/** Grab 'N Go screen header subtitle (#115 canvas spec: "open now · until 7:00 PM") — same status
+ * shape as formatLocationChip but lowercase sentence-style text for a header subtitle line, not a
+ * chip. */
+export function retailHeaderSubtitle(status: OpenStatus): string {
+  if (status.open) return `open now · until ${formatTime(status.closesAt)}`;
+  if (status.opensAt) return `closed · opens ${formatTime(status.opensAt)}`;
+  return "closed today";
 }

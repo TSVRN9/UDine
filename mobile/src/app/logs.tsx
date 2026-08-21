@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, EmptyState, SectionHeader } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
-import { groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
+import { entryCalories, groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
 import { buildFunStats, buildWeekChart, buildWeekStrip, formatLogTime, type WeekDayChip } from "../lib/logsFormat";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 
@@ -51,7 +51,7 @@ function LogItemRow({ entry, onPress }: { entry: LogEntry; onPress: () => void }
   return (
     <Pressable style={styles.mealItemRow} onPress={onPress} accessibilityRole="button" accessibilityLabel={`Edit ${logItemLine(entry)}`}>
       <Text style={styles.mealItemName}>{logItemLine(entry)}</Text>
-      <Text style={styles.mealItemCalories}>{Math.round(entry.nutrition.calories * entry.servings)}</Text>
+      <Text style={styles.mealItemCalories}>{entryCalories(entry)}</Text>
     </Pressable>
   );
 }

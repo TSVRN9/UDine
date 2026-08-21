@@ -263,21 +263,46 @@ describe("groupEntriesByMeal", () => {
     expect(breakfast.entries.map((e) => e.id)).toEqual(["first", "second"]);
   });
 
-  it("reconciles exactly with the sum of ALL entries' rounded calories, even split across groups with fractional per-entry calories", () => {
-    // Reachable via an OpenFoodFacts-sourced "off" entry (e.g. energy-kcal_serving: 100.5) --
-    // UMass menu calories are always whole numbers, but barcode-lookup ones aren't. Two 100.5-cal
-    // entries in DIFFERENT meal groups: round-each-then-sum (what this function does) gives
-    // 101 + 101 = 202. The naive alternative -- sum the raw floats once, then round -- would give
-    // Math.round(201.0) = 201, a real 1-calorie disagreement against the stat card if the stat
-    // card used that approach instead (issue #118's "must agree with the day totals" ask).
+  it("groups a pre-5AM entry into Late Night alongside a same-day evening entry (cross-midnight, review nit 4)", () => {
+    // 12:30 AM and 10:00 PM on the same calendar day -- both Late Night by mealPeriodForTime's
+    // wrap, and both land on THIS day's Today's Log (the caller's isoDateOf/todayIso filter decides
+    // which day's card an entry appears on; groupEntriesByMeal only decides which meal bucket
+    // within that card -- see the doc comment above MEAL_BOUNDARIES).
+    const entries = [
+      mealEntry("late-night-early", "2026-08-20T00:30:00.000", 150),
+      mealEntry("late-night-evening", "2026-08-20T22:00:00.000", 150),
+    ];
+    const groups = groupEntriesByMeal(entries);
+    expect(groups.map((g) => g.period)).toEqual(["latenight"]);
+    expect(groups[0].entries.map((e) => e.id)).toEqual(["late-night-early", "late-night-evening"]);
+    expect(groups[0].totalCalories).toBe(300);
+  });
+
+  it("sums a group's PER-ENTRY rounded calories, not the group's raw total rounded once (reachable via fractional-calorie OpenFoodFacts entries)", () => {
+    // Two 50.5-cal entries in the SAME group -- UMass menu calories are always whole numbers, but
+    // OpenFoodFacts-sourced "off" entries aren't (e.g. energy-kcal_serving: 50.5). Round-each-then-
+    // sum (what this function does) gives round(50.5) + round(50.5) = 51 + 51 = 102. The naive
+    // alternative -- sum the raw floats once, then round -- gives Math.round(50.5 + 50.5) =
+    // Math.round(101.0) = 101, a real 1-calorie disagreement. This is what makes summing every
+    // group's totalCalories always reconcile with an entrywise-rounded day total (issue #118's
+    // "group subtotals must agree with the day totals" ask): integer addition of already-rounded
+    // per-entry values is exactly associative, however entries are split into groups.
+    const entries = [
+      mealEntry("a", "2026-08-20T07:00:00.000", 50.5),
+      mealEntry("b", "2026-08-20T07:30:00.000", 50.5),
+    ];
+    const [breakfast] = groupEntriesByMeal(entries);
+    expect(breakfast.totalCalories).toBe(102);
+    expect(breakfast.totalCalories).not.toBe(Math.round(50.5 + 50.5)); // the naive round-once total (101)
+  });
+
+  it("reconciles exactly with the sum of ALL entries' rounded calories, even split across DIFFERENT groups", () => {
     const entries = [
       mealEntry("breakfast-1", "2026-08-20T07:00:00.000", 100.5),
       mealEntry("dinner-1", "2026-08-20T18:00:00.000", 100.5),
     ];
     const groups = groupEntriesByMeal(entries);
-    expect(groups.map((g) => g.totalCalories)).toEqual([101, 101]);
     const displayedTotal = groups.reduce((sum, g) => sum + g.totalCalories, 0);
-    expect(displayedTotal).toBe(202);
-    expect(displayedTotal).not.toBe(Math.round(100.5 + 100.5)); // the naive round-once total (201)
+    expect(displayedTotal).toBe(202); // round(100.5) + round(100.5), same as YouPane's stat card sum
   });
 });

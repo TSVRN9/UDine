@@ -124,8 +124,16 @@ export interface DiningHallRank {
  * enough to sync to the server (see RankingStorage doc comment) — an unranked hall has no real signal.
  */
 export function rankDiningHalls(dishes: RankedDish[]): { ranked: DiningHallRank[]; unranked: { hallTid: number }[] } {
+  // Only the 4 DINING_HALLS are ever ranked/unranked here -- a RankedDish's hallTid can be anything
+  // a screen fed it (e.g. a Grab 'N Go location's own tid, #115), but `ranked` is the one
+  // ranking-derived thing synced to the server as a "favorite dining hall" (see this function's own
+  // doc comment + CLAUDE.md's data-residency table), and every downstream consumer of that sync
+  // assumes the tid maps to one of the 4 halls. Filter here, once, rather than at every caller that
+  // builds a RankedDish[] from log/menu data.
+  const hallTids = new Set(DINING_HALLS.map((h) => h.tid));
   const byHall = new Map<number, number[]>();
   for (const dish of dishes) {
+    if (!hallTids.has(dish.hallTid)) continue;
     const ratings = byHall.get(dish.hallTid) ?? [];
     ratings.push(dish.rating);
     byHall.set(dish.hallTid, ratings);

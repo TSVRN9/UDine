@@ -1,5 +1,5 @@
 import { isoDateOf, type LogEntry } from "@udine/shared";
-import { groupEntriesByMeal, type MealPeriod } from "./youPaneFormat";
+import { entryCalories, groupEntriesByMeal, type MealPeriod } from "./youPaneFormat";
 
 /** "8:40 AM" -- reintroduced here from #118 (You pane no longer needs a per-entry time now that
  * the log is meal-grouped, but the Logs screen's edit-state row shows one, e.g. "Hampshire · 8:40
@@ -101,7 +101,7 @@ export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDa
   const dateSet = new Set(dates);
   const days = dates.map((date) => {
     const dayEntries = entries.filter((e) => isoDateOf(e.loggedAt) === date);
-    const calories = dayEntries.reduce((sum, e) => sum + Math.round(e.nutrition.calories * e.servings), 0);
+    const calories = dayEntries.reduce((sum, e) => sum + entryCalories(e), 0);
     return { date, calories, isToday: date === todayIso, isSelected: date === selectedDate };
   });
   const totalCalories = days.reduce((sum, d) => sum + d.calories, 0);

@@ -39,16 +39,19 @@ export default function RootLayout() {
         contentStyle: { backgroundColor: colors.cream100 },
       }}
     >
-      {/* index (the 3-pane shell), halls/[slug], and logs draw their own canvas-style headers. */}
+      {/* index (the 3-pane shell), halls/[slug], grab-n-go/[slug], and logs draw their own canvas-style headers. */}
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="redirect" options={{ headerShown: false, animation: "none" }} />
       <Stack.Screen name="halls/[slug]" options={{ headerShown: false }} />
+      <Stack.Screen name="grab-n-go/[slug]" options={{ headerShown: false }} />
       <Stack.Screen name="logs" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
       <Stack.Screen name="filters" options={{ title: "Dietary Filters" }} />
       <Stack.Screen name="favorites" options={{ title: "Favorites" }} />
       <Stack.Screen name="rank" options={{ title: "Rank Dishes" }} />
       <Stack.Screen name="friends" options={{ title: "Friends" }} />
+      <Stack.Screen name="privacy" options={{ title: "Privacy" }} />
+      <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
       <Stack.Screen name="events" options={{ title: "Events" }} />
       <Stack.Screen name="press" options={{ title: "Press" }} />

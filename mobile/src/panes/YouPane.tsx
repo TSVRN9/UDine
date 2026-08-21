@@ -26,7 +26,7 @@ import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
-import { buildTopFoods, displayCompletionPct, groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
+import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -36,8 +36,14 @@ const seenDishesStorage = new SqliteSeenDishesStorage();
 // rendering every food that ever cleared the scoring gate.
 const TOP_FOODS_LIMIT = 5;
 
-/** #119 has shipped `app/logs.tsx` -- no more `as Href` cast / try-catch guard against a route that
- * didn't exist yet (see #128's PR body, which flagged this as the intended follow-up cleanup). */
+// hallName/logItemLine now live in youPaneFormat.ts (imported above) -- #119's Logs & stats screen
+// reuses the exact same collapsed-row text instead of re-deriving it.
+
+/** #119 has shipped `app/logs.tsx`, so `/logs` is now a real route: no more `as Href` cast (needed
+ * only while `experiments.typedRoutes` couldn't yet see the file) and no try/catch (review on
+ * #128 found the earlier catch was a real-error suppressor, not a crash guard for an unmatched
+ * route -- expo-router doesn't throw on an unmatched push anyway, it renders its own
+ * `+not-found` screen). */
 function goToAllLogs() {
   router.push("/logs");
 }
@@ -184,7 +190,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
                   {group.entries.map((entry) => (
                     <View key={entry.id} style={styles.mealItemRow}>
                       <Text style={styles.mealItemName}>{logItemLine(entry)}</Text>
-                      <Text style={styles.mealItemCalories}>{Math.round(entry.nutrition.calories * entry.servings)}</Text>
+                      <Text style={styles.mealItemCalories}>{entryCalories(entry)}</Text>
                     </View>
                   ))}
                 </View>
@@ -255,6 +261,14 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
           <Pressable>
             <Card style={styles.friendsRow}>
               <Text style={styles.friendsText}>Friends</Text>
+              <Text style={styles.friendsChevron}>›</Text>
+            </Card>
+          </Pressable>
+        </Link>
+        <Link href="/privacy" asChild>
+          <Pressable>
+            <Card style={styles.friendsRow}>
+              <Text style={styles.friendsText}>Privacy</Text>
               <Text style={styles.friendsChevron}>›</Text>
             </Card>
           </Pressable>

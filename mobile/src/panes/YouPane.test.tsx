@@ -288,7 +288,7 @@ describe("YouPane Today's Log meal grouping", () => {
     expect(body).toMatch(/French Toast × 2 · Hampshire/);
   });
 
-  it("renders the ALL LOGS link, and tapping it navigates to /logs without throwing", async () => {
+  it("renders the ALL LOGS link, and tapping it navigates to /logs", async () => {
     logMock.getAllEntries.mockResolvedValue([logEntry("1", "French Toast", 3, "2026-08-19T07:00:00.000")]);
 
     const root = await renderYouPane();
@@ -296,7 +296,44 @@ describe("YouPane Today's Log meal grouping", () => {
     expect(body).toMatch(/ALL LOGS/);
 
     const allLogsPressable = root.root.findAll((node) => typeof node.props.onPress === "function" && textsOf(node).includes("ALL LOGS"))[0];
-    expect(() => allLogsPressable.props.onPress()).not.toThrow();
+    allLogsPressable.props.onPress();
     expect(mockRouterPush).toHaveBeenCalledWith("/logs");
+  });
+
+  it("ties the rendered Calories stat to the SUM OF RENDERED group subtotals (read off the actual output, not recomputed) with a fractional-calorie fixture", async () => {
+    // Review finding on this PR: the 500/500 fixture can't discriminate a stat-card/group-subtotal
+    // desync because a single-entry-per-group Math.round is the same whether you round once or
+    // round-per-entry-then-sum. 50.5 cal entries force real rounding, and this test reads the
+    // Calories stat and each meal-group header STRAIGHT OFF THE RENDER TREE (not by calling
+    // groupEntriesByMeal again), so it fails if the two render seams (YouPane.tsx's `displayedCalories`
+    // reduce vs. each group's own header) ever disagree -- which a pure-function test checking
+    // groupEntriesByMeal against itself structurally cannot catch.
+    const fractionalEntry = (id: string, loggedAt: string): LogEntry => ({
+      id,
+      loggedAt,
+      source: { type: "umass-menu", dishName: id, hallTid: 1 },
+      servings: 1,
+      nutrition: { ...NUTRITION, calories: 50.5 },
+    });
+    logMock.getAllEntries.mockResolvedValue([
+      fractionalEntry("a", "2026-08-19T07:00:00.000"), // breakfast
+      fractionalEntry("b", "2026-08-19T18:00:00.000"), // dinner
+    ]);
+
+    const root = await renderYouPane();
+
+    const subtotalTexts = root.root
+      .findAllByType(Text)
+      .map((n) => textsOf(n))
+      .filter((t) => /^\d+\s+cal$/.test(t.trim()));
+    expect(subtotalTexts.length).toBe(2); // one per meal group (breakfast, dinner)
+    const renderedSubtotalSum = subtotalTexts.reduce((sum, t) => sum + Number(t.trim().replace(/\s+cal$/, "")), 0);
+
+    const calorieStatMatch = /Calories (\d+)/.exec(texts(root));
+    expect(calorieStatMatch).not.toBeNull();
+    const renderedCalorieStat = Number(calorieStatMatch![1]);
+
+    expect(renderedCalorieStat).toBe(renderedSubtotalSum);
+    expect(renderedCalorieStat).toBe(102); // round(50.5) + round(50.5) = 51 + 51
   });
 });

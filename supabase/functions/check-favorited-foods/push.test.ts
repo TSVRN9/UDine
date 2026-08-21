@@ -1,24 +1,59 @@
-// Unit tests for the push-dispatch helpers added in issue #9 — only the parts testable without a
-// real network send: notification payload shape, and the two invalid-token-detection functions
-// (Web Push's thrown-error shape, Expo's per-token receipt array). Actual delivery (a real
-// browser/device receiving a notification) is NOT covered here — see the PR description for what's
-// verified vs. not.
+// Unit tests for the push-dispatch helpers added in issue #9, plus the v2 sighting-copy helpers
+// from issue #95 (title `<dish> is at <hall> today`, body leads with the meal period + until-when,
+// per the canvas -- see PushAlerts.dc.html's mockup copy: "French Toast is at Franklin today" / "A
+// favorite of yours is on the lunch menu — served until 2:30 PM."). Only the parts testable without
+// a real network send: notification payload shape, dish->meal extraction, and the two
+// invalid-token-detection functions (now in _shared/push.ts, re-exported here). Actual delivery (a
+// real browser/device receiving a notification) is NOT covered here — see the PR description for
+// what's verified vs. not.
 //
 // Run: deno test --node-modules-dir=none --allow-env supabase/functions/check-favorited-foods/push.test.ts
 // (see date.test.ts for why --node-modules-dir=none and --allow-env are both required.)
 (Deno as unknown as { serve: unknown }).serve = () => ({}) as ReturnType<typeof Deno.serve>;
 
-const { buildSightingNotification, isPermanentWebPushError, findDeadExpoTokens } = await import("./index.ts");
+const { buildSightingNotification, extractDishMealMap, isPermanentWebPushError, findDeadExpoTokens } = await import("./index.ts");
 
-Deno.test("buildSightingNotification: known hall gets its name", () => {
-  const { title, body } = buildSightingNotification("Chicken Tikka Masala", 3);
-  if (title !== "Spotted: Chicken Tikka Masala") throw new Error(`unexpected title: ${title}`);
-  if (body !== "at Hampshire today") throw new Error(`unexpected body: ${body}`);
+Deno.test("buildSightingNotification: title names the dish and hall; body leads with meal + until-when", () => {
+  const hours = { hallTid: 3, breakfast: null, lunch: { openTime: "11:00 AM", closeTime: "02:30 PM" }, dinner: null, general: null };
+  const { title, body } = buildSightingNotification("French Toast", 3, "lunch", hours);
+  if (title !== "French Toast is at Hampshire today") throw new Error(`unexpected title: ${title}`);
+  if (body !== "A favorite of yours is on the lunch menu — served until 2:30 PM.") throw new Error(`unexpected body: ${body}`);
 });
 
 Deno.test("buildSightingNotification: unknown hall tid falls back instead of throwing", () => {
-  const { body } = buildSightingNotification("Mystery Dish", 99);
-  if (body !== "at hall 99 today") throw new Error(`unexpected body: ${body}`);
+  const { title } = buildSightingNotification("Mystery Dish", 99, "dinner", undefined);
+  if (title !== "Mystery Dish is at hall 99 today") throw new Error(`unexpected title: ${title}`);
+});
+
+Deno.test("buildSightingNotification: no hours data (or unmatched meal window) omits the until-when clause, not a guess", () => {
+  const { body } = buildSightingNotification("Chicken Tenders", 3, "dinner", undefined);
+  if (body !== "A favorite of yours is on the dinner menu today.") throw new Error(`unexpected body: ${body}`);
+});
+
+Deno.test("buildSightingNotification: latenight has no get_infov2 field, but still gets a readable meal label", () => {
+  const { body } = buildSightingNotification("Late Night Nachos", 3, "latenight", undefined);
+  if (body !== "A favorite of yours is on the late night menu today.") throw new Error(`unexpected body: ${body}`);
+});
+
+Deno.test("extractDishMealMap: a dish keeps the FIRST meal period it appears under", () => {
+  const data = {
+    breakfast: { "Hot Bar": '<li><a data-dish-name="French Toast"></a></li>' },
+    lunch: {
+      "Hot Bar": '<li><a data-dish-name="Chicken Tenders"></a></li>',
+      // Same dish also under lunch's "Grill" category -- still counts as "lunch" (a dish can repeat
+      // within one meal period's categories; that's not the case this test is about).
+      "Grill": '<li><a data-dish-name="French Toast"></a></li>',
+    },
+  };
+  const map = extractDishMealMap(data);
+  if (map.get("French Toast") !== "breakfast") throw new Error(`expected French Toast -> breakfast, got ${map.get("French Toast")}`);
+  if (map.get("Chicken Tenders") !== "lunch") throw new Error(`expected Chicken Tenders -> lunch, got ${map.get("Chicken Tenders")}`);
+});
+
+Deno.test("extractDishMealMap: decodes HTML entities in dish names", () => {
+  const data = { dinner: { "Bakery": '<li><a data-dish-name="Mac &amp; Cheese"></a></li>' } };
+  const map = extractDishMealMap(data);
+  if (!map.has("Mac & Cheese")) throw new Error(`expected decoded "Mac & Cheese" as a key, got keys ${JSON.stringify([...map.keys()])}`);
 });
 
 Deno.test("isPermanentWebPushError: 404/410 are permanent", () => {

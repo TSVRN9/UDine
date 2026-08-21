@@ -2,12 +2,13 @@ import {
   computeDailyTotals,
   DINING_HALLS,
   fetchDiningHours,
+  fetchMenu,
   favoriteKey,
+  GRAB_N_GO_TIDS,
   menuItemMatchesPreferences,
   type DiningHoursFeed,
   type Favorite,
   type FoodPreferences,
-  type MealPeriod,
   type MenuItem,
   type OffSearchResult,
 } from "@udine/shared";
@@ -20,9 +21,8 @@ import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
-import { hallHeaderSubtitle } from "../../lib/homeHero";
+import { retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
-import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import {
   addOrIncrement,
   listBottomPadding,
@@ -35,20 +35,46 @@ import {
   type PlateEntry,
 } from "../../lib/plate";
 import { getPreferences } from "../../lib/preferences";
-import { nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
 
-const MEAL_PERIODS: MealPeriod[] = ["breakfast", "lunch", "dinner"];
 const storage = new SqliteLogStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
 
-// #91 rebuild: dish rows now feed an in-memory "plate" (steppers) instead of a single-selection log
-// bar, plus a full nutrition-label screen. Both the plate's expanded sheet and the label are RN
-// <Modal>s rendered from this screen, not routed Stack.Screens — MenuItem doesn't need to survive a
-// round-trip through router search params (Expo Router params are strings only), and neither needs
-// a back-stack entry of its own. Register in _layout.tsx only if that changes.
+// #115: Grab 'N Go's own screen, all-day (no meal tabs) and station-grouped instead of meal-period
+// grouped. Reuses every component/lib the hall-menu screen (halls/[slug].tsx) uses for its dish
+// rows/plate/nutrition label -- do not fork those, #117 is reworking the hall-menu screen's header
+// in parallel and a forked copy here would only need re-merging. The date stepper below is new UI
+// specific to this screen (the hall-menu screen doesn't have one yet), so it stays local rather than
+// becoming a shared component that could collide with #117's own header work.
 
-/** Filled maroon pill stepper — the canvas's in-plate control on a dish row. */
+function addDays(date: Date, delta: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + delta);
+  return next;
+}
+
+function formatStepperDate(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+/** 30px circled chevron per the canvas date-stepper spec. */
+function StepperButton({ direction, onPress }: { direction: "prev" | "next"; onPress: () => void }) {
+  return (
+    <Pressable
+      style={styles.stepperCircle}
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={direction === "prev" ? "Previous day" : "Next day"}
+    >
+      <Text style={styles.stepperChevron}>{direction === "prev" ? "‹" : "›"}</Text>
+    </Pressable>
+  );
+}
+
+/** Filled maroon pill stepper — the canvas's in-plate control on a dish row. Identical to the
+ * hall-menu screen's RowStepper; kept as its own copy rather than a shared import per this screen's
+ * "don't touch/import from the screen #117 is reworking" constraint. */
 function RowStepper({ count, dishName, onStep }: { count: number; dishName: string; onStep: (delta: number) => void }) {
   return (
     <View style={styles.stepper}>
@@ -63,9 +89,12 @@ function RowStepper({ count, dishName, onStep }: { count: number; dishName: stri
   );
 }
 
-export default function HallMenuScreen() {
+export default function GrabNGoScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const hall = DINING_HALLS.find((h) => h.slug === slug);
+  const gngTid = hall ? GRAB_N_GO_TIDS[hall.slug] : undefined;
+
+  const [date, setDate] = useState(() => new Date());
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
@@ -81,15 +110,20 @@ export default function HallMenuScreen() {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    if (!hall) return;
-    fetchMenuAndRecordSeen(hall.tid, new Date())
+    if (!gngTid) return;
+    setItems(null);
+    setError(null); // clear a previous date's fetch failure -- else it pins the error screen across every later date step
+    fetchMenu(gngTid, date)
       .then(setItems)
       .catch((e) => setError(String(e)));
+  }, [gngTid, date]);
+
+  useEffect(() => {
     // Header subtitle only — a failure here just leaves the subtitle blank, never blocks the menu.
     fetchDiningHours()
       .then(setHoursFeed)
       .catch(() => {});
-  }, [hall]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,8 +134,9 @@ export default function HallMenuScreen() {
     }, []),
   );
 
-  // Device-pass finding: the logged banner never dismissed on its own, permanently covering the
-  // last menu row until the plate was repopulated. Auto-dismiss a few seconds after it appears.
+  // Device-pass finding (carried over from the hall-menu screen): the logged banner never dismissed
+  // on its own, permanently covering the last menu row until the plate was repopulated. Auto-dismiss
+  // a few seconds after it appears.
   useEffect(() => {
     if (!logged) return;
     const timer = setTimeout(() => setLogged(null), 4000);
@@ -111,18 +146,26 @@ export default function HallMenuScreen() {
   const sections = useMemo(() => {
     if (!items) return [];
     const filtered = items.filter((i) => menuItemMatchesPreferences(i, prefs));
-    return MEAL_PERIODS.map((period) => ({
-      title: period,
-      data: filtered.filter((i) => i.mealPeriod === period),
-    })).filter((s) => s.data.length > 0);
+    const byCategory = new Map<string, MenuItem[]>();
+    for (const item of filtered) {
+      const title = item.category.trim();
+      const bucket = byCategory.get(title);
+      if (bucket) bucket.push(item);
+      else byCategory.set(title, [item]);
+    }
+    return Array.from(byCategory, ([title, data]) => ({ title, data }));
   }, [items, prefs]);
 
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
 
-  if (!hall) return <Text style={styles.error}>Unknown dining hall</Text>;
+  if (!hall || !gngTid) return <Text style={styles.error}>Unknown dining hall</Text>;
 
-  const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
-  const subtitle = hallHours ? hallHeaderSubtitle(hallHours, new Date()) : "";
+  // Grab 'N Go locations don't match the hall-detection check in @udine/shared's get_infov2 mapping
+  // (it requires "Commons" in the title), so they land in DiningHoursFeed.retail instead — same
+  // matching approach as that hall check (name-prefix), just done here since it's a mobile-only
+  // formatting concern (see retailHeaderSubtitle/retailOpenStatus's own doc in lib/homeHero.ts).
+  const retailHours = hoursFeed?.retail.find((r) => r.name.startsWith(hall.name) && /grab/i.test(r.name));
+  const subtitle = retailHours ? retailHeaderSubtitle(retailOpenStatus(retailHours, new Date())) : "";
 
   async function toggleDishFavorite(dishName: string) {
     const favorite: Favorite = { type: "dish", dishName };
@@ -153,21 +196,12 @@ export default function HallMenuScreen() {
   }
 
   async function logPlate() {
-    // Local-date-prefixed, not `.toISOString()` (UTC) -- see nowLocalIso's own comment (issue #111:
-    // evening logs were filing under tomorrow's UTC date and vanishing from Today).
-    const entries = toLogEntries(plate, nowLocalIso());
+    const entries = toLogEntries(plate, new Date().toISOString());
     try {
       for (const entry of entries) {
         await storage.addEntry(entry);
       }
     } catch (e) {
-      // ponytail: no transaction wrapping this loop, so a failure partway through leaves
-      // whatever already succeeded committed, and the plate stays put (not cleared) so the user
-      // doesn't lose their selection -- but retrying re-logs everything with fresh ids
-      // (toLogEntries mints new random ids each call), so anything that already committed
-      // becomes a duplicate row rather than being replaced. Acceptable for a UI feature where
-      // each addEntry is one single-row insert unlikely to fail independently; upgrade to one
-      // transactional bulk insert on SqliteLogStorage if this shows up in practice.
       setLogged(`Couldn't log everything: ${String(e)}`);
       return;
     }
@@ -180,25 +214,30 @@ export default function HallMenuScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing(4.5) }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Text style={styles.backChevron}>‹</Text>
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>{hall.name}</Text>
-          {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+            <Text style={styles.backChevron}>‹</Text>
+          </Pressable>
+          <Text style={styles.headerTitle}>{hall.name} Grab &apos;N Go</Text>
+        </View>
+        <View style={styles.dateStepper}>
+          <StepperButton direction="prev" onPress={() => setDate((d) => addDays(d, -1))} />
+          <Text style={styles.dateLabel}>{formatStepperDate(date)}</Text>
+          <StepperButton direction="next" onPress={() => setDate((d) => addDays(d, 1))} />
         </View>
       </View>
+      {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
 
       {error ? (
         <Text style={styles.error}>Failed to load menu: {error}</Text>
       ) : !items ? (
         <ActivityIndicator style={styles.loading} color={colors.maroon600} />
       ) : sections.length === 0 ? (
-        <EmptyState title="No matching dishes" message={`No menu matches your filters at ${hall.name} today.`} />
+        <EmptyState title="No Grab 'N Go menu" message={`No Grab 'N Go items published at ${hall.name} for this day.`} />
       ) : (
         <SectionList
           sections={sections}
-          keyExtractor={(item, index) => `${item.mealPeriod}-${item.dishName}-${index}`}
+          keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
           contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, plate.length > 0) + (logged ? bannerHeight : 0) }}
           renderSectionHeader={({ section }) => (
             <View style={styles.sectionHeaderWrap}>
@@ -241,14 +280,6 @@ export default function HallMenuScreen() {
         />
       )}
       {logged && (
-        // Same occlusion-bug class as the list's own bottom padding above (PR #78/#84): this banner
-        // is the one surface a LOG failure actually shows on (the plate is deliberately retained, not
-        // cleared, so the bar stays mounted right where an in-flow bottom banner would otherwise sit,
-        // opaque and on top of it). Anchored clear of the bar's measured height via the same
-        // listBottomPadding reuse -- 0 when there's no bar, right above it when there is. Device-pass
-        // finding: also pads for the bottom safe-area inset itself (else its own text gets clipped by
-        // gesture nav when there's no bar to already clear that space), and reports its own measured
-        // height via onLayout so the list's paddingBottom above can add it in while it's showing.
         <View
           style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight, plate.length > 0), paddingBottom: spacing(2) + insets.bottom }]}
           onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
@@ -263,7 +294,7 @@ export default function HallMenuScreen() {
         visible={sheetOpen}
         plate={plate}
         totals={totals}
-        contextLabel={hall.name}
+        contextLabel={`${hall.name} Grab 'N Go`}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onAddOffResult={addOffResult}
         onLog={logPlate}
@@ -273,9 +304,7 @@ export default function HallMenuScreen() {
         <NutritionLabel
           visible={!!labelItem}
           dishName={labelItem.dishName}
-          // The feed's category already carries the meal period ("Breakfast Entrees") — don't
-          // prefix mealPeriod again.
-          subtitle={`${hall.name} · ${labelItem.category}`}
+          subtitle={`${hall.name} Grab 'N Go · ${labelItem.category.trim()}`}
           nutrition={labelItem.nutrition}
           allergens={labelItem.allergens}
           dietTags={labelItem.dietTags}
@@ -298,20 +327,46 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing(3),
+    justifyContent: "space-between",
     paddingHorizontal: spacing(5),
-    paddingBottom: spacing(3),
+    paddingBottom: spacing(1.5),
   },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: spacing(3), flexShrink: 1 },
   backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
-  headerText: { flex: 1 },
   headerTitle: {
     fontFamily: fonts.display700,
     fontSize: fs(22),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.maroon900,
+    flexShrink: 1,
   },
-  headerSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
+  headerSubtitle: {
+    paddingHorizontal: spacing(5),
+    paddingBottom: spacing(1.5),
+    fontFamily: fonts.body400,
+    fontSize: fs(12),
+    color: withOpacity(colors.ink900, 60),
+  },
+
+  dateStepper: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
+  stepperCircle: {
+    width: fs(30),
+    height: fs(30),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: withOpacity(colors.maroon900, 25),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperChevron: { fontFamily: fonts.body400, fontSize: fs(16), color: colors.maroon900 },
+  dateLabel: {
+    fontFamily: fonts.body600,
+    fontSize: fs(11),
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: withOpacity(colors.ink900, 60),
+  },
 
   sectionHeaderWrap: {
     paddingHorizontal: spacing(5),
