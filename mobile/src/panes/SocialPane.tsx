@@ -1,11 +1,11 @@
 import { DINING_HALLS, fetchEvents, type DiningEvent } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { Link, router, useFocusEffect } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
-  Linking,
   PanResponder,
   Pressable,
   ScrollView,
@@ -21,6 +21,7 @@ import { Button, Card, EmptyState, SectionHeader } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { signInWithGoogle } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { classifyEventTap, eventDateLine } from "../lib/eventTapTarget";
 import {
   buildPingPayload,
   hallAtPoint,
@@ -77,24 +78,57 @@ function Avatar({ name, index, gold }: { name: string; index: number; gold: bool
   );
 }
 
+/**
+ * #120 v2.1: DETAILS is gone -- a trailing chevron/external-link glyph (text stand-ins, same call
+ * as login.tsx's Google "G": no react-native-svg dependency for one icon) signals where the tap
+ * goes instead. Banner events also drop the title row entirely (owner decision: the banner image
+ * usually already carries the title art, so a text duplicate underneath was redundant) -- the
+ * footer is subtitle + icon only. Banner-less notices keep title+subtitle, just lose DETAILS.
+ */
 function EventCard({ item }: { item: DiningEvent }) {
-  const subtitle = item.expirationDate ? `Through ${new Date(item.expirationDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : null;
+  const subtitle = eventDateLine(item.expirationDate);
+  const target = classifyEventTap(item);
+
+  function handlePress() {
+    if (target.kind === "link") {
+      WebBrowser.openBrowserAsync(target.url);
+    } else if (target.kind === "content") {
+      router.push({
+        pathname: "/event-detail",
+        params: {
+          title: item.title,
+          featuredImage: item.featuredImage,
+          pamphletImage: target.pamphletImage,
+          expirationDate: item.expirationDate,
+          isFeatured: item.isFeatured ? "1" : "",
+        },
+      });
+    }
+    // target.kind === "none" -- malformed/missing payload, safe no-op.
+  }
+
   return (
-    <Pressable onPress={() => Linking.openURL(item.externalLink || item.pdfLink)}>
+    <Pressable onPress={handlePress} accessibilityRole="button">
       <Card style={styles.eventCard}>
         {/* No title overlay on the image -- live fetchEvents banners are full poster graphics that
             already contain their own title art (the artboard's overlay only worked because its
-            placeholder was a plain gradient). Title always renders in the row below instead. */}
+            placeholder was a plain gradient). */}
         {item.featuredImage ? <Image source={{ uri: item.featuredImage }} style={styles.eventBanner} resizeMode="cover" /> : null}
         <View style={styles.eventRow}>
-          <View style={styles.eventInfo}>
-            <Text style={styles.eventTitle} numberOfLines={1}>
-              {item.isFeatured ? "★ " : ""}
-              {item.title}
-            </Text>
-            {subtitle ? <Text style={styles.eventSubtitle}>{subtitle}</Text> : null}
-          </View>
-          <Text style={styles.eventDetails}>DETAILS</Text>
+          {item.featuredImage ? (
+            subtitle ? (
+              <Text style={styles.eventSubtitle}>{subtitle}</Text>
+            ) : null
+          ) : (
+            <View style={styles.eventInfo}>
+              <Text style={styles.eventTitle} numberOfLines={1}>
+                {item.isFeatured ? "★ " : ""}
+                {item.title}
+              </Text>
+              {subtitle ? <Text style={styles.eventSubtitle}>{subtitle}</Text> : null}
+            </View>
+          )}
+          {target.kind !== "none" && <Text style={styles.eventIcon}>{target.kind === "link" ? "↗" : "›"}</Text>}
         </View>
       </Card>
     </Pressable>
@@ -395,7 +429,9 @@ const styles = StyleSheet.create({
   eventInfo: { flex: 1, gap: 1 },
   eventTitle: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   eventSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 65) },
-  eventDetails: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
+  // Trailing chevron (in-app pamphlet) / external-link glyph (pop-up browser) -- replaces the old
+  // DETAILS text label per #120.
+  eventIcon: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.maroon600, marginLeft: spacing(1.5) },
 
   overlayDim: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: withOpacity(colors.ink900, 62) },
 

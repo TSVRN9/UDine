@@ -48,7 +48,8 @@ jest.mock("react-native-safe-area-context", () => ({
 const mockSeenFocusCallbacks = new WeakSet<() => void>();
 // router: SocialPane's avatar tap-to-profile (#94) calls the top-level `router.push` singleton
 // directly (same import shape as app/index.tsx), not the useRouter() hook -- exported flat here
-// too, same treatment as Link/useFocusEffect below.
+// too, same treatment as Link/useFocusEffect below. Also the target of #120's card-tap
+// classification (pushes /event-detail).
 const mockRouterPush = jest.fn();
 jest.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
@@ -58,6 +59,14 @@ jest.mock("expo-router", () => ({
     mockSeenFocusCallbacks.add(callback);
     callback();
   },
+}));
+
+// #120: banner-less event notice rows and event/link classification-driven taps open either the
+// in-app pamphlet screen (router.push, mocked above) or expo-web-browser's pop-up in-app browser --
+// mocked here so a test can assert which one fired without a real browser/navigator.
+const mockOpenBrowserAsync = jest.fn();
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: (...args: unknown[]) => mockOpenBrowserAsync(...args),
 }));
 
 import renderer, { act } from "react-test-renderer";
@@ -75,6 +84,17 @@ function texts(root: renderer.ReactTestRenderer) {
     .map((n) => n.props.children)
     .flat()
     .join(" ");
+}
+
+// YouPane.test.tsx's own convention: findAllByType(Pressable) doesn't reliably match RN's
+// Pressable export under jest-expo's renderer -- accessibilityRole="button" is the reliable
+// handle, though it matches every instance layer Pressable renders through (composite + host), not
+// just one node per button -- filter down to the ones that actually carry an onPress function. The
+// event card is the last such node in the tree (Ping a Friend's sign-in button, when signed out, is
+// the only other one, and it always renders first).
+function lastButton(root: renderer.ReactTestRenderer) {
+  const buttons = root.root.findAllByProps({ accessibilityRole: "button" }).filter((b) => typeof b.props.onPress === "function");
+  return buttons[buttons.length - 1];
 }
 
 // Merges a RN style prop (object, array, or nested array of either) into one plain object -- same
@@ -196,26 +216,89 @@ describe("SocialPane", () => {
     expect(goldBorderedViews.length).toBeGreaterThan(0);
   });
 
-  it("events: renders both a banner (featuredImage) event and a plain-row event, title always in the row (never overlaid on the image) and never duplicated", async () => {
+  it("events v2.1 (#120): a banner event drops the title/star row entirely (footer is subtitle + icon only, no duplicate of the banner's own title art); a banner-less event keeps title+subtitle; DETAILS is gone from both", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
     mockFetchEvents.mockResolvedValue([harvestDinner, fallFest]);
 
     const root = await renderSocialPane();
     const allTexts = root.root.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
 
-    // Live fetchEvents banner images are full poster graphics that already contain their own
-    // title art -- overlaying our own title text on top duplicates it and reads illegibly over
-    // busy artwork, so the title must render exactly once, in the row below the image, never
-    // overlaid on it.
-    expect(allTexts.filter((t) => /Local Harvest Dinner/.test(t)).length).toBe(1);
+    // harvestDinner has a featuredImage -- per the #120 canvas its title is never rendered as text
+    // (the banner image already carries the title art), and neither is its ★ isFeatured marker.
+    expect(allTexts.some((t) => /Local Harvest Dinner/.test(t))).toBe(false);
+    // fallFest has no featuredImage -- the banner-less notice row keeps its title.
     expect(allTexts.some((t) => /Fall Fest/.test(t))).toBe(true);
-    expect(allTexts.filter((t) => /DETAILS/.test(t)).length).toBe(2);
-    // The banner event's subtitle ("Through Aug 27") must also render exactly once.
+    expect(allTexts.some((t) => /DETAILS/.test(t))).toBe(false);
+    // The banner event's subtitle ("Through Aug 27") still renders exactly once, in the footer.
     expect(allTexts.filter((t) => /Through Aug 27/.test(t)).length).toBe(1);
 
     // The banner event actually renders its image (clean, no overlay).
     const images = root.root.findAllByType(Image);
     expect(images.some((img) => img.props.source?.uri === harvestDinner.featuredImage)).toBe(true);
+  });
+
+  it("events v2.1 (#120): tapping a card whose payload resolves to an http(s) link opens the pop-up in-app browser (expo-web-browser), not a bare Linking.openURL", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    mockFetchEvents.mockResolvedValue([fallFest]); // externalLink: "https://example.com", no featuredImage -- the only Pressable is the event card.
+
+    const root = await renderSocialPane();
+    const eventPressable = lastButton(root);
+    act(() => {
+      eventPressable.props.onPress();
+    });
+    expect(mockOpenBrowserAsync).toHaveBeenCalledWith("https://example.com");
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  it("events v2.1 (#120): tapping a card whose payload is in-feed content (no external link, a usable pdf_link poster) pushes the in-app pamphlet screen with the event's data", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    const pamphletEvent: DiningEvent = {
+      title: "Sustainability Big Impact",
+      featuredImage: "https://example.com/banner.jpg",
+      pdfLink: "https://example.com/poster.jpg",
+      externalLink: "",
+      expirationDate: "2026-09-01T16:00:00.000Z",
+      isFeatured: false,
+    };
+    mockFetchEvents.mockResolvedValue([pamphletEvent]);
+
+    const root = await renderSocialPane();
+    const eventPressable = lastButton(root);
+    act(() => {
+      eventPressable.props.onPress();
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/event-detail",
+        params: expect.objectContaining({
+          title: "Sustainability Big Impact",
+          pamphletImage: "https://example.com/poster.jpg",
+        }),
+      }),
+    );
+    expect(mockOpenBrowserAsync).not.toHaveBeenCalled();
+  });
+
+  it("events v2.1 (#120): a card with neither a link nor usable content (malformed/missing payload) still renders, but tapping it safely no-ops", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    const brokenEvent: DiningEvent = {
+      title: "Mystery Event",
+      featuredImage: "",
+      pdfLink: "",
+      externalLink: "",
+      expirationDate: "2026-09-01T16:00:00.000Z",
+      isFeatured: false,
+    };
+    mockFetchEvents.mockResolvedValue([brokenEvent]);
+
+    const root = await renderSocialPane();
+    expect(texts(root)).toMatch(/Mystery Event/);
+    const eventPressable = lastButton(root);
+    act(() => {
+      eventPressable.props.onPress();
+    });
+    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(mockOpenBrowserAsync).not.toHaveBeenCalled();
   });
 
   it("events load error: shows an error line instead of hanging on a loading state forever", async () => {
