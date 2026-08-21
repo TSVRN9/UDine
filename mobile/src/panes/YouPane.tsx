@@ -14,8 +14,8 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import { Link, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Link, router, useFocusEffect, type Href } from "expo-router";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PaneHeader } from "../components/PaneHeader";
@@ -27,7 +27,7 @@ import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
-import { buildTopFoods, displayCompletionPct } from "../lib/youPaneFormat";
+import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal } from "../lib/youPaneFormat";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -41,13 +41,23 @@ function hallName(hallTid: number): string {
   return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
 }
 
-function formatLogTime(loggedAt: string): string {
-  const d = new Date(loggedAt);
-  let hour = d.getHours();
-  const suffix = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12;
-  if (hour === 0) hour = 12;
-  return `${hour}:${String(d.getMinutes()).padStart(2, "0")} ${suffix}`;
+/** Single-line item text per the canvas: "<dish> × <qty> · <hall>", qty omitted when it's 1, hall
+ * omitted for off-menu (barcode) entries that don't have one. */
+function logItemLine(entry: LogEntry): string {
+  const name = entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
+  const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
+  const hall = entry.source.type === "umass-menu" ? ` · ${hallName(entry.source.hallTid)}` : "";
+  return `${name}${qty}${hall}`;
+}
+
+/** #119's Logs & stats screen hasn't shipped yet -- `/logs` doesn't match a route until it does.
+ * expo-router doesn't throw for an unmatched push (it renders its own `+not-found` screen), so no
+ * try/catch here: review caught that the earlier version's catch was a real-error suppressor, not
+ * a crash guard -- it's what silently swallowed a genuine `jest.mock` hoisting bug during
+ * development. `as Href` stays: `app.json`'s `experiments.typedRoutes` rejects an unknown route at
+ * compile time until #119 adds `app/logs.tsx`. */
+function goToAllLogs() {
+  router.push("/logs" as Href);
 }
 
 /** One completion bar inside the shared card — gold fill for the top (first) hall, maroon for the
@@ -138,6 +148,12 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
   const date = todayIso();
   const todaysEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === date);
   const totals = computeDailyTotals(date, todaysEntries);
+  const mealGroups = groupEntriesByMeal(todaysEntries);
+  // Derived from the SAME rounded-per-entry sums the meal groups themselves use (not
+  // Math.round(totals.calories), a separately-rounded raw-float sum) so this always agrees with
+  // the meal groups' subtotals exactly, not just approximately -- see groupEntriesByMeal's doc
+  // comment on why "round the total once" and "round each entry, then sum" can otherwise differ.
+  const displayedCalories = mealGroups.reduce((sum, g) => sum + g.totalCalories, 0);
   const completions = hallCompletion(seenByHall, allEntries);
   const hallRanking = rankDiningHalls(rankedDishes);
   const topFoods = buildTopFoods(rankedFoods, rankedDishes, allEntries, TOP_FOODS_LIMIT);
@@ -148,7 +164,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
 
       <Card style={styles.statsCard}>
         <View style={styles.statCell}>
-          <Stat label="Calories" value={String(Math.round(totals.calories))} />
+          <Stat label="Calories" value={String(displayedCalories)} />
         </View>
         <View style={styles.statCell}>
           <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
@@ -162,27 +178,37 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
       </Card>
 
       <View style={styles.section}>
-        <SectionHeader title="Today's Log" />
+        <SectionHeader
+          title="Today's Log"
+          right={
+            <Pressable style={styles.allLogsLink} onPress={goToAllLogs}>
+              <Text style={styles.allLogsText}>ALL LOGS</Text>
+              <Text style={styles.allLogsChevron}>›</Text>
+            </Pressable>
+          }
+        />
         {todaysEntries.length === 0 ? (
           <EmptyState title="Nothing logged yet" message="Browse a dining hall menu and log anything you eat." />
         ) : (
-          <View style={styles.rowList}>
-            {todaysEntries.map((entry) => (
-              <Card key={entry.id} style={styles.logRow}>
-                <View style={styles.logInfo}>
-                  <Text style={styles.logName}>
-                    {entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName}
-                    {entry.servings !== 1 ? ` × ${entry.servings}` : ""}
-                  </Text>
-                  <Text style={styles.logSub}>
-                    {entry.source.type === "umass-menu" ? `${hallName(entry.source.hallTid)} · ` : ""}
-                    {formatLogTime(entry.loggedAt)}
-                  </Text>
+          <Card style={styles.logCard}>
+            {mealGroups.map((group, i) => (
+              <Fragment key={group.period}>
+                {i > 0 && <View style={styles.mealDivider} />}
+                <View style={styles.mealGroup}>
+                  <View style={styles.mealHeaderRow}>
+                    <Text style={styles.mealHeaderLabel}>{group.label}</Text>
+                    <Text style={styles.mealHeaderTotal}>{group.totalCalories} cal</Text>
+                  </View>
+                  {group.entries.map((entry) => (
+                    <View key={entry.id} style={styles.mealItemRow}>
+                      <Text style={styles.mealItemName}>{logItemLine(entry)}</Text>
+                      <Text style={styles.mealItemCalories}>{entryCalories(entry)}</Text>
+                    </View>
+                  ))}
                 </View>
-                <Text style={styles.logCalories}>{Math.round(entry.nutrition.calories * entry.servings)} cal</Text>
-              </Card>
+              </Fragment>
             ))}
-          </View>
+          </Card>
         )}
       </View>
 
@@ -287,18 +313,23 @@ const styles = StyleSheet.create({
   statCell: { flex: 1 },
 
   rowList: { gap: spacing(2) },
-  logRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: spacing(2),
-    paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(3.5),
-  },
-  logInfo: { flex: 1, gap: 1 },
-  logName: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
-  logSub: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
-  logCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 70) },
+
+  // ALL LOGS link -- SectionHeader's `right` slot, after the gold rule (canvas spec).
+  allLogsLink: { flexDirection: "row", alignItems: "center", gap: spacing(1) },
+  allLogsText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
+  allLogsChevron: { fontFamily: fonts.body400, fontSize: fs(12), color: colors.maroon600 },
+
+  // Today's Log, meal-grouped (#118): one card, per-meal header + subtotal, single-line item rows,
+  // a hairline divider between meal groups.
+  logCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2) },
+  mealGroup: { gap: spacing(1.25) },
+  mealHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  mealHeaderLabel: { fontFamily: fonts.display600, fontSize: fs(11), letterSpacing: 1.2, textTransform: "uppercase", color: colors.maroon900 },
+  mealHeaderTotal: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: withOpacity(colors.ink900, 70) },
+  mealItemRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  mealItemName: { flexShrink: 1, fontFamily: fonts.body400, fontSize: fs(13), color: colors.ink900 },
+  mealItemCalories: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
+  mealDivider: { height: 1, backgroundColor: withOpacity(colors.ink900, 8) },
 
   completionCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2.5) },
   completionRow: { gap: spacing(1) },
