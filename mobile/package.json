@@ -44,7 +44,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
+    "test": "TZ=America/New_York jest"
   },
   "private": true,
   "jest": {
