@@ -6,7 +6,11 @@ import type { LogEntry } from "./types.ts";
  * Device-local record of every distinct dish name this device has seen offered at each hall, across
  * all menu fetches — the denominator for hallCompletion below. Accumulates over time; a dish stays
  * "seen" once observed even if it later rotates off the menu, so recordSeen should be called with
- * every menu fetch's dish names, not just the latest snapshot. Mirrors LogStorage's interface style
+ * every menu fetch that the user actually browses to view a hall's dishes, not just the latest
+ * snapshot. That excludes mobile's filters.tsx, which fetches all 4 halls' full menus at once
+ * purely to derive the allergen/diet chip list -- wiring that call through recordSeen too would
+ * spike every hall's denominator the instant Filters is opened, including halls the user never
+ * browsed (PR #123 review). Mirrors LogStorage's interface style
  * (storage.ts) with a bulk getter (getAllSeenDishNames, like getAllEntries) — the shape hallCompletion
  * takes directly, since its only consumer (#92's You pane) needs all 4 halls at once, not one at a
  * time. Contract only here — implemented per-platform (mobile SQLite lands with #92). Nothing
