@@ -214,6 +214,25 @@ describe("HallMenuScreen plate wiring", () => {
     expect(texts(root).flat().join(" ")).toMatch(/Logged 3 items/);
   });
 
+  it("logs an evening entry under today's LOCAL calendar day, not the UTC-rolled-over day (issue #111)", async () => {
+    // 11:30 PM Eastern on Aug 20 is already 3:30 AM UTC on Aug 21 -- stamping loggedAt with
+    // `.toISOString()` (UTC) would date-prefix this entry "2026-08-21", which is tomorrow from the
+    // logger's own wall clock. Today's list (You pane / SqliteLogStorage) buckets by comparing
+    // that prefix against the LOCAL date, so a UTC-stamped entry silently vanishes from today.
+    // Assumes Eastern time -- pinned suite-wide via mobile/package.json's `test` script
+    // (`TZ=America/New_York jest`; see date.test.ts's header comment for why it can't be set
+    // per-test).
+    jest.setSystemTime(new Date("2026-08-21T03:30:00.000Z"));
+
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+
+    expect(mockAddEntry).toHaveBeenCalledTimes(1);
+    const [entry] = mockAddEntry.mock.calls[0];
+    expect(entry.loggedAt.startsWith("2026-08-20")).toBe(true);
+  });
+
   it("retains the plate and surfaces a visible failure message when a LOG write rejects partway through, instead of silently clearing", async () => {
     mockAddEntry.mockReset().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("disk full"));
 
