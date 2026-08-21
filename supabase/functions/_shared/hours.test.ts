@@ -5,7 +5,7 @@
 //
 // Run: deno test --node-modules-dir=none --allow-env supabase/functions/_shared/hours.test.ts
 
-import { mapHallHours, currentlyOpenUntil, windowCloseLabel, hallName, HALL_TIDS, type InfoV2Location } from "./hours.ts";
+import { mapHallHours, currentlyOpenUntil, windowCloseLabel, hallName, HALL_TIDS, fetchHallHours, type InfoV2Location } from "./hours.ts";
 
 /** Temporarily makes `new Date()` (no args) resolve to a fixed instant, then restores it. */
 function withFixedNow(iso: string, fn: () => void) {
@@ -147,4 +147,40 @@ Deno.test("hallName/HALL_TIDS: known tids resolve, unknown tid falls back instea
   if (HALL_TIDS.length !== 4) throw new Error(`expected 4 hall tids, got ${HALL_TIDS.length}`);
   if (hallName(3) !== "Hampshire") throw new Error(`expected "Hampshire", got ${JSON.stringify(hallName(3))}`);
   if (hallName(99) !== "hall 99") throw new Error(`expected fallback "hall 99", got ${JSON.stringify(hallName(99))}`);
+});
+
+// pr-reviewer finding (PR #125): fetchHallHours's fetch + res.json() were unguarded -- a rejected
+// fetch (DNS/TLS/connection failure) or a 200 carrying a non-JSON body (a maintenance page, a real
+// failure mode for a scraped Drupal endpoint) propagated out of the caller's Deno.serve handler as
+// an unhandled rejection, which the reviewer empirically confirmed surfaces as a hard 500 -- for
+// check-favorited-foods specifically, that 500s the ENTIRE run (favorites/food_sightings/push, not
+// just the hours clause), silently, since it runs first and pg_cron reports success either way.
+
+Deno.test("fetchHallHours: a rejected fetch (network/DNS/TLS failure) degrades to an empty map, not a thrown/rejected promise", async () => {
+  const rejectingFetch = (() => Promise.reject(new Error("simulated network failure"))) as unknown as typeof fetch;
+  const result = await fetchHallHours(rejectingFetch);
+  if (result.size !== 0) throw new Error(`expected an empty map, got size ${result.size}`);
+});
+
+Deno.test("fetchHallHours: a 200 response with a non-JSON body degrades to an empty map, not a thrown/rejected promise", async () => {
+  const malformedJsonFetch = (() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.reject(new SyntaxError("Unexpected token < in JSON at position 0")),
+    })) as unknown as typeof fetch;
+  const result = await fetchHallHours(malformedJsonFetch);
+  if (result.size !== 0) throw new Error(`expected an empty map, got size ${result.size}`);
+});
+
+Deno.test("fetchHallHours: a non-OK response degrades to an empty map", async () => {
+  const notOkFetch = (() => Promise.resolve({ ok: false, json: () => Promise.resolve([]) })) as unknown as typeof fetch;
+  const result = await fetchHallHours(notOkFetch);
+  if (result.size !== 0) throw new Error(`expected an empty map, got size ${result.size}`);
+});
+
+Deno.test("fetchHallHours: a real response still maps correctly through the injected fetchImpl", async () => {
+  const workingFetch = (() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve([HAMPSHIRE]) })) as unknown as typeof fetch;
+  const result = await fetchHallHours(workingFetch);
+  if (!result.has(3)) throw new Error("expected Hampshire (tid 3) to be mapped from the injected response");
 });

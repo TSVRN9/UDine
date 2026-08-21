@@ -7,7 +7,7 @@
 // Intended to run on a schedule (Supabase Cron / pg_cron -> net.http_post), not from client code —
 // nothing in the client apps should call this directly.
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { HALL_TIDS, hallName, mapHallHours, windowCloseLabel, type HallHours, type InfoV2Location, type TimeWindow } from "../_shared/hours.ts";
+import { HALL_TIDS, hallName, fetchHallHours, windowCloseLabel, type HallHours, type TimeWindow } from "../_shared/hours.ts";
 import { dispatchPushNotifications, readPushConfig, isPermanentWebPushError, findDeadExpoTokens } from "../_shared/push.ts";
 
 export { isPermanentWebPushError, findDeadExpoTokens };
@@ -77,13 +77,6 @@ async function fetchHallMenu(hallTid: number): Promise<Map<string, string>> {
   if (!res.ok) return new Map();
   const data = (await res.json()) as Partial<Record<string, Record<string, string>>>;
   return extractDishMealMap(data);
-}
-
-async function fetchHallHours(): Promise<Map<number, HallHours>> {
-  const res = await fetch("https://www.umassdining.com/uapp/get_infov2");
-  if (!res.ok) return new Map();
-  const data = (await res.json()) as InfoV2Location[];
-  return mapHallHours(data);
 }
 
 const MEAL_LABELS: Record<string, string> = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", latenight: "late night" };

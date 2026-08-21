@@ -154,3 +154,32 @@ export function currentlyOpenUntil(hours: HallHours): string | null {
   }
   return closeMinutes === null ? null : minutesToLabel(closeMinutes);
 }
+
+const GET_INFOV2_URL = "https://www.umassdining.com/uapp/get_infov2";
+
+/**
+ * Fetches + maps get_infov2 in one step, degrading to an empty map -- not throwing -- on ANY
+ * failure: a rejected fetch (DNS/TLS/connection), a non-OK response, or a 200 whose body isn't
+ * valid JSON (a maintenance page, a realistic failure mode for a scraped Drupal endpoint). Hours
+ * data only ever feeds an optional "until <time>" clause that both callers already know how to omit
+ * -- an unguarded fetch/`.json()` here would instead reject out of the caller's Deno.serve handler
+ * and 500 the WHOLE run. For check-favorited-foods specifically that's not just a missing clause: it
+ * runs before the favorites/food_sightings work (see check-favorited-foods/index.ts), so a
+ * get_infov2 outage would silently zero out every sighting and push for that invocation while
+ * pg_cron still reports the run as "succeeded" (net.http_post returns a request id unconditionally,
+ * per 20260818120000_schedule_check_favorited_foods.sql's own comment).
+ *
+ * `fetchImpl` defaults to the global fetch; tests inject a stub so both the network-rejection and
+ * malformed-JSON paths are red-green-testable without a real network call.
+ */
+export async function fetchHallHours(fetchImpl: typeof fetch = fetch): Promise<Map<number, HallHours>> {
+  try {
+    const res = await fetchImpl(GET_INFOV2_URL);
+    if (!res.ok) return new Map();
+    const data = (await res.json()) as InfoV2Location[];
+    return mapHallHours(data);
+  } catch (err) {
+    console.error("fetchHallHours failed, degrading to no-hours-data:", err);
+    return new Map();
+  }
+}

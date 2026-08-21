@@ -10,7 +10,7 @@
 // ping message, and the hall -- no food history leaves the device (consistent with the residency
 // table: pings are server-side by definition, food logs never are).
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { hallName, mapHallHours, currentlyOpenUntil, type InfoV2Location } from "../_shared/hours.ts";
+import { hallName, fetchHallHours, currentlyOpenUntil } from "../_shared/hours.ts";
 import { dispatchPushNotifications, readPushConfig } from "../_shared/push.ts";
 
 const TRAILING_ELLIPSIS = /(…|\.\.\.)\s*$/;
@@ -66,8 +66,7 @@ Deno.serve(async (req) => {
   const { data: senderProfile } = await supabase.from("profiles").select("display_name").eq("user_id", ping.sender_id).maybeSingle();
   const senderName = senderProfile?.display_name ?? "A friend";
 
-  const hoursRes = await fetch("https://www.umassdining.com/uapp/get_infov2");
-  const hallHours = hoursRes.ok ? mapHallHours((await hoursRes.json()) as InfoV2Location[]) : new Map();
+  const hallHours = await fetchHallHours();
   const hours = hallHours.get(ping.hall_tid);
   const closesAtLabel = hours ? currentlyOpenUntil(hours) : null;
 

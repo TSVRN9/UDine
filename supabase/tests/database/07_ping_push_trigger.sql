@@ -1,10 +1,11 @@
 -- Issue #95: public.pings gets an AFTER INSERT trigger (notify_ping_push -> net.http_post to
--- send-ping-push) so a new ping pushes to its receiver immediately. This only checks the trigger is
--- actually attached and that it never breaks a real ping insert (the exception guard inside
--- notify_ping_push exists exactly so a vault/pg_net hiccup can't fail this) -- it does NOT assert on
--- pg_net's internal queue table, which is version-fragile and not this test's job; that a live call
--- actually reaches send-ping-push is verified separately (see the PR description for the live
--- invocation evidence), not something a local, networkless pgTAP run can observe.
+-- send-ping-push) so a new ping pushes to its receiver immediately. This checks two things only:
+-- the trigger is actually attached, and a real, RLS-gated ping insert still succeeds with it
+-- attached. It does NOT assert on pg_net's internal queue table (version-fragile, not this test's
+-- job) and it does NOT exercise notify_ping_push's `exception when others` block -- see the comment
+-- at the insert below for why that guard is untested under this harness. That a live call actually
+-- reaches send-ping-push is verified separately (see the PR description for the live invocation
+-- evidence), not something a local, networkless pgTAP run can observe.
 create extension if not exists pgtap;
 
 begin;
@@ -23,8 +24,19 @@ values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000
 
 -- With no 'check_favorited_foods_auth_token' vault secret seeded in this local, throwaway database
 -- (it's only ever seeded on the live project, per the schedule-cron migration's own comment), the
--- trigger's net.http_post call runs with a null Authorization header -- exactly the "something about
--- the dispatch path is off" case the exception guard exists for. The insert must still succeed.
+-- trigger's net.http_post call runs with a null Authorization header. This does NOT exercise
+-- notify_ping_push's `exception when others` block, despite an earlier version of this comment
+-- claiming it did -- net.http_post is fire-and-forget: it enqueues the request and returns
+-- immediately without raising, even with a null/bad Authorization header (the resulting 401 happens
+-- later, asynchronously, outside this transaction, invisible to the trigger's own exception
+-- handling). Verified directly: with the `exception when others` block removed entirely from
+-- notify_ping_push, this same test still passes -- there's nothing for the guard to catch under
+-- normal operation, only under a failure mode this local harness can't induce (`postgres` isn't
+-- superuser over the `net` schema here, so a pgTAP file can't make net.http_post itself raise). The
+-- guard is real defensive coverage against, e.g., a future refactor that adds fallible logic before
+-- the net.http_post call -- it's just not something this test (or any test on this stack) currently
+-- exercises. What this insert DOES prove: a real, RLS-gated ping insert succeeds with the trigger
+-- attached, regardless of what the trigger's downstream dispatch does.
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000001"}';
 select lives_ok(
