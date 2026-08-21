@@ -74,7 +74,9 @@ export function deriveHomeHero(halls: DiningHallHours[], now: Date): HomeHero {
   return { kind: "closed", opensAt };
 }
 
-function formatTime(date: Date): string {
+// Exported so grabStrip.ts (Home split-card Grab 'N Go strip, #116) can reuse the exact same
+// H:MM AM/PM formatting instead of a second implementation.
+export function formatTime(date: Date): string {
   let hour = date.getHours();
   const minute = date.getMinutes();
   const suffix = hour >= 12 ? "PM" : "AM";

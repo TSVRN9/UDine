@@ -18,6 +18,7 @@ import { Card, SectionHeader } from "../components/ui";
 import { PaneHeader } from "../components/PaneHeader";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
+import { grabRouteFor, grabStripState } from "../lib/grabStrip";
 import { HOME_PANE_INDEX, initialPaneOffset, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { isFirstRunDismissed } from "../lib/firstRun";
@@ -57,42 +58,77 @@ function HeroBlock({ hero, now }: { hero: HomeHero; now: Date }) {
   );
 }
 
-/** Full-width gradient hall card per the canvas: giant clipped monogram top-right, status pill,
- * condensed name bottom-left. Closed halls get the shared washed-out gradient + dimmed name. */
+// The strip's visual box (padding + one 11px line) lands well under 44dp, especially once
+// theme.fs()/spacing() shrink it further on narrow screens -- touch targets deliberately don't
+// scale (theme.ts), so this hitSlop is fixed, not run through fs()/spacing(), and sized generously
+// enough to clear 44dp effective height even at the smallest supported width. It's rendered as its
+// own Pressable *after* the hall zone in the card's column, so its top hitSlop reaching back up
+// into the hall zone's area wins hit-testing there (RN resolves overlaps in child order) without
+// the two zones' Pressables needing to nest.
+const GRAB_STRIP_HIT_SLOP = { top: 16, bottom: 12, left: 8, right: 8 };
+
+/** Split hall card per the #116 canvas delta: one rounded unit, two tap zones -- the hall area
+ * (opens the hall menu) and a translucent Grab 'N Go strip along the bottom of the same card
+ * (opens that hall's Grab 'N Go menu, #115). Giant clipped monogram + status pill live in the hall
+ * zone; the strip is a darker wash over the same gradient with a hairline top divider. Closed halls
+ * get the shared washed-out gradient + dimmed name (hall zone) and a further-dimmed strip. */
 function HallCard({
   hall,
   chip,
   isFavorite,
   onToggleFavorite,
+  grab,
 }: {
   hall: { slug: string; name: string; tid: number };
   chip: { open: boolean; text: string };
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  grab: { open: boolean; text: string };
 }) {
   const gradient = chip.open ? (hallGradients[hall.slug] ?? hallGradients.worcester) : hallGradientClosed;
   return (
     <View style={styles.hallCard}>
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.6 }} style={StyleSheet.absoluteFill} />
-      <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]}>{hall.name.charAt(0)}</Text>
-      {/* Sibling absolute-fill Pressable (not a parent of the star below) so the two touch
-          targets don't nest — nested Pressables in RN double-fire/steal gestures. */}
-      <Link href={`/halls/${hall.slug}`} asChild>
-        <Pressable style={StyleSheet.absoluteFill} />
+
+      <View style={styles.hallZone}>
+        {/* pointerEvents="none": purely decorative, same as the chip/name below -- it shouldn't
+            be able to absorb taps meant for the Link underneath it. */}
+        <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]} pointerEvents="none">
+          {hall.name.charAt(0)}
+        </Text>
+        {/* Sibling absolute-fill Pressable (not a parent of the star below) so the two touch
+            targets don't nest — nested Pressables in RN double-fire/steal gestures. */}
+        <Link href={`/halls/${hall.slug}`} asChild>
+          <Pressable style={StyleSheet.absoluteFill} />
+        </Link>
+        {chip.text ? (
+          <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]} pointerEvents="none">
+            <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
+          </View>
+        ) : null}
+        <Text style={[styles.hallCardName, !chip.open && styles.hallCardNameClosed]} pointerEvents="none">
+          {hall.name}
+        </Text>
+        {/* Not on the artboard, but /favorites only lists — this star is the sole way to favorite a
+            hall, so it stays (top-left; the canvas's top-right corner belongs to the status pill). */}
+        <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.hallCardStar}>
+          <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
+        </Pressable>
+      </View>
+
+      {/* expo-router's <Slot> (what asChild renders) clones its direct child and can't handle an
+          array `style` prop there -- it needs one flattened object, unlike a plain RN Pressable
+          (confirmed on-device: "[expo-router]: You are passing an array of styles to a child of
+          <Slot>"). Only the Pressable itself is that direct child; its own children are unaffected. */}
+      <Link href={grabRouteFor(hall.slug) as never} asChild>
+        <Pressable hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])}>
+          <View style={styles.grabStripLeft}>
+            <Text style={[styles.grabStripLabel, !grab.open && styles.grabStripTextClosed]}>GRAB 'N GO</Text>
+            {grab.text ? <Text style={[styles.grabStripHours, !grab.open && styles.grabStripTextClosed]}>{grab.text}</Text> : null}
+          </View>
+          <Text style={[styles.grabStripChevron, !grab.open && styles.grabStripTextClosed]}>›</Text>
+        </Pressable>
       </Link>
-      {chip.text ? (
-        <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]} pointerEvents="none">
-          <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
-        </View>
-      ) : null}
-      <Text style={[styles.hallCardName, !chip.open && styles.hallCardNameClosed]} pointerEvents="none">
-        {hall.name}
-      </Text>
-      {/* Not on the artboard, but /favorites only lists — this star is the sole way to favorite a
-          hall, so it stays (top-left; the canvas's top-right corner belongs to the status pill). */}
-      <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.hallCardStar}>
-        <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
-      </Pressable>
     </View>
   );
 }
@@ -144,7 +180,17 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
           const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
           const chip = hallHours ? formatLocationChip(openStatus(hallHours, now)) : { open: false, text: "" };
           const isFavorite = favoriteHallKeys.has(favoriteKey({ type: "location", hallTid: hall.tid }));
-          return <HallCard key={hall.slug} hall={hall} chip={chip} isFavorite={isFavorite} onToggleFavorite={() => toggleHall(hall.tid)} />;
+          const grab = grabStripState(hoursFeed?.retail ?? [], hall.name, now);
+          return (
+            <HallCard
+              key={hall.slug}
+              hall={hall}
+              chip={chip}
+              isFavorite={isFavorite}
+              onToggleFavorite={() => toggleHall(hall.tid)}
+              grab={grab}
+            />
+          );
         })}
       </View>
 
@@ -279,20 +325,23 @@ const styles = StyleSheet.create({
   heroGoldBar: { marginTop: spacing(1.5), height: 3, width: 72, backgroundColor: colors.gold500 },
 
   hallList: { gap: spacing(2.5) },
-  hallCard: { height: fs(106), borderRadius: radii.md, overflow: "hidden", justifyContent: "flex-end" },
+  // No fixed height on the outer card any more -- it's now hallZone (fixed) + grabStrip (intrinsic)
+  // stacked in a column, per #116's split-card canvas delta.
+  hallCard: { borderRadius: radii.md, overflow: "hidden" },
+  hallZone: { position: "relative", height: fs(76), justifyContent: "flex-end" },
   hallMonogram: {
     position: "absolute",
     right: fs(-8),
-    top: fs(-22),
+    top: fs(-24),
     fontFamily: fonts.display700,
-    fontSize: fs(120),
-    lineHeight: fs(120),
+    fontSize: fs(100),
+    lineHeight: fs(100),
     color: withOpacity(colors.paper50, 8),
   },
   hallMonogramClosed: { color: withOpacity(colors.paper50, 6) },
   hallCardName: {
     paddingHorizontal: spacing(3.5),
-    paddingBottom: spacing(3),
+    paddingBottom: spacing(2),
     fontFamily: fonts.display600,
     fontSize: fs(22),
     letterSpacing: 1,
@@ -316,6 +365,27 @@ const styles = StyleSheet.create({
   hallCardStar: { position: "absolute", top: spacing(1), left: spacing(1.5), padding: spacing(1) },
   star: { fontSize: fs(18), color: withOpacity(colors.paper50, 45) },
   starActive: { color: colors.gold500 },
+
+  // Translucent band over the same card gradient (own semi-transparent black background, not a
+  // second gradient) with a hairline top divider, per the canvas's split-card strip.
+  grabStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(3.5),
+    backgroundColor: withOpacity("#000000", 28),
+    borderTopWidth: 1,
+    borderTopColor: withOpacity(colors.paper50, 22),
+  },
+  grabStripClosed: { backgroundColor: withOpacity("#000000", 22), borderTopColor: withOpacity(colors.paper50, 15) },
+  grabStripLeft: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
+  grabStripLabel: { fontFamily: fonts.display600, fontSize: fs(11), letterSpacing: 1.2, color: colors.paper50 },
+  grabStripHours: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.paper50, 60) },
+  grabStripChevron: { fontFamily: fonts.body400, fontSize: fs(14), color: withOpacity(colors.paper50, 70) },
+  // Closed state: "all strip content" at one flat opacity, per the canvas -- overrides the
+  // per-element open-state opacities above rather than stacking with them.
+  grabStripTextClosed: { color: withOpacity(colors.paper50, 45) },
 
   section: { marginTop: spacing(5), gap: spacing(2.5) },
 

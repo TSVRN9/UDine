@@ -57,4 +57,15 @@ describe("HomePane", () => {
       expect(body).toMatch(new RegExp(hall));
     }
   });
+
+  it("gives every hall's split card an integrated Grab 'N Go strip (#116)", async () => {
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane activeIndex={1} />);
+    });
+
+    const body = texts(root).flat().join(" ");
+    // One strip label per hall -- confirms the strip is per-card, not a single shared element.
+    expect(body.match(/GRAB 'N GO/g)?.length).toBe(4);
+  });
 });
