@@ -43,6 +43,7 @@ export default function RootLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="redirect" options={{ headerShown: false, animation: "none" }} />
       <Stack.Screen name="halls/[slug]" options={{ headerShown: false }} />
+      <Stack.Screen name="grab-n-go/[slug]" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
       <Stack.Screen name="filters" options={{ title: "Dietary Filters" }} />
       <Stack.Screen name="favorites" options={{ title: "Favorites" }} />

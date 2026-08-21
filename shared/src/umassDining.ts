@@ -8,6 +8,23 @@ export const DINING_HALLS: DiningHall[] = [
   { tid: 4, slug: "berkshire", name: "Berkshire" },
 ];
 
+/**
+ * Each hall's Grab 'N Go station has its OWN taxonomy term id, distinct from both the hall's own
+ * tid above and the shared "Grab 'N Go" nav term (53 -- that one is just a listing page linking out
+ * to these four, not a menu feed). Discovered live 2026-08-20 for issue #115: each location's own
+ * page (e.g. https://www.umassdining.com/menu/hampshire-grab-n-go) embeds
+ * `"umass_dining":{"tid":"10715"}` in its `drupal-settings-json` script tag; cross-checked against
+ * GET /uapp/get_infov2, where the matching "<Hall> Grab 'N Go" location's `location_id` is the same
+ * number. `foodpro-menu-ajax?tid=<this>&date=...` returns the identical response shape as the halls
+ * (see parseCategoryItems/fetchMenu below, and grabNGo.test.ts) -- no separate client needed.
+ */
+export const GRAB_N_GO_TIDS: Record<string, number> = {
+  worcester: 10667,
+  franklin: 10716,
+  hampshire: 10715,
+  berkshire: 10666,
+};
+
 const MEAL_PERIODS: MealPeriod[] = ["breakfast", "lunch", "dinner"];
 
 function formatDateParam(date: Date): string {
