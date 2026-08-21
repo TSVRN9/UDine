@@ -172,6 +172,14 @@ const harvestDinner: DiningEvent = {
   expirationDate: "2026-08-27T16:00:00.000Z",
   isFeatured: true,
 };
+const pamphletEvent: DiningEvent = {
+  title: "Sustainability Big Impact",
+  featuredImage: "https://example.com/banner.jpg",
+  pdfLink: "https://example.com/poster.jpg",
+  externalLink: "",
+  expirationDate: "2026-09-01T16:00:00.000Z",
+  isFeatured: false,
+};
 
 describe("SocialPane", () => {
   it("signed out: shows the sign-in value prop, not a dead end, and still shows events", async () => {
@@ -250,16 +258,8 @@ describe("SocialPane", () => {
     expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
-  it("events v2.1 (#120): tapping a card whose payload is in-feed content (no external link, a usable pdf_link poster) pushes the in-app pamphlet screen with the event's data", async () => {
+  it("events v2.1 (#120): tapping a card whose payload is in-feed content (no external link, a usable pdf_link poster) pushes the in-app pamphlet screen with the full, exact param set", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
-    const pamphletEvent: DiningEvent = {
-      title: "Sustainability Big Impact",
-      featuredImage: "https://example.com/banner.jpg",
-      pdfLink: "https://example.com/poster.jpg",
-      externalLink: "",
-      expirationDate: "2026-09-01T16:00:00.000Z",
-      isFeatured: false,
-    };
     mockFetchEvents.mockResolvedValue([pamphletEvent]);
 
     const root = await renderSocialPane();
@@ -267,16 +267,53 @@ describe("SocialPane", () => {
     act(() => {
       eventPressable.props.onPress();
     });
-    expect(mockRouterPush).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pathname: "/event-detail",
-        params: expect.objectContaining({
-          title: "Sustainability Big Impact",
-          pamphletImage: "https://example.com/poster.jpg",
-        }),
-      }),
-    );
+    // Exact object, not objectContaining -- PR #129 review finding 2: a renamed/dropped param key
+    // (e.g. featuredImage) must fail this, since that's exactly how the pamphlet's banner silently
+    // went blank under mutation.
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: "/event-detail",
+      params: {
+        title: "Sustainability Big Impact",
+        featuredImage: "https://example.com/banner.jpg",
+        pamphletImage: "https://example.com/poster.jpg",
+        expirationDate: "2026-09-01T16:00:00.000Z",
+        isFeatured: "",
+      },
+    });
     expect(mockOpenBrowserAsync).not.toHaveBeenCalled();
+  });
+
+  it("events v2.1 (#120): trailing icon is derived from the tap destination -- an external link (fallFest) gets the external-link glyph, never the chevron", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    mockFetchEvents.mockResolvedValue([fallFest]); // link-classified: externalLink set, no pdfLink
+
+    const root = await renderSocialPane();
+    const allTexts = root.root.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
+    // Rendering only a link-classified event: seeing "›" here (and not "↗") would mean the glyphs
+    // got swapped/inverted, since there is no in-app-content card in this render to legitimately
+    // produce a "›". This is what a glyph-swap mutation flips -- see openEventTap.test.ts's own
+    // exact-match test for the tap-destination side of the same spec.
+    expect(allTexts).toContain("↗");
+    expect(allTexts).not.toContain("›");
+  });
+
+  it("events v2.1 (#120): trailing icon is derived from the tap destination -- in-app content (pamphletEvent) gets the chevron, never the external-link glyph", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    mockFetchEvents.mockResolvedValue([pamphletEvent]); // content-classified: no externalLink, a usable pdfLink
+
+    const root = await renderSocialPane();
+    const allTexts = root.root.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
+    expect(allTexts).toContain("›");
+    expect(allTexts).not.toContain("↗");
+  });
+
+  it("events v2.1 (#120): a banner event card's accessible name is its title, not just the date-line footer text left after the title row was dropped", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    mockFetchEvents.mockResolvedValue([harvestDinner]); // banner event -- title row is not rendered as visible Text
+
+    const root = await renderSocialPane();
+    const labeled = root.root.findAllByProps({ accessibilityLabel: "Local Harvest Dinner" });
+    expect(labeled.length).toBeGreaterThan(0);
   });
 
   it("events v2.1 (#120): a card with neither a link nor usable content (malformed/missing payload) still renders, but tapping it safely no-ops", async () => {

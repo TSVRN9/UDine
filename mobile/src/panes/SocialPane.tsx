@@ -1,7 +1,6 @@
 import { DINING_HALLS, fetchEvents, type DiningEvent } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { Link, router, useFocusEffect } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -22,6 +21,7 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { signInWithGoogle } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { classifyEventTap, eventDateLine } from "../lib/eventTapTarget";
+import { openEventTap } from "../lib/openEventTap";
 import {
   buildPingPayload,
   hallAtPoint,
@@ -89,26 +89,12 @@ function EventCard({ item }: { item: DiningEvent }) {
   const subtitle = eventDateLine(item.expirationDate);
   const target = classifyEventTap(item);
 
-  function handlePress() {
-    if (target.kind === "link") {
-      WebBrowser.openBrowserAsync(target.url);
-    } else if (target.kind === "content") {
-      router.push({
-        pathname: "/event-detail",
-        params: {
-          title: item.title,
-          featuredImage: item.featuredImage,
-          pamphletImage: target.pamphletImage,
-          expirationDate: item.expirationDate,
-          isFeatured: item.isFeatured ? "1" : "",
-        },
-      });
-    }
-    // target.kind === "none" -- malformed/missing payload, safe no-op.
-  }
-
   return (
-    <Pressable onPress={handlePress} accessibilityRole="button">
+    // accessibilityLabel is explicit, not left to the (now title-less on banner cards) children --
+    // PR #129 review finding 3: dropping the banner card's title Text also silently dropped its
+    // only accessible name, so a screen reader announced just "Through Aug 27, button". Matches
+    // halls/[slug].tsx's convention of labeling every Pressable explicitly.
+    <Pressable onPress={() => openEventTap(item)} accessibilityRole="button" accessibilityLabel={item.title}>
       <Card style={styles.eventCard}>
         {/* No title overlay on the image -- live fetchEvents banners are full poster graphics that
             already contain their own title art (the artboard's overlay only worked because its

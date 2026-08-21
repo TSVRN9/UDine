@@ -2,7 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
-import { eventDateLine } from "../lib/eventTapTarget";
+import { eventDateLine, type EventDetailParams } from "../lib/eventTapTarget";
 
 /**
  * In-app "pamphlet" detail screen (#120 v2.1 canvas): pushed when an event card's tap target
@@ -14,13 +14,10 @@ import { eventDateLine } from "../lib/eventTapTarget";
  * title, a short gold rule (same token pattern as index.tsx's heroGoldBar).
  */
 export default function EventDetailScreen() {
-  const { title, featuredImage, pamphletImage, expirationDate, isFeatured } = useLocalSearchParams<{
-    title?: string;
-    featuredImage?: string;
-    pamphletImage?: string;
-    expirationDate?: string;
-    isFeatured?: string;
-  }>();
+  // Typed against the same EventDetailParams the sender (openEventTap.ts) builds -- a renamed or
+  // dropped key on either side is now a compile error here, not a field that quietly reads as
+  // `undefined` (PR #129 review finding 2).
+  const { title, featuredImage, pamphletImage, expirationDate, isFeatured } = useLocalSearchParams<EventDetailParams>();
   const subtitle = eventDateLine(expirationDate ?? "");
 
   return (

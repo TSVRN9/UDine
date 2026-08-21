@@ -60,4 +60,11 @@ describe("classifyEventTap", () => {
       url: "https://umassdining.com/sites/default/files/events/flyer.pdf?v=2",
     });
   });
+
+  it("a pdf_link ending .pdf with a fragment still classifies as a link", () => {
+    expect(classifyEventTap({ externalLink: "", pdfLink: "https://umassdining.com/sites/default/files/events/flyer.pdf#page=2" })).toEqual({
+      kind: "link",
+      url: "https://umassdining.com/sites/default/files/events/flyer.pdf#page=2",
+    });
+  });
 });

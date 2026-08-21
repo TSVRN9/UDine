@@ -26,10 +26,29 @@ export function classifyEventTap(event: Pick<DiningEvent, "externalLink" | "pdfL
   if (link && /^https?:\/\//i.test(link)) return { kind: "link", url: link };
 
   const pdf = sanitizeImageUrl(event.pdfLink ?? "");
-  if (pdf && /\.pdf($|\?)/i.test(pdf)) return { kind: "link", url: pdf };
+  if (pdf && /\.pdf($|[?#])/i.test(pdf)) return { kind: "link", url: pdf };
   if (pdf) return { kind: "content", pamphletImage: pdf };
 
   return { kind: "none" };
+}
+
+/**
+ * Route params carried across the card->pamphlet seam (EventCard's handlePress -> event-detail.tsx's
+ * useLocalSearchParams). Typed and shared by both sides (via openEventTap.ts) so a renamed/dropped
+ * key is a compile error on whichever side didn't change, not a silently blank pamphlet screen --
+ * PR #129 review finding 2.
+ */
+export interface EventDetailParams {
+  // Index signature -- required for structural assignability to expo-router's own
+  // UnknownInputParams (Record<string, ...>). Doesn't weaken the rename/typo guard below: TS still
+  // flags a missing *required* key (e.g. featuredImage renamed away) regardless of this signature;
+  // it only stops flagging an unrelated *extra* key, which isn't the failure mode being guarded.
+  [key: string]: string;
+  title: string;
+  featuredImage: string;
+  pamphletImage: string;
+  expirationDate: string;
+  isFeatured: string;
 }
 
 /** "Through <Month Day>" from a DiningEvent's expirationDate, or null if absent -- shared between
