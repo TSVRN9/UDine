@@ -4,6 +4,7 @@ import {
   exportEntriesAsCsv,
   exportEntriesAsJson,
   hallCompletion,
+  isoDateOf,
   rankDiningHalls,
   type HallCompletion,
   type LogEntry,
@@ -135,7 +136,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
   }
 
   const date = todayIso();
-  const todaysEntries = allEntries.filter((e) => e.loggedAt.startsWith(date));
+  const todaysEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === date);
   const totals = computeDailyTotals(date, todaysEntries);
   const completions = hallCompletion(seenByHall, allEntries);
   const hallRanking = rankDiningHalls(rankedDishes);

@@ -35,6 +35,7 @@ import {
   type PlateEntry,
 } from "../../lib/plate";
 import { getPreferences } from "../../lib/preferences";
+import { nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
 
 const MEAL_PERIODS: MealPeriod[] = ["breakfast", "lunch", "dinner"];
@@ -152,7 +153,9 @@ export default function HallMenuScreen() {
   }
 
   async function logPlate() {
-    const entries = toLogEntries(plate, new Date().toISOString());
+    // Local-date-prefixed, not `.toISOString()` (UTC) -- see nowLocalIso's own comment (issue #111:
+    // evening logs were filing under tomorrow's UTC date and vanishing from Today).
+    const entries = toLogEntries(plate, nowLocalIso());
     try {
       for (const entry of entries) {
         await storage.addEntry(entry);
