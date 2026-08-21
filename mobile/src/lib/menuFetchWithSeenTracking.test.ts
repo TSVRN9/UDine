@@ -48,7 +48,9 @@ function item(dishName: string, hallTid: number): MenuItem {
 
 beforeEach(() => {
   mockFetchMenu.mockReset();
-  mockRecordSeen.mockReset();
+  // Must resolve, not return undefined -- the wrapper does `.catch(() => {})` on recordSeen's
+  // return value (PR #123 review: a bare jest.fn() returning undefined throws on that .catch).
+  mockRecordSeen.mockReset().mockResolvedValue(undefined);
 });
 
 test("records distinct dish names seen at the fetched hall and returns the menu unchanged", async () => {
@@ -68,4 +70,17 @@ test("doesn't call recordSeen when the hall has no items", async () => {
   mockFetchMenu.mockResolvedValue([]);
   await fetchMenuAndRecordSeen(3, new Date("2026-08-19"));
   expect(mockRecordSeen).not.toHaveBeenCalled();
+});
+
+// PR #123 review: a rejecting recordSeen (SQLITE_BUSY, full disk, corrupt row) must never take
+// down the menu fetch it's just bookkeeping alongside -- recordSeen is fire-and-forget precisely
+// so this holds.
+test("returns the menu unchanged when recordSeen rejects", async () => {
+  const items = [item("Chicken", 3)];
+  mockFetchMenu.mockResolvedValue(items);
+  mockRecordSeen.mockRejectedValue(new Error("database is locked"));
+
+  const result = await fetchMenuAndRecordSeen(3, new Date("2026-08-19"));
+
+  expect(result).toBe(items);
 });
