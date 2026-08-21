@@ -17,6 +17,11 @@ describe("nowLocalIso", () => {
     expect(nowLocalIso()).toBe("2026-08-20T23:30:00.000");
     // The bug this guards against: `.toISOString()` would give the wrong, UTC-rolled day here.
     expect(new Date().toISOString().slice(0, 10)).toBe("2026-08-21");
+    // The writer/reader seam itself: a stamped entry's date prefix must match what the reader
+    // (todayIso(), used by both YouPane's filter and SqliteLogStorage's LIKE) considers "today" at
+    // this same instant. Without this assertion, reverting todayIso() to a UTC-based
+    // implementation survives every other test in this file -- it doesn't touch nowLocalIso at all.
+    expect(nowLocalIso().slice(0, 10)).toBe(todayIso());
   });
 
   it("matches todayIso()'s date prefix at any time of day, not just near the UTC boundary", () => {
