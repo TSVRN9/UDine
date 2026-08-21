@@ -300,20 +300,24 @@ export default function HallMenuScreen() {
             const expanded = expandedKeys.has(dishKey);
             return (
               // #117: whole card is tappable and expands in place -- the (i) info button is gone,
-              // replaced by this and the FULL NUTRITION LABEL link below. Nested Pressables (star,
-              // stepper/add, the label link) each capture their own touch; RN resolves a tap to the
-              // deepest interactive view under it, so they don't also trigger this outer toggle.
-              <Pressable
-                style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}
-                onPress={() => toggleExpanded(dishKey)}
-                accessibilityRole="button"
-                accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
-              >
-                <View style={styles.rowMainLine}>
+              // replaced by this and the FULL NUTRITION LABEL link below. The expand toggle is a
+              // SIBLING absolute-fill Pressable, not a parent of the star/stepper/add/label-link
+              // Pressables -- index.tsx's HallCard already flagged why: "targets don't nest --
+              // nested Pressables in RN double-fire/steal gestures." Purely-visual children get
+              // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls
+              // through to this background Pressable instead of being silently swallowed.
+              <View style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={() => toggleExpanded(dishKey)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
+                />
+                <View style={styles.rowMainLine} pointerEvents="box-none">
                   <Pressable onPress={() => toggleDishFavorite(item.dishName)} hitSlop={8}>
                     <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
                   </Pressable>
-                  <View style={styles.rowMain}>
+                  <View style={styles.rowMain} pointerEvents="none">
                     <Text style={styles.rowText}>{item.dishName}</Text>
                     <Text style={styles.rowCalories}>
                       {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
@@ -328,11 +332,13 @@ export default function HallMenuScreen() {
                   )}
                 </View>
                 {expanded && (
-                  <View style={styles.expandedContent}>
-                    <View style={styles.expandedDivider} />
-                    <Text style={styles.servingSummary}>{formatServingSummary(item.nutrition)}</Text>
+                  <View style={styles.expandedContent} pointerEvents="box-none">
+                    <View style={styles.expandedDivider} pointerEvents="none" />
+                    <Text style={styles.servingSummary} pointerEvents="none">
+                      {formatServingSummary(item.nutrition)}
+                    </Text>
                     {item.dietTags.length > 0 && (
-                      <View style={styles.dietChipRow}>
+                      <View style={styles.dietChipRow} pointerEvents="none">
                         {item.dietTags.map((tag) => (
                           <View key={tag} style={styles.dietChip}>
                             <Text style={styles.dietChipText}>{tag.toUpperCase()}</Text>
@@ -351,7 +357,7 @@ export default function HallMenuScreen() {
                     </Pressable>
                   </View>
                 )}
-              </Pressable>
+              </View>
             );
           }}
         />

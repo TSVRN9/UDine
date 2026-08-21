@@ -310,7 +310,7 @@ describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info
 });
 
 describe("HallMenuScreen tab-row subtitle wiring (#117)", () => {
-  it("shows 'being served now' once the fetched hours confirm the selected tab is what's serving right now", async () => {
+  it("shows 'being served now' for today+Lunch, and hides it again once the date is stepped away from today (old code showed this line unconditionally whenever hours resolved)", async () => {
     (fetchDiningHours as jest.Mock).mockResolvedValueOnce({
       halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "12:00 AM", closeTime: "11:59 PM" }, dinner: null, latenight: null, general: null }],
       retail: [],
@@ -318,6 +318,11 @@ describe("HallMenuScreen tab-row subtitle wiring (#117)", () => {
     const root = await renderScreen([PIZZA]);
     await act(async () => {}); // flush fetchDiningHours' resolution
     expect(texts(root).flat().join(" ")).toMatch(/being served now/);
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/being served now/);
   });
 });
 
