@@ -1,6 +1,6 @@
 import type { HallCompletion } from "@udine/shared";
 import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
-import { buildTopFoods, deriveTopFoodHall, displayCompletionPct, pillTone } from "./youPaneFormat";
+import { buildTopFoods, deriveTopFoodHall, displayCompletionPct, groupEntriesByMeal, mealPeriodForTime, pillTone } from "./youPaneFormat";
 
 function completion(overrides: Partial<HallCompletion> = {}): HallCompletion {
   return { hallTid: 1, loggedDistinct: 0, seenDistinct: 0, pct: 0, ...overrides };
@@ -122,5 +122,113 @@ describe("buildTopFoods", () => {
       food("C", 3, 1600),
     ];
     expect(buildTopFoods(foods, [], [], 2)).toHaveLength(2);
+  });
+});
+
+// --- mealPeriodForTime / groupEntriesByMeal (#118): canonical, contiguous local-clock windows
+// covering the full 24h day (breakfast 5:00-10:30, lunch 10:30-14:00, dinner 14:00-21:00, late
+// night 21:00-5:00 wrapping past midnight) -- since the windows are contiguous with no gaps,
+// every entry has exactly one enclosing period by construction (issue #118's "nearest/enclosing"
+// ask). TZ is pinned to America/New_York for the whole suite (mobile/package.json's `test` script
+// -- see date.test.ts's own comment on why that has to be a process-start env var, not a
+// per-test one). ------------------------------------------------------------------------------
+
+describe("mealPeriodForTime", () => {
+  it("buckets the breakfast start boundary (5:00 AM) to breakfast, inclusive", () => {
+    expect(mealPeriodForTime("2026-08-20T05:00:00.000")).toBe("breakfast");
+  });
+
+  it("buckets one minute before the breakfast boundary to late night (still last night's window)", () => {
+    expect(mealPeriodForTime("2026-08-20T04:59:00.000")).toBe("latenight");
+  });
+
+  it("buckets the lunch start boundary (10:30 AM) to lunch, and one minute before to breakfast", () => {
+    expect(mealPeriodForTime("2026-08-20T10:30:00.000")).toBe("lunch");
+    expect(mealPeriodForTime("2026-08-20T10:29:00.000")).toBe("breakfast");
+  });
+
+  it("buckets the dinner start boundary (2:00 PM) to dinner, and one minute before to lunch", () => {
+    expect(mealPeriodForTime("2026-08-20T14:00:00.000")).toBe("dinner");
+    expect(mealPeriodForTime("2026-08-20T13:59:00.000")).toBe("lunch");
+  });
+
+  it("buckets the late-night start boundary (9:00 PM) to late night, and one minute before to dinner", () => {
+    expect(mealPeriodForTime("2026-08-20T21:00:00.000")).toBe("latenight");
+    expect(mealPeriodForTime("2026-08-20T20:59:00.000")).toBe("dinner");
+  });
+
+  it("crosses midnight: both 11:30 PM and 12:30 AM bucket to late night", () => {
+    expect(mealPeriodForTime("2026-08-20T23:30:00.000")).toBe("latenight");
+    expect(mealPeriodForTime("2026-08-21T00:30:00.000")).toBe("latenight");
+  });
+
+  it("reads the LOCAL hour, not the UTC hour, for a Z-suffixed timestamp (issue #111's trap)", () => {
+    // 2026-08-20T14:00:00.000Z is 2:00 PM UTC == 10:00 AM Eastern (EDT, UTC-4 in August) --
+    // "breakfast" is the only correct answer. A bug that read getUTCHours() instead of getHours()
+    // would see UTC hour 14 and wrongly bucket this as "dinner" (dinner's own 2:00 PM boundary).
+    expect(mealPeriodForTime("2026-08-20T14:00:00.000Z")).toBe("breakfast");
+  });
+});
+
+function mealEntry(id: string, loggedAt: string, calories: number, servings = 1): LogEntry {
+  return { id, loggedAt, source: { type: "umass-menu", dishName: id, hallTid: 1 }, servings, nutrition: { ...NUTRITION_FIXTURE, calories } };
+}
+
+const NUTRITION_FIXTURE = {
+  servingSize: "1 serving",
+  calories: 0,
+  caloriesFromFat: 0,
+  totalFatG: 0,
+  satFatG: 0,
+  transFatG: 0,
+  cholesterolMg: 0,
+  sodiumMg: 0,
+  totalCarbG: 0,
+  dietaryFiberG: 0,
+  sugarsG: 0,
+  proteinG: 0,
+};
+
+describe("groupEntriesByMeal", () => {
+  it("returns no groups for an empty entry list", () => {
+    expect(groupEntriesByMeal([])).toEqual([]);
+  });
+
+  it("groups entries by meal period, only including periods that have entries", () => {
+    const entries = [
+      mealEntry("breakfast-1", "2026-08-20T07:00:00.000", 300),
+      mealEntry("dinner-1", "2026-08-20T18:00:00.000", 700),
+    ];
+    const groups = groupEntriesByMeal(entries);
+    expect(groups.map((g) => g.period)).toEqual(["breakfast", "dinner"]);
+    expect(groups.map((g) => g.label)).toEqual(["Breakfast", "Dinner"]);
+  });
+
+  it("orders groups canonically (Breakfast, Lunch, Dinner, Late Night) regardless of input order", () => {
+    const entries = [
+      mealEntry("late-1", "2026-08-20T22:00:00.000", 200),
+      mealEntry("lunch-1", "2026-08-20T12:00:00.000", 200),
+      mealEntry("breakfast-1", "2026-08-20T07:00:00.000", 200),
+      mealEntry("dinner-1", "2026-08-20T18:00:00.000", 200),
+    ];
+    expect(groupEntriesByMeal(entries).map((g) => g.period)).toEqual(["breakfast", "lunch", "dinner", "latenight"]);
+  });
+
+  it("sums each group's total calories as calories * servings, reconciling with computeDailyTotals", () => {
+    const entries = [
+      mealEntry("a", "2026-08-20T07:00:00.000", 400, 1),
+      mealEntry("b", "2026-08-20T08:00:00.000", 120, 2), // 240
+    ];
+    const [breakfast] = groupEntriesByMeal(entries);
+    expect(breakfast.totalCalories).toBe(640); // 400 + 120*2, matches the canvas's "640 cal" example
+  });
+
+  it("preserves each group's entries in their given (chronological) order", () => {
+    const entries = [
+      mealEntry("first", "2026-08-20T07:00:00.000", 100),
+      mealEntry("second", "2026-08-20T09:00:00.000", 100),
+    ];
+    const [breakfast] = groupEntriesByMeal(entries);
+    expect(breakfast.entries.map((e) => e.id)).toEqual(["first", "second"]);
   });
 });
