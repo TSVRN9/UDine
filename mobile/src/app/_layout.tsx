@@ -48,6 +48,8 @@ export default function RootLayout() {
       <Stack.Screen name="favorites" options={{ title: "Favorites" }} />
       <Stack.Screen name="rank" options={{ title: "Rank Dishes" }} />
       <Stack.Screen name="friends" options={{ title: "Friends" }} />
+      <Stack.Screen name="privacy" options={{ title: "Privacy" }} />
+      <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
       <Stack.Screen name="events" options={{ title: "Events" }} />
       <Stack.Screen name="press" options={{ title: "Press" }} />

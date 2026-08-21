@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { syncDiningHallRanks, syncFavoritedFoods } from "./sync.ts";
+import { syncDiningHallRanks, syncFavoritedFoods, syncSharedStat } from "./sync.ts";
 import type { Favorite, RankedDish } from "./types.ts";
 
 /** Minimal stand-in for the SupabaseClient methods syncDiningHallRanks actually calls. */
@@ -127,4 +127,61 @@ test("syncFavoritedFoods resolves with { error: null } on success", async () => 
   const inserted: { table: string; rows: unknown[] }[] = [];
   const result = await syncFavoritedFoods(makeFavoritedFoodsSupabaseMock(inserted), "user-1", [{ type: "dish", dishName: "Pizza" }]);
   assert.deepEqual(result, { error: null });
+});
+
+/** Minimal stand-in for the SupabaseClient methods syncSharedStat actually calls. */
+function makeSharedStatsSupabaseMock(upserted: { table: string; rows: unknown[] }[], upsertError: unknown = null) {
+  return {
+    from(table: string) {
+      return {
+        upsert(rows: unknown) {
+          upserted.push({ table, rows: [rows] });
+          return Promise.resolve({ error: upsertError });
+        },
+      };
+    },
+    // biome-ignore lint: test double, shape doesn't need to match SupabaseClient exactly
+  } as any;
+}
+
+test("syncSharedStat upserts only the one named field, alongside user_id", async () => {
+  const upserted: { table: string; rows: unknown[] }[] = [];
+  await syncSharedStat(makeSharedStatsSupabaseMock(upserted), "user-1", "top_foods", [{ dishName: "Pizza", score: 9.4, hallName: "Berkshire" }]);
+
+  assert.equal(upserted.length, 1);
+  assert.equal(upserted[0].table, "shared_stats");
+  assert.deepEqual(upserted[0].rows, [{ user_id: "user-1", top_foods: [{ dishName: "Pizza", score: 9.4, hallName: "Berkshire" }] }]);
+});
+
+// A revoke sends the field with an explicit `null` in the payload -- PostgREST's upsert writes
+// that as SQL NULL for exactly that column (see the shared_stats migration's json-null check
+// constraints, which exist specifically to make sure this can never instead write a JSON null).
+// This asserts the JS-level contract: the payload really does carry `null`, not an omitted key
+// (which upsert would just leave untouched on conflict, not clear).
+test("syncSharedStat(field, null) upserts the field as an explicit null -- a revoke, not a no-op", async () => {
+  const upserted: { table: string; rows: unknown[] }[] = [];
+  await syncSharedStat(makeSharedStatsSupabaseMock(upserted), "user-1", "completion", null);
+
+  assert.deepEqual(upserted[0].rows, [{ user_id: "user-1", completion: null }]);
+});
+
+test("syncSharedStat resolves with { error: null } on success", async () => {
+  const upserted: { table: string; rows: unknown[] }[] = [];
+  const result = await syncSharedStat(makeSharedStatsSupabaseMock(upserted), "user-1", "hall_ranks", [{ hallTid: 3, rank: 1 }]);
+  assert.deepEqual(result, { error: null });
+});
+
+test("syncSharedStat resolves with the upsert's error instead of throwing", async () => {
+  const upserted: { table: string; rows: unknown[] }[] = [];
+  const result = await syncSharedStat(makeSharedStatsSupabaseMock(upserted, { message: "permission denied" }), "user-1", "completion", []);
+  assert.deepEqual(result, { error: { message: "permission denied" } });
+});
+
+test("syncSharedStat resolves (does not throw) when the client rejects/throws", async () => {
+  const throwingSupabase = {
+    from() {
+      throw new Error("network down");
+    },
+  } as any;
+  await assert.doesNotReject(() => syncSharedStat(throwingSupabase, "user-1", "completion", []));
 });

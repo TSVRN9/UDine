@@ -120,6 +120,31 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   via `net._http_response` that it actually got back a live `200` with the function's normal JSON
   body, not just that `net.http_post` returned a request id (which it does unconditionally,
   regardless of the HTTP outcome — see the migration's own comment on this pitfall).
+- **`shared_stats` schema + RLS (#94): DONE, local pgTAP green.** One row per user
+  (`supabase/migrations/20260820120000_shared_stats.sql`), three independently-nullable jsonb
+  columns (`completion`, `top_foods`, `hall_ranks`) instead of three tables, so "opted in or not" is
+  presence/absence of one column, enforced down to a check constraint (a JSON `null` literal is
+  rejected — only a real absent/SQL-NULL column counts as "not shared"). RLS: owner full CRUD on
+  their own row; a second, read-only SELECT policy admits an accepted friend only (mirrors pings'
+  friendship check). `supabase/tests/database/07_shared_stats_rls.sql` (19 pgTAP assertions) proves:
+  no row at all exposes nothing; an owner can write; an un-opted-in field stays absent even to a
+  friend who can read the row; an opted-in field is visible to an accepted friend; a stranger, a
+  pending-not-yet-accepted connection, and an anonymous session all see nothing (anon is a hard
+  permission-denied — there's no `anon` grant on this table, same as every other social table here);
+  a friend can read but never write (RLS silently filters their UPDATE/DELETE to zero rows, doesn't
+  throw — same shape as `favorite_dining_halls`'s existing "alice can't update bob's row" case);
+  revoking a field (`update ... set completion = null`) actually deletes it, immediately, for both
+  the owner's own read and a friend's. Verified with a genuine mutation-red too, not just a
+  missing-table one: loosening the friend-select policy to `using (true)` flipped the
+  stranger/pending-friend denial assertions red; reverting it turned them green again. Explicit
+  `select/insert/update/delete` grants to `authenticated`/`service_role` per the 2026-10-30
+  auto-expose deprecation (see the grant migration above). **Not yet applied to the live project** —
+  per #94's own instruction, that happens only after this PR is reviewed and approved, not
+  automatically once local pgTAP is green. Mobile: `mobile/src/lib/privacySettings.ts` derives each
+  stat's synced payload (a truncated cut — no `pct`/`tone`/comparison counts, see its own doc
+  comment) and decides what a toggle should push; `shared/src/sync.ts`'s `syncSharedStat` does the
+  actual upsert-or-null-out. Both jest- and node:test-covered, red-first (mutation-tested, not just
+  written-then-run-once).
 
 ## Data sources
 
@@ -164,15 +189,17 @@ were not part of this cut.
 ## Data residency — read this before adding any table or any client→Supabase call
 
 Health data (what/how much a user ate, calorie and macro history) **never leaves the device unless
-the user explicitly exports it.** This constrains every feature that touches food-logging:
+the user explicitly exports it, or opts a truncated summary in per the Shared stats row below.**
+This constrains every feature that touches food-logging:
 
 | Feature | Lives | Why |
 |---|---|---|
 | Consumption log (what/when eaten, portions) | **Device only** (SQLite on mobile / IndexedDB on web) | Core privacy requirement — this is the data the user asked to never leave the device |
 | Calorie/macro history, daily totals | **Device only**, derived from the log above | Same |
 | Menu cache (dining hall items, nutrition facts) | **Device only**, fetched directly from UMass Dining APIs | Public data, but keeping it off Supabase keeps the anonymous path truly account-free — no DB, no RLS surface, for the core no-account flow |
-| Dish/location ranking (pairwise comparisons AND computed per-dish order) | **Device only**, always | A per-dish rank order is reconstructible into "what/how much they ate" — same sensitivity as the log itself, so it doesn't get a server exception |
+| Dish/location ranking (pairwise comparisons AND computed per-dish order) | **Device only**, always | A per-dish rank order is reconstructible into "what/how much they ate" — same sensitivity as the log itself, so it doesn't get a server exception. The *raw* comparisons and the *full* per-dish order never leave the device under any setting — only the truncated, opt-in summaries in the row below can |
 | Favorite **dining halls** (a handful of location IDs, derived on-device from ranking) | Server, if the user is signed in | This is the only ranking-derived thing the server sees — coarse enough (which building, not which dish) to support "come eat with me" pings without exposing food history; user must opt in by signing in |
+| **Shared stats** (#94 — hall completion counts, top-5 foods by name+score+hall, full hall rank order) | Server, **opt-in per stat, default all off**, and only ever visible to accepted friends | The one sanctioned amendment to this table (epic #87's privacy decision, 2026-08-19). Each of the three stats is an independent toggle — opting into "top foods" doesn't share completion or hall ranking. A stat the user hasn't opted into is NULL/absent server-side, never written ("privacy by presence," enforced by check constraints, not just app discipline). Turning a stat back off **deletes** that field server-side immediately, not just pauses future updates. Never includes raw comparisons, comparison counts, timestamps, or the consumption log itself — see `shared_stats` migration and `mobile/src/lib/privacySettings.ts` for exactly what's cut from each payload before it's allowed to sync |
 | Favorited foods (for "spotted elsewhere" alerts) | Server, only if signed in and notifications enabled | Requires server-side matching against the menu feed to push a notification; anonymous users can still favorite locally but get no alerts |
 | Friends, pings, profile | Server (requires account by definition) | |
 | Auth identity (email, Google sub) | Server (Supabase Auth) | |

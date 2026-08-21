@@ -251,6 +251,14 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
             </Card>
           </Pressable>
         </Link>
+        <Link href="/privacy" asChild>
+          <Pressable>
+            <Card style={styles.friendsRow}>
+              <Text style={styles.friendsText}>Privacy</Text>
+              <Text style={styles.friendsChevron}>›</Text>
+            </Card>
+          </Pressable>
+        </Link>
       </View>
 
       <View style={styles.section}>
