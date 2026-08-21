@@ -97,12 +97,31 @@ export default function HallMenuScreen() {
 
   useEffect(() => {
     if (!hall) return;
+    // `current` guards against a stale response winning a race: two quick date-stepper taps fire
+    // two fetches, and network order isn't request order -- without this, an in-flight response
+    // for a date the user already stepped away from can land after the current one and overwrite
+    // it (mobile/grab-n-go-menu's "clear stale menu error on date change" fix is the same class).
+    let current = true;
     setItems(null);
     setError(null);
     fetchMenuAndRecordSeen(hall.tid, selectedDate)
-      .then(setItems)
-      .catch((e) => setError(String(e)));
+      .then((result) => {
+        if (current) setItems(result);
+      })
+      .catch((e) => {
+        if (current) setError(String(e));
+      });
+    return () => {
+      current = false;
+    };
   }, [hall, selectedDate]);
+
+  // Expanded state keys on dish identity alone (hallTid + dishName, via plateKeyFor), not meal
+  // period or date -- the same dish name can recur across meals/days, so without this a card
+  // expanded at Lunch could render pre-expanded after switching to Dinner or stepping the date.
+  useEffect(() => {
+    setExpandedKeys(new Set());
+  }, [selectedMeal, selectedDate]);
 
   useEffect(() => {
     if (!hall) return;

@@ -264,6 +264,33 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     });
     expect(mockedRouterPush).toHaveBeenCalledWith("/grab-n-go/worcester");
   });
+
+  it("ignores a stale response for a previously-selected date that resolves after a newer one (network order isn't request order)", async () => {
+    let resolveFirst: (items: MenuItem[]) => void = () => {};
+    const firstFetch = new Promise<MenuItem[]>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockedFetchMenu.mockReturnValueOnce(firstFetch).mockResolvedValueOnce([SALAD]);
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+
+    // Step to the next day before the first (still in-flight) fetch has resolved -- its response
+    // for the *old* date arrives after the second, newer-date fetch's response.
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Salad/);
+
+    await act(async () => {
+      resolveFirst([PIZZA]);
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Salad/);
+    expect(body).not.toMatch(/Pizza/);
+  });
 });
 
 describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info button)", () => {
@@ -306,6 +333,27 @@ describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info
     // The modal's subtitle ("<hall> · <category>") only comes from NutritionLabel actually mounting
     // with this dish -- a more specific signal than "Salad" text alone, which the row already shows.
     expect(texts(root).flat()).toContain("Worcester · Entrees");
+  });
+
+  it("collapses back to un-expanded when a card reappears after switching meal tabs away and back (expand state keys on dish identity alone, not meal period)", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Pizza" }).props.onPress();
+    });
+    // findByProps (not findAll) throws unless there's exactly one match -- confirms the card is
+    // expanded (an "Expand Pizza"-labeled instance no longer exists) without counting duplicates.
+    expect(() => root.root.findByProps({ accessibilityLabel: "Expand Pizza" })).toThrow();
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Breakfast menu" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Lunch menu" }).props.onPress();
+    });
+
+    // Back on Lunch: if expand state weren't reset on tab switch, this would still be
+    // "Collapse Pizza" and the line below would throw instead of resolving cleanly.
+    expect(root.root.findByProps({ accessibilityLabel: "Expand Pizza" })).toBeDefined();
   });
 });
 
