@@ -258,3 +258,8 @@ Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `read
 ### Domain docs
 
 Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Emulator pool
+
+Three shared Android AVDs (320dp/360dp/600dp) for parallel mobile UI verification, with lock
+paths and boot/capacity notes. See `docs/agents/emulator-pool.md`.
