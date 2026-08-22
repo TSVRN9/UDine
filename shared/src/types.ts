@@ -5,7 +5,12 @@ export interface DiningHall {
   name: string;
 }
 
-export type MealPeriod = "breakfast" | "lunch" | "dinner";
+// "latenight" added for #117 (mobile hall-menu meal tabs) -- the raw foodpro-menu-ajax feed
+// really does publish a 4th meal period on some hall/date combos, wire key "late night" (with a
+// literal space; see umassDining.ts's fetchMenu), confirmed live 2026-08-21 (Worcester, 08/21/2026:
+// {"lunch":...,"dinner":...,"late night":...}). Previously silently dropped -- MEAL_PERIODS in
+// umassDining.ts only ever looked up "breakfast"/"lunch"/"dinner".
+export type MealPeriod = "breakfast" | "lunch" | "dinner" | "latenight";
 
 export interface NutritionFacts {
   servingSize: string;

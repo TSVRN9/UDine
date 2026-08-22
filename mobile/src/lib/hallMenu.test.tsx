@@ -34,6 +34,7 @@ jest.mock("expo-router", () => ({
   // focus-effect callback would resolve to (empty favorites, default prefs), so nothing here needs
   // to actually fire it for these findings.
   useFocusEffect: (_callback: () => void) => {},
+  router: { back: jest.fn(), push: jest.fn() },
 }));
 
 // PlateBar reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
@@ -45,6 +46,10 @@ jest.mock("react-native-safe-area-context", () => ({
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),
+  // #117: real fetchDiningHours hits the network; a resolved-empty default keeps the screen's
+  // hours effect from throwing (calling .then on an unmocked jest.fn()'s undefined return) while
+  // individual tests can still override with mockResolvedValueOnce for subtitle-specific cases.
+  fetchDiningHours: jest.fn().mockResolvedValue({ halls: [], retail: [] }),
 }));
 
 // #107: the screen must route its menu fetch through menuFetchWithSeenTracking.ts (not call
@@ -60,15 +65,18 @@ jest.mock("./seenDishesStorage", () => ({
 }));
 
 import renderer, { act } from "react-test-renderer";
-import { Text, SectionList } from "react-native";
-import { fetchMenu, type MenuItem } from "@udine/shared";
+import { StyleSheet, Text, SectionList } from "react-native";
+import { router } from "expo-router";
+import { fetchDiningHours, fetchMenu, type MenuItem } from "@udine/shared";
 import HallMenuScreen from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
+import { stepDate } from "./hallMenuTabs";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
+const mockedRouterPush = router.push as jest.Mock;
 // menuFetchWithSeenTracking.ts instantiates SqliteSeenDishesStorage eagerly at module scope, but
 // only if something actually imports that wrapper -- until #107's wiring lands, the screen doesn't,
 // so the constructor never runs and `.mock.results` is empty. Read this lazily (inside the test,
@@ -121,6 +129,17 @@ const SALAD: MenuItem = {
   date: "2026-08-19",
   nutrition: nutrition(80),
   allergens: [],
+  dietTags: ["Halal", "Gluten-Free"],
+};
+
+const OATMEAL: MenuItem = {
+  dishName: "Oatmeal",
+  category: "Breakfast Entrees",
+  mealPeriod: "breakfast",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(150),
+  allergens: [],
   dietTags: [],
 };
 
@@ -148,6 +167,14 @@ function stepPlate(root: renderer.ReactTestRenderer, dishName: string, dir: "Add
 function findBannerContainer(root: renderer.ReactTestRenderer, matching: RegExp) {
   const bannerText = root.root.findAllByType(Text).find((n) => typeof n.props.children === "string" && matching.test(n.props.children));
   return bannerText?.parent ?? null;
+}
+
+// #117 review, finding 1: total vertical touch area a Pressable's hitSlop prop adds on top of its
+// own laid-out box -- RN accepts hitSlop as either a single number (applied to all 4 sides) or a
+// per-side object.
+function verticalHitSlop(hitSlop: number | { top?: number; bottom?: number } | undefined): number {
+  if (typeof hitSlop === "number") return hitSlop * 2;
+  return (hitSlop?.top ?? 0) + (hitSlop?.bottom ?? 0);
 }
 
 async function openSheetAndLog(root: renderer.ReactTestRenderer) {
@@ -201,6 +228,173 @@ describe("HallMenuScreen seen-dish tracking (#107)", () => {
 
     expect(root.root.findAllByType(SectionList)).toHaveLength(1);
     expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load menu/);
+  });
+});
+
+describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () => {
+  it("defaults to the Lunch tab -- lunch items show, other meal periods' items don't", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Pizza/);
+    expect(body).not.toMatch(/Oatmeal/);
+  });
+
+  it("switching to the Breakfast tab shows breakfast items and hides the previously-shown lunch items", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Breakfast menu" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Oatmeal/);
+    expect(body).not.toMatch(/Pizza/);
+  });
+
+  it("steps the date forward by exactly one calendar day and refetches the menu for it", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    // mockedFetchMenu is a module-level mock shared across this whole file's tests, never reset --
+    // index off "the call count so far", not a fixed index, so this doesn't depend on test order.
+    const callsBefore = mockedFetchMenu.mock.calls.length;
+    const [, initialDate] = mockedFetchMenu.mock.calls[callsBefore - 1];
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    expect(mockedFetchMenu.mock.calls.length).toBe(callsBefore + 1);
+    const [, steppedDate] = mockedFetchMenu.mock.calls[callsBefore];
+    expect(steppedDate.getTime()).toBe(stepDate(initialDate, 1).getTime());
+  });
+
+  it("navigates to the hall's Grab 'N Go route when its tab is pressed", async () => {
+    const root = await renderScreen([PIZZA]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+    expect(mockedRouterPush).toHaveBeenCalledWith("/grab-n-go/worcester");
+  });
+
+  it("ignores a stale response for a previously-selected date that resolves after a newer one (network order isn't request order)", async () => {
+    let resolveFirst: (items: MenuItem[]) => void = () => {};
+    const firstFetch = new Promise<MenuItem[]>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockedFetchMenu.mockReturnValueOnce(firstFetch).mockResolvedValueOnce([SALAD]);
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+
+    // Step to the next day before the first (still in-flight) fetch has resolved -- its response
+    // for the *old* date arrives after the second, newer-date fetch's response.
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Salad/);
+
+    await act(async () => {
+      resolveFirst([PIZZA]);
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Salad/);
+    expect(body).not.toMatch(/Pizza/);
+  });
+});
+
+describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info button)", () => {
+  it("doesn't show serving/macro detail or the nutrition-label link until a card is tapped", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    expect(texts(root).flat().join(" ")).not.toMatch(/FULL NUTRITION LABEL/);
+  });
+
+  it("tapping a collapsed card expands it in place: serving summary, diet chips, and the nutrition-label link all appear", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Per serving 1 each/);
+    expect(body).toMatch(/HALAL/);
+    expect(body).toMatch(/GLUTEN-FREE/);
+    expect(body).toMatch(/FULL NUTRITION LABEL/);
+  });
+
+  it("tapping an already-expanded card collapses it again", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Collapse Salad" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/FULL NUTRITION LABEL/);
+  });
+
+  it("opens the full NutritionLabel modal (existing label screen) from the expanded card's link", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Full nutrition label for Salad" }).props.onPress();
+    });
+    // The modal's subtitle ("<hall> · <category>") only comes from NutritionLabel actually mounting
+    // with this dish -- a more specific signal than "Salad" text alone, which the row already shows.
+    expect(texts(root).flat()).toContain("Worcester · Entrees");
+  });
+
+  // #117 review, finding 1: this link is now the ONLY path to the nutrition label -- the (i) button
+  // it replaced was a 44dp square. react-test-renderer does no real layout, so this can't measure
+  // actual rendered pixels; it asserts the computed target from the two things that determine it
+  // (the Pressable's own minHeight + its hitSlop), same class of check as the occlusion-padding
+  // assertions elsewhere in this file that read `.props.style` directly.
+  it("keeps the FULL NUTRITION LABEL link's effective tap target at least 44dp (minHeight + hitSlop)", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    const link = root.root.findByProps({ accessibilityLabel: "Full nutrition label for Salad" });
+    const flatStyle = StyleSheet.flatten(link.props.style) as { minHeight?: number };
+    const effectiveHeight = (flatStyle.minHeight ?? 0) + verticalHitSlop(link.props.hitSlop);
+    expect(effectiveHeight).toBeGreaterThanOrEqual(44);
+  });
+
+  it("collapses back to un-expanded when a card reappears after switching meal tabs away and back (expand state keys on dish identity alone, not meal period)", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Pizza" }).props.onPress();
+    });
+    // findByProps (not findAll) throws unless there's exactly one match -- confirms the card is
+    // expanded (an "Expand Pizza"-labeled instance no longer exists) without counting duplicates.
+    expect(() => root.root.findByProps({ accessibilityLabel: "Expand Pizza" })).toThrow();
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Breakfast menu" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Lunch menu" }).props.onPress();
+    });
+
+    // Back on Lunch: if expand state weren't reset on tab switch, this would still be
+    // "Collapse Pizza" and the line below would throw instead of resolving cleanly.
+    expect(root.root.findByProps({ accessibilityLabel: "Expand Pizza" })).toBeDefined();
+  });
+});
+
+describe("HallMenuScreen tab-row subtitle wiring (#117)", () => {
+  it("shows 'being served now' for today+Lunch, and hides it again once the date is stepped away from today (old code showed this line unconditionally whenever hours resolved)", async () => {
+    (fetchDiningHours as jest.Mock).mockResolvedValueOnce({
+      halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "12:00 AM", closeTime: "11:59 PM" }, dinner: null, latenight: null, general: null }],
+      retail: [],
+    });
+    const root = await renderScreen([PIZZA]);
+    await act(async () => {}); // flush fetchDiningHours' resolution
+    expect(texts(root).flat().join(" ")).toMatch(/being served now/);
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/being served now/);
   });
 });
 
