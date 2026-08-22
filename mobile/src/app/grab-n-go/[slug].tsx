@@ -22,6 +22,7 @@ import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
+import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
 import {
   addOrIncrement,
@@ -36,6 +37,7 @@ import {
 } from "../../lib/plate";
 import { getPreferences } from "../../lib/preferences";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
+import { nowLocalIso } from "../../lib/date";
 
 const storage = new SqliteLogStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
@@ -111,11 +113,23 @@ export default function GrabNGoScreen() {
 
   useEffect(() => {
     if (!gngTid) return;
+    // `current` guards against a stale response winning a race: two quick date-stepper taps fire
+    // two fetches, and network order isn't request order -- without this, an in-flight response
+    // for a date the user already stepped away from can land after the current one and overwrite
+    // it. Ported from #117's hall-menu screen (halls/[slug].tsx), same fetch-effect shape.
+    let current = true;
     setItems(null);
     setError(null); // clear a previous date's fetch failure -- else it pins the error screen across every later date step
     fetchMenu(gngTid, date)
-      .then(setItems)
-      .catch((e) => setError(String(e)));
+      .then((result) => {
+        if (current) setItems(result);
+      })
+      .catch((e) => {
+        if (current) setError(String(e));
+      });
+    return () => {
+      current = false;
+    };
   }, [gngTid, date]);
 
   useEffect(() => {
@@ -146,14 +160,25 @@ export default function GrabNGoScreen() {
   const sections = useMemo(() => {
     if (!items) return [];
     const filtered = items.filter((i) => menuItemMatchesPreferences(i, prefs));
-    const byCategory = new Map<string, MenuItem[]>();
+    const byCategory = new Map<string, Map<string, MenuItem>>();
     for (const item of filtered) {
       const title = item.category.trim();
-      const bucket = byCategory.get(title);
-      if (bucket) bucket.push(item);
-      else byCategory.set(title, [item]);
+      let bucket = byCategory.get(title);
+      if (!bucket) {
+        bucket = new Map();
+        byCategory.set(title, bucket);
+      }
+      // Keyed by plate identity (dishName + hallTid), not insertion order: the same dish can appear
+      // under two different mealPeriod values sharing one trimmed category (the feed has no
+      // meal-period grouping here), and rendering both would put two identical rows sharing one
+      // plate stepper in the section. Dedupe to the one row the stepper actually controls (#130 item 3).
+      // First occurrence wins on a duplicate key -- fine as long as the feed never publishes two
+      // differing nutrition panels for the same dish+category (a live probe across 16 dates x 4
+      // locations found zero such duplicates at all, differing or not; see #121's review).
+      const key = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
+      if (!bucket.has(key)) bucket.set(key, item);
     }
-    return Array.from(byCategory, ([title, data]) => ({ title, data }));
+    return Array.from(byCategory, ([title, bucket]) => ({ title, data: Array.from(bucket.values()) }));
   }, [items, prefs]);
 
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
@@ -161,11 +186,16 @@ export default function GrabNGoScreen() {
   if (!hall || !gngTid) return <Text style={styles.error}>Unknown dining hall</Text>;
 
   // Grab 'N Go locations don't match the hall-detection check in @udine/shared's get_infov2 mapping
-  // (it requires "Commons" in the title), so they land in DiningHoursFeed.retail instead — same
-  // matching approach as that hall check (name-prefix), just done here since it's a mobile-only
-  // formatting concern (see retailHeaderSubtitle/retailOpenStatus's own doc in lib/homeHero.ts).
-  const retailHours = hoursFeed?.retail.find((r) => r.name.startsWith(hall.name) && /grab/i.test(r.name));
-  const subtitle = retailHours ? retailHeaderSubtitle(retailOpenStatus(retailHours, new Date())) : "";
+  // (it requires "Commons" in the title), so they land in DiningHoursFeed.retail instead --
+  // findGrabNGoLocation (lib/grabStrip.ts) is the same lookup the Home strip already uses.
+  const retailHours = hoursFeed ? findGrabNGoLocation(hoursFeed.retail, hall.name) : null;
+  // get_infov2 (and so hoursFeed) only ever publishes TODAY's hours -- once the date stepper moves
+  // off today, showing it would paint a confidently wrong "open now · until ..." over a menu that
+  // isn't today's. Omit the subtitle rather than show today's hours mislabeled, same call #117's
+  // sibling mealTabSubtitle (hallMenuTabs.ts) makes for the hall-menu screen's tab-row subtitle.
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const subtitle = retailHours && isToday ? retailHeaderSubtitle(retailOpenStatus(retailHours, now)) : "";
 
   async function toggleDishFavorite(dishName: string) {
     const favorite: Favorite = { type: "dish", dishName };
@@ -196,12 +226,22 @@ export default function GrabNGoScreen() {
   }
 
   async function logPlate() {
-    const entries = toLogEntries(plate, new Date().toISOString());
+    // Local-date-prefixed, not `.toISOString()` (UTC) -- see nowLocalIso's own comment (issue #111:
+    // evening logs were filing under tomorrow's UTC date and vanishing from Today). Same #111 bug
+    // family, found in this screen by PR #132's review (#130 item 6).
+    const entries = toLogEntries(plate, nowLocalIso());
     try {
       for (const entry of entries) {
         await storage.addEntry(entry);
       }
     } catch (e) {
+      // ponytail: no transaction wrapping this loop, so a failure partway through leaves
+      // whatever already succeeded committed, and the plate stays put (not cleared) so the user
+      // doesn't lose their selection -- but retrying re-logs everything with fresh ids
+      // (toLogEntries mints new random ids each call), so anything that already committed
+      // becomes a duplicate row rather than being replaced. Acceptable for a UI feature where
+      // each addEntry is one single-row insert unlikely to fail independently; upgrade to one
+      // transactional bulk insert on SqliteLogStorage if this shows up in practice.
       setLogged(`Couldn't log everything: ${String(e)}`);
       return;
     }
@@ -280,6 +320,14 @@ export default function GrabNGoScreen() {
         />
       )}
       {logged && (
+        // Same occlusion-bug class as the list's own bottom padding above (PR #78/#84): this banner
+        // is the one surface a LOG failure actually shows on (the plate is deliberately retained, not
+        // cleared, so the bar stays mounted right where an in-flow bottom banner would otherwise sit,
+        // opaque and on top of it). Anchored clear of the bar's measured height via the same
+        // listBottomPadding reuse -- 0 when there's no bar, right above it when there is. Device-pass
+        // finding: also pads for the bottom safe-area inset itself (else its own text gets clipped by
+        // gesture nav when there's no bar to already clear that space), and reports its own measured
+        // height via onLayout so the list's paddingBottom above can add it in while it's showing.
         <View
           style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight, plate.length > 0), paddingBottom: spacing(2) + insets.bottom }]}
           onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
