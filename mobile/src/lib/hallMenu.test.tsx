@@ -65,7 +65,7 @@ jest.mock("./seenDishesStorage", () => ({
 }));
 
 import renderer, { act } from "react-test-renderer";
-import { Text, SectionList } from "react-native";
+import { StyleSheet, Text, SectionList } from "react-native";
 import { router } from "expo-router";
 import { fetchDiningHours, fetchMenu, type MenuItem } from "@udine/shared";
 import HallMenuScreen from "../app/halls/[slug]";
@@ -167,6 +167,14 @@ function stepPlate(root: renderer.ReactTestRenderer, dishName: string, dir: "Add
 function findBannerContainer(root: renderer.ReactTestRenderer, matching: RegExp) {
   const bannerText = root.root.findAllByType(Text).find((n) => typeof n.props.children === "string" && matching.test(n.props.children));
   return bannerText?.parent ?? null;
+}
+
+// #117 review, finding 1: total vertical touch area a Pressable's hitSlop prop adds on top of its
+// own laid-out box -- RN accepts hitSlop as either a single number (applied to all 4 sides) or a
+// per-side object.
+function verticalHitSlop(hitSlop: number | { top?: number; bottom?: number } | undefined): number {
+  if (typeof hitSlop === "number") return hitSlop * 2;
+  return (hitSlop?.top ?? 0) + (hitSlop?.bottom ?? 0);
 }
 
 async function openSheetAndLog(root: renderer.ReactTestRenderer) {
@@ -333,6 +341,22 @@ describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info
     // The modal's subtitle ("<hall> · <category>") only comes from NutritionLabel actually mounting
     // with this dish -- a more specific signal than "Salad" text alone, which the row already shows.
     expect(texts(root).flat()).toContain("Worcester · Entrees");
+  });
+
+  // #117 review, finding 1: this link is now the ONLY path to the nutrition label -- the (i) button
+  // it replaced was a 44dp square. react-test-renderer does no real layout, so this can't measure
+  // actual rendered pixels; it asserts the computed target from the two things that determine it
+  // (the Pressable's own minHeight + its hitSlop), same class of check as the occlusion-padding
+  // assertions elsewhere in this file that read `.props.style` directly.
+  it("keeps the FULL NUTRITION LABEL link's effective tap target at least 44dp (minHeight + hitSlop)", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    const link = root.root.findByProps({ accessibilityLabel: "Full nutrition label for Salad" });
+    const flatStyle = StyleSheet.flatten(link.props.style) as { minHeight?: number };
+    const effectiveHeight = (flatStyle.minHeight ?? 0) + verticalHitSlop(link.props.hitSlop);
+    expect(effectiveHeight).toBeGreaterThanOrEqual(44);
   });
 
   it("collapses back to un-expanded when a card reappears after switching meal tabs away and back (expand state keys on dish identity alone, not meal period)", async () => {

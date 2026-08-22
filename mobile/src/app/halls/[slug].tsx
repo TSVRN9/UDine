@@ -301,7 +301,10 @@ export default function HallMenuScreen() {
       ) : !items ? (
         <ActivityIndicator style={styles.loading} color={colors.maroon600} />
       ) : sections.length === 0 ? (
-        <EmptyState title="No matching dishes" message={`No ${mealTabLabel(selectedMeal).toLowerCase()} menu matches your filters at ${hall.name} today.`} />
+        // #117 review: was hardcoded "today" regardless of the stepped date -- "for this day"
+        // matches grab-n-go/[slug].tsx's own EmptyState copy (also date-agnostic by construction,
+        // so it's correct whether selectedDate is today or not, no isToday branch needed).
+        <EmptyState title="No matching dishes" message={`No ${mealTabLabel(selectedMeal).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />
       ) : (
         <SectionList
           sections={sections}
@@ -535,7 +538,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(2.25),
   },
   dietChipText: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 0.5, color: colors.maroon900 },
-  fullLabelLink: { flexDirection: "row", alignItems: "center", gap: spacing(1) },
+  // #117 review: this link is now the ONLY path to the nutrition label (the (i) button it
+  // replaced was a 44dp square). minHeight is a fixed 44, not fs(44)/spacing() -- per theme.ts's
+  // own doc comment, touch targets deliberately don't scale down on narrow screens.
+  fullLabelLink: { flexDirection: "row", alignItems: "center", gap: spacing(1), minHeight: 44 },
   fullLabelLinkText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
 
   addButton: {
