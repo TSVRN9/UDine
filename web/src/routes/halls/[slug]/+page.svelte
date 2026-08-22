@@ -7,6 +7,7 @@
 		applyFoodComparison,
 		DINING_HALLS,
 		menuItemMatchesPreferences,
+		nowLocalIso,
 		pickPostLogComparisonPair,
 		syncDiningHallRanks,
 		type Favorite,
@@ -116,7 +117,12 @@
 		const qty = Number(servings[item.dishName]) || 1;
 		const entry: LogEntry = {
 			id: crypto.randomUUID(),
-			loggedAt: new Date().toISOString(),
+			// Local-date-prefixed, not `.toISOString()` (UTC) -- see nowLocalIso's own doc comment
+			// (@udine/shared, shared/src/date.ts) for why: readers that bucket loggedAt by calendar
+			// day (indexedDbStorage.ts's getEntriesForDate) compare against the LOCAL day, so a UTC
+			// stamp made evening entries file under tomorrow and vanish from Today (issue #124, the
+			// same bug mobile hit as #111/PR #122).
+			loggedAt: nowLocalIso(),
 			source: { type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid },
 			servings: qty,
 			nutrition: item.nutrition
