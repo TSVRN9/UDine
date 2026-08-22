@@ -5,7 +5,7 @@
 	import {
 		applyComparison,
 		applyFoodComparison,
-		DINING_HALLS,
+		hallNameFor,
 		MEAL_PERIODS,
 		mealPeriodLabel,
 		menuItemMatchesPreferences,
@@ -47,10 +47,6 @@
 	// changes -- e.g. the prompt appearing/disappearing -- with no manual effect needed). Used to size
 	// the narrow-viewport spacer that reserves clearance for the last dish row's Log button.
 	let stackHeight = $state(0);
-
-	function hallName(hallTid: number): string {
-		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-	}
 
 	const dateLabel = $derived(
 		new Date(`${data.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
@@ -383,7 +379,7 @@
 						class="flex-1 cursor-pointer rounded-sm border border-maroon-900/25 px-3 py-2 text-left transition-colors hover:border-gold-500 hover:bg-gold-500/10"
 					>
 						<span class="block text-sm font-semibold text-maroon-900">{choice.dishName}</span>
-						<span class="badge mt-1">{hallName(choice.hallTid)}</span>
+						<span class="badge mt-1">{hallNameFor(choice.hallTid)}</span>
 					</button>
 				{/each}
 			</div>

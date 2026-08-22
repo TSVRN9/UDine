@@ -1,4 +1,4 @@
-import { DINING_HALLS, syncFavoritedFoods, type Favorite } from "@udine/shared";
+import { hallNameFor, syncFavoritedFoods, type Favorite } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
@@ -51,10 +51,6 @@ async function registerForPushToken(): Promise<string | null> {
 type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date: string; read_at: string | null; created_at: string };
 
 const favoritesStorage = new SqliteFavoritesStorage();
-
-function hallName(hallTid: number): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-}
 
 /**
  * Notifications screen content, extracted from the outer ScrollView so it can be mounted both as
@@ -184,7 +180,7 @@ export function NotificationsBody() {
         sightings.map((s) => (
           <Pressable key={s.id} onPress={() => markRead(s)} style={[styles.sightingRow, s.read_at ? styles.sightingRead : null]}>
             <Text style={styles.sightingText}>
-              <Text style={styles.sightingDish}>{s.dish_name}</Text> at {hallName(s.hall_tid)} on {s.sighted_date}
+              <Text style={styles.sightingDish}>{s.dish_name}</Text> at {hallNameFor(s.hall_tid)} on {s.sighted_date}
             </Text>
           </Pressable>
         ))

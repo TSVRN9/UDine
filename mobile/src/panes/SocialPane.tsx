@@ -1,4 +1,4 @@
-import { DINING_HALLS, fetchEvents, type DiningEvent } from "@udine/shared";
+import { DINING_HALLS, fetchEvents, hallNameFor, type DiningEvent } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { Link, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -54,10 +54,6 @@ const TAP_MOVE_THRESHOLD = 10;
 
 function otherUserId(f: Friendship, myId: string): string {
   return f.user_a === myId ? f.user_b : f.user_a;
-}
-
-function hallName(hallTid: number): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
 }
 
 function initialsOf(name: string): string {
@@ -268,7 +264,7 @@ export function SocialPane({ activeIndex }: { activeIndex: number }) {
   }
 
   const holdingFriendName = gesture.phase === "holding" ? (profilesById.get(gesture.friendId)?.display_name ?? "them") : "";
-  const holdingHallText = gesture.phase === "holding" && gesture.hoverHallTid !== null ? hallName(gesture.hoverHallTid) : null;
+  const holdingHallText = gesture.phase === "holding" && gesture.hoverHallTid !== null ? hallNameFor(gesture.hoverHallTid) : null;
   // The bottom hint composes the shuffled message + hall name into a sentence ("Let's go to
   // Berkshire", per the artboard's own example) -- the messages themselves end in an ellipsis to
   // read naturally as a standalone bubble line, which would otherwise leave a stray "…" mid-sentence.
