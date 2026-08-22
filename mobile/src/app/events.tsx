@@ -1,8 +1,9 @@
 import { fetchEvents, type DiningEvent } from "@udine/shared";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Card, EmptyState } from "../components/ui";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
+import { openEventTap } from "../lib/openEventTap";
 
 export default function EventsScreen() {
   const [items, setItems] = useState<DiningEvent[] | null>(null);
@@ -15,11 +16,6 @@ export default function EventsScreen() {
   if (error) return <Text style={styles.error}>Failed to load events: {error}</Text>;
   if (!items) return <ActivityIndicator style={styles.loading} color={colors.maroon600} />;
 
-  function open(item: DiningEvent) {
-    const url = item.externalLink || item.pdfLink;
-    if (url) Linking.openURL(url);
-  }
-
   return (
     <FlatList
       style={styles.screen}
@@ -27,7 +23,12 @@ export default function EventsScreen() {
       data={items}
       keyExtractor={(item, i) => `${item.title}-${i}`}
       renderItem={({ item }) => (
-        <Pressable onPress={() => open(item)}>
+        // Same dispatcher as the Social pane's EventCard (../lib/openEventTap.ts) -- content
+        // classifies to the in-app pamphlet, an external link to the pop-up in-app browser, a
+        // malformed/missing payload safely no-ops. Was a hand-rolled `Linking.openURL(externalLink
+        // || pdfLink)` with no scheme guard (PR #129 review, non-blocking finding) that kicked out
+        // to the system browser instead of matching the Social pane's behavior for the same event.
+        <Pressable onPress={() => openEventTap(item)} accessibilityRole="button" accessibilityLabel={item.title}>
           <Card style={styles.row}>
             {!!item.featuredImage && <Image source={{ uri: item.featuredImage }} style={styles.image} />}
             <Text style={styles.title}>
