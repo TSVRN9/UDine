@@ -82,7 +82,12 @@ GET https://www.umassdining.com/foodpro-menu-ajax?tid=<drupal_taxonomy_term_id>&
 - No auth required.
 - Response shape: `{ "breakfast": { "<category name>": "<html fragment>", ... }, "lunch": {...},
   "dinner": {...} }` — meal periods missing from the day (e.g. no breakfast served) are simply absent
-  as keys, not present-with-empty-array. Each HTML fragment is a `<li class="lightbox-nutrition">` list;
+  as keys, not present-with-empty-array. **Correction (2026-08-21, #117):** there's a 4th possible
+  key, `"late night"` (a literal space, not `"latenight"`) — confirmed live (Worcester, tid=1,
+  08/21/2026: `{"lunch":...,"dinner":...,"late night":...}`). `shared/src/umassDining.ts`'s
+  `fetchMenu` previously only ever looked up `breakfast`/`lunch`/`dinner`, silently dropping this
+  period's dishes; it now maps the `"late night"` wire key to `MealPeriod` `"latenight"`. Each HTML
+  fragment is a `<li class="lightbox-nutrition">` list;
   parse it, don't treat it as structured JSON. Each `<li><a data-*=... >Item Name</a></li>` carries the
   full nutrition panel as data attributes on the `<a>` tag:
   `data-serving-size`, `data-calories`, `data-calories-from-fat`, `data-total-fat[-dv]`, `data-sat-fat[-dv]`,
