@@ -17,7 +17,8 @@ export function todayIso(): string {
 //
 // A bare (no "Z"/offset) ISO-shaped string is parsed back as local time by `new Date(str)` per the
 // ECMA-262 Date Time String spec, so downstream `new Date(loggedAt).getHours()` (youPaneFormat.ts's
-// mealPeriodForTime) and lexicographic sort/SQL ORDER BY both keep working unchanged.
+// mealPeriodForTime, logsFormat.ts's formatLogTime) and lexicographic sort/SQL ORDER BY both keep
+// working unchanged.
 export function nowLocalIso(d: Date = new Date()): string {
   const pad = (n: number, width = 2) => String(n).padStart(width, "0");
   const datePart = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

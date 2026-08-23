@@ -1,6 +1,6 @@
 import type { HallCompletion } from "@udine/shared";
 import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
-import { buildTopFoods, deriveTopFoodHall, displayCompletionPct, groupEntriesByMeal, mealPeriodForTime, pillTone } from "./youPaneFormat";
+import { buildTopFoods, deriveTopFoodHall, displayCompletionPct, groupEntriesByMeal, hallName, logItemLine, mealPeriodForTime, pillTone } from "./youPaneFormat";
 
 function completion(overrides: Partial<HallCompletion> = {}): HallCompletion {
   return { hallTid: 1, loggedDistinct: 0, seenDistinct: 0, pct: 0, ...overrides };
@@ -167,6 +167,37 @@ describe("mealPeriodForTime", () => {
     // "breakfast" is the only correct answer. A bug that read getUTCHours() instead of getHours()
     // would see UTC hour 14 and wrongly bucket this as "dinner" (dinner's own 2:00 PM boundary).
     expect(mealPeriodForTime("2026-08-20T14:00:00.000Z")).toBe("breakfast");
+  });
+});
+
+// --- hallName / logItemLine: extracted out of YouPane.tsx (were module-local there) so #119's Logs
+// & stats screen can reuse the exact same collapsed-row text instead of re-deriving it. ------------
+
+describe("hallName", () => {
+  it("resolves a known hall tid to its name", () => {
+    expect(hallName(1)).toBe("Worcester");
+    expect(hallName(3)).toBe("Hampshire");
+  });
+
+  it("falls back to a generic label for an unknown tid", () => {
+    expect(hallName(999)).toBe("Hall 999");
+  });
+});
+
+describe("logItemLine", () => {
+  it("omits the × qty suffix for a single serving", () => {
+    const e = entry({ servings: 1, source: { type: "umass-menu", dishName: "French Toast", hallTid: 3 } });
+    expect(logItemLine(e)).toBe("French Toast · Hampshire");
+  });
+
+  it("includes the × qty suffix for multiple servings", () => {
+    const e = entry({ servings: 2, source: { type: "umass-menu", dishName: "French Toast", hallTid: 3 } });
+    expect(logItemLine(e)).toBe("French Toast × 2 · Hampshire");
+  });
+
+  it("omits the hall for an off-menu (barcode) entry", () => {
+    const e = entry({ servings: 1, source: { type: "off", barcode: "0123", productName: "Trail Mix" } });
+    expect(logItemLine(e)).toBe("Trail Mix");
   });
 });
 
