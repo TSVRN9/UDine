@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseCategoryItems } from "./umassDining.ts";
+import { fetchMenu, parseCategoryItems } from "./umassDining.ts";
+
+// fetchMenu calls the global fetch directly (no injectable client) -- swap it for a stub and
+// restore afterward, same pattern as openFoodFacts.test.ts.
+function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
+  const original = globalThis.fetch;
+  globalThis.fetch = impl;
+  return fn().finally(() => {
+    globalThis.fetch = original;
+  });
+}
 
 // Real fragment captured from GET foodpro-menu-ajax?tid=3&date=08%2F19%2F2026 (Hampshire, breakfast,
 // "Breakfast Entrees"), trimmed to two <a> items — see docs/apk-reverse-engineering.md.
@@ -63,4 +73,32 @@ test("parseCategoryItems distinguishes an absent %DV attribute (undefined) from 
 
 test("parseCategoryItems returns nothing for a fragment with no dishes", () => {
   assert.deepEqual(parseCategoryItems("<h2>Closed today</h2>", "x", "breakfast", 3, "2026-08-19"), []);
+});
+
+// #117: confirmed live 2026-08-21 (GET foodpro-menu-ajax?tid=1&date=08%2F21%2F2026) that the feed
+// really does key a 4th meal period as "late night" (literal space) -- not "latenight", not absent.
+// Previously fetchMenu's MEAL_PERIODS loop only ever looked up "breakfast"/"lunch"/"dinner", so
+// these dishes were silently dropped, not just unlabeled.
+test("fetchMenu maps the feed's 'late night' key to MealPeriod 'latenight' instead of dropping it", async () => {
+  const items = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          lunch: { Entrees: REAL_FRAGMENT },
+          "late night": { Mediterranean: FRAGMENT_MISSING_DV_ATTR },
+        }),
+      }) as Response,
+    () => fetchMenu(1, new Date(2026, 7, 21)),
+  );
+
+  const lateNightItems = items.filter((i) => i.category === "Mediterranean");
+  assert.equal(lateNightItems.length, 1);
+  assert.equal(lateNightItems[0].dishName, "No DV Dish");
+  assert.equal(lateNightItems[0].mealPeriod, "latenight");
+
+  // lunch items still parse as before -- this isn't a regression on the existing keys.
+  const lunchItems = items.filter((i) => i.mealPeriod === "lunch");
+  assert.equal(lunchItems.length, 2);
 });

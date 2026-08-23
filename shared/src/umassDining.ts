@@ -25,7 +25,16 @@ export const GRAB_N_GO_TIDS: Record<string, number> = {
   berkshire: 10666,
 };
 
-const MEAL_PERIODS: MealPeriod[] = ["breakfast", "lunch", "dinner"];
+// The feed's raw JSON keys don't all match MealPeriod strings verbatim -- "late night" (a literal
+// space) is the wire key for MealPeriod "latenight" (confirmed live 2026-08-21, tid=1 08/21/2026:
+// {"lunch":...,"dinner":...,"late night":...}). Map wire key -> canonical MealPeriod instead of
+// indexing the response object directly by MealPeriod name, which silently dropped this period.
+const RAW_MEAL_PERIOD_KEYS: [string, MealPeriod][] = [
+  ["breakfast", "breakfast"],
+  ["lunch", "lunch"],
+  ["dinner", "dinner"],
+  ["late night", "latenight"],
+];
 
 function formatDateParam(date: Date): string {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -145,11 +154,11 @@ export async function fetchMenu(hallTid: number, date: Date): Promise<MenuItem[]
   const url = `https://www.umassdining.com/foodpro-menu-ajax?tid=${hallTid}&date=${encodeURIComponent(formatDateParam(date))}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`foodpro-menu-ajax ${res.status}`);
-  const data = (await res.json()) as Partial<Record<MealPeriod, Record<string, string>>>;
+  const data = (await res.json()) as Partial<Record<string, Record<string, string>>>;
   const isoDate = toIsoDate(date);
   const items: MenuItem[] = [];
-  for (const mealPeriod of MEAL_PERIODS) {
-    const categories = data[mealPeriod];
+  for (const [rawKey, mealPeriod] of RAW_MEAL_PERIOD_KEYS) {
+    const categories = data[rawKey];
     if (!categories) continue;
     for (const [category, html] of Object.entries(categories)) {
       items.push(...parseCategoryItems(html, category, mealPeriod, hallTid, isoDate));

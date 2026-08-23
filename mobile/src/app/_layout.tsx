@@ -54,6 +54,7 @@ export default function RootLayout() {
       <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
       <Stack.Screen name="events" options={{ title: "Events" }} />
+      <Stack.Screen name="event-detail" options={{ title: "Event" }} />
       <Stack.Screen name="press" options={{ title: "Press" }} />
       <Stack.Screen name="newsletter" options={{ title: "Newsletter" }} />
     </Stack>

@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
-  Linking,
   PanResponder,
   Pressable,
   ScrollView,
@@ -21,6 +20,8 @@ import { Button, Card, EmptyState, SectionHeader } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { signInWithGoogle } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { classifyEventTap, eventDateLine } from "../lib/eventTapTarget";
+import { openEventTap } from "../lib/openEventTap";
 import {
   buildPingPayload,
   hallAtPoint,
@@ -77,24 +78,43 @@ function Avatar({ name, index, gold }: { name: string; index: number; gold: bool
   );
 }
 
+/**
+ * #120 v2.1: DETAILS is gone -- a trailing chevron/external-link glyph (text stand-ins, same call
+ * as login.tsx's Google "G": no react-native-svg dependency for one icon) signals where the tap
+ * goes instead. Banner events also drop the title row entirely (owner decision: the banner image
+ * usually already carries the title art, so a text duplicate underneath was redundant) -- the
+ * footer is subtitle + icon only. Banner-less notices keep title+subtitle, just lose DETAILS.
+ */
 function EventCard({ item }: { item: DiningEvent }) {
-  const subtitle = item.expirationDate ? `Through ${new Date(item.expirationDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : null;
+  const subtitle = eventDateLine(item.expirationDate);
+  const target = classifyEventTap(item);
+
   return (
-    <Pressable onPress={() => Linking.openURL(item.externalLink || item.pdfLink)}>
+    // accessibilityLabel is explicit, not left to the (now title-less on banner cards) children --
+    // PR #129 review finding 3: dropping the banner card's title Text also silently dropped its
+    // only accessible name, so a screen reader announced just "Through Aug 27, button". Matches
+    // halls/[slug].tsx's convention of labeling every Pressable explicitly.
+    <Pressable onPress={() => openEventTap(item)} accessibilityRole="button" accessibilityLabel={item.title}>
       <Card style={styles.eventCard}>
         {/* No title overlay on the image -- live fetchEvents banners are full poster graphics that
             already contain their own title art (the artboard's overlay only worked because its
-            placeholder was a plain gradient). Title always renders in the row below instead. */}
+            placeholder was a plain gradient). */}
         {item.featuredImage ? <Image source={{ uri: item.featuredImage }} style={styles.eventBanner} resizeMode="cover" /> : null}
         <View style={styles.eventRow}>
-          <View style={styles.eventInfo}>
-            <Text style={styles.eventTitle} numberOfLines={1}>
-              {item.isFeatured ? "★ " : ""}
-              {item.title}
-            </Text>
-            {subtitle ? <Text style={styles.eventSubtitle}>{subtitle}</Text> : null}
-          </View>
-          <Text style={styles.eventDetails}>DETAILS</Text>
+          {item.featuredImage ? (
+            subtitle ? (
+              <Text style={styles.eventSubtitle}>{subtitle}</Text>
+            ) : null
+          ) : (
+            <View style={styles.eventInfo}>
+              <Text style={styles.eventTitle} numberOfLines={1}>
+                {item.isFeatured ? "★ " : ""}
+                {item.title}
+              </Text>
+              {subtitle ? <Text style={styles.eventSubtitle}>{subtitle}</Text> : null}
+            </View>
+          )}
+          {target.kind !== "none" && <Text style={styles.eventIcon}>{target.kind === "link" ? "↗" : "›"}</Text>}
         </View>
       </Card>
     </Pressable>
@@ -395,7 +415,9 @@ const styles = StyleSheet.create({
   eventInfo: { flex: 1, gap: 1 },
   eventTitle: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   eventSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 65) },
-  eventDetails: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
+  // Trailing chevron (in-app pamphlet) / external-link glyph (pop-up browser) -- replaces the old
+  // DETAILS text label per #120.
+  eventIcon: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.maroon600, marginLeft: spacing(1.5) },
 
   overlayDim: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: withOpacity(colors.ink900, 62) },
 

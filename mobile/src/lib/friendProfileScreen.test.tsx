@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 // PR #126 review findings #2/#4/#5 all slipped through because this screen had zero render
 // coverage -- only pure helpers and pane-level wiring were tested anywhere in this app. These are
 // the first render tests for a screen under mobile/src/app/.
+//
+// Lives here, not next to src/app/friend/[id].tsx: expo-router scans every file under src/app/ as
+// a candidate route (see redirect.test.tsx's own note -- a .test.tsx there gets bundled into the
+// real app and crashes at runtime on the bare `jest` global). Imports the screen by relative path
+// instead, same pattern as redirect.test.tsx/hallMenu.test.tsx.
 
 const mockRouterBack = jest.fn();
 jest.mock("expo-router", () => ({
@@ -31,7 +36,7 @@ function table(rows: Record<string, unknown>[], opts: { insertError?: unknown } 
 }
 
 const mockFrom = jest.fn();
-jest.mock("../../lib/supabase", () => ({
+jest.mock("./supabase", () => ({
   supabase: {
     auth: { getSession: jest.fn() },
     from: (...args: unknown[]) => mockFrom(...args),
@@ -40,8 +45,8 @@ jest.mock("../../lib/supabase", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { Alert, Text } from "react-native";
-import { supabase } from "../../lib/supabase";
-import FriendProfileScreen from "./[id]";
+import { supabase } from "./supabase";
+import FriendProfileScreen from "../app/friend/[id]";
 
 function session(userId: string) {
   return { data: { session: { user: { id: userId, email: `${userId}@umass.edu` } } } };
