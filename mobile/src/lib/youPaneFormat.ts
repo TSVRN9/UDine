@@ -67,6 +67,22 @@ export function buildTopFoods(rankedFoods: RankedFood[], rankedDishes: RankedDis
   });
 }
 
+/** Resolves a hall tid to its display name -- extracted out of YouPane.tsx (was module-local
+ * there) so #119's Logs & stats screen can reuse the exact same lookup instead of re-deriving it. */
+export function hallName(hallTid: number): string {
+  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
+}
+
+/** Single-line item text per the canvas: "<dish> × <qty> · <hall>", qty omitted when it's 1, hall
+ * omitted for off-menu (barcode) entries that don't have one. Extracted out of YouPane.tsx for the
+ * same reason as hallName above -- #119's Logs & stats screen renders the same collapsed row. */
+export function logItemLine(entry: LogEntry): string {
+  const name = entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
+  const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
+  const hall = entry.source.type === "umass-menu" ? ` · ${hallName(entry.source.hallTid)}` : "";
+  return `${name}${qty}${hall}`;
+}
+
 // --- Today's Log meal grouping (#118) --------------------------------------------------------
 
 export type MealPeriod = Exclude<MealStatus, "closed">;
