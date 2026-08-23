@@ -6,6 +6,8 @@
 		applyComparison,
 		applyFoodComparison,
 		DINING_HALLS,
+		MEAL_PERIODS,
+		mealPeriodLabel,
 		menuItemMatchesPreferences,
 		pickPostLogComparisonPair,
 		syncDiningHallRanks,
@@ -29,7 +31,6 @@
 	const storage = new IndexedDbLogStorage();
 	const favoritesStorage = new IndexedDbFavoritesStorage();
 	const rankingStorage = new IndexedDbRankingStorage();
-	const mealPeriods: MealPeriod[] = ["breakfast", "lunch", "dinner"];
 
 	let servings: Record<string, number> = $state({});
 	let loggedMessage = $state("");
@@ -226,12 +227,12 @@
 	</div>
 {/if}
 
-{#each mealPeriods as period (period)}
+{#each MEAL_PERIODS as period (period)}
 	{@const items = itemsFor(period)}
 	{#if items.length > 0}
 		<section class="mt-8">
 			<div class="flex items-baseline justify-between gap-3">
-				<h2 class="section-title">{period}</h2>
+				<h2 class="section-title">{mealPeriodLabel(period)}</h2>
 				<span class="font-mono text-xs text-ink-900/50">
 					{items.length}
 					{items.length === 1 ? "dish" : "dishes"}
