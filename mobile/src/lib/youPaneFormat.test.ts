@@ -1,6 +1,16 @@
 import type { HallCompletion } from "@udine/shared";
 import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
-import { buildTopFoods, deriveTopFoodHall, displayCompletionPct, groupEntriesByMeal, logItemLine, mealPeriodForTime, pillTone } from "./youPaneFormat";
+import { MEAL_PERIODS } from "@udine/shared";
+import {
+  buildTopFoods,
+  deriveTopFoodHall,
+  displayCompletionPct,
+  groupEntriesByMeal,
+  logItemLine,
+  MEAL_BOUNDARIES,
+  mealPeriodForTime,
+  pillTone,
+} from "./youPaneFormat";
 
 function completion(overrides: Partial<HallCompletion> = {}): HallCompletion {
   return { hallTid: 1, loggedDistinct: 0, seenDistinct: 0, pct: 0, ...overrides };
@@ -167,6 +177,17 @@ describe("mealPeriodForTime", () => {
     // "breakfast" is the only correct answer. A bug that read getUTCHours() instead of getHours()
     // would see UTC hour 14 and wrongly bucket this as "dinner" (dinner's own 2:00 PM boundary).
     expect(mealPeriodForTime("2026-08-20T14:00:00.000Z")).toBe("breakfast");
+  });
+
+  // MEAL_BOUNDARIES's own doc comment says a period added to shared's MEAL_PERIODS won't be
+  // reachable here until a window is added for it too -- that's a caveat about today's table, which
+  // this asserts stays true: turns "this table happens to cover all 4 periods" from an implicit
+  // assumption into a test that fails the day MEAL_PERIODS grows without a matching boundary (#161).
+  it("has a MEAL_BOUNDARIES window for every period in shared's MEAL_PERIODS", () => {
+    const boundaryPeriods = MEAL_BOUNDARIES.map((b) => b.period);
+    for (const period of MEAL_PERIODS) {
+      expect(boundaryPeriods).toContain(period);
+    }
   });
 });
 

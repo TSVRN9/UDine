@@ -1,4 +1,4 @@
-import { currentMealPeriod, MEAL_PERIODS, openStatus, type DiningHallHours, type MealPeriod, type OpenStatus, type RetailLocationHours, type TimeWindow } from "@udine/shared";
+import { currentMealPeriod, MEAL_PERIODS, mealPeriodLabel, openStatus, type DiningHallHours, type MealPeriod, type OpenStatus, type RetailLocationHours, type TimeWindow } from "@udine/shared";
 
 /**
  * The Home pane's mealtime hero, aggregated across all 4 commons for one "what's being served
@@ -24,7 +24,11 @@ export type HomeHero =
 // but currentMealPeriod/openStatus both handle it generically for a future data source (hours.ts's
 // own doc comment) — this scan order must too, or a populated latenight window would silently fall
 // into the "open, no named meal" bucket instead of getting its own hero line. Scans shared's
-// MEAL_PERIODS directly (#144) rather than a second hardcoded copy of that order.
+// MEAL_PERIODS directly (#144) rather than a second hardcoded copy of that order. No propagation
+// test for this file's consumers (unlike hallMenuTabs.ts/youPaneFormat.ts, #144): `DiningHallHours`
+// is period-keyed (breakfast/lunch/dinner/latenight/general), so currentMealPeriod can only ever
+// return one of those fixed keys — mocking shared's MEAL_PERIODS can't make it return a
+// hypothetical new period. Untestable-by-construction, not untested (#161).
 
 /** Derives the aggregate hero state from all halls' hours as of `now`. The meal period is a
  * function of the clock, not a vote across halls: scans breakfast → lunch → dinner → latenight in
@@ -87,7 +91,9 @@ export function formatTime(date: Date): string {
 export function formatHeroLine(hero: HomeHero): { title: string; subtitle: string } {
   switch (hero.kind) {
     case "meal":
-      return { title: hero.period.toUpperCase(), subtitle: `served now · until ${formatTime(hero.closesAt)}` };
+      // mealPeriodLabel(...).toUpperCase(), not hero.period.toUpperCase() -- the latter would
+      // render latenight as "LATENIGHT" instead of "LATE NIGHT" (#161).
+      return { title: mealPeriodLabel(hero.period).toUpperCase(), subtitle: `served now · until ${formatTime(hero.closesAt)}` };
     case "open":
       return { title: "OPEN", subtitle: `served now · until ${formatTime(hero.closesAt)}` };
     case "closed":
@@ -114,7 +120,7 @@ export function hallHeaderSubtitle(hours: DiningHallHours, now: Date): string {
     const window = hours[period];
     const mealStatus = window ? singleWindowStatus(window, now) : status;
     const closesAt = mealStatus.open ? mealStatus.closesAt : status.closesAt;
-    const label = period.charAt(0).toUpperCase() + period.slice(1);
+    const label = mealPeriodLabel(period);
     return `${label} · being served now · until ${formatTime(closesAt)}`;
   }
   if (status.open) return `Open · until ${formatTime(status.closesAt)}`;

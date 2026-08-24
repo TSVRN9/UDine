@@ -131,7 +131,7 @@ export type { MealPeriod };
  * #128), not period names, and picking a window for a new period is a product decision (where does
  * it start?) shared's ordered-name list can't answer.
  */
-const MEAL_BOUNDARIES: { period: MealPeriod; startMinutes: number }[] = [
+export const MEAL_BOUNDARIES: { period: MealPeriod; startMinutes: number }[] = [
   { period: "breakfast", startMinutes: 5 * 60 }, // 5:00 AM
   { period: "lunch", startMinutes: 10 * 60 + 30 }, // 10:30 AM
   { period: "dinner", startMinutes: 14 * 60 }, // 2:00 PM
