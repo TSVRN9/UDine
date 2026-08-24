@@ -11,9 +11,17 @@ const TITLES = ["SOCIAL", "UDINE", "YOU"] as const;
 // title crossfade, at their own independently-tuned durations (#179 styling spec).
 const CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 
-// A dot's own box is fs(16) -- this extends its hit area to clear 44dp without growing the visible
-// tap target, same fixed/unscaled convention as index.tsx's GRAB_STRIP_HIT_SLOP.
-const DOT_HIT_SLOP = 14;
+// A dot's own box is fs(16) -- vertical hitSlop extends its hit area to clear 44dp without growing
+// the visible tap target, same fixed/unscaled convention as index.tsx's GRAB_STRIP_HIT_SLOP.
+// Horizontal hitSlop is capped well under half the row's `gap` (dotsRow, below): a uniform 14 on
+// all sides (dots 16dp wide, only 6dp apart) made the leftmost (SOCIAL) dot completely untappable
+// on-device (Agent_Emulator_Wide, #179 review) -- every point in its own real box also fell inside
+// the middle (UDINE) dot's expanded region, and UDINE won every one of them. Left/right capped at
+// 2, comfortably under half of the row's smallest on-device gap (`gap: fs(6)` bottoms out around
+// 4.9dp at the narrowest supported breakpoint, scale ~0.82 -- see docs/agents/emulator-pool.md;
+// not itself device-verified, reasoned from that minimum), keeps adjacent dots' expanded regions
+// from overlapping at all, so this can't reoccur.
+const DOT_HIT_SLOP = { top: 14, bottom: 14, left: 2, right: 2 };
 
 /**
  * Fixed header pinned above the 3-pane strip (#179): pane-position dots top-right, the active
