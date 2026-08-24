@@ -6,6 +6,9 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 interface Props {
   itemCount: number;
   totals: DailyMacroTotals;
+  // #177 styling spec: "Plate bar with prices: summary line becomes `1 item · 640 cal · $11.25`."
+  // undefined/null -- no priced item on the plate -- renders exactly as today, no third segment.
+  priceTotal?: string | null;
   onPress: () => void;
   onLayout?: (e: LayoutChangeEvent) => void;
 }
@@ -18,7 +21,7 @@ interface Props {
  * expo-router's root already wraps the app in SafeAreaProvider, so useSafeAreaInsets works here
  * without any _layout.tsx change.
  */
-export function PlateBar({ itemCount, totals, onPress, onLayout }: Props) {
+export function PlateBar({ itemCount, totals, priceTotal, onPress, onLayout }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <Pressable style={[styles.bar, { paddingBottom: spacing(4) + insets.bottom }]} onPress={onPress} onLayout={onLayout} accessibilityRole="button">
@@ -26,7 +29,7 @@ export function PlateBar({ itemCount, totals, onPress, onLayout }: Props) {
         <View style={styles.headlineRow}>
           <Text style={styles.chevron}>⌃</Text>
           <Text style={styles.headline}>
-            {itemCount} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal
+            {itemCount} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal{priceTotal ? ` · ${priceTotal}` : ""}
           </Text>
         </View>
         <Text style={styles.macros}>
