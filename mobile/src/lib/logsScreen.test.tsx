@@ -127,7 +127,8 @@ describe("LogsScreen week strip", () => {
     expect(texts(root)).not.toMatch(/French Toast · Hampshire/);
 
     act(() => {
-      pressableWithLabel(root, "2026-08-18").props.onPress();
+      // Chip a11y label is humanized, not the bare ISO date (issue #142) -- Aug 18 2026 is a Tuesday.
+      pressableWithLabel(root, "Tuesday, August 18").props.onPress();
     });
 
     expect(texts(root)).toMatch(/French Toast · Hampshire/);
@@ -188,6 +189,31 @@ describe("LogsScreen day log editing", () => {
 
     expect(logMock.addEntry).toHaveBeenCalledWith(expect.objectContaining({ id: "1", servings: 2 }));
     expect(texts(root)).toMatch(/640\s*cal/); // 320 * 2, recomputed
+  });
+
+  it("recomputes the Last 7 Days chart average after an edit, not just the day/meal totals (issue #142)", async () => {
+    // Today (Aug 20) is the only day in the trailing 7-day chart window with any entries, so its
+    // calories/protein alone drive the average. Before: 320 cal / 12g protein -> round(320/7)=46,
+    // round(12/7)=2. After stepping up to 2 servings: 640 cal / 24g protein -> round(640/7)=91,
+    // round(24/7)=3. mutant 3 from PR #140's review (deleting stepEntry's `await refresh()`) would
+    // leave the chart reading the stale 46/2 figures here, same as it broke the day/meal totals.
+    const entry = logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1);
+    logMock.getAllEntries.mockResolvedValue([entry]);
+    const root = await renderLogsScreen();
+    expect(texts(root)).toMatch(/Avg\s*46\s*cal \/ day/);
+    expect(texts(root)).toMatch(/2\s*g protein \/ day/);
+
+    act(() => {
+      pressableWithLabel(root, "Edit French Toast · Hampshire").props.onPress();
+    });
+
+    logMock.getAllEntries.mockResolvedValue([{ ...entry, servings: 2 }]);
+    await act(async () => {
+      await pressableWithLabel(root, "Add one French Toast").props.onPress();
+    });
+
+    expect(texts(root)).toMatch(/Avg\s*91\s*cal \/ day/);
+    expect(texts(root)).toMatch(/3\s*g protein \/ day/);
   });
 
   it("drops a rapid second tap while the first step's write is still in flight, instead of both reading the same stale servings count", async () => {

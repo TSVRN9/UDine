@@ -95,8 +95,14 @@ describe("currentWeekDates", () => {
 
 describe("buildWeekStrip", () => {
   it("marks hasLogs true only for days with at least one entry, by LOCAL day boundary", () => {
-    // 11:30 PM local on the 18th is still the 18th locally -- a UTC-bucketing bug would push a
-    // late-evening entry into the next day (issue #111's exact trap, re-tested here for day chips).
+    // 11:30 PM local on the 18th is still the 18th locally -- a day-bucketing implementation that
+    // round-tripped isoDateOf's call sites through `new Date(...).toISOString()` (a real UTC
+    // conversion) instead of the raw string would push a late-evening entry into the next day.
+    // NOT issue #111's exact trap, despite the resemblance (PR #140 review, issue #142): #111 was
+    // about a legacy Z-suffixed timestamp misbehaving under isoDateOf's plain `slice(0, 10)`
+    // (shared/src/macros.ts) -- since that's a string prefix, not a real conversion, a Z-suffixed
+    // fixture here would slice identically to this bare-local one and prove nothing. This fixture
+    // pins the UTC-Date-conversion risk instead, which is a distinct, real risk of its own.
     const entries = [entry({ loggedAt: "2026-08-18T23:30:00.000" })];
     const chips = buildWeekStrip(entries, "2026-08-20", "2026-08-20");
     const chip18 = chips.find((c) => c.date === "2026-08-18")!;
@@ -201,6 +207,17 @@ describe("computeLoggingStreak", () => {
     const entries = [entry({ loggedAt: "2026-08-10T12:00:00.000" })];
     expect(computeLoggingStreak(entries, "2026-08-20")).toBeNull();
   });
+
+  it("buckets a late-evening local entry into its own local day, not UTC's next day (#111) -- the one previously-unpinned isoDateOf use", () => {
+    // 11:30 PM Eastern (EDT, UTC-4 in August) on the 20th is 3:30 AM UTC on the 21st. Under
+    // correct LOCAL-day bucketing this entry logs today (the 20th), so the same-day grace period
+    // never kicks in and the streak is 1. A UTC-bucketing bug (e.g. isoDateOf swapped for
+    // `new Date(loggedAt).toISOString().slice(0, 10)`) would file this entry under the 21st
+    // instead -- today (the 20th) would then read as not-logged-yet, the same-day grace period
+    // would look back to the 19th, find nothing there either, and wrongly return null.
+    const entries = [entry({ loggedAt: "2026-08-20T23:30:00.000" })];
+    expect(computeLoggingStreak(entries, "2026-08-20")).toBe(1);
+  });
 });
 
 // --- computeMostLoggedDish: total servings logged per dish/product name, not entry count -- three
@@ -223,6 +240,17 @@ describe("computeMostLoggedDish", () => {
   it("counts an off-menu product by its productName", () => {
     const entries = [entry({ source: { type: "off", barcode: "0123", productName: "Trail Mix" }, servings: 4 })];
     expect(computeMostLoggedDish(entries)).toEqual({ name: "Trail Mix", count: 4 });
+  });
+
+  it("breaks a tie by whichever dish was logged first (Map insertion order) -- deterministic, not incidental", () => {
+    // Storage orders entries by logged_at, so first-inserted-into-the-Map means "whichever you ate
+    // first". `count > best.count` (strictly greater) keeps the first dish seen at the max count;
+    // a `>=` mutant would instead let the later-inserted dish win every tie.
+    const entries = [
+      entry({ id: "1", source: { type: "umass-menu", dishName: "French Toast", hallTid: 3 } }),
+      entry({ id: "2", source: { type: "umass-menu", dishName: "Tofu Stir Fry", hallTid: 1 } }),
+    ];
+    expect(computeMostLoggedDish(entries)).toEqual({ name: "French Toast", count: 1 });
   });
 });
 
@@ -250,6 +278,15 @@ describe("computeDistinctDishCount", () => {
 describe("computeTopMealShare", () => {
   it("is null when total calories is 0 (no entries)", () => {
     expect(computeTopMealShare([])).toBeNull();
+  });
+
+  it("is null when entries exist but total calories is 0 (e.g. a logged 0-calorie beverage) -- the total===0 guard, not just the empty-array case", () => {
+    // computeTopMealShare's `groups.reduce` has no initial value, so an empty groups array would
+    // throw rather than the `total === 0` guard saving it -- but groups is non-empty here (one
+    // meal-period group, zero calories), so a mutant that swapped the guard to
+    // `groups.length === 0` would pass right through and divide 0/0, rendering NaN%. Only a
+    // fixture with entries but zero total calories discriminates between the two guards.
+    expect(computeTopMealShare([entry({ nutrition: { ...NUTRITION_FIXTURE, calories: 0 } })])).toBeNull();
   });
 
   it("picks the meal period with the largest calorie share, rounded to a whole percent", () => {
