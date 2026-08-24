@@ -16,6 +16,13 @@ jest.mock("expo-router", () => ({
   useFocusEffect: (callback: () => void) => callback(),
 }));
 
+// #151: header ignored the top safe-area inset (no useSafeAreaInsets in the file at all, unlike
+// every other headerless screen). A nonzero mocked inset, not 0, so the assertion below can't pass
+// by accident on a header that just never reads insets in the first place.
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 44, right: 0, bottom: 0, left: 0 }),
+}));
+
 /** Chainable query-builder stub that actually applies `.eq()` filters against the given rows
  * (rather than ignoring them and returning whatever was pre-baked) -- the whole point of these
  * tests is proving the *query itself* asks for status = 'accepted', not just that the component
@@ -44,8 +51,9 @@ jest.mock("./supabase", () => ({
 }));
 
 import renderer, { act } from "react-test-renderer";
-import { Alert, Text } from "react-native";
+import { Alert, StyleSheet, Text } from "react-native";
 import { supabase } from "./supabase";
+import { spacing } from "./theme";
 import FriendProfileScreen from "../app/friend/[id]";
 
 function session(userId: string) {
@@ -134,6 +142,19 @@ afterEach(() => {
 });
 
 describe("FriendProfileScreen", () => {
+  // #151: the maroon header (incl. the back chevron) sat partially under the status bar/notch --
+  // every other headerless screen pads with insets.top + spacing(4.5), this one padded with a bare
+  // spacing(4.5) and never read insets at all.
+  it("pads the header top with the safe-area inset, not just the fixed spacing", async () => {
+    mockTables({ profile: { user_id: "friend-1", display_name: "Casey" } });
+    const root = await renderScreen();
+    const backButton = root.root.findByProps({ accessibilityLabel: "Back" });
+    const header = backButton.parent;
+    if (!header) throw new Error("back button has no parent header view");
+    const flatStyle = StyleSheet.flatten(header.props.style) as { paddingTop?: number };
+    expect(flatStyle.paddingTop).toBe(44 + spacing(4.5));
+  });
+
   // Review finding #4: the friendships query had no status filter, so a merely-pending request
   // rendered "Friends since <date>" as if it were an established fact.
   it("does not render 'Friends since' for a pending (not-yet-accepted) connection", async () => {
