@@ -30,6 +30,63 @@ test("event mapping converts unix-seconds expiration and featured flag correctly
   assert.equal(mapped.isFeatured, false);
 });
 
+// #150: pdf_link/external_link were passed straight through with no scheme check, unlike
+// featured_image (sanitizeImageUrl). A javascript:/data: value in the feed would execute in the
+// app origin on click (web renders both directly into <a href=…>).
+test("event mapping strips a javascript: pdf_link and external_link", () => {
+  const mapped = mapEvent({
+    title: "x",
+    featured_image: "",
+    pdf_link: "javascript:alert(1)",
+    external_link: "javascript:alert(document.cookie)",
+    expiration_date: 0,
+    is_featured: "0",
+  });
+  assert.equal(mapped.pdfLink, "");
+  assert.equal(mapped.externalLink, "");
+});
+
+test("event mapping strips a data: pdf_link and external_link", () => {
+  const mapped = mapEvent({
+    title: "x",
+    featured_image: "",
+    pdf_link: "data:text/html,<script>alert(1)</script>",
+    external_link: "data:text/html,<script>alert(1)</script>",
+    expiration_date: 0,
+    is_featured: "0",
+  });
+  assert.equal(mapped.pdfLink, "");
+  assert.equal(mapped.externalLink, "");
+});
+
+// Guards against a hostname-only check (e.g. reusing sanitizeImageUrl as-is) being fooled by a
+// javascript: URL that fakes an authority component, which gives it a parseable "hostname".
+test("event mapping strips a javascript: URL disguised with a host", () => {
+  const mapped = mapEvent({
+    title: "x",
+    featured_image: "",
+    pdf_link: "javascript://umassdining.com/%0aalert(1)",
+    external_link: "javascript://umassdining.com/%0aalert(1)",
+    expiration_date: 0,
+    is_featured: "0",
+  });
+  assert.equal(mapped.pdfLink, "");
+  assert.equal(mapped.externalLink, "");
+});
+
+test("event mapping keeps valid http/https pdf_link and external_link", () => {
+  const mapped = mapEvent({
+    title: "x",
+    featured_image: "",
+    pdf_link: "http://umassdining.com/sites/default/files/events/poster.jpg",
+    external_link: "https://umassdining.com/events/fall-fest",
+    expiration_date: 0,
+    is_featured: "0",
+  });
+  assert.equal(mapped.pdfLink, "http://umassdining.com/sites/default/files/events/poster.jpg");
+  assert.equal(mapped.externalLink, "https://umassdining.com/events/fall-fest");
+});
+
 test("event mapping treats is_featured '1' as true", () => {
   const mapped = mapEvent({ title: "x", featured_image: "", pdf_link: "", external_link: "", expiration_date: 0, is_featured: "1" });
   assert.equal(mapped.isFeatured, true);
@@ -72,6 +129,29 @@ test("fetchPressReleases blanks an image with an unresolvable 'default' host", a
   assert.equal(result[0]?.image, "");
 });
 
+// #150 sibling sink, same file, same trust boundary: fetchPressReleases already sanitizes
+// item.image (sanitizeImageUrl above) but passed item.url straight through -- and web renders it
+// directly into <a href=…> (web/src/routes/press/+page.svelte).
+test("fetchPressReleases strips a javascript: url", async () => {
+  const result = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => [
+          {
+            title: "Malicious release",
+            url: "javascript:alert(document.cookie)",
+            image: "",
+            date: "2026-08-19",
+          },
+        ],
+      }) as Response,
+    fetchPressReleases,
+  );
+  assert.equal(result[0]?.url, "");
+});
+
 // fetchNewsletter is a thin passthrough (field names already match NewsletterIssue), same as
 // fetchPressReleases above — this just confirms the shape flows through untouched.
 test("fetchNewsletter returns issues as-is, including entries with empty content", async () => {
@@ -85,6 +165,22 @@ test("fetchNewsletter returns issues as-is, including entries with empty content
     fetchNewsletter,
   );
   assert.deepEqual(result, [{ content: "", period: "February 2020", link: "https://umassdining.us1.list-manage.com/track/click?u=abc&id=def" }]);
+});
+
+// #150 sibling sink: same trust boundary, and web renders `issue.link` directly into <a href=…>
+// (web/src/routes/newsletter/+page.svelte). The "as-is" passthrough above still holds for a valid
+// https link -- this only needs the scheme allowlist to kick in for a hostile one.
+test("fetchNewsletter strips a javascript: link", async () => {
+  const result = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => [{ content: "", period: "February 2020", link: "javascript:alert(1)" }],
+      }) as Response,
+    fetchNewsletter,
+  );
+  assert.equal(result[0]?.link, "");
 });
 
 test("fetchNewsletter throws when the HTTP response is not ok", async () => {
