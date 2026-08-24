@@ -35,8 +35,15 @@ function findOrCreate(dishes: RankedDish[], dishName: string, hallTid: number): 
  * every item to be compared against every other. Beli-style ranking apps use the same idea. Returns a
  * new array — winner/loser are updated (or created, if this is either dish's first rating), everything
  * else is unchanged.
+ *
+ * Mirrors applyFoodComparison's guard: when winner and loser share the same (dishName, hallTid) key
+ * there's nothing meaningful to compare, so the array is returned unchanged rather than duplicating
+ * the dish's row. Unreachable via pickPair/pickPostLogComparisonPair today (they exclude identical
+ * keys) — kept as a defensive invariant, not a currently-triggerable path (#187).
  */
 export function applyComparison(dishes: RankedDish[], winner: { dishName: string; hallTid: number }, loser: { dishName: string; hallTid: number }): RankedDish[] {
+  if (winner.dishName === loser.dishName && winner.hallTid === loser.hallTid) return dishes;
+
   const winnerDish = findOrCreate(dishes, winner.dishName, winner.hallTid);
   const loserDish = findOrCreate(dishes, loser.dishName, loser.hallTid);
 
