@@ -118,6 +118,56 @@ test("parseCategoryItems returns nothing for a fragment with no dishes", () => {
   assert.deepEqual(parseCategoryItems("<h2>Closed today</h2>", "x", "breakfast", 3, "2026-08-19"), []);
 });
 
+// #176: real fragment captured from GET foodpro-menu-ajax?tid=4671&date=08%2F24%2F2026 (Green
+// Fields, lunch, "Add-ons"), two consecutive dishes -- confirms the retail-only price span
+// (`<span class="meal-price">$X.XX</span>`, AFTER the closing </a>, with 0+ <img> legend icons in
+// between) parses per-item, not just for whichever dish happens to be first in the fragment.
+const REAL_GREEN_FIELDS_PRICED_FRAGMENT = `<li class="lightbox-nutrition"><a data-healthfulness="50" data-carbon-list="A" data-ingredient-list="Avocados" data-allergens="" data-recipe-webcode="H VGN VGT H5 CR1" data-clean-diet-str="Halal, Plant Based, Vegetarian" data-serving-size="1/2 each" data-calories="166" data-calories-from-fat="138" data-total-fat="15.3g" data-total-fat-dv="20" data-sat-fat="2.1g" data-sat-fat-dv="" data-trans-fat="0g" data-cholesterol="0mg" data-cholesterol_dv="" data-sodium="7.9mg" data-sodium-dv="0" data-total-carb="8.6g" data-total-carb-dv="7" data-dietary-fiber="6.7g" data-dietary-fiber-dv="20" data-sugars="0.3g" data-sugars-dv="" data-protein="1.9g" data-protein-dv="3" data-dish-name="Add Fresh Avocado" href="#inline">Add Fresh Avocado</a><img src="https://umassdining.com/sites/default/files/legends/icon-hal.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-vegan.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-veg.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-cr-a.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><span class="meal-price">$2.50</span></li><li class="lightbox-nutrition"><a data-healthfulness="0" data-carbon-list="E" data-ingredient-list="HORMEL Applewood Smoked Bacon (Pork cured with: Water, Salt, Sugar, Smoke Flavoring, Sodium Erythorbate, Sodium Phosphates, Sodium Nitrite)" data-allergens="" data-recipe-webcode="H0 CR5" data-clean-diet-str="None" data-serving-size="1 oz" data-calories="122" data-calories-from-fat="85" data-total-fat="9.4g" data-total-fat-dv="12" data-sat-fat="3.8g" data-sat-fat-dv="" data-trans-fat="0g" data-cholesterol="23.5mg" data-cholesterol_dv="" data-sodium="460mg" data-sodium-dv="20" data-total-carb="0.9g" data-total-carb-dv="1" data-dietary-fiber="0g" data-dietary-fiber-dv="0" data-sugars="0.9g" data-sugars-dv="" data-protein="7.5g" data-protein-dv="13" data-dish-name="Bacon" href="#inline">Bacon</a><img src="https://umassdining.com/sites/default/files/legends/icon-cr-e.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><span class="meal-price">$3.00</span></li>`;
+
+test("parseCategoryItems parses the retail-only meal-price span into MenuItem.price, per item (#176)", () => {
+  const [avocado, bacon] = parseCategoryItems(REAL_GREEN_FIELDS_PRICED_FRAGMENT, "Add-ons", "lunch", 4671, "2026-08-24");
+  assert.equal(avocado.dishName, "Add Fresh Avocado");
+  assert.equal(avocado.price, "$2.50");
+  assert.equal(bacon.dishName, "Bacon");
+  assert.equal(bacon.price, "$3.00");
+});
+
+test("parseCategoryItems leaves price undefined for a hall fragment with no meal-price span (#176)", () => {
+  const [toast] = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", 3, "2026-08-19");
+  assert.equal(toast.price, undefined);
+});
+
+// pr-reviewer finding on #176: the 2-dish Green Fields fixture above (both priced) never actually
+// exercises priceAfter's per-item scoping window -- with the window deleted (`windowEnd =
+// html.length`, an unbounded scan), avocado and bacon's own prices are still the FIRST span found
+// after each one's own </a>, so that fixture passes either way. Real fragment captured from GET
+// foodpro-menu-ajax?tid=4306&date=08%2F24%2F2026 (Harvest Market, lunch, "Pizza") is the shape that
+// actually needs the window: Cheese Pizza $4.50 -> Cime di Rapa Pizza (no meal-price span at all) ->
+// Pepperoni Pizza $5.00. Without the window, computing Cime di Rapa's price scans unbounded past its
+// own </a> and past Pepperoni's <a> tag, wrongly finding Pepperoni's $5.00 -- exactly the leak this
+// pins down in both directions (an unpriced item between two priced ones).
+const REAL_HARVEST_MARKET_PIZZA_FRAGMENT = `<h2 class='menu_category_name'>Pizza</h2></ul><li class="lightbox-nutrition"><a data-healthfulness="20" data-carbon-list="B" data-ingredient-list="Local Pizza Dough (It&#039;ll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Pizza Sauce (Peeled Ground Tomatoes (Vine-Ripened Fresh Peeled Ground Tomatoes, Extra Heavy Tomato Puree, Salt.), Granulated Sugar, Oregano Leaves (Oregano Leaves ), Kosher Salt (Sea Salt), Ground Black Pepper)" data-allergens="Milk, Gluten, Soy, Wheat" data-recipe-webcode="H LPR SUS VGT WG H2 CR2" data-clean-diet-str="Halal, Local, Sustainable, Vegetarian, Whole Grain" data-serving-size="1/6 PIZZA" data-calories="445" data-calories-from-fat="138" data-total-fat="15.3g" data-total-fat-dv="20" data-sat-fat="8.2g" data-sat-fat-dv="" data-trans-fat="0.4g" data-cholesterol="44.1mg" data-cholesterol_dv="" data-sodium="1074.3mg" data-sodium-dv="47" data-total-carb="57.3g" data-total-carb-dv="44" data-dietary-fiber="5.9g" data-dietary-fiber-dv="18" data-sugars="2.2g" data-sugars-dv="" data-protein="21.9g" data-protein-dv="39" data-dish-name="Cheese Pizza" href="#inline">Cheese Pizza</a><img src="https://umassdining.com/sites/default/files/legends/icon-hal.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-loc.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-sus.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-veg.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-whlgrn.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-cr-b.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><span class="meal-price">$4.50</span></li><li class="lightbox-nutrition"><a data-healthfulness="10" data-carbon-list="B" data-ingredient-list="Local Pizza Dough (It&#039;ll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Mascarpone Cheese (Pasteurized Milk and Cream, Citric Acid), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Burrata Cheese (Pasteurized Milk, Pasteurized Cream, Vinegar, Microbial Enzymes, Salt), Fresh Broccoli Florets, Heavy Cream  (Heavy Cream, Milk, Contains &lt;0.5% of: Carrageenan, Mono &amp; Diglycerides, Polysorbate 80), Garlic Confit (Canola Oil  , Garlic Cloves), Crushed Red Pepper" data-allergens="Milk, Gluten, Soy, Corn  , Wheat" data-recipe-webcode="H LPR SUS VGT WG H1 CR2" data-clean-diet-str="Halal, Local, Sustainable, Vegetarian, Whole Grain" data-serving-size="1/6 PIZZA" data-calories="569" data-calories-from-fat="283" data-total-fat="31.4g" data-total-fat-dv="40" data-sat-fat="14.4g" data-sat-fat-dv="" data-trans-fat="0.3g" data-cholesterol="73mg" data-cholesterol_dv="" data-sodium="717.3mg" data-sodium-dv="31" data-total-carb="55.2g" data-total-carb-dv="42" data-dietary-fiber="5g" data-dietary-fiber-dv="15" data-sugars="1.3g" data-sugars-dv="" data-protein="20.1g" data-protein-dv="36" data-dish-name="Cime di Rapa Pizza" href="#inline">Cime di Rapa Pizza</a><img src="https://umassdining.com/sites/default/files/legends/icon-hal.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-loc.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-sus.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-veg.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-whlgrn.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-cr-b.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /></li><li class="lightbox-nutrition"><a data-healthfulness="0" data-carbon-list="B" data-ingredient-list="Local Pizza Dough (It&#039;ll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Pizza Sauce (Peeled Ground Tomatoes (Vine-Ripened Fresh Peeled Ground Tomatoes, Extra Heavy Tomato Puree, Salt.), Granulated Sugar, Oregano Leaves (Oregano Leaves ), Kosher Salt (Sea Salt), Ground Black Pepper), Sliced Pepperoni (Pork, Beef, Salt, Contains 2% or less of Water, Spice, Sugar, Extractives of Paprika, Cultured Celery Powder, Sea Salt, Lactic Acid Starter Culture, Natural Flavoring)" data-allergens="Milk, Gluten, Soy, Wheat" data-recipe-webcode="LPR SUS WG H0 CR2" data-clean-diet-str="Local, Sustainable, Whole Grain" data-serving-size="1/6 PIZZA" data-calories="533" data-calories-from-fat="211" data-total-fat="23.4g" data-total-fat-dv="30" data-sat-fat="11.6g" data-sat-fat-dv="" data-trans-fat="0.4g" data-cholesterol="64.4mg" data-cholesterol_dv="" data-sodium="1411.8mg" data-sodium-dv="61" data-total-carb="57.3g" data-total-carb-dv="44" data-dietary-fiber="5.9g" data-dietary-fiber-dv="18" data-sugars="2.2g" data-sugars-dv="" data-protein="25.3g" data-protein-dv="45" data-dish-name="Pepperoni Pizza" href="#inline">Pepperoni Pizza</a><img src="https://umassdining.com/sites/default/files/legends/icon-loc.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-sus.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-whlgrn.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-cr-b.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><span class="meal-price">$5.00</span></li>`;
+
+test("parseCategoryItems does not leak a following item's price onto an unpriced item sandwiched between two priced ones (#176 pr-review)", () => {
+  const items = parseCategoryItems(REAL_HARVEST_MARKET_PIZZA_FRAGMENT, "Pizza", "lunch", 4306, "2026-08-24");
+  assert.equal(items.length, 3);
+  assert.equal(items[0].dishName, "Cheese Pizza");
+  assert.equal(items[0].price, "$4.50");
+  assert.equal(items[1].dishName, "Cime di Rapa Pizza");
+  assert.equal(items[1].price, undefined); // load-bearing: no meal-price span for this item at all
+  assert.equal(items[2].dishName, "Pepperoni Pizza");
+  assert.equal(items[2].price, "$5.00");
+});
+
+// pr-reviewer finding on #176: an empty span (`<span class="meal-price"></span>`) previously came
+// back as `price: ""` rather than undefined -- a blank string is still "truthy enough" to render as
+// an empty price line instead of correctly showing no price at all.
+test("parseCategoryItems treats an empty meal-price span as no price (undefined), not an empty string (#176 pr-review)", () => {
+  const fragment = `<a data-dish-name="Mystery Item" href="#inline">Mystery Item</a><span class="meal-price"></span>`;
+  const [item] = parseCategoryItems(fragment, "x", "lunch", 4306, "2026-08-24");
+  assert.equal(item.price, undefined);
+});
+
 // #117: confirmed live 2026-08-21 (GET foodpro-menu-ajax?tid=1&date=08%2F21%2F2026) that the feed
 // really does key a 4th meal period as "late night" (literal space) -- not "latenight", not absent.
 // Previously fetchMenu's MEAL_PERIODS loop only ever looked up "breakfast"/"lunch"/"dinner", so
@@ -158,6 +208,14 @@ test("mealPeriodLabel gives latenight a readable two-word label; the rest just t
   assert.equal(mealPeriodLabel("lunch"), "Lunch");
   assert.equal(mealPeriodLabel("dinner"), "Dinner");
   assert.equal(mealPeriodLabel("latenight"), "Late Night");
+});
+
+// pr-reviewer finding on #176: mealPeriodLabel is called directly on MenuItem.mealPeriod by a
+// retail-menu consumer, not just via MEAL_PERIODS (which excludes these two retail-only members,
+// see umassDining.ts's #175 doc comments) -- plain title-casing would render "Allday"/"Grabngo".
+test("mealPeriodLabel gives the two retail-only periods proper labels, not title-cased wire text (#176 pr-review)", () => {
+  assert.equal(mealPeriodLabel("allday"), "All Day");
+  assert.equal(mealPeriodLabel("grabngo"), "Grab 'N Go");
 });
 
 // #175: real fragment captured from GET foodpro-menu-ajax?tid=32&date=08%2F24%2F2026 (People's

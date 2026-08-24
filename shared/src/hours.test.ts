@@ -131,6 +131,78 @@ test("mapInfoV2 puts non-commons locations (cafés/retail) in retail, not halls"
   assert.equal(roots?.hours, null);
 });
 
+// #176: café-tap prerequisite plumbing. Real capture from GET get_infov2, 2026-08-24 -- People's
+// Organic Coffee (location_id=32, matches foodpro-menu-ajax's own tid for it, see umassDining.ts's
+// #175 doc comments), a populated breakfast_menu HTML price list, empty lunch/dinner_menu.
+const REAL_PEOPLES_ORGANIC = {
+  location_title: "People's Organic Coffee",
+  opening_hours: "07:00 AM",
+  closing_hours: "04:00 PM",
+  breakfast_menu:
+    "<p>Bacon Croissant</p><p>Veggie Croissant</p><p>Turkey &amp; Bacon</p><p>Breakfast Brioche</p><p>Quiche, Broccoli</p><p>Quiche, Ham</p><p>Antioxidant</p><p>Salad Strawberry Pecan</p>",
+  lunch_menu: "",
+  dinner_menu: "",
+  location_id: 32,
+  accepted_payment: "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  short_description_v2:
+    "<p>Located on the main concourse of the Campus Center, People’s Organic offers natural, organic, and sustainable foods. Choose from a selection of salads, paninis, fresh cookies, locally baked pastries, and so much more. People’s organic serves Fair Trade coffees, features a variety of coffee beverages, and organic teas.</p>",
+  address: "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>",
+  map_address: "42.3915402,-72.5292962",
+} satisfies InfoV2Location;
+
+test("mapInfoV2 carries locationId + raw description/address/mapAddress/acceptedPayment through onto RetailLocationHours (#176)", () => {
+  const feed = mapInfoV2([REAL_PEOPLES_ORGANIC]);
+  const loc = feed.retail[0];
+  assert.equal(loc?.locationId, 32); // same tid foodpro-menu-ajax expects for this location
+  assert.equal(loc?.description, REAL_PEOPLES_ORGANIC.short_description_v2);
+  assert.equal(loc?.address, REAL_PEOPLES_ORGANIC.address);
+  assert.equal(loc?.mapAddress, "42.3915402,-72.5292962");
+  assert.equal(loc?.acceptedPayment, "Cash, Credit Cards, UCard, Dining Dollars, YCMP");
+});
+
+test("mapInfoV2 carries a populated *_menu field through as raw HTML, and maps an empty one to null (#176)", () => {
+  const feed = mapInfoV2([REAL_PEOPLES_ORGANIC]);
+  const loc = feed.retail[0];
+  assert.equal(loc?.breakfastMenu, REAL_PEOPLES_ORGANIC.breakfast_menu);
+  assert.equal(loc?.lunchMenu, null); // feed publishes "" -- no lunch menu at this location
+  assert.equal(loc?.dinnerMenu, null);
+});
+
+// Real capture, same day -- babyBerk (a food truck, location_id=61) is the CLAUDE.md-cited
+// degenerate case: map_address is the literal string "," (no real coordinates) and address is
+// effectively empty HTML (`<p><br/>,  </p>`), yet both fields ARE present in the raw response, not
+// omitted. breakfast_menu here is a PDF link, not an item list -- still just an HTML string,
+// verifying store-RAW doesn't special-case menu content shape.
+const REAL_BABYBERK = {
+  location_title: "babyBerk",
+  opening_hours: "07:00 PM",
+  closing_hours: "01:00 PM",
+  breakfast_menu: '<p><a href="https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf" target="_blank">Baby Berk Menu</a></p>',
+  lunch_menu: "",
+  dinner_menu: "",
+  location_id: 61,
+  accepted_payment: "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  short_description_v2:
+    "<p>Find the babyBerk food truck around campus featuring their famous babyBerk burger, golden BBQ, and UMac and Nash: Nashville hot chicken quesadilla with Mac and cheese!</p>",
+  address: "<p><br/>,  </p>",
+  map_address: ",",
+} satisfies InfoV2Location;
+
+test("mapInfoV2 passes babyBerk's degenerate map_address ('no real coordinates') through untouched, not parsed or dropped (#176)", () => {
+  const feed = mapInfoV2([REAL_BABYBERK]);
+  const loc = feed.retail[0];
+  assert.equal(loc?.locationId, 61);
+  assert.equal(loc?.mapAddress, ","); // present but garbage -- stored as-is, not thrown on
+  assert.equal(loc?.address, "<p><br/>,  </p>"); // present but effectively empty -- still stored raw
+  assert.equal(loc?.breakfastMenu, REAL_BABYBERK.breakfast_menu); // a PDF link, still just raw HTML
+});
+
+test("mapInfoV2 degrades locationId to undefined, never throws, when location_id is absent from the raw object (#176)", () => {
+  const { location_id, ...withoutLocationId } = REAL_PEOPLES_ORGANIC;
+  const feed = mapInfoV2([withoutLocationId]);
+  assert.equal(feed.retail[0]?.locationId, undefined);
+});
+
 // --- time math (currentMealPeriod / openStatus) ---
 // Constructed hours -- get_infov2 itself has no late-night time fields (see hours.ts's mapInfoV2
 // doc), so the overnight/late-night boundary cases below exercise currentMealPeriod/openStatus

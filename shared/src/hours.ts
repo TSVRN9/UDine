@@ -37,6 +37,20 @@ export interface InfoV2Location {
   lunch_close_time?: string | null;
   dinner_open_time?: string | null;
   dinner_close_time?: string | null;
+  // #176: café-tap prerequisite plumbing, retail-only. location_id IS the foodpro-menu-ajax tid for
+  // this location (confirmed live 2026-08-24: Green Fields 4671, Harvest Market 4306, People's
+  // Organic Coffee 32 -- also present and correct on the 4 commons, e.g. Berkshire Dining Commons
+  // location_id=4 matches DINING_HALLS' own tid=4, though mapInfoV2 doesn't read it there). All
+  // optional: same trust-boundary posture as the per-meal time fields above -- a future capture
+  // that omits or mangles one of these must degrade mapInfoV2's output to undefined, not throw.
+  location_id?: number;
+  breakfast_menu?: string | null;
+  lunch_menu?: string | null;
+  dinner_menu?: string | null;
+  short_description_v2?: string | null;
+  address?: string | null;
+  map_address?: string | null;
+  accepted_payment?: string | null;
 }
 
 const TIME_PATTERN = /^\d{1,2}:\d{2}\s*(AM|PM)$/i;
@@ -50,6 +64,20 @@ function windowOrNull(open: string | null | undefined, close: string | null | un
   if (!open || !close) return null;
   if (!TIME_PATTERN.test(open.trim()) || !TIME_PATTERN.test(close.trim())) return null;
   return { openTime: open, closeTime: close };
+}
+
+// #176: an empty/absent *_menu field means "no menu published for this meal here" -- null, same
+// "falsy -> no data" convention windowOrNull already uses for hours, not an empty string a client
+// would have to check for separately.
+function stringOrNull(s: string | null | undefined): string | null {
+  return s ? s : null;
+}
+
+// #176: description/address/mapAddress/acceptedPayment are plain optional strings, not nullable --
+// an empty/absent raw value just means the field wasn't parsed off this object, same "degrade to
+// undefined, never throw" posture as locationId below.
+function stringOrUndefined(s: string | null | undefined): string | undefined {
+  return s ? s : undefined;
 }
 
 /**
@@ -86,7 +114,18 @@ export function mapInfoV2(data: InfoV2Location[]): DiningHoursFeed {
         general,
       });
     } else {
-      retail.push({ name: loc.location_title, hours: general });
+      retail.push({
+        name: loc.location_title,
+        hours: general,
+        locationId: typeof loc.location_id === "number" ? loc.location_id : undefined,
+        breakfastMenu: stringOrNull(loc.breakfast_menu),
+        lunchMenu: stringOrNull(loc.lunch_menu),
+        dinnerMenu: stringOrNull(loc.dinner_menu),
+        description: stringOrUndefined(loc.short_description_v2),
+        address: stringOrUndefined(loc.address),
+        mapAddress: stringOrUndefined(loc.map_address),
+        acceptedPayment: stringOrUndefined(loc.accepted_payment),
+      });
     }
   }
 
