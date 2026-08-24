@@ -326,6 +326,62 @@ describe("LogsScreen day log editing", () => {
     expect(texts(root)).toMatch(/Nothing logged/);
   });
 
+  // #167 (PR #166 review nit): removeEntry() used to call setEditingId(null) *before* awaiting
+  // refresh(). If the delete write itself succeeded but the follow-up getAllEntries() then
+  // rejected, the edit card unmounted (editingId already null) while allEntries still held the
+  // (now actually deleted) entry -- the row kept rendering as an untouched, non-editing row, with
+  // stepError set but nowhere to display it. Reordered so editingId only clears after a successful
+  // refresh; a rejection there now leaves the edit card (and its error text) in place instead.
+  it("leaves the edit card open with an error when the delete succeeds but the follow-up refresh fails, instead of silently showing a stale row (#167)", async () => {
+    const entry = logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1);
+    logMock.getAllEntries.mockResolvedValue([entry]);
+    const root = await renderLogsScreen();
+
+    act(() => {
+      pressableWithLabel(root, "Edit French Toast · Hampshire").props.onPress();
+    });
+
+    logMock.removeEntry.mockResolvedValueOnce(undefined);
+    logMock.getAllEntries.mockRejectedValueOnce(new Error("disk full"));
+    await act(async () => {
+      // No longer rejects -- withStepGuard catches the failed refresh internally.
+      await pressableWithLabel(root, "Remove French Toast").props.onPress();
+    });
+
+    expect(logMock.removeEntry).toHaveBeenCalledWith("1");
+    expect(texts(root)).toMatch(/Couldn't save.*disk full/);
+    // Still in the edit state -- the failed refresh means we don't actually know the UI reflects
+    // reality yet, so editingId must not have been cleared out from under it.
+    expect(pressableWithLabel(root, "Remove French Toast")).toBeTruthy();
+  });
+
+  // Same #167 reorder, but through stepEntry's own delete branch (stepping the stepper down to 0)
+  // rather than the × button's removeEntry() -- both branches had the identical bug and both got
+  // reordered, so both need a red test proving it, not just the one above.
+  it("leaves the edit card open with an error when stepping to 0 deletes successfully but the follow-up refresh fails (#167)", async () => {
+    const entry = logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1);
+    logMock.getAllEntries.mockResolvedValue([entry]);
+    const root = await renderLogsScreen();
+
+    act(() => {
+      pressableWithLabel(root, "Edit French Toast · Hampshire").props.onPress();
+    });
+
+    logMock.removeEntry.mockResolvedValueOnce(undefined);
+    logMock.getAllEntries.mockRejectedValueOnce(new Error("disk full"));
+    await act(async () => {
+      // No longer rejects -- withStepGuard catches the failed refresh internally.
+      await pressableWithLabel(root, "Remove one French Toast").props.onPress();
+    });
+
+    expect(logMock.removeEntry).toHaveBeenCalledWith("1");
+    expect(logMock.addEntry).not.toHaveBeenCalled();
+    expect(texts(root)).toMatch(/Couldn't save.*disk full/);
+    // Still in the edit state -- the failed refresh means we don't actually know the UI reflects
+    // reality yet, so editingId must not have been cleared out from under it.
+    expect(pressableWithLabel(root, "Remove one French Toast")).toBeTruthy();
+  });
+
   it("tapping × removes the entry regardless of remaining servings", async () => {
     logMock.getAllEntries.mockResolvedValue([logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 5)]);
     const root = await renderLogsScreen();

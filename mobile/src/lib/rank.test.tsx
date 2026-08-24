@@ -200,3 +200,27 @@ it("catches a rejected save, surfaces it as visible text instead of an unhandled
   // A successful comparison clears the earlier error instead of leaving it stuck on screen.
   expect(texts(root)).not.toMatch(/Couldn't save/);
 });
+
+// #167 (PR #166 review nit): choose() clears chooseError on its next attempt (see the test above),
+// but skip() didn't -- a stale "Couldn't save" message from a prior failed choose() would sit under
+// the freshly dealt pair with no failed action of its own to explain it.
+it("clears a stale chooseError when Skip is pressed, instead of leaving it under the freshly-dealt pair (#167)", async () => {
+  const root = await renderScreen();
+
+  rankingStorageMock.saveRankedDishes.mockRejectedValueOnce(new Error("disk full"));
+  const pizzaButton = findChoiceButton(root, /^Pizza/);
+  await act(async () => {
+    await pizzaButton.props.onPress();
+  });
+  expect(texts(root)).toMatch(/Couldn't save.*disk full/);
+
+  const skipButton = root.root
+    .findAllByType(Button)
+    .find((n) => typeof n.props.children === "string" && n.props.children === "Skip");
+  if (!skipButton) throw new Error("No Skip button found");
+  act(() => {
+    skipButton.props.onPress();
+  });
+
+  expect(texts(root)).not.toMatch(/Couldn't save/);
+});
