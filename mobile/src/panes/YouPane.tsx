@@ -1,6 +1,5 @@
 import {
   computeDailyTotals,
-  DINING_HALLS,
   exportEntriesAsCsv,
   exportEntriesAsJson,
   hallCompletion,
@@ -14,7 +13,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import { Link, router, useFocusEffect, type Href } from "expo-router";
+import { Link, router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,7 +26,7 @@ import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
-import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal } from "../lib/youPaneFormat";
+import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -37,27 +36,16 @@ const seenDishesStorage = new SqliteSeenDishesStorage();
 // rendering every food that ever cleared the scoring gate.
 const TOP_FOODS_LIMIT = 5;
 
-function hallName(hallTid: number): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-}
+// hallName/logItemLine now live in youPaneFormat.ts (imported above) -- #119's Logs & stats screen
+// reuses the exact same collapsed-row text instead of re-deriving it.
 
-/** Single-line item text per the canvas: "<dish> × <qty> · <hall>", qty omitted when it's 1, hall
- * omitted for off-menu (barcode) entries that don't have one. */
-function logItemLine(entry: LogEntry): string {
-  const name = entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
-  const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
-  const hall = entry.source.type === "umass-menu" ? ` · ${hallName(entry.source.hallTid)}` : "";
-  return `${name}${qty}${hall}`;
-}
-
-/** #119's Logs & stats screen hasn't shipped yet -- `/logs` doesn't match a route until it does.
- * expo-router doesn't throw for an unmatched push (it renders its own `+not-found` screen), so no
- * try/catch here: review caught that the earlier version's catch was a real-error suppressor, not
- * a crash guard -- it's what silently swallowed a genuine `jest.mock` hoisting bug during
- * development. `as Href` stays: `app.json`'s `experiments.typedRoutes` rejects an unknown route at
- * compile time until #119 adds `app/logs.tsx`. */
+/** #119 has shipped `app/logs.tsx`, so `/logs` is now a real route: no more `as Href` cast (needed
+ * only while `experiments.typedRoutes` couldn't yet see the file) and no try/catch (review on
+ * #128 found the earlier catch was a real-error suppressor, not a crash guard for an unmatched
+ * route -- expo-router doesn't throw on an unmatched push anyway, it renders its own
+ * `+not-found` screen). */
 function goToAllLogs() {
-  router.push("/logs" as Href);
+  router.push("/logs");
 }
 
 /** One completion bar inside the shared card — gold fill for the top (first) hall, maroon for the

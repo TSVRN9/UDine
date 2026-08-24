@@ -1,6 +1,11 @@
 // First render coverage for the privacy toggles screen -- part of closing the "screens under
 // mobile/src/app/ have zero render tests" gap the #126 review named (the same gap let findings
 // #2/#4/#5 in friend/[id].tsx through).
+//
+// Lives here, not next to src/app/privacy.tsx: expo-router scans every file under src/app/ as a
+// candidate route (see redirect.test.tsx's own note -- a .test.tsx there gets bundled into the
+// real app and crashes at runtime on the bare `jest` global). Imports the screen by relative path
+// instead, same pattern as redirect.test.tsx/hallMenu.test.tsx.
 
 const mockSyncSharedStat = jest.fn().mockResolvedValue({ error: null });
 jest.mock("@udine/shared", () => ({
@@ -8,21 +13,21 @@ jest.mock("@udine/shared", () => ({
   syncSharedStat: (...args: unknown[]) => mockSyncSharedStat(...args),
 }));
 
-jest.mock("../lib/sqliteStorage", () => {
+jest.mock("./sqliteStorage", () => {
   const getAllEntries = jest.fn().mockResolvedValue([]);
   return { SqliteLogStorage: jest.fn().mockImplementation(() => ({ getAllEntries })) };
 });
-jest.mock("../lib/rankingStorage", () => {
+jest.mock("./rankingStorage", () => {
   const getRankedDishes = jest.fn().mockResolvedValue([]);
   const getRankedFoods = jest.fn().mockResolvedValue([]);
   return { SqliteRankingStorage: jest.fn().mockImplementation(() => ({ getRankedDishes, getRankedFoods })) };
 });
-jest.mock("../lib/seenDishesStorage", () => {
+jest.mock("./seenDishesStorage", () => {
   const getAllSeenDishNames = jest.fn().mockResolvedValue(new Map());
   return { SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ getAllSeenDishNames })) };
 });
 
-/** Same filtering chain-stub as friend/[id].test.tsx -- applies `.eq()` against a fixed row so the
+/** Same filtering chain-stub as friendProfileScreen.test.tsx -- applies `.eq()` against a fixed row so the
  * mock reflects what a real `.eq("user_id", me)` query would actually return. */
 function table(rows: Record<string, unknown>[]) {
   let filtered = rows;
@@ -37,7 +42,7 @@ function table(rows: Record<string, unknown>[]) {
 }
 
 const mockFrom = jest.fn();
-jest.mock("../lib/supabase", () => ({
+jest.mock("./supabase", () => ({
   supabase: {
     auth: {
       getSession: jest.fn(),
@@ -51,8 +56,8 @@ jest.mock("expo-router", () => ({ useFocusEffect: (callback: () => void) => call
 
 import renderer, { act } from "react-test-renderer";
 import { Switch, Text } from "react-native";
-import { supabase } from "../lib/supabase";
-import PrivacyScreen from "./privacy";
+import { supabase } from "./supabase";
+import PrivacyScreen from "../app/privacy";
 
 function session(userId: string) {
   return { data: { session: { user: { id: userId, email: `${userId}@umass.edu` } } } };
@@ -62,7 +67,7 @@ function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : String(n.props.children))).join(" | ");
 }
 
-/** `sharedStatsRow` is memoized once, same reason as friend/[id].test.tsx's `mockTables`: a fresh
+/** `sharedStatsRow` is memoized once, same reason as friendProfileScreen.test.tsx's `mockTables`: a fresh
  * object literal per `mockFrom("shared_stats")` call would defeat React's Object.is bailout and
  * spin `useFocusEffect`'s every-render mock into an infinite loop. */
 function mockRow(row: { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null) {

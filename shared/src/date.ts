@@ -47,8 +47,9 @@ export function resolveMenuDate(dateParam: string | null | undefined, todayIso: 
 // instead of forked per-platform copies, so they can't drift apart on this again.
 //
 // A bare (no "Z"/offset) ISO-shaped string is parsed back as local time by `new Date(str)` per the
-// ECMA-262 Date Time String spec, so downstream `new Date(loggedAt)` (time-of-day display, sort
-// order) keeps working unchanged.
+// ECMA-262 Date Time String spec, so downstream `new Date(loggedAt).getHours()` (mobile's
+// youPaneFormat.ts's mealPeriodForTime, logsFormat.ts's formatLogTime) and lexicographic sort/SQL
+// ORDER BY all keep working unchanged.
 export function nowLocalIso(d: Date = new Date()): string {
   const pad = (n: number, width = 2) => String(n).padStart(width, "0");
   const datePart = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
