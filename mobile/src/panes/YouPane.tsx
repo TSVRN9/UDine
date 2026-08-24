@@ -294,7 +294,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
             </Pressable>
           )}
         </Card>
-        <Link href="/friends" asChild>
+        <Link href="/add-friends" asChild>
           <Pressable>
             <Card style={styles.friendsRow}>
               <Text style={styles.friendsText}>Friends</Text>
