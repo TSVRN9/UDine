@@ -56,7 +56,17 @@ function LogItemRow({ entry, onPress }: { entry: LogEntry; onPress: () => void }
 }
 
 /** Gold-bordered edit sub-card: stepper (stepping to 0 deletes) + a standalone × remove button. */
-function EditEntryCard({ entry, onStep, onRemove }: { entry: LogEntry; onStep: (delta: number) => void; onRemove: () => void }) {
+function EditEntryCard({
+  entry,
+  onStep,
+  onRemove,
+  error,
+}: {
+  entry: LogEntry;
+  onStep: (delta: number) => void;
+  onRemove: () => void;
+  error?: string | null;
+}) {
   const dishName = entryDishName(entry);
   const subtitle = [
     entry.source.type === "umass-menu" ? hallNameFor(entry.source.hallTid) : null,
@@ -71,6 +81,7 @@ function EditEntryCard({ entry, onStep, onRemove }: { entry: LogEntry; onStep: (
       <View style={styles.editInfo}>
         <Text style={styles.editName}>{dishName}</Text>
         <Text style={styles.editSubtitle}>{subtitle}</Text>
+        {error && <Text style={styles.editError}>{error}</Text>}
       </View>
       <View style={styles.editControls}>
         <View style={styles.stepper}>
@@ -101,7 +112,17 @@ export default function LogsScreen() {
   const [allEntries, setAllEntries] = useState<LogEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const [editingId, setEditingId] = useState<string | null>(null);
+  // #165: a rejected step/remove write used to propagate out of the un-awaited onPress as an
+  // unhandled promise rejection. Caught in withStepGuard below and surfaced here instead, next to
+  // the entry being edited -- extends the existing editSubtitle text rather than adding new
+  // banner infra, since only one row is ever in the edit state at a time.
+  const [stepError, setStepError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+
+  function openEdit(id: string) {
+    setStepError(null);
+    setEditingId(id);
+  }
 
   const load = useCallback(() => {
     logStorage.getAllEntries().then(setAllEntries);
@@ -121,6 +142,10 @@ export default function LogsScreen() {
     stepping.current = true;
     try {
       await fn();
+      setStepError(null);
+    } catch (e) {
+      // #165: surface instead of letting it vanish as an unhandled rejection out of onPress.
+      setStepError(`Couldn't save: ${String(e)}`);
     } finally {
       stepping.current = false;
     }
@@ -201,9 +226,15 @@ export default function LogsScreen() {
                     </View>
                     {group.entries.map((entry) =>
                       editingId === entry.id ? (
-                        <EditEntryCard key={entry.id} entry={entry} onStep={(delta) => stepEntry(entry, delta)} onRemove={() => removeEntry(entry)} />
+                        <EditEntryCard
+                          key={entry.id}
+                          entry={entry}
+                          onStep={(delta) => stepEntry(entry, delta)}
+                          onRemove={() => removeEntry(entry)}
+                          error={stepError}
+                        />
                       ) : (
-                        <LogItemRow key={entry.id} entry={entry} onPress={() => setEditingId(entry.id)} />
+                        <LogItemRow key={entry.id} entry={entry} onPress={() => openEdit(entry.id)} />
                       ),
                     )}
                   </View>
@@ -324,6 +355,7 @@ const styles = StyleSheet.create({
   editInfo: { flexShrink: 1, gap: 1 },
   editName: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
   editSubtitle: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
+  editError: { fontFamily: fonts.body400, fontSize: fs(11), color: colors.maroon600 },
   editControls: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   stepper: { flexDirection: "row", alignItems: "center", backgroundColor: colors.maroon600, borderRadius: radii.pill },
   stepperButton: { width: fs(34), height: fs(38), alignItems: "center", justifyContent: "center" },
