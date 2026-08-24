@@ -315,3 +315,30 @@ test("exportFavoritesAsCsv matches a hand-computed CSV string, both favorite typ
   const expected = ["type,dishName,hallTid", '"dish","Trail Mix, ""Deluxe"" Blend",""', '"location","","3"'].join("\n");
   assert.equal(exportFavoritesAsCsv(favorites), expected);
 });
+
+// csvField's formula-injection guard (all export*AsCsv functions route through it) -- a dishName
+// starting with =/+/-/@ would otherwise be interpreted as a live formula by Excel/Sheets when the
+// export is opened there. dishName is untrusted: it round-trips through umassdining.com's feed
+// HTML. Exercised via exportFavoritesAsCsv (one of the four CSV exporters that carry a dishName).
+test("exportFavoritesAsCsv prefixes a leading =/+/-/@ in dishName with a tab, neutralizing formula injection", () => {
+  const favorites: Favorite[] = [
+    { type: "dish", dishName: "=SUM(A1:A2)" },
+    { type: "dish", dishName: "+1+1" },
+    { type: "dish", dishName: "-2+3" },
+    { type: "dish", dishName: "@cmd" },
+  ];
+  const expected = [
+    "type,dishName,hallTid",
+    '"dish","\t=SUM(A1:A2)",""',
+    '"dish","\t+1+1",""',
+    '"dish","\t-2+3",""',
+    '"dish","\t@cmd",""',
+  ].join("\n");
+  assert.equal(exportFavoritesAsCsv(favorites), expected);
+});
+
+test("exportFavoritesAsCsv leaves a dishName with =/+/-/@ NOT in the leading position untouched", () => {
+  const favorites: Favorite[] = [{ type: "dish", dishName: "Mac & Cheese = Comfort" }];
+  const expected = ["type,dishName,hallTid", '"dish","Mac & Cheese = Comfort",""'].join("\n");
+  assert.equal(exportFavoritesAsCsv(favorites), expected);
+});

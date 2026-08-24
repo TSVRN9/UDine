@@ -41,9 +41,15 @@ export function exportEntriesAsJson(entries: LogEntry[]): string {
 
 const CSV_COLUMNS = ["id", "loggedAt", "dishName", "servings", "calories", "proteinG", "totalCarbG", "totalFatG"] as const;
 
-/** Quote+escape one CSV field, shared by every export*AsCsv function below. */
+/** Quote+escape one CSV field, shared by every export*AsCsv function below. Also guards against CSV
+ * formula injection: a field starting with =/+/-/@ can be interpreted as a formula by
+ * Excel/Sheets/etc. when the export is opened there, so a leading tab (invisible in the cell,
+ * outside the quoted value's meaning) is prefixed first. `dishName` in particular is untrusted --
+ * it round-trips through umassdining.com's feed HTML (`data-dish-name`). */
 function csvField(value: string | number): string {
-  return `"${String(value).replace(/"/g, '""')}"`;
+  const str = String(value);
+  const safe = /^[=+\-@]/.test(str) ? `\t${str}` : str;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 export function exportEntriesAsCsv(entries: LogEntry[]): string {

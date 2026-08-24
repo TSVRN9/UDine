@@ -280,6 +280,39 @@ describe("YouPane export", () => {
     expect(content).toMatch(/"hallTid": 1/);
   });
 
+  it("Rankings CSV exports the ranked-dish data as CSV, not JSON", async () => {
+    rankingMock.getRankedDishes.mockResolvedValue(rankedDishesForOneRankedHall);
+
+    const root = await renderYouPane();
+    await act(async () => {
+      pressableWithText(root, "Rankings CSV").props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
+    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
+    expect(path).toMatch(/udine-ranked-dishes\.csv$/);
+    expect(content).toBe('dishName,hallTid,rating,comparisonCount\n"A","1","1500","3"\n"B","1","1600","3"');
+  });
+
+  it("Favorite Foods JSON exports the ranked-food data, not rankedDishes or the log", async () => {
+    rankingMock.getRankedFoods.mockResolvedValue([{ dishName: "Chicken Parm", rating: 1650, comparisonCount: 5 }]);
+
+    const root = await renderYouPane();
+    await act(async () => {
+      pressableWithText(root, "Favorite Foods JSON").props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
+    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
+    expect(path).toMatch(/udine-ranked-foods\.json$/);
+    expect(content).toMatch(/"dishName": "Chicken Parm"/);
+    expect(content).toMatch(/"rating": 1650/);
+  });
+
   it("Favorite Foods CSV exports the ranked-food data as CSV, not JSON", async () => {
     rankingMock.getRankedFoods.mockResolvedValue([{ dishName: "Chicken Parm", rating: 1650, comparisonCount: 5 }]);
 
@@ -310,6 +343,22 @@ describe("YouPane export", () => {
     const [path, content] = mockWriteAsStringAsync.mock.calls[0];
     expect(path).toMatch(/udine-favorites\.json$/);
     expect(content).toMatch(/"dishName": "Chicken Parm"/);
+  });
+
+  it("Favorites CSV exports the favorites store's data as CSV, not JSON", async () => {
+    favoritesMock.getFavorites.mockResolvedValue([{ type: "location", hallTid: 3 }]);
+
+    const root = await renderYouPane();
+    await act(async () => {
+      pressableWithText(root, "Favorites CSV").props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
+    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
+    expect(path).toMatch(/udine-favorites\.csv$/);
+    expect(content).toBe('type,dishName,hallTid\n"location","","3"');
   });
 });
 
