@@ -29,6 +29,18 @@ jest.mock("../lib/auth", () => ({
   signInWithGoogle: jest.fn(),
 }));
 
+// #181: enqueuePing/flushQueuedPings touch real SQLite (via ./db -> expo-sqlite), which can't run
+// under jest (see seenDishesStorage.test.ts's own comment for the confirmed error). Both are
+// fire-and-forget/`.catch`-guarded in SocialPane itself, so an unmocked real throw wouldn't crash
+// these tests either way, but mocking keeps the offline/queue tests below deterministic and able to
+// assert on calls directly.
+const mockEnqueuePing = jest.fn().mockResolvedValue(undefined);
+const mockFlushQueuedPings = jest.fn().mockResolvedValue(undefined);
+jest.mock("../lib/pingQueue", () => ({
+  enqueuePing: (...args: unknown[]) => mockEnqueuePing(...args),
+  flushQueuedPings: (...args: unknown[]) => mockFlushQueuedPings(...args),
+}));
+
 // SocialPane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
 // YouPane.test.tsx/hallMenu.test.tsx).
 jest.mock("react-native-safe-area-context", () => ({
@@ -338,12 +350,17 @@ describe("SocialPane", () => {
     expect(mockOpenBrowserAsync).not.toHaveBeenCalled();
   });
 
-  it("events load error: shows an error line instead of hanging on a loading state forever", async () => {
+  // #181: offline is NOT an error state (owner decision) -- a fetchEvents failure now surfaces as
+  // the offline line, not the old "Couldn't load events" error text. Same underlying fetch, new
+  // treatment; this test is the conscious update of the pre-#181 "events load error" test (renamed,
+  // not silently dropped -- see the describe block below for its full replacement coverage).
+  it("events load error is treated as offline, not shown as an error line", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
     mockFetchEvents.mockRejectedValue(new Error("network down"));
 
     const root = await renderSocialPane();
-    expect(texts(root)).toMatch(/Couldn.t load events/);
+    expect(texts(root)).not.toMatch(/Couldn.t load events/);
+    expect(texts(root)).toMatch(/offline · pings will send when you're back/);
   });
 
   it("hold-and-release gesture: holding past LONG_PRESS_MS opens the bubble with a shuffled message and all 4 halls; releasing without ever hovering one cancels (no ping sent)", async () => {
@@ -421,5 +438,56 @@ describe("SocialPane", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe("SocialPane offline (#181 — owner decision: offline is not an error state)", () => {
+  it("dims the ping card (opacity 0.55) while offline, and back to normal once fetchEvents succeeds again", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation(() => queryResult([]));
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+
+    const root = await renderSocialPane();
+    const dimmedViews = root.root.findAllByType(View).filter((v) => flatStyle(v.props.style).opacity === 0.55);
+    expect(dimmedViews.length).toBeGreaterThan(0);
+
+    mockFetchEvents.mockResolvedValue([]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Retry" }).props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(root.root.findAllByType(View).filter((v) => flatStyle(v.props.style).opacity === 0.55).length).toBe(0);
+  });
+
+  it("RETRY re-fetches events and, once back online, flushes anything queued while offline", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation(() => queryResult([]));
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+
+    const root = await renderSocialPane();
+    expect(mockFlushQueuedPings).not.toHaveBeenCalled();
+
+    mockFetchEvents.mockResolvedValue([]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Retry" }).props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockFetchEvents).toHaveBeenCalledTimes(2); // initial load + retry
+    expect(mockFlushQueuedPings).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT flush the queue on a normal (never-offline) load", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    mockFetchEvents.mockResolvedValue([]);
+    await renderSocialPane();
+    expect(mockFlushQueuedPings).not.toHaveBeenCalled();
+  });
+
+  it("shows the evergreen footer reassurance copy regardless of online/offline state", async () => {
+    mockFetchEvents.mockResolvedValue([]);
+    const online = await renderSocialPane();
+    expect(texts(online)).toMatch(/Your log, plate, and rankings all keep working offline — they live on this phone\./);
   });
 });
