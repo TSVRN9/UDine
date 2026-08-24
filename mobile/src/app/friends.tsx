@@ -2,9 +2,10 @@ import { DINING_HALLS, hallNameFor } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Button, Card, EmptyState } from "../components/ui";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
+import { sendPingGuarded } from "../lib/sendPing";
 import { supabase } from "../lib/supabase";
 
 type Profile = { user_id: string; display_name: string };
@@ -90,23 +91,34 @@ export function FriendsBody() {
     setSearchResults(data ?? []);
   }
 
+  // Same supabase-js pitfall as sendPing below: {error} on RLS/PostgREST failure, not a throw.
   async function requestFriend(targetUserId: string) {
-    await supabase.rpc("request_friendship", { target_user_id: targetUserId });
+    const { error } = await supabase.rpc("request_friendship", { target_user_id: targetUserId });
+    if (error) {
+      Alert.alert("Couldn't send friend request", "Please try again.");
+      return;
+    }
     setSearchResults([]);
     setQuery("");
     refresh();
   }
 
   async function acceptFriend(f: Friendship) {
-    await supabase.from("friendships").update({ status: "accepted" }).eq("user_a", f.user_a).eq("user_b", f.user_b);
+    const { error } = await supabase.from("friendships").update({ status: "accepted" }).eq("user_a", f.user_a).eq("user_b", f.user_b);
+    if (error) {
+      Alert.alert("Couldn't accept friend request", "Please try again.");
+      return;
+    }
     refresh();
   }
 
   async function sendPing(otherId: string) {
     const myId = session?.user.id;
     if (!myId) return;
-    await supabase.from("pings").insert({ sender_id: myId, receiver_id: otherId, hall_tid: pingHallTid[otherId] ?? null, message: pingMessage[otherId] || null });
-    setPingMessage((prev) => ({ ...prev, [otherId]: "" }));
+    const ok = await sendPingGuarded(supabase, { sender_id: myId, receiver_id: otherId, hall_tid: pingHallTid[otherId] ?? null, message: pingMessage[otherId] || null });
+    if (ok) {
+      setPingMessage((prev) => ({ ...prev, [otherId]: "" }));
+    }
   }
 
   if (!session) {
