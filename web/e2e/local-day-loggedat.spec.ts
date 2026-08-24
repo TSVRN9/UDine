@@ -9,26 +9,29 @@ import { parseCategoryItems } from "@udine/shared";
 // shared/src/macros.ts, consolidated with mobile's fix rather than a forked web-only copy.
 //
 // This is the web-side "writer/reader seam" coverage PR #122's review demanded for mobile
-// (`nowLocalIso().slice(0, 10) === todayIso()`, mobile/src/lib/date.test.ts): web has no unit-test
-// runner (only svelte-check, which is type-only, and this e2e suite -- see CLAUDE.md's CI comment),
-// so the seam is asserted here at the integration level instead, driving the real writer call site
-// (+page.svelte's logItem, stamps via nowLocalIso) and the real reader call site (+page.svelte /
-// indexedDbStorage.ts read "today" via web/src/lib/date.ts's todayIso() + getEntriesForDate) through
-// the actual UI.
+// (`nowLocalIso().slice(0, 10) === todayIso()`, mobile/src/lib/date.test.ts): web now also has a
+// node:test unit runner (web/src/lib/date.test.ts, added for issue #188), but the writer/reader
+// call sites below live in .svelte components with no unit-test harness -- so the seam still has
+// to be proven here, at the integration level, driving the real writer call site (+page.svelte's
+// logItem, stamps via nowLocalIso) and the real reader call sites (+page.svelte / today/+page.svelte
+// read "today" via `isoDateOf(nowLocalIso())` + getEntriesForDate) through the actual UI.
+//
+// IMPORTANT (issue #188 rework, finding 1): the reader is deliberately `isoDateOf(nowLocalIso())`,
+// NOT `web/src/lib/date.ts`'s `todayIso()` -- #188 repointed todayIso() to always compute UMass
+// Dining's Eastern calendar day, for the *SSR menu-day* call sites only (halls/[slug]/+page.ts,
+// filters/+page.ts). Reusing that same ET-anchored function to read today's *log* would reintroduce
+// this exact bug class from the other direction: a device set west of Eastern (see the
+// TZ=America/Los_Angeles test below) sees ET roll over to tomorrow while its own local day -- and
+// the entry nowLocalIso() just stamped -- is still today, so an ET-anchored reader would file it
+// under a day that hasn't happened locally yet and drop it from Today.
 //
 // Verified red-first, both sides, not assumed:
 //   - Writer: reverting `nowLocalIso()` (the +page.svelte stamping call) back to
 //     `new Date().toISOString()` makes this test fail exactly as below (the logged entry never
 //     appears, "Calories: 127" never renders) -- that's the actual bug #124 reports.
-//   - Reader: reverting web/src/lib/date.ts's `todayIso()` to a UTC-derived
-//     `new Date().toISOString().slice(0, 10)` -- the web-side equivalent of the "reader
-//     independently drifts to UTC" risk PR #122's review flagged for mobile's todayIso() -- ALSO
-//     fails this test the same way. (indexedDbStorage.ts's own `isoDateOf(e.loggedAt) === isoDate`
-//     vs. its prior `e.loggedAt.startsWith(isoDate)` is logically equivalent for a valid 10-char
-//     isoDate either way -- checked, doesn't independently flip this test -- that swap is a
-//     consolidation/parity move onto the shared `isoDateOf` helper, mirroring mobile's identical
-//     YouPane change, not a second bug fix. The actual writer/reader risk is nowLocalIso vs.
-//     todayIso, exactly as it was for mobile.)
+//   - Reader: reverting the reader call sites' `isoDateOf(nowLocalIso())` back to `todayIso()`
+//     fails this test's Eastern-timezone case too, AND fails the separate
+//     TZ=America/Los_Angeles case below -- see that test's own comment for the mutation-red proof.
 //
 // The browser's clock is pinned to the exact UTC-rollover boundary via page.clock.setFixedTime
 // (not page.clock.install -- that also fakes timers, which would freeze +page.svelte's own
@@ -89,4 +92,46 @@ test("logs an evening entry under today's LOCAL calendar day, not the UTC-rolled
 	await expect(page.getByRole("heading", { name: /^Today/ })).toBeVisible();
 	await expect(page.getByText("Calories: 127")).toBeVisible();
 	await expect(page.getByText("French Toast × 1")).toBeVisible();
+});
+
+// Issue #188 rework, finding 1 (reviewer repro): a browser set WEST of Eastern hits the writer/
+// reader seam from the opposite direction of the test above. Per-test `timezoneId` override
+// (Playwright supports this via test.use() in any describe/test, independent of the file-level
+// pin above and playwright.config.ts's global default).
+test.describe("device timezone west of Eastern", () => {
+	test.use({ timezoneId: "America/Los_Angeles" });
+
+	test("logging near midnight ET (but still evening locally) still shows up under Today -- an ET-anchored reader would drop it (issue #188 rework, finding 1)", async ({
+		page,
+	}) => {
+		await page.route("**/api/menu**", (route) => route.fulfill({ json: MENU_ITEMS }));
+
+		// 2026-08-21T04:30:00Z == 12:30 AM Eastern Aug 21 (already tomorrow, ET-wise) == 9:30 PM
+		// Pacific Aug 20 (still today, locally) -- the reviewer's exact repro. nowLocalIso() (the
+		// writer, browser-local) stamps Aug 20; todayIso() (ET-anchored) would already say Aug 21.
+		await page.clock.setFixedTime(new Date("2026-08-21T04:30:00.000Z"));
+
+		await page.goto("/");
+		await proveHydrated(page);
+
+		const hampshireRow = page.getByRole("listitem").filter({ hasText: "Hampshire" });
+		await hampshireRow.getByRole("link", { name: "Hampshire" }).click();
+
+		const dishRow = page.getByRole("listitem").filter({ hasText: "French Toast" });
+		await expect(dishRow).toBeVisible();
+		await dishRow.getByRole("button", { name: "Log" }).click();
+		await expect(page.getByRole("status")).toHaveText("Logged 1 × French Toast");
+
+		// Verified red-first: with the reader call sites (+page.svelte, today/+page.svelte) pointed
+		// at `todayIso()` instead of `isoDateOf(nowLocalIso())`, this assertion fails -- "Calories: 0",
+		// the just-logged entry silently missing, exactly the reviewer's reported symptom. Green again
+		// once the reader is isoDateOf(nowLocalIso()).
+		await page.getByRole("link", { name: "Dining Halls" }).click();
+		await expect(page.getByText("Calories: 127")).toBeVisible();
+
+		await page.getByRole("link", { name: "Today's macros" }).click();
+		await expect(page.getByRole("heading", { name: /^Today/ })).toBeVisible();
+		await expect(page.getByText("Calories: 127")).toBeVisible();
+		await expect(page.getByText("French Toast × 1")).toBeVisible();
+	});
 });

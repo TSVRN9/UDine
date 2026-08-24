@@ -68,6 +68,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: cp web/.env.example web/.env
+      - run: pnpm --filter web test
       - run: pnpm --filter web check
 
   mobile-typecheck:

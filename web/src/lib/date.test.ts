@@ -29,16 +29,30 @@ test("todayIso: still returns the Eastern calendar day well inside the UTC day (
 	}
 });
 
+// Same boundary, but in January (EST, UTC-5, no DST) rather than August (EDT, UTC-4) -- proves the
+// fix reads the IANA zone's *current* offset via Intl rather than a hardcoded one, so it doesn't
+// quietly break every fall/spring DST transition.
+test("todayIso: returns the Eastern calendar day in EST (January, no DST) too, not just EDT", () => {
+	mock.timers.enable({ apis: ["Date"], now: new Date("2027-01-16T04:30:00.000Z").getTime() });
+	try {
+		// 11:30 PM Eastern (EST) on Jan 15, 2027 == 4:30 AM UTC on Jan 16.
+		assert.equal(todayIso(), "2027-01-15");
+	} finally {
+		mock.timers.reset();
+	}
+});
+
 // The composed seam halls/[slug]/+page.ts actually exercises: a correct `?date=<today ET>` deep
-// link must NOT get 307-redirected. Under the pre-fix bug, todayIso() returns "2026-08-21" at this
-// same instant, resolveMenuDate's `dateParam <= todayIso` clamp fires on the still-valid "2026-08-20"
-// request, and the load rewrites a correct URL to the wrong day -- the exact failure issue #188
-// describes, not just todayIso() in isolation.
-test("resolveMenuDate(todayIso(), todayIso()) doesn't clamp a same-day request away, at the evening-ET/already-tomorrow-UTC boundary", () => {
+// link must NOT get 307-redirected. Pinned to a literal date param (not todayIso() on both sides of
+// the assertion, which would pass under any implementation -- both sides came from the function
+// under test, see #208 review finding 2) so this only stays green if todayIso() actually returns
+// "2026-08-20" at this instant. Under the pre-fix bug, todayIso() returns "2026-08-21" here,
+// resolveMenuDate's `dateParam <= todayIso` clamp fires on the still-valid "2026-08-20" request, and
+// the load rewrites a correct URL to the wrong day -- the exact failure issue #188 describes.
+test("resolveMenuDate doesn't clamp a correct ?date=<today ET> request away, at the evening-ET/already-tomorrow-UTC boundary", () => {
 	mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-21T03:30:00.000Z").getTime() });
 	try {
-		const today = todayIso();
-		assert.equal(resolveMenuDate(today, today), today);
+		assert.equal(resolveMenuDate("2026-08-20", todayIso()), "2026-08-20");
 	} finally {
 		mock.timers.reset();
 	}
