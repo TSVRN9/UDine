@@ -36,6 +36,12 @@
       "expo-sharing",
       "expo-web-browser",
       "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "UDine uses the camera to scan a friend's in-person add code."
+        }
+      ],
       "./plugins/withOAuthColdStartIntentFix"
     ],
     "experiments": {
