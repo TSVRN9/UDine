@@ -36,3 +36,23 @@ export function resolveMenuDate(dateParam: string | null | undefined, todayIso: 
 
   return dateParam;
 }
+
+// Stamps a moment as a local-date-prefixed ISO-ish string (no trailing "Z"/offset), e.g.
+// "2026-08-20T23:15:42.123" -- built from local Date components (getFullYear/getMonth/getDate/
+// getHours/...), not `.toISOString()`, which is UTC. Every reader that buckets a LogEntry's
+// `loggedAt` by calendar day (via `isoDateOf`, shared/src/macros.ts) assumes the stored string's
+// date prefix already IS the local day -- stamping with `.toISOString()` instead makes evening
+// entries (local time still today, UTC already tomorrow) file under tomorrow and silently vanish
+// from Today (mobile: issue #111/PR #122; web: issue #124). One helper, shared by both platforms
+// instead of forked per-platform copies, so they can't drift apart on this again.
+//
+// A bare (no "Z"/offset) ISO-shaped string is parsed back as local time by `new Date(str)` per the
+// ECMA-262 Date Time String spec, so downstream `new Date(loggedAt).getHours()` (mobile's
+// youPaneFormat.ts's mealPeriodForTime, logsFormat.ts's formatLogTime) and lexicographic sort/SQL
+// ORDER BY all keep working unchanged.
+export function nowLocalIso(d: Date = new Date()): string {
+  const pad = (n: number, width = 2) => String(n).padStart(width, "0");
+  const datePart = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const timePart = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+  return `${datePart}T${timePart}`;
+}
