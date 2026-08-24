@@ -43,6 +43,18 @@ test("GET /api/menu accepts a known grab-n-go tid", async ({ request }) => {
 	expect(res.status()).not.toBe(400);
 });
 
+// #178: café-tap parity taught /api/menu to also accept a live retail location's tid, learned from
+// get_infov2 (fetchDiningHours, #176's shared export) rather than a second hardcoded list. No mock
+// here either, by the same file-header rationale — this proves the real proxy accepts a real,
+// currently-live café tid, not a stubbed one. People's Organic Coffee, location_id=32, confirmed
+// live 2026-08-24 (see shared/src/hours.test.ts's REAL_PEOPLES_ORGANIC capture).
+test("GET /api/menu accepts a real, live retail (café) tid learned from get_infov2, not just DINING_HALLS/GRAB_N_GO_TIDS", async ({
+	request,
+}) => {
+	const res = await request.get(`/api/menu?tid=32&date=${TODAY}`);
+	expect(res.status()).not.toBe(400);
+});
+
 test("GET /api/menu rejects a malformed date even with a valid tid", async ({ request }) => {
 	const res = await request.get("/api/menu?tid=1&date=2026-99-99"); // shape matches, calendar doesn't
 	expect(res.status()).toBe(400);

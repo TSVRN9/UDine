@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchNewsletter, fetchPressReleases, mapEvent } from "./content.ts";
+import { fetchNewsletter, fetchPressReleases, htmlToText, mapEvent, parseRetailMenuHtml } from "./content.ts";
 
 // See openFoodFacts.test.ts for the same withFetch pattern — swaps globalThis.fetch for a stub.
 function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
@@ -188,4 +188,72 @@ test("fetchNewsletter throws when the HTTP response is not ok", async () => {
     () => withFetch(async () => ({ ok: false, status: 500, json: async () => [] }) as Response, fetchNewsletter),
     /get_newsletter 500/,
   );
+});
+
+// --- #178: htmlToText / parseRetailMenuHtml (café-tap parity, *_menu trust boundary) -----------
+
+test("htmlToText strips tags and decodes entities without collapsing block breaks", () => {
+  assert.equal(htmlToText("<p>1 Campus Center Way<br/>Amherst, MA 01003</p>"), "1 Campus Center Way\nAmherst, MA 01003");
+  assert.equal(htmlToText("<p>Turkey &amp; Bacon</p>"), "Turkey & Bacon");
+});
+
+test("htmlToText returns empty string for null/undefined/empty input", () => {
+  assert.equal(htmlToText(null), "");
+  assert.equal(htmlToText(undefined), "");
+  assert.equal(htmlToText(""), "");
+});
+
+// Real capture, People's Organic Coffee breakfast_menu (hours.test.ts's REAL_PEOPLES_ORGANIC) --
+// bare <p>Dish Name</p> runs, no embedded price. This is the actual live shape, not a synthetic one.
+const REAL_PEOPLES_ORGANIC_BREAKFAST_MENU =
+  "<p>Bacon Croissant</p><p>Veggie Croissant</p><p>Turkey &amp; Bacon</p><p>Breakfast Brioche</p><p>Quiche, Broccoli</p><p>Quiche, Ham</p><p>Antioxidant</p><p>Salad Strawberry Pecan</p>";
+
+test("parseRetailMenuHtml parses a real name-only item list, decoding entities, with no price", () => {
+  const parsed = parseRetailMenuHtml(REAL_PEOPLES_ORGANIC_BREAKFAST_MENU);
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.equal(parsed.items.length, 8);
+  assert.deepEqual(parsed.items[0], { name: "Bacon Croissant", price: null });
+  assert.deepEqual(parsed.items[2], { name: "Turkey & Bacon", price: null }); // entity-decoded
+});
+
+test("parseRetailMenuHtml splits a trailing '$X.XX' into name + price", () => {
+  const parsed = parseRetailMenuHtml("<p>Espresso $3.00</p><p>Bagel</p>");
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.deepEqual(parsed.items[0], { name: "Espresso", price: "$3.00" });
+  assert.deepEqual(parsed.items[1], { name: "Bagel", price: null });
+});
+
+// Real capture, babyBerk breakfast_menu (hours.test.ts's REAL_BABYBERK) -- a PDF link, not an item
+// list.
+const REAL_BABYBERK_BREAKFAST_MENU =
+  '<p><a href="https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf" target="_blank">Baby Berk Menu</a></p>';
+
+test("parseRetailMenuHtml recognizes a real PDF-link menu and sanitizes its URL", () => {
+  const parsed = parseRetailMenuHtml(REAL_BABYBERK_BREAKFAST_MENU);
+  assert.deepEqual(parsed, {
+    kind: "pdf",
+    url: "https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf",
+    label: "Baby Berk Menu",
+  });
+});
+
+// Same trust boundary sanitizeLinkUrl already covers (#150) -- a hostile href in a PDF-shaped link
+// must never come back as a usable "pdf" url just because it ends in ".pdf". Falls through to the
+// item-list path instead (the link's own tags and href are stripped along with everything else),
+// same as any other unrecognized markup -- the malicious href is discarded, not surfaced.
+test("parseRetailMenuHtml drops a javascript: PDF link instead of returning it as a pdf url", () => {
+  const parsed = parseRetailMenuHtml('<p><a href="javascript:alert(1)//x.pdf">Menu</a></p>');
+  assert.notEqual(parsed.kind, "pdf");
+});
+
+test("parseRetailMenuHtml returns empty for null, undefined, and empty-string input", () => {
+  assert.deepEqual(parseRetailMenuHtml(null), { kind: "empty" });
+  assert.deepEqual(parseRetailMenuHtml(undefined), { kind: "empty" });
+  assert.deepEqual(parseRetailMenuHtml(""), { kind: "empty" });
+});
+
+test("parseRetailMenuHtml returns empty for HTML that strips down to nothing", () => {
+  assert.deepEqual(parseRetailMenuHtml("<p></p><p>   </p>"), { kind: "empty" });
 });
