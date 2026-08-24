@@ -30,6 +30,21 @@ export default function RankScreen() {
   const [pair, setPair] = useState<[Dish, Dish] | null>(null);
   const lastPairRef = useRef<[Dish, Dish] | null>(null);
 
+  // #147: choose() reads/saves whole-blob rankedDishes/rankedFoods. The displayed pair doesn't
+  // change until the LAST statement in choose() runs (after both awaited saves + getSession), so a
+  // second tap landing inside that window is never a distinct judgement on a different pair -- it's
+  // the same button re-tapped by accident, or the other button mis-tapped on a pair the user hasn't
+  // seen change. Dropped, same call the repo already made for this exact stale-closure mechanism in
+  // logs.tsx's withStepGuard ("two overlapping calls would both compute from the same stale
+  // count... the second tap is dropped rather than mis-applied") and for LOG's own double-tap guard
+  // (useGuardedLogPlate). These two refs stay regardless: `choosing.current` releases in `finally`
+  // synchronously after `setPair`, before React commits the re-render, so a tap landing in that
+  // sub-frame window would still see stale render-closure state without them -- they're the actual
+  // source of truth for choose(), updated the moment a comparison applies rather than on next render.
+  const rankedDishesRef = useRef<RankedDish[]>([]);
+  const rankedFoodsRef = useRef<RankedFood[]>([]);
+  const choosing = useRef(false);
+
   const refresh = useCallback(() => {
     (async () => {
       const entries: LogEntry[] = await logStorage.getAllEntries();
@@ -45,6 +60,8 @@ export default function RankScreen() {
       }
       const ranked = await rankingStorage.getRankedDishes();
       const rankedFoodsResult = await rankingStorage.getRankedFoods();
+      rankedDishesRef.current = ranked;
+      rankedFoodsRef.current = rankedFoodsResult;
       setLoggedDishes(dishes);
       setRankedDishes(ranked);
       setRankedFoods(rankedFoodsResult);
@@ -57,25 +74,35 @@ export default function RankScreen() {
   useFocusEffect(refresh);
 
   async function choose(winner: Dish, loser: Dish) {
-    const updated = applyComparison(rankedDishes, winner, loser);
-    const updatedFoods = applyFoodComparison(rankedFoods, winner, loser);
-    setRankedDishes(updated);
-    setRankedFoods(updatedFoods);
-    await rankingStorage.saveRankedDishes(updated);
-    await rankingStorage.saveRankedFoods(updatedFoods);
+    // Checked synchronously before the first await -- a second tap landing before this one
+    // finishes is dropped outright, not queued (see the refs' comment above for why).
+    if (choosing.current) return;
+    choosing.current = true;
+    try {
+      const updated = applyComparison(rankedDishesRef.current, winner, loser);
+      const updatedFoods = applyFoodComparison(rankedFoodsRef.current, winner, loser);
+      rankedDishesRef.current = updated;
+      rankedFoodsRef.current = updatedFoods;
+      setRankedDishes(updated);
+      setRankedFoods(updatedFoods);
+      await rankingStorage.saveRankedDishes(updated);
+      await rankingStorage.saveRankedFoods(updatedFoods);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      // Fire-and-forget: don't block advancing to the next pair on the network round-trip.
-      // syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
-      void syncDiningHallRanks(supabase, session.user.id, updated);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        // Fire-and-forget: don't block advancing to the next pair on the network round-trip.
+        // syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
+        void syncDiningHallRanks(supabase, session.user.id, updated);
+      }
+
+      const next = pickPair(loggedDishes, updated, lastPairRef.current);
+      lastPairRef.current = next;
+      setPair(next);
+    } finally {
+      choosing.current = false;
     }
-
-    const next = pickPair(loggedDishes, updated, lastPairRef.current);
-    lastPairRef.current = next;
-    setPair(next);
   }
 
   function skip() {
