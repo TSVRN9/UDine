@@ -30,6 +30,13 @@ export const load: PageLoad = async ({ params, url, fetch }) => {
 	}
 
 	const res = await fetch(`/api/menu?tid=${hall.tid}&date=${date}`);
+	// #173/#174: /api/menu now 400s a date outside its -7/+14 day window. tid always comes from
+	// DINING_HALLS above and date is already shape/calendar-validated by resolveMenuDate, so an
+	// out-of-window date is the only reachable 400 here -- treat it the same as the upstream's own
+	// "nothing posted" `[]`, not as a real error. Otherwise a hand-typed/bookmarked/shared
+	// far-future URL (which bypasses the Next-day stepper entirely) would error-page instead of
+	// showing the existing "Menu not posted yet" empty state.
+	if (res.status === 400) return { hall, date, items: [] as MenuItem[] };
 	if (!res.ok) throw error(res.status, "failed to load menu");
 	const items: MenuItem[] = await res.json();
 

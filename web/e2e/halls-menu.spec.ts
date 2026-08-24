@@ -261,6 +261,30 @@ test("a future day with no menu shows the publish-window empty state, not the no
 	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
 });
 
+// #173 added a -7/+14 day window to /api/menu, 400ing outside it -- but resolveMenuDate
+// (@udine/shared) passes any *valid* future ISO date through unchanged (it only clamps
+// missing/malformed/past dates to today), so a hand-typed, bookmarked, or shared URL far enough
+// out reaches +page.ts's load with a date the API will now reject. Pre-#174-fix, that 400 hit
+// `if (!res.ok) throw error(res.status, ...)` and rendered SvelteKit's generic error page instead
+// of the same "not posted yet" empty state a Next-day click to the same horizon shows. Deliberately
+// NOT page.route()-mocked, unlike every other test in this file: this needs to hit the *real*
+// /api/menu handler to prove its actual 400 gets absorbed by load, not a mock standing in for it.
+// Still hermetic despite no mock -- #173's out-of-window check throws before fetchMenu ever reaches
+// the real upstream, so this makes zero network calls past our own dev server.
+test("a far-future ?date= reached via direct URL navigation (not the Next-day stepper) shows the publish-window empty state, not a generic error page", async ({
+	page,
+}) => {
+	const now = new Date();
+	const pad = (n: number) => String(n).padStart(2, "0");
+	const farFuture = new Date(now);
+	farFuture.setDate(farFuture.getDate() + 30); // comfortably past the +14 day window
+	const dateParam = `${farFuture.getFullYear()}-${pad(farFuture.getMonth() + 1)}-${pad(farFuture.getDate())}`;
+
+	await page.goto(`/halls/hampshire?date=${dateParam}`);
+
+	await expect(page.getByText("Menu not posted yet — UMass publishes about two weeks ahead.")).toBeVisible();
+});
+
 // SvelteKit's SSR "inlines" a `load` function's same-origin fetch server-side, invisible to
 // page.route() (see vertical-slice.spec.ts's comment on this) -- so a literal page.goto() straight
 // to a ?date=... URL can't be mocked here, only client-side navigation can. Browser back/forward

@@ -36,6 +36,19 @@ export const GET: RequestHandler = async ({ url }) => {
 		throw error(400, "invalid date");
 	}
 
+	// #173: a shape- and calendar-valid date was still unbounded -- ?date=9999-12-31 or 1900-01-01
+	// both proxied through and minted a never-evicted #170 cache key. Menus aren't posted more than
+	// ~2 weeks out; clamp to a generous window around server-local "today" and reject outside it,
+	// same as the other checks above. Plain server-time Date arithmetic -- the window is wide enough
+	// that timezone drift can't reject a real caller, so no timezone plumbing needed.
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const minDate = new Date(today);
+	minDate.setDate(minDate.getDate() - 7);
+	const maxDate = new Date(today);
+	maxDate.setDate(maxDate.getDate() + 14);
+	if (date < minDate || date > maxDate) throw error(400, "date out of range");
+
 	const items = await fetchMenu(tid, date);
 	return json(items);
 };
