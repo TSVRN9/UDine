@@ -120,6 +120,32 @@ function profilesHandler(single: Record<string, unknown>, friendRows: { user_id:
 	};
 }
 
+/** Stubs the two browser APIs notifications/+page.svelte's push-token cleanup (#185) reads:
+ * `Notification.permission` (normally a read-only static getter) and
+ * `navigator.serviceWorker.getRegistration()` (real registration requires an actual service worker
+ * install, which this suite never does). Must run via addInitScript, before any app script runs.
+ * `subscriptionEndpoint` omitted means "no live local subscription" (getSubscription() resolves
+ * null), matching a browser that's denied permission and had its subscription torn down too. */
+async function mockPushEnvironment(page: Page, permission: NotificationPermission, subscriptionEndpoint?: string) {
+	await page.addInitScript(
+		([perm, endpoint]) => {
+			if ("Notification" in window) {
+				Object.defineProperty(window.Notification, "permission", { value: perm, configurable: true });
+			}
+			if ("serviceWorker" in navigator) {
+				// @ts-expect-error test-only stub, real type is far more involved than this suite needs
+				navigator.serviceWorker.getRegistration = async () => ({
+					pushManager: {
+						getSubscription: async () =>
+							endpoint ? { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } }) } : null,
+					},
+				});
+			}
+		},
+		[permission, subscriptionEndpoint ?? null],
+	);
+}
+
 async function waitForRequest(requests: CapturedRequest[], table: string, method: string): Promise<CapturedRequest> {
 	await expect
 		.poll(() => requests.some((r) => r.table === table && r.method === method), {
@@ -434,6 +460,55 @@ test.describe("Notifications — signed in", () => {
 		await expect
 			.poll(() => page.evaluate((k) => localStorage.getItem(k), `udine-feed-last-seen:${USER_ID}`))
 			.toBe(newer);
+	});
+
+	// #185: refresh()'s permission-revoked cleanup fired on ANY non-"granted" permission, including
+	// "default" -- the state of a browser that simply never asked for permission (e.g. a second
+	// device/browser visiting this page for the first time). clearStoredPushTokens() had no way to
+	// scope the delete to just the calling browser's own row, so this wiped out every OTHER browser's
+	// still-live token too. This is the failure scenario from the issue: visit /notifications from a
+	// never-asked browser, and a laptop's working push subscription silently dies.
+	test("visiting from a second browser with permission \"default\" does not wipe other browsers' push tokens (#185)", async ({ page }) => {
+		await mockPushEnvironment(page, "default");
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		// No visible signal distinguishes "the permission-check branch ran and decided not to delete"
+		// from "it hasn't run yet" -- same situation as the signed-out watermark test below, so give
+		// refresh()'s async branch a real beat to land before asserting its absence.
+		await page.waitForTimeout(1000);
+
+		expect(requests.some((r) => r.table === "push_tokens" && r.method === "DELETE")).toBe(false);
+	});
+
+	test("permission revoked to \"denied\" clears only this browser's own push_tokens row, not a blanket delete (#185)", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "denied", ownEndpoint);
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			push_tokens: (route) => route.fulfill({ json: [] }),
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		const del = await waitForRequest(requests, "push_tokens", "DELETE");
+		expect(del.url.searchParams.get("user_id")).toBe(`eq.${USER_ID}`);
+		expect(del.url.searchParams.get("platform")).toBe("eq.web");
+		// Scoped to exactly this browser's own token (the same JSON.stringify(subscription.toJSON())
+		// shape enablePush() stores), not a blanket "every web token for this user" delete.
+		const ownToken = JSON.stringify({ endpoint: ownEndpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } });
+		expect(del.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
 	});
 
 	test("a signed-out visit does not stamp the feed-last-seen watermark", async ({ page }) => {
