@@ -10,7 +10,21 @@ export interface DiningHall {
 // literal space; see umassDining.ts's fetchMenu), confirmed live 2026-08-21 (Worcester, 08/21/2026:
 // {"lunch":...,"dinner":...,"late night":...}). Previously silently dropped -- MEAL_PERIODS in
 // umassDining.ts only ever looked up "breakfast"/"lunch"/"dinner".
-export type MealPeriod = "breakfast" | "lunch" | "dinner" | "latenight";
+//
+// "allday" and "grabngo" added for #175 -- retail-only wire keys "daily offerings" and "grabngo"
+// (confirmed live 2026-08-24: People's Organic Coffee tid=32 returns ["daily offerings","grabngo"],
+// Harvest Market tid=4306 returns ["breakfast","lunch","grabngo","dinner"]). These exist purely so
+// fetchMenu doesn't silently drop retail items -- they are NOT part of MEAL_PERIODS (the hall-tab
+// consolidation pinned by #144/#160/#163) and hall UIs must never render them as a tab. See
+// umassDining.ts's RAW_MEAL_PERIOD_KEYS/MEAL_PERIODS split for the enforcement.
+export type MealPeriod = "breakfast" | "lunch" | "dinner" | "latenight" | "allday" | "grabngo";
+
+/** The 4 periods a hall's own hours/menu tabs can actually be in -- MealPeriod's retail-only
+ * members ("allday"/"grabngo", #175) never apply to a hall: DiningHallHours only has fields for
+ * these four (plus "general"), and MEAL_PERIODS/currentMealPeriod never produce anything else.
+ * Exists so hall-only code can index DiningHallHours by a dynamic key without tsc widening it to
+ * MealPeriod's full, retail-inclusive union. */
+export type HallMealPeriod = "breakfast" | "lunch" | "dinner" | "latenight";
 
 export interface NutritionFacts {
   servingSize: string;
@@ -171,8 +185,9 @@ export interface TimeWindow {
 }
 
 /** breakfast/lunch/dinner/late-night derivation states, plus "closed" -- see hours.ts's
- * currentMealPeriod. */
-export type MealStatus = MealPeriod | "latenight" | "closed";
+ * currentMealPeriod. HallMealPeriod, not MealPeriod (#175) -- currentMealPeriod only ever checks
+ * DiningHallHours's 4 per-meal fields, so its return value can never be a retail-only period. */
+export type MealStatus = HallMealPeriod | "closed";
 
 /** One dining hall's hours for "today" as published by get_infov2, keyed to DINING_HALLS by tid. */
 export interface DiningHallHours {

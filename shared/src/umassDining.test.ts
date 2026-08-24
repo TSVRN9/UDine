@@ -160,6 +160,74 @@ test("mealPeriodLabel gives latenight a readable two-word label; the rest just t
   assert.equal(mealPeriodLabel("latenight"), "Late Night");
 });
 
+// #175: real fragment captured from GET foodpro-menu-ajax?tid=32&date=08%2F24%2F2026 (People's
+// Organic Coffee, "daily offerings" key, "Salad Bar/Dressings" category) -- a live café whose ENTIRE
+// menu is keyed "daily offerings", not breakfast/lunch/dinner. Before #175, RAW_MEAL_PERIOD_KEYS
+// only recognized breakfast/lunch/dinner/"late night", so this whole 27KB response was silently
+// dropped -- the café looked menu-less when it wasn't.
+const REAL_DAILY_OFFERINGS_FRAGMENT = `<a data-healthfulness="40" data-carbon-list="None" data-ingredient-list="Fresh Strawberries, Spinach, LITTLE LEAF Local Spring Mix (Arugula, Green Leaf Lettuce, Multiblend Lettuce, Red Chard, Red Leaf Lettuce), Glazed Pecan Halves (Pecans, Sugar, Salt, Vanilla (Water, Alcohol, Sugar &amp; Bean Extractives)), Olympus Greek Feta Cheese  (Pasteurized Sheep Milk, Salt, Cultures, Microbial Rennet), Balsamic Glaze (Balsamic Vinegar of Modena &quot;Aceto Balsamico Di Modena IGP&quot; 70% [Wine Vinegar, Concentrated Grape Must], Glucose Syrup, Sugar, Modified Corn Starch, Xanthan Gum, Contains Sulfites)" data-allergens="Milk, Tree Nuts, Corn  " data-recipe-webcode="LPR SUS VGT H4" data-clean-diet-str="Local, Sustainable, Vegetarian" data-serving-size="1 EACH" data-calories="378" data-calories-from-fat="176" data-total-fat="19.5g" data-total-fat-dv="25" data-sat-fat="5g" data-sat-fat-dv="" data-trans-fat="0g" data-cholesterol="0mg" data-cholesterol_dv="" data-sodium="811.2mg" data-sodium-dv="35" data-total-carb="41.5g" data-total-carb-dv="32" data-dietary-fiber="5.1g" data-dietary-fiber-dv="15" data-sugars="30.7g" data-sugars-dv="" data-protein="9.1g" data-protein-dv="16" data-dish-name="Strawberry Pecan Salad" href="#inline">Strawberry Pecan Salad</a>`;
+
+// Real fragment captured the same day from the same tid=32 response, "grabngo" key, "Grab n'Go Hot "
+// category -- confirms retail locations can carry a "grabngo" key alongside (or instead of) the
+// standard meal-period keys. Harvest Market (tid=4306) independently confirmed live the same day:
+// ["breakfast","lunch","grabngo","dinner"].
+const REAL_GRABNGO_FRAGMENT = `<a data-healthfulness="0" data-carbon-list="None" data-ingredient-list="Pillsbury Buttermilk Biscuit   (Enriched Flour Bleached (Wheat Flour, Malted Barley Flour, Niacin, Iron, Thiamin Mononitrate, Riboflavin, Folic Acid), Water, Palm Oil, Buttermilk, Sugar, Baking Soda, Salt, Sodium Aluminum Phosphate, Sodium Acid Pyrophosphate, Palm Kernel Oil), Local Cage Free Eggs, Sausage Patty (Pork, Water, Contains 2% or less of Salt, Spices, Dextrose, Sugar, Yeast Extract, Lime Flavor (Corn Syrup Solids, Lime Juice Solids, Natural Flavor), Flavoring, BHT, TBHQ, Citric Acid, Lactic Acid)" data-allergens="Milk, Eggs, Gluten, Corn  , Wheat" data-recipe-webcode="LPR SUS H0" data-clean-diet-str="Local, Sustainable" data-serving-size="1 each" data-calories="534" data-calories-from-fat="322" data-total-fat="35.7g" data-total-fat-dv="46" data-sat-fat="15.6g" data-sat-fat-dv="" data-trans-fat="0g" data-cholesterol="253.3mg" data-cholesterol_dv="" data-sodium="1038.2mg" data-sodium-dv="45" data-total-carb="34g" data-total-carb-dv="26" data-dietary-fiber="1g" data-dietary-fiber-dv="3" data-sugars="3g" data-sugars-dv="" data-protein="19g" data-protein-dv="34" data-dish-name="Sausage Biscuit w/ Egg" href="#inline">Sausage Biscuit w/ Egg</a>`;
+
+test("fetchMenu maps the retail-only 'daily offerings' key to MealPeriod 'allday' instead of dropping it (#175)", async () => {
+  const items = await fetchMenu(
+    32,
+    new Date(2026, 7, 24),
+    (async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({ "daily offerings": { "Salad Bar/Dressings": REAL_DAILY_OFFERINGS_FRAGMENT } }),
+      }) as Response) as typeof fetch,
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0].dishName, "Strawberry Pecan Salad");
+  assert.equal(items[0].mealPeriod, "allday");
+  assert.equal(items[0].category, "Salad Bar/Dressings");
+});
+
+test("fetchMenu maps the retail-only 'grabngo' key to MealPeriod 'grabngo' instead of dropping it (#175)", async () => {
+  const items = await fetchMenu(
+    4306,
+    new Date(2026, 7, 24),
+    (async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          breakfast: { Entrees: REAL_FRAGMENT },
+          grabngo: { "Grab n'Go Hot ": REAL_GRABNGO_FRAGMENT },
+        }),
+      }) as Response) as typeof fetch,
+  );
+
+  const grabngoItems = items.filter((i) => i.mealPeriod === "grabngo");
+  assert.equal(grabngoItems.length, 1);
+  assert.equal(grabngoItems[0].dishName, "Sausage Biscuit w/ Egg");
+  assert.equal(grabngoItems[0].category, "Grab n'Go Hot ");
+
+  // the standard "breakfast" key alongside it still parses as before -- not a regression.
+  const breakfastItems = items.filter((i) => i.mealPeriod === "breakfast");
+  assert.equal(breakfastItems.length, 2);
+});
+
+// #175's design constraint: MealPeriod's hall-tab consolidation (#144/#160/#163) must not gain these
+// two retail-only members -- hall UIs iterate MEAL_PERIODS for their always-4 tab row.
+test("MEAL_PERIODS stays exactly the 4 hall-tab periods -- 'allday'/'grabngo' never appear in it (#175)", () => {
+  assert.deepEqual(MEAL_PERIODS, ["breakfast", "lunch", "dinner", "latenight"]);
+  // MEAL_PERIODS is typed HallMealPeriod[] specifically so "allday"/"grabngo" can't even be passed to
+  // .includes() without a widening cast -- the runtime check below is belt-and-suspenders on top of
+  // that compile-time guarantee.
+  const periods: readonly string[] = MEAL_PERIODS;
+  assert.ok(!periods.includes("allday"));
+  assert.ok(!periods.includes("grabngo"));
+});
+
 // #169: UMass's foodpro-menu-ajax is deliberately uncacheable server-side (no ETag/Last-Modified,
 // `cache-control: no-cache, private` -- confirmed live) so politeness has to be client-side. fetchMenu
 // takes trailing `fetchImpl`/`now` seams (same shape as check-favorited-foods/index.ts's fetchHallMenu)

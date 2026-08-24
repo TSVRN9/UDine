@@ -4,6 +4,7 @@ import {
   mealPeriodLabel,
   openStatus,
   type DiningHallHours,
+  type HallMealPeriod,
   type MealPeriod,
   type NutritionFacts,
 } from "@udine/shared";
@@ -14,7 +15,7 @@ import {
  * (#144) rather than a second hardcoded list, so a future period added there (RAW_MEAL_PERIOD_KEYS)
  * shows up here automatically instead of silently diverging -- see #137/#141 for the web-side bug
  * this exact defect class caused. `readonly` because it's the same array shared owns, not a copy. */
-export const MEAL_TABS: readonly MealPeriod[] = MEAL_PERIODS;
+export const MEAL_TABS: readonly HallMealPeriod[] = MEAL_PERIODS;
 
 /** Tab label: same as shared's mealPeriodLabel, except this tab row is narrow enough that "Late
  * Night" gets truncated to "Late" (#117 canvas) -- an intentional per-call-site override, not a
@@ -56,7 +57,7 @@ function formatTime(date: Date): string {
  * not just whenever a meal tab happens to be selected, and not for a past/future date stepped away
  * from today even if the clock-time would otherwise match.
  */
-export function mealTabSubtitle(hours: DiningHallHours | undefined, selectedDate: Date, selectedMeal: MealPeriod, now: Date): string | null {
+export function mealTabSubtitle(hours: DiningHallHours | undefined, selectedDate: Date, selectedMeal: HallMealPeriod, now: Date): string | null {
   if (!hours) return null;
   if (!isSameDay(selectedDate, now)) return null;
   if (currentMealPeriod(hours, now) !== selectedMeal) return null;

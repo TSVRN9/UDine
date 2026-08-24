@@ -7,7 +7,7 @@ import {
   type DiningHoursFeed,
   type Favorite,
   type FoodPreferences,
-  type MealPeriod,
+  type HallMealPeriod,
   type MenuItem,
   type OffSearchResult,
 } from "@udine/shared";
@@ -85,7 +85,7 @@ export default function HallMenuScreen() {
   // worse than a fixed starting point.
   // ponytail: doesn't auto-select "whatever's being served now" the way Home's hero does; upgrade
   // to that once hoursFeed's initial load has a place to land it without racing a manual tap.
-  const [selectedMeal, setSelectedMeal] = useState<MealPeriod>("lunch");
+  const [selectedMeal, setSelectedMeal] = useState<HallMealPeriod>("lunch");
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
   const [plate, setPlate] = useState<PlateEntry[]>([]);
