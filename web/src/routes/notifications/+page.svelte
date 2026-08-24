@@ -26,10 +26,28 @@
 		return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && Boolean(PUBLIC_VAPID_KEY);
 	}
 
-	async function clearStoredPushTokens(supabase: SupabaseClient, userId: string) {
-		// ponytail: removes every stored web token for this user, not just this browser's — fine for
-		// a single-device MVP. Per-device revocation would key the delete off the known token instead.
-		await supabase.from("push_tokens").delete().eq("user_id", userId).eq("platform", "web");
+	async function clearStoredPushTokens(supabase: SupabaseClient, userId: string, ownToken?: string) {
+		// #185: refresh()'s permission-revoked cleanup used to call this with no ownToken at all, which
+		// wiped every browser's token, not just the caller's own -- e.g. visiting /notifications from a
+		// second, never-subscribed browser silently killed push on the first. Pass ownToken (the exact
+		// JSON.stringify(subscription.toJSON()) enablePush() stored) to scope the delete to that one row.
+		// ponytail: disablePush() still calls this with no ownToken -- an explicit in-browser "turn
+		// alerts off" toggles the account-level notifications_enabled flag too, so a stale token left on
+		// another device is inert (nothing dispatches while that flag is off), unlike the refresh() case
+		// this issue is about. Per-device scoping there is a separate, lower-stakes cleanup.
+		let query = supabase.from("push_tokens").delete().eq("user_id", userId).eq("platform", "web");
+		if (ownToken) query = query.eq("token", ownToken);
+		await query;
+	}
+
+	/** This browser's own live PushSubscription, serialized the same way enablePush() stores it --
+	 * used to scope clearStoredPushTokens to only this browser's row instead of every row for the
+	 * user (#185). */
+	async function ownPushToken(): Promise<string | undefined> {
+		if (!pushSupported()) return undefined;
+		const registration = await navigator.serviceWorker.getRegistration();
+		const subscription = await registration?.pushManager.getSubscription();
+		return subscription ? JSON.stringify(subscription.toJSON()) : undefined;
 	}
 
 	async function enablePush(supabase: SupabaseClient, userId: string) {
@@ -118,8 +136,15 @@
 		// Browser permission can be revoked outside this page (browser settings) without us hearing
 		// about it — if that happened, the stored push_tokens row is now dead, so clear it. The
 		// in-app notifications_enabled flag (and food_sightings feed) is untouched either way.
-		if (notificationsEnabled && pushSupported() && Notification.permission !== "granted") {
-			await clearStoredPushTokens(supabase, myId);
+		//
+		// #185: this used to fire on any non-"granted" permission, including "default" -- the state of
+		// a browser that simply never asked (e.g. visiting this page from a second device/browser).
+		// That wiped out every OTHER browser's live token too, since clearStoredPushTokens() had no way
+		// to scope the delete. Only "denied" means *this* browser's subscription is actually dead; only
+		// clear when we can also identify which row is this browser's own.
+		if (notificationsEnabled && pushSupported() && Notification.permission === "denied") {
+			const ownToken = await ownPushToken();
+			if (ownToken) await clearStoredPushTokens(supabase, myId, ownToken);
 		}
 
 		const { data: sightingRows } = await supabase.from("food_sightings").select("*").eq("user_id", myId).order("created_at", { ascending: false });
