@@ -44,6 +44,11 @@ export default function RankScreen() {
   const rankedDishesRef = useRef<RankedDish[]>([]);
   const rankedFoodsRef = useRef<RankedFood[]>([]);
   const choosing = useRef(false);
+  // #165: a rejected save used to propagate out of the un-awaited onPress as an unhandled promise
+  // rejection (silent in release, a LogBox warning in dev). Caught in choose() below and surfaced
+  // here instead -- this screen has no banner infra, so a small text line on the compare card is
+  // the minimal feedback, cleared on the next attempt/success.
+  const [chooseError, setChooseError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     (async () => {
@@ -78,6 +83,7 @@ export default function RankScreen() {
     // finishes is dropped outright, not queued (see the refs' comment above for why).
     if (choosing.current) return;
     choosing.current = true;
+    setChooseError(null);
     try {
       const updated = applyComparison(rankedDishesRef.current, winner, loser);
       const updatedFoods = applyFoodComparison(rankedFoodsRef.current, winner, loser);
@@ -100,6 +106,19 @@ export default function RankScreen() {
       const next = pickPair(loggedDishes, updated, lastPairRef.current);
       lastPairRef.current = next;
       setPair(next);
+    } catch (e) {
+      // #165: surface instead of letting it vanish as an unhandled rejection out of onPress.
+      // ponytail: both saveRankedDishes/saveRankedFoods calls already succeeded by the time
+      // getSession() (or syncDiningHallRanks, if that were awaited) could reject, so this message
+      // can fire *after* the comparison is already durably persisted -- "couldn't save" then
+      // overstates it, and a re-tap on the still-displayed pair applies applyComparison a second
+      // time on top of the already-updated refs (the exact double-count #147/#159 guard this
+      // against for a same-tick double-tap, not a post-persist retry). Pre-existing shape (same
+      // stuck-pair/re-tap risk existed when this was an unhandled rejection); narrowing the catch
+      // to only the two save() calls would reopen the unhandled-rejection hole #165 closes, so
+      // left as one broad catch. Split the save/session steps' error handling if this surfaces in
+      // practice.
+      setChooseError(`Couldn't save your choice: ${String(e)}`);
     } finally {
       choosing.current = false;
     }
@@ -133,6 +152,7 @@ export default function RankScreen() {
           <Button variant="ghost" onPress={skip}>
             Skip
           </Button>
+          {chooseError && <Text style={styles.chooseError}>{chooseError}</Text>}
         </Card>
       ) : null}
 
@@ -192,6 +212,7 @@ const styles = StyleSheet.create({
   },
   compareCard: { padding: spacing(4), gap: spacing(2) },
   choiceButton: { marginBottom: spacing(0) },
+  chooseError: { fontFamily: fonts.body, fontSize: 13, color: colors.maroon600 },
   rankRow: { fontFamily: fonts.body, fontSize: 14, color: colors.ink900, paddingVertical: spacing(1) },
   rankRowMuted: { fontFamily: fonts.body, fontSize: 14, color: withOpacity(colors.ink900, 50), paddingVertical: spacing(1) },
 });

@@ -249,13 +249,16 @@ describe("LogsScreen day log editing", () => {
     });
   });
 
-  // #162 (PR #159 round-2 review): withStepGuard releases `stepping.current` in `finally`, so it
-  // releases even when the guarded write rejects -- the repo's own precedent for the other two
-  // guards' shape, but this file had no `mockRejected` case proving it. withStepGuard has no catch
-  // of its own -- same as rank.tsx's choose(), and unlike the three handlers #158 fixed (#146) --
-  // so a rejected write propagates as-is out of the un-awaited onPress; awaiting the press directly
-  // is what lets the test observe that rejection instead of it becoming a silent unhandled one.
-  it("releases the step guard after a rejected write, so a subsequent tap still commits (#162)", async () => {
+  // #165 (follow-up from PR #164's review): withStepGuard still releases `stepping.current` in
+  // `finally` when the guarded write rejects (#162), but until now the rejection itself
+  // propagated out of the un-awaited onPress as an unhandled promise rejection -- withStepGuard
+  // had no catch of its own, same as rank.tsx's choose() and unlike the three handlers #158 fixed
+  // (#146). withStepGuard now catches the failed write and surfaces it by extending the existing
+  // per-entry editSubtitle text in EditEntryCard, rather than adding new banner infra. Proven
+  // here: pressing no longer rejects, the error text renders alongside the entry being edited, a
+  // second tap still commits (guard released despite the caught throw), and a later success
+  // clears the earlier error.
+  it("catches a rejected write, surfaces it next to the entry being edited, and still releases the step guard so a subsequent tap commits (#162, #165)", async () => {
     const entry = logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1);
     logMock.getAllEntries.mockResolvedValue([entry]);
     const root = await renderLogsScreen();
@@ -266,14 +269,16 @@ describe("LogsScreen day log editing", () => {
 
     logMock.addEntry.mockRejectedValueOnce(new Error("disk full"));
     await act(async () => {
-      await expect(pressableWithLabel(root, "Add one French Toast").props.onPress()).rejects.toThrow("disk full");
+      // No longer rejects -- withStepGuard catches the failed write internally.
+      await pressableWithLabel(root, "Add one French Toast").props.onPress();
     });
 
     expect(logMock.addEntry).toHaveBeenCalledTimes(1);
+    expect(texts(root)).toMatch(/Couldn't save.*disk full/);
 
-    // Guard must have released in `finally` despite the throw -- a second tap must still reach
-    // addEntry (computing from the still-1 servings count, since the rejected write's refresh()
-    // never ran), not be dropped as if the first write were still in flight.
+    // Guard must have released in `finally` despite the caught throw -- a second tap must still
+    // reach addEntry (computing from the still-1 servings count, since the rejected write's
+    // refresh() never ran), not be dropped as if the first write were still in flight.
     logMock.getAllEntries.mockResolvedValue([{ ...entry, servings: 2 }]);
     await act(async () => {
       await pressableWithLabel(root, "Add one French Toast").props.onPress();
@@ -282,6 +287,43 @@ describe("LogsScreen day log editing", () => {
     expect(logMock.addEntry).toHaveBeenCalledTimes(2);
     expect(logMock.addEntry).toHaveBeenLastCalledWith(expect.objectContaining({ id: "1", servings: 2 }));
     expect(texts(root)).toMatch(/640\s*cal/);
+    // A successful step clears the earlier error instead of leaving it stuck on screen.
+    expect(texts(root)).not.toMatch(/Couldn't save/);
+  });
+
+  // Same withStepGuard chokepoint as the stepper test above, but through the × remove button's
+  // removeEntry() path instead of stepEntry() -- both handlers route through the one guarded
+  // catch, but nothing proved the × button's own failure surfaces (removeEntry throws before
+  // setEditingId(null) runs, so the card stays mounted and shows the error).
+  it("catches a rejected removal from the × button and surfaces it next to the entry, without clearing the edit state (#165)", async () => {
+    const entry = logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1);
+    logMock.getAllEntries.mockResolvedValue([entry]);
+    const root = await renderLogsScreen();
+
+    act(() => {
+      pressableWithLabel(root, "Edit French Toast · Hampshire").props.onPress();
+    });
+
+    logMock.removeEntry.mockRejectedValueOnce(new Error("disk full"));
+    await act(async () => {
+      // No longer rejects -- withStepGuard catches the failed removal internally.
+      await pressableWithLabel(root, "Remove French Toast").props.onPress();
+    });
+
+    expect(logMock.removeEntry).toHaveBeenCalledTimes(1);
+    expect(texts(root)).toMatch(/Couldn't save.*disk full/);
+    // Still in the edit state -- removeEntry threw before setEditingId(null) could run.
+    expect(pressableWithLabel(root, "Remove French Toast")).toBeTruthy();
+
+    // Guard must have released despite the caught throw -- a second tap still reaches removeEntry.
+    logMock.removeEntry.mockResolvedValueOnce(undefined);
+    logMock.getAllEntries.mockResolvedValue([]);
+    await act(async () => {
+      await pressableWithLabel(root, "Remove French Toast").props.onPress();
+    });
+
+    expect(logMock.removeEntry).toHaveBeenCalledTimes(2);
+    expect(texts(root)).toMatch(/Nothing logged/);
   });
 
   it("tapping × removes the entry regardless of remaining servings", async () => {

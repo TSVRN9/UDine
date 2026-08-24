@@ -41,6 +41,7 @@ jest.mock("expo-router", () => ({
 }));
 
 import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
 import type { LogEntry, RankedDish } from "@udine/shared";
 import RankScreen from "../app/rank";
 import { Button } from "../components/ui";
@@ -100,6 +101,14 @@ function findChoiceButton(root: renderer.ReactTestRenderer, dishName: RegExp) {
   return match;
 }
 
+function texts(root: renderer.ReactTestRenderer) {
+  return root.root
+    .findAllByType(Text)
+    .map((n) => n.props.children)
+    .flat()
+    .join(" ");
+}
+
 beforeEach(() => {
   mockFocusEffectFired = false;
   rankingStorageMock.getRankedDishes.mockResolvedValue([]);
@@ -151,16 +160,15 @@ it("drops a rapid second tap on the same still-displayed pair while the first co
   expect(totalComparisons).toBe(2);
 });
 
-// #162 (PR #159 round-2 review, non-blocking finding): choose()'s guard releases in `finally`,
-// so it releases even when a save rejects -- but nothing proved that before this test. The
-// reviewer's own probe showed moving the release out of `finally` latches both choice buttons
-// permanently after one thrown save, with the rest of the suite still green. choose() has no
-// catch of its own (round-2 review: "a rejected save is once again an unhandled rejection
-// propagating out of an un-awaited onPress, exactly as on main" -- rank.tsx was never in #158's
-// {error}-surfacing scope), so this screen's convention for a write failure IS letting it
-// propagate, not swallowing it into a banner -- proven here by awaiting the press directly and
-// asserting the rejection reaches the caller, then that a second tap still lands.
-it("releases the choosing guard after a rejected save, so a subsequent tap still applies a comparison (#162)", async () => {
+// #165 (follow-up from PR #164's review): choose()'s guard still releases in `finally` when a
+// save rejects (#162), but until now the rejection itself propagated out of the un-awaited
+// onPress as an unhandled promise rejection -- rank.tsx was never in #158's {error}-surfacing
+// scope. choose() now catches the failed save and surfaces it as visible text on the compare
+// card (rank.tsx has no banner infra, so this is the smallest feedback that fits) instead of
+// letting it propagate. Proven here: pressing no longer rejects, the error text renders, and a
+// second tap still lands (proving the guard released despite the caught throw, not just that the
+// promise resolved).
+it("catches a rejected save, surfaces it as visible text instead of an unhandled rejection, and still releases the choosing guard so a subsequent tap applies a comparison (#162, #165)", async () => {
   const root = await renderScreen();
 
   // Reset call count/implementation -- the previous test left a deferred, never-settled
@@ -171,10 +179,12 @@ it("releases the choosing guard after a rejected save, so a subsequent tap still
 
   const pizzaButton = findChoiceButton(root, /^Pizza/);
   await act(async () => {
-    await expect(pizzaButton.props.onPress()).rejects.toThrow("disk full");
+    // No longer rejects -- choose() catches the failed save internally.
+    await pizzaButton.props.onPress();
   });
 
   expect(rankingStorageMock.saveRankedDishes).toHaveBeenCalledTimes(1);
+  expect(texts(root)).toMatch(/Couldn't save.*disk full/);
 
   // The throw happened before setPair could advance the displayed pair, so the same buttons are
   // still showing -- re-find them (react-test-renderer's tree may have re-rendered from the
@@ -185,6 +195,8 @@ it("releases the choosing guard after a rejected save, so a subsequent tap still
   });
 
   // A second, real save landing at all (not dropped as "still in flight") proves the guard
-  // released despite the throw.
+  // released despite the caught throw.
   expect(rankingStorageMock.saveRankedDishes).toHaveBeenCalledTimes(2);
+  // A successful comparison clears the earlier error instead of leaving it stuck on screen.
+  expect(texts(root)).not.toMatch(/Couldn't save/);
 });
