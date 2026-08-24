@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { pillTone } from "../../lib/youPaneFormat";
 import { supabase } from "../../lib/supabase";
@@ -84,6 +85,7 @@ function TopFoodRow({ f, maxScore }: { f: SharedTopFood; maxScore: number }) {
  */
 export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [friendship, setFriendship] = useState<Friendship | null>(null);
@@ -142,7 +144,7 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing(4.5) }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
@@ -220,7 +222,7 @@ export default function FriendProfileScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream100 },
-  header: { backgroundColor: colors.maroon900, paddingTop: spacing(4.5), paddingHorizontal: spacing(5), paddingBottom: spacing(5), gap: spacing(3.5) },
+  header: { backgroundColor: colors.maroon900, paddingHorizontal: spacing(5), paddingBottom: spacing(5), gap: spacing(3.5) },
   backChevron: { fontFamily: fonts.body600, fontSize: fs(28), color: colors.paper50, lineHeight: fs(28) },
   headerRow: { flexDirection: "row", alignItems: "center", gap: spacing(4) },
   avatarCircle: {
