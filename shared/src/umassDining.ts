@@ -185,6 +185,22 @@ function csvList(s: string): string[] {
 }
 
 /**
+ * #176: retail-only. Unlike every other per-dish field, the price span sits AFTER the dish's own
+ * `<a>...</a>` tag closes, with 0+ legend `<img>` icons in between (real capture: Green Fields
+ * `.../a><img.../><img.../><span class="meal-price">$2.50</span></li>`) -- so it can't be captured
+ * inside the same `<a ...>` regex match parseCategoryItems uses for everything else. Scopes the
+ * search to the slice between this item's `</a>` and the next item's `<a data-dish-name=...>` (or
+ * end of string) so a price span doesn't get attributed to the wrong dish. Halls have no such span
+ * -- undefined there, never a stray value borrowed from a neighboring tag.
+ */
+function priceAfter(html: string, fromIndex: number): string | undefined {
+  const nextItemIndex = html.indexOf('data-dish-name="', fromIndex);
+  const windowEnd = nextItemIndex === -1 ? html.length : nextItemIndex;
+  const match = html.slice(fromIndex, windowEnd).match(/<span class="meal-price">([^<]*)<\/span>/);
+  return match ? match[1].trim() : undefined;
+}
+
+/**
  * The menu-ajax response embeds each dish as an <a data-*="..."> tag rather than
  * structured JSON (see docs/apk-reverse-engineering.md). No DOM is available on
  * React Native/Hermes, so this parses the fragment with regex instead of DOMParser
@@ -222,6 +238,7 @@ export function parseCategoryItems(html: string, category: string, mealPeriod: M
       sugarsDv: dv(attrs, "data-sugars-dv"),
       proteinDv: dv(attrs, "data-protein-dv"),
     };
+    const price = priceAfter(html, tagPattern.lastIndex);
     items.push({
       dishName,
       category,
@@ -231,6 +248,7 @@ export function parseCategoryItems(html: string, category: string, mealPeriod: M
       nutrition,
       allergens: csvList(getAttr(attrs, "data-allergens")),
       dietTags: csvList(getAttr(attrs, "data-clean-diet-str")),
+      ...(price !== undefined ? { price } : {}),
     });
   }
   return items;

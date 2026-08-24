@@ -118,6 +118,25 @@ test("parseCategoryItems returns nothing for a fragment with no dishes", () => {
   assert.deepEqual(parseCategoryItems("<h2>Closed today</h2>", "x", "breakfast", 3, "2026-08-19"), []);
 });
 
+// #176: real fragment captured from GET foodpro-menu-ajax?tid=4671&date=08%2F24%2F2026 (Green
+// Fields, lunch, "Add-ons"), two consecutive dishes -- confirms the retail-only price span
+// (`<span class="meal-price">$X.XX</span>`, AFTER the closing </a>, with 0+ <img> legend icons in
+// between) parses per-item, not just for whichever dish happens to be first in the fragment.
+const REAL_GREEN_FIELDS_PRICED_FRAGMENT = `<li class="lightbox-nutrition"><a data-healthfulness="50" data-carbon-list="A" data-ingredient-list="Avocados" data-allergens="" data-recipe-webcode="H VGN VGT H5 CR1" data-clean-diet-str="Halal, Plant Based, Vegetarian" data-serving-size="1/2 each" data-calories="166" data-calories-from-fat="138" data-total-fat="15.3g" data-total-fat-dv="20" data-sat-fat="2.1g" data-sat-fat-dv="" data-trans-fat="0g" data-cholesterol="0mg" data-cholesterol_dv="" data-sodium="7.9mg" data-sodium-dv="0" data-total-carb="8.6g" data-total-carb-dv="7" data-dietary-fiber="6.7g" data-dietary-fiber-dv="20" data-sugars="0.3g" data-sugars-dv="" data-protein="1.9g" data-protein-dv="3" data-dish-name="Add Fresh Avocado" href="#inline">Add Fresh Avocado</a><img src="https://umassdining.com/sites/default/files/legends/icon-hal.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-vegan.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-veg.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><img src="https://umassdining.com/sites/default/files/legends/icon-cr-a.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><span class="meal-price">$2.50</span></li><li class="lightbox-nutrition"><a data-healthfulness="0" data-carbon-list="E" data-ingredient-list="HORMEL Applewood Smoked Bacon (Pork cured with: Water, Salt, Sugar, Smoke Flavoring, Sodium Erythorbate, Sodium Phosphates, Sodium Nitrite)" data-allergens="" data-recipe-webcode="H0 CR5" data-clean-diet-str="None" data-serving-size="1 oz" data-calories="122" data-calories-from-fat="85" data-total-fat="9.4g" data-total-fat-dv="12" data-sat-fat="3.8g" data-sat-fat-dv="" data-trans-fat="0g" data-cholesterol="23.5mg" data-cholesterol_dv="" data-sodium="460mg" data-sodium-dv="20" data-total-carb="0.9g" data-total-carb-dv="1" data-dietary-fiber="0g" data-dietary-fiber-dv="0" data-sugars="0.9g" data-sugars-dv="" data-protein="7.5g" data-protein-dv="13" data-dish-name="Bacon" href="#inline">Bacon</a><img src="https://umassdining.com/sites/default/files/legends/icon-cr-e.png" alt="" style="width: 16px; height: 16px; margin-left: 5px;" /><span class="meal-price">$3.00</span></li>`;
+
+test("parseCategoryItems parses the retail-only meal-price span into MenuItem.price, per item (#176)", () => {
+  const [avocado, bacon] = parseCategoryItems(REAL_GREEN_FIELDS_PRICED_FRAGMENT, "Add-ons", "lunch", 4671, "2026-08-24");
+  assert.equal(avocado.dishName, "Add Fresh Avocado");
+  assert.equal(avocado.price, "$2.50");
+  assert.equal(bacon.dishName, "Bacon");
+  assert.equal(bacon.price, "$3.00");
+});
+
+test("parseCategoryItems leaves price undefined for a hall fragment with no meal-price span (#176)", () => {
+  const [toast] = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", 3, "2026-08-19");
+  assert.equal(toast.price, undefined);
+});
+
 // #117: confirmed live 2026-08-21 (GET foodpro-menu-ajax?tid=1&date=08%2F21%2F2026) that the feed
 // really does key a 4th meal period as "late night" (literal space) -- not "latenight", not absent.
 // Previously fetchMenu's MEAL_PERIODS loop only ever looked up "breakfast"/"lunch"/"dinner", so
