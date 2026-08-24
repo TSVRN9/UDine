@@ -159,3 +159,135 @@ test("mealPeriodLabel gives latenight a readable two-word label; the rest just t
   assert.equal(mealPeriodLabel("dinner"), "Dinner");
   assert.equal(mealPeriodLabel("latenight"), "Late Night");
 });
+
+// #169: UMass's foodpro-menu-ajax is deliberately uncacheable server-side (no ETag/Last-Modified,
+// `cache-control: no-cache, private` -- confirmed live) so politeness has to be client-side. fetchMenu
+// takes trailing `fetchImpl`/`now` seams (same shape as check-favorited-foods/index.ts's fetchHallMenu)
+// purely for these tests; real callers never pass them. Each test below uses its own hallTid/date pair
+// so the module-level cache from one test can't leak into another in this same process.
+
+function jsonResponse(body: unknown): Response {
+  return { ok: true, status: 200, json: async () => body } as Response;
+}
+
+/** Counts calls and returns `body` synchronously (no artificial delay) -- fine for the cache-hit/TTL
+ * tests below, which never overlap two in-flight calls. */
+function makeCountingFetch(body: unknown): { fetchImpl: typeof fetch; getCalls: () => number } {
+  let calls = 0;
+  const fetchImpl = (async () => {
+    calls++;
+    return jsonResponse(body);
+  }) as typeof fetch;
+  return { fetchImpl, getCalls: () => calls };
+}
+
+/** Like makeCountingFetch, but the returned promise only settles once `release()` is called -- lets a
+ * test hold multiple concurrent fetchMenu calls "in flight" at once to prove they dedup. */
+function makeDeferredFetch(body: unknown): { fetchImpl: typeof fetch; getCalls: () => number; release: () => void } {
+  let calls = 0;
+  let resolveFetch: (() => void) | undefined;
+  const fetchImpl = (async () => {
+    calls++;
+    await new Promise<void>((resolve) => {
+      resolveFetch = resolve;
+    });
+    return jsonResponse(body);
+  }) as typeof fetch;
+  return { fetchImpl, getCalls: () => calls, release: () => resolveFetch?.() };
+}
+
+/** Derives its response from the URL it's actually called with (echoes tid+date into a distinguishable
+ * dish name) instead of returning one fixed body -- lets a test tell whether the cache key is really
+ * `tid+date`, or only ever one half of it (a same-tid-different-date or same-date-different-tid
+ * collision would silently serve the wrong hall's menu). */
+function makeUrlEchoingFetch(): { fetchImpl: typeof fetch; getCalls: () => number } {
+  let calls = 0;
+  const fetchImpl = (async (input: RequestInfo | URL) => {
+    calls++;
+    const url = new URL(String(input));
+    const dishName = `Dish-${url.searchParams.get("tid")}-${url.searchParams.get("date")}`;
+    const html = `<a data-dish-name="${dishName}" href="#inline">${dishName}</a>`;
+    return jsonResponse({ lunch: { Entrees: html } });
+  }) as typeof fetch;
+  return { fetchImpl, getCalls: () => calls };
+}
+
+// pr-reviewer finding on #170: every other test here used one fixed hall+date and a `{}` stub body,
+// so an `deepEqual` on `[]` vs `[]` couldn't tell a correct cache key apart from a broken one --
+// dropping either half of `tid|MM/DD/YYYY` from menuCacheKey still passed all four. This is the one
+// test that actually depends on both halves.
+test("fetchMenu's cache key is BOTH hallTid and date -- three distinct hall/date combos each get their own upstream call and come back with their own dish, not a neighbor's", async () => {
+  const { fetchImpl, getCalls } = makeUrlEchoingFetch();
+  const hallA = 61;
+  const hallB = 62;
+  const d1 = new Date(2026, 1, 10);
+  const d2 = new Date(2026, 1, 11);
+
+  const [a1, b1, a2] = await Promise.all([fetchMenu(hallA, d1, fetchImpl), fetchMenu(hallB, d1, fetchImpl), fetchMenu(hallA, d2, fetchImpl)]);
+
+  assert.equal(getCalls(), 3);
+  assert.equal(a1[0].dishName, "Dish-61-02/10/2026");
+  assert.equal(b1[0].dishName, "Dish-62-02/10/2026"); // same date as a1, different hall -- must not collide
+  assert.equal(a2[0].dishName, "Dish-61-02/11/2026"); // same hall as a1, different date -- must not collide
+});
+
+test("fetchMenu serves a second call within TTL from cache, not a second upstream fetch", async () => {
+  const { fetchImpl, getCalls } = makeCountingFetch({});
+  let t = 1_000_000;
+  const now = () => t;
+
+  const first = await fetchMenu(31, new Date(2026, 1, 2), fetchImpl, now);
+  t += 29 * 60 * 1000; // still inside the ~30 min TTL
+  const second = await fetchMenu(31, new Date(2026, 1, 2), fetchImpl, now);
+
+  assert.equal(getCalls(), 1);
+  assert.deepEqual(second, first);
+});
+
+test("fetchMenu re-fetches once the cached entry's TTL has expired", async () => {
+  const { fetchImpl, getCalls } = makeCountingFetch({});
+  let t = 1_000_000;
+  const now = () => t;
+
+  await fetchMenu(32, new Date(2026, 1, 3), fetchImpl, now);
+  assert.equal(getCalls(), 1);
+
+  t += 30 * 60 * 1000 + 1; // just past the ~30 min TTL
+  await fetchMenu(32, new Date(2026, 1, 3), fetchImpl, now);
+  assert.equal(getCalls(), 2);
+});
+
+test("concurrent calls for the same hall+date dedup to a single upstream request", async () => {
+  const { fetchImpl, getCalls, release } = makeDeferredFetch({});
+
+  const p1 = fetchMenu(33, new Date(2026, 1, 4), fetchImpl);
+  const p2 = fetchMenu(33, new Date(2026, 1, 4), fetchImpl);
+  const p3 = fetchMenu(33, new Date(2026, 1, 4), fetchImpl);
+  assert.equal(getCalls(), 1); // all three landed while the first request was still pending
+
+  release();
+  const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+  assert.deepEqual(r1, r2);
+  assert.deepEqual(r2, r3);
+});
+
+test("a failed fetch rejects every concurrent waiter but does not poison the cache -- the next call retries fresh", async () => {
+  let calls = 0;
+  const fetchImpl = (async () => {
+    calls++;
+    if (calls === 1) throw new Error("network down");
+    return jsonResponse({});
+  }) as typeof fetch;
+
+  const p1 = fetchMenu(34, new Date(2026, 1, 5), fetchImpl);
+  const p2 = fetchMenu(34, new Date(2026, 1, 5), fetchImpl); // same key, concurrent with the failing call
+
+  const [s1, s2] = await Promise.allSettled([p1, p2]);
+  assert.equal(s1.status, "rejected");
+  assert.equal(s2.status, "rejected");
+  assert.equal(calls, 1); // dedup held for both waiters against the one failed in-flight request
+
+  const retried = await fetchMenu(34, new Date(2026, 1, 5), fetchImpl);
+  assert.deepEqual(retried, []);
+  assert.equal(calls, 2); // pending slot was cleared on failure -- this is a fresh call, not a cached failure
+});
