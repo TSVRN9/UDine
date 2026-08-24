@@ -11,6 +11,12 @@ interface Props {
   priceTotal?: string | null;
   onPress: () => void;
   onLayout?: (e: LayoutChangeEvent) => void;
+  /** #181: the empty-plate variant shown while the menu is loading or failed to load, instead of
+   * hiding the bar entirely (canvas: "Hall menu - loading"'s "Plate is empty" bar, and "Hall menu -
+   * fetch failed"'s "your plate is safe" sub-line reusing the same shell). Only meaningful when
+   * itemCount is 0 -- a plate that already has real items always shows the normal, functional bar
+   * regardless of the menu's own fetch state, since the plate itself doesn't depend on it. */
+  emptyState?: { subline: string; disabled?: boolean };
 }
 
 /**
@@ -21,8 +27,21 @@ interface Props {
  * expo-router's root already wraps the app in SafeAreaProvider, so useSafeAreaInsets works here
  * without any _layout.tsx change.
  */
-export function PlateBar({ itemCount, totals, priceTotal, onPress, onLayout }: Props) {
+export function PlateBar({ itemCount, totals, priceTotal, onPress, onLayout, emptyState }: Props) {
   const insets = useSafeAreaInsets();
+  if (emptyState && itemCount === 0) {
+    return (
+      <View style={[styles.bar, { paddingBottom: spacing(4) + insets.bottom }]} onLayout={onLayout}>
+        <View style={styles.summary}>
+          <Text style={styles.emptyHeadline}>Plate is empty</Text>
+          <Text style={styles.emptySubline}>{emptyState.subline}</Text>
+        </View>
+        <View style={[styles.logButton, emptyState.disabled && styles.logButtonDisabled]}>
+          <Text style={[styles.logButtonText, emptyState.disabled && styles.logButtonTextDisabled]}>Log</Text>
+        </View>
+      </View>
+    );
+  }
   return (
     <Pressable style={[styles.bar, { paddingBottom: spacing(4) + insets.bottom }]} onPress={onPress} onLayout={onLayout} accessibilityRole="button">
       <View style={styles.summary}>
@@ -62,6 +81,10 @@ const styles = StyleSheet.create({
   chevron: { fontFamily: fonts.body600, fontSize: fs(13), lineHeight: fs(16), color: withOpacity(colors.paper50, 60) },
   headline: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.paper50 },
   macros: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.paper50, 65) },
+  // #181: "Plate is empty" loading/error variant -- dimmer than the normal headline/macros text
+  // (0.55/0.4 vs. the functional bar's 1.0/0.65), so it reads as inert rather than a live summary.
+  emptyHeadline: { fontFamily: fonts.body600, fontSize: fs(15), color: withOpacity(colors.paper50, 55) },
+  emptySubline: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.paper50, 40) },
   logButton: {
     backgroundColor: colors.gold500,
     borderRadius: radii.md,
@@ -70,6 +93,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  logButtonDisabled: { backgroundColor: "rgba(201,154,46,0.35)" },
   logButtonText: {
     fontFamily: fonts.display600,
     fontSize: fs(16),
@@ -77,4 +101,5 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.maroon900,
   },
+  logButtonTextDisabled: { color: "rgba(59,10,15,0.6)" },
 });

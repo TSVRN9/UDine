@@ -42,4 +42,40 @@ describe("PlateBar", () => {
     });
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  // #181: loading/error empty-plate variant.
+  it("shows the empty-plate variant (not the real summary) when itemCount is 0 and emptyState is set", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PlateBar
+          itemCount={0}
+          totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
+          onPress={() => {}}
+          emptyState={{ subline: "add dishes once the menu loads", disabled: true }}
+        />,
+      );
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Plate is empty/);
+    expect(body).toMatch(/add dishes once the menu loads/);
+    expect(body).not.toMatch(/0 items/);
+  });
+
+  it("shows the normal functional bar even during emptyState if the plate already has real items", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PlateBar
+          itemCount={2}
+          totals={{ date: "x", calories: 300, proteinG: 10, totalCarbG: 10, totalFatG: 10 }}
+          onPress={() => {}}
+          emptyState={{ subline: "add dishes once the menu loads", disabled: true }}
+        />,
+      );
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/2\s+items/);
+    expect(body).not.toMatch(/Plate is empty/);
+  });
 });
