@@ -13,7 +13,10 @@ jest.mock("@udine/shared", () => {
   const actual = jest.requireActual("@udine/shared");
   return {
     ...actual,
-    MEAL_PERIODS: [...actual.MEAL_PERIODS].reverse(), // real order reversed: latenight, dinner, lunch, breakfast
+    // Spread into a new array before .reverse() -- .reverse() mutates in place, and actual.MEAL_PERIODS
+    // is shared's real, live-imported array; reversing it directly would corrupt it for every other
+    // module in this test run, not just this mock. Result: real order reversed -- latenight, dinner, lunch, breakfast.
+    MEAL_PERIODS: [...actual.MEAL_PERIODS].reverse(),
     mealPeriodLabel: (period: string) => `Custom ${period}`,
   };
 });
