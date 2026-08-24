@@ -1,11 +1,23 @@
 import type { Favorite, LogEntry, RankedDish, RankedFood } from "@udine/shared";
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { exportFavorites, exportLog, exportRankedDishes, exportRankedFoods, type ExportFormat } from "../lib/exportShare";
-import { buildExportPlan, favoritesSubline, logSubline, rankedSubline, selectedStoreLabel, STORE_ORDER, STORE_TITLE, type FormatChoice, type StoreKey } from "../lib/exportScreen";
+import {
+  buildExportPlan,
+  favoritesSubline,
+  logSubline,
+  rankedSubline,
+  selectedStoreLabel,
+  STORE_ORDER,
+  STORE_SHORT_NAME,
+  STORE_TITLE,
+  type ExportJob,
+  type FormatChoice,
+  type StoreKey,
+} from "../lib/exportScreen";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
@@ -84,9 +96,24 @@ export default function ExportScreen() {
     setExporting(true);
     try {
       // Sequential, not Promise.all -- see the module doc comment on why (one share sheet at a
-      // time; awaiting each keeps them from stacking on top of each other).
+      // time; awaiting each keeps them from stacking on top of each other). A single job's
+      // failure (e.g. the share sheet dismissed with an error, a write failure) doesn't abort the
+      // rest of the plan -- every job still gets attempted, same "keep going, then report" shape
+      // as deleteServerData.ts -- but it also isn't swallowed: every failure is collected and
+      // surfaced truthfully afterward (#158/#165/#167 convention), instead of the button just
+      // re-enabling silently with jobs after the failure never having run.
+      const failed: ExportJob[] = [];
       for (const job of plan) {
-        await RUN_EXPORT[job.store](job.format);
+        try {
+          await RUN_EXPORT[job.store](job.format);
+        } catch (err) {
+          console.warn(`[export] ${job.store} (${job.format}) failed`, err);
+          failed.push(job);
+        }
+      }
+      if (failed.length > 0) {
+        const names = failed.map((j) => `${STORE_SHORT_NAME[j.store]} (${j.format})`).join(", ");
+        Alert.alert("Some exports failed", `Failed: ${names}. Please try again.`);
       }
     } finally {
       setExporting(false);

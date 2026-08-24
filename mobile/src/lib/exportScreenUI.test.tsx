@@ -38,7 +38,7 @@ jest.mock("expo-router", () => ({
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));
 
 import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
+import { Alert, Text } from "react-native";
 import ExportScreen from "../app/export";
 
 function texts(root: renderer.ReactTestRenderer) {
@@ -72,8 +72,15 @@ async function renderScreen() {
   return root;
 }
 
+let alertSpy: jest.SpyInstance;
+
 beforeEach(() => {
   jest.clearAllMocks();
+  alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  alertSpy.mockRestore();
 });
 
 describe("ExportScreen: selection + zero-selection guard", () => {
@@ -179,5 +186,55 @@ describe("ExportScreen: format + export wiring", () => {
     expect(mockExportRankedFoods).toHaveBeenCalledTimes(2);
     expect(mockExportRankedFoods).toHaveBeenCalledWith("json");
     expect(mockExportRankedFoods).toHaveBeenCalledWith("csv");
+  });
+
+  // Review finding on #212: runExport's try/finally had no catch -- a throw partway through the
+  // plan (e.g. job 3 of 8) silently dropped every job after it (the for-loop's throw propagates
+  // straight out, finally re-enables the button, and nothing tells the user only part of their
+  // export happened). Selects all 4 stores with BOTH (8 jobs: log json/csv, dishRankings
+  // json/csv, foodRankings json/csv, favorites json/csv) and fails job 3 (dishRankings json) --
+  // proves jobs 4-8 still run, and that the failure is surfaced, not swallowed.
+  it("a failing job doesn't abort the rest of the plan, and the failure is surfaced truthfully", async () => {
+    mockExportRankedDishes.mockRejectedValueOnce(new Error("disk full"));
+
+    const root = await renderScreen();
+    await act(async () => {
+      pressRow(root, "Food log");
+    });
+    await act(async () => {
+      pressRow(root, "Dish rankings");
+    });
+    await act(async () => {
+      pressRow(root, "Off-menu food rankings");
+    });
+    await act(async () => {
+      pressRow(root, "Favorites");
+    });
+    await act(async () => {
+      pressRow(root, "BOTH");
+    });
+
+    await act(async () => {
+      pressRow(root, "↓ EXPORT");
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Job 1-2 (log) and the failing job 3 (dishRankings json) all ran.
+    expect(mockExportLog).toHaveBeenCalledWith("json");
+    expect(mockExportLog).toHaveBeenCalledWith("csv");
+    expect(mockExportRankedDishes).toHaveBeenCalledWith("json");
+    // Jobs after the failure (dishRankings csv, both foodRankings jobs, both favorites jobs)
+    // must still have run -- this is what a bare try/finally-with-no-catch would NOT do, since
+    // the throw from job 3 would propagate out of the for-loop and skip everything after it.
+    expect(mockExportRankedDishes).toHaveBeenCalledWith("csv");
+    expect(mockExportRankedFoods).toHaveBeenCalledTimes(2);
+    expect(mockExportFavorites).toHaveBeenCalledTimes(2);
+
+    // The failure is surfaced, not silently dropped.
+    expect(Alert.alert).toHaveBeenCalledWith("Some exports failed", expect.stringContaining("dish rankings"));
   });
 });
