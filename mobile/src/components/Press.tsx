@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { Animated, Easing, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 
 /**
  * Press-feedback rules (#179, owner round-2 decision): a full-width tap zone that's part of a
@@ -22,37 +22,40 @@ function usePressAnim(restValue: number, pressedValue: number) {
 // (it'd need the pressed-state we're already deriving from our own Animated.Value instead).
 type WrapperProps = Omit<PressableProps, "style" | "children"> & { style?: StyleProp<ViewStyle>; children: ReactNode };
 
+// A Pressable that can itself carry an Animated style (the scale transform), so there's no extra
+// wrapper node between the touchable and its children -- see Press's own doc comment for why that
+// extra node was wrong, not just superfluous.
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 /** `.press` -- scale(0.97) on press. Free-standing elements only.
  *
- * `style` goes on the outer `Pressable`, not the inner animated wrapper -- a caller's style
- * routinely carries layout (Button.tsx's `exportButton: { flex: 1 }`, `choiceButton: {
- * marginBottom }`, PaneHeader's `dotTapTarget: { width, height, alignItems: "center",
- * justifyContent: "center" }`), and `flex`/`margin`/explicit sizing/alignment only take effect
- * on a node that's actually a flex participant in its parent -- an auto-sized inner child ignores
- * them silently (Yoga only grows a flexible child into space its *own* parent already has, and
- * only that parent's `alignItems`/`justifyContent` position it). That would have quietly broken
- * every `<Button style={{ flex: 1 }}>` row on this rewrite, and left the header dots off-center.
- * The inner `Animated.View` carries only the transform and no size/layout style of its own -- RN's
- * ordinary default sizing (shrink-to-content, `alignItems: "stretch"` unless the Pressable
- * overrides it) applies to it exactly as it would to a plain nested `View`, so callers that rely
- * on that default (a full-width Card child, e.g.) see no change either. */
+ * One node: `Pressable` itself carries both the caller's `style` and the scale transform, with
+ * `children` direct (not wrapped). An earlier version put the transform on a separate inner
+ * `Animated.View` and the caller's `style` on the outer `Pressable` -- style ended up on the right
+ * node for *box* properties (width/height/padding/flex/margin), but any *arrangement* style over
+ * multiple children (`flexDirection`, `gap`, `alignItems`) then governed the Pressable's one real
+ * child (that inner wrapper) instead of the actual content, silently stacking what should have
+ * been a row -- caught on-device: YouPane's `ALL LOGS ›` link (`allLogsLink: { flexDirection:
+ * "row", ... }`) rendered as two stacked lines instead of one. Collapsing to a single node removes
+ * the node the arrangement style was accidentally governing, rather than picking a level to put it
+ * on -- there's no split left to get wrong. */
 export function Press({ style, children, onPressIn, onPressOut, ...props }: WrapperProps) {
   const { anim, onPressIn: scaleIn, onPressOut: scaleOut } = usePressAnim(1, 0.97);
   return (
-    <Pressable
-      style={style}
-      onPressIn={(e) => {
+    <AnimatedPressable
+      style={[style, { transform: [{ scale: anim }] }]}
+      onPressIn={(e: GestureResponderEvent) => {
         scaleIn();
         onPressIn?.(e);
       }}
-      onPressOut={(e) => {
+      onPressOut={(e: GestureResponderEvent) => {
         scaleOut();
         onPressOut?.(e);
       }}
       {...props}
     >
-      <Animated.View style={{ transform: [{ scale: anim }] }}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   );
 }
 
