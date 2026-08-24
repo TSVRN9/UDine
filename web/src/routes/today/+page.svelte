@@ -1,14 +1,30 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { computeDailyTotals, exportEntriesAsCsv, exportEntriesAsJson, type DailyMacroTotals, type LogEntry } from "@udine/shared";
+	import {
+		computeDailyTotals,
+		exportEntriesAsCsv,
+		exportEntriesAsJson,
+		exportFavoritesAsCsv,
+		exportFavoritesAsJson,
+		exportRankedDishesAsCsv,
+		exportRankedDishesAsJson,
+		exportRankedFoodsAsCsv,
+		exportRankedFoodsAsJson,
+		type DailyMacroTotals,
+		type LogEntry,
+	} from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
+	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
+	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { todayIso } from "$lib/date";
 	import { macroCalorieBreakdown } from "$lib/macroShares";
 	import MacroStats from "$lib/MacroStats.svelte";
 
 	// IndexedDB only exists in the browser — this page has no SSR-safe data to render on
-	// its own, so the storage instance and the initial load both wait for the client.
+	// its own, so the storage instances and the initial load both wait for the client.
 	let storage: IndexedDbLogStorage | undefined;
+	let rankingStorage: IndexedDbRankingStorage | undefined;
+	let favoritesStorage: IndexedDbFavoritesStorage | undefined;
 	const date = todayIso();
 
 	let entries: LogEntry[] = $state([]);
@@ -49,6 +65,8 @@
 
 	onMount(() => {
 		storage = new IndexedDbLogStorage();
+		rankingStorage = new IndexedDbRankingStorage();
+		favoritesStorage = new IndexedDbFavoritesStorage();
 		refresh();
 	});
 
@@ -66,6 +84,40 @@
 		if (!storage) return;
 		const all = await storage.getAllEntries();
 		download(exportEntriesAsJson(all), "udine-log.json", "application/json");
+	}
+
+	// #148: the log's exporters above have twins for the other two always-device-local stores
+	// (CLAUDE.md's data-residency table) -- ranking (rankedDishes/rankedFoods) and favorites. Each
+	// gets its own JSON+CSV pair, same shape as the log's, rather than merging heterogeneous tables
+	// into one file.
+	async function exportRankedDishesJson() {
+		if (!rankingStorage) return;
+		download(exportRankedDishesAsJson(await rankingStorage.getRankedDishes()), "udine-ranked-dishes.json", "application/json");
+	}
+
+	async function exportRankedDishesCsv() {
+		if (!rankingStorage) return;
+		download(exportRankedDishesAsCsv(await rankingStorage.getRankedDishes()), "udine-ranked-dishes.csv", "text/csv");
+	}
+
+	async function exportRankedFoodsJson() {
+		if (!rankingStorage) return;
+		download(exportRankedFoodsAsJson(await rankingStorage.getRankedFoods()), "udine-ranked-foods.json", "application/json");
+	}
+
+	async function exportRankedFoodsCsv() {
+		if (!rankingStorage) return;
+		download(exportRankedFoodsAsCsv(await rankingStorage.getRankedFoods()), "udine-ranked-foods.csv", "text/csv");
+	}
+
+	async function exportFavoritesJson() {
+		if (!favoritesStorage) return;
+		download(exportFavoritesAsJson(await favoritesStorage.getFavorites()), "udine-favorites.json", "application/json");
+	}
+
+	async function exportFavoritesCsv() {
+		if (!favoritesStorage) return;
+		download(exportFavoritesAsCsv(await favoritesStorage.getFavorites()), "udine-favorites.csv", "text/csv");
 	}
 
 	async function exportCsv() {
@@ -157,12 +209,32 @@
 	<h2 class="section-title">Export your data</h2>
 	<div class="label-rule mt-1 text-ink-900/25"></div>
 	<p class="mt-3 max-w-prose text-sm text-ink-900/70">
-		Your whole history &mdash; every day, not just today &mdash; downloaded straight from this browser.
-		Nothing is uploaded to do it.
+		Everything this browser has stored &mdash; food log, dish rankings, favorites &mdash; downloaded
+		straight from it. Nothing is uploaded to do it.
 	</p>
-	<div class="mt-3 flex flex-wrap gap-3">
+
+	<h3 class="mt-4 font-display text-sm uppercase text-ink-900/70">Food log</h3>
+	<div class="mt-2 flex flex-wrap gap-3">
 		<button onclick={exportJson} class="btn btn-secondary">Export JSON (all history)</button>
 		<button onclick={exportCsv} class="btn btn-secondary">Export CSV (all history)</button>
+	</div>
+
+	<h3 class="mt-4 font-display text-sm uppercase text-ink-900/70">Dish rankings</h3>
+	<div class="mt-2 flex flex-wrap gap-3">
+		<button onclick={exportRankedDishesJson} class="btn btn-secondary">Rankings JSON</button>
+		<button onclick={exportRankedDishesCsv} class="btn btn-secondary">Rankings CSV</button>
+	</div>
+
+	<h3 class="mt-4 font-display text-sm uppercase text-ink-900/70">Favorite foods (cross-hall)</h3>
+	<div class="mt-2 flex flex-wrap gap-3">
+		<button onclick={exportRankedFoodsJson} class="btn btn-secondary">Favorite Foods JSON</button>
+		<button onclick={exportRankedFoodsCsv} class="btn btn-secondary">Favorite Foods CSV</button>
+	</div>
+
+	<h3 class="mt-4 font-display text-sm uppercase text-ink-900/70">Favorites</h3>
+	<div class="mt-2 flex flex-wrap gap-3">
+		<button onclick={exportFavoritesJson} class="btn btn-secondary">Favorites JSON</button>
+		<button onclick={exportFavoritesCsv} class="btn btn-secondary">Favorites CSV</button>
 	</div>
 </section>
 

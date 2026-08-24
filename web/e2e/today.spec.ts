@@ -1,11 +1,13 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Download, type Page } from "@playwright/test";
 import { parseCategoryItems } from "@udine/shared";
 
 // Coverage for #37 (styled Today/macros view, PR #49) that vertical-slice.spec.ts and
 // rank.spec.ts don't already exercise: the four-up stat panel's per-macro "% of calories" share,
 // chronological ordering of logged entries (getEntriesForDate returns IndexedDB's own key order,
 // not insertion/time order -- see the PR body), Remove + Undo, and that the Export JSON/CSV
-// buttons actually produce a download of the real log, not just render.
+// buttons actually produce a download of the real log, not just render. Also #148's ranking/
+// favorites export buttons (Rankings, Favorite Foods, Favorites JSON+CSV) -- see the last test in
+// this file.
 
 // Same hydration pitfall as vertical-slice.spec.ts/rank.spec.ts: a click before SvelteKit's
 // client router attaches falls through to a full navigation, which resolves /api/menu
@@ -191,4 +193,76 @@ test("Export JSON and Export CSV download the full log, not just today's entries
 	for await (const chunk of csvStream) csvChunks.push(chunk as Buffer);
 	const csvBody = Buffer.concat(csvChunks).toString("utf-8");
 	expect(csvBody).toContain("French Toast");
+});
+
+// #148: rankedDishes/rankedFoods/favorites had no export path at all before this. Same wiring risk
+// the log's own export test above guards against (a serializer/store/filename mismatch typechecks
+// clean -- pnpm check can't catch it), ported to the three new stores. No UI flow in this app
+// writes ranking/favorites data yet worth driving through the page, so this seeds IndexedDB
+// directly -- same "udine" v4 database and object stores web/src/lib/db.ts's openDb() creates (and
+// the same seeding approach the "logged entries render chronologically" test above already uses).
+// Same hydration race proveHydrated() above guards against (a page.reload() -- needed here to pick
+// up IndexedDB rows written outside the app's own writes -- can render the button before
+// SvelteKit's client JS has attached its onclick), so the same click-and-retry-via-toPass shape:
+// retrying the click is harmless pre-hydration (nothing attached yet to react to it) and always
+// succeeds once hydration completes.
+async function downloadFrom(page: Page, buttonName: string) {
+	const button = page.getByRole("button", { name: buttonName, exact: true });
+	let dl!: Download;
+	await expect(async () => {
+		[dl] = await Promise.all([page.waitForEvent("download", { timeout: 2_000 }), button.click()]);
+	}).toPass({ timeout: 15_000 });
+	const stream = await dl.createReadStream();
+	const chunks: Buffer[] = [];
+	for await (const chunk of stream) chunks.push(chunk as Buffer);
+	return { filename: dl.suggestedFilename(), body: Buffer.concat(chunks).toString("utf-8") };
+}
+
+test("Rankings/Favorite Foods/Favorites export buttons each download their own store's data, in the right format", async ({ page }) => {
+	await page.goto("/today");
+	await expect(page.getByText("Nothing logged yet.")).toBeVisible();
+
+	await page.evaluate(async () => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const req = indexedDB.open("udine", 4);
+			req.onsuccess = () => resolve(req.result);
+			req.onerror = () => reject(req.error);
+		});
+		const tx = db.transaction(["rankedDishes", "rankedFoods", "favorites"], "readwrite");
+		// rankedDishes/favorites store a { key, <payload> } wrapper (see IndexedDbRankingStorage/
+		// IndexedDbFavoritesStorage) -- rankedFoods stores the plain record, keyed on its own
+		// dishName field (its keyPath).
+		tx.objectStore("rankedDishes").put({ key: "Chicken Parm::3", dish: { dishName: "Chicken Parm", hallTid: 3, rating: 1650, comparisonCount: 5 } });
+		tx.objectStore("rankedFoods").put({ dishName: "Chicken Parm", rating: 1650, comparisonCount: 5 });
+		tx.objectStore("favorites").put({ key: "dish:Chicken Parm", favorite: { type: "dish", dishName: "Chicken Parm" } });
+		await new Promise<void>((resolve, reject) => {
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+		});
+	});
+	await page.reload();
+
+	const rankingsJson = await downloadFrom(page, "Rankings JSON");
+	expect(rankingsJson.filename).toBe("udine-ranked-dishes.json");
+	expect(JSON.parse(rankingsJson.body)).toEqual([{ dishName: "Chicken Parm", hallTid: 3, rating: 1650, comparisonCount: 5 }]);
+
+	const rankingsCsv = await downloadFrom(page, "Rankings CSV");
+	expect(rankingsCsv.filename).toBe("udine-ranked-dishes.csv");
+	expect(rankingsCsv.body).toBe('dishName,hallTid,rating,comparisonCount\n"Chicken Parm","3","1650","5"');
+
+	const foodsJson = await downloadFrom(page, "Favorite Foods JSON");
+	expect(foodsJson.filename).toBe("udine-ranked-foods.json");
+	expect(JSON.parse(foodsJson.body)).toEqual([{ dishName: "Chicken Parm", rating: 1650, comparisonCount: 5 }]);
+
+	const foodsCsv = await downloadFrom(page, "Favorite Foods CSV");
+	expect(foodsCsv.filename).toBe("udine-ranked-foods.csv");
+	expect(foodsCsv.body).toBe('dishName,rating,comparisonCount\n"Chicken Parm","1650","5"');
+
+	const favoritesJson = await downloadFrom(page, "Favorites JSON");
+	expect(favoritesJson.filename).toBe("udine-favorites.json");
+	expect(JSON.parse(favoritesJson.body)).toEqual([{ type: "dish", dishName: "Chicken Parm" }]);
+
+	const favoritesCsv = await downloadFrom(page, "Favorites CSV");
+	expect(favoritesCsv.filename).toBe("udine-favorites.csv");
+	expect(favoritesCsv.body).toBe('type,dishName,hallTid\n"dish","Chicken Parm",""');
 });
