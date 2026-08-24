@@ -166,20 +166,37 @@ test("clearing the servings input and logging falls back to 1 serving instead of
 
 // --- #72: browse upcoming days' menus ---------------------------------------------------------
 //
-// Real wall-clock "today", computed the same way today.spec.ts does (UTC ISO slice, matched by
-// Playwright config's `timezoneId: "UTC"` pinning the *browser's* local date to agree with it —
-// see playwright.config.ts's own comment on this). Deliberately not page.clock-frozen: the rest
-// of this file, and every other e2e spec in this app, already relies on the same real-time +
-// UTC-pinning convention, so introducing a fake clock here would just make this one file behave
+// Real wall-clock "today" — but computed inside the *browser* (page.evaluate), not the Node host
+// process. The app derives its own "today" from the browser's local calendar day (todayIso(),
+// web/src/lib/date.ts), which playwright.config.ts pins to America/New_York via `timezoneId`
+// (issue #124). Nothing pins the host process's timezone, so a host-side `new Date()` can
+// silently disagree with the browser's for part of every day (20:00-23:59 Eastern, while the host
+// machine/CI runner is on its own default TZ) — computing it in-browser instead means there's
+// only one clock in play, and it's the same one the app itself reads. Deliberately not
+// page.clock-frozen: the rest of this file, and every other e2e spec in this app, already relies
+// on a real-time clock, so introducing a fake one here would just make this file behave
 // differently from its neighbors for no real gain.
-const NOW = new Date();
-const TODAY = NOW.toISOString().slice(0, 10);
-const TOMORROW = new Date(NOW.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-const DAY_AFTER = new Date(NOW.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+async function browserLocalDates(page: Page): Promise<{ today: string; tomorrow: string; dayAfter: string }> {
+	return page.evaluate(() => {
+		const pad = (n: number) => String(n).padStart(2, "0");
+		const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+		const now = new Date();
+		const plusDays = (days: number) => {
+			const d = new Date(now);
+			d.setDate(d.getDate() + days);
+			return iso(d);
+		};
+		return { today: iso(now), tomorrow: plusDays(1), dayAfter: plusDays(2) };
+	});
+}
 
-const TODAY_DISH: MenuItem = { ...MILK_DISH, dishName: "Today Pancakes", date: TODAY };
-const TOMORROW_DISH: MenuItem = { ...MILK_DISH, dishName: "Tomorrow Waffles", date: TOMORROW };
-const DAY_AFTER_DISH: MenuItem = { ...MILK_DISH, dishName: "Day-After Bagels", date: DAY_AFTER };
+function upcomingDishes(dates: { today: string; tomorrow: string; dayAfter: string }) {
+	return {
+		today: { ...MILK_DISH, dishName: "Today Pancakes", date: dates.today } satisfies MenuItem,
+		tomorrow: { ...MILK_DISH, dishName: "Tomorrow Waffles", date: dates.tomorrow } satisfies MenuItem,
+		dayAfter: { ...MILK_DISH, dishName: "Day-After Bagels", date: dates.dayAfter } satisfies MenuItem,
+	};
+}
 
 // Mocks /api/menu per requested `date`, so today vs. tomorrow are provably different payloads
 // rather than the same fixture replayed regardless of what the UI asked for.
@@ -191,7 +208,9 @@ async function mockMenuByDate(page: Page, byDate: Record<string, MenuItem[]>) {
 }
 
 test("prev is disabled at today; next advances to a real, distinct day", async ({ page }) => {
-	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH], [TOMORROW]: [TOMORROW_DISH] });
+	const dates = await browserLocalDates(page);
+	const dishes = upcomingDishes(dates);
+	await mockMenuByDate(page, { [dates.today]: [dishes.today], [dates.tomorrow]: [dishes.tomorrow] });
 	await gotoHampshireMenu(page);
 
 	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
@@ -223,7 +242,9 @@ test("prev is disabled at today; next advances to a real, distinct day", async (
 test("a future day with no menu shows the publish-window empty state, not the no-menu-today copy", async ({
 	page,
 }) => {
-	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH] }); // no entry for TOMORROW -> mockMenuByDate falls back to []
+	const dates = await browserLocalDates(page);
+	const dishes = upcomingDishes(dates);
+	await mockMenuByDate(page, { [dates.today]: [dishes.today] }); // no entry for tomorrow -> mockMenuByDate falls back to []
 	await gotoHampshireMenu(page);
 	await expect(page.getByRole("listitem").filter({ hasText: "Today Pancakes" })).toBeVisible();
 
@@ -249,18 +270,24 @@ test("a future day with no menu shows the publish-window empty state, not the no
 // covered separately by the mandatory live-API verification step (see the issue's AC and the PR
 // description), since that's real navigation and can only be checked against the real API.
 test("?date= URL state round-trips through browser back/forward, across multiple hops", async ({ page }) => {
-	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH], [TOMORROW]: [TOMORROW_DISH], [DAY_AFTER]: [DAY_AFTER_DISH] });
+	const dates = await browserLocalDates(page);
+	const dishes = upcomingDishes(dates);
+	await mockMenuByDate(page, {
+		[dates.today]: [dishes.today],
+		[dates.tomorrow]: [dishes.tomorrow],
+		[dates.dayAfter]: [dishes.dayAfter],
+	});
 	await gotoHampshireMenu(page);
 
 	await page.getByRole("button", { name: "Next day ›" }).click();
 	await expect(page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" })).toBeVisible();
-	expect(new URL(page.url()).searchParams.get("date")).toBe(TOMORROW);
+	expect(new URL(page.url()).searchParams.get("date")).toBe(dates.tomorrow);
 
 	// A second consecutive hop, from an already-?date=-parameterized URL -- proves the Next button
 	// advances relative to the *browsed* day (data.date), not always relative to today.
 	await page.getByRole("button", { name: "Next day ›" }).click();
 	await expect(page.getByRole("listitem").filter({ hasText: "Day-After Bagels" })).toBeVisible();
-	expect(new URL(page.url()).searchParams.get("date")).toBe(DAY_AFTER);
+	expect(new URL(page.url()).searchParams.get("date")).toBe(dates.dayAfter);
 
 	await page.goBack();
 	await expect(page.getByRole("listitem").filter({ hasText: "Tomorrow Waffles" })).toBeVisible();
@@ -273,11 +300,13 @@ test("?date= URL state round-trips through browser back/forward, across multiple
 
 	await page.goForward();
 	await expect(page.getByRole("listitem").filter({ hasText: "Day-After Bagels" })).toBeVisible();
-	expect(new URL(page.url()).searchParams.get("date")).toBe(DAY_AFTER);
+	expect(new URL(page.url()).searchParams.get("date")).toBe(dates.dayAfter);
 });
 
 test("logging from a future day's menu records at now, not the browsed future date", async ({ page }) => {
-	await mockMenuByDate(page, { [TODAY]: [TODAY_DISH], [TOMORROW]: [TOMORROW_DISH] });
+	const dates = await browserLocalDates(page);
+	const dishes = upcomingDishes(dates);
+	await mockMenuByDate(page, { [dates.today]: [dishes.today], [dates.tomorrow]: [dishes.tomorrow] });
 	await gotoHampshireMenu(page);
 
 	await page.getByRole("button", { name: "Next day ›" }).click();

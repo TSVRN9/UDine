@@ -91,7 +91,14 @@ test("logged entries render chronologically, not in IndexedDB's own key order", 
 	await expect(page.getByText("Nothing logged yet.")).toBeVisible();
 
 	await page.evaluate(async () => {
-		const today = new Date().toISOString().slice(0, 10);
+		// Local date components (not .toISOString(), which is UTC) -- matches todayIso() (the
+		// reader, web/src/lib/date.ts) and nowLocalIso() (the real writer, @udine/shared), both of
+		// which derive from the browser's local calendar day. playwright.config.ts pins that day to
+		// America/New_York (issue #124); a UTC-derived "today" here would disagree with it for 4
+		// hours a day (20:00-23:59 Eastern) and file these seeded entries under the wrong day.
+		const now = new Date();
+		const pad = (n: number) => String(n).padStart(2, "0");
+		const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 		const db = await new Promise<IDBDatabase>((resolve, reject) => {
 			const req = indexedDB.open("udine", 4);
 			req.onsuccess = () => resolve(req.result);
@@ -116,7 +123,9 @@ test("logged entries render chronologically, not in IndexedDB's own key order", 
 			// an unsorted getAll() would put this one second.
 			{
 				id: "zzz-logged-first",
-				loggedAt: `${today}T08:00:00.000Z`,
+				// No trailing "Z" -- matches nowLocalIso()'s bare local-time shape (the real writer),
+				// so `new Date(loggedAt)` parses this as local time, same as a real logged entry would.
+				loggedAt: `${today}T08:00:00.000`,
 				source: { type: "umass-menu", dishName: "Early Dish", hallTid: 3 },
 				servings: 1,
 				nutrition,
@@ -124,7 +133,7 @@ test("logged entries render chronologically, not in IndexedDB's own key order", 
 			// Logged second (later loggedAt), id sorts first.
 			{
 				id: "aaa-logged-second",
-				loggedAt: `${today}T09:00:00.000Z`,
+				loggedAt: `${today}T09:00:00.000`,
 				source: { type: "umass-menu", dishName: "Late Dish", hallTid: 3 },
 				servings: 1,
 				nutrition,

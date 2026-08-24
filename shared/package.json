@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test src/*.test.ts"
+    "test": "TZ=America/New_York node --experimental-strip-types --test src/*.test.ts"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "^2.112.3"

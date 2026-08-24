@@ -19,11 +19,17 @@ export default defineConfig({
 	reporter: [["line"], ["html", { open: "never" }]],
 	use: {
 		baseURL: `http://localhost:${port}`,
-		// Pins the *browser's* clock so todayIso() (browser-local date) and LogEntry.loggedAt
-		// (toISOString(), UTC) always agree, regardless of the machine/CI runner's own timezone —
-		// otherwise this test only passes by accident of GitHub Actions runners defaulting to UTC,
-		// and a contributor running it locally after ~8pm US-Eastern gets a spurious "Calories: 0".
-		timezoneId: "UTC",
+		// Pinned to a real non-UTC zone (issue #124 -- was "UTC" here, which *dodged* the bug this
+		// suite should catch: todayIso() was already local, but LogEntry.loggedAt was stamped with
+		// `.toISOString()`/UTC, so pinning UTC made the two agree by coincidence, not because the
+		// wiring was correct. That's exactly how issue #124 shipped invisibly — a contributor running
+		// the suite locally after ~8pm US-Eastern would have seen a spurious "Calories: 0", but CI's
+		// UTC-default runners never would have). America/New_York mirrors mobile's TZ=America/New_York
+		// jest pin (mobile/package.json, from PR #122) — a timezone where the boundary this bug lives
+		// on (evening local time, already-tomorrow UTC) actually occurs, so the suite exercises the
+		// real fix (both loggedAt and todayIso() derived from LOCAL date components) instead of
+		// hiding behind a timezone where writer and reader can't diverge.
+		timezoneId: "America/New_York",
 		// retries is 0 (see above), so "on-first-retry" would never fire — capture on failure instead,
 		// so a red run in CI (where we can't just re-run headed) still ships a usable trace.
 		trace: "retain-on-failure",

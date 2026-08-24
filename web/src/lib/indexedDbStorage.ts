@@ -1,4 +1,4 @@
-import type { LogEntry, LogStorage } from "@udine/shared";
+import { isoDateOf, type LogEntry, type LogStorage } from "@udine/shared";
 import { openDb, STORES } from "./db";
 
 const STORE = STORES.logEntries;
@@ -36,7 +36,10 @@ export class IndexedDbLogStorage implements LogStorage {
 	}
 
 	async getEntriesForDate(isoDate: string): Promise<LogEntry[]> {
+		// isoDateOf (@udine/shared, next to nowLocalIso which stamps loggedAt) rather than a
+		// re-derived `.startsWith` prefix check -- same consolidation mobile's YouPane did for issue
+		// #111/PR #122, one obvious place both platforms read a loggedAt's calendar day from.
 		const all = await this.getAllEntries();
-		return all.filter((e) => e.loggedAt.startsWith(isoDate));
+		return all.filter((e) => isoDateOf(e.loggedAt) === isoDate);
 	}
 }
