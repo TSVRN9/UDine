@@ -29,13 +29,6 @@ jest.mock("../lib/seenDishesStorage", () => {
   return { SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ getAllSeenDishNames })) };
 });
 
-// #148: YouPane now also instantiates SqliteFavoritesStorage (export release valve) -- same
-// native-bindings rationale as the other storage mocks above.
-jest.mock("../lib/favoritesStorage", () => {
-  const getFavorites = jest.fn().mockResolvedValue([]);
-  return { SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites })) };
-});
-
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -51,9 +44,6 @@ jest.mock("../lib/auth", () => ({
 }));
 
 jest.mock("../lib/date", () => ({ todayIso: () => "2026-08-19" }));
-
-jest.mock("expo-file-system/legacy", () => ({ cacheDirectory: "file:///cache/", writeAsStringAsync: jest.fn() }));
-jest.mock("expo-sharing", () => ({ isAvailableAsync: jest.fn().mockResolvedValue(false), shareAsync: jest.fn() }));
 
 // YouPane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
 // hallMenu.test.tsx).
@@ -74,12 +64,10 @@ jest.mock("expo-router", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { Text, View } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
 import { router } from "expo-router";
 import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
 import { YouPane } from "./YouPane";
 import { colors } from "../lib/theme";
-import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
@@ -87,8 +75,6 @@ import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock; removeEntry: jest.Mock };
 const rankingMock = new SqliteRankingStorage() as unknown as { getRankedDishes: jest.Mock; getRankedFoods: jest.Mock };
 const seenMock = new SqliteSeenDishesStorage() as unknown as { getAllSeenDishNames: jest.Mock };
-const favoritesMock = new SqliteFavoritesStorage() as unknown as { getFavorites: jest.Mock };
-const mockWriteAsStringAsync = FileSystem.writeAsStringAsync as jest.Mock;
 const mockRouterPush = router.push as jest.Mock;
 
 function textsOf(instance: renderer.ReactTestInstance) {
@@ -161,8 +147,6 @@ beforeEach(() => {
   rankingMock.getRankedDishes.mockResolvedValue([]);
   rankingMock.getRankedFoods.mockResolvedValue([]);
   seenMock.getAllSeenDishNames.mockResolvedValue(new Map());
-  favoritesMock.getFavorites.mockReset().mockResolvedValue([]);
-  mockWriteAsStringAsync.mockReset();
   mockRouterPush.mockReset();
 });
 
@@ -233,132 +217,6 @@ describe("YouPane hall completion display", () => {
     expect(body).toMatch(/199\s+of\s+200/);
     expect(body).toMatch(/99 ?%/);
     expect(body).not.toMatch(/100 ?%/);
-  });
-});
-
-describe("YouPane export", () => {
-  it("exports a freshly-read entry list, not a stale render's state (a just-removed entry must not leak in)", async () => {
-    const stays = logEntry("stays", "Tofu Stir Fry", 1, "2026-08-01T12:00:00.000Z");
-    const removed = logEntry("removed", "Chicken Parm", 1, "2026-08-01T12:00:00.000Z");
-    logMock.getAllEntries.mockResolvedValue([stays, removed]);
-
-    const root = await renderYouPane();
-    // Simulate storage having already moved on (the entry was removed) without re-triggering
-    // YouPane's own load()/re-render -- reproduces "component state hasn't caught up with storage
-    // yet" without needing to race real timers.
-    logMock.getAllEntries.mockResolvedValue([stays]);
-
-    await act(async () => {
-      pressableWithText(root, "Export JSON").props.onPress();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
-    const [, content] = mockWriteAsStringAsync.mock.calls[0];
-    expect(content).toMatch(/Tofu Stir Fry/);
-    expect(content).not.toMatch(/Chicken Parm/);
-  });
-
-  // #148: ranking (rankedDishes/rankedFoods) and favorites now have the same release valve as the
-  // log -- one test per new button proves each one writes ITS OWN store's data, not a copy of the
-  // log export or of each other.
-  it("Rankings JSON exports the ranked-dish data, not the log", async () => {
-    rankingMock.getRankedDishes.mockResolvedValue(rankedDishesForOneRankedHall);
-
-    const root = await renderYouPane();
-    await act(async () => {
-      pressableWithText(root, "Rankings JSON").props.onPress();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
-    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
-    expect(path).toMatch(/udine-ranked-dishes\.json$/);
-    expect(content).toMatch(/"dishName": "A"/);
-    expect(content).toMatch(/"hallTid": 1/);
-  });
-
-  it("Rankings CSV exports the ranked-dish data as CSV, not JSON", async () => {
-    rankingMock.getRankedDishes.mockResolvedValue(rankedDishesForOneRankedHall);
-
-    const root = await renderYouPane();
-    await act(async () => {
-      pressableWithText(root, "Rankings CSV").props.onPress();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
-    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
-    expect(path).toMatch(/udine-ranked-dishes\.csv$/);
-    expect(content).toBe('dishName,hallTid,rating,comparisonCount\n"A","1","1500","3"\n"B","1","1600","3"');
-  });
-
-  it("Favorite Foods JSON exports the ranked-food data, not rankedDishes or the log", async () => {
-    rankingMock.getRankedFoods.mockResolvedValue([{ dishName: "Chicken Parm", rating: 1650, comparisonCount: 5 }]);
-
-    const root = await renderYouPane();
-    await act(async () => {
-      pressableWithText(root, "Favorite Foods JSON").props.onPress();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
-    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
-    expect(path).toMatch(/udine-ranked-foods\.json$/);
-    expect(content).toMatch(/"dishName": "Chicken Parm"/);
-    expect(content).toMatch(/"rating": 1650/);
-  });
-
-  it("Favorite Foods CSV exports the ranked-food data as CSV, not JSON", async () => {
-    rankingMock.getRankedFoods.mockResolvedValue([{ dishName: "Chicken Parm", rating: 1650, comparisonCount: 5 }]);
-
-    const root = await renderYouPane();
-    await act(async () => {
-      pressableWithText(root, "Favorite Foods CSV").props.onPress();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
-    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
-    expect(path).toMatch(/udine-ranked-foods\.csv$/);
-    expect(content).toBe('dishName,rating,comparisonCount\n"Chicken Parm","1650","5"');
-  });
-
-  it("Favorites JSON exports the favorites store's data", async () => {
-    favoritesMock.getFavorites.mockResolvedValue([{ type: "dish", dishName: "Chicken Parm" }]);
-
-    const root = await renderYouPane();
-    await act(async () => {
-      pressableWithText(root, "Favorites JSON").props.onPress();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
-    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
-    expect(path).toMatch(/udine-favorites\.json$/);
-    expect(content).toMatch(/"dishName": "Chicken Parm"/);
-  });
-
-  it("Favorites CSV exports the favorites store's data as CSV, not JSON", async () => {
-    favoritesMock.getFavorites.mockResolvedValue([{ type: "location", hallTid: 3 }]);
-
-    const root = await renderYouPane();
-    await act(async () => {
-      pressableWithText(root, "Favorites CSV").props.onPress();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
-    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
-    expect(path).toMatch(/udine-favorites\.csv$/);
-    expect(content).toBe('type,dishName,hallTid\n"location","","3"');
   });
 });
 

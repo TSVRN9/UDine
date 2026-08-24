@@ -4,3 +4,4 @@ export { Card } from "./Card";
 export { EmptyState } from "./EmptyState";
 export { SectionHeader } from "./SectionHeader";
 export { Stat } from "./Stat";
+export { Toggle } from "./Toggle";
