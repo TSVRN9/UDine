@@ -500,6 +500,78 @@ describe("HallMenuScreen plate wiring", () => {
     const bottomOffset = bannerContainer?.props.style?.find?.((s: { bottom?: number }) => typeof s?.bottom === "number")?.bottom ?? bannerContainer?.props.style?.bottom;
     expect(bottomOffset).toBe(88);
   });
+
+  // #147: LOG only ever disabled on an empty plate (PlateSheet's own `disabled={plate.length === 0}`
+  // prop) -- nothing disabled it while a commit was already running, so a second tap landing before
+  // the first's sequential addEntry() writes finished re-ran toLogEntries (fresh ids) and duplicated
+  // every row. CONFIRMED via probe: addEntry called 2x for a 1-row plate. Same pattern as
+  // logsScreen.test.tsx's "drops a rapid second tap" case -- a controllable deferred addEntry, two
+  // synchronous presses, assert exactly one write.
+  it("drops a rapid second LOG tap while the first commit is still in flight, instead of duplicating every row (#147)", async () => {
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+
+    let resolveAddEntry!: () => void;
+    mockAddEntry.mockImplementation(() => new Promise<void>((resolve) => (resolveAddEntry = resolve)));
+
+    act(() => {
+      root.root.findByType(PlateBar).props.onPress();
+    });
+    const button = root.root.findAllByType(Button).find((n) => typeof n.props.children === "string" && /^LOG \d+ ITEMS?$/.test(n.props.children));
+    if (!button) throw new Error("LOG N ITEMS button not found -- is the sheet actually open?");
+
+    await act(async () => {
+      button.props.onPress(); // starts the guarded commit
+      button.props.onPress(); // fires before the first resolves -- must be dropped, not re-run
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockAddEntry).toHaveBeenCalledTimes(1);
+
+    // Let the first commit settle -- the guard must release, and the successful single write must
+    // still clear the plate and show the correct count (not "0 items" from a re-run against an
+    // already-emptied plate).
+    await act(async () => {
+      resolveAddEntry();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    expect(texts(root).flat().join(" ")).toMatch(/Logged 1 item\b/);
+  });
+
+  // #147 (secondary symptom): a tap landing after the in-flight guard already released and the
+  // plate was cleared by an earlier successful commit used to still run -- toLogEntries on an empty
+  // plate writes nothing, but showed "Logged 0 items" anyway. Exercised by calling the sheet's LOG
+  // handler directly once the plate is already empty (react-test-renderer's onPress bypasses the
+  // real `disabled` prop -- PR #133's own review notes this suite does no hit-testing -- so this is
+  // the guard itself being proven, not the disabled prop standing in for it).
+  it("ignores a LOG tap on an already-empty plate instead of showing \"Logged 0 items\" (#147)", async () => {
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    act(() => {
+      root.root.findByType(PlateBar).props.onPress();
+    });
+    // Two "Remove one Pizza" steppers exist once the sheet is open (the SectionList row's own, plus
+    // the sheet's per-row stepper) -- either presses the same underlying stepCount call, so pressing
+    // the first is enough to empty the plate while the sheet stays mounted (visible).
+    act(() => {
+      root.root.findAllByProps({ accessibilityLabel: "Remove one Pizza" })[0].props.onPress();
+    });
+
+    const button = root.root.findAllByType(Button).find((n) => typeof n.props.children === "string" && /^LOG \d+ ITEMS?$/.test(n.props.children));
+    if (!button) throw new Error("LOG N ITEMS button not found -- is the sheet actually open?");
+
+    await act(async () => {
+      await button.props.onPress();
+    });
+
+    expect(mockAddEntry).not.toHaveBeenCalled();
+    expect(texts(root).flat().join(" ")).not.toMatch(/Logged 0 items/);
+  });
 });
 
 describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner never dismisses, occludes last row)", () => {
