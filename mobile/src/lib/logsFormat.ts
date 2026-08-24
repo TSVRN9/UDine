@@ -1,5 +1,5 @@
 import { isoDateOf, type LogEntry } from "@udine/shared";
-import { entryCalories, groupEntriesByMeal, type MealPeriod } from "./youPaneFormat";
+import { entryCalories, entryDishName, groupEntriesByMeal, type MealPeriod } from "./youPaneFormat";
 
 /** "8:40 AM" -- reintroduced here from #118 (You pane no longer needs a per-entry time now that
  * the log is meal-grouped, but the Logs screen's edit-state row shows one, e.g. "Hampshire · 8:40
@@ -95,7 +95,13 @@ export interface WeekChartData {
  * comment on why round-once and round-then-sum can otherwise disagree by a calorie). Averages are
  * over the full 7-day window, including no-log days -- "cal / day" reads as a daily rate over the
  * week, and a user who only logged 3 of the last 7 days should see that reflected as a lower
- * average, not one inflated by silently excluding the days they skipped. */
+ * average, not one inflated by silently excluding the days they skipped.
+ *
+ * Protein follows the same round-per-entry-then-sum convention as calories, for consistency (PR
+ * #140 review, issue #142) -- even though, unlike calories, there's no displayed protein subtotal
+ * anywhere else on this screen for a raw-sum-then-round-once total to visibly disagree with. Kept
+ * uniform anyway so the file has one rounding rule, not two, and so a future per-meal protein
+ * subtotal wouldn't inherit a silent discrepancy. */
 export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDate: string): WeekChartData {
   const dates = lastSevenDates(todayIso);
   const dateSet = new Set(dates);
@@ -105,7 +111,9 @@ export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDa
     return { date, calories, isToday: date === todayIso, isSelected: date === selectedDate };
   });
   const totalCalories = days.reduce((sum, d) => sum + d.calories, 0);
-  const totalProtein = entries.filter((e) => dateSet.has(isoDateOf(e.loggedAt))).reduce((sum, e) => sum + e.nutrition.proteinG * e.servings, 0);
+  const totalProtein = entries
+    .filter((e) => dateSet.has(isoDateOf(e.loggedAt)))
+    .reduce((sum, e) => sum + Math.round(e.nutrition.proteinG * e.servings), 0);
   return {
     days,
     avgCalories: Math.round(totalCalories / days.length),
@@ -129,10 +137,6 @@ export function computeLoggingStreak(entries: LogEntry[], todayIso: string): num
   return streak === 0 ? null : streak;
 }
 
-function entryDishName(entry: LogEntry): string {
-  return entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
-}
-
 export interface MostLoggedDish {
   name: string;
   count: number; // total servings logged, summed across every entry for that dish
@@ -140,7 +144,11 @@ export interface MostLoggedDish {
 
 /** The dish/product logged the most, by total servings summed across every entry sharing that name
  * -- three 1-serving entries and one 3-serving entry both mean "eaten it 3 times". Null when there
- * are no entries at all. */
+ * are no entries at all. Ties break in favor of whichever dish was logged FIRST: `counts` is a Map
+ * built by iterating `entries` in order, and the `>` (not `>=`) comparison below keeps the
+ * earliest-inserted key at a tied count rather than letting a later one overwrite it. Since storage
+ * orders entries by logged_at, that reads as "whichever you ate first" -- deterministic, not an
+ * accident of Map ordering. */
 export function computeMostLoggedDish(entries: LogEntry[]): MostLoggedDish | null {
   if (entries.length === 0) return null;
   const counts = new Map<string, number>();
