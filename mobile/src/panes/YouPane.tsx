@@ -1,36 +1,15 @@
-import {
-  computeDailyTotals,
-  exportEntriesAsCsv,
-  exportEntriesAsJson,
-  exportFavoritesAsCsv,
-  exportFavoritesAsJson,
-  exportRankedDishesAsCsv,
-  exportRankedDishesAsJson,
-  exportRankedFoodsAsCsv,
-  exportRankedFoodsAsJson,
-  hallCompletion,
-  hallNameFor,
-  isoDateOf,
-  rankDiningHalls,
-  type HallCompletion,
-  type LogEntry,
-  type RankedDish,
-  type RankedFood,
-} from "@udine/shared";
+import { computeDailyTotals, hallCompletion, hallNameFor, isoDateOf, rankDiningHalls, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 import { Link, router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PaneHeader } from "../components/PaneHeader";
-import { Button, Card, EmptyState, SectionHeader, Stat } from "../components/ui";
+import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
 import { signInWithGoogle, signOut } from "../lib/auth";
 import { supabase } from "../lib/supabase";
-import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
@@ -39,7 +18,6 @@ import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal,
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
 const seenDishesStorage = new SqliteSeenDishesStorage();
-const favoritesStorage = new SqliteFavoritesStorage();
 
 // YOUR TOP FOODS row cap — keeps the pane's chip-row density in line with the canvas rather than
 // rendering every food that ever cleared the scoring gate.
@@ -128,46 +106,6 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
     } catch (err) {
       Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
     }
-  }
-
-  // Writes `content` to the cache dir and hands it to the OS share sheet -- the common tail of
-  // every export* function below, regardless of which store/format it came from.
-  async function shareExport(baseName: string, format: "json" | "csv", content: string) {
-    const path = `${FileSystem.cacheDirectory}${baseName}.${format}`;
-    await FileSystem.writeAsStringAsync(path, content);
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(path);
-    }
-  }
-
-  async function exportData(format: "json" | "csv") {
-    // Fresh read, not the `allEntries` state closure -- a just-removed entry can otherwise still be
-    // in the current render's `allEntries` if export is tapped before remove()'s reload flushes.
-    // Matches today.tsx's original behavior (ported from, see PR #105's review).
-    const entries = await logStorage.getAllEntries();
-    const content = format === "json" ? exportEntriesAsJson(entries) : exportEntriesAsCsv(entries);
-    await shareExport("udine-export", format, content);
-  }
-
-  // #148: the log's release valve above has twins for the other two always-device-local stores
-  // (CLAUDE.md's data-residency table) -- ranking (rankedDishes/rankedFoods) and favorites. Same
-  // fresh-read-then-share-sheet shape, just a different shared serializer/storage pair per kind.
-  async function exportRankedDishes(format: "json" | "csv") {
-    const dishes = await rankingStorage.getRankedDishes();
-    const content = format === "json" ? exportRankedDishesAsJson(dishes) : exportRankedDishesAsCsv(dishes);
-    await shareExport("udine-ranked-dishes", format, content);
-  }
-
-  async function exportRankedFoods(format: "json" | "csv") {
-    const foods = await rankingStorage.getRankedFoods();
-    const content = format === "json" ? exportRankedFoodsAsJson(foods) : exportRankedFoodsAsCsv(foods);
-    await shareExport("udine-ranked-foods", format, content);
-  }
-
-  async function exportFavorites(format: "json" | "csv") {
-    const favorites = await favoritesStorage.getFavorites();
-    const content = format === "json" ? exportFavoritesAsJson(favorites) : exportFavoritesAsCsv(favorites);
-    await shareExport("udine-favorites", format, content);
   }
 
   const date = todayIso();
@@ -302,58 +240,19 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
             </Card>
           </Pressable>
         </Link>
+        {/* #182: was "Privacy" -- now "Your data", the data-map + share-toggles + delete-server-data
+        screen (still the /privacy route; renamed in place, see that file's own doc comment). This
+        row also replaces the old inline "Export Your Data" section below it: export now lives
+        behind Your data's own EXPORT row (device-local counts + share toggles need their own
+        screen real estate the You pane can't spare). */}
         <Link href="/privacy" asChild>
           <Pressable>
             <Card style={styles.friendsRow}>
-              <Text style={styles.friendsText}>Privacy</Text>
+              <Text style={styles.friendsText}>Your data</Text>
               <Text style={styles.friendsChevron}>›</Text>
             </Card>
           </Pressable>
         </Link>
-      </View>
-
-      <View style={styles.section}>
-        <SectionHeader title="Export Your Data" />
-
-        <Text style={styles.exportSubheading}>Food Log</Text>
-        <View style={styles.exportRow}>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportData("json")}>
-            Export JSON
-          </Button>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportData("csv")}>
-            Export CSV
-          </Button>
-        </View>
-
-        <Text style={styles.exportSubheading}>Dish Rankings</Text>
-        <View style={styles.exportRow}>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportRankedDishes("json")}>
-            Rankings JSON
-          </Button>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportRankedDishes("csv")}>
-            Rankings CSV
-          </Button>
-        </View>
-
-        <Text style={styles.exportSubheading}>Favorite Foods (cross-hall)</Text>
-        <View style={styles.exportRow}>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportRankedFoods("json")}>
-            Favorite Foods JSON
-          </Button>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportRankedFoods("csv")}>
-            Favorite Foods CSV
-          </Button>
-        </View>
-
-        <Text style={styles.exportSubheading}>Favorites</Text>
-        <View style={styles.exportRow}>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportFavorites("json")}>
-            Favorites JSON
-          </Button>
-          <Button variant="secondary" style={styles.exportButton} onPress={() => exportFavorites("csv")}>
-            Favorites CSV
-          </Button>
-        </View>
       </View>
     </ScrollView>
   );
@@ -450,8 +349,4 @@ const styles = StyleSheet.create({
   },
   friendsText: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
   friendsChevron: { fontFamily: fonts.body400, fontSize: fs(18), lineHeight: fs(20), color: colors.maroon600 },
-
-  exportSubheading: { marginTop: spacing(2), fontFamily: fonts.body600, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
-  exportRow: { flexDirection: "row", gap: spacing(2), marginTop: spacing(1) },
-  exportButton: { flex: 1 },
 });
