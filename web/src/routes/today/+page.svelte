@@ -10,13 +10,14 @@
 		exportRankedDishesAsJson,
 		exportRankedFoodsAsCsv,
 		exportRankedFoodsAsJson,
+		isoDateOf,
+		nowLocalIso,
 		type DailyMacroTotals,
 		type LogEntry,
 	} from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
-	import { todayIso } from "$lib/date";
 	import { macroCalorieBreakdown } from "$lib/macroShares";
 	import MacroStats from "$lib/MacroStats.svelte";
 
@@ -25,7 +26,11 @@
 	let storage: IndexedDbLogStorage | undefined;
 	let rankingStorage: IndexedDbRankingStorage | undefined;
 	let favoritesStorage: IndexedDbFavoritesStorage | undefined;
-	const date = todayIso();
+	// NOT todayIso() (ET-anchored, for the SSR menu-day) -- this reads IndexedDB log entries, which
+	// are written with browser-local nowLocalIso() (issues #111/#124). Reader has to agree with that
+	// writer's calendar day, not UMass Dining's, or a just-logged dinner can read back as "not today"
+	// (issue #188 rework finding 1).
+	const date = isoDateOf(nowLocalIso());
 
 	let entries: LogEntry[] = $state([]);
 	let totals: DailyMacroTotals = $state({ date, calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 });
