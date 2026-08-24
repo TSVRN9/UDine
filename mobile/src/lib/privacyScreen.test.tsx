@@ -243,6 +243,76 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
     expect(after.props.value).toBe(false); // reverted, not optimistically left on
     expect(Alert.alert).toHaveBeenCalledWith("Couldn't update sharing", expect.any(String));
   });
+
+  // #186: refresh()'s own re-push loop (fieldsNeedingRefresh -> syncSharedStat) can still be
+  // mid-flight -- parked on an unrelated await -- when the user revokes a field via toggleShared.
+  // Without the generationRef guard, the parked loop resumes afterward and re-pushes the field's
+  // OLD (still-opted-in) value, resurrecting a stat the user just deleted server-side: directly
+  // violating "switching off deletes it from the server immediately." Stages that interleaving
+  // with a controllable friendships-query promise (refresh reads the friendships table AFTER
+  // shared_stats but BEFORE its re-push loop, so parking it there reproduces "refresh has already
+  // read the stale shared_stats row and is about to re-push it, but hasn't yet").
+  it("#186: a toggle that revokes a field while refresh is mid-flight is not resurrected by refresh's stale re-push", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+
+    let resolveFriendships!: (v: { data: unknown[] }) => void;
+    const friendshipsPromise = new Promise<{ data: unknown[] }>((resolve) => {
+      resolveFriendships = resolve;
+    });
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "shared_stats") return table([], { singleRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null } });
+      if (name === "friendships") {
+        const builder: Record<string, unknown> = {};
+        builder.select = () => builder;
+        builder.or = () => builder;
+        builder.then = (resolve: (v: { data: unknown[] }) => void) => friendshipsPromise.then(resolve);
+        return builder;
+      }
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<PrivacyScreen />);
+    });
+    // Flush enough microtasks for the session to resolve and refresh() to reach (and park on)
+    // the friendships await -- shared_stats has already resolved by this point (setRow ran), so
+    // the completion toggle already reflects the fetched row.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const beforeToggle = root.root.findAllByType(Toggle)[1];
+    expect(beforeToggle.props.value).toBe(true); // confirms refresh's shared_stats read landed
+
+    // User revokes "Hall completion" while refresh is still parked on the friendships await.
+    await act(async () => {
+      beforeToggle.props.onValueChange(false);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockSyncSharedStat).toHaveBeenLastCalledWith(expect.anything(), "me", "completion", null);
+
+    // Now let refresh's parked friendships await resolve -- its re-push loop sees `toRefresh`
+    // still contains "completion" (captured from the row it read before the toggle) and would,
+    // without the guard, re-push a fresh non-null payload for it.
+    await act(async () => {
+      resolveFriendships({ data: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The LAST write for "completion" must still be the revoke (null) -- the stale re-push, if
+    // it ran, would be a later call with a non-null array.
+    const completionCalls = mockSyncSharedStat.mock.calls.filter((c) => c[2] === "completion");
+    expect(completionCalls[completionCalls.length - 1][3]).toBeNull();
+  });
 });
 
 describe("PrivacyScreen: favorite-food alerts toggle", () => {

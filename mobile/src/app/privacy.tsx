@@ -1,6 +1,6 @@
 import { syncSharedStat, type SharedStatField } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -60,6 +60,12 @@ export default function PrivacyScreen() {
   const [counts, setCounts] = useState({ logEntryCount: 0, rankedCount: 0, seenDishCount: 0 });
   const [deleting, setDeleting] = useState(false);
   const alerts = useFavoriteFoodAlerts();
+  // #186: refresh()'s re-push loop below can be mid-flight (parked on an await) when the user
+  // revokes a field via toggleShared -- without this, the stale loop resumes and re-pushes the
+  // field's old value, resurrecting a stat the user just deleted server-side. toggleShared bumps
+  // this on every real toggle; refresh captures the value at its own start and checks it again
+  // before EACH re-push, dropping the push if a toggle happened in between.
+  const generationRef = useRef(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -70,6 +76,7 @@ export default function PrivacyScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
+    const startGeneration = generationRef.current;
     const [entries, rankedDishes, rankedFoods, seenByHall] = await Promise.all([
       logStorage.getAllEntries(),
       rankingStorage.getRankedDishes(),
@@ -98,6 +105,10 @@ export default function PrivacyScreen() {
     if (toRefresh.length === 0) return;
     const derived = deriveSharedStatsPayloads(seenByHall, entries, rankedDishes, rankedFoods);
     for (const field of toRefresh) {
+      // A toggle landed since this refresh started -- its own write is the current truth now;
+      // pushing this stale re-derived value would resurrect a field the toggle just revoked (or
+      // stomp a field it just opted in with an older payload). See #186.
+      if (generationRef.current !== startGeneration) return;
       await syncSharedStat(supabase, myId, field, sharedStatValueForToggle(field, true, derived));
     }
   }, [session]);
@@ -111,6 +122,7 @@ export default function PrivacyScreen() {
   async function toggleShared(field: SharedStatField, next: boolean) {
     const myId = session?.user.id;
     if (!myId) return;
+    generationRef.current += 1; // invalidate any in-flight refresh() re-push loop -- see #186
     setPending(field);
     try {
       let value: unknown = null;
