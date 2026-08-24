@@ -9,7 +9,11 @@ import type { MealPeriod } from "@udine/shared";
 
 jest.mock("@udine/shared", () => {
   const actual = jest.requireActual("@udine/shared");
-  return { ...actual, MEAL_PERIODS: [...actual.MEAL_PERIODS, "brunch"] };
+  // mealPeriodLabel is mocked too (not just MEAL_PERIODS) -- otherwise the real, unmocked
+  // mealPeriodLabel("brunch") happens to title-case to "Brunch" the same way a hand-rolled
+  // period.charAt(0).toUpperCase() + period.slice(1) fallback would, so the assertion below would
+  // pass even if mealTabLabel never actually called shared's mealPeriodLabel (#161).
+  return { ...actual, MEAL_PERIODS: [...actual.MEAL_PERIODS, "brunch"], mealPeriodLabel: (period: string) => `Custom ${period}` };
 });
 
 import { MEAL_TABS, mealTabLabel } from "./hallMenuTabs";
@@ -20,7 +24,7 @@ describe("hallMenuTabs consumers propagate a new shared meal period (#144)", () 
   });
 
   it("mealTabLabel delegates unrecognized periods to shared's mealPeriodLabel title-casing", () => {
-    expect(mealTabLabel("brunch" as MealPeriod)).toBe("Brunch");
+    expect(mealTabLabel("brunch" as MealPeriod)).toBe("Custom brunch");
   });
 
   it("mealTabLabel still applies mobile's compact override for latenight", () => {

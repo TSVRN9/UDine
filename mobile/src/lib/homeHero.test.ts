@@ -123,9 +123,11 @@ describe("formatHeroLine", () => {
     expect(line.subtitle).toBe("served now · until 2:30 PM");
   });
 
-  it("formats a named latenight period the same as any other named meal period", () => {
+  it("formats a named latenight period via shared's mealPeriodLabel, not a bare toUpperCase (#161)", () => {
+    // hero.period.toUpperCase() would render "LATENIGHT" -- shared's mealPeriodLabel inserts the
+    // word break, so uppercasing its output gives "LATE NIGHT" instead.
     const line = formatHeroLine({ kind: "meal", period: "latenight", closesAt: new Date(2026, 7, 20, 1, 0) });
-    expect(line.title).toBe("LATENIGHT");
+    expect(line.title).toBe("LATE NIGHT");
     expect(line.subtitle).toBe("served now · until 1:00 AM");
   });
 
@@ -196,6 +198,14 @@ describe("hallHeaderSubtitle", () => {
     const h = hall({ dinner: window("4:30 PM", "9:00 PM") });
     expect(hallHeaderSubtitle(h, NOON)).toBe("Closed · opens 4:30 PM");
     expect(hallHeaderSubtitle(hall(), NOON)).toBe("Closed today");
+  });
+
+  it("labels an active latenight period via shared's mealPeriodLabel, not hand-rolled title-casing (#161)", () => {
+    // period.charAt(0).toUpperCase() + period.slice(1) would render "Latenight" -- shared's
+    // mealPeriodLabel inserts the word break, giving "Late Night" instead.
+    const lateNightNow = new Date(2026, 7, 19, 23, 0, 0, 0);
+    const h = hall({ latenight: window("10:00 PM", "1:00 AM") });
+    expect(hallHeaderSubtitle(h, lateNightNow)).toBe("Late Night · being served now · until 1:00 AM");
   });
 });
 
