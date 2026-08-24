@@ -40,6 +40,7 @@ import {
   stepCount,
   toLogEntries,
   totalItemCount,
+  useGuardedLogPlate,
   type PlateEntry,
 } from "../../lib/plate";
 import { getPreferences } from "../../lib/preferences";
@@ -94,6 +95,7 @@ export default function HallMenuScreen() {
   const [logged, setLogged] = useState<string | null>(null);
   const [bannerHeight, setBannerHeight] = useState(0);
   const insets = useSafeAreaInsets();
+  const guardedLogPlate = useGuardedLogPlate(storage);
 
   useEffect(() => {
     if (!hall) return;
@@ -204,28 +206,28 @@ export default function HallMenuScreen() {
   }
 
   async function logPlate() {
-    // Local-date-prefixed, not `.toISOString()` (UTC) -- see nowLocalIso's own comment (issue #111:
-    // evening logs were filing under tomorrow's UTC date and vanishing from Today).
-    const entries = toLogEntries(plate, nowLocalIso());
-    try {
-      for (const entry of entries) {
-        await storage.addEntry(entry);
-      }
-    } catch (e) {
-      // ponytail: no transaction wrapping this loop, so a failure partway through leaves
+    // #147: guarded by useGuardedLogPlate (shared with grab-n-go/[slug].tsx) -- drops a second tap
+    // that lands before this one's sequential addEntry() writes finish, instead of re-running
+    // toLogEntries (fresh ids) and duplicating every row. Also drops a tap landing on an
+    // already-emptied plate (the "Logged 0 items" symptom). Local-date-prefixed loggedAt, not
+    // `.toISOString()` (UTC) -- see nowLocalIso's own comment (issue #111: evening logs were filing
+    // under tomorrow's UTC date and vanishing from Today).
+    const result = await guardedLogPlate(plate, nowLocalIso());
+    if (!result) return;
+    if (!result.ok) {
+      // ponytail: no transaction wrapping the write loop, so a failure partway through leaves
       // whatever already succeeded committed, and the plate stays put (not cleared) so the user
       // doesn't lose their selection -- but retrying re-logs everything with fresh ids
       // (toLogEntries mints new random ids each call), so anything that already committed
       // becomes a duplicate row rather than being replaced. Acceptable for a UI feature where
       // each addEntry is one single-row insert unlikely to fail independently; upgrade to one
       // transactional bulk insert on SqliteLogStorage if this shows up in practice.
-      setLogged(`Couldn't log everything: ${String(e)}`);
+      setLogged(`Couldn't log everything: ${String(result.error)}`);
       return;
     }
-    const count = totalItemCount(plate);
     setPlate([]);
     setSheetOpen(false);
-    setLogged(`Logged ${count} ${count === 1 ? "item" : "items"}`);
+    setLogged(`Logged ${result.count} ${result.count === 1 ? "item" : "items"}`);
   }
 
   return (

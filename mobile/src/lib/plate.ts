@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { LogEntry, MenuItem, NutritionFacts, OffSearchResult } from "@udine/shared";
 
 /**
@@ -85,4 +86,43 @@ export function toLogEntries(plate: PlateEntry[], loggedAt: string): LogEntry[] 
     servings: p.count,
     nutrition: p.nutrition,
   }));
+}
+
+export interface LogStorageLike {
+  addEntry(entry: LogEntry): Promise<void>;
+}
+
+export type LogPlateResult = { ok: true; count: number } | { ok: false; error: unknown };
+
+/**
+ * #147: halls/[slug].tsx and grab-n-go/[slug].tsx had byte-for-byte identical logPlate bodies with
+ * no in-flight guard -- LOG only ever disabled on an empty plate, not while a commit was already
+ * running, so a second tap landing before the sequential addEntry() writes finished re-ran
+ * toLogEntries (minting fresh ids) and duplicated every row; a tap landing just after completion
+ * re-logged the now-empty plate ("Logged 0 items"). One shared, guarded implementation for both
+ * screens instead of the guard living (or not living) in each copy separately.
+ *
+ * The ref is checked synchronously before the first await -- same mechanism as logs.tsx's
+ * withStepGuard -- and DROPS a second call outright while the first is still in flight, rather than
+ * queuing it: the correct fix for a duplicate write is exactly one write, not two serialized ones.
+ */
+export function useGuardedLogPlate(storage: LogStorageLike) {
+  const inFlight = useRef(false);
+  return async function logPlate(plate: PlateEntry[], loggedAt: string): Promise<LogPlateResult | null> {
+    if (inFlight.current || plate.length === 0) return null;
+    inFlight.current = true;
+    try {
+      const entries = toLogEntries(plate, loggedAt);
+      try {
+        for (const entry of entries) {
+          await storage.addEntry(entry);
+        }
+      } catch (e) {
+        return { ok: false, error: e };
+      }
+      return { ok: true, count: totalItemCount(plate) };
+    } finally {
+      inFlight.current = false;
+    }
+  };
 }

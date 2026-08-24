@@ -30,6 +30,19 @@ export default function RankScreen() {
   const [pair, setPair] = useState<[Dish, Dish] | null>(null);
   const lastPairRef = useRef<[Dish, Dish] | null>(null);
 
+  // #147: choose() reads/saves whole-blob rankedDishes/rankedFoods -- a second tap landing before
+  // the first's two awaited saves + getSession finished used to compute from the same stale
+  // render-closure state as the first, and its whole-blob save clobbered the first's write
+  // (last-write-wins). React state updates don't apply synchronously within a single microtask
+  // burst, so a plain guard that just re-reads `rankedDishes` state on the next call still sees the
+  // pre-first-tap value. These two refs are the actual source of truth for choose() instead --
+  // updated synchronously the moment a comparison applies, not on React's next render -- and
+  // chooseQueueRef serializes overlapping calls so a second (legitimate) tap's comparison still
+  // lands, computed on top of the first's result, rather than being dropped or racing it.
+  const rankedDishesRef = useRef<RankedDish[]>([]);
+  const rankedFoodsRef = useRef<RankedFood[]>([]);
+  const chooseQueueRef = useRef(Promise.resolve());
+
   const refresh = useCallback(() => {
     (async () => {
       const entries: LogEntry[] = await logStorage.getAllEntries();
@@ -45,6 +58,8 @@ export default function RankScreen() {
       }
       const ranked = await rankingStorage.getRankedDishes();
       const rankedFoodsResult = await rankingStorage.getRankedFoods();
+      rankedDishesRef.current = ranked;
+      rankedFoodsRef.current = rankedFoodsResult;
       setLoggedDishes(dishes);
       setRankedDishes(ranked);
       setRankedFoods(rankedFoodsResult);
@@ -57,25 +72,35 @@ export default function RankScreen() {
   useFocusEffect(refresh);
 
   async function choose(winner: Dish, loser: Dish) {
-    const updated = applyComparison(rankedDishes, winner, loser);
-    const updatedFoods = applyFoodComparison(rankedFoods, winner, loser);
-    setRankedDishes(updated);
-    setRankedFoods(updatedFoods);
-    await rankingStorage.saveRankedDishes(updated);
-    await rankingStorage.saveRankedFoods(updatedFoods);
+    // Chained onto the queue synchronously (before any await) so two taps fired back-to-back run
+    // this body one after the other, never concurrently.
+    chooseQueueRef.current = chooseQueueRef.current.then(async () => {
+      const updated = applyComparison(rankedDishesRef.current, winner, loser);
+      const updatedFoods = applyFoodComparison(rankedFoodsRef.current, winner, loser);
+      rankedDishesRef.current = updated;
+      rankedFoodsRef.current = updatedFoods;
+      setRankedDishes(updated);
+      setRankedFoods(updatedFoods);
+      await rankingStorage.saveRankedDishes(updated);
+      await rankingStorage.saveRankedFoods(updatedFoods);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      // Fire-and-forget: don't block advancing to the next pair on the network round-trip.
-      // syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
-      void syncDiningHallRanks(supabase, session.user.id, updated);
-    }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        // Fire-and-forget: don't block advancing to the next pair on the network round-trip.
+        // syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
+        void syncDiningHallRanks(supabase, session.user.id, updated);
+      }
 
-    const next = pickPair(loggedDishes, updated, lastPairRef.current);
-    lastPairRef.current = next;
-    setPair(next);
+      const next = pickPair(loggedDishes, updated, lastPairRef.current);
+      lastPairRef.current = next;
+      setPair(next);
+      // A rejection here must not leave the queue permanently wedged (every later tap chains onto
+      // this same promise) -- caught, not re-thrown, matching the pre-#147 behavior of an
+      // uncaught-but-non-fatal rejection from an un-awaited choose() call.
+    }).catch((e) => console.error("choose: comparison failed", e));
+    await chooseQueueRef.current;
   }
 
   function skip() {
