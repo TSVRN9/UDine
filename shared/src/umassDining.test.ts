@@ -196,6 +196,41 @@ function makeDeferredFetch(body: unknown): { fetchImpl: typeof fetch; getCalls: 
   return { fetchImpl, getCalls: () => calls, release: () => resolveFetch?.() };
 }
 
+/** Derives its response from the URL it's actually called with (echoes tid+date into a distinguishable
+ * dish name) instead of returning one fixed body -- lets a test tell whether the cache key is really
+ * `tid+date`, or only ever one half of it (a same-tid-different-date or same-date-different-tid
+ * collision would silently serve the wrong hall's menu). */
+function makeUrlEchoingFetch(): { fetchImpl: typeof fetch; getCalls: () => number } {
+  let calls = 0;
+  const fetchImpl = (async (input: RequestInfo | URL) => {
+    calls++;
+    const url = new URL(String(input));
+    const dishName = `Dish-${url.searchParams.get("tid")}-${url.searchParams.get("date")}`;
+    const html = `<a data-dish-name="${dishName}" href="#inline">${dishName}</a>`;
+    return jsonResponse({ lunch: { Entrees: html } });
+  }) as typeof fetch;
+  return { fetchImpl, getCalls: () => calls };
+}
+
+// pr-reviewer finding on #170: every other test here used one fixed hall+date and a `{}` stub body,
+// so an `deepEqual` on `[]` vs `[]` couldn't tell a correct cache key apart from a broken one --
+// dropping either half of `tid|MM/DD/YYYY` from menuCacheKey still passed all four. This is the one
+// test that actually depends on both halves.
+test("fetchMenu's cache key is BOTH hallTid and date -- three distinct hall/date combos each get their own upstream call and come back with their own dish, not a neighbor's", async () => {
+  const { fetchImpl, getCalls } = makeUrlEchoingFetch();
+  const hallA = 61;
+  const hallB = 62;
+  const d1 = new Date(2026, 1, 10);
+  const d2 = new Date(2026, 1, 11);
+
+  const [a1, b1, a2] = await Promise.all([fetchMenu(hallA, d1, fetchImpl), fetchMenu(hallB, d1, fetchImpl), fetchMenu(hallA, d2, fetchImpl)]);
+
+  assert.equal(getCalls(), 3);
+  assert.equal(a1[0].dishName, "Dish-61-02/10/2026");
+  assert.equal(b1[0].dishName, "Dish-62-02/10/2026"); // same date as a1, different hall -- must not collide
+  assert.equal(a2[0].dishName, "Dish-61-02/11/2026"); // same hall as a1, different date -- must not collide
+});
+
 test("fetchMenu serves a second call within TTL from cache, not a second upstream fetch", async () => {
   const { fetchImpl, getCalls } = makeCountingFetch({});
   let t = 1_000_000;
