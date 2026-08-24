@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { DINING_HALLS, type Favorite } from "@udine/shared";
+	import { hallNameFor, type Favorite } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 
 	const favoritesStorage = new IndexedDbFavoritesStorage();
@@ -15,10 +15,6 @@
 	async function remove(favorite: Favorite) {
 		await favoritesStorage.removeFavorite(favorite);
 		await refresh();
-	}
-
-	function hallName(tid: number): string {
-		return DINING_HALLS.find((h) => h.tid === tid)?.name ?? `Hall ${tid}`;
 	}
 
 	function isDish(f: Favorite): f is Extract<Favorite, { type: "dish" }> {
@@ -67,7 +63,7 @@
 		<ul class="mt-4 flex flex-col gap-2">
 			{#each favorites.filter(isLocation) as favorite (favorite.hallTid)}
 				<li class="card flex items-center justify-between gap-3 px-4 py-3">
-					<span class="font-display text-lg font-semibold text-maroon-900">{hallName(favorite.hallTid)}</span>
+					<span class="font-display text-lg font-semibold text-maroon-900">{hallNameFor(favorite.hallTid)}</span>
 					<button onclick={() => remove(favorite)} class="btn btn-ghost btn-sm">Remove</button>
 				</li>
 			{/each}

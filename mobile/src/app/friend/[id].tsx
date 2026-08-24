@@ -1,4 +1,4 @@
-import { DINING_HALLS } from "@udine/shared";
+import { hallNameFor } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
@@ -13,10 +13,6 @@ type SharedCompletion = { hallTid: number; loggedDistinct: number; seenDistinct:
 type SharedTopFood = { dishName: string; score: number; hallName: string | null };
 type SharedHallRank = { hallTid: number; rank: number };
 type SharedStatsRow = { completion: SharedCompletion[] | null; top_foods: SharedTopFood[] | null; hall_ranks: SharedHallRank[] | null } | null;
-
-function hallName(hallTid: number): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-}
 
 function initialsOf(name: string): string {
   return name
@@ -51,7 +47,7 @@ function CompletionRow({ c }: { c: SharedCompletion }) {
   return (
     <View style={styles.completionRow}>
       <View style={styles.completionHeader}>
-        <Text style={styles.completionHall}>{hallName(c.hallTid)}</Text>
+        <Text style={styles.completionHall}>{hallNameFor(c.hallTid)}</Text>
         <Text style={styles.completionCounts}>
           {pct}% · {c.loggedDistinct} of {c.seenDistinct} dishes
         </Text>
@@ -203,7 +199,7 @@ export default function FriendProfileScreen() {
               {stats.hall_ranks.map((r) => (
                 <View key={r.hallTid} style={styles.rankRow}>
                   <Text style={[styles.rankNumber, r.rank === 1 && styles.rankNumberTop]}>{r.rank}</Text>
-                  <Text style={styles.rankHallName}>{hallName(r.hallTid)}</Text>
+                  <Text style={styles.rankHallName}>{hallNameFor(r.hallTid)}</Text>
                 </View>
               ))}
             </StatCard>

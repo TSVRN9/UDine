@@ -2,7 +2,7 @@
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
 	import type { SupabaseClient } from "@supabase/supabase-js";
-	import { DINING_HALLS, syncFavoritedFoods, type Favorite } from "@udine/shared";
+	import { DINING_HALLS, hallNameFor, syncFavoritedFoods, type Favorite } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { loadFeedLastSeen, saveFeedLastSeen } from "$lib/feedLastSeen";
 	import { PUBLIC_VAPID_KEY } from "$env/static/public";
@@ -83,10 +83,6 @@
 	let pingMessage = $state("");
 	let pingSent = $state(false);
 	let pingError = $state(false);
-
-	function hallName(hallTid: number | null): string {
-		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? "somewhere";
-	}
 
 	let friendNameById = $derived(new Map(friends.map((f) => [f.user_id, f.display_name])));
 
@@ -302,7 +298,7 @@
 					{#if unread}<span class="badge">New</span>{/if}
 					{#if item.kind === "sighting"}
 						<strong>{item.dishName}</strong>
-						<span class="badge">{hallName(item.hallTid)}</span>
+						<span class="badge">{hallNameFor(item.hallTid)}</span>
 						<span class="text-sm text-ink-900/60">spotted on {item.sightedDate}</span>
 						{#if unread}
 							<button class="btn btn-secondary btn-sm" onclick={() => markRead(item.id)}>Mark as read</button>
@@ -310,7 +306,7 @@
 					{:else}
 						<span class="badge">Ping</span>
 						<strong>{item.senderName}</strong> wants to eat
-						{#if item.hallTid}<span class="badge">{hallName(item.hallTid)}</span>{/if}
+						{#if item.hallTid}<span class="badge">{hallNameFor(item.hallTid)}</span>{/if}
 						{#if item.message}<span class="block text-ink-900/70">&mdash; "{item.message}"</span>{/if}
 					{/if}
 				</li>

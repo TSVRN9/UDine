@@ -3,6 +3,7 @@ import {
   exportEntriesAsCsv,
   exportEntriesAsJson,
   hallCompletion,
+  hallNameFor,
   isoDateOf,
   rankDiningHalls,
   type HallCompletion,
@@ -26,7 +27,7 @@ import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
-import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
+import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal, logItemLine } from "../lib/youPaneFormat";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -36,8 +37,9 @@ const seenDishesStorage = new SqliteSeenDishesStorage();
 // rendering every food that ever cleared the scoring gate.
 const TOP_FOODS_LIMIT = 5;
 
-// hallName/logItemLine now live in youPaneFormat.ts (imported above) -- #119's Logs & stats screen
-// reuses the exact same collapsed-row text instead of re-deriving it.
+// logItemLine now lives in youPaneFormat.ts (imported above) -- #119's Logs & stats screen reuses
+// the exact same collapsed-row text instead of re-deriving it. Hall-name lookup is @udine/shared's
+// hallNameFor (#108, imported above too).
 
 /** #119 has shipped `app/logs.tsx`, so `/logs` is now a real route: no more `as Href` cast (needed
  * only while `experiments.typedRoutes` couldn't yet see the file) and no try/catch (review on
@@ -55,7 +57,7 @@ function CompletionBar({ completion, gold }: { completion: HallCompletion; gold:
   return (
     <View style={styles.completionRow}>
       <View style={styles.completionHeader}>
-        <Text style={styles.completionHall}>{hallName(completion.hallTid)}</Text>
+        <Text style={styles.completionHall}>{hallNameFor(completion.hallTid)}</Text>
         <Text style={styles.completionCounts}>
           {pct}% · {completion.loggedDistinct} of {completion.seenDistinct} dishes
         </Text>
@@ -234,7 +236,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
             {hallRanking.ranked.slice(0, 3).map((h, i) => (
               <Card key={h.hallTid} style={[styles.favoriteHallCard, i === 0 && styles.favoriteHallCardTop]}>
                 <Text style={[styles.favoriteHallRank, i === 0 && styles.favoriteHallRankTop]}>{h.rank}</Text>
-                <Text style={styles.favoriteHallName}>{hallName(h.hallTid)}</Text>
+                <Text style={styles.favoriteHallName}>{hallNameFor(h.hallTid)}</Text>
               </Card>
             ))}
           </View>

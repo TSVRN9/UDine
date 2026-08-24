@@ -1,4 +1,4 @@
-import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
+import { GRAB_N_GO_TIDS, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
 import { deriveSharedStatsPayloads, fieldsNeedingRefresh, sharedStatValueForToggle } from "./privacySettings";
 
 function entry(overrides: Partial<LogEntry> = {}): LogEntry {
@@ -52,6 +52,23 @@ describe("deriveSharedStatsPayloads", () => {
     expect(topFoods).toEqual([{ dishName: "Chicken Parm", score: expect.any(Number), hallName: "Worcester" }]);
     expect(topFoods[0]).not.toHaveProperty("tone");
     expect(topFoods[0]).not.toHaveProperty("comparisonCount");
+  });
+
+  // PR #139 review (#108): the old hand-copied hallName lookup in youPaneFormat.ts consulted
+  // DINING_HALLS only, so a top food whose most-recent log came from a Grab 'N Go station (its own
+  // distinct tid, GRAB_N_GO_TIDS -- see grabNGoMenu.test.tsx) resolved to hallName: null here.
+  // hallNameForOrNull (shared's consolidated lookup) resolves that same tid to "<Hall> Grab 'N Go"
+  // instead -- pinned here, not just in youPaneFormat.test.ts, because this is the exact seam where
+  // that value gets shaped into SharedTopFoodEntry and pushed to shared_stats.top_foods, readable by
+  // accepted friends (see this file's own doc comment above: "hallName stays; it's a location
+  // label"). A gng station name is still building-granularity, so this is a deliberate, sanctioned
+  // value -- just one that needs to be pinned, since it changed from the pre-#139 behavior.
+  it("resolves a Grab 'N Go-sourced top food's synced hallName as \"<Hall> Grab 'N Go\", not null", () => {
+    const foods = [food("Grilled Cheese", 3, 1550)];
+    const entries = [entry({ source: { type: "umass-menu", dishName: "Grilled Cheese", hallTid: GRAB_N_GO_TIDS.hampshire } })];
+    const { topFoods } = deriveSharedStatsPayloads(new Map(), entries, [], foods);
+
+    expect(topFoods).toEqual([{ dishName: "Grilled Cheese", score: expect.any(Number), hallName: "Hampshire Grab 'N Go" }]);
   });
 
   it("caps top foods at the same 5-item limit YouPane shows the owner", () => {

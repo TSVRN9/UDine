@@ -1,6 +1,6 @@
 import type { HallCompletion } from "@udine/shared";
 import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
-import { buildTopFoods, deriveTopFoodHall, displayCompletionPct, groupEntriesByMeal, hallName, logItemLine, mealPeriodForTime, pillTone } from "./youPaneFormat";
+import { buildTopFoods, deriveTopFoodHall, displayCompletionPct, groupEntriesByMeal, logItemLine, mealPeriodForTime, pillTone } from "./youPaneFormat";
 
 function completion(overrides: Partial<HallCompletion> = {}): HallCompletion {
   return { hallTid: 1, loggedDistinct: 0, seenDistinct: 0, pct: 0, ...overrides };
@@ -170,19 +170,10 @@ describe("mealPeriodForTime", () => {
   });
 });
 
-// --- hallName / logItemLine: extracted out of YouPane.tsx (were module-local there) so #119's Logs
-// & stats screen can reuse the exact same collapsed-row text instead of re-deriving it. ------------
-
-describe("hallName", () => {
-  it("resolves a known hall tid to its name", () => {
-    expect(hallName(1)).toBe("Worcester");
-    expect(hallName(3)).toBe("Hampshire");
-  });
-
-  it("falls back to a generic label for an unknown tid", () => {
-    expect(hallName(999)).toBe("Hall 999");
-  });
-});
+// --- logItemLine: extracted out of YouPane.tsx (was module-local there) so #119's Logs & stats
+// screen can reuse the exact same collapsed-row text instead of re-deriving it. Its hall-name
+// lookup is @udine/shared's hallNameFor (#108) -- see umassDining.test.ts for that contract's own
+// coverage (known tid, unknown-tid fallback, Grab 'N Go tid resolution). ---------------------------
 
 describe("logItemLine", () => {
   it("omits the × qty suffix for a single serving", () => {
