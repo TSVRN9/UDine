@@ -1,4 +1,4 @@
-import type { LogEntry } from "./types.ts";
+import type { Favorite, LogEntry, RankedDish, RankedFood } from "./types.ts";
 
 /**
  * Device-local persistence for health data. Implemented per-platform
@@ -41,12 +41,60 @@ export function exportEntriesAsJson(entries: LogEntry[]): string {
 
 const CSV_COLUMNS = ["id", "loggedAt", "dishName", "servings", "calories", "proteinG", "totalCarbG", "totalFatG"] as const;
 
+/** Quote+escape one CSV field, shared by every export*AsCsv function below. */
+function csvField(value: string | number): string {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
 export function exportEntriesAsCsv(entries: LogEntry[]): string {
   const rows = entries.map((e) => {
     const dishName = e.source.type === "umass-menu" ? e.source.dishName : e.source.productName;
     return [e.id, e.loggedAt, dishName, e.servings, e.nutrition.calories, e.nutrition.proteinG, e.nutrition.totalCarbG, e.nutrition.totalFatG]
-      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .map(csvField)
       .join(",");
   });
   return [CSV_COLUMNS.join(","), ...rows].join("\n");
+}
+
+// --- #148: ranking (rankedDishes/rankedFoods) and favorites exporters -- the other two
+// always-device-local stores per CLAUDE.md's data residency table ("every device-local table needs
+// a JSON/CSV export path"). Same release-valve shape as the log exporters above: export IS the
+// sanctioned way this data leaves the device, so these still never touch the network themselves.
+
+/** JSON export of a device's per-hall RankedDish ratings (RankingStorage). */
+export function exportRankedDishesAsJson(dishes: RankedDish[]): string {
+  return JSON.stringify(dishes, null, 2);
+}
+
+const RANKED_DISH_CSV_COLUMNS = ["dishName", "hallTid", "rating", "comparisonCount"] as const;
+
+export function exportRankedDishesAsCsv(dishes: RankedDish[]): string {
+  const rows = dishes.map((d) => [d.dishName, d.hallTid, d.rating, d.comparisonCount].map(csvField).join(","));
+  return [RANKED_DISH_CSV_COLUMNS.join(","), ...rows].join("\n");
+}
+
+/** JSON export of a device's cross-hall RankedFood ratings (FoodRankingStorage). */
+export function exportRankedFoodsAsJson(foods: RankedFood[]): string {
+  return JSON.stringify(foods, null, 2);
+}
+
+const RANKED_FOOD_CSV_COLUMNS = ["dishName", "rating", "comparisonCount"] as const;
+
+export function exportRankedFoodsAsCsv(foods: RankedFood[]): string {
+  const rows = foods.map((f) => [f.dishName, f.rating, f.comparisonCount].map(csvField).join(","));
+  return [RANKED_FOOD_CSV_COLUMNS.join(","), ...rows].join("\n");
+}
+
+/** JSON export of a device's binary dish/location favorites (FavoritesStorage). */
+export function exportFavoritesAsJson(favorites: Favorite[]): string {
+  return JSON.stringify(favorites, null, 2);
+}
+
+const FAVORITE_CSV_COLUMNS = ["type", "dishName", "hallTid"] as const;
+
+export function exportFavoritesAsCsv(favorites: Favorite[]): string {
+  const rows = favorites.map((f) =>
+    [f.type, f.type === "dish" ? f.dishName : "", f.type === "location" ? f.hallTid : ""].map(csvField).join(","),
+  );
+  return [FAVORITE_CSV_COLUMNS.join(","), ...rows].join("\n");
 }
