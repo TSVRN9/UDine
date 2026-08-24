@@ -67,12 +67,21 @@ export function buildTopFoods(rankedFoods: RankedFood[], rankedDishes: RankedDis
   });
 }
 
+/** The dish/product name for a log entry, regardless of source: the menu dish name for an
+ * on-campus entry, the OpenFoodFacts product name for an off-menu (barcode) one. PR #140 review
+ * (issue #142): this ternary existed as three separate copies (here inline, logsFormat.ts's
+ * entryDishName, logs.tsx's dishNameOf) -- consolidated onto this one export, which the other two
+ * now both import instead of re-deriving. */
+export function entryDishName(entry: LogEntry): string {
+  return entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
+}
+
 /** Single-line item text per the canvas: "<dish> × <qty> · <hall>", qty omitted when it's 1, hall
  * omitted for off-menu (barcode) entries that don't have one. Extracted out of YouPane.tsx -- #119's
  * Logs & stats screen renders the same collapsed row. Hall lookup itself is @udine/shared's
  * hallNameFor (#108) -- this used to be a module-local copy of the same tid-to-name lookup. */
 export function logItemLine(entry: LogEntry): string {
-  const name = entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
+  const name = entryDishName(entry);
   const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
   const hall = entry.source.type === "umass-menu" ? ` · ${hallNameFor(entry.source.hallTid)}` : "";
   return `${name}${qty}${hall}`;

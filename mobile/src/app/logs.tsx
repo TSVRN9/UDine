@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, EmptyState, SectionHeader } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
-import { entryCalories, groupEntriesByMeal, logItemLine } from "../lib/youPaneFormat";
+import { entryCalories, entryDishName, groupEntriesByMeal, logItemLine } from "../lib/youPaneFormat";
 import { buildFunStats, buildWeekChart, buildWeekStrip, formatLogTime, type WeekDayChip } from "../lib/logsFormat";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 
@@ -19,17 +19,16 @@ function localDateFromIso(dateIso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function dishNameOf(entry: LogEntry): string {
-  return entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
-}
-
 /** One week-strip chip: weekday letters + day-number circle + gold dot (or an empty same-size
  * spacer, so dot-less days don't shift the row's vertical alignment). Canvas colors: selected fills
  * maroon; past/today outlines in ink-at-20%-alpha with solid maroon900 digits; future mutes both the
  * border (ink-at-10%) and the digits (ink-at-35%). */
 function WeekChip({ chip, onPress }: { chip: WeekDayChip; onPress: () => void }) {
+  // PR #140 review (issue #142): a bare ISO date ("2026-08-18") reads as digits to a screen
+  // reader. Humanized the same way the header subtitle below already does.
+  const accessibleDate = localDateFromIso(chip.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   return (
-    <Pressable style={styles.chipColumn} onPress={onPress} accessibilityRole="button" accessibilityLabel={chip.date}>
+    <Pressable style={styles.chipColumn} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibleDate}>
       <Text style={styles.chipLabel}>{chip.dayLabel}</Text>
       <View
         style={[
@@ -58,7 +57,7 @@ function LogItemRow({ entry, onPress }: { entry: LogEntry; onPress: () => void }
 
 /** Gold-bordered edit sub-card: stepper (stepping to 0 deletes) + a standalone × remove button. */
 function EditEntryCard({ entry, onStep, onRemove }: { entry: LogEntry; onStep: (delta: number) => void; onRemove: () => void }) {
-  const dishName = dishNameOf(entry);
+  const dishName = entryDishName(entry);
   const subtitle = [
     entry.source.type === "umass-menu" ? hallNameFor(entry.source.hallTid) : null,
     formatLogTime(entry.loggedAt),
@@ -341,7 +340,13 @@ const styles = StyleSheet.create({
   },
   removeIcon: { fontSize: fs(14), color: colors.maroon600 },
 
-  // Last 7 Days chart -- plain flex divs, no chart library.
+  // Last 7 Days chart -- plain flex divs, no chart library. `chartBars.height` and the per-bar
+  // `height` (computed inline below, from this same 72) are deliberately raw px, NOT fs()-scaled
+  // (PR #140 review, issue #142): theme.ts's own fs() doc comment scopes it to "fonts and
+  // lineHeights only", and chart geometry is neither -- a bar's height is a proportion of a fixed
+  // 72px plot area, not text that needs to stay legible at small widths. (chartBarWrap/chartBar's
+  // *width* uses fs(32) already, predating this PR and out of scope for #142 -- not touched here,
+  // though it's arguably the same category of "not text" and could be revisited together later.)
   chartCard: { paddingVertical: spacing(3.5), paddingHorizontal: spacing(3.5), gap: spacing(2) },
   chartBars: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 72 },
   chartBarWrap: { width: fs(32), alignItems: "center" },

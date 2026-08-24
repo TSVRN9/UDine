@@ -92,19 +92,63 @@ the wrong device.
 
 ```bash
 adb -s emulator-5556 shell ...          # every adb call needs -s
-export ANDROID_SERIAL=emulator-5556     # expo / gradle / react-native installs read this
 ```
 
-`ANDROID_SERIAL` is what `expo run:android` and the Gradle `installDebug` task honour. Set it for
-the whole shell before building, not just the adb calls.
+**`ANDROID_SERIAL` does NOT steer `expo run:android`'s device pick — corrected 2026-08-23 (issue
+#142), superseding the old claim in this section.** PR #140 hit this live: with
+`ANDROID_SERIAL=emulator-5556` exported for the whole shell and no `--device` flag, `expo run:android`
+built and installed onto **emulator-5554** instead. Root-caused by reading the installed
+`@expo/cli@57.0.16` source (`mobile/node_modules/.pnpm/@expo+cli@.../build/src/...`), not just
+inferred from the symptom:
+
+- No `--device` flag → `run/android/resolveDevice.js` calls
+  `AndroidDeviceManager.resolveAsync()` with no arguments.
+- `start/platforms/android/AndroidDeviceManager.js`'s `resolveAsync` then does
+  `const _device = shouldPrompt ? await promptForDeviceAsync(devices) : devices[0]` — it picks
+  **`devices[0]`**, full stop. `ANDROID_SERIAL` is never read anywhere on this path.
+- `devices[0]` comes from `getDevices.js` → `adb.js`'s `getAttachedDevicesAsync()`, which runs a
+  plain `adb devices -l` (no `-s`, so it always lists every attached device) and returns them in
+  whatever order that command prints them — `ANDROID_SERIAL` has no effect on `adb devices` either,
+  since that command isn't scoped to one device in the first place. In practice this pool's `adb`
+  consistently lists `emulator-5554` first, which is exactly what PR #140 observed.
+- The *install* itself, once a device is resolved, correctly targets it explicitly
+  (`installAppAsync` → `adb.js`'s `installAsync` passes `-s <resolved-pid>`) — the bug is purely in
+  which device gets resolved up front, not in how the resolved device is used afterward.
+
+**Reliable mechanism: pass `--device <AVD name>` explicitly.** This routes through
+`resolveDeviceAsync`'s other branch, `AndroidDeviceManager.resolveFromNameAsync(name)`, which
+matches by **AVD name, not serial** — a bare serial errors here (confirmed by PR #140), so use the
+name from the Devices table above:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk \
+PATH="/usr/lib/jvm/java-17-temurin-jdk/bin:$PATH" \
+npx expo run:android --device Agent_Emulator_Narrow
+```
+
+Still worth a post-install sanity check if the build's target matters (as PR #140 did):
+`adb -s emulator-5556 shell dumpsys package <applicationId> | grep lastUpdateTime` should jump to
+the just-finished build's timestamp on the serial you intended, not a neighbor's.
+
+Keep exporting/using `-s <serial>` for every direct `adb` call you make yourself (shell, install,
+logcat, etc.) — those genuinely need it, and `ANDROID_SERIAL` still works fine for scoping your own
+`adb` commands. It just doesn't reach into `expo run:android`'s own device selection.
+
+**Not independently re-verified with a live boot this session** — no pool device was running at
+investigation time (all three idle, no lock held), and source-level tracing through the exact
+installed `@expo/cli` version already gives a definitive, code-level answer that matches PR #140's
+own live observation, so a fresh cold boot (40-50s+ under swangle, plus a real Gradle build) wasn't
+spent re-confirming it. If a future agent wants to re-verify live: acquire a free device via the
+locking protocol above, run `expo run:android` with `ANDROID_SERIAL` set to a *different* device
+than the one you locked, and confirm the resolved device is `devices[0]` (typically 5554)
+regardless.
 
 Android native builds still need JDK 17 (see repo `CLAUDE.md`):
 
 ```bash
-export ANDROID_SERIAL=emulator-5556
 JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk \
 PATH="/usr/lib/jvm/java-17-temurin-jdk/bin:$PATH" \
-npx expo run:android
+npx expo run:android --device Agent_Emulator_Narrow
 ```
 
 ## Restarting a pool device — `-gpu swangle_indirect` is mandatory
