@@ -63,7 +63,12 @@ export function extractDishMealMap(data: Partial<Record<string, Record<string, s
     if (!categories) continue;
     for (const html of Object.values(categories)) {
       for (const m of html.matchAll(/data-dish-name="([^"]*)"/g)) {
-        const name = decodeEntities(m[1]);
+        // .trim() matches shared/src/umassDining.ts's getAttrRaw (decode then trim) -- favorites are
+        // stored trimmed (that's what the shared parser writes), so an untrimmed key here would
+        // silently fail to match any dish whose live attribute has surrounding whitespace: no
+        // sighting, no push, no error either. pr-reviewer finding (#145): not reachable on a live
+        // probe (2026-08-23: 174 tags, 0 padded), but a latent parity trap between the two parsers.
+        const name = decodeEntities(m[1]).trim();
         if (!dishMeal.has(name)) dishMeal.set(name, mealPeriod);
       }
     }
@@ -71,12 +76,29 @@ export function extractDishMealMap(data: Partial<Record<string, Record<string, s
   return dishMeal;
 }
 
-async function fetchHallMenu(hallTid: number): Promise<Map<string, string>> {
+/**
+ * Fetches + extracts one hall's dish->meal map, degrading to an empty map -- not throwing -- on ANY
+ * failure: a rejected fetch (DNS/TLS/connection), a non-OK response, or a 200 whose body isn't valid
+ * JSON (a maintenance page, a realistic failure mode for umassdining.com's scraped Drupal endpoint).
+ * Mirrors _shared/hours.ts's fetchHallHours (same hazard, same fix, see its doc comment for the full
+ * reasoning) -- pr-reviewer finding (#145): this fetch was unguarded, so a single hall's rejection or
+ * maintenance page threw out of the Deno.serve handler and aborted the WHOLE invocation (zero
+ * sightings/pushes for every hall and every user), while pg_cron still reported success.
+ *
+ * `fetchImpl` defaults to the global fetch; tests inject a stub so both failure paths are
+ * red-green-testable without a real network call.
+ */
+export async function fetchHallMenu(hallTid: number, fetchImpl: typeof fetch = fetch): Promise<Map<string, string>> {
   const url = `https://www.umassdining.com/foodpro-menu-ajax?tid=${hallTid}&date=${encodeURIComponent(todayDateParam())}`;
-  const res = await fetch(url);
-  if (!res.ok) return new Map();
-  const data = (await res.json()) as Partial<Record<string, Record<string, string>>>;
-  return extractDishMealMap(data);
+  try {
+    const res = await fetchImpl(url);
+    if (!res.ok) return new Map();
+    const data = (await res.json()) as Partial<Record<string, Record<string, string>>>;
+    return extractDishMealMap(data);
+  } catch (err) {
+    console.error(`fetchHallMenu(${hallTid}) failed, degrading to no dishes for this hall:`, err);
+    return new Map();
+  }
 }
 
 const MEAL_LABELS: Record<string, string> = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", latenight: "late night" };
