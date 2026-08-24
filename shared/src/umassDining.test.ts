@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchMenu, parseCategoryItems } from "./umassDining.ts";
+import { fetchMenu, mealPeriodLabel, MEAL_PERIODS, parseCategoryItems } from "./umassDining.ts";
 
 // fetchMenu calls the global fetch directly (no injectable client) -- swap it for a stub and
 // restore afterward, same pattern as openFoodFacts.test.ts.
@@ -101,4 +101,18 @@ test("fetchMenu maps the feed's 'late night' key to MealPeriod 'latenight' inste
   // lunch items still parse as before -- this isn't a regression on the existing keys.
   const lunchItems = items.filter((i) => i.mealPeriod === "lunch");
   assert.equal(lunchItems.length, 2);
+});
+
+// #137: web's hall page hardcoded its own ["breakfast","lunch","dinner"] list instead of consuming
+// this mapping, so "latenight" -- reachable since #133 -- never rendered there. MEAL_PERIODS is the
+// single source of truth callers should build their meal-period UI off of.
+test("MEAL_PERIODS includes latenight, in the same order fetchMenu maps wire keys", () => {
+  assert.deepEqual(MEAL_PERIODS, ["breakfast", "lunch", "dinner", "latenight"]);
+});
+
+test("mealPeriodLabel gives latenight a readable two-word label; the rest just title-case", () => {
+  assert.equal(mealPeriodLabel("breakfast"), "Breakfast");
+  assert.equal(mealPeriodLabel("lunch"), "Lunch");
+  assert.equal(mealPeriodLabel("dinner"), "Dinner");
+  assert.equal(mealPeriodLabel("latenight"), "Late Night");
 });
