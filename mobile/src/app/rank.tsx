@@ -1,7 +1,7 @@
 import {
   applyComparison,
   applyFoodComparison,
-  DINING_HALLS,
+  hallNameFor,
   rankDiningHalls,
   rankDishes,
   rankFoods,
@@ -22,10 +22,6 @@ import { type Dish, dishKey, pickPair } from "../lib/pairSelection";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
-
-function hallName(hallTid: number): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-}
 
 export default function RankScreen() {
   const [loggedDishes, setLoggedDishes] = useState<Dish[]>([]);
@@ -102,10 +98,10 @@ export default function RankScreen() {
         <Card style={styles.compareCard}>
           <Text style={styles.heading}>Which did you like more?</Text>
           <Button variant="primary" style={styles.choiceButton} onPress={() => choose(pair[0], pair[1])}>
-            {`${pair[0].dishName} (${hallName(pair[0].hallTid)})`}
+            {`${pair[0].dishName} (${hallNameFor(pair[0].hallTid)})`}
           </Button>
           <Button variant="primary" style={styles.choiceButton} onPress={() => choose(pair[1], pair[0])}>
-            {`${pair[1].dishName} (${hallName(pair[1].hallTid)})`}
+            {`${pair[1].dishName} (${hallNameFor(pair[1].hallTid)})`}
           </Button>
           <Button variant="ghost" onPress={skip}>
             Skip
@@ -119,7 +115,7 @@ export default function RankScreen() {
       ) : (
         rankDishes(rankedDishes).map((dish, i) => (
           <Text key={dishKey(dish)} style={styles.rankRow}>
-            {i + 1}. {dish.dishName} ({hallName(dish.hallTid)}) — {Math.round(dish.rating)}
+            {i + 1}. {dish.dishName} ({hallNameFor(dish.hallTid)}) — {Math.round(dish.rating)}
           </Text>
         ))
       )}
@@ -139,12 +135,12 @@ export default function RankScreen() {
       <Text style={styles.heading}>Dining hall ranking</Text>
       {hallRanking.ranked.map((hall) => (
         <Text key={hall.hallTid} style={styles.rankRow}>
-          {hall.rank}. {hallName(hall.hallTid)}
+          {hall.rank}. {hallNameFor(hall.hallTid)}
         </Text>
       ))}
       {hallRanking.unranked.map((hall) => (
         <Text key={hall.hallTid} style={styles.rankRowMuted}>
-          {hallName(hall.hallTid)} — not enough data yet
+          {hallNameFor(hall.hallTid)} — not enough data yet
         </Text>
       ))}
     </ScrollView>

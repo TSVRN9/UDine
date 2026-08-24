@@ -1,4 +1,4 @@
-import { DINING_HALLS } from "@udine/shared";
+import { DINING_HALLS, hallNameFor } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useFocusEffect } from "expo-router";
@@ -10,10 +10,6 @@ import { supabase } from "../lib/supabase";
 type Profile = { user_id: string; display_name: string };
 type Friendship = { user_a: string; user_b: string; status: "pending" | "accepted"; requested_by: string };
 type Ping = { id: string; sender_id: string; receiver_id: string; hall_tid: number | null; message: string | null; created_at: string };
-
-function hallName(hallTid: number | null): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? "somewhere";
-}
 
 function otherUserId(f: Friendship, myId: string): string {
   return f.user_a === myId ? f.user_b : f.user_a;
@@ -195,7 +191,7 @@ export function FriendsBody() {
       {inbox.length === 0 && <Text style={styles.empty}>No pings yet.</Text>}
       {inbox.map((p) => (
         <Text key={p.id} style={styles.pingRow}>
-          {profilesById.get(p.sender_id)?.display_name ?? "Someone"} wants to eat {p.hall_tid ? `at ${hallName(p.hall_tid)}` : ""}
+          {profilesById.get(p.sender_id)?.display_name ?? "Someone"} wants to eat {p.hall_tid ? `at ${hallNameFor(p.hall_tid)}` : ""}
           {p.message ? ` — "${p.message}"` : ""}
         </Text>
       ))}

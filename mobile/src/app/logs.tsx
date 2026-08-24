@@ -1,4 +1,4 @@
-import { isoDateOf, type LogEntry } from "@udine/shared";
+import { hallNameFor, isoDateOf, type LogEntry } from "@udine/shared";
 import { router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, EmptyState, SectionHeader } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
-import { entryCalories, groupEntriesByMeal, hallName, logItemLine } from "../lib/youPaneFormat";
+import { entryCalories, groupEntriesByMeal, logItemLine } from "../lib/youPaneFormat";
 import { buildFunStats, buildWeekChart, buildWeekStrip, formatLogTime, type WeekDayChip } from "../lib/logsFormat";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 
@@ -60,7 +60,7 @@ function LogItemRow({ entry, onPress }: { entry: LogEntry; onPress: () => void }
 function EditEntryCard({ entry, onStep, onRemove }: { entry: LogEntry; onStep: (delta: number) => void; onRemove: () => void }) {
   const dishName = dishNameOf(entry);
   const subtitle = [
-    entry.source.type === "umass-menu" ? hallName(entry.source.hallTid) : null,
+    entry.source.type === "umass-menu" ? hallNameFor(entry.source.hallTid) : null,
     formatLogTime(entry.loggedAt),
     `${Math.round(entry.nutrition.calories)} cal each`,
   ]
@@ -94,8 +94,9 @@ function EditEntryCard({ entry, onStep, onRemove }: { entry: LogEntry; onStep: (
 /**
  * #119: Logs & stats screen, pushed from the You pane's ALL LOGS link (#118). Everything here is
  * computed from the device-local log -- no Supabase calls, no new tables (CLAUDE.md's data
- * residency table is law). Reuses #118's groupEntriesByMeal/hallName/logItemLine (youPaneFormat.ts)
- * and shared's isoDateOf for local-day bucketing, rather than re-deriving either.
+ * residency table is law). Reuses #118's groupEntriesByMeal/logItemLine (youPaneFormat.ts),
+ * @udine/shared's hallNameFor (#108) directly, and shared's isoDateOf for local-day bucketing,
+ * rather than re-deriving any of them.
  */
 export default function LogsScreen() {
   const [allEntries, setAllEntries] = useState<LogEntry[]>([]);

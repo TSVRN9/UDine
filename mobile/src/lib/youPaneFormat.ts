@@ -1,4 +1,4 @@
-import { DINING_HALLS, rankFoods, scoreOutOfTen, type HallCompletion, type LogEntry, type MealStatus, type RankedDish, type RankedFood } from "@udine/shared";
+import { hallNameFor, hallNameForOrNull, rankFoods, scoreOutOfTen, type HallCompletion, type LogEntry, type MealStatus, type RankedDish, type RankedFood } from "@udine/shared";
 
 /**
  * Carry-over note 3 (#92, from #97's review): shared's HallCompletion.pct rounds half-up
@@ -62,24 +62,19 @@ export function buildTopFoods(rankedFoods: RankedFood[], rankedDishes: RankedDis
   return qualifying.map((f) => {
     const score = scores.get(f.dishName)!;
     const hallTid = deriveTopFoodHall(f.dishName, rankedDishes, logEntries);
-    const hallName = hallTid !== null ? (DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? null) : null;
+    const hallName = hallNameForOrNull(hallTid);
     return { dishName: f.dishName, score, hallName, tone: pillTone(score, maxScore) };
   });
 }
 
-/** Resolves a hall tid to its display name -- extracted out of YouPane.tsx (was module-local
- * there) so #119's Logs & stats screen can reuse the exact same lookup instead of re-deriving it. */
-export function hallName(hallTid: number): string {
-  return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-}
-
 /** Single-line item text per the canvas: "<dish> × <qty> · <hall>", qty omitted when it's 1, hall
- * omitted for off-menu (barcode) entries that don't have one. Extracted out of YouPane.tsx for the
- * same reason as hallName above -- #119's Logs & stats screen renders the same collapsed row. */
+ * omitted for off-menu (barcode) entries that don't have one. Extracted out of YouPane.tsx -- #119's
+ * Logs & stats screen renders the same collapsed row. Hall lookup itself is @udine/shared's
+ * hallNameFor (#108) -- this used to be a module-local copy of the same tid-to-name lookup. */
 export function logItemLine(entry: LogEntry): string {
   const name = entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
   const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
-  const hall = entry.source.type === "umass-menu" ? ` · ${hallName(entry.source.hallTid)}` : "";
+  const hall = entry.source.type === "umass-menu" ? ` · ${hallNameFor(entry.source.hallTid)}` : "";
   return `${name}${qty}${hall}`;
 }
 

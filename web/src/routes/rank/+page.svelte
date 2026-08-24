@@ -4,7 +4,7 @@
 	import {
 		applyComparison,
 		applyFoodComparison,
-		DINING_HALLS,
+		hallNameFor,
 		rankDiningHalls,
 		rankDishes,
 		rankFoods,
@@ -34,10 +34,6 @@
 
 	// Each comparison bumps comparisonCount on both dishes, so the sum double-counts.
 	const comparisonsMade = $derived(Math.round(rankedDishes.reduce((sum, d) => sum + d.comparisonCount, 0) / 2));
-
-	function hallName(hallTid: number): string {
-		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-	}
 
 	function dishKey(d: Dish): string {
 		return `${d.dishName}::${d.hallTid}`;
@@ -173,7 +169,7 @@
 						{choice.dishName}
 					</span>
 					<span class="mt-1 block font-mono text-xs tracking-widest text-gold-500 uppercase">
-						{hallName(choice.hallTid)}
+						{hallNameFor(choice.hallTid)}
 					</span>
 				</button>
 			{/each}
@@ -209,7 +205,7 @@
 				<li class="card flex items-center gap-3 px-4 py-2.5">
 					<span class="w-7 shrink-0 font-display text-lg text-ink-900/35 tabular-nums">{i + 1}</span>
 					<span class="min-w-0 flex-1 font-semibold">{dish.dishName}</span>
-					<span class="badge">{hallName(dish.hallTid)}</span>
+					<span class="badge">{hallNameFor(dish.hallTid)}</span>
 					<span class="w-12 shrink-0 text-right font-mono text-sm text-ink-900/55">{Math.round(dish.rating)}</span>
 				</li>
 			{/each}
@@ -251,7 +247,7 @@
 		{#each hallRanking.ranked as hall, i (hall.hallTid)}
 			<li class="card flex items-center gap-3 border-l-4 border-l-gold-500 px-4 py-3">
 				<span class="w-7 shrink-0 font-display text-xl text-gold-500 tabular-nums">{i + 1}</span>
-				<span class="font-display text-lg font-semibold text-maroon-900 uppercase">{hallName(hall.hallTid)}</span>
+				<span class="font-display text-lg font-semibold text-maroon-900 uppercase">{hallNameFor(hall.hallTid)}</span>
 			</li>
 		{/each}
 	</ol>
@@ -262,7 +258,7 @@
 			{#each hallRanking.unranked as hall (hall.hallTid)}
 				<li class="flex items-center gap-3 px-4 py-1.5 text-ink-900/55">
 					<span aria-hidden="true" class="w-7 shrink-0 text-center font-display text-lg">&ndash;</span>
-					<span class="font-display uppercase">{hallName(hall.hallTid)}</span>
+					<span class="font-display uppercase">{hallNameFor(hall.hallTid)}</span>
 					<span class="text-xs">(not enough data yet)</span>
 				</li>
 			{/each}

@@ -1,4 +1,4 @@
-import { DINING_HALLS, type Favorite } from "@udine/shared";
+import { hallNameFor, type Favorite } from "@udine/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
@@ -32,7 +32,7 @@ export default function FavoritesScreen() {
       renderItem={({ item }) => (
         <Card style={styles.row}>
           <Badge>{item.type === "dish" ? "Dish" : "Hall"}</Badge>
-          <Text style={styles.rowText}>{item.type === "dish" ? item.dishName : DINING_HALLS.find((h) => h.tid === item.hallTid)?.name ?? item.hallTid}</Text>
+          <Text style={styles.rowText}>{item.type === "dish" ? item.dishName : hallNameFor(item.hallTid)}</Text>
         </Card>
       )}
       ItemSeparatorComponent={() => <View style={styles.separator} />}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { DINING_HALLS, computeDailyTotals, rankDishes, type DailyMacroTotals, type Favorite, type LogEntry, type RankedDish } from "@udine/shared";
+	import { DINING_HALLS, computeDailyTotals, hallNameFor, rankDishes, type DailyMacroTotals, type Favorite, type LogEntry, type RankedDish } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
@@ -36,10 +36,6 @@
 	let rankedDishes: RankedDish[] = $state([]);
 	let rankedLoaded = $state(false);
 	const topDishes = $derived(rankDishes(rankedDishes).slice(0, 3));
-
-	function hallName(hallTid: number): string {
-		return DINING_HALLS.find((h) => h.tid === hallTid)?.name ?? `Hall ${hallTid}`;
-	}
 
 	const today = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
 		weekday: "long",
@@ -153,7 +149,7 @@
 				<li class="card flex items-center gap-3 px-4 py-2.5">
 					<span class="w-7 shrink-0 font-display text-lg text-ink-900/35 tabular-nums">{i + 1}</span>
 					<span class="min-w-0 flex-1 font-semibold">{dish.dishName}</span>
-					<span class="badge">{hallName(dish.hallTid)}</span>
+					<span class="badge">{hallNameFor(dish.hallTid)}</span>
 				</li>
 			{/each}
 		</ol>

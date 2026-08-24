@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchMenu, mealPeriodLabel, MEAL_PERIODS, parseCategoryItems } from "./umassDining.ts";
+import { fetchMenu, GRAB_N_GO_TIDS, hallNameFor, hallNameForOrNull, mealPeriodLabel, MEAL_PERIODS, parseCategoryItems } from "./umassDining.ts";
 
 // fetchMenu calls the global fetch directly (no injectable client) -- swap it for a stub and
 // restore afterward, same pattern as openFoodFacts.test.ts.
@@ -11,6 +11,49 @@ function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
     globalThis.fetch = original;
   });
 }
+
+// #108: hallNameFor/hallNameForOrNull are the one canonical hall-tid-to-display-name lookup,
+// replacing 4+ hand-copied versions across mobile (and web) that disagreed on fallback behavior.
+test("hallNameFor resolves a known hall tid to its name", () => {
+  assert.equal(hallNameFor(1), "Worcester");
+  assert.equal(hallNameFor(3), "Hampshire");
+});
+
+test("hallNameFor falls back to `Hall <tid>` for an unrecognized tid", () => {
+  assert.equal(hallNameFor(999), "Hall 999");
+});
+
+// #121: a menu item/log entry sourced from a hall's Grab 'N Go station carries that station's own
+// distinct tid (GRAB_N_GO_TIDS), not the hall's -- hallNameFor should read as "<hall> Grab 'N Go",
+// not the raw station tid ("Hall 10667"), since it's the same physical hall's own separate station.
+// Bare "Worcester" (the parent hall's own name, unqualified) is deliberately wrong here: rank.tsx's
+// pairwise comparison UI (and web/routes/rank) dedupes/labels dishes by hallTid, and a dish logged
+// from both the hall and its Grab 'N Go station are DIFFERENT Dish rows (different hallTid) that can
+// legitimately appear side by side -- bare "Worcester" for both would make them indistinguishable.
+test("hallNameFor resolves a Grab 'N Go station tid to its own, distinguishable label", () => {
+  assert.equal(hallNameFor(GRAB_N_GO_TIDS.worcester), "Worcester Grab 'N Go");
+  assert.equal(hallNameFor(GRAB_N_GO_TIDS.hampshire), "Hampshire Grab 'N Go");
+});
+
+test("hallNameFor never collapses a hall and its own Grab 'N Go station to the same label", () => {
+  for (const hall of ["worcester", "franklin", "hampshire", "berkshire"] as const) {
+    const hallTid = { worcester: 1, franklin: 2, hampshire: 3, berkshire: 4 }[hall];
+    assert.notEqual(hallNameFor(hallTid), hallNameFor(GRAB_N_GO_TIDS[hall]));
+  }
+});
+
+// hallNameForOrNull is for presentational call sites that want to omit the label entirely rather
+// than show a fallback string -- null in, null out; an unresolvable non-null tid is also null (not
+// `Hall <tid>`), matching youPaneFormat.ts's pre-existing TopFoodDisplay.hallName contract.
+test("hallNameForOrNull returns null for a null tid and for an unresolvable tid", () => {
+  assert.equal(hallNameForOrNull(null), null);
+  assert.equal(hallNameForOrNull(999), null);
+});
+
+test("hallNameForOrNull resolves known and Grab 'N Go tids the same as hallNameFor", () => {
+  assert.equal(hallNameForOrNull(3), "Hampshire");
+  assert.equal(hallNameForOrNull(GRAB_N_GO_TIDS.berkshire), "Berkshire Grab 'N Go");
+});
 
 // Real fragment captured from GET foodpro-menu-ajax?tid=3&date=08%2F19%2F2026 (Hampshire, breakfast,
 // "Breakfast Entrees"), trimmed to two <a> items — see docs/apk-reverse-engineering.md.

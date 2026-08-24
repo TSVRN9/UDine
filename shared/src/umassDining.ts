@@ -25,6 +25,57 @@ export const GRAB_N_GO_TIDS: Record<string, number> = {
   berkshire: 10666,
 };
 
+/**
+ * Shared lookup behind hallNameFor/hallNameForOrNull below (#108) -- looks a tid up in
+ * DINING_HALLS directly, then falls back to GRAB_N_GO_TIDS: a Grab 'N Go station's own tid is
+ * distinct from its parent hall's (see the doc comment above). Deliberately NOT collapsed to the
+ * bare hall name -- a dish logged from the hall and from its Grab 'N Go station are different Dish
+ * rows (different hallTid) that can appear side by side in rank.tsx's pairwise comparison UI (and
+ * web's /rank), so they need distinguishable labels, not the same one. Returns null if neither
+ * table has it.
+ */
+function resolveHallName(hallTid: number): string | null {
+  const direct = DINING_HALLS.find((h) => h.tid === hallTid);
+  if (direct) return direct.name;
+  const gngSlug = Object.entries(GRAB_N_GO_TIDS).find(([, tid]) => tid === hallTid)?.[0];
+  const gngHall = gngSlug ? DINING_HALLS.find((h) => h.slug === gngSlug) : undefined;
+  return gngHall ? `${gngHall.name} Grab 'N Go` : null;
+}
+
+/**
+ * Canonical hallTid -> display name lookup (#108, collapsing 4+ hand-copied versions across
+ * mobile/web that disagreed on fallback text -- `?? null`, `?? \`Hall ${tid}\``, `?? "somewhere"`).
+ * For call sites that always render a hall label: an unresolvable tid falls back to `Hall <tid>`
+ * rather than throwing or going blank, so a stale/future tid degrades gracefully instead of
+ * breaking the screen. Every other divergent copy's fallback collapsed onto this one -- the
+ * unreachable-in-practice ones (ping/sighting hall tids always come from a real DINING_HALLS
+ * entry, never an unresolved one) lose their bespoke text ("somewhere") in favor of one consistent
+ * fallback instead of three conventions for the same "not found" case.
+ */
+export function hallNameFor(hallTid: number): string {
+  return resolveHallName(hallTid) ?? `Hall ${hallTid}`;
+}
+
+/**
+ * Same resolution as hallNameFor, but for presentational call sites that want to omit the hall
+ * label entirely when it's unknown rather than show a fallback string (e.g. youPaneFormat.ts's
+ * TopFoodDisplay.hallName, conditionally rendered only when non-null). Null in (no hall) or an
+ * unresolvable tid both come back null -- never `Hall <tid>`.
+ *
+ * NOT a like-for-like match with youPaneFormat.ts's own pre-#108 inline copy in one case: that
+ * copy consulted DINING_HALLS only, so a Grab 'N Go station tid resolved to null (same as an
+ * unresolvable tid). This resolves a gng tid to "<Hall> Grab 'N Go" instead (see resolveHallName
+ * above) -- a real, disclosed behavior change on TopFoodDisplay.hallName, which privacySettings.ts
+ * carries verbatim into the opt-in, friend-visible shared_stats.top_foods payload (see that file's
+ * own comment). Still building-granularity per CLAUDE.md's data residency table, so sanctioned --
+ * but it's new information a friend can see that couldn't be seen before this change, not merely a
+ * refactor. Pinned in privacySettings.test.ts, not just here, because that's the actual seam this
+ * value crosses.
+ */
+export function hallNameForOrNull(hallTid: number | null): string | null {
+  return hallTid === null ? null : resolveHallName(hallTid);
+}
+
 // The feed's raw JSON keys don't all match MealPeriod strings verbatim -- "late night" (a literal
 // space) is the wire key for MealPeriod "latenight" (confirmed live 2026-08-21, tid=1 08/21/2026:
 // {"lunch":...,"dinner":...,"late night":...}). Map wire key -> canonical MealPeriod instead of
