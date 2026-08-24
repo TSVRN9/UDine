@@ -212,10 +212,73 @@ export function parseCategoryItems(html: string, category: string, mealPeriod: M
   return items;
 }
 
-/** Fetches one dining hall's full day of menu items across all meal periods it serves. */
-export async function fetchMenu(hallTid: number, date: Date): Promise<MenuItem[]> {
+// #169: foodpro-menu-ajax is confirmed live to be deliberately uncacheable server-side
+// (`cache-control: must-revalidate, no-cache, private`, no ETag/Last-Modified, no CDN absorption)
+// -- politeness toward it has to be client-side, so fetchMenu below owns an in-memory cache instead
+// of relying on conditional requests (there are no validators to condition on -- don't add
+// If-None-Match support, it would be dead code). Menu content for a date changes at most a few times
+// a day, so ~30 min is plenty fresh.
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+interface MenuCacheEntry {
+  items: MenuItem[];
+  expiresAt: number;
+}
+
+// Module-level, process-wide (mirrors web's server-side proxy route: this is a shared cache across
+// requests there, not per-user -- fine, since the data is public and unkeyed by user). Keyed
+// `tid|MM/DD/YYYY` (the same string the upstream URL itself uses) since that's exactly the upstream
+// request's identity.
+// ponytail: unbounded -- an entry for a tid|date combo never requested again just sits here for the
+// process's life (mobile is session-bounded so this barely matters there; web's long-lived server
+// process is the one that could accumulate). Add expiry-sweep-on-read or an LRU cap if that process's
+// memory ever actually shows it.
+const menuCache = new Map<string, MenuCacheEntry>();
+// Concurrent calls for the same key (e.g. rapid date-stepper taps) share one pending upstream
+// request instead of firing one each.
+const menuFetchesInFlight = new Map<string, Promise<MenuItem[]>>();
+
+function menuCacheKey(hallTid: number, date: Date): string {
+  return `${hallTid}|${formatDateParam(date)}`;
+}
+
+/**
+ * Fetches one dining hall's full day of menu items across all meal periods it serves.
+ *
+ * `fetchImpl`/`now` are an injectable-seam pair for tests only (same trailing-default-param shape as
+ * check-favorited-foods/index.ts's fetchHallMenu) -- every real caller omits them and gets the global
+ * `fetch`/`Date.now`.
+ */
+export async function fetchMenu(hallTid: number, date: Date, fetchImpl: typeof fetch = fetch, now: () => number = Date.now): Promise<MenuItem[]> {
+  const key = menuCacheKey(hallTid, date);
+
+  const cached = menuCache.get(key);
+  // Callers must not mutate this array -- it's the cached instance itself, not a copy, and every
+  // other caller of this key gets handed the same reference until it expires.
+  if (cached && cached.expiresAt > now()) return cached.items;
+
+  const inFlight = menuFetchesInFlight.get(key);
+  if (inFlight) return inFlight;
+
+  const promise = fetchMenuUncached(hallTid, date, fetchImpl)
+    .then((items) => {
+      menuCache.set(key, { items, expiresAt: now() + CACHE_TTL_MS });
+      menuFetchesInFlight.delete(key);
+      return items;
+    })
+    .catch((err) => {
+      // A failed fetch must not poison anything: clear the pending slot (nothing cached, nothing
+      // left in flight) so the very next call retries fresh instead of replaying this rejection.
+      menuFetchesInFlight.delete(key);
+      throw err;
+    });
+  menuFetchesInFlight.set(key, promise);
+  return promise;
+}
+
+async function fetchMenuUncached(hallTid: number, date: Date, fetchImpl: typeof fetch): Promise<MenuItem[]> {
   const url = `https://www.umassdining.com/foodpro-menu-ajax?tid=${hallTid}&date=${encodeURIComponent(formatDateParam(date))}`;
-  const res = await fetch(url);
+  const res = await fetchImpl(url);
   if (!res.ok) throw new Error(`foodpro-menu-ajax ${res.status}`);
   const data = (await res.json()) as Partial<Record<string, Record<string, string>>>;
   const isoDate = toIsoDate(date);
