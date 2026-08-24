@@ -3,6 +3,23 @@ import type { DiningEvent, NewsletterIssue, PressRelease } from "./types.ts";
 const BASE = "https://www.umassdining.com/uapp";
 
 /**
+ * #150: pdf_link/external_link render straight into `<a href=…>` (web) with no protocol check --
+ * unlike featured_image, which goes through sanitizeImageUrl below. A javascript:/data: value in
+ * the feed would execute in the app origin on click. Scheme allowlist, not sanitizeImageUrl's
+ * hostname check -- hostname alone is bypassable by an authority-faking URL like
+ * `javascript://example.com/%0aalert(1)`, which parses a normal-looking hostname.
+ */
+export function sanitizeLinkUrl(url: string): string {
+  if (!url) return "";
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:" ? url : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
  * UMass Dining's press/events feeds sometimes return an image URL with a literal host of
  * `default` (e.g. `https://default/sites/default/files/press/images.png`) -- present and
  * truthy, but unresolvable. Blank anything without a plausible hostname (must contain a dot,
@@ -32,7 +49,7 @@ export async function fetchPressReleases(): Promise<PressRelease[]> {
   const res = await fetch(`${BASE}/get_press`);
   if (!res.ok) throw new Error(`get_press ${res.status}`);
   const data = (await res.json()) as PressApiItem[];
-  return data.map((item) => ({ ...item, image: sanitizeImageUrl(item.image) }));
+  return data.map((item) => ({ ...item, image: sanitizeImageUrl(item.image), url: sanitizeLinkUrl(item.url) }));
 }
 
 interface EventsApiResponse {
@@ -52,8 +69,8 @@ export function mapEvent(e: EventsApiResponse["events"][number]): DiningEvent {
   return {
     title: e.title,
     featuredImage: sanitizeImageUrl(e.featured_image),
-    pdfLink: e.pdf_link,
-    externalLink: e.external_link,
+    pdfLink: sanitizeLinkUrl(e.pdf_link),
+    externalLink: sanitizeLinkUrl(e.external_link),
     expirationDate: new Date(e.expiration_date * 1000).toISOString(),
     isFeatured: e.is_featured === "1",
   };
@@ -69,7 +86,9 @@ export async function fetchEvents(): Promise<DiningEvent[]> {
 
 /**
  * GET /uapp/get_newsletter — confirmed live (2026-08-18). Response fields already match
- * NewsletterIssue directly, no mapping needed. This is a list of links to externally-hosted
+ * NewsletterIssue directly, so shape passes through untouched — the only mapping is #150's
+ * `link` scheme sanitization, same trust boundary as pdf_link/external_link/press url above, and
+ * web renders `link` straight into `<a href=…>`. This is a list of links to externally-hosted
  * newsletter issues (mostly Mailchimp/campaign-archive) — `content` is usually empty, real
  * content lives at `link`. See CLAUDE.md/issue #33.
  */
@@ -77,5 +96,5 @@ export async function fetchNewsletter(): Promise<NewsletterIssue[]> {
   const res = await fetch(`${BASE}/get_newsletter`);
   if (!res.ok) throw new Error(`get_newsletter ${res.status}`);
   const data = (await res.json()) as NewsletterIssue[];
-  return data;
+  return data.map((issue) => ({ ...issue, link: sanitizeLinkUrl(issue.link) }));
 }

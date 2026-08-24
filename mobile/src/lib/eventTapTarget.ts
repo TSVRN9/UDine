@@ -1,4 +1,4 @@
-import { sanitizeImageUrl, type DiningEvent } from "@udine/shared";
+import { sanitizeImageUrl, sanitizeLinkUrl, type DiningEvent } from "@udine/shared";
 
 export type EventTapTarget =
   | { kind: "content"; pamphletImage: string }
@@ -22,8 +22,11 @@ export type EventTapTarget =
  * in-app browser instead, which can.
  */
 export function classifyEventTap(event: Pick<DiningEvent, "externalLink" | "pdfLink">): EventTapTarget {
-  const link = event.externalLink?.trim();
-  if (link && /^https?:\/\//i.test(link)) return { kind: "link", url: link };
+  // #150: this used to hand-roll its own http(s) prefix regex here -- now reuses content.ts's
+  // sanitizeLinkUrl, the same scheme allowlist mapEvent already applies at the fetch boundary, so
+  // there's one definition of "safe link" instead of two that can drift.
+  const link = sanitizeLinkUrl(event.externalLink?.trim() ?? "");
+  if (link) return { kind: "link", url: link };
 
   const pdf = sanitizeImageUrl(event.pdfLink ?? "");
   if (pdf && /\.pdf($|[?#])/i.test(pdf)) return { kind: "link", url: pdf };

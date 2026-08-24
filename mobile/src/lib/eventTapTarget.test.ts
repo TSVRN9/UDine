@@ -23,6 +23,15 @@ describe("classifyEventTap", () => {
     ).toEqual({ kind: "content", pamphletImage: "https://umassdining.com/sites/default/files/events/poster.jpg" });
   });
 
+  // #150: classifyEventTap used to hand-roll its own `/^https?:\/\//i` prefix check for
+  // externalLink, which only looks at the scheme prefix and doesn't require the rest to be a
+  // parseable URL. Now it reuses content.ts's sanitizeLinkUrl (a real `new URL()` parse + scheme
+  // allowlist), the same guard mapEvent applies at the fetch boundary -- one definition, not two
+  // that can drift. A scheme-only prefix with no authority is where the two diverge.
+  it("a scheme-only external_link with no authority ('https://') is treated as missing, not a link", () => {
+    expect(classifyEventTap({ externalLink: "https://", pdfLink: "" })).toEqual({ kind: "none" });
+  });
+
   it("both fields empty (missing payload) is a safe no-op", () => {
     expect(classifyEventTap({ externalLink: "", pdfLink: "" })).toEqual({ kind: "none" });
   });
