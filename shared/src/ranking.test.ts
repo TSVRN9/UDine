@@ -63,6 +63,29 @@ test("applyComparison treats the same dish name at different halls as distinct e
   assert.ok(after.some((d) => d.hallTid === 2 && d.rating < 1500));
 });
 
+test("applyComparison is a no-op when winner and loser are the same dish (same name, same hall) — mirrors applyFoodComparison's guard (#187)", () => {
+  const before: RankedDish[] = [{ dishName: "Chicken", hallTid: 1, rating: 1500, comparisonCount: 3 }];
+  const after = applyComparison(before, { dishName: "Chicken", hallTid: 1 }, { dishName: "Chicken", hallTid: 1 });
+  assert.deepEqual(after, before);
+
+  // also true for a dish that hasn't been rated yet — no phantom/duplicate row should be created
+  const fromEmpty = applyComparison([], { dishName: "Chicken", hallTid: 1 }, { dishName: "Chicken", hallTid: 1 });
+  assert.deepEqual(fromEmpty, []);
+});
+
+test("applyComparison exact rating delta for an unequal-rating pair (1800 vs 1200, comparisonCount 0) — protects against a wrong Elo divisor (#187)", () => {
+  const seeded: RankedDish[] = [
+    { dishName: "Favorite", hallTid: 1, rating: 1800, comparisonCount: 0 },
+    { dishName: "Underdog", hallTid: 1, rating: 1200, comparisonCount: 0 },
+  ];
+  const after = applyComparison(seeded, { dishName: "Favorite", hallTid: 1 }, { dishName: "Underdog", hallTid: 1 });
+  // expectedWinner = 1 / (1 + 10 ** ((1200 - 1800) / 400)) ≈ 0.9693465699682844 with the correct /400
+  // divisor; a mutated divisor (e.g. /100) changes expectedWinner and both deltas below, unlike the
+  // existing equal-rating tests (expected score 0.5 regardless of divisor) and inequality-only upset test.
+  assert.equal(after.find((d) => d.dishName === "Favorite")!.rating, 1800.9809097610148);
+  assert.equal(after.find((d) => d.dishName === "Underdog")!.rating, 1199.0190902389852);
+});
+
 test("an upset (lower-rated dish beats a higher-rated one) gains more rating than a expected win", () => {
   const seeded: RankedDish[] = [
     { dishName: "Favorite", hallTid: 1, rating: 1800, comparisonCount: 5 },
@@ -210,6 +233,17 @@ test("applyFoodComparison reuses kFactorFor from #1 — winner's rating delta at
   const after = applyFoodComparison(seeded, { dishName: "A" }, { dishName: "B" });
   // equal starting ratings -> expected score 0.5 -> new rating is exactly half the K-factor above 1500
   assert.equal(after.find((f) => f.dishName === "A")!.rating, 1500 + kFactorFor(5) * 0.5);
+});
+
+test("applyFoodComparison exact rating delta for an unequal-rating pair (1800 vs 1200, comparisonCount 0) — protects against a wrong Elo divisor (#187)", () => {
+  const seeded: RankedFood[] = [
+    { dishName: "Favorite", rating: 1800, comparisonCount: 0 },
+    { dishName: "Underdog", rating: 1200, comparisonCount: 0 },
+  ];
+  const after = applyFoodComparison(seeded, { dishName: "Favorite" }, { dishName: "Underdog" });
+  // Same math as applyComparison's exact-delta test above; see its comment for the derivation.
+  assert.equal(after.find((f) => f.dishName === "Favorite")!.rating, 1800.9809097610148);
+  assert.equal(after.find((f) => f.dishName === "Underdog")!.rating, 1199.0190902389852);
 });
 
 test("rankFoods sorts highest rating first", () => {
