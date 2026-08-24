@@ -203,6 +203,14 @@ export interface DiningHallHours {
   dinner: TimeWindow | null;
   latenight: TimeWindow | null;
   general: TimeWindow | null; // opening_hours/closing_hours -- published when there's no per-meal breakdown
+  // #180: the hall-info sheet's address/DIRECTIONS row. Both parsed out of get_infov2 fields this
+  // module previously dropped entirely -- see hours.ts's parseStreetAddress/parseMapAddress.
+  // Optional (not just nullable): mapInfoV2 is the only real producer and always sets both, but
+  // homeHero.ts's singleWindowStatus/retailOpenStatus wrap a bare TimeWindow as a hand-built
+  // DiningHallHours to reuse openStatus's math, and don't have an address to report -- `?` lets
+  // those omit the fields instead of stubbing null onto a "hall" that isn't a real one.
+  address?: string | null; // street line only (e.g. "121 Southwest Cir"), null if unparseable
+  mapAddress?: string | null; // "lat,long" as published, shape-validated; null if absent/malformed
 }
 
 export interface RetailLocationHours {

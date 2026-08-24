@@ -2,8 +2,10 @@ import {
   computeDailyTotals,
   DINING_HALLS,
   fetchDiningHours,
+  fetchEvents,
   favoriteKey,
   menuItemMatchesPreferences,
+  type DiningEvent,
   type DiningHoursFeed,
   type Favorite,
   type FoodPreferences,
@@ -16,16 +18,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState, SectionHeader } from "../../components/ui";
+import { HallInfoSheet } from "../../components/HallInfoSheet";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import {
+  directionsUrl,
   formatDateStepperLabel,
   formatServingSummary,
+  hallInfoGrabNGoWindow,
+  hallInfoHoursRows,
   MEAL_TABS,
   mealTabLabel,
-  mealTabSubtitle,
   stepDate,
   toggleExpandedKey,
 } from "../../lib/hallMenuTabs";
@@ -90,6 +95,13 @@ export default function HallMenuScreen() {
 
   const [plate, setPlate] = useState<PlateEntry[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // #180: separate from `sheetOpen` above (the Plate sheet) -- the two are independent modals, a
+  // user could in principle have tapped the title before opening the plate. `events` is separate
+  // from `hoursFeed`'s own load below because it comes from a different endpoint
+  // (get_beacons_events vs get_infov2) -- see HallInfoSheet's own doc for why it's unfiltered by
+  // hall despite the "per-hall events" framing.
+  const [infoSheetOpen, setInfoSheetOpen] = useState(false);
+  const [events, setEvents] = useState<DiningEvent[]>([]);
   const [labelItem, setLabelItem] = useState<MenuItem | null>(null);
   const [barHeight, setBarHeight] = useState(0);
   const [logged, setLogged] = useState<string | null>(null);
@@ -127,10 +139,22 @@ export default function HallMenuScreen() {
 
   useEffect(() => {
     if (!hall) return;
-    // Tab-row subtitle only — a failure here just leaves the subtitle blank, never blocks the menu.
-    // Independent of selectedDate: hours reflect what's true right now, not the date being browsed.
+    // Hall-info sheet's hours card + Grab 'N Go row (the tab-row subtitle this used to feed was
+    // removed in #180). Independent of selectedDate: hours reflect what's true right now, not the
+    // date being browsed. A failure here just leaves the sheet's hours/address blank, never blocks
+    // the menu itself.
     fetchDiningHours()
       .then(setHoursFeed)
+      .catch(() => {});
+  }, [hall]);
+
+  useEffect(() => {
+    if (!hall) return;
+    // #180: hall-info sheet's events row. Same unfiltered list for every hall -- see
+    // HallInfoSheet's own doc for why get_beacons_events can't be filtered per-hall. A failure here
+    // just leaves the row on its empty-state copy, never blocks the sheet.
+    fetchEvents()
+      .then(setEvents)
       .catch(() => {});
   }, [hall]);
 
@@ -171,7 +195,13 @@ export default function HallMenuScreen() {
   if (!hall) return <Text style={styles.error}>Unknown dining hall</Text>;
 
   const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
-  const tabSubtitle = mealTabSubtitle(hallHours, selectedDate, selectedMeal, new Date());
+  // #180: hall-info sheet's data. All computed here (not inside HallInfoSheet) so the sheet stays a
+  // pure presentational component -- hoursRows in particular needs `new Date()` at render time for
+  // its NOW-highlight, same "now" this screen already reads once per render, nowhere else.
+  const now = new Date();
+  const hoursRows = hallHours ? hallInfoHoursRows(hallHours, now) : [];
+  const grabNGoWindow = hoursFeed ? hallInfoGrabNGoWindow(hoursFeed.retail, hall.name) : null;
+  const infoDirectionsUrl = directionsUrl(hallHours?.mapAddress);
 
   function toggleExpanded(key: string) {
     setExpandedKeys((prev) => toggleExpandedKey(prev, key));
@@ -234,10 +264,29 @@ export default function HallMenuScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing(4.5) }]}>
         <View style={styles.headerLeft}>
+          {/* #180: back chevron is a SIBLING of the title-tap Pressable below, not nested inside
+          it -- same "targets don't nest" rule the dish-card expand/star/stepper Pressables already
+          follow (see this file's dish-row comment): a Pressable inside another Pressable
+          double-fires/steals gestures in RN. */}
           <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
             <Text style={styles.backChevron}>‹</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>{hall.name}</Text>
+          <Pressable
+            style={styles.titleTap}
+            onPress={() => setInfoSheetOpen(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`${hall.name} info`}
+          >
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {hall.name}
+            </Text>
+            {/* Bare 13px stroke-circle hint, not a bordered-button circle (owner rejected the 30px/
+            22px circle variants) -- turns gold while the sheet it opens is showing. */}
+            <View style={[styles.infoHint, infoSheetOpen && styles.infoHintOpen]}>
+              <Text style={[styles.infoHintText, infoSheetOpen && styles.infoHintTextOpen]}>i</Text>
+            </View>
+          </Pressable>
         </View>
         <View style={styles.dateStepper}>
           <Pressable
@@ -296,7 +345,6 @@ export default function HallMenuScreen() {
           <View style={styles.tabUnderline} />
         </Pressable>
       </View>
-      {tabSubtitle ? <Text style={styles.tabSubtitle}>{tabSubtitle}</Text> : null}
 
       {error ? (
         <Text style={styles.error}>Failed to load menu: {error}</Text>
@@ -415,6 +463,16 @@ export default function HallMenuScreen() {
         onLog={logPlate}
         onClose={() => setSheetOpen(false)}
       />
+      <HallInfoSheet
+        visible={infoSheetOpen}
+        hallName={hall.name}
+        address={hallHours?.address ?? null}
+        directionsUrl={infoDirectionsUrl}
+        hoursRows={hoursRows}
+        grabNGoWindow={grabNGoWindow}
+        events={events}
+        onClose={() => setInfoSheetOpen(false)}
+      />
       {labelItem && (
         <NutritionLabel
           visible={!!labelItem}
@@ -448,15 +506,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(5),
     paddingBottom: spacing(1.5),
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: spacing(3) },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: spacing(3), flexShrink: 1, minWidth: 0 },
   backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
+  // #180: the whole title group (name + (i) hint) is one tap zone opening the hall-info sheet.
+  titleTap: { flexDirection: "row", alignItems: "center", gap: spacing(1.5), flexShrink: 1, minWidth: 0 },
   headerTitle: {
+    flexShrink: 1,
     fontFamily: fonts.display700,
     fontSize: fs(22),
     letterSpacing: 1,
     textTransform: "uppercase",
     color: colors.maroon900,
   },
+  // Bare 13px thin-stroke circle, not a bordered-button circle -- the canvas's rejected 30px/22px
+  // variants were chunkier affordances, not this. flexShrink: 0 so the hint never gets squeezed out
+  // by a long hall name (Worcester/Hampshire) before the name itself starts truncating.
+  infoHint: {
+    width: fs(13),
+    height: fs(13),
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    borderColor: withOpacity(colors.ink900, 45),
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    marginTop: spacing(0.5),
+  },
+  infoHintOpen: { borderColor: colors.gold500 },
+  infoHintText: { fontFamily: fonts.body600, fontSize: fs(8), lineHeight: fs(9), color: withOpacity(colors.ink900, 45) },
+  infoHintTextOpen: { color: colors.gold500 },
 
   dateStepper: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   dateStepperButton: {
@@ -499,7 +577,6 @@ const styles = StyleSheet.create({
   tabUnderlineActive: { backgroundColor: colors.gold500 },
   tabSpacer: { flexGrow: 1 },
   tabDivider: { width: 1, height: fs(16), backgroundColor: withOpacity(colors.ink900, 20) },
-  tabSubtitle: { paddingHorizontal: spacing(5), paddingBottom: spacing(1.5), fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
 
   sectionHeaderWrap: {
     paddingHorizontal: spacing(5),

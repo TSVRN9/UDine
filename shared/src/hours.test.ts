@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { currentMealPeriod, mapInfoV2, openStatus, type InfoV2Location } from "./hours.ts";
+import { currentMealPeriod, mapInfoV2, openStatus, parseMapAddress, parseStreetAddress, type InfoV2Location } from "./hours.ts";
 import type { DiningHallHours, TimeWindow } from "./types.ts";
 
 // Real sample captured from GET https://www.umassdining.com/uapp/get_infov2, 2026-08-19 (curl -L,
@@ -23,6 +23,12 @@ const REAL_INFOV2_SAMPLE = [
     lunch_close_time: "",
     dinner_open_time: "",
     dinner_close_time: "",
+    // #180: real capture 2026-08-24 -- unspaced `<br/>` form (vs. Hampshire's spaced `<br />`
+    // below) and a deliberately malformed map_address (real feeds don't publish this, but
+    // windowOrNull's own trust-boundary precedent -- "degrade, don't throw, on an unrecognized
+    // shape from this same trust boundary" -- means the parser needs a real case proving it).
+    address: "<p>121 Southwest Cir<br/>Amherst, MA 01003</p>",
+    map_address: "not-a-coordinate",
   },
   {
     location_title: "Worcester Commons",
@@ -34,6 +40,9 @@ const REAL_INFOV2_SAMPLE = [
     lunch_close_time: "",
     dinner_open_time: "",
     dinner_close_time: "",
+    // #180: no address/map_address keys at all -- proves the "absent field" path (distinct from
+    // Berkshire's "present but malformed" case above), same optional-key trust-boundary shape
+    // InfoV2Location's breakfast/lunch/dinner fields already have (issue #100 item 2).
   },
   {
     location_title: "Franklin Dining Commons",
@@ -56,6 +65,10 @@ const REAL_INFOV2_SAMPLE = [
     lunch_close_time: null,
     dinner_open_time: null,
     dinner_close_time: null,
+    // #180: real capture 2026-08-24 -- `<br />` (spaced) form, distinct from Berkshire's `<br/>`
+    // below, so the mapping is proven against both forms actually seen live.
+    address: "<p>141 Southwest Cir<br />Amherst, MA 01003</p>",
+    map_address: "42.383790,-72.530519",
   },
   {
     location_title: "Roots Café",
@@ -201,6 +214,54 @@ test("mapInfoV2 degrades locationId to undefined, never throws, when location_id
   const { location_id, ...withoutLocationId } = REAL_PEOPLES_ORGANIC;
   const feed = mapInfoV2([withoutLocationId]);
   assert.equal(feed.retail[0]?.locationId, undefined);
+});
+
+// --- address/mapAddress (#180: hall-info sheet's address card + DIRECTIONS row) ---
+
+test("mapInfoV2 populates address/mapAddress on halls from get_infov2's address/map_address fields", () => {
+  const feed = mapInfoV2(REAL_INFOV2_SAMPLE);
+  const hampshire = feed.halls.find((h) => h.hallTid === 3);
+  // <br /> (spaced) form -- only the street line is kept, "Amherst, MA 01003" is dropped (the
+  // sheet hardcodes a "UMass Amherst" caption there instead, see parseStreetAddress's doc).
+  assert.equal(hampshire?.address, "141 Southwest Cir");
+  assert.equal(hampshire?.mapAddress, "42.383790,-72.530519");
+});
+
+test("mapInfoV2 sets mapAddress to null for a malformed (non-coordinate) map_address, without dropping the parsed address", () => {
+  const feed = mapInfoV2(REAL_INFOV2_SAMPLE);
+  const berkshire = feed.halls.find((h) => h.hallTid === 4);
+  // <br/> (unspaced) form -- proves both br variants parse.
+  assert.equal(berkshire?.address, "121 Southwest Cir");
+  assert.equal(berkshire?.mapAddress, null);
+});
+
+test("mapInfoV2 sets address/mapAddress to null when get_infov2 omits the fields entirely", () => {
+  const feed = mapInfoV2(REAL_INFOV2_SAMPLE);
+  const worcester = feed.halls.find((h) => h.hallTid === 1);
+  assert.equal(worcester?.address, null);
+  assert.equal(worcester?.mapAddress, null);
+});
+
+test("parseStreetAddress keeps only the first line and strips tags, for both <br/> and <br /> forms", () => {
+  assert.equal(parseStreetAddress("<p>121 Southwest Cir<br/>Amherst, MA 01003</p>"), "121 Southwest Cir");
+  assert.equal(parseStreetAddress("<p>141 Southwest Cir<br />Amherst, MA 01003</p>"), "141 Southwest Cir");
+});
+
+test("parseStreetAddress returns null for absent/empty input", () => {
+  assert.equal(parseStreetAddress(null), null);
+  assert.equal(parseStreetAddress(undefined), null);
+  assert.equal(parseStreetAddress(""), null);
+  assert.equal(parseStreetAddress("<p></p>"), null);
+});
+
+test("parseMapAddress accepts a well-formed lat,long pair and rejects anything else", () => {
+  assert.equal(parseMapAddress("42.383790,-72.530519"), "42.383790,-72.530519");
+  assert.equal(parseMapAddress("42,-72"), "42,-72");
+  assert.equal(parseMapAddress("not-a-coordinate"), null);
+  assert.equal(parseMapAddress("javascript:alert(1)"), null);
+  assert.equal(parseMapAddress(""), null);
+  assert.equal(parseMapAddress(null), null);
+  assert.equal(parseMapAddress(undefined), null);
 });
 
 // --- time math (currentMealPeriod / openStatus) ---
