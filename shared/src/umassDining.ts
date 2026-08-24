@@ -116,10 +116,16 @@ const RAW_MEAL_PERIOD_KEYS: [string, MealPeriod][] = [...HALL_MEAL_PERIOD_KEYS, 
 // period drawn from this array without tsc widening it to MealPeriod's retail-inclusive union.
 export const MEAL_PERIODS: HallMealPeriod[] = HALL_MEAL_PERIOD_KEYS.map(([, period]) => period);
 
-/** Display label for a meal period -- "latenight" has no natural word break, everything else is
- * already a real word. */
+/** Display label for a meal period -- "latenight"/"allday"/"grabngo" have no natural word break,
+ * everything else is already a real word. "allday"/"grabngo" (#175) are retail-only and never reach
+ * a hall tab (MEAL_PERIODS excludes them), but a future retail-menu consumer (the café-tap feature
+ * this and #175 are prerequisite plumbing for -- see #177/#178) calls this directly on
+ * MenuItem.mealPeriod, not through MEAL_PERIODS, so a real label matters here too -- title-casing
+ * would otherwise render "Allday"/"Grabngo". */
 export function mealPeriodLabel(period: MealPeriod): string {
   if (period === "latenight") return "Late Night";
+  if (period === "allday") return "All Day";
+  if (period === "grabngo") return "Grab 'N Go";
   return period.charAt(0).toUpperCase() + period.slice(1);
 }
 
@@ -197,7 +203,11 @@ function priceAfter(html: string, fromIndex: number): string | undefined {
   const nextItemIndex = html.indexOf('data-dish-name="', fromIndex);
   const windowEnd = nextItemIndex === -1 ? html.length : nextItemIndex;
   const match = html.slice(fromIndex, windowEnd).match(/<span class="meal-price">([^<]*)<\/span>/);
-  return match ? match[1].trim() : undefined;
+  // `|| undefined`, not just `.trim()` -- a real capture (Harvest Market, tid=4306) has a legend-icon
+  // block with no price span at all between two priced dishes; an empty match[1] (or a span present
+  // but blank, `<span class="meal-price"></span>`) means "no price here", same absent-price contract
+  // as a hall item with no span at all, not a `price: ""` that renders as a blank line.
+  return match ? match[1].trim() || undefined : undefined;
 }
 
 /**
