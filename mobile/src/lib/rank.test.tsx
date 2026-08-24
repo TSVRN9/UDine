@@ -150,3 +150,41 @@ it("drops a rapid second tap on the same still-displayed pair while the first co
   const totalComparisons = finalDishes.reduce((sum, d) => sum + d.comparisonCount, 0);
   expect(totalComparisons).toBe(2);
 });
+
+// #162 (PR #159 round-2 review, non-blocking finding): choose()'s guard releases in `finally`,
+// so it releases even when a save rejects -- but nothing proved that before this test. The
+// reviewer's own probe showed moving the release out of `finally` latches both choice buttons
+// permanently after one thrown save, with the rest of the suite still green. choose() has no
+// catch of its own (round-2 review: "a rejected save is once again an unhandled rejection
+// propagating out of an un-awaited onPress, exactly as on main" -- rank.tsx was never in #158's
+// {error}-surfacing scope), so this screen's convention for a write failure IS letting it
+// propagate, not swallowing it into a banner -- proven here by awaiting the press directly and
+// asserting the rejection reaches the caller, then that a second tap still lands.
+it("releases the choosing guard after a rejected save, so a subsequent tap still applies a comparison (#162)", async () => {
+  const root = await renderScreen();
+
+  // Reset call count/implementation -- the previous test left a deferred, never-settled
+  // implementation and its own call recorded on this same jest.fn() (no resetMocks configured,
+  // see jest.config.js).
+  rankingStorageMock.saveRankedDishes.mockReset().mockResolvedValue(undefined);
+  rankingStorageMock.saveRankedDishes.mockRejectedValueOnce(new Error("disk full"));
+
+  const pizzaButton = findChoiceButton(root, /^Pizza/);
+  await act(async () => {
+    await expect(pizzaButton.props.onPress()).rejects.toThrow("disk full");
+  });
+
+  expect(rankingStorageMock.saveRankedDishes).toHaveBeenCalledTimes(1);
+
+  // The throw happened before setPair could advance the displayed pair, so the same buttons are
+  // still showing -- re-find them (react-test-renderer's tree may have re-rendered from the
+  // intermediate setRankedDishes call) and press again.
+  const pizzaButtonAgain = findChoiceButton(root, /^Pizza/);
+  await act(async () => {
+    await pizzaButtonAgain.props.onPress();
+  });
+
+  // A second, real save landing at all (not dropped as "still in flight") proves the guard
+  // released despite the throw.
+  expect(rankingStorageMock.saveRankedDishes).toHaveBeenCalledTimes(2);
+});
