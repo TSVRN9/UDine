@@ -249,6 +249,41 @@ describe("LogsScreen day log editing", () => {
     });
   });
 
+  // #162 (PR #159 round-2 review): withStepGuard releases `stepping.current` in `finally`, so it
+  // releases even when the guarded write rejects -- the repo's own precedent for the other two
+  // guards' shape, but this file had no `mockRejected` case proving it. withStepGuard has no catch
+  // of its own -- same as rank.tsx's choose(), and unlike the three handlers #158 fixed (#146) --
+  // so a rejected write propagates as-is out of the un-awaited onPress; awaiting the press directly
+  // is what lets the test observe that rejection instead of it becoming a silent unhandled one.
+  it("releases the step guard after a rejected write, so a subsequent tap still commits (#162)", async () => {
+    const entry = logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1);
+    logMock.getAllEntries.mockResolvedValue([entry]);
+    const root = await renderLogsScreen();
+
+    act(() => {
+      pressableWithLabel(root, "Edit French Toast · Hampshire").props.onPress();
+    });
+
+    logMock.addEntry.mockRejectedValueOnce(new Error("disk full"));
+    await act(async () => {
+      await expect(pressableWithLabel(root, "Add one French Toast").props.onPress()).rejects.toThrow("disk full");
+    });
+
+    expect(logMock.addEntry).toHaveBeenCalledTimes(1);
+
+    // Guard must have released in `finally` despite the throw -- a second tap must still reach
+    // addEntry (computing from the still-1 servings count, since the rejected write's refresh()
+    // never ran), not be dropped as if the first write were still in flight.
+    logMock.getAllEntries.mockResolvedValue([{ ...entry, servings: 2 }]);
+    await act(async () => {
+      await pressableWithLabel(root, "Add one French Toast").props.onPress();
+    });
+
+    expect(logMock.addEntry).toHaveBeenCalledTimes(2);
+    expect(logMock.addEntry).toHaveBeenLastCalledWith(expect.objectContaining({ id: "1", servings: 2 }));
+    expect(texts(root)).toMatch(/640\s*cal/);
+  });
+
   it("tapping × removes the entry regardless of remaining servings", async () => {
     logMock.getAllEntries.mockResolvedValue([logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 5)]);
     const root = await renderLogsScreen();

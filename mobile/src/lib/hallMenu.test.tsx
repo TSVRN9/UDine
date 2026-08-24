@@ -501,6 +501,36 @@ describe("HallMenuScreen plate wiring", () => {
     expect(bottomOffset).toBe(88);
   });
 
+  // #162: useGuardedLogPlate's `inFlight` ref releases in `finally`, so it releases even when
+  // addEntry rejects -- the test above only proves the *banner*, not that the guard itself let go.
+  // Same shape as rank.tsx's choose(): a second LOG tap must still reach addEntry, not be dropped
+  // as if the first commit were still in flight.
+  it("releases the LOG guard after a rejected write, so a subsequent LOG tap still logs successfully (#162)", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full")).mockResolvedValue(undefined);
+
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+
+    await openSheetAndLog(root);
+
+    // First tap surfaced the failure per this screen's convention (same banner as the case above)
+    // and left the plate/sheet in place -- setSheetOpen(false) only runs on the {ok:true} path.
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn't log everything/);
+    expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
+
+    const buttonAgain = root.root.findAllByType(Button).find((n) => typeof n.props.children === "string" && /^LOG \d+ ITEMS?$/.test(n.props.children));
+    if (!buttonAgain) throw new Error("LOG N ITEMS button not found -- is the sheet still open?");
+    await act(async () => {
+      await buttonAgain.props.onPress();
+    });
+
+    // A second, real addEntry call landing at all (not dropped) proves the guard released despite
+    // the throw, and it actually committed this time -- plate cleared, success message shown.
+    expect(mockAddEntry).toHaveBeenCalledTimes(2);
+    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    expect(texts(root).flat().join(" ")).toMatch(/Logged 1 item\b/);
+  });
+
   // #147: LOG only ever disabled on an empty plate (PlateSheet's own `disabled={plate.length === 0}`
   // prop) -- nothing disabled it while a commit was already running, so a second tap landing before
   // the first's sequential addEntry() writes finished re-ran toLogEntries (fresh ids) and duplicated
