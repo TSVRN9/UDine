@@ -26,6 +26,25 @@ export function findDeadExpoTokens(tokens: string[], receipts: ExpoPushReceipt[]
   return dead;
 }
 
+// Known Web Push service hosts (FCM/Chrome, Mozilla autopush, Windows/Edge WNS, Apple web push).
+// RLS lets an authenticated user upsert their own push_tokens row with an arbitrary `endpoint`
+// (push_tokens has no server-side write path -- see the migration's own comment); without this
+// check, dispatchPushNotifications would POST a VAPID-signed request to whatever host they chose --
+// a blind, self-triggered SSRF primitive (pr-reviewer finding, #145). Suffix-matched so a real
+// service's subdomains (e.g. fcm.googleapis.com) match, but a lookalike host (evilgoogleapis.com)
+// does not -- the check requires a "." immediately before the allowlisted suffix, or an exact match.
+const PUSH_SERVICE_HOST_SUFFIXES = ["googleapis.com", "mozilla.com", "windows.com", "apple.com"];
+
+export function isKnownPushServiceHost(endpoint: string): boolean {
+  let host: string;
+  try {
+    host = new URL(endpoint).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return PUSH_SERVICE_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+}
+
 export type PushConfig = {
   webPushConfigured: boolean;
   expoPushConfigured: boolean;
@@ -94,6 +113,15 @@ export async function dispatchPushNotifications(
           // can never succeed, so treat it the same as a permanently-dead subscription.
           await supabase.from("push_tokens").delete().eq("platform", "web").eq("token", t.token);
           tokensRemoved++;
+          continue;
+        }
+        const endpoint = (subscription as { endpoint?: unknown } | null)?.endpoint;
+        if (typeof endpoint !== "string" || !isKnownPushServiceHost(endpoint)) {
+          // Refuse to send, but don't delete -- unlike a malformed/corrupt token this row parses
+          // fine, it's just pointed somewhere we won't POST to. Leaving it means a legitimate future
+          // subscription for this user (a different endpoint) still works normally; this row simply
+          // never sends.
+          console.error("Web push subscription endpoint host not in the known-push-service allowlist, refusing to send:", endpoint);
           continue;
         }
         try {

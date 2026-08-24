@@ -56,6 +56,18 @@ Deno.test("extractDishMealMap: decodes HTML entities in dish names", () => {
   if (!map.has("Mac & Cheese")) throw new Error(`expected decoded "Mac & Cheese" as a key, got keys ${JSON.stringify([...map.keys()])}`);
 });
 
+// pr-reviewer finding (#145): favorited_foods stores dish names trimmed (shared/src/umassDining.ts's
+// getAttrRaw does decode-then-trim), but this map was keyed on the untrimmed, decoded attribute --
+// any dish whose live data-dish-name carries surrounding whitespace would silently fail to match
+// (no sighting, no push, no error). Not reachable on a live probe (2026-08-23: 174 tags, 0 padded),
+// but a latent parity trap between the two parsers.
+Deno.test("extractDishMealMap: trims surrounding whitespace from data-dish-name, matching the shared parser", () => {
+  const data = { breakfast: { "Hot Bar": '<li><a data-dish-name="  French Toast  "></a></li>' } };
+  const map = extractDishMealMap(data);
+  if (!map.has("French Toast")) throw new Error(`expected trimmed "French Toast" as a key, got keys ${JSON.stringify([...map.keys()])}`);
+  if (map.has("  French Toast  ")) throw new Error("expected the padded, untrimmed key to be absent");
+});
+
 Deno.test("isPermanentWebPushError: 404/410 are permanent", () => {
   if (!isPermanentWebPushError({ statusCode: 404 })) throw new Error("expected 404 to be permanent");
   if (!isPermanentWebPushError({ statusCode: 410 })) throw new Error("expected 410 to be permanent");
