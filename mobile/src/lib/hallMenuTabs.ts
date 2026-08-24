@@ -1,13 +1,27 @@
-import { currentMealPeriod, openStatus, type DiningHallHours, type MealPeriod, type NutritionFacts } from "@udine/shared";
+import {
+  currentMealPeriod,
+  MEAL_PERIODS,
+  mealPeriodLabel,
+  openStatus,
+  type DiningHallHours,
+  type MealPeriod,
+  type NutritionFacts,
+} from "@udine/shared";
 
 /** Meal tab order for the hall-menu header row (#117 canvas: Breakfast / Lunch / Dinner / Late).
  * Grab 'N Go is a 5th, separately-rendered tab that navigates away rather than selecting one of
- * these -- it isn't a MealPeriod on this hall's own menu. */
-export const MEAL_TABS: MealPeriod[] = ["breakfast", "lunch", "dinner", "latenight"];
+ * these -- it isn't a MealPeriod on this hall's own menu. Sourced from shared's MEAL_PERIODS
+ * (#144) rather than a second hardcoded list, so a future period added there (RAW_MEAL_PERIOD_KEYS)
+ * shows up here automatically instead of silently diverging -- see #137/#141 for the web-side bug
+ * this exact defect class caused. `readonly` because it's the same array shared owns, not a copy. */
+export const MEAL_TABS: readonly MealPeriod[] = MEAL_PERIODS;
 
+/** Tab label: same as shared's mealPeriodLabel, except this tab row is narrow enough that "Late
+ * Night" gets truncated to "Late" (#117 canvas) -- an intentional per-call-site override, not a
+ * fork of the title-casing logic itself, which still comes from shared. */
 export function mealTabLabel(period: MealPeriod): string {
   if (period === "latenight") return "Late";
-  return period.charAt(0).toUpperCase() + period.slice(1);
+  return mealPeriodLabel(period);
 }
 
 /** Steps a date by whole calendar days, preserving time-of-day. Returns a new Date -- never

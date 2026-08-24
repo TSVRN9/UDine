@@ -1,4 +1,16 @@
-import { hallNameFor, hallNameForOrNull, rankFoods, scoreOutOfTen, type HallCompletion, type LogEntry, type MealStatus, type RankedDish, type RankedFood } from "@udine/shared";
+import {
+  hallNameFor,
+  hallNameForOrNull,
+  MEAL_PERIODS,
+  mealPeriodLabel,
+  rankFoods,
+  scoreOutOfTen,
+  type HallCompletion,
+  type LogEntry,
+  type MealPeriod,
+  type RankedDish,
+  type RankedFood,
+} from "@udine/shared";
 
 /**
  * Carry-over note 3 (#92, from #97's review): shared's HallCompletion.pct rounds half-up
@@ -89,14 +101,11 @@ export function logItemLine(entry: LogEntry): string {
 
 // --- Today's Log meal grouping (#118) --------------------------------------------------------
 
-export type MealPeriod = Exclude<MealStatus, "closed">;
-
-const MEAL_LABELS: Record<MealPeriod, string> = {
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  latenight: "Late Night",
-};
+// Re-exported so existing consumers (logsFormat.ts) keep importing MealPeriod from here --
+// previously a home-grown `Exclude<MealStatus, "closed">` derivation that landed on the same shape
+// as shared's own MealPeriod only because MealStatus redundantly re-lists "latenight" (#144: use
+// the real type instead of re-deriving it).
+export type { MealPeriod };
 
 /**
  * Canonical, contiguous local-clock windows (minutes since local midnight) a log entry's time gets
@@ -112,6 +121,15 @@ const MEAL_LABELS: Record<MealPeriod, string> = {
  * DAY's card it renders on is a separate decision made upstream by the caller's own
  * `isoDateOf(loggedAt) === todayIso()` filter -- so a 12:30 AM entry shows in *today's* Today's Log,
  * grouped under Late Night alongside tonight's later entries, not "yesterday's" card.
+ *
+ * #144 NOTE: deliberately NOT consolidated onto shared's MEAL_PERIODS, unlike groupEntriesByMeal's
+ * group order/labels below (now sourced from MEAL_PERIODS/mealPeriodLabel directly). This list is
+ * the gate on which periods can receive entries at all -- mealPeriodForTime only
+ * ever returns a period that has a boundary here, so a hypothetical period added to shared's
+ * RAW_MEAL_PERIOD_KEYS would NOT show up in Today's Log until a window is added here too. That's
+ * intentional, not a gap this issue is fixing: this table encodes fixed local-clock windows (PR
+ * #128), not period names, and picking a window for a new period is a product decision (where does
+ * it start?) shared's ordered-name list can't answer.
  */
 const MEAL_BOUNDARIES: { period: MealPeriod; startMinutes: number }[] = [
   { period: "breakfast", startMinutes: 5 * 60 }, // 5:00 AM
@@ -152,11 +170,13 @@ export interface MealLogGroup {
   totalCalories: number;
 }
 
-const MEAL_ORDER: MealPeriod[] = ["breakfast", "lunch", "dinner", "latenight"];
-
 /**
  * Buckets entries by mealPeriodForTime into canvas-order groups (Breakfast, Lunch, Dinner, Late
- * Night), omitting any period with no entries. Each group's `totalCalories` sums the same *rounded*
+ * Night), omitting any period with no entries. Group order and labels come from shared's
+ * MEAL_PERIODS/mealPeriodLabel (#144) rather than a second hardcoded list/record -- which periods
+ * can appear at all is still gated by MEAL_BOUNDARIES above, see its own doc comment.
+ *
+ * Each group's `totalCalories` sums the same *rounded*
  * per-entry calories the item rows themselves display (`Math.round(calories * servings)`), NOT the
  * raw float sum -- integer addition is exactly associative, so summing every group's totalCalories
  * always equals the sum over ALL entries computed the same way, regardless of how they're
@@ -179,9 +199,9 @@ export function groupEntriesByMeal(entries: LogEntry[]): MealLogGroup[] {
     if (bucket) bucket.push(entry);
     else byPeriod.set(period, [entry]);
   }
-  return MEAL_ORDER.filter((period) => byPeriod.has(period)).map((period) => {
+  return MEAL_PERIODS.filter((period) => byPeriod.has(period)).map((period) => {
     const groupEntries = byPeriod.get(period)!;
     const totalCalories = groupEntries.reduce((sum, e) => sum + entryCalories(e), 0);
-    return { period, label: MEAL_LABELS[period], entries: groupEntries, totalCalories };
+    return { period, label: mealPeriodLabel(period), entries: groupEntries, totalCalories };
   });
 }

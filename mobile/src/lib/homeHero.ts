@@ -1,6 +1,4 @@
-import { currentMealPeriod, openStatus, type DiningHallHours, type MealStatus, type OpenStatus, type RetailLocationHours, type TimeWindow } from "@udine/shared";
-
-type NamedMealPeriod = Exclude<MealStatus, "closed">;
+import { currentMealPeriod, MEAL_PERIODS, openStatus, type DiningHallHours, type MealPeriod, type OpenStatus, type RetailLocationHours, type TimeWindow } from "@udine/shared";
 
 /**
  * The Home pane's mealtime hero, aggregated across all 4 commons for one "what's being served
@@ -17,7 +15,7 @@ type NamedMealPeriod = Exclude<MealStatus, "closed">;
  *    which is an acceptable simplification (no day-rollover lookahead) rather than a gap.
  */
 export type HomeHero =
-  | { kind: "meal"; period: NamedMealPeriod; closesAt: Date }
+  | { kind: "meal"; period: MealPeriod; closesAt: Date }
   | { kind: "open"; closesAt: Date }
   | { kind: "closed"; opensAt: Date }
   | { kind: "closedForDay" };
@@ -25,8 +23,8 @@ export type HomeHero =
 // Live get_infov2 data never populates latenight (always null — see #98's KNOWN CONSUMER NOTE),
 // but currentMealPeriod/openStatus both handle it generically for a future data source (hours.ts's
 // own doc comment) — this scan order must too, or a populated latenight window would silently fall
-// into the "open, no named meal" bucket instead of getting its own hero line.
-const MEAL_ORDER: NamedMealPeriod[] = ["breakfast", "lunch", "dinner", "latenight"];
+// into the "open, no named meal" bucket instead of getting its own hero line. Scans shared's
+// MEAL_PERIODS directly (#144) rather than a second hardcoded copy of that order.
 
 /** Derives the aggregate hero state from all halls' hours as of `now`. The meal period is a
  * function of the clock, not a vote across halls: scans breakfast → lunch → dinner → latenight in
@@ -37,7 +35,7 @@ const MEAL_ORDER: NamedMealPeriod[] = ["breakfast", "lunch", "dinner", "latenigh
 export function deriveHomeHero(halls: DiningHallHours[], now: Date): HomeHero {
   const perHall = halls.map((h) => ({ hall: h, period: currentMealPeriod(h, now), status: openStatus(h, now) }));
 
-  for (const period of MEAL_ORDER) {
+  for (const period of MEAL_PERIODS) {
     const serving = perHall.filter((h) => h.period === period && h.status.open);
     if (serving.length === 0) continue;
     // closesAt must come from the serving halls' own current-meal window, not from openStatus's
