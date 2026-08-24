@@ -30,18 +30,20 @@ export default function RankScreen() {
   const [pair, setPair] = useState<[Dish, Dish] | null>(null);
   const lastPairRef = useRef<[Dish, Dish] | null>(null);
 
-  // #147: choose() reads/saves whole-blob rankedDishes/rankedFoods -- a second tap landing before
-  // the first's two awaited saves + getSession finished used to compute from the same stale
-  // render-closure state as the first, and its whole-blob save clobbered the first's write
-  // (last-write-wins). React state updates don't apply synchronously within a single microtask
-  // burst, so a plain guard that just re-reads `rankedDishes` state on the next call still sees the
-  // pre-first-tap value. These two refs are the actual source of truth for choose() instead --
-  // updated synchronously the moment a comparison applies, not on React's next render -- and
-  // chooseQueueRef serializes overlapping calls so a second (legitimate) tap's comparison still
-  // lands, computed on top of the first's result, rather than being dropped or racing it.
+  // #147: choose() reads/saves whole-blob rankedDishes/rankedFoods. The displayed pair doesn't
+  // change until the LAST statement in choose() runs (after both awaited saves + getSession), so a
+  // second tap landing inside that window is never a distinct judgement on a different pair -- it's
+  // the same button re-tapped by accident, or the other button mis-tapped on a pair the user hasn't
+  // seen change. Dropped, same call the repo already made for this exact stale-closure mechanism in
+  // logs.tsx's withStepGuard ("two overlapping calls would both compute from the same stale
+  // count... the second tap is dropped rather than mis-applied") and for LOG's own double-tap guard
+  // (useGuardedLogPlate). These two refs stay regardless: `choosing.current` releases in `finally`
+  // synchronously after `setPair`, before React commits the re-render, so a tap landing in that
+  // sub-frame window would still see stale render-closure state without them -- they're the actual
+  // source of truth for choose(), updated the moment a comparison applies rather than on next render.
   const rankedDishesRef = useRef<RankedDish[]>([]);
   const rankedFoodsRef = useRef<RankedFood[]>([]);
-  const chooseQueueRef = useRef(Promise.resolve());
+  const choosing = useRef(false);
 
   const refresh = useCallback(() => {
     (async () => {
@@ -72,9 +74,11 @@ export default function RankScreen() {
   useFocusEffect(refresh);
 
   async function choose(winner: Dish, loser: Dish) {
-    // Chained onto the queue synchronously (before any await) so two taps fired back-to-back run
-    // this body one after the other, never concurrently.
-    chooseQueueRef.current = chooseQueueRef.current.then(async () => {
+    // Checked synchronously before the first await -- a second tap landing before this one
+    // finishes is dropped outright, not queued (see the refs' comment above for why).
+    if (choosing.current) return;
+    choosing.current = true;
+    try {
       const updated = applyComparison(rankedDishesRef.current, winner, loser);
       const updatedFoods = applyFoodComparison(rankedFoodsRef.current, winner, loser);
       rankedDishesRef.current = updated;
@@ -96,11 +100,9 @@ export default function RankScreen() {
       const next = pickPair(loggedDishes, updated, lastPairRef.current);
       lastPairRef.current = next;
       setPair(next);
-      // A rejection here must not leave the queue permanently wedged (every later tap chains onto
-      // this same promise) -- caught, not re-thrown, matching the pre-#147 behavior of an
-      // uncaught-but-non-fatal rejection from an un-awaited choose() call.
-    }).catch((e) => console.error("choose: comparison failed", e));
-    await chooseQueueRef.current;
+    } finally {
+      choosing.current = false;
+    }
   }
 
   function skip() {

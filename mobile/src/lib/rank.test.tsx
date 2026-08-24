@@ -1,11 +1,17 @@
 // #147: rank.tsx's choose() computed from render-closure rankedDishes/rankedFoods state and only
-// advanced the pair after two awaited saves + getSession, with both choice buttons enabled
-// throughout. A second tap landing before the first's saves resolved computed from the same stale
-// base as the first, and its whole-blob save clobbered the first's write (last-write-wins) --
-// CONFIRMED via probe: two rapid taps ended with comparisonCount 2, not the 4 two independently-
-// landing comparisons should produce. Same conventions as logsScreen.test.tsx (module-scope storage
-// singletons, mocks retrieved via `.mock.results[0].value`, useFocusEffect fired once via a module
-// flag so refresh() actually runs instead of being a no-op).
+// advanced the displayed pair after two awaited saves + getSession, with both choice buttons
+// enabled throughout. A second tap landing before the first's saves resolved computed from the
+// same stale base as the first, and its whole-blob save clobbered the first's write (last-write-
+// wins). The displayed pair is frozen for the whole guard window (setPair is the LAST statement in
+// choose()), so a second tap inside that window can only ever be the same button re-tapped by
+// accident, or the other button mis-tapped on a pair the user hasn't seen change -- never a distinct
+// judgement on a different pair. Dropped, not queued (PR #159 review round 1: queuing serialized
+// both taps' effects, which turns an accidental double-tap into two persisted, unrecoverable Elo
+// updates -- comparisonCount feeds kFactorFor's taper, scores.ts's MIN_COMPARISONS_FOR_SCORE gate,
+// and pickLeastCompared's pair selection, so an inflated count isn't cosmetic). Same conventions as
+// logsScreen.test.tsx (module-scope storage singletons, mocks retrieved via
+// `.mock.results[0].value`, useFocusEffect fired once via a module flag so refresh() actually runs
+// instead of being a no-op).
 
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ getAllEntries: jest.fn().mockResolvedValue([]) })),
@@ -101,53 +107,46 @@ beforeEach(() => {
   rankingStorageMock.saveRankedFoods.mockResolvedValue(undefined);
 });
 
-it("serializes two rapid taps on the same choice so both comparisons land, instead of the second's stale-base save clobbering the first (#147)", async () => {
+it("drops a rapid second tap on the same still-displayed pair while the first comparison's save is still in flight, instead of applying a second comparison on top of it (#147)", async () => {
   const root = await renderScreen();
 
-  // Deferred, per-call: the first choose() call's save must still be in flight when the second tap
-  // fires, the exact window in which the pre-fix code would compute from the same stale
-  // rankedDishes snapshot as the first.
-  const resolvers: Array<() => void> = [];
+  // The first choose() call's save must still be in flight when the second tap fires -- the exact
+  // window in which the pre-fix code would compute from the same stale rankedDishes snapshot as
+  // the first (and, pre-review-round-1, the window a queuing fix would apply a second comparison
+  // in, on a pair the user was never shown as having changed).
+  let resolveSave!: () => void;
   rankingStorageMock.saveRankedDishes.mockImplementation(
     () =>
       new Promise<void>((resolve) => {
-        resolvers.push(resolve);
+        resolveSave = resolve;
       }),
   );
 
   const pizzaButton = findChoiceButton(root, /^Pizza/);
 
   await act(async () => {
-    pizzaButton.props.onPress(); // starts the first comparison
-    pizzaButton.props.onPress(); // fires before the first's save resolves
+    pizzaButton.props.onPress(); // starts the guarded comparison
+    pizzaButton.props.onPress(); // fires before the first's save resolves -- must be dropped
     await Promise.resolve();
     await Promise.resolve();
   });
 
-  // Serialized, not concurrent: the second call's body hasn't started yet, so only one save is
-  // in flight so far.
   expect(rankingStorageMock.saveRankedDishes).toHaveBeenCalledTimes(1);
 
+  // Let the first comparison's save settle -- the guard must release, but there's nothing queued
+  // behind it: a second, distinct save would mean the dropped tap secretly still landed.
   await act(async () => {
-    resolvers[0](); // let the first comparison's save settle -- the queue advances to the second
+    resolveSave();
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
   });
 
-  expect(rankingStorageMock.saveRankedDishes).toHaveBeenCalledTimes(2);
+  expect(rankingStorageMock.saveRankedDishes).toHaveBeenCalledTimes(1);
 
-  await act(async () => {
-    resolvers[1]();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-
-  // Both comparisons landed on top of each other (not the second overwriting the first with an
-  // equivalent single-increment result): winner + loser each gain 1 comparisonCount per tap, so two
-  // taps sum to 4 across the pair. The CONFIRMED bug landed here at 2 (only one tap's effect survived).
+  // Exactly one comparison's worth of effect: winner + loser each gain 1 comparisonCount. The
+  // pre-fix (queuing) code landed both taps' effects here, summing to 4.
   const finalDishes = rankingStorageMock.saveRankedDishes.mock.calls.at(-1)![0] as RankedDish[];
   const totalComparisons = finalDishes.reduce((sum, d) => sum + d.comparisonCount, 0);
-  expect(totalComparisons).toBe(4);
+  expect(totalComparisons).toBe(2);
 });
