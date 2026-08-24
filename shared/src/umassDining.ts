@@ -1,4 +1,4 @@
-import type { DiningHall, MealPeriod, MenuItem, NutritionFacts } from "./types.ts";
+import type { DiningHall, HallMealPeriod, MealPeriod, MenuItem, NutritionFacts } from "./types.ts";
 
 // Drupal taxonomy term ids — confirmed via live network capture, see docs/apk-reverse-engineering.md.
 export const DINING_HALLS: DiningHall[] = [
@@ -80,17 +80,41 @@ export function hallNameForOrNull(hallTid: number | null): string | null {
 // space) is the wire key for MealPeriod "latenight" (confirmed live 2026-08-21, tid=1 08/21/2026:
 // {"lunch":...,"dinner":...,"late night":...}). Map wire key -> canonical MealPeriod instead of
 // indexing the response object directly by MealPeriod name, which silently dropped this period.
-const RAW_MEAL_PERIOD_KEYS: [string, MealPeriod][] = [
+const HALL_MEAL_PERIOD_KEYS: [string, HallMealPeriod][] = [
   ["breakfast", "breakfast"],
   ["lunch", "lunch"],
   ["dinner", "dinner"],
   ["late night", "latenight"],
 ];
 
-// Canonical meal-period order for UI display, derived from the same mapping fetchMenu uses above
-// instead of a second hardcoded list -- a client hardcoding its own ["breakfast","lunch","dinner"]
+// #175: retail-only wire keys, confirmed live 2026-08-24 -- People's Organic Coffee (tid=32) returns
+// a whole populated menu under the single key "daily offerings" (no breakfast/lunch/dinner split at
+// all), and both People's Organic and Harvest Market (tid=4306) also carry a "grabngo" key. Kept out
+// of HALL_MEAL_PERIOD_KEYS/MEAL_PERIODS on purpose -- these are NOT one of the 4 hall-tab periods
+// (#144/#160/#163 pin MealPeriod's hall-tab consolidation to breakfast/lunch/dinner/latenight, and
+// hall UIs iterate MEAL_PERIODS for their always-4 tabs). They exist here only so fetchMenu doesn't
+// drop retail items on the floor; a retail-menu consumer (not yet built) reads MenuItem.mealPeriod
+// directly rather than going through MEAL_PERIODS.
+//
+// Checked for live damage to GRAB_N_GO_TIDS (each hall's own Grab 'N Go station, a different concept
+// from retail's "grabngo" key): live-fetched tid=10667/10715 for 09/02/2026 came back
+// ["breakfast","lunch"] / ["breakfast"] -- ordinary hall-style keys, never "grabngo". No existing
+// grab-n-go screens were dropping periods.
+const RETAIL_ONLY_MEAL_PERIOD_KEYS: [string, MealPeriod][] = [
+  ["daily offerings", "allday"],
+  ["grabngo", "grabngo"],
+];
+
+const RAW_MEAL_PERIOD_KEYS: [string, MealPeriod][] = [...HALL_MEAL_PERIOD_KEYS, ...RETAIL_ONLY_MEAL_PERIOD_KEYS];
+
+// Canonical meal-period order for UI display, derived from the same hall-only mapping fetchMenu uses
+// above instead of a second hardcoded list -- a client hardcoding its own ["breakfast","lunch","dinner"]
 // is exactly how #137 silently dropped "latenight" from web's hall page after #133 added it here.
-export const MEAL_PERIODS: MealPeriod[] = RAW_MEAL_PERIOD_KEYS.map(([, period]) => period);
+// Deliberately NOT RAW_MEAL_PERIOD_KEYS.map(...) -- that would leak "allday"/"grabngo" into every hall
+// tab row (see RETAIL_ONLY_MEAL_PERIOD_KEYS's doc comment above). Typed HallMealPeriod[], not
+// MealPeriod[] -- lets hall-only code (mealTabSubtitle, deriveHomeHero) index DiningHallHours by a
+// period drawn from this array without tsc widening it to MealPeriod's retail-inclusive union.
+export const MEAL_PERIODS: HallMealPeriod[] = HALL_MEAL_PERIOD_KEYS.map(([, period]) => period);
 
 /** Display label for a meal period -- "latenight" has no natural word break, everything else is
  * already a real word. */
