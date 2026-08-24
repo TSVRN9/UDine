@@ -2,9 +2,9 @@ import { computeDailyTotals, hallCompletion, hallNameFor, isoDateOf, rankDiningH
 import type { Session } from "@supabase/supabase-js";
 import { Link, router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PaneHeader } from "../components/PaneHeader";
+import { Press } from "../components/Press";
 import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
@@ -75,7 +75,7 @@ function TopFoodRow({ dishName, score, hallName: hall, tone }: { dishName: strin
  * YOUR TOP FOODS 0-10 pills (#89), FAVORITE HALLS chips, Account/Friends rows. Extracted out of
  * app/index.tsx into its own file so PaneShellScreen's diff there stays a mechanical import swap.
  */
-export function YouPane({ activeIndex }: { activeIndex: number }) {
+export function YouPane() {
   const [session, setSession] = useState<Session | null>(null);
   const [allEntries, setAllEntries] = useState<LogEntry[]>([]);
   const [rankedDishes, setRankedDishes] = useState<RankedDish[]>([]);
@@ -122,9 +122,7 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
   const topFoods = buildTopFoods(rankedFoods, rankedDishes, allEntries, TOP_FOODS_LIMIT);
 
   return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + spacing(4.5) }]}>
-      <PaneHeader title="You" activeIndex={activeIndex} />
-
+    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
       <Card style={styles.statsCard}>
         <View style={styles.statCell}>
           <Stat label="Calories" value={String(displayedCalories)} />
@@ -144,10 +142,10 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
         <SectionHeader
           title="Today's Log"
           right={
-            <Pressable style={styles.allLogsLink} onPress={goToAllLogs}>
+            <Press style={styles.allLogsLink} onPress={goToAllLogs}>
               <Text style={styles.allLogsText}>ALL LOGS</Text>
               <Text style={styles.allLogsChevron}>›</Text>
-            </Pressable>
+            </Press>
           }
         />
         {todaysEntries.length === 0 ? (
@@ -222,23 +220,23 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
           {session ? (
             <>
               <Text style={styles.accountText}>Signed in as {session.user.email}</Text>
-              <Pressable onPress={() => signOut()}>
+              <Press onPress={() => signOut()}>
                 <Text style={styles.accountLink}>Sign out</Text>
-              </Pressable>
+              </Press>
             </>
           ) : (
-            <Pressable onPress={handleSignIn}>
+            <Press onPress={handleSignIn}>
               <Text style={styles.accountLink}>Sign in with Google</Text>
-            </Pressable>
+            </Press>
           )}
         </Card>
         <Link href="/add-friends" asChild>
-          <Pressable>
+          <Press>
             <Card style={styles.friendsRow}>
               <Text style={styles.friendsText}>Friends</Text>
               <Text style={styles.friendsChevron}>›</Text>
             </Card>
-          </Pressable>
+          </Press>
         </Link>
         {/* #182: was "Privacy" -- now "Your data", the data-map + share-toggles + delete-server-data
         screen (still the /privacy route; renamed in place, see that file's own doc comment). This
@@ -246,12 +244,12 @@ export function YouPane({ activeIndex }: { activeIndex: number }) {
         behind Your data's own EXPORT row (device-local counts + share toggles need their own
         screen real estate the You pane can't spare). */}
         <Link href="/privacy" asChild>
-          <Pressable>
+          <Press>
             <Card style={styles.friendsRow}>
               <Text style={styles.friendsText}>Your data</Text>
               <Text style={styles.friendsChevron}>›</Text>
             </Card>
-          </Pressable>
+          </Press>
         </Link>
       </View>
     </ScrollView>
