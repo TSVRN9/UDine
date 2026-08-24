@@ -22,6 +22,7 @@ import { signInWithGoogle } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { classifyEventTap, eventDateLine } from "../lib/eventTapTarget";
 import { openEventTap } from "../lib/openEventTap";
+import { sendPingGuarded } from "../lib/sendPing";
 import {
   buildPingPayload,
   hallAtPoint,
@@ -206,7 +207,7 @@ export function SocialPane({ activeIndex }: { activeIndex: number }) {
   async function sendPing(payload: PingPayload) {
     const myId = session?.user.id;
     if (!myId) return;
-    await supabase.from("pings").insert(pingRow(myId, payload));
+    await sendPingGuarded(supabase, pingRow(myId, payload));
   }
 
   function clearHoldTimer(friendId: string) {

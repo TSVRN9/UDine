@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { EmptyState } from "../components/ui";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
@@ -99,7 +99,17 @@ export function NotificationsBody() {
       // supabase-js resolves with { error } on a PostgREST failure (RLS denial, constraint
       // violation, expired session, ...) rather than rejecting — awaiting it alone silently
       // swallows that error. Same for the push_tokens calls below.
-      if (profileError) console.warn(`[push] toggleNotifications(${next}): profiles.update failed`, profileError);
+      //
+      // Issue #146: this used to flip the switch and keep going regardless of profileError, so
+      // the switch showed ON while the server's notifications_enabled stayed false (the Edge
+      // Function never sends alerts) — and it also proceeded to sync favorited_foods/push_tokens
+      // against that wrong server state. Bail out before either happens: leave the switch (and
+      // the server-derived favorites/push-token state) exactly as they were.
+      if (profileError) {
+        console.warn(`[push] toggleNotifications(${next}): profiles.update failed`, profileError);
+        Alert.alert("Couldn't update notifications", "Please try again.");
+        return;
+      }
       setNotificationsEnabled(next);
 
       // Sync (or clear) favorited_foods to match — see CLAUDE.md: favorited_foods only syncs when
@@ -109,7 +119,9 @@ export function NotificationsBody() {
       // syncFavoritedFoods never throws (see its doc comment) — log a failure and keep going
       // rather than aborting the rest of the chain. That matters most on toggle-OFF: aborting
       // here would skip push_tokens.delete below and leave a live token on a device the user
-      // just asked to stop notifying.
+      // just asked to stop notifying. Not in tension with the #146 bail-out above: that one fires
+      // before profiles.update ever lands (server state unchanged, so leaving push_tokens alone
+      // too is the consistent choice), this one fires after it already has.
       const { error: favoritesSyncError } = await withTimeout(syncFavoritedFoods(supabase, session.user.id, favorites), STEP_TIMEOUT_MS, "syncFavoritedFoods");
       if (favoritesSyncError) console.warn(`[push] toggleNotifications(${next}): syncFavoritedFoods failed`, favoritesSyncError);
 
@@ -145,7 +157,9 @@ export function NotificationsBody() {
     } catch (e) {
       // A timeout here means some step in the chain stalled — see the [push] logs above for
       // which one got as far as starting but never finished. Previously this could hang forever
-      // with zero output; now it fails visibly within STEP_TIMEOUT_MS.
+      // with zero output; now it fails visibly within STEP_TIMEOUT_MS. If this throws before
+      // reaching setNotificationsEnabled(next) above (a profiles.update timeout), the switch
+      // never optimistically flips — same "stays off on failure" guarantee as the {error} path.
       console.warn(`[push] toggleNotifications(${next}) failed`, e);
     }
   }
