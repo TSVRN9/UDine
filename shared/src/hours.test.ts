@@ -24,11 +24,12 @@ const REAL_INFOV2_SAMPLE = [
     dinner_open_time: "",
     dinner_close_time: "",
     // #180: real capture 2026-08-24 -- unspaced `<br/>` form (vs. Hampshire's spaced `<br />`
-    // below) and a deliberately malformed map_address (real feeds don't publish this, but
-    // windowOrNull's own trust-boundary precedent -- "degrade, don't throw, on an unrecognized
-    // shape from this same trust boundary" -- means the parser needs a real case proving it).
+    // below). Malformed-map_address handling is exercised directly against parseMapAddress below
+    // instead of synthesized into this fixture -- REAL_INFOV2_SAMPLE `satisfies InfoV2Location[]`
+    // specifically so it stays an actual capture tsc can catch drifting, not a place for
+    // hand-invented values real feeds don't publish.
     address: "<p>121 Southwest Cir<br/>Amherst, MA 01003</p>",
-    map_address: "not-a-coordinate",
+    map_address: "42.3828621,-72.530198",
   },
   {
     location_title: "Worcester Commons",
@@ -227,12 +228,11 @@ test("mapInfoV2 populates address/mapAddress on halls from get_infov2's address/
   assert.equal(hampshire?.mapAddress, "42.383790,-72.530519");
 });
 
-test("mapInfoV2 sets mapAddress to null for a malformed (non-coordinate) map_address, without dropping the parsed address", () => {
+test("mapInfoV2 parses the unspaced <br/> address form too (Hampshire above covers the spaced <br /> form)", () => {
   const feed = mapInfoV2(REAL_INFOV2_SAMPLE);
   const berkshire = feed.halls.find((h) => h.hallTid === 4);
-  // <br/> (unspaced) form -- proves both br variants parse.
   assert.equal(berkshire?.address, "121 Southwest Cir");
-  assert.equal(berkshire?.mapAddress, null);
+  assert.equal(berkshire?.mapAddress, "42.3828621,-72.530198");
 });
 
 test("mapInfoV2 sets address/mapAddress to null when get_infov2 omits the fields entirely", () => {
