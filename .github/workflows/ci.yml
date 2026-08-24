@@ -9,6 +9,8 @@
 #
 # Run the same checks locally:
 #   pnpm --filter @udine/shared test        # shared unit tests (node --test)
+#   pnpm --filter web test                  # web unit tests (node --test, TZ=UTC pinned -- see
+#                                            # web/src/lib/date.test.ts's header comment)
 #   pnpm --filter web check                 # svelte-check, type-only
 #   cd mobile && npx tsc --noEmit           # mobile typecheck (don't run `expo lint` here — a
 #                                            # bare first run bootstraps ESLint config as a side
