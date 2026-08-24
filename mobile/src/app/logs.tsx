@@ -160,19 +160,26 @@ export default function LogsScreen() {
       const nextServings = entry.servings + delta;
       if (nextServings <= 0) {
         await logStorage.removeEntry(entry.id);
+        // #167 (PR #166 review nit): setEditingId(null) used to run before this refresh() -- if the
+        // delete write succeeded but getAllEntries() then rejected, the edit card unmounted while
+        // allEntries still held the (now actually deleted) entry, so the row kept rendering as if
+        // untouched. Ordered after a successful refresh so a rejection here leaves the edit card
+        // (and withStepGuard's error text) in place instead of an untruthfully "normal" row.
+        await refresh();
         setEditingId(null);
       } else {
         await logStorage.addEntry({ ...entry, servings: nextServings });
+        await refresh();
       }
-      await refresh();
     });
   }
 
   async function removeEntry(entry: LogEntry) {
     await withStepGuard(async () => {
       await logStorage.removeEntry(entry.id);
-      setEditingId(null);
+      // #167: same reordering as stepEntry's delete branch above -- see that comment.
       await refresh();
+      setEditingId(null);
     });
   }
 

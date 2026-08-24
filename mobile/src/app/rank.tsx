@@ -125,6 +125,10 @@ export default function RankScreen() {
   }
 
   function skip() {
+    // #167 (PR #166 review nit): choose() clears chooseError on the next attempt, but skip() didn't
+    // -- a stale "Couldn't save" message from a prior failed choose() would sit under the freshly
+    // dealt pair with no failed action to explain it.
+    setChooseError(null);
     const next = pickPair(loggedDishes, rankedDishes, lastPairRef.current);
     lastPairRef.current = next;
     setPair(next);
