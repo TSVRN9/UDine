@@ -36,6 +36,18 @@ const RAW_MEAL_PERIOD_KEYS: [string, MealPeriod][] = [
   ["late night", "latenight"],
 ];
 
+// Canonical meal-period order for UI display, derived from the same mapping fetchMenu uses above
+// instead of a second hardcoded list -- a client hardcoding its own ["breakfast","lunch","dinner"]
+// is exactly how #137 silently dropped "latenight" from web's hall page after #133 added it here.
+export const MEAL_PERIODS: MealPeriod[] = RAW_MEAL_PERIOD_KEYS.map(([, period]) => period);
+
+/** Display label for a meal period -- "latenight" has no natural word break, everything else is
+ * already a real word. */
+export function mealPeriodLabel(period: MealPeriod): string {
+  if (period === "latenight") return "Late Night";
+  return period.charAt(0).toUpperCase() + period.slice(1);
+}
+
 function formatDateParam(date: Date): string {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const dd = String(date.getDate()).padStart(2, "0");

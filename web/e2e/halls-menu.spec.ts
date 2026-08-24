@@ -321,3 +321,18 @@ test("logging from a future day's menu records at now, not the browsed future da
 	await page.goto("/today");
 	await expect(page.getByText("Tomorrow Waffles × 1")).toBeVisible();
 });
+
+// #137: the feed really does publish a 4th meal period ("late night", MealPeriod "latenight" --
+// see shared/src/umassDining.ts's RAW_MEAL_PERIOD_KEYS and #133's fix), but this page hardcoded
+// its own ["breakfast", "lunch", "dinner"] list, so a hall serving it never rendered that section.
+// Red against the pre-fix hardcoded list: the fixture below has ONLY a latenight dish, so the old
+// list filtered it out of every section and neither the heading nor the dish itself ever appeared.
+const LATE_NIGHT_DISH: MenuItem = { ...MILK_DISH, dishName: "Midnight Mozzarella Sticks", mealPeriod: "latenight" };
+
+test("a hall serving late night renders that section, not just breakfast/lunch/dinner", async ({ page }) => {
+	await page.route("**/api/menu**", (route) => route.fulfill({ json: [LATE_NIGHT_DISH] }));
+	await gotoHampshireMenu(page);
+
+	await expect(page.getByRole("heading", { name: "Late Night" })).toBeVisible();
+	await expect(page.getByRole("listitem").filter({ hasText: "Midnight Mozzarella Sticks" })).toBeVisible();
+});
