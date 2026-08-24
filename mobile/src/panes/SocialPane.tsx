@@ -304,7 +304,7 @@ export function SocialPane({ activeIndex }: { activeIndex: number }) {
                     </Text>
                   </View>
                 ))}
-                <Link href="/friends" asChild>
+                <Link href="/add-friends" asChild>
                   <Pressable style={styles.avatarSlot}>
                     <View style={[styles.avatarCircle, styles.avatarAdd]}>
                       <Text style={styles.avatarAddPlus}>+</Text>
