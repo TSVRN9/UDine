@@ -22,10 +22,10 @@ function table(rows: Record<string, unknown>[], opts: { updateError?: unknown } 
   const builder: Record<string, unknown> = {};
   const chain = () => builder;
   builder.select = chain;
-  builder.or = chain;
+  builder.or = jest.fn(chain);
   builder.in = chain;
   builder.eq = jest.fn(chain);
-  builder.ilike = chain;
+  builder.ilike = jest.fn(chain);
   builder.neq = chain;
   builder.limit = chain;
   builder.maybeSingle = jest.fn().mockResolvedValue({ data: rows[0] ?? null, error: null });
@@ -167,5 +167,52 @@ describe("AddFriendsScreen", () => {
 
     const badge = root.root.findAllByType(Text).find((n) => ownText(n) === "1");
     expect(badge).toBeTruthy();
+  });
+
+  // PR #210 review: add-friends.tsx used to build `.or(`display_name.ilike.%${term}%,email.ilike.
+  // ${term}%`)` from raw user input. PostgREST's .or() filter syntax treats `,`/`(`/`)` in the
+  // interpolated value as filter-expression syntax (a comma opens a new OR arm), which both broke
+  // an honest "Smith, John" search (silently split into unrelated arms) and let a crafted term
+  // inject arbitrary filter arms. Fixed by using two plain .ilike() calls instead, which pass the
+  // term as an ordinary parameter with no such parsing.
+  it("search uses plain .ilike() calls, never .or(), so a comma in the term can't inject filter arms", async () => {
+    mockTables({
+      myProfile: { discoverable: true },
+      profiles: [{ user_id: "smith-1", display_name: "Smith, John", email: "smithjohn@umass.edu" }],
+    });
+    const root = await renderScreen();
+
+    const input = root.root.findAllByType(TextInput)[0];
+    await act(async () => {
+      input.props.onChangeText("Smith, John");
+      await Promise.resolve();
+    });
+
+    const profilesBuilders = mockFrom.mock.results.filter((_, i) => mockFrom.mock.calls[i][0] === "profiles").map((r) => r.value);
+    const ilikeCalls = profilesBuilders.flatMap((b) => (b.ilike as jest.Mock).mock.calls);
+    const orCalls = profilesBuilders.flatMap((b) => (b.or as jest.Mock).mock.calls);
+
+    // The raw term reaches .ilike() unescaped and unsplit -- safe by construction, not by
+    // client-side sanitization -- and .or() is never used for search at all.
+    expect(ilikeCalls).toContainEqual(["display_name", "%Smith, John%"]);
+    expect(ilikeCalls).toContainEqual(["email", "Smith, John%"]);
+    expect(orCalls.length).toBe(0);
+
+    // The honest comma search actually surfaces the match -- not silently emptied by a
+    // comma-triggered filter split.
+    expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Smith, John")).toBe(true);
+  });
+
+  // PR #210 review (BLOCKER): both entry points that used to reach /friends (SocialPane's + avatar,
+  // YouPane's Friends row) now point here instead, but /friends is still the only screen that shows
+  // received pings + its realtime inbox. Without a way back to it, receiving a ping has no screen.
+  it("still links to /friends, so received pings stay reachable", async () => {
+    mockTables({ myProfile: { discoverable: true } });
+    const root = await renderScreen();
+
+    // The expo-router mock above renders <Link asChild> children as-is (it doesn't clone in the
+    // onPress navigation prop the real Link does), so this checks the entry point is rendered at
+    // all rather than routing through findPressableByLabel's onPress requirement.
+    expect(root.root.findAll((n) => n.props.accessibilityLabel === "Friends and pings you've received").length).toBeGreaterThan(0);
   });
 });

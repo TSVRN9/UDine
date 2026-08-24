@@ -101,8 +101,20 @@ export default function AddFriendsScreen() {
       return;
     }
     const term = text.trim();
-    const { data } = await supabase.from("profiles").select("user_id, display_name, email").or(`display_name.ilike.%${term}%,email.ilike.${term}%`).neq("user_id", myId).limit(20);
-    setSearchResults(data ?? []);
+    // Two plain .ilike() calls, not one .or(`display_name.ilike.%${term}%,email.ilike.${term}%`)
+    // string -- PostgREST's .or() filter syntax treats `,`/`(`/`)` in the interpolated value as
+    // filter-expression syntax, not literal characters (a comma opens a new OR arm), so a raw user
+    // search term built that way both breaks an honest "Smith, John" search (silently becomes two
+    // unrelated arms) and lets a crafted term inject arbitrary filter arms (e.g. widen the query to
+    // match everyone). .ilike(column, pattern) passes pattern as an ordinary parameter value with
+    // no such parsing, so this is safe for any input without escaping.
+    const [byName, byEmail] = await Promise.all([
+      supabase.from("profiles").select("user_id, display_name, email").ilike("display_name", `%${term}%`).neq("user_id", myId).limit(20),
+      supabase.from("profiles").select("user_id, display_name, email").ilike("email", `${term}%`).neq("user_id", myId).limit(20),
+    ]);
+    const merged = new Map<string, Profile>();
+    for (const p of [...(byName.data ?? []), ...(byEmail.data ?? [])]) merged.set(p.user_id, p);
+    setSearchResults(Array.from(merged.values()).slice(0, 20));
   }
 
   async function requestFriend(targetId: string) {
@@ -184,6 +196,17 @@ export default function AddFriendsScreen() {
               <Text style={styles.qrRowSubtitle}>Show or scan a code — always works, even with search off.</Text>
             </View>
             <Text style={styles.qrRowChevron}>›</Text>
+          </Pressable>
+        </Link>
+
+        {/* Not in the artboard spec -- added because both entry points that used to reach
+            /friends (SocialPane's + avatar, YouPane's Friends row) now land here instead, and
+            /friends is still the only screen that shows received pings ("come eat with me") and
+            its realtime inbox. Smallest honest fix per the review: keep it one tap away rather
+            than fold pings-inbox UI into this screen (which the artboard doesn't spec at all). */}
+        <Link href="/friends" asChild>
+          <Pressable accessibilityRole="button" accessibilityLabel="Friends and pings you've received">
+            <Text style={styles.pingsInboxLink}>Friends & pings you&apos;ve received →</Text>
           </Pressable>
         </Link>
 
@@ -301,6 +324,7 @@ const styles = StyleSheet.create({
   searchGlyph: { fontSize: fs(16), color: withOpacity(colors.ink900, 50) },
   searchInput: { flex: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900, height: fs(48) },
   searchHelper: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
+  pingsInboxLink: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.maroon600, textAlign: "center" },
 
   qrRow: { flexDirection: "row", alignItems: "center", gap: spacing(3), minHeight: fs(44), backgroundColor: colors.maroon900, borderRadius: radii.md, paddingVertical: spacing(3), paddingHorizontal: spacing(3.5) },
   qrGlyph: { fontSize: fs(22), color: colors.gold500 },
@@ -347,6 +371,9 @@ const styles = StyleSheet.create({
   toggleSubline: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
   footnote: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
 
-  toggleTrack: { width: fs(44), height: fs(26), borderRadius: radii.pill, padding: 2, justifyContent: "center" },
+  // padding scales with spacing() (same width-proportional factor as fs()) -- a bare `2` here
+  // would stay fixed while the track/knob shrink at narrow widths (320dp), eventually leaving the
+  // knob no room and visibly overflowing the track.
+  toggleTrack: { width: fs(44), height: fs(26), borderRadius: radii.pill, padding: spacing(0.5), justifyContent: "center" },
   toggleKnob: { width: fs(22), height: fs(22), borderRadius: radii.pill, backgroundColor: colors.paper50 },
 });
