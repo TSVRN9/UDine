@@ -63,6 +63,12 @@ export interface MenuItem {
   nutrition: NutritionFacts;
   allergens: string[];
   dietTags: string[]; // e.g. "Vegan", "Halal", "Whole Grain" — from data-clean-diet-str
+  // #176: retail-only. Parsed verbatim from the feed's `<span class="meal-price">$3.00</span>`
+  // (parseCategoryItems) -- kept as the feed's own display string (currency symbol included), not
+  // split into number+currency: halls have no such span, so this stays absent there, and every
+  // known retail price is USD, so a currency field would carry no information a fixed "$" prefix
+  // doesn't already convey.
+  price?: string;
 }
 
 /** One food-logging entry. Device-local only — never sent to the server. */
@@ -202,6 +208,24 @@ export interface DiningHallHours {
 export interface RetailLocationHours {
   name: string;
   hours: TimeWindow | null; // null when the feed reports "Closed"
+  // #176: café-tap prerequisite plumbing. get_infov2's location_id IS the foodpro-menu-ajax tid for
+  // this location (confirmed live 2026-08-24: Green Fields 4671, Harvest Market 4306, People's
+  // Organic Coffee 32 -- also true of the 4 commons, e.g. Berkshire Dining Commons location_id=4
+  // matches DINING_HALLS' own tid=4). Optional -- degrades to undefined rather than throwing if a
+  // future capture omits or mangles it (mapInfoV2's existing trust-boundary posture, same as
+  // InfoV2Location's optional per-meal time fields in hours.ts).
+  locationId?: number;
+  // Raw HTML price-list fragments straight off the feed, one per meal period -- store RAW, sanitize
+  // at render (clients own that). null when the feed publishes "" (no menu for that meal here) or
+  // omits the field entirely; babyBerk/Commonwealth Restaurant embed a PDF link here instead of an
+  // item list, still just an HTML string.
+  breakfastMenu?: string | null;
+  lunchMenu?: string | null;
+  dinnerMenu?: string | null;
+  description?: string; // short_description_v2, raw HTML
+  address?: string; // raw HTML
+  mapAddress?: string; // "lat,long" as published, NOT parsed -- babyBerk's degenerate "," passes through untouched
+  acceptedPayment?: string;
 }
 
 export interface DiningHoursFeed {
