@@ -5,6 +5,7 @@
 // registered push_tokens, not what that title/body should say.
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { fetchAllForIds } from "./paging.ts";
 
 /** web-push's sendNotification throws a WebPushError with `.statusCode` set to the push service's
  * HTTP response code. 404/410 mean the subscription is permanently gone (unregistered/expired) --
@@ -70,6 +71,25 @@ export function readPushConfig(): PushConfig {
 
 export type PushNotification = { userId: string; title: string; body: string; data?: Record<string, unknown> };
 
+/** Looks up every push_tokens row for `userIds`, paged and id-chunked (issue #261 -- same silent
+ * max_rows truncation / .in() URL-length 414 as check-favorited-foods/index.ts's favorited_foods
+ * lookup; see paging.ts's own doc comment for the full reasoning). check-favorited-foods can pass
+ * hundreds of affected users here in one hourly run; send-ping-push always passes exactly one, so
+ * this only ever changes behavior for the former. */
+export async function fetchTokensForUsers(supabase: SupabaseClient, userIds: string[]): Promise<{ user_id: string; platform: string; token: string }[]> {
+  const { data } = await fetchAllForIds<{ user_id: string; platform: string; token: string }>(
+    supabase,
+    "push_tokens",
+    "user_id, platform, token",
+    "user_id",
+    userIds,
+    // push_tokens' full primary key (user_id, platform, token) -- a total order is required for
+    // offset/limit paging to be safe across separate requests, see fetchAllForIds's own doc comment.
+    ["user_id", "platform", "token"],
+  );
+  return data ?? [];
+}
+
 /** Sends `notifications` to each recipient's registered push_tokens (Web Push + Expo), deleting
  * permanently-dead tokens along the way. Returns counts for the caller's response body. Mirrors the
  * dispatch loop that used to live inline in check-favorited-foods/index.ts's Deno.serve handler. */
@@ -86,10 +106,10 @@ export async function dispatchPushNotifications(
   }
 
   const affectedUserIds = [...new Set(notifications.map((n) => n.userId))];
-  const { data: tokenRows } = await supabase.from("push_tokens").select("user_id, platform, token").in("user_id", affectedUserIds);
+  const tokenRows = await fetchTokensForUsers(supabase, affectedUserIds);
 
   const tokensByUser = new Map<string, { platform: string; token: string }[]>();
-  for (const row of tokenRows ?? []) {
+  for (const row of tokenRows) {
     const list = tokensByUser.get(row.user_id) ?? [];
     list.push({ platform: row.platform, token: row.token });
     tokensByUser.set(row.user_id, list);
