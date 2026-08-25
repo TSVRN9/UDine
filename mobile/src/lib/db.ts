@@ -27,6 +27,11 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
       );
       return db;
     });
+    // A rejected open must not poison every future getDb() call for the rest of the process --
+    // reset so the next call retries. The `.then` above still rejects for the original caller.
+    dbPromise.catch(() => {
+      dbPromise = null;
+    });
   }
   return dbPromise;
 }
