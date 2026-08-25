@@ -37,11 +37,6 @@ export function paneVisibility(paneIndex: number, activeIndex: number): { zIndex
   return { zIndex: active ? 3 : 1, pointerEvents: active ? "auto" : "none" };
 }
 
-/** Which of the PANE_COUNT header dots is active, in pane order. */
-export function paneDots(activeIndex: number): boolean[] {
-  return Array.from({ length: PANE_COUNT }, (_, i) => i === activeIndex);
-}
-
 /** A drag shorter than this is a scroll/tap, not a committed pane swipe -- release does nothing. */
 export const SWIPE_COMMIT_PX = 60;
 

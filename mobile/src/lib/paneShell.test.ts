@@ -4,7 +4,6 @@ import {
   isHorizontalSwipe,
   PANE_COUNT,
   paneDelta,
-  paneDots,
   paneIndexForSwipe,
   paneOffsetRange,
   paneVisibility,
@@ -58,14 +57,6 @@ describe("paneVisibility", () => {
   it("keeps inactive panes below and untappable", () => {
     expect(paneVisibility(0, 1)).toEqual({ zIndex: 1, pointerEvents: "none" });
     expect(paneVisibility(2, 1)).toEqual({ zIndex: 1, pointerEvents: "none" });
-  });
-});
-
-describe("paneDots", () => {
-  it("marks only the active index as active, in pane order", () => {
-    expect(paneDots(0)).toEqual([true, false, false]);
-    expect(paneDots(1)).toEqual([false, true, false]);
-    expect(paneDots(2)).toEqual([false, false, true]);
   });
 });
 

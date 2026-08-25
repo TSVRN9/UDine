@@ -94,9 +94,22 @@ function HallCard({
           {hall.name.charAt(0)}
         </Text>
         {/* Sibling absolute-fill Pressable (not a parent of the star below) so the two touch
-            targets don't nest — nested Pressables in RN double-fire/steal gestures. */}
+            targets don't nest — nested Pressables in RN double-fire/steal gestures.
+            `collapsable={false}`: a childless absolute-fill Pressable is Android's classic
+            view-flattening trap -- correct measured bounds, `clickable=true` in the view
+            hierarchy, but zero touches delivered (found live on-device, #179 review; this exact
+            Link+asChild+childless-Pressable shape has existed unchanged since #96/#104). Tried as
+            the first, most-likely fix (matches this repo's own `hallCardSide` precedent for the
+            identical symptom) -- kept because it's harmless and correct Android practice for this
+            shape, but device-retested on Agent_Emulator_Wide (fresh JS, app fully relaunched, not
+            just Fast Refreshed) and it did NOT restore navigation: tapping this zone still does
+            nothing. So view-flattening was a reasonable hypothesis, not the (or not the whole)
+            root cause -- this defect is CONFIRMED STILL OPEN, not fixed by this PR. See the PR
+            body; recommend a follow-up issue with deeper native-side investigation (e.g.
+            renderToHardwareTextureAndroid, or restructuring away from the sibling-Pressable shape
+            entirely) rather than more guesses here. */}
         <Link href={`/halls/${hall.slug}`} asChild>
-          <Pressable style={StyleSheet.absoluteFill} onPressIn={hallDim.onPressIn} onPressOut={hallDim.onPressOut} />
+          <Pressable collapsable={false} style={StyleSheet.absoluteFill} onPressIn={hallDim.onPressIn} onPressOut={hallDim.onPressOut} />
         </Link>
         {chip.text ? (
           <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]} pointerEvents="none">
