@@ -4,6 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { addButtonLabel, confirmErrorMessage, firstNameOf, initialsOf } from "../lib/addFriends";
+import { cancelQrFriendRequest } from "../lib/cancelQrFriendRequest";
 import { supabase } from "../lib/supabase";
 
 type Profile = { user_id: string; display_name: string; email: string | null };
@@ -58,9 +59,7 @@ export default function QrConfirmScreen() {
     } = await supabase.auth.getSession();
     const myId = session?.user.id;
     if (myId) {
-      const a = myId < userId ? myId : userId;
-      const b = myId < userId ? userId : myId;
-      await supabase.from("friendships").delete().eq("user_a", a).eq("user_b", b);
+      await cancelQrFriendRequest(supabase, myId, userId);
     }
     router.back();
   }
