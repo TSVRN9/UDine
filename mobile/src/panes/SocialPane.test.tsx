@@ -525,6 +525,10 @@ describe("SocialPane offline (#181 — owner decision: offline is not an error s
       act(() => jest.advanceTimersByTime(400));
       act(() => onResponderRelease(fakeTouchEvent(10, 10, 2))); // never hovered -- cancel, no send
       expect(mockFrom).not.toHaveBeenCalledWith("pings");
+      // The assertion that actually distinguishes cancel-vs-send: sendPing is a thin wrapper around
+      // sendOrQueuePing (see this test's own header comment above), so this is the one call this
+      // test can observe directly that would fire if the cancel guard ever regressed.
+      expect(mockSendOrQueuePing).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }
