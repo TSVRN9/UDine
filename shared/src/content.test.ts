@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchNewsletter, fetchPressReleases, mapEvent } from "./content.ts";
+import { fetchNewsletter, fetchPressReleases, htmlToText, mapEvent, parseRetailMenuHtml } from "./content.ts";
 
 // See openFoodFacts.test.ts for the same withFetch pattern — swaps globalThis.fetch for a stub.
 function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
@@ -188,4 +188,122 @@ test("fetchNewsletter throws when the HTTP response is not ok", async () => {
     () => withFetch(async () => ({ ok: false, status: 500, json: async () => [] }) as Response, fetchNewsletter),
     /get_newsletter 500/,
   );
+});
+
+// --- #178: htmlToText / parseRetailMenuHtml (café-tap parity, *_menu trust boundary) -----------
+
+test("htmlToText strips tags and decodes entities without collapsing block breaks", () => {
+  assert.equal(htmlToText("<p>1 Campus Center Way<br/>Amherst, MA 01003</p>"), "1 Campus Center Way\nAmherst, MA 01003");
+  assert.equal(htmlToText("<p>Turkey &amp; Bacon</p>"), "Turkey & Bacon");
+});
+
+test("htmlToText returns empty string for null/undefined/empty input", () => {
+  assert.equal(htmlToText(null), "");
+  assert.equal(htmlToText(undefined), "");
+  assert.equal(htmlToText(""), "");
+});
+
+// #178 pr-review: every other tag's text content is kept (that's the point of "strip tags, not
+// text") -- <script>/<style> are the one exception, their body must never leak as visible text.
+test("htmlToText drops <script>/<style> tags AND their body, not just the tags", () => {
+  assert.equal(htmlToText("<p>Hi</p><script>alert(document.cookie)</script><style>.x{color:red}</style>"), "Hi");
+});
+
+// Real capture, People's Organic Coffee breakfast_menu (hours.test.ts's REAL_PEOPLES_ORGANIC) --
+// bare <p>Dish Name</p> runs, no embedded price. This is the actual live shape, not a synthetic one.
+const REAL_PEOPLES_ORGANIC_BREAKFAST_MENU =
+  "<p>Bacon Croissant</p><p>Veggie Croissant</p><p>Turkey &amp; Bacon</p><p>Breakfast Brioche</p><p>Quiche, Broccoli</p><p>Quiche, Ham</p><p>Antioxidant</p><p>Salad Strawberry Pecan</p>";
+
+test("parseRetailMenuHtml parses a real name-only item list, decoding entities, with no price", () => {
+  const parsed = parseRetailMenuHtml(REAL_PEOPLES_ORGANIC_BREAKFAST_MENU);
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.equal(parsed.items.length, 8);
+  assert.deepEqual(parsed.items[0], { name: "Bacon Croissant", price: null });
+  assert.deepEqual(parsed.items[2], { name: "Turkey & Bacon", price: null }); // entity-decoded
+});
+
+test("parseRetailMenuHtml splits a trailing '$X.XX' into name + price", () => {
+  const parsed = parseRetailMenuHtml("<p>Espresso $3.00</p><p>Bagel</p>");
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.deepEqual(parsed.items[0], { name: "Espresso", price: "$3.00" });
+  assert.deepEqual(parsed.items[1], { name: "Bagel", price: null });
+});
+
+// #178 pr-review finding 1: a real, live shape splitting on `</p>|</li>|</div>` alone can't see --
+// several real cafés (Argo Tea #9605, Peet's #4311, Courtside #18, live-measured by the reviewer)
+// pack their entire menu into ONE <p> with <br>-separated lines, not one <p> per dish. Before this
+// fix, that whole block came back as a single multiline "item" whose name absorbed every price but
+// the (regex-matched, single) last line -- i.e. every `$price` on these cafés was silently dropped.
+const BR_SEPARATED_MENU_SHAPE = "<p>Chai Latte $3.75<br>Matcha Latte $4.25<br>Green Tea $2.50<br>Black Tea</p>";
+
+test("parseRetailMenuHtml splits <br>-separated lines within one block into separate priced items (#178 pr-review)", () => {
+  const parsed = parseRetailMenuHtml(BR_SEPARATED_MENU_SHAPE);
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.deepEqual(parsed.items, [
+    { name: "Chai Latte", price: "$3.75" },
+    { name: "Matcha Latte", price: "$4.25" },
+    { name: "Green Tea", price: "$2.50" },
+    { name: "Black Tea", price: null },
+  ]);
+});
+
+// Real capture, babyBerk breakfast_menu (hours.test.ts's REAL_BABYBERK) -- a PDF link, not an item
+// list.
+const REAL_BABYBERK_BREAKFAST_MENU =
+  '<p><a href="https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf" target="_blank">Baby Berk Menu</a></p>';
+
+test("parseRetailMenuHtml recognizes a real PDF-link menu and sanitizes its URL", () => {
+  const parsed = parseRetailMenuHtml(REAL_BABYBERK_BREAKFAST_MENU);
+  assert.deepEqual(parsed, {
+    kind: "pdf",
+    url: "https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf",
+    label: "Baby Berk Menu",
+  });
+});
+
+// Same trust boundary sanitizeLinkUrl already covers (#150) -- a hostile href in a PDF-shaped link
+// must never come back as a usable "pdf" url just because it ends in ".pdf". Falls through to the
+// item-list path instead (the link's own tags and href are stripped along with everything else),
+// same as any other unrecognized markup -- the malicious href is discarded, not surfaced.
+test("parseRetailMenuHtml drops a javascript: PDF link instead of returning it as a pdf url", () => {
+  const parsed = parseRetailMenuHtml('<p><a href="javascript:alert(1)//x.pdf">Menu</a></p>');
+  assert.notEqual(parsed.kind, "pdf");
+});
+
+// #178 pr-review finding 3: the `.pdf` shape check alone is decorative -- `/\.pdf(?:[?#]|$)/` tests
+// the raw href text, so an attacker-controlled URL that merely ENDS in something ".pdf"-shaped
+// (a fragment, here) passed it and would have landed straight in <object data=...> -- `type=
+// "application/pdf"` is only a hint; the response's real Content-Type wins, so an attacker page
+// serving HTML renders framed inside the app's own chrome. Must require the real host, not just the
+// URL string shape.
+test("parseRetailMenuHtml rejects a non-umassdining.com host even when the URL text looks like a .pdf link (#178 pr-review)", () => {
+  const parsed = parseRetailMenuHtml('<p><a href="https://evil.example/redir?to=x#.pdf">Menu</a></p>');
+  assert.notEqual(parsed.kind, "pdf");
+});
+
+// Same finding -- a host-substring/prefix check would still be bypassable by a URL whose hostname
+// merely CONTAINS "umassdining.com" without actually being it or a real subdomain of it.
+test("parseRetailMenuHtml rejects a host that only contains 'umassdining.com' as a substring, not a real (sub)domain of it", () => {
+  const parsed = parseRetailMenuHtml('<p><a href="https://umassdining.com.evil.example/x.pdf">Menu</a></p>');
+  assert.notEqual(parsed.kind, "pdf");
+});
+
+// A real umassdining.com subdomain (e.g. a CDN) must still work -- the fix is host-suffix matching,
+// not an exact-hostname-only check that would also break real infra.
+test("parseRetailMenuHtml accepts a real umassdining.com subdomain as a valid pdf host", () => {
+  const parsed = parseRetailMenuHtml('<p><a href="https://cdn.umassdining.com/menus/fall.pdf">Fall Menu</a></p>');
+  assert.equal(parsed.kind, "pdf");
+});
+
+test("parseRetailMenuHtml returns empty for null, undefined, and empty-string input", () => {
+  assert.deepEqual(parseRetailMenuHtml(null), { kind: "empty" });
+  assert.deepEqual(parseRetailMenuHtml(undefined), { kind: "empty" });
+  assert.deepEqual(parseRetailMenuHtml(""), { kind: "empty" });
+});
+
+test("parseRetailMenuHtml returns empty for HTML that strips down to nothing", () => {
+  assert.deepEqual(parseRetailMenuHtml("<p></p><p>   </p>"), { kind: "empty" });
 });

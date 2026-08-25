@@ -7,7 +7,6 @@
 		applyFoodComparison,
 		hallNameFor,
 		MEAL_PERIODS,
-		mealPeriodLabel,
 		menuItemMatchesPreferences,
 		nowLocalIso,
 		pickPostLogComparisonPair,
@@ -16,7 +15,6 @@
 		type FoodPreferences,
 		type LogEntry,
 		type LoggedDish,
-		type MealPeriod,
 		type MenuItem,
 	} from "@udine/shared";
 	import { favoriteKey } from "@udine/shared";
@@ -25,6 +23,7 @@
 	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
 	import { loadPreferences } from "$lib/preferences";
 	import { addDaysIso, todayIso } from "$lib/date";
+	import DishList from "$lib/DishList.svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -85,16 +84,6 @@
 		const favorites = await favoritesStorage.getFavorites();
 		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
 	});
-
-	function itemsFor(period: MealPeriod): MenuItem[] {
-		return data.items.filter((i) => i.mealPeriod === period && menuItemMatchesPreferences(i, prefs));
-	}
-
-	// Preserves the order categories arrive in from the feed — that's the order the dining hall
-	// itself lists them, which is more useful than alphabetical.
-	function categoriesIn(items: MenuItem[]): string[] {
-		return [...new Set(items.map((i) => i.category))];
-	}
 
 	async function toggleFavoriteDish(dishName: string) {
 		const favorite: Favorite = { type: "dish", dishName };
@@ -229,90 +218,15 @@
 	</div>
 {/if}
 
-{#each MEAL_PERIODS as period (period)}
-	{@const items = itemsFor(period)}
-	{#if items.length > 0}
-		<section class="mt-8">
-			<div class="flex items-baseline justify-between gap-3">
-				<h2 class="section-title">{mealPeriodLabel(period)}</h2>
-				<span class="font-mono text-xs text-ink-900/50">
-					{items.length}
-					{items.length === 1 ? "dish" : "dishes"}
-				</span>
-			</div>
-			<div class="label-rule mt-1 text-ink-900/25"></div>
-
-			{#each categoriesIn(items) as category (category)}
-				<h3 class="mt-5 font-body text-xs font-semibold tracking-[0.15em] text-ink-900/55 uppercase">
-					{category}
-				</h3>
-				<ul class="mt-2 flex flex-col gap-2">
-					{#each items.filter((i) => i.category === category) as item (item.dishName + item.category)}
-						{@const isFavorite = favoriteDishKeys.has(favoriteKey({ type: 'dish', dishName: item.dishName }))}
-						<li class="card flex flex-wrap items-start gap-x-3 gap-y-3 px-4 py-3">
-							<!-- Glyph-only by contract: the favorites e2e spec reads this button's text to
-							     detect state, so no icon swap and no hidden label inside it. -->
-							<button
-								onclick={() => toggleFavoriteDish(item.dishName)}
-								aria-label="favorite"
-								aria-pressed={isFavorite}
-								title={isFavorite ? `Remove ${item.dishName} from favorites` : `Add ${item.dishName} to favorites`}
-								class="shrink-0 rounded-sm px-1 text-xl leading-none transition-colors {isFavorite
-									? 'text-gold-500'
-									: 'text-ink-900/25 hover:text-gold-500'}"
-							>
-								{isFavorite ? '★' : '☆'}
-							</button>
-
-							<div class="min-w-0 flex-1 basis-64">
-								<p class="font-display text-lg leading-tight font-semibold text-maroon-900">{item.dishName}</p>
-								<p class="mt-0.5 font-mono text-sm text-ink-900/75">
-									{item.nutrition.calories} cal
-									<span class="text-ink-900/35">·</span>
-									{item.nutrition.proteinG}g protein
-									<span class="text-ink-900/35">·</span>
-									{item.nutrition.totalCarbG}g carbs
-									<span class="text-ink-900/35">·</span>
-									{item.nutrition.totalFatG}g fat
-								</p>
-								<p class="mt-0.5 text-xs text-ink-900/50">per {item.nutrition.servingSize}</p>
-								{#if item.dietTags.length > 0}
-									<p class="mt-1.5 flex flex-wrap gap-1">
-										{#each item.dietTags as tag (tag)}
-											<span class="badge bg-maroon-600/10 text-maroon-600">{tag}</span>
-										{/each}
-									</p>
-								{/if}
-								{#if item.allergens.length > 0}
-									<p class="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-ink-900/50">
-										Contains
-										{#each item.allergens as allergen (allergen)}
-											<span class="badge">{allergen}</span>
-										{/each}
-									</p>
-								{/if}
-							</div>
-
-							<div class="flex shrink-0 items-end gap-2">
-								<label class="block">
-									<span class="field-label mb-1">Servings</span>
-									<input
-										type="number"
-										min="0.25"
-										step="0.25"
-										bind:value={servings[item.dishName]}
-										class="input w-20 text-right font-mono"
-									/>
-								</label>
-								<button onclick={() => logItem(item)} class="btn btn-primary">Log</button>
-							</div>
-						</li>
-					{/each}
-				</ul>
-			{/each}
-		</section>
-	{/if}
-{/each}
+<DishList
+	items={data.items}
+	periods={MEAL_PERIODS}
+	{prefs}
+	{favoriteDishKeys}
+	{servings}
+	onToggleFavorite={toggleFavoriteDish}
+	onLog={logItem}
+/>
 
 <!-- #82: reserves clearance below the last dish row for the bottom-anchored stack below, at narrow
      widths only. At >=640px (Tailwind's `sm`) the stack tops out at 28rem wide against a much wider

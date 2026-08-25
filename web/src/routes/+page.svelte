@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { DINING_HALLS, computeDailyTotals, hallNameFor, isoDateOf, nowLocalIso, rankDishes, type DailyMacroTotals, type Favorite, type LogEntry, type RankedDish } from "@udine/shared";
+	import { DINING_HALLS, computeDailyTotals, hallNameFor, isoDateOf, nowLocalIso, rankDishes, type DailyMacroTotals, type Favorite, type LogEntry, type RankedDish, type RetailLocationHours } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbRankingStorage } from "$lib/rankingStorage";
@@ -14,6 +14,16 @@
 	// computeDailyTotals + MacroStats this repo already uses there, not a re-derivation of its own.
 	const favoritesStorage = new IndexedDbFavoritesStorage();
 	let favoriteHallTids: Set<number> = $state(new Set());
+
+	// #178: café-tap parity's "Cafés & Markets" section. Deliberately fetched client-side in
+	// onMount, NOT via a `+page.ts` server `load` -- this page's whole point (see the comment above)
+	// is zero server calls during its own SSR/hydration, and every existing e2e spec navigates here
+	// first (page.goto("/")) before mocking anything else; a load-level fetch would make that initial
+	// hit go straight to the real umassdining.com on every single spec in the suite, not just this
+	// feature's own tests. A plain post-hydration fetch is a real browser request instead, and Vite's
+	// dev server still lets Playwright's page.route() intercept it (see the load-fetch caveat
+	// documented in halls-menu.spec.ts, which only applies to `load`-inlined SSR fetches).
+	let retail: RetailLocationHours[] = $state([]);
 
 	let logStorage: IndexedDbLogStorage | undefined;
 	// NOT todayIso() (ET-anchored, for the SSR menu-day) -- this reads IndexedDB log entries, which
@@ -51,8 +61,21 @@
 		refreshFavorites();
 		refreshLog();
 		refreshRanking();
+		refreshRetail();
 		showFirstRun = !isFirstRunDismissed();
 	});
+
+	async function refreshRetail() {
+		try {
+			const res = await fetch("/api/hours");
+			if (!res.ok) return;
+			const feed = (await res.json()) as { retail: RetailLocationHours[] };
+			retail = feed.retail;
+		} catch {
+			// Same "degrade, don't break the dashboard" posture as the rest of this page -- a failed
+			// hours fetch just means the section below stays empty, never a page-level error.
+		}
+	}
 
 	async function refreshRanking() {
 		rankedDishes = await rankingStorage.getRankedDishes();
@@ -217,6 +240,45 @@
 		{/each}
 	</ul>
 </section>
+
+{#if retail.length > 0}
+	<!-- #178: café-tap parity -- makes the cafés/markets rows navigable (probe-at-tap per the
+	     mobile-parity spec: /cafes/[tid] itself calls fetchMenu(locationId, today) to decide
+	     menu-vs-fallback, not this listing). A location without a locationId (RetailLocationHours,
+	     #176 -- degrades to undefined on a malformed get_infov2 entry) renders as plain text instead
+	     of a dead link, same "degrade, don't throw or dead-end" posture as the rest of #176's plumbing.
+	     Plain <div>s, not <ul>/<li> -- get_infov2 really does publish "Hampshire Café"/"Hampshire
+	     Grab 'N Go" alongside the Dining Halls section's own "Hampshire" link, and every existing
+	     hall e2e spec locates its hall via an unscoped getByRole("listitem").filter({hasText:
+	     "Hampshire"}); a second, unrelated listitem containing that same substring made those specs'
+	     locators ambiguous (verified red against real live data before this fix, reverted to confirm
+	     green after). No accessibility loss -- this list doesn't need list/listitem semantics any
+	     more than the "More" section's plain link row below it does. -->
+	<section class="mt-8">
+		<h2 class="section-title">Cafés &amp; Markets</h2>
+		<div class="label-rule mt-1 text-ink-900/25"></div>
+
+		<div class="mt-3 flex flex-col gap-2">
+			{#each retail as loc (loc.name)}
+				<div class="card flex items-center gap-3 px-4 py-3">
+					{#if loc.locationId}
+						<a
+							href="/cafes/{loc.locationId}"
+							class="min-w-0 flex-1 font-display text-base font-semibold tracking-wide text-maroon-900 uppercase no-underline hover:text-maroon-600"
+						>
+							{loc.name}
+						</a>
+						<span aria-hidden="true" class="font-display text-lg text-maroon-600">&rarr;</span>
+					{:else}
+						<span class="min-w-0 flex-1 font-display text-base font-semibold tracking-wide text-maroon-900 uppercase">
+							{loc.name}
+						</span>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	</section>
+{/if}
 
 <section class="mt-8">
 	<h2 class="section-title">More</h2>

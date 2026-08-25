@@ -1,4 +1,4 @@
-import { DINING_HALLS, GRAB_N_GO_TIDS, fetchMenu } from "@udine/shared";
+import { DINING_HALLS, GRAB_N_GO_TIDS, fetchDiningHours, fetchMenu } from "@udine/shared";
 import { json, error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
@@ -9,6 +9,38 @@ import type { RequestHandler } from "./$types";
 // purpose, rather than trusting the query param.
 const VALID_TIDS = new Set<number>([...DINING_HALLS.map((h) => h.tid), ...Object.values(GRAB_N_GO_TIDS)]);
 
+// #178: café-tap parity needs this proxy to also accept a café/retail location's tid (its
+// get_infov2 location_id, which #176 confirmed IS the same tid foodpro-menu-ajax expects). Unlike
+// DINING_HALLS/GRAB_N_GO_TIDS, retail locations have no static list to check against — which cafés
+// exist and what tid each has is whatever get_infov2 (fetchDiningHours, #176's shared export)
+// reports *today*; hardcoding a second, café-shaped VALID_TIDS here would just be a second thing to
+// drift out of sync with that live feed. So: fetch it and cache the id set for a while instead of
+// re-hitting get_infov2 on every /api/menu call (this proxy fires once per meal-period render).
+// Doesn't need #170's fetchMenu cache's full generality (per-key TTL, in-flight dedup across many
+// keys) — this is one key, this module only — a bare timestamp check is enough.
+let retailTidCache: { ids: Set<number>; expiresAt: number } | null = null;
+const RETAIL_TID_CACHE_TTL_MS = 10 * 60 * 1000;
+
+async function isValidRetailTid(tid: number): Promise<boolean> {
+	const now = Date.now();
+	if (!retailTidCache || retailTidCache.expiresAt <= now) {
+		// #178 pr-review: fetchDiningHours() was unguarded here, and the cache only ever populates on
+		// success -- so during a get_infov2 outage, EVERY request for a garbage tid (not just a real
+		// retail one) re-threw straight past this function and SvelteKit turned it into a 500, not
+		// #172's own 400 "unknown tid". An upstream outage degrades to "no retail tids known right
+		// now" (same as a genuinely empty retail list), not a proxy-wide 500 -- #172's protection has
+		// to survive the thing it's protecting against being down.
+		try {
+			const { retail } = await fetchDiningHours();
+			const ids = new Set(retail.map((r) => r.locationId).filter((id): id is number => typeof id === "number"));
+			retailTidCache = { ids, expiresAt: now + RETAIL_TID_CACHE_TTL_MS };
+		} catch {
+			return false;
+		}
+	}
+	return retailTidCache.ids.has(tid);
+}
+
 // umassdining.com sends no Access-Control-Allow-Origin header, so the browser can't call
 // foodpro-menu-ajax directly (confirmed via curl). This route just re-serves the same public,
 // non-personal menu data server-side — no Supabase, no storage, per CLAUDE.md data residency.
@@ -16,7 +48,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const tid = Number(url.searchParams.get("tid"));
 	const dateParam = url.searchParams.get("date");
 	if (!tid || !dateParam) throw error(400, "tid and date query params are required");
-	if (!VALID_TIDS.has(tid)) throw error(400, "unknown tid");
+	if (!VALID_TIDS.has(tid) && !(await isValidRetailTid(tid))) throw error(400, "unknown tid");
 
 	// Parse as local date components, not via `new Date(string)` — that parses YYYY-MM-DD as UTC
 	// midnight, which lands on the wrong calendar day once formatted back out in a negative-UTC-offset

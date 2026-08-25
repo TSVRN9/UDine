@@ -418,9 +418,13 @@ test("signed-out: choosing a winner in the post-log prompt makes no Supabase/cro
 		const url = new URL(req.url());
 		if (url.protocol !== "http:" && url.protocol !== "https:") return; // data:/blob: aren't egress
 		if (url.origin === sameOrigin) {
-			// /api/menu is this page's own, legitimate menu fetch -- not a residency leak. Any other
-			// same-origin /api/ path would be.
-			if (url.pathname.includes("/api/") && !url.pathname.includes("/api/menu")) offenders.push(req.url());
+			// /api/menu is this page's own, legitimate menu fetch, and /api/hours is home's own
+			// "Cafés & Markets" fetch (#178, loggedTwoHampshireDishesAndChoseWinner starts from "/") --
+			// neither is a residency leak, both are public/anonymous data. Any other same-origin /api/
+			// path would be.
+			if (url.pathname.includes("/api/") && !url.pathname.includes("/api/menu") && url.pathname !== "/api/hours") {
+				offenders.push(req.url());
+			}
 			return;
 		}
 		if (!ALLOWED_CROSS_ORIGIN_HOSTS.has(url.hostname)) offenders.push(req.url());
