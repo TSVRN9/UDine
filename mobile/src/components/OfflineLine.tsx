@@ -22,7 +22,7 @@ export function OfflineLine({ text, onRetry }: Props) {
       </View>
       <Text style={styles.text}>{text}</Text>
       {onRetry ? (
-        <Pressable onPress={onRetry} hitSlop={8} accessibilityRole="button" accessibilityLabel="Retry">
+        <Pressable style={styles.retryTap} onPress={onRetry} accessibilityRole="button" accessibilityLabel="Retry">
           <Text style={styles.retry}>RETRY</Text>
         </Pressable>
       ) : null}
@@ -36,5 +36,9 @@ const styles = StyleSheet.create({
   glyphDot: { width: fs(4), height: fs(4), borderRadius: fs(2), backgroundColor: withOpacity(colors.ink900, 40) },
   glyphSlash: { position: "absolute", width: fs(14), height: 1.6, backgroundColor: withOpacity(colors.ink900, 40), transform: [{ rotate: "45deg" }] },
   text: { fontFamily: fonts.body500, fontSize: fs(11), color: withOpacity(colors.ink900, 50) },
-  retry: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600, marginLeft: spacing(1) },
+  // #181 review finding 4: minHeight 44 (unscaled, matching [slug].tsx's fullLabelLink -- the same
+  // "11px text link still clears the 44dp touch-target invariant" shape) instead of hitSlop 8 alone,
+  // which only reached ~30dp on a 320dp device.
+  retryTap: { minHeight: 44, justifyContent: "center", marginLeft: spacing(1) },
+  retry: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
 });

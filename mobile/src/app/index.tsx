@@ -37,11 +37,26 @@ const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/notifications", label: "Notifications" },
 ];
 
-// #181: hero is null only while the very first fetch (live or cache-fallback) is still pending --
-// the date line is known instantly (today's date needs no network), so it always renders; only the
-// title/subtitle (need hoursFeed) shimmer during that first pending stretch. Once ANY feed has
-// resolved (live or cached), hero is never null again for the rest of this pane's life.
-function HeroBlock({ hero, now, offline, cachedAt }: { hero: HomeHero | null; now: Date; offline: boolean; cachedAt: string | null }) {
+// #181: hero is null both while the very first fetch is genuinely pending (real skeleton) AND on
+// the dead-end case -- fetch failed with no cache to fall back to (`error` is set instead). Those
+// two null cases must render differently: `pending` distinguishes them. Without it (#181 review
+// finding 3, blocking), the skeleton fell back to unconditionally whenever hero was null, so a
+// fetch-failed-with-no-cache render showed the shimmer FOREVER underneath the error text -- the
+// opposite of "honest": the skeleton would be promising data that will never arrive. The date line
+// is known instantly either way (today's date needs no network), so it always renders regardless.
+function HeroBlock({
+  hero,
+  now,
+  offline,
+  cachedAt,
+  pending,
+}: {
+  hero: HomeHero | null;
+  now: Date;
+  offline: boolean;
+  cachedAt: string | null;
+  pending: boolean;
+}) {
   const dateLine = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   return (
     <View style={styles.hero}>
@@ -55,9 +70,9 @@ function HeroBlock({ hero, now, offline, cachedAt }: { hero: HomeHero | null; no
             <Text style={styles.heroTitle}>{formatHeroLine(hero).title}</Text>
             <Text style={styles.heroSubtitle}>{formatHeroLine(hero).subtitle}</Text>
           </>
-        ) : (
+        ) : pending ? (
           <SkeletonBar width={fs(160)} height={fs(40)} />
-        )}
+        ) : null}
       </View>
       <View style={styles.heroGoldBar} />
     </View>
@@ -240,7 +255,7 @@ export function HomePane() {
           Anything with a cache falls back to `offline` (see HeroBlock) instead, per #181's owner
           decision that offline is not an error state. */}
       {error && <Text style={styles.error}>Couldn't load dining hours: {error}</Text>}
-      <HeroBlock hero={hero} now={now} offline={offline} cachedAt={cachedAt} />
+      <HeroBlock hero={hero} now={now} offline={offline} cachedAt={cachedAt} pending={pending} />
 
       <View style={styles.hallList}>
         {DINING_HALLS.map((hall) => {

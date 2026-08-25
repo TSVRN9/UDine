@@ -80,6 +80,35 @@ describe("HomePane loading (#181)", () => {
     expect(body).toMatch(/Worcester/); // known instantly, no network needed
     expect(body).not.toMatch(/OPEN/); // chip text needs hoursFeed -- not rendered while pending
   });
+
+  // #181 review finding 2 (blocking): the test above never actually asserted a SkeletonBar
+  // rendered -- an empty chip satisfies "not OPEN" whether or not the skeleton is there at all
+  // (reviewer reproduced: mutating `pending` to `false` left it green). This is the real assertion.
+  it("actually renders SkeletonBar components (not just an empty chip) while pending", async () => {
+    mockFetchHoursAndCache.mockReturnValue(new Promise(() => {}));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane activeIndex={1} />);
+    });
+    // One per hall chip (4) + the hero title/subtitle skeleton (1) = 5, but the exact count isn't
+    // the point -- proving at least one really renders is what the mutation above was missing.
+    expect(root.root.findAllByProps({ testID: "skeleton-bar" }).length).toBeGreaterThan(0);
+  });
+
+  // #181 review finding 3 (blocking): HeroBlock used to fall back to <SkeletonBar/> whenever
+  // `hero` was null, with no way to distinguish "still pending" from "failed, nothing to show" --
+  // so a fetch-failed-with-no-cache render shimmered FOREVER under the error text, promising data
+  // that would never arrive. Fixed: hero renders nothing (not a skeleton) once `pending` is false.
+  it("does NOT keep shimmering once the fetch has genuinely failed with no cache to fall back to", async () => {
+    mockFetchHoursAndCache.mockRejectedValue(new Error("network down"));
+    mockGetCachedHours.mockResolvedValue(null);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane activeIndex={1} />);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn't load dining hours/); // the real dead-end state
+    expect(root.root.findAllByProps({ testID: "skeleton-bar" }).length).toBe(0); // not still "loading"
+  });
 });
 
 describe("HomePane offline (#181 — owner decision: offline is not an error state)", () => {

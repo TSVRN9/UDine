@@ -39,6 +39,9 @@ const mockFlushQueuedPings = jest.fn().mockResolvedValue(undefined);
 jest.mock("../lib/pingQueue", () => ({
   enqueuePing: (...args: unknown[]) => mockEnqueuePing(...args),
   flushQueuedPings: (...args: unknown[]) => mockFlushQueuedPings(...args),
+  // isTransientPingError is real, pure logic (not SQLite-backed) -- keep it real so the
+  // send-while-offline tests below exercise SocialPane's actual classification, not a stub.
+  isTransientPingError: jest.requireActual("../lib/pingQueue").isTransientPingError,
 }));
 
 // SocialPane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
@@ -489,5 +492,42 @@ describe("SocialPane offline (#181 — owner decision: offline is not an error s
     mockFetchEvents.mockResolvedValue([]);
     const online = await renderSocialPane();
     expect(texts(online)).toMatch(/Your log, plate, and rankings all keep working offline — they live on this phone\./);
+  });
+
+  // #181 review finding 1 (blocking): the fix -- sendPing now always attempts a real send and
+  // classifies the ACTUAL result via pingQueue.ts's sendOrQueuePing, instead of gating on a
+  // one-shot mount-time `offline` flag. sendOrQueuePing is a plain function (no RN, no closed-over
+  // component state -- same split pingGesture.ts's own doc comment argues for), so it's tested
+  // directly and thoroughly in pingQueue.test.ts rather than here.
+  //
+  // Driving this specific case through SocialPane's own hold-hover-release gesture was attempted
+  // and abandoned: react-test-renderer's `createNodeMock` (the standard way to stub a ref's native
+  // instance, needed for the hall row's `measureInWindow` call) is never invoked at all under this
+  // project's jest-expo preset (confirmed by instrumenting the mock factory directly -- zero calls
+  // across a full render + hold + hall-row onLayout pass), so `hallRectsRef` can never be populated
+  // and no hover ever resolves to a real hallTid. This is the same gap already disclosed in this
+  // PR's body for the ORIGINAL send-while-offline tests; it now also covers this fix specifically.
+  it("still passes the hold-without-hovering cancel path with the current sendPing wiring (regression check for the finding-1 refactor)", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "friendships") return queryResult([{ user_a: "me", user_b: "friend-1" }]);
+      if (table === "profiles") return queryResult([{ user_id: "friend-1", display_name: "Alex" }]);
+      return queryResult([]);
+    });
+    mockFetchEvents.mockResolvedValue([]);
+
+    jest.useFakeTimers();
+    try {
+      const root = await renderSocialPane();
+      const avatarViews = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function");
+      const { onResponderGrant, onResponderRelease } = avatarViews[0].props;
+      act(() => onResponderGrant(fakeTouchEvent(10, 10, 1)));
+      act(() => jest.advanceTimersByTime(400));
+      act(() => onResponderRelease(fakeTouchEvent(10, 10, 2))); // never hovered -- cancel, no send
+      expect(mockFrom).not.toHaveBeenCalledWith("pings");
+      expect(mockEnqueuePing).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

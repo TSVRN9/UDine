@@ -23,8 +23,7 @@ import { signInWithGoogle } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { classifyEventTap, eventDateLine } from "../lib/eventTapTarget";
 import { openEventTap } from "../lib/openEventTap";
-import { enqueuePing, flushQueuedPings } from "../lib/pingQueue";
-import { sendPingGuarded } from "../lib/sendPing";
+import { flushQueuedPings, sendOrQueuePing } from "../lib/pingQueue";
 import {
   buildPingPayload,
   hallAtPoint,
@@ -198,6 +197,13 @@ export function SocialPane() {
         // offlineRef (not the `offline` state var) so this always reads the CURRENT value -- a
         // useCallback with `[]` deps closes over render-time state once and never sees it change,
         // which would make "was this a reconnect" permanently stuck at its first-render answer.
+        // Load-bearing that this read-then-clear is synchronous, not two separate statements
+        // separated by an await: it's what makes a rapid double RETRY-tap (or a RETRY landing
+        // right after sendPing's own reconnect-flush already flipped offlineRef false) safe --
+        // whichever call observes `wasOffline = true` first also clears it in the same tick, so
+        // only that one call flushes the queue; the other sees `false` and no-ops. Two `await`s
+        // between the read and the write here would reopen the exact interleaving flushQueuedPings'
+        // own internal write-queue was added to close.
         const wasOffline = offlineRef.current;
         offlineRef.current = false;
         setEvents(result);
@@ -238,17 +244,33 @@ export function SocialPane() {
     setGesture(next);
   }
 
+  /**
+   * #181 review finding 1: this used to gate on the `offline` state var, which is set only by
+   * `loadEvents` (mount + RETRY) -- the ordinary case (app open, network drops mid-session, user
+   * sends a ping) never touches loadEvents at all, so `offline` was still false, the ping went to
+   * `sendPingGuarded`, got a network-shaped failure, and was DISCARDED with the misleading "not
+   * friends" alert. Fixed: always attempt the real send via pingQueue.ts's sendOrQueuePing (pure,
+   * RN-free, unit-tested directly), then react to the *actual* outcome -- same "fetch-rejected is
+   * the signal" philosophy as everywhere else in this PR, just driven by this call's own failure
+   * instead of a one-shot mount fetch. This wrapper is intentionally thin RN wiring only, same
+   * split pingGesture.ts's own doc comment argues for.
+   */
   async function sendPing(payload: PingPayload) {
     const myId = session?.user.id;
     if (!myId) return;
-    // #181: "pings queue and send on reconnect" -- offline, this can't reach Supabase at all, so
-    // queue locally instead of firing sendPingGuarded's "You may not be friends with this person"
-    // Alert (a network failure, not an RLS rejection -- that's the wrong message for it).
-    if (offline) {
-      await enqueuePing(pingRow(myId, payload));
-      return;
+    const outcome = await sendOrQueuePing(supabase, pingRow(myId, payload));
+    if (outcome === "sent") {
+      if (offlineRef.current) {
+        offlineRef.current = false;
+        setOffline(false);
+        flushQueuedPings(supabase).catch(() => {});
+      }
+    } else if (outcome === "queued") {
+      offlineRef.current = true;
+      setOffline(true);
+    } else {
+      Alert.alert("Couldn't send ping", "You may not be friends with this person (yet).");
     }
-    await sendPingGuarded(supabase, pingRow(myId, payload));
   }
 
   function clearHoldTimer(friendId: string) {
@@ -292,7 +314,12 @@ export function SocialPane() {
         const payload = buildPingPayload(gestureRef.current);
         dispatch({ type: "RELEASE" });
         if (payload) {
-          sendPing(payload);
+          // #181 review finding 9: sendPing now has a throwing path (a locked/full-disk SQLite
+          // write inside enqueuePing) it didn't before -- a bare fire-and-forget call here would
+          // be an unhandled rejection AND silently lose the ping. Surface it instead.
+          sendPing(payload).catch((err) => {
+            Alert.alert("Couldn't send ping", err instanceof Error ? err.message : String(err));
+          });
         } else if (!wasHolding && Math.abs(gestureState.dx) < TAP_MOVE_THRESHOLD && Math.abs(gestureState.dy) < TAP_MOVE_THRESHOLD) {
           // #94: tap (not hold-and-release) an avatar -> that friend's shared-stats profile.
           router.push(`/friend/${friendId}`);

@@ -1,7 +1,6 @@
 import {
   computeDailyTotals,
   DINING_HALLS,
-  fetchDiningHours,
   fetchEvents,
   favoriteKey,
   menuItemMatchesPreferences,
@@ -40,7 +39,7 @@ import {
 import { deriveCafeMealTabs } from "../../lib/cafeMenu";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
-import { getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
+import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
 import {
   addOrIncrement,
   listBottomPadding,
@@ -194,12 +193,15 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
 
   useEffect(() => {
     if (!hall) return;
-    // Hall-info sheet's hours card + Grab 'N Go row (the tab-row subtitle this used to feed was
     // removed in #180) -- real halls only (see the header render's own #219-review comment on why
     // the sheet itself doesn't exist for a café). Independent of selectedDate: hours reflect what's
     // true right now, not the date being browsed. A failure here just leaves the sheet's
     // hours/address blank, never blocks the menu itself.
-    fetchDiningHours()
+    // #181 review finding 10: fetchHoursAndCache (not shared's bare fetchDiningHours) -- otherwise
+    // this screen's own hours never get cached, so offline on the hall-menu screen recovers the
+    // menu (SHOW SAVED COPY) while the #180 info sheet right beside it still shows "Address
+    // unavailable" and every window "not served here" instead of the cached hours it could have had.
+    fetchHoursAndCache()
       .then(setHoursFeed)
       .catch(() => {});
   }, [hall]);

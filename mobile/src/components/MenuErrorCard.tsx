@@ -72,7 +72,11 @@ const styles = StyleSheet.create({
     gap: spacing(1.5),
     backgroundColor: colors.gold500,
     borderRadius: radii.md,
-    height: fs(48),
+    // #181 review finding 4: unscaled 48, not fs(48) -- theme.ts's own doc is explicit that touch
+    // targets (44dp) deliberately don't scale down on narrow screens; fs(48) shrinks to 39dp on a
+    // 320dp device, under the invariant this same file's fullLabelLink/addButton siblings honor
+    // elsewhere in this diff.
+    height: 48,
     paddingHorizontal: spacing(8),
     marginBottom: spacing(3.5),
   },

@@ -88,6 +88,32 @@ describe("menu cache", () => {
   });
 });
 
+// #181 review finding 6: a persisted blob from a schema this file no longer understands (an app
+// upgrade changed MenuItem's or DiningHoursFeed's shape) must degrade to a clean cache miss, not
+// get parsed as if it were the current shape. Writes the raw row directly (bypassing
+// saveCachedMenu/saveCachedHours, which always stamp the CURRENT version) to simulate exactly that.
+describe("schema versioning", () => {
+  it("treats a menu cache row with no version tag (pre-#181-review-fix shape) as absent, not a crash", async () => {
+    mockRows.set("menu_cache:3|2026-08-19", JSON.stringify({ items: [item("Old Shape")], fetchedAt: "2026-08-19T12:00:00.000Z" }));
+    expect(await getCachedMenu(3, new Date(2026, 7, 19))).toBeNull();
+  });
+
+  it("treats a menu cache row with a mismatched version number as absent", async () => {
+    mockRows.set("menu_cache:3|2026-08-19", JSON.stringify({ v: 999, data: { items: [item("Future Shape")], fetchedAt: "x" } }));
+    expect(await getCachedMenu(3, new Date(2026, 7, 19))).toBeNull();
+  });
+
+  it("treats an hours cache row with a mismatched version as absent", async () => {
+    mockRows.set("hours_cache:v1", JSON.stringify({ v: 0, data: { feed: feed(), fetchedAt: "x" } }));
+    expect(await getCachedHours()).toBeNull();
+  });
+
+  it("a freshly-saved entry round-trips (sanity check that the CURRENT version is accepted)", async () => {
+    await saveCachedMenu(3, new Date(2026, 7, 19), [item("Current Shape")]);
+    expect((await getCachedMenu(3, new Date(2026, 7, 19)))?.items[0].dishName).toBe("Current Shape");
+  });
+});
+
 describe("hours cache", () => {
   it("round-trips a saved hours feed", async () => {
     await saveCachedHours(feed());
