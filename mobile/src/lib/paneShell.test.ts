@@ -1,4 +1,14 @@
-import { initialPaneOffset, PANE_COUNT, HOME_PANE_INDEX, paneDots, paneIndexForScrollOffset, shouldLandOnHome } from "./paneShell";
+import {
+  clampPaneIndex,
+  HOME_PANE_INDEX,
+  isHorizontalSwipe,
+  PANE_COUNT,
+  paneDelta,
+  paneIndexForSwipe,
+  paneOffsetRange,
+  paneVisibility,
+  SWIPE_COMMIT_PX,
+} from "./paneShell";
 
 describe("constants", () => {
   it("lands on Home (the middle pane) of 3 panes: Social, Home, You", () => {
@@ -7,59 +17,79 @@ describe("constants", () => {
   });
 });
 
-describe("paneIndexForScrollOffset", () => {
-  it("rounds an offset to the nearest pane index", () => {
-    expect(paneIndexForScrollOffset(0, 400)).toBe(0);
-    expect(paneIndexForScrollOffset(400, 400)).toBe(1);
-    expect(paneIndexForScrollOffset(800, 400)).toBe(2);
-  });
-
-  it("rounds a partial-scroll offset to the nearest pane", () => {
-    expect(paneIndexForScrollOffset(380, 400)).toBe(1);
-    expect(paneIndexForScrollOffset(220, 400)).toBe(1);
-    expect(paneIndexForScrollOffset(180, 400)).toBe(0);
-  });
-
-  it("clamps an overshot offset (Android momentum) into range", () => {
-    expect(paneIndexForScrollOffset(1200, 400)).toBe(2);
-    expect(paneIndexForScrollOffset(-50, 400)).toBe(0);
-  });
-
-  it("returns 0 when paneWidth isn't known yet (pre-layout)", () => {
-    expect(paneIndexForScrollOffset(400, 0)).toBe(0);
+describe("clampPaneIndex", () => {
+  it("clamps into [0, PANE_COUNT)", () => {
+    expect(clampPaneIndex(-1)).toBe(0);
+    expect(clampPaneIndex(0)).toBe(0);
+    expect(clampPaneIndex(2)).toBe(2);
+    expect(clampPaneIndex(3)).toBe(2);
   });
 });
 
-describe("initialPaneOffset", () => {
-  it("is HOME_PANE_INDEX panes' worth of width in", () => {
-    expect(initialPaneOffset(400)).toBe(400);
-  });
-
-  it("is 0 when paneWidth isn't known yet", () => {
-    expect(initialPaneOffset(0)).toBe(0);
-  });
-});
-
-describe("paneDots", () => {
-  it("marks only the active index as active, in pane order", () => {
-    expect(paneDots(0)).toEqual([true, false, false]);
-    expect(paneDots(1)).toEqual([false, true, false]);
-    expect(paneDots(2)).toEqual([false, false, true]);
+describe("paneDelta", () => {
+  it("is the artboard's d = j - activePane", () => {
+    expect(paneDelta(0, 1)).toBe(-1);
+    expect(paneDelta(1, 1)).toBe(0);
+    expect(paneDelta(2, 1)).toBe(1);
+    expect(paneDelta(2, 0)).toBe(2);
   });
 });
 
-describe("shouldLandOnHome", () => {
-  it("fires only once the native content is a full PANE_COUNT panes wide", () => {
-    // The device-pass bug: scrollTo fired while contentWidth was still the pre-layout 0,
-    // so the scroll clamped to x=0 and stranded the user on Social. 7/7 cold launches.
-    expect(shouldLandOnHome(0, 400, false)).toBe(false);
-    expect(shouldLandOnHome(400, 400, false)).toBe(false);
-    expect(shouldLandOnHome(1200, 400, false)).toBe(true);
-  });
-
-  it("never fires before layout or after it has already landed", () => {
-    expect(shouldLandOnHome(1200, 0, false)).toBe(false);
-    expect(shouldLandOnHome(1200, 400, true)).toBe(false);
+describe("paneOffsetRange", () => {
+  // #179 review: PaneStack's pane transform and PaneHeader's title transform both key off the
+  // same `d = j - activePane` formula, at two different offsets (36px, 28px). PaneHeader's own
+  // interpolate() was hand-written with the outputRange sign flipped -- the title crossfaded in
+  // the opposite direction from the pane content it labels. One shared helper, consumed by both
+  // call sites, is what keeps that from drifting apart again silently.
+  it("matches translateX(d * offset) at the interpolation's three input points", () => {
+    // At inputPos === itemIndex - 1, this item's own d = itemIndex - inputPos = +1 -> +offset.
+    // At inputPos === itemIndex + 1, d = -1 -> -offset. At inputPos === itemIndex, d = 0 -> 0.
+    expect(paneOffsetRange(36)).toEqual([36, 0, -36]);
+    expect(paneOffsetRange(28)).toEqual([28, 0, -28]);
   });
 });
 
+describe("paneVisibility", () => {
+  it("gives the active pane the top z-index and live touches", () => {
+    expect(paneVisibility(1, 1)).toEqual({ zIndex: 3, pointerEvents: "auto" });
+  });
+
+  it("keeps inactive panes below and untappable", () => {
+    expect(paneVisibility(0, 1)).toEqual({ zIndex: 1, pointerEvents: "none" });
+    expect(paneVisibility(2, 1)).toEqual({ zIndex: 1, pointerEvents: "none" });
+  });
+});
+
+describe("isHorizontalSwipe", () => {
+  it("claims a drag that's mostly horizontal and past the threshold", () => {
+    expect(isHorizontalSwipe(20, 2)).toBe(true);
+  });
+
+  it("does not claim a mostly-vertical drag", () => {
+    expect(isHorizontalSwipe(5, 20)).toBe(false);
+  });
+
+  it("does not claim a drag under the threshold, even if purely horizontal", () => {
+    expect(isHorizontalSwipe(5, 0)).toBe(false);
+  });
+});
+
+describe("paneIndexForSwipe", () => {
+  it("snaps back (no-op) short of SWIPE_COMMIT_PX", () => {
+    expect(paneIndexForSwipe(1, SWIPE_COMMIT_PX - 1)).toBe(1);
+    expect(paneIndexForSwipe(1, -(SWIPE_COMMIT_PX - 1))).toBe(1);
+  });
+
+  it("commits to the next pane on a leftward drag past the threshold", () => {
+    expect(paneIndexForSwipe(1, -SWIPE_COMMIT_PX)).toBe(2);
+  });
+
+  it("commits to the previous pane on a rightward drag past the threshold", () => {
+    expect(paneIndexForSwipe(1, SWIPE_COMMIT_PX)).toBe(0);
+  });
+
+  it("clamps at the ends instead of wrapping", () => {
+    expect(paneIndexForSwipe(0, SWIPE_COMMIT_PX)).toBe(0);
+    expect(paneIndexForSwipe(2, -SWIPE_COMMIT_PX)).toBe(2);
+  });
+});

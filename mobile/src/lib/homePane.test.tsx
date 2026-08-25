@@ -45,14 +45,16 @@ function texts(root: renderer.ReactTestRenderer) {
 }
 
 describe("HomePane", () => {
-  it("renders the brand header and all four hall cards", async () => {
+  it("renders all four hall cards", async () => {
+    // #179: the pane header (title/dots) moved out of each pane into the shared fixed header
+    // (PaneStack + PaneHeader) -- HomePane no longer renders its own "UDine" title text or takes
+    // an activeIndex prop.
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      root = renderer.create(<HomePane activeIndex={1} />);
+      root = renderer.create(<HomePane />);
     });
 
     const body = texts(root).flat().join(" ");
-    expect(body).toMatch(/UDine/);
     for (const hall of ["Worcester", "Franklin", "Hampshire", "Berkshire"]) {
       expect(body).toMatch(new RegExp(hall));
     }
@@ -61,7 +63,7 @@ describe("HomePane", () => {
   it("gives every hall's split card an integrated Grab 'N Go strip (#116)", async () => {
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      root = renderer.create(<HomePane activeIndex={1} />);
+      root = renderer.create(<HomePane />);
     });
 
     const body = texts(root).flat().join(" ");
