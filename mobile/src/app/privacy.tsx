@@ -49,7 +49,7 @@ type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unk
 // own sent pings use) -- named here so this "stays" clause is the actual exhaustive list of
 // server-side residue, not just the two/three tables that happen to be attempted-and-reported.
 const DELETE_REMOVES = "Friendships, favorites, shared stats, the dining halls synced for ping suggestions, push tokens, and sent pings";
-const DELETE_STAYS = "Your profile, food-sighting history, QR sign-in code, and pings friends sent you stay on the server -- deleting those isn't available yet.";
+const DELETE_STAYS = "Your profile, food-sighting history, friend QR code, and pings friends sent you stay on the server -- deleting those isn't available yet.";
 const DELETE_SCOPE_SUMMARY = `Removes ${DELETE_REMOVES.charAt(0).toLowerCase()}${DELETE_REMOVES.slice(1)}. ${DELETE_STAYS} Phone data stays.`;
 const DELETE_SUCCESS_MESSAGE = `${DELETE_REMOVES} are gone. ${DELETE_STAYS}`;
 

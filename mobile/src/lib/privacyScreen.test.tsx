@@ -433,11 +433,11 @@ describe("PrivacyScreen: delete server data", () => {
     // Finding 1/2 from the #246 review: the residue message must name qr_tokens and received pings
     // too, not just profiles/food_sightings, so it stays the actual exhaustive list of what's left.
     const successMessage = (Alert.alert as jest.Mock).mock.calls.find((c) => c[0] === "Server data deleted")[1];
-    expect(successMessage).toMatch(/qr sign-in code/i);
+    expect(successMessage).toMatch(/friend qr code/i);
     expect(successMessage).toMatch(/pings friends sent you/i);
   });
 
-  it("stays silent (no follow-up alert) when every step, including profiles/food_sightings, actually succeeds", async () => {
+  it("stays silent (no follow-up alert) when every step, including profiles/food_sightings/qr_tokens, actually succeeds", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
     const root = await renderScreen();
@@ -464,11 +464,11 @@ describe("PrivacyScreen: delete server data", () => {
     // Finding 1/2 from the #246 review: qr_tokens (undisclosed, unattempted before this) and
     // received pings (attempted-but-not-really-possible -- no receiver-delete policy exists) both
     // need to show up in the "stays" clause so it's the real exhaustive residue list.
-    expect(message).toMatch(/qr sign-in code/i);
+    expect(message).toMatch(/friend qr code/i);
     expect(message).toMatch(/pings friends sent you/i);
 
     const body = texts(root);
     expect(body).toMatch(/push tokens/);
-    expect(body).toMatch(/qr sign-in code/i);
+    expect(body).toMatch(/friend qr code/i);
   });
 });
