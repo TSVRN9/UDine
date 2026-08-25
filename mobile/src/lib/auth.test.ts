@@ -125,7 +125,7 @@ describe("signOut", () => {
     return { del, eq1, eq2 };
   }
 
-  it("deletes this device's push_tokens row for the signing-out user, before auth.signOut()", async () => {
+  it("deletes the signing-out user's Expo push_tokens row(s), before auth.signOut()", async () => {
     getSession.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
     const calls: string[] = [];
     const { del, eq1, eq2 } = mockPushTokensDelete({ error: null }, calls);

@@ -73,13 +73,26 @@ export async function exchangeCode(code: string): Promise<void> {
 const PLATFORM = "expo" as const;
 
 /**
- * Best-effort delete of this device's push_tokens row for `userId`, scoped to `user_id` +
- * `platform` -- the same shape favoriteFoodAlerts.ts's toggle-off already uses (:124), reused here
- * rather than re-fetching the Expo token. A failure here must never surface to the caller: signOut
- * proceeds either way (#257 -- the user asked to leave, and worst case is one stale row that a
- * later toggle-off or `deleteServerData` cleans up).
+ * Best-effort delete of `userId`'s push_tokens row(s), scoped to `user_id` + `platform` -- the
+ * same shape favoriteFoodAlerts.ts's toggle-off already uses (:124), reused here rather than
+ * re-fetching the Expo token. A failure here must never surface to the caller: signOut proceeds
+ * either way (#257 -- the user asked to leave, and worst case is one stale row that a later
+ * toggle-off or `deleteServerData` cleans up).
+ *
+ * ponytail: unlike web's signOut() (+layout.svelte), this isn't scoped to *this device's* token --
+ * it deletes every row for `userId` + "expo", i.e. every phone/tablet they've registered. That's
+ * exactly the row-set favoriteFoodAlerts.ts's toggle-off already deletes, so it's provably safe
+ * there (notifications_enabled flips false in the same call, so any other device's surviving row
+ * goes inert). Here there's no such flip -- deliberately, see signOut()'s own doc comment -- so a
+ * second device stays "alerts on" with its push_tokens row silently gone until its own next
+ * register (e.g. its next toggle-off/on, or its own sign-out/sign-in). The issue that opened this
+ * PR (#257) explicitly ruled out re-fetching the Expo token to scope this the way web scopes by
+ * subscription, so this accepts that ceiling rather than reintroducing a token fetch. Upgrade path
+ * if a multi-device user reports silently-dead alerts: give push_tokens an `id`/last-seen column
+ * (or expose the registered token from state, the way the web subscription already is) and delete
+ * by that instead of the whole `user_id` + `platform` pair.
  */
-async function clearThisDevicesPushToken(userId: string): Promise<void> {
+async function clearThisAccountsExpoTokens(userId: string): Promise<void> {
   try {
     const { error } = await supabase.from("push_tokens").delete().eq("user_id", userId).eq("platform", PLATFORM);
     if (error) console.warn("[auth] signOut: push_tokens delete failed", error);
@@ -96,15 +109,15 @@ async function clearThisDevicesPushToken(userId: string): Promise<void> {
  *
  * Deliberately does NOT flip notifications_enabled to false -- that's the user's stored preference
  * for when they sign back in (on this device or another), not device-scoped state. Leaving it
- * alone means alerts resume automatically on their next sign-in without them having to re-opt-in,
- * and it's safe: with this device's push_tokens row gone, there's nothing left to dispatch to until
- * a future sign-in re-registers a token.
+ * alone means alerts resume automatically on their next sign-in without them having to re-opt-in.
+ * See clearThisAccountsExpoTokens's own doc comment for the one case that combination doesn't
+ * fully cover (a second device left silently un-alerting until its own next register).
  */
 export async function signOut(): Promise<void> {
   try {
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user.id;
-    if (userId) await clearThisDevicesPushToken(userId);
+    if (userId) await clearThisAccountsExpoTokens(userId);
   } catch (e) {
     console.warn("[auth] signOut: reading session for push_tokens cleanup failed", e);
   }
