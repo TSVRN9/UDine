@@ -22,8 +22,12 @@ export default function QrConfirmScreen() {
 
   const load = useCallback(async () => {
     if (!userId) return;
-    const { data } = await supabase.from("profiles").select("user_id, display_name, email").eq("user_id", userId).maybeSingle();
-    setProfile(data ?? null);
+    // related_profiles (#227), not a raw .select("...email") -- profiles.email is no longer
+    // table-wide SELECT-granted (see 20260825120000_lockdown_profile_search.sql). Scoped to self +
+    // an existing friendships row (any status), which this screen's target always has by the time
+    // it loads (redeem_qr_token already created the pending row before either side lands here).
+    const { data } = await supabase.rpc("related_profiles", { target_ids: [userId] });
+    setProfile(data?.[0] ?? null);
   }, [userId]);
 
   useFocusEffect(
