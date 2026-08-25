@@ -1,5 +1,16 @@
-import type { DiningHallHours, NutritionFacts, TimeWindow } from "@udine/shared";
-import { formatDateStepperLabel, formatServingSummary, mealTabLabel, mealTabSubtitle, stepDate, toggleExpandedKey } from "./hallMenuTabs";
+import type { DiningHallHours, NutritionFacts, RetailLocationHours, TimeWindow } from "@udine/shared";
+import {
+  directionsUrl,
+  formatDateStepperLabel,
+  formatServingSummary,
+  hallInfoEventsEmptyCopy,
+  hallInfoGrabNGoWindow,
+  hallInfoHoursRows,
+  hallInfoWindowText,
+  mealTabLabel,
+  stepDate,
+  toggleExpandedKey,
+} from "./hallMenuTabs";
 
 function window(openTime: string, closeTime: string): TimeWindow {
   return { openTime, closeTime };
@@ -48,26 +59,74 @@ describe("formatDateStepperLabel", () => {
   });
 });
 
-describe("mealTabSubtitle", () => {
-  it("returns the being-served-now line when the selected day is today and the selected tab matches the hall's current meal period", () => {
-    const hours = hall({ lunch: window("11:00 AM", "2:30 PM") });
-    const subtitle = mealTabSubtitle(hours, NOON, "lunch", NOON);
-    expect(subtitle).toBe("being served now · until 2:30 PM");
-  });
+// #180: mealTabSubtitle and its 4 tests here were removed -- the tab row's "being served now ·
+// until X" line is gone; serving windows now live only in the hall-info sheet. hallInfoHoursRows'
+// NOW-highlight tests below are the successor coverage for the "is this the hall's current meal
+// period" logic that line used to gate on.
 
-  it("returns null when the selected tab isn't the hall's current meal period", () => {
+describe("hallInfoHoursRows", () => {
+  it("flags exactly the hall's current meal period as isNow, in breakfast/lunch/dinner/latenight order", () => {
     const hours = hall({ lunch: window("11:00 AM", "2:30 PM"), dinner: window("5:00 PM", "8:00 PM") });
-    expect(mealTabSubtitle(hours, NOON, "dinner", NOON)).toBeNull();
+    const rows = hallInfoHoursRows(hours, NOON);
+    expect(rows.map((r) => r.period)).toEqual(["breakfast", "lunch", "dinner", "latenight"]);
+    expect(rows.map((r) => r.isNow)).toEqual([false, true, false, false]);
+    expect(rows.find((r) => r.period === "lunch")?.label).toBe("Lunch");
   });
 
-  it("returns null when the selected day isn't today, even if the meal period would otherwise match", () => {
+  it("flags no row as isNow when the hall is between meals", () => {
+    const hours = hall({ lunch: window("11:00 AM", "2:30 PM"), dinner: window("5:00 PM", "8:00 PM") });
+    const threePM = new Date(2026, 7, 19, 15, 0, 0, 0);
+    const rows = hallInfoHoursRows(hours, threePM);
+    expect(rows.every((r) => !r.isNow)).toBe(true);
+  });
+
+  it("carries each period's window through unchanged, including null for an unpublished one", () => {
     const hours = hall({ lunch: window("11:00 AM", "2:30 PM") });
-    const yesterday = new Date(2026, 7, 18, 12, 0, 0, 0);
-    expect(mealTabSubtitle(hours, yesterday, "lunch", NOON)).toBeNull();
+    const rows = hallInfoHoursRows(hours, NOON);
+    expect(rows.find((r) => r.period === "lunch")?.window).toEqual({ openTime: "11:00 AM", closeTime: "2:30 PM" });
+    expect(rows.find((r) => r.period === "dinner")?.window).toBeNull();
+  });
+});
+
+describe("hallInfoWindowText", () => {
+  it("renders the feed's own H:MM AM/PM strings verbatim for a real window", () => {
+    expect(hallInfoWindowText(window("11:00 AM", "2:30 PM"))).toBe("11:00 AM - 2:30 PM");
   });
 
-  it("returns null when there are no hours for the hall yet (still loading)", () => {
-    expect(mealTabSubtitle(undefined, NOON, "lunch", NOON)).toBeNull();
+  it("renders the spec's exact absent-window copy for a null window", () => {
+    expect(hallInfoWindowText(null)).toBe("not served here");
+  });
+});
+
+function retail(overrides: Partial<RetailLocationHours> = {}): RetailLocationHours {
+  return { name: "Hampshire Grab ‘N Go", hours: null, ...overrides };
+}
+
+describe("hallInfoGrabNGoWindow", () => {
+  it("finds this hall's Grab 'N Go window among retail locations, smart-apostrophe spelling included", () => {
+    const locations = [retail({ name: "Hampshire Grab ‘N Go", hours: window("11:00 AM", "7:00 PM") }), retail({ name: "Hampshire Café" })];
+    expect(hallInfoGrabNGoWindow(locations, "Hampshire")).toEqual({ openTime: "11:00 AM", closeTime: "7:00 PM" });
+  });
+
+  it("returns null when this hall has no Grab 'N Go entry in retail at all", () => {
+    expect(hallInfoGrabNGoWindow([retail({ name: "Hampshire Café" })], "Hampshire")).toBeNull();
+  });
+});
+
+describe("directionsUrl", () => {
+  it("builds a maps deep link from a validated lat,long", () => {
+    expect(directionsUrl("42.383790,-72.530519")).toBe("https://maps.google.com/?q=42.383790%2C-72.530519");
+  });
+
+  it("returns null when there's no map address to link to", () => {
+    expect(directionsUrl(null)).toBeNull();
+    expect(directionsUrl(undefined)).toBeNull();
+  });
+});
+
+describe("hallInfoEventsEmptyCopy", () => {
+  it("formats the exact empty-state copy per the canvas spec", () => {
+    expect(hallInfoEventsEmptyCopy("Hampshire")).toBe("No events at Hampshire this week");
   });
 });
 

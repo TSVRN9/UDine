@@ -2,12 +2,14 @@ import {
   currentMealPeriod,
   MEAL_PERIODS,
   mealPeriodLabel,
-  openStatus,
   type DiningHallHours,
   type HallMealPeriod,
   type MealPeriod,
   type NutritionFacts,
+  type RetailLocationHours,
+  type TimeWindow,
 } from "@udine/shared";
+import { findGrabNGoLocation } from "./grabStrip";
 
 /** Meal tab order for the hall-menu header row (#117 canvas: Breakfast / Lunch / Dinner / Late).
  * Grab 'N Go is a 5th, separately-rendered tab that navigates away rather than selecting one of
@@ -38,37 +40,51 @@ export function formatDateStepperLabel(date: Date): string {
   return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function formatTime(date: Date): string {
-  let hour = date.getHours();
-  const minute = date.getMinutes();
-  const suffix = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12;
-  if (hour === 0) hour = 12;
-  return `${hour}:${String(minute).padStart(2, "0")} ${suffix}`;
-}
+// #180: mealTabSubtitle (the tab row's "being served now · until HH:MM" line) was removed here --
+// serving windows now live ONLY in the hall-info bottom sheet (hallInfoHoursRows below), opened by
+// tapping the title group. Its 4 tests in hallMenuTabs.test.ts moved with it (see that file's own
+// #180 comment); the NOW-highlight behavior it covered is now asserted on hallInfoHoursRows instead.
 
 /**
- * The tab row's "being served now · until HH:MM" line (canvas spec, sits below the tabs). Per
- * #117: only renders when the selected day+meal is what the hall is ACTUALLY serving right now --
- * not just whenever a meal tab happens to be selected, and not for a past/future date stepped away
- * from today even if the clock-time would otherwise match.
+ * One row in the hall-info sheet's hours card (#180 canvas: "Hall info sheet (i)") -- breakfast,
+ * lunch, dinner, late night in that order (MEAL_TABS/shared's MEAL_PERIODS), each flagged `isNow`
+ * only for the hall's ACTUAL current meal period (get_infov2/hoursFeed only ever publishes TODAY's
+ * hours, so unlike the retired mealTabSubtitle there's no separate "is this even today" check --
+ * the data itself has no other day to be about).
  */
-export function mealTabSubtitle(hours: DiningHallHours | undefined, selectedDate: Date, selectedMeal: HallMealPeriod, now: Date): string | null {
-  if (!hours) return null;
-  if (!isSameDay(selectedDate, now)) return null;
-  if (currentMealPeriod(hours, now) !== selectedMeal) return null;
-  const window = hours[selectedMeal];
-  if (!window) return null; // defensive: currentMealPeriod matched this key, so shouldn't happen
-  // Reuses shared's openStatus by wrapping the single meal window as a hall's "general" window,
-  // same trick homeHero.ts's singleWindowStatus/retailOpenStatus use, to get *this window's* close
-  // time rather than openStatus's hall-wide latest-close-among-all-open-windows answer.
-  const status = openStatus({ hallTid: hours.hallTid, breakfast: null, lunch: null, dinner: null, latenight: null, general: window }, now);
-  if (!status.open) return null;
-  return `being served now · until ${formatTime(status.closesAt)}`;
+export interface HallHoursRow {
+  period: MealPeriod;
+  label: string;
+  window: TimeWindow | null;
+  isNow: boolean;
+}
+
+export function hallInfoHoursRows(hours: DiningHallHours, now: Date): HallHoursRow[] {
+  const current = currentMealPeriod(hours, now);
+  return MEAL_TABS.map((period) => ({
+    period,
+    label: mealPeriodLabel(period),
+    window: hours[period],
+    isNow: current === period,
+  }));
+}
+
+/** Hours-row time text: the feed's own "H:MM AM/PM" strings straight through (already the display
+ * format, see get_infov2's confirmed shape) for a real window, or the spec's exact absent-window
+ * copy otherwise -- reused verbatim for both Late Night (mapInfoV2 never publishes it, see hours.ts)
+ * and Grab 'N Go (the feed reports "Closed" for all 4 halls' Grab 'N Go entries today, per #180's
+ * live capture), rather than inventing a second string for the same "nothing served" meaning. */
+export function hallInfoWindowText(window: TimeWindow | null): string {
+  return window ? `${window.openTime} - ${window.closeTime}` : "not served here";
+}
+
+/** Finds this hall's Grab 'N Go window among get_infov2's retail locations for the sheet's Grab 'N
+ * Go hours row -- reuses grabStrip.ts's own findGrabNGoLocation (the Home strip's lookup) rather
+ * than a second hall-name-matching implementation; that function's own doc explains why a loose
+ * "starts with hall name + /grab/i" match is required (a live capture found a smart-apostrophe
+ * "Grab ‘N Go" spelling a literal string match would miss). */
+export function hallInfoGrabNGoWindow(retail: RetailLocationHours[], hallName: string): TimeWindow | null {
+  return findGrabNGoLocation(retail, hallName)?.hours ?? null;
 }
 
 /** Expanded-card summary line, e.g. "Per serving 6 oz · 160 cal · 27g protein · 0g carbs · 5g fat"
@@ -79,6 +95,23 @@ export function formatServingSummary(nutrition: NutritionFacts): string {
   const carbs = Math.round(nutrition.totalCarbG);
   const fat = Math.round(nutrition.totalFatG);
   return `Per serving ${nutrition.servingSize} · ${Math.round(nutrition.calories)} cal · ${protein}g protein · ${carbs}g carbs · ${fat}g fat`;
+}
+
+/** DIRECTIONS row target: a maps deep link built from get_infov2's validated "lat,long" (shared's
+ * parseMapAddress already screened the raw value at the trust boundary -- see hours.ts's own doc --
+ * so this only has to format it, not re-validate). `null` in -> `null` out, so the sheet can omit
+ * the DIRECTIONS affordance entirely for the rare hall missing a coordinate rather than handing
+ * Linking.openURL a broken link. https://maps.google.com/?q=lat,long opens the OS's own maps app on
+ * both platforms (no react-native-maps/deep-link-per-platform dependency for one outbound link). */
+export function directionsUrl(mapAddress: string | null | undefined): string | null {
+  if (!mapAddress) return null;
+  return `https://maps.google.com/?q=${encodeURIComponent(mapAddress)}`;
+}
+
+/** Sheet's events-row empty-state copy, verbatim per the #180 canvas spec. Not derivable any other
+ * way -- see hallInfoEvents' own doc for why this is the only hall-specific thing about that row. */
+export function hallInfoEventsEmptyCopy(hallName: string): string {
+  return `No events at ${hallName} this week`;
 }
 
 /** Toggles one dish card's expanded state. Immutable -- returns a new Set, never mutates the one

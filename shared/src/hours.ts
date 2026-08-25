@@ -48,6 +48,12 @@ export interface InfoV2Location {
   lunch_menu?: string | null;
   dinner_menu?: string | null;
   short_description_v2?: string | null;
+  // #180/#205: `address`/`map_address` were added independently by both tickets on the same raw
+  // field (#205 for RetailLocationHours' raw passthrough, #180 -- this file's mapInfoV2 hall branch
+  // below -- for the hall-info sheet's parsed street/DIRECTIONS fields). One declaration, two
+  // consumers. Confirmed live 2026-08-24 (curl -sL get_infov2) on all 4 commons: `address` is an
+  // HTML blob (`"<p>121 Southwest Cir<br/>Amherst, MA 01003</p>"`, sometimes `<br />` -- both forms
+  // seen); `map_address` is a bare "lat,long" string (`"42.383790,-72.530519"`).
   address?: string | null;
   map_address?: string | null;
   accepted_payment?: string | null;
@@ -78,6 +84,36 @@ function stringOrNull(s: string | null | undefined): string | null {
 // undefined, never throw" posture as locationId below.
 function stringOrUndefined(s: string | null | undefined): string | undefined {
   return s ? s : undefined;
+}
+
+/**
+ * First line of get_infov2's `address` HTML blob (e.g. `"<p>121 Southwest Cir<br/>Amherst, MA
+ * 01003</p>"` -> `"121 Southwest Cir"`), which is all the hall-info sheet's address card shows --
+ * the second line is a hardcoded "UMass Amherst" caption there instead (all 4 halls are on the same
+ * campus), so it's deliberately discarded here rather than parsed out too. Splits on both `<br/>`
+ * and `<br />` (both forms seen in a live capture) and strips the surrounding `<p>` tag; returns
+ * null for anything that doesn't come back with at least one non-empty line, rather than risking
+ * `<p>`/entity soup leaking into the UI.
+ */
+export function parseStreetAddress(html: string | null | undefined): string | null {
+  if (!html) return null;
+  const withoutTags = html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+  const firstLine = withoutTags.split("\n")[0]?.trim();
+  return firstLine ? firstLine : null;
+}
+
+/**
+ * Validates get_infov2's `map_address` ("42.383790,-72.530519") before it's ever interpolated into
+ * a Linking.openURL call (mobile's HallInfoSheet) -- a trust-boundary check per CLAUDE.md, not
+ * optional cleanup. Accepts only `<sign>digits(.digits),<sign>digits(.digits)`; anything else
+ * (missing, malformed, empty) maps to null so the DIRECTIONS row can omit itself instead of handing
+ * a bad string to the OS.
+ */
+const MAP_ADDRESS_PATTERN = /^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/;
+export function parseMapAddress(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  return MAP_ADDRESS_PATTERN.test(trimmed) ? trimmed : null;
 }
 
 /**
@@ -112,6 +148,8 @@ export function mapInfoV2(data: InfoV2Location[]): DiningHoursFeed {
         // with another source for it (or tests) can exercise the overnight math.
         latenight: null,
         general,
+        address: parseStreetAddress(loc.address),
+        mapAddress: parseMapAddress(loc.map_address),
       });
     } else {
       retail.push({
