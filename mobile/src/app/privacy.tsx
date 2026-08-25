@@ -31,6 +31,14 @@ type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unk
 // isn't opt-in -- it syncs unconditionally on sign-in for ping-hall suggestions; wiring this toggle
 // to it instead would make turning it "off" break pings, which the artboard's own copy doesn't
 // describe).
+// #237: what "Delete server data" actually does today -- shared verbatim between the confirm
+// dialog and the row's own subline so the two copies of this claim can't drift apart again.
+// friendships/favorited_foods/shared_stats/favorite_dining_halls/push_tokens/pings(sent) all have
+// an owner DELETE policy + grant (see deleteServerData.ts's own doc comment); profiles and
+// food_sightings do not, and are named as staying, not as being removed.
+const DELETE_SCOPE_SUMMARY =
+  "Removes friendships, favorites, shared stats, dining hall picks, push tokens, and sent pings. Your profile and food-sighting history stay on the server -- deleting those isn't available yet. Phone data stays.";
+
 const SHARED_TOGGLES: { field: SharedStatField; label: string }[] = [
   { field: "completion", label: "Hall completion" },
   { field: "top_foods", label: "Top foods" },
@@ -161,7 +169,7 @@ export default function PrivacyScreen() {
   async function confirmDelete() {
     const myId = session?.user.id;
     if (!myId) return;
-    Alert.alert("Delete server data?", "Removes profile, friendships, favorites, shared stats. Phone data stays.", [
+    Alert.alert("Delete server data?", DELETE_SCOPE_SUMMARY, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -170,12 +178,22 @@ export default function PrivacyScreen() {
           setDeleting(true);
           try {
             const result = await deleteServerData(supabase, myId);
-            if (!result.ok) {
+            // #237: only a genuinely RETRYABLE failure gets "try again" copy -- profiles/
+            // food_sightings show up in `undeletableSteps`, not `failedSteps`, precisely so this
+            // branch (and its "try again", which would never once succeed for them) doesn't fire
+            // on every single invocation.
+            if (result.failedSteps.length > 0) {
               Alert.alert("Couldn't delete everything", `Failed: ${result.failedSteps.join(", ")}. Please try again.`);
               return;
             }
             setRow(null);
             setFriendships([]);
+            if (result.undeletableSteps.length > 0) {
+              Alert.alert(
+                "Server data deleted",
+                "Friendships, favorites, shared stats, dining hall picks, push tokens, and sent pings are gone. Your profile and food-sighting history stay on the server -- deleting those isn't available yet.",
+              );
+            }
           } finally {
             setDeleting(false);
           }
@@ -262,7 +280,7 @@ export default function PrivacyScreen() {
             <Pressable style={styles.deleteCard} onPress={confirmDelete} disabled={deleting}>
               <View style={styles.deleteText}>
                 <Text style={styles.deleteLabel}>Delete server data</Text>
-                <Text style={styles.deleteSubline}>Removes profile, friendships, favorites, shared stats. Phone data stays.</Text>
+                <Text style={styles.deleteSubline}>{DELETE_SCOPE_SUMMARY}</Text>
               </View>
               <Text style={styles.deleteChevron}>›</Text>
             </Pressable>

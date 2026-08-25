@@ -136,7 +136,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSyncSharedStat.mockResolvedValue({ error: null });
   mockToggleAlerts.mockResolvedValue({ error: null });
-  mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [] });
+  mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
@@ -380,13 +380,14 @@ describe("PrivacyScreen: delete server data", () => {
     expect(mockDeleteServerData).not.toHaveBeenCalled();
   });
 
-  // Mutation-based red evidence: flip deleteServerData's mocked result to `{ ok: false,
-  // failedSteps: ["profiles"] }` and this test's Alert.alert assertion is exactly what catches a
-  // screen that claims success regardless of the result (a real regression risk since the profiles
-  // table has no owner DELETE policy -- see deleteServerData.ts's own doc comment).
-  it("shows a truthful partial-failure message instead of claiming success", async () => {
+  // Mutation-based red evidence: flip deleteServerData's mocked result to a genuinely retryable
+  // failure (push_tokens has an owner DELETE policy + grant -- see deleteServerData.ts's own doc
+  // comment -- so a failure there is a real, worth-retrying error, unlike profiles/food_sightings)
+  // and this test's Alert.alert assertion is exactly what catches a screen that claims success
+  // regardless of the result.
+  it("shows a truthful partial-failure message for a genuinely retryable failure -- doesn't claim success", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    mockDeleteServerData.mockResolvedValue({ ok: false, failedSteps: ["profiles"] });
+    mockDeleteServerData.mockResolvedValue({ ok: false, failedSteps: ["push_tokens"], undeletableSteps: [] });
     const root = await renderScreen();
 
     pressDeleteRow(root);
@@ -395,6 +396,58 @@ describe("PrivacyScreen: delete server data", () => {
       await confirmButton.onPress();
     });
 
-    expect(Alert.alert).toHaveBeenCalledWith("Couldn't delete everything", expect.stringContaining("profiles"));
+    expect(Alert.alert).toHaveBeenCalledWith("Couldn't delete everything", expect.stringContaining("push_tokens"));
+  });
+
+  // #237's actual bug: profiles (and food_sightings) have no owner DELETE policy/grant and are
+  // denied on EVERY invocation -- deleteServerData.ts reports that in `undeletableSteps`, not
+  // `failedSteps`, specifically so this path is reachable at all. Before the fix, the screen's own
+  // `if (!result.ok)` check treated a profiles-only denial exactly like a real failure and showed
+  // "Please try again" forever, with no success path ever reachable. Mutation-based red evidence:
+  // reverting `result.failedSteps.length > 0` back to `!result.ok` (with `ok` computed the old,
+  // pre-#237 way) turns this test red -- the retry copy would fire instead.
+  it("clears local state and gives honest, non-retry copy when only the known-undeletable steps remain", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: ["profiles", "food_sightings"] });
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    await act(async () => {
+      await confirmButton.onPress();
+    });
+
+    // Never the retryable-failure copy -- profiles/food_sightings will never succeed on retry.
+    expect(Alert.alert).not.toHaveBeenCalledWith("Couldn't delete everything", expect.anything());
+    expect(Alert.alert).toHaveBeenCalledWith("Server data deleted", expect.stringMatching(/profile.*food-sighting|food-sighting.*profile/i));
+  });
+
+  it("stays silent (no follow-up alert) when every step, including profiles/food_sightings, actually succeeds", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    await act(async () => {
+      await confirmButton.onPress();
+    });
+
+    // Only the confirm dialog itself was shown -- no second alert.
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+  });
+
+  it("the confirm dialog and the row's own subline both name what actually gets deleted, not the stale profile-inclusive claim", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const [, message] = alertSpy.mock.calls[0];
+    expect(message).toMatch(/push tokens/);
+    expect(message).toMatch(/sent pings/);
+    expect(message).toMatch(/food-sighting history stay/);
+
+    const body = texts(root);
+    expect(body).toMatch(/push tokens/);
   });
 });
