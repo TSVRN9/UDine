@@ -15,6 +15,13 @@ All three share the single installed system image: `system-images;android-35;goo
 Base device profiles: `Agent_Emulator` = emulator default (no profile), Narrow = `Nexus 5`,
 Wide = `Nexus 7 2013`.
 
+> **Pool state as of 2026-08-25 10:17:** Narrow (5556) and Wide (5558) are booted and attached;
+> **`Agent_Emulator` (5554) is NOT running** and holds no lock — so the 320dp stress case is
+> currently unavailable, and any claim of 320dp verification since 2026-08-24 is reasoned, not
+> observed. It is owned separately (do not restart or kill it), so bring the narrow-breakpoint
+> question to the owner rather than launching it yourself. Verify with `adb devices` before
+> planning around any device in this table; a booted pool is not guaranteed.
+
 `Agent_Emulator`'s numbers are read from its `hardware-qemu.ini`, **not** queried live — it is
 owned by another agent and was deliberately not touched. Narrow and Wide were verified live
 (`wm size` / `wm density`, see Verification below).
@@ -80,6 +87,29 @@ A lock older than the emulator it names, with no holder process, is stale. One s
 already found and cleared during setup: `Agent_Emulator_Wide`'s lock had been acquired at
 10:42:31 while the device was still crash-looping, ~6 minutes before the working device came up
 at 10:48:22 — an agent grabbed a device that did not exist and died without releasing.
+
+**Second stale lock, cleared 2026-08-25 10:17.** `Agent_Emulator_Narrow`'s lock had been held
+since 2026-08-24 13:59 (~20h) by an agent whose session was killed by a usage limit — the `trap`
+release never ran, which is the failure mode `trap` cannot cover. Note the lock's mtime was
+*4 seconds older* than the emulator process it named, so the doc's "older than the emulator"
+heuristic alone reads as normal acquire-then-launch. What actually settled it was three
+independent signals, and this is the check worth copying:
+
+```bash
+ps -eo pid,args | grep udine-emulator-lock | grep -v grep          # no holder process
+ps -eo pid,etime,args | grep -E 'gradle|metro|expo run' | grep -v grep   # no build targeting it
+adb -s emulator-5556 shell dumpsys activity activities | grep topResumedActivity
+adb -s emulator-5556 shell dumpsys package com.udinetogether.udine | grep lastUpdateTime
+```
+
+The device was sitting on Chrome's `FirstRunActivity` with a UDine `lastUpdateTime` from the
+previous day — i.e. idle, nothing installed to it recently, no build in flight. The contrast is
+what makes it safe: `Agent_Emulator_Wide` at the same moment had a live `expo run:android
+--device Agent_Emulator_Wide` process, a `lastUpdateTime` 6 minutes old, and
+`com.udinetogether.udine/.MainActivity` resumed — obviously held, left alone.
+
+**Check the top activity and `lastUpdateTime`, not just the lock's age.** A killed agent leaves
+no holder process but also leaves no fresh app install, and that pair is the reliable tell.
 
 **`/tmp` is tmpfs on this host** — this document and every lock directory vanish on reboot. The
 locks disappearing is harmless (a fresh boot has no emulators running anyway); losing this doc is
