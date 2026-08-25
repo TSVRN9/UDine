@@ -29,6 +29,21 @@ jest.mock("../lib/auth", () => ({
   signInWithGoogle: jest.fn(),
 }));
 
+// #181: sendOrQueuePing/flushQueuedPings touch real SQLite (via ./db -> expo-sqlite), which can't
+// run under jest (see seenDishesStorage.test.ts's own comment for the confirmed error). Both are
+// fire-and-forget/`.catch`-guarded in SocialPane itself, so an unmocked real throw wouldn't crash
+// these tests either way, but mocking keeps the offline/queue tests below deterministic and able to
+// assert on calls directly.
+const mockSendOrQueuePing = jest.fn().mockResolvedValue("sent");
+const mockFlushQueuedPings = jest.fn().mockResolvedValue(undefined);
+jest.mock("../lib/pingQueue", () => ({
+  sendOrQueuePing: (...args: unknown[]) => mockSendOrQueuePing(...args),
+  flushQueuedPings: (...args: unknown[]) => mockFlushQueuedPings(...args),
+  // isTransientPingError is real, pure logic (not SQLite-backed) -- keep it real so the
+  // send-while-offline tests below exercise SocialPane's actual classification, not a stub.
+  isTransientPingError: jest.requireActual("../lib/pingQueue").isTransientPingError,
+}));
+
 // SocialPane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
 // YouPane.test.tsx/hallMenu.test.tsx).
 jest.mock("react-native-safe-area-context", () => ({
@@ -338,12 +353,17 @@ describe("SocialPane", () => {
     expect(mockOpenBrowserAsync).not.toHaveBeenCalled();
   });
 
-  it("events load error: shows an error line instead of hanging on a loading state forever", async () => {
+  // #181: offline is NOT an error state (owner decision) -- a fetchEvents failure now surfaces as
+  // the offline line, not the old "Couldn't load events" error text. Same underlying fetch, new
+  // treatment; this test is the conscious update of the pre-#181 "events load error" test (renamed,
+  // not silently dropped -- see the describe block below for its full replacement coverage).
+  it("events load error is treated as offline, not shown as an error line", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
     mockFetchEvents.mockRejectedValue(new Error("network down"));
 
     const root = await renderSocialPane();
-    expect(texts(root)).toMatch(/Couldn.t load events/);
+    expect(texts(root)).not.toMatch(/Couldn.t load events/);
+    expect(texts(root)).toMatch(/offline · pings will send when you're back/);
   });
 
   it("hold-and-release gesture: holding past LONG_PRESS_MS opens the bubble with a shuffled message and all 4 halls; releasing without ever hovering one cancels (no ping sent)", async () => {
@@ -418,6 +438,97 @@ describe("SocialPane", () => {
 
       expect(mockRouterPush).toHaveBeenCalledWith("/friend/friend-1");
       expect(mockFrom).not.toHaveBeenCalledWith("pings");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe("SocialPane offline (#181 — owner decision: offline is not an error state)", () => {
+  it("dims the ping card (opacity 0.55) while offline, and back to normal once fetchEvents succeeds again", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation(() => queryResult([]));
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+
+    const root = await renderSocialPane();
+    const dimmedViews = root.root.findAllByType(View).filter((v) => flatStyle(v.props.style).opacity === 0.55);
+    expect(dimmedViews.length).toBeGreaterThan(0);
+
+    mockFetchEvents.mockResolvedValue([]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Retry" }).props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(root.root.findAllByType(View).filter((v) => flatStyle(v.props.style).opacity === 0.55).length).toBe(0);
+  });
+
+  it("RETRY re-fetches events and, once back online, flushes anything queued while offline", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation(() => queryResult([]));
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+
+    const root = await renderSocialPane();
+    expect(mockFlushQueuedPings).not.toHaveBeenCalled();
+
+    mockFetchEvents.mockResolvedValue([]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Retry" }).props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockFetchEvents).toHaveBeenCalledTimes(2); // initial load + retry
+    expect(mockFlushQueuedPings).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT flush the queue on a normal (never-offline) load", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    mockFetchEvents.mockResolvedValue([]);
+    await renderSocialPane();
+    expect(mockFlushQueuedPings).not.toHaveBeenCalled();
+  });
+
+  it("shows the evergreen footer reassurance copy regardless of online/offline state", async () => {
+    mockFetchEvents.mockResolvedValue([]);
+    const online = await renderSocialPane();
+    expect(texts(online)).toMatch(/Your log, plate, and rankings all keep working offline — they live on this phone\./);
+  });
+
+  // #181 review finding 1 (blocking): the fix -- sendPing now always attempts a real send and
+  // classifies the ACTUAL result via pingQueue.ts's sendOrQueuePing, instead of gating on a
+  // one-shot mount-time `offline` flag. sendOrQueuePing is a plain function (no RN, no closed-over
+  // component state -- same split pingGesture.ts's own doc comment argues for), so it's tested
+  // directly and thoroughly in pingQueue.test.ts rather than here.
+  //
+  // Driving this specific case through SocialPane's own hold-hover-release gesture was attempted
+  // and abandoned: react-test-renderer's `createNodeMock` (the standard way to stub a ref's native
+  // instance, needed for the hall row's `measureInWindow` call) is never invoked at all under this
+  // project's jest-expo preset (confirmed by instrumenting the mock factory directly -- zero calls
+  // across a full render + hold + hall-row onLayout pass), so `hallRectsRef` can never be populated
+  // and no hover ever resolves to a real hallTid. This is the same gap already disclosed in this
+  // PR's body for the ORIGINAL send-while-offline tests; it now also covers this fix specifically.
+  it("still passes the hold-without-hovering cancel path with the current sendPing wiring (regression check for the finding-1 refactor)", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "friendships") return queryResult([{ user_a: "me", user_b: "friend-1" }]);
+      if (table === "profiles") return queryResult([{ user_id: "friend-1", display_name: "Alex" }]);
+      return queryResult([]);
+    });
+    mockFetchEvents.mockResolvedValue([]);
+
+    jest.useFakeTimers();
+    try {
+      const root = await renderSocialPane();
+      const avatarViews = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function");
+      const { onResponderGrant, onResponderRelease } = avatarViews[0].props;
+      act(() => onResponderGrant(fakeTouchEvent(10, 10, 1)));
+      act(() => jest.advanceTimersByTime(400));
+      act(() => onResponderRelease(fakeTouchEvent(10, 10, 2))); // never hovered -- cancel, no send
+      expect(mockFrom).not.toHaveBeenCalledWith("pings");
+      // The assertion that actually distinguishes cancel-vs-send: sendPing is a thin wrapper around
+      // sendOrQueuePing (see this test's own header comment above), so this is the one call this
+      // test can observe directly that would fire if the cancel guard ever regressed.
+      expect(mockSendOrQueuePing).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }

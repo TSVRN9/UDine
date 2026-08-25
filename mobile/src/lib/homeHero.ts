@@ -87,6 +87,13 @@ export function formatTime(date: Date): string {
   return `${hour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+/** #181: offline-line copy on Home ("updated 7:12 AM"-style, canvas spec) -- the cached feed's own
+ * fetchedAt, not `now`, so it genuinely reflects when the data was last live rather than claiming
+ * freshness it doesn't have. */
+export function offlineUpdatedLine(fetchedAt: Date): string {
+  return `updated ${formatTime(fetchedAt)}`;
+}
+
 /** Big display title + subtitle line for the hero, per #90's canvas spec. */
 export function formatHeroLine(hero: HomeHero): { title: string; subtitle: string } {
   switch (hero.kind) {
