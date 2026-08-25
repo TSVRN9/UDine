@@ -147,22 +147,35 @@ export async function dispatchPushNotifications(
   // (getPushNotificationReceipts, polled ~15min later) -- those never get cleaned up here. Add a
   // receipts-polling step (or a second scheduled function) if dead Expo tokens are observed piling
   // up in push_tokens.
-  if (expoMessages.length > 0) {
-    const res = await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${config.expoAccessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(expoMessages),
-    });
-    if (res.ok) {
-      const json = (await res.json()) as { data?: ExpoPushReceipt[] };
-      const receipts = json.data ?? [];
-      pushSent += receipts.filter((r) => r.status === "ok").length;
-      for (const token of findDeadExpoTokens(expoTokensSent, receipts)) {
-        await supabase.from("push_tokens").delete().eq("platform", "expo").eq("token", token);
-        tokensRemoved++;
+  // Expo's API caps 100 messages/request (#197), so send in chunks; each chunk's POST + `.json()`
+  // is wrapped in try/catch (#262, mirrors fetchHallHours's shape) -- unguarded, a rejected fetch or
+  // a malformed response would throw out of dispatchPushNotifications and 500 the caller's handler
+  // AFTER it already committed food_sightings, permanently losing that run's pushes to the next
+  // run's `ignoreDuplicates: true`. A failed chunk is logged and skipped; it never aborts the
+  // remaining chunks or the function as a whole -- "no push this run" beats "500 + lost forever".
+  const EXPO_CHUNK_SIZE = 100;
+  for (let i = 0; i < expoMessages.length; i += EXPO_CHUNK_SIZE) {
+    const messageChunk = expoMessages.slice(i, i + EXPO_CHUNK_SIZE);
+    const tokenChunk = expoTokensSent.slice(i, i + EXPO_CHUNK_SIZE);
+    try {
+      const res = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.expoAccessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(messageChunk),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { data?: ExpoPushReceipt[] };
+        const receipts = json.data ?? [];
+        pushSent += receipts.filter((r) => r.status === "ok").length;
+        for (const token of findDeadExpoTokens(tokenChunk, receipts)) {
+          await supabase.from("push_tokens").delete().eq("platform", "expo").eq("token", token);
+          tokensRemoved++;
+        }
+      } else {
+        console.error("Expo push batch send failed:", res.status, await res.text());
       }
-    } else {
-      console.error("Expo push batch send failed:", res.status, await res.text());
+    } catch (err) {
+      console.error("Expo push batch send/parse threw:", err);
     }
   }
 
