@@ -9,7 +9,7 @@ import {
   type DiningHoursFeed,
   type Favorite,
   type FoodPreferences,
-  type HallMealPeriod,
+  type MealPeriod,
   type MenuItem,
   type OffSearchResult,
 } from "@udine/shared";
@@ -34,6 +34,7 @@ import {
   stepDate,
   toggleExpandedKey,
 } from "../../lib/hallMenuTabs";
+import { deriveCafeMealTabs } from "../../lib/cafeMenu";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import {
@@ -45,12 +46,22 @@ import {
   stepCount,
   toLogEntries,
   totalItemCount,
+  totalPlatePrice,
   useGuardedLogPlate,
   type PlateEntry,
 } from "../../lib/plate";
 import { getPreferences } from "../../lib/preferences";
 import { nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
+
+/** A hall-menu-screen subject: a real DINING_HALLS entry (`slug` present -- gets Grab 'N Go +
+ * the fixed 4-tab MEAL_TABS + the "being served now" subtitle) or a café (#177 -- `slug` absent,
+ * meal tabs derived from whatever the fetched items actually carry, per deriveCafeMealTabs). */
+export interface HallMenuSubject {
+  tid: number;
+  name: string;
+  slug?: string;
+}
 
 const storage = new SqliteLogStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
@@ -76,9 +87,8 @@ function RowStepper({ count, dishName, onStep }: { count: number; dishName: stri
   );
 }
 
-export default function HallMenuScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
-  const hall = DINING_HALLS.find((h) => h.slug === slug);
+export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
+  const isRealHall = hall.slug !== undefined;
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
@@ -90,8 +100,13 @@ export default function HallMenuScreen() {
   // worse than a fixed starting point.
   // ponytail: doesn't auto-select "whatever's being served now" the way Home's hero does; upgrade
   // to that once hoursFeed's initial load has a place to land it without racing a manual tap.
-  const [selectedMeal, setSelectedMeal] = useState<HallMealPeriod>("lunch");
+  //
+  // #177: a café has no fixed "lunch" tab to default to (People's Organic only ever has "allday") --
+  // null here means "not yet chosen," resolved once items load by the effect below, to whichever
+  // period deriveCafeMealTabs finds first. A real hall keeps the static "lunch" default unchanged.
+  const [selectedMeal, setSelectedMeal] = useState<MealPeriod | null>(isRealHall ? "lunch" : null);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const mealTabs = useMemo<readonly MealPeriod[]>(() => (isRealHall ? MEAL_TABS : deriveCafeMealTabs(items ?? [])), [isRealHall, items]);
 
   const [plate, setPlate] = useState<PlateEntry[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -110,7 +125,6 @@ export default function HallMenuScreen() {
   const guardedLogPlate = useGuardedLogPlate(storage);
 
   useEffect(() => {
-    if (!hall) return;
     // `current` guards against a stale response winning a race: two quick date-stepper taps fire
     // two fetches, and network order isn't request order -- without this, an in-flight response
     // for a date the user already stepped away from can land after the current one and overwrite
@@ -130,6 +144,16 @@ export default function HallMenuScreen() {
     };
   }, [hall, selectedDate]);
 
+  // #177: a café's initial tab can't be a static default (see selectedMeal's own comment) -- once
+  // items load, land on whichever period deriveCafeMealTabs finds first. Only fires once per load
+  // (guarded on selectedMeal already being null); switching dates re-fetches items but deliberately
+  // doesn't re-run this, so a manual tab choice survives stepping the date, same as a real hall's.
+  useEffect(() => {
+    if (isRealHall || selectedMeal !== null || !items || items.length === 0) return;
+    const firstTab = deriveCafeMealTabs(items)[0];
+    if (firstTab) setSelectedMeal(firstTab);
+  }, [isRealHall, selectedMeal, items]);
+
   // Expanded state keys on dish identity alone (hallTid + dishName, via plateKeyFor), not meal
   // period or date -- the same dish name can recur across meals/days, so without this a card
   // expanded at Lunch could render pre-expanded after switching to Dinner or stepping the date.
@@ -140,9 +164,10 @@ export default function HallMenuScreen() {
   useEffect(() => {
     if (!hall) return;
     // Hall-info sheet's hours card + Grab 'N Go row (the tab-row subtitle this used to feed was
-    // removed in #180). Independent of selectedDate: hours reflect what's true right now, not the
-    // date being browsed. A failure here just leaves the sheet's hours/address blank, never blocks
-    // the menu itself.
+    // removed in #180) -- real halls only (see the header render's own #219-review comment on why
+    // the sheet itself doesn't exist for a café). Independent of selectedDate: hours reflect what's
+    // true right now, not the date being browsed. A failure here just leaves the sheet's
+    // hours/address blank, never blocks the menu itself.
     fetchDiningHours()
       .then(setHoursFeed)
       .catch(() => {});
@@ -178,7 +203,7 @@ export default function HallMenuScreen() {
   // Sections are stations (the foodpro category names), not meal periods -- meal periods are now
   // the tab row above, so a given render only ever shows one meal's worth of items at all.
   const sections = useMemo(() => {
-    if (!items) return [];
+    if (!items || selectedMeal === null) return [];
     const filtered = items.filter((i) => i.mealPeriod === selectedMeal && menuItemMatchesPreferences(i, prefs));
     const categoriesInOrder: string[] = [];
     for (const i of filtered) {
@@ -191,10 +216,13 @@ export default function HallMenuScreen() {
   }, [items, prefs, selectedMeal]);
 
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
-
-  if (!hall) return <Text style={styles.error}>Unknown dining hall</Text>;
+  const priceTotal = useMemo(() => totalPlatePrice(plate), [plate]);
 
   const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
+  // Café tid is never in DINING_HALLS, so hallHours comes back undefined for a café -- hoursRows
+  // below degrades to [] and grabNGoWindow's lookup degrades to null for one, harmlessly (#219
+  // review: the café header renders no glyph/sheet at all, so neither is ever read for a café, but
+  // computing them unconditionally here keeps this block matching #180's own shape).
   // #180: hall-info sheet's data. All computed here (not inside HallInfoSheet) so the sheet stays a
   // pure presentational component -- hoursRows in particular needs `new Date()` at render time for
   // its NOW-highlight, same "now" this screen already reads once per render, nowhere else.
@@ -275,22 +303,40 @@ export default function HallMenuScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
             <Text style={styles.backChevron}>‹</Text>
           </Pressable>
-          <Pressable
-            style={styles.titleTap}
-            onPress={() => setInfoSheetOpen(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${hall.name} info`}
-          >
+          {/* #219 review (post-#207 rebase): #207's title-tap (i) hall-info sheet is REAL-HALL ONLY.
+          The earlier version of this fix pass added a DECORATIVE café ⓘ glyph here (before #180 had
+          merged) -- now that #207/#180 is in, that decorative glyph is retracted in favor of this
+          resolution: `HallInfoSheet`'s data model doesn't have a sensible café equivalent.
+          `hallInfoHoursRows` needs a `DiningHallHours` (breakfast/lunch/dinner/latenight, each its
+          own window); `RetailLocationHours` (what a café actually has) carries one single `hours:
+          TimeWindow | null` for the whole day, no per-meal breakdown to build real hoursRows from.
+          The sheet's title caption is also hardcoded "Dining Commons", wrong copy for a café.
+          Building a real café equivalent (a different hours-card shape, different caption, an
+          events-relevance story) is a new feature, out of this fix pass's scope -- so cafés get NO
+          glyph and NO sheet at all here, not a decorative one sitting next to a real, functional
+          one on the same component. */}
+          {isRealHall ? (
+            <Pressable
+              style={styles.titleTap}
+              onPress={() => setInfoSheetOpen(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`${hall.name} info`}
+            >
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {hall.name}
+              </Text>
+              {/* Bare 13px stroke-circle hint, not a bordered-button circle (owner rejected the 30px/
+              22px circle variants) -- turns gold while the sheet it opens is showing. */}
+              <View style={[styles.infoHint, infoSheetOpen && styles.infoHintOpen]}>
+                <Text style={[styles.infoHintText, infoSheetOpen && styles.infoHintTextOpen]}>i</Text>
+              </View>
+            </Pressable>
+          ) : (
             <Text style={styles.headerTitle} numberOfLines={1}>
               {hall.name}
             </Text>
-            {/* Bare 13px stroke-circle hint, not a bordered-button circle (owner rejected the 30px/
-            22px circle variants) -- turns gold while the sheet it opens is showing. */}
-            <View style={[styles.infoHint, infoSheetOpen && styles.infoHintOpen]}>
-              <Text style={[styles.infoHintText, infoSheetOpen && styles.infoHintTextOpen]}>i</Text>
-            </View>
-          </Pressable>
+          )}
         </View>
         <View style={styles.dateStepper}>
           <Pressable
@@ -316,7 +362,7 @@ export default function HallMenuScreen() {
       </View>
 
       <View style={styles.tabRow}>
-        {MEAL_TABS.map((period) => {
+        {mealTabs.map((period) => {
           const active = period === selectedMeal;
           return (
             <Pressable
@@ -333,26 +379,33 @@ export default function HallMenuScreen() {
           );
         })}
         <View style={styles.tabSpacer} />
-        <View style={styles.tabDivider} />
-        <Pressable
-          onPress={() => router.push(`/grab-n-go/${hall.slug}`)}
-          hitSlop={12}
-          style={styles.tab}
-          accessibilityRole="button"
-          accessibilityLabel={`${hall.name} Grab 'N Go menu`}
-        >
-          {/* ponytail: text-only, no bag glyph -- react-native-svg isn't a dependency (login.tsx's
-          same call: text stand-ins over adding an svg/image-asset dependency for one decorative
-          icon) and emoji is out per CLAUDE.md. Add an svg icon if the fifth tab reads as
-          ambiguous without one in practice. */}
-          <Text style={styles.tabText}>Grab &apos;N Go</Text>
-          <View style={styles.tabUnderline} />
-        </Pressable>
+        {/* Grab 'N Go is a hall-only 5th tab (its own station, not a MealPeriod) -- cafés have no
+            slug and no such station, per the issue's "stations/FDA/plate/logging/ranking unchanged"
+            for the menu path plus its own "meal tabs only for periods the café actually has." */}
+        {hall.slug ? (
+          <>
+            <View style={styles.tabDivider} />
+            <Pressable
+              onPress={() => router.push(`/grab-n-go/${hall.slug}`)}
+              hitSlop={12}
+              style={styles.tab}
+              accessibilityRole="button"
+              accessibilityLabel={`${hall.name} Grab 'N Go menu`}
+            >
+              {/* ponytail: text-only, no bag glyph -- react-native-svg isn't a dependency (login.tsx's
+              same call: text stand-ins over adding an svg/image-asset dependency for one decorative
+              icon) and emoji is out per CLAUDE.md. Add an svg icon if the fifth tab reads as
+              ambiguous without one in practice. */}
+              <Text style={styles.tabText}>Grab &apos;N Go</Text>
+              <View style={styles.tabUnderline} />
+            </Pressable>
+          </>
+        ) : null}
       </View>
 
       {error ? (
         <Text style={styles.error}>Failed to load menu: {error}</Text>
-      ) : !items ? (
+      ) : !items || selectedMeal === null ? (
         <ActivityIndicator style={styles.loading} color={colors.maroon600} />
       ) : sections.length === 0 ? (
         // #117 review: was hardcoded "today" regardless of the stepped date -- "for this day"
@@ -395,9 +448,15 @@ export default function HallMenuScreen() {
                   </Pressable>
                   <View style={styles.rowMain} pointerEvents="none">
                     <Text style={styles.rowText}>{item.dishName}</Text>
-                    <Text style={styles.rowCalories}>
-                      {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
-                    </Text>
+                    {/* #177 styling spec: price leads the meta line, same row as cal/protein, gap
+                        8px. No price in the data (every hall dish, most café dishes) -- renders
+                        exactly as today, a single Text with no price chip. */}
+                    <View style={styles.rowMetaLine}>
+                      {item.price ? <Text style={styles.rowPrice}>{item.price}</Text> : null}
+                      <Text style={styles.rowCalories}>
+                        {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
+                      </Text>
+                    </View>
                   </View>
                   {plateEntry ? (
                     <RowStepper count={plateEntry.count} dishName={item.dishName} onStep={(delta) => stepPlateItem(item, delta)} />
@@ -455,7 +514,7 @@ export default function HallMenuScreen() {
         </View>
       )}
       {plate.length > 0 && (
-        <PlateBar itemCount={totalItemCount(plate)} totals={totals} onPress={() => setSheetOpen(true)} onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)} />
+        <PlateBar itemCount={totalItemCount(plate)} totals={totals} priceTotal={priceTotal} onPress={() => setSheetOpen(true)} onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)} />
       )}
       <PlateSheet
         visible={sheetOpen}
@@ -467,16 +526,21 @@ export default function HallMenuScreen() {
         onLog={logPlate}
         onClose={() => setSheetOpen(false)}
       />
-      <HallInfoSheet
-        visible={infoSheetOpen}
-        hallName={hall.name}
-        address={hallHours?.address ?? null}
-        directionsUrl={infoDirectionsUrl}
-        hoursRows={hoursRows}
-        grabNGoWindow={grabNGoWindow}
-        events={events}
-        onClose={() => setInfoSheetOpen(false)}
-      />
+      {/* Real-hall only -- see the header render's own comment on why a café has no glyph to open
+      this from at all. `infoSheetOpen` can never become true for a café since no Pressable ever
+      sets it there, but not mounting the sheet for one at all is the clearer signal. */}
+      {isRealHall ? (
+        <HallInfoSheet
+          visible={infoSheetOpen}
+          hallName={hall.name}
+          address={hallHours?.address ?? null}
+          directionsUrl={infoDirectionsUrl}
+          hoursRows={hoursRows}
+          grabNGoWindow={grabNGoWindow}
+          events={events}
+          onClose={() => setInfoSheetOpen(false)}
+        />
+      ) : null}
       {labelItem && (
         <NutritionLabel
           visible={!!labelItem}
@@ -496,6 +560,17 @@ export default function HallMenuScreen() {
       )}
     </View>
   );
+}
+
+/** `/halls/[slug]` route: resolves the slug against DINING_HALLS and hands off to the shared body
+ * above. #177's `/cafe/[name]` route is the other caller of HallMenuScreenBody, for the
+ * non-empty-fetchMenu branch of its own runtime model — same screen, a café's {tid, name} with no
+ * slug. */
+export default function HallMenuScreen() {
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const hall = DINING_HALLS.find((h) => h.slug === slug);
+  if (!hall) return <Text style={styles.error}>Unknown dining hall</Text>;
+  return <HallMenuScreenBody hall={hall} />;
 }
 
 const styles = StyleSheet.create({
@@ -525,6 +600,8 @@ const styles = StyleSheet.create({
   // Bare 13px thin-stroke circle, not a bordered-button circle -- the canvas's rejected 30px/22px
   // variants were chunkier affordances, not this. flexShrink: 0 so the hint never gets squeezed out
   // by a long hall name (Worcester/Hampshire) before the name itself starts truncating.
+  // Real-hall only (#219 review post-#207-rebase) -- no cafeInfoGlyph counterpart; see the header
+  // render's own comment on why a café gets neither this nor a sheet to open with it.
   infoHint: {
     width: fs(13),
     height: fs(13),
@@ -605,6 +682,8 @@ const styles = StyleSheet.create({
   rowMainLine: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   rowMain: { flex: 1, gap: 1 },
   rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
+  rowMetaLine: { flexDirection: "row", alignItems: "baseline", gap: spacing(2) },
+  rowPrice: { fontSize: fs(12), fontFamily: fonts.mono, fontWeight: "600", color: colors.maroon600 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   star: { fontSize: fs(20), color: withOpacity(colors.ink900, 30) },
   starActive: { color: colors.gold500 },

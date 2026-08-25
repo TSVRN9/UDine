@@ -10,6 +10,7 @@ import {
   stepCount,
   toLogEntries,
   totalItemCount,
+  totalPlatePrice,
   type PlateEntry,
 } from "./plate";
 
@@ -30,7 +31,7 @@ function nutrition(calories: number): NutritionFacts {
   };
 }
 
-function menuItem(dishName: string, hallTid: number, calories = 100): MenuItem {
+function menuItem(dishName: string, hallTid: number, calories = 100, price?: string): MenuItem {
   return {
     dishName,
     category: "Entrees",
@@ -40,6 +41,7 @@ function menuItem(dishName: string, hallTid: number, calories = 100): MenuItem {
     nutrition: nutrition(calories),
     allergens: [],
     dietTags: [],
+    ...(price !== undefined ? { price } : {}),
   };
 }
 
@@ -74,6 +76,37 @@ describe("addOrIncrement", () => {
     const salad = menuItemToPlateEntry(menuItem("Salad", 1));
     const plate = addOrIncrement(addOrIncrement([], pizza), salad);
     expect(plate).toHaveLength(2);
+  });
+});
+
+describe("menuItemToPlateEntry", () => {
+  it("carries a café item's price through onto the plate entry", () => {
+    const entry = menuItemToPlateEntry(menuItem("Coffee", 32, 5, "$3.00"));
+    expect(entry.price).toBe("$3.00");
+  });
+
+  it("leaves price undefined for a hall dish with no price in the data", () => {
+    const entry = menuItemToPlateEntry(menuItem("Pizza", 1));
+    expect(entry.price).toBeUndefined();
+  });
+});
+
+describe("totalPlatePrice", () => {
+  it("sums price * count across priced rows, per the styling spec's '$11.25' example", () => {
+    const coffee = menuItemToPlateEntry(menuItem("Coffee", 32, 5, "$3.00"), 2);
+    const bagel = menuItemToPlateEntry(menuItem("Bagel", 32, 5, "$5.25"), 1);
+    expect(totalPlatePrice([coffee, bagel])).toBe("$11.25");
+  });
+
+  it("returns null when nothing on the plate has a price — hall-only plate renders exactly as today", () => {
+    const pizza = menuItemToPlateEntry(menuItem("Pizza", 1));
+    expect(totalPlatePrice([pizza])).toBeNull();
+  });
+
+  it("sums only the priced rows in a mixed hall+café plate, not treating unpriced rows as $0 total", () => {
+    const pizza = menuItemToPlateEntry(menuItem("Pizza", 1)); // no price
+    const coffee = menuItemToPlateEntry(menuItem("Coffee", 32, 5, "$3.00"));
+    expect(totalPlatePrice([pizza, coffee])).toBe("$3.00");
   });
 });
 

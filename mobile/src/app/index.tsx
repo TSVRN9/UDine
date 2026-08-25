@@ -14,7 +14,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Card, SectionHeader } from "../components/ui";
+import { SectionHeader } from "../components/ui";
 import { PaneHeader } from "../components/PaneHeader";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
@@ -197,13 +197,21 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
       <View style={styles.section}>
         <SectionHeader title="Cafés & Markets" />
         <View style={styles.retailList}>
+          {/* #177: café/market rows were display-only -- now tappable (chevron per the canvas),
+              probing that location's menu at tap time (never precomputed, see cafe/[name].tsx's own
+              doc comment on the issue's runtime model). */}
           {(hoursFeed?.retail ?? []).map((loc) => {
             const chip = formatLocationChip(retailOpenStatus(loc, now));
             return (
-              <Card key={loc.name} style={styles.retailRow}>
-                <Text style={styles.retailName}>{loc.name}</Text>
-                <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
-              </Card>
+              <Link key={loc.name} href={`/cafe/${encodeURIComponent(loc.name)}`} asChild>
+                <Pressable style={styles.retailRow}>
+                  <View style={styles.retailInfo}>
+                    <Text style={styles.retailName}>{loc.name}</Text>
+                    <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
+                  </View>
+                  <Text style={styles.retailChevron}>›</Text>
+                </Pressable>
+              </Link>
             );
           })}
         </View>
@@ -390,6 +398,10 @@ const styles = StyleSheet.create({
   section: { marginTop: spacing(5), gap: spacing(2.5) },
 
   retailList: { gap: spacing(2.5) },
+  // Was a Card (bg/border/radius) wrapping non-interactive content; #177 makes the row itself the
+  // Pressable, so those visual tokens moved here directly (Card isn't a Pressable, see its own
+  // note — nesting Pressable inside a plain View works fine, but Link's asChild needs the row
+  // itself to be the pressable element for touch/navigation to reach it).
   retailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -398,11 +410,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
     minHeight: fs(44),
+    backgroundColor: colors.paper50,
+    borderWidth: 1,
+    borderColor: withOpacity(colors.ink900, 12),
+    borderRadius: radii.md,
   },
+  retailInfo: { flexShrink: 1, gap: 1 },
   retailName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   retailStatus: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.3, textTransform: "uppercase" },
   retailStatusOpen: { color: colors.maroon600 },
   retailStatusClosed: { color: withOpacity(colors.ink900, 45) },
+  retailChevron: { fontFamily: fonts.body400, fontSize: fs(18), color: withOpacity(colors.ink900, 35) },
 
   quickLinks: { flexDirection: "row", flexWrap: "wrap", gap: spacing(2) },
   quickLink: {

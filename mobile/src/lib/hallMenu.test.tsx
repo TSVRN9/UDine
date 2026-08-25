@@ -72,7 +72,7 @@ import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, SectionList } from "react-native";
 import { router } from "expo-router";
 import { fetchDiningHours, fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
-import HallMenuScreen from "../app/halls/[slug]";
+import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
 import { stepDate } from "./hallMenuTabs";
@@ -705,5 +705,81 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
       findBannerContainer(root, /Couldn't log everything/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
     expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(128);
+  });
+});
+
+// #177: cafe/[name].tsx's "non-empty fetchMenu" branch renders this same HallMenuScreenBody
+// component directly, with a café's {tid, name} (no slug) rather than a DINING_HALLS entry --
+// exercised here without going through the route wrapper, same pattern PlateBar.test.tsx etc. use
+// for a component in isolation.
+const COFFEE: MenuItem = {
+  dishName: "Coffee",
+  category: "Beverages",
+  mealPeriod: "allday",
+  hallTid: 32,
+  date: "2026-08-19",
+  nutrition: nutrition(5),
+  allergens: [],
+  dietTags: [],
+  price: "$3.00",
+};
+
+const BAGEL: MenuItem = {
+  dishName: "Bagel",
+  category: "Beverages",
+  mealPeriod: "allday",
+  hallTid: 32,
+  date: "2026-08-19",
+  nutrition: nutrition(250),
+  allergens: [],
+  dietTags: [],
+  // no price -- meta line for this row must render exactly as today (styling spec)
+};
+
+async function renderCafeScreen(items: MenuItem[]) {
+  mockedFetchMenu.mockResolvedValue(items);
+  let root!: renderer.ReactTestRenderer;
+  await act(async () => {
+    root = renderer.create(<HallMenuScreenBody hall={{ tid: 32, name: "People's Organic Coffee" }} />);
+  });
+  return root;
+}
+
+describe("HallMenuScreenBody as a café (#177 -- non-empty fetchMenu path, tid with no slug)", () => {
+  it("auto-selects the single 'allday' tab a People's-Organic-shaped café has, with no static 'Lunch' default", async () => {
+    const root = await renderCafeScreen([COFFEE, BAGEL]);
+    // The tab reads "All Day" (shared's mealPeriodLabel, reused via hallMenuTabs' mealTabLabel --
+    // #177 doesn't need its own override now that #175's label fix landed on main), and both items
+    // show without any tab tap -- a static "lunch" default would show neither, since this café has
+    // no lunch tab.
+    expect(texts(root).flat()).toContain("All Day");
+    expect(texts(root).flat()).toContain("Coffee");
+    expect(texts(root).flat()).toContain("Bagel");
+  });
+
+  it("never renders a Grab 'N Go tab for a café (no slug -- not a real DINING_HALLS entry)", async () => {
+    const root = await renderCafeScreen([COFFEE]);
+    expect(texts(root).flat()).not.toContain("Grab 'N Go");
+  });
+
+  it("shows the price leading the meta line for a priced item, and renders exactly as today (no price chip) for an unpriced one", async () => {
+    const root = await renderCafeScreen([COFFEE, BAGEL]);
+    const flat = texts(root).flat();
+    expect(flat).toContain("$3.00");
+    // Bagel's meta line is untouched -- calorie/protein text present, no stray price string for it.
+    expect(flat).toContain(250);
+    expect(flat).toContain("g protein");
+  });
+
+  // #219 review, post-#207 rebase: #207 added a REAL title-tap (i) that opens HallInfoSheet for a
+  // real hall (see this file's "Worcester info" tests above). RetailLocationHours (what a café
+  // actually has) has no per-meal hours breakdown to build a real hoursRows from, and the sheet's
+  // title caption is hardcoded "Dining Commons" -- wrong for a café. Rather than ship a decorative
+  // glyph that looks identical to the real hall one, or a functional one backed by wrong/empty
+  // data, cafés get neither the glyph nor the sheet at all.
+  it("renders no info-tap affordance and no hall-info sheet for a café -- HallInfoSheet's data model has no sensible café equivalent", async () => {
+    const root = await renderCafeScreen([COFFEE]);
+    expect(root.root.findAllByProps({ accessibilityLabel: "People's Organic Coffee info" }).length).toBe(0);
+    expect(texts(root).flat().join(" ")).not.toMatch(/Dining Commons/);
   });
 });
