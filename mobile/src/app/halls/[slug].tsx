@@ -1,7 +1,6 @@
 import {
   computeDailyTotals,
   DINING_HALLS,
-  fetchDiningHours,
   fetchEvents,
   favoriteKey,
   menuItemMatchesPreferences,
@@ -15,14 +14,17 @@ import {
 } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from "react-native";
+import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
+import { MenuErrorCard } from "../../components/MenuErrorCard";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
+import { formatTime } from "../../lib/homeHero";
 import {
   directionsUrl,
   formatDateStepperLabel,
@@ -37,6 +39,7 @@ import {
 import { deriveCafeMealTabs } from "../../lib/cafeMenu";
 import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
+import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
 import {
   addOrIncrement,
   listBottomPadding,
@@ -91,6 +94,12 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
   const isRealHall = hall.slug !== undefined;
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // #181: retry card + "SHOW SAVED COPY" wiring. retryToken is bumped by TRY AGAIN to re-run the
+  // fetch effect below without duplicating its fetch logic; cachedMenu is looked up whenever the
+  // fetch fails, so the retry card knows whether a saved copy actually exists (spec: the link only
+  // renders "when a cache exists").
+  const [retryToken, setRetryToken] = useState(0);
+  const [cachedMenu, setCachedMenu] = useState<CachedMenu | null>(null);
   const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
   const [favoriteDishKeys, setFavoriteDishKeys] = useState<Set<string>>(new Set());
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
@@ -132,17 +141,38 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
     let current = true;
     setItems(null);
     setError(null);
+    setCachedMenu(null);
     fetchMenuAndRecordSeen(hall.tid, selectedDate)
       .then((result) => {
         if (current) setItems(result);
       })
       .catch((e) => {
-        if (current) setError(String(e));
+        if (!current) return;
+        setError(String(e));
+        // #181: only looked up on failure, not eagerly on every load -- the retry card is the only
+        // place this matters, and it doesn't exist until there's an error to show it in.
+        getCachedMenu(hall.tid, selectedDate)
+          .then((cached) => {
+            if (current) setCachedMenu(cached);
+          })
+          .catch(() => {});
       });
     return () => {
       current = false;
     };
-  }, [hall, selectedDate]);
+    // retryToken: not read inside the effect body, only bumped by TRY AGAIN to re-run this exact
+    // fetch without duplicating its logic in a second function.
+  }, [hall, selectedDate, retryToken]);
+
+  function retryMenuFetch() {
+    setRetryToken((t) => t + 1);
+  }
+
+  function showSavedCopy() {
+    if (!cachedMenu) return;
+    setItems(cachedMenu.items);
+    setError(null);
+  }
 
   // #177: a café's initial tab can't be a static default (see selectedMeal's own comment) -- once
   // items load, land on whichever period deriveCafeMealTabs finds first. Only fires once per load
@@ -163,12 +193,15 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
 
   useEffect(() => {
     if (!hall) return;
-    // Hall-info sheet's hours card + Grab 'N Go row (the tab-row subtitle this used to feed was
     // removed in #180) -- real halls only (see the header render's own #219-review comment on why
     // the sheet itself doesn't exist for a café). Independent of selectedDate: hours reflect what's
     // true right now, not the date being browsed. A failure here just leaves the sheet's
     // hours/address blank, never blocks the menu itself.
-    fetchDiningHours()
+    // #181 review finding 10: fetchHoursAndCache (not shared's bare fetchDiningHours) -- otherwise
+    // this screen's own hours never get cached, so offline on the hall-menu screen recovers the
+    // menu (SHOW SAVED COPY) while the #180 info sheet right beside it still shows "Address
+    // unavailable" and every window "not served here" instead of the cached hours it could have had.
+    fetchHoursAndCache()
       .then(setHoursFeed)
       .catch(() => {});
   }, [hall]);
@@ -404,9 +437,25 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
       </View>
 
       {error ? (
-        <Text style={styles.error}>Failed to load menu: {error}</Text>
+        <MenuErrorCard
+          savedCopyTime={cachedMenu ? formatTime(new Date(cachedMenu.fetchedAt)) : null}
+          onRetry={retryMenuFetch}
+          onShowSavedCopy={showSavedCopy}
+        />
       ) : !items || selectedMeal === null ? (
-        <ActivityIndicator style={styles.loading} color={colors.maroon600} />
+        // #181: honest skeleton -- header + meal tabs above already rendered fully (known without
+        // the network); only the dish list itself is unknown, so only it shimmers. Widths vary a
+        // little (canvas: "96-176px") so it doesn't read as a uniform grid.
+        <View style={styles.skeletonList}>
+          <StationHeaderSkeleton width={fs(118)} />
+          <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
+          <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
+          <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
+          <View style={styles.skeletonSpinnerRow}>
+            <Spinner size={fs(14)} />
+            <Text style={styles.skeletonSpinnerText}>Getting today&apos;s menu from UMass Dining…</Text>
+          </View>
+        </View>
       ) : sections.length === 0 ? (
         // #117 review: was hardcoded "today" regardless of the stepped date -- "for this day"
         // matches grab-n-go/[slug].tsx's own EmptyState copy (also date-agnostic by construction,
@@ -513,8 +562,19 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
           <Text style={styles.loggedBannerText}>{logged}</Text>
         </View>
       )}
-      {plate.length > 0 && (
-        <PlateBar itemCount={totalItemCount(plate)} totals={totals} priceTotal={priceTotal} onPress={() => setSheetOpen(true)} onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)} />
+      {(plate.length > 0 || (!items && !error) || error) && (
+        <PlateBar
+          itemCount={totalItemCount(plate)}
+          totals={totals}
+          priceTotal={priceTotal}
+          onPress={() => setSheetOpen(true)}
+          onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
+          // #181: "visible-but-disabled" while loading, "survives" (functional look, just a
+          // reassurance sub-line) on a fetch failure -- only the loading LOG button is spec'd
+          // disabled. Both are no-ops when the plate already has real items (see PlateBar's own
+          // doc): a populated plate always shows the normal bar regardless of menu fetch state.
+          emptyState={!items && !error ? { subline: "add dishes once the menu loads", disabled: true } : error ? { subline: "your plate is safe — it lives on this phone" } : undefined}
+        />
       )}
       <PlateSheet
         visible={sheetOpen}
@@ -575,8 +635,10 @@ export default function HallMenuScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream100 },
-  loading: { flex: 1, backgroundColor: colors.cream100 },
   error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body400 },
+  skeletonList: { paddingHorizontal: spacing(5), paddingTop: spacing(3), gap: spacing(2) },
+  skeletonSpinnerRow: { flexDirection: "row", alignItems: "center", gap: spacing(2), marginTop: spacing(2), justifyContent: "center" },
+  skeletonSpinnerText: { fontFamily: fonts.body500, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
 
   header: {
     flexDirection: "row",

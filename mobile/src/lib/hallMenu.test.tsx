@@ -46,13 +46,11 @@ jest.mock("react-native-safe-area-context", () => ({
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),
-  // #117: real fetchDiningHours hits the network; a resolved-empty default keeps the screen's
-  // hours effect from throwing (calling .then on an unmocked jest.fn()'s undefined return) while
-  // individual tests can still override with mockResolvedValueOnce for subtitle-specific cases.
-  fetchDiningHours: jest.fn().mockResolvedValue({ halls: [], retail: [] }),
-  // #180: same reasoning as fetchDiningHours above -- real fetchEvents hits get_beacons_events over
-  // the network; a resolved-empty default keeps the hall-info sheet's events effect from throwing
-  // and keeps this whole suite off the real endpoint (never hit real UMass endpoints in tests).
+  // #181 review finding 10: the screen no longer calls shared's fetchDiningHours directly (it goes
+  // through fetchHoursAndCache, mocked below via ./menuHoursCache) -- no entry needed here anymore.
+  // #180: real fetchEvents hits get_beacons_events over the network; a resolved-empty default keeps
+  // the hall-info sheet's events effect from throwing and keeps this whole suite off the real
+  // endpoint (never hit real UMass endpoints in tests).
   fetchEvents: jest.fn().mockResolvedValue([]),
 }));
 
@@ -68,10 +66,30 @@ jest.mock("./seenDishesStorage", () => ({
   SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ recordSeen: jest.fn().mockResolvedValue(undefined) })),
 }));
 
+// #181: menuFetchWithSeenTracking.ts now also calls saveCachedMenu (fire-and-forget) on every
+// successful fetch, and the screen itself calls getCachedMenu directly on a failed fetch (for the
+// retry card's "SHOW SAVED COPY" link). Both touch real SQLite via ./db -> expo-sqlite, which
+// can't run under jest (see seenDishesStorage.test.ts's own comment for the confirmed error) --
+// mocked here the same way the other singletons above are, with a real in-memory Map standing in
+// for the cache so individual tests can seed/inspect it.
+const mockMenuCache = new Map<string, { items: MenuItem[]; fetchedAt: string }>();
+// #181 review finding 10: the screen now calls fetchHoursAndCache (this module), not shared's bare
+// fetchDiningHours -- a resolved-empty default keeps the screen's hours effect from throwing, same
+// reasoning as the old @udine/shared fetchDiningHours mock below it replaces for this purpose;
+// individual tests override via (fetchHoursAndCache as jest.Mock).mockResolvedValueOnce(...).
+const mockFetchHoursAndCache = jest.fn().mockResolvedValue({ halls: [], retail: [] });
+jest.mock("./menuHoursCache", () => ({
+  saveCachedMenu: jest.fn(async (hallTid: number, date: Date, items: MenuItem[]) => {
+    mockMenuCache.set(`${hallTid}|${date.toDateString()}`, { items, fetchedAt: new Date("2026-08-19T12:00:00.000Z").toISOString() });
+  }),
+  getCachedMenu: jest.fn(async (hallTid: number, date: Date) => mockMenuCache.get(`${hallTid}|${date.toDateString()}`) ?? null),
+  fetchHoursAndCache: () => mockFetchHoursAndCache(),
+}));
+
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, SectionList } from "react-native";
 import { router } from "expo-router";
-import { fetchDiningHours, fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
+import { fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
@@ -204,6 +222,7 @@ async function openSheetAndLog(root: renderer.ReactTestRenderer) {
 // "window.dispatchEvent is not a function" instead of just failing the one test.
 beforeEach(() => {
   jest.useFakeTimers();
+  mockMenuCache.clear();
 });
 
 afterEach(() => {
@@ -391,12 +410,12 @@ describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info
 // on the sheet's own hours card below instead.
 describe("HallMenuScreen hall-info sheet wiring (#180)", () => {
   it("never renders the retired tab-row 'being served now' line, even once hours resolve", async () => {
-    (fetchDiningHours as jest.Mock).mockResolvedValueOnce({
+    (mockFetchHoursAndCache as jest.Mock).mockResolvedValueOnce({
       halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "12:00 AM", closeTime: "11:59 PM" }, dinner: null, latenight: null, general: null }],
       retail: [],
     });
     const root = await renderScreen([PIZZA]);
-    await act(async () => {}); // flush fetchDiningHours' resolution
+    await act(async () => {}); // flush fetchHoursAndCache's resolution
     expect(texts(root).flat().join(" ")).not.toMatch(/being served now/);
   });
 
@@ -419,7 +438,7 @@ describe("HallMenuScreen hall-info sheet wiring (#180)", () => {
   it("NOW-highlights the hall's current meal period in the sheet's hours card, driven by a mocked clock -- not whatever tab happens to be selected", async () => {
     // Wed 2026-08-19, 12:30 PM local -- inside the mocked lunch window below.
     jest.setSystemTime(new Date(2026, 7, 19, 12, 30, 0, 0));
-    (fetchDiningHours as jest.Mock).mockResolvedValueOnce({
+    (mockFetchHoursAndCache as jest.Mock).mockResolvedValueOnce({
       halls: [
         {
           hallTid: 1,
@@ -446,6 +465,108 @@ describe("HallMenuScreen hall-info sheet wiring (#180)", () => {
     const root = await renderScreen([PIZZA]);
     await act(async () => {});
     expect(fetchEvents).toHaveBeenCalled();
+  });
+});
+
+describe("HallMenuScreen loading/error states (#181)", () => {
+  it("shows the honest skeleton (spinner + copy, not the real dish list) while the menu fetch is pending", async () => {
+    let resolveFetch!: (items: MenuItem[]) => void;
+    mockedFetchMenu.mockReturnValue(
+      new Promise<MenuItem[]>((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    const pendingBody = texts(root).flat().join(" ");
+    expect(pendingBody).toMatch(/Getting today's menu from UMass Dining…/);
+    expect(pendingBody).not.toMatch(/Pizza/);
+    // Header + meal tabs are known without the network -- they render fully even while pending.
+    expect(pendingBody).toMatch(/Worcester/);
+    expect(pendingBody).toMatch(/Lunch/);
+    // #181 review finding 2: assert the skeleton bars themselves actually render, not just that
+    // the dish list is absent (which an empty EmptyState would also satisfy).
+    expect(root.root.findAllByProps({ testID: "skeleton-bar" }).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      resolveFetch([PIZZA]);
+      await Promise.resolve();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Pizza/);
+  });
+
+  it("shows the retry card on a fetch failure, with the exact spec copy, and TRY AGAIN refetches", async () => {
+    mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    const errorBody = texts(root).flat().join(" ");
+    expect(errorBody).toMatch(/Menu didn't load/);
+    expect(errorBody).toMatch(/UMass Dining didn't answer\. Check your connection, or the menu for this date may not be posted yet\./);
+    expect(errorBody).not.toMatch(/Pizza/);
+
+    mockedFetchMenu.mockResolvedValueOnce([PIZZA]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Try again" }).props.onPress();
+    });
+    const retriedBody = texts(root).flat().join(" ");
+    expect(retriedBody).not.toMatch(/Menu didn't load/);
+    expect(retriedBody).toMatch(/Pizza/);
+  });
+
+  it("hides the SHOW SAVED COPY link on a fetch failure when no cache exists for this hall+date", async () => {
+    mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/SHOW SAVED COPY/);
+  });
+
+  it("SHOW SAVED COPY loads the cached menu on tap, when a cache exists for this hall+date", async () => {
+    const today = new Date();
+    mockMenuCache.set(`1|${today.toDateString()}`, { items: [SALAD], fetchedAt: new Date("2026-08-19T12:00:00.000Z").toISOString() });
+    mockedFetchMenu.mockRejectedValue(new Error("network down"));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    const errorBody = texts(root).flat().join(" ");
+    expect(errorBody).toMatch(/SHOW SAVED COPY FROM/);
+    expect(errorBody).not.toMatch(/Salad/); // not shown yet -- still on the retry card
+
+    await act(async () => {
+      // fetchedAt is fixed at "2026-08-19T12:00:00.000Z" -- 8:00 AM Eastern (this suite runs under
+      // TZ=America/New_York), matching formatTime's output for that instant.
+      root.root.findByProps({ accessibilityLabel: "Show saved copy from 8:00 AM" }).props.onPress();
+    });
+    const savedBody = texts(root).flat().join(" ");
+    expect(savedBody).toMatch(/Salad/);
+    expect(savedBody).not.toMatch(/Menu didn't load/);
+  });
+
+  it("shows the loading empty-plate bar (disabled LOG, 'add dishes once the menu loads') while pending and the plate is empty", async () => {
+    mockedFetchMenu.mockReturnValue(new Promise<MenuItem[]>(() => {})); // never resolves
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Plate is empty/);
+    expect(body).toMatch(/add dishes once the menu loads/);
+  });
+
+  it("shows the error empty-plate bar ('your plate is safe') on a fetch failure with an empty plate", async () => {
+    mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/your plate is safe — it lives on this phone/);
   });
 });
 

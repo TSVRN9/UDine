@@ -15,6 +15,7 @@ import {
   type PanResponderGestureState,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OfflineLine } from "../components/OfflineLine";
 import { Press } from "../components/Press";
 import { Button, Card, EmptyState, SectionHeader } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -22,7 +23,7 @@ import { signInWithGoogle } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { classifyEventTap, eventDateLine } from "../lib/eventTapTarget";
 import { openEventTap } from "../lib/openEventTap";
-import { sendPingGuarded } from "../lib/sendPing";
+import { flushQueuedPings, sendOrQueuePing } from "../lib/pingQueue";
 import {
   buildPingPayload,
   hallAtPoint,
@@ -140,6 +141,11 @@ export function SocialPane() {
   const [profilesById, setProfilesById] = useState<Map<string, Profile>>(new Map());
   const [events, setEvents] = useState<DiningEvent[] | null>(null);
   const [eventsError, setEventsError] = useState<string | null>(null);
+  // #181: offline is NOT an error state (owner decision) -- driven by fetchEvents (an
+  // auth-independent network call that always runs, unlike `refresh`, which no-ops signed-out)
+  // succeeding or failing, same reachability-proxy choice HomePane/hall-menu make elsewhere in
+  // this PR (a rejected fetch as the signal, not a true OS-level connectivity check).
+  const [offline, setOffline] = useState(false);
   const [gesture, setGesture] = useState<PingGestureState>(IDLE_STATE);
   const insets = useSafeAreaInsets();
 
@@ -150,6 +156,7 @@ export function SocialPane() {
   const hallRectsRef = useRef<Map<number, Rect>>(new Map());
   const hallRowRefs = useRef<Map<number, View | null>>(new Map());
   const holdTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const offlineRef = useRef(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -184,11 +191,44 @@ export function SocialPane() {
     }, [refresh]),
   );
 
-  useEffect(() => {
+  const loadEvents = useCallback(() => {
     fetchEvents()
-      .then(setEvents)
-      .catch((e) => setEventsError(String(e)));
+      .then((result) => {
+        // offlineRef (not the `offline` state var) so this always reads the CURRENT value -- a
+        // useCallback with `[]` deps closes over render-time state once and never sees it change,
+        // which would make "was this a reconnect" permanently stuck at its first-render answer.
+        // Load-bearing that this read-then-clear is synchronous, not two separate statements
+        // separated by an await: it's what makes a rapid double RETRY-tap (or a RETRY landing
+        // right after sendPing's own reconnect-flush already flipped offlineRef false) safe --
+        // whichever call observes `wasOffline = true` first also clears it in the same tick, so
+        // only that one call flushes the queue; the other sees `false` and no-ops. Two `await`s
+        // between the read and the write here would reopen the exact interleaving flushQueuedPings'
+        // own internal write-queue was added to close.
+        const wasOffline = offlineRef.current;
+        offlineRef.current = false;
+        setEvents(result);
+        setEventsError(null);
+        setOffline(false);
+        // Reconnect: flush anything queued while offline. Fire-and-forget -- a failed flush just
+        // leaves those pings queued for the next successful reconnect, same as everything else in
+        // this file that touches SQLite off the render path.
+        if (wasOffline) flushQueuedPings(supabase).catch(() => {});
+      })
+      .catch((e) => {
+        offlineRef.current = true;
+        setOffline(true);
+        setEventsError(String(e));
+      });
   }, []);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  function retry() {
+    loadEvents();
+    refresh();
+  }
 
   async function handleSignIn() {
     try {
@@ -204,10 +244,33 @@ export function SocialPane() {
     setGesture(next);
   }
 
+  /**
+   * #181 review finding 1: this used to gate on the `offline` state var, which is set only by
+   * `loadEvents` (mount + RETRY) -- the ordinary case (app open, network drops mid-session, user
+   * sends a ping) never touches loadEvents at all, so `offline` was still false, the ping went to
+   * `sendPingGuarded`, got a network-shaped failure, and was DISCARDED with the misleading "not
+   * friends" alert. Fixed: always attempt the real send via pingQueue.ts's sendOrQueuePing (pure,
+   * RN-free, unit-tested directly), then react to the *actual* outcome -- same "fetch-rejected is
+   * the signal" philosophy as everywhere else in this PR, just driven by this call's own failure
+   * instead of a one-shot mount fetch. This wrapper is intentionally thin RN wiring only, same
+   * split pingGesture.ts's own doc comment argues for.
+   */
   async function sendPing(payload: PingPayload) {
     const myId = session?.user.id;
     if (!myId) return;
-    await sendPingGuarded(supabase, pingRow(myId, payload));
+    const outcome = await sendOrQueuePing(supabase, pingRow(myId, payload));
+    if (outcome === "sent") {
+      if (offlineRef.current) {
+        offlineRef.current = false;
+        setOffline(false);
+        flushQueuedPings(supabase).catch(() => {});
+      }
+    } else if (outcome === "queued") {
+      offlineRef.current = true;
+      setOffline(true);
+    } else {
+      Alert.alert("Couldn't send ping", "You may not be friends with this person (yet).");
+    }
   }
 
   function clearHoldTimer(friendId: string) {
@@ -251,7 +314,12 @@ export function SocialPane() {
         const payload = buildPingPayload(gestureRef.current);
         dispatch({ type: "RELEASE" });
         if (payload) {
-          sendPing(payload);
+          // #181 review finding 9: sendPing now has a throwing path (a locked/full-disk SQLite
+          // write inside enqueuePing) it didn't before -- a bare fire-and-forget call here would
+          // be an unhandled rejection AND silently lose the ping. Surface it instead.
+          sendPing(payload).catch((err) => {
+            Alert.alert("Couldn't send ping", err instanceof Error ? err.message : String(err));
+          });
         } else if (!wasHolding && Math.abs(gestureState.dx) < TAP_MOVE_THRESHOLD && Math.abs(gestureState.dy) < TAP_MOVE_THRESHOLD) {
           // #94: tap (not hold-and-release) an avatar -> that friend's shared-stats profile.
           router.push(`/friend/${friendId}`);
@@ -279,6 +347,13 @@ export function SocialPane() {
     // of reach of hallAtPoint's page-coordinate hit test) once there's enough content to scroll.
     <View style={styles.paneWrap}>
       <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
+        {offline ? (
+          <View style={styles.offlineRow}>
+            <OfflineLine text="offline · pings will send when you're back" onRetry={retry} />
+          </View>
+        ) : null}
+
+
         <View style={styles.section}>
           <SectionHeader title="Ping a Friend" />
           {!session ? (
@@ -292,7 +367,7 @@ export function SocialPane() {
               }
             />
           ) : (
-            <Card style={styles.pingCard}>
+            <Card style={[styles.pingCard, offline && styles.pingCardOffline]}>
               <View style={styles.avatarRow}>
                 {friends.map((f, i) => (
                   <View key={f.user_id} style={styles.avatarSlot} {...panResponderFor(f.user_id).panHandlers}>
@@ -318,7 +393,11 @@ export function SocialPane() {
 
         <View style={styles.section}>
           <SectionHeader title="Events" />
-          {eventsError && <Text style={styles.error}>Couldn&apos;t load events: {eventsError}</Text>}
+          {/* #181: offline is not an error state -- a fetchEvents failure now shows via the
+              OfflineLine above, not this text. Kept for a theoretical non-offline failure path,
+              but every current failure of this fetch sets `offline` too, so this is effectively
+              retired rather than deleted outright. */}
+          {eventsError && !offline && <Text style={styles.error}>Couldn&apos;t load events: {eventsError}</Text>}
           {!events && !eventsError && <Text style={styles.empty}>Loading events…</Text>}
           {events && events.length === 0 && <EmptyState title="No events" message="No events right now." />}
           {events && events.length > 0 && (
@@ -329,6 +408,10 @@ export function SocialPane() {
             </View>
           )}
         </View>
+
+        {/* #181: evergreen reassurance copy, exact per the canvas spec -- not gated on `offline`,
+            it's true regardless of connectivity and the artboard shows it as a standing footer. */}
+        <Text style={styles.footerReassurance}>Your log, plate, and rankings all keep working offline — they live on this phone.</Text>
       </ScrollView>
 
       {gesture.phase === "holding" && (
@@ -389,8 +472,17 @@ const styles = StyleSheet.create({
   section: { marginTop: spacing(4), gap: spacing(2.5) },
   empty: { color: withOpacity(colors.ink900, 55), fontFamily: fonts.body400, fontSize: fs(13), marginTop: spacing(1) },
   error: { color: "#b00020", fontFamily: fonts.body400, fontSize: fs(13), marginTop: spacing(1) },
+  offlineRow: { marginTop: spacing(2) },
+  footerReassurance: {
+    marginTop: spacing(6),
+    fontFamily: fonts.body400,
+    fontSize: fs(12),
+    color: withOpacity(colors.ink900, 45),
+    textAlign: "center",
+  },
 
   pingCard: { padding: spacing(3.5), gap: spacing(2.5) },
+  pingCardOffline: { opacity: 0.55 },
   avatarRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing(3.5) },
   avatarSlot: { width: fs(60), alignItems: "center", gap: spacing(1) },
   avatarCircle: { width: fs(52), height: fs(52), borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },

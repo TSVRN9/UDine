@@ -1,15 +1,18 @@
-import { DINING_HALLS, fetchDiningHours, favoriteKey, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
+import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OfflineLine } from "../components/OfflineLine";
+import { SkeletonBar } from "../components/Skeleton";
 import { SectionHeader } from "../components/ui";
 import { PaneStack } from "../components/PaneStack";
 import { usePressDimOverlay, PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
-import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
+import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { grabRouteFor, grabStripState } from "../lib/grabStrip";
+import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { isFirstRunDismissed } from "../lib/firstRun";
@@ -34,15 +37,42 @@ const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/notifications", label: "Notifications" },
 ];
 
-function HeroBlock({ hero, now }: { hero: HomeHero; now: Date }) {
-  const { title, subtitle } = formatHeroLine(hero);
+// #181: hero is null both while the very first fetch is genuinely pending (real skeleton) AND on
+// the dead-end case -- fetch failed with no cache to fall back to (`error` is set instead). Those
+// two null cases must render differently: `pending` distinguishes them. Without it (#181 review
+// finding 3, blocking), the skeleton fell back to unconditionally whenever hero was null, so a
+// fetch-failed-with-no-cache render showed the shimmer FOREVER underneath the error text -- the
+// opposite of "honest": the skeleton would be promising data that will never arrive. The date line
+// is known instantly either way (today's date needs no network), so it always renders regardless.
+function HeroBlock({
+  hero,
+  now,
+  offline,
+  cachedAt,
+  pending,
+}: {
+  hero: HomeHero | null;
+  now: Date;
+  offline: boolean;
+  cachedAt: string | null;
+  pending: boolean;
+}) {
   const dateLine = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   return (
     <View style={styles.hero}>
-      <Text style={styles.heroKicker}>{dateLine}</Text>
+      <View style={styles.heroKickerRow}>
+        <Text style={styles.heroKicker}>{dateLine}</Text>
+        {offline && cachedAt ? <OfflineLine text={offlineUpdatedLine(new Date(cachedAt))} /> : null}
+      </View>
       <View style={styles.heroRow}>
-        <Text style={styles.heroTitle}>{title}</Text>
-        <Text style={styles.heroSubtitle}>{subtitle}</Text>
+        {hero ? (
+          <>
+            <Text style={styles.heroTitle}>{formatHeroLine(hero).title}</Text>
+            <Text style={styles.heroSubtitle}>{formatHeroLine(hero).subtitle}</Text>
+          </>
+        ) : pending ? (
+          <SkeletonBar width={fs(160)} height={fs(40)} />
+        ) : null}
       </View>
       <View style={styles.heroGoldBar} />
     </View>
@@ -69,12 +99,16 @@ function HallCard({
   isFavorite,
   onToggleFavorite,
   grab,
+  pending,
 }: {
   hall: { slug: string; name: string; tid: number };
   chip: { open: boolean; text: string };
   isFavorite: boolean;
   onToggleFavorite: () => void;
   grab: { open: boolean; text: string };
+  /** #181: hall NAME/monogram below are always known (DINING_HALLS is static); only the
+   * open/closed chip needs hoursFeed, so only it shimmers while `pending`. */
+  pending: boolean;
 }) {
   const gradient = chip.open ? (hallGradients[hall.slug] ?? hallGradients.worcester) : hallGradientClosed;
   // `.pressd` (#179 press-feedback map: hall-card header zones). The tap target is a sibling
@@ -111,7 +145,11 @@ function HallCard({
         <Link href={`/halls/${hall.slug}`} asChild>
           <Pressable collapsable={false} style={StyleSheet.absoluteFill} onPressIn={hallDim.onPressIn} onPressOut={hallDim.onPressOut} />
         </Link>
-        {chip.text ? (
+        {pending ? (
+          <View style={[styles.hallChip, styles.hallChipClosed]} pointerEvents="none">
+            <SkeletonBar width={fs(46)} height={fs(11)} />
+          </View>
+        ) : chip.text ? (
           <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]} pointerEvents="none">
             <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
           </View>
@@ -150,6 +188,11 @@ function HallCard({
 export function HomePane() {
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // #181: offline is NOT an error state (owner decision) -- `offline` + `cachedAt` drive the small
+  // wifi-off line, not `error`. `error` is now reserved for the genuine dead-end: fetch failed AND
+  // no cache exists to fall back to, so there's nothing else to show.
+  const [offline, setOffline] = useState(false);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
   const insets = useSafeAreaInsets();
@@ -159,7 +202,30 @@ export function HomePane() {
     favoritesStorage.getFavorites().then((favs) => {
       setFavoriteHallKeys(new Set(favs.filter((f) => f.type === "location").map(favoriteKey)));
     });
-    fetchDiningHours().then(setHoursFeed).catch((e) => setError(String(e)));
+    fetchHoursAndCache()
+      .then((feed) => {
+        setHoursFeed(feed);
+        setOffline(false);
+        setError(null);
+      })
+      .catch((e) => {
+        // "offline" here really means "the last fetch failed" -- a rejected fetch as the
+        // reachability signal, not a true OS-level connectivity check (no netinfo dependency in
+        // this codebase). Good enough proxy: a real network error and a genuine server outage both
+        // land here, and both get the same "render from what we've got" treatment.
+        getCachedHours()
+          .then((cached) => {
+            if (cached) {
+              setHoursFeed(cached.feed);
+              setOffline(true);
+              setCachedAt(cached.fetchedAt);
+              setError(null);
+            } else {
+              setError(String(e));
+            }
+          })
+          .catch(() => setError(String(e)));
+      });
   }, []);
 
   useFocusEffect(load);
@@ -178,12 +244,18 @@ export function HomePane() {
   }
 
   const hero = hoursFeed ? deriveHomeHero(hoursFeed.halls, now) : null;
+  // #181: honest skeleton -- the 4 hall names + monograms below render unconditionally from
+  // DINING_HALLS regardless of `pending` (known without the network); only each hall's OPEN/CLOSED
+  // chip (needs hoursFeed) shimmers while pending.
+  const pending = !hoursFeed && !error;
 
   return (
     <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
+      {/* error only reaches here on the genuine dead end -- fetch failed AND no cache exists.
+          Anything with a cache falls back to `offline` (see HeroBlock) instead, per #181's owner
+          decision that offline is not an error state. */}
       {error && <Text style={styles.error}>Couldn't load dining hours: {error}</Text>}
-      {!hoursFeed && !error && <ActivityIndicator color={colors.maroon600} style={styles.loading} />}
-      {hero && <HeroBlock hero={hero} now={now} />}
+      <HeroBlock hero={hero} now={now} offline={offline} cachedAt={cachedAt} pending={pending} />
 
       <View style={styles.hallList}>
         {DINING_HALLS.map((hall) => {
@@ -199,6 +271,7 @@ export function HomePane() {
               isFavorite={isFavorite}
               onToggleFavorite={() => toggleHall(hall.tid)}
               grab={grab}
+              pending={pending}
             />
           );
         })}
@@ -277,16 +350,15 @@ const styles = StyleSheet.create({
   paneContainer: { paddingHorizontal: spacing(5), paddingBottom: spacing(10) },
 
   error: { color: "#b00020", fontFamily: fonts.body400, marginVertical: spacing(3) },
-  loading: { marginVertical: spacing(3) },
 
   hero: { paddingTop: spacing(1), paddingBottom: spacing(3.5) },
+  heroKickerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing(0.5) },
   heroKicker: {
     fontFamily: fonts.body600,
     fontSize: fs(12),
     letterSpacing: 1.5,
     textTransform: "uppercase",
     color: withOpacity(colors.ink900, 55),
-    marginBottom: spacing(0.5),
   },
   heroRow: { flexDirection: "row", alignItems: "baseline", gap: spacing(3) },
   heroTitle: {
