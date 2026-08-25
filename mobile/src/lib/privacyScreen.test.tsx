@@ -136,7 +136,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSyncSharedStat.mockResolvedValue({ error: null });
   mockToggleAlerts.mockResolvedValue({ error: null });
-  mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [] });
+  mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
@@ -380,13 +380,14 @@ describe("PrivacyScreen: delete server data", () => {
     expect(mockDeleteServerData).not.toHaveBeenCalled();
   });
 
-  // Mutation-based red evidence: flip deleteServerData's mocked result to `{ ok: false,
-  // failedSteps: ["profiles"] }` and this test's Alert.alert assertion is exactly what catches a
-  // screen that claims success regardless of the result (a real regression risk since the profiles
-  // table has no owner DELETE policy -- see deleteServerData.ts's own doc comment).
-  it("shows a truthful partial-failure message instead of claiming success", async () => {
+  // Mutation-based red evidence: flip deleteServerData's mocked result to a genuinely retryable
+  // failure (push_tokens has an owner DELETE policy + grant -- see deleteServerData.ts's own doc
+  // comment -- so a failure there is a real, worth-retrying error, unlike profiles/food_sightings)
+  // and this test's Alert.alert assertion is exactly what catches a screen that claims success
+  // regardless of the result.
+  it("shows a truthful partial-failure message for a genuinely retryable failure -- doesn't claim success", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    mockDeleteServerData.mockResolvedValue({ ok: false, failedSteps: ["profiles"] });
+    mockDeleteServerData.mockResolvedValue({ ok: false, failedSteps: ["push_tokens"], undeletableSteps: [] });
     const root = await renderScreen();
 
     pressDeleteRow(root);
@@ -395,6 +396,79 @@ describe("PrivacyScreen: delete server data", () => {
       await confirmButton.onPress();
     });
 
-    expect(Alert.alert).toHaveBeenCalledWith("Couldn't delete everything", expect.stringContaining("profiles"));
+    expect(Alert.alert).toHaveBeenCalledWith("Couldn't delete everything", expect.stringContaining("push_tokens"));
+  });
+
+  // #237's actual bug: profiles (and food_sightings) have no owner DELETE policy/grant and are
+  // denied on EVERY invocation -- deleteServerData.ts reports that in `undeletableSteps`, not
+  // `failedSteps`, specifically so this path is reachable at all. Before the fix, the screen's own
+  // `if (!result.ok)` check treated a profiles-only denial exactly like a real failure and showed
+  // "Please try again" forever, with no success path ever reachable. Mutation-based red evidence:
+  // reverting `result.failedSteps.length > 0` back to `!result.ok` (with `ok` computed the old,
+  // pre-#237 way) turns this test red -- the retry copy would fire instead.
+  it("clears local state and gives honest, non-retry copy when only the known-undeletable steps remain", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    // Seed non-empty local state (an opted-in shared stat + one accepted friendship) so clearing it
+    // is actually observable, not vacuously true because it started empty.
+    mockTables({ sharedStatsRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null }, friendships: [{ status: "accepted" }] });
+    mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: ["profiles", "food_sightings", "qr_tokens"] });
+    const root = await renderScreen();
+    expect(root.root.findAllByType(Toggle)[1].props.value).toBe(true); // completion toggle on before delete
+    expect(texts(root)).toMatch(/1 friend/);
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    await act(async () => {
+      await confirmButton.onPress();
+    });
+
+    // setRow(null) -- every shared-stat toggle reverts to off, not just the ones deleteServerData
+    // happened to report.
+    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
+    // setFriendships([]) -- the friend count in the profile summary line drops to 0.
+    expect(texts(root)).toMatch(/0 friends/);
+    // Never the retryable-failure copy -- profiles/food_sightings/qr_tokens will never succeed on retry.
+    expect(Alert.alert).not.toHaveBeenCalledWith("Couldn't delete everything", expect.anything());
+    expect(Alert.alert).toHaveBeenCalledWith("Server data deleted", expect.stringMatching(/profile.*food-sighting|food-sighting.*profile/i));
+    // Finding 1/2 from the #246 review: the residue message must name qr_tokens and received pings
+    // too, not just profiles/food_sightings, so it stays the actual exhaustive list of what's left.
+    const successMessage = (Alert.alert as jest.Mock).mock.calls.find((c) => c[0] === "Server data deleted")[1];
+    expect(successMessage).toMatch(/friend qr code/i);
+    expect(successMessage).toMatch(/pings friends sent you/i);
+  });
+
+  it("stays silent (no follow-up alert) when every step, including profiles/food_sightings/qr_tokens, actually succeeds", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    await act(async () => {
+      await confirmButton.onPress();
+    });
+
+    // Only the confirm dialog itself was shown -- no second alert.
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+  });
+
+  it("the confirm dialog and the row's own subline both name what actually gets deleted, not the stale profile-inclusive claim", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const [, message] = alertSpy.mock.calls[0];
+    expect(message).toMatch(/push tokens/);
+    expect(message).toMatch(/sent pings/);
+    expect(message).toMatch(/food-sighting history/);
+    // Finding 1/2 from the #246 review: qr_tokens (undisclosed, unattempted before this) and
+    // received pings (attempted-but-not-really-possible -- no receiver-delete policy exists) both
+    // need to show up in the "stays" clause so it's the real exhaustive residue list.
+    expect(message).toMatch(/friend qr code/i);
+    expect(message).toMatch(/pings friends sent you/i);
+
+    const body = texts(root);
+    expect(body).toMatch(/push tokens/);
+    expect(body).toMatch(/friend qr code/i);
   });
 });
