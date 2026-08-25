@@ -36,8 +36,14 @@ type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unk
 // friendships/favorited_foods/shared_stats/favorite_dining_halls/push_tokens/pings(sent) all have
 // an owner DELETE policy + grant (see deleteServerData.ts's own doc comment); profiles and
 // food_sightings do not, and are named as staying, not as being removed.
+//
+// "the dining halls synced for ping suggestions" (not "favorite halls") is deliberate wording --
+// favorite_dining_halls has no toggle of its own on this screen, but SHARED_TOGGLES above already
+// has a toggle literally labeled "Favorite halls" for the unrelated hall_ranks column (part of
+// shared_stats, already covered by "shared stats" earlier in this sentence). Reusing "favorite
+// halls" here would read as double-counting or naming the wrong table.
 const DELETE_SCOPE_SUMMARY =
-  "Removes friendships, favorites, shared stats, dining hall picks, push tokens, and sent pings. Your profile and food-sighting history stay on the server -- deleting those isn't available yet. Phone data stays.";
+  "Removes friendships, favorites, shared stats, the dining halls synced for ping suggestions, push tokens, and sent pings. Your profile and food-sighting history stay on the server -- deleting those isn't available yet. Phone data stays.";
 
 const SHARED_TOGGLES: { field: SharedStatField; label: string }[] = [
   { field: "completion", label: "Hall completion" },
@@ -191,7 +197,7 @@ export default function PrivacyScreen() {
             if (result.undeletableSteps.length > 0) {
               Alert.alert(
                 "Server data deleted",
-                "Friendships, favorites, shared stats, dining hall picks, push tokens, and sent pings are gone. Your profile and food-sighting history stay on the server -- deleting those isn't available yet.",
+                "Friendships, favorites, shared stats, the dining halls synced for ping suggestions, push tokens, and sent pings are gone. Your profile and food-sighting history stay on the server -- deleting those isn't available yet.",
               );
             }
           } finally {
