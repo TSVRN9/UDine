@@ -3,7 +3,9 @@ import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
+import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
+import { PDFJS_MIN_JS_BASE64, PDFJS_VERSION, PDFJS_WORKER_MIN_JS_BASE64 } from "../vendor/pdfjs";
 
 interface Props {
   url: string;
@@ -12,19 +14,20 @@ interface Props {
   onClose: () => void;
 }
 
-// Pinned, not "latest": a spike against mozilla.github.io's own always-current hosted viewer
-// (web/viewer.mjs) 500'd on-device with "this[#listeners].getOrInsertComputed is not a function" --
-// too-new JS syntax for this WebView's engine. A pinned classic (non-module) build side-steps both
-// that and any future breakage from an unpinned dependency.
-const PDFJS_VERSION = "3.11.174";
-
 /**
- * pdf.js's own `getDocument(url)` can't be pointed at the PDF url directly from inside the
- * WebView: umassdining.com sends no `Access-Control-Allow-Origin`, and a WebView `source={{html}}`
- * page runs at origin `null`, so the fetch is CORS-blocked (confirmed live via a throwaway spike,
- * logcat: "Access to fetch at '...pdf' from origin 'null' has been blocked by CORS policy"). Fed
- * pre-fetched base64 bytes instead -- the caller downloads via RN's own networking (not subject to
- * WebView-origin CORS at all) and hands pdf.js the bytes directly, no in-WebView fetch involved.
+ * PR #219 review, finding 3: this used to `<script src="https://cdnjs.../pdf.min.js">` at render
+ * time -- version-pinned, but with no subresource integrity, into a WebView with
+ * `originWhitelist={["*"]}` and no navigation lockdown. Two problems, one fix: (1) a supply-chain
+ * gap -- cdnjs (or anything on the path to it) could swap the bytes under that exact pinned URL and
+ * nothing here would notice; (2) Android's WebView never routes a subresource load (a `<script
+ * src>` fetch, as opposed to a top-level navigation) through `onShouldStartLoadWithRequest` at all,
+ * so no amount of navigation-level lockdown could have caught a compromised script either way --
+ * blocking navigation while the script itself still arrives over the network is self-defeating.
+ * Vendoring (`../vendor/pdfjs.ts`) removes the network fetch entirely rather than trying to police
+ * it: both scripts ship as base64 `data:` URIs sourced from the app's own bundle, so nothing here
+ * ever leaves the device to render a PDF, online or offline (this also fixes the screen silently
+ * failing offline despite the PDF bytes already being on disk -- there was never a good reason for
+ * an in-app PDF render to need network access beyond the initial PDF download itself).
  */
 function buildViewerHtml(base64: string): string {
   return `<!DOCTYPE html>
@@ -32,9 +35,9 @@ function buildViewerHtml(base64: string): string {
 <style>body{margin:0;background:${colors.paper50};} canvas{display:block;margin:0 auto 8px auto;}</style>
 </head><body>
 <div id="pages"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js"></script>
+<script src="data:text/javascript;base64,${PDFJS_MIN_JS_BASE64}"></script>
 <script>
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "data:text/javascript;base64,${PDFJS_WORKER_MIN_JS_BASE64}";
   var raw = atob("${base64}");
   var bytes = new Uint8Array(raw.length);
   for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -59,6 +62,19 @@ function buildViewerHtml(base64: string): string {
 }
 
 /**
+ * PR #219 review, finding 3: locks the WebView to exactly its own initial `source={{html}}` load
+ * and nothing else -- no link tap, redirect, or `window.open` inside the vendored pdf.js/PDF
+ * content should ever navigate this WebView anywhere. `about:blank` is the origin
+ * `source={{html}}` loads at with no `baseUrl` set (confirmed live -- see buildViewerHtml's own
+ * doc on the CORS spike, logcat reported this exact page as origin `null`/`about:blank`), so it's
+ * also the only entry `originWhitelist` needs. Exported so a test can pin the predicate directly
+ * (a foreign URL -> false, the initial load's own URL -> true) without needing a real WebView.
+ */
+export function shouldAllowCafePdfNavigation(request: ShouldStartLoadRequest): boolean {
+  return request.url === "about:blank";
+}
+
+/**
  * In-app PDF viewer (#177's "Cafe menu - PDF in-app" artboard) -- babyBerk x2 and Commonwealth
  * Restaurant embed a PDF link instead of an item list in their *_menu HTML (CafeSheet.tsx routes
  * here on tap). Owner decision: PDF menus render IN-APP, never bounce to an external
@@ -66,12 +82,13 @@ function buildViewerHtml(base64: string): string {
  * link like DIRECTIONS does.
  *
  * Approach picked after a live spike (see this file's buildViewerHtml doc): react-native-webview +
- * a pinned pdf.js build, fed pre-downloaded bytes. Rejected alternatives: pointing the WebView
- * straight at the PDF url (Android's WebView has no built-in inline PDF viewer -- confirmed blank
- * on-device, unlike iOS's WKWebView) and pdf.js's own mozilla.github.io hosted viewer (too-new JS
- * syntax broke on this WebView engine). No native PDF-view dependency needed -- one already-
- * justified WebView dependency, pdf.js loaded from a pinned CDN url at runtime (not vendored),
- * expo-file-system (already a dependency) for the download SAVE also reuses.
+ * a pinned, vendored pdf.js build (`../vendor/pdfjs.ts`), fed pre-downloaded bytes. Rejected
+ * alternatives: pointing the WebView straight at the PDF url (Android's WebView has no built-in
+ * inline PDF viewer -- confirmed blank on-device, unlike iOS's WKWebView) and pdf.js's own
+ * mozilla.github.io hosted viewer (too-new JS syntax broke on this WebView engine). No native
+ * PDF-view dependency needed -- one already-justified WebView dependency, pdf.js vendored as a
+ * local asset (PR #219 review, finding 3 -- was a pinned CDN url at runtime, no subresource
+ * integrity), expo-file-system (already a dependency) for the download SAVE also reuses.
  */
 export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
   const [base64, setBase64] = useState<string | null>(null);
@@ -80,6 +97,12 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
 
   useEffect(() => {
     let current = true;
+    // ponytail: each open writes a new timestamped file under cacheDirectory and nothing ever
+    // deletes it -- the OS is free to reclaim cache space under pressure, but a heavy user
+    // (several different PDF menus opened over time) accumulates dead files until then. Add
+    // cleanup (delete the previous dest on unmount/re-open, or a startup sweep of cafe-menu-*.pdf)
+    // if this shows up as real disk-usage complaints; low blast radius until then (cache dir, not
+    // persistent storage).
     const dest = `${FileSystem.cacheDirectory}cafe-menu-${Date.now()}.pdf`;
     FileSystem.downloadAsync(url, dest)
       .then(() => FileSystem.readAsStringAsync(dest, { encoding: FileSystem.EncodingType.Base64 }))
@@ -128,12 +151,22 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
         ) : !base64 ? (
           <ActivityIndicator color={colors.gold500} style={styles.loading} />
         ) : (
-          <WebView source={{ html: buildViewerHtml(base64) }} originWhitelist={["*"]} style={styles.webview} />
+          <WebView
+            source={{ html: buildViewerHtml(base64) }}
+            originWhitelist={["about:blank"]}
+            onShouldStartLoadWithRequest={shouldAllowCafePdfNavigation}
+            allowFileAccess={false}
+            setSupportMultipleWindows={false}
+            style={styles.webview}
+          />
         )}
       </View>
 
       <View style={styles.hintBar}>
-        <Text style={styles.hintText}>Rendered in-app · pinch to zoom · swipe for pages</Text>
+        {/* PR #219 review: pages render stacked in one vertical scroll (buildViewerHtml appends
+        each page's <canvas> into the same #pages container), not a swipeable pager -- "scroll",
+        not the styling spec's verbatim "swipe", is what this screen actually does. */}
+        <Text style={styles.hintText}>Rendered in-app · pinch to zoom · scroll for pages</Text>
       </View>
     </View>
   );
@@ -147,7 +180,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.paper50 },
   headerSubtitle: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.paper50, 55) },
   saveButton: {
-    height: 32,
+    height: fs(32), // matches PlateSheet.tsx's logButton -- same fs()'d control-height convention
     paddingHorizontal: spacing(3),
     borderRadius: radii.md,
     borderWidth: 1,

@@ -39,11 +39,12 @@ export default function RootLayout() {
         contentStyle: { backgroundColor: colors.cream100 },
       }}
     >
-      {/* index (the 3-pane shell), halls/[slug], grab-n-go/[slug], and logs draw their own canvas-style headers. */}
+      {/* index (the 3-pane shell), halls/[slug], grab-n-go/[slug], cafe/[name], and logs draw their own canvas-style headers. */}
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="redirect" options={{ headerShown: false, animation: "none" }} />
       <Stack.Screen name="halls/[slug]" options={{ headerShown: false }} />
       <Stack.Screen name="grab-n-go/[slug]" options={{ headerShown: false }} />
+      <Stack.Screen name="cafe/[name]" options={{ headerShown: false }} />
       <Stack.Screen name="logs" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
       <Stack.Screen name="filters" options={{ title: "Dietary Filters" }} />

@@ -60,6 +60,23 @@ describe("CafeSheet (#177 fallback sheet)", () => {
     expect(flat.some((t) => typeof t === "string" && t.includes("<p>"))).toBe(false);
   });
 
+  it("renders each <br>-separated line within one <p> block as its own priced row (#178/#216 parser fix)", () => {
+    // Real shape several cafés use (Argo Tea/Peet's/Courtside, per #178's pr-review): the WHOLE
+    // menu packed into one <p> with <br>-separated lines, not one <p> per dish. shared/src/
+    // content.ts's parseRetailMenuHtml.test.ts already proves the parser itself splits this
+    // correctly; this proves the render layer actually produces N separate RN Text rows from that
+    // parsed result, not one run-on row.
+    const root = render(loc({ breakfastMenu: "<p>Chai Latte $3.75<br>Matcha Latte $4.25<br>Green Tea $2.50<br>Black Tea</p>" }));
+    const flat = texts(root).flat();
+    expect(flat).toContain("Chai Latte");
+    expect(flat).toContain("$3.75");
+    expect(flat).toContain("Matcha Latte");
+    expect(flat).toContain("$4.25");
+    expect(flat).toContain("Green Tea");
+    expect(flat).toContain("$2.50");
+    expect(flat).toContain("Black Tea"); // no embedded price -- still its own row, price omitted
+  });
+
   it("renders no menu card at all when nothing is posted (state 4 -- e.g. Paciugo/The Hub)", () => {
     const root = render(loc());
     expect(texts(root).flat()).not.toContain("MENU");

@@ -38,24 +38,26 @@ jest.mock("react-native-webview", () => ({ WebView: () => null }));
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),
-  fetchDiningHours: jest.fn().mockResolvedValue({
-    halls: [],
-    retail: [
-      {
-        name: "People's Organic Coffee",
-        hours: { openTime: "7:00 AM", closeTime: "4:00 PM" },
-        locationId: 32,
-        breakfastMenu: "<p>Bacon Croissant</p>",
-        lunchMenu: null,
-        dinnerMenu: null,
-        description: "",
-        address: "",
-        mapAddress: undefined,
-        acceptedPayment: "",
-      },
-    ],
-  }),
+  fetchDiningHours: jest.fn(),
 }));
+
+const DEFAULT_HOURS_FEED = {
+  halls: [],
+  retail: [
+    {
+      name: "People's Organic Coffee",
+      hours: { openTime: "7:00 AM", closeTime: "4:00 PM" },
+      locationId: 32,
+      breakfastMenu: "<p>Bacon Croissant</p>",
+      lunchMenu: null,
+      dinnerMenu: null,
+      description: "",
+      address: "",
+      mapAddress: undefined,
+      acceptedPayment: "",
+    },
+  ],
+};
 
 // A mutable module-scope binding the factory reads live (not captured at hoist time) -- lets the
 // "unknown name" test below point useLocalSearchParams at a name absent from the mocked hours feed
@@ -69,10 +71,15 @@ jest.mock("expo-router", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
-import { fetchMenu, type MenuItem } from "@udine/shared";
+import { fetchDiningHours, fetchMenu, type MenuItem } from "@udine/shared";
 import CafeScreen from "../app/cafe/[name]";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
+const mockedFetchDiningHours = fetchDiningHours as jest.Mock;
+
+beforeEach(() => {
+  mockedFetchDiningHours.mockResolvedValue(DEFAULT_HOURS_FEED);
+});
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
@@ -136,5 +143,28 @@ describe("/cafe/[name] probe-at-tap routing (#177)", () => {
     });
     mockSearchParamName = "People's Organic Coffee"; // reset for later tests in this file
     expect(texts(root).flat().join(" ")).toMatch(/Couldn.t find\s+Not A Real Café/);
+  });
+
+  // PR #219 review, finding 1: neither fetch below had a `.catch` -- a rejection left the screen
+  // spinning behind only a back chevron forever, plus an unhandled promise rejection. Revert either
+  // `.catch` in cafe/[name].tsx and this test hangs (act(async) never settles on a resolved state)
+  // instead of failing clean, which is itself the bug: a real rejected promise never resolves the
+  // `hoursFeed`/`items` state either, so there was no render for `texts()` to assert against.
+  it("a rejected fetchDiningHours shows an error instead of spinning forever", async () => {
+    mockedFetchDiningHours.mockRejectedValue(new Error("network down"));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<CafeScreen />);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Failed to load.*network down/);
+  });
+
+  it("a rejected fetchMenu (via fetchMenuAndRecordSeen) shows an error instead of spinning forever", async () => {
+    mockedFetchMenu.mockRejectedValue(new Error("upstream 500"));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<CafeScreen />);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Failed to load.*upstream 500/);
   });
 });

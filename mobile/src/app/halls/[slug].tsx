@@ -303,15 +303,17 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
             <Text style={styles.backChevron}>‹</Text>
           </Pressable>
           {/* #219 review (post-#207 rebase): #207's title-tap (i) hall-info sheet is REAL-HALL ONLY.
-          `HallInfoSheet`'s data model doesn't have a sensible café equivalent -- `hallInfoHoursRows`
-          needs a `DiningHallHours` (breakfast/lunch/dinner/latenight, each its own window);
-          `RetailLocationHours` (what a café actually has) carries one single `hours: TimeWindow |
-          null` for the whole day, no per-meal breakdown to build real hoursRows from. The sheet's
-          title caption is also hardcoded "Dining Commons", wrong copy for a café. Building a real
-          café equivalent (a different hours-card shape, different caption, an events-relevance
-          story) is a new feature, out of this fix pass's scope -- so cafés get NO glyph and NO
-          sheet at all here, not a decorative one sitting next to a real one on the same component
-          (the earlier decorative-glyph version of this fix was retracted for exactly that reason). */}
+          The earlier version of this fix pass added a DECORATIVE café ⓘ glyph here (before #180 had
+          merged) -- now that #207/#180 is in, that decorative glyph is retracted in favor of this
+          resolution: `HallInfoSheet`'s data model doesn't have a sensible café equivalent.
+          `hallInfoHoursRows` needs a `DiningHallHours` (breakfast/lunch/dinner/latenight, each its
+          own window); `RetailLocationHours` (what a café actually has) carries one single `hours:
+          TimeWindow | null` for the whole day, no per-meal breakdown to build real hoursRows from.
+          The sheet's title caption is also hardcoded "Dining Commons", wrong copy for a café.
+          Building a real café equivalent (a different hours-card shape, different caption, an
+          events-relevance story) is a new feature, out of this fix pass's scope -- so cafés get NO
+          glyph and NO sheet at all here, not a decorative one sitting next to a real, functional
+          one on the same component. */}
           {isRealHall ? (
             <Pressable
               style={styles.titleTap}
@@ -597,6 +599,8 @@ const styles = StyleSheet.create({
   // Bare 13px thin-stroke circle, not a bordered-button circle -- the canvas's rejected 30px/22px
   // variants were chunkier affordances, not this. flexShrink: 0 so the hint never gets squeezed out
   // by a long hall name (Worcester/Hampshire) before the name itself starts truncating.
+  // Real-hall only (#219 review post-#207-rebase) -- no cafeInfoGlyph counterpart; see the header
+  // render's own comment on why a café gets neither this nor a sheet to open with it.
   infoHint: {
     width: fs(13),
     height: fs(13),

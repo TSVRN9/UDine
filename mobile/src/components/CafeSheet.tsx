@@ -119,19 +119,19 @@ const styles = StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: withOpacity(colors.ink900, 50) },
   sheet: {
     backgroundColor: colors.paper50,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderTopLeftRadius: fs(12),
+    borderTopRightRadius: fs(12),
     paddingHorizontal: spacing(5),
     paddingTop: spacing(2.5),
     gap: spacing(3),
     maxHeight: fs(640),
   },
   handleRow: { alignItems: "center", marginBottom: spacing(1) },
-  handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
+  handle: { width: fs(40), height: fs(4), borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
 
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: spacing(2), marginTop: spacing(1.5) },
-  statusPill: { backgroundColor: colors.gold500, borderRadius: radii.pill, paddingVertical: 3, paddingHorizontal: 9 },
+  statusPill: { backgroundColor: colors.gold500, borderRadius: radii.pill, paddingVertical: spacing(0.75), paddingHorizontal: spacing(2.25) },
   statusPillText: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 0.5, color: colors.maroon900 },
 
   description: { marginTop: spacing(3), fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(18), color: withOpacity(colors.ink900, 70) },
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    minHeight: 44,
+    minHeight: fs(44), // matches index.tsx's retailRow -- same 44px touch-target convention
     borderWidth: 1,
     borderColor: withOpacity(colors.ink900, 12),
     borderRadius: radii.md,

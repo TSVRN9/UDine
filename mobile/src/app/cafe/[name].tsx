@@ -25,10 +25,13 @@ export default function CafeScreen() {
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [pdf, setPdf] = useState<{ url: string; label: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    fetchDiningHours().then(setHoursFeed);
+    fetchDiningHours()
+      .then(setHoursFeed)
+      .catch((e) => setError(String(e)));
   }, []);
 
   const loc = hoursFeed?.retail?.find((r) => r.name === decodedName);
@@ -40,18 +43,19 @@ export default function CafeScreen() {
       return;
     }
     let current = true;
-    fetchMenuAndRecordSeen(loc.locationId, new Date()).then((result) => {
-      if (current) setItems(result);
-    });
+    fetchMenuAndRecordSeen(loc.locationId, new Date())
+      .then((result) => {
+        if (current) setItems(result);
+      })
+      .catch((e) => {
+        if (current) setError(String(e));
+      });
     return () => {
       current = false;
     };
   }, [loc]);
 
-  if (hoursFeed && !loc) {
-    // Hours resolved and this name isn't in it -- a stale/mismatched Link target, not a load in
-    // progress. Without this branch, `loc` staying undefined forever would spin the loading state
-    // indefinitely (its own fetch effect above never fires without a `loc` to read locationId from).
+  function loadingChrome(message: string) {
     return (
       <View style={styles.loadingScreen}>
         <View style={[styles.loadingHeader, { paddingTop: insets.top + spacing(4.5) }]}>
@@ -59,22 +63,29 @@ export default function CafeScreen() {
             <Text style={styles.backChevron}>‹</Text>
           </Pressable>
         </View>
-        <Text style={styles.error}>Couldn&apos;t find {decodedName}.</Text>
+        {message ? <Text style={styles.error}>{message}</Text> : <ActivityIndicator style={styles.loading} color={colors.maroon600} />}
       </View>
     );
   }
 
+  if (error) {
+    // Either fetch above (`fetchDiningHours` or `fetchMenuAndRecordSeen`) rejecting used to leave
+    // `hoursFeed`/`items` null forever -- a permanent spinner behind only a back chevron, plus an
+    // unhandled promise rejection (PR #219 review). Both `.catch`es above route here instead, same
+    // shape as halls/[slug].tsx's own `error` branch.
+    return loadingChrome(`Failed to load ${decodedName}: ${error}`);
+  }
+
+  if (hoursFeed && !loc) {
+    // Hours resolved and this name isn't in it -- a stale/mismatched Link target, not a load in
+    // progress. This branch (plus the `error` branch above, for a rejected fetch) is what keeps
+    // `loc` staying undefined, or either fetch never resolving, from spinning the loading state
+    // indefinitely (its own fetch effect above never fires without a `loc` to read locationId from).
+    return loadingChrome(`Couldn't find ${decodedName}.`);
+  }
+
   if (!hoursFeed || !loc || items === null) {
-    return (
-      <View style={styles.loadingScreen}>
-        <View style={[styles.loadingHeader, { paddingTop: insets.top + spacing(4.5) }]}>
-          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-            <Text style={styles.backChevron}>‹</Text>
-          </Pressable>
-        </View>
-        <ActivityIndicator style={styles.loading} color={colors.maroon600} />
-      </View>
-    );
+    return loadingChrome("");
   }
 
   const target = cafeTapTarget(loc.locationId, items);
