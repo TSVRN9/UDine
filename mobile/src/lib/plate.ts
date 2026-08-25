@@ -11,6 +11,9 @@ export interface PlateEntry {
   nutrition: NutritionFacts;
   source: LogEntry["source"];
   count: number;
+  // #177: retail-only, carried through from MenuItem.price -- undefined for hall dishes and OFF
+  // products, same optionality as its source field.
+  price?: string;
 }
 
 /** Same identity a plate row and its eventual LogEntry share: umass-menu dishes key by hall + dish
@@ -21,7 +24,7 @@ export function plateKeyFor(source: LogEntry["source"]): string {
 
 export function menuItemToPlateEntry(item: MenuItem, count = 1): PlateEntry {
   const source: LogEntry["source"] = { type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid };
-  return { key: plateKeyFor(source), label: item.dishName, nutrition: item.nutrition, source, count };
+  return { key: plateKeyFor(source), label: item.dishName, nutrition: item.nutrition, source, count, ...(item.price !== undefined ? { price: item.price } : {}) };
 }
 
 export function offResultToPlateEntry(result: OffSearchResult, count = 1): PlateEntry {
@@ -62,6 +65,27 @@ export function stepCount(plate: PlateEntry[], key: string, delta: number): Plat
  * stepping one dish to 3 reads as 3 items. */
 export function totalItemCount(plate: PlateEntry[]): number {
   return plate.reduce((sum, p) => sum + p.count, 0);
+}
+
+/**
+ * #177 styling spec: "Plate bar with prices: summary line becomes `1 item · 640 cal · $11.25`".
+ * null when nothing on the plate carries a price -- a hall-only plate keeps today's price-free
+ * summary line exactly as it renders now, per the spec's "no price in the data -> renders exactly
+ * as today." Rows without a price (mixed hall+café plate) simply don't contribute to the sum
+ * rather than being excluded from it -- $0 from an unpriced row and "no total" from an all-unpriced
+ * plate are different things, so `any` tracks whether at least one row actually had a price.
+ */
+export function totalPlatePrice(plate: PlateEntry[]): string | null {
+  let total = 0;
+  let any = false;
+  for (const p of plate) {
+    if (p.price === undefined) continue;
+    const amount = Number.parseFloat(p.price.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(amount)) continue;
+    any = true;
+    total += amount * p.count;
+  }
+  return any ? `$${total.toFixed(2)}` : null;
 }
 
 /** Bottom padding a scrollable dish list needs to keep its last row reachable while the plate bar
