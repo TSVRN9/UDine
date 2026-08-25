@@ -239,6 +239,42 @@ describe("SocialPane", () => {
     expect(goldBorderedViews.length).toBeGreaterThan(0);
   });
 
+  // #238: this is the pings inbox's entry point, not just some other link -- PR #210's review put
+  // the ONLY reachability fix behind add-friends.tsx's "Add Friends" screen (a screen about a
+  // different task), and #220's later pane-shell rebuild came within one PR of silently dropping it
+  // a second time. Anchored in the "Ping a Friend" section (below the avatar card -- see that
+  // JSX's own comment on why not the SectionHeader's `right` slot), in the pane a rebuild of the
+  // Social tab is least likely to delete outright, and asserting the real router.push target (not
+  // just that some label renders, which the add-friends.tsx test only manages because its own Link
+  // mock discards href) is what actually pins this against a future rebase. Deliberately wired via
+  // router.push (SocialPane.tsx's goToPingsInbox), not <Link href="/friends" asChild> -- under this
+  // file's own Link mock (`Link: ({children}) => children`, same as every other screen test here),
+  // an asChild Link contributes no onPress at all, so there would be nothing left to assert *on*.
+  it("#238: PING A FRIEND section links to /friends, so a received ping stays reachable", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation(() => queryResult([]));
+
+    const root = await renderSocialPane();
+    const pingsLink = root.root.findByProps({ accessibilityLabel: "Pings you've received" });
+    // Fails here, with a real assertion message, if a future refactor swaps this to a Link asChild
+    // (which this test suite's Link mock can't preserve an onPress/href through) rather than as a
+    // confusing "onPress is not a function" TypeError from the raw call below.
+    expect(typeof pingsLink.props.onPress).toBe("function");
+
+    act(() => {
+      pingsLink.props.onPress();
+    });
+
+    expect(mockRouterPush).toHaveBeenCalledWith("/friends");
+  });
+
+  it("#238: signed out, the PING A FRIEND section has no pings-inbox link (there's nothing to receive without an account)", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+
+    const root = await renderSocialPane();
+    expect(root.root.findAllByProps({ accessibilityLabel: "Pings you've received" }).length).toBe(0);
+  });
+
   it("events v2.1 (#120): a banner event drops the title/star row entirely (footer is subtitle + icon only, no duplicate of the banner's own title art); a banner-less event keeps title+subtitle; DETAILS is gone from both", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
     mockFetchEvents.mockResolvedValue([harvestDinner, fallFest]);

@@ -58,6 +58,13 @@ function otherUserId(f: Friendship, myId: string): string {
   return f.user_a === myId ? f.user_b : f.user_a;
 }
 
+// #238: same shape as YouPane.tsx's goToAllLogs -- a plain top-level router.push, not a Link, so
+// the pings-inbox row (see the "Ping a Friend" section below) can stay a Press (scale-feedback,
+// matches every other free-standing tap target on this pane) instead of nesting a Link/asChild pair.
+function goToPingsInbox() {
+  router.push("/friends");
+}
+
 function initialsOf(name: string): string {
   return name
     .split(/\s+/)
@@ -367,27 +374,44 @@ export function SocialPane() {
               }
             />
           ) : (
-            <Card style={[styles.pingCard, offline && styles.pingCardOffline]}>
-              <View style={styles.avatarRow}>
-                {friends.map((f, i) => (
-                  <View key={f.user_id} style={styles.avatarSlot} {...panResponderFor(f.user_id).panHandlers}>
-                    <Avatar name={f.display_name} index={i} gold={i === 0} />
-                    <Text style={styles.avatarName} numberOfLines={1}>
-                      {f.display_name}
-                    </Text>
-                  </View>
-                ))}
-                <Link href="/add-friends" asChild>
-                  <Pressable style={styles.avatarSlot}>
-                    <View style={[styles.avatarCircle, styles.avatarAdd]}>
-                      <Text style={styles.avatarAddPlus}>+</Text>
+            <>
+              <Card style={[styles.pingCard, offline && styles.pingCardOffline]}>
+                <View style={styles.avatarRow}>
+                  {friends.map((f, i) => (
+                    <View key={f.user_id} style={styles.avatarSlot} {...panResponderFor(f.user_id).panHandlers}>
+                      <Avatar name={f.display_name} index={i} gold={i === 0} />
+                      <Text style={styles.avatarName} numberOfLines={1}>
+                        {f.display_name}
+                      </Text>
                     </View>
-                    <Text style={styles.avatarName}>Add</Text>
-                  </Pressable>
-                </Link>
-              </View>
-              <Text style={styles.pingHint}>Hold a friend, then release on a dining hall to ping them.</Text>
-            </Card>
+                  ))}
+                  <Link href="/add-friends" asChild>
+                    <Pressable style={styles.avatarSlot}>
+                      <View style={[styles.avatarCircle, styles.avatarAdd]}>
+                        <Text style={styles.avatarAddPlus}>+</Text>
+                      </View>
+                      <Text style={styles.avatarName}>Add</Text>
+                    </Pressable>
+                  </Link>
+                </View>
+                <Text style={styles.pingHint}>Hold a friend, then release on a dining hall to ping them.</Text>
+              </Card>
+              {/* #238: the ONLY route to received pings/friend requests (friends.tsx's inbox + its
+                  realtime subscription) used to live behind a link on add-friends.tsx -- a screen
+                  about a different task, and one PR away from being dropped again in a rebase (see
+                  that file's own comment on this history). Anchored here instead, on the Social
+                  pane itself rather than a sub-screen, so a future pane rebuild has to actively
+                  delete this row rather than just fail to carry a link forward. After the Card, not
+                  the header's `right` slot -- SectionHeader's right slot renders before the avatar
+                  row in the tree, and any Pressable there ends up as a View with the same
+                  onResponderGrant/onResponderRelease props PanResponder puts on each avatar slot
+                  (both ultimately go through RN's core responder system), which shifts what
+                  `avatarViews[0]` resolves to in the gesture tests below. */}
+              <Press style={styles.pingsInboxLink} onPress={goToPingsInbox} accessibilityRole="button" accessibilityLabel="Pings you've received">
+                <Text style={styles.pingsInboxText}>Pings you&apos;ve received</Text>
+                <Text style={styles.pingsInboxChevron}>›</Text>
+              </Press>
+            </>
           )}
         </View>
 
@@ -492,6 +516,10 @@ const styles = StyleSheet.create({
   avatarAddPlus: { fontFamily: fonts.display600, fontSize: fs(20), color: colors.maroon600 },
   avatarName: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 70) },
   pingHint: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
+  // #238: pings-inbox entry row below the ping card -- same link-row treatment as YouPane's ALL LOGS.
+  pingsInboxLink: { flexDirection: "row", alignItems: "center", gap: spacing(1), alignSelf: "center", marginTop: spacing(2.5) },
+  pingsInboxText: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.maroon600 },
+  pingsInboxChevron: { fontFamily: fonts.body400, fontSize: fs(13), color: colors.maroon600 },
 
   eventsList: { gap: spacing(2.5) },
   eventCard: { overflow: "hidden" },
