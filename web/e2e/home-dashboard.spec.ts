@@ -103,9 +103,20 @@ test("quick links reach Rank and Favorites without ambiguity against the primary
 
 // app.css (#42) @imports Google Fonts, so every page -- including this one -- legitimately makes a
 // cross-origin request for it. Not a residency leak: it's a stylesheet fetch, not data leaving the
-// device. Anything else cross-origin, or any same-origin /api/ path, is what this guard exists to
-// catch.
+// device. Anything else cross-origin, or any same-origin /api/ path (other than the one exception
+// below), is what this guard exists to catch.
 const ALLOWED_CROSS_ORIGIN_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
+
+// #178: café-tap parity added a "Cafés & Markets" section to this same page, fetched client-side
+// from /api/hours (see +page.svelte's onMount) -- unlike the macro stats/top-dishes/favorites this
+// test's title describes, café names/hours aren't device-local data; they don't exist until fetched
+// from the public get_infov2 feed, same anonymous, no-account, non-personal category as /api/menu on
+// every hall page (see CLAUDE.md's data-residency table: "Menu cache ... fetched directly from UMass
+// Dining APIs ... public data"). This guard's real job (per #69's review, below) is catching a
+// leaked *identity/health-data* call -- e.g. a stray Supabase request -- not banning every anonymous
+// public-data fetch from this specific route, so this one path is a deliberate, disclosed exception,
+// not a hole in the guard.
+const ALLOWED_SAME_ORIGIN_API_PATHS = new Set(["/api/hours"]);
 
 test("home issues zero API/cross-origin requests -- macro stats are device-local, not a server call", async ({ page, baseURL }) => {
 	// Carry-over from PR #69's review (see issue #66's tracker comment): a page.route("**/api/**")
@@ -119,7 +130,7 @@ test("home issues zero API/cross-origin requests -- macro stats are device-local
 		const url = new URL(req.url());
 		if (url.protocol !== "http:" && url.protocol !== "https:") return; // data:/blob: aren't egress
 		if (url.origin === sameOrigin) {
-			if (url.pathname.includes("/api/")) offenders.push(req.url());
+			if (url.pathname.includes("/api/") && !ALLOWED_SAME_ORIGIN_API_PATHS.has(url.pathname)) offenders.push(req.url());
 			return;
 		}
 		if (!ALLOWED_CROSS_ORIGIN_HOSTS.has(url.hostname)) offenders.push(req.url());

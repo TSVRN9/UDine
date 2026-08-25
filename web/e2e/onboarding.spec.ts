@@ -47,6 +47,11 @@ test.describe("firstRun flag logic (no browser -- plain localStorage shim)", () 
 // a cross-origin request for it; not a residency leak. Same allowlist as home-dashboard.spec.ts.
 const ALLOWED_CROSS_ORIGIN_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
 
+// #178: same disclosed exception as home-dashboard.spec.ts's guard -- the home dashboard's new
+// "Cafés & Markets" section fetches /api/hours client-side, public/anonymous data (get_infov2), not
+// a residency leak.
+const ALLOWED_SAME_ORIGIN_API_PATHS = new Set(["/api/hours"]);
+
 test.describe("first-run card on the home dashboard", () => {
 	test("shows once on a fresh visit, states device-only data + export path + what sign-in adds, and makes zero server calls", async ({
 		page,
@@ -64,7 +69,7 @@ test.describe("first-run card on the home dashboard", () => {
 			const url = new URL(req.url());
 			if (url.protocol !== "http:" && url.protocol !== "https:") return; // data:/blob: aren't egress
 			if (url.origin === sameOrigin) {
-				if (url.pathname.includes("/api/")) offenders.push(req.url());
+				if (url.pathname.includes("/api/") && !ALLOWED_SAME_ORIGIN_API_PATHS.has(url.pathname)) offenders.push(req.url());
 				return;
 			}
 			if (!ALLOWED_CROSS_ORIGIN_HOSTS.has(url.hostname)) offenders.push(req.url());
