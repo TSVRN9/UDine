@@ -1,7 +1,7 @@
 import { syncSharedStat, type SharedStatField } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { router, useFocusEffect, type Href } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, EmptyState, SectionHeader, Toggle } from "../components/ui";
@@ -155,10 +155,7 @@ export default function PrivacyScreen() {
   }
 
   function goToExport() {
-    // `/export` lands in the stacked #183 branch/PR -- typedRoutes rejects an unmatched route at
-    // compile time, so this cast stays until that route exists (matches the precedent YouPane.tsx
-    // itself documents for /logs pre-#119: `router.push("/logs" as Href)`).
-    router.push("/export" as Href);
+    router.push("/export");
   }
 
   async function confirmDelete() {
