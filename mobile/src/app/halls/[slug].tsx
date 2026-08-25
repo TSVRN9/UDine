@@ -218,6 +218,7 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
   const priceTotal = useMemo(() => totalPlatePrice(plate), [plate]);
 
+  const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
   // Café tid is never in DINING_HALLS, so hallHours comes back undefined for a café -- hoursRows
   // below degrades to [] and grabNGoWindow's lookup degrades to null for one, harmlessly (#219
   // review: the café header renders no glyph/sheet at all, so neither is ever read for a café, but
