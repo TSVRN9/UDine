@@ -1,7 +1,7 @@
 import { deleteServerData } from "./deleteServerData";
 
 const RETRYABLE_TABLES = ["friendships", "favorited_foods", "shared_stats", "favorite_dining_halls", "push_tokens", "pings"] as const;
-const UNDELETABLE_TABLES = ["profiles", "food_sightings"] as const;
+const UNDELETABLE_TABLES = ["profiles", "food_sightings", "qr_tokens"] as const;
 const ALL_TABLES = [...RETRYABLE_TABLES, ...UNDELETABLE_TABLES] as const;
 
 function client(errors: Partial<Record<(typeof ALL_TABLES)[number], unknown>>) {
@@ -21,7 +21,7 @@ function client(errors: Partial<Record<(typeof ALL_TABLES)[number], unknown>>) {
 }
 
 describe("deleteServerData", () => {
-  it("attempts all eight tables, in order, when nothing errors", async () => {
+  it("attempts all nine tables, in order, when nothing errors", async () => {
     const c = client({});
     const result = await deleteServerData(c, "me");
     expect(result).toEqual({ ok: true, failedSteps: [], undeletableSteps: [] });
@@ -52,11 +52,22 @@ describe("deleteServerData", () => {
     expect(result.undeletableSteps).toEqual(["food_sightings"]);
   });
 
-  it("both known-undeletable steps denied at once -- still ok, both reported", async () => {
-    const c = client({ profiles: { message: "denied" }, food_sightings: { message: "denied" } });
+  // Finding 1 from the #246 review: qr_tokens (20260824150000_add_friends_discoverability_and_qr.sql)
+  // is SELECT-only for `authenticated` -- no DELETE policy, no DELETE grant -- and wasn't attempted
+  // at all before this. Same treatment as profiles/food_sightings: attempted, denial doesn't fail ok.
+  it("qr_tokens-only denial is also undeletable, not a retryable failure", async () => {
+    const c = client({ qr_tokens: { message: "permission denied" } });
     const result = await deleteServerData(c, "me");
     expect(result.ok).toBe(true);
-    expect(result.undeletableSteps).toEqual(["profiles", "food_sightings"]);
+    expect(result.failedSteps).toEqual([]);
+    expect(result.undeletableSteps).toEqual(["qr_tokens"]);
+  });
+
+  it("all three known-undeletable steps denied at once -- still ok, all three reported", async () => {
+    const c = client({ profiles: { message: "denied" }, food_sightings: { message: "denied" }, qr_tokens: { message: "denied" } });
+    const result = await deleteServerData(c, "me");
+    expect(result.ok).toBe(true);
+    expect(result.undeletableSteps).toEqual(["profiles", "food_sightings", "qr_tokens"]);
   });
 
   // Per-table red evidence for each newly-added retryable step: a failure on ANY of them must
@@ -71,11 +82,17 @@ describe("deleteServerData", () => {
   });
 
   it("collects every failed retryable step, not just the first, alongside the undeletable ones", async () => {
-    const c = client({ friendships: { message: "x" }, shared_stats: { message: "y" }, profiles: { message: "denied" }, food_sightings: { message: "denied" } });
+    const c = client({
+      friendships: { message: "x" },
+      shared_stats: { message: "y" },
+      profiles: { message: "denied" },
+      food_sightings: { message: "denied" },
+      qr_tokens: { message: "denied" },
+    });
     const result = await deleteServerData(c, "me");
     expect(result.ok).toBe(false);
     expect(result.failedSteps).toEqual(["friendships", "shared_stats"]);
-    expect(result.undeletableSteps).toEqual(["profiles", "food_sightings"]);
+    expect(result.undeletableSteps).toEqual(["profiles", "food_sightings", "qr_tokens"]);
   });
 
   it("catches a thrown rejection from a step and reports it as failed rather than crashing", async () => {

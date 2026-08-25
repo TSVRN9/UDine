@@ -13,9 +13,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   20260818130000_grant_authenticated_table_access.sql). A failure here is a genuine, transient
  *   thing (network blip, RLS regression) worth telling the user to retry.
  *
- * - UNDELETABLE (known, permanent, not a bug to retry): profiles and food_sightings have no owner
- *   DELETE policy or grant. Both are still attempted -- honest about what the backend actually
- *   allows, not silently skipped -- but a denial here is folded into a SEPARATE bucket from
+ * - UNDELETABLE (known, permanent, not a bug to retry): profiles, food_sightings, and qr_tokens have
+ *   no owner DELETE policy or grant. All three are still attempted -- honest about what the backend
+ *   actually allows, not silently skipped -- but a denial here is folded into a SEPARATE bucket from
  *   `failedSteps` so `ok` (and the UI's "try again" copy) only ever reflects the steps that could
  *   plausibly succeed on retry.
  *
@@ -29,14 +29,29 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   Admin API (service role) to remove the auth.users row too, which is a different, bigger feature
  *   than a client-side RLS policy -- not built here.
  *
- *   food_sightings has none of profiles' recreate-on-signin hazard (it's just notification-history
- *   rows), so an owner DELETE policy would likely be safe to add -- left as a question for the PR
- *   body rather than added unasked, per the issue's own "raise whether it needs one" framing (profiles
- *   got "decide", food_sightings got "raise").
+ *   food_sightings and qr_tokens have none of profiles' recreate-on-signin hazard (qr_tokens is one
+ *   row per user, replaced wholesale by mint_qr_token() the next time the user opens the QR screen
+ *   regardless of whether an old row was ever deleted -- see 20260824150000_add_friends_
+ *   discoverability_and_qr.sql -- and food_sightings is just notification-history rows), so an owner
+ *   DELETE policy on either would likely be safe to add -- left as a question for the PR body rather
+ *   than added unasked, per the issue's own "raise whether it needs one" framing (profiles got
+ *   "decide", food_sightings got "raise"; qr_tokens is the same shape as food_sightings).
+ *
+ * Received pings (a friend's own sent-to-this-user row) are not attempted at all, retryable or
+ * undeletable -- there is no receiver-delete policy for pings to even try, only the sender-delete
+ * one used below. Surfaced as static "stays" copy in privacy.tsx, not as a step here.
  *
  * Never throws (same contract as syncFavoritedFoods/syncSharedStat): each step's `{ error }` is
  * collected, and the caller decides how to render a partial failure -- matching the #158/#165/#167
  * "surface {error}, truthful UI on partial failure" convention this ticket pins.
+ *
+ * Assumption baked into the retryable/undeletable split: a DENIED delete (missing grant or RLS)
+ * always comes back as a non-null `{ error }` -- PostgREST returns 42501/permission-denied, never a
+ * silent zero-rows-affected success. That's how profiles/food_sightings/qr_tokens end up in
+ * `undeletableSteps` every real run. Nothing here has been exercised against a live PostgREST
+ * instance (every test below hands the client a synthetic `{ error }`); if that assumption is ever
+ * wrong for some future table, the honest "stays on the server" copy would silently go stale with
+ * no test catching it.
  */
 export interface DeleteServerDataResult {
   /** True iff every RETRYABLE step succeeded. Ignores `undeletableSteps` -- those are expected to
@@ -61,6 +76,7 @@ export async function deleteServerData(supabase: SupabaseClient, userId: string)
     ["pings", true, () => supabase.from("pings").delete().eq("sender_id", userId)],
     ["profiles", false, () => supabase.from("profiles").delete().eq("user_id", userId)],
     ["food_sightings", false, () => supabase.from("food_sightings").delete().eq("user_id", userId)],
+    ["qr_tokens", false, () => supabase.from("qr_tokens").delete().eq("user_id", userId)],
   ];
 
   const failedSteps: string[] = [];

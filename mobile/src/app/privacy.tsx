@@ -31,19 +31,27 @@ type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unk
 // isn't opt-in -- it syncs unconditionally on sign-in for ping-hall suggestions; wiring this toggle
 // to it instead would make turning it "off" break pings, which the artboard's own copy doesn't
 // describe).
-// #237: what "Delete server data" actually does today -- shared verbatim between the confirm
-// dialog and the row's own subline so the two copies of this claim can't drift apart again.
-// friendships/favorited_foods/shared_stats/favorite_dining_halls/push_tokens/pings(sent) all have
-// an owner DELETE policy + grant (see deleteServerData.ts's own doc comment); profiles and
-// food_sightings do not, and are named as staying, not as being removed.
+// #237: what "Delete server data" actually does today -- ONE pair of clauses, reused by the confirm
+// dialog, the row's own subline, AND the post-delete honest-copy alert, so no two of those three can
+// drift apart the way the pre-#237 copy did (it claimed "profile" was removed when it never was).
 //
+// DELETE_REMOVES: friendships/favorited_foods/shared_stats/favorite_dining_halls/push_tokens/
+// pings(sent) all have an owner DELETE policy + grant (see deleteServerData.ts's own doc comment).
 // "the dining halls synced for ping suggestions" (not "favorite halls") is deliberate wording --
 // favorite_dining_halls has no toggle of its own on this screen, but SHARED_TOGGLES above already
 // has a toggle literally labeled "Favorite halls" for the unrelated hall_ranks column (part of
-// shared_stats, already covered by "shared stats" earlier in this sentence). Reusing "favorite
+// shared_stats, already covered by "shared stats" earlier in the same sentence). Reusing "favorite
 // halls" here would read as double-counting or naming the wrong table.
-const DELETE_SCOPE_SUMMARY =
-  "Removes friendships, favorites, shared stats, the dining halls synced for ping suggestions, push tokens, and sent pings. Your profile and food-sighting history stay on the server -- deleting those isn't available yet. Phone data stays.";
+//
+// DELETE_STAYS: profiles/food_sightings/qr_tokens have no owner DELETE policy or grant (attempted
+// and reported as `undeletableSteps` -- see deleteServerData.ts). Pings a FRIEND sent to this user
+// are not attempted at all (no receiver-delete policy exists, only the sender-delete one this user's
+// own sent pings use) -- named here so this "stays" clause is the actual exhaustive list of
+// server-side residue, not just the two/three tables that happen to be attempted-and-reported.
+const DELETE_REMOVES = "Friendships, favorites, shared stats, the dining halls synced for ping suggestions, push tokens, and sent pings";
+const DELETE_STAYS = "Your profile, food-sighting history, QR sign-in code, and pings friends sent you stay on the server -- deleting those isn't available yet.";
+const DELETE_SCOPE_SUMMARY = `Removes ${DELETE_REMOVES.charAt(0).toLowerCase()}${DELETE_REMOVES.slice(1)}. ${DELETE_STAYS} Phone data stays.`;
+const DELETE_SUCCESS_MESSAGE = `${DELETE_REMOVES} are gone. ${DELETE_STAYS}`;
 
 const SHARED_TOGGLES: { field: SharedStatField; label: string }[] = [
   { field: "completion", label: "Hall completion" },
@@ -195,10 +203,7 @@ export default function PrivacyScreen() {
             setRow(null);
             setFriendships([]);
             if (result.undeletableSteps.length > 0) {
-              Alert.alert(
-                "Server data deleted",
-                "Friendships, favorites, shared stats, the dining halls synced for ping suggestions, push tokens, and sent pings are gone. Your profile and food-sighting history stay on the server -- deleting those isn't available yet.",
-              );
+              Alert.alert("Server data deleted", DELETE_SUCCESS_MESSAGE);
             }
           } finally {
             setDeleting(false);
