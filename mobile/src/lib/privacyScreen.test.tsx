@@ -471,4 +471,68 @@ describe("PrivacyScreen: delete server data", () => {
     expect(body).toMatch(/push tokens/);
     expect(body).toMatch(/friend qr code/i);
   });
+
+  // #241: same hazard as #186's toggle test above, but for Delete instead of a toggle -- refresh()'s
+  // re-push loop can be parked on the friendships await when the user confirms Delete. Without
+  // confirmDelete also bumping generationRef, the parked loop resumes after deleteServerData wipes
+  // shared_stats and re-pushes the field's stale (still-opted-in) value, resurrecting the row the
+  // delete just removed even though the UI shows it as gone (setRow(null)).
+  it("#241: a Delete confirm while refresh is mid-flight is not resurrected by refresh's stale re-push", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+
+    let resolveFriendships!: (v: { data: unknown[] }) => void;
+    const friendshipsPromise = new Promise<{ data: unknown[] }>((resolve) => {
+      resolveFriendships = resolve;
+    });
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "shared_stats") return table([], { singleRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null } });
+      if (name === "friendships") {
+        const builder: Record<string, unknown> = {};
+        builder.select = () => builder;
+        builder.or = () => builder;
+        builder.then = (resolve: (v: { data: unknown[] }) => void) => friendshipsPromise.then(resolve);
+        return builder;
+      }
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<PrivacyScreen />);
+    });
+    // Flush enough microtasks for the session to resolve and refresh() to reach (and park on) the
+    // friendships await -- shared_stats has already resolved by this point (setRow ran).
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const completionToggle = root.root.findAllByType(Toggle)[1];
+    expect(completionToggle.props.value).toBe(true); // confirms refresh's shared_stats read landed
+
+    // User confirms Delete while refresh is still parked on the friendships await.
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    await act(async () => {
+      await confirmButton.onPress();
+      await Promise.resolve();
+    });
+
+    // Now let refresh's parked friendships await resolve -- its re-push loop sees `toRefresh` still
+    // contains "completion" (captured from the row it read before the delete) and would, without
+    // the guard, re-push a fresh non-null payload for it.
+    await act(async () => {
+      resolveFriendships({ data: [] });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const nonNullCompletionPushes = mockSyncSharedStat.mock.calls.filter((c) => c[2] === "completion" && c[3] !== null);
+    expect(nonNullCompletionPushes).toHaveLength(0);
+  });
 });

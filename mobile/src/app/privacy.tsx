@@ -85,8 +85,10 @@ export default function PrivacyScreen() {
   // #186: refresh()'s re-push loop below can be mid-flight (parked on an await) when the user
   // revokes a field via toggleShared -- without this, the stale loop resumes and re-pushes the
   // field's old value, resurrecting a stat the user just deleted server-side. toggleShared bumps
-  // this on every real toggle; refresh captures the value at its own start and checks it again
-  // before EACH re-push, dropping the push if a toggle happened in between.
+  // this on every real toggle; confirmDelete bumps it too (#241, same hazard for "Delete server
+  // data" -- deleteServerData wipes the row, and without the bump the parked loop would resurrect
+  // it right after). refresh captures the value at its own start and checks it again before EACH
+  // re-push, dropping the push if a toggle or delete happened in between.
   const generationRef = useRef(0);
 
   useEffect(() => {
@@ -189,6 +191,7 @@ export default function PrivacyScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
+          generationRef.current += 1; // invalidate any in-flight refresh() re-push loop -- see #186/#241
           setDeleting(true);
           try {
             const result = await deleteServerData(supabase, myId);
