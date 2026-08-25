@@ -2,7 +2,7 @@ import type { DiningEvent, TimeWindow } from "@udine/shared";
 import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HallHoursRow } from "../lib/hallMenuTabs";
-import { hallInfoWindowText } from "../lib/hallMenuTabs";
+import { hallInfoEventsEmptyCopy, hallInfoWindowText } from "../lib/hallMenuTabs";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
@@ -101,7 +101,7 @@ export function HallInfoSheet({ visible, hallName, address, directionsUrl, hours
             {events.length === 0 ? (
               <View style={styles.eventsRow}>
                 <Text style={styles.calendarGlyph}>▤</Text>
-                <Text style={styles.eventsText}>No events at {hallName} this week</Text>
+                <Text style={styles.eventsText}>{hallInfoEventsEmptyCopy(hallName)}</Text>
               </View>
             ) : (
               events.map((event, i) => (

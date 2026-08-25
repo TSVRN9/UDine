@@ -198,6 +198,10 @@ export default function HallMenuScreen() {
   // #180: hall-info sheet's data. All computed here (not inside HallInfoSheet) so the sheet stays a
   // pure presentational component -- hoursRows in particular needs `new Date()` at render time for
   // its NOW-highlight, same "now" this screen already reads once per render, nowhere else.
+  // Known gap (PR review): this is read once per RENDER, not on an interval -- if the sheet is left
+  // open across a meal boundary (e.g. lunch ending at 2:30 PM) with no other state change to trigger
+  // a re-render, the NOW pill goes stale until something else re-renders the screen. Not fixed here;
+  // would need a ticking interval/timer while infoSheetOpen is true.
   const now = new Date();
   const hoursRows = hallHours ? hallInfoHoursRows(hallHours, now) : [];
   const grabNGoWindow = hoursFeed ? hallInfoGrabNGoWindow(hoursFeed.retail, hall.name) : null;
