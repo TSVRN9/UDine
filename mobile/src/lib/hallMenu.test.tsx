@@ -50,6 +50,10 @@ jest.mock("@udine/shared", () => ({
   // hours effect from throwing (calling .then on an unmocked jest.fn()'s undefined return) while
   // individual tests can still override with mockResolvedValueOnce for subtitle-specific cases.
   fetchDiningHours: jest.fn().mockResolvedValue({ halls: [], retail: [] }),
+  // #180: same reasoning as fetchDiningHours above -- real fetchEvents hits get_beacons_events over
+  // the network; a resolved-empty default keeps the hall-info sheet's events effect from throwing
+  // and keeps this whole suite off the real endpoint (never hit real UMass endpoints in tests).
+  fetchEvents: jest.fn().mockResolvedValue([]),
 }));
 
 // #107: the screen must route its menu fetch through menuFetchWithSeenTracking.ts (not call
@@ -67,7 +71,7 @@ jest.mock("./seenDishesStorage", () => ({
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, SectionList } from "react-native";
 import { router } from "expo-router";
-import { fetchDiningHours, fetchMenu, type MenuItem } from "@udine/shared";
+import { fetchDiningHours, fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
 import HallMenuScreen from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
@@ -381,20 +385,67 @@ describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info
   });
 });
 
-describe("HallMenuScreen tab-row subtitle wiring (#117)", () => {
-  it("shows 'being served now' for today+Lunch, and hides it again once the date is stepped away from today (old code showed this line unconditionally whenever hours resolved)", async () => {
+// #180: the tab-row "being served now · until X" line (and its #117 wiring test above) is gone --
+// serving windows now live ONLY in the hall-info bottom sheet, opened by tapping the title group.
+// This replaces that describe block; the NOW-highlight behavior the old test covered is asserted
+// on the sheet's own hours card below instead.
+describe("HallMenuScreen hall-info sheet wiring (#180)", () => {
+  it("never renders the retired tab-row 'being served now' line, even once hours resolve", async () => {
     (fetchDiningHours as jest.Mock).mockResolvedValueOnce({
       halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "12:00 AM", closeTime: "11:59 PM" }, dinner: null, latenight: null, general: null }],
       retail: [],
     });
     const root = await renderScreen([PIZZA]);
     await act(async () => {}); // flush fetchDiningHours' resolution
-    expect(texts(root).flat().join(" ")).toMatch(/being served now/);
+    expect(texts(root).flat().join(" ")).not.toMatch(/being served now/);
+  });
+
+  it("tapping the title group opens the hall-info sheet; tapping the backdrop closes it again", async () => {
+    const root = await renderScreen([PIZZA]);
+    await act(async () => {});
+    expect(texts(root).flat().join(" ")).not.toMatch(/Dining Commons/); // sheet content not mounted-visible yet
 
     await act(async () => {
-      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+      root.root.findByProps({ accessibilityLabel: "Worcester info" }).props.onPress();
     });
-    expect(texts(root).flat().join(" ")).not.toMatch(/being served now/);
+    expect(texts(root).flat().join(" ")).toMatch(/Dining Commons/);
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Close" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/Dining Commons/);
+  });
+
+  it("NOW-highlights the hall's current meal period in the sheet's hours card, driven by a mocked clock -- not whatever tab happens to be selected", async () => {
+    // Wed 2026-08-19, 12:30 PM local -- inside the mocked lunch window below.
+    jest.setSystemTime(new Date(2026, 7, 19, 12, 30, 0, 0));
+    (fetchDiningHours as jest.Mock).mockResolvedValueOnce({
+      halls: [
+        {
+          hallTid: 1,
+          breakfast: null,
+          lunch: { openTime: "11:00 AM", closeTime: "2:30 PM" },
+          dinner: { openTime: "5:00 PM", closeTime: "8:00 PM" },
+          latenight: null,
+          general: null,
+        },
+      ],
+      retail: [],
+    });
+    const root = await renderScreen([PIZZA]);
+    await act(async () => {});
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester info" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/NOW/);
+    expect(body).toMatch(/11:00 AM - 2:30 PM/); // lunch's own window text, next to the NOW pill
+  });
+
+  it("fetches this hall's events via shared's fetchEvents, not a hand-rolled call", async () => {
+    const root = await renderScreen([PIZZA]);
+    await act(async () => {});
+    expect(fetchEvents).toHaveBeenCalled();
   });
 });
 
