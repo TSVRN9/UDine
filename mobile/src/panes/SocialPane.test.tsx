@@ -151,7 +151,7 @@ beforeEach(() => {
 async function renderSocialPane() {
   let root!: renderer.ReactTestRenderer;
   await act(async () => {
-    root = renderer.create(<SocialPane activeIndex={0} />);
+    root = renderer.create(<SocialPane />);
   });
   await act(async () => {
     await Promise.resolve();

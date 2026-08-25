@@ -15,7 +15,7 @@ import {
   type PanResponderGestureState,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PaneHeader } from "../components/PaneHeader";
+import { Press } from "../components/Press";
 import { Button, Card, EmptyState, SectionHeader } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { signInWithGoogle } from "../lib/auth";
@@ -91,7 +91,7 @@ function EventCard({ item }: { item: DiningEvent }) {
     // PR #129 review finding 3: dropping the banner card's title Text also silently dropped its
     // only accessible name, so a screen reader announced just "Through Aug 27, button". Matches
     // halls/[slug].tsx's convention of labeling every Pressable explicitly.
-    <Pressable onPress={() => openEventTap(item)} accessibilityRole="button" accessibilityLabel={item.title}>
+    <Press onPress={() => openEventTap(item)} accessibilityRole="button" accessibilityLabel={item.title}>
       <Card style={styles.eventCard}>
         {/* No title overlay on the image -- live fetchEvents banners are full poster graphics that
             already contain their own title art (the artboard's overlay only worked because its
@@ -114,7 +114,7 @@ function EventCard({ item }: { item: DiningEvent }) {
           {target.kind !== "none" && <Text style={styles.eventIcon}>{target.kind === "link" ? "↗" : "›"}</Text>}
         </View>
       </Card>
-    </Pressable>
+    </Press>
   );
 }
 
@@ -134,7 +134,7 @@ function EventCard({ item }: { item: DiningEvent }) {
  * hovering one, drag-away cancels. The gesture/message/hit-test logic itself lives in
  * ../lib/pingGesture.ts as pure, red-green-tested functions -- this file is just RN wiring.
  */
-export function SocialPane({ activeIndex }: { activeIndex: number }) {
+export function SocialPane() {
   const [session, setSession] = useState<Session | null>(null);
   const [friends, setFriends] = useState<Profile[]>([]);
   const [profilesById, setProfilesById] = useState<Map<string, Profile>>(new Map());
@@ -278,9 +278,7 @@ export function SocialPane({ activeIndex }: { activeIndex: number }) {
     // pane's actual on-screen box, and could push the hall rows below the visible area (and out
     // of reach of hallAtPoint's page-coordinate hit test) once there's enough content to scroll.
     <View style={styles.paneWrap}>
-      <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + spacing(4.5) }]}>
-        <PaneHeader title="Social" activeIndex={activeIndex} />
-
+      <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
         <View style={styles.section}>
           <SectionHeader title="Ping a Friend" />
           {!session ? (

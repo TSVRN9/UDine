@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
+import { Press } from "../Press";
 import { buttonColors, fonts, fs, radii, spacing, type ButtonVariant } from "../../lib/theme";
 
 type Props = Omit<PressableProps, "style"> & {
@@ -10,28 +11,29 @@ type Props = Omit<PressableProps, "style"> & {
   children: ReactNode;
 };
 
-/** Base button; pair with exactly one variant. Mirrors .btn + .btn-primary/-secondary/-ghost. */
+/** Base button; pair with exactly one variant. Mirrors .btn + .btn-primary/-secondary/-ghost.
+ * A free-standing element, so it gets `.press` (scale(0.97) 120ms, #179 press-feedback rules) --
+ * `Press` supplies that; disabled buttons skip it (no feedback for a tap that does nothing). */
 export function Button({ variant = "primary", size = "default", style, textStyle, disabled, children, ...props }: Props) {
   const c = buttonColors(variant);
+  const content = typeof children === "string" ? (
+    <Text style={[styles.text, size === "sm" && styles.textSm, { color: c.color }, textStyle]}>{children}</Text>
+  ) : (
+    children
+  );
+  const buttonStyle = [styles.base, size === "sm" && styles.sm, { backgroundColor: c.backgroundColor, borderColor: c.borderColor }, disabled && styles.disabled, style];
+
+  if (disabled) {
+    return (
+      <Pressable accessibilityRole="button" disabled style={buttonStyle} {...props}>
+        {content}
+      </Pressable>
+    );
+  }
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      style={[
-        styles.base,
-        size === "sm" && styles.sm,
-        { backgroundColor: c.backgroundColor, borderColor: c.borderColor },
-        disabled && styles.disabled,
-        style,
-      ]}
-      {...props}
-    >
-      {typeof children === "string" ? (
-        <Text style={[styles.text, size === "sm" && styles.textSm, { color: c.color }, textStyle]}>{children}</Text>
-      ) : (
-        children
-      )}
-    </Pressable>
+    <Press accessibilityRole="button" style={buttonStyle} {...props}>
+      {content}
+    </Press>
   );
 }
 

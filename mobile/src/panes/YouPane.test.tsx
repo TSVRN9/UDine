@@ -106,7 +106,7 @@ function pressableWithText(root: renderer.ReactTestRenderer, label: string) {
 async function renderYouPane() {
   let root!: renderer.ReactTestRenderer;
   await act(async () => {
-    root = renderer.create(<YouPane activeIndex={2} />);
+    root = renderer.create(<YouPane />);
   });
   // Flush the storage promises + resulting re-render (useFocusEffect fires synchronously above,
   // but the storage .then() callbacks still resolve on a microtask).

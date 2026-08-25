@@ -1,25 +1,16 @@
 import { DINING_HALLS, fetchDiningHours, favoriteKey, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SectionHeader } from "../components/ui";
-import { PaneHeader } from "../components/PaneHeader";
+import { PaneStack } from "../components/PaneStack";
+import { usePressDimOverlay, PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { grabRouteFor, grabStripState } from "../lib/grabStrip";
-import { HOME_PANE_INDEX, initialPaneOffset, paneIndexForScrollOffset, shouldLandOnHome } from "../lib/paneShell";
+import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { isFirstRunDismissed } from "../lib/firstRun";
 import { SocialPane } from "../panes/SocialPane";
@@ -86,6 +77,12 @@ function HallCard({
   grab: { open: boolean; text: string };
 }) {
   const gradient = chip.open ? (hallGradients[hall.slug] ?? hallGradients.worcester) : hallGradientClosed;
+  // `.pressd` (#179 press-feedback map: hall-card header zones). The tap target is a sibling
+  // absolute-fill Pressable, not a parent of the monogram/chip/name it should dim (see that
+  // Pressable's own comment on why) -- so the wrap-children shape PressDim uses elsewhere doesn't
+  // fit here; usePressDimOverlay hands back the same brightness-equivalent overlay for this
+  // disjoint-sibling case instead.
+  const hallDim = usePressDimOverlay();
   return (
     <View style={styles.hallCard}>
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.6 }} style={StyleSheet.absoluteFill} />
@@ -97,9 +94,22 @@ function HallCard({
           {hall.name.charAt(0)}
         </Text>
         {/* Sibling absolute-fill Pressable (not a parent of the star below) so the two touch
-            targets don't nest — nested Pressables in RN double-fire/steal gestures. */}
+            targets don't nest — nested Pressables in RN double-fire/steal gestures.
+            `collapsable={false}`: a childless absolute-fill Pressable is Android's classic
+            view-flattening trap -- correct measured bounds, `clickable=true` in the view
+            hierarchy, but zero touches delivered (found live on-device, #179 review; this exact
+            Link+asChild+childless-Pressable shape has existed unchanged since #96/#104). Tried as
+            the first, most-likely fix (matches this repo's own `hallCardSide` precedent for the
+            identical symptom) -- kept because it's harmless and correct Android practice for this
+            shape, but device-retested on Agent_Emulator_Wide (fresh JS, app fully relaunched, not
+            just Fast Refreshed) and it did NOT restore navigation: tapping this zone still does
+            nothing. So view-flattening was a reasonable hypothesis, not the (or not the whole)
+            root cause -- this defect is CONFIRMED STILL OPEN, not fixed by this PR. See the PR
+            body; recommend a follow-up issue with deeper native-side investigation (e.g.
+            renderToHardwareTextureAndroid, or restructuring away from the sibling-Pressable shape
+            entirely) rather than more guesses here. */}
         <Link href={`/halls/${hall.slug}`} asChild>
-          <Pressable style={StyleSheet.absoluteFill} />
+          <Pressable collapsable={false} style={StyleSheet.absoluteFill} onPressIn={hallDim.onPressIn} onPressOut={hallDim.onPressOut} />
         </Link>
         {chip.text ? (
           <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]} pointerEvents="none">
@@ -114,20 +124,22 @@ function HallCard({
         <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.hallCardStar}>
           <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
         </Pressable>
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, hallDim.overlayStyle]} />
       </View>
 
       {/* expo-router's <Slot> (what asChild renders) clones its direct child and can't handle an
           array `style` prop there -- it needs one flattened object, unlike a plain RN Pressable
           (confirmed on-device: "[expo-router]: You are passing an array of styles to a child of
-          <Slot>"). Only the Pressable itself is that direct child; its own children are unaffected. */}
+          <Slot>"). Only the pressable itself is that direct child; its own children are unaffected.
+          PressDim forwards `style` straight to its own inner Pressable, so it's a drop-in here. */}
       <Link href={grabRouteFor(hall.slug) as never} asChild>
-        <Pressable hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])}>
+        <PressDim hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])}>
           <View style={styles.grabStripLeft}>
             <Text style={[styles.grabStripLabel, !grab.open && styles.grabStripTextClosed]}>GRAB 'N GO</Text>
             {grab.text ? <Text style={[styles.grabStripHours, !grab.open && styles.grabStripTextClosed]}>{grab.text}</Text> : null}
           </View>
           <Text style={[styles.grabStripChevron, !grab.open && styles.grabStripTextClosed]}>›</Text>
-        </Pressable>
+        </PressDim>
       </Link>
     </View>
   );
@@ -135,7 +147,7 @@ function HallCard({
 
 // Exported so it's independently testable (#104 review round) without pulling in SocialPane's/
 // YouPane's own network- and storage-backed siblings, which the pager mounts eagerly alongside it.
-export function HomePane({ activeIndex }: { activeIndex: number }) {
+export function HomePane() {
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
@@ -168,9 +180,7 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
   const hero = hoursFeed ? deriveHomeHero(hoursFeed.halls, now) : null;
 
   return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + spacing(4.5) }]}>
-      <PaneHeader title="UDine" activeIndex={activeIndex} />
-
+    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
       {error && <Text style={styles.error}>Couldn't load dining hours: {error}</Text>}
       {!hoursFeed && !error && <ActivityIndicator color={colors.maroon600} style={styles.loading} />}
       {hero && <HeroBlock hero={hero} now={now} />}
@@ -234,22 +244,15 @@ export function HomePane({ activeIndex }: { activeIndex: number }) {
 }
 
 /**
- * The 3-pane swipe shell (Social ← Home → You). RN core only — a horizontal, paging ScrollView
- * with each pane sized to the pager's own laid-out width/height (via onLayout on the ScrollView
- * itself, not useWindowDimensions — the window is taller than the pager's actual content area
- * once the Stack header is subtracted, and an unsized/overshot page height would let a pane's
- * `flex: 1` wrapper (see YouPane.tsx) collapse to zero — a flex child needs a parent with a
- * *resolved* height, which the window height alone doesn't give it here). Lands on Home by
- * scrolling once from onContentSizeChange, only after the native content has reached its full
- * 3-pane width — scrolling from the same commit that sizes the panes races the native contentSize
- * update and clamps to x=0, stranding the user on Social (contentOffset alone is also unreliable
- * on Android).
+ * The 3-pane shell (Social ← Home → You). #179 replaced the horizontal-ScrollView pager with the
+ * artboard's shared-axis transition (see PaneStack) — panes are stacked, not a translating strip,
+ * so there's no scroll offset/contentSize race to land on Home any more (the #f5f0d5b bug this
+ * used to guard against). Landing on Home is now just PaneStack's own Animated.Values starting AT
+ * HOME_PANE_INDEX (see its doc comment).
  */
 export default function PaneShellScreen() {
-  const scrollRef = useRef<ScrollView>(null);
-  const [paneSize, setPaneSize] = useState({ width: 0, height: 0 });
   const [activeIndex, setActiveIndex] = useState(HOME_PANE_INDEX);
-  const landedOnHome = useRef(false);
+  const insets = useSafeAreaInsets();
 
   // First launch → the full-screen login/value-prop screen (#96, replaces #68's FirstRunCard).
   // Pushed (not replaced) so both of its exits just pop back to the shell.
@@ -259,52 +262,17 @@ export default function PaneShellScreen() {
     });
   }, []);
 
-  function handleLayout(e: LayoutChangeEvent) {
-    const { width, height } = e.nativeEvent.layout;
-    setPaneSize({ width, height });
-  }
-
-  function handleContentSizeChange(contentWidth: number) {
-    if (!shouldLandOnHome(contentWidth, paneSize.width, landedOnHome.current)) return;
-    landedOnHome.current = true;
-    // One frame later, not synchronously: with the Stack header gone (v2 canvas headers) this
-    // callback again races the native scrollable-range update, and a same-frame scrollTo clamps
-    // to x=0, stranding the shell on Social (the exact failure #104's comment describes).
-    const x = initialPaneOffset(paneSize.width);
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ x, animated: false }));
-  }
-
-  function handleScrollSettle(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    setActiveIndex(paneIndexForScrollOffset(e.nativeEvent.contentOffset.x, paneSize.width));
-  }
-
   return (
-    <ScrollView
-      ref={scrollRef}
-      horizontal
-      pagingEnabled
-      showsHorizontalScrollIndicator={false}
-      onLayout={handleLayout}
-      onContentSizeChange={handleContentSizeChange}
-      onMomentumScrollEnd={handleScrollSettle}
-      onScrollEndDrag={handleScrollSettle}
-      style={styles.pager}
-    >
-      <View style={paneSize}>
-        <SocialPane activeIndex={activeIndex} />
-      </View>
-      <View style={paneSize}>
-        <HomePane activeIndex={activeIndex} />
-      </View>
-      <View style={paneSize}>
-        <YouPane activeIndex={activeIndex} />
-      </View>
-    </ScrollView>
+    <PaneStack
+      activeIndex={activeIndex}
+      onActiveIndexChange={setActiveIndex}
+      topInset={insets.top}
+      panes={[<SocialPane key="social" />, <HomePane key="home" />, <YouPane key="you" />]}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  pager: { flex: 1, backgroundColor: colors.cream100 },
   paneScroll: { flex: 1, backgroundColor: colors.cream100 },
   paneContainer: { paddingHorizontal: spacing(5), paddingBottom: spacing(10) },
 
