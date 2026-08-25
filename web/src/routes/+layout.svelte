@@ -2,6 +2,7 @@
 	import "../app.css";
 	import favicon from "$lib/assets/favicon.svg";
 	import { navigating, page } from "$app/state";
+	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
 
 	let { children } = $props();
 
@@ -49,9 +50,30 @@
 		if (error) signingIn = false;
 	}
 
+	// #257: signOut() used to only call auth.signOut(), leaving this browser's push_tokens row
+	// registered under the signing-out user -- a shared device kept getting the previous user's
+	// favorited-food alerts. The delete has to happen BEFORE auth.signOut(): once the session is
+	// gone, RLS no longer lets this browser touch that row. Best-effort and scoped to this browser's
+	// own subscription (never a blanket "every device" delete, see clearStoredPushTokens's own doc
+	// comment) -- a failure here must not strand the user mid sign-out, and skipped entirely when
+	// this browser was never subscribed (nothing to clean up).
+	//
+	// Deliberately does NOT flip notifications_enabled to false -- that's the user's stored
+	// preference for when they sign back in, not device-scoped state. See mobile/src/lib/auth.ts's
+	// signOut() for the same call and the same reasoning.
 	async function signOut() {
-		if (!page.data.supabase) return;
-		await page.data.supabase.auth.signOut();
+		const supabase = page.data.supabase;
+		if (!supabase) return;
+		const userId = page.data.session?.user.id;
+		if (userId) {
+			try {
+				const ownToken = await ownPushToken();
+				if (ownToken) await clearStoredPushTokens(supabase, userId, ownToken);
+			} catch (err) {
+				console.error("Push token cleanup failed on sign-out:", err);
+			}
+		}
+		await supabase.auth.signOut();
 		location.reload();
 	}
 </script>

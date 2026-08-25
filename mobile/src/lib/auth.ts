@@ -67,6 +67,46 @@ export async function exchangeCode(code: string): Promise<void> {
   if (error) throw error;
 }
 
+// Mirrors favoriteFoodAlerts.ts's PLATFORM constant (not imported -- that module pulls in
+// expo-notifications/expo-router/SQLite storage, which auth.ts has no other reason to depend on
+// for one string literal).
+const PLATFORM = "expo" as const;
+
+/**
+ * Best-effort delete of this device's push_tokens row for `userId`, scoped to `user_id` +
+ * `platform` -- the same shape favoriteFoodAlerts.ts's toggle-off already uses (:124), reused here
+ * rather than re-fetching the Expo token. A failure here must never surface to the caller: signOut
+ * proceeds either way (#257 -- the user asked to leave, and worst case is one stale row that a
+ * later toggle-off or `deleteServerData` cleans up).
+ */
+async function clearThisDevicesPushToken(userId: string): Promise<void> {
+  try {
+    const { error } = await supabase.from("push_tokens").delete().eq("user_id", userId).eq("platform", PLATFORM);
+    if (error) console.warn("[auth] signOut: push_tokens delete failed", error);
+  } catch (e) {
+    console.warn("[auth] signOut: push_tokens delete threw", e);
+  }
+}
+
+/**
+ * #257: a shared device previously kept dispatching the signed-out user's favorited-food alerts to
+ * whoever picked it up next, because push_tokens was only ever cleared by the alerts toggle-off or
+ * deleteServerData -- never by signOut() itself. The delete has to happen BEFORE
+ * supabase.auth.signOut(): once the session is gone, RLS no longer lets this device touch that row.
+ *
+ * Deliberately does NOT flip notifications_enabled to false -- that's the user's stored preference
+ * for when they sign back in (on this device or another), not device-scoped state. Leaving it
+ * alone means alerts resume automatically on their next sign-in without them having to re-opt-in,
+ * and it's safe: with this device's push_tokens row gone, there's nothing left to dispatch to until
+ * a future sign-in re-registers a token.
+ */
 export async function signOut(): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user.id;
+    if (userId) await clearThisDevicesPushToken(userId);
+  } catch (e) {
+    console.warn("[auth] signOut: reading session for push_tokens cleanup failed", e);
+  }
   await supabase.auth.signOut();
 }

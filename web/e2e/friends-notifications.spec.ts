@@ -528,3 +528,96 @@ test.describe("Notifications — signed in", () => {
 		expect(keys.some((k) => k.startsWith("udine-feed-last-seen"))).toBe(false);
 	});
 });
+
+// #257: +layout.svelte's signOut() used to only call auth.signOut(), leaving this browser's
+// push_tokens row registered under the signing-out user -- a shared device kept getting the
+// previous user's favorited-food alerts. These cover the header's "Sign out" control (visible on
+// any signed-in page, not just /notifications) rather than the toggle covered above.
+test.describe("Sign out (#257)", () => {
+	test("clears this browser's own push_tokens row before ending the session", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "granted", ownEndpoint);
+		// Order proof: signOut() awaits the push_tokens delete before calling auth.signOut(), and the
+		// mocked network is fully sequential (no concurrency here), so recording each request's
+		// arrival order is a reliable proxy for the awaited call order in the component.
+		const order: string[] = [];
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			push_tokens: async (route) => {
+				order.push("push_tokens.delete");
+				await route.fulfill({ json: [] });
+			},
+		});
+		// Registered after signInAndMockSupabase's generic **/auth/v1/** handler, so this one wins
+		// for the logout call specifically (Playwright routes are last-registered-first).
+		await page.route("**/auth/v1/logout**", async (route) => {
+			order.push("auth.logout");
+			await route.fulfill({ json: {} });
+		});
+
+		await page.goto("/notifications");
+		const signOutButton = page.getByRole("button", { name: "Sign out" });
+		await expect(signOutButton).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		await signOutButton.click();
+
+		const del = await waitForRequest(requests, "push_tokens", "DELETE");
+		expect(del.url.searchParams.get("user_id")).toBe(`eq.${USER_ID}`);
+		expect(del.url.searchParams.get("platform")).toBe("eq.web");
+		// Scoped to this browser's own token, same shape as the #185 test above -- never a blanket
+		// "every device" delete.
+		const ownToken = JSON.stringify({ endpoint: ownEndpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } });
+		expect(del.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
+
+		await expect.poll(() => order.includes("auth.logout")).toBe(true);
+		expect(order).toEqual(["push_tokens.delete", "auth.logout"]);
+	});
+
+	test("a failed push_tokens delete still completes sign-out", async ({ page }) => {
+		await mockPushEnvironment(page, "granted", "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT");
+		await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			// Shape of a real PostgREST failure -- signOut()'s cleanup must swallow this, not throw
+			// past the auth.signOut() call below it.
+			push_tokens: (route) => route.fulfill({ status: 500, json: { message: "boom" } }),
+		});
+
+		await page.goto("/notifications");
+		const signOutButton = page.getByRole("button", { name: "Sign out" });
+		await expect(signOutButton).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		await signOutButton.click();
+
+		// Sign-out still lands: the header flips back to the signed-out control (auth.signOut() +
+		// location.reload() still ran) even though the push_tokens cleanup failed.
+		await expect(page.getByRole("button", { name: /Sign in/ })).toBeVisible({ timeout: 15_000 });
+	});
+
+	test("a browser never subscribed to push skips the delete entirely (no blanket delete)", async ({ page }) => {
+		// No live subscription -- ownPushToken() resolves undefined, same as a browser that never
+		// enabled alerts. signOut() must not fall back to a token-less delete (#185's blanket-delete
+		// footgun), so no push_tokens request should fire at all.
+		await mockPushEnvironment(page, "default");
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: false }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+		});
+
+		await page.goto("/notifications");
+		const signOutButton = page.getByRole("button", { name: "Sign out" });
+		await expect(signOutButton).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		await signOutButton.click();
+
+		await expect(page.getByRole("button", { name: /Sign in/ })).toBeVisible({ timeout: 15_000 });
+		expect(requests.some((r) => r.table === "push_tokens" && r.method === "DELETE")).toBe(false);
+	});
+});
