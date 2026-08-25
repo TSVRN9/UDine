@@ -24,9 +24,19 @@ const RETAIL_TID_CACHE_TTL_MS = 10 * 60 * 1000;
 async function isValidRetailTid(tid: number): Promise<boolean> {
 	const now = Date.now();
 	if (!retailTidCache || retailTidCache.expiresAt <= now) {
-		const { retail } = await fetchDiningHours();
-		const ids = new Set(retail.map((r) => r.locationId).filter((id): id is number => typeof id === "number"));
-		retailTidCache = { ids, expiresAt: now + RETAIL_TID_CACHE_TTL_MS };
+		// #178 pr-review: fetchDiningHours() was unguarded here, and the cache only ever populates on
+		// success -- so during a get_infov2 outage, EVERY request for a garbage tid (not just a real
+		// retail one) re-threw straight past this function and SvelteKit turned it into a 500, not
+		// #172's own 400 "unknown tid". An upstream outage degrades to "no retail tids known right
+		// now" (same as a genuinely empty retail list), not a proxy-wide 500 -- #172's protection has
+		// to survive the thing it's protecting against being down.
+		try {
+			const { retail } = await fetchDiningHours();
+			const ids = new Set(retail.map((r) => r.locationId).filter((id): id is number => typeof id === "number"));
+			retailTidCache = { ids, expiresAt: now + RETAIL_TID_CACHE_TTL_MS };
+		} catch {
+			return false;
+		}
 	}
 	return retailTidCache.ids.has(tid);
 }

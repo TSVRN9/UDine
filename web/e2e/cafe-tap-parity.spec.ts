@@ -181,7 +181,7 @@ test("a PDF-only standing menu opens inline, in-app -- no new tab, no navigation
 	const pagesBefore = context.pages().length;
 	await page.getByRole("button", { name: /View Test Café Menu/ }).click();
 
-	// Inline, same page -- never a new tab/window for the PDF.
+	// The PRIMARY viewing path is inline, same tab -- never a new tab/window just to look at the PDF.
 	expect(context.pages().length).toBe(pagesBefore);
 	await expect(page.getByText("Rendered in-app")).toBeVisible();
 	const viewer = page.locator('object[type="application/pdf"]');
@@ -189,8 +189,15 @@ test("a PDF-only standing menu opens inline, in-app -- no new tab, no navigation
 		"data",
 		"https://umassdining.com/sites/default/files/2025-08/Test%20Menu.pdf",
 	);
-	// The primary path is never a raw target=_blank link to the PDF -- only the explicit SAVE
-	// affordance triggers a download, and even that stays same-tab (a `download` link, not
-	// target=_blank).
-	await expect(page.getByRole("link", { name: "SAVE" })).not.toHaveAttribute("target", "_blank");
+
+	// #178 pr-review: SAVE's `download` attribute is only honored same-origin, and this PDF is
+	// cross-origin (umassdining.com) -- a bare same-tab `<a download>` there silently falls back to
+	// a normal navigation, which would replace this whole app in the current tab (exactly the
+	// "bounce to an external viewer" #177 forbids, just same-tab instead of new-tab). SAVE opens in
+	// a NEW tab instead: the app in THIS tab must never be unloaded/navigated away by it.
+	const appUrlBeforeSave = page.url();
+	const [newPage] = await Promise.all([context.waitForEvent("page"), page.getByRole("link", { name: "SAVE" }).click()]);
+	expect(page.url()).toBe(appUrlBeforeSave); // this tab never navigated away
+	expect(newPage.url()).toContain("Test%20Menu.pdf");
+	await newPage.close();
 });

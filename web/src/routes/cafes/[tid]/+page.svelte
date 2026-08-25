@@ -211,9 +211,20 @@
 {#if showPdf && standingMenu.kind === "pdf"}
 	<!-- #178 PDF spec: full-screen dark chrome, cream document sheet, "Rendered in-app" hint. Native
 	     browser PDF rendering via <object> (see PR body for why this beats pdf.js/<embed> here) --
-	     gives scroll+zoom for free, no download bounce, no new dependency. The fallback <a> inside
-	     <object> only renders if the browser can't display the PDF inline at all (e.g. no PDF
-	     plugin) -- that's an explicit, in-page "open/save" link, not a silent tab hijack. -->
+	     gives scroll+zoom for free, no new dependency, and this <object> itself is genuinely in-app
+	     (it's embedded content on this page, not a navigation).
+	     #178 pr-review: the SAVE link is a DIFFERENT case -- `download` is only honored same-origin;
+	     the PDF is served from umassdining.com, so a bare `<a href download>` there silently falls
+	     back to a normal navigation, and clicking SAVE would have replaced this whole app (unloading
+	     it) with the browser's native full-page PDF view -- exactly the "bounce to an external
+	     viewer" #177 forbids, just same-tab instead of new-tab. Proxying the PDF bytes through our
+	     own origin (so `download` actually forces a save, no navigation) is the fully-correct fix and
+	     is filed as a follow-up (see PR body) rather than done here. `target="_blank"` is the interim
+	     fix: SAVE still opens the PDF in a new tab (browser's own viewer, from which the user can
+	     genuinely save/print), but the app in THIS tab is never unloaded -- the in-app <object> above
+	     stays the primary viewing path, SAVE is an explicit, secondary, clearly-labeled export action.
+	     Same reasoning applies to the <object> fallback link (only rendered when a browser has no PDF
+	     renderer at all -- rare, but the same "don't unload the app" rule should still hold). -->
 	<div class="fixed inset-0 z-50 flex flex-col bg-maroon-900 text-paper-50">
 		<div class="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
 			<div class="flex min-w-0 items-start gap-3">
@@ -226,6 +237,8 @@
 			<a
 				href={standingMenu.url}
 				download
+				target="_blank"
+				rel="noreferrer"
 				class="shrink-0 rounded-sm border border-paper-50/30 px-3 py-1.5 text-xs font-semibold tracking-wide text-paper-50/85 no-underline hover:bg-paper-50/10"
 			>
 				SAVE
@@ -240,7 +253,7 @@
 		>
 			<p class="p-4 text-sm text-ink-900">
 				Your browser can't preview this PDF inline.
-				<a href={standingMenu.url} class="font-semibold text-maroon-600">Open {standingMenu.label}</a>
+				<a href={standingMenu.url} target="_blank" rel="noreferrer" class="font-semibold text-maroon-600">Open {standingMenu.label}</a>
 			</p>
 		</object>
 
