@@ -8,12 +8,14 @@
 // Same hazard, same fix as SocialPane.test.tsx's own mock: fire once per distinct callback
 // identity (i.e. once per `[session]` dependency change).
 const mockSeenFocusCallbacks = new WeakSet<() => void>();
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   useFocusEffect: (callback: () => void) => {
     if (mockSeenFocusCallbacks.has(callback)) return;
     mockSeenFocusCallbacks.add(callback);
     callback();
   },
+  router: { push: (...args: unknown[]) => mockPush(...args) },
 }));
 
 /** Chainable query-builder stub. `.insert`/`.update` resolve to a configurable `{ error }`;
@@ -201,5 +203,61 @@ describe("FriendsBody", () => {
     expect(Alert.alert).toHaveBeenCalledWith("Couldn't send friend request", expect.any(String));
     // Search results are only cleared on success -- still there to retry/confirm the failure.
     expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Sam")).toBe(true);
+  });
+
+  // Issue #252: a qr-origin pending row's raw `update({status:'accepted'})` passes RLS but always
+  // hits the friendships_qr_needs_both_confirms CHECK constraint -- "Please try again" forever, no
+  // retry helps. The code-owner side (requested_by !== myId) must not offer that dead-end Accept;
+  // it must route to the CHECK-respecting /qr-confirm -> confirm_friendship path instead.
+  it("routes a qr-origin pending row to qr-confirm instead of offering a raw Accept", async () => {
+    mockTables({
+      friendshipRows: [{ user_a: "friend-1", user_b: "me", status: "pending", requested_by: "friend-1", origin: "qr" }],
+      profiles: [{ user_id: "friend-1", display_name: "Casey" }],
+    });
+    const root = await renderFriends();
+
+    expect(() => findPressableByText(root, "Accept")).toThrow();
+    const confirmButton = findPressableByText(root, "Confirm");
+    await act(async () => {
+      confirmButton.props.onPress();
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("/qr-confirm?userId=friend-1");
+  });
+
+  // The scanner's own side of that same stalled handshake (requested_by === myId) used to render
+  // an inert "pending" label with no action at all -- also stranded if they backgrounded the app
+  // before confirming (#239's owner-poll fix doesn't cover this list). Same route gets them back in.
+  it("also routes the requester's own side of a qr-origin pending row to qr-confirm, not an inert pending label", async () => {
+    mockTables({
+      friendshipRows: [{ user_a: "me", user_b: "friend-1", status: "pending", requested_by: "me", origin: "qr" }],
+      profiles: [{ user_id: "friend-1", display_name: "Casey" }],
+    });
+    const root = await renderFriends();
+
+    const confirmButton = findPressableByText(root, "Confirm");
+    await act(async () => {
+      confirmButton.props.onPress();
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("/qr-confirm?userId=friend-1");
+  });
+
+  // Negative: search-origin pending rows are untouched by the CHECK constraint (confirmed_a/b stay
+  // null for them) -- the existing single-side raw Accept must keep working for these.
+  it("still shows a working raw Accept for search-origin pending rows", async () => {
+    mockTables({
+      friendshipRows: [{ user_a: "friend-1", user_b: "me", status: "pending", requested_by: "friend-1", origin: "search" }],
+      profiles: [{ user_id: "friend-1", display_name: "Casey" }],
+    });
+    const root = await renderFriends();
+
+    const acceptButton = findPressableByText(root, "Accept");
+    await act(async () => {
+      acceptButton.props.onPress();
+    });
+
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

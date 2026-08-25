@@ -1,7 +1,7 @@
 import { DINING_HALLS, hallNameFor } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useId, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Button, Card, EmptyState } from "../components/ui";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
@@ -9,7 +9,7 @@ import { sendPingGuarded } from "../lib/sendPing";
 import { supabase } from "../lib/supabase";
 
 type Profile = { user_id: string; display_name: string };
-type Friendship = { user_a: string; user_b: string; status: "pending" | "accepted"; requested_by: string };
+type Friendship = { user_a: string; user_b: string; status: "pending" | "accepted"; requested_by: string; origin: "search" | "qr" };
 type Ping = { id: string; sender_id: string; receiver_id: string; hall_tid: number | null; message: string | null; created_at: string };
 
 function otherUserId(f: Friendship, myId: string): string {
@@ -154,7 +154,16 @@ export function FriendsBody() {
         return (
           <Card key={f.user_a + f.user_b} style={styles.row}>
             <Text style={styles.rowText}>{other?.display_name ?? "..."}</Text>
-            {f.requested_by === myId ? (
+            {f.origin === "qr" ? (
+              // #252: a qr-origin row can only ever leave "pending" via confirm_friendship (both
+              // sides confirm in person) -- a raw update({status:'accepted'}) passes RLS but always
+              // hits the friendships_qr_needs_both_confirms CHECK. Route to the same /qr-confirm
+              // screen add-friend-qr.tsx uses, for whichever side is looking (the code-owner never
+              // had a working action here; the scanner's own side never had an action at all).
+              <Pressable onPress={() => router.push(`/qr-confirm?userId=${otherUserId(f, myId)}`)}>
+                <Text style={styles.actionText}>Confirm</Text>
+              </Pressable>
+            ) : f.requested_by === myId ? (
               <Text style={styles.pendingText}>pending</Text>
             ) : (
               <Pressable onPress={() => acceptFriend(f)}>
