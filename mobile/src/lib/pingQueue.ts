@@ -10,7 +10,14 @@ import type { PingInsertRow } from "./sendPing";
  * table) and flushes on the next successful reconnect (RETRY tap, or the pane's own next
  * successful refresh). ponytail: no retry backoff/dedup beyond FIFO-drain-on-flush -- fine at this
  * volume (a handful of pings a session, not a queue under real load); revisit if double-sends from
- * an interrupted flush ever show up in practice.
+ * an interrupted flush ever show up in practice. The serialization fix below (module-level
+ * `writeQueue`, added to stop enqueue/flush from clobbering each other's read-modify-write) has its
+ * own ceiling: `flushQueuedPings` holds that lock across all N of its network round-trips, not just
+ * its own local read/write, so an interactive `enqueuePing` landing mid-flush blocks until every
+ * queued ping in that flush resolves or times out -- and an app kill in that window loses the
+ * ping the user just tried to send (it never reached `writeQueueRows`, so nothing durable exists
+ * for it). Upgrade to per-ping locking (or write the new row before attempting the flush) if that
+ * shows up in practice.
  */
 const KEY = "queued_pings";
 

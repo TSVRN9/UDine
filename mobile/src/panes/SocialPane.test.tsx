@@ -29,15 +29,15 @@ jest.mock("../lib/auth", () => ({
   signInWithGoogle: jest.fn(),
 }));
 
-// #181: enqueuePing/flushQueuedPings touch real SQLite (via ./db -> expo-sqlite), which can't run
-// under jest (see seenDishesStorage.test.ts's own comment for the confirmed error). Both are
+// #181: sendOrQueuePing/flushQueuedPings touch real SQLite (via ./db -> expo-sqlite), which can't
+// run under jest (see seenDishesStorage.test.ts's own comment for the confirmed error). Both are
 // fire-and-forget/`.catch`-guarded in SocialPane itself, so an unmocked real throw wouldn't crash
 // these tests either way, but mocking keeps the offline/queue tests below deterministic and able to
 // assert on calls directly.
-const mockEnqueuePing = jest.fn().mockResolvedValue(undefined);
+const mockSendOrQueuePing = jest.fn().mockResolvedValue("sent");
 const mockFlushQueuedPings = jest.fn().mockResolvedValue(undefined);
 jest.mock("../lib/pingQueue", () => ({
-  enqueuePing: (...args: unknown[]) => mockEnqueuePing(...args),
+  sendOrQueuePing: (...args: unknown[]) => mockSendOrQueuePing(...args),
   flushQueuedPings: (...args: unknown[]) => mockFlushQueuedPings(...args),
   // isTransientPingError is real, pure logic (not SQLite-backed) -- keep it real so the
   // send-while-offline tests below exercise SocialPane's actual classification, not a stub.
@@ -525,7 +525,6 @@ describe("SocialPane offline (#181 — owner decision: offline is not an error s
       act(() => jest.advanceTimersByTime(400));
       act(() => onResponderRelease(fakeTouchEvent(10, 10, 2))); // never hovered -- cancel, no send
       expect(mockFrom).not.toHaveBeenCalledWith("pings");
-      expect(mockEnqueuePing).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }
