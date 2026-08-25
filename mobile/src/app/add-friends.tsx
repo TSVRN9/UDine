@@ -80,8 +80,12 @@ export default function AddFriendsScreen() {
 
     const otherIds = searchRows.map((r) => otherUserId(r, myId));
     if (otherIds.length > 0) {
-      const { data: profs } = await supabase.from("profiles").select("user_id, display_name, email").in("user_id", otherIds);
-      setProfilesById(new Map((profs ?? []).map((p) => [p.user_id, p])));
+      // related_profiles (#227), not a raw .select("...email") -- profiles.email is no longer
+      // table-wide SELECT-granted (see 20260825120000_lockdown_profile_search.sql), so a direct
+      // select of it would just fail. This RPC is scoped to self + an existing friendships row
+      // (any status) -- exactly the ids this screen ever asks for here.
+      const { data: profs } = await supabase.rpc("related_profiles", { target_ids: otherIds });
+      setProfilesById(new Map((profs ?? []).map((p: Profile) => [p.user_id, p])));
     } else {
       setProfilesById(new Map());
     }
@@ -101,19 +105,15 @@ export default function AddFriendsScreen() {
       return;
     }
     const term = text.trim();
-    // Two plain .ilike() calls, not one .or(`display_name.ilike.%${term}%,email.ilike.${term}%`)
-    // string -- PostgREST's .or() filter syntax treats `,`/`(`/`)` in the interpolated value as
-    // filter-expression syntax, not literal characters (a comma opens a new OR arm), so a raw user
-    // search term built that way both breaks an honest "Smith, John" search (silently becomes two
-    // unrelated arms) and lets a crafted term inject arbitrary filter arms (e.g. widen the query to
-    // match everyone). .ilike(column, pattern) passes pattern as an ordinary parameter value with
-    // no such parsing, so this is safe for any input without escaping.
-    const [byName, byEmail] = await Promise.all([
-      supabase.from("profiles").select("user_id, display_name, email").ilike("display_name", `%${term}%`).neq("user_id", myId).limit(20),
-      supabase.from("profiles").select("user_id, display_name, email").ilike("email", `${term}%`).neq("user_id", myId).limit(20),
-    ]);
+    // search_profiles RPC (#227), not a raw .ilike() straight at the table -- profiles.email is no
+    // longer table-wide SELECT-granted (see 20260825120000_lockdown_profile_search.sql), a raw
+    // select of it would just fail, and a raw table select could never enforce a minimum term
+    // length or row cap the way this RPC does server-side. Still exactly one parameter, still no
+    // .or() -- the comma-injection concern from #210 doesn't apply here either (the raw term is
+    // passed as an ordinary RPC argument, never interpolated into a filter-expression string).
+    const { data } = await supabase.rpc("search_profiles", { term });
     const merged = new Map<string, Profile>();
-    for (const p of [...(byName.data ?? []), ...(byEmail.data ?? [])]) merged.set(p.user_id, p);
+    for (const p of (data ?? []) as Profile[]) merged.set(p.user_id, p);
     setSearchResults(Array.from(merged.values()).slice(0, 20));
   }
 
