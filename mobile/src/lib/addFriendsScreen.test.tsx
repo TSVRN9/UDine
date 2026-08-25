@@ -41,7 +41,7 @@ function table(rows: Record<string, unknown>[], opts: { updateError?: unknown } 
 }
 
 const mockFrom = jest.fn();
-const mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
+const mockRpc = jest.fn();
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -72,11 +72,25 @@ function findPressableByLabel(root: renderer.ReactTestRenderer, label: string) {
   return node;
 }
 
+// #227: profiles.email is no longer table-wide SELECT-granted, so both the search box and the
+// REQUESTS FOR YOU/SENT profile lookup now go through RPCs (search_profiles, related_profiles)
+// instead of raw .from("profiles") reads. `profiles` here is the single directory both RPC mocks
+// draw from -- search_profiles returns it verbatim (server-side term matching is the pgTAP suite's
+// job, not this mock's), related_profiles filters it down to whatever target_ids it was called
+// with, same shape the real RPC enforces (self/existing-relationship only).
 function mockTables(opts: { profiles?: Record<string, unknown>[]; myProfile?: Record<string, unknown>; friendshipRows?: Record<string, unknown>[] }) {
   mockFrom.mockImplementation((name: string) => {
-    if (name === "profiles") return table(opts.profiles ?? (opts.myProfile ? [opts.myProfile] : []));
+    if (name === "profiles") return table(opts.myProfile ? [opts.myProfile] : []);
     if (name === "friendships") return table(opts.friendshipRows ?? []);
     throw new Error(`unexpected table ${name}`);
+  });
+  mockRpc.mockImplementation((name: string, args: Record<string, unknown>) => {
+    if (name === "search_profiles") return Promise.resolve({ data: opts.profiles ?? [], error: null });
+    if (name === "related_profiles") {
+      const ids = new Set((args?.target_ids as string[]) ?? []);
+      return Promise.resolve({ data: (opts.profiles ?? []).filter((p) => ids.has(p.user_id as string)), error: null });
+    }
+    return Promise.resolve({ data: null, error: null });
   });
 }
 
@@ -94,7 +108,6 @@ async function renderScreen() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockRpc.mockResolvedValue({ data: null, error: null });
   (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
   mockTables({ myProfile: { discoverable: true } });
 });
@@ -169,13 +182,34 @@ describe("AddFriendsScreen", () => {
     expect(badge).toBeTruthy();
   });
 
-  // PR #210 review: add-friends.tsx used to build `.or(`display_name.ilike.%${term}%,email.ilike.
-  // ${term}%`)` from raw user input. PostgREST's .or() filter syntax treats `,`/`(`/`)` in the
-  // interpolated value as filter-expression syntax (a comma opens a new OR arm), which both broke
-  // an honest "Smith, John" search (silently split into unrelated arms) and let a crafted term
-  // inject arbitrary filter arms. Fixed by using two plain .ilike() calls instead, which pass the
-  // term as an ordinary parameter with no such parsing.
-  it("search uses plain .ilike() calls, never .or(), so a comma in the term can't inject filter arms", async () => {
+  // #227 (server-side review): profiles.email is no longer table-wide SELECT-granted, so the
+  // REQUESTS FOR YOU/SENT profile lookup (previously a raw .in("user_id", otherIds) select) now
+  // goes through the related_profiles RPC. The count-badge test above only checks
+  // requestsForYou.length, which is derived from friendshipRows alone and would false-green even if
+  // the profile lookup returned nothing at all -- this pins that the looked-up profile's email
+  // actually renders, i.e. that related_profiles is really wired up end to end.
+  it("renders a friend's email in Requests for you via related_profiles", async () => {
+    mockTables({
+      myProfile: { discoverable: true },
+      friendshipRows: [{ user_a: "me", user_b: "casey-1", status: "pending", requested_by: "casey-1", origin: "search", confirmed_a: null, confirmed_b: null }],
+      profiles: [{ user_id: "casey-1", display_name: "Casey", email: "casey@umass.edu" }],
+    });
+    const root = await renderScreen();
+
+    expect(mockRpc).toHaveBeenCalledWith("related_profiles", { target_ids: ["casey-1"] });
+    expect(root.root.findAllByType(Text).some((n) => ownText(n) === "casey@umass.edu")).toBe(true);
+  });
+
+  // PR #210 review, re-pinned for #227: add-friends.tsx used to build
+  // `.or(`display_name.ilike.%${term}%,email.ilike.${term}%`)` from raw user input. PostgREST's
+  // .or() filter syntax treats `,`/`(`/`)` in the interpolated value as filter-expression syntax (a
+  // comma opens a new OR arm), which both broke an honest "Smith, John" search (silently split into
+  // unrelated arms) and let a crafted term inject arbitrary filter arms. #210 fixed that with two
+  // plain .ilike() calls; #227 moved search behind the search_profiles RPC entirely (raw .ilike()
+  // straight at the table can't enforce a minimum term length or row cap) -- the RPC argument is
+  // still passed as an ordinary parameter, never interpolated into a filter-expression string, so
+  // the same guarantee holds at the new boundary.
+  it("search calls the search_profiles RPC with the raw term, so a comma can't inject filter arms", async () => {
     mockTables({
       myProfile: { discoverable: true },
       profiles: [{ user_id: "smith-1", display_name: "Smith, John", email: "smithjohn@umass.edu" }],
@@ -188,15 +222,10 @@ describe("AddFriendsScreen", () => {
       await Promise.resolve();
     });
 
-    const profilesBuilders = mockFrom.mock.results.filter((_, i) => mockFrom.mock.calls[i][0] === "profiles").map((r) => r.value);
-    const ilikeCalls = profilesBuilders.flatMap((b) => (b.ilike as jest.Mock).mock.calls);
-    const orCalls = profilesBuilders.flatMap((b) => (b.or as jest.Mock).mock.calls);
-
-    // The raw term reaches .ilike() unescaped and unsplit -- safe by construction, not by
-    // client-side sanitization -- and .or() is never used for search at all.
-    expect(ilikeCalls).toContainEqual(["display_name", "%Smith, John%"]);
-    expect(ilikeCalls).toContainEqual(["email", "Smith, John%"]);
-    expect(orCalls.length).toBe(0);
+    expect(mockRpc).toHaveBeenCalledWith("search_profiles", { term: "Smith, John" });
+    // No raw .from("profiles") read is ever used for search -- only the self-discoverable lookup.
+    const profilesFromCalls = mockFrom.mock.calls.filter(([name]) => name === "profiles");
+    expect(profilesFromCalls.length).toBe(1);
 
     // The honest comma search actually surfaces the match -- not silently emptied by a
     // comma-triggered filter split.
