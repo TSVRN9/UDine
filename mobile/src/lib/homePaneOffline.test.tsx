@@ -74,7 +74,7 @@ describe("HomePane loading (#181)", () => {
     mockFetchHoursAndCache.mockReturnValue(new Promise(() => {})); // never resolves
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      root = renderer.create(<HomePane activeIndex={1} />);
+      root = renderer.create(<HomePane />);
     });
     const body = texts(root).flat().join(" ");
     expect(body).toMatch(/Worcester/); // known instantly, no network needed
@@ -88,7 +88,7 @@ describe("HomePane loading (#181)", () => {
     mockFetchHoursAndCache.mockReturnValue(new Promise(() => {}));
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      root = renderer.create(<HomePane activeIndex={1} />);
+      root = renderer.create(<HomePane />);
     });
     // One per hall chip (4) + the hero title/subtitle skeleton (1) = 5, but the exact count isn't
     // the point -- proving at least one really renders is what the mutation above was missing.
@@ -104,7 +104,7 @@ describe("HomePane loading (#181)", () => {
     mockGetCachedHours.mockResolvedValue(null);
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      root = renderer.create(<HomePane activeIndex={1} />);
+      root = renderer.create(<HomePane />);
     });
     expect(texts(root).flat().join(" ")).toMatch(/Couldn't load dining hours/); // the real dead-end state
     expect(root.root.findAllByProps({ testID: "skeleton-bar" }).length).toBe(0); // not still "loading"
@@ -117,7 +117,7 @@ describe("HomePane offline (#181 — owner decision: offline is not an error sta
     mockGetCachedHours.mockResolvedValue({ feed: hours(), fetchedAt: "2026-08-19T12:00:00.000Z" });
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      root = renderer.create(<HomePane activeIndex={1} />);
+      root = renderer.create(<HomePane />);
     });
     const body = texts(root).flat().join(" ");
     expect(body).not.toMatch(/Couldn't load dining hours/);
@@ -129,7 +129,7 @@ describe("HomePane offline (#181 — owner decision: offline is not an error sta
     mockGetCachedHours.mockResolvedValue(null);
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      root = renderer.create(<HomePane activeIndex={1} />);
+      root = renderer.create(<HomePane />);
     });
     expect(texts(root).flat().join(" ")).toMatch(/Couldn't load dining hours/);
   });
@@ -148,7 +148,7 @@ describe("HomePane offline (#181 — owner decision: offline is not an error sta
       jest.setSystemTime(new Date(2026, 7, 19, 12, 0, 0, 0));
       let openRoot!: renderer.ReactTestRenderer;
       await act(async () => {
-        openRoot = renderer.create(<HomePane activeIndex={1} />);
+        openRoot = renderer.create(<HomePane />);
       });
       expect(texts(openRoot).flat().join(" ")).toMatch(/OPEN/);
 
@@ -156,7 +156,7 @@ describe("HomePane offline (#181 — owner decision: offline is not an error sta
       jest.setSystemTime(new Date(2026, 7, 19, 20, 0, 0, 0));
       let closedRoot!: renderer.ReactTestRenderer;
       await act(async () => {
-        closedRoot = renderer.create(<HomePane activeIndex={1} />);
+        closedRoot = renderer.create(<HomePane />);
       });
       const closedBody = texts(closedRoot).flat().join(" ");
       expect(closedBody).toMatch(/CLOSED/);
