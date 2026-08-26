@@ -71,3 +71,30 @@ describe("HomePane", () => {
     expect(body.match(/GRAB 'N GO/g)?.length).toBe(4);
   });
 });
+
+// #229: the hall zone's tap target used to be a childless absolute-fill Pressable rendered as an
+// earlier *sibling* of the monogram/chip/name Texts. On Android, ReactTextView ignores
+// `pointerEvents="none"` (it isn't a ReactPointerEventsView -- see TouchTargetHelper.kt), so those
+// later-drawn Texts won hit-testing and the touch bubbled to their parent, never sideways to the
+// Pressable: 6/6 device taps on the name/monogram did nothing, while the one sliver of the zone
+// not covered by a Text navigated fine. The fix makes the pressable an *ancestor* of the name, so
+// bubbling reaches it no matter which sibling Android picks as the deepest target.
+describe("HallCard tap target (#229)", () => {
+  it("renders each hall's name inside its pressable, not beside it", async () => {
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+    for (const hall of ["Worcester", "Franklin", "Hampshire", "Berkshire"]) {
+      const name = root.root.findAll((n) => n.type === Text && n.props.children === hall)[0];
+      expect(name).toBeDefined();
+      let node = name.parent;
+      let pressable = false;
+      while (node && !pressable) {
+        pressable = typeof node.props.onPressIn === "function";
+        node = node.parent;
+      }
+      expect({ hall, insidePressable: pressable }).toEqual({ hall, insidePressable: true });
+    }
+  });
+});
