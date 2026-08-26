@@ -3,7 +3,7 @@ import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
-import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
+import type { ShouldStartLoadRequest, WebViewMessageEvent } from "react-native-webview/lib/WebViewTypes";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { PDFJS_MIN_JS_BASE64, PDFJS_VERSION, PDFJS_WORKER_MIN_JS_BASE64 } from "../vendor/pdfjs";
 
@@ -56,6 +56,8 @@ function buildViewerHtml(base64: string): string {
         });
       })(n);
     }
+  }).catch(function(err) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pdfjs-error', message: String(err && err.message ? err.message : err) }));
   });
 </script>
 </body></html>`;
@@ -94,9 +96,13 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
   const [base64, setBase64] = useState<string | null>(null);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let current = true;
+    setError(null);
+    setBase64(null);
+    setLocalUri(null);
     // ponytail: each open writes a new timestamped file under cacheDirectory and nothing ever
     // deletes it -- the OS is free to reclaim cache space under pressure, but a heavy user
     // (several different PDF menus opened over time) accumulates dead files until then. Add
@@ -105,19 +111,46 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
     // persistent storage).
     const dest = `${FileSystem.cacheDirectory}cafe-menu-${Date.now()}.pdf`;
     FileSystem.downloadAsync(url, dest)
-      .then(() => FileSystem.readAsStringAsync(dest, { encoding: FileSystem.EncodingType.Base64 }))
+      .then((result) => {
+        // #242: downloadAsync resolves on a non-2xx response too (an HTTP error page's bytes,
+        // not a rejection) -- without this check those bytes get handed to pdf.js as if they
+        // were a real PDF instead of surfacing as an error.
+        if (result.status < 200 || result.status >= 300) {
+          throw new Error(`menu download failed (HTTP ${result.status})`);
+        }
+        return FileSystem.readAsStringAsync(dest, { encoding: FileSystem.EncodingType.Base64 });
+      })
       .then((b64) => {
         if (!current) return;
         setLocalUri(dest);
         setBase64(b64);
       })
       .catch((e) => {
-        if (current) setError(String(e));
+        if (current) setError(String(e instanceof Error ? e.message : e));
       });
     return () => {
       current = false;
     };
-  }, [url]);
+  }, [url, retryToken]);
+
+  // #242: pdf.js's getDocument().promise had no .catch and no bridge back to React Native, so a
+  // rejection (bad bytes, worker load failure) left the user on a permanently blank viewer with
+  // the "Rendered in-app" hint still showing underneath. buildViewerHtml's catch now posts a
+  // message here instead.
+  function handleWebViewMessage(event: WebViewMessageEvent) {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data && data.type === "pdfjs-error") {
+        setError(typeof data.message === "string" ? data.message : "Couldn't render this PDF.");
+      }
+    } catch {
+      setError("Couldn't render this PDF.");
+    }
+  }
+
+  function handleRetry() {
+    setRetryToken((t) => t + 1);
+  }
 
   async function handleSave() {
     if (!localUri) return;
@@ -147,7 +180,12 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
 
       <View style={styles.documentSurface}>
         {error ? (
-          <Text style={styles.error}>Couldn&apos;t load menu: {error}</Text>
+          <View style={styles.errorBlock}>
+            <Text style={styles.error}>Couldn&apos;t load menu: {error}</Text>
+            <Pressable onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Retry" style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>RETRY</Text>
+            </Pressable>
+          </View>
         ) : !base64 ? (
           <ActivityIndicator color={colors.gold500} style={styles.loading} />
         ) : (
@@ -155,6 +193,7 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
             source={{ html: buildViewerHtml(base64) }}
             originWhitelist={["about:blank"]}
             onShouldStartLoadWithRequest={shouldAllowCafePdfNavigation}
+            onMessage={handleWebViewMessage}
             allowFileAccess={false}
             setSupportMultipleWindows={false}
             style={styles.webview}
@@ -193,7 +232,10 @@ const styles = StyleSheet.create({
   documentSurface: { flex: 1, marginHorizontal: spacing(3.5), backgroundColor: colors.paper50, borderTopLeftRadius: radii.md, borderTopRightRadius: radii.md, overflow: "hidden" },
   webview: { flex: 1, backgroundColor: colors.paper50 },
   loading: { flex: 1 },
-  error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body400 },
+  errorBlock: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing(3), padding: spacing(4) },
+  error: { color: "#b00020", fontFamily: fonts.body400, textAlign: "center" },
+  retryButton: { paddingVertical: spacing(2), paddingHorizontal: spacing(5), borderRadius: radii.md, borderWidth: 1, borderColor: "#b00020" },
+  retryButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: "#b00020" },
 
   hintBar: { backgroundColor: withOpacity(colors.maroon900, 92), paddingTop: spacing(2.5), paddingHorizontal: spacing(5), paddingBottom: spacing(5), alignItems: "center" },
   hintText: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.paper50, 60) },
