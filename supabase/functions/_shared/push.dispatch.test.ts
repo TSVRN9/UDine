@@ -20,14 +20,28 @@ import { dispatchPushNotifications, type PushConfig, type PushNotification } fro
 // Minimal fake Supabase client: `.from("push_tokens").select(...).in(...)` resolves to the given
 // tokenRows; `.from("push_tokens").delete().eq(...).eq(...)` records the deleted token and resolves.
 function fakeSupabase(tokenRows: { user_id: string; platform: string; token: string }[], deletedTokens: string[]): SupabaseClient {
+  // fetchTokensForUsers (issue #261) chunks affectedUserIds and pages each chunk via
+  // .in().order()x3.range() -- .order()/.range() are no-ops here (this fake never has enough rows
+  // to need a second page), but .in()'s id filter MUST be honored: returning all tokenRows
+  // unconditionally would re-return the full set for every chunk, double-counting rows once a run
+  // spans more than one 150-id chunk (see the 250-user test above -- that's what "expected 3 POSTs,
+  // got 5" was catching).
+  let selectedIds: string[] = [];
   const client = {
     from(_table: string) {
       const chain: Record<string, unknown> = {
         select() {
           return chain;
         },
-        in() {
-          return Promise.resolve({ data: tokenRows, error: null });
+        in(_col: string, ids: string[]) {
+          selectedIds = ids;
+          return chain;
+        },
+        order() {
+          return chain;
+        },
+        range() {
+          return Promise.resolve({ data: tokenRows.filter((r) => selectedIds.includes(r.user_id)), error: null });
         },
         delete() {
           return chain;
