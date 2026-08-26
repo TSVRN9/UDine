@@ -3,6 +3,7 @@
 	import {
 		favoriteKey,
 		htmlToText,
+		menuItemMatchesPreferences,
 		nowLocalIso,
 		openStatus,
 		parseRetailMenuHtml,
@@ -16,6 +17,7 @@
 	} from "@udine/shared";
 	import { IndexedDbLogStorage } from "$lib/indexedDbStorage";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
+	import { loadPreferences } from "$lib/preferences";
 	import DishList from "$lib/DishList.svelte";
 	import type { PageProps } from "./$types";
 
@@ -24,13 +26,13 @@
 	const storage = new IndexedDbLogStorage();
 	const favoritesStorage = new IndexedDbFavoritesStorage();
 
-	// #178: café menus don't wire up dietary filters yet -- halls-menu.spec.ts's "everything is
-	// filtered out" case exists precisely because silently hiding every dish behind a filter with no
-	// explanation reads as a bug (see halls/[slug]/+page.svelte's hiddenCount banner). Doing that
-	// right here needs the same banner; out of #178's own ask (probe-at-tap navigation + price +
-	// fallback sheet + inline PDF), so left as a real, disclosed gap rather than silently filtering
-	// with no way to tell why a menu came back empty.
-	const prefs: FoodPreferences = { allergensToAvoid: [], requiredDietTags: [] };
+	// #223: wired to the user's real saved filters, same as halls/[slug]/+page.svelte -- was
+	// hardcoded empty here (#178), which showed allergen dishes completely unfiltered on café menus.
+	let prefs: FoodPreferences = $state({ allergensToAvoid: [], requiredDietTags: [] });
+
+	// Same "don't silently render fewer dishes than the filters removed" rationale as
+	// halls/[slug]/+page.svelte's hiddenCount.
+	const hiddenCount = $derived(data.items.filter((i) => !menuItemMatchesPreferences(i, prefs)).length);
 
 	let servings: Record<string, number> = $state({});
 	let favoriteDishKeys: Set<string> = $state(new Set());
@@ -44,6 +46,7 @@
 	});
 
 	onMount(async () => {
+		prefs = loadPreferences();
 		const favorites = await favoritesStorage.getFavorites();
 		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
 	});
@@ -132,7 +135,25 @@
 	<div class="label-rule mt-2 text-gold-500"></div>
 </header>
 
-{#if data.items.length > 0}
+{#if hiddenCount > 0 && hiddenCount < data.items.length}
+	<p class="mt-4 rounded-md border border-gold-500/50 bg-gold-500/10 px-4 py-3 text-sm">
+		Your dietary filters are hiding {hiddenCount}
+		{hiddenCount === 1 ? "dish" : "dishes"} on today's menu.
+		<a href="/filters" class="font-semibold">Edit dietary preferences</a>
+	</p>
+{/if}
+
+{#if data.items.length > 0 && hiddenCount === data.items.length}
+	<!-- A menu exists but the user's own filters removed all of it -- same rationale as
+	     halls/[slug]/+page.svelte's identical branch (#223). -->
+	<div class="empty-state mt-6">
+		<p class="font-display text-lg uppercase">Everything is filtered out</p>
+		<p class="mt-2 text-sm">
+			All {data.items.length} dishes on today's menu conflict with your dietary filters.
+		</p>
+		<p class="mt-4"><a href="/filters" class="btn btn-secondary no-underline">Edit dietary preferences</a></p>
+	</div>
+{:else if data.items.length > 0}
 	<!-- #177/#178 runtime model: non-empty fetchMenu -> the ordinary menu screen (nutrition +
 	     price, loggable). This is the ONLY state that ever presents a daily menu -- there is no
 	     "menu but no nutrition" tier. -->
