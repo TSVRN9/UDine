@@ -278,6 +278,30 @@ test.describe("Friends — signed in", () => {
 		await expect(page.getByRole("heading", { name: "Pings you've received" })).toHaveCount(0);
 		await expect(page.getByRole("link", { name: "Notifications feed" })).toBeVisible();
 	});
+
+	// #194: requestFriend() previously discarded request_friendship's `{error}` and cleared/refreshed
+	// unconditionally -- an RLS/RPC rejection still behaved as if the request went through.
+	test("a failed request_friendship RPC (RLS rejection) shows a failure state, not a false success", async ({ page }) => {
+		await signInAndMockSupabase(page, {
+			friendships: (route) => route.fulfill({ json: [] }),
+			profiles: (route) => route.fulfill({ json: [{ user_id: FRIEND_ID, display_name: "Casey Friend" }] }),
+			"rpc/request_friendship": (route) =>
+				route.fulfill({
+					status: 403,
+					json: { code: "42501", message: "new row violates row-level security policy", details: null, hint: null },
+				}),
+		});
+
+		await page.goto("/friends");
+		await expect(page.getByRole("heading", { name: "Find friends" })).toBeVisible({ timeout: 15_000 });
+
+		await page.getByLabel("Search by name").fill("Casey");
+		await page.getByRole("button", { name: "Add friend" }).click();
+
+		await expect(page.getByRole("alert")).toBeVisible();
+		// Still findable in the search box's results -- a false success would have cleared the query.
+		await expect(page.getByLabel("Search by name")).toHaveValue("Casey");
+	});
 });
 
 test.describe("Notifications — signed in", () => {
@@ -415,6 +439,34 @@ test.describe("Notifications — signed in", () => {
 		const patch = await waitForRequest(requests, "food_sightings", "PATCH");
 		expect(patch.url.searchParams.get("id")).toBe("eq.s1");
 		await expect(row.locator(".badge", { hasText: "New" })).toHaveCount(0);
+	});
+
+	// #194: markRead() previously set sighting.read_at unconditionally, regardless of the
+	// food_sightings.update `{error}` result -- an RLS rejection still showed the sighting as read.
+	test("a failed food_sightings update (RLS rejection) keeps the sighting unread and shows a failure state", async ({ page }) => {
+		await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			food_sightings: async (route) => {
+				if (route.request().method() === "PATCH") {
+					return route.fulfill({
+						status: 403,
+						json: { code: "42501", message: "new row violates row-level security policy", details: null, hint: null },
+					});
+				}
+				return route.fulfill({ json: [{ id: "s1", dish_name: "French Toast", hall_tid: HAMPSHIRE_TID, sighted_date: "2026-08-19", read_at: null, created_at: new Date().toISOString() }] });
+			},
+		});
+
+		await page.goto("/notifications");
+		const row = page.locator("li", { hasText: "French Toast" });
+		await expect(row.locator(".badge", { hasText: "New" })).toBeVisible({ timeout: 15_000 });
+
+		await row.getByRole("button", { name: "Mark as read" }).click();
+
+		await expect(page.getByRole("alert")).toBeVisible();
+		await expect(row.locator(".badge", { hasText: "New" })).toBeVisible();
 	});
 
 	test("read sightings stay visually de-emphasized and don't offer mark-as-read again", async ({ page }) => {

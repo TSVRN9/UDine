@@ -86,6 +86,7 @@
 	let pingMessage = $state("");
 	let pingSent = $state(false);
 	let pingError = $state(false);
+	let markReadError = $state(false);
 
 	let friendNameById = $derived(new Map(friends.map((f) => [f.user_id, f.display_name])));
 
@@ -248,7 +249,13 @@
 		const sighting = sightings.find((s) => s.id === sightingId);
 		if (!supabase || !sighting || sighting.read_at) return;
 		const readAt = new Date().toISOString();
-		await supabase.from("food_sightings").update({ read_at: readAt }).eq("id", sightingId);
+		const { error } = await supabase.from("food_sightings").update({ read_at: readAt }).eq("id", sightingId);
+		if (error) {
+			markReadError = true;
+			setTimeout(() => (markReadError = false), 3000);
+			return;
+		}
+		markReadError = false;
 		sighting.read_at = readAt;
 	}
 
@@ -337,6 +344,7 @@
 	</section>
 
 	<h2 class="section-title mb-3">Activity</h2>
+	{#if markReadError}<p role="alert" class="badge mb-2">Couldn't mark as read — try again.</p>{/if}
 	{#if feedItems.length === 0}
 		<div class="empty-state">Nothing here yet — pings from friends and favorited-dish sightings will show up here.</div>
 	{:else}
