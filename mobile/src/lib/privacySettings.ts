@@ -87,9 +87,46 @@ export function sharedStatValueForToggle(field: SharedStatField, next: boolean, 
  * re-pushed with a freshly derived value on this refresh. #94: "toggling on pushes the current
  * derived stat (and future refreshes update it)" -- deliberately excludes any field the row doesn't
  * already have a value for, so a plain refresh (e.g. YouPane regaining focus) can never be the thing
- * that opts a user into a stat they never turned on.
+ * that opts a user into a stat they never turned on. #248 Part C's one-time default-on seed (see
+ * shouldSeedSharedStatsDefault below) is the one sanctioned exception to that rule -- it's a
+ * separate, explicitly-gated code path in privacy.tsx, not a change to this function.
  */
 export function fieldsNeedingRefresh(existingRow: { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null): SharedStatField[] {
   if (!existingRow) return [];
   return SHARED_STAT_FIELDS.filter((field) => existingRow[field] !== null && existingRow[field] !== undefined);
+}
+
+// #248 Part C (owner decision 2026-08-25/26, reversing epic #87's 2026-08-19 "default all off" law
+// -- see CLAUDE.md's data-residency table for the full decision): the three shared_stats toggles
+// default ON, but only for accounts created on/after this date -- existing accounts keep whatever
+// they have today (the "new accounts only" existing-user story, not a backfill).
+const SHARED_STATS_DEFAULT_ON_SHIP_DATE = new Date("2026-08-26T00:00:00Z");
+
+/** True iff `createdAt` (a Supabase auth `User.created_at` ISO string) is on/after the ship date
+ * above. Fails closed (false) on a missing/unparseable value -- never defaults a user on when this
+ * can't prove they're new (jest's `TZ=America/New_York` makes the explicit `Z` above load-bearing:
+ * a local-time constant would shift the cutoff by hours). */
+export function isNewAccountForSharedStatsDefault(createdAt: string | undefined): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return t >= SHARED_STATS_DEFAULT_ON_SHIP_DATE.getTime();
+}
+
+/**
+ * Should this refresh run the one-time default-on seed (push all three fields ON, see privacy.tsx's
+ * refresh())? Pure decision, three independent gates all required:
+ *  - `row === null`: no shared_stats row exists yet. A row that exists with every column null (a
+ *    user who opted in and then turned everything back off) must NOT re-seed -- that's what makes
+ *    this check `row === null` and not "every field is null".
+ *  - `isNewAccountForSharedStatsDefault`: the "new accounts only" existing-user story -- a
+ *    never-opted-in EXISTING account also has a null row, and must not be swept in by row-absence
+ *    alone.
+ *  - `!alreadySeeded`: the persisted per-user marker (mobile/src/lib/sharedStatsSeed.ts). Exists
+ *    because "Delete server data" deletes the shared_stats row entirely -- without this, a re-focus
+ *    after deleting would see `row === null` again and resurrect exactly what the user just
+ *    explicitly removed.
+ */
+export function shouldSeedSharedStatsDefault(opts: { row: { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null; createdAt: string | undefined; alreadySeeded: boolean }): boolean {
+  return opts.row === null && !opts.alreadySeeded && isNewAccountForSharedStatsDefault(opts.createdAt);
 }

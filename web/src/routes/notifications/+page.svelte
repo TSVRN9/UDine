@@ -6,6 +6,7 @@
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { loadFeedLastSeen, saveFeedLastSeen } from "$lib/feedLastSeen";
 	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
+	import { hasSyncedFavorites, markFavoritesSynced } from "$lib/favoritesSyncMarker";
 	import { registerPendingSelfHeal, pendingSelfHeal } from "$lib/pendingSelfHeal";
 	import { PUBLIC_VAPID_KEY } from "$env/static/public";
 
@@ -32,11 +33,15 @@
 		return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && Boolean(PUBLIC_VAPID_KEY);
 	}
 
-	async function enablePush(supabase: SupabaseClient) {
-		if (!pushSupported()) return;
+	// PR #286 review (Part B): returns whether push actually ended up subscribed -- callers (mobile's
+	// mirror is favoriteFoodAlerts.ts's reregisterPushToken/registerForPushToken) use this to decide
+	// whether the toggle can honestly render "on" or must show a needs-action state instead. Was
+	// void before; every call site already only cared about side effects, so this is additive.
+	async function enablePush(supabase: SupabaseClient): Promise<boolean> {
+		if (!pushSupported()) return false;
 		try {
 			const permission = await Notification.requestPermission();
-			if (permission !== "granted") return;
+			if (permission !== "granted") return false;
 
 			const registration = await navigator.serviceWorker.register("/service-worker.js");
 			const subscription = await registration.pushManager.subscribe({
@@ -49,10 +54,12 @@
 			// upserts the caller's -- see the migration's own doc comment. It derives the owner from
 			// auth.uid() itself, so unlike the raw upsert this no longer needs userId passed in.
 			await supabase.rpc("register_push_token", { p_platform: "web", p_token: JSON.stringify(subscription.toJSON()) });
+			return true;
 		} catch (err) {
 			// Permission denied, malformed VAPID key, no service-worker support in this browser, etc. —
 			// notifications_enabled can still toggle for the in-app feed even if push registration fails.
 			console.error("Push subscription failed:", err);
+			return false;
 		}
 	}
 
@@ -72,6 +79,14 @@
 	const favoritesStorage = new IndexedDbFavoritesStorage();
 
 	let notificationsEnabled = $state(false);
+	// PR #286 review (Part B, both rounds): mirrors mobile's favoriteFoodAlerts.ts needsPermission --
+	// true when notificationsEnabled is true server-side (now defaulted true for new sign-ins, #248)
+	// but this browser/account combination isn't actually working yet: either push permission isn't
+	// granted, OR it IS granted but this account's favorites were never actually synced from this
+	// browser (round 2: a second account signing in on a browser that already granted this site
+	// permission -- refresh()'s self-heal re-subscribes without toggleNotifications() ever running).
+	// Consuming markup must render this as a needs-action prompt, not "Alerts on".
+	let needsPermission = $state(false);
 	let sightings: Sighting[] = $state([]);
 	let pings: Ping[] = $state([]);
 	// Accepted friends only — enough to populate the "ping a friend" composer and to resolve a
@@ -118,6 +133,13 @@
 
 		const { data: profile } = await supabase.from("profiles").select("notifications_enabled").eq("user_id", myId).single();
 		notificationsEnabled = profile?.notifications_enabled ?? false;
+		// PR #286 review (Part B, round 1): notificationsEnabled defaulting true (#248) for a
+		// brand-new sign-in means this can be true here with this browser never having granted push
+		// permission at all -- render that honestly (needs-action, not "Alerts on") rather than
+		// claiming a working subscription that doesn't exist.
+		// PR #286 review round 2: permission granted isn't enough either -- this account's favorites
+		// may never have been synced from THIS browser (see needsPermission's own doc comment above).
+		needsPermission = notificationsEnabled && (!pushSupported() || Notification.permission !== "granted" || !hasSyncedFavorites(myId));
 
 		// Browser permission can be revoked outside this page (browser settings) without us hearing
 		// about it — if that happened, the stored push_tokens row is now dead, so clear it. The
@@ -217,18 +239,31 @@
 		const session = page.data.session;
 		if (!supabase || !session) return;
 
-		const next = !notificationsEnabled;
+		// PR #286 review (Part B): must flip from what the CHECKBOX shows (notificationsEnabled &&
+		// !needsPermission), not the raw notificationsEnabled flag -- once those two can diverge
+		// (needsPermission), toggling off the raw flag would be the wrong direction: a user tapping
+		// the visually-unchecked needs-action state to finish enabling would instead turn it off.
+		const next = !(notificationsEnabled && !needsPermission);
 		await supabase.from("profiles").update({ notifications_enabled: next }).eq("user_id", session.user.id);
 		notificationsEnabled = next;
 
 		// Sync (or clear) favorited_foods to match the new state — see CLAUDE.md: favorited_foods only
 		// syncs when signed in AND notifications_enabled.
 		const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
-		await syncFavoritedFoods(supabase, session.user.id, favorites);
+		const { error: favoritesSyncError } = await syncFavoritedFoods(supabase, session.user.id, favorites);
+		// #286 round 2: only a REAL synced state counts -- a failed sync must not be mistaken for a
+		// done one (see favoritesSyncMarker.ts's own doc comment on why refresh() can't just re-derive
+		// this by calling syncFavoritedFoods itself).
+		if (!favoritesSyncError && next) markFavoritesSynced(session.user.id);
 
 		if (next) {
-			await enablePush(supabase);
+			const granted = await enablePush(supabase);
+			// Needs action unless BOTH permission is granted AND favorites actually synced just now --
+			// either half missing means this browser isn't really working yet, even though
+			// notificationsEnabled is (optimistically) true above.
+			needsPermission = !granted || Boolean(favoritesSyncError);
 		} else {
+			needsPermission = false;
 			// #272 item B (mobile's mirror of this same race): refresh()'s self-heal above (re-
 			// upserting this browser's push_tokens row whenever notifications_enabled is true and
 			// permission is already granted) can still be mid-flight -- a real network round trip --
@@ -298,11 +333,25 @@
 	<section class="card mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
 		<div>
 			<label class="field-label" for="notif-toggle">Favorited-dish alerts</label>
-			<p class="mt-1 text-sm text-ink-900/70">Notify me when a favorited dish shows up on the menu.</p>
+			<!-- PR #286 review (Part B): notifications_enabled defaulting true (#248) can be true here
+			     with this browser never having granted push permission (or having granted it but never
+			     synced this account's favorites, round 2) -- the badge/checkbox/hint below must show
+			     that honestly, not claim a working subscription that doesn't exist. A browser that
+			     can't do push at all (no service worker/PushManager, or no VAPID key configured) gets
+			     told that instead of "tap to finish" -- tapping again would just fail the same way. -->
+			<p class="mt-1 text-sm text-ink-900/70">
+				{#if notificationsEnabled && needsPermission && !pushSupported()}
+					Push isn't supported in this browser.
+				{:else if notificationsEnabled && needsPermission}
+					Tap to finish turning on — allow notifications when asked.
+				{:else}
+					Notify me when a favorited dish shows up on the menu.
+				{/if}
+			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<span class="badge">{notificationsEnabled ? "Alerts on" : "Alerts off"}</span>
-			<input id="notif-toggle" type="checkbox" class="h-4 w-4" checked={notificationsEnabled} onchange={toggleNotifications} />
+			<span class="badge">{notificationsEnabled && !needsPermission ? "Alerts on" : "Alerts off"}</span>
+			<input id="notif-toggle" type="checkbox" class="h-4 w-4" checked={notificationsEnabled && !needsPermission} onchange={toggleNotifications} />
 		</div>
 	</section>
 

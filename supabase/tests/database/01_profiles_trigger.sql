@@ -51,10 +51,13 @@ select is(
   'raw_user_meta_data.full_name, when present, is used as display_name'
 );
 
+-- #248 Part B (2026-08-26): the column default flipped false -> true
+-- (20260826140000_notifications_enabled_default_on.sql) -- existing rows are unaffected (a column
+-- default only applies to future inserts), but every NEW row, including alice's above, gets true now.
 select is(
   (select notifications_enabled from public.profiles where user_id = '00000000-0000-0000-0000-000000000001'),
-  false,
-  'notifications_enabled defaults to false'
+  true,
+  'notifications_enabled now defaults to true (#248)'
 );
 
 select * from finish();

@@ -8,9 +8,10 @@ import { Card, EmptyState, SectionHeader, Toggle } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { acceptedFriendCount, alertsSubline, countLabel, deviceDataCounts, profileSummaryLine } from "../lib/dataMap";
 import { deleteServerData } from "../lib/deleteServerData";
-import { deriveSharedStatsPayloads, fieldsNeedingRefresh, sharedStatValueForToggle } from "../lib/privacySettings";
+import { SHARED_STAT_FIELDS, deriveSharedStatsPayloads, fieldsNeedingRefresh, sharedStatValueForToggle, shouldSeedSharedStatsDefault } from "../lib/privacySettings";
 import { useFavoriteFoodAlerts } from "../lib/favoriteFoodAlerts";
 import { pendingSelfHeal } from "../lib/pendingSelfHeal";
+import { dismissSharedStatsDisclosure, hasSeededSharedStatsDefault, isSharedStatsDisclosureDismissed, markSharedStatsDefaultSeeded } from "../lib/sharedStatsSeed";
 import { withTimeout } from "../lib/withTimeout";
 import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
@@ -81,7 +82,10 @@ type Friendship = { status: string };
  *     useFavoriteFoodAlerts, the same hook/backend app/notifications.tsx uses).
  *  3. Shared with friends -- the three real shared_stats toggles (see SHARED_TOGGLES above),
  *     ported verbatim from the previous version of this screen (same "privacy by presence"
- *     refresh-on-focus behavior, same #94 semantics).
+ *     refresh-on-focus behavior, same #94 semantics). #248 Part C (2026-08-26) flipped these to
+ *     default ON for accounts created on/after that date -- see refresh()'s one-time seed block
+ *     and privacySettings.ts's shouldSeedSharedStatsDefault for the decision, and CLAUDE.md's data
+ *     residency table for the product decision this supersedes (epic #87, 2026-08-19).
  * Groups 2/3 and the delete row require a session; group 1 does not.
  */
 export default function PrivacyScreen() {
@@ -90,6 +94,13 @@ export default function PrivacyScreen() {
   const [row, setRow] = useState<SharedStatsRow>(null);
   const [pending, setPending] = useState<SharedStatField | null>(null);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
+  // #248 Part C: true once this account has been through the one-time default-on seed (this focus
+  // or a previous one -- see sharedStatsSeed.ts's persisted marker), which is also exactly the
+  // condition for showing the first-run disclosure below. An existing (pre-2026-08-26) account, or
+  // one that opted in manually before this shipped, is never true here -- they weren't defaulted on
+  // without asking, so there's nothing to disclose.
+  const [seededThisAccount, setSeededThisAccount] = useState(false);
+  const [disclosureDismissed, setDisclosureDismissed] = useState(false);
   const [counts, setCounts] = useState({ logEntryCount: 0, rankedCount: 0, seenDishCount: 0 });
   const [deleting, setDeleting] = useState(false);
   const alerts = useFavoriteFoodAlerts();
@@ -132,6 +143,72 @@ export default function PrivacyScreen() {
 
     const { data: friendshipRows } = await supabase.from("friendships").select("status").or(`user_a.eq.${myId},user_b.eq.${myId}`);
     setFriendships(friendshipRows ?? []);
+
+    // #248 Part C: one-time default-on seed. shouldSeedSharedStatsDefault (privacySettings.ts) is
+    // the actual decision -- this block is just its IO shell. `alreadySeeded` also drives whether
+    // the first-run disclosure card renders below, independent of whether THIS refresh seeds
+    // anything (a returning already-seeded user must keep seeing it until dismissed).
+    //
+    // PR #286 review: the marker (and the disclosure it gates) must be written as soon as ANY
+    // field successfully pushes, not only on a clean sweep of all three. A field that pushed
+    // before a later field failed is ALREADY shared server-side -- that's what triggers the "you
+    // were shared without asking" disclosure obligation, and it's true at the first success, not
+    // the third. Gating the marker on a full clean run left a partially-seeded user (one real
+    // field shared with every accepted friend) with the marker unwritten, so the disclosure never
+    // showed AND -- because a successful push already created the shared_stats row -- the next
+    // focus's `row === null` gate blocked ever retrying the remaining field(s) either. Once any
+    // field lands, the remaining, never-attempted field(s) simply stay off -- not retried, same
+    // fail-partial-closed ceiling as before, just now correctly disclosed and never mistaken for
+    // "nothing happened yet".
+    //
+    // Non-blocking, noted not fixed (PR #286 review): two overlapping refresh() calls (e.g. a rapid
+    // double-focus) could both pass the `hasSeededSharedStatsDefault` check before either writes the
+    // marker, and both run the seed loop. Every syncSharedStat write here is an idempotent upsert of
+    // the same derived value, so the worst case is redundant network calls, never a wrong end state
+    // (no field ends up with two different values, no marker corruption) -- not worth a lock for.
+    const alreadySeeded = await hasSeededSharedStatsDefault(myId);
+    let seededNow = false;
+    if (shouldSeedSharedStatsDefault({ row: data ?? null, createdAt: session?.user.created_at, alreadySeeded })) {
+      const derivedForSeed = deriveSharedStatsPayloads(seenByHall, entries, rankedDishes, rankedFoods);
+      for (const field of SHARED_STAT_FIELDS) {
+        // #186/#241/#217 guard, reused: a toggle or a Delete-server-data confirm firing mid-seed
+        // bumps generationRef. Checked before starting this field's push (a race during an earlier
+        // await in this same refresh) -- if the race already happened, don't even start.
+        if (generationRef.current !== startGeneration) break;
+        const value = sharedStatValueForToggle(field, true, derivedForSeed);
+        const { error } = await syncSharedStat(supabase, myId, field, value);
+        if (error) {
+          console.warn(`[privacy] default-on seed: syncSharedStat(${field}) failed`, error);
+          break; // not retried once any field has already succeeded -- see the doc comment above
+        }
+        // PR #286 review round 2: credited BEFORE the post-await race check below, deliberately --
+        // this field's write already landed on the server the instant `error` came back null, full
+        // stop, regardless of anything that raced in during the await (a toggle on THIS field or a
+        // DIFFERENT one). The old ordering (race check first) meant a toggle on a different field
+        // firing during this exact await silently discarded a real, already-successful share: the
+        // marker was never written and the disclosure never shown for a field the account WAS
+        // shared on. Marking "seeded" is a statement about what happened, not what's still true a
+        // moment later -- a same-field toggle-off immediately after still correctly ends up OFF
+        // (that's the local-state guard right below), it just doesn't erase the fact that this
+        // account was defaulted into sharing at least once, which is what the marker/disclosure are
+        // actually for.
+        seededNow = true;
+        // Local `row` state, unlike the credit above, DOES still need the race check: a toggle (on
+        // this field or another) that landed during the await above already wrote its own, newer
+        // `row` state via toggleShared's own setRow -- this seed loop must not clobber it with a
+        // stale value. Stopping the loop here (not just skipping this one setRow) is deliberate too:
+        // the user is now actively interacting with this screen, so the remaining fields are better
+        // left for the NEXT focus's fieldsNeedingRefresh/seed pass than pushed blind mid-interaction.
+        if (generationRef.current !== startGeneration) break;
+        setRow((prev) => ({ completion: prev?.completion ?? null, top_foods: prev?.top_foods ?? null, hall_ranks: prev?.hall_ranks ?? null, [field]: value }));
+      }
+      if (seededNow) await markSharedStatsDefaultSeeded(myId);
+    }
+    setSeededThisAccount(alreadySeeded || seededNow);
+    // Unconditional, not gated on seededThisAccount -- always reflects THIS user's own dismissal
+    // state so a signed-out/signed-in account switch on the same device can never carry over a
+    // stale dismissal from whichever account was previously loaded in this component's state.
+    setDisclosureDismissed(await isSharedStatsDisclosureDismissed(myId));
 
     // Re-push already-opted-in fields with a fresh value -- never opts a new field in (see
     // fieldsNeedingRefresh's own doc comment; ported verbatim from the previous version of this
@@ -187,6 +264,16 @@ export default function PrivacyScreen() {
   async function toggleAlerts(next: boolean) {
     const { error } = await alerts.toggle(next);
     if (error) Alert.alert("Couldn't update notifications", "Please try again.");
+  }
+
+  // #248 Part C: dismisses the "these three stats share by default" first-run note. Only ever
+  // rendered for a seeded account (see seededThisAccount above), so there's no case where this is
+  // called for a user who wasn't actually defaulted on.
+  async function dismissDisclosure() {
+    const myId = session?.user.id;
+    if (!myId) return;
+    await dismissSharedStatsDisclosure(myId);
+    setDisclosureDismissed(true);
   }
 
   function goToExport() {
@@ -300,15 +387,34 @@ export default function PrivacyScreen() {
               <View style={styles.alertsRow}>
                 <View style={styles.alertsText}>
                   <Text style={styles.rowLabel}>Favorite-food alerts</Text>
-                  <Text style={styles.alertsSubline}>{alertsSubline(alerts.favoritesCount)}</Text>
+                  {/* PR #286 review (Part B): notifications_enabled defaulting true (#248) can be
+                      true server-side for a device that never granted OS permission and so never
+                      registered a token or synced a favorite -- rendering ON here would be exactly
+                      the lie the review flagged. needsPermission (useFavoriteFoodAlerts) renders
+                      this row as a needs-action prompt instead; tapping it runs the same toggle(true)
+                      path, the only one that ever calls requestPermissionsAsync -- this row never
+                      prompts on its own just by being visited. */}
+                  <Text style={styles.alertsSubline}>
+                    {alerts.notificationsEnabled && alerts.needsPermission ? "Tap to finish turning on -- allow notifications when asked." : alertsSubline(alerts.favoritesCount)}
+                  </Text>
                 </View>
-                <Toggle value={alerts.notificationsEnabled} onValueChange={toggleAlerts} />
+                <Toggle value={alerts.notificationsEnabled && !alerts.needsPermission} onValueChange={toggleAlerts} />
               </View>
             </Card>
           </View>
 
           <View style={styles.section}>
             <SectionHeader title="Shared with friends" />
+            {seededThisAccount && !disclosureDismissed && (
+              <Card style={styles.disclosureCard}>
+                <Text style={styles.disclosureText}>
+                  Hall completion, top foods, and favorite halls share with your accepted friends by default. Turn any of them off below -- that deletes it from the server right away.
+                </Text>
+                <Pressable onPress={dismissDisclosure} hitSlop={8} accessibilityRole="button">
+                  <Text style={styles.disclosureDismiss}>GOT IT</Text>
+                </Pressable>
+              </Card>
+            )}
             <Card>
               {SHARED_TOGGLES.map(({ field, label }, i) => (
                 <View key={field}>
@@ -320,7 +426,7 @@ export default function PrivacyScreen() {
                 </View>
               ))}
             </Card>
-            <Text style={styles.footer}>Off by default · accepted friends only · switching off deletes it from the server immediately.</Text>
+            <Text style={styles.footer}>Shared by default on new accounts · accepted friends only · switching off deletes it from the server immediately.</Text>
           </View>
 
           <View style={styles.section}>
@@ -369,6 +475,14 @@ const styles = StyleSheet.create({
   alertsSubline: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
 
   sharedRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing(2), paddingHorizontal: spacing(3.5), minHeight: fs(42) },
+
+  disclosureCard: {
+    borderColor: withOpacity(colors.gold500, 45),
+    padding: spacing(3.5),
+    gap: spacing(2),
+  },
+  disclosureText: { fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(16.8), color: colors.ink900 },
+  disclosureDismiss: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600, alignSelf: "flex-end" },
 
   footer: { fontFamily: fonts.body400, fontSize: fs(11), lineHeight: fs(15.4), color: withOpacity(colors.ink900, 55) },
 
