@@ -29,6 +29,23 @@ jest.mock("@udine/shared", () => ({
   syncSharedStat: (...args: unknown[]) => mockSyncSharedStat(...args),
 }));
 
+// #248 Part C: a tiny in-memory stand-in for AsyncStorage's two per-user markers -- real behavior
+// (persists across this screen's own refresh() calls within a test) without pulling in the
+// AsyncStorage mock, since sharedStatsSeed.ts's own IO is covered directly by sharedStatsSeed.test.ts.
+const mockSharedStatsSeedState = { seeded: new Set<string>(), disclosureDismissed: new Set<string>() };
+jest.mock("./sharedStatsSeed", () => ({
+  hasSeededSharedStatsDefault: (userId: string) => Promise.resolve(mockSharedStatsSeedState.seeded.has(userId)),
+  markSharedStatsDefaultSeeded: (userId: string) => {
+    mockSharedStatsSeedState.seeded.add(userId);
+    return Promise.resolve();
+  },
+  isSharedStatsDisclosureDismissed: (userId: string) => Promise.resolve(mockSharedStatsSeedState.disclosureDismissed.has(userId)),
+  dismissSharedStatsDisclosure: (userId: string) => {
+    mockSharedStatsSeedState.disclosureDismissed.add(userId);
+    return Promise.resolve();
+  },
+}));
+
 const alertsState = { notificationsEnabled: false, favoritesCount: 0 };
 const mockToggleAlerts = jest.fn().mockResolvedValue({ error: null });
 const mockRefreshAlerts = jest.fn().mockResolvedValue(undefined);
@@ -56,9 +73,15 @@ const mockRouterBack = jest.fn();
 // fix as friendsScreen.test.tsx/notificationsScreen.test.tsx: fire once per distinct callback
 // identity (i.e. once per `[session]` dependency change).
 const mockSeenFocusCallbacks = new WeakSet<() => void>();
+// #248 Part C's "seed once, not on every focus" tests need to simulate a SECOND focus of the same
+// screen instance (navigate away and back) without a session change -- captured here so a test can
+// re-invoke the exact callback react-navigation would re-invoke, bypassing only the WeakSet dedup
+// this mock otherwise uses to avoid the infinite-refresh hazard noted above.
+let mockLastFocusCallback: (() => void) | null = null;
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockRouterPush(...args), back: (...args: unknown[]) => mockRouterBack(...args) },
   useFocusEffect: (callback: () => void) => {
+    mockLastFocusCallback = callback;
     if (mockSeenFocusCallbacks.has(callback)) return;
     mockSeenFocusCallbacks.add(callback);
     callback();
@@ -105,8 +128,11 @@ import { Toggle } from "../components/ui";
 import { supabase } from "./supabase";
 import PrivacyScreen from "../app/privacy";
 
-function session(userId: string, email = `${userId}@umass.edu`) {
-  return { data: { session: { user: { id: userId, email } } } };
+// createdAt defaults to well before #248 Part C's 2026-08-26 ship date -- every pre-existing test in
+// this file calls session() without a createdAt, and must keep exercising the "existing account,
+// never auto-seeded" path unchanged. Part C's own tests below pass an explicit post-ship createdAt.
+function session(userId: string, email = `${userId}@umass.edu`, createdAt = "2020-01-01T00:00:00.000Z") {
+  return { data: { session: { user: { id: userId, email, created_at: createdAt } } } };
 }
 
 function texts(root: renderer.ReactTestRenderer) {
@@ -129,12 +155,15 @@ async function renderScreen() {
   await act(async () => {
     root = renderer.create(<PrivacyScreen />);
   });
-  await act(async () => {
-    await Promise.resolve();
-  });
-  await act(async () => {
-    await Promise.resolve();
-  });
+  // #248 Part C's seed block chains several more sequential awaits onto refresh() (the seeded-marker
+  // read, up to three syncSharedStat pushes, the marker write, the disclosure-dismissed read) than
+  // this screen had before -- flushed with extra rounds so every test (seeding or not) observes the
+  // fully-settled state, not a mid-flight one. Extra rounds are a no-op once the queue is idle.
+  for (let i = 0; i < 6; i++) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
   return root;
 }
 
@@ -149,6 +178,9 @@ beforeEach(() => {
   mockPendingSelfHeal.mockReturnValue(null);
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
+  mockSharedStatsSeedState.seeded.clear();
+  mockSharedStatsSeedState.disclosureDismissed.clear();
+  mockLastFocusCallback = null;
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   mockTables();
 });
@@ -322,6 +354,174 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
     // it ran, would be a later call with a non-null array.
     const completionCalls = mockSyncSharedStat.mock.calls.filter((c) => c[2] === "completion");
     expect(completionCalls[completionCalls.length - 1][3]).toBeNull();
+  });
+});
+
+describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
+  const NEW_ACCOUNT_CREATED_AT = "2026-09-01T00:00:00.000Z"; // after the 2026-08-26 ship date
+
+  function sharedFieldPushes() {
+    return mockSyncSharedStat.mock.calls.filter((c) => c[1] === "me" && ["completion", "top_foods", "hall_ranks"].includes(c[2] as string));
+  }
+
+  it("seeds a brand-new account's shared_stats row on first load, pushing all three fields ON", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    const root = await renderScreen();
+
+    expect(sharedFieldPushes().map((c) => c[2])).toEqual(expect.arrayContaining(["completion", "top_foods", "hall_ranks"]));
+    sharedFieldPushes().forEach((c) => expect(c[3]).not.toBeNull()); // ON, not a revoke
+    // completion, top_foods, hall_ranks toggles all read ON afterward (index 0 is the alerts toggle).
+    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, true, true, true]);
+    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(true);
+  });
+
+  it("does not seed an existing (pre-ship-date) account, even though its row is also null", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me")); // default createdAt: 2020
+    const root = await renderScreen();
+
+    expect(sharedFieldPushes()).toEqual([]);
+    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
+    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(false);
+  });
+
+  // The case a naive "any field non-null?" re-seed check would get wrong: a row that EXISTS, with
+  // every column null, is a user who opted in and then turned everything back off -- not a fresh
+  // account. row === null (not "every field null") is what privacySettings.ts's
+  // shouldSeedSharedStatsDefault actually gates on; this proves the screen wires that correctly.
+  it("does not re-seed a new-account user who has since turned every shared stat off", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    mockTables({ sharedStatsRow: { completion: null, top_foods: null, hall_ranks: null } });
+    const root = await renderScreen();
+
+    expect(sharedFieldPushes()).toEqual([]);
+    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
+  });
+
+  // The only reason the persisted (not just in-memory) marker exists: "Delete server data" deletes
+  // the shared_stats row entirely (see deleteServerData.ts), so a re-focus afterward sees row ===
+  // null again -- identical to a never-seeded new account. Without the marker surviving that delete,
+  // this would resurrect exactly what the user just explicitly removed.
+  it("does not re-seed after the row was deleted (Delete server data) -- the marker survives the delete", async () => {
+    mockSharedStatsSeedState.seeded.add("me"); // simulates: this account was already seeded once
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    mockTables({ sharedStatsRow: null }); // simulates: shared_stats row is gone after deleteServerData
+    const root = await renderScreen();
+
+    expect(sharedFieldPushes()).toEqual([]);
+    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
+  });
+
+  // Mutation-red evidence: flip shouldSeedSharedStatsDefault's `!opts.alreadySeeded` gate to always
+  // pass (e.g. `true ||`) and this test's second-focus assertion goes from 3 pushes to 6 -- the seed
+  // would fire on every focus, not once. Simulates a second focus of the SAME screen instance (user
+  // swipes away and back) by re-invoking the exact callback react-navigation would re-invoke,
+  // bypassing only this test file's own WeakSet dedup (a jsdom-only guard against a real render
+  // loop, not something react-navigation has).
+  it("seeds exactly once across repeated focuses of the same screen instance, not on every focus", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    await renderScreen();
+    expect(sharedFieldPushes()).toHaveLength(3);
+
+    await act(async () => {
+      mockLastFocusCallback!();
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+
+    expect(sharedFieldPushes()).toHaveLength(3); // still 3, not 6
+  });
+
+  it("a partial seed failure is not marked seeded, so the next focus can retry", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    mockSyncSharedStat.mockResolvedValueOnce({ error: null }).mockResolvedValueOnce({ error: { message: "network down" } });
+    await renderScreen();
+
+    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(false);
+  });
+
+  // The #186/#241/#217 guard, reused here rather than a new one: a toggle firing WHILE the seed
+  // loop is mid-flight (not just a failed push, but a real user action racing it) must stop the
+  // remaining pushes and never mark the seed done -- otherwise a field the user just explicitly
+  // turned off could be clobbered by the seed's own later iteration, or the seed could finish and
+  // mark itself seeded over a user action that happened mid-seed.
+  it("a toggle firing mid-seed stops the remaining pushes and never marks the seed done", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    let resolveFirstPush!: (v: { error: null }) => void;
+    const firstPushPromise = new Promise<{ error: null }>((resolve) => {
+      resolveFirstPush = resolve;
+    });
+    mockSyncSharedStat.mockImplementationOnce(() => firstPushPromise); // seed's first field push (completion) parks here
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<PrivacyScreen />);
+    });
+    for (let i = 0; i < 6; i++) {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+    expect(mockSyncSharedStat).toHaveBeenCalledTimes(1); // parked mid-seed, top_foods/hall_ranks not pushed yet
+
+    // User toggles "Hall completion" off while the seed's first push is still in flight.
+    const completionToggle = root.root.findAllByType(Toggle)[1];
+    await act(async () => {
+      completionToggle.props.onValueChange(false);
+      await Promise.resolve();
+    });
+    expect(mockSyncSharedStat).toHaveBeenLastCalledWith(expect.anything(), "me", "completion", null);
+
+    // Now let the seed's parked first push resolve -- its loop must see generationRef bumped and
+    // stop, not go on to push top_foods/hall_ranks.
+    await act(async () => {
+      resolveFirstPush({ error: null });
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+
+    const pushedFields = mockSyncSharedStat.mock.calls.map((c) => c[2]);
+    expect(pushedFields).not.toContain("top_foods");
+    expect(pushedFields).not.toContain("hall_ranks");
+    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(false); // an interrupted seed never marks itself done
+  });
+
+  it("shows the first-run disclosure once a new account is seeded, and dismissing it persists the dismissal", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    const root = await renderScreen();
+
+    expect(texts(root)).toMatch(/share with your accepted friends by default/i);
+    const gotIt = root.root.findAllByType(Text).find((n) => n.props.children === "GOT IT");
+    let node = gotIt!.parent;
+    while (node && typeof node.props.onPress !== "function") node = node.parent;
+    await act(async () => {
+      node!.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(mockSharedStatsSeedState.disclosureDismissed.has("me")).toBe(true);
+  });
+
+  it("never shows the disclosure for an existing account that was never auto-seeded", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me")); // default: pre-ship createdAt
+    const root = await renderScreen();
+    expect(texts(root)).not.toMatch(/share with your accepted friends by default/i);
+  });
+
+  it("does not show the disclosure again once already dismissed in a previous session", async () => {
+    mockSharedStatsSeedState.seeded.add("me");
+    mockSharedStatsSeedState.disclosureDismissed.add("me");
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    mockTables({ sharedStatsRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: [], hall_ranks: [] } });
+    const root = await renderScreen();
+
+    expect(texts(root)).not.toMatch(/share with your accepted friends by default/i);
+    // Already-seeded values still render normally -- dismissing the note doesn't touch the toggles.
+    expect(root.root.findAllByType(Toggle)[1].props.value).toBe(true);
+  });
+
+  it("the footer no longer claims off-by-default", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    const root = await renderScreen();
+    expect(texts(root)).toMatch(/Shared by default on new accounts/);
+    expect(texts(root)).not.toMatch(/Off by default/);
   });
 });
 

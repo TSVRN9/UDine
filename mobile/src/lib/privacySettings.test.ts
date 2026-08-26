@@ -1,5 +1,5 @@
 import { GRAB_N_GO_TIDS, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
-import { deriveSharedStatsPayloads, fieldsNeedingRefresh, sharedStatValueForToggle } from "./privacySettings";
+import { deriveSharedStatsPayloads, fieldsNeedingRefresh, isNewAccountForSharedStatsDefault, sharedStatValueForToggle, shouldSeedSharedStatsDefault } from "./privacySettings";
 
 function entry(overrides: Partial<LogEntry> = {}): LogEntry {
   return {
@@ -120,5 +120,66 @@ describe("fieldsNeedingRefresh", () => {
 
   it("lists only the non-null fields -- a plain refresh never opts a new field in", () => {
     expect(fieldsNeedingRefresh({ completion: [{ hallTid: 1 }], top_foods: null, hall_ranks: [{ hallTid: 1, rank: 1 }] })).toEqual(["completion", "hall_ranks"]);
+  });
+});
+
+// #248 Part C
+describe("isNewAccountForSharedStatsDefault", () => {
+  it("is true for an account created on the ship date instant", () => {
+    expect(isNewAccountForSharedStatsDefault("2026-08-26T00:00:00.000Z")).toBe(true);
+  });
+
+  it("is true for an account created after the ship date", () => {
+    expect(isNewAccountForSharedStatsDefault("2026-09-01T00:00:00.000Z")).toBe(true);
+  });
+
+  it("is false for an account created before the ship date -- the existing-user story", () => {
+    expect(isNewAccountForSharedStatsDefault("2026-08-25T23:59:59.999Z")).toBe(false);
+  });
+
+  // The ship-date constant is written as an explicit UTC instant specifically so this doesn't drift
+  // under jest's TZ=America/New_York -- a local-time midnight would be 04:00/05:00 UTC, silently
+  // reclassifying several hours of 2026-08-25 (Eastern) sign-ups as "new". 7:59:59pm Eastern on
+  // 2026-08-25 is 2026-08-25T23:59:59Z -- one second before the UTC ship instant.
+  it("is false for 2026-08-25 19:59:59 Eastern (still before the UTC ship instant)", () => {
+    expect(isNewAccountForSharedStatsDefault("2026-08-25T19:59:59.000-04:00")).toBe(false);
+  });
+
+  // ...and the Eastern instant that actually crosses midnight UTC (8:00:01pm Eastern) is true, even
+  // though it's still "before midnight" in local time -- proving the comparison is against the UTC
+  // instant, not a locally-parsed midnight.
+  it("is true for 2026-08-25 20:00:01 Eastern (already past the UTC ship instant)", () => {
+    expect(isNewAccountForSharedStatsDefault("2026-08-25T20:00:01.000-04:00")).toBe(true);
+  });
+
+  it("fails closed (false) for a missing createdAt -- never defaults a user on when we can't prove they're new", () => {
+    expect(isNewAccountForSharedStatsDefault(undefined)).toBe(false);
+  });
+
+  it("fails closed (false) for an unparseable createdAt", () => {
+    expect(isNewAccountForSharedStatsDefault("not-a-date")).toBe(false);
+  });
+});
+
+describe("shouldSeedSharedStatsDefault", () => {
+  const newAccount = "2026-09-01T00:00:00.000Z";
+  const oldAccount = "2026-01-01T00:00:00.000Z";
+
+  it("seeds a brand-new account with no shared_stats row and no prior seed", () => {
+    expect(shouldSeedSharedStatsDefault({ row: null, createdAt: newAccount, alreadySeeded: false })).toBe(true);
+  });
+
+  it("does not seed once a shared_stats row exists -- even if every field on it is null", () => {
+    // The row-exists-but-every-field-null shape is a user who opted in and then turned everything
+    // back off, not a fresh account -- row === null is deliberately not "every field null".
+    expect(shouldSeedSharedStatsDefault({ row: { completion: null, top_foods: null, hall_ranks: null }, createdAt: newAccount, alreadySeeded: false })).toBe(false);
+  });
+
+  it("does not re-seed once already seeded, even with a null row -- the Delete-server-data case", () => {
+    expect(shouldSeedSharedStatsDefault({ row: null, createdAt: newAccount, alreadySeeded: true })).toBe(false);
+  });
+
+  it("does not seed an existing (pre-ship-date) account, even with a null row and no prior seed", () => {
+    expect(shouldSeedSharedStatsDefault({ row: null, createdAt: oldAccount, alreadySeeded: false })).toBe(false);
   });
 });

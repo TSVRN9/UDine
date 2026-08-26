@@ -54,7 +54,8 @@ export type SharedStatField = "completion" | "top_foods" | "hall_ranks";
 /**
  * Upserts (or, when `value` is null, clears) exactly one column of the caller's own `shared_stats`
  * row -- the per-stat opt-in/opt-out primitive behind #94's privacy settings ("share hall
- * completion / top foods / hall ranking with friends", each independently, default all-off).
+ * completion / top foods / hall ranking with friends", each independently; default ON for accounts
+ * created on/after 2026-08-26, per #248 Part C -- see CLAUDE.md's data residency table).
  * PostgREST's upsert only SETs the columns present in the request body on conflict, so a payload
  * naming just `field` can never clobber the other two stat columns -- toggling "top foods" on/off
  * never touches `completion` or `hall_ranks`, even on a user's very first opt-in (which inserts the
