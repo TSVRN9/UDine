@@ -174,10 +174,25 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
 - **`shared_stats` schema + RLS (#94): DONE, local pgTAP green.** One row per user
   (`supabase/migrations/20260820120000_shared_stats.sql`), three independently-nullable jsonb
   columns (`completion`, `top_foods`, `hall_ranks`) instead of three tables, so "opted in or not" is
-  presence/absence of one column, enforced down to a check constraint (a JSON `null` literal is
-  rejected — only a real absent/SQL-NULL column counts as "not shared"). RLS: owner full CRUD on
-  their own row; a second, read-only SELECT policy admits an accepted friend only (mirrors pings'
-  friendship check). `supabase/tests/database/07_shared_stats_rls.sql` (19 pgTAP assertions) proves:
+  presence/absence of one column, enforced down to a check constraint — only a real absent/SQL-NULL
+  column counts as "not shared". **#271 tightened this check (not yet applied to the live
+  project — same "after PR review" rule as the rest of this bullet):** the original constraints
+  only rejected the JSON `null` literal, so an accepted friend could upsert any other non-array
+  jsonb shape (a string/object/number, or an array with a malformed element) via a raw PostgREST
+  call and crash the friend-profile screen's rendering. `supabase/migrations/
+  20260826130000_shared_stats_jsonb_array_constraint.sql` replaced
+  `shared_stats_{completion,top_foods,hall_ranks}_not_json_null` with
+  `shared_stats_{completion,top_foods,hall_ranks}_is_array`
+  (`check (col is null or jsonb_typeof(col) = 'array')`) — SQL NULL and a JSON array are the only
+  two shapes accepted now; a JSON null literal is still rejected (an array is never `null`), so
+  "privacy by presence" is unchanged. The constraint can't reach into array *elements*, so
+  `mobile/src/app/friend/[id].tsx` also filters each array entry to the exact shape it renders
+  (`isValidCompletion`/`isValidTopFood`/`isValidHallRank`), and `mobile/src/app/_layout.tsx` now
+  exports an `ErrorBoundary` (expo-router's root-boundary pattern — there was none anywhere in the
+  app before) as a second line of defense for whatever shape bug turns up next. RLS: owner full
+  CRUD on their own row; a second, read-only SELECT policy admits an accepted friend only (mirrors
+  pings' friendship check). `supabase/tests/database/07_shared_stats_rls.sql` (31 pgTAP assertions)
+  proves:
   no row at all exposes nothing; an owner can write; an un-opted-in field stays absent even to a
   friend who can read the row; an opted-in field is visible to an accepted friend; a stranger, a
   pending-not-yet-accepted connection, and an anonymous session all see nothing (anon is a hard
