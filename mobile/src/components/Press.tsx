@@ -85,17 +85,3 @@ export function PressDim({ style, children, onPressIn, onPressOut, ...props }: W
     </Pressable>
   );
 }
-
-/** The disjoint-sibling case: the tap target and the content that should dim aren't the same
- * subtree (e.g. HomePane's hall zone, where a sibling absolute-fill Pressable is the hit target so
- * the two touch zones don't nest -- see that file's own comment), so PressDim's wrap-children
- * shape doesn't fit. Exposes the raw handlers + overlay style so the caller can place the scrim
- * itself, same 0.82-brightness/18%-black-overlay equivalence as PressDim above. */
-export function usePressDimOverlay() {
-  const { anim, onPressIn, onPressOut } = usePressAnim(0, 1);
-  return {
-    onPressIn,
-    onPressOut,
-    overlayStyle: { backgroundColor: "#000", opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.18] }) },
-  };
-}
