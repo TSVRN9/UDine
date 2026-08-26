@@ -3,7 +3,8 @@
 	import { page } from "$app/state";
 	import { createLatestWins } from "@udine/shared";
 	import { runFriendSearch, type Profile } from "$lib/friendSearch";
-	type Friendship = { user_a: string; user_b: string; status: "pending" | "accepted"; requested_by: string };
+	import { canAcceptDirectly } from "$lib/friendAccept";
+	type Friendship = { user_a: string; user_b: string; status: "pending" | "accepted"; requested_by: string; origin: "search" | "qr" };
 
 	// #192: an earlier, slower search response landing after a faster later one must not clobber
 	// the newer results.
@@ -13,6 +14,7 @@
 	let searchResults: Profile[] = $state([]);
 	let friendships: Friendship[] = $state([]);
 	let profilesById: Map<string, Profile> = $state(new Map());
+	let acceptError = $state(false);
 	let pending = $derived(friendships.filter((f) => f.status === "pending"));
 	let accepted = $derived(friendships.filter((f) => f.status === "accepted"));
 
@@ -56,7 +58,17 @@
 	}
 
 	async function acceptFriend(f: Friendship) {
-		await page.data.supabase?.from("friendships").update({ status: "accepted" }).eq("user_a", f.user_a).eq("user_b", f.user_b);
+		// #256: check {error} regardless of origin (truthful-UI convention, see requestFriend above)
+		// -- the template already hides this action for qr-origin rows (they can only ever leave
+		// "pending" via confirm_friendship, see friendAccept.ts), but any other rejection (RLS, a
+		// stale row) must surface too, not silently do nothing.
+		const { error } = (await page.data.supabase?.from("friendships").update({ status: "accepted" }).eq("user_a", f.user_a).eq("user_b", f.user_b)) ?? {};
+		if (error) {
+			acceptError = true;
+			setTimeout(() => (acceptError = false), 3000);
+			return;
+		}
+		acceptError = false;
 		await refresh();
 	}
 </script>
@@ -100,7 +112,14 @@
 					{@const other = profilesById.get(otherUserId(f, myId))}
 					<li class="card flex items-center justify-between gap-3 p-3">
 						<span>{other?.display_name ?? "…"}</span>
-						{#if f.requested_by === myId}
+						{#if !canAcceptDirectly(f.origin)}
+							<!-- #256: a qr-origin row only ever leaves "pending" via both sides confirming in
+							     the mobile app's in-person handshake -- a raw Accept here always hits the
+							     friendships_qr_needs_both_confirms CHECK constraint. Web has no /qr-confirm
+							     flow to route to instead (see friendAccept.ts), so this is honest copy, not
+							     a working action, for whichever side is looking. -->
+							<span class="badge">Finish adding in the UDine mobile app</span>
+						{:else if f.requested_by === myId}
 							<span class="badge">Pending</span>
 						{:else}
 							<span class="flex items-center gap-2">
@@ -111,6 +130,7 @@
 					</li>
 				{/each}
 			</ul>
+			{#if acceptError}<p role="alert" class="badge mt-2">Couldn't accept — try again.</p>{/if}
 		{/if}
 	</section>
 
