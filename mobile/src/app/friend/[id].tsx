@@ -15,12 +15,29 @@ type SharedTopFood = { dishName: string; score: number; hallName: string | null 
 type SharedHallRank = { hallTid: number; rank: number };
 type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null;
 
-/** #271: a top_foods array entry with a non-numeric score still crashes TopFoodRow's
- * `f.score.toFixed(1)` even when the outer field is a genuine array -- the server's check
- * constraint can't reach into array elements, so a bad entry is dropped here rather than
- * rendered. Degrades the same way a genuinely empty (opted-in, nothing-yet) array does. */
+/** #271: an array *entry* with the wrong shape still crashes render even when the outer field is
+ * a genuine array -- the server's check constraint can't reach into array elements. `null`
+ * entries throw reading any property; an object where a string/number is expected throws "Objects
+ * are not valid as a React child" once it hits JSX (`dishName`, `hallName`, or a `<Text>{r.rank}</Text>`).
+ * Each of these mirrors the shape `deriveSharedStatsPayloads` (privacySettings.ts) actually
+ * produces -- a bad entry is dropped, degrading to the same "opted in, nothing yet" state a
+ * genuinely empty array gets, never rendered. */
 function isValidTopFood(f: unknown): f is SharedTopFood {
-  return !!f && typeof (f as SharedTopFood).score === "number" && Number.isFinite((f as SharedTopFood).score);
+  if (!f || typeof f !== "object") return false;
+  const c = f as SharedTopFood;
+  return typeof c.dishName === "string" && typeof c.score === "number" && Number.isFinite(c.score) && (c.hallName === null || typeof c.hallName === "string");
+}
+
+function isValidHallRank(r: unknown): r is SharedHallRank {
+  if (!r || typeof r !== "object") return false;
+  const c = r as SharedHallRank;
+  return typeof c.hallTid === "number" && typeof c.rank === "number";
+}
+
+function isValidCompletion(c: unknown): c is SharedCompletion {
+  if (!c || typeof c !== "object") return false;
+  const v = c as SharedCompletion;
+  return typeof v.hallTid === "number" && typeof v.loggedDistinct === "number" && typeof v.seenDistinct === "number";
 }
 
 function initialsOf(name: string): string {
@@ -150,10 +167,12 @@ export default function FriendProfileScreen() {
   // #271: the server's check constraint only guarantees SQL NULL or a JSON array -- an accepted
   // friend can still write any other shape via a raw PostgREST upsert (owner RLS allows it). A
   // malformed non-array field renders the same "doesn't share this" state as an absent field,
-  // never throws. isValidTopFood additionally guards each *entry* (a non-numeric score crashes
-  // TopFoodRow's `.toFixed` even when the outer array shape is fine).
-  const completion = Array.isArray(stats?.completion) ? (stats.completion as SharedCompletion[]) : null;
-  const hallRanks = Array.isArray(stats?.hall_ranks) ? (stats.hall_ranks as SharedHallRank[]) : null;
+  // never throws. Each array is additionally filtered entry-by-entry (isValidCompletion/
+  // isValidTopFood/isValidHallRank) -- a malformed *element* (e.g. a null entry, or an object
+  // where a string/number is expected) crashes render even when the outer array shape is fine,
+  // since the constraint can't reach into array elements.
+  const completion = Array.isArray(stats?.completion) ? (stats.completion as unknown[]).filter(isValidCompletion) : null;
+  const hallRanks = Array.isArray(stats?.hall_ranks) ? (stats.hall_ranks as unknown[]).filter(isValidHallRank) : null;
   const topFoods = Array.isArray(stats?.top_foods) ? (stats.top_foods as unknown[]).filter(isValidTopFood) : null;
   const maxScore = topFoods && topFoods.length > 0 ? Math.max(...topFoods.map((f) => f.score)) : 0;
 

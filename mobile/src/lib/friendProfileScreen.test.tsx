@@ -246,6 +246,49 @@ describe("FriendProfileScreen", () => {
     expect(texts(root)).not.toMatch(/nope/);
   });
 
+  // #276 review: the outer Array.isArray guard plus a score-only entry filter still left FIVE
+  // reachable crashes (same threat model -- an accepted friend, raw PostgREST upsert on their own
+  // row): an object-valued dishName/hallName in top_foods, a null entry or an object-valued rank
+  // in hall_ranks, and -- the issue's own named line -- a null entry in completion. All five drop
+  // to the same "opted in, nothing to show" state instead of throwing.
+  it("does not throw when top_foods entries have an object-valued dishName or hallName, and drops both", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: {
+        completion: null,
+        top_foods: [
+          { dishName: { evil: 1 }, score: 9 },
+          { dishName: "ok", score: 9, hallName: { evil: 1 } },
+        ],
+        hall_ranks: null,
+      },
+    });
+    // Pre-fix, this throws "Objects are not valid as a React child" for either entry.
+    const root = await renderScreen();
+    expect(texts(root)).toMatch(/Casey hasn.t rated enough foods yet/);
+    expect(texts(root)).not.toMatch(/\bok\b/);
+  });
+
+  it("does not throw when hall_ranks has a null entry or an object-valued rank, and drops both", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: null, top_foods: null, hall_ranks: [null, { hallTid: 1, rank: { evil: 1 } }] },
+    });
+    // Pre-fix: [null] throws "Cannot read properties of null (reading 'rank')"; the second entry
+    // throws "Objects are not valid as a React child".
+    const root = await renderScreen();
+    expect(texts(root)).not.toMatch(/evil/);
+  });
+
+  it("does not throw when completion has a null entry, and drops it -- the issue's own named line", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: [null], top_foods: null, hall_ranks: null },
+    });
+    // Pre-fix: throws "Cannot read properties of null (reading 'hallTid')" inside CompletionRow.
+    await expect(renderScreen()).resolves.toBeDefined();
+  });
+
   // Review finding #2: a discarded insert error used to alert a confirmed "Ping sent" regardless.
   it("alerts failure, not success, when the pings insert is rejected (e.g. RLS: not actually friends)", async () => {
     mockTables({ profile: { user_id: "friend-1", display_name: "Casey" }, insertError: { message: "row-level security policy violation" } });

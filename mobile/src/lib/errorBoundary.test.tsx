@@ -11,12 +11,14 @@ import { ErrorBoundary } from "../app/_layout";
 // expo-router's own `Try` component (the thing that actually catches the error and renders this
 // export as the fallback) isn't part of its public API -- see
 // node_modules/expo-router/build/exports.d.ts, which exports `ErrorBoundary` and
-// `ErrorBoundaryProps` but not `Try` itself. This stand-in mirrors `Try`'s real implementation
-// (node_modules/expo-router/build/views/Try.js) byte-for-byte in shape -- same
-// getDerivedStateFromError, same retry (resolve a promise after clearing the error state) -- so
-// the test below exercises the real integration (a React error boundary catching a throwing
-// descendant and rendering this app's ErrorBoundary export), not just the presentational
-// component in isolation.
+// `ErrorBoundaryProps` but not `Try` itself. This stand-in mirrors the CORE of `Try`'s real
+// implementation (node_modules/expo-router/build/views/Try.js) -- same getDerivedStateFromError,
+// same retry (resolve a promise after clearing the error state) -- so the test below exercises
+// the real integration (a React error boundary catching a throwing descendant and rendering this
+// app's ErrorBoundary export), not just the presentational component in isolation. It is NOT a
+// full copy: the real `Try` also calls `SplashScreen.hideAsync()` in getDerivedStateFromError and
+// special-cases `MetroServerError` in dev (rethrows to LogBox instead of rendering the fallback) --
+// neither matters for what this test is proving.
 class TestTry extends Component<{ children: ReactNode }, { error?: Error }> {
   state: { error?: Error } = { error: undefined };
   static getDerivedStateFromError(error: Error) {

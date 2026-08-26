@@ -9,7 +9,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(29);
+select plan(31);
 
 -- =================================================================================================
 -- Ambient (superuser, no mutation yet) -- #271: the three "is null or a JSON array" constraints
@@ -32,10 +32,23 @@ select ok(
   not exists(select 1 from pg_constraint where conname = 'shared_stats_completion_not_json_null'),
   'the old shared_stats_completion_not_json_null constraint is gone, not just superseded'
 );
+-- Review nit (#276): asymmetric before this -- only completion's definition was checked by
+-- content, so a migration that swapped top_foods/hall_ranks for e.g. `check (true)` would have
+-- passed 4 of 5 ambient assertions here. All three get the same content check now.
 select matches(
   pg_get_constraintdef((select oid from pg_constraint where conname = 'shared_stats_completion_is_array')),
   'jsonb_typeof\(completion\) = ''array''',
-  'the shipped constraint definition actually checks jsonb_typeof(...) = ''array'', not something looser'
+  'the shipped completion constraint definition actually checks jsonb_typeof(...) = ''array'', not something looser'
+);
+select matches(
+  pg_get_constraintdef((select oid from pg_constraint where conname = 'shared_stats_top_foods_is_array')),
+  'jsonb_typeof\(top_foods\) = ''array''',
+  'the shipped top_foods constraint definition actually checks jsonb_typeof(...) = ''array'', not something looser'
+);
+select matches(
+  pg_get_constraintdef((select oid from pg_constraint where conname = 'shared_stats_hall_ranks_is_array')),
+  'jsonb_typeof\(hall_ranks\) = ''array''',
+  'the shipped hall_ranks constraint definition actually checks jsonb_typeof(...) = ''array'', not something looser'
 );
 
 insert into auth.users
