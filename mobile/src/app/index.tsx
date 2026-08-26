@@ -16,6 +16,7 @@ import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { isFirstRunDismissed } from "../lib/firstRun";
+import { supabase } from "../lib/supabase";
 import { SocialPane } from "../panes/SocialPane";
 import { YouPane } from "../panes/YouPane";
 
@@ -329,9 +330,26 @@ export default function PaneShellScreen() {
 
   // First launch → the full-screen login/value-prop screen (#96, replaces #68's FirstRunCard).
   // Pushed (not replaced) so both of its exits just pop back to the shell.
+  //
+  // #278: also gated on a live session, not just the first-run flag. The #54 cold-start OAuth path
+  // (app process killed mid Custom-Tab) lands here via redirect.tsx's <Redirect href="/" /> with the
+  // first-run flag still undismissed -- dismissFirstRun() only ever runs inside login.tsx's done(),
+  // which that path never reaches (signInWithGoogle() itself never resolves on a cold start; see
+  // auth.ts). This does NOT suppress the single push on the cold-start landing itself: at that
+  // instant no session has ever been persisted yet (first sign-in, detectSessionInUrl: false) and
+  // redirect.tsx's exchangeCode is still in flight (not awaited before its <Redirect> renders), so
+  // getSession() here is still null too -- this check and redirect.tsx's exchange are racing the
+  // same instant, and getSession() loses it exactly as the #54 issue reproduced. What it does close
+  // is the DURABLE form of the bug: main re-pushed /login on every subsequent app open until the
+  // user actually completed the login screen, because the flag alone stayed undismissed forever.
+  // Once the exchange lands, this check makes every later launch see the persisted session and skip
+  // the push -- the spurious one-shot on the cold-start instant self-clears the moment the user hits
+  // either exit on /login (both call done()). Closing the instant itself means gating redirect.tsx's
+  // <Redirect> on the exchange, which touches the pinned #54 double-exchange guard
+  // (shouldExchangeCode/isSignInInFlight) -- out of scope here, tracked separately.
   useEffect(() => {
-    isFirstRunDismissed().then((dismissed) => {
-      if (!dismissed) router.push("/login");
+    Promise.all([isFirstRunDismissed(), supabase.auth.getSession()]).then(([dismissed, { data }]) => {
+      if (!dismissed && !data.session) router.push("/login");
     });
   }, []);
 
