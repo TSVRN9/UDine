@@ -6,8 +6,8 @@ import {
   rankFoods,
   scoreOutOfTen,
   type HallCompletion,
+  type HallMealPeriod,
   type LogEntry,
-  type MealPeriod,
   type RankedDish,
   type RankedFood,
 } from "@udine/shared";
@@ -101,11 +101,14 @@ export function logItemLine(entry: LogEntry): string {
 
 // --- Today's Log meal grouping (#118) --------------------------------------------------------
 
-// Re-exported so existing consumers (logsFormat.ts) keep importing MealPeriod from here --
+// Re-exported so existing consumers (logsFormat.ts) keep importing this from here --
 // previously a home-grown `Exclude<MealStatus, "closed">` derivation that landed on the same shape
 // as shared's own MealPeriod only because MealStatus redundantly re-lists "latenight" (#144: use
-// the real type instead of re-deriving it).
-export type { MealPeriod };
+// the real type instead of re-deriving it). #213: retyped MealPeriod -> HallMealPeriod -- these are
+// fixed local-clock buckets that can never hold a retail-only period ("allday"/"grabngo", added by
+// #203), so the wider MealPeriod let a bucket no MEAL_PERIODS filter would ever render silently
+// type-check its way in here.
+export type { HallMealPeriod };
 
 /**
  * Canonical, contiguous local-clock windows (minutes since local midnight) a log entry's time gets
@@ -131,7 +134,7 @@ export type { MealPeriod };
  * #128), not period names, and picking a window for a new period is a product decision (where does
  * it start?) shared's ordered-name list can't answer.
  */
-export const MEAL_BOUNDARIES: { period: MealPeriod; startMinutes: number }[] = [
+export const MEAL_BOUNDARIES: { period: HallMealPeriod; startMinutes: number }[] = [
   { period: "breakfast", startMinutes: 5 * 60 }, // 5:00 AM
   { period: "lunch", startMinutes: 10 * 60 + 30 }, // 10:30 AM
   { period: "dinner", startMinutes: 14 * 60 }, // 2:00 PM
@@ -143,10 +146,10 @@ export const MEAL_BOUNDARIES: { period: MealPeriod; startMinutes: number }[] = [
  * as local time per ECMA-262, so `getHours()`/`getMinutes()` already read local components; a
  * "Z"-suffixed string (old data, or a test fixture) also converts correctly since `getHours()` is
  * always local-timezone, never UTC. */
-export function mealPeriodForTime(loggedAt: string): MealPeriod {
+export function mealPeriodForTime(loggedAt: string): HallMealPeriod {
   const d = new Date(loggedAt);
   const minutes = d.getHours() * 60 + d.getMinutes();
-  let period: MealPeriod = "latenight";
+  let period: HallMealPeriod = "latenight";
   for (const b of MEAL_BOUNDARIES) {
     if (minutes >= b.startMinutes) period = b.period;
   }
@@ -164,7 +167,7 @@ export function entryCalories(entry: LogEntry): number {
 }
 
 export interface MealLogGroup {
-  period: MealPeriod;
+  period: HallMealPeriod;
   label: string;
   entries: LogEntry[];
   totalCalories: number;
@@ -192,7 +195,7 @@ export interface MealLogGroup {
  * sort here.
  */
 export function groupEntriesByMeal(entries: LogEntry[]): MealLogGroup[] {
-  const byPeriod = new Map<MealPeriod, LogEntry[]>();
+  const byPeriod = new Map<HallMealPeriod, LogEntry[]>();
   for (const entry of entries) {
     const period = mealPeriodForTime(entry.loggedAt);
     const bucket = byPeriod.get(period);

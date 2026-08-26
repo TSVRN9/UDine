@@ -1,5 +1,5 @@
 import { isoDateOf, type LogEntry } from "@udine/shared";
-import { entryCalories, entryDishName, groupEntriesByMeal, type MealPeriod } from "./youPaneFormat";
+import { entryCalories, entryDishName, groupEntriesByMeal, type HallMealPeriod } from "./youPaneFormat";
 
 /** "8:40 AM" -- reintroduced here from #118 (You pane no longer needs a per-entry time now that
  * the log is meal-grouped, but the Logs screen's edit-state row shows one, e.g. "Hampshire · 8:40
@@ -171,7 +171,7 @@ export function computeDistinctDishCount(entries: LogEntry[]): number | null {
 }
 
 export interface MealShare {
-  period: MealPeriod;
+  period: HallMealPeriod;
   label: string;
   pct: number; // 0-100, rounded
 }

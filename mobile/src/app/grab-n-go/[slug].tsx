@@ -185,7 +185,18 @@ export default function GrabNGoScreen() {
 
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
 
-  if (!hall || !gngTid) return <Text style={styles.error}>Unknown dining hall</Text>;
+  // #284 nit 2: only reachable via a crafted deep link (no in-app path produces an unknown slug),
+  // but a dead end with no way back is still a bug -- same back-chevron affordance every other
+  // header-less route in this file already draws.
+  if (!hall || !gngTid)
+    return (
+      <View style={styles.container}>
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Text style={styles.backChevron}>‹</Text>
+        </Pressable>
+        <Text style={styles.error}>Unknown dining hall</Text>
+      </View>
+    );
 
   // Grab 'N Go locations don't match the hall-detection check in @udine/shared's get_infov2 mapping
   // (it requires "Commons" in the title), so they land in DiningHoursFeed.retail instead --
