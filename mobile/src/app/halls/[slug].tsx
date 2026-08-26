@@ -629,7 +629,18 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
 export default function HallMenuScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const hall = DINING_HALLS.find((h) => h.slug === slug);
-  if (!hall) return <Text style={styles.error}>Unknown dining hall</Text>;
+  // #284 nit 2: only reachable via a crafted deep link (no in-app path produces an unknown slug),
+  // but a dead end with no way back is still a bug -- same back-chevron affordance every other
+  // header-less route in this file already draws.
+  if (!hall)
+    return (
+      <View style={styles.container}>
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Text style={styles.backChevron}>‹</Text>
+        </Pressable>
+        <Text style={styles.error}>Unknown dining hall</Text>
+      </View>
+    );
   return <HallMenuScreenBody hall={hall} />;
 }
 

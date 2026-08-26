@@ -29,7 +29,9 @@ jest.mock("../lib/preferences", () => ({
 }));
 
 jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({ slug: "worcester" }),
+  // #284 nit: a jest.fn (not a bare arrow) so the unknown-slug back-affordance test below can
+  // override the return value for one render without touching every other test's default.
+  useLocalSearchParams: jest.fn(() => ({ slug: "worcester" })),
   // homePane.test.tsx's same no-op: the screen's default state already matches what the real
   // focus-effect callback would resolve to (empty favorites, default prefs), so nothing here needs
   // to actually fire it for these findings.
@@ -88,7 +90,7 @@ jest.mock("./menuHoursCache", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, SectionList } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
@@ -902,5 +904,20 @@ describe("HallMenuScreenBody as a café (#177 -- non-empty fetchMenu path, tid w
     const root = await renderCafeScreen([COFFEE]);
     expect(root.root.findAllByProps({ accessibilityLabel: "People's Organic Coffee info" }).length).toBe(0);
     expect(texts(root).flat().join(" ")).not.toMatch(/Dining Commons/);
+  });
+});
+
+// #284 nit 2: an unresolved slug (only reachable via a crafted deep link, see the issue) rendered
+// a bare "Unknown dining hall" string with no way back -- a dead end. Fixed by drawing the same
+// back-chevron Pressable every other header-less route already uses.
+describe("HallMenuScreen -- unknown slug", () => {
+  it("renders a Back affordance instead of a dead end", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "totally-not-a-real-hall" });
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(root.root.findAllByProps({ accessibilityLabel: "Back" }).length).toBeGreaterThan(0);
+    expect(texts(root).flat()).toContain("Unknown dining hall");
   });
 });
