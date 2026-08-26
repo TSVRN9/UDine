@@ -157,9 +157,25 @@ export default function AddFriendsScreen() {
     setMyDiscoverable(next);
   }
 
+  // #283 review: this header (back chevron + title) used to only be drawn in the signed-in
+  // return below. Since #281 removed the native Stack header this screen used to fall back on,
+  // the signed-out branch is now the only affordance a signed-out user has to leave this screen
+  // -- and YouPane's "Friends" row reaches here without gating on session, so signed-out is a
+  // real, reachable path, not a hypothetical. Hoisted above both returns so neither branch is
+  // ever header-less.
+  const header = (
+    <View style={styles.header}>
+      <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+        <Text style={styles.backChevron}>‹</Text>
+      </Pressable>
+      <Text style={styles.headerTitle}>Add friends</Text>
+    </View>
+  );
+
   if (!session) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + spacing(4.5) }]}>
+        {header}
         <EmptyState title="Sign in required" message="Sign in to add friends." />
       </View>
     );
@@ -172,12 +188,7 @@ export default function AddFriendsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing(4.5) }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Text style={styles.backChevron}>‹</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Add friends</Text>
-      </View>
+      {header}
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.searchWrap}>

@@ -78,6 +78,19 @@ export default function RootLayout() {
         // construction, so a fourth route can't repeat the class. See
         // src/lib/routeHeaderShown.test.ts, which enumerates every route file and guards this
         // invariant.
+        //
+        // What that guard does NOT check (accepted ceiling, #283 review): headerShown resolving
+        // to false only proves no *native* header renders -- it can't prove the screen drew its
+        // OWN back affordance. #283 found add-friends.tsx's signed-out branch had exactly this
+        // gap (no chevron, unreachable-back dead end) even though headerShown correctly resolved
+        // false. Extending the guard to catch that would mean rendering every header-less route
+        // with its full dependency graph mocked (supabase session state, router, focus effects)
+        // just to probe for a Back-labeled pressable -- disproportionate to the bug class this
+        // guards. Documented here instead: every header-less route must draw its own way back,
+        // and that's a per-screen review responsibility, not a static-analysis one. Known
+        // exemptions (no back needed by design, not an oversight): `index` (tab-shell root),
+        // `redirect` (transient OAuth landing), `qr-confirm` (ADD THEM / CANCEL buttons are the
+        // affordance, no chevron).
         headerShown: false,
       }}
     >

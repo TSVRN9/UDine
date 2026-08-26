@@ -244,4 +244,16 @@ describe("AddFriendsScreen", () => {
     // all rather than routing through findPressableByLabel's onPress requirement.
     expect(root.root.findAll((n) => n.props.accessibilityLabel === "Friends and pings you've received").length).toBeGreaterThan(0);
   });
+
+  // #283 review (BLOCKER): #281 removed the native Stack header this screen used to fall back on
+  // for its back affordance. The signed-in return already draws its own back chevron, but the
+  // signed-out early-return didn't -- and it's reachable without ever signing in (YouPane's
+  // "Friends" row isn't gated on session), so a signed-out user landed here with no way back.
+  it("shows a Back affordance even when signed out", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+    const root = await renderScreen();
+
+    expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Sign in required")).toBe(true);
+    expect(() => findPressableByLabel(root, "Back")).not.toThrow();
+  });
 });
