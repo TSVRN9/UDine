@@ -9,7 +9,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * enablePush() stores it -- used to scope a push_tokens delete to only this browser's row instead
  * of every row for the user (#185). Reads an existing subscription only; never creates one, so
  * it's safe to call from a path (like sign-out) that has no business prompting for permission or
- * registering a service worker. */
+ * registering a service worker.
+ *
+ * Deliberately narrower than +page.svelte's own pushSupported() (dropped here, not just moved):
+ * that check also requires `PUBLIC_VAPID_KEY` to be set, because it gates *starting* a new
+ * subscription (enablePush()), which needs a VAPID key to hand PushManager.subscribe(). Reading an
+ * existing subscription has no such requirement -- if one exists, VAPID key or not, it's real and
+ * worth reporting; if the key were ever unset, no subscription could have been created in the
+ * first place, so getSubscription() naturally resolves null and this returns undefined anyway. */
 export async function ownPushToken(): Promise<string | undefined> {
 	if (!("serviceWorker" in navigator) || !("PushManager" in window)) return undefined;
 	const registration = await navigator.serviceWorker.getRegistration();

@@ -534,6 +534,32 @@ test.describe("Notifications — signed in", () => {
 // previous user's favorited-food alerts. These cover the header's "Sign out" control (visible on
 // any signed-in page, not just /notifications) rather than the toggle covered above.
 test.describe("Sign out (#257)", () => {
+	// Review finding 1 on the first version of this PR: signOut() deletes this browser's
+	// push_tokens row but deliberately leaves notifications_enabled=true and the live
+	// PushSubscription alone (see +layout.svelte's doc comment) -- pre-fix, that left the toggle
+	// showing ON forever with no row behind it, dead until the user manually re-toggled. This
+	// reproduces exactly that starting state (granted permission, live subscription, no DB row --
+	// what a fresh push_tokens mock plus a post-sign-out revisit looks like) and proves refresh()
+	// self-heals it on its own, without a toggle click.
+	test("a granted browser with a live subscription but no push_tokens row self-heals it on load", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "granted", ownEndpoint);
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			push_tokens: (route) => route.fulfill({ json: [] }),
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		const post = await waitForRequest(requests, "push_tokens", "POST");
+		const ownToken = JSON.stringify({ endpoint: ownEndpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } });
+		expect(post.body).toMatchObject({ user_id: USER_ID, platform: "web", token: ownToken });
+	});
+
 	test("clears this browser's own push_tokens row before ending the session", async ({ page }) => {
 		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
 		await mockPushEnvironment(page, "granted", ownEndpoint);
@@ -546,8 +572,11 @@ test.describe("Sign out (#257)", () => {
 			food_sightings: (route) => route.fulfill({ json: [] }),
 			pings: (route) => route.fulfill({ json: [] }),
 			friendships: (route) => route.fulfill({ json: [] }),
+			// #264 finding 1's refresh()-driven self-heal (test above) also hits this table with a POST
+			// on mount, before any sign-out click -- only DELETE is the call this test's ordering claim
+			// is about, so only that method gets recorded here.
 			push_tokens: async (route) => {
-				order.push("push_tokens.delete");
+				if (route.request().method() === "DELETE") order.push("push_tokens.delete");
 				await route.fulfill({ json: [] });
 			},
 		});
@@ -576,16 +605,26 @@ test.describe("Sign out (#257)", () => {
 		expect(order).toEqual(["push_tokens.delete", "auth.logout"]);
 	});
 
-	test("a failed push_tokens delete still completes sign-out", async ({ page }) => {
-		await mockPushEnvironment(page, "granted", "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT");
+	// Review finding 4 on the first version of this PR: a mocked 500 on push_tokens never actually
+	// exercises +layout.svelte's try/catch, because supabase-js doesn't throw on a non-2xx response
+	// by default (same as clearStoredPushTokens's other caller, disablePush(), which never checks
+	// `.error` either) -- that test stayed green even with the try/catch stripped out entirely, a
+	// decoy. The real failure mode the try/catch guards is ownPushToken() itself throwing (e.g.
+	// navigator.serviceWorker.getRegistration() rejecting) -- this reproduces that instead.
+	test("a rejected push-subscription lookup still completes sign-out", async ({ page }) => {
+		await page.addInitScript(() => {
+			if ("serviceWorker" in navigator) {
+				// @ts-expect-error test-only stub, real type is far more involved than this suite needs
+				navigator.serviceWorker.getRegistration = async () => {
+					throw new Error("getRegistration boom");
+				};
+			}
+		});
 		await signInAndMockSupabase(page, {
 			profiles: profilesHandler({ notifications_enabled: true }),
 			food_sightings: (route) => route.fulfill({ json: [] }),
 			pings: (route) => route.fulfill({ json: [] }),
 			friendships: (route) => route.fulfill({ json: [] }),
-			// Shape of a real PostgREST failure -- signOut()'s cleanup must swallow this, not throw
-			// past the auth.signOut() call below it.
-			push_tokens: (route) => route.fulfill({ status: 500, json: { message: "boom" } }),
 		});
 
 		await page.goto("/notifications");
@@ -595,7 +634,7 @@ test.describe("Sign out (#257)", () => {
 		await signOutButton.click();
 
 		// Sign-out still lands: the header flips back to the signed-out control (auth.signOut() +
-		// location.reload() still ran) even though the push_tokens cleanup failed.
+		// location.reload() still ran) even though ownPushToken() threw.
 		await expect(page.getByRole("button", { name: /Sign in/ })).toBeVisible({ timeout: 15_000 });
 	});
 

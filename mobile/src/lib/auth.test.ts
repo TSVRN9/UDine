@@ -170,4 +170,43 @@ describe("signOut", () => {
     expect(from).not.toHaveBeenCalled();
     expect(authSignOut).toHaveBeenCalled();
   });
+
+  // #264 review finding 2: a stalled getSession()/push_tokens.delete() (no timeout on either
+  // before this fix) meant auth.signOut() below them was never reached at all -- tapping "Sign
+  // out" on flaky campus wifi did nothing, forever. Both are wrapped in withTimeout now.
+  it("does not hang sign-out forever if reading the session stalls -- times out and still signs out", async () => {
+    jest.useFakeTimers();
+    try {
+      getSession.mockReturnValue(new Promise(() => {})); // never resolves
+      authSignOut.mockResolvedValue({ error: null });
+
+      const promise = signOut();
+      await jest.advanceTimersByTimeAsync(15000);
+      await promise;
+
+      expect(from).not.toHaveBeenCalled();
+      expect(authSignOut).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("does not hang sign-out forever if the push_tokens delete stalls -- times out and still signs out", async () => {
+    jest.useFakeTimers();
+    try {
+      getSession.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+      const eq2 = jest.fn().mockReturnValue(new Promise(() => {})); // never resolves
+      const eq1 = jest.fn().mockReturnValue({ eq: eq2 });
+      from.mockReturnValue({ delete: jest.fn().mockReturnValue({ eq: eq1 }) });
+      authSignOut.mockResolvedValue({ error: null });
+
+      const promise = signOut();
+      await jest.advanceTimersByTimeAsync(15000);
+      await promise;
+
+      expect(authSignOut).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

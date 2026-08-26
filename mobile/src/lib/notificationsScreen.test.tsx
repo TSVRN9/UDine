@@ -75,6 +75,7 @@ jest.mock("expo-router", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { Alert, Switch } from "react-native";
+import * as Notifications from "expo-notifications";
 import { supabase } from "../lib/supabase";
 import { NotificationsBody } from "../app/notifications";
 
@@ -103,6 +104,19 @@ async function renderNotifications() {
     await Promise.resolve();
   });
   return root;
+}
+
+/** Drains extra microtask ticks beyond renderNotifications()'s own two -- the re-registration
+ * chain (getPermissionsAsync -> getExpoPushTokenAsync -> push_tokens.upsert, each withTimeout-
+ * wrapped) is deeper than the toggle() chain other tests in this file await directly, and nothing
+ * here hands back a promise the test can await on its own (useFocusEffect's mock callback fires
+ * refresh() fire-and-forget). Generously overshooting is cheap and harmless. */
+async function flush(times = 10) {
+  for (let i = 0; i < times; i++) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
 }
 
 let alertSpy: jest.SpyInstance;
@@ -153,5 +167,30 @@ describe("NotificationsBody", () => {
     expect(toggleAfter.props.value).toBe(true);
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(mockSyncFavoritedFoods).toHaveBeenCalled();
+  });
+
+  // #264 review finding 1: signOut() (auth.ts) deletes this account's push_tokens row(s) but
+  // deliberately leaves notifications_enabled=true -- pre-fix, that left the toggle showing ON
+  // forever with no token behind it (dead alerts until the user manually toggled off and back on).
+  // useFavoriteFoodAlerts's refresh() must re-register this device's token on its own, without a
+  // prompt, whenever it finds notifications already enabled.
+  it("notifications already enabled but this device has no push_tokens row (e.g. right after #257's sign-out cleanup): mounting the screen re-registers it without a permission prompt", async () => {
+    const pushTokensUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
+    const pushTokensBuilder = {
+      upsert: pushTokensUpsert,
+      delete: jest.fn().mockReturnValue({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }),
+    };
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
+      if (name === "food_sightings") return emptyTable();
+      if (name === "push_tokens") return pushTokensBuilder;
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    await renderNotifications();
+    await flush();
+
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(pushTokensUpsert).toHaveBeenCalledWith({ user_id: "me", platform: "expo", token: "ExponentPushToken[test]" });
   });
 });

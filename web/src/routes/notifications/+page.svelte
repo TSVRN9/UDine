@@ -124,6 +124,21 @@
 			if (ownToken) await clearStoredPushTokens(supabase, myId, ownToken);
 		}
 
+		// #264 review finding 1: our own signOut() (+layout.svelte) deletes this browser's
+		// push_tokens row but deliberately leaves the live PushSubscription and
+		// notifications_enabled=true alone -- otherwise the toggle would show ON forever with
+		// nothing behind it. Re-upsert from the still-live subscription so alerts self-heal on the
+		// next visit/sign-in without a re-toggle. Never prompts or subscribes -- ownPushToken() only
+		// reads a subscription that's already there.
+		if (notificationsEnabled && pushSupported() && Notification.permission === "granted") {
+			try {
+				const ownToken = await ownPushToken();
+				if (ownToken) await supabase.from("push_tokens").upsert({ user_id: myId, platform: "web", token: ownToken });
+			} catch (err) {
+				console.error("Push token re-registration failed:", err);
+			}
+		}
+
 		const { data: sightingRows } = await supabase.from("food_sightings").select("*").eq("user_id", myId).order("created_at", { ascending: false });
 		sightings = sightingRows ?? [];
 

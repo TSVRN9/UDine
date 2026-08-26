@@ -39,6 +39,32 @@ async function registerForPushToken(): Promise<string | null> {
   }
 }
 
+/** Re-upserts this device's push token without ever prompting for permission -- called from
+ * refresh() (mount/focus) so alerts self-heal after this device's push_tokens row is cleared
+ * server-side without the user's own action (e.g. #257's sign-out cleanup on this device, or a
+ * multi-device sign-out on another device -- see auth.ts's own doc comment on
+ * clearThisAccountsExpoTokens). Only requestPermissionsAsync (inside toggle(), user-initiated) may
+ * prompt; if the OS permission isn't already granted here, there's nothing to silently re-register. */
+async function reregisterPushToken(client: SupabaseClient, userId: string): Promise<void> {
+  try {
+    const { status } = await withTimeout(Notifications.getPermissionsAsync(), STEP_TIMEOUT_MS, "getPermissionsAsync (refresh)");
+    if (status !== "granted") return;
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const { data: token } = await withTimeout(Notifications.getExpoPushTokenAsync({ projectId }), STEP_TIMEOUT_MS, "getExpoPushTokenAsync (refresh)");
+    if (!token) return;
+
+    const { error } = await withTimeout(
+      client.from("push_tokens").upsert({ user_id: userId, platform: PLATFORM, token }),
+      STEP_TIMEOUT_MS,
+      "push_tokens.upsert (refresh)",
+    );
+    if (error) console.warn("[push] refresh: push_tokens.upsert failed", error);
+  } catch (e) {
+    console.warn("[push] refresh: re-registering push token failed", e);
+  }
+}
+
 const favoritesStorage = new SqliteFavoritesStorage();
 
 export interface FavoriteFoodAlerts {
@@ -73,9 +99,16 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
   const refresh = useCallback(async () => {
     if (!session) return;
     const { data: profile } = await client.from("profiles").select("notifications_enabled").eq("user_id", session.user.id).single();
-    setNotificationsEnabled(profile?.notifications_enabled ?? false);
+    const enabled = profile?.notifications_enabled ?? false;
+    setNotificationsEnabled(enabled);
     const favorites = await favoritesStorage.getFavorites();
     setFavoritesCount(favorites.length);
+    // #264 finding 1: without this, a device whose push_tokens row was cleared server-side (this
+    // device's own sign-out, or another device's) shows the toggle ON forever with nothing behind
+    // it -- check-favorited-foods dispatches to a row that no longer exists. Runs on every
+    // focus/session-change while enabled; upsert is idempotent, so a no-op re-register when the
+    // row already exists is harmless.
+    if (enabled) await reregisterPushToken(client, session.user.id);
   }, [session, client]);
 
   useFocusEffect(
