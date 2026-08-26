@@ -63,6 +63,13 @@ function emptyTable() {
 }
 
 const mockFrom = jest.fn();
+// #263: registration switched from a raw push_tokens upsert to the register_push_token RPC (a
+// shared-device token now has to be evicted from any other owner server-side, which a plain
+// upsert can no longer do once push_tokens has a unique(platform, token) constraint) -- a jest
+// fake client with no `.rpc` at all would let toggleNotifications' catch-all swallow the
+// resulting TypeError silently, so every existing assertion here would stay green with push
+// registration completely broken. See the "actually calls register_push_token" test below.
+const mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -73,6 +80,7 @@ jest.mock("../lib/supabase", () => ({
       signOut: jest.fn().mockResolvedValue({ error: null }),
     },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
@@ -191,16 +199,11 @@ describe("NotificationsBody", () => {
   // forever with no token behind it (dead alerts until the user manually toggled off and back on).
   // useFavoriteFoodAlerts's refresh() must re-register this device's token on its own, without a
   // prompt, whenever it finds notifications already enabled.
-  it("notifications already enabled but this device has no push_tokens row (e.g. right after #257's sign-out cleanup): mounting the screen re-registers it without a permission prompt", async () => {
-    const pushTokensUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
-    const pushTokensBuilder = {
-      upsert: pushTokensUpsert,
-      delete: jest.fn().mockReturnValue({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }),
-    };
+  it("notifications already enabled but this device has no push_tokens row (e.g. right after #257's sign-out cleanup): mounting the screen re-registers it via register_push_token without a permission prompt", async () => {
     mockFrom.mockImplementation((name: string) => {
       if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
       if (name === "food_sightings") return emptyTable();
-      if (name === "push_tokens") return pushTokensBuilder;
+      if (name === "push_tokens") return emptyTable();
       throw new Error(`unexpected table ${name}`);
     });
 
@@ -208,7 +211,9 @@ describe("NotificationsBody", () => {
     await flush();
 
     expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
-    expect(pushTokensUpsert).toHaveBeenCalledWith({ user_id: "me", platform: "expo", token: "ExponentPushToken[test]" });
+    // #263: the self-heal goes through register_push_token now, not a raw push_tokens upsert --
+    // same eviction reasoning as toggle()'s own registration.
+    expect(mockRpc).toHaveBeenCalledWith("register_push_token", { p_platform: "expo", p_token: "ExponentPushToken[test]" });
   });
 
   // #264 review round 4: the self-heal test above proved the token gets re-registered, but its own
@@ -222,8 +227,8 @@ describe("NotificationsBody", () => {
   // upsert-then-delete-then-auth.signOut(), never the reverse.
   it("real signOut() waits for an in-flight self-heal to finish before its own delete, so the row ends up deleted, not resurrected", async () => {
     const calls: string[] = [];
-    const pushTokensUpsert = jest.fn().mockImplementation(() => {
-      calls.push("upsert");
+    mockRpc.mockImplementation(() => {
+      calls.push("register");
       return Promise.resolve({ data: null, error: null });
     });
     const deleteEq2 = jest.fn().mockImplementation(() => {
@@ -235,7 +240,7 @@ describe("NotificationsBody", () => {
     mockFrom.mockImplementation((name: string) => {
       if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
       if (name === "food_sightings") return emptyTable();
-      if (name === "push_tokens") return { upsert: pushTokensUpsert, delete: pushTokensDelete };
+      if (name === "push_tokens") return { delete: pushTokensDelete };
       throw new Error(`unexpected table ${name}`);
     });
     (supabase.auth.signOut as jest.Mock).mockImplementation(() => {
@@ -267,13 +272,14 @@ describe("NotificationsBody", () => {
     await signOutPromise;
     await flush();
 
-    expect(pushTokensUpsert).toHaveBeenCalledWith({ user_id: "me", platform: "expo", token: "ExponentPushToken[test]" });
+    // #263: the self-heal registers via register_push_token now, not a raw push_tokens upsert.
+    expect(mockRpc).toHaveBeenCalledWith("register_push_token", { p_platform: "expo", p_token: "ExponentPushToken[test]" });
     expect(deleteEq1).toHaveBeenCalledWith("user_id", "me");
     expect(deleteEq2).toHaveBeenCalledWith("platform", "expo");
-    // The self-heal's upsert lands first (the session is still live -- signOut() hasn't reached
-    // auth.signOut() yet), then signOut()'s own delete removes exactly that row, then (and only
-    // then) the session itself is torn down.
-    expect(calls).toEqual(["upsert", "delete", "auth.signOut"]);
+    // The self-heal's registration lands first (the session is still live -- signOut() hasn't
+    // reached auth.signOut() yet), then signOut()'s own delete removes exactly that row, then (and
+    // only then) the session itself is torn down.
+    expect(calls).toEqual(["register", "delete", "auth.signOut"]);
   });
 
   // #264 review round 3, finding 2: deleting the `if (status !== "granted") return;` guard from
@@ -281,11 +287,10 @@ describe("NotificationsBody", () => {
   // iOS, calling getExpoPushTokenAsync without permission throws; on Android it may silently mint
   // a token anyway. Neither is what a background refresh should ever do.
   it("notifications enabled but OS permission is not granted: mounting the screen does not fetch or mint a token", async () => {
-    const pushTokensUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
     mockFrom.mockImplementation((name: string) => {
       if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
       if (name === "food_sightings") return emptyTable();
-      if (name === "push_tokens") return { upsert: pushTokensUpsert, delete: jest.fn().mockReturnValue({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }) };
+      if (name === "push_tokens") return { delete: jest.fn().mockReturnValue({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }) };
       throw new Error(`unexpected table ${name}`);
     });
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
@@ -294,6 +299,23 @@ describe("NotificationsBody", () => {
     await flush();
 
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
-    expect(pushTokensUpsert).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // #263: registration must go through the register_push_token RPC (which evicts a shared token
+  // from any other owner server-side), never a raw push_tokens upsert -- a raw upsert now fails
+  // outright against the unique(platform, token) constraint for a token shared with another user.
+  it("registers the push token via register_push_token, not a raw push_tokens upsert", async () => {
+    mockTables({ notificationsEnabled: false });
+    const root = await renderNotifications();
+
+    const toggle = root.root.findByType(Switch);
+    await act(async () => {
+      await toggle.props.onValueChange(true);
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith("register_push_token", { p_platform: "expo", p_token: "ExponentPushToken[test]" });
+    // Registration never touches push_tokens directly anymore -- the RPC does the write server-side.
+    expect(mockFrom.mock.calls.some((call) => call[0] === "push_tokens")).toBe(false);
   });
 });
