@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="108"
+   height="108"
+   viewBox="0 0 28.575 28.575"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   sodipodi:docname="udine.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#840028"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#343434"
+     inkscape:document-units="mm"
+     showguides="true"
+     inkscape:zoom="1.6882075"
+     inkscape:cx="6.2196145"
+     inkscape:cy="31.986589"
+     inkscape:window-width="1536"
+     inkscape:window-height="923"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer2">
+    <sodipodi:guide
+       position="0,28.575"
+       orientation="0,108"
+       id="guide2"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="28.575,28.575"
+       orientation="108,0"
+       id="guide3"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="28.575,0"
+       orientation="0,-108"
+       id="guide4"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="0,0"
+       orientation="-108,0"
+       id="guide5"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1">
+    <rect
+       x="-122.30438"
+       y="219.47773"
+       width="271.41521"
+       height="58.639088"
+       id="rect8" />
+  </defs>
+  <g
+     inkscape:label="backgroudn"
+     inkscape:groupmode="layer"
+     id="layer1" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="foreground">
+    <circle
+       style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.05781;stroke-dasharray:none;stroke-opacity:1"
+       id="path5"
+       cx="14.2875"
+       cy="14.2875"
+       r="11.248321" />
+    <circle
+       style="fill:#d8d8d8;fill-opacity:1;stroke:none;stroke-width:0.792051;stroke-dasharray:none;stroke-opacity:1"
+       id="path5-3"
+       cx="14.2875"
+       cy="14.2875"
+       r="8.4223881" />
+    <text
+       xml:space="preserve"
+       style="font-size:12.3788px;writing-mode:lr-tb;direction:ltr;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.73512;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
+       x="9.7399893"
+       y="19.229391"
+       id="text7"
+       transform="scale(1.0020532,0.99795102)"><tspan
+         sodipodi:role="line"
+         id="tspan7"
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1.73512;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1"
+         x="9.7399893"
+         y="19.229391">U</tspan></text>
+    <text
+       xml:space="preserve"
+       transform="scale(0.26458333)"
+       id="text8"
+       style="fill:#ffffff;writing-mode:lr-tb;text-orientation:auto;direction:ltr;stroke:#000000;stroke-opacity:1;stroke-width:5.98677165;stroke-dasharray:none;fill-opacity:1;white-space:pre;shape-inside:url(#rect8)" />
+  </g>
+</svg>
