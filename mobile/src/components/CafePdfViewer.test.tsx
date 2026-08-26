@@ -22,7 +22,7 @@ jest.mock("expo-sharing", () => ({
   shareAsync: jest.fn(),
 }));
 
-const mockDownloadAsync = jest.fn().mockResolvedValue(undefined);
+const mockDownloadAsync = jest.fn().mockResolvedValue({ status: 200 });
 const mockReadAsStringAsync = jest.fn().mockResolvedValue("ZmFrZS1wZGYtYnl0ZXM="); // base64("fake-pdf-bytes")
 jest.mock("expo-file-system/legacy", () => ({
   cacheDirectory: "file:///cache/",
@@ -86,6 +86,33 @@ describe("CafePdfViewer WebView lockdown (#219 review, finding 3+4)", () => {
   it("passes the downloaded PDF's own bytes through as base64", async () => {
     await renderViewer();
     expect(lastWebViewProps().source.html).toContain('atob("ZmFrZS1wZGYtYnl0ZXM=")');
+  });
+});
+
+describe("CafePdfViewer error handling (#242)", () => {
+  beforeEach(() => {
+    mockWebView.mockClear();
+    mockDownloadAsync.mockClear();
+  });
+
+  it("renders a visible error state, not the viewer, when the download response is a non-2xx status", async () => {
+    mockDownloadAsync.mockResolvedValueOnce({ status: 404 });
+    const root = await renderViewer();
+    expect(mockWebView).not.toHaveBeenCalled();
+    const text = JSON.stringify(root.toJSON());
+    expect(text).toContain("HTTP 404");
+    expect(text).toContain("RETRY");
+  });
+
+  it("surfaces a pdf.js load failure (reported via onMessage) as a visible error state", async () => {
+    const root = await renderViewer();
+    const { onMessage } = lastWebViewProps() as unknown as { onMessage: (e: { nativeEvent: { data: string } }) => void };
+    await act(async () => {
+      onMessage({ nativeEvent: { data: JSON.stringify({ type: "pdfjs-error", message: "worker failed to load" }) } });
+    });
+    const text = JSON.stringify(root.toJSON());
+    expect(text).toContain("worker failed to load");
+    expect(text).toContain("RETRY");
   });
 });
 
