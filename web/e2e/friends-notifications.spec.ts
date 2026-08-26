@@ -540,6 +540,34 @@ test.describe("Notifications — signed in", () => {
 		expect(del.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
 	});
 
+	// #272 review: the guard that makes item A's whole fix work is refresh()'s own
+	// `notificationsEnabled && ...` check before the self-heal block (:151) -- deleteServerData
+	// (mobile) / the toggle-off path both rely on notifications_enabled being false server-side to
+	// stop this self-heal from re-registering on the very next load. That guard had no direct test:
+	// mounting with the flag already false, permission already granted, and a live subscription
+	// (so nothing else would stop a missing guard) proves the self-heal genuinely stays inert.
+	test("loading with notifications_enabled=false does not call register_push_token, even with permission already granted and a live subscription (#272)", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "granted", ownEndpoint);
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: false }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			"rpc/register_push_token": (route) => route.fulfill({ json: {} }),
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		// No visible signal distinguishes "the guard ran and skipped" from "hasn't run yet" -- give
+		// refresh()'s self-heal branch a real beat to land before asserting its absence, same
+		// pattern as the #185 "default permission" test above.
+		await page.waitForTimeout(1000);
+
+		expect(requests.some((r) => r.table === "rpc/register_push_token")).toBe(false);
+	});
+
 	// #263: enablePush used to `.upsert()` push_tokens directly -- now a shared device token can
 	// already be owned by another user (push_tokens has a unique(platform, token) backstop), so a
 	// raw upsert would 23505. It must go through register_push_token (a security definer RPC that

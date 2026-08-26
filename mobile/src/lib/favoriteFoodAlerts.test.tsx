@@ -205,3 +205,26 @@ describe("useFavoriteFoodAlerts: toggle(false) waits for an in-flight self-heal 
     expect(calls).toEqual(["register", "delete"]);
   });
 });
+
+describe("useFavoriteFoodAlerts: refresh() never re-registers when notifications_enabled is false (#272 item A guard)", () => {
+  // #272 review: item A's whole fix (deleteServerData flipping notifications_enabled to false
+  // before the push_tokens delete, privacy.tsx pulling that into the hook via refresh()) only
+  // actually prevents resurrection because refresh() itself gates re-registration on `enabled`
+  // (:128, `if (enabled) { ... }`). That guard had no direct test -- mutating it to `if (true)`
+  // left the whole suite green. This pins it directly: mount with notifications_enabled already
+  // false and OS permission already granted (so a missing guard has nothing else stopping it),
+  // and assert neither the token fetch nor the RPC ever fires.
+  it("mounting with notifications_enabled=false does not fetch a token or call register_push_token, even with permission already granted", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: false });
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    await renderProbe();
+    await flush();
+
+    expect(hookRef!.notificationsEnabled).toBe(false);
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
