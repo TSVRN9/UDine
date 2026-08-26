@@ -140,6 +140,20 @@ function queryResult(data: unknown[]) {
   return builder;
 }
 
+/** Same chainable stub as queryResult, but resolves `{data: null, error}` -- the shape
+ * postgrest-js actually returns on a network failure (rejects nothing; #240 finding B). */
+function queryError(message: string) {
+  const builder: Record<string, unknown> = {};
+  const chain = () => builder;
+  builder.select = chain;
+  builder.eq = chain;
+  builder.or = chain;
+  builder.in = chain;
+  builder.order = chain;
+  builder.then = (resolve: (v: { data: null; error: { message: string } }) => void) => resolve({ data: null, error: { message } });
+  return builder;
+}
+
 /** Minimal fake `GestureResponderEvent` -- just enough shape (a single-touch `touchHistory`) for
  * RN's real `PanResponder` internals (TouchHistoryMath's centroid calc) to compute `moveX`/`moveY`
  * without throwing. SocialPane's own handlers only ever read `gestureState.moveX/moveY`, not the
@@ -497,6 +511,37 @@ describe("SocialPane offline (#181 — owner decision: offline is not an error s
     expect(root.root.findAllByType(View).filter((v) => flatStyle(v.props.style).opacity === 0.55).length).toBe(0);
   });
 
+  // #240 finding B: `refresh` used to destructure only `{data: friendshipRows}`, discarding
+  // `error` entirely -- postgrest-js resolves `{data: null, error}` on a network failure rather
+  // than throwing, so a transient failure on focus/RETRY silently set friends to `[]`, wiping the
+  // avatars the offline ping queue's own hold-and-release gesture depends on. Fixed: bail out and
+  // keep the last-known list when `error` is set.
+  it("#240 finding B: a failed friendships refresh keeps the last-known friends list instead of wiping it", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    let friendshipsShouldFail = false;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "friendships") return friendshipsShouldFail ? queryError("network down") : queryResult([{ user_a: "me", user_b: "friend-1" }]);
+      if (table === "profiles") return queryResult([{ user_id: "friend-1", display_name: "Alex" }]);
+      return queryResult([]);
+    });
+    // First load: fetchEvents fails (so a RETRY button exists to drive the second refresh()
+    // through); friendships still succeeds independently, so Alex shows up initially.
+    mockFetchEvents.mockRejectedValueOnce(new Error("network down"));
+    mockFetchEvents.mockResolvedValue([]);
+
+    const root = await renderSocialPane();
+    expect(texts(root)).toMatch(/Alex/);
+
+    friendshipsShouldFail = true;
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Retry" }).props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(texts(root)).toMatch(/Alex/); // still there -- not wiped to "no friends" by the failed refresh
+  });
+
   it("RETRY re-fetches events and, once back online, flushes anything queued while offline", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
     mockFrom.mockImplementation(() => queryResult([]));
@@ -515,11 +560,16 @@ describe("SocialPane offline (#181 — owner decision: offline is not an error s
     expect(mockFlushQueuedPings).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT flush the queue on a normal (never-offline) load", async () => {
+  // #240 finding A: this used to assert the OLD (buggy) behavior -- flush only fired once this
+  // session had actually gone offline first, so a queue persisted from a previous app run (this
+  // session's very first load, `offlineRef` starting false) just sat there until some future dip.
+  // The fix flushes unconditionally on every successful load, including the very first one, so a
+  // restart-persisted queue is picked up immediately rather than waiting for an in-session dip.
+  it("flushes the queue on the very first successful load, even if this session never went offline", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
     mockFetchEvents.mockResolvedValue([]);
     await renderSocialPane();
-    expect(mockFlushQueuedPings).not.toHaveBeenCalled();
+    expect(mockFlushQueuedPings).toHaveBeenCalledTimes(1);
   });
 
   it("shows the evergreen footer reassurance copy regardless of online/offline state", async () => {

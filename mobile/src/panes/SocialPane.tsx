@@ -178,7 +178,13 @@ export function SocialPane() {
     if (!myId) return;
 
     // Named to avoid shadowing the theme's `fs()` type-scale import within this scope.
-    const { data: friendshipRows } = await supabase.from("friendships").select("user_a, user_b").eq("status", "accepted").or(`user_a.eq.${myId},user_b.eq.${myId}`);
+    const { data: friendshipRows, error } = await supabase.from("friendships").select("user_a, user_b").eq("status", "accepted").or(`user_a.eq.${myId},user_b.eq.${myId}`);
+    // #240 finding B: postgrest-js resolves `{data: null, error}` on a network failure, not a
+    // throw -- the old code discarded `error` entirely, so any transient failure on focus wiped
+    // the friends list (and with it the avatars the offline ping queue depends on) down to
+    // "no friends yet". Bail out and keep the last-known list instead, same truthful-UI convention
+    // as #158/#165/#167.
+    if (error) return;
     const otherIds = (friendshipRows ?? []).map((f) => otherUserId(f, myId));
     if (otherIds.length > 0) {
       // Ordered, not left to whatever order .in() happens to return -- the first avatar gets the
@@ -201,25 +207,22 @@ export function SocialPane() {
   const loadEvents = useCallback(() => {
     fetchEvents()
       .then((result) => {
-        // offlineRef (not the `offline` state var) so this always reads the CURRENT value -- a
-        // useCallback with `[]` deps closes over render-time state once and never sees it change,
-        // which would make "was this a reconnect" permanently stuck at its first-render answer.
-        // Load-bearing that this read-then-clear is synchronous, not two separate statements
-        // separated by an await: it's what makes a rapid double RETRY-tap (or a RETRY landing
-        // right after sendPing's own reconnect-flush already flipped offlineRef false) safe --
-        // whichever call observes `wasOffline = true` first also clears it in the same tick, so
-        // only that one call flushes the queue; the other sees `false` and no-ops. Two `await`s
-        // between the read and the write here would reopen the exact interleaving flushQueuedPings'
-        // own internal write-queue was added to close.
-        const wasOffline = offlineRef.current;
         offlineRef.current = false;
         setEvents(result);
         setEventsError(null);
         setOffline(false);
-        // Reconnect: flush anything queued while offline. Fire-and-forget -- a failed flush just
-        // leaves those pings queued for the next successful reconnect, same as everything else in
-        // this file that touches SQLite off the render path.
-        if (wasOffline) flushQueuedPings(supabase).catch(() => {});
+        // #240 finding A: this used to gate on `wasOffline` (only flush if THIS session had
+        // actually flipped offline before), so a queue persisted from a previous app run just sat
+        // there -- offlineRef always starts false on a fresh launch, so the ordinary case (mount,
+        // fetchEvents succeeds first try) never flushed at all, no matter how much was queued from
+        // last time. Flush unconditionally on every successful load instead: flushQueuedPings is a
+        // cheap local no-op when the queue's empty (see its own early return), so calling it here
+        // on every success -- not just the first, not just a reconnect -- costs nothing extra and
+        // guarantees a persisted queue is picked up on the very next successful load, restart or
+        // not. Fire-and-forget -- a failed flush just leaves those pings queued for the next
+        // successful load, same as everything else in this file that touches SQLite off the render
+        // path.
+        flushQueuedPings(supabase).catch(() => {});
       })
       .catch((e) => {
         offlineRef.current = true;
