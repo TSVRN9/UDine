@@ -11,7 +11,7 @@ jest.mock("../lib/auth", () => ({
 }));
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn().mockReturnValue(true) },
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn().mockReturnValue(true), dismissTo: jest.fn() },
 }));
 
 import renderer, { act } from "react-test-renderer";
@@ -52,13 +52,16 @@ describe("LoginScreen", () => {
     expect(text).toMatch(/Skip — use without an account/);
   });
 
-  it("skip dismisses the first-run flag and pops back", async () => {
+  // #245 item 7: dismissTo("/") replaces canGoBack() ? back() : replace("/") -- see login.tsx's
+  // done() for why (redirect.tsx's warm-path <Redirect href="/" /> can land an extra index on top
+  // of login, which a plain back() only pops one layer of).
+  it("skip dismisses the first-run flag and clears login out of history via dismissTo('/')", async () => {
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
       root = renderer.create(<LoginScreen />);
     });
 
-    // Composite Pressable doesn't surface via findAllByType here — match on the button role +
+    // Composite Pressable doesn't surface via findAllByType here -- match on the button role +
     // rendered text instead, taking the outermost (composite) node, which owns onPress.
     const skip = root.root.findAll(
       (n) =>
@@ -69,11 +72,11 @@ describe("LoginScreen", () => {
     expect(skip).toBeDefined();
 
     await act(async () => {
-      skip!.props.onPress();
+      await skip!.props.onPress();
     });
 
     expect(dismissFirstRun).toHaveBeenCalled();
-    expect(router.back).toHaveBeenCalled();
+    expect(router.dismissTo).toHaveBeenCalledWith("/");
   });
 
   // #278 red case: on main, signInWithGoogle() returning undefined (cancel/dismiss) was
@@ -104,9 +107,10 @@ describe("LoginScreen", () => {
     expect(dismissFirstRun).not.toHaveBeenCalled();
     expect(router.back).not.toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
+    expect(router.dismissTo).not.toHaveBeenCalled();
   });
 
-  it("a successful Google sign-in does dismiss first-run and pops back", async () => {
+  it("a successful Google sign-in does dismiss first-run and clears login out of history via dismissTo('/')", async () => {
     (signInWithGoogle as jest.Mock).mockResolvedValue(true);
 
     let root!: renderer.ReactTestRenderer;
@@ -126,6 +130,6 @@ describe("LoginScreen", () => {
     });
 
     expect(dismissFirstRun).toHaveBeenCalled();
-    expect(router.back).toHaveBeenCalled();
+    expect(router.dismissTo).toHaveBeenCalledWith("/");
   });
 });

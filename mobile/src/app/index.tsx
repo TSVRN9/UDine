@@ -1,9 +1,11 @@
-import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
+import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favorite, type RetailLocationHours } from "@udine/shared";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CafePdfViewer } from "../components/CafePdfViewer";
+import { CafeSheet } from "../components/CafeSheet";
 import { OfflineLine } from "../components/OfflineLine";
 import { SkeletonBar } from "../components/Skeleton";
 import { SectionHeader } from "../components/ui";
@@ -185,6 +187,15 @@ export function HomePane() {
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
   const insets = useSafeAreaInsets();
+  // #245 item 8: a café with no `locationId` can never have a probed menu (cafeTapTarget's own
+  // "no tid to fetch with" branch, see /cafe/[name].tsx) -- that's knowable right here, synchronously,
+  // off the same hoursFeed.retail data already in hand, so those rows open CafeSheet inline instead
+  // of navigating to /cafe/[name] just to land on its identical fallback-sheet-over-a-blank-screen
+  // render. Cafés WITH a locationId still probe via the existing route (target.kind isn't knowable
+  // until that fetch resolves).
+  const [cafeSheetLoc, setCafeSheetLoc] = useState<RetailLocationHours | null>(null);
+  const [cafeSheetVisible, setCafeSheetVisible] = useState(false);
+  const [cafeSheetPdf, setCafeSheetPdf] = useState<{ url: string; label: string } | null>(null);
 
   const load = useCallback(() => {
     setNow(new Date());
@@ -239,7 +250,8 @@ export function HomePane() {
   const pending = !hoursFeed && !error;
 
   return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
+    <>
+      <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
       {/* error only reaches here on the genuine dead end -- fetch failed AND no cache exists.
           Anything with a cache falls back to `offline` (see HeroBlock) instead, per #181's owner
           decision that offline is not an error state. */}
@@ -274,13 +286,31 @@ export function HomePane() {
               doc comment on the issue's runtime model). */}
           {(hoursFeed?.retail ?? []).map((loc) => {
             const chip = formatLocationChip(retailOpenStatus(loc, now));
+            const row = (
+              <View style={styles.retailInfo}>
+                <Text style={styles.retailName}>{loc.name}</Text>
+                <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
+              </View>
+            );
+            if (loc.locationId === undefined) {
+              return (
+                <Pressable
+                  key={loc.name}
+                  style={styles.retailRow}
+                  onPress={() => {
+                    setCafeSheetLoc(loc);
+                    setCafeSheetVisible(true);
+                  }}
+                >
+                  {row}
+                  <Text style={styles.retailChevron}>›</Text>
+                </Pressable>
+              );
+            }
             return (
               <Link key={loc.name} href={`/cafe/${encodeURIComponent(loc.name)}`} asChild>
                 <Pressable style={styles.retailRow}>
-                  <View style={styles.retailInfo}>
-                    <Text style={styles.retailName}>{loc.name}</Text>
-                    <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
-                  </View>
+                  {row}
                   <Text style={styles.retailChevron}>›</Text>
                 </Pressable>
               </Link>
@@ -301,7 +331,20 @@ export function HomePane() {
           ))}
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+      {cafeSheetLoc ? (
+        <CafeSheet
+          visible={cafeSheetVisible && !cafeSheetPdf}
+          loc={cafeSheetLoc}
+          now={now}
+          onClose={() => setCafeSheetVisible(false)}
+          onOpenPdf={(url, label) => setCafeSheetPdf({ url, label })}
+        />
+      ) : null}
+      {cafeSheetPdf ? (
+        <CafePdfViewer url={cafeSheetPdf.url} label={cafeSheetPdf.label} cafeName={cafeSheetLoc?.name ?? ""} onClose={() => setCafeSheetPdf(null)} />
+      ) : null}
+    </>
   );
 }
 

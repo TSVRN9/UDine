@@ -16,8 +16,13 @@ export default function LoginScreen() {
 
   async function done() {
     await dismissFirstRun();
-    if (router.canGoBack()) router.back();
-    else router.replace("/");
+    // #245 item 7: plain back()/replace() left login (and, on the warm Google sign-in path,
+    // redirect.tsx's own <Redirect href="/" /> landing an extra index on top of it -- see
+    // redirect.tsx's own doc comment on that race) still reachable below the main shell, so
+    // hardware back could resurface first-open. dismissTo pops every screen down to the existing
+    // "/" if one's already in history, or replaces this screen with it if not -- either way "/"
+    // ends up as the sole entry, so back from the main pane shell has nothing left to reveal.
+    router.dismissTo("/");
   }
 
   async function handleSignIn() {
