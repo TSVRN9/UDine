@@ -16,6 +16,7 @@ import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { isFirstRunDismissed } from "../lib/firstRun";
+import { supabase } from "../lib/supabase";
 import { SocialPane } from "../panes/SocialPane";
 import { YouPane } from "../panes/YouPane";
 
@@ -329,9 +330,18 @@ export default function PaneShellScreen() {
 
   // First launch → the full-screen login/value-prop screen (#96, replaces #68's FirstRunCard).
   // Pushed (not replaced) so both of its exits just pop back to the shell.
+  //
+  // #278: also gated on a live session, not just the first-run flag. The #54 cold-start OAuth path
+  // (app process killed mid Custom-Tab) lands here via redirect.tsx's <Redirect href="/" /> with the
+  // first-run flag still undismissed -- dismissFirstRun() only ever runs inside login.tsx's done(),
+  // which that path never reaches (signInWithGoogle() itself never resolves on a cold start; see
+  // auth.ts). Without this check, a user who just finished signing in gets shoved back onto the
+  // login screen. Checking getSession() here (rather than moving the dismiss into redirect.tsx/
+  // exchangeCode) keeps the fix contained to this effect and doesn't touch the #54 double-exchange
+  // guard (shouldExchangeCode/isSignInInFlight) at all.
   useEffect(() => {
-    isFirstRunDismissed().then((dismissed) => {
-      if (!dismissed) router.push("/login");
+    Promise.all([isFirstRunDismissed(), supabase.auth.getSession()]).then(([dismissed, { data }]) => {
+      if (!dismissed && !data.session) router.push("/login");
     });
   }, []);
 

@@ -23,8 +23,11 @@ export default function LoginScreen() {
   async function handleSignIn() {
     setBusy(true);
     try {
-      await signInWithGoogle();
-      await done();
+      // #278: signInWithGoogle() resolves false (not a throw) when the user cancels/dismisses the
+      // Google chooser -- done() permanently dismisses first-run, so it must only run on an actual
+      // signed-in outcome. A cancel leaves the user right back on this screen, no error shown.
+      const signedIn = await signInWithGoogle();
+      if (signedIn) await done();
     } catch (err) {
       Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
     } finally {
