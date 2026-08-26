@@ -52,6 +52,43 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   @umass.edu email address.", not silently succeed. Once confirmed live, profile/RLS policies don't
   need to re-check the email domain — `auth.uid()` scoping is sufficient, since the hook already
   guarantees no non-umass row can exist.
+- **#268: email/password signup was live on the project with no ownership check — fixed, two
+  halves.** The domain-only hook above rejected the wrong domain but not the wrong *provider*: the
+  Email provider being enabled at all meant anyone could POST a password signup for
+  `victim@umass.edu` and plant a discoverable, impersonating profile without ever proving they
+  controlled that mailbox (`auth.users` row inserted before email confirmation, per
+  `handle_new_user`'s `after insert` trigger). **Half 1 (owner-only, dashboard, NOT done by an
+  agent):** Authentication > Providers > Email > disable the provider (or at minimum "Allow new
+  users to sign up") on the live project — this is the actual fix; no MCP/API surface exposes auth
+  provider config for an agent to flip it. **Half 2 (migration-tracked, done):**
+  `hook_restrict_signup_by_umass_domain` (same function name, no dashboard re-selection needed) now
+  also rejects any signup whose `event->'user'->'app_metadata'->>'provider'` isn't `'google'` —
+  `supabase/migrations/20260826120000_restrict_signup_by_google_provider.sql`. Field choice
+  (`provider`, not the sibling `providers` array) matches Supabase's own docs example for exactly
+  this use case (Auth Hooks > Before User Created hook > "Block by OAuth Provider"): at
+  user-creation time there's exactly one identity being created, so `providers` is always a
+  one-element array holding that same value — checking it adds nothing. `supabase/config.toml`
+  mirrors the posture locally (`[auth.email] enable_signup = false`).
+  **This changes how the live `@umass.edu` restriction check above gets re-verified**: once half 1
+  is actually flipped live, the documented `POST /auth/v1/signup` curl check stops reaching the hook
+  at all. Observed locally (2026-08-26) with the equivalent `enable_signup = false` config: the
+  identical curl now gets `400 {"code":400,"error_code":"email_provider_disabled","msg":"Email
+  signups are disabled"}` — GoTrue rejects it at the provider-gate, before the hook ever runs. (Not
+  independently re-observed against the *live* project — that's the owner's half to flip — but this
+  is the same GoTrue codepath, and the live half-1 options are a superset: "disable the provider"
+  gets exactly this; "disallow new signups" only may return a different `error_code` for the same
+  reason, still pre-hook.) So a non-403 response there no longer means the hook regressed — it means
+  the provider gate is doing its job first. Separately, note the Before-User-Created hook was never
+  registered on the *local* stack to begin with — `supabase/config.toml`'s
+  `[auth.hook.before_user_created]` block is commented out (hook registration has no local
+  declarative form here, same as live being dashboard-only) — so a local HTTP signup was never a
+  way to reach the hook, live-parity curl checks aside. To prove the hook function itself is still
+  correct (domain check AND provider check), call `hook_restrict_signup_by_umass_domain` directly
+  with a simulated event payload (pgTAP or SQL Editor) instead — see
+  `supabase/tests/database/13_restrict_signup_by_google_provider.sql` for the simulated event shape
+  and the cases it covers (email+umass → rejected, google+umass → allowed, google+non-umass → still
+  rejected by the domain check), including a migration-removed red run proving cases 1 and 5 (the
+  actual exploit) fail against pre-fix main.
 - **Friends/pings/favorited-food-alerts schema: DONE and verified.** `profiles` (auto-created via an
   `after insert on auth.users` trigger — not a security boundary, just row creation),
   `friendships` (canonically ordered `user_a < user_b`, always insert via the `request_friendship(uuid)`
