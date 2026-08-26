@@ -41,6 +41,13 @@ jest.mock("./deleteServerData", () => ({
   deleteServerData: (...args: unknown[]) => mockDeleteServerData(...args),
 }));
 
+// #272: confirmDelete must wait for whatever self-heal is registered here (bounded) before calling
+// deleteServerData -- defaults to "nothing pending" so every test not about this race is unaffected.
+const mockPendingSelfHeal = jest.fn<Promise<void> | null, []>(() => null);
+jest.mock("./pendingSelfHeal", () => ({
+  pendingSelfHeal: () => mockPendingSelfHeal(),
+}));
+
 const mockRouterPush = jest.fn();
 const mockRouterBack = jest.fn();
 // privacy.tsx's refresh() always builds fresh objects (setCounts(deviceDataCounts(...)), a new
@@ -139,6 +146,7 @@ beforeEach(() => {
   mockToggleAlerts.mockResolvedValue({ error: null });
   mockRefreshAlerts.mockResolvedValue(undefined);
   mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
+  mockPendingSelfHeal.mockReturnValue(null);
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
@@ -456,6 +464,39 @@ describe("PrivacyScreen: delete server data", () => {
     });
 
     expect(mockRefreshAlerts).toHaveBeenCalled();
+  });
+
+  // #272 item B's delete-path mirror, red-first: on main, confirmDelete calls deleteServerData
+  // immediately with no await on pendingSelfHeal() -- a self-heal register_push_token call already
+  // in flight from this screen's own useFocusEffect refresh can land AFTER deleteServerData's
+  // push_tokens delete, with a still-live session, resurrecting the row Delete just removed.
+  it("#272: waits for an in-flight self-heal to settle before calling deleteServerData", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    let resolveHeal!: () => void;
+    mockPendingSelfHeal.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveHeal = resolve;
+      }),
+    );
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    let onPressPromise!: Promise<void>;
+    await act(async () => {
+      onPressPromise = confirmButton.onPress();
+      await Promise.resolve();
+    });
+
+    // Blocked on the self-heal -- deleteServerData must not have run yet.
+    expect(mockDeleteServerData).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveHeal();
+      await onPressPromise;
+    });
+
+    expect(mockDeleteServerData).toHaveBeenCalledWith(expect.anything(), "me");
   });
 
   it("#272: does NOT refresh the alerts hook when the delete has a genuinely retryable failure", async () => {

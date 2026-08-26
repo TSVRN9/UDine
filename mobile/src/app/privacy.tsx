@@ -10,6 +10,8 @@ import { acceptedFriendCount, alertsSubline, countLabel, deviceDataCounts, profi
 import { deleteServerData } from "../lib/deleteServerData";
 import { deriveSharedStatsPayloads, fieldsNeedingRefresh, sharedStatValueForToggle } from "../lib/privacySettings";
 import { useFavoriteFoodAlerts } from "../lib/favoriteFoodAlerts";
+import { pendingSelfHeal } from "../lib/pendingSelfHeal";
+import { withTimeout } from "../lib/withTimeout";
 import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
@@ -18,6 +20,10 @@ import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
 const seenDishesStorage = new SqliteSeenDishesStorage();
+
+// Same bounded wait as favoriteFoodAlerts.ts's toggle()-off and auth.ts's signOut() use for the
+// identical self-heal race (#272).
+const SELF_HEAL_WAIT_TIMEOUT_MS = 15000;
 
 type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null;
 
@@ -199,6 +205,22 @@ export default function PrivacyScreen() {
           generationRef.current += 1; // invalidate any in-flight refresh() re-push loop -- see #186/#241
           setDeleting(true);
           try {
+            // #272: the alerts hook's own refresh() (this screen's own useFocusEffect, above) can
+            // have a self-heal re-registration already in flight -- a real network round trip --
+            // when Delete is confirmed. Without waiting for it here, that self-heal's
+            // register_push_token can land AFTER deleteServerData's push_tokens delete, with a
+            // still-live session, resurrecting the row this delete just removed (send-ping-push
+            // doesn't gate on notifications_enabled, so ping pushes would keep arriving to a device
+            // whose server data the user just deleted). Same bounded await-before-delete ordering
+            // as favoriteFoodAlerts.ts's toggle()-off and auth.ts's signOut() use for this race.
+            const heal = pendingSelfHeal();
+            if (heal) {
+              try {
+                await withTimeout(heal, SELF_HEAL_WAIT_TIMEOUT_MS, "pendingSelfHeal (delete server data)");
+              } catch (e) {
+                console.warn("[privacy] confirmDelete: waiting for an in-flight self-heal timed out or failed -- proceeding with delete anyway", e);
+              }
+            }
             const result = await deleteServerData(supabase, myId);
             // #237: only a genuinely RETRYABLE failure gets "try again" copy -- profiles/
             // food_sightings show up in `undeletableSteps`, not `failedSteps`, precisely so this

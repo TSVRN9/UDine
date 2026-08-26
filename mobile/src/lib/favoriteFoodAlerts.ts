@@ -181,6 +181,16 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
             // PGRST202 (migration not applied) or a "must be signed in" raise left the switch ON
             // with no token registered -- silently dead alerts. #158/#165/#167 convention: revert
             // the optimistic flip and surface it instead of claiming success.
+            //
+            // Known ceiling: this reverts only the local `notificationsEnabled` state, not the
+            // profiles.update(notifications_enabled: next) write a few lines up, which already
+            // succeeded -- the server is left with notifications_enabled=true while this device's
+            // switch shows off. That's a deliberate no-op, not an oversight: the flag is the user's
+            // stored cross-device preference (same reasoning as signOut()'s own doc comment on why
+            // it never flips this flag), and refresh()'s self-heal (this hook's own mount/focus
+            // effect) will pick `true` back up on the very next focus and retry registration --
+            // exactly the repair #264 built. A server-side rollback here would be more surface for
+            // no real gain and would fight that self-heal instead of relying on it.
             console.warn("[push] toggleNotifications: register_push_token failed", rpcError);
             setNotificationsEnabled(!next);
             return { error: "Couldn't register this device" };
