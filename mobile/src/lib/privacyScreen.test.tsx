@@ -873,7 +873,11 @@ describe("PrivacyScreen: delete server data", () => {
     expect(mockRefreshAlerts).not.toHaveBeenCalled();
   });
 
-  it("stays silent (no follow-up alert) when every step, including profiles/food_sightings/qr_tokens, actually succeeds", async () => {
+  // #253 item 1: a fully clean delete (once profiles/food_sightings/qr_tokens ever get DELETE
+  // policies) must still tell the user something happened -- gating the success alert on
+  // `undeletableSteps.length > 0` means the moment every step succeeds, the screen gives zero
+  // feedback for a destructive action the user just confirmed.
+  it("still shows a success alert when every step, including profiles/food_sightings/qr_tokens, actually succeeds", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
     const root = await renderScreen();
@@ -884,8 +888,12 @@ describe("PrivacyScreen: delete server data", () => {
       await confirmButton.onPress();
     });
 
-    // Only the confirm dialog itself was shown -- no second alert.
-    expect(Alert.alert).toHaveBeenCalledTimes(1);
+    // Confirm dialog + a real success alert.
+    expect(Alert.alert).toHaveBeenCalledTimes(2);
+    expect(Alert.alert).toHaveBeenCalledWith("Server data deleted", expect.any(String));
+    const successMessage = (Alert.alert as jest.Mock).mock.calls.find((c) => c[0] === "Server data deleted")[1];
+    // Nothing stayed this time -- the residue clause (profile/food-sighting/etc) must not appear.
+    expect(successMessage).not.toMatch(/stay/i);
   });
 
   it("the confirm dialog and the row's own subline both name what actually gets deleted, not the stale profile-inclusive claim", async () => {
@@ -911,6 +919,10 @@ describe("PrivacyScreen: delete server data", () => {
     expect(body).toMatch(/push tokens/);
     expect(body).toMatch(/friend qr code/i);
     expect(body).toMatch(/turns off favorite-food alerts/i);
+    // #253 item 3: rank.tsx re-syncs favorite_dining_halls unconditionally on the very next
+    // comparison while signed in, so claiming the dining-hall removal is durable is misleading --
+    // the copy must say it comes back the next time the user ranks.
+    expect(message).toMatch(/dining halls synced for ping suggestions.*rank/i);
   });
 
   // #241: same hazard as #186's toggle test above, but for Delete instead of a toggle -- refresh()'s
