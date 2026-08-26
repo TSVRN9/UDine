@@ -133,3 +133,57 @@ test("an enqueuePing racing a concurrent flushQueuedPings doesn't lose the newly
   const queue = await getQueuedPings();
   expect(queue.map((p) => p.receiver_id)).toContain("raced-in");
 });
+
+// --- #240 finding A: a queue persisted across an app restart must still flush, and a stale ping
+// (queued hours ago, possibly a full app-lifetime ago) must be dropped rather than sent late ---
+
+test("flushQueuedPings drops a ping queued more than the max age ago, without attempting to send it, and does not requeue it", async () => {
+  jest.useFakeTimers().setSystemTime(new Date("2026-08-25T12:00:00.000Z"));
+  try {
+    await enqueuePing(ping({ receiver_id: "stale" }));
+
+    jest.setSystemTime(new Date("2026-08-25T18:00:01.000Z")); // just over 6h later
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    await flushQueuedPings({ from: () => ({ insert }) as never });
+
+    expect(insert).not.toHaveBeenCalled(); // dropped, never attempted -- a stale invite is worse than none
+    expect(await getQueuedPings()).toEqual([]);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("flushQueuedPings still sends a ping queued well within the max age", async () => {
+  jest.useFakeTimers().setSystemTime(new Date("2026-08-25T12:00:00.000Z"));
+  try {
+    await enqueuePing(ping({ receiver_id: "fresh" }));
+
+    jest.setSystemTime(new Date("2026-08-25T13:00:00.000Z")); // 1h later -- well under the ceiling
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    await flushQueuedPings({ from: () => ({ insert }) as never });
+
+    expect(insert).toHaveBeenCalledTimes(1);
+    expect(await getQueuedPings()).toEqual([]);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("flushQueuedPings sends a stale-but-not-yet-expired ping the plain PingInsertRow shape, not the internal queuedAt bookkeeping field", async () => {
+  const row = ping({ receiver_id: "shape-check" });
+  await enqueuePing(row);
+  const insert = jest.fn().mockResolvedValue({ error: null });
+  await flushQueuedPings({ from: () => ({ insert }) as never });
+  expect(insert).toHaveBeenCalledWith(row); // exact -- a stray queuedAt field would fail PostgREST's insert for real
+});
+
+test("flushQueuedPings drops a pre-#240 queued row with no queuedAt at all, treating unknown age as maximally stale", async () => {
+  // Simulates a ping enqueued by a build that predates this fix -- the persisted JSON never had a
+  // queuedAt field. Bypasses enqueuePing (which always stamps one now) to write that legacy shape
+  // directly, same as how a real device's already-persisted SQLite row would read back.
+  mockRows.set("queued_pings", JSON.stringify([ping({ receiver_id: "legacy" })]));
+  const insert = jest.fn().mockResolvedValue({ error: null });
+  await flushQueuedPings({ from: () => ({ insert }) as never });
+  expect(insert).not.toHaveBeenCalled();
+  expect(await getQueuedPings()).toEqual([]);
+});

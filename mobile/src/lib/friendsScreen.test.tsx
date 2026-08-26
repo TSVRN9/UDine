@@ -18,10 +18,12 @@ jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }));
 
-/** Chainable query-builder stub. `.insert`/`.update` resolve to a configurable `{ error }`;
- * every other method is chain-through, resolving `.then()` to the fixed row set a test supplies
- * for that table -- same shape as friendProfileScreen.test.tsx's `table()`. */
-function table(rows: Record<string, unknown>[], opts: { insertError?: unknown; updateError?: unknown } = {}) {
+/** Chainable query-builder stub. `.update` resolves to a configurable `{ error }`; every other
+ * method is chain-through, resolving `.then()` to the fixed row set a test supplies for that
+ * table -- same shape as friendProfileScreen.test.tsx's `table()`. No `.insert` stub: the only
+ * insert this screen used to do directly (`pings`) now goes through the mocked sendOrQueuePing
+ * above, not a raw `supabase.from("pings")` call -- see the #231 comment on that mock. */
+function table(rows: Record<string, unknown>[], opts: { updateError?: unknown } = {}) {
   const builder: Record<string, unknown> = {};
   const chain = () => builder;
   builder.select = chain;
@@ -32,7 +34,6 @@ function table(rows: Record<string, unknown>[], opts: { insertError?: unknown; u
   builder.ilike = chain;
   builder.neq = chain;
   builder.limit = chain;
-  builder.insert = jest.fn().mockResolvedValue({ data: null, error: opts.insertError ?? null });
   builder.then = (resolve: (v: { data: unknown[] }) => void) => resolve({ data: rows });
 
   // .update(...).eq(...).eq(...) resolves separately from the plain select chain above -- it must
@@ -60,6 +61,18 @@ jest.mock("../lib/supabase", () => ({
   },
 }));
 
+// #231: friends.tsx's ping send now routes through pingQueue.ts's sendOrQueuePing (same call
+// SocialPane.tsx already used, per #215) instead of calling supabase.from("pings").insert directly
+// -- so ping-send behavior here is driven by mocking that outcome, not a "pings" table stub.
+// sendOrQueuePing itself touches real SQLite (via ./db -> expo-sqlite) to enqueue on a transient
+// failure, which can't run under jest (see pingQueue.test.ts's own comment on the confirmed
+// "NativeDatabase is not a constructor" error) -- mocked flat here, same technique as
+// SocialPane.test.tsx.
+const mockSendOrQueuePing = jest.fn().mockResolvedValue("sent");
+jest.mock("../lib/pingQueue", () => ({
+  sendOrQueuePing: (...args: unknown[]) => mockSendOrQueuePing(...args),
+}));
+
 import renderer, { act } from "react-test-renderer";
 import { Alert, Text, TextInput } from "react-native";
 import { supabase } from "../lib/supabase";
@@ -83,11 +96,13 @@ function findPressableByText(root: renderer.ReactTestRenderer, label: string) {
   return node;
 }
 
-function mockTables(opts: { friendshipRows?: Record<string, unknown>[]; profiles?: Record<string, unknown>[]; pingInsertError?: unknown; friendshipUpdateError?: unknown }) {
+function mockTables(opts: { friendshipRows?: Record<string, unknown>[]; profiles?: Record<string, unknown>[]; friendshipUpdateError?: unknown }) {
   mockFrom.mockImplementation((name: string) => {
     if (name === "friendships") return table(opts.friendshipRows ?? [], { updateError: opts.friendshipUpdateError });
     if (name === "profiles") return table(opts.profiles ?? []);
-    if (name === "pings") return table([], { insertError: opts.pingInsertError });
+    // refresh() also selects the pings inbox (unrelated to ping SEND, which now goes through the
+    // mocked sendOrQueuePing above) -- always hit on every render, so every test needs a fallback.
+    if (name === "pings") return table([]);
     throw new Error(`unexpected table ${name}`);
   });
 }
@@ -111,6 +126,7 @@ let alertSpy: jest.SpyInstance;
 beforeEach(() => {
   jest.clearAllMocks();
   mockRpc.mockResolvedValue({ data: null, error: null });
+  mockSendOrQueuePing.mockResolvedValue("sent");
   (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
 });
@@ -120,14 +136,15 @@ afterEach(() => {
 });
 
 describe("FriendsBody", () => {
-  // Issue #146 (site 2): a discarded pings insert error used to leave the caller with no
-  // indication the ping never sent, and it cleared the typed message as if it had.
-  it("alerts failure and keeps the typed message when the pings insert is rejected", async () => {
+  // Issue #146 (site 2), still true after #231's routing change: a genuine RLS rejection
+  // (sendOrQueuePing's "rejected" outcome) must alert and leave the caller with no indication the
+  // ping never sent, keeping the typed message rather than clearing it as if it had.
+  it("alerts failure and keeps the typed message when the ping is permanently rejected (RLS)", async () => {
     mockTables({
       friendshipRows: [{ user_a: "me", user_b: "friend-1", status: "accepted", requested_by: "me" }],
       profiles: [{ user_id: "friend-1", display_name: "Casey" }],
-      pingInsertError: { message: "row-level security policy violation" },
     });
+    mockSendOrQueuePing.mockResolvedValue("rejected");
     const root = await renderFriends();
 
     const input = root.root.findAllByType(TextInput).find((n) => n.props.placeholder === "message (optional)")!;
@@ -149,6 +166,7 @@ describe("FriendsBody", () => {
       friendshipRows: [{ user_a: "me", user_b: "friend-1", status: "accepted", requested_by: "me" }],
       profiles: [{ user_id: "friend-1", display_name: "Casey" }],
     });
+    mockSendOrQueuePing.mockResolvedValue("sent");
     const root = await renderFriends();
 
     const input = root.root.findAllByType(TextInput).find((n) => n.props.placeholder === "message (optional)")!;
@@ -161,6 +179,34 @@ describe("FriendsBody", () => {
     });
 
     expect(Alert.alert).not.toHaveBeenCalled();
+    const inputAfter = root.root.findAllByType(TextInput).find((n) => n.props.placeholder === "message (optional)")!;
+    expect(inputAfter.props.value).toBe("");
+  });
+
+  // #231 -- the actual fix: this call site used to go through sendPingGuarded, which treated a
+  // transient (network) failure exactly like a permanent RLS rejection -- same misleading "not
+  // friends (yet)" alert, ping just discarded, no queueing. Routed through sendOrQueuePing now, so
+  // a transient failure queues (and will flush on reconnect) instead of being dropped; the caller
+  // sees this as a "queued" outcome, no different from success from the sender's point of view.
+  it("#231: a transient (queued) failure does not show the misleading 'not friends' alert, and clears the typed message like a success", async () => {
+    mockTables({
+      friendshipRows: [{ user_a: "me", user_b: "friend-1", status: "accepted", requested_by: "me" }],
+      profiles: [{ user_id: "friend-1", display_name: "Casey" }],
+    });
+    mockSendOrQueuePing.mockResolvedValue("queued");
+    const root = await renderFriends();
+
+    const input = root.root.findAllByType(TextInput).find((n) => n.props.placeholder === "message (optional)")!;
+    act(() => {
+      input.props.onChangeText("come thru");
+    });
+    const pingButton = findPressableByText(root, 'Ping "come eat with me"');
+    await act(async () => {
+      pingButton.props.onPress();
+    });
+
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(mockSendOrQueuePing).toHaveBeenCalledWith(supabase, { sender_id: "me", receiver_id: "friend-1", hall_tid: null, message: "come thru" });
     const inputAfter = root.root.findAllByType(TextInput).find((n) => n.props.placeholder === "message (optional)")!;
     expect(inputAfter.props.value).toBe("");
   });

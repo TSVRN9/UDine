@@ -5,7 +5,7 @@ import { router, useFocusEffect } from "expo-router";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Button, Card, EmptyState } from "../components/ui";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
-import { sendPingGuarded } from "../lib/sendPing";
+import { sendOrQueuePing } from "../lib/pingQueue";
 import { supabase } from "../lib/supabase";
 
 type Profile = { user_id: string; display_name: string };
@@ -112,13 +112,20 @@ export function FriendsBody() {
     refresh();
   }
 
+  // #231: this used to go through sendPingGuarded, which discards a transient (network) failure
+  // exactly like an RLS rejection -- same misleading "not friends (yet)" copy, and the ping itself
+  // was just dropped with nowhere to go. Routes through sendOrQueuePing instead (added by #215/
+  // pingQueue.ts) so a transient failure is queued and flushed on the next reconnect, and only a
+  // genuine RLS rejection surfaces this alert.
   async function sendPing(otherId: string) {
     const myId = session?.user.id;
     if (!myId) return;
-    const ok = await sendPingGuarded(supabase, { sender_id: myId, receiver_id: otherId, hall_tid: pingHallTid[otherId] ?? null, message: pingMessage[otherId] || null });
-    if (ok) {
-      setPingMessage((prev) => ({ ...prev, [otherId]: "" }));
+    const outcome = await sendOrQueuePing(supabase, { sender_id: myId, receiver_id: otherId, hall_tid: pingHallTid[otherId] ?? null, message: pingMessage[otherId] || null });
+    if (outcome === "rejected") {
+      Alert.alert("Couldn't send ping", "You may not be friends with this person (yet).");
+      return;
     }
+    setPingMessage((prev) => ({ ...prev, [otherId]: "" }));
   }
 
   if (!session) {

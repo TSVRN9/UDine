@@ -21,6 +21,25 @@ import type { PingInsertRow } from "./sendPing";
  */
 const KEY = "queued_pings";
 
+// #240 finding A: a queue that only ever flushed on an in-session offline->online transition could
+// sit across an app restart until some future dip happened to occur, at which point it sent a
+// "come eat with me" ping that was actually hours/days stale. A queued ping older than this is
+// dropped instead of sent -- a stale meal invitation is worse than no invitation.
+// ponytail: fixed 6h ceiling (roughly a full day's worth of meal periods), not user-configurable --
+// revisit if that turns out too short/long in practice.
+const MAX_QUEUE_AGE_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Row shape actually persisted to SQLite -- `queuedAt` is bookkeeping for the age check above. It's
+ * stripped back down to a plain `PingInsertRow` before ever being sent to Supabase (see
+ * `flushQueuedPings`) and never exposed via `getQueuedPings` (callers/tests still see plain
+ * `PingInsertRow`s, same contract as before #240). A row read back with no `queuedAt` at all (queued
+ * by a build that predates this fix) is treated as maximally stale -- exactly the "possibly
+ * days-old" case #240 is worried about -- so it's dropped on the very next flush rather than sent
+ * with an unknown, possibly very old, age.
+ */
+type QueuedPing = PingInsertRow & { queuedAt: number };
+
 /**
  * A network-shaped failure is transient and worth queueing/retrying; a real PostgREST/Postgres
  * rejection (RLS 42501 -- not actually friends, expired session, ...) is permanent and never will
@@ -51,13 +70,14 @@ function serialized<T>(run: () => Promise<T>): Promise<T> {
   return result;
 }
 
-async function readQueue(): Promise<PingInsertRow[]> {
+async function readQueue(): Promise<QueuedPing[]> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ value_json: string }>("SELECT value_json FROM preferences_kv WHERE key = ?", KEY);
-  return row ? JSON.parse(row.value_json) : [];
+  const parsed: (PingInsertRow & { queuedAt?: number })[] = row ? JSON.parse(row.value_json) : [];
+  return parsed.map((p) => ({ ...p, queuedAt: typeof p.queuedAt === "number" ? p.queuedAt : 0 }));
 }
 
-async function writeQueueRows(rows: PingInsertRow[]): Promise<void> {
+async function writeQueueRows(rows: QueuedPing[]): Promise<void> {
   const db = await getDb();
   await db.runAsync("INSERT OR REPLACE INTO preferences_kv (key, value_json) VALUES (?, ?)", KEY, JSON.stringify(rows));
 }
@@ -88,13 +108,13 @@ export async function sendOrQueuePing(client: Pick<SupabaseClient, "from">, row:
 export function enqueuePing(row: PingInsertRow): Promise<void> {
   return serialized(async () => {
     const queue = await readQueue();
-    queue.push(row);
+    queue.push({ ...row, queuedAt: Date.now() });
     await writeQueueRows(queue);
   });
 }
 
 export function getQueuedPings(): Promise<PingInsertRow[]> {
-  return serialized(readQueue);
+  return serialized(async () => (await readQueue()).map(({ queuedAt: _queuedAt, ...row }) => row));
 }
 
 /**
@@ -103,19 +123,24 @@ export function getQueuedPings(): Promise<PingInsertRow[]> {
  * rejection) is dropped -- retrying it forever would silently waste requests and never tell the
  * user it was actually rejected -- and surfaced once via a single Alert covering however many
  * permanent drops happened in this flush (not one Alert per row, which would spam the user if
- * several queued pings all reject at once).
+ * several queued pings all reject at once). A ping older than MAX_QUEUE_AGE_MS (#240 finding A) is
+ * dropped without even attempting to send it -- silently, no Alert, same as any other queue
+ * housekeeping that isn't a user-facing rejection.
  */
 export async function flushQueuedPings(client: Pick<SupabaseClient, "from">): Promise<void> {
   return serialized(async () => {
     const queue = await readQueue();
     if (queue.length === 0) return;
 
-    const remaining: PingInsertRow[] = [];
+    const now = Date.now();
+    const remaining: QueuedPing[] = [];
     let permanentlyDropped = 0;
-    for (const ping of queue) {
-      const { error } = await client.from("pings").insert(ping);
+    for (const queued of queue) {
+      if (now - queued.queuedAt > MAX_QUEUE_AGE_MS) continue;
+      const { queuedAt: _queuedAt, ...row } = queued;
+      const { error } = await client.from("pings").insert(row);
       if (error) {
-        if (isTransientPingError(error)) remaining.push(ping);
+        if (isTransientPingError(error)) remaining.push(queued);
         else permanentlyDropped++;
       }
     }
