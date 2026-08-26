@@ -1,7 +1,12 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { Alert } from "react-native";
 import { getDb } from "./db";
-import type { PingInsertRow } from "./sendPing";
+
+// #294: moved here from the now-deleted sendPing.ts (its only export, `sendPingGuarded`, had no
+// production callers left once friend/[id].tsx/friends.tsx/SocialPane.tsx all routed through this
+// file's own sendOrQueuePing instead -- see #181/#231/#294) -- this file is now the one real
+// consumer of the shared `pings` insert row shape.
+export type PingInsertRow = { sender_id: string; receiver_id: string; hall_tid: number | null; message: string | null };
 
 /**
  * #181's "Pings queue and send on reconnect" -- SocialPane sends a ping straight to Supabase when
@@ -126,8 +131,20 @@ export function getQueuedPings(): Promise<PingInsertRow[]> {
  * several queued pings all reject at once). A ping older than MAX_QUEUE_AGE_MS (#240 finding A) is
  * dropped without even attempting to send it -- silently, no Alert, same as any other queue
  * housekeeping that isn't a user-facing rejection.
+ *
+ * #294: SocialPane.tsx's loadEvents now calls this unconditionally on every successful load
+ * (#240 finding A), including before any session check -- so a queue left over from a previously
+ * signed-in session would otherwise attempt to flush while signed out, hit `pings`' RLS with no
+ * `auth.uid()` at all, get a permanent rejection, and surface a one-time "You may not be friends
+ * with the recipient (yet)." alert to a signed-out user. No-op without a session instead --
+ * left queued for whenever someone next signs in and this runs again.
  */
-export async function flushQueuedPings(client: Pick<SupabaseClient, "from">): Promise<void> {
+export async function flushQueuedPings(client: Pick<SupabaseClient, "from"> & { auth: Pick<SupabaseClient["auth"], "getSession"> }): Promise<void> {
+  const {
+    data: { session },
+  } = await client.auth.getSession();
+  if (!session) return;
+
   return serialized(async () => {
     const queue = await readQueue();
     if (queue.length === 0) return;

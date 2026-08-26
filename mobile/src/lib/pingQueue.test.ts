@@ -12,13 +12,23 @@ jest.mock("expo-sqlite", () => ({
 }));
 
 import { Alert } from "react-native";
-import { enqueuePing, flushQueuedPings, getQueuedPings, isTransientPingError, sendOrQueuePing } from "./pingQueue";
-import type { PingInsertRow } from "./sendPing";
+import { enqueuePing, flushQueuedPings, getQueuedPings, isTransientPingError, sendOrQueuePing, type PingInsertRow } from "./pingQueue";
 
 beforeEach(() => mockRows.clear());
 
 function ping(overrides: Partial<PingInsertRow> = {}): PingInsertRow {
   return { sender_id: "me", receiver_id: "friend", hall_tid: 1, message: null, ...overrides };
+}
+
+/** Fake client for flushQueuedPings -- a signed-in session by default (every existing test here
+ * predates #294's signed-out guard and assumes one), an `insert` mock a test controls directly.
+ * Pass `{ signedIn: false }` for the one test below that exercises the guard itself. */
+function fakeClient(insert: jest.Mock, opts: { signedIn?: boolean } = {}) {
+  const signedIn = opts.signedIn ?? true;
+  return {
+    from: () => ({ insert }),
+    auth: { getSession: async () => ({ data: { session: signedIn ? { user: { id: "me" } } : null } }) },
+  } as never;
 }
 
 test("enqueuePing/getQueuedPings round-trips in FIFO order", async () => {
@@ -36,7 +46,7 @@ test("flushQueuedPings sends every queued ping and clears the queue on full succ
   await enqueuePing(ping({ receiver_id: "a" }));
   await enqueuePing(ping({ receiver_id: "b" }));
   const insert = jest.fn().mockResolvedValue({ error: null });
-  await flushQueuedPings({ from: () => ({ insert }) as never });
+  await flushQueuedPings(fakeClient(insert));
   expect(insert).toHaveBeenCalledTimes(2);
   expect(await getQueuedPings()).toEqual([]);
 });
@@ -48,15 +58,33 @@ test("flushQueuedPings leaves a ping queued if it fails again, but still sends/d
     .fn()
     .mockResolvedValueOnce({ error: { message: "still offline" } }) // "a" fails again
     .mockResolvedValueOnce({ error: null }); // "b" succeeds
-  await flushQueuedPings({ from: () => ({ insert }) as never });
+  await flushQueuedPings(fakeClient(insert));
   const remaining = await getQueuedPings();
   expect(remaining.map((p) => p.receiver_id)).toEqual(["a"]);
 });
 
 test("flushQueuedPings is a no-op when nothing is queued", async () => {
   const insert = jest.fn();
-  await flushQueuedPings({ from: () => ({ insert }) as never });
+  await flushQueuedPings(fakeClient(insert));
   expect(insert).not.toHaveBeenCalled();
+});
+
+// #294: SocialPane.tsx's loadEvents (#240 finding A) now calls flushQueuedPings unconditionally
+// on every successful load, with no session check of its own -- a queue left over from a
+// previously signed-in session would otherwise attempt to flush while signed out, hit `pings`'
+// RLS with no auth.uid() at all, and surface a misleading "not friends" alert to a signed-out
+// user. Guarded here instead: no session, no attempt, and the queue is left untouched for
+// whenever someone next signs in.
+test("flushQueuedPings no-ops without a session, leaving the queue untouched", async () => {
+  await enqueuePing(ping({ receiver_id: "a" }));
+  // Resolved, not a bare jest.fn(): the pre-#294 guard case would otherwise attempt to send
+  // through this same insert and crash destructuring `{error}` off `undefined` -- a TypeError,
+  // not the actual assertion below, is a weaker/dishonest red (same lesson as #294's PR review on
+  // the sibling #231 test). Giving it a resolved value here makes the red the real assertion.
+  const insert = jest.fn().mockResolvedValue({ error: null });
+  await flushQueuedPings(fakeClient(insert, { signedIn: false }));
+  expect(insert).not.toHaveBeenCalled();
+  expect(await getQueuedPings()).toEqual([ping({ receiver_id: "a" })]);
 });
 
 // --- #181 review finding 1/7: transient (network) vs permanent (RLS) classification ---
@@ -76,7 +104,7 @@ test("flushQueuedPings drops a permanently-rejected (RLS) ping instead of requeu
     .fn()
     .mockResolvedValueOnce({ error: { message: "not friends", code: "42501" } }) // "a" -- permanent, dropped
     .mockResolvedValueOnce({ error: { message: "still offline", code: "" } }); // "b" -- transient, stays queued
-  await flushQueuedPings({ from: () => ({ insert }) as never });
+  await flushQueuedPings(fakeClient(insert));
   const remaining = await getQueuedPings();
   expect(remaining.map((p) => p.receiver_id)).toEqual(["b"]); // "a" dropped, not retried forever
   expect(alertSpy).toHaveBeenCalledTimes(1);
@@ -87,7 +115,7 @@ test("flushQueuedPings does not alert when every failure this flush was transien
   const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   await enqueuePing(ping());
   const insert = jest.fn().mockResolvedValue({ error: { message: "still offline", code: "" } });
-  await flushQueuedPings({ from: () => ({ insert }) as never });
+  await flushQueuedPings(fakeClient(insert));
   expect(alertSpy).not.toHaveBeenCalled();
   alertSpy.mockRestore();
 });
@@ -127,11 +155,16 @@ test("a Promise.all of concurrent enqueuePing calls doesn't lose either ping (sa
 test("an enqueuePing racing a concurrent flushQueuedPings doesn't lose the newly-queued ping", async () => {
   await enqueuePing(ping({ receiver_id: "already-queued" }));
   const insert = jest.fn().mockResolvedValue({ error: null }); // flush succeeds -- would clear the queue
-  await Promise.all([flushQueuedPings({ from: () => ({ insert }) as never }), enqueuePing(ping({ receiver_id: "raced-in" }))]);
+  await Promise.all([flushQueuedPings(fakeClient(insert)), enqueuePing(ping({ receiver_id: "raced-in" }))]);
   // Whichever actually ran second (serialized, not interleaved) sees the other's effect --
-  // "raced-in" must survive somewhere, never silently dropped by an overlapping read-modify-write.
+  // "raced-in" must survive SOMEWHERE: either it's still queued (flush's read missed it and ran
+  // first), or it was actually sent (flush's read caught it and the mocked insert -- which always
+  // succeeds here -- delivered it, correctly clearing it from the queue). #294's session-check
+  // `await` ahead of the serialized section means flush no longer always wins that race the way it
+  // used to, so both outcomes are legitimate -- what must never happen is landing in neither.
   const queue = await getQueuedPings();
-  expect(queue.map((p) => p.receiver_id)).toContain("raced-in");
+  const wasSent = insert.mock.calls.some(([row]: [{ receiver_id: string }]) => row.receiver_id === "raced-in");
+  expect(queue.some((p) => p.receiver_id === "raced-in") || wasSent).toBe(true);
 });
 
 // --- #240 finding A: a queue persisted across an app restart must still flush, and a stale ping
@@ -144,7 +177,7 @@ test("flushQueuedPings drops a ping queued more than the max age ago, without at
 
     jest.setSystemTime(new Date("2026-08-25T18:00:01.000Z")); // just over 6h later
     const insert = jest.fn().mockResolvedValue({ error: null });
-    await flushQueuedPings({ from: () => ({ insert }) as never });
+    await flushQueuedPings(fakeClient(insert));
 
     expect(insert).not.toHaveBeenCalled(); // dropped, never attempted -- a stale invite is worse than none
     expect(await getQueuedPings()).toEqual([]);
@@ -160,7 +193,7 @@ test("flushQueuedPings still sends a ping queued well within the max age", async
 
     jest.setSystemTime(new Date("2026-08-25T13:00:00.000Z")); // 1h later -- well under the ceiling
     const insert = jest.fn().mockResolvedValue({ error: null });
-    await flushQueuedPings({ from: () => ({ insert }) as never });
+    await flushQueuedPings(fakeClient(insert));
 
     expect(insert).toHaveBeenCalledTimes(1);
     expect(await getQueuedPings()).toEqual([]);
@@ -173,7 +206,7 @@ test("flushQueuedPings sends a stale-but-not-yet-expired ping the plain PingInse
   const row = ping({ receiver_id: "shape-check" });
   await enqueuePing(row);
   const insert = jest.fn().mockResolvedValue({ error: null });
-  await flushQueuedPings({ from: () => ({ insert }) as never });
+  await flushQueuedPings(fakeClient(insert));
   expect(insert).toHaveBeenCalledWith(row); // exact -- a stray queuedAt field would fail PostgREST's insert for real
 });
 
@@ -183,7 +216,7 @@ test("flushQueuedPings drops a pre-#240 queued row with no queuedAt at all, trea
   // directly, same as how a real device's already-persisted SQLite row would read back.
   mockRows.set("queued_pings", JSON.stringify([ping({ receiver_id: "legacy" })]));
   const insert = jest.fn().mockResolvedValue({ error: null });
-  await flushQueuedPings({ from: () => ({ insert }) as never });
+  await flushQueuedPings(fakeClient(insert));
   expect(insert).not.toHaveBeenCalled();
   expect(await getQueuedPings()).toEqual([]);
 });

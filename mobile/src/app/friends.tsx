@@ -44,7 +44,13 @@ export function FriendsBody() {
     const myId = session?.user.id;
     if (!myId) return;
 
-    const { data: fs } = await supabase.from("friendships").select("*").or(`user_a.eq.${myId},user_b.eq.${myId}`);
+    const { data: fs, error } = await supabase.from("friendships").select("*").or(`user_a.eq.${myId},user_b.eq.${myId}`);
+    // #294 (root-caused off #240 finding B): postgrest-js resolves `{data: null, error}` on a
+    // network failure rather than throwing -- this used to discard `error` entirely, so a
+    // transient failure on focus silently wiped the friends list to "no friends yet" (same bug
+    // SocialPane.tsx's own refresh() had). Bail out and keep the last-known list instead, same
+    // truthful-UI convention as #158/#165/#167.
+    if (error) return;
     setFriendships(fs ?? []);
 
     const otherIds = (fs ?? []).map((f) => otherUserId(f, myId));

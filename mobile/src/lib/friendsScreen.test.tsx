@@ -20,10 +20,12 @@ jest.mock("expo-router", () => ({
 
 /** Chainable query-builder stub. `.update` resolves to a configurable `{ error }`; every other
  * method is chain-through, resolving `.then()` to the fixed row set a test supplies for that
- * table -- same shape as friendProfileScreen.test.tsx's `table()`. No `.insert` stub: the only
- * insert this screen used to do directly (`pings`) now goes through the mocked sendOrQueuePing
- * above, not a raw `supabase.from("pings")` call -- see the #231 comment on that mock. */
-function table(rows: Record<string, unknown>[], opts: { updateError?: unknown } = {}) {
+ * table (or, if `opts.selectError` is set, to `{data: null, error}` -- postgrest-js's real
+ * network-failure shape -- for the #294 finding-B-sibling test below) -- same shape as
+ * friendProfileScreen.test.tsx's `table()`. No `.insert` stub: the only insert this screen used to
+ * do directly (`pings`) now goes through the mocked sendOrQueuePing above, not a raw
+ * `supabase.from("pings")` call -- see the #231 comment on that mock. */
+function table(rows: Record<string, unknown>[], opts: { updateError?: unknown; selectError?: unknown } = {}) {
   const builder: Record<string, unknown> = {};
   const chain = () => builder;
   builder.select = chain;
@@ -34,7 +36,8 @@ function table(rows: Record<string, unknown>[], opts: { updateError?: unknown } 
   builder.ilike = chain;
   builder.neq = chain;
   builder.limit = chain;
-  builder.then = (resolve: (v: { data: unknown[] }) => void) => resolve({ data: rows });
+  builder.then = (resolve: (v: { data: unknown[] | null; error?: unknown }) => void) =>
+    resolve(opts.selectError ? { data: null, error: opts.selectError } : { data: rows });
 
   // .update(...).eq(...).eq(...) resolves separately from the plain select chain above -- it must
   // resolve `{ error }`, not `{ data: rows }`, or acceptFriend's own error check never sees it.
@@ -226,6 +229,47 @@ describe("FriendsBody", () => {
     });
 
     expect(Alert.alert).toHaveBeenCalledWith("Couldn't accept friend request", expect.any(String));
+  });
+
+  // #294 (root-caused off #240 finding B): friends.tsx's own refresh() discarded the friendships
+  // query's `error` the exact same way SocialPane.tsx's refresh() did -- a transient failure on
+  // ANY refresh (here, the one acceptFriend triggers on its own success) silently wiped the whole
+  // friends list to "no friends yet", not just failed the accept that triggered it.
+  it("#294: a failed friendships refresh keeps the last-known friends list instead of wiping it", async () => {
+    let friendshipsShouldFail = false;
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "friendships") {
+        return table(
+          [
+            { user_a: "me", user_b: "alex-1", status: "accepted", requested_by: "me" },
+            { user_a: "sam-1", user_b: "me", status: "pending", requested_by: "sam-1" },
+          ],
+          { selectError: friendshipsShouldFail ? { message: "network down" } : undefined },
+        );
+      }
+      if (name === "profiles")
+        return table([
+          { user_id: "alex-1", display_name: "Alex" },
+          { user_id: "sam-1", display_name: "Sam" },
+        ]);
+      if (name === "pings") return table([]);
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    const root = await renderFriends();
+    expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Alex")).toBe(true);
+
+    // Flip AFTER the initial successful render -- acceptFriend's own `.update()` call still needs
+    // to succeed (it's a separate builder, unaffected by `selectError`); it's the SELECT refresh()
+    // runs right after that must now fail.
+    friendshipsShouldFail = true;
+    const acceptButton = findPressableByText(root, "Accept");
+    await act(async () => {
+      acceptButton.props.onPress();
+    });
+
+    // Still there -- not wiped to "no friends yet" by the failed refresh.
+    expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Alex")).toBe(true);
   });
 
   it("alerts failure and keeps the search results when the request_friendship rpc is rejected", async () => {
