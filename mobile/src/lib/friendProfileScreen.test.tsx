@@ -26,9 +26,10 @@ jest.mock("react-native-safe-area-context", () => ({
 /** Chainable query-builder stub that actually applies `.eq()` filters against the given rows
  * (rather than ignoring them and returning whatever was pre-baked) -- the whole point of these
  * tests is proving the *query itself* asks for status = 'accepted', not just that the component
- * renders correctly given already-filtered data. `.insert()` is separately controllable per test
- * via `opts.insertError`. */
-function table(rows: Record<string, unknown>[], opts: { insertError?: unknown } = {}) {
+ * renders correctly given already-filtered data. No `.insert()` stub: the only insert this screen
+ * used to do directly (`pings`) now goes through the mocked sendOrQueuePing above -- see the #294
+ * comment on that mock. */
+function table(rows: Record<string, unknown>[]) {
   let filtered = rows;
   const builder: Record<string, unknown> = {};
   builder.select = () => builder;
@@ -37,7 +38,6 @@ function table(rows: Record<string, unknown>[], opts: { insertError?: unknown } 
     return builder;
   };
   builder.maybeSingle = () => Promise.resolve({ data: filtered[0] ?? null, error: null });
-  builder.insert = jest.fn().mockResolvedValue({ data: null, error: opts.insertError ?? null });
   builder.then = (resolve: (v: { data: unknown[] }) => void) => resolve({ data: filtered });
   return builder;
 }
@@ -48,6 +48,17 @@ jest.mock("./supabase", () => ({
     auth: { getSession: jest.fn() },
     from: (...args: unknown[]) => mockFrom(...args),
   },
+}));
+
+// #294: friend/[id].tsx's ping send now routes through pingQueue.ts's sendOrQueuePing (same fix
+// as friends.tsx/#231) instead of a raw supabase.from("pings").insert -- so ping-send behavior is
+// driven by mocking that outcome, not a "pings" table insert stub. sendOrQueuePing itself touches
+// real SQLite on a transient failure (via ./db -> expo-sqlite), which can't run under jest (see
+// pingQueue.test.ts's own comment on the confirmed "NativeDatabase is not a constructor" error) --
+// mocked flat here, same technique as friendsScreen.test.tsx/SocialPane.test.tsx.
+const mockSendOrQueuePing = jest.fn().mockResolvedValue("sent");
+jest.mock("./pingQueue", () => ({
+  sendOrQueuePing: (...args: unknown[]) => mockSendOrQueuePing(...args),
 }));
 
 import renderer, { act } from "react-test-renderer";
@@ -89,7 +100,6 @@ function mockTables(opts: {
   profile?: Record<string, unknown> | null;
   friendshipRows?: Record<string, unknown>[];
   sharedStats?: Record<string, unknown> | null;
-  insertError?: unknown;
 }) {
   // `.eq("user_id", id)` in the real query needs a matching key to survive `table()`'s filter --
   // the fixture only spells out the three stat columns, so inject it here rather than in every
@@ -104,7 +114,6 @@ function mockTables(opts: {
     if (name === "profiles") return table(opts.profile ? [opts.profile] : []);
     if (name === "friendships") return table(opts.friendshipRows ?? []);
     if (name === "shared_stats") return table(sharedStatsRow ? [sharedStatsRow] : []);
-    if (name === "pings") return table([], { insertError: opts.insertError });
     throw new Error(`unexpected table ${name}`);
   });
 }
@@ -133,6 +142,7 @@ let alertSpy: jest.SpyInstance;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSendOrQueuePing.mockResolvedValue("sent");
   (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
 });
@@ -290,8 +300,10 @@ describe("FriendProfileScreen", () => {
   });
 
   // Review finding #2: a discarded insert error used to alert a confirmed "Ping sent" regardless.
-  it("alerts failure, not success, when the pings insert is rejected (e.g. RLS: not actually friends)", async () => {
-    mockTables({ profile: { user_id: "friend-1", display_name: "Casey" }, insertError: { message: "row-level security policy violation" } });
+  // Now driven by sendOrQueuePing's "rejected" outcome (a genuine RLS rejection), not a raw insert.
+  it("alerts failure, not success, when the ping is permanently rejected (e.g. RLS: not actually friends)", async () => {
+    mockTables({ profile: { user_id: "friend-1", display_name: "Casey" } });
+    mockSendOrQueuePing.mockResolvedValue("rejected");
     const root = await renderScreen();
     const button = findPingButton(root);
     await act(async () => {
@@ -301,13 +313,31 @@ describe("FriendProfileScreen", () => {
     expect(Alert.alert).not.toHaveBeenCalledWith("Ping sent", expect.anything());
   });
 
-  it("alerts success when the pings insert succeeds", async () => {
+  it("alerts success when the ping actually sends", async () => {
     mockTables({ profile: { user_id: "friend-1", display_name: "Casey" } });
+    mockSendOrQueuePing.mockResolvedValue("sent");
     const root = await renderScreen();
     const button = findPingButton(root);
     await act(async () => {
       button.props.onPress();
     });
     expect(Alert.alert).toHaveBeenCalledWith("Ping sent", expect.any(String));
+  });
+
+  // #294 (root-caused off #231/#215): this screen's ping send used to call
+  // supabase.from("pings").insert directly and treat ANY error -- transient network failure
+  // included -- as the same "not friends (yet)" rejection, discarding the ping with no queueing.
+  // Now routed through sendOrQueuePing: a transient failure must queue (own honest copy), never
+  // show the misleading rejection alert.
+  it("#294: a transient (queued) failure shows honest 'queued' copy, not the misleading 'not friends' rejection alert", async () => {
+    mockTables({ profile: { user_id: "friend-1", display_name: "Casey" } });
+    mockSendOrQueuePing.mockResolvedValue("queued");
+    const root = await renderScreen();
+    const button = findPingButton(root);
+    await act(async () => {
+      button.props.onPress();
+    });
+    expect(Alert.alert).not.toHaveBeenCalledWith("Couldn't send ping", expect.anything());
+    expect(Alert.alert).toHaveBeenCalledWith("Ping queued", expect.any(String));
   });
 });

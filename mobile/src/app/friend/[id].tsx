@@ -6,6 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { pillTone } from "../../lib/youPaneFormat";
+import { sendOrQueuePing } from "../../lib/pingQueue";
 import { supabase } from "../../lib/supabase";
 
 type Profile = { user_id: string; display_name: string };
@@ -148,16 +149,24 @@ export default function FriendProfileScreen() {
     }, [refresh]),
   );
 
+  // #294 (root-caused off #231/#215): this used to call supabase.from("pings").insert directly
+  // and treat ANY error the same way -- a discarded/misclassified error here used to alert a
+  // confirmed "sent" for a ping that never existed (review finding #2), and even after that fix a
+  // transient (network) failure still showed the same misleading "not friends" copy as a genuine
+  // RLS rejection, with the ping just discarded. Routed through pingQueue.ts's sendOrQueuePing
+  // (same fix as friends.tsx/#231, SocialPane.tsx/#181) so a transient failure queues instead --
+  // it'll flush next time SocialPane's loadEvents succeeds -- and gets its own honest "queued, not
+  // yet sent" copy rather than being folded into "Ping sent".
   async function sendPing() {
     const myId = session?.user.id;
     if (!myId || !id) return;
-    // supabase-js resolves { error } on an RLS/PostgREST failure rather than rejecting -- this
-    // screen is reachable for any user id (deep link, or a friendship that later lapses), and the
-    // pings insert policy requires an accepted friendship, so a discarded error here used to alert
-    // a confirmed "sent" for a ping that never existed (review finding #2).
-    const { error } = await supabase.from("pings").insert({ sender_id: myId, receiver_id: id, message: null, hall_tid: null });
-    if (error) {
+    const outcome = await sendOrQueuePing(supabase, { sender_id: myId, receiver_id: id, message: null, hall_tid: null });
+    if (outcome === "rejected") {
       Alert.alert("Couldn't send ping", "You may not be friends with this person (yet).");
+      return;
+    }
+    if (outcome === "queued") {
+      Alert.alert("Ping queued", `${profile?.display_name ?? "They"}'ll see it once you're back online.`);
       return;
     }
     Alert.alert("Ping sent", `${profile?.display_name ?? "They"}'ll see it in their pings.`);
