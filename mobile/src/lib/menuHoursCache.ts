@@ -1,5 +1,6 @@
 import { fetchDiningHours, type DiningHoursFeed, type MenuItem } from "@udine/shared";
 import { getDb } from "./db";
+import { recordRetailNames } from "./retailHallNames";
 
 /**
  * #181's ticket-owned prerequisite: a device-local PERSISTENT menu/hours cache. #170's fetchMenu
@@ -85,7 +86,13 @@ export async function saveCachedHours(feed: DiningHoursFeed): Promise<void> {
 }
 
 export async function getCachedHours(): Promise<CachedHours | null> {
-  return readVersioned<CachedHours>(HOURS_KEY);
+  const cached = await readVersioned<CachedHours>(HOURS_KEY);
+  // #243 bug A: a cache HIT is a real DiningHoursFeed too -- an offline device that never
+  // reaches fetchHoursAndCache's own success branch below still needs retailHallNames.ts's
+  // tid->name map populated from whatever feed it does get, or café labels fall back to
+  // "Hall <tid>" for the entire offline session.
+  if (cached) recordRetailNames(cached.feed.retail);
+  return cached;
 }
 
 /**
@@ -98,5 +105,6 @@ export async function getCachedHours(): Promise<CachedHours | null> {
 export async function fetchHoursAndCache(): Promise<DiningHoursFeed> {
   const feed = await fetchDiningHours();
   saveCachedHours(feed).catch(() => {});
+  recordRetailNames(feed.retail); // #243 bug A -- live half of the tid->name wiring, see getCachedHours
   return feed;
 }

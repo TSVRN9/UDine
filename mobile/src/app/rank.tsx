@@ -19,6 +19,7 @@ import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { supabase } from "../lib/supabase";
 import { type Dish, dishKey, pickPair } from "../lib/pairSelection";
+import { hallOrRetailName } from "../lib/retailHallNames";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -148,10 +149,10 @@ export default function RankScreen() {
         <Card style={styles.compareCard}>
           <Text style={styles.heading}>Which did you like more?</Text>
           <Button variant="primary" style={styles.choiceButton} onPress={() => choose(pair[0], pair[1])}>
-            {`${pair[0].dishName} (${hallNameFor(pair[0].hallTid)})`}
+            {`${pair[0].dishName} (${hallOrRetailName(pair[0].hallTid)})`}
           </Button>
           <Button variant="primary" style={styles.choiceButton} onPress={() => choose(pair[1], pair[0])}>
-            {`${pair[1].dishName} (${hallNameFor(pair[1].hallTid)})`}
+            {`${pair[1].dishName} (${hallOrRetailName(pair[1].hallTid)})`}
           </Button>
           <Button variant="ghost" onPress={skip}>
             Skip
@@ -166,7 +167,7 @@ export default function RankScreen() {
       ) : (
         rankDishes(rankedDishes).map((dish, i) => (
           <Text key={dishKey(dish)} style={styles.rankRow}>
-            {i + 1}. {dish.dishName} ({hallNameFor(dish.hallTid)}) — {Math.round(dish.rating)}
+            {i + 1}. {dish.dishName} ({hallOrRetailName(dish.hallTid)}) — {Math.round(dish.rating)}
           </Text>
         ))
       )}
