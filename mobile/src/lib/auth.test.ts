@@ -7,7 +7,9 @@ jest.mock("./supabase", () => ({
       signInWithOAuth: jest.fn(),
       exchangeCodeForSession: jest.fn(),
       signOut: jest.fn(),
+      getSession: jest.fn(),
     },
+    from: jest.fn(),
   },
 }));
 jest.mock("expo-web-browser", () => ({
@@ -21,8 +23,9 @@ jest.mock("expo-linking", () => ({
 
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import { isSignInInFlight, shouldExchangeCode, signInWithGoogle } from "./auth";
+import { isSignInInFlight, shouldExchangeCode, signInWithGoogle, signOut } from "./auth";
 import { supabase } from "./supabase";
+import { registerPendingSelfHeal } from "./pendingSelfHeal";
 
 const signInWithOAuth = supabase.auth.signInWithOAuth as jest.Mock;
 const exchangeCodeForSession = supabase.auth.exchangeCodeForSession as jest.Mock;
@@ -90,5 +93,176 @@ describe("signInWithGoogle / isSignInInFlight", () => {
 
     await expect(signInWithGoogle()).rejects.toThrow("boom");
     expect(isSignInInFlight()).toBe(false);
+  });
+});
+
+// #257: signOut() used to only call supabase.auth.signOut(), leaving this device's push_tokens
+// row registered under the signing-out user -- the next person to use a shared device kept
+// receiving the previous user's favorited-food alerts. The delete has to happen BEFORE
+// auth.signOut() (RLS needs the still-live session to allow it) and must be best-effort (a failed
+// delete shouldn't strand the user mid sign-out).
+describe("signOut", () => {
+  const getSession = supabase.auth.getSession as jest.Mock;
+  const authSignOut = supabase.auth.signOut as jest.Mock;
+  const from = supabase.from as jest.Mock;
+
+  beforeEach(() => {
+    getSession.mockReset();
+    authSignOut.mockReset();
+    from.mockReset();
+    // pendingSelfHeal.ts is a module-level singleton -- reset to an already-resolved no-op so a
+    // leftover pending promise from one test can't bleed into the next.
+    registerPendingSelfHeal(Promise.resolve());
+  });
+
+  /** Wires supabase.from("push_tokens").delete().eq(...).eq(...) to resolve with `result` and
+   * records each call so tests can assert both the args and the call order relative to
+   * auth.signOut(). */
+  function mockPushTokensDelete(result: { error: unknown }, calls: string[]) {
+    const eq2 = jest.fn().mockImplementation(() => {
+      calls.push("push_tokens.delete");
+      return Promise.resolve(result);
+    });
+    const eq1 = jest.fn().mockReturnValue({ eq: eq2 });
+    const del = jest.fn().mockReturnValue({ eq: eq1 });
+    from.mockReturnValue({ delete: del });
+    return { del, eq1, eq2 };
+  }
+
+  it("deletes the signing-out user's Expo push_tokens row(s), before auth.signOut()", async () => {
+    getSession.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+    const calls: string[] = [];
+    const { del, eq1, eq2 } = mockPushTokensDelete({ error: null }, calls);
+    authSignOut.mockImplementation(() => {
+      calls.push("auth.signOut");
+      return Promise.resolve({ error: null });
+    });
+
+    await signOut();
+
+    expect(from).toHaveBeenCalledWith("push_tokens");
+    expect(del).toHaveBeenCalled();
+    expect(eq1).toHaveBeenCalledWith("user_id", "user-1");
+    expect(eq2).toHaveBeenCalledWith("platform", "expo");
+    expect(calls).toEqual(["push_tokens.delete", "auth.signOut"]);
+  });
+
+  it("still completes sign-out even if the push_tokens delete fails", async () => {
+    getSession.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+    mockPushTokensDelete({ error: new Error("delete boom") }, []);
+    authSignOut.mockResolvedValue({ error: null });
+
+    await expect(signOut()).resolves.toBeUndefined();
+    expect(authSignOut).toHaveBeenCalled();
+  });
+
+  it("still completes sign-out even if reading the session itself throws", async () => {
+    getSession.mockRejectedValue(new Error("getSession boom"));
+    authSignOut.mockResolvedValue({ error: null });
+
+    await expect(signOut()).resolves.toBeUndefined();
+    expect(authSignOut).toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("skips the delete (nothing to clean up) and still signs out when there's no session", async () => {
+    getSession.mockResolvedValue({ data: { session: null } });
+    authSignOut.mockResolvedValue({ error: null });
+
+    await signOut();
+
+    expect(from).not.toHaveBeenCalled();
+    expect(authSignOut).toHaveBeenCalled();
+  });
+
+  // #264 review finding 2: a stalled getSession()/push_tokens.delete() (no timeout on either
+  // before this fix) meant auth.signOut() below them was never reached at all -- tapping "Sign
+  // out" on flaky campus wifi did nothing, forever. Both are wrapped in withTimeout now.
+  it("does not hang sign-out forever if reading the session stalls -- times out and still signs out", async () => {
+    jest.useFakeTimers();
+    try {
+      getSession.mockReturnValue(new Promise(() => {})); // never resolves
+      authSignOut.mockResolvedValue({ error: null });
+
+      const promise = signOut();
+      await jest.advanceTimersByTimeAsync(15000);
+      await promise;
+
+      expect(from).not.toHaveBeenCalled();
+      expect(authSignOut).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("does not hang sign-out forever if the push_tokens delete stalls -- times out and still signs out", async () => {
+    jest.useFakeTimers();
+    try {
+      getSession.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+      const eq2 = jest.fn().mockReturnValue(new Promise(() => {})); // never resolves
+      const eq1 = jest.fn().mockReturnValue({ eq: eq2 });
+      from.mockReturnValue({ delete: jest.fn().mockReturnValue({ eq: eq1 }) });
+      authSignOut.mockResolvedValue({ error: null });
+
+      const promise = signOut();
+      await jest.advanceTimersByTimeAsync(15000);
+      await promise;
+
+      expect(authSignOut).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // #264 review round 4: signOut() waits for favoriteFoodAlerts.ts's in-flight self-heal (its
+  // pendingSelfHeal() registration) BEFORE its own delete, instead of racing/compensating for it --
+  // see pendingSelfHeal.ts's own doc comment for why. That wait must itself be bounded: a self-heal
+  // stuck on a real network call (getExpoPushTokenAsync) can't be allowed to hang sign-out forever.
+  it("waits for a registered self-heal before its own delete, ordered upsert-then-delete-then-signOut", async () => {
+    getSession.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+    const calls: string[] = [];
+    let resolveSelfHeal!: () => void;
+    registerPendingSelfHeal(
+      new Promise<void>((resolve) => {
+        resolveSelfHeal = () => {
+          calls.push("selfHeal");
+          resolve();
+        };
+      }),
+    );
+    mockPushTokensDelete({ error: null }, calls);
+    authSignOut.mockImplementation(() => {
+      calls.push("auth.signOut");
+      return Promise.resolve({ error: null });
+    });
+
+    const promise = signOut();
+    // Give signOut() a couple of microtask ticks -- it must be blocked on the still-pending
+    // self-heal, not already past it.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(from).not.toHaveBeenCalled();
+
+    resolveSelfHeal();
+    await promise;
+
+    expect(calls).toEqual(["selfHeal", "push_tokens.delete", "auth.signOut"]);
+  });
+
+  it("does not hang sign-out forever if a registered self-heal never resolves -- times out and still signs out", async () => {
+    jest.useFakeTimers();
+    try {
+      registerPendingSelfHeal(new Promise(() => {})); // never resolves
+      getSession.mockResolvedValue({ data: { session: null } });
+      authSignOut.mockResolvedValue({ error: null });
+
+      const promise = signOut();
+      await jest.advanceTimersByTimeAsync(15000);
+      await promise;
+
+      expect(authSignOut).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
