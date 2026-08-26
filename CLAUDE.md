@@ -53,11 +53,11 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   `auth.users` row is ever created — no race window, no orphaned non-umass rows. **Applying the
   migration only creates the function — it does not enable the hook.** Registration is dashboard-only
   (Authentication > Hooks (Beta) > select `hook_restrict_signup_by_umass_domain` from the "Before User
-  Created" dropdown); confirm this is actually selected before treating the restriction as live — a
-  real signup attempt with a non-umass email should get rejected with "UDine accounts require a
-  @umass.edu email address.", not silently succeed. Once confirmed live, profile/RLS policies don't
-  need to re-check the email domain — `auth.uid()` scoping is sufficient, since the hook already
-  guarantees no non-umass row can exist.
+  Created" dropdown); confirm this is actually selected before treating the restriction as live.
+  **Re-verifying this is no longer a plain signup-and-expect-403 curl** — see the three checks in
+  the #268 bullet below (live settings, live dashboard read, local pgTAP) for why and what replaced
+  it. Once confirmed live, profile/RLS policies don't need to re-check the email domain —
+  `auth.uid()` scoping is sufficient, since the hook already guarantees no non-umass row can exist.
 - **#268: email/password signup was live on the project with no ownership check — FIXED, both
   halves done.** The domain-only hook above rejected the wrong domain but not the wrong *provider*:
   the Email provider being enabled at all meant anyone could POST a password signup for
@@ -69,12 +69,19 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   ever be done by hand. **Half 2 (migration-tracked, done):** `hook_restrict_signup_by_umass_domain`
   (same function name, no dashboard re-selection needed) now also rejects any signup whose
   `event->'user'->'app_metadata'->>'provider'` isn't `'google'` —
-  `supabase/migrations/20260826120000_restrict_signup_by_google_provider.sql`. Field choice
+  `supabase/migrations/20260826120000_restrict_signup_by_google_provider.sql`. **Not yet applied to
+  the live project** — that happens only after this PR is reviewed and approved, same rule as
+  `shared_stats` above; half 1 (provider off) is what's actually protecting live today, half 2 exists
+  only in the repo until applied. Field choice
   (`provider`, not the sibling `providers` array) matches Supabase's own docs example for exactly
   this use case (Auth Hooks > Before User Created hook > "Block by OAuth Provider"): at
   user-creation time there's exactly one identity being created, so `providers` is always a
-  one-element array holding that same value — checking it adds nothing. `supabase/config.toml`
-  mirrors the live posture locally (`[auth.email] enable_signup = false`).
+  one-element array holding that same value — checking it adds nothing. Note this is an
+  allowlist (`provider is distinct from 'google'`), not a Discord-style denylist, so it also
+  rejects `/auth/v1/invite` and anonymous sign-in the same way it rejects email/password — both are
+  off live today so there's no conflict, but a future owner turning either on shouldn't be surprised
+  it gets caught by this same check. `supabase/config.toml` mirrors the live posture locally
+  (`[auth.email] enable_signup = false`).
   **This retires the old `@umass.edu` re-verification method above** (`POST /auth/v1/signup`,
   expect the hook's 403) — it no longer proves anything about the hook, because with the Email
   provider off, GoTrue rejects the request at the provider gate before the hook ever runs. Confirmed
@@ -89,9 +96,9 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   - **Hook logic is still correct (local, repeatable, the actual regression test):** call
     `hook_restrict_signup_by_umass_domain` directly with a simulated event payload (pgTAP or SQL
     Editor) — the local stack never had this hook registered to begin with
-    (`supabase/config.toml`'s `[auth.hook.before_user_created]` block is commented out; hook
-    registration has no local declarative form, same as live being dashboard-only), so a local HTTP
-    signup was never a way to reach it, provider-gate question aside. See
+    (`supabase/config.toml`'s `[auth.hook.before_user_created]` block exists but is commented out —
+    a deliberate scope decision, not a CLI limitation), so a local HTTP signup was never a way to
+    reach it, provider-gate question aside. See
     `supabase/tests/database/13_restrict_signup_by_google_provider.sql` for the simulated event
     shape and the cases it covers (email+umass → rejected, google+umass → allowed, google+non-umass
     → still rejected by the domain check), including a migration-removed red run proving cases 1 and
