@@ -16,20 +16,24 @@
 	</div>
 {:else}
 	<ul class="mt-6 flex flex-col gap-3">
-		{#each data.releases as release (release.url)}
+		{#each data.releases as release, i (i + release.title)}
 			<li class="card flex items-center gap-4 px-4 py-4">
 				{#if release.image}
 					<img src={release.image} alt="" class="h-16 w-16 shrink-0 rounded-sm bg-cream-100 object-contain" />
 				{/if}
 				<div class="min-w-0 flex-1">
-					<a
-						href={release.url}
-						target="_blank"
-						rel="noreferrer"
-						class="font-display text-lg font-semibold text-maroon-900 hover:text-maroon-600"
-					>
-						{release.title}
-					</a>
+					{#if release.url}
+						<a
+							href={release.url}
+							target="_blank"
+							rel="noreferrer"
+							class="font-display text-lg font-semibold text-maroon-900 hover:text-maroon-600"
+						>
+							{release.title}
+						</a>
+					{:else}
+						<span class="font-display text-lg font-semibold text-maroon-900">{release.title}</span>
+					{/if}
 					<p class="mt-0.5 font-mono text-xs tracking-widest text-ink-900/50 uppercase">{release.date}</p>
 				</div>
 			</li>
