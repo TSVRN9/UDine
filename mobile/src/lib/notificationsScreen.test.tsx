@@ -51,6 +51,25 @@ function profilesTable(profile: Record<string, unknown>, updateError: unknown) {
   };
 }
 
+/** `.select().eq().order()` (food_sightings refresh) resolves the one fixed unread sighting;
+ * `.update().eq()` resolves the configurable `{ error }` -- mirrors profilesTable's shape above,
+ * for #194's markRead site. */
+function sightingsTable(sighting: Record<string, unknown>, updateError: unknown) {
+  const selectBuilder: Record<string, unknown> = {};
+  selectBuilder.select = () => selectBuilder;
+  selectBuilder.eq = () => selectBuilder;
+  selectBuilder.order = () => Promise.resolve({ data: [sighting], error: null });
+
+  const updateBuilder: Record<string, unknown> = {};
+  updateBuilder.eq = () => updateBuilder;
+  updateBuilder.then = (resolve: (v: { error: unknown }) => void) => resolve({ error: updateError });
+
+  return {
+    select: selectBuilder.select,
+    update: jest.fn().mockReturnValue(updateBuilder),
+  };
+}
+
 function emptyTable() {
   const builder: Record<string, unknown> = {};
   builder.select = () => builder;
@@ -192,6 +211,31 @@ describe("NotificationsBody", () => {
     expect(toggleAfter.props.value).toBe(true);
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(mockSyncFavoritedFoods).toHaveBeenCalled();
+  });
+
+  // #194: markRead used to set local read_at unconditionally, regardless of the
+  // food_sightings.update `{error}` result -- an RLS rejection still showed the sighting as read.
+  it("keeps a sighting marked unread and alerts when food_sightings.update is rejected", async () => {
+    const sighting = { id: "s1", dish_name: "French Toast", hall_tid: 3, sighted_date: "2026-08-19", read_at: null, created_at: "2026-08-19T00:00:00Z" };
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
+      if (name === "food_sightings") return sightingsTable(sighting, { message: "row-level security policy violation" });
+      if (name === "push_tokens") return emptyTable();
+      throw new Error(`unexpected table ${name}`);
+    });
+    const root = await renderNotifications();
+    await flush();
+
+    const row = root.root.find((node) => typeof node.props.onPress === "function");
+    await act(async () => {
+      await row.props.onPress();
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith("Couldn't mark as read", expect.any(String));
+    // sightingRead (opacity: 0.6) style only applies once read_at is truthy -- must still be
+    // unset after a rejected update.
+    const rowAfter = root.root.find((node) => typeof node.props.onPress === "function");
+    expect(rowAfter.props.style[1]).toBeFalsy();
   });
 
   // #264 review finding 1: signOut() (auth.ts) deletes this account's push_tokens row(s) but
