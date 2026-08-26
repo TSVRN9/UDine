@@ -325,6 +325,12 @@ Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `read
 
 Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+### Development tracks
+
+XS/S/M/L tracks — which agents, which gate, and how to route a ticket. Small confined fixes go
+`quick-fixer` → `spot-checker`; anything touching `supabase/`, auth, sync, or residency stays on
+`issue-solver` → `pr-reviewer`. See `docs/agents/dev-tracks.md`.
+
 ### Emulator pool
 
 Three shared Android AVDs (320dp/360dp/600dp) for parallel mobile UI verification, with lock
