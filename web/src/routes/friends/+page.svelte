@@ -2,8 +2,7 @@
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
 	import { createLatestWins } from "@udine/shared";
-
-	type Profile = { user_id: string; display_name: string };
+	import { runFriendSearch, type Profile } from "$lib/friendSearch";
 	type Friendship = { user_a: string; user_b: string; status: "pending" | "accepted"; requested_by: string };
 
 	// #192: an earlier, slower search response landing after a faster later one must not clobber
@@ -45,10 +44,8 @@
 			searchResults = [];
 			return;
 		}
-		const token = searchGuard.start();
-		const { data } = await supabase.from("profiles").select("user_id, display_name").ilike("display_name", `%${query}%`).neq("user_id", myId).limit(10);
-		if (!searchGuard.isLatest(token)) return; // a newer search already fired -- drop this stale response
-		searchResults = data ?? [];
+		const results = await runFriendSearch(searchGuard, () => supabase.from("profiles").select("user_id, display_name").ilike("display_name", `%${query}%`).neq("user_id", myId).limit(10));
+		if (results !== null) searchResults = results;
 	}
 
 	async function requestFriend(targetUserId: string) {
