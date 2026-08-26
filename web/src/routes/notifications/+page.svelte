@@ -28,7 +28,7 @@
 		return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && Boolean(PUBLIC_VAPID_KEY);
 	}
 
-	async function enablePush(supabase: SupabaseClient, userId: string) {
+	async function enablePush(supabase: SupabaseClient) {
 		if (!pushSupported()) return;
 		try {
 			const permission = await Notification.requestPermission();
@@ -39,9 +39,12 @@
 				userVisibleOnly: true,
 				applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY) as BufferSource,
 			});
-			await supabase
-				.from("push_tokens")
-				.upsert({ user_id: userId, platform: "web", token: JSON.stringify(subscription.toJSON()) });
+			// #263: a raw upsert let the same shared-device token sit under N users (push_tokens now
+			// has a unique(platform, token) backstop that would reject it). register_push_token is a
+			// security definer RPC that evicts any other owner's row for this token first, then
+			// upserts the caller's -- see the migration's own doc comment. It derives the owner from
+			// auth.uid() itself, so unlike the raw upsert this no longer needs userId passed in.
+			await supabase.rpc("register_push_token", { p_platform: "web", p_token: JSON.stringify(subscription.toJSON()) });
 		} catch (err) {
 			// Permission denied, malformed VAPID key, no service-worker support in this browser, etc. —
 			// notifications_enabled can still toggle for the in-app feed even if push registration fails.
@@ -132,17 +135,21 @@
 		// next visit/sign-in without a re-toggle. Never prompts or subscribes -- ownPushToken() only
 		// reads a subscription that's already there.
 		//
-		// #264 review round 4: ownPushToken() + the upsert below are a real network round trip that
+		// #264 review round 4: ownPushToken() + the RPC call below are a real network round trip that
 		// can still be in flight when the user clicks "Sign out" -- this promise is registered via
 		// registerPendingSelfHeal so +layout.svelte's signOut() can wait for it (bounded) BEFORE its
 		// own delete, instead of racing it. See pendingSelfHeal.ts's own doc comment for why that
 		// ordering, not a post-upsert compensating delete, is what actually closes the race.
+		//
+		// #263: a raw upsert here would 23505 against push_tokens' unique(platform, token) once this
+		// token is shared with another user -- register_push_token evicts that other owner first,
+		// same as enablePush() above. It derives the owner from auth.uid(), so myId isn't passed.
 		if (notificationsEnabled && pushSupported() && Notification.permission === "granted") {
 			const selfHeal = (async () => {
 				try {
 					const ownToken = await ownPushToken();
 					if (ownToken) {
-						const { error } = await supabase.from("push_tokens").upsert({ user_id: myId, platform: "web", token: ownToken });
+						const { error } = await supabase.rpc("register_push_token", { p_platform: "web", p_token: ownToken });
 						if (error) console.error("Push token re-registration failed:", error);
 					}
 				} catch (err) {
@@ -215,7 +222,7 @@
 		await syncFavoritedFoods(supabase, session.user.id, favorites);
 
 		if (next) {
-			await enablePush(supabase, session.user.id);
+			await enablePush(supabase);
 		} else {
 			await disablePush(supabase, session.user.id);
 		}
