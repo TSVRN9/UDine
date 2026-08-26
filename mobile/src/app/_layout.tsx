@@ -90,7 +90,8 @@ export default function RootLayout() {
         // and that's a per-screen review responsibility, not a static-analysis one. Known
         // exemptions (no back needed by design, not an oversight): `index` (tab-shell root),
         // `redirect` (transient OAuth landing), `qr-confirm` (ADD THEM / CANCEL buttons are the
-        // affordance, no chevron).
+        // affordance, no chevron), `login` ("Continue with Google" and login.tsx:67's "Skip -- use
+        // without an account" -> done() -> router.back() are the affordance, no chevron).
         headerShown: false,
       }}
     >
