@@ -31,13 +31,21 @@ jest.mock("@udine/shared", () => ({
 
 const alertsState = { notificationsEnabled: false, favoritesCount: 0 };
 const mockToggleAlerts = jest.fn().mockResolvedValue({ error: null });
+const mockRefreshAlerts = jest.fn().mockResolvedValue(undefined);
 jest.mock("./favoriteFoodAlerts", () => ({
-  useFavoriteFoodAlerts: () => ({ session: null, ...alertsState, toggle: mockToggleAlerts }),
+  useFavoriteFoodAlerts: () => ({ session: null, ...alertsState, toggle: mockToggleAlerts, refresh: mockRefreshAlerts }),
 }));
 
 const mockDeleteServerData = jest.fn().mockResolvedValue({ ok: true, failedSteps: [] });
 jest.mock("./deleteServerData", () => ({
   deleteServerData: (...args: unknown[]) => mockDeleteServerData(...args),
+}));
+
+// #272: confirmDelete must wait for whatever self-heal is registered here (bounded) before calling
+// deleteServerData -- defaults to "nothing pending" so every test not about this race is unaffected.
+const mockPendingSelfHeal = jest.fn<Promise<void> | null, []>(() => null);
+jest.mock("./pendingSelfHeal", () => ({
+  pendingSelfHeal: () => mockPendingSelfHeal(),
 }));
 
 const mockRouterPush = jest.fn();
@@ -136,7 +144,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSyncSharedStat.mockResolvedValue({ error: null });
   mockToggleAlerts.mockResolvedValue({ error: null });
+  mockRefreshAlerts.mockResolvedValue(undefined);
   mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
+  mockPendingSelfHeal.mockReturnValue(null);
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
@@ -437,6 +447,72 @@ describe("PrivacyScreen: delete server data", () => {
     expect(successMessage).toMatch(/pings friends sent you/i);
   });
 
+  // #272 part A, red-first: before this fix, confirmDelete never told the (mocked here) alerts hook
+  // that server state changed, so the toggle kept reading its stale pre-delete value until the user
+  // left and came back to this screen -- and, unmocked, the hook's own refresh() on that later
+  // focus was what actually re-registered a push token (see favoriteFoodAlerts.test.tsx and
+  // deleteServerData.test.ts for the rest of this fix). This test isolates just this screen's own
+  // wiring: does confirmDelete call the hook's refresh() on a successful delete.
+  it("#272: refreshes the alerts hook after a successful delete, so the toggle reads OFF without waiting for the next focus", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    await act(async () => {
+      await confirmButton.onPress();
+    });
+
+    expect(mockRefreshAlerts).toHaveBeenCalled();
+  });
+
+  // #272 item B's delete-path mirror, red-first: on main, confirmDelete calls deleteServerData
+  // immediately with no await on pendingSelfHeal() -- a self-heal register_push_token call already
+  // in flight from this screen's own useFocusEffect refresh can land AFTER deleteServerData's
+  // push_tokens delete, with a still-live session, resurrecting the row Delete just removed.
+  it("#272: waits for an in-flight self-heal to settle before calling deleteServerData", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    let resolveHeal!: () => void;
+    mockPendingSelfHeal.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveHeal = resolve;
+      }),
+    );
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    let onPressPromise!: Promise<void>;
+    await act(async () => {
+      onPressPromise = confirmButton.onPress();
+      await Promise.resolve();
+    });
+
+    // Blocked on the self-heal -- deleteServerData must not have run yet.
+    expect(mockDeleteServerData).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveHeal();
+      await onPressPromise;
+    });
+
+    expect(mockDeleteServerData).toHaveBeenCalledWith(expect.anything(), "me");
+  });
+
+  it("#272: does NOT refresh the alerts hook when the delete has a genuinely retryable failure", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockDeleteServerData.mockResolvedValue({ ok: false, failedSteps: ["push_tokens"], undeletableSteps: [] });
+    const root = await renderScreen();
+
+    pressDeleteRow(root);
+    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
+    await act(async () => {
+      await confirmButton.onPress();
+    });
+
+    expect(mockRefreshAlerts).not.toHaveBeenCalled();
+  });
+
   it("stays silent (no follow-up alert) when every step, including profiles/food_sightings/qr_tokens, actually succeeds", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
@@ -466,10 +542,15 @@ describe("PrivacyScreen: delete server data", () => {
     // need to show up in the "stays" clause so it's the real exhaustive residue list.
     expect(message).toMatch(/friend qr code/i);
     expect(message).toMatch(/pings friends sent you/i);
+    // #272: the copy must be honest that Delete also turns off alerts/discoverability, not just
+    // that it removes rows -- deleteServerData's new "notifications" step does exactly this.
+    expect(message).toMatch(/turns off favorite-food alerts/i);
+    expect(message).toMatch(/discoverability/i);
 
     const body = texts(root);
     expect(body).toMatch(/push tokens/);
     expect(body).toMatch(/friend qr code/i);
+    expect(body).toMatch(/turns off favorite-food alerts/i);
   });
 
   // #241: same hazard as #186's toggle test above, but for Delete instead of a toggle -- refresh()'s
