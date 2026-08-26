@@ -1,9 +1,14 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { page } from "$app/state";
+	import { createLatestWins } from "@udine/shared";
 
 	type Profile = { user_id: string; display_name: string };
 	type Friendship = { user_a: string; user_b: string; status: "pending" | "accepted"; requested_by: string };
+
+	// #192: an earlier, slower search response landing after a faster later one must not clobber
+	// the newer results.
+	const searchGuard = createLatestWins();
 
 	let query = $state("");
 	let searchResults: Profile[] = $state([]);
@@ -40,7 +45,9 @@
 			searchResults = [];
 			return;
 		}
+		const token = searchGuard.start();
 		const { data } = await supabase.from("profiles").select("user_id, display_name").ilike("display_name", `%${query}%`).neq("user_id", myId).limit(10);
+		if (!searchGuard.isLatest(token)) return; // a newer search already fired -- drop this stale response
 		searchResults = data ?? [];
 	}
 
