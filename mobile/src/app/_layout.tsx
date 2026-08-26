@@ -70,27 +70,38 @@ export default function RootLayout() {
         headerTintColor: colors.paper50,
         headerTitleStyle: { fontFamily: fonts.display700 },
         contentStyle: { backgroundColor: colors.cream100 },
+        // #281: default header-less. Every route draws its own chrome (back button, title,
+        // insets.top padding) unless it's one of the explicit opt-ins below -- this was the
+        // third time a route was added without a Stack.Screen entry and silently got a native
+        // header on top of its own (#151, #219, #281). A route that's merely absent from this
+        // list, or present without an explicit `headerShown`, now inherits `false` -- safe by
+        // construction, so a fourth route can't repeat the class. See
+        // src/lib/routeHeaderShown.test.ts, which enumerates every route file and guards this
+        // invariant.
+        headerShown: false,
       }}
     >
       {/* index (the 3-pane shell), halls/[slug], grab-n-go/[slug], cafe/[name], and logs draw their own canvas-style headers. */}
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="redirect" options={{ headerShown: false, animation: "none" }} />
-      <Stack.Screen name="halls/[slug]" options={{ headerShown: false }} />
-      <Stack.Screen name="grab-n-go/[slug]" options={{ headerShown: false }} />
-      <Stack.Screen name="cafe/[name]" options={{ headerShown: false }} />
-      <Stack.Screen name="logs" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
-      <Stack.Screen name="filters" options={{ title: "Dietary Filters" }} />
-      <Stack.Screen name="favorites" options={{ title: "Favorites" }} />
-      <Stack.Screen name="rank" options={{ title: "Rank Dishes" }} />
-      <Stack.Screen name="friends" options={{ title: "Friends" }} />
-      <Stack.Screen name="privacy" options={{ title: "Privacy" }} />
-      <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
-      <Stack.Screen name="events" options={{ title: "Events" }} />
-      <Stack.Screen name="event-detail" options={{ title: "Event" }} />
-      <Stack.Screen name="press" options={{ title: "Press" }} />
-      <Stack.Screen name="newsletter" options={{ title: "Newsletter" }} />
+      <Stack.Screen name="index" />
+      <Stack.Screen name="redirect" options={{ animation: "none" }} />
+      <Stack.Screen name="halls/[slug]" />
+      <Stack.Screen name="grab-n-go/[slug]" />
+      <Stack.Screen name="cafe/[name]" />
+      <Stack.Screen name="logs" />
+      <Stack.Screen name="login" options={{ animation: "fade" }} />
+      {/* These are the only routes that want the native maroon header instead of their own chrome. */}
+      <Stack.Screen name="filters" options={{ headerShown: true, title: "Dietary Filters" }} />
+      <Stack.Screen name="favorites" options={{ headerShown: true, title: "Favorites" }} />
+      <Stack.Screen name="rank" options={{ headerShown: true, title: "Rank Dishes" }} />
+      <Stack.Screen name="friends" options={{ headerShown: true, title: "Friends" }} />
+      <Stack.Screen name="friend/[id]" />
+      <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications" }} />
+      <Stack.Screen name="events" options={{ headerShown: true, title: "Events" }} />
+      <Stack.Screen name="event-detail" options={{ headerShown: true, title: "Event" }} />
+      <Stack.Screen name="press" options={{ headerShown: true, title: "Press" }} />
+      <Stack.Screen name="newsletter" options={{ headerShown: true, title: "Newsletter" }} />
+      {/* privacy, add-friends, add-friend-qr, export, qr-confirm need no entry at all: they draw
+          their own chrome and now correctly inherit headerShown: false from screenOptions above. */}
     </Stack>
   );
 }

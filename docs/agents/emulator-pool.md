@@ -271,3 +271,62 @@ dimensions decoded and checked against `wm size` (not just "file is non-empty"):
 
 Both under
 `/tmp/claude-1000/-home-tavern-Projects-js-UDine/88502525-1ee8-4edc-ade0-f41cf058bd3f/scratchpad/`.
+
+## Working rebuild recipe (2026-08-26, resolves #232's "three failed attempts")
+
+#232's three prior attempts never got a usable client on `Agent_Emulator_Narrow` because of an
+APK/bundle mismatch, not a broken rebuild path. This session did a clean `expo run:android
+--device Agent_Emulator_Narrow` rebuild (#281) and it worked end-to-end on the first try:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk \
+PATH="/usr/lib/jvm/java-17-temurin-jdk/bin:$PATH" \
+npx expo run:android --device Agent_Emulator_Narrow
+```
+
+`BUILD SUCCESSFUL in 1m 32s` (362 actionable tasks, 201 executed / 161 from cache — warm Gradle
+cache from a prior agent's build on a different device). Confirmed the *new* APK actually landed
+on 5556, not a stale one: `adb -s emulator-5556 shell dumpsys package com.udinetogether.udine |
+grep lastUpdateTime` jumped to the build's own timestamp.
+
+**A second, unrelated blocker showed up immediately after install, and it's worth recording
+separately so it doesn't get misread as another bundle-mismatch:** the dev client crashed on
+launch with `Uncaught Error: supabaseUrl is required` (thrown at `src/lib/supabase.ts:14`'s
+module-scope `createClient(...)` call, so it fires on *any* screen whose import graph reaches
+`supabase.ts` — in practice, most of the app). Root cause: `mobile/.env` doesn't exist in a fresh
+checkout/worktree — only `mobile/.env.example` is committed (`.env` is gitignored) — so
+`process.env.EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are both `undefined`
+under Metro. This is orthogonal to the native build and to the packaged-vs-Metro bundle mismatch
+#232 diagnosed; a worktree/checkout that has never had `mobile/.env` populated will hit this even
+with a perfectly fresh rebuild. Fix: populate `mobile/.env` (gitignored, safe to write per-worktree)
+with the project's public URL and publishable key — both are non-secret, meant to ship in a client
+bundle — fetched via the Supabase MCP tools rather than guessed or committed:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=<mcp__plugin_supabase_supabase__get_project_url project_id=ubogyqskqzvkcqboqbhw>
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<the "publishable" (sb_publishable_...) entry from
+  mcp__plugin_supabase_supabase__get_publishable_keys project_id=ubogyqskqzvkcqboqbhw>
+```
+
+After writing `.env`, a full `expo run:android` isn't needed again — env vars are inlined by
+Metro at bundle time, so kill any running `expo run:android`/`expo start` process and start a
+fresh `npx expo start --dev-client` (same JDK/PATH prefix), then re-point the already-installed
+dev client at it without reinstalling:
+
+```bash
+adb -s emulator-5556 shell am force-stop com.udinetogether.udine
+adb -s emulator-5556 shell am start -a android.intent.action.VIEW \
+  -d "udine://expo-development-client/?url=http%3A%2F%2F192.168.122.1%3A8081"
+```
+
+(That IP is this host's bridge address for the emulator's outbound route to the Metro server on
+the host — confirm with the URL `expo run:android` itself printed on the original install, e.g.
+`› Opening udine://expo-development-client/?url=http%3A%2F%2F<host-ip>%3A8081`, since it can differ
+per host/network setup.)
+
+**Fast iteration once installed:** the dev client understands the app's own `udine://` scheme for
+deep links, which is much quicker than tapping through the UI to reach a specific screen for a
+screenshot — `adb shell am start -a android.intent.action.VIEW -d "udine://add-friends"` (or any
+other route name from `mobile/src/app/`) jumps straight there. Force-stop + relaunch the same
+`expo-development-client/?url=...` intent above to force a fresh JS bundle fetch after editing
+source (e.g. to compare a screen before/after a JS-only change without a native rebuild).
