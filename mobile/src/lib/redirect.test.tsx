@@ -22,6 +22,15 @@ const mockedAuth = auth as jest.Mocked<typeof auth>;
 const mockedUseLocalSearchParams = expoRouter.useLocalSearchParams as jest.Mock;
 const mockedRedirect = expoRouter.Redirect as jest.Mock;
 
+// jest.clearAllMocks() (used throughout this file) only clears call history -- it does NOT reset
+// a configured mockReturnValue -- so a later describe's isSignInInFlight.mockReturnValue(true)
+// would otherwise leak into every test that runs after it. Hoisting the default here, above every
+// describe, means each test starts from the same "warm path not in flight" baseline regardless of
+// what ran before it; tests that need the warm-path case still set it explicitly.
+beforeEach(() => {
+  mockedAuth.isSignInInFlight.mockReturnValue(false);
+});
+
 // #54's own complaint was a cold-start failure landing the user silently signed out. A
 // console.error-only catch repeats that with a visible toast instead of a screen -- invisible in
 // a release build. This checks the fix reuses index.tsx's Alert.alert, which is native and
@@ -93,10 +102,6 @@ describe("RedirectScreen cold-start exchange gating", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
-    // A prior test's isSignInInFlight.mockReturnValue(true) survives jest.clearAllMocks() --
-    // it only clears call history, not configured return values -- so this must be reasserted
-    // explicitly rather than relying on the module factory's default.
-    mockedAuth.isSignInInFlight.mockReturnValue(false);
   });
 
   it("does not redirect until an in-flight cold-start exchange settles", async () => {
@@ -137,5 +142,37 @@ describe("RedirectScreen cold-start exchange gating", () => {
 
     expect(Alert.alert).toHaveBeenCalledWith("Sign-in failed", "invalid flow state");
     expect(mockedRedirect.mock.calls[0]?.[0]).toEqual({ href: "/" });
+  });
+
+  // #280: a rejected exchange settles on its own (case above), but a true hang -- a stalled
+  // network request that never resolves OR rejects -- wouldn't. Without a bounding timeout, that
+  // leaves `ready` false forever: a permanent spinner with no back affordance, since <Redirect> is
+  // this screen's only exit. withTimeout (mirrors #45's convention, see redirect.tsx) turns that
+  // into a labeled rejection instead.
+  it("redirects after the exchange times out instead of hanging on the spinner forever", async () => {
+    jest.useFakeTimers();
+    try {
+      mockedUseLocalSearchParams.mockReturnValue({ code: "slow-code" });
+      mockedAuth.exchangeCode.mockReturnValue(new Promise<void>(() => {})); // never settles
+
+      await act(async () => {
+        renderer.create(<RedirectScreen />);
+        await Promise.resolve();
+      });
+
+      expect(mockedRedirect).not.toHaveBeenCalled();
+
+      await act(async () => {
+        jest.advanceTimersByTime(15000);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith("Sign-in failed", expect.stringContaining("timed out"));
+      expect(mockedRedirect.mock.calls[0]?.[0]).toEqual({ href: "/" });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

@@ -3,6 +3,16 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { colors } from "../lib/theme";
 import { exchangeCode, isSignInInFlight, shouldExchangeCode } from "../lib/auth";
+import { withTimeout } from "../lib/withTimeout";
+
+// Mirrors auth.ts's SIGN_OUT_STEP_TIMEOUT_MS (#45's convention: every awaited network/native call
+// gets its own timeout, so a stall becomes a labeled, catchable error instead of silently never
+// resolving). Not imported from there for the same reason auth.ts doesn't import PLATFORM/
+// SIGN_OUT_STEP_TIMEOUT_MS from elsewhere -- this is the one call site that needs it here.
+// #280: without this, a cold-start exchange that never settles (not a reject, a true hang -- a
+// stalled network request to Supabase) would leave `ready` false forever, stranding the user on
+// this screen's spinner with no back affordance (<Redirect> is the only exit and it never fires).
+const EXCHANGE_TIMEOUT_MS = 15000;
 
 /**
  * Landing spot for the `udine://redirect?code=...` OAuth deep link. Two ways to get here:
@@ -39,7 +49,7 @@ export default function RedirectScreen() {
       // (e.g. an expired code) would complete Google consent and land silently signed out, which
       // is exactly #54's complaint. Alert.alert is native, so it survives this screen's immediate
       // <Redirect> unmount, same as the warm path's identical failure surface (index.tsx).
-      exchangeCode(code)
+      withTimeout(exchangeCode(code), EXCHANGE_TIMEOUT_MS, "exchangeCode (cold start)")
         .catch((err) => {
           console.error("OAuth cold-start code exchange failed", err);
           Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
