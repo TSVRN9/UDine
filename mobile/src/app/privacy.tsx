@@ -49,9 +49,14 @@ type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unk
 // own sent pings use) -- named here so this "stays" clause is the actual exhaustive list of
 // server-side residue, not just the two/three tables that happen to be attempted-and-reported.
 const DELETE_REMOVES = "Friendships, favorites, shared stats, the dining halls synced for ping suggestions, push tokens, and sent pings";
+// #272: deleteServerData's new "notifications" step (profiles.update({notifications_enabled: false,
+// discoverable: false})) is a state change, not a delete -- doesn't belong in DELETE_REMOVES's own
+// "X, Y, and Z are gone" grammar, so it's its own sentence, still single-sourced here rather than
+// hardcoded into both DELETE_SCOPE_SUMMARY and DELETE_SUCCESS_MESSAGE separately.
+const DELETE_TURNS_OFF = "Turns off favorite-food alerts and friend-search discoverability.";
 const DELETE_STAYS = "Your profile, food-sighting history, friend QR code, and pings friends sent you stay on the server -- deleting those isn't available yet.";
-const DELETE_SCOPE_SUMMARY = `Removes ${DELETE_REMOVES.charAt(0).toLowerCase()}${DELETE_REMOVES.slice(1)}. ${DELETE_STAYS} Phone data stays.`;
-const DELETE_SUCCESS_MESSAGE = `${DELETE_REMOVES} are gone. ${DELETE_STAYS}`;
+const DELETE_SCOPE_SUMMARY = `Removes ${DELETE_REMOVES.charAt(0).toLowerCase()}${DELETE_REMOVES.slice(1)}. ${DELETE_TURNS_OFF} ${DELETE_STAYS} Phone data stays.`;
+const DELETE_SUCCESS_MESSAGE = `${DELETE_REMOVES} are gone. ${DELETE_TURNS_OFF} ${DELETE_STAYS}`;
 
 const SHARED_TOGGLES: { field: SharedStatField; label: string }[] = [
   { field: "completion", label: "Hall completion" },
@@ -205,6 +210,12 @@ export default function PrivacyScreen() {
             }
             setRow(null);
             setFriendships([]);
+            // #272: deleteServerData's own "notifications" step already flipped
+            // notifications_enabled=false server-side (before push_tokens was deleted, so the row
+            // can't be resurrected by a later focus) -- this re-reads that state into the alerts
+            // hook immediately, so the toggle reads OFF without waiting for the user to leave and
+            // come back to this screen.
+            await alerts.refresh();
             if (result.undeletableSteps.length > 0) {
               Alert.alert("Server data deleted", DELETE_SUCCESS_MESSAGE);
             }

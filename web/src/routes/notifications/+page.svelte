@@ -6,8 +6,12 @@
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { loadFeedLastSeen, saveFeedLastSeen } from "$lib/feedLastSeen";
 	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
-	import { registerPendingSelfHeal } from "$lib/pendingSelfHeal";
+	import { registerPendingSelfHeal, pendingSelfHeal } from "$lib/pendingSelfHeal";
 	import { PUBLIC_VAPID_KEY } from "$env/static/public";
+
+	// No shared web withTimeout convention -- a Promise.race with a timer, matching +layout.svelte's
+	// own signOut() (mirrors mobile's withTimeout in spirit).
+	const SELF_HEAL_WAIT_TIMEOUT_MS = 15000;
 
 	type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date: string; read_at: string | null; created_at: string };
 	type Ping = { id: string; sender_id: string; hall_tid: number | null; message: string | null; created_at: string };
@@ -224,6 +228,17 @@
 		if (next) {
 			await enablePush(supabase);
 		} else {
+			// #272 item B (mobile's mirror of this same race): refresh()'s self-heal above (re-
+			// upserting this browser's push_tokens row whenever notifications_enabled is true and
+			// permission is already granted) can still be mid-flight -- a real network round trip --
+			// when the user flips this toggle off. Without waiting for it here, that self-heal's
+			// register_push_token can land AFTER disablePush()'s own delete below, resurrecting the
+			// row this toggle-off just removed. Same bounded await-before-delete ordering
+			// +layout.svelte's signOut() already uses for the identical race.
+			const pending = pendingSelfHeal();
+			if (pending) {
+				await Promise.race([pending, new Promise((resolve) => setTimeout(resolve, SELF_HEAL_WAIT_TIMEOUT_MS))]);
+			}
 			await disablePush(supabase, session.user.id);
 		}
 	}
