@@ -5,14 +5,45 @@ import {
 } from "@expo-google-fonts/libre-franklin";
 import { Oswald_500Medium, Oswald_600SemiBold, Oswald_700Bold } from "@expo-google-fonts/oswald";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { registerNotificationHandler } from "../lib/notificationHandler";
-import { colors, fonts } from "../lib/theme";
+import { colors, fonts, fs, radii, spacing } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync();
 registerNotificationHandler();
+
+/**
+ * #271: there was no ErrorBoundary anywhere in the app -- no route exported one, so
+ * expo-router (`getQualifiedRouteComponent`, which loads this root layout the same way it loads
+ * every route) never wrapped anything in a `Try`, and an uncaught render error anywhere in the
+ * app was an unrecoverable RN fatal in release. Exporting `ErrorBoundary` here gives the whole
+ * app one catch-all: any screen's render error lands here instead of taking the process down.
+ * This is the belt for every future shape bug, not just #271's -- it doesn't replace fixing the
+ * specific crash the error came from.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  if (__DEV__) console.error(error);
+  return (
+    <View style={errorStyles.screen}>
+      <Text style={errorStyles.title}>Something went wrong</Text>
+      <Text style={errorStyles.message}>{error.message}</Text>
+      <Pressable style={errorStyles.button} onPress={retry} accessibilityRole="button">
+        <Text style={errorStyles.buttonText}>Try again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const errorStyles = StyleSheet.create({
+  screen: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.cream100, padding: spacing(6), gap: spacing(3) },
+  title: { fontFamily: fonts.display700, fontSize: fs(22), color: colors.maroon900, textAlign: "center" },
+  message: { fontFamily: fonts.body400, fontSize: fs(15), color: colors.ink900, textAlign: "center" },
+  button: { marginTop: spacing(3), backgroundColor: colors.maroon600, borderRadius: radii.md, paddingVertical: spacing(3), paddingHorizontal: spacing(6) },
+  buttonText: { fontFamily: fonts.body600, fontSize: fs(16), color: colors.paper50 },
+});
 
 export default function RootLayout() {
   // Every screen's styles name these families unconditionally, so hold the splash screen until

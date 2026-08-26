@@ -13,7 +13,32 @@ type Friendship = { user_a: string; user_b: string; created_at: string };
 type SharedCompletion = { hallTid: number; loggedDistinct: number; seenDistinct: number };
 type SharedTopFood = { dishName: string; score: number; hallName: string | null };
 type SharedHallRank = { hallTid: number; rank: number };
-type SharedStatsRow = { completion: SharedCompletion[] | null; top_foods: SharedTopFood[] | null; hall_ranks: SharedHallRank[] | null } | null;
+type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null;
+
+/** #271: an array *entry* with the wrong shape still crashes render even when the outer field is
+ * a genuine array -- the server's check constraint can't reach into array elements. `null`
+ * entries throw reading any property; an object where a string/number is expected throws "Objects
+ * are not valid as a React child" once it hits JSX (`dishName`, `hallName`, or a `<Text>{r.rank}</Text>`).
+ * Each of these mirrors the shape `deriveSharedStatsPayloads` (privacySettings.ts) actually
+ * produces -- a bad entry is dropped, degrading to the same "opted in, nothing yet" state a
+ * genuinely empty array gets, never rendered. */
+function isValidTopFood(f: unknown): f is SharedTopFood {
+  if (!f || typeof f !== "object") return false;
+  const c = f as SharedTopFood;
+  return typeof c.dishName === "string" && typeof c.score === "number" && Number.isFinite(c.score) && (c.hallName === null || typeof c.hallName === "string");
+}
+
+function isValidHallRank(r: unknown): r is SharedHallRank {
+  if (!r || typeof r !== "object") return false;
+  const c = r as SharedHallRank;
+  return typeof c.hallTid === "number" && typeof c.rank === "number";
+}
+
+function isValidCompletion(c: unknown): c is SharedCompletion {
+  if (!c || typeof c !== "object") return false;
+  const v = c as SharedCompletion;
+  return typeof v.hallTid === "number" && typeof v.loggedDistinct === "number" && typeof v.seenDistinct === "number";
+}
 
 function initialsOf(name: string): string {
   return name
@@ -139,7 +164,16 @@ export default function FriendProfileScreen() {
   }
 
   const name = profile?.display_name ?? "…";
-  const topFoods = stats?.top_foods ?? null;
+  // #271: the server's check constraint only guarantees SQL NULL or a JSON array -- an accepted
+  // friend can still write any other shape via a raw PostgREST upsert (owner RLS allows it). A
+  // malformed non-array field renders the same "doesn't share this" state as an absent field,
+  // never throws. Each array is additionally filtered entry-by-entry (isValidCompletion/
+  // isValidTopFood/isValidHallRank) -- a malformed *element* (e.g. a null entry, or an object
+  // where a string/number is expected) crashes render even when the outer array shape is fine,
+  // since the constraint can't reach into array elements.
+  const completion = Array.isArray(stats?.completion) ? (stats.completion as unknown[]).filter(isValidCompletion) : null;
+  const hallRanks = Array.isArray(stats?.hall_ranks) ? (stats.hall_ranks as unknown[]).filter(isValidHallRank) : null;
+  const topFoods = Array.isArray(stats?.top_foods) ? (stats.top_foods as unknown[]).filter(isValidTopFood) : null;
   const maxScore = topFoods && topFoods.length > 0 ? Math.max(...topFoods.map((f) => f.score)) : 0;
 
   return (
@@ -162,9 +196,9 @@ export default function FriendProfileScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hall Completion</Text>
-          {stats?.completion ? (
+          {completion ? (
             <StatCard>
-              {stats.completion.map((c) => (
+              {completion.map((c) => (
                 <CompletionRow key={c.hallTid} c={c} />
               ))}
             </StatCard>
@@ -196,9 +230,9 @@ export default function FriendProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Their Hall Ranking</Text>
-          {stats?.hall_ranks ? (
+          {hallRanks ? (
             <StatCard>
-              {stats.hall_ranks.map((r) => (
+              {hallRanks.map((r) => (
                 <View key={r.hallTid} style={styles.rankRow}>
                   <Text style={[styles.rankNumber, r.rank === 1 && styles.rankNumberTop]}>{r.rank}</Text>
                   <Text style={styles.rankHallName}>{hallNameFor(r.hallTid)}</Text>

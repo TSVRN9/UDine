@@ -210,6 +210,85 @@ describe("FriendProfileScreen", () => {
     expect(texts(root)).not.toMatch(/Casey hasn.t rated enough foods yet/);
   });
 
+  // #271: shared_stats' check constraints only guarantee SQL NULL or a JSON array -- an accepted
+  // friend can still write any other shape via a raw PostgREST upsert (owner RLS allows it), and
+  // the screen used to do `stats.completion.map(...)` / `stats.hall_ranks.map(...)` with no
+  // Array.isArray guard. A malformed non-array field must degrade to the same "doesn't share
+  // this" state as an absent field, not throw and take the screen down.
+  it("renders 'doesn't share this' instead of throwing when completion/hall_ranks are malformed non-array shapes", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: "boom", top_foods: { x: 1 }, hall_ranks: 42 },
+    });
+    // Rendering itself must not throw -- pre-fix, this line throws "boom".map is not a function.
+    const root = await renderScreen();
+    // All three sections fall back to the honest "doesn't share this" state -- completion and
+    // hall_ranks because a non-array is treated the same as absent; top_foods because an object
+    // isn't an array either (it does NOT get the "opted in but empty" wording, which is reserved
+    // for a genuine empty array).
+    expect(texts(root).match(/Casey doesn.t share this/g)).toHaveLength(3);
+  });
+
+  // The server constraint can't see inside array elements -- a top_foods entry with a
+  // non-numeric score still throws at `f.score.toFixed(1)` even though the OUTER shape is a
+  // genuine array, so the Array.isArray guard alone isn't enough here.
+  it("does not throw when a top_foods entry has a non-numeric score, and drops just that entry", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: null, top_foods: [{ dishName: "x", score: "nope", hallName: null }], hall_ranks: null },
+    });
+    // Rendering itself must not throw -- pre-fix, this line throws "nope".toFixed is not a function.
+    const root = await renderScreen();
+    // Opted in (a real array), but the one entry it had was malformed and got filtered out --
+    // same "opted in, nothing to show yet" wording as a genuinely empty array (review finding #5's
+    // distinction), not "doesn't share this" and not a crash.
+    expect(texts(root)).toMatch(/Casey hasn.t rated enough foods yet/);
+    expect(texts(root)).not.toMatch(/nope/);
+  });
+
+  // #276 review: the outer Array.isArray guard plus a score-only entry filter still left FIVE
+  // reachable crashes (same threat model -- an accepted friend, raw PostgREST upsert on their own
+  // row): an object-valued dishName/hallName in top_foods, a null entry or an object-valued rank
+  // in hall_ranks, and -- the issue's own named line -- a null entry in completion. All five drop
+  // to the same "opted in, nothing to show" state instead of throwing.
+  it("does not throw when top_foods entries have an object-valued dishName or hallName, and drops both", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: {
+        completion: null,
+        top_foods: [
+          { dishName: { evil: 1 }, score: 9 },
+          { dishName: "ok", score: 9, hallName: { evil: 1 } },
+        ],
+        hall_ranks: null,
+      },
+    });
+    // Pre-fix, this throws "Objects are not valid as a React child" for either entry.
+    const root = await renderScreen();
+    expect(texts(root)).toMatch(/Casey hasn.t rated enough foods yet/);
+    expect(texts(root)).not.toMatch(/\bok\b/);
+  });
+
+  it("does not throw when hall_ranks has a null entry or an object-valued rank, and drops both", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: null, top_foods: null, hall_ranks: [null, { hallTid: 1, rank: { evil: 1 } }] },
+    });
+    // Pre-fix: [null] throws "Cannot read properties of null (reading 'rank')"; the second entry
+    // throws "Objects are not valid as a React child".
+    const root = await renderScreen();
+    expect(texts(root)).not.toMatch(/evil/);
+  });
+
+  it("does not throw when completion has a null entry, and drops it -- the issue's own named line", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: [null], top_foods: null, hall_ranks: null },
+    });
+    // Pre-fix: throws "Cannot read properties of null (reading 'hallTid')" inside CompletionRow.
+    await expect(renderScreen()).resolves.toBeDefined();
+  });
+
   // Review finding #2: a discarded insert error used to alert a confirmed "Ping sent" regardless.
   it("alerts failure, not success, when the pings insert is rejected (e.g. RLS: not actually friends)", async () => {
     mockTables({ profile: { user_id: "friend-1", display_name: "Casey" }, insertError: { message: "row-level security policy violation" } });
