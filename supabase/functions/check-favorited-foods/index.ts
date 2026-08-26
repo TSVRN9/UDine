@@ -6,9 +6,10 @@
 //
 // Intended to run on a schedule (Supabase Cron / pg_cron -> net.http_post), not from client code —
 // nothing in the client apps should call this directly.
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HALL_TIDS, hallName, fetchHallHours, windowCloseLabel, type HallHours, type TimeWindow } from "../_shared/hours.ts";
 import { dispatchPushNotifications, readPushConfig, isPermanentWebPushError, findDeadExpoTokens } from "../_shared/push.ts";
+import { fetchAllPages, fetchAllForIds, type PagedResult } from "../_shared/paging.ts";
 
 export { isPermanentWebPushError, findDeadExpoTokens };
 
@@ -127,6 +128,28 @@ export function buildSightingNotification(dishName: string, hallTid: number, mea
   return { title: `${dishName} is at ${hall} today`, body };
 }
 
+// Two plain queries rather than an embedded join: favorited_foods and profiles both reference
+// auth.users independently, with no direct FK between the two, so PostgREST can't resolve
+// `profiles!inner(...)` as an embedded resource here.
+//
+// Both are paged/chunked (issue #261): PostgREST silently caps any single response at max_rows
+// (config.toml: 1000) with no error, and a plain `.in("user_id", userIds)` with enough users blows
+// past a safe URL length and 414s outright (confirmed live: 300 uuids = an 11,189-byte URL = 414).
+// orderColumns are each table's full primary key (see supabase/migrations/*_friends_pings_favorited_
+// foods.sql) -- a total, unique order is required for offset/limit paging to be safe across separate
+// requests; see fetchAllForIds's own doc comment in paging.ts.
+export async function fetchEnabledUserIds(supabase: SupabaseClient): Promise<PagedResult<string>> {
+  const { data, error } = await fetchAllPages<{ user_id: string }>((from, to) =>
+    supabase.from("profiles").select("user_id").eq("notifications_enabled", true).order("user_id").range(from, to),
+  );
+  if (error) return { data: null, error };
+  return { data: (data ?? []).map((p) => p.user_id), error: null };
+}
+
+export async function fetchFavoritesForUsers(supabase: SupabaseClient, userIds: string[]): Promise<PagedResult<{ user_id: string; dish_name: string }>> {
+  return await fetchAllForIds(supabase, "favorited_foods", "user_id, dish_name", "user_id", userIds, ["user_id", "dish_name"]);
+}
+
 Deno.serve(async (_req) => {
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -138,17 +161,13 @@ Deno.serve(async (_req) => {
   }
   const hallHours = await fetchHallHours();
 
-  // Two plain queries rather than an embedded join: favorited_foods and profiles both reference
-  // auth.users independently, with no direct FK between the two, so PostgREST can't resolve
-  // `profiles!inner(...)` as an embedded resource here.
-  const { data: enabledProfiles, error: profilesError } = await supabase.from("profiles").select("user_id").eq("notifications_enabled", true);
+  const { data: userIds, error: profilesError } = await fetchEnabledUserIds(supabase);
   if (profilesError) {
     return new Response(JSON.stringify({ error: profilesError.message }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 
-  const userIds = (enabledProfiles ?? []).map((p) => p.user_id);
-  const favorites = userIds.length === 0 ? [] : (await supabase.from("favorited_foods").select("user_id, dish_name").in("user_id", userIds)).data;
-  if (favorites === null) {
+  const { data: favorites, error: favoritesError } = await fetchFavoritesForUsers(supabase, userIds ?? []);
+  if (favoritesError) {
     return new Response(JSON.stringify({ error: "failed to load favorited_foods" }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 
