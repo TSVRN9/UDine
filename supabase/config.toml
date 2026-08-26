@@ -218,7 +218,13 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
-enable_signup = true
+# Disabled per #268: email/password was never a product path (Google OAuth replaces it, see
+# CLAUDE.md), and leaving it enabled let anyone plant a @umass.edu-domain profile without proving
+# mailbox ownership. This mirrors the live-project fix (owner-only dashboard toggle, issue #268
+# half 1); the hook_restrict_signup_by_umass_domain provider check
+# (20260826120000_restrict_signup_by_google_provider.sql) is belt-and-braces for if this or the
+# live toggle is ever flipped back.
+enable_signup = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
