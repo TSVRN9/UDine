@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createLatestWins } from "@udine/shared";
-import { EmptyState } from "../components/ui";
+import { EmptyState, Toggle } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { addButtonLabel, avatarFillFor, initialsOf, otherUserId, resultButtonState, sentAgoText, type FriendshipRow } from "../lib/addFriends";
 import { supabase } from "../lib/supabase";
@@ -28,24 +28,6 @@ function AddFriendsSectionHeader({ title, count }: { title: string; count?: numb
         </View>
       ) : null}
     </View>
-  );
-}
-
-/** "Findable by search" toggle -- exact track/knob geometry from the #182 spec this issue points
- * at (44x26 track, 22px knob, maroon-when-on). No Animated timing -- a static transform is enough
- * for correctness; the artboard's 180ms transitions are a visual nicety, not tested behavior. */
-function FindableToggle({ on, onChange, disabled }: { on: boolean; onChange: (next: boolean) => void; disabled: boolean }) {
-  return (
-    <Pressable
-      onPress={() => onChange(!on)}
-      disabled={disabled}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: on, disabled }}
-      accessibilityLabel="Findable by search"
-      style={[styles.toggleTrack, { backgroundColor: on ? colors.maroon600 : withOpacity(colors.ink900, 15) }]}
-    >
-      <View style={[styles.toggleKnob, on ? { alignSelf: "flex-end" } : { alignSelf: "flex-start", borderWidth: 1, borderColor: withOpacity(colors.ink900, 15) }]} />
-    </Pressable>
   );
 }
 
@@ -321,7 +303,7 @@ export default function AddFriendsScreen() {
             <Text style={styles.toggleLabel}>Findable by search</Text>
             <Text style={styles.toggleSubline}>Off = no one can find or request you here. Your in-person code still works.</Text>
           </View>
-          <FindableToggle on={myDiscoverable} onChange={toggleFindable} disabled={togglePending} />
+          <Toggle value={myDiscoverable} onValueChange={toggleFindable} disabled={togglePending} accessibilityLabel="Findable by search" />
         </View>
         <Text style={styles.footnote}>ⓘ Friends see only what you share in Your Data — nothing is shared until you turn a stat on.</Text>
       </View>
@@ -388,10 +370,4 @@ const styles = StyleSheet.create({
   toggleLabel: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   toggleSubline: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
   footnote: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
-
-  // padding scales with spacing() (same width-proportional factor as fs()) -- a bare `2` here
-  // would stay fixed while the track/knob shrink at narrow widths (320dp), eventually leaving the
-  // knob no room and visibly overflowing the track.
-  toggleTrack: { width: fs(44), height: fs(26), borderRadius: radii.pill, padding: spacing(0.5), justifyContent: "center" },
-  toggleKnob: { width: fs(22), height: fs(22), borderRadius: radii.pill, backgroundColor: colors.paper50 },
 });
