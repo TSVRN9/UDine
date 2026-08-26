@@ -1,0 +1,14 @@
+-- #248 Part B (owner decision 2026-08-25/26): notification/alert toggles default on.
+--
+-- profiles.notifications_enabled was `not null default false` (20260817220000). handle_new_user()
+-- (recreated most recently by 20260825130000) inserts only (user_id, display_name, email) -- it
+-- never names notifications_enabled in its column list, so this column default is what actually
+-- fires for every new profiles row. Flipping the default here is sufficient; no trigger-function
+-- change needed.
+--
+-- Existing-user story: a column DEFAULT only applies to rows inserted AFTER this migration runs --
+-- it is not a backfill. Every profiles row that already exists keeps whatever notifications_enabled
+-- value it already has (false for the one live user, per CLAUDE.md). Deliberate: flipping existing
+-- users on would silently start registering push tokens / matching favorited_foods for someone who
+-- never asked for that, same reasoning as Part C's "new accounts only" story below it in this PR.
+alter table public.profiles alter column notifications_enabled set default true;

@@ -19,6 +19,18 @@ jest.mock("../lib/favoritesStorage", () => ({
   SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites: jest.fn().mockResolvedValue([]) })),
 }));
 
+// PR #286 review round 2: same in-memory-marker mock as favoriteFoodAlerts.test.tsx -- this file
+// drives the real hook (via NotificationsBody), which now transitively imports the real
+// AsyncStorage-backed favoritesSyncMarker.ts unless mocked.
+const mockFavoritesSyncState = { synced: new Set<string>() };
+jest.mock("../lib/favoritesSyncMarker", () => ({
+  hasSyncedFavorites: (userId: string) => Promise.resolve(mockFavoritesSyncState.synced.has(userId)),
+  markFavoritesSynced: (userId: string) => {
+    mockFavoritesSyncState.synced.add(userId);
+    return Promise.resolve();
+  },
+}));
+
 // Needed to import the REAL ../lib/auth (its signOut()) below -- #264 review round 4's race test
 // exercises the actual sign-out path, not a stand-in for it. auth.ts calls
 // WebBrowser.maybeCompleteAuthSession() at module load and imports expo-linking; neither is
@@ -169,6 +181,13 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSyncFavoritedFoods.mockResolvedValue({ error: null });
   (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+  // jest.clearAllMocks() clears call history but NOT a permanent .mockResolvedValue override from a
+  // previous test -- reset back to the module-mock defaults every test (see favoriteFoodAlerts.
+  // test.tsx's identical fix -- a denied-permission test here would otherwise leak into whichever
+  // test runs next).
+  (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+  (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+  mockFavoritesSyncState.synced.clear();
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
 });
 
@@ -344,6 +363,27 @@ describe("NotificationsBody", () => {
 
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // PR #286 review (Part B): the scenario above (notifications_enabled=true, OS permission not
+  // granted) is exactly what #248's default-true flip produces for a brand-new user who never
+  // tapped anything -- rendering the Switch ON here would be the lie the review flagged (no token,
+  // no synced favorites, nothing actually working). Mutation-red evidence: reverting the Switch's
+  // value back to plain `notificationsEnabled` (dropping `&& !needsPermission`) turns this red.
+  it("renders the switch OFF (needs-action), not ON, when notifications_enabled is true but OS permission isn't granted", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
+      if (name === "food_sightings") return emptyTable();
+      if (name === "push_tokens") return { delete: jest.fn().mockReturnValue({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }) };
+      throw new Error(`unexpected table ${name}`);
+    });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+
+    const root = await renderNotifications();
+    await flush();
+
+    const toggle = root.root.findByType(Switch);
+    expect(toggle.props.value).toBe(false);
   });
 
   // #263: registration must go through the register_push_token RPC (which evicts a shared token
