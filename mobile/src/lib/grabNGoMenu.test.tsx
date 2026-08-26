@@ -16,6 +16,9 @@ jest.mock("../lib/favoritesStorage", () => ({
     addFavorite: jest.fn(),
     removeFavorite: jest.fn(),
   })),
+  // #198: useGuardedToggleFavorite is pure logic against the (mocked) storage interface above --
+  // keep it real, same pattern as SocialPane.test.tsx's real isTransientPingError.
+  useGuardedToggleFavorite: jest.requireActual("../lib/favoritesStorage").useGuardedToggleFavorite,
 }));
 
 jest.mock("../lib/preferences", () => ({
