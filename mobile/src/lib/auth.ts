@@ -2,6 +2,7 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { supabase } from "./supabase";
 import { withTimeout } from "./withTimeout";
+import { bumpSignOutEpoch } from "./signOutEpoch";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -91,13 +92,15 @@ const SIGN_OUT_STEP_TIMEOUT_MS = 15000;
  * exactly the row-set favoriteFoodAlerts.ts's toggle-off already deletes, so it's provably safe
  * there (notifications_enabled flips false in the same call, so any other device's surviving row
  * goes inert). Here there's no such flip -- deliberately, see signOut()'s own doc comment -- so a
- * second device's row is gone too. That's downgraded from "permanent" to "until its next
- * focus/app-open" by favoriteFoodAlerts.ts's reregisterPushToken (#264 finding 1): its toggle
- * stays visibly ON the whole time (never silently flips off), and the very next time that device's
- * screen refreshes while still enabled, its row comes back on its own -- no toggle-off/on needed.
- * The issue that opened this PR (#257) explicitly ruled out re-fetching the Expo token to scope
- * this the way web scopes by subscription; re-registration elsewhere makes that unnecessary here
- * rather than working around it with a fetch on the sign-out path itself.
+ * second device's row is gone too. That's downgraded from "permanent" to "until that device next
+ * opens the alerts screen (app/notifications.tsx) or the Your-data/privacy screen
+ * (app/privacy.tsx)" by favoriteFoodAlerts.ts's reregisterPushToken (#264 finding 1) -- those are
+ * the only two screens that mount useFavoriteFoodAlerts, so this can realistically sit for weeks,
+ * not "the next general app open." Its toggle stays visibly ON the whole time (never silently
+ * flips off), so it's never observed lying -- just possibly stale until one of those two screens
+ * is visited again. The issue that opened this PR (#257) explicitly ruled out re-fetching the
+ * Expo token to scope this the way web scopes by subscription; re-registration elsewhere makes
+ * that unnecessary here rather than working around it with a fetch on the sign-out path itself.
  */
 async function clearThisAccountsExpoTokens(userId: string): Promise<void> {
   try {
@@ -126,9 +129,13 @@ async function clearThisAccountsExpoTokens(userId: string): Promise<void> {
  * re-registers this device's token whenever notifications_enabled is true and the OS permission is
  * already granted, so the flag staying true is exactly what makes that self-heal happen with no
  * re-opt-in. See clearThisAccountsExpoTokens's own doc comment for the one case that combination
- * doesn't fully cover (a second device, until its own next refresh).
+ * doesn't fully cover (a second device, until it next opens one of the two screens that self-heal).
  */
 export async function signOut(): Promise<void> {
+  // Bumped synchronously, before any await -- see signOutEpoch.ts's own doc comment for why this
+  // has to be a counter a concurrently-running self-heal can compare *after* its own upsert
+  // resolves, not a flag checked only before it starts.
+  bumpSignOutEpoch();
   try {
     const { data } = await withTimeout(supabase.auth.getSession(), SIGN_OUT_STEP_TIMEOUT_MS, "getSession (signOut)");
     const userId = data.session?.user.id;

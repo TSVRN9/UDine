@@ -3,6 +3,7 @@
 	import favicon from "$lib/assets/favicon.svg";
 	import { navigating, page } from "$app/state";
 	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
+	import { bumpSignOutEpoch, awaitPendingSelfHeal } from "$lib/signOutEpoch";
 
 	let { children } = $props();
 
@@ -62,6 +63,10 @@
 	// preference for when they sign back in, not device-scoped state. See mobile/src/lib/auth.ts's
 	// signOut() for the same call and the same reasoning.
 	async function signOut() {
+		// Bumped synchronously, before any await -- see signOutEpoch.ts's own doc comment for why
+		// this has to be a counter notifications/+page.svelte's self-heal compares *after* its own
+		// upsert resolves, not a flag checked only before it starts.
+		bumpSignOutEpoch();
 		const supabase = page.data.supabase;
 		if (!supabase) return;
 		const userId = page.data.session?.user.id;
@@ -74,6 +79,12 @@
 			}
 		}
 		await supabase.auth.signOut();
+		// #264 review round 3: location.reload() below tears down this page's JS realm -- if
+		// notifications/+page.svelte's self-heal upsert is still in flight (raced this signOut()),
+		// reloading immediately would silently drop its post-upsert epoch check before it ever runs,
+		// leaving the row it's about to (correctly) delete right back out. Waiting here (a no-op
+		// when nothing is in flight) gives that continuation a chance to actually finish.
+		await awaitPendingSelfHeal();
 		location.reload();
 	}
 </script>

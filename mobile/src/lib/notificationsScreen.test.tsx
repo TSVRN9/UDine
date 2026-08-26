@@ -77,6 +77,7 @@ import renderer, { act } from "react-test-renderer";
 import { Alert, Switch } from "react-native";
 import * as Notifications from "expo-notifications";
 import { supabase } from "../lib/supabase";
+import { bumpSignOutEpoch } from "../lib/signOutEpoch";
 import { NotificationsBody } from "../app/notifications";
 
 function session(userId: string) {
@@ -192,5 +193,72 @@ describe("NotificationsBody", () => {
 
     expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
     expect(pushTokensUpsert).toHaveBeenCalledWith({ user_id: "me", platform: "expo", token: "ExponentPushToken[test]" });
+  });
+
+  // #264 review round 3, finding 1: the self-heal test above proved the token gets re-registered,
+  // but its own getExpoPushTokenAsync call is a real network round trip -- if a sign-out runs
+  // while that's still in flight and deletes this exact row, the self-heal's upsert can land
+  // AFTER the delete and silently resurrect it under the now-signed-out user, reintroducing #257.
+  // This holds getExpoPushTokenAsync open, simulates a concurrent signOut() via
+  // bumpSignOutEpoch() (the exact seam auth.ts's signOut() uses -- see signOutEpoch.ts), then lets
+  // the token fetch resolve, and asserts the self-heal undoes its own upsert instead of leaving it.
+  it("a sign-out that races this self-heal's in-flight token fetch does not resurrect the row it deleted", async () => {
+    const pushTokensUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
+    const deleteEq3 = jest.fn().mockResolvedValue({ data: null, error: null });
+    const deleteEq2 = jest.fn().mockReturnValue({ eq: deleteEq3 });
+    const deleteEq1 = jest.fn().mockReturnValue({ eq: deleteEq2 });
+    const pushTokensDelete = jest.fn().mockReturnValue({ eq: deleteEq1 });
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
+      if (name === "food_sightings") return emptyTable();
+      if (name === "push_tokens") return { upsert: pushTokensUpsert, delete: pushTokensDelete };
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    let resolveToken!: (v: { data: string }) => void;
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        resolveToken = resolve;
+      }),
+    );
+
+    await renderNotifications();
+    await flush(5); // let it reach getExpoPushTokenAsync and start waiting on it
+
+    // Simulate auth.ts's signOut() running concurrently, mid-flight -- exactly what it does as the
+    // very first line of the real function.
+    bumpSignOutEpoch();
+
+    resolveToken({ data: "ExponentPushToken[test]" });
+    await flush();
+
+    expect(pushTokensUpsert).toHaveBeenCalledWith({ user_id: "me", platform: "expo", token: "ExponentPushToken[test]" });
+    // The upsert landed after the race was detected -- undone immediately rather than left in
+    // place under the now-signed-out user.
+    expect(pushTokensDelete).toHaveBeenCalled();
+    expect(deleteEq1).toHaveBeenCalledWith("user_id", "me");
+    expect(deleteEq2).toHaveBeenCalledWith("platform", "expo");
+    expect(deleteEq3).toHaveBeenCalledWith("token", "ExponentPushToken[test]");
+  });
+
+  // #264 review round 3, finding 2: deleting the `if (status !== "granted") return;` guard from
+  // reregisterPushToken left the whole suite green -- nothing exercised the not-granted path. On
+  // iOS, calling getExpoPushTokenAsync without permission throws; on Android it may silently mint
+  // a token anyway. Neither is what a background refresh should ever do.
+  it("notifications enabled but OS permission is not granted: mounting the screen does not fetch or mint a token", async () => {
+    const pushTokensUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
+      if (name === "food_sightings") return emptyTable();
+      if (name === "push_tokens") return { upsert: pushTokensUpsert, delete: jest.fn().mockReturnValue({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }) };
+      throw new Error(`unexpected table ${name}`);
+    });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+
+    await renderNotifications();
+    await flush();
+
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(pushTokensUpsert).not.toHaveBeenCalled();
   });
 });

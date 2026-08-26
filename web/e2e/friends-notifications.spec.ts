@@ -560,6 +560,74 @@ test.describe("Sign out (#257)", () => {
 		expect(post.body).toMatchObject({ user_id: USER_ID, platform: "web", token: ownToken });
 	});
 
+	// #264 review round 3, finding 1: the self-heal test above proved the row gets re-created, but
+	// its own upsert is a real network round trip -- if a sign-out runs (and deletes this exact
+	// row) while that upsert is still in flight, and the upsert then lands AFTER the delete, it
+	// silently resurrects the row under the now-signed-out user, reintroducing #257. Reproduced by
+	// holding the self-heal's own POST upstream and clicking Sign out while it's still pending --
+	// the reviewer's own repro settle order (DELETE, then the held POST) is exactly what this
+	// forces, and the assertion is that a second, compensating DELETE follows.
+	test("a sign-out that races this self-heal's in-flight upsert does not resurrect the deleted row", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "granted", ownEndpoint);
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			push_tokens: async (route) => {
+				if (route.request().method() === "POST") {
+					// Self-heal's own upsert -- held so a real Sign-out click lands while it's still in
+					// flight, forcing the race instead of hoping to catch it by timing luck.
+					await new Promise((resolve) => setTimeout(resolve, 1500));
+				}
+				await route.fulfill({ json: [] });
+			},
+		});
+
+		await page.goto("/notifications");
+		const signOutButton = page.getByRole("button", { name: "Sign out" });
+		await expect(signOutButton).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		// The self-heal's POST is captured (by signInAndMockSupabase's router) before the artificial
+		// hold above runs, so this proves the POST is genuinely in flight before the click below.
+		await waitForRequest(requests, "push_tokens", "POST");
+		await signOutButton.click();
+
+		// Settle order is DELETE (sign-out's own, unheld) then POST (self-heal's, held) -- the held
+		// POST winning the race would recreate the row sign-out just deleted, unless the self-heal's
+		// after-the-fact epoch check fires a second, compensating DELETE once it resolves.
+		await expect.poll(() => requests.filter((r) => r.table === "push_tokens" && r.method === "DELETE").length, { timeout: 15_000 }).toBe(2);
+
+		const ownToken = JSON.stringify({ endpoint: ownEndpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } });
+		for (const del of requests.filter((r) => r.table === "push_tokens" && r.method === "DELETE")) {
+			expect(del.url.searchParams.get("user_id")).toBe(`eq.${USER_ID}`);
+			expect(del.url.searchParams.get("platform")).toBe("eq.web");
+			expect(del.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
+		}
+	});
+
+	// #264 review round 3, finding 2: the granted-only guard on the self-heal above was untested --
+	// dropping it left the whole suite green. The existing #185 "default" test has no live
+	// subscription, so ownPushToken() returns undefined and no POST fires regardless of the guard;
+	// a meaningful test needs a live subscription with permission NOT granted.
+	test("a live subscription with permission not granted does not self-heal a push_tokens row", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "default", ownEndpoint);
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+		await page.waitForTimeout(1000); // same beat given to the sibling #185 "default" test above
+
+		expect(requests.some((r) => r.table === "push_tokens")).toBe(false);
+	});
+
 	test("clears this browser's own push_tokens row before ending the session", async ({ page }) => {
 		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
 		await mockPushEnvironment(page, "granted", ownEndpoint);
