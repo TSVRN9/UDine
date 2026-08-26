@@ -2,6 +2,12 @@
 	import "../app.css";
 	import favicon from "$lib/assets/favicon.svg";
 	import { navigating, page } from "$app/state";
+	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
+	import { pendingSelfHeal } from "$lib/pendingSelfHeal";
+
+	// No shared web withTimeout convention -- a Promise.race with a timer, matching mobile's
+	// withTimeout in spirit (mirrors mobile/src/lib/auth.ts's SIGN_OUT_STEP_TIMEOUT_MS).
+	const SELF_HEAL_WAIT_TIMEOUT_MS = 15000;
 
 	let { children } = $props();
 
@@ -49,9 +55,48 @@
 		if (error) signingIn = false;
 	}
 
+	// #257: signOut() used to only call auth.signOut(), leaving this browser's push_tokens row
+	// registered under the signing-out user -- a shared device kept getting the previous user's
+	// favorited-food alerts. The delete has to happen BEFORE auth.signOut(): once the session is
+	// gone, RLS no longer lets this browser touch that row. Best-effort and scoped to this browser's
+	// own subscription (never a blanket "every device" delete, see clearStoredPushTokens's own doc
+	// comment) -- a failure here must not strand the user mid sign-out, and skipped entirely when
+	// this browser was never subscribed (nothing to clean up).
+	//
+	// Deliberately does NOT flip notifications_enabled to false -- that's the user's stored
+	// preference for when they sign back in, not device-scoped state. See mobile/src/lib/auth.ts's
+	// signOut() for the same call and the same reasoning.
 	async function signOut() {
-		if (!page.data.supabase) return;
-		await page.data.supabase.auth.signOut();
+		const supabase = page.data.supabase;
+		if (!supabase) return;
+		const userId = page.data.session?.user.id;
+		if (userId) {
+			// #264 review round 4: notifications/+page.svelte's self-heal (re-upserting this
+			// browser's push_tokens row whenever notifications_enabled is true and permission is
+			// granted) can still be mid-flight when the user clicks "Sign out". Two earlier fixes
+			// here (a pre-upsert flag, then a post-upsert "compensating delete" keyed off a sign-out
+			// epoch) both failed: the compensating delete ran *after* auth.signOut() below had
+			// already cleared the session, so it 403'd (push_tokens has no anon grant,
+			// `20260818130000:39-40`) and the resurrected row stayed -- reviewer-reproduced, not
+			// theoretical. Waiting for the self-heal HERE, before this function's own delete and
+			// before auth.signOut(), removes the race instead of detecting it after the fact: either
+			// the self-heal finishes first (and the delete below removes whatever it wrote, with the
+			// session still live) or it never started. Bounded so a hung self-heal can't hang
+			// sign-out -- a self-heal upsert whose request was already in flight with a still-valid
+			// JWT when the wait times out can still land afterward; #263's server-side unique-token
+			// constraint is the backstop for that sliver, not this code.
+			const pending = pendingSelfHeal();
+			if (pending) {
+				await Promise.race([pending, new Promise((resolve) => setTimeout(resolve, SELF_HEAL_WAIT_TIMEOUT_MS))]);
+			}
+			try {
+				const ownToken = await ownPushToken();
+				if (ownToken) await clearStoredPushTokens(supabase, userId, ownToken);
+			} catch (err) {
+				console.error("Push token cleanup failed on sign-out:", err);
+			}
+		}
+		await supabase.auth.signOut();
 		location.reload();
 	}
 </script>

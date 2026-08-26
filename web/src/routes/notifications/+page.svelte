@@ -5,6 +5,8 @@
 	import { DINING_HALLS, hallNameFor, syncFavoritedFoods, type Favorite } from "@udine/shared";
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { loadFeedLastSeen, saveFeedLastSeen } from "$lib/feedLastSeen";
+	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
+	import { registerPendingSelfHeal } from "$lib/pendingSelfHeal";
 	import { PUBLIC_VAPID_KEY } from "$env/static/public";
 
 	type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date: string; read_at: string | null; created_at: string };
@@ -24,30 +26,6 @@
 
 	function pushSupported(): boolean {
 		return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && Boolean(PUBLIC_VAPID_KEY);
-	}
-
-	async function clearStoredPushTokens(supabase: SupabaseClient, userId: string, ownToken?: string) {
-		// #185: refresh()'s permission-revoked cleanup used to call this with no ownToken at all, which
-		// wiped every browser's token, not just the caller's own -- e.g. visiting /notifications from a
-		// second, never-subscribed browser silently killed push on the first. Pass ownToken (the exact
-		// JSON.stringify(subscription.toJSON()) enablePush() stored) to scope the delete to that one row.
-		// ponytail: disablePush() still calls this with no ownToken -- an explicit in-browser "turn
-		// alerts off" toggles the account-level notifications_enabled flag too, so a stale token left on
-		// another device is inert (nothing dispatches while that flag is off), unlike the refresh() case
-		// this issue is about. Per-device scoping there is a separate, lower-stakes cleanup.
-		let query = supabase.from("push_tokens").delete().eq("user_id", userId).eq("platform", "web");
-		if (ownToken) query = query.eq("token", ownToken);
-		await query;
-	}
-
-	/** This browser's own live PushSubscription, serialized the same way enablePush() stores it --
-	 * used to scope clearStoredPushTokens to only this browser's row instead of every row for the
-	 * user (#185). */
-	async function ownPushToken(): Promise<string | undefined> {
-		if (!pushSupported()) return undefined;
-		const registration = await navigator.serviceWorker.getRegistration();
-		const subscription = await registration?.pushManager.getSubscription();
-		return subscription ? JSON.stringify(subscription.toJSON()) : undefined;
 	}
 
 	async function enablePush(supabase: SupabaseClient, userId: string) {
@@ -145,6 +123,34 @@
 		if (notificationsEnabled && pushSupported() && Notification.permission === "denied") {
 			const ownToken = await ownPushToken();
 			if (ownToken) await clearStoredPushTokens(supabase, myId, ownToken);
+		}
+
+		// #264 review finding 1: our own signOut() (+layout.svelte) deletes this browser's
+		// push_tokens row but deliberately leaves the live PushSubscription and
+		// notifications_enabled=true alone -- otherwise the toggle would show ON forever with
+		// nothing behind it. Re-upsert from the still-live subscription so alerts self-heal on the
+		// next visit/sign-in without a re-toggle. Never prompts or subscribes -- ownPushToken() only
+		// reads a subscription that's already there.
+		//
+		// #264 review round 4: ownPushToken() + the upsert below are a real network round trip that
+		// can still be in flight when the user clicks "Sign out" -- this promise is registered via
+		// registerPendingSelfHeal so +layout.svelte's signOut() can wait for it (bounded) BEFORE its
+		// own delete, instead of racing it. See pendingSelfHeal.ts's own doc comment for why that
+		// ordering, not a post-upsert compensating delete, is what actually closes the race.
+		if (notificationsEnabled && pushSupported() && Notification.permission === "granted") {
+			const selfHeal = (async () => {
+				try {
+					const ownToken = await ownPushToken();
+					if (ownToken) {
+						const { error } = await supabase.from("push_tokens").upsert({ user_id: myId, platform: "web", token: ownToken });
+						if (error) console.error("Push token re-registration failed:", error);
+					}
+				} catch (err) {
+					console.error("Push token re-registration failed:", err);
+				}
+			})();
+			registerPendingSelfHeal(selfHeal);
+			await selfHeal;
 		}
 
 		const { data: sightingRows } = await supabase.from("food_sightings").select("*").eq("user_id", myId).order("created_at", { ascending: false });
