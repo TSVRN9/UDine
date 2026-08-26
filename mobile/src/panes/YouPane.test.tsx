@@ -220,6 +220,25 @@ describe("YouPane hall completion display", () => {
   });
 });
 
+// --- #258: pin the today-filter -- an entry logged on a different day must not leak into
+// Today's Log or its calorie total. `todayIso` is mocked to 2026-08-19 above.
+describe("YouPane today-filter", () => {
+  it("excludes entries logged on a different day from Today's Log and the calorie total", async () => {
+    logMock.getAllEntries.mockResolvedValue([
+      logEntry("1", "French Toast", 3, "2026-08-19T07:00:00.000"), // today
+      logEntry("2", "Old Pizza", 1, "2026-08-18T18:30:00.000"), // yesterday -- must not show
+    ]);
+
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/French Toast/);
+    expect(body).not.toMatch(/Old Pizza/);
+    // NUTRITION fixture is 500 cal/serving -- if yesterday's entry leaked in, this would be 1000.
+    expect(body).toMatch(/\b500\b/);
+    expect(body).not.toMatch(/\b1000\b/);
+  });
+});
+
 // --- #118: Today's Log grouped by mealtime, per-meal subtotals, ALL LOGS link. -----------------
 
 describe("YouPane Today's Log meal grouping", () => {
