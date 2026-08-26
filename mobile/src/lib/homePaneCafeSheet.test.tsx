@@ -45,6 +45,7 @@ import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { HomePane } from "../app/index";
 import { CafeSheet } from "../components/CafeSheet";
+import { CafePdfViewer } from "../components/CafePdfViewer";
 
 function hours(retail: DiningHoursFeed["retail"]): DiningHoursFeed {
   return {
@@ -86,6 +87,31 @@ describe("HomePane café rows (#245 item 8)", () => {
     expect(root.root.findByType(CafeSheet).props.visible).toBe(true);
     expect(root.root.findByType(CafeSheet).props.loc.name).toBe("The Hub");
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("hides CafeSheet's modal once its PDF viewer opens, instead of stacking both full-screen", async () => {
+    mockFetchHoursAndCache.mockResolvedValue(hours([NO_MENU_CAFE]));
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+
+    const row = root.root
+      .findAll((n) => typeof n.props.onPress === "function")
+      .find((p) => p.findAllByType(Text).some((t) => typeof t.props.children === "string" && t.props.children === "The Hub"))!;
+    await act(async () => {
+      await row.props.onPress();
+    });
+    expect(root.root.findByType(CafeSheet).props.visible).toBe(true);
+
+    await act(async () => {
+      root.root.findByType(CafeSheet).props.onOpenPdf("https://example.com/menu.pdf", "Menu");
+    });
+
+    expect(root.root.findByType(CafePdfViewer)).toBeTruthy();
+    // Bug: CafeSheet's `visible` wasn't tied to the open PDF, so its Modal kept covering the
+    // screen alongside CafePdfViewer's full-screen view instead of yielding to it.
+    expect(root.root.findByType(CafeSheet).props.visible).toBe(false);
   });
 
   it("still navigates via Link for a café that has a locationId (normal path unaffected)", async () => {

@@ -346,7 +346,7 @@ export function HomePane() {
       </ScrollView>
       {cafeSheetLoc ? (
         <CafeSheet
-          visible={cafeSheetVisible}
+          visible={cafeSheetVisible && !cafeSheetPdf}
           loc={cafeSheetLoc}
           now={now}
           onClose={() => setCafeSheetVisible(false)}
