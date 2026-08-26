@@ -26,6 +26,10 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// #245 item 8: HomePane now imports CafeSheet's own CafePdfViewer chain, which pulls in
+// react-native-webview -- no native module for it under jest (same fix as cafeScreen.test.tsx).
+jest.mock("react-native-webview", () => ({ WebView: () => null }));
+
 // HomePane always renders Links (hall cards, quick links) -- stub them out flat since there's no
 // navigator in this render tree.
 jest.mock("expo-router", () => ({

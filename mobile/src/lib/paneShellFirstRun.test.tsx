@@ -13,6 +13,11 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// #245 item 8: PaneShellScreen (index.tsx) now imports CafeSheet's own CafePdfViewer chain, which
+// pulls in react-native-webview -- no native module for it under jest (same fix as
+// cafeScreen.test.tsx).
+jest.mock("react-native-webview", () => ({ WebView: () => null }));
+
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn() },

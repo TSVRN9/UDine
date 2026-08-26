@@ -1,8 +1,9 @@
 import type { DiningEvent, TimeWindow } from "@udine/shared";
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HallHoursRow } from "../lib/hallMenuTabs";
 import { hallInfoEventsEmptyCopy, hallInfoWindowText } from "../lib/hallMenuTabs";
+import { useSheetAnim } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
  */
 export function HallInfoSheet({ visible, hallName, address, directionsUrl, hoursRows, grabNGoWindow, events, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { backdropStyle, panelStyle } = useSheetAnim(visible);
 
   async function openDirections() {
     if (!directionsUrl) return;
@@ -42,10 +44,12 @@ export function HallInfoSheet({ visible, hallName, address, directionsUrl, hours
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: spacing(6) + insets.bottom }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
+          <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+        </Animated.View>
+        <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
           <View style={styles.handleRow}>
             <View style={styles.handle} />
           </View>
@@ -112,7 +116,7 @@ export function HallInfoSheet({ visible, hallName, address, directionsUrl, hours
               ))
             )}
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

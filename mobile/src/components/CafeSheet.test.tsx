@@ -5,7 +5,7 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 
 import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
+import { Animated, Modal, Text } from "react-native";
 import type { RetailLocationHours } from "@udine/shared";
 import { CafeSheet } from "./CafeSheet";
 
@@ -113,5 +113,24 @@ describe("CafeSheet (#177 fallback sheet)", () => {
   it("joins acceptedPayment with the styling spec's ' · ' separator", () => {
     const root = render(loc({ acceptedPayment: "Cash, Credit Cards, UCard, Dining Dollars, YCMP" }));
     expect(texts(root).flat()).toContain("Cash · Credit Cards · UCard · Dining Dollars · YCMP");
+  });
+
+  // #245 item 5: the backdrop must fade (opacity), not travel with the sheet panel (transform) --
+  // RN Modal's own animationType="slide" moves both together, so it must be off here, with the
+  // two Animated.View layers driving opacity/transform independently instead.
+  it("disables Modal's built-in slide animation and animates the backdrop/panel on separate style props", () => {
+    const root = render(loc());
+    expect(root.root.findByType(Modal).props.animationType).toBe("none");
+
+    const animatedViews = root.root.findAllByType(Animated.View);
+    const flatStyles = animatedViews.map((n) => (Array.isArray(n.props.style) ? n.props.style : [n.props.style]));
+    const backdropLayer = flatStyles.find((s) => s.some((part: object | null) => part && "opacity" in part));
+    const panelLayer = flatStyles.find((s) => s.some((part: object | null) => part && "transform" in part));
+
+    expect(backdropLayer).toBeDefined();
+    expect(panelLayer).toBeDefined();
+    // Opacity-only layer must not also carry the panel's translateY -- proves they're decoupled,
+    // not the same Animated.View wearing both styles (which would reproduce the original bug).
+    expect(backdropLayer!.some((part: object | null) => part && "transform" in part)).toBe(false);
   });
 });
