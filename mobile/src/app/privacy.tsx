@@ -148,37 +148,47 @@ export default function PrivacyScreen() {
     // the actual decision -- this block is just its IO shell. `alreadySeeded` also drives whether
     // the first-run disclosure card renders below, independent of whether THIS refresh seeds
     // anything (a returning already-seeded user must keep seeing it until dismissed).
+    //
+    // PR #286 review: the marker (and the disclosure it gates) must be written as soon as ANY
+    // field successfully pushes, not only on a clean sweep of all three. A field that pushed
+    // before a later field failed is ALREADY shared server-side -- that's what triggers the "you
+    // were shared without asking" disclosure obligation, and it's true at the first success, not
+    // the third. Gating the marker on a full clean run left a partially-seeded user (one real
+    // field shared with every accepted friend) with the marker unwritten, so the disclosure never
+    // showed AND -- because a successful push already created the shared_stats row -- the next
+    // focus's `row === null` gate blocked ever retrying the remaining field(s) either. Once any
+    // field lands, the remaining, never-attempted field(s) simply stay off -- not retried, same
+    // fail-partial-closed ceiling as before, just now correctly disclosed and never mistaken for
+    // "nothing happened yet".
+    //
+    // Non-blocking, noted not fixed (PR #286 review): two overlapping refresh() calls (e.g. a rapid
+    // double-focus) could both pass the `hasSeededSharedStatsDefault` check before either writes the
+    // marker, and both run the seed loop. Every syncSharedStat write here is an idempotent upsert of
+    // the same derived value, so the worst case is redundant network calls, never a wrong end state
+    // (no field ends up with two different values, no marker corruption) -- not worth a lock for.
     const alreadySeeded = await hasSeededSharedStatsDefault(myId);
     let seededNow = false;
     if (shouldSeedSharedStatsDefault({ row: data ?? null, createdAt: session?.user.created_at, alreadySeeded })) {
       const derivedForSeed = deriveSharedStatsPayloads(seenByHall, entries, rankedDishes, rankedFoods);
-      const seededRow: SharedStatsRow = { completion: null, top_foods: null, hall_ranks: null };
-      let seedFailed = false;
       for (const field of SHARED_STAT_FIELDS) {
-        // Same #186/#241/#217 guard as the re-push loop below: a toggle or a Delete-server-data
-        // confirm firing mid-seed bumps generationRef, and this loop must stop rather than push a
-        // field the user just acted on.
-        if (generationRef.current !== startGeneration) {
-          seedFailed = true;
-          break;
-        }
+        // #186/#241/#217 guard, reused: a toggle or a Delete-server-data confirm firing mid-seed
+        // bumps generationRef. Checked both before starting this field's push (a race during an
+        // earlier await in this same refresh) and again right after it resolves (a race DURING
+        // this field's own network round trip) -- the second check is what stops this loop from
+        // writing local `row` state for a field the user's own toggle just changed underneath it;
+        // the field's OWN server write already landed either way, this only protects local state.
+        if (generationRef.current !== startGeneration) break;
         const value = sharedStatValueForToggle(field, true, derivedForSeed);
         const { error } = await syncSharedStat(supabase, myId, field, value);
+        if (generationRef.current !== startGeneration) break;
         if (error) {
           console.warn(`[privacy] default-on seed: syncSharedStat(${field}) failed`, error);
-          seedFailed = true;
-          break;
+          break; // not retried once any field has already succeeded -- see the doc comment above
         }
-        seededRow[field] = value;
-      }
-      // Only mark seeded (and flip the UI) on a clean run -- a partial failure retries on the next
-      // focus instead of freezing at N-of-3 fields on forever with no way to complete (see #248's
-      // PR body for why this fail-partial-closed behavior is an accepted, not fixed, ceiling).
-      if (!seedFailed) {
-        await markSharedStatsDefaultSeeded(myId);
-        setRow(seededRow);
         seededNow = true;
+        setRow((prev) => ({ completion: prev?.completion ?? null, top_foods: prev?.top_foods ?? null, hall_ranks: prev?.hall_ranks ?? null, [field]: value }));
       }
+      if (seededNow) await markSharedStatsDefaultSeeded(myId);
     }
     setSeededThisAccount(alreadySeeded || seededNow);
     // Unconditional, not gated on seededThisAccount -- always reflects THIS user's own dismissal
@@ -363,9 +373,18 @@ export default function PrivacyScreen() {
               <View style={styles.alertsRow}>
                 <View style={styles.alertsText}>
                   <Text style={styles.rowLabel}>Favorite-food alerts</Text>
-                  <Text style={styles.alertsSubline}>{alertsSubline(alerts.favoritesCount)}</Text>
+                  {/* PR #286 review (Part B): notifications_enabled defaulting true (#248) can be
+                      true server-side for a device that never granted OS permission and so never
+                      registered a token or synced a favorite -- rendering ON here would be exactly
+                      the lie the review flagged. needsPermission (useFavoriteFoodAlerts) renders
+                      this row as a needs-action prompt instead; tapping it runs the same toggle(true)
+                      path, the only one that ever calls requestPermissionsAsync -- this row never
+                      prompts on its own just by being visited. */}
+                  <Text style={styles.alertsSubline}>
+                    {alerts.notificationsEnabled && alerts.needsPermission ? "Tap to finish turning on -- allow notifications when asked." : alertsSubline(alerts.favoritesCount)}
+                  </Text>
                 </View>
-                <Toggle value={alerts.notificationsEnabled} onValueChange={toggleAlerts} />
+                <Toggle value={alerts.notificationsEnabled && !alerts.needsPermission} onValueChange={toggleAlerts} />
               </View>
             </Card>
           </View>

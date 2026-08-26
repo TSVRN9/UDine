@@ -23,7 +23,27 @@ jest.mock("./seenDishesStorage", () => {
   return { SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ getAllSeenDishNames })) };
 });
 
-const mockSyncSharedStat = jest.fn().mockResolvedValue({ error: null });
+// PR #286 review: this needs to be a STATEFUL stand-in for the server's shared_stats row, not a
+// fixed resolved value -- the partial-seed tests below render the screen through a SECOND focus and
+// must see back what the FIRST focus actually wrote (a static mock can never fail that way, which is
+// exactly how the pre-fix "next focus can retry" test passed despite the real code never retrying).
+// Reset to null (no row) in beforeEach; mockTables' sharedStatsRow option seeds an initial value for
+// tests that want to start with a pre-existing row.
+let mockSharedStatsServerRow: { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null = null;
+function mockSyncSharedStatDefaultImpl(_client: unknown, _userId: string, field: string, value: unknown) {
+    mockSharedStatsServerRow = {
+    completion: mockSharedStatsServerRow?.completion ?? null,
+    top_foods: mockSharedStatsServerRow?.top_foods ?? null,
+    hall_ranks: mockSharedStatsServerRow?.hall_ranks ?? null,
+    [field]: value,
+  };
+  return Promise.resolve({ error: null });
+}
+// Loose jest.fn() (no inferred tuple type from mockSyncSharedStatDefaultImpl's signature) so this
+// stays spreadable (mockSyncSharedStat(...args)) and every existing mockResolvedValue({error:{...}})
+// / mockImplementationOnce(...) override below keeps type-checking against `unknown`, not `null`.
+const mockSyncSharedStat = jest.fn();
+mockSyncSharedStat.mockImplementation(mockSyncSharedStatDefaultImpl);
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   syncSharedStat: (...args: unknown[]) => mockSyncSharedStat(...args),
@@ -33,12 +53,19 @@ jest.mock("@udine/shared", () => ({
 // (persists across this screen's own refresh() calls within a test) without pulling in the
 // AsyncStorage mock, since sharedStatsSeed.ts's own IO is covered directly by sharedStatsSeed.test.ts.
 const mockSharedStatsSeedState = { seeded: new Set<string>(), disclosureDismissed: new Set<string>() };
+// PR #286 review: markSharedStatsDefaultSeeded is its own jest.fn() (not just a state mutation) so
+// "seeds exactly once" can assert on CALL COUNT -- a plain Set membership check can't tell "marked
+// once" apart from "marked twice, ending up true either way", and a raw push-count assertion is no
+// longer a valid proxy for that once the shared_stats mock became stateful (a second focus
+// legitimately re-pushes already-opted-in fields via the unrelated fieldsNeedingRefresh loop; see
+// mockSyncSharedStatDefaultImpl above).
+const mockMarkSharedStatsDefaultSeeded = jest.fn((userId: string) => {
+  mockSharedStatsSeedState.seeded.add(userId);
+  return Promise.resolve();
+});
 jest.mock("./sharedStatsSeed", () => ({
   hasSeededSharedStatsDefault: (userId: string) => Promise.resolve(mockSharedStatsSeedState.seeded.has(userId)),
-  markSharedStatsDefaultSeeded: (userId: string) => {
-    mockSharedStatsSeedState.seeded.add(userId);
-    return Promise.resolve();
-  },
+  markSharedStatsDefaultSeeded: (userId: string) => mockMarkSharedStatsDefaultSeeded(userId),
   isSharedStatsDisclosureDismissed: (userId: string) => Promise.resolve(mockSharedStatsSeedState.disclosureDismissed.has(userId)),
   dismissSharedStatsDisclosure: (userId: string) => {
     mockSharedStatsSeedState.disclosureDismissed.add(userId);
@@ -46,7 +73,7 @@ jest.mock("./sharedStatsSeed", () => ({
   },
 }));
 
-const alertsState = { notificationsEnabled: false, favoritesCount: 0 };
+const alertsState = { notificationsEnabled: false, favoritesCount: 0, needsPermission: false };
 const mockToggleAlerts = jest.fn().mockResolvedValue({ error: null });
 const mockRefreshAlerts = jest.fn().mockResolvedValue(undefined);
 jest.mock("./favoriteFoodAlerts", () => ({
@@ -91,15 +118,16 @@ jest.mock("expo-router", () => ({
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));
 
 /** Chainable query-builder stub, same shape as friendsScreen.test.tsx's `table()`. `.maybeSingle`
- * resolves the fixed single row a test supplies; `.delete().eq()`/`.or()` resolve a configurable
- * `{ error }`; the plain select chain resolves `{ data: rows }`. */
-function table(rows: Record<string, unknown>[], opts: { deleteError?: unknown; singleRow?: Record<string, unknown> | null } = {}) {
+ * resolves `getSingleRow()` when given (a LIVE read, for shared_stats -- see mockSharedStatsServerRow
+ * above) or else the fixed `singleRow` a test supplies; `.delete().eq()`/`.or()` resolve a
+ * configurable `{ error }`; the plain select chain resolves `{ data: rows }`. */
+function table(rows: Record<string, unknown>[], opts: { deleteError?: unknown; singleRow?: Record<string, unknown> | null; getSingleRow?: () => Record<string, unknown> | null } = {}) {
   const builder: Record<string, unknown> = {};
   const chain = () => builder;
   builder.select = chain;
   builder.eq = chain;
   builder.or = chain;
-  builder.maybeSingle = () => Promise.resolve({ data: opts.singleRow ?? null, error: null });
+  builder.maybeSingle = () => Promise.resolve({ data: (opts.getSingleRow ? opts.getSingleRow() : opts.singleRow) ?? null, error: null });
   builder.then = (resolve: (v: { data: unknown[] }) => void) => resolve({ data: rows });
 
   const deleteBuilder: Record<string, unknown> = {};
@@ -143,8 +171,12 @@ function texts(root: renderer.ReactTestRenderer) {
 }
 
 function mockTables(opts: { sharedStatsRow?: Record<string, unknown> | null; friendships?: Record<string, unknown>[]; deleteErrors?: Record<string, unknown> } = {}) {
+  // Seeds the LIVE server-row stand-in (only when a test explicitly passes sharedStatsRow -- most
+  // tests call mockTables() with no args just to (re)wire friendships, and must not stomp whatever
+  // mockSyncSharedStat has already written this test).
+  if (opts.sharedStatsRow !== undefined) mockSharedStatsServerRow = opts.sharedStatsRow as typeof mockSharedStatsServerRow;
   mockFrom.mockImplementation((name: string) => {
-    if (name === "shared_stats") return table([], { singleRow: opts.sharedStatsRow ?? null });
+    if (name === "shared_stats") return table([], { getSingleRow: () => mockSharedStatsServerRow });
     if (name === "friendships") return table(opts.friendships ?? []);
     throw new Error(`unexpected table ${name}`);
   });
@@ -171,13 +203,15 @@ let alertSpy: jest.SpyInstance;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockSyncSharedStat.mockResolvedValue({ error: null });
+  mockSharedStatsServerRow = null;
+  mockSyncSharedStat.mockImplementation(mockSyncSharedStatDefaultImpl);
   mockToggleAlerts.mockResolvedValue({ error: null });
   mockRefreshAlerts.mockResolvedValue(undefined);
   mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
   mockPendingSelfHeal.mockReturnValue(null);
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
+  alertsState.needsPermission = false;
   mockSharedStatsSeedState.seeded.clear();
   mockSharedStatsSeedState.disclosureDismissed.clear();
   mockLastFocusCallback = null;
@@ -412,30 +446,71 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
   });
 
   // Mutation-red evidence: flip shouldSeedSharedStatsDefault's `!opts.alreadySeeded` gate to always
-  // pass (e.g. `true ||`) and this test's second-focus assertion goes from 3 pushes to 6 -- the seed
-  // would fire on every focus, not once. Simulates a second focus of the SAME screen instance (user
-  // swipes away and back) by re-invoking the exact callback react-navigation would re-invoke,
-  // bypassing only this test file's own WeakSet dedup (a jsdom-only guard against a real render
-  // loop, not something react-navigation has).
+  // pass (e.g. `true ||`) and markSharedStatsDefaultSeeded gets called a SECOND time on the second
+  // focus -- the seed decision would re-fire on every focus, not once. Simulates a second focus of
+  // the SAME screen instance (user swipes away and back) by re-invoking the exact callback
+  // react-navigation would re-invoke, bypassing only this test file's own WeakSet dedup (a
+  // jsdom-only guard against a real render loop, not something react-navigation has).
+  //
+  // PR #286 review: asserting on raw push COUNT (3, not 6) stopped discriminating "seeded once" once
+  // the shared_stats mock became stateful -- a second focus legitimately re-pushes the now-non-null
+  // fields via the pre-existing, unrelated fieldsNeedingRefresh loop (#94's own "re-affirm on every
+  // focus" behavior), so 6 raw pushes on a second focus is expected and correct, not a seed bug.
+  // markSharedStatsDefaultSeeded's own call count is what actually answers "did the SEED decision
+  // fire twice" -- fieldsNeedingRefresh never calls it.
   it("seeds exactly once across repeated focuses of the same screen instance, not on every focus", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
     await renderScreen();
     expect(sharedFieldPushes()).toHaveLength(3);
+    expect(mockMarkSharedStatsDefaultSeeded).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       mockLastFocusCallback!();
       for (let i = 0; i < 8; i++) await Promise.resolve();
     });
 
-    expect(sharedFieldPushes()).toHaveLength(3); // still 3, not 6
+    // The re-affirm loop legitimately re-pushes all 3 already-opted-in fields (6 total pushes now),
+    // but the SEED itself must still have fired exactly once.
+    expect(sharedFieldPushes()).toHaveLength(6);
+    expect(mockMarkSharedStatsDefaultSeeded).toHaveBeenCalledTimes(1);
   });
 
-  it("a partial seed failure is not marked seeded, so the next focus can retry", async () => {
+  // PR #286 review, replaces the old (wrong) "a partial seed failure is not marked seeded, so the
+  // next focus can retry" test: that test only asserted `seeded.has("me") === false` against a
+  // STATIC mockTables fixture that never reflected what mockSyncSharedStat actually wrote, so it
+  // passed for the wrong reason -- the real bug (traced by the reviewer) is that a field which
+  // already pushed successfully before a LATER field fails is genuinely shared server-side, so the
+  // marker (and the disclosure it gates) must be written on ANY success, not only a clean sweep.
+  // Leaving the marker unwritten meant: (a) the disclosure never told the user their data was
+  // already shared, and (b) the next focus's `row === null` gate (the row already exists after the
+  // first successful push) blocked ever retrying the field that failed -- silently stuck forever
+  // AND undisclosed. This test proves the fixed behavior directly, red against the old code (which
+  // never wrote the marker/showed the disclosure on a partial success).
+  it("a partial seed (one field succeeds, one fails) still marks the account seeded and discloses it -- and the failed field is never retried", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
-    mockSyncSharedStat.mockResolvedValueOnce({ error: null }).mockResolvedValueOnce({ error: { message: "network down" } });
-    await renderScreen();
+    mockSyncSharedStat.mockImplementationOnce(mockSyncSharedStatDefaultImpl).mockImplementationOnce(() => Promise.resolve({ error: { message: "network down" } }));
+    const root = await renderScreen();
 
-    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(false);
+    // completion (pushed first, succeeded) reads ON; top_foods/hall_ranks (never got a turn once
+    // top_foods failed and the loop broke) stay OFF. top_foods itself WAS attempted once, right here.
+    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, true, false, false]);
+    expect(mockSyncSharedStat.mock.calls.map((c) => c[2])).toEqual(["completion", "top_foods"]);
+    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(true); // marked seeded on partial success, not just a full sweep
+    expect(texts(root)).toMatch(/share with your accepted friends by default/i); // disclosure shows -- the user WAS shared without asking
+
+    // A second focus must not RE-attempt the field that already failed -- the marker is already
+    // set, and the row (completion set, top_foods/hall_ranks still null) makes
+    // shouldSeedSharedStatsDefault's row === null gate block a re-seed too. fieldsNeedingRefresh's
+    // unrelated re-affirm loop only re-pushes the one field that's actually non-null (completion);
+    // hall_ranks (never attempted at all) and top_foods (attempted once, above, and failed) are
+    // never touched again -- the failed field's one attempt is the only attempt it ever gets.
+    await act(async () => {
+      mockLastFocusCallback!();
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+    const pushedFields = mockSyncSharedStat.mock.calls.map((c) => c[2]);
+    expect(pushedFields.filter((f) => f === "top_foods")).toHaveLength(1); // still just the one, original attempt
+    expect(pushedFields).not.toContain("hall_ranks"); // never attempted, ever
   });
 
   // The #186/#241/#217 guard, reused here rather than a new one: a toggle firing WHILE the seed
@@ -539,6 +614,33 @@ describe("PrivacyScreen: favorite-food alerts toggle", () => {
       alertsToggle.props.onValueChange(false);
     });
     expect(mockToggleAlerts).toHaveBeenCalledWith(false);
+  });
+
+  // PR #286 review (Part B): notifications_enabled defaulting true (#248) means a new user's flag
+  // can be true server-side with NO OS permission granted -- rendering ON here would be exactly the
+  // lie the review flagged (alertsSubline claims N favorites are "kept on the server" when nothing
+  // has ever synced). needsPermission (useFavoriteFoodAlerts) must flip this row to a needs-action
+  // prompt instead. Mutation-red evidence: reverting the Toggle's value back to plain
+  // `alerts.notificationsEnabled` (dropping `&& !alerts.needsPermission`) turns this test's first
+  // assertion red (`alertsToggle.props.value` would read `true`).
+  it("renders a needs-action prompt, not ON, when notifications_enabled is true but OS permission isn't granted yet", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    alertsState.notificationsEnabled = true;
+    alertsState.needsPermission = true;
+    alertsState.favoritesCount = 3;
+    const root = await renderScreen();
+
+    const alertsToggle = root.root.findAllByType(Toggle)[0];
+    expect(alertsToggle.props.value).toBe(false); // NOT ON, even though notificationsEnabled is true
+    expect(texts(root)).toMatch(/tap to finish turning on/i);
+    expect(texts(root)).not.toMatch(/keeps your 3 favorites on the server/);
+
+    // Tapping it (the toggle reads OFF, so this is `onValueChange(true)`) must still call
+    // toggle(true) -- the same, only path that ever requests OS permission -- not some other action.
+    await act(async () => {
+      alertsToggle.props.onValueChange(true);
+    });
+    expect(mockToggleAlerts).toHaveBeenCalledWith(true);
   });
 
   // Mutation-based red evidence: with the `if (error) Alert.alert(...)` guard in privacy.tsx

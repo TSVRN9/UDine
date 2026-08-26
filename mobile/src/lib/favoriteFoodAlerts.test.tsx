@@ -102,6 +102,11 @@ beforeEach(() => {
   hookRef = null;
   mockSyncFavoritedFoods.mockResolvedValue({ error: null });
   (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+  // jest.clearAllMocks() clears call history but NOT a permanent .mockResolvedValue override from a
+  // previous test -- reset these two back to the module-mock defaults every test so one test's
+  // denied-permission setup can never leak into the next (bit us once: needsPermission tests).
+  (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+  (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
 });
 
 describe("useFavoriteFoodAlerts: toggle() surfaces a real register_push_token failure (#272 item C)", () => {
@@ -226,5 +231,91 @@ describe("useFavoriteFoodAlerts: refresh() never re-registers when notifications
     expect(hookRef!.notificationsEnabled).toBe(false);
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
+// PR #286 review (Part B): notifications_enabled defaulting true (#248) means a brand-new signed-in
+// user can have `notificationsEnabled: true` server-side while this device has never actually
+// granted OS notification permission -- no token registered, no favorites synced. Consumers
+// (privacy.tsx, notifications.tsx) must render this honestly instead of claiming a working ON
+// toggle -- needsPermission is the signal that tells them to.
+describe("useFavoriteFoodAlerts: needsPermission (#248/#286)", () => {
+  // Mutation-red evidence: removing refresh()'s `setNeedsPermission(!granted)` line (or hardcoding
+  // it to `setNeedsPermission(false)`) leaves this false forever, even with permission denied.
+  it("mounting with notifications_enabled=true but OS permission denied sets needsPermission true, without prompting", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true });
+      throw new Error(`unexpected table ${name}`);
+    });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+
+    await renderProbe();
+    await flush();
+
+    expect(hookRef!.notificationsEnabled).toBe(true);
+    expect(hookRef!.needsPermission).toBe(true);
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled(); // refresh() never prompts
+  });
+
+  it("mounting with notifications_enabled=true and OS permission already granted sets needsPermission false", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true });
+      throw new Error(`unexpected table ${name}`);
+    });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+
+    await renderProbe();
+    await flush();
+
+    expect(hookRef!.needsPermission).toBe(false);
+  });
+
+  it("toggle(true) sets needsPermission true when the user denies the permission prompt", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: false });
+      throw new Error(`unexpected table ${name}`);
+    });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+
+    await renderProbe();
+    await act(async () => {
+      await hookRef!.toggle(true);
+    });
+
+    expect(hookRef!.needsPermission).toBe(true);
+    expect(Notifications.requestPermissionsAsync).toHaveBeenCalled(); // toggle() IS allowed to prompt
+  });
+
+  it("toggle(true) sets needsPermission false when permission is granted and registration succeeds", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: false });
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    await renderProbe();
+    await act(async () => {
+      await hookRef!.toggle(true);
+    });
+
+    expect(hookRef!.needsPermission).toBe(false);
+  });
+
+  it("toggle(false) always resets needsPermission to false", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true });
+      throw new Error(`unexpected table ${name}`);
+    });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
+
+    await renderProbe();
+    await flush();
+    expect(hookRef!.needsPermission).toBe(true); // starts needing permission (mount self-heal)
+
+    await act(async () => {
+      await hookRef!.toggle(false);
+    });
+
+    expect(hookRef!.needsPermission).toBe(false);
   });
 });

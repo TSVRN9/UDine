@@ -52,14 +52,17 @@ async function registerForPushToken(): Promise<string | null> {
  * function's own promise via registerPendingSelfHeal so auth.ts's signOut() can await it (bounded)
  * BEFORE its own delete, instead of racing it. See pendingSelfHeal.ts's own doc comment for why
  * that ordering, not a post-upsert compensating delete, is what actually closes the race. */
-async function reregisterPushToken(client: SupabaseClient): Promise<void> {
+async function reregisterPushToken(client: SupabaseClient): Promise<{ granted: boolean }> {
   try {
     const { status } = await withTimeout(Notifications.getPermissionsAsync(), STEP_TIMEOUT_MS, "getPermissionsAsync (refresh)");
-    if (status !== "granted") return;
+    // PR #286 review (Part B): the caller (refresh()) uses this to decide whether the toggle can
+    // honestly render ON. `granted` reflects the OS permission specifically -- not token issuance
+    // or RPC success below, which are separate failure modes already logged on their own.
+    if (status !== "granted") return { granted: false };
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     const { data: token } = await withTimeout(Notifications.getExpoPushTokenAsync({ projectId }), STEP_TIMEOUT_MS, "getExpoPushTokenAsync (refresh)");
-    if (!token) return;
+    if (!token) return { granted: true };
 
     // #263: a raw upsert here would 23505 against push_tokens' unique(platform, token) once this
     // token is shared with another user -- register_push_token evicts that other owner first, same
@@ -71,8 +74,12 @@ async function reregisterPushToken(client: SupabaseClient): Promise<void> {
       "register_push_token (refresh)",
     );
     if (error) console.warn("[push] refresh: register_push_token failed", error);
+    return { granted: true };
   } catch (e) {
     console.warn("[push] refresh: re-registering push token failed", e);
+    // Fail toward the honest state, not the optimistic one: an unexpected timeout/exception here
+    // means this device's permission status is genuinely unknown, so don't claim it's granted.
+    return { granted: false };
   }
 }
 
@@ -82,6 +89,15 @@ export interface FavoriteFoodAlerts {
   session: Session | null;
   notificationsEnabled: boolean;
   favoritesCount: number;
+  /** PR #286 review (Part B): true when `notificationsEnabled` is true server-side but this
+   * device's OS notification permission is NOT granted -- i.e. `profiles.notifications_enabled`
+   * defaulting true (2026-08-26, #248) got a new user's flag on before they ever tapped anything,
+   * so no token was ever registered and no favorites were ever synced. A caller must render this as
+   * a needs-action state, not a working ON toggle -- see privacy.tsx/notifications.tsx, which show
+   * the toggle visually off (`notificationsEnabled && !needsPermission`) and swap the sub-line to a
+   * "tap to finish enabling" prompt. Tapping it calls the same `toggle(true)` below, which is the
+   * only path that ever calls `requestPermissionsAsync` -- passive navigation still never prompts. */
+  needsPermission: boolean;
   toggle: (next: boolean) => Promise<{ error: string | null }>;
   /** Re-runs the same mount/focus refresh this hook already does on its own (server-read of
    * notifications_enabled + self-heal) -- exposed so a caller that just mutated server state out
@@ -103,6 +119,7 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
   const [session, setSession] = useState<Session | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [favoritesCount, setFavoritesCount] = useState(0);
+  const [needsPermission, setNeedsPermission] = useState(false);
 
   useEffect(() => {
     client.auth.getSession().then(({ data }: { data: { session: Session | null } }) => setSession(data.session));
@@ -127,8 +144,15 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
     // signOut() can wait for this specific call rather than racing it (#264 review round 4).
     if (enabled) {
       const selfHeal = reregisterPushToken(client);
-      registerPendingSelfHeal(selfHeal);
-      await selfHeal;
+      // pendingSelfHeal's contract is Promise<void> (signOut()/confirmDelete just await settlement,
+      // they don't need the result) -- reregisterPushToken's own richer { granted } result is read
+      // separately below via the same `selfHeal` promise (already-settled promises can be awaited
+      // more than once).
+      registerPendingSelfHeal(selfHeal.then(() => undefined));
+      const { granted } = await selfHeal;
+      setNeedsPermission(!granted);
+    } else {
+      setNeedsPermission(false);
     }
   }, [session, client]);
 
@@ -155,6 +179,10 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
         return { error: "Couldn't update notifications" };
       }
       setNotificationsEnabled(next);
+      // PR #286 review (Part B): toggle-off has nothing left to need; toggle-on's real answer comes
+      // from registerForPushToken() below (the only call in this hook allowed to prompt), set once
+      // its result -- token or not -- is known.
+      if (!next) setNeedsPermission(false);
 
       const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
       setFavoritesCount(favorites.length);
@@ -164,6 +192,10 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
 
       if (next) {
         const token = await registerForPushToken();
+        // No token means permission was denied (or unavailable) -- this device still needs it, and
+        // must not render as a working ON toggle even though notificationsEnabled is (optimistically)
+        // true above.
+        setNeedsPermission(!token);
         if (token) {
           // #263: a raw upsert let the same shared-device token sit under N users (push_tokens now
           // has a unique(platform, token) backstop that would reject it). register_push_token is a
@@ -230,5 +262,5 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
     }
   }
 
-  return { session, notificationsEnabled, favoritesCount, toggle, refresh };
+  return { session, notificationsEnabled, favoritesCount, needsPermission, toggle, refresh };
 }

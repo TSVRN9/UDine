@@ -21,7 +21,7 @@ type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date:
  * can render the identical toggle -- this component only owns the sightings feed and its own copy.
  */
 export function NotificationsBody() {
-  const { session, notificationsEnabled, toggle } = useFavoriteFoodAlerts();
+  const { session, notificationsEnabled, needsPermission, toggle } = useFavoriteFoodAlerts();
   const [sightings, setSightings] = useState<Sighting[]>([]);
 
   const refreshSightings = useCallback(async () => {
@@ -59,9 +59,16 @@ export function NotificationsBody() {
 
       <View style={styles.toggleRow}>
         <Text style={styles.toggleLabel}>Notify me when a favorited dish shows up on the menu</Text>
-        <Switch value={notificationsEnabled} onValueChange={toggleNotifications} trackColor={{ true: colors.maroon600 }} />
+        {/* PR #286 review (Part B): same needs-action rendering as privacy.tsx's alerts toggle --
+            notifications_enabled defaulting true (#248) can be true server-side with no OS
+            permission granted yet, so this must not show ON until it actually is. */}
+        <Switch value={notificationsEnabled && !needsPermission} onValueChange={toggleNotifications} trackColor={{ true: colors.maroon600 }} />
       </View>
-      <Text style={styles.hint}>Turning this on will request notification permission and register your device for push. This is always the notification feed either way.</Text>
+      <Text style={styles.hint}>
+        {notificationsEnabled && needsPermission
+          ? "Tap to finish turning on -- allow notifications when asked."
+          : "Turning this on will request notification permission and register your device for push. This is always the notification feed either way."}
+      </Text>
 
       <Text style={styles.sectionTitle}>Sightings</Text>
       <View style={styles.thinRule} />
