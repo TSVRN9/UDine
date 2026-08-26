@@ -540,6 +540,34 @@ test.describe("Notifications — signed in", () => {
 		expect(del.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
 	});
 
+	// #272 review: the guard that makes item A's whole fix work is refresh()'s own
+	// `notificationsEnabled && ...` check before the self-heal block (:151) -- deleteServerData
+	// (mobile) / the toggle-off path both rely on notifications_enabled being false server-side to
+	// stop this self-heal from re-registering on the very next load. That guard had no direct test:
+	// mounting with the flag already false, permission already granted, and a live subscription
+	// (so nothing else would stop a missing guard) proves the self-heal genuinely stays inert.
+	test("loading with notifications_enabled=false does not call register_push_token, even with permission already granted and a live subscription (#272)", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "granted", ownEndpoint);
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: false }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			"rpc/register_push_token": (route) => route.fulfill({ json: {} }),
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		// No visible signal distinguishes "the guard ran and skipped" from "hasn't run yet" -- give
+		// refresh()'s self-heal branch a real beat to land before asserting its absence, same
+		// pattern as the #185 "default permission" test above.
+		await page.waitForTimeout(1000);
+
+		expect(requests.some((r) => r.table === "rpc/register_push_token")).toBe(false);
+	});
+
 	// #263: enablePush used to `.upsert()` push_tokens directly -- now a shared device token can
 	// already be owned by another user (push_tokens has a unique(platform, token) backstop), so a
 	// raw upsert would 23505. It must go through register_push_token (a security definer RPC that
@@ -566,6 +594,65 @@ test.describe("Notifications — signed in", () => {
 		const rpcCall = await waitForRequest(requests, "rpc/register_push_token", "POST");
 		expect(rpcCall.body).toEqual({ p_platform: "web", p_token: JSON.stringify({ endpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } }) });
 		expect(requests.some((r) => r.table === "push_tokens")).toBe(false);
+	});
+
+	// #272 item B (mobile hunt round 4's cross-fix interaction, mirrored here): refresh()'s own
+	// self-heal (re-upserting this browser's push_tokens row via register_push_token, above) can
+	// still be in flight -- a real network round trip -- when the user flips the toggle off. Without
+	// waiting for it first, disablePush()'s own push_tokens delete could land BEFORE the self-heal's
+	// registration, so the self-heal's write lands afterward and resurrects the row this toggle-off
+	// just turned off -- same shape as the "Sign out" race below (#264 review round 4), just for the
+	// toggle instead of sign-out. Holds the self-heal's own register_push_token POST upstream, clicks
+	// the toggle off while it's still pending, and asserts the delete doesn't fire until the self-heal
+	// settles -- so the only possible final order is register, then delete.
+	test("toggling notifications off while this self-heal's registration is in flight waits for it, then deletes -- not resurrected (#272)", async ({ page }) => {
+		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "granted", ownEndpoint);
+		const order: string[] = [];
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			favorited_foods: (route) => route.fulfill({ json: [] }),
+			"rpc/register_push_token": async (route) => {
+				// Self-heal's own registration on mount -- held so the toggle-off click below lands
+				// while it's still in flight, forcing the race instead of hoping to catch it by timing.
+				order.push("register_push_token.start");
+				await new Promise((resolve) => setTimeout(resolve, 1500));
+				order.push("register_push_token.settle");
+				await route.fulfill({ json: {} });
+			},
+			push_tokens: async (route) => {
+				order.push(`push_tokens.${route.request().method()}`);
+				await route.fulfill({ json: [] });
+			},
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		await expect.poll(() => order.includes("register_push_token.start")).toBe(true);
+		await page.locator("#notif-toggle").click();
+
+		// Give the click a beat -- if toggleNotifications() incorrectly raced ahead instead of
+		// waiting for the self-heal, its own DELETE would already be recorded here, before the held
+		// POST even settles.
+		await page.waitForTimeout(300);
+		expect(order.includes("push_tokens.DELETE")).toBe(false);
+
+		await expect.poll(() => order.includes("push_tokens.DELETE"), { timeout: 15_000 }).toBe(true);
+
+		const postStart = order.indexOf("register_push_token.start");
+		const postSettle = order.indexOf("register_push_token.settle");
+		const del = order.indexOf("push_tokens.DELETE");
+		expect(postStart).toBeGreaterThanOrEqual(0);
+		expect(postSettle).toBeGreaterThan(postStart);
+		expect(del).toBeGreaterThan(postSettle);
+
+		const deleteRequest = requests.find((r) => r.table === "push_tokens" && r.method === "DELETE")!;
+		expect(deleteRequest.url.searchParams.get("user_id")).toBe(`eq.${USER_ID}`);
+		expect(deleteRequest.url.searchParams.get("platform")).toBe("eq.web");
 	});
 
 	test("a signed-out visit does not stamp the feed-last-seen watermark", async ({ page }) => {

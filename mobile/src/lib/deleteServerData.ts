@@ -13,6 +13,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   20260818130000_grant_authenticated_table_access.sql). A failure here is a genuine, transient
  *   thing (network blip, RLS regression) worth telling the user to retry.
  *
+ *   "notifications" is also retryable: `profiles.update({ notifications_enabled: false,
+ *   discoverable: false })` (column grant at 20260824150000_add_friends_discoverability_and_qr.sql:64).
+ *   #272: without this, favoriteFoodAlerts.ts's refresh()-driven self-heal (#264) re-registers a
+ *   push_tokens row the very next time /privacy or /notifications is focused, because
+ *   notifications_enabled was left true even though the row it points at was just deleted. Ordered
+ *   BEFORE the push_tokens step below -- a focus landing between the two steps must see
+ *   notifications_enabled already false (so refresh()'s self-heal skips re-registering) rather than
+ *   a window where the flag is still true and the row is already gone.
+ *
  * - UNDELETABLE (known, permanent, not a bug to retry): profiles, food_sightings, and qr_tokens have
  *   no owner DELETE policy or grant. All three are still attempted -- honest about what the backend
  *   actually allows, not silently skipped -- but a denial here is folded into a SEPARATE bucket from
@@ -72,6 +81,7 @@ export async function deleteServerData(supabase: SupabaseClient, userId: string)
     ["favorited_foods", true, () => supabase.from("favorited_foods").delete().eq("user_id", userId)],
     ["shared_stats", true, () => supabase.from("shared_stats").delete().eq("user_id", userId)],
     ["favorite_dining_halls", true, () => supabase.from("favorite_dining_halls").delete().eq("user_id", userId)],
+    ["notifications", true, () => supabase.from("profiles").update({ notifications_enabled: false, discoverable: false }).eq("user_id", userId)],
     ["push_tokens", true, () => supabase.from("push_tokens").delete().eq("user_id", userId)],
     ["pings", true, () => supabase.from("pings").delete().eq("sender_id", userId)],
     ["profiles", false, () => supabase.from("profiles").delete().eq("user_id", userId)],

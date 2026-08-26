@@ -7,7 +7,7 @@ import { useFocusEffect } from "expo-router";
 import { supabase } from "./supabase";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
 import { withTimeout } from "./withTimeout";
-import { registerPendingSelfHeal } from "./pendingSelfHeal";
+import { pendingSelfHeal, registerPendingSelfHeal } from "./pendingSelfHeal";
 
 const PLATFORM = "expo" as const;
 
@@ -83,6 +83,11 @@ export interface FavoriteFoodAlerts {
   notificationsEnabled: boolean;
   favoritesCount: number;
   toggle: (next: boolean) => Promise<{ error: string | null }>;
+  /** Re-runs the same mount/focus refresh this hook already does on its own (server-read of
+   * notifications_enabled + self-heal) -- exposed so a caller that just mutated server state out
+   * from under this hook (#272: deleteServerData turning notifications_enabled off) can pull the
+   * new value in immediately instead of waiting for this screen's next focus. */
+  refresh: () => Promise<void>;
 }
 
 /**
@@ -171,9 +176,42 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
             STEP_TIMEOUT_MS,
             "register_push_token",
           );
-          if (rpcError) console.warn("[push] toggleNotifications: register_push_token failed", rpcError);
+          if (rpcError) {
+            // #272 item C: this used to fall through to `return { error: null }` below, so a
+            // PGRST202 (migration not applied) or a "must be signed in" raise left the switch ON
+            // with no token registered -- silently dead alerts. #158/#165/#167 convention: revert
+            // the optimistic flip and surface it instead of claiming success.
+            //
+            // Known ceiling: this reverts only the local `notificationsEnabled` state, not the
+            // profiles.update(notifications_enabled: next) write a few lines up, which already
+            // succeeded -- the server is left with notifications_enabled=true while this device's
+            // switch shows off. That's a deliberate no-op, not an oversight: the flag is the user's
+            // stored cross-device preference (same reasoning as signOut()'s own doc comment on why
+            // it never flips this flag), and refresh()'s self-heal (this hook's own mount/focus
+            // effect) will pick `true` back up on the very next focus and retry registration --
+            // exactly the repair #264 built. A server-side rollback here would be more surface for
+            // no real gain and would fight that self-heal instead of relying on it.
+            console.warn("[push] toggleNotifications: register_push_token failed", rpcError);
+            setNotificationsEnabled(!next);
+            return { error: "Couldn't register this device" };
+          }
         }
       } else {
+        // #272 item B: favoriteFoodAlerts's own refresh() (mount/focus) can have a self-heal
+        // re-registration in flight -- a real network round trip -- when the user flips this
+        // switch off. Without waiting for it here, that self-heal's register_push_token can land
+        // AFTER this delete, resurrecting the row this toggle-off just removed (check-favorited-
+        // foods gates on notifications_enabled, already false here, but send-ping-push deliberately
+        // doesn't -- see its own doc comment -- so ping pushes would keep arriving). Same bounded
+        // await-before-delete ordering as signOut() (auth.ts) uses for the same race.
+        const heal = pendingSelfHeal();
+        if (heal) {
+          try {
+            await withTimeout(heal, STEP_TIMEOUT_MS, "pendingSelfHeal (toggle off)");
+          } catch (e) {
+            console.warn("[push] toggleNotifications: waiting for an in-flight self-heal timed out or failed -- proceeding with toggle-off anyway", e);
+          }
+        }
         const { error: deleteError } = await withTimeout(
           client.from("push_tokens").delete().eq("user_id", session.user.id).eq("platform", PLATFORM),
           STEP_TIMEOUT_MS,
@@ -192,5 +230,5 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
     }
   }
 
-  return { session, notificationsEnabled, favoritesCount, toggle };
+  return { session, notificationsEnabled, favoritesCount, toggle, refresh };
 }

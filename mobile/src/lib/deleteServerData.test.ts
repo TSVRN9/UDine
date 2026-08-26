@@ -1,31 +1,58 @@
 import { deleteServerData } from "./deleteServerData";
 
-const RETRYABLE_TABLES = ["friendships", "favorited_foods", "shared_stats", "favorite_dining_halls", "push_tokens", "pings"] as const;
-const UNDELETABLE_TABLES = ["profiles", "food_sightings", "qr_tokens"] as const;
-const ALL_TABLES = [...RETRYABLE_TABLES, ...UNDELETABLE_TABLES] as const;
+// STEP names (what shows up in failedSteps/undeletableSteps) vs. the real table each step's
+// `.from(...)` call targets -- these diverge for exactly one step: "notifications" is a
+// `profiles.update(...)`, not a delete, so it shares the "profiles" table with the pre-existing
+// undeletable `profiles.delete(...)` step. `client()` below distinguishes the two by operation
+// (`.update()` vs `.delete()`/`.or()`), not by step name, so each can be failed independently.
+const RETRYABLE_STEPS = ["friendships", "favorited_foods", "shared_stats", "favorite_dining_halls", "notifications", "push_tokens", "pings"] as const;
+const UNDELETABLE_STEPS = ["profiles", "food_sightings", "qr_tokens"] as const;
+const ALL_STEPS = [...RETRYABLE_STEPS, ...UNDELETABLE_STEPS] as const;
+// The actual `.from(table)` calls in step order -- "profiles" appears twice (the "notifications"
+// update step, then the pre-existing "profiles" delete step).
+const CALL_TABLES = ["friendships", "favorited_foods", "shared_stats", "favorite_dining_halls", "profiles", "push_tokens", "pings", "profiles", "food_sightings", "qr_tokens"] as const;
 
-function client(errors: Partial<Record<(typeof ALL_TABLES)[number], unknown>>) {
+/** Maps a STEP name to the key `errors`/`_updates` below is keyed by. Every step but
+ * "notifications" targets a table 1:1 with its own name; "notifications" is an `.update()` against
+ * "profiles", tracked under "profiles:update" so it doesn't collide with the "profiles" step's own
+ * `.delete()`. */
+function errorKeyFor(step: string): string {
+  return step === "notifications" ? "profiles:update" : step;
+}
+
+function client(errors: Partial<Record<string, unknown>>) {
   const calls: string[] = [];
+  const updates: Record<string, unknown> = {};
   return {
     from(table: string) {
       calls.push(table);
       const builder: Record<string, unknown> = {};
-      builder.delete = () => builder;
-      builder.eq = () => Promise.resolve({ error: errors[table as keyof typeof errors] ?? null });
-      builder.or = () => Promise.resolve({ error: errors[table as keyof typeof errors] ?? null });
+      let errorKey = table;
+      builder.delete = () => {
+        errorKey = table;
+        return builder;
+      };
+      builder.update = (patch: unknown) => {
+        errorKey = `${table}:update`;
+        updates[table] = patch;
+        return builder;
+      };
+      builder.eq = () => Promise.resolve({ error: errors[errorKey] ?? null });
+      builder.or = () => Promise.resolve({ error: errors[errorKey] ?? null });
       return builder;
     },
     _calls: calls,
+    _updates: updates,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
 describe("deleteServerData", () => {
-  it("attempts all nine tables, in order, when nothing errors", async () => {
+  it("attempts all ten steps, in order, when nothing errors", async () => {
     const c = client({});
     const result = await deleteServerData(c, "me");
     expect(result).toEqual({ ok: true, failedSteps: [], undeletableSteps: [] });
-    expect(c._calls).toEqual([...ALL_TABLES]);
+    expect(c._calls).toEqual([...CALL_TABLES]);
   });
 
   // The #237 bug, red-first: profiles has no owner DELETE grant/policy (see deleteServerData.ts's
@@ -40,8 +67,9 @@ describe("deleteServerData", () => {
     expect(result.ok).toBe(true);
     expect(result.failedSteps).toEqual([]);
     expect(result.undeletableSteps).toEqual(["profiles"]);
-    // Still attempted, not silently skipped, and every other step still ran.
-    expect(c._calls).toEqual([...ALL_TABLES]);
+    // Still attempted, not silently skipped, and every other step still ran. The "notifications"
+    // step's own profiles.update() is unaffected -- it's keyed separately (see errorKeyFor).
+    expect(c._calls).toEqual([...CALL_TABLES]);
   });
 
   it("food_sightings-only denial is also undeletable, not a retryable failure", async () => {
@@ -70,15 +98,15 @@ describe("deleteServerData", () => {
     expect(result.undeletableSteps).toEqual(["profiles", "food_sightings", "qr_tokens"]);
   });
 
-  // Per-table red evidence for each newly-added retryable step: a failure on ANY of them must
-  // still surface as a genuine, retryable failure (unlike profiles/food_sightings above).
-  it.each(RETRYABLE_TABLES)("reports a %s failure as retryable, without aborting the other steps", async (table) => {
-    const c = client({ [table]: { message: "permission denied" } } as Partial<Record<(typeof ALL_TABLES)[number], unknown>>);
+  // Per-step red evidence for each retryable step: a failure on ANY of them must still surface as
+  // a genuine, retryable failure (unlike profiles/food_sightings above).
+  it.each(RETRYABLE_STEPS)("reports a %s failure as retryable, without aborting the other steps", async (step) => {
+    const c = client({ [errorKeyFor(step)]: { message: "permission denied" } });
     const result = await deleteServerData(c, "me");
     expect(result.ok).toBe(false);
-    expect(result.failedSteps).toEqual([table]);
+    expect(result.failedSteps).toEqual([step]);
     expect(result.undeletableSteps).toEqual([]);
-    expect(c._calls).toEqual([...ALL_TABLES]);
+    expect(c._calls).toEqual([...CALL_TABLES]);
   });
 
   it("collects every failed retryable step, not just the first, alongside the undeletable ones", async () => {
@@ -95,6 +123,30 @@ describe("deleteServerData", () => {
     expect(result.undeletableSteps).toEqual(["profiles", "food_sightings", "qr_tokens"]);
   });
 
+  // #272 part A, red-first: the "notifications" step didn't exist on main at all, so this whole
+  // step (and the resurrection bug it fixes -- see deleteServerData.ts's own doc comment) was
+  // missing. Failing red-first evidence: this test fails on main because "notifications" never
+  // appears in failedSteps/_calls/_updates -- there's no such step to fail or succeed.
+  it("#272: turns off notifications_enabled and discoverable, ordered before the push_tokens delete", async () => {
+    const c = client({});
+    const result = await deleteServerData(c, "me");
+    expect(result.ok).toBe(true);
+    expect(c._updates.profiles).toEqual({ notifications_enabled: false, discoverable: false });
+    // Order matters: a focus landing between these two steps must see notifications_enabled
+    // already false, so favoriteFoodAlerts.ts's refresh() self-heal skips re-registering.
+    expect(c._calls.indexOf("profiles")).toBeLessThan(c._calls.indexOf("push_tokens"));
+  });
+
+  it("#272: a notifications-step failure (profiles.update denied) is retryable, not undeletable -- distinct from the profiles DELETE step", async () => {
+    const c = client({ "profiles:update": { message: "permission denied" } });
+    const result = await deleteServerData(c, "me");
+    expect(result.ok).toBe(false);
+    expect(result.failedSteps).toEqual(["notifications"]);
+    // The separate profiles.delete() step is unaffected by the update-only denial -- it isn't
+    // configured to fail here, so (unlike a real backend) it succeeds in this fake client.
+    expect(result.undeletableSteps).toEqual([]);
+  });
+
   it("catches a thrown rejection from a step and reports it as failed rather than crashing", async () => {
     const c = client({});
     c.from = (table: string) => {
@@ -103,6 +155,7 @@ describe("deleteServerData", () => {
       }
       const builder: Record<string, unknown> = {};
       builder.delete = () => builder;
+      builder.update = () => builder;
       builder.eq = () => Promise.resolve({ error: null });
       return builder;
     };
