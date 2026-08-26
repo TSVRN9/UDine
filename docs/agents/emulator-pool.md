@@ -330,3 +330,19 @@ screenshot — `adb shell am start -a android.intent.action.VIEW -d "udine://add
 other route name from `mobile/src/app/`) jumps straight there. Force-stop + relaunch the same
 `expo-development-client/?url=...` intent above to force a fresh JS bundle fetch after editing
 source (e.g. to compare a screen before/after a JS-only change without a native rebuild).
+
+## Metro can serve a stale graph in a worktree — restart it before trusting an "after" tap (#229)
+
+Seen live 2026-08-26 on `Agent_Emulator_Narrow`: after editing `mobile/src/app/index.tsx`, force-stop
++ relaunch of the dev client twice still ran the **old** JS (proved with an on-screen marker Text
+that never appeared), even though `curl`ing the same route's lazy split from Metro returned the new
+code. No `watchman` on this host, so Metro relies on node's fs watcher, and in a
+`.claude/worktrees/...` checkout the device's already-built graph never got the change event —
+Metro's log even printed a `Bundled … (1 module)` line for the relaunch, which looks like a
+successful rebuild and isn't. A fresh `curl` with different bundle options builds a *new* graph
+from disk, which is why the split looked correct while the device stayed stale.
+
+Before recording any after-fix device result, **kill and restart `expo start`** (a new process =
+a new graph), relaunch the dev client, and confirm the change is actually on screen (a temporary
+marker string that `uiautomator dump` can see is the cheapest proof). This is very likely what
+#220 recorded as a "dead-Metro window" that broke `Link` navigation app-wide.

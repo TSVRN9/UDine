@@ -2,13 +2,13 @@ import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favor
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineLine } from "../components/OfflineLine";
 import { SkeletonBar } from "../components/Skeleton";
 import { SectionHeader } from "../components/ui";
 import { PaneStack } from "../components/PaneStack";
-import { usePressDimOverlay, PressDim } from "../components/Press";
+import { PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { grabRouteFor, grabStripState } from "../lib/grabStrip";
@@ -112,58 +112,40 @@ function HallCard({
   pending: boolean;
 }) {
   const gradient = chip.open ? (hallGradients[hall.slug] ?? hallGradients.worcester) : hallGradientClosed;
-  // `.pressd` (#179 press-feedback map: hall-card header zones). The tap target is a sibling
-  // absolute-fill Pressable, not a parent of the monogram/chip/name it should dim (see that
-  // Pressable's own comment on why) -- so the wrap-children shape PressDim uses elsewhere doesn't
-  // fit here; usePressDimOverlay hands back the same brightness-equivalent overlay for this
-  // disjoint-sibling case instead.
-  const hallDim = usePressDimOverlay();
   return (
     <View style={styles.hallCard}>
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.6 }} style={StyleSheet.absoluteFill} />
 
       <View style={styles.hallZone}>
-        {/* pointerEvents="none": purely decorative, same as the chip/name below -- it shouldn't
-            be able to absorb taps meant for the Link underneath it. */}
-        <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]} pointerEvents="none">
-          {hall.name.charAt(0)}
-        </Text>
-        {/* Sibling absolute-fill Pressable (not a parent of the star below) so the two touch
-            targets don't nest — nested Pressables in RN double-fire/steal gestures.
-            `collapsable={false}`: a childless absolute-fill Pressable is Android's classic
-            view-flattening trap -- correct measured bounds, `clickable=true` in the view
-            hierarchy, but zero touches delivered (found live on-device, #179 review; this exact
-            Link+asChild+childless-Pressable shape has existed unchanged since #96/#104). Tried as
-            the first, most-likely fix (matches this repo's own `hallCardSide` precedent for the
-            identical symptom) -- kept because it's harmless and correct Android practice for this
-            shape, but device-retested on Agent_Emulator_Wide (fresh JS, app fully relaunched, not
-            just Fast Refreshed) and it did NOT restore navigation: tapping this zone still does
-            nothing. So view-flattening was a reasonable hypothesis, not the (or not the whole)
-            root cause -- this defect is CONFIRMED STILL OPEN, not fixed by this PR. See the PR
-            body; recommend a follow-up issue with deeper native-side investigation (e.g.
-            renderToHardwareTextureAndroid, or restructuring away from the sibling-Pressable shape
-            entirely) rather than more guesses here. */}
+        {/* #229: the pressable WRAPS the monogram/chip/name instead of sitting beside them as a
+            childless absolute-fill sibling. Android's ReactTextView ignores `pointerEvents="none"`
+            (not a ReactPointerEventsView -- see RN's TouchTargetHelper.kt), so the later-drawn
+            Texts won hit-testing and the touch bubbled to their parent, never to a sibling
+            Pressable: 6/6 device taps on the name did nothing while the one Text-free sliver
+            navigated. As an ancestor, the pressable gets the bubble whichever child Android picks.
+            The star stays a later *sibling* (wins its own patch) so the two targets never nest.
+            `.pressd` dim (#179) is PressDim's own overlay; `style` is one object, not an array,
+            because <Slot> (asChild) can't take an array style on its direct child. */}
         <Link href={`/halls/${hall.slug}`} asChild>
-          <Pressable collapsable={false} style={StyleSheet.absoluteFill} onPressIn={hallDim.onPressIn} onPressOut={hallDim.onPressOut} />
+          <PressDim style={styles.hallZoneTap}>
+            <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]}>{hall.name.charAt(0)}</Text>
+            {pending ? (
+              <View style={[styles.hallChip, styles.hallChipClosed]}>
+                <SkeletonBar width={fs(46)} height={fs(11)} />
+              </View>
+            ) : chip.text ? (
+              <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]}>
+                <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
+              </View>
+            ) : null}
+            <Text style={[styles.hallCardName, !chip.open && styles.hallCardNameClosed]}>{hall.name}</Text>
+          </PressDim>
         </Link>
-        {pending ? (
-          <View style={[styles.hallChip, styles.hallChipClosed]} pointerEvents="none">
-            <SkeletonBar width={fs(46)} height={fs(11)} />
-          </View>
-        ) : chip.text ? (
-          <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]} pointerEvents="none">
-            <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
-          </View>
-        ) : null}
-        <Text style={[styles.hallCardName, !chip.open && styles.hallCardNameClosed]} pointerEvents="none">
-          {hall.name}
-        </Text>
         {/* Not on the artboard, but /favorites only lists — this star is the sole way to favorite a
             hall, so it stays (top-left; the canvas's top-right corner belongs to the status pill). */}
         <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.hallCardStar}>
           <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
         </Pressable>
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, hallDim.overlayStyle]} />
       </View>
 
       {/* expo-router's <Slot> (what asChild renders) clones its direct child and can't handle an
@@ -394,7 +376,8 @@ const styles = StyleSheet.create({
   // No fixed height on the outer card any more -- it's now hallZone (fixed) + grabStrip (intrinsic)
   // stacked in a column, per #116's split-card canvas delta.
   hallCard: { borderRadius: radii.md, overflow: "hidden" },
-  hallZone: { position: "relative", height: fs(76), justifyContent: "flex-end" },
+  hallZone: { position: "relative", height: fs(76) },
+  hallZoneTap: { flex: 1, justifyContent: "flex-end" },
   hallMonogram: {
     position: "absolute",
     right: fs(-8),
