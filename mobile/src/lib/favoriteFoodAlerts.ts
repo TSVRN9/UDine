@@ -7,7 +7,7 @@ import { useFocusEffect } from "expo-router";
 import { supabase } from "./supabase";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
 import { withTimeout } from "./withTimeout";
-import { currentSignOutEpoch } from "./signOutEpoch";
+import { registerPendingSelfHeal } from "./pendingSelfHeal";
 
 const PLATFORM = "expo" as const;
 
@@ -47,16 +47,12 @@ async function registerForPushToken(): Promise<string | null> {
  * clearThisAccountsExpoTokens). Only requestPermissionsAsync (inside toggle(), user-initiated) may
  * prompt; if the OS permission isn't already granted here, there's nothing to silently re-register.
  *
- * #264 review round 3: this function's own getExpoPushTokenAsync call is a real network round
- * trip that can still be in flight when the user taps "Sign out" -- if our upsert lands AFTER
- * auth.ts's signOut() has already deleted this exact row, we'd silently recreate it under the
- * now-signed-out user, reintroducing #257. signOutEpoch's currentSignOutEpoch() is captured before
- * that round trip starts and re-checked right after the upsert resolves; a mismatch means a
- * sign-out ran in between, so the row we just wrote gets deleted right back out. See
- * signOutEpoch.ts's own doc comment for why this has to be an after-the-fact check, not a
- * before-the-fact guard. */
+ * #264 review round 4: this function's own getExpoPushTokenAsync call is a real network round
+ * trip that can still be in flight when the user taps "Sign out" -- refresh() below registers this
+ * function's own promise via registerPendingSelfHeal so auth.ts's signOut() can await it (bounded)
+ * BEFORE its own delete, instead of racing it. See pendingSelfHeal.ts's own doc comment for why
+ * that ordering, not a post-upsert compensating delete, is what actually closes the race. */
 async function reregisterPushToken(client: SupabaseClient, userId: string): Promise<void> {
-  const epochAtStart = currentSignOutEpoch();
   try {
     const { status } = await withTimeout(Notifications.getPermissionsAsync(), STEP_TIMEOUT_MS, "getPermissionsAsync (refresh)");
     if (status !== "granted") return;
@@ -70,20 +66,7 @@ async function reregisterPushToken(client: SupabaseClient, userId: string): Prom
       STEP_TIMEOUT_MS,
       "push_tokens.upsert (refresh)",
     );
-    if (error) {
-      console.warn("[push] refresh: push_tokens.upsert failed", error);
-      return;
-    }
-
-    if (currentSignOutEpoch() !== epochAtStart) {
-      console.warn("[push] refresh: a sign-out raced this re-registration -- undoing the upsert");
-      const { error: undoError } = await withTimeout(
-        client.from("push_tokens").delete().eq("user_id", userId).eq("platform", PLATFORM).eq("token", token),
-        STEP_TIMEOUT_MS,
-        "push_tokens.delete (refresh undo)",
-      );
-      if (undoError) console.warn("[push] refresh: undoing a racing push_tokens upsert failed", undoError);
-    }
+    if (error) console.warn("[push] refresh: push_tokens.upsert failed", error);
   } catch (e) {
     console.warn("[push] refresh: re-registering push token failed", e);
   }
@@ -131,8 +114,13 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
     // device's own sign-out, or another device's) shows the toggle ON forever with nothing behind
     // it -- check-favorited-foods dispatches to a row that no longer exists. Runs on every
     // focus/session-change while enabled; upsert is idempotent, so a no-op re-register when the
-    // row already exists is harmless.
-    if (enabled) await reregisterPushToken(client, session.user.id);
+    // row already exists is harmless. Registered via registerPendingSelfHeal so a concurrent
+    // signOut() can wait for this specific call rather than racing it (#264 review round 4).
+    if (enabled) {
+      const selfHeal = reregisterPushToken(client, session.user.id);
+      registerPendingSelfHeal(selfHeal);
+      await selfHeal;
+    }
   }, [session, client]);
 
   useFocusEffect(

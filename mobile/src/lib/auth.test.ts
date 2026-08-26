@@ -25,6 +25,7 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { isSignInInFlight, shouldExchangeCode, signInWithGoogle, signOut } from "./auth";
 import { supabase } from "./supabase";
+import { registerPendingSelfHeal } from "./pendingSelfHeal";
 
 const signInWithOAuth = supabase.auth.signInWithOAuth as jest.Mock;
 const exchangeCodeForSession = supabase.auth.exchangeCodeForSession as jest.Mock;
@@ -109,6 +110,9 @@ describe("signOut", () => {
     getSession.mockReset();
     authSignOut.mockReset();
     from.mockReset();
+    // pendingSelfHeal.ts is a module-level singleton -- reset to an already-resolved no-op so a
+    // leftover pending promise from one test can't bleed into the next.
+    registerPendingSelfHeal(Promise.resolve());
   });
 
   /** Wires supabase.from("push_tokens").delete().eq(...).eq(...) to resolve with `result` and
@@ -198,6 +202,58 @@ describe("signOut", () => {
       const eq2 = jest.fn().mockReturnValue(new Promise(() => {})); // never resolves
       const eq1 = jest.fn().mockReturnValue({ eq: eq2 });
       from.mockReturnValue({ delete: jest.fn().mockReturnValue({ eq: eq1 }) });
+      authSignOut.mockResolvedValue({ error: null });
+
+      const promise = signOut();
+      await jest.advanceTimersByTimeAsync(15000);
+      await promise;
+
+      expect(authSignOut).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // #264 review round 4: signOut() waits for favoriteFoodAlerts.ts's in-flight self-heal (its
+  // pendingSelfHeal() registration) BEFORE its own delete, instead of racing/compensating for it --
+  // see pendingSelfHeal.ts's own doc comment for why. That wait must itself be bounded: a self-heal
+  // stuck on a real network call (getExpoPushTokenAsync) can't be allowed to hang sign-out forever.
+  it("waits for a registered self-heal before its own delete, ordered upsert-then-delete-then-signOut", async () => {
+    getSession.mockResolvedValue({ data: { session: { user: { id: "user-1" } } } });
+    const calls: string[] = [];
+    let resolveSelfHeal!: () => void;
+    registerPendingSelfHeal(
+      new Promise<void>((resolve) => {
+        resolveSelfHeal = () => {
+          calls.push("selfHeal");
+          resolve();
+        };
+      }),
+    );
+    mockPushTokensDelete({ error: null }, calls);
+    authSignOut.mockImplementation(() => {
+      calls.push("auth.signOut");
+      return Promise.resolve({ error: null });
+    });
+
+    const promise = signOut();
+    // Give signOut() a couple of microtask ticks -- it must be blocked on the still-pending
+    // self-heal, not already past it.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(from).not.toHaveBeenCalled();
+
+    resolveSelfHeal();
+    await promise;
+
+    expect(calls).toEqual(["selfHeal", "push_tokens.delete", "auth.signOut"]);
+  });
+
+  it("does not hang sign-out forever if a registered self-heal never resolves -- times out and still signs out", async () => {
+    jest.useFakeTimers();
+    try {
+      registerPendingSelfHeal(new Promise(() => {})); // never resolves
+      getSession.mockResolvedValue({ data: { session: null } });
       authSignOut.mockResolvedValue({ error: null });
 
       const promise = signOut();

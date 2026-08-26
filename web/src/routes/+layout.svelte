@@ -3,7 +3,11 @@
 	import favicon from "$lib/assets/favicon.svg";
 	import { navigating, page } from "$app/state";
 	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
-	import { bumpSignOutEpoch, awaitPendingSelfHeal } from "$lib/signOutEpoch";
+	import { pendingSelfHeal } from "$lib/pendingSelfHeal";
+
+	// No shared web withTimeout convention -- a Promise.race with a timer, matching mobile's
+	// withTimeout in spirit (mirrors mobile/src/lib/auth.ts's SIGN_OUT_STEP_TIMEOUT_MS).
+	const SELF_HEAL_WAIT_TIMEOUT_MS = 15000;
 
 	let { children } = $props();
 
@@ -63,14 +67,28 @@
 	// preference for when they sign back in, not device-scoped state. See mobile/src/lib/auth.ts's
 	// signOut() for the same call and the same reasoning.
 	async function signOut() {
-		// Bumped synchronously, before any await -- see signOutEpoch.ts's own doc comment for why
-		// this has to be a counter notifications/+page.svelte's self-heal compares *after* its own
-		// upsert resolves, not a flag checked only before it starts.
-		bumpSignOutEpoch();
 		const supabase = page.data.supabase;
 		if (!supabase) return;
 		const userId = page.data.session?.user.id;
 		if (userId) {
+			// #264 review round 4: notifications/+page.svelte's self-heal (re-upserting this
+			// browser's push_tokens row whenever notifications_enabled is true and permission is
+			// granted) can still be mid-flight when the user clicks "Sign out". Two earlier fixes
+			// here (a pre-upsert flag, then a post-upsert "compensating delete" keyed off a sign-out
+			// epoch) both failed: the compensating delete ran *after* auth.signOut() below had
+			// already cleared the session, so it 403'd (push_tokens has no anon grant,
+			// `20260818130000:39-40`) and the resurrected row stayed -- reviewer-reproduced, not
+			// theoretical. Waiting for the self-heal HERE, before this function's own delete and
+			// before auth.signOut(), removes the race instead of detecting it after the fact: either
+			// the self-heal finishes first (and the delete below removes whatever it wrote, with the
+			// session still live) or it never started. Bounded so a hung self-heal can't hang
+			// sign-out -- a self-heal upsert whose request was already in flight with a still-valid
+			// JWT when the wait times out can still land afterward; #263's server-side unique-token
+			// constraint is the backstop for that sliver, not this code.
+			const pending = pendingSelfHeal();
+			if (pending) {
+				await Promise.race([pending, new Promise((resolve) => setTimeout(resolve, SELF_HEAL_WAIT_TIMEOUT_MS))]);
+			}
 			try {
 				const ownToken = await ownPushToken();
 				if (ownToken) await clearStoredPushTokens(supabase, userId, ownToken);
@@ -79,12 +97,6 @@
 			}
 		}
 		await supabase.auth.signOut();
-		// #264 review round 3: location.reload() below tears down this page's JS realm -- if
-		// notifications/+page.svelte's self-heal upsert is still in flight (raced this signOut()),
-		// reloading immediately would silently drop its post-upsert epoch check before it ever runs,
-		// leaving the row it's about to (correctly) delete right back out. Waiting here (a no-op
-		// when nothing is in flight) gives that continuation a chance to actually finish.
-		await awaitPendingSelfHeal();
 		location.reload();
 	}
 </script>

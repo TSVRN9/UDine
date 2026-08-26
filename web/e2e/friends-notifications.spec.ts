@@ -155,6 +155,29 @@ async function waitForRequest(requests: CapturedRequest[], table: string, method
 	return requests.find((r) => r.table === table && r.method === method)!;
 }
 
+/** #264 review round 4: signInAndMockSupabase's generic handler fulfills every rest/v1 request
+ * regardless of its Authorization header, which let an earlier "fix" here pass its own test while
+ * 403ing in production (push_tokens is granted to authenticated/service_role only, no anon grant --
+ * `supabase/migrations/20260818130000_grant_authenticated_table_access.sql:39-40` -- so once
+ * auth.signOut() clears the session, any further supabase-js call falls back to the anon/publishable
+ * key and Postgres denies it at the table-privilege level before RLS even runs). Checks that a
+ * request actually carries the signed-in user's JWT (not the publishable key, not garbage) the same
+ * way fakeSessionCookie() builds one -- decode the middle segment, compare `sub`. Race tests that
+ * care whether a request would really have succeeded should gate their push_tokens handler on this
+ * instead of fulfilling unconditionally. */
+async function isAuthorizedAsUser(route: Route): Promise<boolean> {
+	const header = await route.request().headerValue("authorization");
+	if (!header?.startsWith("Bearer ")) return false;
+	const parts = header.slice("Bearer ".length).split(".");
+	if (parts.length !== 3) return false; // not JWT-shaped -- e.g. the raw publishable key fallback
+	try {
+		const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
+		return payload.sub === USER_ID;
+	} catch {
+		return false;
+	}
+}
+
 test.describe("Friends — signed out", () => {
 	test("shows a styled sign-in prompt instead of the friends UI", async ({ page }) => {
 		await page.goto("/friends");
@@ -560,51 +583,84 @@ test.describe("Sign out (#257)", () => {
 		expect(post.body).toMatchObject({ user_id: USER_ID, platform: "web", token: ownToken });
 	});
 
-	// #264 review round 3, finding 1: the self-heal test above proved the row gets re-created, but
-	// its own upsert is a real network round trip -- if a sign-out runs (and deletes this exact
-	// row) while that upsert is still in flight, and the upsert then lands AFTER the delete, it
-	// silently resurrects the row under the now-signed-out user, reintroducing #257. Reproduced by
-	// holding the self-heal's own POST upstream and clicking Sign out while it's still pending --
-	// the reviewer's own repro settle order (DELETE, then the held POST) is exactly what this
-	// forces, and the assertion is that a second, compensating DELETE follows.
-	test("a sign-out that races this self-heal's in-flight upsert does not resurrect the deleted row", async ({ page }) => {
+	// #264 review round 4: the self-heal test above proved the row gets re-created, but its own
+	// upsert is a real network round trip -- if the user clicks "Sign out" while that upsert is
+	// still in flight, signOut() must WAIT for it to finish before its own delete (not race it, and
+	// not "fix" it afterward -- an earlier "compensating delete" attempt at this ran post-
+	// auth.signOut() with no session and 403'd against the real push_tokens grant, reproduced by
+	// keying this mock off the Authorization header instead of fulfilling every request
+	// unconditionally). Holds the self-heal's own POST upstream, clicks Sign out while it's still
+	// pending, and asserts signOut() doesn't touch push_tokens at all until the self-heal settles --
+	// so the only possible final order is upsert, then delete, then auth.signOut().
+	test("a sign-out that starts while this self-heal's upsert is in flight waits for it, then deletes with a still-live session", async ({ page }) => {
 		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
 		await mockPushEnvironment(page, "granted", ownEndpoint);
+		const order: string[] = [];
 		const requests = await signInAndMockSupabase(page, {
 			profiles: profilesHandler({ notifications_enabled: true }),
 			food_sightings: (route) => route.fulfill({ json: [] }),
 			pings: (route) => route.fulfill({ json: [] }),
 			friendships: (route) => route.fulfill({ json: [] }),
 			push_tokens: async (route) => {
-				if (route.request().method() === "POST") {
+				// Matches production's actual grant instead of fulfilling regardless of credentials --
+				// a request using the anon/publishable key (what supabase-js sends once auth.signOut()
+				// has cleared the session) must 403 here too, or this mock can't catch a "fix" that
+				// only works because the mock is more permissive than Postgres.
+				if (!(await isAuthorizedAsUser(route))) {
+					return route.fulfill({ status: 403, json: { code: "42501", message: "permission denied for table push_tokens" } });
+				}
+				const method = route.request().method();
+				if (method === "POST") {
 					// Self-heal's own upsert -- held so a real Sign-out click lands while it's still in
 					// flight, forcing the race instead of hoping to catch it by timing luck.
+					order.push("push_tokens.POST.start");
 					await new Promise((resolve) => setTimeout(resolve, 1500));
+					order.push("push_tokens.POST.settle");
+				} else {
+					order.push(`push_tokens.${method}`);
 				}
 				await route.fulfill({ json: [] });
 			},
+		});
+		await page.route("**/auth/v1/logout**", async (route) => {
+			order.push("auth.logout");
+			await route.fulfill({ json: {} });
 		});
 
 		await page.goto("/notifications");
 		const signOutButton = page.getByRole("button", { name: "Sign out" });
 		await expect(signOutButton).toBeVisible({ timeout: 15_000 }); // hydration proof
 
-		// The self-heal's POST is captured (by signInAndMockSupabase's router) before the artificial
-		// hold above runs, so this proves the POST is genuinely in flight before the click below.
-		await waitForRequest(requests, "push_tokens", "POST");
+		await expect.poll(() => order.includes("push_tokens.POST.start")).toBe(true);
 		await signOutButton.click();
 
-		// Settle order is DELETE (sign-out's own, unheld) then POST (self-heal's, held) -- the held
-		// POST winning the race would recreate the row sign-out just deleted, unless the self-heal's
-		// after-the-fact epoch check fires a second, compensating DELETE once it resolves.
-		await expect.poll(() => requests.filter((r) => r.table === "push_tokens" && r.method === "DELETE").length, { timeout: 15_000 }).toBe(2);
+		// Give the click a beat -- if signOut() incorrectly raced ahead instead of waiting for the
+		// self-heal, its own DELETE would already be recorded here, before the held POST even settles.
+		await page.waitForTimeout(300);
+		expect(order.includes("push_tokens.DELETE")).toBe(false);
+		expect(order.includes("auth.logout")).toBe(false);
 
+		await expect.poll(() => order.includes("auth.logout"), { timeout: 15_000 }).toBe(true);
+
+		// Relative order, not an exact listing: signOut()'s own location.reload() (unstubbed here,
+		// exercised for real) can mount a fresh page afterward that runs its own unrelated self-heal
+		// -- irrelevant to what's under test, which is that this specific upsert settles (still on
+		// the live session, since signOut() waited for it) strictly before this specific delete,
+		// which in turn runs strictly before the session is actually torn down.
+		const postStart = order.indexOf("push_tokens.POST.start");
+		const postSettle = order.indexOf("push_tokens.POST.settle");
+		const del = order.indexOf("push_tokens.DELETE");
+		const logout = order.indexOf("auth.logout");
+		expect(postStart).toBeGreaterThanOrEqual(0);
+		expect(postSettle).toBeGreaterThan(postStart);
+		expect(del).toBeGreaterThan(postSettle);
+		expect(logout).toBeGreaterThan(del);
+
+		const deleteRequest = requests.find((r) => r.table === "push_tokens" && r.method === "DELETE")!;
+		expect(deleteRequest.url.searchParams.get("user_id")).toBe(`eq.${USER_ID}`);
+		expect(deleteRequest.url.searchParams.get("platform")).toBe("eq.web");
 		const ownToken = JSON.stringify({ endpoint: ownEndpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } });
-		for (const del of requests.filter((r) => r.table === "push_tokens" && r.method === "DELETE")) {
-			expect(del.url.searchParams.get("user_id")).toBe(`eq.${USER_ID}`);
-			expect(del.url.searchParams.get("platform")).toBe("eq.web");
-			expect(del.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
-		}
+		expect(deleteRequest.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
 	});
 
 	// #264 review round 3, finding 2: the granted-only guard on the self-heal above was untested --

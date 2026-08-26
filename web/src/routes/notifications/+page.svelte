@@ -6,7 +6,7 @@
 	import { IndexedDbFavoritesStorage } from "$lib/favoritesStorage";
 	import { loadFeedLastSeen, saveFeedLastSeen } from "$lib/feedLastSeen";
 	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
-	import { currentSignOutEpoch, registerPendingSelfHeal } from "$lib/signOutEpoch";
+	import { registerPendingSelfHeal } from "$lib/pendingSelfHeal";
 	import { PUBLIC_VAPID_KEY } from "$env/static/public";
 
 	type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date: string; read_at: string | null; created_at: string };
@@ -132,27 +132,18 @@
 		// next visit/sign-in without a re-toggle. Never prompts or subscribes -- ownPushToken() only
 		// reads a subscription that's already there.
 		//
-		// #264 review round 3: ownPushToken() + the upsert below are a real network round trip that
-		// can still be in flight when the user clicks "Sign out" -- if the upsert lands AFTER
-		// signOut()'s delete, it silently recreates the exact row sign-out just removed,
-		// reintroducing #257. signOutEpoch's currentSignOutEpoch() is captured before that round
-		// trip starts and re-checked right after the upsert resolves; a mismatch means a sign-out
-		// ran in between, so the row just written gets deleted right back out. See signOutEpoch.ts's
-		// own doc comment for why this has to be an after-the-fact check, not a before-the-fact
-		// guard -- AND why this whole block's promise is registered via registerPendingSelfHeal:
-		// signOut()'s location.reload() would otherwise tear down this page before this
-		// continuation ever runs, silently dropping the compensating delete below.
+		// #264 review round 4: ownPushToken() + the upsert below are a real network round trip that
+		// can still be in flight when the user clicks "Sign out" -- this promise is registered via
+		// registerPendingSelfHeal so +layout.svelte's signOut() can wait for it (bounded) BEFORE its
+		// own delete, instead of racing it. See pendingSelfHeal.ts's own doc comment for why that
+		// ordering, not a post-upsert compensating delete, is what actually closes the race.
 		if (notificationsEnabled && pushSupported() && Notification.permission === "granted") {
-			const epochAtStart = currentSignOutEpoch();
 			const selfHeal = (async () => {
 				try {
 					const ownToken = await ownPushToken();
 					if (ownToken) {
 						const { error } = await supabase.from("push_tokens").upsert({ user_id: myId, platform: "web", token: ownToken });
-						if (!error && currentSignOutEpoch() !== epochAtStart) {
-							console.error("A sign-out raced this re-registration -- undoing the upsert");
-							await supabase.from("push_tokens").delete().eq("user_id", myId).eq("platform", "web").eq("token", ownToken);
-						}
+						if (error) console.error("Push token re-registration failed:", error);
 					}
 				} catch (err) {
 					console.error("Push token re-registration failed:", err);

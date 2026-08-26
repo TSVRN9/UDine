@@ -19,6 +19,19 @@ jest.mock("../lib/favoritesStorage", () => ({
   SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites: jest.fn().mockResolvedValue([]) })),
 }));
 
+// Needed to import the REAL ../lib/auth (its signOut()) below -- #264 review round 4's race test
+// exercises the actual sign-out path, not a stand-in for it. auth.ts calls
+// WebBrowser.maybeCompleteAuthSession() at module load and imports expo-linking; neither is
+// exercised by signOut() itself, so bare no-op mocks (same shape as auth.test.ts's own) are enough.
+jest.mock("expo-web-browser", () => ({
+  maybeCompleteAuthSession: jest.fn(),
+  openAuthSessionAsync: jest.fn(),
+}));
+jest.mock("expo-linking", () => ({
+  createURL: jest.fn(() => "udine://redirect"),
+  parse: jest.fn(),
+}));
+
 /** `.select().eq().single()` reads the fixed `profile` row; `.update().eq()` resolves the
  * configurable `{ error }` a test wants for this run; `.select().eq().order()` (food_sightings)
  * resolves an empty list -- this screen's sighting feed isn't what's under test here. */
@@ -55,6 +68,9 @@ jest.mock("../lib/supabase", () => ({
     auth: {
       getSession: jest.fn(),
       onAuthStateChange: jest.fn().mockReturnValue({ data: { subscription: { unsubscribe: jest.fn() } } }),
+      // #264 review round 4: auth.ts's real signOut() calls this -- needed now that one test below
+      // drives the actual sign-out path instead of standing in for it.
+      signOut: jest.fn().mockResolvedValue({ error: null }),
     },
     from: (...args: unknown[]) => mockFrom(...args),
   },
@@ -77,7 +93,7 @@ import renderer, { act } from "react-test-renderer";
 import { Alert, Switch } from "react-native";
 import * as Notifications from "expo-notifications";
 import { supabase } from "../lib/supabase";
-import { bumpSignOutEpoch } from "../lib/signOutEpoch";
+import { signOut } from "../lib/auth";
 import { NotificationsBody } from "../app/notifications";
 
 function session(userId: string) {
@@ -195,17 +211,25 @@ describe("NotificationsBody", () => {
     expect(pushTokensUpsert).toHaveBeenCalledWith({ user_id: "me", platform: "expo", token: "ExponentPushToken[test]" });
   });
 
-  // #264 review round 3, finding 1: the self-heal test above proved the token gets re-registered,
-  // but its own getExpoPushTokenAsync call is a real network round trip -- if a sign-out runs
-  // while that's still in flight and deletes this exact row, the self-heal's upsert can land
-  // AFTER the delete and silently resurrect it under the now-signed-out user, reintroducing #257.
-  // This holds getExpoPushTokenAsync open, simulates a concurrent signOut() via
-  // bumpSignOutEpoch() (the exact seam auth.ts's signOut() uses -- see signOutEpoch.ts), then lets
-  // the token fetch resolve, and asserts the self-heal undoes its own upsert instead of leaving it.
-  it("a sign-out that races this self-heal's in-flight token fetch does not resurrect the row it deleted", async () => {
-    const pushTokensUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
-    const deleteEq3 = jest.fn().mockResolvedValue({ data: null, error: null });
-    const deleteEq2 = jest.fn().mockReturnValue({ eq: deleteEq3 });
+  // #264 review round 4: the self-heal test above proved the token gets re-registered, but its own
+  // getExpoPushTokenAsync call is a real network round trip -- if the real signOut() ran while
+  // that's still in flight without waiting for it, its delete could land BEFORE the self-heal's
+  // upsert, resurrecting the row under the now-signed-out user (reviewer-reproduced against an
+  // earlier "compensate after the fact" attempt at this fix -- the compensating delete itself ran
+  // post-auth.signOut(), with no session, and 403'd). This drives the REAL signOut() (not a stand-in
+  // for it), holds the self-heal's own token fetch open, and asserts signOut() doesn't touch
+  // push_tokens until the self-heal has actually finished -- so the final ordering is always
+  // upsert-then-delete-then-auth.signOut(), never the reverse.
+  it("real signOut() waits for an in-flight self-heal to finish before its own delete, so the row ends up deleted, not resurrected", async () => {
+    const calls: string[] = [];
+    const pushTokensUpsert = jest.fn().mockImplementation(() => {
+      calls.push("upsert");
+      return Promise.resolve({ data: null, error: null });
+    });
+    const deleteEq2 = jest.fn().mockImplementation(() => {
+      calls.push("delete");
+      return Promise.resolve({ data: null, error: null });
+    });
     const deleteEq1 = jest.fn().mockReturnValue({ eq: deleteEq2 });
     const pushTokensDelete = jest.fn().mockReturnValue({ eq: deleteEq1 });
     mockFrom.mockImplementation((name: string) => {
@@ -213,6 +237,10 @@ describe("NotificationsBody", () => {
       if (name === "food_sightings") return emptyTable();
       if (name === "push_tokens") return { upsert: pushTokensUpsert, delete: pushTokensDelete };
       throw new Error(`unexpected table ${name}`);
+    });
+    (supabase.auth.signOut as jest.Mock).mockImplementation(() => {
+      calls.push("auth.signOut");
+      return Promise.resolve({ error: null });
     });
 
     let resolveToken!: (v: { data: string }) => void;
@@ -223,22 +251,29 @@ describe("NotificationsBody", () => {
     );
 
     await renderNotifications();
-    await flush(5); // let it reach getExpoPushTokenAsync and start waiting on it
+    await flush(5); // let the self-heal reach getExpoPushTokenAsync and start waiting on it
 
-    // Simulate auth.ts's signOut() running concurrently, mid-flight -- exactly what it does as the
-    // very first line of the real function.
-    bumpSignOutEpoch();
+    // The real sign-out path, not bumpSignOutEpoch() or any other stand-in for it.
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    const signOutPromise = signOut();
+
+    // signOut() must be blocked waiting for the pending self-heal here -- its own delete must not
+    // have fired yet, since the self-heal's token fetch is still unresolved.
+    await flush(3);
+    expect(pushTokensDelete).not.toHaveBeenCalled();
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
 
     resolveToken({ data: "ExponentPushToken[test]" });
+    await signOutPromise;
     await flush();
 
     expect(pushTokensUpsert).toHaveBeenCalledWith({ user_id: "me", platform: "expo", token: "ExponentPushToken[test]" });
-    // The upsert landed after the race was detected -- undone immediately rather than left in
-    // place under the now-signed-out user.
-    expect(pushTokensDelete).toHaveBeenCalled();
     expect(deleteEq1).toHaveBeenCalledWith("user_id", "me");
     expect(deleteEq2).toHaveBeenCalledWith("platform", "expo");
-    expect(deleteEq3).toHaveBeenCalledWith("token", "ExponentPushToken[test]");
+    // The self-heal's upsert lands first (the session is still live -- signOut() hasn't reached
+    // auth.signOut() yet), then signOut()'s own delete removes exactly that row, then (and only
+    // then) the session itself is torn down.
+    expect(calls).toEqual(["upsert", "delete", "auth.signOut"]);
   });
 
   // #264 review round 3, finding 2: deleting the `if (status !== "granted") return;` guard from
