@@ -120,25 +120,31 @@ function profilesHandler(single: Record<string, unknown>, friendRows: { user_id:
 	};
 }
 
-/** Stubs the two browser APIs notifications/+page.svelte's push-token cleanup (#185) reads:
- * `Notification.permission` (normally a read-only static getter) and
- * `navigator.serviceWorker.getRegistration()` (real registration requires an actual service worker
- * install, which this suite never does). Must run via addInitScript, before any app script runs.
- * `subscriptionEndpoint` omitted means "no live local subscription" (getSubscription() resolves
- * null), matching a browser that's denied permission and had its subscription torn down too. */
+/** Stubs the browser push APIs notifications/+page.svelte reads: `Notification.permission`
+ * (normally a read-only static getter), `Notification.requestPermission()` (enablePush's gate),
+ * and `navigator.serviceWorker.getRegistration()`/`.register()` (real registration requires an
+ * actual service worker install, which this suite never does). Must run via addInitScript, before
+ * any app script runs. `subscriptionEndpoint` omitted means "no live local subscription"
+ * (getSubscription() resolves null, subscribe() is never reached since requestPermission()
+ * resolving anything but "granted" makes enablePush bail first) -- matching a browser that's denied
+ * permission and had its subscription torn down too. */
 async function mockPushEnvironment(page: Page, permission: NotificationPermission, subscriptionEndpoint?: string) {
 	await page.addInitScript(
 		([perm, endpoint]) => {
 			if ("Notification" in window) {
 				Object.defineProperty(window.Notification, "permission", { value: perm, configurable: true });
+				window.Notification.requestPermission = async () => perm as NotificationPermission;
 			}
 			if ("serviceWorker" in navigator) {
+				const subscription = endpoint ? { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } }) } : null;
 				// @ts-expect-error test-only stub, real type is far more involved than this suite needs
 				navigator.serviceWorker.getRegistration = async () => ({
-					pushManager: {
-						getSubscription: async () =>
-							endpoint ? { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } }) } : null,
-					},
+					pushManager: { getSubscription: async () => subscription },
+				});
+				// @ts-expect-error same as above -- enablePush's own registration path (register + subscribe),
+				// distinct from getRegistration above which only the refresh()/disablePush cleanup paths use.
+				navigator.serviceWorker.register = async () => ({
+					pushManager: { subscribe: async () => subscription },
 				});
 			}
 		},
@@ -534,6 +540,34 @@ test.describe("Notifications — signed in", () => {
 		expect(del.url.searchParams.get("token")).toBe(`eq.${ownToken}`);
 	});
 
+	// #263: enablePush used to `.upsert()` push_tokens directly -- now a shared device token can
+	// already be owned by another user (push_tokens has a unique(platform, token) backstop), so a
+	// raw upsert would 23505. It must go through register_push_token (a security definer RPC that
+	// evicts any other owner's row first), the same coordination #264's reregisterPushToken self-heal
+	// relies on. Mocked the same way #185's tests above mock push_tokens, keyed on the RPC's own
+	// `rpc/<function>` REST path instead of a table name.
+	test("turning notifications on registers the push token via register_push_token, not a raw push_tokens upsert (#263)", async ({ page }) => {
+		const endpoint = "https://fcm.googleapis.com/fcm/send/NEW-DEVICE-ENDPOINT";
+		await mockPushEnvironment(page, "granted", endpoint);
+		const requests = await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: false }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			favorited_foods: (route) => route.fulfill({ json: [] }),
+			"rpc/register_push_token": (route) => route.fulfill({ json: {} }),
+		});
+
+		await page.goto("/notifications");
+		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+		await page.locator("#notif-toggle").click();
+
+		const rpcCall = await waitForRequest(requests, "rpc/register_push_token", "POST");
+		expect(rpcCall.body).toEqual({ p_platform: "web", p_token: JSON.stringify({ endpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } }) });
+		expect(requests.some((r) => r.table === "push_tokens")).toBe(false);
+	});
+
 	test("a signed-out visit does not stamp the feed-last-seen watermark", async ({ page }) => {
 		await page.goto("/notifications");
 		await expect(page.locator(".empty-state")).toBeVisible();
@@ -564,7 +598,7 @@ test.describe("Sign out (#257)", () => {
 	// reproduces exactly that starting state (granted permission, live subscription, no DB row --
 	// what a fresh push_tokens mock plus a post-sign-out revisit looks like) and proves refresh()
 	// self-heals it on its own, without a toggle click.
-	test("a granted browser with a live subscription but no push_tokens row self-heals it on load", async ({ page }) => {
+	test("a granted browser with a live subscription but no push_tokens row self-heals it via register_push_token on load", async ({ page }) => {
 		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
 		await mockPushEnvironment(page, "granted", ownEndpoint);
 		const requests = await signInAndMockSupabase(page, {
@@ -572,27 +606,36 @@ test.describe("Sign out (#257)", () => {
 			food_sightings: (route) => route.fulfill({ json: [] }),
 			pings: (route) => route.fulfill({ json: [] }),
 			friendships: (route) => route.fulfill({ json: [] }),
-			push_tokens: (route) => route.fulfill({ json: [] }),
+			"rpc/register_push_token": (route) => route.fulfill({ json: {} }),
 		});
 
 		await page.goto("/notifications");
 		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
 
-		const post = await waitForRequest(requests, "push_tokens", "POST");
+		// #263: the self-heal goes through register_push_token now, not a raw push_tokens upsert --
+		// same eviction reasoning as enablePush()'s own registration.
+		const post = await waitForRequest(requests, "rpc/register_push_token", "POST");
 		const ownToken = JSON.stringify({ endpoint: ownEndpoint, keys: { p256dh: "test-p256dh", auth: "test-auth" } });
-		expect(post.body).toMatchObject({ user_id: USER_ID, platform: "web", token: ownToken });
+		expect(post.body).toEqual({ p_platform: "web", p_token: ownToken });
+		expect(requests.some((r) => r.table === "push_tokens")).toBe(false);
 	});
 
 	// #264 review round 4: the self-heal test above proved the row gets re-created, but its own
-	// upsert is a real network round trip -- if the user clicks "Sign out" while that upsert is
+	// registration is a real network round trip -- if the user clicks "Sign out" while that call is
 	// still in flight, signOut() must WAIT for it to finish before its own delete (not race it, and
 	// not "fix" it afterward -- an earlier "compensating delete" attempt at this ran post-
 	// auth.signOut() with no session and 403'd against the real push_tokens grant, reproduced by
 	// keying this mock off the Authorization header instead of fulfilling every request
-	// unconditionally). Holds the self-heal's own POST upstream, clicks Sign out while it's still
-	// pending, and asserts signOut() doesn't touch push_tokens at all until the self-heal settles --
-	// so the only possible final order is upsert, then delete, then auth.signOut().
-	test("a sign-out that starts while this self-heal's upsert is in flight waits for it, then deletes with a still-live session", async ({ page }) => {
+	// unconditionally). Holds the self-heal's own register_push_token POST upstream, clicks Sign out
+	// while it's still pending, and asserts signOut() doesn't touch push_tokens at all until the
+	// self-heal settles -- so the only possible final order is register, then delete, then
+	// auth.signOut().
+	//
+	// #263: the self-heal's own write moved from a push_tokens upsert to the register_push_token RPC
+	// (a raw upsert would 23505 against the new unique(platform, token) constraint once a token is
+	// shared) -- the held/racing request below is keyed on the RPC's own `rpc/<function>` path;
+	// push_tokens itself now only ever sees the sign-out DELETE in this flow.
+	test("a sign-out that starts while this self-heal's registration is in flight waits for it, then deletes with a still-live session", async ({ page }) => {
 		const ownEndpoint = "https://fcm.googleapis.com/fcm/send/OWN-DEVICE-ENDPOINT";
 		await mockPushEnvironment(page, "granted", ownEndpoint);
 		const order: string[] = [];
@@ -601,24 +644,23 @@ test.describe("Sign out (#257)", () => {
 			food_sightings: (route) => route.fulfill({ json: [] }),
 			pings: (route) => route.fulfill({ json: [] }),
 			friendships: (route) => route.fulfill({ json: [] }),
-			push_tokens: async (route) => {
+			"rpc/register_push_token": async (route) => {
 				// Matches production's actual grant instead of fulfilling regardless of credentials --
 				// a request using the anon/publishable key (what supabase-js sends once auth.signOut()
 				// has cleared the session) must 403 here too, or this mock can't catch a "fix" that
 				// only works because the mock is more permissive than Postgres.
 				if (!(await isAuthorizedAsUser(route))) {
-					return route.fulfill({ status: 403, json: { code: "42501", message: "permission denied for table push_tokens" } });
+					return route.fulfill({ status: 403, json: { code: "42501", message: "permission denied for function register_push_token" } });
 				}
-				const method = route.request().method();
-				if (method === "POST") {
-					// Self-heal's own upsert -- held so a real Sign-out click lands while it's still in
-					// flight, forcing the race instead of hoping to catch it by timing luck.
-					order.push("push_tokens.POST.start");
-					await new Promise((resolve) => setTimeout(resolve, 1500));
-					order.push("push_tokens.POST.settle");
-				} else {
-					order.push(`push_tokens.${method}`);
-				}
+				// Self-heal's own registration -- held so a real Sign-out click lands while it's still in
+				// flight, forcing the race instead of hoping to catch it by timing luck.
+				order.push("register_push_token.start");
+				await new Promise((resolve) => setTimeout(resolve, 1500));
+				order.push("register_push_token.settle");
+				await route.fulfill({ json: {} });
+			},
+			push_tokens: async (route) => {
+				order.push(`push_tokens.${route.request().method()}`);
 				await route.fulfill({ json: [] });
 			},
 		});
@@ -631,7 +673,7 @@ test.describe("Sign out (#257)", () => {
 		const signOutButton = page.getByRole("button", { name: "Sign out" });
 		await expect(signOutButton).toBeVisible({ timeout: 15_000 }); // hydration proof
 
-		await expect.poll(() => order.includes("push_tokens.POST.start")).toBe(true);
+		await expect.poll(() => order.includes("register_push_token.start")).toBe(true);
 		await signOutButton.click();
 
 		// Give the click a beat -- if signOut() incorrectly raced ahead instead of waiting for the
@@ -644,11 +686,11 @@ test.describe("Sign out (#257)", () => {
 
 		// Relative order, not an exact listing: signOut()'s own location.reload() (unstubbed here,
 		// exercised for real) can mount a fresh page afterward that runs its own unrelated self-heal
-		// -- irrelevant to what's under test, which is that this specific upsert settles (still on
-		// the live session, since signOut() waited for it) strictly before this specific delete,
+		// -- irrelevant to what's under test, which is that this specific registration settles (still
+		// on the live session, since signOut() waited for it) strictly before this specific delete,
 		// which in turn runs strictly before the session is actually torn down.
-		const postStart = order.indexOf("push_tokens.POST.start");
-		const postSettle = order.indexOf("push_tokens.POST.settle");
+		const postStart = order.indexOf("register_push_token.start");
+		const postSettle = order.indexOf("register_push_token.settle");
 		const del = order.indexOf("push_tokens.DELETE");
 		const logout = order.indexOf("auth.logout");
 		expect(postStart).toBeGreaterThanOrEqual(0);
@@ -681,7 +723,7 @@ test.describe("Sign out (#257)", () => {
 		await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
 		await page.waitForTimeout(1000); // same beat given to the sibling #185 "default" test above
 
-		expect(requests.some((r) => r.table === "push_tokens")).toBe(false);
+		expect(requests.some((r) => r.table === "push_tokens" || r.table === "rpc/register_push_token")).toBe(false);
 	});
 
 	test("clears this browser's own push_tokens row before ending the session", async ({ page }) => {
@@ -696,9 +738,9 @@ test.describe("Sign out (#257)", () => {
 			food_sightings: (route) => route.fulfill({ json: [] }),
 			pings: (route) => route.fulfill({ json: [] }),
 			friendships: (route) => route.fulfill({ json: [] }),
-			// #264 finding 1's refresh()-driven self-heal (test above) also hits this table with a POST
-			// on mount, before any sign-out click -- only DELETE is the call this test's ordering claim
-			// is about, so only that method gets recorded here.
+			// #264 finding 1's refresh()-driven self-heal (test above) also runs on mount, before any
+			// sign-out click, but its registration goes through rpc/register_push_token now (#263), not
+			// this table -- only the sign-out DELETE is the call this test's ordering claim is about.
 			push_tokens: async (route) => {
 				if (route.request().method() === "DELETE") order.push("push_tokens.delete");
 				await route.fulfill({ json: [] });

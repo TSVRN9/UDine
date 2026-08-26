@@ -40,7 +40,7 @@ async function registerForPushToken(): Promise<string | null> {
   }
 }
 
-/** Re-upserts this device's push token without ever prompting for permission -- called from
+/** Re-registers this device's push token without ever prompting for permission -- called from
  * refresh() (mount/focus) so alerts self-heal after this device's push_tokens row is cleared
  * server-side without the user's own action (e.g. #257's sign-out cleanup on this device, or a
  * multi-device sign-out on another device -- see auth.ts's own doc comment on
@@ -52,7 +52,7 @@ async function registerForPushToken(): Promise<string | null> {
  * function's own promise via registerPendingSelfHeal so auth.ts's signOut() can await it (bounded)
  * BEFORE its own delete, instead of racing it. See pendingSelfHeal.ts's own doc comment for why
  * that ordering, not a post-upsert compensating delete, is what actually closes the race. */
-async function reregisterPushToken(client: SupabaseClient, userId: string): Promise<void> {
+async function reregisterPushToken(client: SupabaseClient): Promise<void> {
   try {
     const { status } = await withTimeout(Notifications.getPermissionsAsync(), STEP_TIMEOUT_MS, "getPermissionsAsync (refresh)");
     if (status !== "granted") return;
@@ -61,12 +61,16 @@ async function reregisterPushToken(client: SupabaseClient, userId: string): Prom
     const { data: token } = await withTimeout(Notifications.getExpoPushTokenAsync({ projectId }), STEP_TIMEOUT_MS, "getExpoPushTokenAsync (refresh)");
     if (!token) return;
 
+    // #263: a raw upsert here would 23505 against push_tokens' unique(platform, token) once this
+    // token is shared with another user -- register_push_token evicts that other owner first, same
+    // as toggle()'s own registration below. It derives the owner from auth.uid(), so userId is no
+    // longer needed here.
     const { error } = await withTimeout(
-      client.from("push_tokens").upsert({ user_id: userId, platform: PLATFORM, token }),
+      client.rpc("register_push_token", { p_platform: PLATFORM, p_token: token }),
       STEP_TIMEOUT_MS,
-      "push_tokens.upsert (refresh)",
+      "register_push_token (refresh)",
     );
-    if (error) console.warn("[push] refresh: push_tokens.upsert failed", error);
+    if (error) console.warn("[push] refresh: register_push_token failed", error);
   } catch (e) {
     console.warn("[push] refresh: re-registering push token failed", e);
   }
@@ -117,7 +121,7 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
     // row already exists is harmless. Registered via registerPendingSelfHeal so a concurrent
     // signOut() can wait for this specific call rather than racing it (#264 review round 4).
     if (enabled) {
-      const selfHeal = reregisterPushToken(client, session.user.id);
+      const selfHeal = reregisterPushToken(client);
       registerPendingSelfHeal(selfHeal);
       await selfHeal;
     }
@@ -156,13 +160,18 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
       if (next) {
         const token = await registerForPushToken();
         if (token) {
-          console.log("[push] toggleNotifications: upserting push_tokens row...");
-          const { error: upsertError } = await withTimeout(
-            client.from("push_tokens").upsert({ user_id: session.user.id, platform: PLATFORM, token }),
+          // #263: a raw upsert let the same shared-device token sit under N users (push_tokens now
+          // has a unique(platform, token) backstop that would reject it). register_push_token is a
+          // security definer RPC that evicts any other owner's row for this token first -- see the
+          // migration's own doc comment. #264's reregisterPushToken self-heal (below) calls this
+          // same RPC.
+          console.log("[push] toggleNotifications: calling register_push_token...");
+          const { error: rpcError } = await withTimeout(
+            client.rpc("register_push_token", { p_platform: PLATFORM, p_token: token }),
             STEP_TIMEOUT_MS,
-            "push_tokens.upsert",
+            "register_push_token",
           );
-          if (upsertError) console.warn("[push] toggleNotifications: push_tokens.upsert failed", upsertError);
+          if (rpcError) console.warn("[push] toggleNotifications: register_push_token failed", rpcError);
         }
       } else {
         const { error: deleteError } = await withTimeout(
