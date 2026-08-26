@@ -492,7 +492,12 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
                   accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
                 />
                 <View style={styles.rowMainLine} pointerEvents="box-none">
-                  <Pressable onPress={() => toggleDishFavorite(item.dishName)} hitSlop={8}>
+                  <Pressable
+                    onPress={() => toggleDishFavorite(item.dishName)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${isFavorite ? "Unfavorite" : "Favorite"} ${item.dishName}`}
+                  >
                     <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
                   </Pressable>
                   <View style={styles.rowMain} pointerEvents="none">

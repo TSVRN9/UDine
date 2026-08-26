@@ -326,6 +326,13 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
   });
 });
 
+describe("HallMenuScreen dish favorite star (#282)", () => {
+  it("announces role and a descriptive label, not just the star glyph", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    expect(root.root.findByProps({ accessibilityLabel: "Favorite Pizza" }).props.accessibilityRole).toBe("button");
+  });
+});
+
 describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info button)", () => {
   it("doesn't show serving/macro detail or the nutrition-label link until a card is tapped", async () => {
     const root = await renderScreen([PIZZA, SALAD]);

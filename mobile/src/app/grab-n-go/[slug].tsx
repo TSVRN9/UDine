@@ -302,7 +302,12 @@ export default function GrabNGoScreen() {
             const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
             return (
               <View style={[styles.row, plateEntry && styles.rowInPlate]}>
-                <Pressable onPress={() => toggleDishFavorite(item.dishName)} hitSlop={8}>
+                <Pressable
+                  onPress={() => toggleDishFavorite(item.dishName)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${isFavorite ? "Unfavorite" : "Favorite"} ${item.dishName}`}
+                >
                   <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
                 </Pressable>
                 <View style={styles.rowMain}>

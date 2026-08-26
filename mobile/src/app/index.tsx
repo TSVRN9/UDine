@@ -143,7 +143,13 @@ function HallCard({
         </Link>
         {/* Not on the artboard, but /favorites only lists — this star is the sole way to favorite a
             hall, so it stays (top-left; the canvas's top-right corner belongs to the status pill). */}
-        <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.hallCardStar}>
+        <Pressable
+          onPress={onToggleFavorite}
+          hitSlop={8}
+          style={styles.hallCardStar}
+          accessibilityRole="button"
+          accessibilityLabel={`${isFavorite ? "Unfavorite" : "Favorite"} ${hall.name}`}
+        >
           <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
         </Pressable>
       </View>
