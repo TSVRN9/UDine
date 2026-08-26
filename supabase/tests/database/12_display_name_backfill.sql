@@ -5,42 +5,69 @@
 -- starts, handle_new_user has ALREADY stopped producing email-shaped display_names (proven in
 -- 01_profiles_trigger.sql) and there is no genuinely pre-existing leaked row for the backfill UPDATE
 -- to have caught. To still prove the backfill's own SQL is correct rather than just asserting it
--- ran (it did, trivially, against zero rows), this file manufactures a legacy-shaped row -- the
--- exact shape a pre-fix signup would have left -- by updating a freshly-trigger-created profile
--- back to display_name = email-local-part, then re-runs the migration's own backfill statement
--- verbatim. Not an AMBIENT test of the shipped migration re-running itself (that already happened,
--- against nothing); it IS a genuine red/green proof that the UPDATE's WHERE clause and rewrite are
--- correct: red before the (fabricated) fix, green after.
+-- ran (it did, trivially, against zero rows), this file manufactures legacy-shaped rows -- the
+-- exact shape a pre-fix signup would have left, for each raw_user_meta_data case that matters --
+-- then re-runs the migration's own backfill statement verbatim. Not an AMBIENT test of the shipped
+-- migration re-running itself (that already happened, against nothing); it IS a genuine red/green
+-- proof that the UPDATE's derivation matches handle_new_user's own: red before the (fabricated)
+-- leaked state is fixed, green after.
+--
+-- Review finding on the first version of this migration: the backfill unconditionally overwrote
+-- every leaked row with the literal 'UMass student', discarding a real Google full_name that was
+-- one column away in the very auth.users row the UPDATE already joins (live repro: the one real
+-- user had full_name/name = "Owen Wang" but got flattened to "UMass student"). There is no
+-- display_name WRITE path anywhere in mobile/web (grepped every public.profiles write -- the full
+-- set is discoverable and notifications_enabled), so a leaked row's value can never be a user's
+-- deliberate choice to preserve -- but it CAN be a real OAuth name the trigger just never got a
+-- chance to write, and that must survive. Three cases below cover exactly that distinction.
 create extension if not exists pgtap;
 
 begin;
-select plan(4);
+select plan(5);
 
+-- alice: a Google-shaped signup (full_name/name populated) whose display_name somehow ended up
+-- leaked anyway (e.g. she signed up before this fix). The backfill must recover her real name from
+-- auth.users, not flatten her to the placeholder.
+-- bob: an email/password signup -- raw_user_meta_data is genuinely '{}', same as this repo's own
+-- fixtures. No name to recover; 'UMass student' is the correct, only-available outcome.
+-- carol: an OAuth-shaped payload with a blank full_name (empty string, not absent) -- proves the
+-- nullif('', '') handling matches handle_new_user's exactly, so an empty string doesn't get stored
+-- as a "name" no one can see.
 insert into auth.users
   (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_confirmed_at)
 values
   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-   'alice@umass.edu', crypt('x', gen_salt('bf')), '{}', '{}', now(), now(), '', now()),
+   'alice@umass.edu', crypt('x', gen_salt('bf')), '{}', '{"full_name": "Alice Chen", "name": "Alice Chen"}', now(), now(), '', now()),
   ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-   'bob@umass.edu', crypt('x', gen_salt('bf')), '{}', '{}', now(), now(), '', now());
+   'bob@umass.edu', crypt('x', gen_salt('bf')), '{}', '{}', now(), now(), '', now()),
+  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'carol@umass.edu', crypt('x', gen_salt('bf')), '{}', '{"full_name": ""}', now(), now(), '', now());
 
--- Simulate a pre-#260 row: force alice's display_name back to her email local-part, the exact
--- shape the old handle_new_user would have left. bob is renamed to something that merely
--- COINCIDES with a real name (not his local-part) -- he must survive the backfill untouched, same
--- as the migration's own "don't overwrite a deliberate choice" comment says.
-update public.profiles set display_name = split_part((select email from auth.users where id = '00000000-0000-0000-0000-000000000001'), '@', 1)
-  where user_id = '00000000-0000-0000-0000-000000000001';
-update public.profiles set display_name = 'Bob Chen' where user_id = '00000000-0000-0000-0000-000000000002';
+-- Force all three back to the exact leaked shape (display_name = email local-part), regardless of
+-- what the (already-fixed) trigger actually gave them -- simulating rows that predate this fix.
+update public.profiles p
+set display_name = split_part(u.email, '@', 1)
+from auth.users u
+where u.id = p.user_id
+  and p.user_id in (
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000003'
+  );
 
 select is(
   (select count(*)::int from public.profiles p join auth.users u on u.id = p.user_id where p.display_name = split_part(u.email, '@', 1)),
-  1,
-  'precondition: exactly the fabricated legacy row leaks its email via display_name'
+  3,
+  'precondition: all three fabricated legacy rows leak their email via display_name'
 );
 
 -- The migration's own backfill statement, verbatim (20260825130000_display_name_not_email_default.sql).
 update public.profiles p
-set display_name = 'UMass student'
+set display_name = coalesce(
+  nullif(u.raw_user_meta_data->>'full_name', ''),
+  nullif(u.raw_user_meta_data->>'name', ''),
+  'UMass student'
+)
 from auth.users u
 where p.user_id = u.id
   and p.display_name = split_part(u.email, '@', 1);
@@ -53,14 +80,20 @@ select is(
 
 select is(
   (select display_name from public.profiles where user_id = '00000000-0000-0000-0000-000000000001'),
-  'UMass student',
-  'the leaked row is rewritten to the same non-email-derived default new signups get'
+  'Alice Chen',
+  'a leaked row with a real OAuth full_name recovers it -- never flattened to the placeholder'
 );
 
 select is(
   (select display_name from public.profiles where user_id = '00000000-0000-0000-0000-000000000002'),
-  'Bob Chen',
-  'a user who already renamed (even to something name-shaped) is left untouched'
+  'UMass student',
+  'a leaked row with no OAuth identity ({}) falls back to the placeholder'
+);
+
+select is(
+  (select display_name from public.profiles where user_id = '00000000-0000-0000-0000-000000000003'),
+  'UMass student',
+  'a blank full_name ("") is treated as absent, same as handle_new_user''s own nullif chain'
 );
 
 select * from finish();
