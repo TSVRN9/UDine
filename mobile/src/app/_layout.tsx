@@ -8,9 +8,11 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { registerNotificationHandler } from "../lib/notificationHandler";
 import { colors, fonts } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync();
+registerNotificationHandler();
 
 export default function RootLayout() {
   // Every screen's styles name these families unconditionally, so hold the splash screen until
