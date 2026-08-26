@@ -49,6 +49,25 @@ function SegmentedPill({ tab, onChange }: { tab: "my-code" | "scan"; onChange: (
 
 function MyCodeTab({ session }: { session: Session }) {
   const [token, setToken] = useState<string | null>(null);
+  // #260: this used to fall back to session.user.email?.split("@")[0] -- the same email-local-part
+  // guess handle_new_user itself no longer makes server-side. profiles.display_name (readable for
+  // self unconditionally, see the "profiles readable by self..." SELECT policy) is the actual
+  // source of truth. "you" covers two cases, neither a real fallback: render-before-fetch, and a
+  // genuinely absent profiles row (handle_new_user only fires at signup, never sign-in -- a user
+  // who ran "Delete server data" has no row to fetch until they sign up again, see
+  // deleteServerData.ts's own comment on this exact gap).
+  const [displayName, setDisplayName] = useState("you");
+
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("user_id", session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.display_name) setDisplayName(data.display_name);
+      });
+  }, [session.user.id]);
 
   const mint = useCallback(async () => {
     const { data, error } = await supabase.rpc("mint_qr_token");
@@ -73,8 +92,6 @@ function MyCodeTab({ session }: { session: Session }) {
       };
     }, [mint, session.user.id]),
   );
-
-  const displayName = (session.user.user_metadata?.display_name as string | undefined) ?? session.user.email?.split("@")[0] ?? "you";
 
   return (
     <View style={styles.tabContent}>
