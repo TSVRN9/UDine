@@ -9,7 +9,34 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(19);
+select plan(29);
+
+-- =================================================================================================
+-- Ambient (superuser, no mutation yet) -- #271: the three "is null or a JSON array" constraints
+-- exist as shipped, by their real name and real definition, per #222's own lesson (read the
+-- already-migrated schema, don't re-derive it inside this file's own transaction).
+-- =================================================================================================
+select ok(
+  exists(select 1 from pg_constraint where conname = 'shared_stats_completion_is_array' and contype = 'c'),
+  'shared_stats_completion_is_array exists as a check constraint'
+);
+select ok(
+  exists(select 1 from pg_constraint where conname = 'shared_stats_top_foods_is_array' and contype = 'c'),
+  'shared_stats_top_foods_is_array exists as a check constraint'
+);
+select ok(
+  exists(select 1 from pg_constraint where conname = 'shared_stats_hall_ranks_is_array' and contype = 'c'),
+  'shared_stats_hall_ranks_is_array exists as a check constraint'
+);
+select ok(
+  not exists(select 1 from pg_constraint where conname = 'shared_stats_completion_not_json_null'),
+  'the old shared_stats_completion_not_json_null constraint is gone, not just superseded'
+);
+select matches(
+  pg_get_constraintdef((select oid from pg_constraint where conname = 'shared_stats_completion_is_array')),
+  'jsonb_typeof\(completion\) = ''array''',
+  'the shipped constraint definition actually checks jsonb_typeof(...) = ''array'', not something looser'
+);
 
 insert into auth.users
   (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_confirmed_at)
@@ -152,8 +179,41 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000001"}';
 select throws_like(
   $$update public.shared_stats set completion = 'null'::jsonb where user_id = '00000000-0000-0000-0000-000000000001'$$,
-  '%shared_stats_completion_not_json_null%',
-  'a JSON null literal (as opposed to SQL NULL) is rejected by the check constraint'
+  '%shared_stats_completion_is_array%',
+  'a JSON null literal (as opposed to SQL NULL) is still rejected by the (renamed, tightened) check constraint'
+);
+reset role;
+
+-- #271 RED: a string/object/number -- not just the JSON null literal -- must also be rejected.
+-- These are the exact shapes the issue's repro showed slipping through the old
+-- "<> 'null'" constraints (owner RLS lets a signed-in user upsert any jsonb shape via PostgREST).
+select throws_like(
+  $$update public.shared_stats set completion = '"boom"'::jsonb where user_id = '00000000-0000-0000-0000-000000000001'$$,
+  '%shared_stats_completion_is_array%',
+  'a JSON string is rejected by the tightened completion constraint'
+);
+select throws_like(
+  $$update public.shared_stats set top_foods = '{"x":1}'::jsonb where user_id = '00000000-0000-0000-0000-000000000001'$$,
+  '%shared_stats_top_foods_is_array%',
+  'a JSON object is rejected by the tightened top_foods constraint'
+);
+select throws_like(
+  $$update public.shared_stats set hall_ranks = '42'::jsonb where user_id = '00000000-0000-0000-0000-000000000001'$$,
+  '%shared_stats_hall_ranks_is_array%',
+  'a JSON number is rejected by the tightened hall_ranks constraint'
+);
+
+-- GREEN: a genuine array is still accepted (steady-state writes must keep working).
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000001"}';
+select lives_ok(
+  $$update public.shared_stats set hall_ranks = '[{"hallTid":1,"rank":1}]'::jsonb where user_id = '00000000-0000-0000-0000-000000000001'$$,
+  'a JSON array is accepted by the tightened hall_ranks constraint'
+);
+-- SQL NULL is still accepted too (privacy-by-presence's "not shared" state is unaffected).
+select lives_ok(
+  $$update public.shared_stats set hall_ranks = null where user_id = '00000000-0000-0000-0000-000000000001'$$,
+  'SQL NULL is still accepted by the tightened hall_ranks constraint'
 );
 reset role;
 

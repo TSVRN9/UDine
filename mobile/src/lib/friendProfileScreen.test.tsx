@@ -210,6 +210,42 @@ describe("FriendProfileScreen", () => {
     expect(texts(root)).not.toMatch(/Casey hasn.t rated enough foods yet/);
   });
 
+  // #271: shared_stats' check constraints only guarantee SQL NULL or a JSON array -- an accepted
+  // friend can still write any other shape via a raw PostgREST upsert (owner RLS allows it), and
+  // the screen used to do `stats.completion.map(...)` / `stats.hall_ranks.map(...)` with no
+  // Array.isArray guard. A malformed non-array field must degrade to the same "doesn't share
+  // this" state as an absent field, not throw and take the screen down.
+  it("renders 'doesn't share this' instead of throwing when completion/hall_ranks are malformed non-array shapes", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: "boom", top_foods: { x: 1 }, hall_ranks: 42 },
+    });
+    // Rendering itself must not throw -- pre-fix, this line throws "boom".map is not a function.
+    const root = await renderScreen();
+    // All three sections fall back to the honest "doesn't share this" state -- completion and
+    // hall_ranks because a non-array is treated the same as absent; top_foods because an object
+    // isn't an array either (it does NOT get the "opted in but empty" wording, which is reserved
+    // for a genuine empty array).
+    expect(texts(root).match(/Casey doesn.t share this/g)).toHaveLength(3);
+  });
+
+  // The server constraint can't see inside array elements -- a top_foods entry with a
+  // non-numeric score still throws at `f.score.toFixed(1)` even though the OUTER shape is a
+  // genuine array, so the Array.isArray guard alone isn't enough here.
+  it("does not throw when a top_foods entry has a non-numeric score, and drops just that entry", async () => {
+    mockTables({
+      profile: { user_id: "friend-1", display_name: "Casey" },
+      sharedStats: { completion: null, top_foods: [{ dishName: "x", score: "nope", hallName: null }], hall_ranks: null },
+    });
+    // Rendering itself must not throw -- pre-fix, this line throws "nope".toFixed is not a function.
+    const root = await renderScreen();
+    // Opted in (a real array), but the one entry it had was malformed and got filtered out --
+    // same "opted in, nothing to show yet" wording as a genuinely empty array (review finding #5's
+    // distinction), not "doesn't share this" and not a crash.
+    expect(texts(root)).toMatch(/Casey hasn.t rated enough foods yet/);
+    expect(texts(root)).not.toMatch(/nope/);
+  });
+
   // Review finding #2: a discarded insert error used to alert a confirmed "Ping sent" regardless.
   it("alerts failure, not success, when the pings insert is rejected (e.g. RLS: not actually friends)", async () => {
     mockTables({ profile: { user_id: "friend-1", display_name: "Casey" }, insertError: { message: "row-level security policy violation" } });

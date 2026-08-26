@@ -13,7 +13,15 @@ type Friendship = { user_a: string; user_b: string; created_at: string };
 type SharedCompletion = { hallTid: number; loggedDistinct: number; seenDistinct: number };
 type SharedTopFood = { dishName: string; score: number; hallName: string | null };
 type SharedHallRank = { hallTid: number; rank: number };
-type SharedStatsRow = { completion: SharedCompletion[] | null; top_foods: SharedTopFood[] | null; hall_ranks: SharedHallRank[] | null } | null;
+type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null;
+
+/** #271: a top_foods array entry with a non-numeric score still crashes TopFoodRow's
+ * `f.score.toFixed(1)` even when the outer field is a genuine array -- the server's check
+ * constraint can't reach into array elements, so a bad entry is dropped here rather than
+ * rendered. Degrades the same way a genuinely empty (opted-in, nothing-yet) array does. */
+function isValidTopFood(f: unknown): f is SharedTopFood {
+  return !!f && typeof (f as SharedTopFood).score === "number" && Number.isFinite((f as SharedTopFood).score);
+}
 
 function initialsOf(name: string): string {
   return name
@@ -139,7 +147,14 @@ export default function FriendProfileScreen() {
   }
 
   const name = profile?.display_name ?? "…";
-  const topFoods = stats?.top_foods ?? null;
+  // #271: the server's check constraint only guarantees SQL NULL or a JSON array -- an accepted
+  // friend can still write any other shape via a raw PostgREST upsert (owner RLS allows it). A
+  // malformed non-array field renders the same "doesn't share this" state as an absent field,
+  // never throws. isValidTopFood additionally guards each *entry* (a non-numeric score crashes
+  // TopFoodRow's `.toFixed` even when the outer array shape is fine).
+  const completion = Array.isArray(stats?.completion) ? (stats.completion as SharedCompletion[]) : null;
+  const hallRanks = Array.isArray(stats?.hall_ranks) ? (stats.hall_ranks as SharedHallRank[]) : null;
+  const topFoods = Array.isArray(stats?.top_foods) ? (stats.top_foods as unknown[]).filter(isValidTopFood) : null;
   const maxScore = topFoods && topFoods.length > 0 ? Math.max(...topFoods.map((f) => f.score)) : 0;
 
   return (
@@ -162,9 +177,9 @@ export default function FriendProfileScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hall Completion</Text>
-          {stats?.completion ? (
+          {completion ? (
             <StatCard>
-              {stats.completion.map((c) => (
+              {completion.map((c) => (
                 <CompletionRow key={c.hallTid} c={c} />
               ))}
             </StatCard>
@@ -196,9 +211,9 @@ export default function FriendProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Their Hall Ranking</Text>
-          {stats?.hall_ranks ? (
+          {hallRanks ? (
             <StatCard>
-              {stats.hall_ranks.map((r) => (
+              {hallRanks.map((r) => (
                 <View key={r.hallTid} style={styles.rankRow}>
                   <Text style={[styles.rankNumber, r.rank === 1 && styles.rankNumberTop]}>{r.rank}</Text>
                   <Text style={styles.rankHallName}>{hallNameFor(r.hallTid)}</Text>
