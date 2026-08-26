@@ -262,6 +262,70 @@ test.describe("Friends — signed in", () => {
 		expect(patch.url.searchParams.get("user_b")).toBe(`eq.${friendships[0].user_b}`);
 	});
 
+	// #256: a qr-origin pending row (created by mobile's in-person QR flow, see
+	// supabase/migrations/20260824150000_add_friends_discoverability_and_qr.sql) can only ever leave
+	// "pending" via both sides confirming in the mobile app -- a raw Accept here always hits the
+	// friendships_qr_needs_both_confirms CHECK constraint. The row must not offer that doomed action.
+	test("a qr-origin pending row does not offer a raw Accept, and explains the handshake completes in the mobile app", async ({ page }) => {
+		const friendship = {
+			user_a: USER_ID < FRIEND_ID ? USER_ID : FRIEND_ID,
+			user_b: USER_ID < FRIEND_ID ? FRIEND_ID : USER_ID,
+			status: "pending",
+			requested_by: FRIEND_ID,
+			origin: "qr",
+		};
+		await signInAndMockSupabase(page, {
+			friendships: (route) => route.fulfill({ json: [friendship] }),
+			profiles: (route) => route.fulfill({ json: [{ user_id: FRIEND_ID, display_name: "Casey Friend" }] }),
+		});
+
+		await page.goto("/friends");
+		await expect(page.getByRole("heading", { name: "Find friends" })).toBeVisible({ timeout: 15_000 });
+
+		const row = page.locator("li", { hasText: "Casey Friend" });
+		await expect(row.getByRole("button", { name: "Accept" })).toHaveCount(0);
+		await expect(row.locator(".badge")).toContainText("mobile app");
+	});
+
+	// #256 part 1: a search-origin row must keep working, and any rejection (RLS, a stale row, not
+	// just the qr CHECK case above) must surface instead of silently doing nothing -- acceptFriend()
+	// previously never checked `{error}` at all.
+	test("a failed friendships Accept update (RLS rejection) shows a failure state, not a silent no-op", async ({ page }) => {
+		const friendship = {
+			user_a: USER_ID < FRIEND_ID ? USER_ID : FRIEND_ID,
+			user_b: USER_ID < FRIEND_ID ? FRIEND_ID : USER_ID,
+			status: "pending",
+			requested_by: FRIEND_ID,
+			origin: "search",
+		};
+		await signInAndMockSupabase(page, {
+			friendships: async (route) => {
+				if (route.request().method() === "PATCH") {
+					return route.fulfill({
+						status: 403,
+						json: { code: "42501", message: "new row violates row-level security policy", details: null, hint: null },
+					});
+				}
+				return route.fulfill({ json: [friendship] });
+			},
+			profiles: (route) => route.fulfill({ json: [{ user_id: FRIEND_ID, display_name: "Casey Friend" }] }),
+		});
+
+		await page.goto("/friends");
+		await expect(page.getByRole("heading", { name: "Find friends" })).toBeVisible({ timeout: 15_000 });
+
+		const row = page.locator("li", { hasText: "Casey Friend" });
+		await row.getByRole("button", { name: "Accept" }).click();
+
+		// Scoped to the Friend requests section -- once #297 merges, /friends can render a second,
+		// unrelated `role="alert"` for a failed search request, and this locator must not become
+		// ambiguous between the two.
+		const friendRequestsSection = page.locator("section", { hasText: "Friend requests" });
+		await expect(friendRequestsSection.getByRole("alert")).toBeVisible();
+		// Still pending, not silently flipped to accepted -- the row's own badge is unchanged.
+		await expect(row.locator(".badge").first()).toHaveText("Wants to be friends");
+	});
+
 	test("accepted friends are shown without ping controls -- pinging moved to the activity feed (#66)", async ({ page }) => {
 		const friendship = { user_a: USER_ID < FRIEND_ID ? USER_ID : FRIEND_ID, user_b: USER_ID < FRIEND_ID ? FRIEND_ID : USER_ID, status: "accepted", requested_by: FRIEND_ID };
 		await signInAndMockSupabase(page, {
