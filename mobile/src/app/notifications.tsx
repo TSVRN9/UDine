@@ -44,7 +44,11 @@ export function NotificationsBody() {
   async function markRead(sighting: Sighting) {
     if (sighting.read_at) return;
     const readAt = new Date().toISOString();
-    await supabase.from("food_sightings").update({ read_at: readAt }).eq("id", sighting.id);
+    const { error } = await supabase.from("food_sightings").update({ read_at: readAt }).eq("id", sighting.id);
+    if (error) {
+      Alert.alert("Couldn't mark as read", "Please try again.");
+      return;
+    }
     setSightings((prev) => prev.map((s) => (s.id === sighting.id ? { ...s, read_at: readAt } : s)));
   }
 

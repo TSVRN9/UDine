@@ -15,6 +15,7 @@
 	let profilesById: Map<string, Profile> = $state(new Map());
 	let pending = $derived(friendships.filter((f) => f.status === "pending"));
 	let accepted = $derived(friendships.filter((f) => f.status === "accepted"));
+	let requestError = $state(false);
 
 	function otherUserId(f: Friendship, myId: string): string {
 		return f.user_a === myId ? f.user_b : f.user_a;
@@ -49,7 +50,13 @@
 	}
 
 	async function requestFriend(targetUserId: string) {
-		await page.data.supabase?.rpc("request_friendship", { target_user_id: targetUserId });
+		const { error } = (await page.data.supabase?.rpc("request_friendship", { target_user_id: targetUserId })) ?? {};
+		if (error) {
+			requestError = true;
+			setTimeout(() => (requestError = false), 3000);
+			return;
+		}
+		requestError = false;
 		searchResults = [];
 		query = "";
 		await refresh();
@@ -85,6 +92,7 @@
 				{/each}
 			</ul>
 		{/if}
+		{#if requestError}<p role="alert" class="badge mt-2">Couldn't send friend request — try again.</p>{/if}
 	</section>
 
 	<!-- .badge distinguishes "I'm waiting on them" (Pending) from "they're waiting on me" (Wants to
