@@ -1,9 +1,10 @@
 import { searchProducts, type DailyMacroTotals, type OffSearchResult } from "@udine/shared";
 import { useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
 import { Button, Stat } from "./ui";
+import { useSheetAnim } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
@@ -31,6 +32,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const { backdropStyle, panelStyle } = useSheetAnim(visible);
 
   const itemCount = totalItemCount(plate);
 
@@ -55,11 +57,13 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+        <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
+          <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+        </Animated.View>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={[styles.sheet, { paddingBottom: spacing(6) + insets.bottom }]}>
+          <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
             <View style={styles.handleRow}>
               <View style={styles.handle} />
             </View>
@@ -148,7 +152,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
                 ))}
               </View>
             </ScrollView>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
