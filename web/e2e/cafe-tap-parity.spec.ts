@@ -137,6 +137,29 @@ test("a café with a non-empty probe renders the ordinary menu screen with a pri
 	await expect(page.getByRole("status")).toHaveText("Logged 1 × Iced Latte");
 });
 
+// #223: café menus were rendering with a hardcoded, empty FoodPreferences instead of the user's
+// real saved filters (halls-menu.spec.ts's "everything is filtered out" case, mirrored here) --
+// an allergen dish showed up completely unfiltered on a café menu with no indication anything was
+// different from a hall.
+test("dietary filters hiding every café dish say so, instead of rendering the dish unfiltered", async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem(
+			"udine-food-preferences",
+			JSON.stringify({ allergensToAvoid: ["Milk"], requiredDietTags: [] }),
+		);
+	});
+	await mockHours(page, [MENU_CAFE]);
+	await mockMenu(page, { [CAFE_TID]: [PRICED_DISH] });
+
+	await gotoCafe(page, CAFE_TID, "Test Café");
+
+	await expect(page.getByText("Everything is filtered out")).toBeVisible();
+	await expect(page.getByText(/All 1 dish(es)? on today.s menu conflict with your dietary filters\./)).toBeVisible();
+	await expect(page.getByRole("link", { name: "Edit dietary preferences" })).toBeVisible();
+	// Not silently unfiltered: the allergen dish itself must not render.
+	await expect(page.getByRole("listitem").filter({ hasText: "Iced Latte" })).toHaveCount(0);
+});
+
 test("a café with an empty probe renders the fallback sheet with the standing menu, labeled and never as today's", async ({
 	page,
 }) => {
