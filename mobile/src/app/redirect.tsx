@@ -1,6 +1,7 @@
 import { Redirect, useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
-import { Alert } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, StyleSheet } from "react-native";
+import { colors } from "../lib/theme";
 import { exchangeCode, isSignInInFlight, shouldExchangeCode } from "../lib/auth";
 
 /**
@@ -19,11 +20,18 @@ import { exchangeCode, isSignInInFlight, shouldExchangeCode } from "../lib/auth"
  *   cold start can't have inherited), so this exchanges the code itself only when the warm path
  *   isn't already doing so — otherwise it would double-exchange the single-use PKCE code.
  *
- * Either way, it immediately bounces back home; a successful exchange fires
- * `supabase.auth.onAuthStateChange`, which home already listens for.
+ * Either way, it bounces back home once any exchange it owns has settled (#280 -- see the `ready`
+ * gate below); a successful exchange fires `supabase.auth.onAuthStateChange`, which home already
+ * listens for.
  */
 export default function RedirectScreen() {
   const { code } = useLocalSearchParams<{ code?: string }>();
+  // #280: index.tsx's first-run check races this screen's exchange -- getSession() sees no
+  // session yet if index mounts (via <Redirect> below) while the cold-start exchange is still on
+  // the wire, producing one spurious /login push. Gating the redirect on the exchange settling
+  // (both success and failure -- see the .finally below) closes that race; the warm path has
+  // nothing to await (shouldExchangeCode already said so) so it stays effectively synchronous.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (shouldExchangeCode(code, isSignInInFlight())) {
@@ -31,12 +39,21 @@ export default function RedirectScreen() {
       // (e.g. an expired code) would complete Google consent and land silently signed out, which
       // is exactly #54's complaint. Alert.alert is native, so it survives this screen's immediate
       // <Redirect> unmount, same as the warm path's identical failure surface (index.tsx).
-      exchangeCode(code).catch((err) => {
-        console.error("OAuth cold-start code exchange failed", err);
-        Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
-      });
+      exchangeCode(code)
+        .catch((err) => {
+          console.error("OAuth cold-start code exchange failed", err);
+          Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
+        })
+        .finally(() => setReady(true));
+    } else {
+      setReady(true);
     }
   }, [code]);
 
+  if (!ready) return <ActivityIndicator style={styles.loading} color={colors.maroon600} />;
   return <Redirect href="/" />;
 }
+
+const styles = StyleSheet.create({
+  loading: { flex: 1, backgroundColor: colors.cream100 },
+});
