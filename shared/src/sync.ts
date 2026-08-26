@@ -2,6 +2,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { rankDiningHalls } from "./ranking.ts";
 import type { Favorite, RankedDish } from "./types.ts";
 
+// #189: two overlapping syncDiningHallRanks calls (e.g. two quick rank.tsx comparisons, fired
+// fire-and-forget) each ran their own unserialized delete-then-insert. Whichever call's round-trip
+// happened to land last "won" the delete, but a slower *earlier* call's insert could still land
+// after that, leaving stale ranks on the server instead of the most recent comparison's. Serialized
+// with a module-level promise chain -- same pattern as SqliteSeenDishesStorage.recordSeen (#149) --
+// so a call's whole delete+insert always completes before the next one starts, regardless of which
+// network round-trip is slower.
+// ponytail: one global chain (not per-user) -- fine since a client only ever syncs its own signed-in
+// user; per-user chains only worth it if this module ever serves multiple concurrent users.
+let syncDiningHallRanksQueue: Promise<void> = Promise.resolve();
+
 /**
  * Pushes the ranked portion of the on-device rankDiningHalls() output to Supabase — the only
  * ranking-derived data allowed to sync, and only for a signed-in user. Delete-then-insert: cheap and
@@ -9,7 +20,19 @@ import type { Favorite, RankedDish } from "./types.ts";
  * summary, not data loss — see CLAUDE.md data residency table), so this never throws/rejects: both
  * network failures and PostgREST-reported errors are caught and logged here, not surfaced to the caller.
  */
-export async function syncDiningHallRanks(supabase: SupabaseClient, userId: string, rankedDishes: RankedDish[]): Promise<void> {
+export function syncDiningHallRanks(supabase: SupabaseClient, userId: string, rankedDishes: RankedDish[]): Promise<void> {
+  const run = () => syncDiningHallRanksNow(supabase, userId, rankedDishes);
+  // Chain onto the previous call whether it succeeded or failed, so one failed sync can't wedge
+  // every sync after it; the caller still sees their own call's own outcome via `result`.
+  const result = syncDiningHallRanksQueue.then(run, run);
+  syncDiningHallRanksQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+async function syncDiningHallRanksNow(supabase: SupabaseClient, userId: string, rankedDishes: RankedDish[]): Promise<void> {
   try {
     const { ranked } = rankDiningHalls(rankedDishes);
 

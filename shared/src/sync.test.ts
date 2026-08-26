@@ -58,6 +58,71 @@ test("syncDiningHallRanks resolves when Supabase reports a PostgREST error on in
   await assert.doesNotReject(() => syncDiningHallRanks(makeSupabaseMock(inserted, { message: "permission denied" }), "user-1", dishes));
 });
 
+type FavoriteHallRow = { user_id: string; hall_tid: number; rank: number };
+
+function delay<T>(ms: number, value: T): Promise<T> {
+  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+}
+
+/**
+ * A supabase mock whose delete()/insert() resolve after a configurable delay against one shared
+ * `table` array -- lets a test force two concurrent syncDiningHallRanks calls to have their
+ * network round-trips land in a chosen order, regardless of call order.
+ */
+function makeRacySupabaseMock(table: FavoriteHallRow[], delays: { delete: number; insert: number }) {
+  return {
+    from() {
+      return {
+        delete() {
+          return {
+            eq: async (_col: string, userId: string) => {
+              await delay(delays.delete, undefined);
+              for (let i = table.length - 1; i >= 0; i--) {
+                if (table[i].user_id === userId) table.splice(i, 1);
+              }
+              return { error: null };
+            },
+          };
+        },
+        insert: async (rows: FavoriteHallRow[]) => {
+          await delay(delays.insert, undefined);
+          table.push(...rows);
+          return { error: null };
+        },
+      };
+    },
+    // biome-ignore lint: test double, shape doesn't need to match SupabaseClient exactly
+  } as any;
+}
+
+// #189: two overlapping syncDiningHallRanks calls (e.g. two quick rank.tsx comparisons) each do
+// their own unserialized delete-then-insert. Call A is dispatched first but its round-trip is
+// slower than call B's, so the actual network interleave is del(A), del(B), ins(B), ins(A) -- B's
+// insert lands, then A's *stale* delete wipes it and A's *stale* insert leaves A's ranks behind,
+// even though B was the more recent comparison. Final state must match the LAST call (B), not
+// whichever call's round-trip happened to finish last.
+test("syncDiningHallRanks: two overlapping calls don't interleave into a stale final state", async () => {
+  const table: FavoriteHallRow[] = [];
+  const supabaseA = makeRacySupabaseMock(table, { delete: 30, insert: 30 });
+  const supabaseB = makeRacySupabaseMock(table, { delete: 5, insert: 5 });
+
+  const ranksA: RankedDish[] = [
+    { dishName: "A1", hallTid: 1, rating: 1700, comparisonCount: 1 },
+    { dishName: "A2", hallTid: 1, rating: 1700, comparisonCount: 1 },
+  ];
+  const ranksB: RankedDish[] = [
+    { dishName: "B1", hallTid: 2, rating: 1700, comparisonCount: 1 },
+    { dishName: "B2", hallTid: 2, rating: 1700, comparisonCount: 1 },
+  ];
+
+  await Promise.all([syncDiningHallRanks(supabaseA, "user-1", ranksA), syncDiningHallRanks(supabaseB, "user-1", ranksB)]);
+
+  assert.deepEqual(
+    table.map((r) => r.hall_tid),
+    [2],
+  );
+});
+
 /** Minimal stand-in for the SupabaseClient methods syncFavoritedFoods actually calls. */
 function makeFavoritedFoodsSupabaseMock(inserted: { table: string; rows: unknown[] }[], opts: { deleteError?: unknown; insertError?: unknown } = {}) {
   return {
