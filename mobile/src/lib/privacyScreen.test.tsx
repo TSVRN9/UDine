@@ -2,12 +2,20 @@
 // candidate route (see redirect.test.tsx's own note) -- imports the screen by relative path
 // instead, same pattern as friendProfileScreen.test.tsx/notificationsScreen.test.tsx.
 //
-// #182 rewrite: this used to test the old 3-Switch privacy screen directly. The favorite-food-
-// alerts toggle's own error-handling chain now lives in useFavoriteFoodAlerts (mutation-tested via
-// notificationsScreen.test.tsx, which exercises the exact same hook through NotificationsBody) and
-// deleteServerData's own partial-failure collection is unit-tested directly in
-// deleteServerData.test.ts -- both are mocked here so this file only proves THIS screen's wiring
-// (render the right toggle state, call the right function, revert + message on failure).
+// #285 rewrite ("Your Data v3", variant A): three sections -- Stays on this phone (unchanged),
+// On UDine's server (SYNC: Favorite foods, Favorite dining halls, Hall completion, Top 5 foods),
+// Shared with friends (SHARE: Favorite dining halls -> hall_ranks, Findable by search). The old
+// "Delete server data" row is gone -- SYNC toggle off IS the delete now. The favorite-food-alerts
+// toggle's own error-handling chain still lives in useFavoriteFoodAlerts (mocked here, covered by
+// notificationsScreen.test.tsx) and deleteServerData is no longer referenced by this screen at all
+// (covered standalone by deleteServerData.test.ts) -- both out of scope here, same as before.
+//
+// #285/#248 reconciliation (rebase of PR #305 onto main after #248/PR #286 landed): #248 Part C's
+// shared-stats default-on seed and its first-run disclosure card are reintegrated here rather than
+// dropped -- see "PrivacyScreen: shared-stats default-on seed (#248 Part C)" below. The seed still
+// pushes all three shared_stats fields (completion, top_foods, hall_ranks); in THIS screen's layout
+// that means the SYNC toggles for Hall completion/Top 5 foods AND the SHARE toggle for Favorite
+// dining halls all read ON for a freshly seeded account.
 
 jest.mock("./sqliteStorage", () => {
   const getAllEntries = jest.fn().mockResolvedValue([]);
@@ -31,7 +39,7 @@ jest.mock("./seenDishesStorage", () => {
 // tests that want to start with a pre-existing row.
 let mockSharedStatsServerRow: { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null = null;
 function mockSyncSharedStatDefaultImpl(_client: unknown, _userId: string, field: string, value: unknown) {
-    mockSharedStatsServerRow = {
+  mockSharedStatsServerRow = {
     completion: mockSharedStatsServerRow?.completion ?? null,
     top_foods: mockSharedStatsServerRow?.top_foods ?? null,
     hall_ranks: mockSharedStatsServerRow?.hall_ranks ?? null,
@@ -44,9 +52,11 @@ function mockSyncSharedStatDefaultImpl(_client: unknown, _userId: string, field:
 // / mockImplementationOnce(...) override below keeps type-checking against `unknown`, not `null`.
 const mockSyncSharedStat = jest.fn();
 mockSyncSharedStat.mockImplementation(mockSyncSharedStatDefaultImpl);
+const mockSyncDiningHallRanks = jest.fn().mockResolvedValue(undefined);
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   syncSharedStat: (...args: unknown[]) => mockSyncSharedStat(...args),
+  syncDiningHallRanks: (...args: unknown[]) => mockSyncDiningHallRanks(...args),
 }));
 
 // #248 Part C: a tiny in-memory stand-in for AsyncStorage's two per-user markers -- real behavior
@@ -80,16 +90,15 @@ jest.mock("./favoriteFoodAlerts", () => ({
   useFavoriteFoodAlerts: () => ({ session: null, ...alertsState, toggle: mockToggleAlerts, refresh: mockRefreshAlerts }),
 }));
 
-const mockDeleteServerData = jest.fn().mockResolvedValue({ ok: true, failedSteps: [] });
-jest.mock("./deleteServerData", () => ({
-  deleteServerData: (...args: unknown[]) => mockDeleteServerData(...args),
-}));
-
-// #272: confirmDelete must wait for whatever self-heal is registered here (bounded) before calling
-// deleteServerData -- defaults to "nothing pending" so every test not about this race is unaffected.
-const mockPendingSelfHeal = jest.fn<Promise<void> | null, []>(() => null);
-jest.mock("./pendingSelfHeal", () => ({
-  pendingSelfHeal: () => mockPendingSelfHeal(),
+// #285: device-local "sync favorite dining halls" preference -- defaults to enabled, mutable per
+// test via mockHallSyncStore so a test can start the screen already opted out.
+let mockHallSyncStore = true;
+const mockSetHallSyncEnabled = jest.fn(async (v: boolean) => {
+  mockHallSyncStore = v;
+});
+jest.mock("./hallSyncPreference", () => ({
+  isHallSyncEnabled: () => Promise.resolve(mockHallSyncStore),
+  setHallSyncEnabled: (v: boolean) => mockSetHallSyncEnabled(v),
 }));
 
 const mockRouterPush = jest.fn();
@@ -119,9 +128,12 @@ jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({
 
 /** Chainable query-builder stub, same shape as friendsScreen.test.tsx's `table()`. `.maybeSingle`
  * resolves `getSingleRow()` when given (a LIVE read, for shared_stats -- see mockSharedStatsServerRow
- * above) or else the fixed `singleRow` a test supplies; `.delete().eq()`/`.or()` resolve a
+ * above) or else the fixed `singleRow` a test supplies; `.delete().eq()`/`.update().eq()` resolve a
  * configurable `{ error }`; the plain select chain resolves `{ data: rows }`. */
-function table(rows: Record<string, unknown>[], opts: { deleteError?: unknown; singleRow?: Record<string, unknown> | null; getSingleRow?: () => Record<string, unknown> | null } = {}) {
+function table(
+  rows: Record<string, unknown>[],
+  opts: { deleteError?: unknown; singleRow?: Record<string, unknown> | null; getSingleRow?: () => Record<string, unknown> | null; updateError?: unknown } = {},
+) {
   const builder: Record<string, unknown> = {};
   const chain = () => builder;
   builder.select = chain;
@@ -135,6 +147,11 @@ function table(rows: Record<string, unknown>[], opts: { deleteError?: unknown; s
   deleteBuilder.or = () => deleteBuilder;
   deleteBuilder.then = (resolve: (v: { error: unknown }) => void) => resolve({ error: opts.deleteError ?? null });
   builder.delete = jest.fn().mockReturnValue(deleteBuilder);
+
+  const updateBuilder: Record<string, unknown> = {};
+  updateBuilder.eq = () => updateBuilder;
+  updateBuilder.then = (resolve: (v: { error: unknown }) => void) => resolve({ error: opts.updateError ?? null });
+  builder.update = jest.fn().mockReturnValue(updateBuilder);
 
   return builder;
 }
@@ -170,14 +187,24 @@ function texts(root: renderer.ReactTestRenderer) {
     .join(" | ");
 }
 
-function mockTables(opts: { sharedStatsRow?: Record<string, unknown> | null; friendships?: Record<string, unknown>[]; deleteErrors?: Record<string, unknown> } = {}) {
+function mockTables(
+  opts: {
+    sharedStatsRow?: Record<string, unknown> | null;
+    friendships?: Record<string, unknown>[];
+    discoverable?: boolean | null;
+    favoriteDiningHallsDeleteError?: unknown;
+    profilesUpdateError?: unknown;
+  } = {},
+) {
   // Seeds the LIVE server-row stand-in (only when a test explicitly passes sharedStatsRow -- most
-  // tests call mockTables() with no args just to (re)wire friendships, and must not stomp whatever
-  // mockSyncSharedStat has already written this test).
+  // tests call mockTables() with no args just to (re)wire friendships/profiles, and must not stomp
+  // whatever mockSyncSharedStat has already written this test, e.g. mid-seed).
   if (opts.sharedStatsRow !== undefined) mockSharedStatsServerRow = opts.sharedStatsRow as typeof mockSharedStatsServerRow;
   mockFrom.mockImplementation((name: string) => {
     if (name === "shared_stats") return table([], { getSingleRow: () => mockSharedStatsServerRow });
     if (name === "friendships") return table(opts.friendships ?? []);
+    if (name === "profiles") return table([], { singleRow: { discoverable: opts.discoverable ?? true }, updateError: opts.profilesUpdateError ?? null });
+    if (name === "favorite_dining_halls") return table([], { deleteError: opts.favoriteDiningHallsDeleteError ?? null });
     throw new Error(`unexpected table ${name}`);
   });
 }
@@ -205,13 +232,13 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSharedStatsServerRow = null;
   mockSyncSharedStat.mockImplementation(mockSyncSharedStatDefaultImpl);
+  mockSyncDiningHallRanks.mockResolvedValue(undefined);
   mockToggleAlerts.mockResolvedValue({ error: null });
   mockRefreshAlerts.mockResolvedValue(undefined);
-  mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
-  mockPendingSelfHeal.mockReturnValue(null);
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
   alertsState.needsPermission = false;
+  mockHallSyncStore = true;
   mockSharedStatsSeedState.seeded.clear();
   mockSharedStatsSeedState.disclosureDismissed.clear();
   mockLastFocusCallback = null;
@@ -222,6 +249,10 @@ beforeEach(() => {
 afterEach(() => {
   alertSpy.mockRestore();
 });
+
+// Toggle order once signed in, per privacy.tsx's JSX: [0] alerts, [1] hall-sync SYNC,
+// [2] completion, [3] top_foods, [4] hall_ranks SHARE, [5] findable.
+const TOGGLE = { alerts: 0, hallSync: 1, completion: 2, topFoods: 3, hallRanksShare: 4, findable: 5 };
 
 describe("PrivacyScreen: device-local data map", () => {
   it("renders live local counts with no session at all -- this card needs no account", async () => {
@@ -247,33 +278,53 @@ describe("PrivacyScreen: device-local data map", () => {
   });
 });
 
-describe("PrivacyScreen: shared-with-friends toggles", () => {
-  it("renders exactly the three real shared_stats toggles plus the alerts toggle -- not five", async () => {
+describe("PrivacyScreen: three-section layout (#285)", () => {
+  it("renders exactly 6 toggles (4 SYNC + 2 SHARE) and no Delete server data row", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     const root = await renderScreen();
-    // 1 alerts toggle + 3 shared-stat toggles (completion, top_foods, hall_ranks) = 4, not 5.
-    expect(root.root.findAllByType(Toggle)).toHaveLength(4);
+    expect(root.root.findAllByType(Toggle)).toHaveLength(6);
     const body = texts(root);
+    expect(body).toMatch(/On UDine's server/);
+    expect(body).toMatch(/Shared with friends/);
+    expect(body).toMatch(/Favorite foods/);
+    expect(body).toMatch(/Favorite dining halls/);
     expect(body).toMatch(/Hall completion/);
-    expect(body).toMatch(/Top foods/);
-    expect(body).toMatch(/Favorite halls/);
-    expect(body).not.toMatch(/Today's calories/);
-    expect(body).not.toMatch(/Logging streak/);
+    expect(body).toMatch(/Top 5 foods/);
+    expect(body).toMatch(/Findable by search/);
+    expect(body).not.toMatch(/Delete server data/);
   });
 
-  it("each toggle reflects presence/absence of its own column, independently", async () => {
+  // Rework of #305's review: completion/top_foods moved into the SYNC section, but they're still
+  // friend-visible (syncing IS sharing for these two, per the SHARE-section comment) -- the SYNC
+  // footer must say so too, not just the SHARE section's own footer. Asserting a count of 2 (not
+  // just "toMatch") so this fails on the pre-fix copy, which only has the SHARE section's footer.
+  it("SYNC section footer still discloses that hall completion / top 5 foods are friends-only", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    mockTables({ sharedStatsRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null } });
+    const root = await renderScreen();
+    const matches = texts(root).match(/accepted friends only/gi) ?? [];
+    expect(matches.length).toBe(2); // once for the SYNC section, once for SHARE
+  });
+
+  it("each SYNC/SHARE toggle reflects its own backing value independently", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockHallSyncStore = false;
+    mockTables({ sharedStatsRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: [{ hallTid: 1, rank: 1 }] }, discoverable: false });
     const root = await renderScreen();
     const toggles = root.root.findAllByType(Toggle);
-    // index 0 is the alerts toggle; 1..3 are completion/top_foods/hall_ranks in that order.
-    expect(toggles.map((t) => t.props.value)).toEqual([false, true, false, false]);
+    expect(toggles[TOGGLE.alerts].props.value).toBe(false);
+    expect(toggles[TOGGLE.hallSync].props.value).toBe(false);
+    expect(toggles[TOGGLE.completion].props.value).toBe(true);
+    expect(toggles[TOGGLE.topFoods].props.value).toBe(false);
+    expect(toggles[TOGGLE.hallRanksShare].props.value).toBe(true);
+    expect(toggles[TOGGLE.findable].props.value).toBe(false);
   });
+});
 
-  it("toggling a shared field ON pushes that field's freshly derived value, not another field's", async () => {
+describe("PrivacyScreen: SYNC stat toggles (hall completion / top 5 foods)", () => {
+  it("toggling a SYNC stat ON pushes that field's freshly derived value, not another field's", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     const root = await renderScreen();
-    const topFoodsToggle = root.root.findAllByType(Toggle)[2]; // alerts, completion, top_foods, hall_ranks
+    const topFoodsToggle = root.root.findAllByType(Toggle)[TOGGLE.topFoods];
 
     await act(async () => {
       topFoodsToggle.props.onValueChange(true);
@@ -285,11 +336,11 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
     expect(mockSyncSharedStat).toHaveBeenCalledWith(expect.anything(), "me", "top_foods", []);
   });
 
-  it("toggling a shared field OFF pushes null -- a revoke, not a no-op", async () => {
+  it("toggling a SYNC stat OFF pushes null -- a revoke, not a no-op", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     mockTables({ sharedStatsRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null } });
     const root = await renderScreen();
-    const completionToggle = root.root.findAllByType(Toggle)[1];
+    const completionToggle = root.root.findAllByType(Toggle)[TOGGLE.completion];
 
     await act(async () => {
       completionToggle.props.onValueChange(false);
@@ -305,7 +356,7 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     mockSyncSharedStat.mockResolvedValue({ error: { message: "network down" } });
     const root = await renderScreen();
-    const completionToggle = root.root.findAllByType(Toggle)[1];
+    const completionToggle = root.root.findAllByType(Toggle)[TOGGLE.completion];
     expect(completionToggle.props.value).toBe(false);
 
     await act(async () => {
@@ -315,7 +366,7 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
       await Promise.resolve();
     });
 
-    const after = root.root.findAllByType(Toggle)[1];
+    const after = root.root.findAllByType(Toggle)[TOGGLE.completion];
     expect(after.props.value).toBe(false); // reverted, not optimistically left on
     expect(Alert.alert).toHaveBeenCalledWith("Couldn't update sharing", expect.any(String));
   });
@@ -323,11 +374,7 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
   // #186: refresh()'s own re-push loop (fieldsNeedingRefresh -> syncSharedStat) can still be
   // mid-flight -- parked on an unrelated await -- when the user revokes a field via toggleShared.
   // Without the generationRef guard, the parked loop resumes afterward and re-pushes the field's
-  // OLD (still-opted-in) value, resurrecting a stat the user just deleted server-side: directly
-  // violating "switching off deletes it from the server immediately." Stages that interleaving
-  // with a controllable friendships-query promise (refresh reads the friendships table AFTER
-  // shared_stats but BEFORE its re-push loop, so parking it there reproduces "refresh has already
-  // read the stale shared_stats row and is about to re-push it, but hasn't yet").
+  // OLD (still-opted-in) value, resurrecting a stat the user just deleted server-side.
   it("#186: a toggle that revokes a field while refresh is mid-flight is not resurrected by refresh's stale re-push", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
 
@@ -337,6 +384,7 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
     });
     mockFrom.mockImplementation((name: string) => {
       if (name === "shared_stats") return table([], { singleRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null } });
+      if (name === "profiles") return table([], { singleRow: { discoverable: true } });
       if (name === "friendships") {
         const builder: Record<string, unknown> = {};
         builder.select = () => builder;
@@ -363,7 +411,10 @@ describe("PrivacyScreen: shared-with-friends toggles", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const beforeToggle = root.root.findAllByType(Toggle)[1];
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const beforeToggle = root.root.findAllByType(Toggle)[TOGGLE.completion];
     expect(beforeToggle.props.value).toBe(true); // confirms refresh's shared_stats read landed
 
     // User revokes "Hall completion" while refresh is still parked on the friendships await.
@@ -404,8 +455,17 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
 
     expect(sharedFieldPushes().map((c) => c[2])).toEqual(expect.arrayContaining(["completion", "top_foods", "hall_ranks"]));
     sharedFieldPushes().forEach((c) => expect(c[3]).not.toBeNull()); // ON, not a revoke
-    // completion, top_foods, hall_ranks toggles all read ON afterward (index 0 is the alerts toggle).
-    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, true, true, true]);
+    // Hall completion / Top 5 foods (SYNC) and Favorite dining halls (SHARE) all read ON afterward.
+    const toggles = root.root.findAllByType(Toggle);
+    expect(toggles[TOGGLE.completion].props.value).toBe(true);
+    expect(toggles[TOGGLE.topFoods].props.value).toBe(true);
+    expect(toggles[TOGGLE.hallRanksShare].props.value).toBe(true);
+    // Fields the seed never touches stay at their own defaults: alerts off (DB default, mocked
+    // off here), hall-sync SYNC on (device-local, defaults enabled for every device), findable on
+    // (profiles.discoverable default).
+    expect(toggles[TOGGLE.alerts].props.value).toBe(false);
+    expect(toggles[TOGGLE.hallSync].props.value).toBe(true);
+    expect(toggles[TOGGLE.findable].props.value).toBe(true);
     expect(mockSharedStatsSeedState.seeded.has("me")).toBe(true);
   });
 
@@ -414,7 +474,10 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     const root = await renderScreen();
 
     expect(sharedFieldPushes()).toEqual([]);
-    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
+    const toggles = root.root.findAllByType(Toggle);
+    expect(toggles[TOGGLE.completion].props.value).toBe(false);
+    expect(toggles[TOGGLE.topFoods].props.value).toBe(false);
+    expect(toggles[TOGGLE.hallRanksShare].props.value).toBe(false);
     expect(mockSharedStatsSeedState.seeded.has("me")).toBe(false);
   });
 
@@ -428,21 +491,27 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     const root = await renderScreen();
 
     expect(sharedFieldPushes()).toEqual([]);
-    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
+    const toggles = root.root.findAllByType(Toggle);
+    expect(toggles[TOGGLE.completion].props.value).toBe(false);
+    expect(toggles[TOGGLE.topFoods].props.value).toBe(false);
+    expect(toggles[TOGGLE.hallRanksShare].props.value).toBe(false);
   });
 
-  // The only reason the persisted (not just in-memory) marker exists: "Delete server data" deletes
-  // the shared_stats row entirely (see deleteServerData.ts), so a re-focus afterward sees row ===
-  // null again -- identical to a never-seeded new account. Without the marker surviving that delete,
-  // this would resurrect exactly what the user just explicitly removed.
-  it("does not re-seed after the row was deleted (Delete server data) -- the marker survives the delete", async () => {
+  // The only reason the persisted (not just in-memory) marker exists: turning every SYNC toggle off
+  // deletes the shared_stats row entirely (see toggleShared/toggleHallSync), so a re-focus afterward
+  // sees row === null again -- identical to a never-seeded new account. Without the marker surviving
+  // that, this would resurrect exactly what the user just explicitly removed.
+  it("does not re-seed after the row was cleared -- the marker survives the row going back to null", async () => {
     mockSharedStatsSeedState.seeded.add("me"); // simulates: this account was already seeded once
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
-    mockTables({ sharedStatsRow: null }); // simulates: shared_stats row is gone after deleteServerData
+    mockTables({ sharedStatsRow: null }); // simulates: shared_stats row is gone after turning every SYNC/SHARE toggle off
     const root = await renderScreen();
 
     expect(sharedFieldPushes()).toEqual([]);
-    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
+    const toggles = root.root.findAllByType(Toggle);
+    expect(toggles[TOGGLE.completion].props.value).toBe(false);
+    expect(toggles[TOGGLE.topFoods].props.value).toBe(false);
+    expect(toggles[TOGGLE.hallRanksShare].props.value).toBe(false);
   });
 
   // Mutation-red evidence: flip shouldSeedSharedStatsDefault's `!opts.alreadySeeded` gate to always
@@ -475,17 +544,12 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     expect(mockMarkSharedStatsDefaultSeeded).toHaveBeenCalledTimes(1);
   });
 
-  // PR #286 review, replaces the old (wrong) "a partial seed failure is not marked seeded, so the
-  // next focus can retry" test: that test only asserted `seeded.has("me") === false` against a
-  // STATIC mockTables fixture that never reflected what mockSyncSharedStat actually wrote, so it
-  // passed for the wrong reason -- the real bug (traced by the reviewer) is that a field which
-  // already pushed successfully before a LATER field fails is genuinely shared server-side, so the
-  // marker (and the disclosure it gates) must be written on ANY success, not only a clean sweep.
-  // Leaving the marker unwritten meant: (a) the disclosure never told the user their data was
-  // already shared, and (b) the next focus's `row === null` gate (the row already exists after the
-  // first successful push) blocked ever retrying the field that failed -- silently stuck forever
-  // AND undisclosed. This test proves the fixed behavior directly, red against the old code (which
-  // never wrote the marker/showed the disclosure on a partial success).
+  // PR #286 review: the marker (and the disclosure it gates) must be written on ANY successful
+  // push, not only a clean sweep of all three -- a field that already landed before a later field
+  // fails is genuinely shared server-side already, which is what makes the disclosure obligation
+  // true. This test proves that directly: completion succeeds, top_foods fails, and the account is
+  // still marked seeded/disclosed; hall_ranks (never attempted) and top_foods (attempted once, and
+  // failed) are never retried on a later focus.
   it("a partial seed (one field succeeds, one fails) still marks the account seeded and discloses it -- and the failed field is never retried", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
     mockSyncSharedStat.mockImplementationOnce(mockSyncSharedStatDefaultImpl).mockImplementationOnce(() => Promise.resolve({ error: { message: "network down" } }));
@@ -493,10 +557,13 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
 
     // completion (pushed first, succeeded) reads ON; top_foods/hall_ranks (never got a turn once
     // top_foods failed and the loop broke) stay OFF. top_foods itself WAS attempted once, right here.
-    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, true, false, false]);
+    const toggles = root.root.findAllByType(Toggle);
+    expect(toggles[TOGGLE.completion].props.value).toBe(true);
+    expect(toggles[TOGGLE.topFoods].props.value).toBe(false);
+    expect(toggles[TOGGLE.hallRanksShare].props.value).toBe(false);
     expect(mockSyncSharedStat.mock.calls.map((c) => c[2])).toEqual(["completion", "top_foods"]);
     expect(mockSharedStatsSeedState.seeded.has("me")).toBe(true); // marked seeded on partial success, not just a full sweep
-    expect(texts(root)).toMatch(/share with your accepted friends by default/i); // disclosure shows -- the user WAS shared without asking
+    expect(texts(root)).toMatch(/on by default/i); // disclosure shows -- the user WAS shared without asking
 
     // A second focus must not RE-attempt the field that already failed -- the marker is already
     // set, and the row (completion set, top_foods/hall_ranks still null) makes
@@ -516,17 +583,6 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
   // The #186/#241/#217 guard, reused here rather than a new one: a toggle firing WHILE the seed
   // loop is mid-flight must stop the remaining pushes and must not let the seed's own later
   // iteration clobber the LOCAL `row` state the toggle just set.
-  //
-  // PR #286 review round 2: this does NOT mean the seed is never marked done. completion's push
-  // above genuinely landed on the server (`error: null`) before the toggle's own race was even
-  // detectable -- the account WAS defaulted into sharing it, however briefly, and that's the fact
-  // the marker/disclosure record. Only the local `row` write for that field is skipped (the toggle's
-  // own more-recent `null` already correctly shows OFF); the seed still credits itself and stops
-  // pushing the remaining fields. (Reds against BOTH regressions this test guards, in order: (1)
-  // reverting `seededNow = true` back below the post-await race check makes the final `seeded.has`
-  // assertion fail (marked false when it should be true -- the exact bug this round fixed); (2)
-  // removing the post-await `generationRef` check before `setRow` would clobber the toggle's `false`
-  // back to the seed's stale ON value, failing the completion-toggle-reads-OFF assertion below.)
   it("a toggle firing mid-seed on the SAME field stops the remaining pushes, keeps the toggle's own value, but still credits the seed", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
     let resolveFirstPush!: (v: { error: null }) => void;
@@ -547,7 +603,7 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     expect(mockSyncSharedStat).toHaveBeenCalledTimes(1); // parked mid-seed, top_foods/hall_ranks not pushed yet
 
     // User toggles "Hall completion" off while the seed's first push is still in flight.
-    const completionToggle = root.root.findAllByType(Toggle)[1];
+    const completionToggle = root.root.findAllByType(Toggle)[TOGGLE.completion];
     await act(async () => {
       completionToggle.props.onValueChange(false);
       await Promise.resolve();
@@ -565,16 +621,12 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     const pushedFields = mockSyncSharedStat.mock.calls.map((c) => c[2]);
     expect(pushedFields).not.toContain("top_foods");
     expect(pushedFields).not.toContain("hall_ranks");
-    expect(root.root.findAllByType(Toggle)[1].props.value).toBe(false); // the toggle's own OFF wins locally
+    expect(root.root.findAllByType(Toggle)[TOGGLE.completion].props.value).toBe(false); // the toggle's own OFF wins locally
     expect(mockSharedStatsSeedState.seeded.has("me")).toBe(true); // but the seed's landed write still counts
   });
 
-  // PR #286 review round 2's own motivating example: a toggle on a DIFFERENT field racing in DURING
-  // field 1's own in-flight push must not erase credit for that push once it lands. Red against the
-  // pre-fix ordering (race check before `seededNow = true`): the toggle races in WHILE completion's
-  // push is still parked, so by the time it resolves the post-await check is already stale --
-  // pre-fix, that made the loop `break` before ever setting `seededNow`, so `seeded.has` comes back
-  // false and the disclosure never shows, even though completion's own write genuinely landed.
+  // A toggle on a DIFFERENT field racing in DURING field 1's own in-flight push must not erase
+  // credit for that push once it lands.
   it("a toggle on a DIFFERENT field firing mid-seed does not erase credit for a field that already succeeded", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
     let resolveFirstPush!: (v: { error: null }) => void;
@@ -594,9 +646,9 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     }
     expect(mockSyncSharedStat).toHaveBeenCalledTimes(1); // parked on completion, nothing else pushed yet
 
-    // User manually toggles "Top foods" ON -- a DIFFERENT field than the one currently in flight --
+    // User manually toggles "Top 5 foods" ON -- a DIFFERENT field than the one currently in flight --
     // while completion's push is still parked.
-    const topFoodsToggle = root.root.findAllByType(Toggle)[2];
+    const topFoodsToggle = root.root.findAllByType(Toggle)[TOGGLE.topFoods];
     await act(async () => {
       topFoodsToggle.props.onValueChange(true);
       await Promise.resolve();
@@ -620,7 +672,7 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
     const root = await renderScreen();
 
-    expect(texts(root)).toMatch(/share with your accepted friends by default/i);
+    expect(texts(root)).toMatch(/on by default/i);
     const gotIt = root.root.findAllByType(Text).find((n) => n.props.children === "GOT IT");
     let node = gotIt!.parent;
     while (node && typeof node.props.onPress !== "function") node = node.parent;
@@ -635,7 +687,7 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
   it("never shows the disclosure for an existing account that was never auto-seeded", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me")); // default: pre-ship createdAt
     const root = await renderScreen();
-    expect(texts(root)).not.toMatch(/share with your accepted friends by default/i);
+    expect(texts(root)).not.toMatch(/on by default/i);
   });
 
   it("does not show the disclosure again once already dismissed in a previous session", async () => {
@@ -645,16 +697,18 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     mockTables({ sharedStatsRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: [], hall_ranks: [] } });
     const root = await renderScreen();
 
-    expect(texts(root)).not.toMatch(/share with your accepted friends by default/i);
+    expect(texts(root)).not.toMatch(/on by default/i);
     // Already-seeded values still render normally -- dismissing the note doesn't touch the toggles.
-    expect(root.root.findAllByType(Toggle)[1].props.value).toBe(true);
+    expect(root.root.findAllByType(Toggle)[TOGGLE.completion].props.value).toBe(true);
   });
 
-  it("the footer no longer claims off-by-default", async () => {
+  // No footer/disclosure copy anywhere on this screen may claim the old "off by default" law --
+  // #248 Part C superseded it, and this screen's own copy (SYNC/SHARE footers, the disclosure card)
+  // must never regress back to implying the opposite of what's actually true.
+  it("no footer or disclosure copy claims stats are off by default", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     const root = await renderScreen();
-    expect(texts(root)).toMatch(/Shared by default on new accounts/);
-    expect(texts(root)).not.toMatch(/Off by default/);
+    expect(texts(root)).not.toMatch(/[Oo]ff by default/);
   });
 });
 
@@ -665,7 +719,7 @@ describe("PrivacyScreen: favorite-food alerts toggle", () => {
     alertsState.favoritesCount = 3;
     const root = await renderScreen();
     expect(texts(root)).toMatch(/keeps your 3 favorites on the server to watch menus/);
-    const alertsToggle = root.root.findAllByType(Toggle)[0];
+    const alertsToggle = root.root.findAllByType(Toggle)[TOGGLE.alerts];
     expect(alertsToggle.props.value).toBe(true);
 
     await act(async () => {
@@ -688,7 +742,7 @@ describe("PrivacyScreen: favorite-food alerts toggle", () => {
     alertsState.favoritesCount = 3;
     const root = await renderScreen();
 
-    const alertsToggle = root.root.findAllByType(Toggle)[0];
+    const alertsToggle = root.root.findAllByType(Toggle)[TOGGLE.alerts];
     expect(alertsToggle.props.value).toBe(false); // NOT ON, even though notificationsEnabled is true
     expect(texts(root)).toMatch(/tap to finish turning on/i);
     expect(texts(root)).not.toMatch(/keeps your 3 favorites on the server/);
@@ -710,7 +764,7 @@ describe("PrivacyScreen: favorite-food alerts toggle", () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
     mockToggleAlerts.mockResolvedValue({ error: "Couldn't update notifications" });
     const root = await renderScreen();
-    const alertsToggle = root.root.findAllByType(Toggle)[0];
+    const alertsToggle = root.root.findAllByType(Toggle)[TOGGLE.alerts];
 
     await act(async () => {
       await alertsToggle.props.onValueChange(true);
@@ -720,272 +774,130 @@ describe("PrivacyScreen: favorite-food alerts toggle", () => {
   });
 });
 
-describe("PrivacyScreen: delete server data", () => {
-  function pressDeleteRow(root: renderer.ReactTestRenderer) {
-    const label = root.root.findAllByType(Text).find((n) => n.props.children === "Delete server data");
-    let node = label!.parent;
-    while (node && typeof node.props.onPress !== "function") node = node.parent;
-    node!.props.onPress();
-  }
-
-  it("confirms before deleting, and calls deleteServerData with the signed-in user's id on confirm", async () => {
+describe("PrivacyScreen: Favorite dining halls SYNC toggle (#285)", () => {
+  it("reads the device-local hall-sync preference on load", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockHallSyncStore = false;
     const root = await renderScreen();
-
-    pressDeleteRow(root);
-    expect(Alert.alert).toHaveBeenCalledWith("Delete server data?", expect.any(String), expect.any(Array));
-    expect(mockDeleteServerData).not.toHaveBeenCalled(); // not yet -- only on confirm
-
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    await act(async () => {
-      await confirmButton.onPress();
-    });
-
-    expect(mockDeleteServerData).toHaveBeenCalledWith(expect.anything(), "me");
+    expect(root.root.findAllByType(Toggle)[TOGGLE.hallSync].props.value).toBe(false);
   });
 
-  it("does not call deleteServerData at all if the row is never pressed", async () => {
+  it("turning SYNC off deletes favorite_dining_halls AND clears its SHARE pair (hall_ranks) immediately -- the cascade", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    await renderScreen();
-    expect(mockDeleteServerData).not.toHaveBeenCalled();
-  });
-
-  // Mutation-based red evidence: flip deleteServerData's mocked result to a genuinely retryable
-  // failure (push_tokens has an owner DELETE policy + grant -- see deleteServerData.ts's own doc
-  // comment -- so a failure there is a real, worth-retrying error, unlike profiles/food_sightings)
-  // and this test's Alert.alert assertion is exactly what catches a screen that claims success
-  // regardless of the result.
-  it("shows a truthful partial-failure message for a genuinely retryable failure -- doesn't claim success", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    mockDeleteServerData.mockResolvedValue({ ok: false, failedSteps: ["push_tokens"], undeletableSteps: [] });
+    mockTables({ sharedStatsRow: { completion: null, top_foods: null, hall_ranks: [{ hallTid: 1, rank: 1 }] } });
     const root = await renderScreen();
-
-    pressDeleteRow(root);
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    await act(async () => {
-      await confirmButton.onPress();
-    });
-
-    expect(Alert.alert).toHaveBeenCalledWith("Couldn't delete everything", expect.stringContaining("push_tokens"));
-  });
-
-  // #237's actual bug: profiles (and food_sightings) have no owner DELETE policy/grant and are
-  // denied on EVERY invocation -- deleteServerData.ts reports that in `undeletableSteps`, not
-  // `failedSteps`, specifically so this path is reachable at all. Before the fix, the screen's own
-  // `if (!result.ok)` check treated a profiles-only denial exactly like a real failure and showed
-  // "Please try again" forever, with no success path ever reachable. Mutation-based red evidence:
-  // reverting `result.failedSteps.length > 0` back to `!result.ok` (with `ok` computed the old,
-  // pre-#237 way) turns this test red -- the retry copy would fire instead.
-  it("clears local state and gives honest, non-retry copy when only the known-undeletable steps remain", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    // Seed non-empty local state (an opted-in shared stat + one accepted friendship) so clearing it
-    // is actually observable, not vacuously true because it started empty.
-    mockTables({ sharedStatsRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null }, friendships: [{ status: "accepted" }] });
-    mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: ["profiles", "food_sightings", "qr_tokens"] });
-    const root = await renderScreen();
-    expect(root.root.findAllByType(Toggle)[1].props.value).toBe(true); // completion toggle on before delete
-    expect(texts(root)).toMatch(/1 friend/);
-
-    pressDeleteRow(root);
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    await act(async () => {
-      await confirmButton.onPress();
-    });
-
-    // setRow(null) -- every shared-stat toggle reverts to off, not just the ones deleteServerData
-    // happened to report.
-    expect(root.root.findAllByType(Toggle).map((t) => t.props.value)).toEqual([false, false, false, false]);
-    // setFriendships([]) -- the friend count in the profile summary line drops to 0.
-    expect(texts(root)).toMatch(/0 friends/);
-    // Never the retryable-failure copy -- profiles/food_sightings/qr_tokens will never succeed on retry.
-    expect(Alert.alert).not.toHaveBeenCalledWith("Couldn't delete everything", expect.anything());
-    expect(Alert.alert).toHaveBeenCalledWith("Server data deleted", expect.stringMatching(/profile.*food-sighting|food-sighting.*profile/i));
-    // Finding 1/2 from the #246 review: the residue message must name qr_tokens and received pings
-    // too, not just profiles/food_sightings, so it stays the actual exhaustive list of what's left.
-    const successMessage = (Alert.alert as jest.Mock).mock.calls.find((c) => c[0] === "Server data deleted")[1];
-    expect(successMessage).toMatch(/friend qr code/i);
-    expect(successMessage).toMatch(/pings friends sent you/i);
-  });
-
-  // #272 part A, red-first: before this fix, confirmDelete never told the (mocked here) alerts hook
-  // that server state changed, so the toggle kept reading its stale pre-delete value until the user
-  // left and came back to this screen -- and, unmocked, the hook's own refresh() on that later
-  // focus was what actually re-registered a push token (see favoriteFoodAlerts.test.tsx and
-  // deleteServerData.test.ts for the rest of this fix). This test isolates just this screen's own
-  // wiring: does confirmDelete call the hook's refresh() on a successful delete.
-  it("#272: refreshes the alerts hook after a successful delete, so the toggle reads OFF without waiting for the next focus", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    const root = await renderScreen();
-
-    pressDeleteRow(root);
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    await act(async () => {
-      await confirmButton.onPress();
-    });
-
-    expect(mockRefreshAlerts).toHaveBeenCalled();
-  });
-
-  // #272 item B's delete-path mirror, red-first: on main, confirmDelete calls deleteServerData
-  // immediately with no await on pendingSelfHeal() -- a self-heal register_push_token call already
-  // in flight from this screen's own useFocusEffect refresh can land AFTER deleteServerData's
-  // push_tokens delete, with a still-live session, resurrecting the row Delete just removed.
-  it("#272: waits for an in-flight self-heal to settle before calling deleteServerData", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    let resolveHeal!: () => void;
-    mockPendingSelfHeal.mockReturnValue(
-      new Promise<void>((resolve) => {
-        resolveHeal = resolve;
-      }),
-    );
-    const root = await renderScreen();
-
-    pressDeleteRow(root);
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    let onPressPromise!: Promise<void>;
-    await act(async () => {
-      onPressPromise = confirmButton.onPress();
-      await Promise.resolve();
-    });
-
-    // Blocked on the self-heal -- deleteServerData must not have run yet.
-    expect(mockDeleteServerData).not.toHaveBeenCalled();
+    expect(root.root.findAllByType(Toggle)[TOGGLE.hallRanksShare].props.value).toBe(true);
 
     await act(async () => {
-      resolveHeal();
-      await onPressPromise;
-    });
-
-    expect(mockDeleteServerData).toHaveBeenCalledWith(expect.anything(), "me");
-  });
-
-  it("#272: does NOT refresh the alerts hook when the delete has a genuinely retryable failure", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    mockDeleteServerData.mockResolvedValue({ ok: false, failedSteps: ["push_tokens"], undeletableSteps: [] });
-    const root = await renderScreen();
-
-    pressDeleteRow(root);
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    await act(async () => {
-      await confirmButton.onPress();
-    });
-
-    expect(mockRefreshAlerts).not.toHaveBeenCalled();
-  });
-
-  // #253 item 1: a fully clean delete (once profiles/food_sightings/qr_tokens ever get DELETE
-  // policies) must still tell the user something happened -- gating the success alert on
-  // `undeletableSteps.length > 0` means the moment every step succeeds, the screen gives zero
-  // feedback for a destructive action the user just confirmed.
-  it("still shows a success alert when every step, including profiles/food_sightings/qr_tokens, actually succeeds", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    mockDeleteServerData.mockResolvedValue({ ok: true, failedSteps: [], undeletableSteps: [] });
-    const root = await renderScreen();
-
-    pressDeleteRow(root);
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    await act(async () => {
-      await confirmButton.onPress();
-    });
-
-    // Confirm dialog + a real success alert.
-    expect(Alert.alert).toHaveBeenCalledTimes(2);
-    expect(Alert.alert).toHaveBeenCalledWith("Server data deleted", expect.any(String));
-    const successMessage = (Alert.alert as jest.Mock).mock.calls.find((c) => c[0] === "Server data deleted")[1];
-    // Nothing stayed this time -- the residue clause (profile/food-sighting/etc) must not appear.
-    expect(successMessage).not.toMatch(/stay/i);
-  });
-
-  it("the confirm dialog and the row's own subline both name what actually gets deleted, not the stale profile-inclusive claim", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-    const root = await renderScreen();
-
-    pressDeleteRow(root);
-    const [, message] = alertSpy.mock.calls[0];
-    expect(message).toMatch(/push tokens/);
-    expect(message).toMatch(/sent pings/);
-    expect(message).toMatch(/food-sighting history/);
-    // Finding 1/2 from the #246 review: qr_tokens (undisclosed, unattempted before this) and
-    // received pings (attempted-but-not-really-possible -- no receiver-delete policy exists) both
-    // need to show up in the "stays" clause so it's the real exhaustive residue list.
-    expect(message).toMatch(/friend qr code/i);
-    expect(message).toMatch(/pings friends sent you/i);
-    // #272: the copy must be honest that Delete also turns off alerts/discoverability, not just
-    // that it removes rows -- deleteServerData's new "notifications" step does exactly this.
-    expect(message).toMatch(/turns off favorite-food alerts/i);
-    expect(message).toMatch(/discoverability/i);
-
-    const body = texts(root);
-    expect(body).toMatch(/push tokens/);
-    expect(body).toMatch(/friend qr code/i);
-    expect(body).toMatch(/turns off favorite-food alerts/i);
-    // #253 item 3: rank.tsx re-syncs favorite_dining_halls unconditionally on the very next
-    // comparison while signed in, so claiming the dining-hall removal is durable is misleading --
-    // the copy must say it comes back the next time the user ranks.
-    expect(message).toMatch(/dining halls synced for ping suggestions.*rank/i);
-  });
-
-  // #241: same hazard as #186's toggle test above, but for Delete instead of a toggle -- refresh()'s
-  // re-push loop can be parked on the friendships await when the user confirms Delete. Without
-  // confirmDelete also bumping generationRef, the parked loop resumes after deleteServerData wipes
-  // shared_stats and re-pushes the field's stale (still-opted-in) value, resurrecting the row the
-  // delete just removed even though the UI shows it as gone (setRow(null)).
-  it("#241: a Delete confirm while refresh is mid-flight is not resurrected by refresh's stale re-push", async () => {
-    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
-
-    let resolveFriendships!: (v: { data: unknown[] }) => void;
-    const friendshipsPromise = new Promise<{ data: unknown[] }>((resolve) => {
-      resolveFriendships = resolve;
-    });
-    mockFrom.mockImplementation((name: string) => {
-      if (name === "shared_stats") return table([], { singleRow: { completion: [{ hallTid: 1, loggedDistinct: 3, seenDistinct: 10 }], top_foods: null, hall_ranks: null } });
-      if (name === "friendships") {
-        const builder: Record<string, unknown> = {};
-        builder.select = () => builder;
-        builder.or = () => builder;
-        builder.then = (resolve: (v: { data: unknown[] }) => void) => friendshipsPromise.then(resolve);
-        return builder;
-      }
-      throw new Error(`unexpected table ${name}`);
-    });
-
-    let root!: renderer.ReactTestRenderer;
-    await act(async () => {
-      root = renderer.create(<PrivacyScreen />);
-    });
-    // Flush enough microtasks for the session to resolve and refresh() to reach (and park on) the
-    // friendships await -- shared_stats has already resolved by this point (setRow ran).
-    await act(async () => {
-      await Promise.resolve();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    const completionToggle = root.root.findAllByType(Toggle)[1];
-    expect(completionToggle.props.value).toBe(true); // confirms refresh's shared_stats read landed
-
-    // User confirms Delete while refresh is still parked on the friendships await.
-    pressDeleteRow(root);
-    const confirmButton = alertSpy.mock.calls[0][2].find((b: { text: string }) => b.text === "Delete");
-    await act(async () => {
-      await confirmButton.onPress();
-      await Promise.resolve();
-    });
-
-    // Now let refresh's parked friendships await resolve -- its re-push loop sees `toRefresh` still
-    // contains "completion" (captured from the row it read before the delete) and would, without
-    // the guard, re-push a fresh non-null payload for it.
-    await act(async () => {
-      resolveFriendships({ data: [] });
+      root.root.findAllByType(Toggle)[TOGGLE.hallSync].props.onValueChange(false);
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    const nonNullCompletionPushes = mockSyncSharedStat.mock.calls.filter((c) => c[2] === "completion" && c[3] !== null);
-    expect(nonNullCompletionPushes).toHaveLength(0);
+    expect(mockFrom).toHaveBeenCalledWith("favorite_dining_halls");
+    expect(mockSyncSharedStat).toHaveBeenCalledWith(expect.anything(), "me", "hall_ranks", null);
+    expect(mockSetHallSyncEnabled).toHaveBeenCalledWith(false);
+    expect(root.root.findAllByType(Toggle)[TOGGLE.hallSync].props.value).toBe(false);
+    expect(root.root.findAllByType(Toggle)[TOGGLE.hallRanksShare].props.value).toBe(false);
+  });
+
+  it("turning SYNC back on re-pushes the current ranking immediately, and persists the preference", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockHallSyncStore = false;
+    const root = await renderScreen();
+
+    await act(async () => {
+      root.root.findAllByType(Toggle)[TOGGLE.hallSync].props.onValueChange(true);
+      await Promise.resolve();
+    });
+
+    expect(mockSyncDiningHallRanks).toHaveBeenCalledWith(expect.anything(), "me", []);
+    expect(mockSetHallSyncEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("SHARE row for favorite dining halls is disabled with 'turn on sync above to share' while SYNC is off", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockHallSyncStore = false;
+    const root = await renderScreen();
+    expect(root.root.findAllByType(Toggle)[TOGGLE.hallRanksShare].props.disabled).toBe(true);
+    expect(texts(root)).toMatch(/[Tt]urn on sync above to share/);
+  });
+
+  // Rework of #305's review: toggleShared reverts (doesn't flip the UI) and shows an alert when
+  // syncSharedStat fails -- toggleHallSync's own syncSharedStat(hall_ranks, null) call only logged
+  // a warning and flipped SYNC off locally regardless, claiming success even though the server-side
+  // SHARE clear actually failed. Same honest treatment as toggleShared: don't optimistically flip
+  // SYNC off, and surface the failure.
+  it("does not flip SYNC off and shows an error when the hall_ranks SHARE clear fails", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockTables({ sharedStatsRow: { completion: null, top_foods: null, hall_ranks: [{ hallTid: 1, rank: 1 }] } });
+    mockSyncSharedStat.mockResolvedValue({ error: { message: "network down" } });
+    const root = await renderScreen();
+
+    await act(async () => {
+      root.root.findAllByType(Toggle)[TOGGLE.hallSync].props.onValueChange(false);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(root.root.findAllByType(Toggle)[TOGGLE.hallSync].props.value).toBe(true); // not flipped off
+    expect(root.root.findAllByType(Toggle)[TOGGLE.hallRanksShare].props.value).toBe(true); // hall_ranks not cleared locally
+    expect(mockSetHallSyncEnabled).not.toHaveBeenCalledWith(false);
+    expect(Alert.alert).toHaveBeenCalledWith(expect.any(String), expect.any(String));
+  });
+
+  it("does not delete favorite_dining_halls when SYNC is already on and some other toggle changes", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    const root = await renderScreen();
+    mockFrom.mockClear();
+
+    await act(async () => {
+      root.root.findAllByType(Toggle)[TOGGLE.findable].props.onValueChange(false);
+      await Promise.resolve();
+    });
+
+    expect(mockFrom).not.toHaveBeenCalledWith("favorite_dining_halls");
+  });
+});
+
+describe("PrivacyScreen: Findable by search toggle (#285)", () => {
+  it("renders profiles.discoverable and writes it back on toggle", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockTables({ discoverable: true });
+    const root = await renderScreen();
+    const findableToggle = root.root.findAllByType(Toggle)[TOGGLE.findable];
+    expect(findableToggle.props.value).toBe(true);
+
+    await act(async () => {
+      findableToggle.props.onValueChange(false);
+      await Promise.resolve();
+    });
+
+    expect(root.root.findAllByType(Toggle)[TOGGLE.findable].props.value).toBe(false);
+  });
+
+  it("shows a message and does not flip the toggle when the write fails", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    mockTables({ discoverable: true, profilesUpdateError: { message: "denied" } });
+    const root = await renderScreen();
+
+    await act(async () => {
+      root.root.findAllByType(Toggle)[TOGGLE.findable].props.onValueChange(false);
+      await Promise.resolve();
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith("Couldn't update this setting", expect.any(String));
+    expect(root.root.findAllByType(Toggle)[TOGGLE.findable].props.value).toBe(true);
+  });
+});
+
+describe("PrivacyScreen: no delete-server-data path (#285)", () => {
+  it("never renders a 'Delete server data' row or destructive action", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    const root = await renderScreen();
+    expect(texts(root)).not.toMatch(/Delete server data/);
+    expect(texts(root)).toMatch(/Also on the server/); // footnote for pings/sighting history, not a delete button
   });
 });

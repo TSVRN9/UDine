@@ -30,6 +30,18 @@ jest.mock("../lib/supabase", () => ({
   supabase: { auth: { getSession: jest.fn().mockResolvedValue({ data: { session: null } }) } },
 }));
 
+// #285: gates syncDiningHallRanks -- default true (unconditional-sync behavior) so this file's
+// existing session-null tests are unaffected; hallSyncPreference.test.tsx covers the module itself.
+jest.mock("../lib/hallSyncPreference", () => ({
+  isHallSyncEnabled: jest.fn().mockResolvedValue(true),
+}));
+
+const mockSyncDiningHallRanks = jest.fn().mockResolvedValue(undefined);
+jest.mock("@udine/shared", () => ({
+  ...jest.requireActual("@udine/shared"),
+  syncDiningHallRanks: (...args: unknown[]) => mockSyncDiningHallRanks(...args),
+}));
+
 let mockFocusEffectFired = false;
 jest.mock("expo-router", () => ({
   useFocusEffect: (callback: () => void) => {
@@ -48,6 +60,8 @@ import { Button } from "../components/ui";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteRankingStorage } from "./rankingStorage";
 import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
+import { supabase } from "./supabase";
+import { isHallSyncEnabled } from "./hallSyncPreference";
 
 // Module-top-level singletons in rank.tsx already ran by the time this line executes --
 // importing RankScreen above is what loaded that module (same lazy-access pattern as
@@ -115,6 +129,9 @@ beforeEach(() => {
   rankingStorageMock.getRankedDishes.mockResolvedValue([]);
   rankingStorageMock.getRankedFoods.mockResolvedValue([]);
   rankingStorageMock.saveRankedFoods.mockResolvedValue(undefined);
+  mockSyncDiningHallRanks.mockClear();
+  (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } });
+  (isHallSyncEnabled as jest.Mock).mockResolvedValue(true);
 });
 
 it("drops a rapid second tap on the same still-displayed pair while the first comparison's save is still in flight, instead of applying a second comparison on top of it (#147)", async () => {
@@ -245,5 +262,33 @@ describe("café (retail) hall labels (#243 bug A)", () => {
 
     expect(texts(root)).toMatch(/Coffee \(People's Organic Coffee\)/);
     expect(texts(root)).not.toMatch(/Hall 32/);
+  });
+});
+
+describe("#285: favorite-dining-halls SYNC preference gates syncDiningHallRanks", () => {
+  it("syncs when signed in and the hall-sync preference is enabled", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: { user: { id: "me" } } } });
+    (isHallSyncEnabled as jest.Mock).mockResolvedValue(true);
+    const root = await renderScreen();
+    const pizzaButton = findChoiceButton(root, /^Pizza/);
+
+    await act(async () => {
+      await pizzaButton.props.onPress();
+    });
+
+    expect(mockSyncDiningHallRanks).toHaveBeenCalledWith(expect.anything(), "me", expect.any(Array));
+  });
+
+  it("does NOT sync when signed in but the hall-sync preference is disabled -- the Your Data SYNC toggle being off must stick", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: { user: { id: "me" } } } });
+    (isHallSyncEnabled as jest.Mock).mockResolvedValue(false);
+    const root = await renderScreen();
+    const pizzaButton = findChoiceButton(root, /^Pizza/);
+
+    await act(async () => {
+      await pizzaButton.props.onPress();
+    });
+
+    expect(mockSyncDiningHallRanks).not.toHaveBeenCalled();
   });
 });
