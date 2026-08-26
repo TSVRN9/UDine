@@ -133,6 +133,17 @@ describe("findIncomingQrConfirm", () => {
   it("ignores rows I've already confirmed (waiting on the other side, not a fresh incoming scan)", () => {
     expect(findIncomingQrConfirm([{ ...base, confirmed_a: "t" }], "me")).toBeNull();
   });
+  // #239 (A): the scanner can confirm before the owner's next 3s poll lands, setting the
+  // *other* side's confirm column while mine is still null. The old both-null check then never
+  // matches again -- the owner is stranded. Only my own column should gate the match.
+  it("matches when I haven't confirmed yet, even if the other side already has (fast scanner-confirm)", () => {
+    const row = { ...base, confirmed_b: "them" };
+    expect(findIncomingQrConfirm([row], "me")).toEqual(row);
+  });
+  it("still matches from the other side's perspective too (I'm user_b, confirmed_a already set)", () => {
+    const row = { ...base, confirmed_a: "me" };
+    expect(findIncomingQrConfirm([row], "them")).toEqual(row);
+  });
 });
 
 describe("buildQrMatrix", () => {

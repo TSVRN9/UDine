@@ -102,12 +102,18 @@ export function confirmErrorMessage(error: { message?: string } | null | undefin
 /** The code-owner's "My code" screen polls for a fresh incoming qr friendship rather than
  * subscribing to realtime (friendships isn't in the supabase_realtime publication, and the owner
  * is already looking at this screen while showing their code -- see PR body for the tradeoff).
- * Only ever surfaces a row neither side has confirmed yet, so it fires exactly once per scan. */
+ * Gates on *my own* confirm column being null, not both -- #239: the scanner can call
+ * confirm_friendship (setting their own column) before my next poll lands, and requiring both
+ * null then never matches again, stranding me. My own column still going from null -> set is
+ * exactly "I haven't acted on this yet," regardless of where the other side is. */
 export function findIncomingQrConfirm(rows: FriendshipRow[], myId: string): FriendshipRow | null {
   return (
-    rows.find(
-      (r) => r.origin === "qr" && r.status === "pending" && r.confirmed_a === null && r.confirmed_b === null && (r.user_a === myId || r.user_b === myId),
-    ) ?? null
+    rows.find((r) => {
+      if (r.origin !== "qr" || r.status !== "pending") return false;
+      if (r.user_a === myId) return r.confirmed_a === null;
+      if (r.user_b === myId) return r.confirmed_b === null;
+      return false;
+    }) ?? null
   );
 }
 

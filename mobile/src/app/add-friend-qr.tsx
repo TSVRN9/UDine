@@ -50,6 +50,9 @@ function SegmentedPill({ tab, onChange }: { tab: "my-code" | "scan"; onChange: (
 
 function MyCodeTab({ session }: { session: Session }) {
   const [token, setToken] = useState<string | null>(null);
+  // #239 (C): mint_qr_token's error used to be silently discarded, leaving a blank white card up
+  // for up to 5 minutes with no indication anything went wrong. Surfaced with a retry instead.
+  const [mintError, setMintError] = useState(false);
   // #260: this used to fall back to session.user.email?.split("@")[0] -- the same email-local-part
   // guess handle_new_user itself no longer makes server-side. profiles.display_name (readable for
   // self unconditionally, see the "profiles readable by self..." SELECT policy) is the actual
@@ -72,7 +75,12 @@ function MyCodeTab({ session }: { session: Session }) {
 
   const mint = useCallback(async () => {
     const { data, error } = await supabase.rpc("mint_qr_token");
-    if (!error && data) setToken(data.token);
+    if (!error && data) {
+      setToken(data.token);
+      setMintError(false);
+    } else {
+      setMintError(true);
+    }
   }, []);
 
   useFocusEffect(
@@ -80,11 +88,20 @@ function MyCodeTab({ session }: { session: Session }) {
       mint();
       const remint = setInterval(mint, REMINT_INTERVAL_MS);
 
+      // #239 ("also worth fixing"): guards against an overlapping tick -- without it, a slow poll
+      // response overlapping the next 3s tick could push the qr-confirm screen twice.
+      let pollInFlight = false;
       const poll = setInterval(async () => {
-        const myId = session.user.id;
-        const { data } = await supabase.from("friendships").select("*").or(`user_a.eq.${myId},user_b.eq.${myId}`);
-        const incoming = findIncomingQrConfirm((data ?? []) as FriendshipRow[], myId);
-        if (incoming) router.push(`/qr-confirm?userId=${otherUserId(incoming, myId)}`);
+        if (pollInFlight) return;
+        pollInFlight = true;
+        try {
+          const myId = session.user.id;
+          const { data } = await supabase.from("friendships").select("*").or(`user_a.eq.${myId},user_b.eq.${myId}`);
+          const incoming = findIncomingQrConfirm((data ?? []) as FriendshipRow[], myId);
+          if (incoming) router.push(`/qr-confirm?userId=${otherUserId(incoming, myId)}`);
+        } finally {
+          pollInFlight = false;
+        }
       }, POLL_INTERVAL_MS);
 
       return () => {
@@ -96,7 +113,20 @@ function MyCodeTab({ session }: { session: Session }) {
 
   return (
     <View style={styles.tabContent}>
-      <View style={styles.qrCard}>{token ? <QrCodeView data={token} /> : <View style={{ width: fs(QR_CARD_SIZE), height: fs(QR_CARD_SIZE) }} />}</View>
+      <View style={styles.qrCard}>
+        {token ? (
+          <QrCodeView data={token} />
+        ) : mintError ? (
+          <View style={[styles.qrErrorFallback, { width: fs(QR_CARD_SIZE), height: fs(QR_CARD_SIZE) }]}>
+            <Text style={styles.qrErrorText}>Couldn&apos;t generate your code.</Text>
+            <Pressable style={styles.permissionButton} onPress={mint} accessibilityRole="button" accessibilityLabel="Try again">
+              <Text style={styles.permissionButtonText}>TRY AGAIN</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={{ width: fs(QR_CARD_SIZE), height: fs(QR_CARD_SIZE) }} />
+        )}
+      </View>
       <View style={styles.identityRow}>
         <View style={styles.identityAvatar}>
           <Text style={styles.identityAvatarText}>{initialsOf(displayName)}</Text>
@@ -119,26 +149,46 @@ function ScanTab() {
   const [permission, requestPermission] = useCameraPermissions();
   const processingRef = useRef(false);
 
+  // #239 (B): a permanent latch (never reset) fixes the re-fire but reintroduces a #278-shaped
+  // dead end -- qr-confirm is pushed on top of this screen, not replacing it, so ScanTab only
+  // blurs, it doesn't unmount; CANCEL (#236/#247) pops back to this same live screen. Resetting
+  // the latch on focus (and re-latching on blur, for a stray frame that lands mid-navigation)
+  // means the very next real scan after coming back works, without reopening the re-fire bug --
+  // it's still latched for as long as this screen stays focused with a scan in flight.
+  useFocusEffect(
+    useCallback(() => {
+      processingRef.current = false;
+      return () => {
+        processingRef.current = true;
+      };
+    }, []),
+  );
+
   async function onScanned(data: string) {
     if (processingRef.current) return;
     const token = parseQrPayload(data);
     if (!token) return;
     processingRef.current = true;
-    try {
-      const { data: friendship, error } = await supabase.rpc("redeem_qr_token", { scanned_token: token });
-      if (error || !friendship) {
-        alertOnce(redeemErrorMessage(error));
-        return;
-      }
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const myId = session?.user.id;
-      if (!myId) return;
-      router.push(`/qr-confirm?userId=${otherUserId(friendship, myId)}`);
-    } finally {
+    // #239 (B): the camera fires onBarcodeScanned continuously while a code is in frame (see
+    // alertOnce below). processingRef used to reset in a `finally` that ran on the success path
+    // too, so the next frame re-fired redeem_qr_token against the row it just created, and
+    // ScanTab stays mounted beneath the pushed qr-confirm screen. Only reset it on a path that
+    // isn't "successfully navigated away" -- once we've pushed qr-confirm, stay latched.
+    const { data: friendship, error } = await supabase.rpc("redeem_qr_token", { scanned_token: token });
+    if (error || !friendship) {
+      alertOnce(redeemErrorMessage(error));
       processingRef.current = false;
+      return;
     }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const myId = session?.user.id;
+    if (!myId) {
+      processingRef.current = false;
+      return;
+    }
+    router.push(`/qr-confirm?userId=${otherUserId(friendship, myId)}`);
   }
 
   if (!permission) return <View style={styles.tabContent} />;
@@ -220,6 +270,8 @@ const styles = StyleSheet.create({
 
   tabContent: { flex: 1, alignItems: "center", gap: spacing(4.5) },
   qrCard: { backgroundColor: colors.paper50, borderRadius: 10, padding: spacing(5.5) },
+  qrErrorFallback: { alignItems: "center", justifyContent: "center", gap: spacing(3) },
+  qrErrorText: { fontFamily: fonts.body400, fontSize: fs(13), color: colors.ink900, textAlign: "center" },
 
   identityRow: { flexDirection: "row", alignItems: "center", gap: spacing(2.5) },
   identityAvatar: { width: fs(40), height: fs(40), borderRadius: radii.pill, backgroundColor: colors.maroon600, borderWidth: 2, borderColor: colors.gold500, alignItems: "center", justifyContent: "center" },

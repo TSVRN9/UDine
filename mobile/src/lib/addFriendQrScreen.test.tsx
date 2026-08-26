@@ -15,28 +15,48 @@ jest.mock("react-native-safe-area-context", () => ({
 // the ScanTab "ALLOW CAMERA"/"OPEN SETTINGS" test overrides it to prove the dead-button fix.
 let mockCameraPermission: { granted: boolean; canAskAgain?: boolean } = { granted: false };
 const mockRequestPermission = jest.fn();
+// #239 (B): captures onBarcodeScanned so a test can simulate the camera firing repeatedly while
+// a code stays in frame -- the real bug this needs to reach.
+let capturedOnBarcodeScanned: ((result: { data: string }) => void) | undefined;
 jest.mock("expo-camera", () => ({
-  CameraView: () => null,
+  CameraView: (props: { onBarcodeScanned?: (result: { data: string }) => void }) => {
+    capturedOnBarcodeScanned = props.onBarcodeScanned;
+    return null;
+  },
   useCameraPermissions: () => [mockCameraPermission, mockRequestPermission],
 }));
 
 jest.mock("expo-linking", () => ({ openSettings: jest.fn() }));
 
-// The real screen's useFocusEffect callback sets up two real setInterval timers (5-min remint,
-// 3s poll) and returns a cleanup that clears them -- unlike addFriendsScreen.test.tsx/
-// qrConfirmScreen.test.tsx's identical-looking mock, this one can't just discard that cleanup, or
-// the timers outlive the test and Jest hangs waiting for the event loop to go idle. Captured here
-// and invoked explicitly at the end of the test instead.
+// The real screen's useFocusEffect callbacks set up real setInterval timers (MyCodeTab's 5-min
+// remint + 3s poll) and/or a cleanup that matters (ScanTab's #239 focus-gated latch reset) --
+// unlike addFriendsScreen.test.tsx/qrConfirmScreen.test.tsx's identical-looking mock, this one
+// can't just discard cleanups, or the timers outlive the test and Jest hangs waiting for the
+// event loop to go idle. Every registration is captured (both MyCodeTab's and ScanTab's -- only
+// one is mounted at a time, since the screen swaps between them, but both get a turn across a
+// test) so afterEach can run every cleanup, and so a test can simulate a blur+refocus cycle (qr-
+// confirm pushed on top, then popped back to) by re-invoking a specific entry's callback by hand.
+type FocusEntry = { callback: () => (() => void) | void; cleanup?: () => void };
+const focusEntries: FocusEntry[] = [];
 const mockSeenFocusCallbacks = new WeakSet<() => void>();
-let focusCleanup: (() => void) | void;
 jest.mock("expo-router", () => ({
   router: { back: jest.fn(), canGoBack: jest.fn().mockReturnValue(true), replace: jest.fn(), push: jest.fn() },
   useFocusEffect: (callback: () => (() => void) | void) => {
     if (mockSeenFocusCallbacks.has(callback)) return;
     mockSeenFocusCallbacks.add(callback);
-    focusCleanup = callback();
+    const entry: FocusEntry = { callback };
+    entry.cleanup = callback() ?? undefined;
+    focusEntries.push(entry);
   },
 }));
+
+/** Simulates leaving this screen (its focus-effect cleanup runs -- e.g. qr-confirm pushed on top)
+ * and coming back to it (the effect runs again) -- for a screen the real useFocusEffect mock
+ * above otherwise only ever runs once per callback identity. */
+function refocus(entry: FocusEntry) {
+  entry.cleanup?.();
+  entry.cleanup = entry.callback() ?? undefined;
+}
 
 function table(rows: Record<string, unknown>[]) {
   const builder: Record<string, unknown> = {};
@@ -50,7 +70,11 @@ function table(rows: Record<string, unknown>[]) {
 }
 
 const mockFrom = jest.fn();
-const mockRpc = jest.fn().mockResolvedValue({ data: { token: "11111111-1111-1111-1111-111111111111" }, error: null });
+const mockRpc = jest.fn();
+function defaultRpcImpl(name: string) {
+  if (name === "mint_qr_token") return Promise.resolve({ data: { token: "11111111-1111-1111-1111-111111111111" }, error: null });
+  return Promise.resolve({ data: null, error: null });
+}
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -89,9 +113,10 @@ let root: renderer.ReactTestRenderer | undefined;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  focusCleanup = undefined;
+  focusEntries.length = 0;
   mockCameraPermission = { granted: false };
-  mockRpc.mockResolvedValue({ data: { token: "11111111-1111-1111-1111-111111111111" }, error: null });
+  capturedOnBarcodeScanned = undefined;
+  mockRpc.mockImplementation(defaultRpcImpl);
   mockFrom.mockImplementation((name: string) => {
     if (name === "profiles") return table([{ user_id: "dave-1", display_name: "Dave Chen" }]);
     if (name === "friendships") return table([]);
@@ -118,7 +143,7 @@ async function switchToScanTab(root: renderer.ReactTestRenderer) {
 // skip this, or the real setInterval timers the screen sets up survive the test and hang Jest.
 afterEach(async () => {
   await act(async () => {
-    focusCleanup?.();
+    focusEntries.forEach((entry) => entry.cleanup?.());
     root?.unmount();
   });
   root = undefined;
@@ -168,5 +193,112 @@ describe("AddFriendQrScreen ScanTab permission button (#278)", () => {
     });
     expect(Linking.openSettings).toHaveBeenCalled();
     expect(mockRequestPermission).not.toHaveBeenCalled();
+  });
+});
+
+// #239 (B): the camera fires onBarcodeScanned continuously while a code stays in frame (see the
+// screen's own alertOnce comment). processingRef used to reset in a `finally` that ran on success
+// too, so a second frame after a successful redeem re-fired redeem_qr_token against the now-pending
+// row while qr-confirm was already pushed on top.
+describe("AddFriendQrScreen ScanTab success latch (#239)", () => {
+  it("does not redeem a second time when the camera fires again after a successful scan", async () => {
+    mockCameraPermission = { granted: true };
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "redeem_qr_token") return Promise.resolve({ data: { user_a: "dave-1", user_b: "sam-1" }, error: null });
+      return defaultRpcImpl(name);
+    });
+    root = await renderScreen();
+    await switchToScanTab(root);
+
+    const uuid = "22222222-2222-2222-2222-222222222222";
+    await act(async () => {
+      capturedOnBarcodeScanned?.({ data: uuid });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const redeemCallsAfterFirstScan = mockRpc.mock.calls.filter(([name]) => name === "redeem_qr_token").length;
+    expect(redeemCallsAfterFirstScan).toBe(1);
+
+    // camera keeps firing on the still-in-frame code
+    await act(async () => {
+      capturedOnBarcodeScanned?.({ data: uuid });
+      await Promise.resolve();
+    });
+
+    const redeemCallsAfterSecondScan = mockRpc.mock.calls.filter(([name]) => name === "redeem_qr_token").length;
+    expect(redeemCallsAfterSecondScan).toBe(1);
+  });
+
+  // A permanent latch (reset only by unmounting ScanTab, e.g. toggling MY CODE -> SCAN) would fix
+  // the re-fire but reintroduce the #278 failure shape: qr-confirm gets pushed on top of this
+  // screen (blurring it, not unmounting it -- see add-friend-qr.tsx's own comment), and CANCEL
+  // (#236/#247) pops back to it live. Every scan after that would silently no-op forever. The
+  // latch must reset on refocus, not just never reset.
+  it("resets the latch on refocus, so scanning works again after returning from a cancelled qr-confirm", async () => {
+    mockCameraPermission = { granted: true };
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "redeem_qr_token") return Promise.resolve({ data: { user_a: "dave-1", user_b: "sam-1" }, error: null });
+      return defaultRpcImpl(name);
+    });
+    root = await renderScreen();
+    await switchToScanTab(root);
+    const scanTabFocus = focusEntries[focusEntries.length - 1];
+
+    const uuid = "33333333-3333-3333-3333-333333333333";
+    await act(async () => {
+      capturedOnBarcodeScanned?.({ data: uuid });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockRpc.mock.calls.filter(([name]) => name === "redeem_qr_token").length).toBe(1);
+
+    // qr-confirm pushed on top blurs this screen; CANCEL pops back to it -- refocus.
+    await act(async () => {
+      refocus(scanTabFocus);
+    });
+
+    await act(async () => {
+      capturedOnBarcodeScanned?.({ data: uuid });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockRpc.mock.calls.filter(([name]) => name === "redeem_qr_token").length).toBe(2);
+  });
+});
+
+// #239 (C): mint_qr_token's RPC error used to be silently discarded, leaving the qr card blank
+// with no indication anything went wrong -- a user could hold out a blank white card for up to
+// 5 minutes. Surfaces the error with a retry instead.
+describe("AddFriendQrScreen MyCodeTab mint failure (#239)", () => {
+  it("shows an error and a retry affordance instead of a blank card when mint_qr_token fails", async () => {
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "mint_qr_token") return Promise.resolve({ data: null, error: { message: "boom" } });
+      return defaultRpcImpl(name);
+    });
+    root = await renderScreen();
+
+    expect(() => pressableWithLabel(root!, "Try again")).not.toThrow();
+    expect(root.root.findAllByType(Text).some((n) => ownText(n).toLowerCase().includes("couldn't"))).toBe(true);
+  });
+
+  it("retry re-mints and clears the error once it succeeds", async () => {
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "mint_qr_token") return Promise.resolve({ data: null, error: { message: "boom" } });
+      return defaultRpcImpl(name);
+    });
+    root = await renderScreen();
+    const retryButton = pressableWithLabel(root, "Try again");
+
+    mockRpc.mockImplementation(defaultRpcImpl);
+    await act(async () => {
+      retryButton.props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(() => pressableWithLabel(root!, "Try again")).toThrow();
   });
 });
