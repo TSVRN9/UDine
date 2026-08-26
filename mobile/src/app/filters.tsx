@@ -1,23 +1,35 @@
 import { DINING_HALLS, fetchMenu, type FoodPreferences } from "@udine/shared";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { EmptyState } from "../components/ui";
+import { MenuErrorCard } from "../components/MenuErrorCard";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
 import { getPreferences, setPreferences } from "../lib/preferences";
 
 export default function FiltersScreen() {
   const [allergens, setAllergens] = useState<string[] | null>(null);
   const [dietTags, setDietTags] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
+
+  // #191: was a bare Promise.all with no .catch -- any hall fetch rejecting left `allergens` null
+  // forever, spinning the ActivityIndicator indefinitely. Reuses #181's MenuErrorCard (no saved-copy
+  // concept here, so savedCopyTime is always null and its link never renders).
+  const loadMenus = useCallback(() => {
+    setError(null);
+    Promise.all(DINING_HALLS.map((h) => fetchMenu(h.tid, new Date())))
+      .then((menus) => {
+        const items = menus.flat();
+        setAllergens([...new Set(items.flatMap((i) => i.allergens))].sort());
+        setDietTags([...new Set(items.flatMap((i) => i.dietTags))].sort());
+      })
+      .catch((e) => setError(String(e)));
+  }, []);
 
   useEffect(() => {
     getPreferences().then(setPrefs);
-    Promise.all(DINING_HALLS.map((h) => fetchMenu(h.tid, new Date()))).then((menus) => {
-      const items = menus.flat();
-      setAllergens([...new Set(items.flatMap((i) => i.allergens))].sort());
-      setDietTags([...new Set(items.flatMap((i) => i.dietTags))].sort());
-    });
-  }, []);
+    loadMenus();
+  }, [loadMenus]);
 
   function toggleAllergen(allergen: string) {
     const next = prefs.allergensToAvoid.includes(allergen)
@@ -33,6 +45,14 @@ export default function FiltersScreen() {
     const updated = { ...prefs, requiredDietTags: next };
     setPrefs(updated);
     setPreferences(updated);
+  }
+
+  if (error) {
+    return (
+      <View style={styles.screen}>
+        <MenuErrorCard savedCopyTime={null} onRetry={loadMenus} onShowSavedCopy={() => {}} />
+      </View>
+    );
   }
 
   if (!allergens) return <ActivityIndicator style={styles.loading} color={colors.maroon600} />;
