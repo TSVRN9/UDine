@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 // Same rationale as FirstRunCard.test.tsx/index.test.tsx: explicit factories, not bare automocks --
 // the real ../lib/supabase, ../lib/sqliteStorage, ../lib/rankingStorage, and ../lib/seenDishesStorage
 // all drag in native bindings (Supabase client validation, expo-sqlite) unavailable outside
@@ -57,7 +55,7 @@ jest.mock("react-native-safe-area-context", () => ({
 // above (babel hoists jest.mock factories above other top-level statements); the test grabs the
 // exact same fn reference back via `import { router } from "expo-router"` below, post-mock.
 jest.mock("expo-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => children,
+  Link: require("../lib/mockLink").mockLink,
   useFocusEffect: (callback: () => void) => callback(),
   router: { push: jest.fn() },
 }));

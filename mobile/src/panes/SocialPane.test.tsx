@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { DiningEvent } from "@udine/shared";
 
 // Real @udine/shared's fetchEvents does a live network fetch -- keep everything else (DINING_HALLS
@@ -67,7 +66,7 @@ const mockSeenFocusCallbacks = new WeakSet<() => void>();
 // classification (pushes /event-detail).
 const mockRouterPush = jest.fn();
 jest.mock("expo-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => children,
+  Link: require("../lib/mockLink").mockLink,
   router: { push: (...args: unknown[]) => mockRouterPush(...args) },
   useFocusEffect: (callback: () => void) => {
     if (mockSeenFocusCallbacks.has(callback)) return;
@@ -245,11 +244,10 @@ describe("SocialPane", () => {
   // a second time. Anchored in the "Ping a Friend" section (below the avatar card -- see that
   // JSX's own comment on why not the SectionHeader's `right` slot), in the pane a rebuild of the
   // Social tab is least likely to delete outright, and asserting the real router.push target (not
-  // just that some label renders, which the add-friends.tsx test only manages because its own Link
-  // mock discards href) is what actually pins this against a future rebase. Deliberately wired via
-  // router.push (SocialPane.tsx's goToPingsInbox), not <Link href="/friends" asChild> -- under this
-  // file's own Link mock (`Link: ({children}) => children`, same as every other screen test here),
-  // an asChild Link contributes no onPress at all, so there would be nothing left to assert *on*.
+  // just that some label renders) is what actually pins this against a future rebase. Deliberately
+  // wired via router.push (SocialPane.tsx's goToPingsInbox), not <Link href="/friends" asChild> --
+  // the shared mockLink stub (#251) doesn't simulate asChild's onPress delegation, so there would
+  // be nothing left to assert *on*.
   it("#238: PING A FRIEND section links to /friends, so a received ping stays reachable", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
     mockFrom.mockImplementation(() => queryResult([]));
