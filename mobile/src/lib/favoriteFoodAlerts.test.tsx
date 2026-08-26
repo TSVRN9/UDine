@@ -23,6 +23,19 @@ jest.mock("./favoritesStorage", () => ({
   SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites: jest.fn().mockResolvedValue([]) })),
 }));
 
+// PR #286 review round 2: the same in-memory-marker mocking pattern privacyScreen.test.tsx uses for
+// sharedStatsSeed -- avoids pulling in the real AsyncStorage native module (this file drives the
+// REAL favoriteFoodAlerts.ts, unlike privacyScreen.test.tsx which mocks it away entirely) and gives
+// each test precise control over "has this account's favorites already synced from this device".
+const mockFavoritesSyncState = { synced: new Set<string>() };
+jest.mock("./favoritesSyncMarker", () => ({
+  hasSyncedFavorites: (userId: string) => Promise.resolve(mockFavoritesSyncState.synced.has(userId)),
+  markFavoritesSynced: (userId: string) => {
+    mockFavoritesSyncState.synced.add(userId);
+    return Promise.resolve();
+  },
+}));
+
 function profilesTable(profile: Record<string, unknown>, updateError: unknown = null) {
   const selectBuilder: Record<string, unknown> = {};
   selectBuilder.select = () => selectBuilder;
@@ -107,6 +120,7 @@ beforeEach(() => {
   // denied-permission setup can never leak into the next (bit us once: needsPermission tests).
   (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
   (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+  mockFavoritesSyncState.synced.clear();
 });
 
 describe("useFavoriteFoodAlerts: toggle() surfaces a real register_push_token failure (#272 item C)", () => {
@@ -257,12 +271,36 @@ describe("useFavoriteFoodAlerts: needsPermission (#248/#286)", () => {
     expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled(); // refresh() never prompts
   });
 
-  it("mounting with notifications_enabled=true and OS permission already granted sets needsPermission false", async () => {
+  // PR #286 review round 2: this used to assert needsPermission=false purely off a granted OS
+  // permission -- the reviewer's own probe (a second account signing in on a phone that already
+  // granted this app permission, or Android <=12) showed that's not enough: refresh()'s self-heal
+  // registers a token and this test's OLD assertion would pass even with `syncFavoritedFoods` never
+  // once called for this account (favorited_foods empty server-side, favoritesCount>0 rendered
+  // "kept on the server" regardless). Renamed to prove the ACTUAL bug this round fixed: granted
+  // permission alone still needs action until this device has synced.
+  it("mounting with notifications_enabled=true and OS permission granted, but favorites never synced on this device, still needs action", async () => {
     mockFrom.mockImplementation((name: string) => {
       if (name === "profiles") return profilesTable({ notifications_enabled: true });
       throw new Error(`unexpected table ${name}`);
     });
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    // mockFavoritesSyncState.synced deliberately left empty -- this account has never synced from
+    // this device.
+
+    await renderProbe();
+    await flush();
+
+    expect(hookRef!.needsPermission).toBe(true);
+    expect(mockSyncFavoritedFoods).not.toHaveBeenCalled(); // refresh() never calls it -- see favoritesSyncMarker.ts
+  });
+
+  it("mounting with notifications_enabled=true, OS permission granted, AND favorites already synced on this device sets needsPermission false", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true });
+      throw new Error(`unexpected table ${name}`);
+    });
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    mockFavoritesSyncState.synced.add("me");
 
     await renderProbe();
     await flush();
@@ -299,6 +337,36 @@ describe("useFavoriteFoodAlerts: needsPermission (#248/#286)", () => {
     });
 
     expect(hookRef!.needsPermission).toBe(false);
+  });
+
+  it("toggle(true) marks favorites as synced on success, so a later mount doesn't need action just to re-sync", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: false });
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    await renderProbe();
+    await act(async () => {
+      await hookRef!.toggle(true);
+    });
+
+    expect(mockFavoritesSyncState.synced.has("me")).toBe(true);
+  });
+
+  it("toggle(true) does NOT mark favorites as synced when syncFavoritedFoods itself fails", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: false });
+      throw new Error(`unexpected table ${name}`);
+    });
+    mockSyncFavoritedFoods.mockResolvedValue({ error: { message: "network down" } });
+
+    await renderProbe();
+    await act(async () => {
+      await hookRef!.toggle(true);
+    });
+
+    expect(mockFavoritesSyncState.synced.has("me")).toBe(false);
+    expect(hookRef!.needsPermission).toBe(true); // permission granted, but the sync attempt failed
   });
 
   it("toggle(false) always resets needsPermission to false", async () => {

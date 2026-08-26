@@ -19,6 +19,18 @@ jest.mock("../lib/favoritesStorage", () => ({
   SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites: jest.fn().mockResolvedValue([]) })),
 }));
 
+// PR #286 review round 2: same in-memory-marker mock as favoriteFoodAlerts.test.tsx -- this file
+// drives the real hook (via NotificationsBody), which now transitively imports the real
+// AsyncStorage-backed favoritesSyncMarker.ts unless mocked.
+const mockFavoritesSyncState = { synced: new Set<string>() };
+jest.mock("../lib/favoritesSyncMarker", () => ({
+  hasSyncedFavorites: (userId: string) => Promise.resolve(mockFavoritesSyncState.synced.has(userId)),
+  markFavoritesSynced: (userId: string) => {
+    mockFavoritesSyncState.synced.add(userId);
+    return Promise.resolve();
+  },
+}));
+
 // Needed to import the REAL ../lib/auth (its signOut()) below -- #264 review round 4's race test
 // exercises the actual sign-out path, not a stand-in for it. auth.ts calls
 // WebBrowser.maybeCompleteAuthSession() at module load and imports expo-linking; neither is
@@ -156,6 +168,7 @@ beforeEach(() => {
   // test runs next).
   (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
   (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+  mockFavoritesSyncState.synced.clear();
   alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
 });
 

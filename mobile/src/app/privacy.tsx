@@ -172,20 +172,34 @@ export default function PrivacyScreen() {
       const derivedForSeed = deriveSharedStatsPayloads(seenByHall, entries, rankedDishes, rankedFoods);
       for (const field of SHARED_STAT_FIELDS) {
         // #186/#241/#217 guard, reused: a toggle or a Delete-server-data confirm firing mid-seed
-        // bumps generationRef. Checked both before starting this field's push (a race during an
-        // earlier await in this same refresh) and again right after it resolves (a race DURING
-        // this field's own network round trip) -- the second check is what stops this loop from
-        // writing local `row` state for a field the user's own toggle just changed underneath it;
-        // the field's OWN server write already landed either way, this only protects local state.
+        // bumps generationRef. Checked before starting this field's push (a race during an earlier
+        // await in this same refresh) -- if the race already happened, don't even start.
         if (generationRef.current !== startGeneration) break;
         const value = sharedStatValueForToggle(field, true, derivedForSeed);
         const { error } = await syncSharedStat(supabase, myId, field, value);
-        if (generationRef.current !== startGeneration) break;
         if (error) {
           console.warn(`[privacy] default-on seed: syncSharedStat(${field}) failed`, error);
           break; // not retried once any field has already succeeded -- see the doc comment above
         }
+        // PR #286 review round 2: credited BEFORE the post-await race check below, deliberately --
+        // this field's write already landed on the server the instant `error` came back null, full
+        // stop, regardless of anything that raced in during the await (a toggle on THIS field or a
+        // DIFFERENT one). The old ordering (race check first) meant a toggle on a different field
+        // firing during this exact await silently discarded a real, already-successful share: the
+        // marker was never written and the disclosure never shown for a field the account WAS
+        // shared on. Marking "seeded" is a statement about what happened, not what's still true a
+        // moment later -- a same-field toggle-off immediately after still correctly ends up OFF
+        // (that's the local-state guard right below), it just doesn't erase the fact that this
+        // account was defaulted into sharing at least once, which is what the marker/disclosure are
+        // actually for.
         seededNow = true;
+        // Local `row` state, unlike the credit above, DOES still need the race check: a toggle (on
+        // this field or another) that landed during the await above already wrote its own, newer
+        // `row` state via toggleShared's own setRow -- this seed loop must not clobber it with a
+        // stale value. Stopping the loop here (not just skipping this one setRow) is deliberate too:
+        // the user is now actively interacting with this screen, so the remaining fields are better
+        // left for the NEXT focus's fieldsNeedingRefresh/seed pass than pushed blind mid-interaction.
+        if (generationRef.current !== startGeneration) break;
         setRow((prev) => ({ completion: prev?.completion ?? null, top_foods: prev?.top_foods ?? null, hall_ranks: prev?.hall_ranks ?? null, [field]: value }));
       }
       if (seededNow) await markSharedStatsDefaultSeeded(myId);

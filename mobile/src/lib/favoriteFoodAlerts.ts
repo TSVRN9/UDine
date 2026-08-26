@@ -8,6 +8,7 @@ import { supabase } from "./supabase";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
 import { withTimeout } from "./withTimeout";
 import { pendingSelfHeal, registerPendingSelfHeal } from "./pendingSelfHeal";
+import { hasSyncedFavorites, markFavoritesSynced } from "./favoritesSyncMarker";
 
 const PLATFORM = "expo" as const;
 
@@ -89,14 +90,20 @@ export interface FavoriteFoodAlerts {
   session: Session | null;
   notificationsEnabled: boolean;
   favoritesCount: number;
-  /** PR #286 review (Part B): true when `notificationsEnabled` is true server-side but this
-   * device's OS notification permission is NOT granted -- i.e. `profiles.notifications_enabled`
-   * defaulting true (2026-08-26, #248) got a new user's flag on before they ever tapped anything,
-   * so no token was ever registered and no favorites were ever synced. A caller must render this as
-   * a needs-action state, not a working ON toggle -- see privacy.tsx/notifications.tsx, which show
-   * the toggle visually off (`notificationsEnabled && !needsPermission`) and swap the sub-line to a
-   * "tap to finish enabling" prompt. Tapping it calls the same `toggle(true)` below, which is the
-   * only path that ever calls `requestPermissionsAsync` -- passive navigation still never prompts. */
+  /** PR #286 review (Part B, both rounds): true when `notificationsEnabled` is true server-side but
+   * this device/account combination isn't actually working yet -- either OS notification permission
+   * isn't granted (a new user whose `notifications_enabled` defaulted true, 2026-08-26 #248, never
+   * tapped anything), OR permission IS granted but this account's favorites were never actually
+   * synced from THIS device (round 2: a second account signing in on a phone that already granted
+   * this app permission -- #263's own scenario -- or Android <=12, which never asks; refresh()'s
+   * self-heal registers a push token in both cases without toggle() ever running, so
+   * favorited_foods can be genuinely empty server-side even with a token registered). A caller must
+   * render this as a needs-action state, not a working ON toggle -- see privacy.tsx/notifications.tsx,
+   * which show the toggle visually off (`notificationsEnabled && !needsPermission`) and swap the
+   * sub-line to a "tap to finish enabling" prompt. Tapping it calls the same `toggle(true)` below,
+   * the only path that ever calls `requestPermissionsAsync` OR `syncFavoritedFoods` -- passive
+   * navigation still never prompts or wipes favorites (see favoritesSyncMarker.ts's own doc comment
+   * on why syncFavoritedFoods can never safely run from refresh()). */
   needsPermission: boolean;
   toggle: (next: boolean) => Promise<{ error: string | null }>;
   /** Re-runs the same mount/focus refresh this hook already does on its own (server-read of
@@ -150,7 +157,10 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
       // more than once).
       registerPendingSelfHeal(selfHeal.then(() => undefined));
       const { granted } = await selfHeal;
-      setNeedsPermission(!granted);
+      // PR #286 review round 2: granted permission alone isn't enough -- this account's favorites
+      // may never have been synced from THIS device (see needsPermission's own doc comment above).
+      const synced = granted && (await hasSyncedFavorites(session.user.id));
+      setNeedsPermission(!synced);
     } else {
       setNeedsPermission(false);
     }
@@ -189,13 +199,17 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
       console.log(`[push] toggleNotifications(${next}): syncing favorited_foods (${favorites.length})...`);
       const { error: favoritesSyncError } = await withTimeout(syncFavoritedFoods(client, session.user.id, favorites), STEP_TIMEOUT_MS, "syncFavoritedFoods");
       if (favoritesSyncError) console.warn(`[push] toggleNotifications(${next}): syncFavoritedFoods failed`, favoritesSyncError);
+      // #286 round 2: only a REAL synced state counts -- a failed sync must not be mistaken for a
+      // done one (see favoritesSyncMarker.ts's own doc comment on why refresh() can't just re-derive
+      // this by calling syncFavoritedFoods itself).
+      else if (next) await markFavoritesSynced(session.user.id);
 
       if (next) {
         const token = await registerForPushToken();
-        // No token means permission was denied (or unavailable) -- this device still needs it, and
-        // must not render as a working ON toggle even though notificationsEnabled is (optimistically)
-        // true above.
-        setNeedsPermission(!token);
+        // Needs action unless BOTH permission is granted (a token exists) AND favorites actually
+        // synced just now (no favoritesSyncError) -- either half missing means this device isn't
+        // really working yet, even though notificationsEnabled is (optimistically) true above.
+        setNeedsPermission(!token || Boolean(favoritesSyncError));
         if (token) {
           // #263: a raw upsert let the same shared-device token sit under N users (push_tokens now
           // has a unique(platform, token) backstop that would reject it). register_push_token is a

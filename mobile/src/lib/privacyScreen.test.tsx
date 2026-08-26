@@ -514,11 +514,20 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
   });
 
   // The #186/#241/#217 guard, reused here rather than a new one: a toggle firing WHILE the seed
-  // loop is mid-flight (not just a failed push, but a real user action racing it) must stop the
-  // remaining pushes and never mark the seed done -- otherwise a field the user just explicitly
-  // turned off could be clobbered by the seed's own later iteration, or the seed could finish and
-  // mark itself seeded over a user action that happened mid-seed.
-  it("a toggle firing mid-seed stops the remaining pushes and never marks the seed done", async () => {
+  // loop is mid-flight must stop the remaining pushes and must not let the seed's own later
+  // iteration clobber the LOCAL `row` state the toggle just set.
+  //
+  // PR #286 review round 2: this does NOT mean the seed is never marked done. completion's push
+  // above genuinely landed on the server (`error: null`) before the toggle's own race was even
+  // detectable -- the account WAS defaulted into sharing it, however briefly, and that's the fact
+  // the marker/disclosure record. Only the local `row` write for that field is skipped (the toggle's
+  // own more-recent `null` already correctly shows OFF); the seed still credits itself and stops
+  // pushing the remaining fields. (Reds against BOTH regressions this test guards, in order: (1)
+  // reverting `seededNow = true` back below the post-await race check makes the final `seeded.has`
+  // assertion fail (marked false when it should be true -- the exact bug this round fixed); (2)
+  // removing the post-await `generationRef` check before `setRow` would clobber the toggle's `false`
+  // back to the seed's stale ON value, failing the completion-toggle-reads-OFF assertion below.)
+  it("a toggle firing mid-seed on the SAME field stops the remaining pushes, keeps the toggle's own value, but still credits the seed", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
     let resolveFirstPush!: (v: { error: null }) => void;
     const firstPushPromise = new Promise<{ error: null }>((resolve) => {
@@ -546,7 +555,8 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     expect(mockSyncSharedStat).toHaveBeenLastCalledWith(expect.anything(), "me", "completion", null);
 
     // Now let the seed's parked first push resolve -- its loop must see generationRef bumped and
-    // stop, not go on to push top_foods/hall_ranks.
+    // stop, not go on to push top_foods/hall_ranks, and must not overwrite the toggle's own local
+    // `row` write with its own (now-stale) ON value.
     await act(async () => {
       resolveFirstPush({ error: null });
       for (let i = 0; i < 8; i++) await Promise.resolve();
@@ -555,7 +565,55 @@ describe("PrivacyScreen: shared-stats default-on seed (#248 Part C)", () => {
     const pushedFields = mockSyncSharedStat.mock.calls.map((c) => c[2]);
     expect(pushedFields).not.toContain("top_foods");
     expect(pushedFields).not.toContain("hall_ranks");
-    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(false); // an interrupted seed never marks itself done
+    expect(root.root.findAllByType(Toggle)[1].props.value).toBe(false); // the toggle's own OFF wins locally
+    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(true); // but the seed's landed write still counts
+  });
+
+  // PR #286 review round 2's own motivating example: a toggle on a DIFFERENT field racing in DURING
+  // field 1's own in-flight push must not erase credit for that push once it lands. Red against the
+  // pre-fix ordering (race check before `seededNow = true`): the toggle races in WHILE completion's
+  // push is still parked, so by the time it resolves the post-await check is already stale --
+  // pre-fix, that made the loop `break` before ever setting `seededNow`, so `seeded.has` comes back
+  // false and the disclosure never shows, even though completion's own write genuinely landed.
+  it("a toggle on a DIFFERENT field firing mid-seed does not erase credit for a field that already succeeded", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me", "me@umass.edu", NEW_ACCOUNT_CREATED_AT));
+    let resolveFirstPush!: (v: { error: null }) => void;
+    const firstPushPromise = new Promise<{ error: null }>((resolve) => {
+      resolveFirstPush = resolve;
+    });
+    mockSyncSharedStat.mockImplementationOnce(() => firstPushPromise); // seed's first field push (completion) parks here
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<PrivacyScreen />);
+    });
+    for (let i = 0; i < 6; i++) {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+    expect(mockSyncSharedStat).toHaveBeenCalledTimes(1); // parked on completion, nothing else pushed yet
+
+    // User manually toggles "Top foods" ON -- a DIFFERENT field than the one currently in flight --
+    // while completion's push is still parked.
+    const topFoodsToggle = root.root.findAllByType(Toggle)[2];
+    await act(async () => {
+      topFoodsToggle.props.onValueChange(true);
+      await Promise.resolve();
+    });
+    expect(mockSyncSharedStat).toHaveBeenLastCalledWith(expect.anything(), "me", "top_foods", expect.anything());
+
+    // Now let completion's parked push resolve successfully -- the race happened DURING this exact
+    // await, on a different field. The seed loop must still credit completion's landed write (and
+    // still correctly stop rather than going on to push hall_ranks).
+    await act(async () => {
+      resolveFirstPush({ error: null });
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+
+    expect(mockSharedStatsSeedState.seeded.has("me")).toBe(true); // completion's write landed -- credited despite the different-field race
+    const pushedFields = mockSyncSharedStat.mock.calls.map((c) => c[2]);
+    expect(pushedFields).not.toContain("hall_ranks"); // loop still stopped, never reached the third field
   });
 
   it("shows the first-run disclosure once a new account is seeded, and dismissing it persists the dismissal", async () => {
