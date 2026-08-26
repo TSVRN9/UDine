@@ -16,7 +16,7 @@ jest.mock("react-native-safe-area-context", () => ({
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn() },
-  Link: ({ children }: { children: unknown }) => children,
+  Link: require("./mockLink").mockLink,
   useFocusEffect: (_callback: () => void) => {},
 }));
 

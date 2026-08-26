@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 // Explicit factories, not bare automocks -- automock still imports the real module to derive its
 // shape, and the real ../lib/supabase / ../lib/firstRun both drag in native bindings (AsyncStorage,
 // the Supabase client's url/key validation) unavailable outside jest-expo's native harness.
@@ -31,7 +29,7 @@ jest.mock("react-native-safe-area-context", () => ({
 // HomePane always renders Links (hall cards, quick links) -- stub them out flat since there's no
 // navigator in this render tree.
 jest.mock("expo-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => children,
+  Link: require("./mockLink").mockLink,
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn() },
   useFocusEffect: (_callback: () => void) => {},
 }));

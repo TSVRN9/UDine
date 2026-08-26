@@ -14,7 +14,7 @@ jest.mock("expo-router", () => ({
     mockSeenFocusCallbacks.add(callback);
     callback();
   },
-  Link: ({ children }: { children: React.ReactNode }) => children,
+  Link: require("./mockLink").mockLink,
   router: { push: jest.fn(), back: jest.fn(), canGoBack: jest.fn().mockReturnValue(true), replace: jest.fn() },
 }));
 

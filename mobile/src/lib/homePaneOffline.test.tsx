@@ -4,7 +4,6 @@
 // decoupled from network mocking; these need it to actually fire load() on mount, which needs its
 // own jest.mock factories for the data it now pulls through (../lib/menuHoursCache instead of
 // @udine/shared's fetchDiningHours directly).
-import type { ReactNode } from "react";
 import type { DiningHoursFeed } from "@udine/shared";
 
 jest.mock("../lib/supabase", () => ({
@@ -21,7 +20,7 @@ jest.mock("../lib/firstRun", () => ({ isFirstRunDismissed: jest.fn().mockResolve
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));
 
 jest.mock("expo-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => children,
+  Link: require("./mockLink").mockLink,
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn() },
   // Unlike homePane.test.tsx's deliberate no-op, this actually fires the focus callback on mount
   // (React's own useEffect, imported fresh here rather than referencing an out-of-scope binding --
