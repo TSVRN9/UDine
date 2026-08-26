@@ -31,8 +31,12 @@ export function shouldExchangeCode(code: unknown, inFlight: boolean): code is st
  * provider's auth URL (skipBrowserRedirect so supabase-js doesn't try to navigate a browser that
  * doesn't exist here), we open it in an auth-session browser tab, then parse the `udine://redirect`
  * deep-link callback for the PKCE `code` and exchange it for a session ourselves.
+ *
+ * Returns whether a session was actually established, so callers can tell "user cancelled the
+ * Google chooser" apart from "signed in" (#278) -- true on a completed exchange, false on a
+ * cancel/dismiss. Errors (a real failure, not a user choice) still throw, unchanged.
  */
-export async function signInWithGoogle(): Promise<void> {
+export async function signInWithGoogle(): Promise<boolean> {
   signInInFlight = true;
   try {
     const redirectTo = Linking.createURL("redirect");
@@ -44,7 +48,7 @@ export async function signInWithGoogle(): Promise<void> {
     if (!data.url) throw new Error("Supabase did not return an OAuth URL");
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (result.type !== "success") return; // user cancelled/dismissed
+    if (result.type !== "success") return false; // user cancelled/dismissed
 
     const { queryParams } = Linking.parse(result.url);
     const code = queryParams?.code;
@@ -53,6 +57,7 @@ export async function signInWithGoogle(): Promise<void> {
     }
 
     await exchangeCode(code);
+    return true;
   } finally {
     signInInFlight = false;
   }

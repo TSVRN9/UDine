@@ -11,10 +11,16 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// #278: canAskAgain configurable per test (default true, matches the previous hardcoded shape) --
+// the ScanTab "ALLOW CAMERA"/"OPEN SETTINGS" test overrides it to prove the dead-button fix.
+let mockCameraPermission: { granted: boolean; canAskAgain?: boolean } = { granted: false };
+const mockRequestPermission = jest.fn();
 jest.mock("expo-camera", () => ({
   CameraView: () => null,
-  useCameraPermissions: () => [{ granted: false }, jest.fn()],
+  useCameraPermissions: () => [mockCameraPermission, mockRequestPermission],
 }));
+
+jest.mock("expo-linking", () => ({ openSettings: jest.fn() }));
 
 // The real screen's useFocusEffect callback sets up two real setInterval timers (5-min remint,
 // 3s poll) and returns a cleanup that clears them -- unlike addFriendsScreen.test.tsx/
@@ -59,6 +65,7 @@ jest.mock("../lib/supabase", () => ({
 
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
+import * as Linking from "expo-linking";
 import AddFriendQrScreen from "../app/add-friend-qr";
 
 function ownText(n: renderer.ReactTestInstance): string {
@@ -83,6 +90,7 @@ let root: renderer.ReactTestRenderer | undefined;
 beforeEach(() => {
   jest.clearAllMocks();
   focusCleanup = undefined;
+  mockCameraPermission = { granted: false };
   mockRpc.mockResolvedValue({ data: { token: "11111111-1111-1111-1111-111111111111" }, error: null });
   mockFrom.mockImplementation((name: string) => {
     if (name === "profiles") return table([{ user_id: "dave-1", display_name: "Dave Chen" }]);
@@ -90,6 +98,21 @@ beforeEach(() => {
     return table([]);
   });
 });
+
+/** Finds the (possibly duplicated across composite/host nodes) pressable with this accessibilityLabel. */
+function pressableWithLabel(root: renderer.ReactTestRenderer, label: string) {
+  const node = root.root.findAll((n) => n.props.accessibilityLabel === label && typeof n.props.onPress === "function")[0];
+  if (!node) throw new Error(`no pressable with accessibilityLabel "${label}" found`);
+  return node;
+}
+
+/** Taps the "Scan" segment to switch off the default "My code" tab. */
+async function switchToScanTab(root: renderer.ReactTestRenderer) {
+  const scanTab = pressableWithLabel(root, "Scan");
+  await act(async () => {
+    scanTab.props.onPress();
+  });
+}
 
 // Runs unconditionally (assertion failure included) -- an assertion throwing mid-test must not
 // skip this, or the real setInterval timers the screen sets up survive the test and hang Jest.
@@ -108,5 +131,42 @@ describe("AddFriendQrScreen MyCodeTab", () => {
     expect(mockFrom).toHaveBeenCalledWith("profiles");
     expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Dave Chen")).toBe(true);
     expect(root.root.findAllByType(Text).some((n) => ownText(n) === "dave")).toBe(false);
+  });
+});
+
+// #278: once the OS stops prompting (canAskAgain false -- Android after a second denial),
+// requestPermission() resolves denied immediately with no native dialog -- the "ALLOW CAMERA"
+// button did nothing, forever, with no route to Settings.
+describe("AddFriendQrScreen ScanTab permission button (#278)", () => {
+  it("still asks via requestPermission and shows ALLOW CAMERA while the OS can still prompt", async () => {
+    mockCameraPermission = { granted: false, canAskAgain: true };
+    root = await renderScreen();
+    await switchToScanTab(root);
+
+    const button = pressableWithLabel(root, "Grant camera access");
+    expect(button.findAllByType(Text).some((n) => ownText(n) === "ALLOW CAMERA")).toBe(true);
+
+    await act(async () => {
+      button.props.onPress();
+    });
+    expect(mockRequestPermission).toHaveBeenCalled();
+    expect(Linking.openSettings).not.toHaveBeenCalled();
+  });
+
+  // Red case: on main this button is always wired to requestPermission and always reads "ALLOW
+  // CAMERA", regardless of canAskAgain -- a silent dead end once Android stops prompting.
+  it("opens Settings instead of a no-op requestPermission once canAskAgain is false", async () => {
+    mockCameraPermission = { granted: false, canAskAgain: false };
+    root = await renderScreen();
+    await switchToScanTab(root);
+
+    const button = pressableWithLabel(root, "Open Settings");
+    expect(button.findAllByType(Text).some((n) => ownText(n) === "OPEN SETTINGS")).toBe(true);
+
+    await act(async () => {
+      button.props.onPress();
+    });
+    expect(Linking.openSettings).toHaveBeenCalled();
+    expect(mockRequestPermission).not.toHaveBeenCalled();
   });
 });

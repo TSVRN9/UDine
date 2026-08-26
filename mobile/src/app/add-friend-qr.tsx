@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
+import * as Linking from "expo-linking";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -142,11 +143,20 @@ function ScanTab() {
 
   if (!permission) return <View style={styles.tabContent} />;
   if (!permission.granted) {
+    // #278: once the OS stops prompting (canAskAgain false -- Android after a second denial),
+    // requestPermission() resolves denied immediately with no native dialog at all, so the button
+    // did nothing, forever. Route to Settings instead, the only way left to grant it.
+    const canAskAgain = permission.canAskAgain;
     return (
       <View style={styles.tabContent}>
         <Text style={styles.copy}>Camera access is needed to scan a friend&apos;s code.</Text>
-        <Pressable style={styles.permissionButton} onPress={requestPermission} accessibilityRole="button" accessibilityLabel="Grant camera access">
-          <Text style={styles.permissionButtonText}>ALLOW CAMERA</Text>
+        <Pressable
+          style={styles.permissionButton}
+          onPress={canAskAgain ? requestPermission : Linking.openSettings}
+          accessibilityRole="button"
+          accessibilityLabel={canAskAgain ? "Grant camera access" : "Open Settings"}
+        >
+          <Text style={styles.permissionButtonText}>{canAskAgain ? "ALLOW CAMERA" : "OPEN SETTINGS"}</Text>
         </Pressable>
       </View>
     );

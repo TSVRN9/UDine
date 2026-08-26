@@ -19,6 +19,7 @@ import { Text } from "react-native";
 import { router } from "expo-router";
 import LoginScreen from "../app/login";
 import { dismissFirstRun } from "../lib/firstRun";
+import { signInWithGoogle } from "../lib/auth";
 
 function body(root: renderer.ReactTestRenderer): string {
   return root.root
@@ -29,6 +30,12 @@ function body(root: renderer.ReactTestRenderer): string {
 }
 
 describe("LoginScreen", () => {
+  // #278's two new cases below assert on dismissFirstRun/router call counts -- these mocks
+  // otherwise carry calls over from whichever test ran first in this file.
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("states the anonymous-first value prop: residency, export, and what sign-in adds", async () => {
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
@@ -63,6 +70,59 @@ describe("LoginScreen", () => {
 
     await act(async () => {
       skip!.props.onPress();
+    });
+
+    expect(dismissFirstRun).toHaveBeenCalled();
+    expect(router.back).toHaveBeenCalled();
+  });
+
+  // #278 red case: on main, signInWithGoogle() returning undefined (cancel/dismiss) was
+  // indistinguishable from a successful sign-in, so handleSignIn always called done() -- a user
+  // who tapped "Continue with Google" and backed out got silently dropped into the anonymous app
+  // with first-run permanently dismissed, the exact "Skip" outcome they didn't choose.
+  it("cancelling the Google chooser does NOT dismiss first-run and leaves the user on this screen", async () => {
+    (signInWithGoogle as jest.Mock).mockResolvedValue(false);
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<LoginScreen />);
+    });
+
+    const googleButton = root.root.findAll(
+      (n) =>
+        n.props?.accessibilityRole === "button" &&
+        typeof n.props?.onPress === "function" &&
+        JSON.stringify(n.findAllByType(Text).map((t) => t.props.children)).includes("Continue with Google"),
+    )[0];
+    expect(googleButton).toBeDefined();
+
+    await act(async () => {
+      await googleButton!.props.onPress();
+    });
+
+    expect(signInWithGoogle).toHaveBeenCalled();
+    expect(dismissFirstRun).not.toHaveBeenCalled();
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("a successful Google sign-in does dismiss first-run and pops back", async () => {
+    (signInWithGoogle as jest.Mock).mockResolvedValue(true);
+
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<LoginScreen />);
+    });
+
+    const googleButton = root.root.findAll(
+      (n) =>
+        n.props?.accessibilityRole === "button" &&
+        typeof n.props?.onPress === "function" &&
+        JSON.stringify(n.findAllByType(Text).map((t) => t.props.children)).includes("Continue with Google"),
+    )[0];
+
+    await act(async () => {
+      await googleButton!.props.onPress();
     });
 
     expect(dismissFirstRun).toHaveBeenCalled();

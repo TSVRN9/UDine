@@ -80,12 +80,33 @@ describe("signInWithGoogle / isSignInInFlight", () => {
     expect(isSignInInFlight()).toBe(false);
   });
 
+  // #278: login.tsx's done() permanently dismisses first-run, so it must only run when a session
+  // was actually established -- signInWithGoogle's return value is how it tells cancel apart from
+  // success.
+  it("resolves true on a completed sign-in", async () => {
+    signInWithOAuth.mockResolvedValue({ data: { url: "https://example.com/auth" }, error: null });
+    openAuthSessionAsync.mockResolvedValue({ type: "success", url: "udine://redirect?code=abc123" });
+    linkingParse.mockReturnValue({ queryParams: { code: "abc123" } });
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+
+    await expect(signInWithGoogle()).resolves.toBe(true);
+  });
+
   it("is false again after the user dismisses the browser (early return, no code to exchange)", async () => {
     signInWithOAuth.mockResolvedValue({ data: { url: "https://example.com/auth" }, error: null });
     openAuthSessionAsync.mockResolvedValue({ type: "dismiss" });
 
     await signInWithGoogle();
     expect(isSignInInFlight()).toBe(false);
+  });
+
+  // #278 red case: on main this resolves undefined -- login.tsx couldn't tell a cancel apart from
+  // a success, so it called done() (permanently dismissing first-run) either way.
+  it("resolves false (not true, not throwing) when the user cancels/dismisses the Google chooser", async () => {
+    signInWithOAuth.mockResolvedValue({ data: { url: "https://example.com/auth" }, error: null });
+    openAuthSessionAsync.mockResolvedValue({ type: "dismiss" });
+
+    await expect(signInWithGoogle()).resolves.toBe(false);
   });
 
   it("is false again after signInWithOAuth itself rejects, before the browser ever opens", async () => {
