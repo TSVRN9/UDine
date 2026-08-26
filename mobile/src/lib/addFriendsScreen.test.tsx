@@ -232,6 +232,46 @@ describe("AddFriendsScreen", () => {
     expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Smith, John")).toBe(true);
   });
 
+  // #192: search fires an RPC per keystroke. "za" is typed first but its RPC response is slower;
+  // "zac" is typed right after and resolves first. Without a latest-wins guard, "za"'s stale
+  // response lands last and clobbers "zac"'s -- pins that the LATER query's results are what's
+  // actually showing, regardless of resolve order.
+  it("a later search's results win over an earlier search that resolves after it", async () => {
+    mockTables({ myProfile: { discoverable: true } });
+    let resolveZa!: (v: { data: unknown[]; error: null }) => void;
+    let resolveZac!: (v: { data: unknown[]; error: null }) => void;
+    mockRpc.mockImplementation((name: string, args: Record<string, unknown>) => {
+      if (name !== "search_profiles") return Promise.resolve({ data: [], error: null });
+      if (args.term === "za") return new Promise((resolve) => (resolveZa = resolve));
+      if (args.term === "zac") return new Promise((resolve) => (resolveZac = resolve));
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    const root = await renderScreen();
+    const input = root.root.findAllByType(TextInput)[0];
+
+    await act(async () => {
+      input.props.onChangeText("za");
+    });
+    await act(async () => {
+      input.props.onChangeText("zac");
+    });
+
+    // faster, later-fired search resolves first
+    await act(async () => {
+      resolveZac({ data: [{ user_id: "zac-1", display_name: "Zac Jones", email: "zac@umass.edu" }], error: null });
+      await Promise.resolve();
+    });
+    // slower, earlier-fired search resolves after -- must be dropped as stale
+    await act(async () => {
+      resolveZa({ data: [{ user_id: "za-1", display_name: "Za Smith", email: "za@umass.edu" }], error: null });
+      await Promise.resolve();
+    });
+
+    expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Zac Jones")).toBe(true);
+    expect(root.root.findAllByType(Text).some((n) => ownText(n) === "Za Smith")).toBe(false);
+  });
+
   // PR #210 review (BLOCKER): both entry points that used to reach /friends (SocialPane's + avatar,
   // YouPane's Friends row) now point here instead, but /friends is still the only screen that shows
   // received pings + its realtime inbox. Without a way back to it, receiving a ping has no screen.

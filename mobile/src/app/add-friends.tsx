@@ -3,10 +3,15 @@ import { Link, router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { createLatestWins } from "@udine/shared";
 import { EmptyState } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { addButtonLabel, avatarFillFor, initialsOf, otherUserId, resultButtonState, sentAgoText, type FriendshipRow } from "../lib/addFriends";
 import { supabase } from "../lib/supabase";
+
+// #192: search-as-you-type fires an RPC per keystroke -- an earlier, slower response landing
+// after a faster later one must not clobber the newer results.
+const searchGuard = createLatestWins();
 
 type Profile = { user_id: string; display_name: string; email: string | null };
 
@@ -111,7 +116,9 @@ export default function AddFriendsScreen() {
     // length or row cap the way this RPC does server-side. Still exactly one parameter, still no
     // .or() -- the comma-injection concern from #210 doesn't apply here either (the raw term is
     // passed as an ordinary RPC argument, never interpolated into a filter-expression string).
+    const token = searchGuard.start();
     const { data } = await supabase.rpc("search_profiles", { term });
+    if (!searchGuard.isLatest(token)) return; // a newer search already fired -- drop this stale response
     const merged = new Map<string, Profile>();
     for (const p of (data ?? []) as Profile[]) merged.set(p.user_id, p);
     setSearchResults(Array.from(merged.values()).slice(0, 20));
