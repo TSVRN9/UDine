@@ -377,6 +377,16 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# #196 / #228 item 3: verify_jwt was previously asserted only in migration/code comments, never
+# tracked here -- correct behavior rested entirely on the CLI default. Pinned explicitly so a future
+# default change can't silently open either function to an unauthenticated caller (send-ping-push
+# especially -- that's the #196 replay primitive minus even the need for a valid JWT).
+[functions.send-ping-push]
+verify_jwt = true
+
+[functions.check-favorited-foods]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
