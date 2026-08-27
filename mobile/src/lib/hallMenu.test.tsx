@@ -22,6 +22,10 @@ jest.mock("../lib/favoritesStorage", () => ({
     addFavorite: jest.fn(),
     removeFavorite: jest.fn(),
   })),
+  // #198: useGuardedToggleFavorite is pure logic against the (mocked) storage interface above --
+  // keep it real, same pattern as SocialPane.test.tsx's real isTransientPingError, so these tests
+  // exercise the actual guard instead of a stand-in.
+  useGuardedToggleFavorite: jest.requireActual("../lib/favoritesStorage").useGuardedToggleFavorite,
 }));
 
 jest.mock("../lib/preferences", () => ({
@@ -98,6 +102,7 @@ import { Button } from "../components/ui";
 import { stepDate } from "./hallMenuTabs";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
+import { SqliteFavoritesStorage } from "./favoritesStorage";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
 const mockedRouterPush = router.push as jest.Mock;
@@ -112,6 +117,11 @@ function recordSeenMock(): jest.Mock | undefined {
 // halls/[slug].tsx's `const storage = new SqliteLogStorage();` (module top level) already ran by
 // the time this line executes -- importing HallMenuScreen above is what loaded that module.
 const mockAddEntry = (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.addEntry as jest.Mock;
+const mockFavoritesStorage = (SqliteFavoritesStorage as unknown as jest.Mock).mock.results[0].value as {
+  getFavorites: jest.Mock;
+  addFavorite: jest.Mock;
+  removeFavorite: jest.Mock;
+};
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
@@ -186,6 +196,13 @@ function stepPlate(root: renderer.ReactTestRenderer, dishName: string, dir: "Add
   act(() => {
     root.root.findByProps({ accessibilityLabel: `${dir} ${dishName}` }).props.onPress();
   });
+}
+
+function starPressable(root: renderer.ReactTestRenderer, dishName: string) {
+  const matches = root.root.findAll(
+    (n) => typeof n.props.accessibilityLabel === "string" && (n.props.accessibilityLabel === `Favorite ${dishName}` || n.props.accessibilityLabel === `Unfavorite ${dishName}`),
+  );
+  return matches[0];
 }
 
 function findBannerContainer(root: renderer.ReactTestRenderer, matching: RegExp) {
@@ -782,6 +799,58 @@ describe("HallMenuScreen plate wiring", () => {
 
     expect(mockAddEntry).not.toHaveBeenCalled();
     expect(texts(root).flat().join(" ")).not.toMatch(/Logged 0 items/);
+  });
+});
+
+// #198: toggleDishFavorite decided add-vs-remove from the render-closure `favoriteDishKeys` state,
+// which only updates after the storage round-trip's setFavoriteDishKeys commits. A second tap on the
+// same star landing before that commit reads the same stale (pre-toggle) value as the first tap, so
+// both took the *same* branch instead of toggling back -- CONFIRMED via probe below (addFavorite
+// called 2x for a single dish, never removeFavorite, on two rapid taps that should have read as
+// favorite-then-unfavorite). Same stepper-class bug #147 fixed for LOG -- fixed here via a shared
+// per-key drop guard (mobile/src/lib/favoritesStorage.ts's useGuardedToggleFavorite).
+describe("HallMenuScreen favorite-star double-tap guard (#198)", () => {
+  beforeEach(() => {
+    mockFavoritesStorage.getFavorites.mockReset().mockResolvedValue([]);
+    mockFavoritesStorage.addFavorite.mockReset();
+    mockFavoritesStorage.removeFavorite.mockReset();
+  });
+
+  it("drops a rapid second star tap on the same dish while the first toggle is still in flight, instead of double-deciding from stale state", async () => {
+    let resolveAdd!: () => void;
+    mockFavoritesStorage.addFavorite.mockImplementation(() => new Promise<void>((resolve) => (resolveAdd = resolve)));
+
+    const root = await renderScreen();
+    const star = starPressable(root, "Pizza");
+
+    await act(async () => {
+      star.props.onPress(); // starts the guarded toggle (not yet favorited -> add)
+      star.props.onPress(); // fires before the first resolves -- must be dropped, not re-decided
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockFavoritesStorage.addFavorite).toHaveBeenCalledTimes(1);
+    expect(mockFavoritesStorage.removeFavorite).not.toHaveBeenCalled();
+
+    // The add committing (a real DB write) is what a follow-up getFavorites read would now
+    // reflect -- update the mock to match before letting it resolve, same as a real SQLite read
+    // would once the INSERT actually landed.
+    mockFavoritesStorage.getFavorites.mockResolvedValue([{ type: "dish", dishName: "Pizza" }]);
+    await act(async () => {
+      resolveAdd();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Guard released after the single add committed -- a real third tap now correctly reads
+    // "favorited" and removes it, proving the guard drops rather than wedges permanently.
+    await act(async () => {
+      starPressable(root, "Pizza").props.onPress();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockFavoritesStorage.removeFavorite).toHaveBeenCalledTimes(1);
   });
 });
 

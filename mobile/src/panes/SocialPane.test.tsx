@@ -460,6 +460,82 @@ describe("SocialPane", () => {
     }
   });
 
+  // #198: panResponderFor(friendId) used to be called fresh on every render (`{...panResponderFor(f.user_id).panHandlers}`
+  // inline in JSX), so a HOLD_START dispatch mid-gesture (setGesture -> re-render) created a BRAND
+  // NEW PanResponder for that avatar -- the doc comment above (gestureRef et al.) only protects the
+  // *gesture data*, not the PanResponder instance itself. RN's responder system dispatches
+  // subsequent move/release events to whatever panHandlers are CURRENTLY assigned to the view, so
+  // the release handler that actually fires is a fresh instance that never saw onPanResponderGrant
+  // (its internal dx/dy/x0/y0 bookkeeping never initialized) -- CONFIRMED via probe: the release
+  // handler captured after HOLD_START fires is a different function than the one captured at grant.
+  // Fixed by memoizing each avatar's PanResponder (created once per friendId, reused across renders).
+  it("#198: an avatar's PanResponder identity survives the HOLD_START re-render (not recreated mid-gesture)", async () => {
+    jest.useFakeTimers();
+    try {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "friendships") return queryResult([{ user_a: "me", user_b: "friend-1" }]);
+        if (table === "profiles") return queryResult([{ user_id: "friend-1", display_name: "Alex" }]);
+        return queryResult([]);
+      });
+
+      const root = await renderSocialPane();
+      const before = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function")[0];
+      const releaseBeforeHold = before.props.onResponderRelease;
+
+      act(() => {
+        before.props.onResponderGrant(fakeTouchEvent(10, 10, 1));
+      });
+      // HOLD_START fires here -- dispatches setGesture, which re-renders the pane. Under the bug,
+      // that re-render calls panResponderFor(friendId) again and creates a new PanResponder.
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      const after = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function")[0];
+      expect(after.props.onResponderRelease).toBe(releaseBeforeHold);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // #198: onPanResponderGrant starts a hold timer (holdTimers ref) that fires HOLD_START after
+  // LONG_PRESS_MS -- nothing ever cleared it on unmount, so a component torn down mid-hold (nav away,
+  // pane switch) left a live timer that would call setGesture on an unmounted component once it fired.
+  it("#198: unmounting mid-hold clears the pending hold timer instead of leaking it", async () => {
+    jest.useFakeTimers();
+    try {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "friendships") return queryResult([{ user_a: "me", user_b: "friend-1" }]);
+        if (table === "profiles") return queryResult([{ user_id: "friend-1", display_name: "Alex" }]);
+        return queryResult([]);
+      });
+
+      const root = await renderSocialPane();
+      const avatarView = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function")[0];
+
+      // Spy on the real clearTimeout rather than asserting on jest's global pending-timer count --
+      // React's own scheduler churns unrelated timers around an unmount under fake timers, which
+      // makes an absolute/delta getTimerCount() assertion flaky. Whether *this* code's hold timer
+      // gets cleared is a call to clearTimeout, which is what's actually under test.
+      const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
+
+      act(() => {
+        avatarView.props.onResponderGrant(fakeTouchEvent(10, 10, 1));
+      });
+      const callsBeforeUnmount = clearTimeoutSpy.mock.calls.length;
+
+      act(() => {
+        root.unmount();
+      });
+
+      expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThan(callsBeforeUnmount);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("#94: a quick tap (release before LONG_PRESS_MS, no movement) navigates to that friend's profile instead of sending a ping", async () => {
     jest.useFakeTimers();
     try {

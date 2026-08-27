@@ -136,6 +136,92 @@ describe("PlateSheet", () => {
     expect(onAddOffResult).toHaveBeenCalledWith({ barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } });
   });
 
+  const ZERO_TOTALS = { date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 };
+  const noopProps = { plate: [], totals: ZERO_TOTALS, onStep: () => {}, onAddOffResult: () => {}, onLog: () => {} };
+
+  // #198: onSubmitEditing had no guard against a search already in flight -- the Search BUTTON
+  // already disables on `searching`, but hitting Enter/the keyboard's search key went straight to
+  // runSearch regardless, so mashing Enter while typing fired overlapping searchProducts calls.
+  it("#198: a second Enter while a search is already in flight is ignored, not fired as an overlapping request", async () => {
+    // This file has no shared beforeEach mock reset (earlier tests assert with toHaveBeenCalledWith,
+    // never a call count) -- clear here since this is the first test that counts calls.
+    mockedSearchProducts.mockClear();
+    let resolveFirst!: (v: unknown) => void;
+    mockedSearchProducts.mockImplementation(() => new Promise((resolve) => (resolveFirst = resolve)));
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<PlateSheet visible {...noopProps} onClose={() => {}} />);
+    });
+
+    act(() => {
+      root.root.findByType(TextInput).props.onChangeText("a");
+    });
+    act(() => {
+      root.root.findByType(TextInput).props.onSubmitEditing(); // search #1 starts, unresolved
+    });
+    act(() => {
+      root.root.findByType(TextInput).props.onChangeText("banana");
+    });
+    act(() => {
+      root.root.findByType(TextInput).props.onSubmitEditing(); // must be dropped -- #1 is still in flight
+    });
+
+    expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
+    expect(mockedSearchProducts).toHaveBeenCalledWith("a");
+
+    await act(async () => {
+      resolveFirst([]);
+      await Promise.resolve();
+    });
+  });
+
+  // #198: a stale search left in flight when the sheet closes had nothing invalidating it -- if the
+  // user reopens and runs a different, faster search, the stale one resolving afterward silently
+  // overwrote the fresh results with an answer to a query the box no longer even shows.
+  it("#198: a stale search left in flight when the sheet closes doesn't clobber a fresh search run after reopening", async () => {
+    let resolveStale!: (v: unknown) => void;
+    mockedSearchProducts.mockImplementationOnce(() => new Promise((resolve) => (resolveStale = resolve)));
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<PlateSheet visible {...noopProps} onClose={() => {}} />);
+    });
+    act(() => {
+      root.root.findByType(TextInput).props.onChangeText("a");
+    });
+    act(() => {
+      root.root.findByType(TextInput).props.onSubmitEditing(); // stale search now in flight
+    });
+
+    // Sheet closes before the stale search resolves...
+    act(() => {
+      root.update(<PlateSheet visible={false} {...noopProps} onClose={() => {}} />);
+    });
+    // ...then reopens, and the user runs a different, faster search.
+    mockedSearchProducts.mockResolvedValueOnce([{ barcode: "999", productName: "Banana Chips", nutrition: DISH.nutrition }]);
+    act(() => {
+      root.update(<PlateSheet visible {...noopProps} onClose={() => {}} />);
+    });
+    act(() => {
+      root.root.findByType(TextInput).props.onChangeText("banana");
+    });
+    await act(async () => {
+      root.root.findByType(TextInput).props.onSubmitEditing();
+      await Promise.resolve();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Banana Chips/);
+
+    // The stale first search finally resolves -- must not clobber the fresh results now showing.
+    await act(async () => {
+      resolveStale([{ barcode: "1", productName: "STALE RESULT", nutrition: DISH.nutrition }]);
+      await Promise.resolve();
+    });
+
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Banana Chips/);
+    expect(body).not.toMatch(/STALE RESULT/);
+  });
+
   it("flags a per-100g-estimated OFF result on both the search-result row and once it's a plate row", async () => {
     // shared/src/openFoodFacts.ts's searchProducts marks a per-100g fallback with the literal
     // servingSize "per 100g" -- this is the finding-4 fix: that marker previously existed in shared

@@ -1,5 +1,5 @@
 import { searchProducts, type DailyMacroTotals, type OffSearchResult } from "@udine/shared";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
@@ -33,20 +33,43 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
   const [searchError, setSearchError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const { backdropStyle, panelStyle } = useSheetAnim(visible);
+  // #198: bumped on every new search and on close -- a resolving searchProducts call only applies
+  // its result if this still matches the seq it captured when it started, so a slower/stale
+  // response can never overwrite a newer query's results (or repaint a sheet the user closed).
+  const searchSeq = useRef(0);
 
   const itemCount = totalItemCount(plate);
 
+  // Closing invalidates whatever's in flight and resets the search box -- a stale response that
+  // resolves after close must not repaint a sheet the user dismissed, and reopening should offer a
+  // clean search rather than a "searching..." spinner stuck on a request nothing will ever apply.
+  useEffect(() => {
+    if (!visible) {
+      searchSeq.current++;
+      setSearching(false);
+      setResults(null);
+      setSearchError(null);
+      setQuery("");
+    }
+  }, [visible]);
+
   async function runSearch() {
-    if (!query.trim()) return;
+    // #198: onSubmitEditing had no guard against a search already in flight (unlike the Search
+    // button's own `disabled` prop below) -- mashing Enter while typing fired overlapping requests.
+    if (!query.trim() || searching) return;
+    const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
     try {
-      setResults(await searchProducts(query.trim()));
+      const found = await searchProducts(query.trim());
+      if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
+      setResults(found);
     } catch (e) {
+      if (searchSeq.current !== seq) return;
       setSearchError(String(e));
       setResults(null);
     } finally {
-      setSearching(false);
+      if (searchSeq.current === seq) setSearching(false);
     }
   }
 

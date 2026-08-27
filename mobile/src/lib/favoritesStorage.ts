@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { Favorite, FavoritesStorage } from "@udine/shared";
 import { favoriteKey } from "@udine/shared";
 import { getDb } from "./db";
@@ -19,4 +20,33 @@ export class SqliteFavoritesStorage implements FavoritesStorage {
     const rows = await db.getAllAsync<{ favorite_json: string }>("SELECT favorite_json FROM favorites");
     return rows.map((r) => JSON.parse(r.favorite_json));
   }
+}
+
+/**
+ * #198: halls/[slug].tsx and grab-n-go/[slug].tsx had byte-for-byte identical toggleDishFavorite
+ * bodies that decided add-vs-remove from the render-closure `favoriteDishKeys` state -- a second tap
+ * on the same star landing before the first toggle's storage round-trip committed a fresh
+ * setFavoriteDishKeys read the same stale value as the first tap, so both took the same branch
+ * (e.g. add-then-add) instead of toggling back. Same stepper-class bug as #147's LOG guard --
+ * one shared, guarded implementation instead of the guard living (or not) in each copy separately.
+ *
+ * Guarded per favorite key (not one global lock like useGuardedLogPlate) so toggling one dish's star
+ * never blocks an unrelated one still mid-flight. Drops a second call outright for the SAME key
+ * while its first is in flight, rather than queuing it -- same "drop, don't queue" call rank.tsx's
+ * choose() landed on for this exact stale-closure question (PR #159 review).
+ */
+export function useGuardedToggleFavorite(storage: FavoritesStorage, onUpdate: (favorites: Favorite[]) => void) {
+  const inFlight = useRef<Set<string>>(new Set());
+  return async function toggleFavorite(favorite: Favorite, currentlyFavorited: boolean): Promise<void> {
+    const key = favoriteKey(favorite);
+    if (inFlight.current.has(key)) return;
+    inFlight.current.add(key);
+    try {
+      if (currentlyFavorited) await storage.removeFavorite(favorite);
+      else await storage.addFavorite(favorite);
+      onUpdate(await storage.getFavorites());
+    } finally {
+      inFlight.current.delete(key);
+    }
+  };
 }
