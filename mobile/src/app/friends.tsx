@@ -153,7 +153,7 @@ export function FriendsBody() {
       {searchResults.map((p) => (
         <Card key={p.user_id} style={styles.row}>
           <Text style={styles.rowText}>{p.display_name}</Text>
-          <Pressable onPress={() => requestFriend(p.user_id)}>
+          <Pressable onPress={() => requestFriend(p.user_id)} accessibilityRole="button">
             <Text style={styles.actionText}>Add friend</Text>
           </Pressable>
         </Card>
@@ -173,13 +173,13 @@ export function FriendsBody() {
               // hits the friendships_qr_needs_both_confirms CHECK. Route to the same /qr-confirm
               // screen add-friend-qr.tsx uses, for whichever side is looking (the code-owner never
               // had a working action here; the scanner's own side never had an action at all).
-              <Pressable onPress={() => router.push(`/qr-confirm?userId=${otherUserId(f, myId)}`)}>
+              <Pressable onPress={() => router.push(`/qr-confirm?userId=${otherUserId(f, myId)}`)} accessibilityRole="button">
                 <Text style={styles.actionText}>Confirm</Text>
               </Pressable>
             ) : f.requested_by === myId ? (
               <Text style={styles.pendingText}>pending</Text>
             ) : (
-              <Pressable onPress={() => acceptFriend(f)}>
+              <Pressable onPress={() => acceptFriend(f)} accessibilityRole="button">
                 <Text style={styles.actionText}>Accept</Text>
               </Pressable>
             )}
@@ -202,6 +202,7 @@ export function FriendsBody() {
                   key={hall.tid}
                   style={[styles.chip, pingHallTid[otherId] === hall.tid && styles.chipActive]}
                   onPress={() => setPingHallTid((prev) => ({ ...prev, [otherId]: prev[otherId] === hall.tid ? null : hall.tid }))}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.chipText, pingHallTid[otherId] === hall.tid && styles.chipTextActive]}>{hall.name}</Text>
                 </Pressable>

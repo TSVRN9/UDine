@@ -235,6 +235,20 @@ describe("SocialPane", () => {
     expect(body).not.toMatch(/Sign in required/);
   });
 
+  // #282: the +Add avatar slot was an icon-only Pressable (a "+" glyph) with no
+  // accessibilityRole/accessibilityLabel -- TalkBack had nothing meaningful to read.
+  it("signed in, no friends yet: the +Add avatar slot has a role and a descriptive label", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "friendships") return queryResult([]);
+      return queryResult([]);
+    });
+
+    const root = await renderSocialPane();
+    const addSlot = root.root.findByProps({ accessibilityLabel: "Add friend" });
+    expect(addSlot.props.accessibilityRole).toBe("button");
+  });
+
   it("signed in with a friend: renders the friend's name and initials, with a gold border on the first/only avatar", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: session("me") } });
     mockFrom.mockImplementation((table: string) => {

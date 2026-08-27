@@ -255,7 +255,7 @@ export default function FriendProfileScreen() {
       </ScrollView>
 
       <View style={styles.pingBar}>
-        <Pressable onPress={sendPing} style={styles.pingButton}>
+        <Pressable onPress={sendPing} style={styles.pingButton} accessibilityRole="button">
           <Text style={styles.pingButtonText}>Ping {name}</Text>
         </Pressable>
       </View>

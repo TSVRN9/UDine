@@ -362,7 +362,7 @@ export default function PrivacyScreen() {
             <Text style={styles.rowCount}>{countLabel(counts.seenDishCount, "dishes")}</Text>
           </View>
           <View style={styles.divider} />
-          <Pressable style={styles.exportRow} onPress={goToExport}>
+          <Pressable style={styles.exportRow} onPress={goToExport} accessibilityRole="button">
             <Text style={styles.exportText}>EXPORT · JSON / CSV</Text>
             <Text style={styles.exportChevron}>›</Text>
           </Pressable>

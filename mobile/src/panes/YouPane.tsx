@@ -156,7 +156,7 @@ export function YouPane() {
         <SectionHeader
           title="Today's Log"
           right={
-            <Press style={styles.allLogsLink} onPress={goToAllLogs}>
+            <Press style={styles.allLogsLink} onPress={goToAllLogs} accessibilityRole="button">
               <Text style={styles.allLogsText}>ALL LOGS</Text>
               <Text style={styles.allLogsChevron}>›</Text>
             </Press>
@@ -234,18 +234,18 @@ export function YouPane() {
           {session ? (
             <>
               <Text style={styles.accountText}>Signed in as {session.user.email}</Text>
-              <Press onPress={() => signOut()}>
+              <Press onPress={() => signOut()} accessibilityRole="button">
                 <Text style={styles.accountLink}>Sign out</Text>
               </Press>
             </>
           ) : (
-            <Press onPress={handleSignIn}>
+            <Press onPress={handleSignIn} accessibilityRole="button">
               <Text style={styles.accountLink}>Sign in with Google</Text>
             </Press>
           )}
         </Card>
         <Link href="/add-friends" asChild>
-          <Press>
+          <Press accessibilityRole="button">
             <Card style={styles.friendsRow}>
               <Text style={styles.friendsText}>Friends</Text>
               <Text style={styles.friendsChevron}>›</Text>
@@ -258,7 +258,7 @@ export function YouPane() {
         behind Your data's own EXPORT row (device-local counts + share toggles need their own
         screen real estate the You pane can't spare). */}
         <Link href="/privacy" asChild>
-          <Press>
+          <Press accessibilityRole="button">
             <Card style={styles.friendsRow}>
               <Text style={styles.friendsText}>Your data</Text>
               <Text style={styles.friendsChevron}>›</Text>

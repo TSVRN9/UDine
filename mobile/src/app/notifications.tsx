@@ -80,7 +80,7 @@ export function NotificationsBody() {
         <EmptyState title="No sightings yet" message="No favorited-food sightings yet." />
       ) : (
         sightings.map((s) => (
-          <Pressable key={s.id} onPress={() => markRead(s)} style={[styles.sightingRow, s.read_at ? styles.sightingRead : null]}>
+          <Pressable key={s.id} onPress={() => markRead(s)} style={[styles.sightingRow, s.read_at ? styles.sightingRead : null]} accessibilityRole="button">
             <Text style={styles.sightingText}>
               <Text style={styles.sightingDish}>{s.dish_name}</Text> at {hallNameFor(s.hall_tid)} on {s.sighted_date}
             </Text>

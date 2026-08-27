@@ -257,6 +257,24 @@ describe("NotificationsBody", () => {
     expect(rowAfter.props.style[1]).toBeFalsy();
   });
 
+  // #282: sighting rows had no accessibilityRole, so TalkBack announced only the raw dish-name
+  // text with no "button" -- findByProps(accessibilityRole) also gives future tests here a
+  // selector that isn't tied to tree order/onPress-presence, per #251's own note on this file.
+  it("gives a sighting row accessibilityRole=button", async () => {
+    const sighting = { id: "s1", dish_name: "French Toast", hall_tid: 3, sighted_date: "2026-08-19", read_at: null, created_at: "2026-08-19T00:00:00Z" };
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true }, null);
+      if (name === "food_sightings") return sightingsTable(sighting, null);
+      if (name === "push_tokens") return emptyTable();
+      throw new Error(`unexpected table ${name}`);
+    });
+    const root = await renderNotifications();
+    await flush();
+
+    const row = root.root.findByProps({ accessibilityRole: "button" });
+    expect(row.props.onPress).toBeInstanceOf(Function);
+  });
+
   // #264 review finding 1: signOut() (auth.ts) deletes this account's push_tokens row(s) but
   // deliberately leaves notifications_enabled=true -- pre-fix, that left the toggle showing ON
   // forever with no token behind it (dead alerts until the user manually toggled off and back on).

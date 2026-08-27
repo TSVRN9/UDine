@@ -129,7 +129,7 @@ function HallCard({
             `.pressd` dim (#179) is PressDim's own overlay; `style` is one object, not an array,
             because <Slot> (asChild) can't take an array style on its direct child. */}
         <Link href={`/halls/${hall.slug}`} asChild>
-          <PressDim style={styles.hallZoneTap}>
+          <PressDim style={styles.hallZoneTap} accessibilityRole="button">
             <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]}>{hall.name.charAt(0)}</Text>
             {pending ? (
               <View style={[styles.hallChip, styles.hallChipClosed]}>
@@ -162,7 +162,7 @@ function HallCard({
           <Slot>"). Only the pressable itself is that direct child; its own children are unaffected.
           PressDim forwards `style` straight to its own inner Pressable, so it's a drop-in here. */}
       <Link href={grabRouteFor(hall.slug) as never} asChild>
-        <PressDim hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])}>
+        <PressDim hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])} accessibilityRole="button">
           <View style={styles.grabStripLeft}>
             <Text style={[styles.grabStripLabel, !grab.open && styles.grabStripTextClosed]}>GRAB 'N GO</Text>
             {grab.text ? <Text style={[styles.grabStripHours, !grab.open && styles.grabStripTextClosed]}>{grab.text}</Text> : null}
@@ -317,6 +317,7 @@ export function HomePane() {
                     setCafeSheetLoc(loc);
                     setCafeSheetVisible(true);
                   }}
+                  accessibilityRole="button"
                 >
                   {row}
                   <Text style={styles.retailChevron}>›</Text>
@@ -325,7 +326,7 @@ export function HomePane() {
             }
             return (
               <Link key={loc.name} href={`/cafe/${encodeURIComponent(loc.name)}`} asChild>
-                <Pressable style={styles.retailRow}>
+                <Pressable style={styles.retailRow} accessibilityRole="button">
                   {row}
                   <Text style={styles.retailChevron}>›</Text>
                 </Pressable>
@@ -340,7 +341,7 @@ export function HomePane() {
         <View style={styles.quickLinks}>
           {QUICK_LINKS.map((link) => (
             <Link key={link.href} href={link.href as never} asChild>
-              <Pressable style={styles.quickLink}>
+              <Pressable style={styles.quickLink} accessibilityRole="button">
                 <Text style={styles.quickLinkText}>{link.label}</Text>
               </Pressable>
             </Link>
