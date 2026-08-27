@@ -297,6 +297,39 @@ registration the user no longer wants to succeed. The same gate blocks a disable
 stealing an already-registered token via the `unique(platform, token)` evict-and-reassign path, since
 both paths go through the same guarded insert statement.
 
+## Unbounded column/row-size caps closed (#327, split off #228's round-2/round-3 broadening, 2026-08-27, not yet applied live)
+
+Round 2 (owner-reproduced): `shared_stats.{completion,top_foods,hall_ranks}` jsonb, `profiles.
+display_name`, and `push_tokens.token` were all unbounded for a plain authenticated user — a 50MB
+`shared_stats` insert and a 10MB `display_name` update both succeeded (TOASTed down to 586KB/117KB
+on disk, so not a storage-limit accident — a highly compressible payload sails through). 100,000
+`favorited_foods` rows for one user also succeeded. Fixed:
+
+- **shared_stats**: `check (pg_column_size(<col>) < 65536)` on each of the three jsonb columns.
+  Confirmed locally that `pg_column_size` in a CHECK evaluates the pre-TOAST (uncompressed) datum, not
+  the stored size — a CHECK using it rejects a ~100KB compressible payload that would have TOASTed to
+  well under 64KiB, which is the right side to bound (a friend's client downloads/parses the
+  uncompressed JSON). Existing oversized values are NULLed (not deleted/truncated) — consistent with
+  the table's own "privacy by presence" model, where NULL already means "not shared".
+- **profiles.display_name**: `check (char_length(display_name) between 1 and 60)`. 60, not round 2's
+  initial 64, per round 3's two independent reasons converging on it: bounds #268's attacker-chosen
+  `raw_user_meta_data->>'full_name'` impersonation text, and bounds `send-ping-push`'s unbounded
+  `senderName` title path. `handle_new_user()` now truncates to 60 itself — the CHECK alone would
+  abort real signups with a long OAuth name, turning a storage fix into an outage.
+- **push_tokens.token**: `check (char_length(token) <= 2048)` — real shapes are an Expo token
+  (~45 chars) or a stringified Web Push subscription (~300-500 chars); 2048 is >4x headroom, and
+  replaces Postgres' own unfriendly ~8191-byte btree index-entry error with a clean rejection.
+- **favorited_foods**: capped at 500 rows/user. No CHECK can reference other rows, so this is an
+  `AFTER INSERT ... FOR EACH STATEMENT` trigger with a `REFERENCING NEW TABLE` transition table — a
+  ROW-level version was tried first and does NOT work: its own `count(*)` can't see rows the same
+  bulk `INSERT` statement already added (cmin visibility), so a single 100,000-row insert (the exact
+  shape `shared/src/sync.ts`'s `syncFavoritedFoods` would send if ever fed a runaway local list) sailed
+  straight through it. The statement-level/transition-table version correctly rejects that same insert
+  while still allowing a legitimate delete-then-reinsert resync at exactly the cap.
+
+pgTAP: `supabase/tests/database/20_size_and_row_count_caps.sql`, 23 assertions, full suite green at
+21 files / 296 tests.
+
 ## Product cuts
 
 - **FAQ and staff directory (issue #50, 2026-08-19): cut, not deferred.** Official-app parity items,
