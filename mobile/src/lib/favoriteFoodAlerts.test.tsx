@@ -308,6 +308,33 @@ describe("useFavoriteFoodAlerts: refresh() never re-registers when notifications
   });
 });
 
+// #277: register_push_token now no-ops server-side (returns no row) when the caller's
+// notifications_enabled has gone false between refresh()'s profiles read and reregisterPushToken's
+// own network round trip -- the server-side close for the three residual client-side resurrection
+// windows #275's review left open. Both RPC call sites (here, and toggle()'s own registration
+// above) already destructure only `error`/`rpcError` off the RPC response and never read `data`, so
+// this is a pure verification test, not a defensive fix -- it pins that a null `data` from the RPC
+// (the shape a server-side no-op now returns) is already handled without throwing or otherwise
+// treating it as a failure.
+describe("useFavoriteFoodAlerts: refresh()'s self-heal tolerates a null register_push_token result (#277)", () => {
+  it("mounting with notifications_enabled=true and permission already granted completes cleanly when the RPC resolves with null data (server-side no-op)", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true });
+      throw new Error(`unexpected table ${name}`);
+    });
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await renderProbe();
+    await flush();
+
+    expect(mockRpc).toHaveBeenCalledWith("register_push_token", { p_platform: "expo", p_token: "ExponentPushToken[test]" });
+    // The self-heal's null-data RPC response is not an error -- notificationsEnabled stays exactly
+    // what the server reported, and rendering never throws (a thrown error inside refresh() would
+    // have failed this test via an unhandled rejection/act() warning, not just a wrong assertion).
+    expect(hookRef!.notificationsEnabled).toBe(true);
+  });
+});
+
 // PR #286 review (Part B): notifications_enabled defaulting true (#248) means a brand-new signed-in
 // user can have `notificationsEnabled: true` server-side while this device has never actually
 // granted OS notification permission -- no token registered, no favorites synced. Consumers
