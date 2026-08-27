@@ -4,6 +4,7 @@ import {
   isHorizontalSwipe,
   PANE_COUNT,
   paneDelta,
+  paneDragPosition,
   paneIndexForSwipe,
   paneOffsetRange,
   paneVisibility,
@@ -91,5 +92,34 @@ describe("paneIndexForSwipe", () => {
   it("clamps at the ends instead of wrapping", () => {
     expect(paneIndexForSwipe(0, SWIPE_COMMIT_PX)).toBe(0);
     expect(paneIndexForSwipe(2, -SWIPE_COMMIT_PX)).toBe(2);
+  });
+});
+
+// #245 item 2: the pane must track the finger continuously mid-drag, not just snap on commit.
+// SWIPE_COMMIT_PX doubles as the full-pane-slide divisor, so the visual position finishes its
+// slide to the neighbor at exactly the same drag distance where paneIndexForSwipe commits to it --
+// release before that point settles back, release past it completes the same motion already in
+// flight instead of jumping.
+describe("paneDragPosition", () => {
+  it("stays put with no movement", () => {
+    expect(paneDragPosition(1, 0)).toBe(1);
+  });
+
+  it("moves proportionally toward the next pane on a leftward drag", () => {
+    expect(paneDragPosition(1, -SWIPE_COMMIT_PX / 2)).toBe(1.5);
+  });
+
+  it("moves proportionally toward the previous pane on a rightward drag", () => {
+    expect(paneDragPosition(1, SWIPE_COMMIT_PX / 2)).toBe(0.5);
+  });
+
+  it("reaches exactly the neighboring index at the same drag distance paneIndexForSwipe commits at", () => {
+    expect(paneDragPosition(1, -SWIPE_COMMIT_PX)).toBe(paneIndexForSwipe(1, -SWIPE_COMMIT_PX));
+    expect(paneDragPosition(1, SWIPE_COMMIT_PX)).toBe(paneIndexForSwipe(1, SWIPE_COMMIT_PX));
+  });
+
+  it("clamps at the ends instead of dragging past the first/last pane", () => {
+    expect(paneDragPosition(0, SWIPE_COMMIT_PX)).toBe(0);
+    expect(paneDragPosition(2, -SWIPE_COMMIT_PX)).toBe(2);
   });
 });

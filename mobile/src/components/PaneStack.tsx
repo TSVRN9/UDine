@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, Easing, PanResponder, StyleSheet, View } from "react-native";
 import { PaneHeader } from "./PaneHeader";
-import { isHorizontalSwipe, paneIndexForSwipe, paneOffsetRange, paneVisibility } from "../lib/paneShell";
+import { isHorizontalSwipe, paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility } from "../lib/paneShell";
 import { colors, fs } from "../lib/theme";
 
 // The artboard's own cubic-bezier for the pane transform (#179 styling spec).
@@ -27,12 +27,17 @@ const PANE_OFFSET = fs(36);
  * would reappear from a different cause (an Animated.Value defaulting to 0 = Social) if these
  * weren't seeded correctly.
  *
- * Swipe: a discrete commit (±1 pane, clamped), not a drag-proportional position -- the artboard's
- * transition curves are keyed to an integer activePane flip, so a continuous drag→position mapping
- * would abandon those curves mid-gesture. `onMoveShouldSetPanResponder` (not `onStartShouldSet`)
- * with horizontal-dominance gating so each pane's own vertical ScrollView still wins ordinary
- * scrolls -- same PanResponder-only approach SocialPane's ping gesture already uses in this app
- * (no gesture-handler/reanimated dependency).
+ * Swipe (#245 item 2): the commit target is still discrete (±1 pane, clamped) -- the artboard's
+ * transition curves are keyed to an integer activePane flip -- but the animated position now
+ * tracks the drag continuously via `paneDragPosition` (dx / SWIPE_COMMIT_PX from the pane the
+ * gesture started on), settling to the committed index with the decided motion (340ms transform /
+ * 260ms opacity) on release. `onMoveShouldSetPanResponder` (not `onStartShouldSet`) with
+ * horizontal-dominance gating so each pane's own vertical ScrollView still wins ordinary scrolls --
+ * same PanResponder-only approach SocialPane's ping gesture already uses in this app (no
+ * gesture-handler/reanimated dependency). `panePos`/`paneOpacityPos` are also handed to PaneHeader
+ * so its title crossfade tracks the same drag (the dot morph stays commit-only -- it animates
+ * width/height/backgroundColor with useNativeDriver: false, which can't share a native-driven
+ * value with the panes' transform/opacity).
  */
 export function PaneStack({
   panes,
@@ -58,15 +63,40 @@ export function PaneStack({
     Animated.timing(paneOpacityPos, { toValue: activeIndex, duration: 260, easing: Easing.ease, useNativeDriver: true }).start();
   }, [activeIndex, panePos, paneOpacityPos]);
 
+  // Separate from the effect above (not a shared/memoized helper referenced by both): the effect's
+  // dependency array must stay exactly [activeIndex, panePos, paneOpacityPos] so it only re-fires on
+  // a real commit, not on every render -- an un-memoized closure sitting in that array would restart
+  // the animation constantly (Home re-renders often: hours fetch, favorites, focus). This one runs
+  // only from the gesture handlers below, imperatively, never from a dependency array.
+  function settlePosition(target: number) {
+    Animated.timing(panePos, { toValue: target, duration: 340, easing: PANE_CURVE, useNativeDriver: true }).start();
+    Animated.timing(paneOpacityPos, { toValue: target, duration: 260, easing: Easing.ease, useNativeDriver: true }).start();
+  }
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_e, gesture) => isHorizontalSwipe(gesture.dx, gesture.dy),
       onPanResponderGrant: () => {
         dragStartIndex.current = activeIndexRef.current;
+        // A settle from the previous gesture (release/terminate) can still be in flight when a new
+        // drag starts -- stop it so onPanResponderMove's setValue below isn't fighting a timing.
+        panePos.stopAnimation();
+        paneOpacityPos.stopAnimation();
+      },
+      onPanResponderMove: (_e, gesture) => {
+        const dragPos = paneDragPosition(dragStartIndex.current, gesture.dx);
+        panePos.setValue(dragPos);
+        paneOpacityPos.setValue(dragPos);
       },
       onPanResponderRelease: (_e, gesture) => {
         const next = paneIndexForSwipe(dragStartIndex.current, gesture.dx);
+        settlePosition(next);
         if (next !== activeIndexRef.current) onActiveIndexChange(next);
+      },
+      // A responder can be preempted mid-drag (e.g. a parent gesture/navigation stealing it) --
+      // settle back to where the drag started instead of stranding the pane at a fractional offset.
+      onPanResponderTerminate: () => {
+        settlePosition(dragStartIndex.current);
       },
     }),
   ).current;
@@ -94,7 +124,13 @@ export function PaneStack({
           </Animated.View>
         );
       })}
-      <PaneHeader activeIndex={activeIndex} onSelectPane={onActiveIndexChange} topInset={topInset} />
+      <PaneHeader
+        activeIndex={activeIndex}
+        onSelectPane={onActiveIndexChange}
+        topInset={topInset}
+        titlePos={panePos}
+        titleOpacityPos={paneOpacityPos}
+      />
     </View>
   );
 }
