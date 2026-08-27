@@ -94,10 +94,22 @@
 		URL.revokeObjectURL(url);
 	}
 
+	// #322: the eight exporters below each do "read from IndexedDB, then hand the result to
+	// download()" -- the only thing that can actually throw (openDb() rejecting, issue #193) is the
+	// read. One shared guard collapses eight identical try/catches into one, surfacing the existing
+	// loadError banner instead of leaving each button a silent no-op on a blocked/failed open.
+	async function guardedDownload(fn: () => Promise<void>) {
+		try {
+			await fn();
+		} catch {
+			loadError = true;
+		}
+	}
+
 	async function exportJson() {
 		if (!storage) return;
-		const all = await storage.getAllEntries();
-		download(exportEntriesAsJson(all), "udine-log.json", "application/json");
+		const s = storage;
+		await guardedDownload(async () => download(exportEntriesAsJson(await s.getAllEntries()), "udine-log.json", "application/json"));
 	}
 
 	// #148: the log's exporters above have twins for the other two always-device-local stores
@@ -106,58 +118,74 @@
 	// into one file.
 	async function exportRankedDishesJson() {
 		if (!rankingStorage) return;
-		download(exportRankedDishesAsJson(await rankingStorage.getRankedDishes()), "udine-ranked-dishes.json", "application/json");
+		const s = rankingStorage;
+		await guardedDownload(async () => download(exportRankedDishesAsJson(await s.getRankedDishes()), "udine-ranked-dishes.json", "application/json"));
 	}
 
 	async function exportRankedDishesCsv() {
 		if (!rankingStorage) return;
-		download(exportRankedDishesAsCsv(await rankingStorage.getRankedDishes()), "udine-ranked-dishes.csv", "text/csv");
+		const s = rankingStorage;
+		await guardedDownload(async () => download(exportRankedDishesAsCsv(await s.getRankedDishes()), "udine-ranked-dishes.csv", "text/csv"));
 	}
 
 	async function exportRankedFoodsJson() {
 		if (!rankingStorage) return;
-		download(exportRankedFoodsAsJson(await rankingStorage.getRankedFoods()), "udine-ranked-foods.json", "application/json");
+		const s = rankingStorage;
+		await guardedDownload(async () => download(exportRankedFoodsAsJson(await s.getRankedFoods()), "udine-ranked-foods.json", "application/json"));
 	}
 
 	async function exportRankedFoodsCsv() {
 		if (!rankingStorage) return;
-		download(exportRankedFoodsAsCsv(await rankingStorage.getRankedFoods()), "udine-ranked-foods.csv", "text/csv");
+		const s = rankingStorage;
+		await guardedDownload(async () => download(exportRankedFoodsAsCsv(await s.getRankedFoods()), "udine-ranked-foods.csv", "text/csv"));
 	}
 
 	async function exportFavoritesJson() {
 		if (!favoritesStorage) return;
-		download(exportFavoritesAsJson(await favoritesStorage.getFavorites()), "udine-favorites.json", "application/json");
+		const s = favoritesStorage;
+		await guardedDownload(async () => download(exportFavoritesAsJson(await s.getFavorites()), "udine-favorites.json", "application/json"));
 	}
 
 	async function exportFavoritesCsv() {
 		if (!favoritesStorage) return;
-		download(exportFavoritesAsCsv(await favoritesStorage.getFavorites()), "udine-favorites.csv", "text/csv");
+		const s = favoritesStorage;
+		await guardedDownload(async () => download(exportFavoritesAsCsv(await s.getFavorites()), "udine-favorites.csv", "text/csv"));
 	}
 
 	async function exportCsv() {
 		if (!storage) return;
-		const all = await storage.getAllEntries();
-		download(exportEntriesAsCsv(all), "udine-log.csv", "text/csv");
+		const s = storage;
+		await guardedDownload(async () => download(exportEntriesAsCsv(await s.getAllEntries()), "udine-log.csv", "text/csv"));
 	}
 
 	// Remove is destructive and one click away, with no confirm step. Rather than adding a modal for
 	// something this small, keep the entry around and offer an undo — the entry is a plain object and
 	// addEntry() is keyed on its own id, so putting it back is exact, not a reconstruction.
+	// #322: whole body in one try/catch -- same "don't let a later successful read wipe the error
+	// flag out from under a failed write" reasoning as / -- toggleFavoriteHall.
 	async function removeEntry(entry: LogEntry) {
 		if (!storage) return;
-		await storage.removeEntry(entry.id);
-		await refresh();
-		removed = entry;
-		clearTimeout(removedTimer);
-		removedTimer = setTimeout(() => (removed = undefined), 8000);
+		try {
+			await storage.removeEntry(entry.id);
+			await refresh();
+			removed = entry;
+			clearTimeout(removedTimer);
+			removedTimer = setTimeout(() => (removed = undefined), 8000);
+		} catch {
+			loadError = true;
+		}
 	}
 
 	async function undoRemove() {
 		if (!storage || !removed) return;
-		await storage.addEntry($state.snapshot(removed));
-		removed = undefined;
-		clearTimeout(removedTimer);
-		await refresh();
+		try {
+			await storage.addEntry($state.snapshot(removed));
+			removed = undefined;
+			clearTimeout(removedTimer);
+			await refresh();
+		} catch {
+			loadError = true;
+		}
 	}
 </script>
 

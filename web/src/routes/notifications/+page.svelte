@@ -273,7 +273,20 @@
 
 		// Sync (or clear) favorited_foods to match the new state — see CLAUDE.md: favorited_foods only
 		// syncs when signed in AND notifications_enabled.
-		const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
+		// #322: getFavorites() reads IndexedDB (openDb(), issue #193's bug class -- e.g. a blocked
+		// open from a stale pre-deploy tab) and was unguarded here. Falls back to [] on a failed
+		// read (same "clear, don't leave stale data" direction as the OFF branch) and surfaces the
+		// existing notificationsError badge instead of leaving this an unhandled rejection.
+		let favorites: Favorite[] = [];
+		if (next) {
+			try {
+				favorites = await favoritesStorage.getFavorites();
+			} catch {
+				console.error("Couldn't read favorites from IndexedDB");
+				notificationsError = true;
+				setTimeout(() => (notificationsError = false), 3000);
+			}
+		}
 		const { error: favoritesSyncError } = await syncFavoritedFoods(supabase, session.user.id, favorites);
 		// #190: this was previously read only on the ON branch below (via needsPermission) and
 		// silently discarded on the OFF branch entirely -- a failed clear left favorited_foods still
