@@ -7,7 +7,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(32);
+select plan(43);
 
 insert into auth.users
   (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_confirmed_at)
@@ -222,12 +222,21 @@ reset role;
 select set_config('app.qr_token', (select token::text from public.qr_tokens where user_id = '00000000-0000-0000-0000-000000000001'), false);
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
-select public.redeem_qr_token(current_setting('app.qr_token')::uuid);
+-- #250 (item 2): captured into a session GUC (not a bare statement) so the RPC's own JSON return
+-- can be asserted too, not just the resulting table row.
+select set_config('app.redeem_result', (select public.redeem_qr_token(current_setting('app.qr_token')::uuid))::text, false);
 reset role;
 select is(
   (select status from public.friendships where user_a = '00000000-0000-0000-0000-000000000001' and user_b = '00000000-0000-0000-0000-000000000002'),
   'pending',
   'redeeming a valid token creates a pending friendship, not yet accepted'
+);
+-- #250 (item 1/2): a genuinely fresh in-person add is never flagged already_friends -- this is the
+-- fresh-mint half of the on-conflict hand-back's contract.
+select is(
+  (current_setting('app.redeem_result')::jsonb ->> 'already_friends'),
+  'false',
+  'redeem_qr_token''s own JSON return is not flagged already_friends for a fresh insert'
 );
 select is(
   (select origin from public.friendships where user_a = '00000000-0000-0000-0000-000000000001' and user_b = '00000000-0000-0000-0000-000000000002'),
@@ -373,6 +382,138 @@ select throws_like(
   $$update public.friendships set status = 'accepted' where user_a = '00000000-0000-0000-0000-000000000001' and user_b = '00000000-0000-0000-0000-000000000002' and origin = 'qr'$$,
   '%friendships_qr_needs_both_confirms%',
   'WITH the constraint restored, the same one-sided flip to accepted is rejected at the DB layer'
+);
+
+-- ---------------------------------------------------------------------------------------------
+-- #250 (item 2): redeem_qr_token's on-conflict-do-nothing hand-back was previously only
+-- *mentioned* in a cleanup comment (the delete right before (16) re-runs the fresh-mint path
+-- above) -- the exact behavior that caused #236's data loss was never actually asserted. These
+-- pin BOTH halves of the contract (fresh mint vs. existing-row hand-back) across every
+-- status/origin combination redeem_qr_token can hand back, plus the already_friends signal #250
+-- item 1 adds. carol (03) and dave (04) are unused as a pair up to this point in the file, so
+-- their state here isn't inherited from -- or leaked into -- anything above.
+-- ---------------------------------------------------------------------------------------------
+
+-- carol scans dave's code for the first time: a genuinely fresh insert, same shape as (16).
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000004"}';
+select public.mint_qr_token();
+reset role;
+select set_config('app.dave_token', (select token::text from public.qr_tokens where user_id = '00000000-0000-0000-0000-000000000004'), false);
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000003"}';
+select set_config('app.redeem_result', (select public.redeem_qr_token(current_setting('app.dave_token')::uuid))::text, false);
+reset role;
+select is(
+  (current_setting('app.redeem_result')::jsonb ->> 'already_friends'),
+  'false',
+  'a fresh in-person redeem between carol and dave is not flagged already_friends'
+);
+select is(
+  (select status = 'pending' and origin = 'qr' from public.friendships where user_a = '00000000-0000-0000-0000-000000000003' and user_b = '00000000-0000-0000-0000-000000000004'),
+  true,
+  'the fresh redeem creates a pending, qr-origin row for carol/dave'
+);
+
+-- carol scans the SAME still-valid (un-expired, not one-shot) code again before either side
+-- confirms -- on-conflict-do-nothing hands back the still-pending row untouched, not a second
+-- insert and not yet "already friends".
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000003"}';
+select set_config('app.redeem_result', (select public.redeem_qr_token(current_setting('app.dave_token')::uuid))::text, false);
+reset role;
+select is(
+  (current_setting('app.redeem_result')::jsonb ->> 'already_friends'),
+  'false',
+  're-scanning the same still-pending qr code before either side confirms is not flagged already_friends'
+);
+select is(
+  (select status = 'pending' and confirmed_a is null and confirmed_b is null from public.friendships where user_a = '00000000-0000-0000-0000-000000000003' and user_b = '00000000-0000-0000-0000-000000000004'),
+  true,
+  'the hand-back leaves the still-unconfirmed row exactly as it was -- no second row, no stray confirm'
+);
+
+-- both sides confirm -- carol/dave is now an accepted, qr-origin friendship.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000003"}';
+select public.confirm_friendship('00000000-0000-0000-0000-000000000004');
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000004"}';
+select public.confirm_friendship('00000000-0000-0000-0000-000000000003');
+reset role;
+
+-- carol scans dave's (still-valid) code a third time, now that they're accepted -- this is #250's
+-- actual dead end: the hand-back must say so via already_friends, and must never re-litigate the
+-- row (status/origin unchanged).
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000003"}';
+select set_config('app.redeem_result', (select public.redeem_qr_token(current_setting('app.dave_token')::uuid))::text, false);
+reset role;
+select is(
+  (current_setting('app.redeem_result')::jsonb ->> 'already_friends'),
+  'true',
+  're-scanning an already-accepted qr-origin friendship IS flagged already_friends (#250)'
+);
+select is(
+  (select status = 'accepted' and origin = 'qr' from public.friendships where user_a = '00000000-0000-0000-0000-000000000003' and user_b = '00000000-0000-0000-0000-000000000004'),
+  true,
+  'the hand-back leaves the accepted qr-origin row unchanged'
+);
+
+-- alice/dave's accepted SEARCH-origin friendship (seeded at the very top of this file, untouched
+-- since) is the other half of #250's reported symptom: "a friend they added via search". dave
+-- mints a code, alice scans it -- on-conflict-do-nothing hands back that pre-existing row.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000004"}';
+select public.mint_qr_token();
+reset role;
+select set_config('app.dave_token', (select token::text from public.qr_tokens where user_id = '00000000-0000-0000-0000-000000000004'), false);
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000001"}';
+select set_config('app.redeem_result', (select public.redeem_qr_token(current_setting('app.dave_token')::uuid))::text, false);
+reset role;
+select is(
+  (current_setting('app.redeem_result')::jsonb ->> 'already_friends'),
+  'true',
+  'scanning the code of an already-accepted SEARCH-origin friend IS flagged already_friends (#250''s reported scenario)'
+);
+select is(
+  (select status = 'accepted' and origin = 'search' from public.friendships where user_a = '00000000-0000-0000-0000-000000000001' and user_b = '00000000-0000-0000-0000-000000000004'),
+  true,
+  'the hand-back never overwrites the existing search origin or status'
+);
+
+-- bob has a pending SEARCH-origin request out to dave (not yet accepted). Scanning dave's code
+-- in person hands back that same pending row rather than minting a competing qr-origin one --
+-- still not "already friends" (nothing has been accepted yet), and origin must stay 'search', not
+-- get silently reassigned to 'qr' by the conflicting insert attempt.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
+select public.request_friendship('00000000-0000-0000-0000-000000000004');
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000004"}';
+select public.mint_qr_token();
+reset role;
+select set_config('app.dave_token', (select token::text from public.qr_tokens where user_id = '00000000-0000-0000-0000-000000000004'), false);
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
+select set_config('app.redeem_result', (select public.redeem_qr_token(current_setting('app.dave_token')::uuid))::text, false);
+reset role;
+select is(
+  (current_setting('app.redeem_result')::jsonb ->> 'already_friends'),
+  'false',
+  'a still-pending SEARCH-origin request is not flagged already_friends just because it was scanned in person'
+);
+select is(
+  (select status = 'pending' and origin = 'search' from public.friendships where user_a = '00000000-0000-0000-0000-000000000002' and user_b = '00000000-0000-0000-0000-000000000004'),
+  true,
+  'the hand-back leaves the pending search-origin row''s origin untouched -- never silently reassigned to qr'
 );
 
 select * from finish();
