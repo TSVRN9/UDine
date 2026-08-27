@@ -4,7 +4,7 @@
  * pingGesture.ts/SocialPane.tsx. RPC wiring and RN wiring live in the app/ screens; this file only
  * formats/decides.
  */
-import qrcode from "qrcode-generator";
+import qrcodeGenerator from "qrcode-generator";
 
 export type FriendshipRow = {
   user_a: string;
@@ -123,7 +123,7 @@ export function findIncomingQrConfirm(rows: FriendshipRow[], myId: string): Frie
  * automatic size selection (qrcode-generator picks the smallest type that fits the data), 'M'
  * error correction is the library's own suggested default. */
 export function buildQrMatrix(data: string): boolean[][] {
-  const qr = qrcode(0, "M");
+  const qr = qrcodeGenerator(0, "M");
   qr.addData(data);
   qr.make();
   const size = qr.getModuleCount();

@@ -14,13 +14,19 @@
 #                                            # transitively, under mobile's/web's own compilers;
 #                                            # node --experimental-strip-types (above) only strips
 #                                            # types, it never checks them (#195)
+#   pnpm --filter @udine/shared lint        # shared eslint (flat config, typescript-eslint only)
 #   pnpm --filter web test                  # web unit tests (node --test, TZ=UTC pinned -- see
 #                                            # web/src/lib/date.test.ts's header comment)
 #   pnpm --filter web check                 # svelte-check, type-only
-#   cd mobile && npx tsc --noEmit           # mobile typecheck (don't run `expo lint` here — a
-#                                            # bare first run bootstraps ESLint config as a side
-#                                            # effect, see CLAUDE.md)
+#   pnpm --filter web lint                  # web eslint (flat config, eslint-plugin-svelte +
+#                                            # typescript-eslint, non-type-checked -- check/svelte-
+#                                            # check already own type-aware findings)
+#   cd mobile && npx tsc --noEmit           # mobile typecheck
 #   pnpm --filter mobile test               # mobile unit tests (jest-expo)
+#   pnpm --filter mobile lint               # mobile eslint (flat config, eslint-config-expo) --
+#                                            # was `expo lint` (bootstrapped, uncommitted config,
+#                                            # deliberately not run in CI); now a real committed
+#                                            # eslint.config.js, safe to run
 #   deno test --node-modules-dir=none --allow-env supabase/functions
 #                                            # --node-modules-dir=none: without it, deno test
 #                                            # detects pnpm-workspace.yaml and rewrites

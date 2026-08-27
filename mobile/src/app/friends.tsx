@@ -218,13 +218,13 @@ export function FriendsBody() {
               placeholder="message (optional)"
             />
             <Button variant="primary" onPress={() => sendPing(otherId)}>
-              Ping "come eat with me"
+              Ping &quot;come eat with me&quot;
             </Button>
           </Card>
         );
       })}
 
-      <Text style={styles.sectionTitle}>Pings you've received</Text>
+      <Text style={styles.sectionTitle}>Pings you&apos;ve received</Text>
       <View style={styles.thinRule} />
       {inbox.length === 0 && <Text style={styles.empty}>No pings yet.</Text>}
       {inbox.map((p) => (

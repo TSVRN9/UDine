@@ -2,13 +2,13 @@
 // resolves insets once its native view fires an onInsetsChange event, which never happens under
 // react-test-renderer -- children stay stuck unrendered. Stubbing the hook directly is the
 // documented workaround and keeps this a focused PlateBar test, not a provider-plumbing test.
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { PlateBar } from "./PlateBar";
+
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);

@@ -7,6 +7,8 @@
 // that file's other, unrelated assertions -- jest.mock is hoisted and applies to the whole module.
 import type { MealPeriod } from "@udine/shared";
 
+import { MEAL_TABS, mealTabLabel } from "./hallMenuTabs";
+
 jest.mock("@udine/shared", () => {
   const actual = jest.requireActual("@udine/shared");
   // mealPeriodLabel is mocked too (not just MEAL_PERIODS) -- otherwise the real, unmocked
@@ -15,8 +17,6 @@ jest.mock("@udine/shared", () => {
   // pass even if mealTabLabel never actually called shared's mealPeriodLabel (#161).
   return { ...actual, MEAL_PERIODS: [...actual.MEAL_PERIODS, "brunch"], mealPeriodLabel: (period: string) => `Custom ${period}` };
 });
-
-import { MEAL_TABS, mealTabLabel } from "./hallMenuTabs";
 
 describe("hallMenuTabs consumers propagate a new shared meal period (#144)", () => {
   it("MEAL_TABS includes a period added to shared's MEAL_PERIODS instead of a fixed 4-entry copy", () => {

@@ -6,6 +6,11 @@
 // notificationsScreen.test.tsx already established (profilesTable/emptyTable/flush) so both files'
 // behavior stays provably in sync.
 
+import renderer, { act } from "react-test-renderer";
+import * as Notifications from "expo-notifications";
+import { supabase } from "./supabase";
+import { useFavoriteFoodAlerts, type FavoriteFoodAlerts } from "./favoriteFoodAlerts";
+
 const mockSyncFavoritedFoods = jest.fn().mockResolvedValue({ error: null });
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
@@ -72,11 +77,6 @@ jest.mock("expo-router", () => ({
     callback();
   },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import * as Notifications from "expo-notifications";
-import { supabase } from "./supabase";
-import { useFavoriteFoodAlerts, type FavoriteFoodAlerts } from "./favoriteFoodAlerts";
 
 function session(userId: string) {
   return { data: { session: { user: { id: userId, email: `${userId}@umass.edu` } } } };

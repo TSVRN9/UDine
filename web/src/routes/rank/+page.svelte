@@ -83,6 +83,7 @@
 	async function refresh() {
 		try {
 			const entries: LogEntry[] = await logStorage.getAllEntries();
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- function-local dedup set, never assigned to $state or read reactively; plain Set is correct here.
 			const seen = new Set<string>();
 			loggedDishes = [];
 			for (const entry of entries) {

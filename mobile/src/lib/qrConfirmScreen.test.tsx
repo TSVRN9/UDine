@@ -6,6 +6,10 @@
 // RPC -- a qr-origin friendship row always exists between the two parties by the time this screen
 // loads (redeem_qr_token creates it), so the RPC's self-or-existing-relationship scope always
 // covers the target here.
+import renderer, { act } from "react-test-renderer";
+import { Alert, Text } from "react-native";
+import QrConfirmScreen from "../app/qr-confirm";
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
@@ -47,10 +51,6 @@ const mockCancelQrFriendRequest = jest.fn().mockResolvedValue({ error: null });
 jest.mock("../lib/cancelQrFriendRequest", () => ({
   cancelQrFriendRequest: (...args: unknown[]) => mockCancelQrFriendRequest(...args),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Alert, Text } from "react-native";
-import QrConfirmScreen from "../app/qr-confirm";
 
 function ownText(n: renderer.ReactTestInstance): string {
   return Array.isArray(n.props.children) ? n.props.children.join("") : String(n.props.children);

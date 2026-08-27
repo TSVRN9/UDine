@@ -7,6 +7,12 @@
 // handle_new_user itself no longer makes server-side. This test proves the screen now reads the
 // real profiles.display_name instead: revert the component's supabase.from("profiles") fetch back
 // to the old fallback chain and this goes red (renders "dave" instead of "Dave Chen").
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import * as Linking from "expo-linking";
+import { router } from "expo-router";
+import AddFriendQrScreen from "../app/add-friend-qr";
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
@@ -86,12 +92,6 @@ jest.mock("../lib/supabase", () => ({
     rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import * as Linking from "expo-linking";
-import { router } from "expo-router";
-import AddFriendQrScreen from "../app/add-friend-qr";
 
 function ownText(n: renderer.ReactTestInstance): string {
   return Array.isArray(n.props.children) ? n.props.children.join("") : String(n.props.children);

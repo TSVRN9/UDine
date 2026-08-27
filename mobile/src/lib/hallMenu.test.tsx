@@ -12,6 +12,18 @@
 // constructor's own `.mock.results` -- the constructor call already happened by then, since
 // halls/[slug].tsx instantiates its storage singletons at module top level, and importing
 // HallMenuScreen below is what loads that module.
+import renderer, { act } from "react-test-renderer";
+import { StyleSheet, Text, SectionList } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
+import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
+import { PlateBar } from "../components/PlateBar";
+import { Button } from "../components/ui";
+import { stepDate } from "./hallMenuTabs";
+import { SqliteLogStorage } from "./sqliteStorage";
+import { SqliteSeenDishesStorage } from "./seenDishesStorage";
+import { SqliteFavoritesStorage } from "./favoritesStorage";
+
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
 }));
@@ -91,18 +103,6 @@ jest.mock("./menuHoursCache", () => ({
   getCachedMenu: jest.fn(async (hallTid: number, date: Date) => mockMenuCache.get(`${hallTid}|${date.toDateString()}`) ?? null),
   fetchHoursAndCache: () => mockFetchHoursAndCache(),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { StyleSheet, Text, SectionList } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import { fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
-import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
-import { PlateBar } from "../components/PlateBar";
-import { Button } from "../components/ui";
-import { stepDate } from "./hallMenuTabs";
-import { SqliteLogStorage } from "./sqliteStorage";
-import { SqliteSeenDishesStorage } from "./seenDishesStorage";
-import { SqliteFavoritesStorage } from "./favoritesStorage";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
 const mockedRouterPush = router.push as jest.Mock;
@@ -488,7 +488,7 @@ describe("HallMenuScreen hall-info sheet wiring (#180)", () => {
   });
 
   it("fetches this hall's events via shared's fetchEvents, not a hand-rolled call", async () => {
-    const root = await renderScreen([PIZZA]);
+    await renderScreen([PIZZA]);
     await act(async () => {});
     expect(fetchEvents).toHaveBeenCalled();
   });

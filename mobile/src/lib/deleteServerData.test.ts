@@ -6,8 +6,6 @@ import { deleteServerData } from "./deleteServerData";
 // undeletable `profiles.delete(...)` step. `client()` below distinguishes the two by operation
 // (`.update()` vs `.delete()`/`.or()`), not by step name, so each can be failed independently.
 const RETRYABLE_STEPS = ["friendships", "favorited_foods", "shared_stats", "favorite_dining_halls", "notifications", "push_tokens", "pings"] as const;
-const UNDELETABLE_STEPS = ["profiles", "food_sightings", "qr_tokens"] as const;
-const ALL_STEPS = [...RETRYABLE_STEPS, ...UNDELETABLE_STEPS] as const;
 // The actual `.from(table)` calls in step order -- "profiles" appears twice (the "notifications"
 // update step, then the pre-existing "profiles" delete step).
 const CALL_TABLES = ["friendships", "favorited_foods", "shared_stats", "favorite_dining_halls", "profiles", "push_tokens", "pings", "profiles", "food_sightings", "qr_tokens"] as const;
@@ -43,7 +41,7 @@ function client(errors: Partial<Record<string, unknown>>) {
     },
     _calls: calls,
     _updates: updates,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
   } as any;
 }
 

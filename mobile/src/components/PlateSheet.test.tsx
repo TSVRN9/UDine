@@ -1,5 +1,12 @@
 // PlateSheet reads safe-area insets; no SafeAreaProvider in this render tree (same fix as
 // PlateBar.test.tsx).
+import renderer, { act } from "react-test-renderer";
+import { Text, TextInput } from "react-native";
+import { searchProducts } from "@udine/shared";
+import { PlateSheet } from "./PlateSheet";
+import { menuItemToPlateEntry, offResultToPlateEntry } from "../lib/plate";
+import type { MenuItem } from "@udine/shared";
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
@@ -8,13 +15,6 @@ jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   searchProducts: jest.fn(),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text, TextInput } from "react-native";
-import { searchProducts } from "@udine/shared";
-import { PlateSheet } from "./PlateSheet";
-import { menuItemToPlateEntry, offResultToPlateEntry } from "../lib/plate";
-import type { MenuItem } from "@udine/shared";
 
 const mockedSearchProducts = searchProducts as jest.Mock;
 

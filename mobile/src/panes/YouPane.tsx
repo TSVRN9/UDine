@@ -189,7 +189,7 @@ export function YouPane() {
 
       <View style={styles.section}>
         <SectionHeader title="Hall Completion" />
-        <Text style={styles.hint}>Distinct dishes you've logged out of everything this device has seen offered.</Text>
+        <Text style={styles.hint}>Distinct dishes you&apos;ve logged out of everything this device has seen offered.</Text>
         <Card style={styles.completionCard}>
           {completions.map((c, i) => (
             <CompletionBar key={c.hallTid} completion={c} gold={i === 0} />

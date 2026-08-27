@@ -6,6 +6,14 @@
 // items are grouped into sections by station/category, not by meal period like the hall screen, and
 // (3) the date stepper advances the day and re-fetches.
 
+import renderer, { act } from "react-test-renderer";
+import { Text, SectionList } from "react-native";
+import { fetchDiningHours, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
+import GrabNGoScreen from "../app/grab-n-go/[slug]";
+import { PlateBar } from "../components/PlateBar";
+import { Button } from "../components/ui";
+import { SqliteLogStorage } from "./sqliteStorage";
+
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
 }));
@@ -40,14 +48,6 @@ jest.mock("@udine/shared", () => ({
   fetchMenu: jest.fn(),
   fetchDiningHours: jest.fn().mockResolvedValue({ halls: [], retail: [] }),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text, SectionList } from "react-native";
-import { fetchDiningHours, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
-import GrabNGoScreen from "../app/grab-n-go/[slug]";
-import { PlateBar } from "../components/PlateBar";
-import { Button } from "../components/ui";
-import { SqliteLogStorage } from "./sqliteStorage";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
 const mockedFetchDiningHours = fetchDiningHours as jest.Mock;

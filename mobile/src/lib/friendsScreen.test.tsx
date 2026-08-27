@@ -7,6 +7,11 @@
 // convention) never lets React's setState bail-out kick in and spins until Jest's test timeout.
 // Same hazard, same fix as SocialPane.test.tsx's own mock: fire once per distinct callback
 // identity (i.e. once per `[session]` dependency change).
+import renderer, { act } from "react-test-renderer";
+import { Alert, Text, TextInput } from "react-native";
+import { supabase } from "../lib/supabase";
+import { FriendsBody } from "../app/friends";
+
 const mockSeenFocusCallbacks = new WeakSet<() => void>();
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
@@ -75,11 +80,6 @@ const mockSendOrQueuePing = jest.fn().mockResolvedValue("sent");
 jest.mock("../lib/pingQueue", () => ({
   sendOrQueuePing: (...args: unknown[]) => mockSendOrQueuePing(...args),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Alert, Text, TextInput } from "react-native";
-import { supabase } from "../lib/supabase";
-import { FriendsBody } from "../app/friends";
 
 function session(userId: string) {
   return { data: { session: { user: { id: userId, email: `${userId}@umass.edu` } } } };

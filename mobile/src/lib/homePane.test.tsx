@@ -1,6 +1,10 @@
 // Explicit factories, not bare automocks -- automock still imports the real module to derive its
 // shape, and the real ../lib/supabase / ../lib/firstRun both drag in native bindings (AsyncStorage,
 // the Supabase client's url/key validation) unavailable outside jest-expo's native harness.
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import { HomePane } from "../app/index";
+
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -37,10 +41,6 @@ jest.mock("expo-router", () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn() },
   useFocusEffect: (_callback: () => void) => {},
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import { HomePane } from "../app/index";
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);

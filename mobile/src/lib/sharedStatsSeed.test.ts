@@ -1,9 +1,9 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { dismissSharedStatsDisclosure, hasSeededSharedStatsDefault, isSharedStatsDisclosureDismissed, markSharedStatsDefaultSeeded } from "./sharedStatsSeed";
+
 jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 );
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { dismissSharedStatsDisclosure, hasSeededSharedStatsDefault, isSharedStatsDisclosureDismissed, markSharedStatsDefaultSeeded } from "./sharedStatsSeed";
 
 describe("shared-stats default-on seed marker (#248 Part C)", () => {
   beforeEach(async () => {

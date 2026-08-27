@@ -1,10 +1,10 @@
+import { digest, getRandomValues } from "expo-crypto";
+import { installWebCrypto } from "./webCryptoPolyfill";
+
 jest.mock("expo-crypto", () => ({
   digest: jest.fn(async (_algorithm: string, _data: Uint8Array) => new ArrayBuffer(32)),
   getRandomValues: jest.fn((arr: Uint8Array) => arr),
 }));
-
-import { digest, getRandomValues } from "expo-crypto";
-import { installWebCrypto } from "./webCryptoPolyfill";
 
 describe("installWebCrypto", () => {
   it("wires crypto.subtle.digest to expo-crypto's digest, normalizing a string or {name} algorithm", async () => {

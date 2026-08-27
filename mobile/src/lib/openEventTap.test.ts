@@ -2,6 +2,10 @@
 // (objectContaining with 2 of 5 keys let a renamed key silently blank the pamphlet's banner) and
 // WebBrowser.openBrowserAsync's rejection was unhandled (a double-tap's "already being presented"
 // error vanished silently). Both live in openEventTap now -- test them here, once, for every caller.
+import { Alert } from "react-native";
+import type { DiningEvent } from "@udine/shared";
+import { openEventTap } from "./openEventTap";
+
 const mockRouterPush = jest.fn();
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockRouterPush(...args) },
@@ -11,10 +15,6 @@ const mockOpenBrowserAsync = jest.fn();
 jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (...args: unknown[]) => mockOpenBrowserAsync(...args),
 }));
-
-import { Alert } from "react-native";
-import type { DiningEvent } from "@udine/shared";
-import { openEventTap } from "./openEventTap";
 
 const linkEvent: DiningEvent = {
   title: "Fall Fest",

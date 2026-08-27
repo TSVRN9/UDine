@@ -1,5 +1,8 @@
 import type { DiningHoursFeed, MenuItem } from "@udine/shared";
 
+import { fetchHoursAndCache, getCachedHours, getCachedMenu, saveCachedHours, saveCachedMenu } from "./menuHoursCache";
+import { __resetRetailNamesForTest, hallOrRetailName } from "./retailHallNames";
+
 // Same fake expo-sqlite technique as seenDishesStorage.test.ts -- a single preferences_kv row set
 // keyed by SQL text's positional `?` params, mocked at the expo-sqlite boundary (not "./db") so
 // getDb()'s own table-creation/singleton code stays in play. The real native module can't run
@@ -21,9 +24,6 @@ jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchDiningHours: () => mockFetchDiningHours(),
 }));
-
-import { fetchHoursAndCache, getCachedHours, getCachedMenu, saveCachedHours, saveCachedMenu } from "./menuHoursCache";
-import { __resetRetailNamesForTest, hallOrRetailName } from "./retailHallNames";
 
 beforeEach(() => {
   mockRows.clear();

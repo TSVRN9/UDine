@@ -9,6 +9,13 @@
 // closed over an outer-scope mock var would capture it before it's initialized (see
 // YouPane.test.tsx's own comment on this exact hazard). A second `new SqliteLogStorage()` etc.
 // below grabs the same jest.fn() references the factory closed over.
+import type { LogEntry, RankedDish } from "@udine/shared";
+import * as FileSystem from "expo-file-system/legacy";
+import { SqliteFavoritesStorage } from "./favoritesStorage";
+import { SqliteLogStorage } from "./sqliteStorage";
+import { SqliteRankingStorage } from "./rankingStorage";
+import { exportFavorites, exportLog, exportRankedDishes, exportRankedFoods } from "./exportShare";
+
 jest.mock("./sqliteStorage", () => {
   const getAllEntries = jest.fn();
   return { SqliteLogStorage: jest.fn().mockImplementation(() => ({ getAllEntries })) };
@@ -25,13 +32,6 @@ jest.mock("./favoritesStorage", () => {
 
 jest.mock("expo-file-system/legacy", () => ({ cacheDirectory: "file:///cache/", writeAsStringAsync: jest.fn() }));
 jest.mock("expo-sharing", () => ({ isAvailableAsync: jest.fn().mockResolvedValue(false), shareAsync: jest.fn() }));
-
-import type { LogEntry, RankedDish } from "@udine/shared";
-import * as FileSystem from "expo-file-system/legacy";
-import { SqliteFavoritesStorage } from "./favoritesStorage";
-import { SqliteLogStorage } from "./sqliteStorage";
-import { SqliteRankingStorage } from "./rankingStorage";
-import { exportFavorites, exportLog, exportRankedDishes, exportRankedFoods } from "./exportShare";
 
 const mockWriteAsStringAsync = FileSystem.writeAsStringAsync as jest.Mock;
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock };

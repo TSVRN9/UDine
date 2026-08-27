@@ -2,6 +2,13 @@
 // src/app/ as a candidate route (see redirect.test.tsx's own note) -- imports NotificationsBody
 // by relative path instead, same pattern as friendProfileScreen.test.tsx/privacyScreen.test.tsx.
 
+import renderer, { act } from "react-test-renderer";
+import { Alert, Switch } from "react-native";
+import * as Notifications from "expo-notifications";
+import { supabase } from "../lib/supabase";
+import { signOut } from "../lib/auth";
+import { NotificationsBody } from "../app/notifications";
+
 const mockSyncFavoritedFoods = jest.fn().mockResolvedValue({ error: null });
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
@@ -127,13 +134,6 @@ jest.mock("expo-router", () => ({
     callback();
   },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Alert, Switch } from "react-native";
-import * as Notifications from "expo-notifications";
-import { supabase } from "../lib/supabase";
-import { signOut } from "../lib/auth";
-import { NotificationsBody } from "../app/notifications";
 
 function session(userId: string) {
   return { data: { session: { user: { id: userId, email: `${userId}@umass.edu` } } } };

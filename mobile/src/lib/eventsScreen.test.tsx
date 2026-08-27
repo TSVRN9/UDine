@@ -9,6 +9,10 @@
 // openEventTap dispatcher SocialPane's EventCard uses, so the two behave identically for the same
 // event. openEventTap itself is covered thoroughly in openEventTap.test.ts; this file just proves
 // the screen actually wires taps through it.
+import renderer, { act } from "react-test-renderer";
+import type { DiningEvent } from "@udine/shared";
+import EventsScreen from "../app/events";
+
 const mockOpenEventTap = jest.fn();
 jest.mock("./openEventTap", () => ({ openEventTap: (...args: unknown[]) => mockOpenEventTap(...args) }));
 
@@ -17,10 +21,6 @@ jest.mock("@udine/shared", () => ({
   fetchEvents: () => mockFetchEvents(),
 }));
 const mockFetchEvents = jest.fn();
-
-import renderer, { act } from "react-test-renderer";
-import type { DiningEvent } from "@udine/shared";
-import EventsScreen from "../app/events";
 
 const fallFest: DiningEvent = { title: "Fall Fest", featuredImage: "", pdfLink: "", externalLink: "https://example.com", expirationDate: "2026-09-01T16:00:00.000Z", isFeatured: false };
 

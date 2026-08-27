@@ -4,6 +4,10 @@
 // producing both artifacts) -- exportShare.ts's own read/serialize/share-sheet behavior is
 // mutation-tested directly in exportShare.test.ts, so it's mocked here rather than re-tested.
 
+import renderer, { act } from "react-test-renderer";
+import { Alert, Text } from "react-native";
+import ExportScreen from "../app/export";
+
 jest.mock("./sqliteStorage", () => {
   const getAllEntries = jest.fn().mockResolvedValue([]);
   return { SqliteLogStorage: jest.fn().mockImplementation(() => ({ getAllEntries })) };
@@ -36,10 +40,6 @@ jest.mock("expo-router", () => ({
 }));
 
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));
-
-import renderer, { act } from "react-test-renderer";
-import { Alert, Text } from "react-native";
-import ExportScreen from "../app/export";
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root

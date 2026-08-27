@@ -1,5 +1,14 @@
 import type { DiningEvent } from "@udine/shared";
 
+import renderer, { act } from "react-test-renderer";
+import { Image, Text, View } from "react-native";
+import type { Session } from "@supabase/supabase-js";
+import { DINING_HALLS } from "@udine/shared";
+import { SocialPane } from "./SocialPane";
+import { supabase } from "../lib/supabase";
+import { colors } from "../lib/theme";
+import { PING_MESSAGES } from "../lib/pingGesture";
+
 // Real @udine/shared's fetchEvents does a live network fetch -- keep everything else (DINING_HALLS
 // etc., which SocialPane also imports) real, stub just the network call. Same pattern as
 // menuFetchWithSeenTracking.test.ts's @udine/shared partial mock.
@@ -83,15 +92,6 @@ jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (...args: unknown[]) => mockOpenBrowserAsync(...args),
 }));
 
-import renderer, { act } from "react-test-renderer";
-import { Image, Text, View } from "react-native";
-import type { Session } from "@supabase/supabase-js";
-import { DINING_HALLS } from "@udine/shared";
-import { SocialPane } from "./SocialPane";
-import { supabase } from "../lib/supabase";
-import { colors } from "../lib/theme";
-import { PING_MESSAGES } from "../lib/pingGesture";
-
 function texts(root: renderer.ReactTestRenderer) {
   return root.root
     .findAllByType(Text)
@@ -167,7 +167,7 @@ function fakeTouchEvent(pageX: number, pageY: number, timeStamp: number) {
       indexOfSingleActiveTouch: 0,
       mostRecentTimeStamp: timeStamp,
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
   } as any;
 }
 
