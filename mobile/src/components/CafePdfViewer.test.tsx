@@ -86,9 +86,10 @@ function lastWebViewProps(): CapturedWebViewProps {
 
 describe("#325: vendored pdf.js ships as expo-asset bundled assets, not inline base64 constants", () => {
   it("pdfjs.ts has no giant inline string literal -- the old base64-JS-constant approach re-shipped ~1.88MB on every OTA update regardless of whether the update touched PDF viewing", () => {
-    const source = fs.readFileSync(path.join(__dirname, "../vendor/pdfjs.ts"), "utf8");
-    const longestStringLiteral = Math.max(0, ...[...source.matchAll(/"(?:[^"\\]|\\.)*"/g)].map((m) => m[0].length));
-    expect(longestStringLiteral).toBeLessThan(1000);
+    // A plain file-size check, not a string-literal scan -- robust to quote style (template
+    // literal, single, double) and doesn't build an array of giant matches to Math.max over.
+    const { size } = fs.statSync(path.join(__dirname, "../vendor/pdfjs.ts"));
+    expect(size).toBeLessThan(10_000);
   });
 
   it("resolves both vendored scripts via expo-asset's Asset.fromModule + downloadAsync, not a hardcoded constant", async () => {
