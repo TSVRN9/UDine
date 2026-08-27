@@ -83,6 +83,19 @@ afterEach(() => {
   alertSpy.mockRestore();
 });
 
+describe("ExportScreen: export button style (#245 item 4 known nit)", () => {
+  // exportButton's `gap` was inert -- "↓ EXPORT" is a single Text node, so there was never a
+  // second sibling for a flex gap to space out. Dead style prop, not a real fix; assert it's gone.
+  it("has no dead `gap` prop, since it lays out a single Text child", async () => {
+    const root = await renderScreen();
+    const exportText = root.root.findAllByType(Text).find((n) => n.props.children === "↓ EXPORT");
+    let node = exportText!.parent;
+    while (node && typeof node.props.onPress !== "function") node = node.parent;
+    const style = Array.isArray(node!.props.style) ? Object.assign({}, ...node!.props.style.filter(Boolean)) : node!.props.style;
+    expect(style.gap).toBeUndefined();
+  });
+});
+
 describe("ExportScreen: selection + zero-selection guard", () => {
   it("starts with nothing selected and the EXPORT button disabled", async () => {
     const root = await renderScreen();

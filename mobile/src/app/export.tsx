@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   bottomBarLeft: { flex: 1, gap: 2 },
   selectedCount: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.paper50 },
   selectedNames: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.paper50, 65) },
-  exportButton: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), backgroundColor: colors.gold500, borderRadius: radii.md, height: fs(48), paddingHorizontal: spacing(6.5) },
+  exportButton: { flexDirection: "row", alignItems: "center", backgroundColor: colors.gold500, borderRadius: radii.md, height: fs(48), paddingHorizontal: spacing(6.5) },
   exportButtonDisabled: { backgroundColor: "rgba(201,154,46,0.35)" },
   exportButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   exportButtonTextDisabled: { color: "rgba(59,10,15,0.6)" },
