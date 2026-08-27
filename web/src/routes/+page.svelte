@@ -48,6 +48,11 @@
 	const rankingStorage = new IndexedDbRankingStorage();
 	let rankedDishes: RankedDish[] = $state([]);
 	let rankedLoaded = $state(false);
+
+	// Set when the IndexedDB open itself fails (issue #193 -- e.g. a stale tab from before a deploy
+	// blocking this version's open). Without this, the refresh*() rejections below are unhandled and
+	// the dashboard just sits on its empty state forever with no indication anything is wrong.
+	let loadError = $state(false);
 	const topDishes = $derived(rankDishes(rankedDishes).slice(0, 3));
 
 	const today = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
@@ -78,8 +83,12 @@
 	}
 
 	async function refreshRanking() {
-		rankedDishes = await rankingStorage.getRankedDishes();
-		rankedLoaded = true;
+		try {
+			rankedDishes = await rankingStorage.getRankedDishes();
+			rankedLoaded = true;
+		} catch {
+			loadError = true;
+		}
 	}
 
 	function closeFirstRun() {
@@ -88,15 +97,24 @@
 	}
 
 	async function refreshFavorites() {
-		const favorites = await favoritesStorage.getFavorites();
-		favoriteHallTids = new Set(favorites.filter((f) => f.type === "location").map((f) => f.hallTid));
+		try {
+			const favorites = await favoritesStorage.getFavorites();
+			favoriteHallTids = new Set(favorites.filter((f) => f.type === "location").map((f) => f.hallTid));
+			loadError = false;
+		} catch {
+			loadError = true;
+		}
 	}
 
 	async function refreshLog() {
 		if (!logStorage) return;
-		entries = await logStorage.getEntriesForDate(date);
-		totals = computeDailyTotals(date, entries);
-		loaded = true;
+		try {
+			entries = await logStorage.getEntriesForDate(date);
+			totals = computeDailyTotals(date, entries);
+			loaded = true;
+		} catch {
+			loadError = true;
+		}
 	}
 
 	async function toggleFavoriteHall(hallTid: number) {
@@ -118,6 +136,12 @@
 	</p>
 	<p class="mt-1 font-mono text-xs tracking-widest text-ink-900/50 uppercase">{today}</p>
 </header>
+
+{#if loadError}
+	<p role="alert" class="badge mt-4">
+		Couldn't load your data — try closing other UDine tabs and reloading this page.
+	</p>
+{/if}
 
 {#if showFirstRun}
 	<section class="card mt-6 px-5 py-5" data-testid="first-run-card">
