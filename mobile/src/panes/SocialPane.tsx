@@ -428,7 +428,7 @@ export function SocialPane() {
                     </View>
                   ))}
                   <Link href="/add-friends" asChild>
-                    <Pressable style={styles.avatarSlot}>
+                    <Pressable style={styles.avatarSlot} accessibilityRole="button" accessibilityLabel="Add friend">
                       <View style={[styles.avatarCircle, styles.avatarAdd]}>
                         <Text style={styles.avatarAddPlus}>+</Text>
                       </View>

@@ -22,7 +22,7 @@ export default function NewsletterScreen() {
       data={issues}
       keyExtractor={(item, i) => `${item.link}-${i}`}
       renderItem={({ item }) => (
-        <Pressable onPress={() => Linking.openURL(item.link)}>
+        <Pressable onPress={() => Linking.openURL(item.link)} accessibilityRole="link">
           <Card style={styles.row}>
             <Text style={styles.period}>{item.period}</Text>
           </Card>

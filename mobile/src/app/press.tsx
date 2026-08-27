@@ -22,7 +22,7 @@ export default function PressScreen() {
       data={items}
       keyExtractor={(item, i) => `${item.url}-${i}`}
       renderItem={({ item }) => (
-        <Pressable onPress={() => Linking.openURL(item.url)}>
+        <Pressable onPress={() => Linking.openURL(item.url)} accessibilityRole="link">
           <Card style={styles.row}>
             {!!item.image && <Image source={{ uri: item.image }} style={styles.image} />}
             <Text style={styles.title}>{item.title}</Text>
