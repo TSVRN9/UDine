@@ -98,7 +98,11 @@ function MyCodeTab({ session }: { session: Session }) {
           const myId = session.user.id;
           const { data } = await supabase.from("friendships").select("*").or(`user_a.eq.${myId},user_b.eq.${myId}`);
           const incoming = findIncomingQrConfirm((data ?? []) as FriendshipRow[], myId);
-          if (incoming) router.push(`/qr-confirm?userId=${otherUserId(incoming, myId)}`);
+          // #250: findIncomingQrConfirm already filters to status='pending'/origin='qr' rows this
+          // side hasn't confirmed yet, so the already-friends case never reaches this branch --
+          // alreadyFriends=0 is always correct here, just kept explicit so both of qr-confirm's
+          // entry points agree on the same route-param contract.
+          if (incoming) router.push(`/qr-confirm?userId=${otherUserId(incoming, myId)}&alreadyFriends=0`);
         } finally {
           pollInFlight = false;
         }
@@ -188,7 +192,11 @@ function ScanTab() {
       processingRef.current = false;
       return;
     }
-    router.push(`/qr-confirm?userId=${otherUserId(friendship, myId)}`);
+    // #250: redeem_qr_token signals an on-conflict hand-back of an already-accepted friendship
+    // (any origin) via already_friends -- forwarded so qr-confirm.tsx can show that state honestly
+    // instead of a doomed ADD/silently-no-op CANCEL.
+    const alreadyFriends = friendship.already_friends ? "1" : "0";
+    router.push(`/qr-confirm?userId=${otherUserId(friendship, myId)}&alreadyFriends=${alreadyFriends}`);
   }
 
   if (!permission) return <View style={styles.tabContent} />;
