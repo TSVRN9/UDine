@@ -47,7 +47,10 @@
 			searchResults = [];
 			return;
 		}
-		const results = await runFriendSearch(searchGuard, () => supabase.from("profiles").select("user_id, display_name").ilike("display_name", `%${query}%`).neq("user_id", myId).limit(10));
+		// #234: search_profiles (SECURITY DEFINER, 20-row cap) replaces this raw .ilike() against
+		// profiles -- the profiles SELECT policy no longer has a discoverable=true arm for a raw
+		// select to ride on, same fix add-friends.tsx already applied on mobile for #227.
+		const results = await runFriendSearch(searchGuard, () => supabase.rpc("search_profiles", { term: query }));
 		if (results !== null) searchResults = results;
 	}
 
