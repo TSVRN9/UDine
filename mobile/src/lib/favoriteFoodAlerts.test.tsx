@@ -316,22 +316,32 @@ describe("useFavoriteFoodAlerts: refresh() never re-registers when notifications
 // this is a pure verification test, not a defensive fix -- it pins that a null `data` from the RPC
 // (the shape a server-side no-op now returns) is already handled without throwing or otherwise
 // treating it as a failure.
+//
+// Rework note: the original version of this test asserted only `notificationsEnabled === true`,
+// set by refresh() BEFORE reregisterPushToken ever runs -- vacuous regardless of what the RPC
+// returns. This version asserts `needsPermission` instead, which IS derived from
+// reregisterPushToken's post-RPC outcome, with the device pre-marked synced so a thrown exception
+// (mishandling null `data`) flips `granted`/`needsPermission` the other way. This mirrors the
+// `#248/#286` "already synced" test below (:398) but pins the null-`data` RPC shape explicitly
+// (that test relies on the module default) and asserts the RPC actually fired.
 describe("useFavoriteFoodAlerts: refresh()'s self-heal tolerates a null register_push_token result (#277)", () => {
-  it("mounting with notifications_enabled=true and permission already granted completes cleanly when the RPC resolves with null data (server-side no-op)", async () => {
+  it("mounting with notifications_enabled=true, permission already granted, and favorites already synced sets needsPermission false when the RPC resolves with null data (server-side no-op)", async () => {
     mockFrom.mockImplementation((name: string) => {
       if (name === "profiles") return profilesTable({ notifications_enabled: true });
       throw new Error(`unexpected table ${name}`);
     });
     mockRpc.mockResolvedValue({ data: null, error: null });
+    mockFavoritesSyncState.synced.add("me");
 
     await renderProbe();
     await flush();
 
     expect(mockRpc).toHaveBeenCalledWith("register_push_token", { p_platform: "expo", p_token: "ExponentPushToken[test]" });
-    // The self-heal's null-data RPC response is not an error -- notificationsEnabled stays exactly
-    // what the server reported, and rendering never throws (a thrown error inside refresh() would
-    // have failed this test via an unhandled rejection/act() warning, not just a wrong assertion).
     expect(hookRef!.notificationsEnabled).toBe(true);
+    // needsPermission only goes false if reregisterPushToken's post-RPC `granted: true` is actually
+    // reached -- if a null RPC `data` result were mishandled (thrown instead of tolerated),
+    // reregisterPushToken's own catch would return `{ granted: false }` and this would flip true.
+    expect(hookRef!.needsPermission).toBe(false);
   });
 });
 
