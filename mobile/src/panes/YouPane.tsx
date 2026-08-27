@@ -10,6 +10,7 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
 import { signInWithGoogle, signOut } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { getCachedHours } from "../lib/menuHoursCache";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
@@ -82,6 +83,7 @@ export function YouPane() {
   const [rankedFoods, setRankedFoods] = useState<RankedFood[]>([]);
   const [seenByHall, setSeenByHall] = useState<Map<number, string[]>>(new Map());
   const insets = useSafeAreaInsets();
+  const [, forceRetailNamesRerender] = useState(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -89,6 +91,18 @@ export function YouPane() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
     return () => subscription.unsubscribe();
+  }, []);
+
+  // #243 bug A remaining gap: PaneStack keeps this pane permanently mounted alongside HomePane, so
+  // useFocusEffect(load) below (which fires on route focus, not pane visibility) is the only
+  // per-view hook this pane gets -- Today's Log's SQLite read can otherwise resolve and render a
+  // café entry as "Hall <tid>" before HomePane's own network hours fetch has taught
+  // retailHallNames.ts that tid's real name, and nothing would ever re-render to correct it.
+  // getCachedHours() (menuHoursCache.ts) is cache-only/no-network and already teaches that map on
+  // a cache hit -- hydrate from it once here (mount-only, not tied to load()/focus so it can't loop)
+  // and force one re-render once it resolves so a cold start self-corrects.
+  useEffect(() => {
+    getCachedHours().then(() => forceRetailNamesRerender((n) => n + 1));
   }, []);
 
   const load = useCallback(() => {

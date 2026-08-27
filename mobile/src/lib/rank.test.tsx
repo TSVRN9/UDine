@@ -47,6 +47,7 @@ import RankScreen from "../app/rank";
 import { Button } from "../components/ui";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteRankingStorage } from "./rankingStorage";
+import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
 
 // Module-top-level singletons in rank.tsx already ran by the time this line executes --
 // importing RankScreen above is what loaded that module (same lazy-access pattern as
@@ -223,4 +224,26 @@ it("clears a stale chooseError when Skip is pressed, instead of leaving it under
   });
 
   expect(texts(root)).not.toMatch(/Couldn't save/);
+});
+
+// #243 bug A: rank.tsx's comparison-pair and ranked-dish-list labels call hallNameFor directly on
+// a RankedDish/Dish's hallTid, which can be a café tid (loggable since #219) -- neither
+// DINING_HALLS nor GRAB_N_GO_TIDS knows those names, so the button/row fell back to "Hall <tid>".
+describe("café (retail) hall labels (#243 bug A)", () => {
+  beforeEach(() => {
+    mockFocusEffectFired = false;
+    __resetRetailNamesForTest();
+  });
+
+  it("shows the café's real name on a comparison pair's choice button instead of 'Hall <tid>'", async () => {
+    recordRetailNames([{ name: "People's Organic Coffee", hours: null, locationId: 32 }]);
+    mockGetAllEntries.mockResolvedValue([loggedEntry("Pizza", 1), loggedEntry("Coffee", 32)]);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<RankScreen />);
+    });
+
+    expect(texts(root)).toMatch(/Coffee \(People's Organic Coffee\)/);
+    expect(texts(root)).not.toMatch(/Hall 32/);
+  });
 });

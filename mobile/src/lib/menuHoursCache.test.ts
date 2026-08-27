@@ -23,10 +23,12 @@ jest.mock("@udine/shared", () => ({
 }));
 
 import { fetchHoursAndCache, getCachedHours, getCachedMenu, saveCachedHours, saveCachedMenu } from "./menuHoursCache";
+import { __resetRetailNamesForTest, hallOrRetailName } from "./retailHallNames";
 
 beforeEach(() => {
   mockRows.clear();
   mockFetchDiningHours.mockReset();
+  __resetRetailNamesForTest();
 });
 
 function item(dishName: string): MenuItem {
@@ -57,6 +59,13 @@ function item(dishName: string): MenuItem {
 
 function feed(): DiningHoursFeed {
   return { halls: [{ hallTid: 3, breakfast: null, lunch: { openTime: "11:00 AM", closeTime: "2:00 PM" }, dinner: null, latenight: null, general: null }], retail: [] };
+}
+
+function feedWithRetail(): DiningHoursFeed {
+  return {
+    halls: feed().halls,
+    retail: [{ name: "People's Organic Coffee", hours: null, locationId: 32 }],
+  };
 }
 
 describe("menu cache", () => {
@@ -125,6 +134,16 @@ describe("hours cache", () => {
   it("returns null when nothing has been cached yet", async () => {
     expect(await getCachedHours()).toBeNull();
   });
+
+  // #243 bug A wiring, offline half: fetchHoursAndCache never runs to completion when the live
+  // fetch rejects (advisor review finding) -- so a device that's offline right now, but has a
+  // warm cache from an earlier successful fetch, must also learn café names from a cache HIT, not
+  // only from a live fetch.
+  it("also teaches retailHallNames the retail feed's tid->name pairs on a cache hit", async () => {
+    await saveCachedHours(feedWithRetail());
+    await getCachedHours();
+    expect(hallOrRetailName(32)).toBe("People's Organic Coffee");
+  });
 });
 
 describe("fetchHoursAndCache", () => {
@@ -143,5 +162,15 @@ describe("fetchHoursAndCache", () => {
     mockFetchDiningHours.mockRejectedValue(new Error("network down"));
     await expect(fetchHoursAndCache()).rejects.toThrow("network down");
     expect((await getCachedHours())?.feed).toEqual(feed()); // untouched, not cleared
+  });
+
+  // #243 bug A wiring: a live hours fetch must teach retailHallNames.ts's device-side tid->name
+  // map, not just cache the feed -- otherwise Today's Log/rank still fall back to "Hall 32" for a
+  // café dish even though this exact fetch carried the café's real name. Asserted through the
+  // real hallOrRetailName import (not a mock) so a dropped wiring line actually goes red here.
+  it("teaches retailHallNames the retail feed's tid->name pairs on a live fetch", async () => {
+    mockFetchDiningHours.mockResolvedValue(feedWithRetail());
+    await fetchHoursAndCache();
+    expect(hallOrRetailName(32)).toBe("People's Organic Coffee");
   });
 });

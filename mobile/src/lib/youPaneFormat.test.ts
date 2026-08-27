@@ -11,6 +11,7 @@ import {
   mealPeriodForTime,
   pillTone,
 } from "./youPaneFormat";
+import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
 
 function completion(overrides: Partial<HallCompletion> = {}): HallCompletion {
   return { hallTid: 1, loggedDistinct: 0, seenDistinct: 0, pct: 0, ...overrides };
@@ -210,6 +211,27 @@ describe("logItemLine", () => {
   it("omits the hall for an off-menu (barcode) entry", () => {
     const e = entry({ servings: 1, source: { type: "off", barcode: "0123", productName: "Trail Mix" } });
     expect(logItemLine(e)).toBe("Trail Mix");
+  });
+
+  // #243 bug A: a café dish's hallTid (loggable since #219) isn't in DINING_HALLS/GRAB_N_GO_TIDS,
+  // so shared's hallNameFor alone falls back to "Hall <tid>" -- Today's Log and /logs (which reuse
+  // this exact function) must show the café's real name instead once it's been learned from a
+  // retail feed (see retailHallNames.ts / menuHoursCache.ts).
+  describe("café (retail) hall tids", () => {
+    beforeEach(() => {
+      __resetRetailNamesForTest();
+    });
+
+    it("shows 'Hall <tid>' before any retail feed has taught the device this café's name (red)", () => {
+      const e = entry({ source: { type: "umass-menu", dishName: "Coffee", hallTid: 32 } });
+      expect(logItemLine(e)).toBe("Coffee · Hall 32");
+    });
+
+    it("shows the café's real name once retailHallNames has recorded it", () => {
+      recordRetailNames([{ name: "People's Organic Coffee", hours: null, locationId: 32 }]);
+      const e = entry({ source: { type: "umass-menu", dishName: "Coffee", hallTid: 32 } });
+      expect(logItemLine(e)).toBe("Coffee · People's Organic Coffee");
+    });
   });
 });
 

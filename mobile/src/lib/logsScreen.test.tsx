@@ -40,6 +40,7 @@ import { Text } from "react-native";
 import type { LogEntry } from "@udine/shared";
 import LogsScreen from "../app/logs";
 import { SqliteLogStorage } from "./sqliteStorage";
+import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
 
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock; addEntry: jest.Mock; removeEntry: jest.Mock };
 
@@ -93,6 +94,7 @@ beforeEach(() => {
   logMock.removeEntry.mockReset().mockResolvedValue(undefined);
   mockRouterBack.mockReset();
   mockFocusEffectFired = false;
+  __resetRetailNamesForTest();
 });
 
 describe("LogsScreen header", () => {
@@ -150,6 +152,22 @@ describe("LogsScreen day log editing", () => {
     expect(pressableWithLabel(root, "Remove French Toast")).toBeTruthy();
     expect(pressableWithLabel(root, "Add one French Toast")).toBeTruthy();
     expect(pressableWithLabel(root, "Remove one French Toast")).toBeTruthy();
+  });
+
+  // #243 bug A: the edit card's subtitle is a SEPARATE hallNameFor call site from the collapsed
+  // row's logItemLine -- fixing one without the other would still show "Hall 32" the moment a café
+  // dish's row is expanded into its edit state.
+  it("shows the café's real name in the edit card subtitle instead of 'Hall <tid>' (#243 bug A)", async () => {
+    recordRetailNames([{ name: "People's Organic Coffee", hours: null, locationId: 32 }]);
+    logMock.getAllEntries.mockResolvedValue([logEntry("1", "Coffee", 32, "2026-08-20T07:00:00.000")]);
+    const root = await renderLogsScreen();
+
+    act(() => {
+      pressableWithLabel(root, "Edit Coffee · People's Organic Coffee").props.onPress();
+    });
+
+    expect(texts(root)).toMatch(/People's Organic Coffee/);
+    expect(texts(root)).not.toMatch(/Hall 32/);
   });
 
   it("stepping down to 0 deletes the entry and recomputes the day/meal totals (delete/recompute path)", async () => {

@@ -1,13 +1,14 @@
-import { fetchDiningHours, type DiningHoursFeed, type MenuItem } from "@udine/shared";
+import type { DiningHoursFeed, MenuItem } from "@udine/shared";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CafePdfViewer } from "../../components/CafePdfViewer";
 import { CafeSheet } from "../../components/CafeSheet";
-import { HallMenuScreenBody } from "../halls/[slug]";
+import { HallMenuScreenBody, type HallMenuSubject } from "../halls/[slug]";
 import { cafeTapTarget } from "../../lib/cafeMenu";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
+import { fetchHoursAndCache, getCachedHours, getCachedMenu } from "../../lib/menuHoursCache";
 import { colors, fonts, fs, spacing } from "../../lib/theme";
 
 /**
@@ -29,12 +30,33 @@ export default function CafeScreen() {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    fetchDiningHours()
+    // #243 bug C: fetchHoursAndCache (not shared's bare fetchDiningHours), with a getCachedHours
+    // fallback on failure -- same two-step pattern Home's own hours load() uses. Without the
+    // fallback, a café row Home just rendered from a warm cache would still error out the moment
+    // it's tapped while offline, since a live fetch fails identically either way; the fallback is
+    // what actually rescues that case.
+    fetchHoursAndCache()
       .then(setHoursFeed)
-      .catch((e) => setError(String(e)));
+      .catch((e) => {
+        getCachedHours()
+          .then((cached) => {
+            if (cached) setHoursFeed(cached.feed);
+            else setError(String(e));
+          })
+          .catch(() => setError(String(e)));
+      });
   }, []);
 
   const loc = hoursFeed?.retail?.find((r) => r.name === decodedName);
+  // #243 bug D: a fresh `{tid, name}` object literal every render fed into HallMenuScreenBody's
+  // `hall` prop -- whose fetch effects are keyed on that object's identity, not its contents (see
+  // halls/[slug].tsx) -- meant any unrelated re-render of this screen (rotation, inset change) reset
+  // items to null and refetched, duplicating recordSeen. Memoized on the two primitive values that
+  // actually identify the café, so identity only changes when the café itself does.
+  const hall = useMemo<HallMenuSubject | null>(
+    () => (loc?.locationId === undefined ? null : { tid: loc.locationId, name: loc.name }),
+    [loc?.locationId, loc?.name],
+  );
 
   useEffect(() => {
     if (!loc) return;
@@ -43,12 +65,28 @@ export default function CafeScreen() {
       return;
     }
     let current = true;
-    fetchMenuAndRecordSeen(loc.locationId, new Date())
+    const date = new Date();
+    const locationId = loc.locationId;
+    fetchMenuAndRecordSeen(locationId, date)
       .then((result) => {
         if (current) setItems(result);
       })
       .catch((e) => {
-        if (current) setError(String(e));
+        if (!current) return;
+        // #243 bug C, second half: an offline tap that DOES resolve `loc` from the hours cache
+        // above still has to probe the live menu -- which fails the same way offline. Falling back
+        // to a cached menu (same getCachedMenu store menuFetchWithSeenTracking.ts already writes
+        // to on every success) is what actually makes the tap succeed instead of just moving the
+        // error one fetch later; no cached menu at all degrades to the CafeSheet fallback (loc's
+        // own description/hours/standing-menu HTML render fine from the cache alone) rather than a
+        // hard error, since there's genuinely nothing else to show.
+        getCachedMenu(locationId, date)
+          .then((cached) => {
+            if (current) setItems(cached ? cached.items : []);
+          })
+          .catch(() => {
+            if (current) setItems([]);
+          });
       });
     return () => {
       current = false;
@@ -69,7 +107,7 @@ export default function CafeScreen() {
   }
 
   if (error) {
-    // Either fetch above (`fetchDiningHours` or `fetchMenuAndRecordSeen`) rejecting used to leave
+    // Either fetch above (`fetchHoursAndCache`+`getCachedHours` or `fetchMenuAndRecordSeen`) rejecting used to leave
     // `hoursFeed`/`items` null forever -- a permanent spinner behind only a back chevron, plus an
     // unhandled promise rejection (PR #219 review). Both `.catch`es above route here instead, same
     // shape as halls/[slug].tsx's own `error` branch.
@@ -90,8 +128,8 @@ export default function CafeScreen() {
 
   const target = cafeTapTarget(loc.locationId, items);
   if (target.kind === "menu") {
-    // loc.locationId is defined here -- cafeTapTarget only returns "menu" when it is.
-    return <HallMenuScreenBody hall={{ tid: loc.locationId as number, name: loc.name }} />;
+    // hall is non-null here -- cafeTapTarget only returns "menu" when loc.locationId is defined.
+    return <HallMenuScreenBody hall={hall!} />;
   }
 
   return (

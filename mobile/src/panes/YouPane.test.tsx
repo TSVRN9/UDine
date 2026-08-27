@@ -43,6 +43,11 @@ jest.mock("../lib/auth", () => ({
 
 jest.mock("../lib/date", () => ({ todayIso: () => "2026-08-19" }));
 
+// #243 bug A remaining gap: getCachedHours is cache-only/no-network (menuHoursCache.ts) -- mocked
+// here so the race test below controls exactly when it resolves relative to YouPane's render,
+// without pulling in expo-sqlite.
+jest.mock("../lib/menuHoursCache", () => ({ getCachedHours: jest.fn().mockResolvedValue(null) }));
+
 // YouPane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
 // hallMenu.test.tsx).
 jest.mock("react-native-safe-area-context", () => ({
@@ -69,11 +74,14 @@ import { colors } from "../lib/theme";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
+import { getCachedHours } from "../lib/menuHoursCache";
+import { __resetRetailNamesForTest, recordRetailNames } from "../lib/retailHallNames";
 
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock; removeEntry: jest.Mock };
 const rankingMock = new SqliteRankingStorage() as unknown as { getRankedDishes: jest.Mock; getRankedFoods: jest.Mock };
 const seenMock = new SqliteSeenDishesStorage() as unknown as { getAllSeenDishNames: jest.Mock };
 const mockRouterPush = router.push as jest.Mock;
+const mockGetCachedHours = getCachedHours as jest.Mock;
 
 function textsOf(instance: renderer.ReactTestInstance) {
   return instance.findAllByType(Text).map((n) => n.props.children).flat().join(" ");
@@ -146,6 +154,8 @@ beforeEach(() => {
   rankingMock.getRankedFoods.mockResolvedValue([]);
   seenMock.getAllSeenDishNames.mockResolvedValue(new Map());
   mockRouterPush.mockReset();
+  mockGetCachedHours.mockReset().mockResolvedValue(null);
+  __resetRetailNamesForTest();
 });
 
 describe("YouPane", () => {
@@ -321,5 +331,43 @@ describe("YouPane Today's Log meal grouping", () => {
 
     expect(renderedCalorieStat).toBe(renderedSubtotalSum);
     expect(renderedCalorieStat).toBe(102); // round(50.5) + round(50.5) = 51 + 51
+  });
+});
+
+// --- #243 bug A remaining gap: PaneStack (mobile/src/components/PaneStack.tsx) keeps HomePane and
+// YouPane permanently mounted -- YouPane's SQLite-backed log can render before HomePane's own
+// network hours fetch has taught retailHallNames.ts's tid->name map a café's real name. This does
+// NOT go through recordRetailNames directly (every other test in this repo that needs a retail
+// name does that -- a reviewer flagged that pattern doesn't exercise the real ordering race), it
+// goes through the same getCachedHours() seam HomePane itself falls back to, mocked above.
+describe("YouPane cold-start retail-name race (#243 bug A)", () => {
+  it("doesn't render a café log entry as the raw 'Hall <tid>' fallback once its cache-derived name is available, even though the SQLite log resolves first", async () => {
+    // Café tid 32 (People's Organic Coffee) is in neither DINING_HALLS nor GRAB_N_GO_TIDS, so
+    // hallOrRetailName falls back to "Hall 32" unless retailHallNames.ts has been taught its name.
+    logMock.getAllEntries.mockResolvedValue([logEntry("1", "Latte", 32, "2026-08-19T07:00:00.000")]);
+    // getCachedHours resolves AFTER the render below starts -- simulates the SQLite log read
+    // (near-instant) racing ahead of the cache read, same ordering #243 reports for the network case.
+    // The mock replays getCachedHours' own real side effect (recordRetailNames on a cache hit,
+    // menuHoursCache.ts) since the whole module is mocked out above and can't run its real body.
+    let resolveCachedHours!: () => void;
+    mockGetCachedHours.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCachedHours = () => {
+          recordRetailNames([{ name: "People's Organic Coffee", hours: null, locationId: 32 }]);
+          resolve(null);
+        };
+      }),
+    );
+
+    const root = await renderYouPane();
+
+    await act(async () => {
+      resolveCachedHours();
+      await Promise.resolve();
+    });
+
+    const body = texts(root);
+    expect(body).toMatch(/Latte · People's Organic Coffee/);
+    expect(body).not.toMatch(/Hall 32/);
   });
 });
