@@ -2,7 +2,7 @@ import renderer, { act } from "react-test-renderer";
 import { StyleSheet } from "react-native";
 import type { ReactTestRendererJSON, ReactTestRendererNode } from "react-test-renderer";
 import { DOT_HIT_SLOP, PaneHeader } from "./PaneHeader";
-import { fs } from "../lib/theme";
+import { colors, fs } from "../lib/theme";
 
 // dotPos's width/height/backgroundColor animate via Animated.timing with useNativeDriver: false
 // (they aren't native-driver properties) -- a JS-ticked animation that keeps scheduling frames
@@ -106,5 +106,34 @@ describe("DOT_HIT_SLOP", () => {
     const gap = dotsRowGap(renderHeader(1));
     expect(DOT_HIT_SLOP.left * 2).toBeLessThan(gap);
     expect(DOT_HIT_SLOP.right * 2).toBeLessThan(gap);
+  });
+});
+
+// #245 item 3 (occlusion sub-problem): the fixed header sits above the pane content, and used to
+// have no background at all -- scrolled content became visible through the gaps around the
+// title/dots instead of being hidden behind an opaque bar. The artboard has no visually distinct
+// header-bar color (title/dots just sit on the same page background), so opaque cream is the
+// correct fill, not a guess.
+describe("PaneHeader backdrop", () => {
+  it("is opaque cream, matching the artboard's page background, so scrolled content is hidden behind it", () => {
+    const json = renderHeader(1);
+    const flat = StyleSheet.flatten(json.props.style as never) as { backgroundColor?: string };
+    expect(flat.backgroundColor).toBe(colors.cream100);
+  });
+});
+
+// #245 item 3 (static-overlap sub-problem): the three panes (Home/Social/You) hard-code
+// `paddingTop: insets.top + fs(52)` as their content's top offset, sized to clear this header.
+// This reads the header's OWN rendered paddingTop + title-row height off the tree (not a parallel
+// fs(28)/spacing(4.5) calculation that could silently drift from a future style edit) and pins that
+// fs(52) covers it at every scale, so content never starts underneath the header on first render.
+describe("header height vs. the panes' fs(52) top padding", () => {
+  it("is covered by fs(52) with room to spare, not exceeded", () => {
+    const json = renderHeader(1);
+    const containerFlat = StyleSheet.flatten(json.props.style as never) as { paddingTop?: number };
+    const titleSlotJson = json.children![0] as ReactTestRendererJSON;
+    const titleSlotFlat = StyleSheet.flatten(titleSlotJson.props.style as never) as { height?: number };
+    const renderedHeaderHeight = (containerFlat.paddingTop ?? 0) + (titleSlotFlat.height ?? 0);
+    expect(fs(52)).toBeGreaterThanOrEqual(renderedHeaderHeight);
   });
 });
