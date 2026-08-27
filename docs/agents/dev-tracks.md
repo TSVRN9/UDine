@@ -2,13 +2,14 @@
 
 Every ticket goes down exactly one track. The orchestrator picks it at dispatch time from the
 ticket's blast radius — not its label, not its size in words. When in doubt, go one track heavier.
+The task itself travels inline in the dispatch prompt (see `orchestration.md`), not via a GitHub issue.
 
 | Track | Use for | Agents | Gate | Typical cost |
 |---|---|---|---|---|
 | **XS — direct** | Copy, comments, docs, assets, config values, one-line typo-class fixes. No logic change. | `quick-fixer` only | Orchestrator eyeballs `gh pr diff`, runs the one touched lane, merges | ~1 agent |
 | **S — fast-track** | Bug fixes and small behavior changes confined to ≤3 files in one package; a11y labels; UI polish items with a clear spec; test-only tickets. | `quick-fixer` → `spot-checker` | spot-checker MERGE (one red reproduced, touched lane green) | ~2 light agents |
 | **M — standard** | New screens/features, anything crossing packages (`shared` + a client), sync/privacy logic, edge functions, anything touching `supabase/` (migrations, RLS, grants, hooks). | `issue-solver` → `pr-reviewer` | pr-reviewer MERGE: every touched lane, every new behavior mutation-tested, invariants listed | ~2 heavy agents |
-| **L — root-cause** | Intermittent, cross-layer, or previously mis-fixed bugs; native/build-toolchain problems. | `heavy-debugger` → `pr-reviewer` | As M, plus before/after repro tallies | heaviest |
+| **L — root-cause** | Intermittent, cross-layer, or previously mis-fixed bugs; native/build-toolchain problems. Entered only after an `issue-solver` attempt has failed — see the gate in `orchestration.md`. | `heavy-debugger` → `pr-reviewer` | As M, plus before/after repro tallies | heaviest |
 
 ## Hard rules that don't relax on any track
 
@@ -20,12 +21,14 @@ ticket's blast radius — not its label, not its size in words. When in doubt, g
 
 ## Cost levers (what changed vs. the old single loop)
 
-1. **Right-sized gate.** `spot-checker` (sonnet, ≤15 calls) replaces `pr-reviewer` (opus, full lane matrix) for diffs that can't violate an invariant. The full reviewer keeps its job for the diffs where a miss is expensive.
+1. **Right-sized gate.** `spot-checker` (sonnet, ≤15 calls) replaces `pr-reviewer` (sonnet, full lane matrix) for diffs that can't violate an invariant. The full reviewer keeps its job for the diffs where a miss is expensive.
 2. **Touched-lane-only on S/XS.** No full jest run for a one-file fix; `tsc --noEmit` is the cheap whole-tree safety net for mobile.
 3. **Batching.** Sibling nits (e.g. #284, #213, #230) go to ONE `quick-fixer` as one PR when they share a file or a screen. One PR, one gate. Don't batch across packages.
 4. **Less context loading.** `quick-fixer` reads the issue and the touched files, not `CONTEXT.md`/ADRs. Tickets that need that context aren't S.
 5. **Escalation is cheap and expected.** A fast-track agent that discovers it's out of its depth stops early and reports; the orchestrator re-dispatches on M with what was learned. That's cheaper than a wrong small fix plus a full review of it.
 6. **Standard track trim.** `pr-reviewer` already runs only lanes the diff touches and skips `supabase test db` when `supabase/` is untouched — dispatch prompts should say so explicitly so it doesn't run the full matrix "to be safe".
+7. **No GitHub-as-IPC.** The orchestrator passes the task, files, criteria, and context excerpts inline; agents don't fetch a ticket the orchestrator wrote for them. Completion is logged to `task-log.jsonl` (zero API calls), with an optional issue comment when a human filed the ticket.
+8. **Budget cap.** `issue-solver` stops at ~50 tool calls without a green suite and reports; the orchestrator re-scopes or re-dispatches with what was learned instead of letting it spiral. `heavy-debugger` (fable) is gated behind a failed `issue-solver` attempt.
 
 ## Routing the current backlog (2026-08-26 snapshot)
 
