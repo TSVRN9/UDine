@@ -117,14 +117,21 @@
 		}
 	}
 
+	// #322: whole body in one try/catch, not just the write -- catching only the write and then
+	// unconditionally still calling refreshFavorites() would let a *succeeding* read reset loadError
+	// back to false right after this catch set it, flashing the banner and hiding it again.
 	async function toggleFavoriteHall(hallTid: number) {
 		const favorite: Favorite = { type: "location", hallTid };
-		if (favoriteHallTids.has(hallTid)) {
-			await favoritesStorage.removeFavorite(favorite);
-		} else {
-			await favoritesStorage.addFavorite(favorite);
+		try {
+			if (favoriteHallTids.has(hallTid)) {
+				await favoritesStorage.removeFavorite(favorite);
+			} else {
+				await favoritesStorage.addFavorite(favorite);
+			}
+			await refreshFavorites();
+		} catch {
+			loadError = true;
 		}
-		await refreshFavorites();
 	}
 </script>
 

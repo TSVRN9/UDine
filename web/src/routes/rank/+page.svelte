@@ -35,6 +35,11 @@
 	// Each comparison bumps comparisonCount on both dishes, so the sum double-counts.
 	const comparisonsMade = $derived(Math.round(rankedDishes.reduce((sum, d) => sum + d.comparisonCount, 0) / 2));
 
+	// #322: set when an IndexedDB read/write here fails (issue #193's bug class -- e.g. a blocked
+	// open from a stale pre-deploy tab). Without this, refresh()/choose() rejections were unhandled
+	// and this page just silently no-op'd instead of telling the user anything was wrong.
+	let dbError = $state(false);
+
 	function dishKey(d: Dish): string {
 		return `${d.dishName}::${d.hallTid}`;
 	}
@@ -76,33 +81,49 @@
 	}
 
 	async function refresh() {
-		const entries: LogEntry[] = await logStorage.getAllEntries();
-		const seen = new Set<string>();
-		loggedDishes = [];
-		for (const entry of entries) {
-			if (entry.source.type !== "umass-menu") continue;
-			const dish = { dishName: entry.source.dishName, hallTid: entry.source.hallTid };
-			const key = dishKey(dish);
-			if (seen.has(key)) continue;
-			seen.add(key);
-			loggedDishes.push(dish);
+		try {
+			const entries: LogEntry[] = await logStorage.getAllEntries();
+			const seen = new Set<string>();
+			loggedDishes = [];
+			for (const entry of entries) {
+				if (entry.source.type !== "umass-menu") continue;
+				const dish = { dishName: entry.source.dishName, hallTid: entry.source.hallTid };
+				const key = dishKey(dish);
+				if (seen.has(key)) continue;
+				seen.add(key);
+				loggedDishes.push(dish);
+			}
+			rankedDishes = await rankingStorage.getRankedDishes();
+			rankedFoods = await rankingStorage.getRankedFoods();
+			pair = pickPair();
+			dbError = false;
+		} catch {
+			dbError = true;
 		}
-		rankedDishes = await rankingStorage.getRankedDishes();
-		rankedFoods = await rankingStorage.getRankedFoods();
-		pair = pickPair();
 	}
 
 	onMount(refresh);
 
+	// #322: the persisting write runs BEFORE rankedDishes/rankedFoods/lastChoice/pair are ever
+	// touched, using local variables (applyComparison/applyFoodComparison are pure, so calling them
+	// against the still-unmodified $state arrays is safe) -- a failed save must not advance to the
+	// next pair or claim "Recorded: X over Y" for a comparison that was never actually persisted.
 	async function choose(winner: Dish, loser: Dish) {
-		rankedDishes = applyComparison(rankedDishes, winner, loser);
-		rankedFoods = applyFoodComparison(rankedFoods, winner, loser);
+		const newRankedDishes = applyComparison(rankedDishes, winner, loser);
+		const newRankedFoods = applyFoodComparison(rankedFoods, winner, loser);
 		// $state arrays are deep-proxied by Svelte on assignment; IndexedDB's structured-clone can't
 		// serialize a Proxy (DataCloneError), so snapshot to a plain object before persisting.
-		const snapshot = $state.snapshot(rankedDishes);
-		const foodSnapshot = $state.snapshot(rankedFoods);
-		await rankingStorage.saveRankedDishes(snapshot);
-		await rankingStorage.saveRankedFoods(foodSnapshot);
+		const snapshot = $state.snapshot(newRankedDishes);
+		const foodSnapshot = $state.snapshot(newRankedFoods);
+		try {
+			await rankingStorage.saveRankedDishes(snapshot);
+			await rankingStorage.saveRankedFoods(foodSnapshot);
+		} catch {
+			dbError = true;
+			return;
+		}
+		rankedDishes = newRankedDishes;
+		rankedFoods = newRankedFoods;
 
 		const session = page.data.session;
 		if (session && page.data.supabase) {
@@ -129,6 +150,12 @@
 		the full menu. Every comparison stays on this device.
 	</p>
 </header>
+
+{#if dbError}
+	<p role="alert" class="badge mt-4">
+		Couldn't save your comparison — try closing other UDine tabs and reloading this page.
+	</p>
+{/if}
 
 {#if loggedDishes.length < 2}
 	<div class="empty-state mt-6">
