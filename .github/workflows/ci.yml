@@ -9,6 +9,11 @@
 #
 # Run the same checks locally:
 #   pnpm --filter @udine/shared test        # shared unit tests (node --test)
+#   pnpm --filter @udine/shared typecheck   # shared typecheck (tsc --noEmit) -- shared source and
+#                                            # *.test.ts were previously only ever typechecked
+#                                            # transitively, under mobile's/web's own compilers;
+#                                            # node --experimental-strip-types (above) only strips
+#                                            # types, it never checks them (#195)
 #   pnpm --filter web test                  # web unit tests (node --test, TZ=UTC pinned -- see
 #                                            # web/src/lib/date.test.ts's header comment)
 #   pnpm --filter web check                 # svelte-check, type-only
@@ -55,6 +60,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @udine/shared test
+      - run: pnpm --filter @udine/shared typecheck
 
   web-check:
     runs-on: ubuntu-latest

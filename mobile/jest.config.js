@@ -1,3 +1,10 @@
+// Pin TZ here too, not just in package.json's "test" script (`TZ=America/New_York jest`) — a bare
+// `npx jest` (skipping the npm script) otherwise runs in the host's TZ, and date-sensitive tests can
+// silently pass by coincidence on other US zones or fail outright on UTC hosts/CI (#195). Playwright
+// pins the equivalent `timezoneId: "America/New_York"` in web/playwright.config.ts; this mirrors it.
+// Must run before jest-expo/RN internals read process.env.TZ at require time.
+process.env.TZ = "America/New_York";
+
 // Moved out of package.json's "jest" key so this timeout can carry its justification (#131).
 //
 // testTimeout: 30000 exists for exactly one measured reason — on a cold jest cache
