@@ -308,6 +308,43 @@ describe("useFavoriteFoodAlerts: refresh() never re-registers when notifications
   });
 });
 
+// #277: register_push_token now no-ops server-side (returns no row) when the caller's
+// notifications_enabled has gone false between refresh()'s profiles read and reregisterPushToken's
+// own network round trip -- the server-side close for the three residual client-side resurrection
+// windows #275's review left open. Both RPC call sites (here, and toggle()'s own registration
+// above) already destructure only `error`/`rpcError` off the RPC response and never read `data`, so
+// this is a pure verification test, not a defensive fix -- it pins that a null `data` from the RPC
+// (the shape a server-side no-op now returns) is already handled without throwing or otherwise
+// treating it as a failure.
+//
+// Rework note: the original version of this test asserted only `notificationsEnabled === true`,
+// set by refresh() BEFORE reregisterPushToken ever runs -- vacuous regardless of what the RPC
+// returns. This version asserts `needsPermission` instead, which IS derived from
+// reregisterPushToken's post-RPC outcome, with the device pre-marked synced so a thrown exception
+// (mishandling null `data`) flips `granted`/`needsPermission` the other way. This mirrors the
+// `#248/#286` "already synced" test below (:398) but pins the null-`data` RPC shape explicitly
+// (that test relies on the module default) and asserts the RPC actually fired.
+describe("useFavoriteFoodAlerts: refresh()'s self-heal tolerates a null register_push_token result (#277)", () => {
+  it("mounting with notifications_enabled=true, permission already granted, and favorites already synced sets needsPermission false when the RPC resolves with null data (server-side no-op)", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: true });
+      throw new Error(`unexpected table ${name}`);
+    });
+    mockRpc.mockResolvedValue({ data: null, error: null });
+    mockFavoritesSyncState.synced.add("me");
+
+    await renderProbe();
+    await flush();
+
+    expect(mockRpc).toHaveBeenCalledWith("register_push_token", { p_platform: "expo", p_token: "ExponentPushToken[test]" });
+    expect(hookRef!.notificationsEnabled).toBe(true);
+    // needsPermission only goes false if reregisterPushToken's post-RPC `granted: true` is actually
+    // reached -- if a null RPC `data` result were mishandled (thrown instead of tolerated),
+    // reregisterPushToken's own catch would return `{ granted: false }` and this would flip true.
+    expect(hookRef!.needsPermission).toBe(false);
+  });
+});
+
 // PR #286 review (Part B): notifications_enabled defaulting true (#248) means a brand-new signed-in
 // user can have `notificationsEnabled: true` server-side while this device has never actually
 // granted OS notification permission -- no token registered, no favorites synced. Consumers
