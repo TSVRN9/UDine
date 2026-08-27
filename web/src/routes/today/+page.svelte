@@ -39,6 +39,10 @@
 	let loaded = $state(false);
 	let removed: LogEntry | undefined = $state();
 	let removedTimer: ReturnType<typeof setTimeout> | undefined;
+	// Set when the IndexedDB open itself fails (issue #193 -- e.g. a stale tab from before a deploy
+	// blocking this version's open). Without this, refresh()'s rejection is unhandled and the page
+	// just sits on its empty state forever with no indication anything is wrong.
+	let loadError = $state(false);
 
 	const dateLabel = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
 		weekday: "long",
@@ -61,11 +65,16 @@
 
 	async function refresh() {
 		if (!storage) return;
-		// getEntriesForDate returns IndexedDB's own key order, which isn't chronological — the list
-		// rendered as an arbitrary shuffle of the day. A food diary reads breakfast-to-dinner.
-		entries = (await storage.getEntriesForDate(date)).sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
-		totals = computeDailyTotals(date, entries);
-		loaded = true;
+		try {
+			// getEntriesForDate returns IndexedDB's own key order, which isn't chronological — the list
+			// rendered as an arbitrary shuffle of the day. A food diary reads breakfast-to-dinner.
+			entries = (await storage.getEntriesForDate(date)).sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
+			totals = computeDailyTotals(date, entries);
+			loaded = true;
+			loadError = false;
+		} catch {
+			loadError = true;
+		}
 	}
 
 	onMount(() => {
@@ -156,6 +165,12 @@
 	<h1 class="page-title">Today &mdash; {dateLabel}</h1>
 	<div class="label-rule mt-2 text-gold-500"></div>
 </header>
+
+{#if loadError}
+	<p role="alert" class="badge mt-4">
+		Couldn't load your data — try closing other UDine tabs and reloading this page.
+	</p>
+{/if}
 
 <section class="card mt-6 px-5 py-5">
 	<MacroStats {totals} entryCount={entries.length} />

@@ -1,5 +1,5 @@
-const DB_NAME = "udine";
-const VERSION = 4;
+export const DB_NAME = "udine";
+export const VERSION = 4;
 
 export const STORES = { logEntries: "logEntries", favorites: "favorites", rankedDishes: "rankedDishes", rankedFoods: "rankedFoods" } as const;
 
@@ -21,7 +21,17 @@ export function openDb(): Promise<IDBDatabase> {
 				req.result.createObjectStore(STORES.rankedFoods, { keyPath: "dishName" });
 			}
 		};
-		req.onsuccess = () => resolve(req.result);
+		req.onsuccess = () => {
+			const db = req.result;
+			// Release the connection on a future upgrade instead of blocking it (issue #193) --
+			// without this, a stale tab left open across a deploy blocks every new-version open
+			// forever, since nothing else ever tells this connection to close.
+			db.onversionchange = () => db.close();
+			resolve(db);
+		};
+		req.onblocked = () => {
+			reject(new Error("Couldn't open the database -- close other UDine tabs and try again."));
+		};
 		req.onerror = () => reject(req.error);
 	});
 }
