@@ -233,7 +233,6 @@ export function FriendsBody() {
   );
 }
 
-/** Standalone `/friends` route — thin ScrollView wrapper around FriendsBody. */
 export default function FriendsScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
