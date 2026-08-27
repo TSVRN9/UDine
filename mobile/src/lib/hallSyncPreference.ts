@@ -13,6 +13,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
  */
 const KEY = "udine-hall-sync-enabled";
 
+// Known gap, accepted (not fixed) in #305's review: this preference is mobile-only AsyncStorage --
+// web has no equivalent read/write, so web's rank.tsx/halls/[slug]/+page.svelte unconditionally
+// re-syncs favorite_dining_halls regardless of what this toggle is set to on mobile. Tracked in
+// https://github.com/TSVRN9/UDine/issues/311, not fixed here.
 export async function isHallSyncEnabled(): Promise<boolean> {
   return (await AsyncStorage.getItem(KEY)) !== "false";
 }
