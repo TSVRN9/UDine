@@ -3,6 +3,12 @@
 // either the existing hall-menu screen body (non-empty) or the CafeSheet fallback (empty / no
 // locationId). Same jest.mock-factory pattern as hallMenu.test.tsx (which this reuses -- the
 // "menu" branch renders the real HallMenuScreenBody, so it needs the same storage mocks).
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import { fetchMenu, type MenuItem } from "@udine/shared";
+import CafeScreen from "../app/cafe/[name]";
+import { SqliteSeenDishesStorage } from "./seenDishesStorage";
+
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
 }));
@@ -86,12 +92,6 @@ jest.mock("expo-router", () => ({
   useFocusEffect: (_callback: () => void) => {},
   router: { back: jest.fn(), push: jest.fn() },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import { fetchMenu, type MenuItem } from "@udine/shared";
-import CafeScreen from "../app/cafe/[name]";
-import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
 

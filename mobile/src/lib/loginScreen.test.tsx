@@ -1,6 +1,13 @@
 // First-launch screen (#96). Carries the anonymous-first messaging obligations that used to live
 // on FirstRunCard (#68/#104 review blocker 2): the value prop must state data residency, export,
 // and exactly what signing in adds -- if this copy drifts, the privacy promise silently vanishes.
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import { router } from "expo-router";
+import LoginScreen from "../app/login";
+import { dismissFirstRun } from "../lib/firstRun";
+import { signInWithGoogle } from "../lib/auth";
+
 jest.mock("../lib/firstRun", () => ({
   isFirstRunDismissed: jest.fn().mockResolvedValue(false),
   dismissFirstRun: jest.fn().mockResolvedValue(undefined),
@@ -13,13 +20,6 @@ jest.mock("../lib/auth", () => ({
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn().mockReturnValue(true), dismissTo: jest.fn() },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import { router } from "expo-router";
-import LoginScreen from "../app/login";
-import { dismissFirstRun } from "../lib/firstRun";
-import { signInWithGoogle } from "../lib/auth";
 
 function body(root: renderer.ReactTestRenderer): string {
   return root.root

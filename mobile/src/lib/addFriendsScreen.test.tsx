@@ -3,6 +3,11 @@
 
 // AddFriendsScreen reads safe-area insets; there's no SafeAreaProvider in this render tree (same
 // fix as homePane.test.tsx/logsScreen.test.tsx).
+import renderer, { act } from "react-test-renderer";
+import { Text, TextInput } from "react-native";
+import { supabase } from "../lib/supabase";
+import AddFriendsScreen from "../app/add-friends";
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
@@ -52,11 +57,6 @@ jest.mock("../lib/supabase", () => ({
     rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text, TextInput } from "react-native";
-import { supabase } from "../lib/supabase";
-import AddFriendsScreen from "../app/add-friends";
 
 function session(userId: string) {
   return { data: { session: { user: { id: userId, email: `${userId}@umass.edu` } } } };

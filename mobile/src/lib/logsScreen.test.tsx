@@ -4,6 +4,13 @@
 // instantiates SqliteLogStorage at module top level -- importing the screen below is what loads it)
 // and YouPane.test.tsx (jest.fn()s created *inside* each factory, not closed over from an outer
 // scope -- babel hoists jest.mock factories above other top-level statements).
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import type { LogEntry } from "@udine/shared";
+import LogsScreen from "../app/logs";
+import { SqliteLogStorage } from "./sqliteStorage";
+import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
+
 jest.mock("../lib/sqliteStorage", () => {
   const getAllEntries = jest.fn().mockResolvedValue([]);
   const addEntry = jest.fn().mockResolvedValue(undefined);
@@ -34,13 +41,6 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 
 jest.mock("../lib/date", () => ({ todayIso: () => "2026-08-20" }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import type { LogEntry } from "@udine/shared";
-import LogsScreen from "../app/logs";
-import { SqliteLogStorage } from "./sqliteStorage";
-import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
 
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock; addEntry: jest.Mock; removeEntry: jest.Mock };
 

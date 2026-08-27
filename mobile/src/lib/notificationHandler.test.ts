@@ -1,9 +1,9 @@
+import { registerNotificationHandler } from "./notificationHandler";
+
 const mockSetNotificationHandler = jest.fn();
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: (...args: unknown[]) => mockSetNotificationHandler(...args),
 }));
-
-import { registerNotificationHandler } from "./notificationHandler";
 
 // #273: fails on main -- setNotificationHandler is never called anywhere, so a push arriving
 // while the app is foregrounded is silently dropped (expo-notifications' own default behavior).

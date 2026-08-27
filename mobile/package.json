@@ -39,6 +39,8 @@
     "@types/node": "22.20.1",
     "@types/react": "~19.2.2",
     "@types/react-test-renderer": "19.1.0",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^57.0.1",
     "jest-expo": "~57.0.4",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
@@ -48,7 +50,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint",
+    "lint": "eslint .",
     "test": "TZ=America/New_York jest"
   },
   "private": true

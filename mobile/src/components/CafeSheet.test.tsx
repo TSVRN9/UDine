@@ -1,13 +1,13 @@
 // CafeSheet reads safe-area insets; no SafeAreaProvider in this render tree (same fix as
 // PlateBar.test.tsx/PlateSheet.test.tsx).
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-
 import renderer, { act } from "react-test-renderer";
 import { Animated, Modal, Text } from "react-native";
 import type { RetailLocationHours } from "@udine/shared";
 import { CafeSheet } from "./CafeSheet";
+
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);

@@ -2,6 +2,12 @@
 // candidate route (confirmed on-device -- a .test.tsx there gets bundled into the real app and
 // crashes at runtime on the bare `jest` global). No other route file has a colocated test for the
 // same reason; this one imports the screen by relative path instead.
+import { Alert } from "react-native";
+import renderer, { act } from "react-test-renderer";
+import * as expoRouter from "expo-router";
+import RedirectScreen from "../app/redirect";
+import * as auth from "./auth";
+
 jest.mock("./auth", () => ({
   exchangeCode: jest.fn(),
   isSignInInFlight: jest.fn(() => false),
@@ -11,12 +17,6 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(),
   Redirect: jest.fn(() => null),
 }));
-
-import { Alert } from "react-native";
-import renderer, { act } from "react-test-renderer";
-import * as expoRouter from "expo-router";
-import RedirectScreen from "../app/redirect";
-import * as auth from "./auth";
 
 const mockedAuth = auth as jest.Mocked<typeof auth>;
 const mockedUseLocalSearchParams = expoRouter.useLocalSearchParams as jest.Mock;

@@ -1,6 +1,12 @@
 // auth.ts pulls in ./supabase, which reads env vars createClient requires at import time and
 // aren't set under jest. Stub it (and its network-facing neighbors) so signInWithGoogle's
 // isSignInInFlight lifecycle is testable without a real network/browser.
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { isSignInInFlight, shouldExchangeCode, signInWithGoogle, signOut } from "./auth";
+import { supabase } from "./supabase";
+import { registerPendingSelfHeal } from "./pendingSelfHeal";
+
 jest.mock("./supabase", () => ({
   supabase: {
     auth: {
@@ -20,12 +26,6 @@ jest.mock("expo-linking", () => ({
   createURL: jest.fn(() => "udine://redirect"),
   parse: jest.fn(),
 }));
-
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
-import { isSignInInFlight, shouldExchangeCode, signInWithGoogle, signOut } from "./auth";
-import { supabase } from "./supabase";
-import { registerPendingSelfHeal } from "./pendingSelfHeal";
 
 const signInWithOAuth = supabase.auth.signInWithOAuth as jest.Mock;
 const exchangeCodeForSession = supabase.auth.exchangeCodeForSession as jest.Mock;

@@ -10,6 +10,18 @@
 // `firstRun as jest.Mocked<typeof firstRun>` pattern, adapted for a class) grabs the exact same
 // jest.fn() references the factory closed over -- every mockImplementation() call returns a fresh
 // wrapper object around the *same* fns, so this is the same mock YouPane.tsx's own singleton uses.
+import renderer, { act } from "react-test-renderer";
+import { Text, View } from "react-native";
+import { router } from "expo-router";
+import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
+import { YouPane } from "./YouPane";
+import { colors } from "../lib/theme";
+import { SqliteLogStorage } from "../lib/sqliteStorage";
+import { SqliteRankingStorage } from "../lib/rankingStorage";
+import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
+import { getCachedHours } from "../lib/menuHoursCache";
+import { __resetRetailNamesForTest, recordRetailNames } from "../lib/retailHallNames";
+
 jest.mock("../lib/sqliteStorage", () => {
   const getAllEntries = jest.fn().mockResolvedValue([]);
   const removeEntry = jest.fn().mockResolvedValue(undefined);
@@ -65,18 +77,6 @@ jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
 }));
 
-import renderer, { act } from "react-test-renderer";
-import { Text, View } from "react-native";
-import { router } from "expo-router";
-import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
-import { YouPane } from "./YouPane";
-import { colors } from "../lib/theme";
-import { SqliteLogStorage } from "../lib/sqliteStorage";
-import { SqliteRankingStorage } from "../lib/rankingStorage";
-import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
-import { getCachedHours } from "../lib/menuHoursCache";
-import { __resetRetailNamesForTest, recordRetailNames } from "../lib/retailHallNames";
-
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock; removeEntry: jest.Mock };
 const rankingMock = new SqliteRankingStorage() as unknown as { getRankedDishes: jest.Mock; getRankedFoods: jest.Mock };
 const seenMock = new SqliteSeenDishesStorage() as unknown as { getAllSeenDishNames: jest.Mock };
@@ -96,17 +96,6 @@ function texts(root: renderer.ReactTestRenderer) {
 function flatStyle(style: unknown): Record<string, unknown> {
   if (Array.isArray(style)) return Object.assign({}, ...style.map(flatStyle));
   return (style as Record<string, unknown>) ?? {};
-}
-
-// Button.tsx's own tests establish the convention: its Pressable is found via
-// accessibilityRole="button" (findAllByType(Pressable) doesn't reliably match RN's Pressable
-// export under jest-expo's renderer), not by type. Plain <Pressable> elements elsewhere in
-// YouPane (sign-in/out, the Friends row) don't set this role, so it only matches Button-wrapped
-// controls -- Export JSON/CSV and any per-entry Remove buttons.
-function pressableWithText(root: renderer.ReactTestRenderer, label: string) {
-  const match = root.root.findAllByProps({ accessibilityRole: "button" }).find((p) => textsOf(p) === label);
-  if (!match) throw new Error(`No button found with text "${label}"`);
-  return match;
 }
 
 async function renderYouPane() {

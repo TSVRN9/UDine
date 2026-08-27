@@ -13,6 +13,17 @@
 // `.mock.results[0].value`, useFocusEffect fired once via a module flag so refresh() actually runs
 // instead of being a no-op).
 
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import type { LogEntry, RankedDish } from "@udine/shared";
+import RankScreen from "../app/rank";
+import { Button } from "../components/ui";
+import { SqliteLogStorage } from "./sqliteStorage";
+import { SqliteRankingStorage } from "./rankingStorage";
+import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
+import { supabase } from "./supabase";
+import { isHallSyncEnabled } from "./hallSyncPreference";
+
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ getAllEntries: jest.fn().mockResolvedValue([]) })),
 }));
@@ -51,17 +62,6 @@ jest.mock("expo-router", () => ({
     }
   },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import type { LogEntry, RankedDish } from "@udine/shared";
-import RankScreen from "../app/rank";
-import { Button } from "../components/ui";
-import { SqliteLogStorage } from "./sqliteStorage";
-import { SqliteRankingStorage } from "./rankingStorage";
-import { __resetRetailNamesForTest, recordRetailNames } from "./retailHallNames";
-import { supabase } from "./supabase";
-import { isHallSyncEnabled } from "./hallSyncPreference";
 
 // Module-top-level singletons in rank.tsx already ran by the time this line executes --
 // importing RankScreen above is what loaded that module (same lazy-access pattern as

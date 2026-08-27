@@ -2,14 +2,14 @@
 // as a candidate route (see redirect.test.tsx's own note -- a .test.tsx there gets bundled into
 // the real app and crashes at runtime on the bare `jest` global). Imports the screen by relative
 // path instead, same pattern as redirect.test.tsx/hallMenu.test.tsx.
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: jest.fn(),
-}));
-
 import renderer, { act } from "react-test-renderer";
 import { Image, Text } from "react-native";
 import * as expoRouter from "expo-router";
 import EventDetailScreen from "../app/event-detail";
+
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: jest.fn(),
+}));
 
 const mockedUseLocalSearchParams = expoRouter.useLocalSearchParams as jest.Mock;
 

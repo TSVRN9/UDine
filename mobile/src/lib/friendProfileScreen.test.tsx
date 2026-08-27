@@ -1,4 +1,8 @@
-import type { ReactNode } from "react";
+import renderer, { act } from "react-test-renderer";
+import { Alert, StyleSheet, Text } from "react-native";
+import { supabase } from "./supabase";
+import { spacing } from "./theme";
+import FriendProfileScreen from "../app/friend/[id]";
 
 // PR #126 review findings #2/#4/#5 all slipped through because this screen had zero render
 // coverage -- only pure helpers and pane-level wiring were tested anywhere in this app. These are
@@ -60,12 +64,6 @@ const mockSendOrQueuePing = jest.fn().mockResolvedValue("sent");
 jest.mock("./pingQueue", () => ({
   sendOrQueuePing: (...args: unknown[]) => mockSendOrQueuePing(...args),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Alert, StyleSheet, Text } from "react-native";
-import { supabase } from "./supabase";
-import { spacing } from "./theme";
-import FriendProfileScreen from "../app/friend/[id]";
 
 function session(userId: string) {
   return { data: { session: { user: { id: userId, email: `${userId}@umass.edu` } } } };

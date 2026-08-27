@@ -27,7 +27,7 @@ describe("Press", () => {
     // locate directly under jest-expo's RN mock, so the host tree is the reliable thing to assert
     // on. Both Texts must be direct children of the host View -- if an inner wrapper reappears,
     // this fails the same way the real "ALL LOGS" bug did (a row style stops reaching them).
-    const tree = root.toJSON() as { type: string; props: { style?: unknown }; children: Array<{ type: string }> };
+    const tree = root.toJSON() as { type: string; props: { style?: unknown }; children: { type: string }[] };
     expect(tree.type).toBe("View");
     expect(tree.children).toHaveLength(2);
     expect(tree.children.every((c) => c.type === "Text")).toBe(true);
@@ -64,13 +64,13 @@ describe("PressDim", () => {
     await act(async () => {
       root = renderer.create(
         <PressDim>
-          <Text>GRAB 'N GO</Text>
+          <Text>GRAB &apos;N GO</Text>
         </PressDim>,
       );
     });
     const tree = root.toJSON() as {
       props: { style?: unknown };
-      children: Array<{ type: string; props: { style?: unknown } }>;
+      children: { type: string; props: { style?: unknown } }[];
     };
 
     const flat = (StyleSheet.flatten(tree.props.style as never) ?? {}) as { transform?: unknown };

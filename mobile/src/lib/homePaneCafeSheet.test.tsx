@@ -6,6 +6,12 @@
 import type { ReactNode } from "react";
 import type { DiningHoursFeed } from "@udine/shared";
 
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import { HomePane } from "../app/index";
+import { CafeSheet } from "../components/CafeSheet";
+import { CafePdfViewer } from "../components/CafePdfViewer";
+
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -40,12 +46,6 @@ jest.mock("../lib/menuHoursCache", () => ({
   fetchHoursAndCache: () => mockFetchHoursAndCache(),
   getCachedHours: jest.fn().mockResolvedValue(null),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import { HomePane } from "../app/index";
-import { CafeSheet } from "../components/CafeSheet";
-import { CafePdfViewer } from "../components/CafePdfViewer";
 
 function hours(retail: DiningHoursFeed["retail"]): DiningHoursFeed {
   return {
