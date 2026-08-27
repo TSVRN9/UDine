@@ -167,6 +167,66 @@ describe("useFavoriteFoodAlerts: toggle() surfaces a real register_push_token fa
   });
 });
 
+describe("useFavoriteFoodAlerts: pending guards the whole toggle() chain (#190)", () => {
+  // Red-first: before this fix, FavoriteFoodAlerts had no `pending` field at all -- nothing stopped
+  // a rapid second tap from firing another toggle() call while the first was still mid-chain (e.g.
+  // waiting on getExpoPushTokenAsync), racing the two chains against each other. notifications.tsx/
+  // privacy.tsx wire this into their control's `disabled` prop (#158/#165/#167 convention).
+  it("is true only while toggle(true)'s chain is in flight", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: false });
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    let resolveToken!: (v: { data: string }) => void;
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        resolveToken = resolve;
+      }),
+    );
+
+    await renderProbe();
+    expect(hookRef!.pending).toBe(false);
+
+    let togglePromise!: Promise<{ error: string | null }>;
+    await act(async () => {
+      togglePromise = hookRef!.toggle(true);
+      await Promise.resolve();
+    });
+    // Same generous-overshoot flush notificationsScreen.test.tsx's own flush() doc comment
+    // describes -- this chain (profiles.update -> favorites sync -> getPermissionsAsync ->
+    // getExpoPushTokenAsync) is deeper than one microtask tick, and the held token promise means
+    // it can only ever park mid-chain, never race ahead of this assertion.
+    await flush();
+
+    expect(hookRef!.pending).toBe(true);
+
+    resolveToken({ data: "ExponentPushToken[test]" });
+    await act(async () => {
+      await togglePromise;
+    });
+
+    expect(hookRef!.pending).toBe(false);
+  });
+
+  // The try/catch's several early `return`s (profileError, rpcError) must all still clear pending
+  // via a `finally`, not just the happy path -- otherwise a single failed toggle leaves the control
+  // permanently disabled.
+  it("clears pending even when profiles.update is rejected, so the control isn't left permanently disabled", async () => {
+    mockFrom.mockImplementation((name: string) => {
+      if (name === "profiles") return profilesTable({ notifications_enabled: false }, { message: "row-level security policy violation" });
+      throw new Error(`unexpected table ${name}`);
+    });
+
+    await renderProbe();
+    await act(async () => {
+      await hookRef!.toggle(true);
+    });
+
+    expect(hookRef!.pending).toBe(false);
+  });
+});
+
 describe("useFavoriteFoodAlerts: toggle(false) waits for an in-flight self-heal (#272 item B)", () => {
   // Red-first: on main, toggle()'s OFF branch deletes push_tokens immediately with no await on
   // pendingSelfHeal() -- a self-heal register_push_token call already in flight from this same

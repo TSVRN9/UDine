@@ -21,7 +21,7 @@ type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date:
  * can render the identical toggle -- this component only owns the sightings feed and its own copy.
  */
 export function NotificationsBody() {
-  const { session, notificationsEnabled, needsPermission, toggle } = useFavoriteFoodAlerts();
+  const { session, notificationsEnabled, needsPermission, pending, toggle } = useFavoriteFoodAlerts();
   const [sightings, setSightings] = useState<Sighting[]>([]);
 
   const refreshSightings = useCallback(async () => {
@@ -66,7 +66,10 @@ export function NotificationsBody() {
         {/* PR #286 review (Part B): same needs-action rendering as privacy.tsx's alerts toggle --
             notifications_enabled defaulting true (#248) can be true server-side with no OS
             permission granted yet, so this must not show ON until it actually is. */}
-        <Switch value={notificationsEnabled && !needsPermission} onValueChange={toggleNotifications} trackColor={{ true: colors.maroon600 }} />
+        {/* #190: disabled while the multi-step enable/disable chain is in flight -- same
+            disabled-while-pending convention as privacy.tsx's other guarded toggles
+            (#158/#165/#167) -- so a rapid ON->OFF tap can't fire a second toggle() mid-chain. */}
+        <Switch value={notificationsEnabled && !needsPermission} onValueChange={toggleNotifications} disabled={pending} trackColor={{ true: colors.maroon600 }} />
       </View>
       <Text style={styles.hint}>
         {notificationsEnabled && needsPermission

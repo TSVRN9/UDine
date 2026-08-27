@@ -120,6 +120,18 @@ function profilesHandler(single: Record<string, unknown>, friendRows: { user_id:
 	};
 }
 
+// #190: same shape as friends-notifications.spec.ts's own friendships-PATCH-403 handler above
+// (see "a failed friendships Accept update" test) -- the initial GET (`.single()`) succeeds
+// normally, but the toggle's own PATCH (`profiles.update(notifications_enabled)`) is rejected.
+function profilesHandlerWithPatchError(single: Record<string, unknown>) {
+	return (route: Route, url: URL) => {
+		if (route.request().method() === "PATCH") {
+			return route.fulfill({ status: 403, json: { code: "42501", message: "new row violates row-level security policy", details: null, hint: null } });
+		}
+		return profilesHandler(single)(route, url);
+	};
+}
+
 /** Stubs the browser push APIs notifications/+page.svelte reads: `Notification.permission`
  * (normally a read-only static getter), `Notification.requestPermission()` (enablePush's gate),
  * and `navigator.serviceWorker.getRegistration()`/`.register()` (real registration requires an
@@ -393,6 +405,72 @@ test.describe("Notifications — signed in", () => {
 		// Same race as the friendships Accept PATCH above (previously ~L195, unfixed twin of ~L149).
 		const patch = await waitForRequest(requests, "profiles", "PATCH");
 		expect(patch.url.searchParams.get("user_id")).toBe(`eq.${USER_ID}`);
+	});
+
+	// #190 (Fable audit @ e5a2848): toggleNotifications used to discard profiles.update's `{error}`
+	// return and flip notificationsEnabled unconditionally -- an RLS rejection still left the
+	// checkbox showing "Alerts on" with nothing behind it server-side. Same shape as the friendships
+	// Accept-PATCH-403 test above.
+	test("a failed profiles.update (RLS rejection) reverts the checkbox and shows a failure message, not a false success", async ({ page }) => {
+		await signInAndMockSupabase(page, {
+			profiles: profilesHandlerWithPatchError({ notifications_enabled: false }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			favorited_foods: (route) => route.fulfill({ json: [] }),
+		});
+
+		await page.goto("/notifications");
+		const alertsSection = page.locator("section", { hasText: "Favorited-dish alerts" });
+		const badge = alertsSection.locator("span.badge");
+		await expect(badge).toHaveText("Alerts off", { timeout: 15_000 }); // hydration proof
+
+		await page.locator("#notif-toggle").click();
+
+		// Still off -- a false-success flip would show "Alerts on" here.
+		await expect(badge).toHaveText("Alerts off");
+		await expect(alertsSection.getByRole("alert")).toBeVisible();
+		// The badge text alone isn't the real control -- the browser flips the native checkbox
+		// optimistically on click, and a one-way `checked={...}` binding never re-asserts the DOM
+		// state when the reactive expression's value doesn't change (a rejection returns before
+		// notificationsEnabled is reassigned). Assert the actual control, not just its label.
+		await expect(page.locator("#notif-toggle")).not.toBeChecked();
+	});
+
+	// #190: favoritesSyncError was read on the ON path (via needsPermission) but discarded entirely
+	// on the OFF path -- a failed favorited_foods clear left the checkbox showing "Alerts off" with
+	// stale favorites still matching server-side, and nothing telling the user their "off" didn't
+	// fully take. Checks the SECOND `{error}` return the issue names, not just profiles.update's.
+	test("a failed favorited_foods clear when turning alerts off still turns the checkbox off, but surfaces a sync failure message", async ({ page }) => {
+		// Permission already granted, favorites already marked synced on this browser -- both needed
+		// so refresh()'s own needsPermission computation (hasSyncedFavorites included) renders the
+		// initial "Alerts on" hydration-proof state this test starts from, not a needs-action prompt.
+		await mockPushEnvironment(page, "granted");
+		await page.addInitScript((userId) => localStorage.setItem(`udine-favorites-synced:${userId}`, "true"), USER_ID);
+		await signInAndMockSupabase(page, {
+			profiles: profilesHandler({ notifications_enabled: true }),
+			food_sightings: (route) => route.fulfill({ json: [] }),
+			pings: (route) => route.fulfill({ json: [] }),
+			friendships: (route) => route.fulfill({ json: [] }),
+			favorited_foods: (route) => {
+				if (route.request().method() === "DELETE") {
+					return route.fulfill({ status: 500, json: { code: "XX000", message: "internal error", details: null, hint: null } });
+				}
+				return route.fulfill({ json: [] });
+			},
+		});
+
+		await page.goto("/notifications");
+		const alertsSection = page.locator("section", { hasText: "Favorited-dish alerts" });
+		const badge = alertsSection.locator("span.badge");
+		await expect(badge).toHaveText("Alerts on", { timeout: 15_000 }); // hydration proof
+
+		await page.locator("#notif-toggle").click();
+
+		// The server write that actually matters (notifications_enabled) succeeded, so the checkbox
+		// honestly reflects that -- but the sync failure still must not be silent.
+		await expect(badge).toHaveText("Alerts off");
+		await expect(alertsSection.getByRole("alert")).toBeVisible();
 	});
 
 	test("feed mixes pings and sightings newest-first, both badged New when unread", async ({ page }) => {
