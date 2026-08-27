@@ -200,6 +200,58 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
   });
 });
 
+// #336: activeIndexRef's sync used to be a write during render (`activeIndexRef.current =
+// activeIndex`, no effect) -- moved into a useLayoutEffect. Jest doesn't run the React Compiler
+// transform (jest-expo's babel-jest pipeline never sets babel-preset-expo's
+// isReactCompilerEnabled option), so this can't reproduce the actual miscompilation this guarded
+// against -- both the old write-during-render code and the fixed useLayoutEffect version execute
+// the sync on every real render here, so this test passes against either. It's a regression
+// guard for the sync CONTRACT (activeIndexRef reflects a prop-driven activeIndex change before
+// the next gesture reads it), not a reproduction of the compiler bug -- it would catch someone
+// later deleting the sync outright or deferring it past the next render.
+describe("PaneStack activeIndexRef sync (#336)", () => {
+  it("a swipe resolves against activeIndex as of the most recent prop update, not the value at mount", () => {
+    const onActiveIndexChange = jest.fn();
+    const panesProp = [<Pane key="s" label="Social" />, <Pane key="h" label="Home" />, <Pane key="y" label="You" />];
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PaneStack activeIndex={0} onActiveIndexChange={onActiveIndexChange} topInset={0} panes={panesProp} />,
+      );
+    });
+
+    // activeIndex changes "mid-drag some other way" (PaneStack.tsx's own comment on why this is a
+    // ref, not state) -- e.g. a PaneHeader dot tap -- via a prop update, not a gesture this
+    // component's own responder drove.
+    act(() => {
+      root.update(<PaneStack activeIndex={1} onActiveIndexChange={onActiveIndexChange} topInset={0} panes={panesProp} />);
+    });
+
+    const candidates = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function");
+    expect(candidates.length).toBe(1);
+    const handlers = candidates[0].props as {
+      onResponderGrant: (e: unknown) => void;
+      onResponderMove: (e: unknown) => void;
+      onResponderRelease: (e: unknown) => void;
+    };
+
+    act(() => {
+      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+    });
+    act(() => {
+      handlers.onResponderMove(fakeTouch(0, -80, 2)); // dx=-80, past the 60px commit threshold
+    });
+    act(() => {
+      handlers.onResponderRelease(fakeTouch(-80, -80, 3));
+    });
+
+    // dragStartIndex should have captured activeIndexRef.current == 1 (the post-update value) at
+    // grant time, so a commit lands on pane 2 -- not pane 1, which is where a stale ref (still 0
+    // from mount) would resolve the swipe instead.
+    expect(onActiveIndexChange).toHaveBeenCalledWith(2);
+  });
+});
+
 describe("PaneStack", () => {
   it("mounts PaneHeader exactly once and keeps it mounted across every pane switch", async () => {
     await act(async () => {
