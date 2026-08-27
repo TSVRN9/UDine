@@ -240,7 +240,10 @@
 		};
 	});
 
-	async function toggleNotifications() {
+	async function toggleNotifications(event: Event) {
+		// Captured now, not read later off `event` -- currentTarget is only live during the
+		// synchronous dispatch phase and is nulled out by the time this resumes after an await.
+		const checkboxEl = event.currentTarget as HTMLInputElement;
 		const supabase = page.data.supabase;
 		const session = page.data.session;
 		if (!supabase || !session) return;
@@ -257,9 +260,16 @@
 			console.error("Couldn't update notifications:", profileError);
 			notificationsError = true;
 			setTimeout(() => (notificationsError = false), 3000);
+			// #190 follow-up: the `checked={...}` attribute below is a one-way binding -- the browser
+			// already flipped the native checkbox on click before this handler even ran, and since
+			// notificationsEnabled isn't reassigned on this early return, the reactive expression's
+			// value never changes, so Svelte never re-asserts the DOM state. Reset it explicitly so the
+			// control doesn't visually lie about a write that never happened.
+			checkboxEl.checked = notificationsEnabled && !needsPermission;
 			return;
 		}
 		notificationsEnabled = next;
+		notificationsError = false; // in case a still-live failure badge from an earlier attempt is showing
 
 		// Sync (or clear) favorited_foods to match the new state — see CLAUDE.md: favorited_foods only
 		// syncs when signed in AND notifications_enabled.
@@ -374,7 +384,7 @@
 		</div>
 		<div class="flex items-center gap-2">
 			<span class="badge">{notificationsEnabled && !needsPermission ? "Alerts on" : "Alerts off"}</span>
-			<input id="notif-toggle" type="checkbox" class="h-4 w-4" checked={notificationsEnabled && !needsPermission} onchange={toggleNotifications} />
+			<input id="notif-toggle" type="checkbox" class="h-4 w-4" checked={notificationsEnabled && !needsPermission} onchange={(e) => toggleNotifications(e)} />
 		</div>
 	</section>
 

@@ -430,6 +430,11 @@ test.describe("Notifications — signed in", () => {
 		// Still off -- a false-success flip would show "Alerts on" here.
 		await expect(badge).toHaveText("Alerts off");
 		await expect(alertsSection.getByRole("alert")).toBeVisible();
+		// The badge text alone isn't the real control -- the browser flips the native checkbox
+		// optimistically on click, and a one-way `checked={...}` binding never re-asserts the DOM
+		// state when the reactive expression's value doesn't change (a rejection returns before
+		// notificationsEnabled is reassigned). Assert the actual control, not just its label.
+		await expect(page.locator("#notif-toggle")).not.toBeChecked();
 	});
 
 	// #190: favoritesSyncError was read on the ON path (via needsPermission) but discarded entirely
