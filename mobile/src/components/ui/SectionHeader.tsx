@@ -19,7 +19,7 @@ export function SectionHeader({ title, right }: { title: string; right?: ReactNo
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing(2.5) },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   title: {
     fontFamily: fonts.display600,
     fontSize: fs(13),
