@@ -20,6 +20,7 @@ import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { supabase } from "../lib/supabase";
 import { type Dish, dishKey, pickPair } from "../lib/pairSelection";
 import { hallOrRetailName } from "../lib/retailHallNames";
+import { isHallSyncEnabled } from "../lib/hallSyncPreference";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
@@ -98,9 +99,14 @@ export default function RankScreen() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (session) {
+      if (session && (await isHallSyncEnabled())) {
         // Fire-and-forget: don't block advancing to the next pair on the network round-trip.
         // syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
+        // #285: the Your Data screen's "Favorite dining halls" SYNC toggle gates this call --
+        // without this check, a user who turned SYNC off would have it silently resurrected the
+        // next time they ranked a dish (the exact resurrection class #186/#241 already fixed for
+        // shared_stats, now guarded here for the one sync target that has no server column of its
+        // own to read "off" back from).
         void syncDiningHallRanks(supabase, session.user.id, updated);
       }
 
