@@ -275,9 +275,15 @@ describe("FriendsBody", () => {
   it("alerts failure and keeps the search results when the request_friendship rpc is rejected", async () => {
     mockTables({
       friendshipRows: [],
-      profiles: [{ user_id: "stranger-1", display_name: "Sam" }],
+      profiles: [],
     });
-    mockRpc.mockResolvedValue({ data: null, error: { message: "row-level security policy violation" } });
+    // #234: search() now goes through the search_profiles RPC, not a raw .from("profiles").ilike()
+    // -- dispatch by rpc name (same pattern as addFriendsScreen.test.tsx) so search still finds
+    // "Sam" while request_friendship keeps rejecting.
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "search_profiles") return Promise.resolve({ data: [{ user_id: "stranger-1", display_name: "Sam" }], error: null });
+      return Promise.resolve({ data: null, error: { message: "row-level security policy violation" } });
+    });
     const root = await renderFriends();
 
     const searchInput = root.root.findAllByType(TextInput).find((n) => n.props.placeholder === "Search by name")!;

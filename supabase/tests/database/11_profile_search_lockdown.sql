@@ -8,13 +8,15 @@
 -- has_column_privilege/has_function_privilege/pg_policies state, and the real shipped function
 -- bodies) rather than a policy/grant this file re-applies itself inside its own transaction -- a
 -- suite that repairs the schema it's testing can't detect a regression in the shipped migration.
--- The one deliberate exception is the RLS-non-change regression guard at the bottom, which mutates
--- ON PURPOSE to prove why 20260825120000 did NOT touch the SELECT policy -- restored before commit,
--- same convention as 09/10's own constraint/policy mutation-red blocks.
+-- The one deliberate exception is the regression guard at the bottom, which mutates ON PURPOSE to
+-- reproduce and re-close the #234 unbounded-directory-dump exploit (the SELECT policy's
+-- discoverable=true arm 20260825120000 deliberately left in place, and 20260827090000 later
+-- dropped once request_friendship/the friendships INSERT policy no longer needed it) -- restored
+-- before commit, same convention as 09/10's own constraint/policy mutation-red blocks.
 create extension if not exists pgtap;
 
 begin;
-select plan(37);
+select plan(48);
 
 insert into auth.users
   (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_confirmed_at)
@@ -61,13 +63,44 @@ select ok(not has_function_privilege('anon', 'public.search_profiles(text)', 'EX
 select ok(has_function_privilege('authenticated', 'public.related_profiles(uuid[])', 'EXECUTE'), 'authenticated can execute related_profiles');
 select ok(not has_function_privilege('anon', 'public.related_profiles(uuid[])', 'EXECUTE'), 'anon cannot execute related_profiles');
 
--- (12) documents the deliberate non-change: the SELECT policy still has its discoverable=true arm.
--- See the regression guard at the bottom of this file for WHY it has to stay.
-select matches(
-  (select qual from pg_policies where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles readable by self, existing relationship, or if discoverable'),
-  'discoverable',
-  'the profiles SELECT policy still has its discoverable=true arm -- deliberately not narrowed, see bottom of this file'
+-- (12) #234: the SELECT policy's discoverable=true arm is now GONE -- self or existing relationship
+-- only. See the regression guard at the bottom of this file for the closed exploit this enables.
+select isnt(
+  (select qual from pg_policies where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles readable by self or existing relationship'),
+  null,
+  '#234: the narrowed profiles SELECT policy exists'
 );
+select doesnt_match(
+  (select qual from pg_policies where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles readable by self or existing relationship'),
+  'discoverable',
+  '#234: the profiles SELECT policy no longer mentions discoverable at all -- narrowed to self/relationship only'
+);
+select ok(
+  not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles readable by self, existing relationship, or if discoverable'),
+  '#234: the old discoverable-arm policy name is gone'
+);
+
+-- (12b) #234: profile_is_discoverable is the SECURITY DEFINER helper both request_friendship's
+-- body and the friendships INSERT policy now route through instead of relying on the caller's own
+-- RLS. request_friendship itself deliberately STAYS security invoker -- see the migration's own
+-- comment -- so its own INSERT still passes through the friendships INSERT policy (the real
+-- defense-in-depth #214/#221/#314 hardened), not bypass it the way a SECURITY DEFINER function
+-- (table owners skip RLS by default) would.
+select ok(
+  (select prosecdef from pg_proc where proname = 'profile_is_discoverable' and pronamespace = 'public'::regnamespace),
+  '#234: profile_is_discoverable is SECURITY DEFINER'
+);
+select ok(has_function_privilege('authenticated', 'public.profile_is_discoverable(uuid)', 'EXECUTE'), '#234: authenticated can execute profile_is_discoverable');
+select ok(not has_function_privilege('anon', 'public.profile_is_discoverable(uuid)', 'EXECUTE'), '#234: anon cannot execute profile_is_discoverable');
+select ok(
+  not (select prosecdef from pg_proc where proname = 'request_friendship' and pronamespace = 'public'::regnamespace),
+  '#234: request_friendship stays SECURITY INVOKER -- its own INSERT must still pass through the friendships INSERT policy'
+);
+
+-- Direct pin on the helper's own logic, not just observed through the two RPCs that call it -- a
+-- constant-return regression (e.g. always true) can't hide behind those.
+select is(public.profile_is_discoverable('00000000-0000-0000-0000-000000000003'), false, '#234: profile_is_discoverable(carol) is false -- carol went private above');
+select is(public.profile_is_discoverable('00000000-0000-0000-0000-000000000004'), true, '#234: profile_is_discoverable(dave) is true -- dave stays discoverable');
 
 -- =================================================================================================
 -- Behavioral: a stranger's raw table select can no longer produce a name->email map.
@@ -88,33 +121,59 @@ select throws_like(
   'GREEN: select * is also permission-denied -- it expands to include the now-ungranted columns'
 );
 
--- (15) documented, ACCEPTED residual: display_name (and notifications_enabled/discoverable) alone
--- still comes back for any discoverable row, unbounded -- column grants can't add a row cap, and
--- the discoverable=true policy arm is deliberately unchanged (see migration + assertion 12). This is
--- the "name-level enumeration is the accepted surface of an opt-out discoverable default" tradeoff
--- #227 asks the owner to weigh in on.
+-- (15) #234: the residual #227 left open (a stranger's raw select of ANY discoverable row's
+-- non-email columns, unbounded) is now CLOSED -- alice is discoverable (default) and bob has no
+-- relationship with her, so this returns zero rows, not one.
 select is(
   (select count(*)::int from public.profiles where user_id = '00000000-0000-0000-0000-000000000001'),
-  1,
-  'ACCEPTED: a stranger can still read a discoverable row''s non-email columns directly (e.g. display_name) -- see PR body / discoverable-default question'
+  0,
+  '#234 CLOSED: a stranger can no longer read a discoverable row directly at all -- no relationship, no row'
 );
 reset role;
 
 -- (16)-(17) RED: prove the permission-denied assertions above are actually load-bearing, not
--- failing for an unrelated reason -- temporarily restore the pre-fix blanket grant and watch the
--- exact same #227 reproduction succeed and return alice's real email.
+-- failing for an unrelated reason -- temporarily restore the pre-#227-fix blanket grant AND (since
+-- #234 also narrowed row visibility) the pre-#234 discoverable=true SELECT arm, together
+-- reproducing the exact original bug this file is named for, and watch the #227 reproduction
+-- succeed and return alice's real email.
 grant select on public.profiles to authenticated;
+drop policy "profiles readable by self or existing relationship" on public.profiles;
+create policy "profiles readable by self, existing relationship, or if discoverable"
+  on public.profiles for select
+  to authenticated
+  using (
+    auth.uid() = user_id
+    or discoverable = true
+    or exists (
+      select 1 from public.friendships f
+      where least(auth.uid(), profiles.user_id) = f.user_a
+        and greatest(auth.uid(), profiles.user_id) = f.user_b
+    )
+  );
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
 select is(
   (select email from public.profiles where user_id = '00000000-0000-0000-0000-000000000001'),
   'alice@umass.edu',
-  'RED: with the pre-fix blanket SELECT grant restored, bob (a stranger) reads alice''s real email directly'
+  'RED: with the pre-fix blanket SELECT grant AND the pre-#234 discoverable arm restored, bob (a stranger) reads alice''s real email directly'
 );
 reset role;
--- revert to the fixed grant set -- must run at the ambient (superuser) role, same caution 10's own
--- RED block calls out: a REVOKE/GRANT issued as a non-owner role silently no-ops with a WARNING.
+-- revert to the fixed grant set and the real (narrowed) SELECT policy -- must run at the ambient
+-- (superuser) role, same caution 10's own RED block calls out: a REVOKE/GRANT issued as a
+-- non-owner role silently no-ops with a WARNING.
 revoke select on public.profiles from authenticated;
+drop policy "profiles readable by self, existing relationship, or if discoverable" on public.profiles;
+create policy "profiles readable by self or existing relationship"
+  on public.profiles for select
+  to authenticated
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.friendships f
+      where least(auth.uid(), profiles.user_id) = f.user_a
+        and greatest(auth.uid(), profiles.user_id) = f.user_b
+    )
+  );
 grant select (user_id, display_name, notifications_enabled, discoverable) on public.profiles to authenticated;
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
@@ -227,6 +286,40 @@ select is(
   0,
   'a batch containing ONLY an unrelated stranger returns zero rows, not an error'
 );
+
+-- #234 nit 1: related_profiles is now deterministically ordered by user_id -- a batch of self +
+-- dave + erin (ids ...001 < ...004 < ...005) must come back in that exact order, not whatever order
+-- the underlying scan happens to produce.
+select is(
+  (select array_agg(user_id) from (
+    select user_id from public.related_profiles(array['00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000004']::uuid[])
+  ) t),
+  array['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005']::uuid[],
+  '#234 nit: related_profiles rows come back ordered by user_id regardless of input array order'
+);
+
+-- #234 nit 2: related_profiles no longer errors or chokes on an oversized input array -- a cheap
+-- defensive slice (first 200 elements -- ponytail: positional, not relevance-ordered, upgrade to a
+-- relationship-aware pre-filter if a caller ever needs more than 200 ids in one real batch) caps it
+-- before the relationship check runs. The app always puts real ids first (it builds this array from
+-- its own known relationship/search-result lists, never attacker-controlled order), so put alice's
+-- and dave's ids first here too and pad with 300 garbage ids after -- the call must still succeed
+-- and still find both real ids.
+select lives_ok(
+  $$select count(*) from public.related_profiles(
+      array['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000004']::uuid[]
+      || array(select ('00000000-0000-0000-0000-1' || lpad(i::text, 11, '0'))::uuid from generate_series(1, 300) i)
+    )$$,
+  '#234 nit: related_profiles does not error on a 302-element input array'
+);
+select is(
+  (select count(*)::int from public.related_profiles(
+      array['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000004']::uuid[]
+      || array(select ('00000000-0000-0000-0000-1' || lpad(i::text, 11, '0'))::uuid from generate_series(1, 300) i)
+    )),
+  2,
+  '#234 nit: with the real ids first in the array, the oversized batch still surfaces alice (self) and dave (real relationship)'
+);
 reset role;
 
 -- (32) anon cannot call related_profiles at all.
@@ -239,49 +332,19 @@ select throws_like(
 reset role;
 
 -- =================================================================================================
--- Regression guard: WHY the SELECT policy's discoverable=true arm was NOT narrowed by this fix.
--- Deliberately mutates (unlike everything above) -- restored before this file's own rollback, same
--- convention as 09/10's constraint/policy mutation-red blocks.
+-- #234 regression guard: the unbounded directory dump this fix closes, reproduced and re-closed
+-- inside this file. Deliberately mutates (unlike everything above) -- restored before this file's
+-- own rollback, same convention as 09/10's constraint/policy mutation-red blocks.
 -- =================================================================================================
 
-drop policy "profiles readable by self, existing relationship, or if discoverable" on public.profiles;
-create policy "profiles readable by self, existing relationship, or if discoverable"
-  on public.profiles for select
-  to authenticated
-  using (
-    auth.uid() = user_id
-    or exists (
-      select 1 from public.friendships f
-      where least(auth.uid(), profiles.user_id) = f.user_a
-        and greatest(auth.uid(), profiles.user_id) = f.user_b
-    )
-  );
+-- grace (id ...201, inserted in this file's top-level user batch) is a genuine stranger to bob,
+-- discoverable (default), zero prior relationship -- the worklist entry an attacker's harvest step
+-- would pick up.
 
--- (33) request_friendship's own discoverable check (security invoker, runs under the caller's RLS)
--- can no longer see grace (a genuine stranger, no relationship, discoverable=true) at all -- it now
--- wrongly rejects a request that should succeed.
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
-select throws_like(
-  $$select public.request_friendship('00000000-0000-0000-0000-000000000201')$$,
-  '%not accepting friend requests%',
-  'RED: without the discoverable=true SELECT arm, request_friendship wrongly rejects a genuinely discoverable stranger'
-);
-reset role;
-
--- (34) the friendships INSERT policy's identical discoverable subquery (20260824160000) breaks the
--- same way for a raw insert.
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
-select throws_like(
-  $$insert into public.friendships (user_a, user_b, status, requested_by) values ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000201', 'pending', '00000000-0000-0000-0000-000000000002')$$,
-  '%row-level security policy%',
-  'RED: without the discoverable=true SELECT arm, the friendships INSERT policy also wrongly rejects a request to a genuinely discoverable stranger'
-);
-reset role;
-
--- restore the real, unmodified policy.
-drop policy "profiles readable by self, existing relationship, or if discoverable" on public.profiles;
+-- RED: temporarily restore the pre-#234 discoverable=true SELECT arm and prove the exact exploit
+-- the issue measured -- bob (a stranger, no relationships at all in this harvest) reads the whole
+-- discoverable directory (every seeded user above who never went private, plus grace) in one query.
+drop policy "profiles readable by self or existing relationship" on public.profiles;
 create policy "profiles readable by self, existing relationship, or if discoverable"
   on public.profiles for select
   to authenticated
@@ -295,31 +358,66 @@ create policy "profiles readable by self, existing relationship, or if discovera
     )
   );
 
--- (35) GREEN: request_friendship succeeds again against the same target.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
+select cmp_ok(
+  (select count(*)::int from public.profiles where discoverable = true),
+  '>',
+  1,
+  'RED: with the discoverable=true SELECT arm restored, bob''s unrelated single query harvests the whole discoverable directory, not just himself'
+);
+reset role;
+
+-- restore the real, narrowed policy.
+drop policy "profiles readable by self, existing relationship, or if discoverable" on public.profiles;
+create policy "profiles readable by self or existing relationship"
+  on public.profiles for select
+  to authenticated
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.friendships f
+      where least(auth.uid(), profiles.user_id) = f.user_a
+        and greatest(auth.uid(), profiles.user_id) = f.user_b
+    )
+  );
+
+-- GREEN: the identical query now returns only bob himself (the self arm), regardless of how many
+-- other discoverable rows exist -- the unbounded dump is closed.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
+select is(
+  (select count(*)::int from public.profiles where discoverable = true),
+  1,
+  'GREEN: with the real (narrowed) policy restored, bob''s identical query returns only his own row'
+);
+reset role;
+
+-- ...and the two legitimate call sites that depend on discoverability -- rerouted through
+-- profile_is_discoverable rather than this policy -- are unaffected by the narrowing either way.
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
 select lives_ok(
   $$select public.request_friendship('00000000-0000-0000-0000-000000000201')$$,
-  'GREEN: with the real policy restored, request_friendship succeeds against grace again'
+  '#234: request_friendship still succeeds against grace (a genuine discoverable stranger) with the SELECT arm gone'
 );
 reset role;
 delete from public.friendships where user_a = '00000000-0000-0000-0000-000000000002' and user_b = '00000000-0000-0000-0000-000000000201';
 
--- (36) GREEN: the raw INSERT path succeeds again too.
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
 select lives_ok(
   $$insert into public.friendships (user_a, user_b, status, requested_by) values ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000201', 'pending', '00000000-0000-0000-0000-000000000002')$$,
-  'GREEN: with the real policy restored, the raw insert path succeeds again too'
+  '#234: the raw INSERT path against grace still succeeds too -- the INSERT policy''s helper-backed check does not depend on the dropped SELECT arm'
 );
 reset role;
 
--- (37) belt-and-suspenders: the restored policy's qual is byte-for-byte back to mentioning
--- discoverable (guards against the restore itself silently drifting from the real migration).
-select matches(
-  (select qual from pg_policies where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles readable by self, existing relationship, or if discoverable'),
+-- belt-and-suspenders: the real policy is genuinely restored (guards against the RED/GREEN dance
+-- above silently drifting from what's actually shipped).
+select doesnt_match(
+  (select qual from pg_policies where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles readable by self or existing relationship'),
   'discoverable',
-  'the SELECT policy is restored with its discoverable=true arm intact'
+  'the SELECT policy is restored to the real, narrowed (no discoverable arm) definition'
 );
 
 select * from finish();
