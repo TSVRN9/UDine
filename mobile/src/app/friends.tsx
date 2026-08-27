@@ -93,7 +93,10 @@ export function FriendsBody() {
       setSearchResults([]);
       return;
     }
-    const { data } = await supabase.from("profiles").select("user_id, display_name").ilike("display_name", `%${text}%`).neq("user_id", myId).limit(10);
+    // #234: search_profiles (SECURITY DEFINER, 20-row cap) replaces this raw .ilike() against
+    // profiles -- the profiles SELECT policy no longer has a discoverable=true arm for a raw
+    // select to ride on, same fix add-friends.tsx already applied for #227.
+    const { data } = await supabase.rpc("search_profiles", { term: text });
     setSearchResults(data ?? []);
   }
 

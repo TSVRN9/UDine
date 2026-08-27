@@ -209,7 +209,11 @@ select is(
 reset role;
 delete from public.friendships where user_a = '00000000-0000-0000-0000-000000000001' and user_b = '00000000-0000-0000-0000-000000000002';
 
--- restore the fixed policy.
+-- restore the fixed policy -- #234's shape (profile_is_discoverable helper, not a direct profiles
+-- subquery, plus the #221/#314 idempotent-exemption OR-arm), matching what's actually shipped now.
+-- A direct profiles subquery here would no longer even work: the profiles SELECT policy's own
+-- discoverable=true arm is gone as of #234, so a caller-RLS-evaluated subquery can't see a genuine
+-- stranger's flag at all -- exactly why the check moved behind a SECURITY DEFINER helper.
 drop policy "participants can insert their own friend requests" on public.friendships;
 create policy "participants can insert their own pending search requests"
   on public.friendships for insert
@@ -221,10 +225,12 @@ create policy "participants can insert their own pending search requests"
     and confirmed_a is null
     and confirmed_b is null
     and origin = 'search'
-    and exists (
-      select 1 from public.profiles p
-      where p.user_id = (case when user_a = auth.uid() then user_b else user_a end)
-        and p.discoverable = true
+    and (
+      public.profile_is_discoverable(case when user_a = auth.uid() then user_b else user_a end)
+      or exists (
+        select 1 from public.friendships f
+        where f.user_a = friendships.user_a and f.user_b = friendships.user_b
+      )
     )
   );
 

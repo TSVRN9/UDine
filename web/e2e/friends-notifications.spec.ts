@@ -360,7 +360,9 @@ test.describe("Friends — signed in", () => {
 	test("a failed request_friendship RPC (RLS rejection) shows a failure state, not a false success", async ({ page }) => {
 		await signInAndMockSupabase(page, {
 			friendships: (route) => route.fulfill({ json: [] }),
-			profiles: (route) => route.fulfill({ json: [{ user_id: FRIEND_ID, display_name: "Casey Friend" }] }),
+			// #234: the search box now goes through the search_profiles RPC, not a raw .from("profiles")
+			// select -- a plain "profiles" handler no longer intercepts it (different REST path).
+			"rpc/search_profiles": (route) => route.fulfill({ json: [{ user_id: FRIEND_ID, display_name: "Casey Friend" }] }),
 			"rpc/request_friendship": (route) =>
 				route.fulfill({
 					status: 403,
@@ -372,6 +374,10 @@ test.describe("Friends — signed in", () => {
 		await expect(page.getByRole("heading", { name: "Find friends" })).toBeVisible({ timeout: 15_000 });
 
 		await page.getByLabel("Search by name").fill("Casey");
+		// #234: search now round-trips through the search_profiles RPC (a real, if mocked, network
+		// call) instead of resolving inline -- wait for the result to actually render before clicking,
+		// rather than relying on auto-waiting locator actions to race a plain click against it.
+		await expect(page.getByRole("button", { name: "Add friend" })).toBeVisible();
 		await page.getByRole("button", { name: "Add friend" }).click();
 
 		await expect(page.getByRole("alert")).toBeVisible();

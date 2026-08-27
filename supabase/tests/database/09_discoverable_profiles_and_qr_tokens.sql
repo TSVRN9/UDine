@@ -7,7 +7,7 @@
 create extension if not exists pgtap;
 
 begin;
-select plan(31);
+select plan(32);
 
 insert into auth.users
   (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_confirmed_at)
@@ -37,20 +37,27 @@ update public.profiles set discoverable = false where user_id = '00000000-0000-0
 insert into public.friendships (user_a, user_b, status, requested_by)
 values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000004', 'accepted', '00000000-0000-0000-0000-000000000001');
 
--- (3) A stranger (bob) can see a discoverable profile (carol, before she goes private -- test dave,
--- who stays discoverable throughout) directly, no RPC needed -- the RLS-scoped select IS the search
--- boundary.
+-- (3) #234: a stranger (bob) can NO LONGER see a profile directly via raw select, discoverable or
+-- not -- discoverability now only ever gates search_profiles/request_friendship (via
+-- profile_is_discoverable), never the SELECT policy itself. dave stays discoverable throughout;
+-- bob still gets zero rows for him, same as for private carol.
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002"}';
 select is(
   (select count(*)::int from public.profiles where user_id = '00000000-0000-0000-0000-000000000004'),
-  1,
-  'bob (stranger) can read dave''s profile -- dave is discoverable'
+  0,
+  '#234: bob (stranger) cannot read dave''s profile directly even though dave is discoverable -- no relationship with bob'
 );
 select is(
   (select count(*)::int from public.profiles where user_id = '00000000-0000-0000-0000-000000000003'),
   0,
   'bob (stranger) cannot read carol''s profile -- carol went private and has no relationship with bob'
+);
+-- ... but search_profiles (the correct, capped discoverability boundary) still finds dave.
+select is(
+  (select count(*)::int from public.search_profiles('dave')),
+  1,
+  '#234: bob can still find dave through search_profiles -- discoverability gates search, not raw select'
 );
 reset role;
 
