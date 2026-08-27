@@ -121,15 +121,16 @@ alter table public.push_tokens
 -- surface this issue is about.
 --
 -- A per-user row cap cannot be a plain CHECK constraint (Postgres CHECKs can't reference other rows
--- via a subquery -- "cannot use subquery in check constraint"), so this needs a trigger. It must be
--- STATEMENT-level with a transition table, not ROW-level: shared/src/sync.ts's syncFavoritedFoods
--- (the only writer) does one multi-row `insert(...)` per sync, and a BEFORE-ROW trigger's own
--- `count(*)` query does not see rows already inserted earlier in the SAME command (cmin
--- visibility) -- confirmed locally: a row-level version of this trigger let a single 100,000-row
--- insert straight through, since every row's own count() saw 0 rows and passed. The
--- `referencing new table as new_rows` transition table sees every row the statement inserted, so
--- this version correctly rejects that same 100,000-row statement while still allowing a legitimate
--- delete-then-reinsert resync at exactly the cap (verified locally for both).
+-- via a subquery -- "cannot use subquery in check constraint"), so this needs a trigger. It's
+-- STATEMENT-level with a transition table, not ROW-level, for efficiency, not correctness: a
+-- row-level BEFORE INSERT trigger's own count(*) DOES see rows already inserted earlier in the same
+-- statement (Postgres' command counter increments per row within a statement), so it would reject a
+-- 100,000-row bulk insert correctly too -- but it would do so by running its own count(*) query
+-- once per row, i.e. 100,000 separate queries against the same bulk insert. The
+-- `referencing new table as new_rows` transition table lets this trigger fire ONCE per statement and
+-- check all inserted rows in a single query, which is the only reason it's used here (verified
+-- locally that both versions correctly reject a 100,000-row insert and allow a legitimate
+-- delete-then-reinsert resync at exactly the cap).
 create or replace function public.enforce_favorited_foods_cap()
 returns trigger
 language plpgsql

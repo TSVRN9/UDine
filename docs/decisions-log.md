@@ -320,12 +320,14 @@ on disk, so not a storage-limit accident — a highly compressible payload sails
   (~45 chars) or a stringified Web Push subscription (~300-500 chars); 2048 is >4x headroom, and
   replaces Postgres' own unfriendly ~8191-byte btree index-entry error with a clean rejection.
 - **favorited_foods**: capped at 500 rows/user. No CHECK can reference other rows, so this is an
-  `AFTER INSERT ... FOR EACH STATEMENT` trigger with a `REFERENCING NEW TABLE` transition table — a
-  ROW-level version was tried first and does NOT work: its own `count(*)` can't see rows the same
-  bulk `INSERT` statement already added (cmin visibility), so a single 100,000-row insert (the exact
-  shape `shared/src/sync.ts`'s `syncFavoritedFoods` would send if ever fed a runaway local list) sailed
-  straight through it. The statement-level/transition-table version correctly rejects that same insert
-  while still allowing a legitimate delete-then-reinsert resync at exactly the cap.
+  `AFTER INSERT ... FOR EACH STATEMENT` trigger with a `REFERENCING NEW TABLE` transition table —
+  chosen for efficiency, not correctness: a ROW-level version's own `count(*)` *does* see rows the
+  same bulk `INSERT` statement already added (Postgres' command counter increments per row within a
+  statement), so it would also correctly reject a single 100,000-row insert (the exact shape
+  `shared/src/sync.ts`'s `syncFavoritedFoods` would send if ever fed a runaway local list) — but it
+  would do so via 100,000 separate `count(*)` queries, one per row. The statement-level/
+  transition-table version runs that check once per statement instead, while still allowing a
+  legitimate delete-then-reinsert resync at exactly the cap.
 
 pgTAP: `supabase/tests/database/20_size_and_row_count_caps.sql`, 23 assertions, full suite green at
 21 files / 296 tests.
