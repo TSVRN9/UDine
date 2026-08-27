@@ -228,7 +228,12 @@ async function renderScreen() {
 
 let alertSpy: jest.SpyInstance;
 
+// #245's animated Toggle schedules a real 180ms setTimeout on every value change, and none of
+// these tests ever unmount their renderer -- without fake timers, that real timer fires well after
+// a given test (often the whole file) finishes, hitting a torn-down Jest environment and crashing
+// the run. Same fix/justification as hallMenu.test.tsx's own beforeEach/afterEach pair.
 beforeEach(() => {
+  jest.useFakeTimers();
   jest.clearAllMocks();
   mockSharedStatsServerRow = null;
   mockSyncSharedStat.mockImplementation(mockSyncSharedStatDefaultImpl);
@@ -248,6 +253,7 @@ beforeEach(() => {
 
 afterEach(() => {
   alertSpy.mockRestore();
+  jest.useRealTimers();
 });
 
 // Toggle order once signed in, per privacy.tsx's JSX: [0] alerts, [1] hall-sync SYNC,
