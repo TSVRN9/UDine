@@ -90,6 +90,7 @@ jest.mock("../lib/supabase", () => ({
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import * as Linking from "expo-linking";
+import { router } from "expo-router";
 import AddFriendQrScreen from "../app/add-friend-qr";
 
 function ownText(n: renderer.ReactTestInstance): string {
@@ -266,6 +267,49 @@ describe("AddFriendQrScreen ScanTab success latch (#239)", () => {
       await Promise.resolve();
     });
     expect(mockRpc.mock.calls.filter(([name]) => name === "redeem_qr_token").length).toBe(2);
+  });
+});
+
+// #250: redeem_qr_token's on-conflict hand-back of an already-accepted friendship (any origin)
+// signals it via already_friends -- the scanner must forward that to qr-confirm.tsx so it can
+// render an honest "already friends" state instead of the doomed ADD/CANCEL flow.
+describe("AddFriendQrScreen ScanTab already-friends signal (#250)", () => {
+  it("forwards alreadyFriends=1 when redeem_qr_token hands back an already-accepted row", async () => {
+    mockCameraPermission = { granted: true };
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "redeem_qr_token") return Promise.resolve({ data: { user_a: "dave-1", user_b: "sam-1", already_friends: true }, error: null });
+      return defaultRpcImpl(name);
+    });
+    root = await renderScreen();
+    await switchToScanTab(root);
+
+    await act(async () => {
+      capturedOnBarcodeScanned?.({ data: "44444444-4444-4444-4444-444444444444" });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(router.push).toHaveBeenCalledWith(expect.stringContaining("alreadyFriends=1"));
+  });
+
+  it("forwards alreadyFriends=0 for a genuinely fresh in-person add", async () => {
+    mockCameraPermission = { granted: true };
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "redeem_qr_token") return Promise.resolve({ data: { user_a: "dave-1", user_b: "sam-1", already_friends: false }, error: null });
+      return defaultRpcImpl(name);
+    });
+    root = await renderScreen();
+    await switchToScanTab(root);
+
+    await act(async () => {
+      capturedOnBarcodeScanned?.({ data: "55555555-5555-5555-5555-555555555555" });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(router.push).toHaveBeenCalledWith(expect.stringContaining("alreadyFriends=0"));
   });
 });
 

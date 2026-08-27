@@ -65,4 +65,14 @@ describe("cancelQrFriendRequest", () => {
     await cancelQrFriendRequest(client(rows), ME, OTHER);
     expect(rows).toHaveLength(1);
   });
+
+  // #250 (item 4): every other case above calls with (client, ME, OTHER) where ME < OTHER
+  // lexically, so myId always happened to land on user_a already -- nothing pinned the canonical
+  // ordering swap (least/greatest) actually running when the caller passes the larger id first.
+  it("deletes the row when called with the larger id as myId (canonical ordering swap)", async () => {
+    const rows: Row[] = [{ user_a: ME, user_b: OTHER, status: "pending", origin: "qr" }];
+    const { error } = await cancelQrFriendRequest(client(rows), OTHER, ME);
+    expect(error).toBeNull();
+    expect(rows).toHaveLength(0);
+  });
 });

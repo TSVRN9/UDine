@@ -17,7 +17,13 @@ type Profile = { user_id: string; display_name: string; email: string | null };
  */
 export default function QrConfirmScreen() {
   const insets = useSafeAreaInsets();
-  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const { userId, alreadyFriends } = useLocalSearchParams<{ userId: string; alreadyFriends?: string }>();
+  // #250: redeem_qr_token's on-conflict hand-back of an already-accepted friendship (any origin)
+  // gets flagged by add-friend-qr.tsx via this route param -- ADD/CANCEL are both dead ends against
+  // that row (confirm_friendship only accepts an unconfirmed origin='qr' row; cancelQrFriendRequest
+  // is deliberately scoped to status='pending'/origin='qr' only), so this renders an honest state
+  // instead of offering either.
+  const isAlreadyFriends = alreadyFriends === "1";
   const [profile, setProfile] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -59,7 +65,14 @@ export default function QrConfirmScreen() {
     } = await supabase.auth.getSession();
     const myId = session?.user.id;
     if (myId) {
-      await cancelQrFriendRequest(supabase, myId, userId);
+      // #250: this used to discard {error} -- a failed delete looked identical to a successful
+      // one (router.back() ran either way). Same "surface {error}, don't proceed on failure"
+      // convention as friends.tsx's acceptFriend/requestFriend -- re-tapping CANCEL is a real retry.
+      const { error } = await cancelQrFriendRequest(supabase, myId, userId);
+      if (error) {
+        Alert.alert("Couldn't cancel", "Please try again.");
+        return;
+      }
     }
     router.back();
   }
@@ -68,7 +81,7 @@ export default function QrConfirmScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing(4.5), paddingBottom: insets.bottom + spacing(4) }]}>
-      <Text style={styles.headerTitle}>Add friend?</Text>
+      <Text style={styles.headerTitle}>{isAlreadyFriends ? "Already friends" : "Add friend?"}</Text>
 
       <View style={styles.identityBlock}>
         <View style={styles.avatarWrap}>
@@ -81,32 +94,51 @@ export default function QrConfirmScreen() {
         </View>
         <Text style={styles.name}>{name}</Text>
         {profile?.email ? <Text style={styles.email}>{profile.email}</Text> : null}
-        <View style={styles.scannedBadgeRow}>
-          <Text style={styles.scannedBadgeGlyph}>✓</Text>
-          <Text style={styles.scannedBadgeText}>SCANNED IN PERSON · JUST NOW</Text>
-        </View>
+        {!isAlreadyFriends && (
+          <View style={styles.scannedBadgeRow}>
+            <Text style={styles.scannedBadgeGlyph}>✓</Text>
+            <Text style={styles.scannedBadgeText}>SCANNED IN PERSON · JUST NOW</Text>
+          </View>
+        )}
       </View>
 
-      <View style={styles.explainerCard}>
-        <View style={styles.explainerRow}>
-          <Text style={styles.explainerGlyph}>◐</Text>
-          <Text style={styles.explainerText}>{name} will only see the stats you&apos;ve switched on in Your Data — nothing is shared just by becoming friends.</Text>
+      {isAlreadyFriends ? (
+        <View style={styles.explainerCard}>
+          <View style={styles.explainerRow}>
+            <Text style={styles.explainerGlyph}>✓</Text>
+            <Text style={styles.explainerText}>You&apos;re already friends with {name}.</Text>
+          </View>
         </View>
-        <View style={styles.explainerDivider} />
-        <View style={styles.explainerRow}>
-          <Text style={styles.explainerGlyph}>📍</Text>
-          <Text style={styles.explainerText}>Friends can ping you — &quot;come eat with me&quot; — and see your favorite halls if you share them.</Text>
+      ) : (
+        <View style={styles.explainerCard}>
+          <View style={styles.explainerRow}>
+            <Text style={styles.explainerGlyph}>◐</Text>
+            <Text style={styles.explainerText}>{name} will only see the stats you&apos;ve switched on in Your Data — nothing is shared just by becoming friends.</Text>
+          </View>
+          <View style={styles.explainerDivider} />
+          <View style={styles.explainerRow}>
+            <Text style={styles.explainerGlyph}>📍</Text>
+            <Text style={styles.explainerText}>Friends can ping you — &quot;come eat with me&quot; — and see your favorite halls if you share them.</Text>
+          </View>
         </View>
-      </View>
+      )}
 
       <View style={styles.bottom}>
-        <Pressable style={styles.addButton} onPress={confirm} disabled={busy} accessibilityRole="button" accessibilityLabel={addButtonLabel(name)}>
-          <Text style={styles.addButtonText}>{addButtonLabel(name)}</Text>
-        </Pressable>
-        <Pressable onPress={cancel} accessibilityRole="button" accessibilityLabel="Cancel">
-          <Text style={styles.cancelText}>CANCEL</Text>
-        </Pressable>
-        <Text style={styles.footer}>{firstNameOf(name)} gets this same screen on their phone. You&apos;re friends once you both confirm — no request sits in an inbox.</Text>
+        {isAlreadyFriends ? (
+          <Pressable style={styles.addButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="OK">
+            <Text style={styles.addButtonText}>OK</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Pressable style={styles.addButton} onPress={confirm} disabled={busy} accessibilityRole="button" accessibilityLabel={addButtonLabel(name)}>
+              <Text style={styles.addButtonText}>{addButtonLabel(name)}</Text>
+            </Pressable>
+            <Pressable onPress={cancel} accessibilityRole="button" accessibilityLabel="Cancel">
+              <Text style={styles.cancelText}>CANCEL</Text>
+            </Pressable>
+            <Text style={styles.footer}>{firstNameOf(name)} gets this same screen on their phone. You&apos;re friends once you both confirm — no request sits in an inbox.</Text>
+          </>
+        )}
       </View>
     </View>
   );
