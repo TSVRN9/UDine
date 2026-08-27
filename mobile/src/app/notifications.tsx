@@ -91,7 +91,6 @@ export function NotificationsBody() {
   );
 }
 
-/** Standalone `/notifications` route — thin ScrollView wrapper around NotificationsBody. */
 export default function NotificationsScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>

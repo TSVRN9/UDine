@@ -40,7 +40,6 @@ function mapNutriments(n: Record<string, number>, servingSize: string): Nutritio
   };
 }
 
-/** Looks up a packaged-food product by barcode. Returns null if not found. */
 export async function lookupBarcode(barcode: string): Promise<OffProduct | null> {
   const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`);
   if (!res.ok) throw new Error(`OpenFoodFacts ${res.status}`);

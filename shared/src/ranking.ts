@@ -67,7 +67,6 @@ export function applyComparison(dishes: RankedDish[], winner: { dishName: string
   return [...rest, updatedWinner, updatedLoser];
 }
 
-/** Highest-rated dishes first. */
 export function rankDishes(dishes: RankedDish[]): RankedDish[] {
   return [...dishes].sort((a, b) => b.rating - a.rating);
 }
@@ -107,7 +106,6 @@ export function applyFoodComparison(foods: RankedFood[], winner: { dishName: str
   return [...rest, updatedWinner, updatedLoser];
 }
 
-/** Highest-rated foods first. */
 export function rankFoods(foods: RankedFood[]): RankedFood[] {
   return [...foods].sort((a, b) => b.rating - a.rating);
 }
