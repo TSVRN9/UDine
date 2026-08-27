@@ -2,10 +2,69 @@
 -- each proven red against the pre-fix state (20260824150000 alone) and green with
 -- 20260824160000's fixes applied. House style per 07_shared_stats_rls.sql/09's own precedent:
 -- loosen the exact mechanism, watch the assertion flip red, restore it, watch it flip back.
+--
+-- #222: that repair-and-break style means this file could stay 100% green even if the SHIPPED
+-- migration regressed -- the RED blocks below ADD the pre-fix grant/policy back themselves, so
+-- they'd never notice it was already back. The block right after plan() closes that gap: it reads
+-- the real, already-migrated ambient state (information_schema/pg_policies/has_*_privilege) before
+-- this file's own RED blocks touch anything, so a regression in 20260824160000 itself shows up here
+-- even though every exploit assertion further down would still pass for the wrong reason.
 create extension if not exists pgtap;
 
 begin;
-select plan(19);
+select plan(32);
+
+-- =================================================================================================
+-- #222 AMBIENT: read the real post-migration state, before this file's own RED blocks mutate
+-- anything. If 20260824160000's fixes ever regressed (e.g. the blanket UPDATE grant on friendships
+-- came back), these fail on their own -- the exploit assertions below can't cover for them, because
+-- those RED blocks apply the very grant/policy this section is checking is ALREADY absent.
+-- =================================================================================================
+
+select ok(
+  not has_column_privilege('authenticated', 'public.friendships', 'confirmed_a', 'UPDATE'),
+  'AMBIENT: authenticated has no UPDATE on friendships.confirmed_a'
+);
+select ok(
+  not has_column_privilege('authenticated', 'public.friendships', 'confirmed_b', 'UPDATE'),
+  'AMBIENT: authenticated has no UPDATE on friendships.confirmed_b'
+);
+-- The other half of Finding 1's fix: the narrowed grant must still cover status/requested_by, or
+-- the ordinary search-flow accept breaks. Without this, an over-revoke regression (drop the column
+-- grant entirely instead of narrowing it) would pass every check above AND the "search-flow accept
+-- still works" lives_ok further down -- that lives_ok runs after THIS FILE's own repair re-grants
+-- these two columns, so it can't see an ambient over-revoke either.
+select ok(
+  has_column_privilege('authenticated', 'public.friendships', 'status', 'UPDATE'),
+  'AMBIENT: authenticated keeps UPDATE on friendships.status -- the search-flow accept needs it'
+);
+select ok(
+  has_column_privilege('authenticated', 'public.friendships', 'requested_by', 'UPDATE'),
+  'AMBIENT: authenticated keeps UPDATE on friendships.requested_by -- see 08''s two-field-forge case'
+);
+
+select ok(
+  not has_table_privilege('authenticated', 'public.qr_tokens', 'TRUNCATE'),
+  'AMBIENT: authenticated has no TRUNCATE on qr_tokens'
+);
+
+select matches(
+  (select with_check from pg_policies where schemaname = 'public' and tablename = 'friendships' and policyname = 'participants can insert their own pending search requests'),
+  'status = ''pending''',
+  'AMBIENT: friendships INSERT policy''s with_check still requires status = ''pending'' (the #214 must-start-pending arm)'
+);
+select matches(
+  (select with_check from pg_policies where schemaname = 'public' and tablename = 'friendships' and policyname = 'participants can insert their own pending search requests'),
+  'discoverable',
+  'AMBIENT: friendships INSERT policy''s with_check still requires the target to be discoverable'
+);
+
+select ok(not has_function_privilege('anon', 'public.mint_qr_token()', 'EXECUTE'), 'AMBIENT: anon has no EXECUTE on mint_qr_token');
+select ok(not has_function_privilege('public', 'public.mint_qr_token()', 'EXECUTE'), 'AMBIENT: PUBLIC has no EXECUTE on mint_qr_token');
+select ok(not has_function_privilege('anon', 'public.redeem_qr_token(uuid)', 'EXECUTE'), 'AMBIENT: anon has no EXECUTE on redeem_qr_token');
+select ok(not has_function_privilege('public', 'public.redeem_qr_token(uuid)', 'EXECUTE'), 'AMBIENT: PUBLIC has no EXECUTE on redeem_qr_token');
+select ok(not has_function_privilege('anon', 'public.confirm_friendship(uuid)', 'EXECUTE'), 'AMBIENT: anon has no EXECUTE on confirm_friendship');
+select ok(not has_function_privilege('public', 'public.confirm_friendship(uuid)', 'EXECUTE'), 'AMBIENT: PUBLIC has no EXECUTE on confirm_friendship');
 
 insert into auth.users
   (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_confirmed_at)
