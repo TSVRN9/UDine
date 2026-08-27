@@ -404,6 +404,43 @@ describe("NotificationsBody", () => {
     expect(toggle.props.value).toBe(false);
   });
 
+  // #190: the Switch had no `disabled` prop at all before this fix -- rapid ON->OFF could fire a
+  // second onValueChange while the first toggle() call was still mid-chain, racing the two against
+  // each other and leaving a live push token registered server-side while the UI already shows off.
+  // Drives the same held-token-promise pattern the self-heal race test above uses, but asserts on
+  // the rendered Switch's `disabled` prop, not just the hook's internal state -- `disabled` on a
+  // real RN Switch is what actually stops the user from firing a second onValueChange, so this is
+  // the assertion that matters for the bug as filed.
+  it("disables the switch for the duration of the enable chain, re-enabling once it settles", async () => {
+    mockTables({ notificationsEnabled: false });
+    let resolveToken!: (v: { data: string }) => void;
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        resolveToken = resolve;
+      }),
+    );
+
+    const root = await renderNotifications();
+    const toggle = root.root.findByType(Switch);
+    expect(toggle.props.disabled).toBeFalsy();
+
+    let onChangePromise!: Promise<void>;
+    await act(async () => {
+      onChangePromise = toggle.props.onValueChange(true);
+      await Promise.resolve();
+    });
+    await flush();
+
+    expect(root.root.findByType(Switch).props.disabled).toBe(true);
+
+    resolveToken({ data: "ExponentPushToken[test]" });
+    await act(async () => {
+      await onChangePromise;
+    });
+
+    expect(root.root.findByType(Switch).props.disabled).toBeFalsy();
+  });
+
   // #263: registration must go through the register_push_token RPC (which evicts a shared token
   // from any other owner server-side), never a raw push_tokens upsert -- a raw upsert now fails
   // outright against the unique(platform, token) constraint for a token shared with another user.

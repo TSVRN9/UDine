@@ -102,6 +102,12 @@
 	let pingSent = $state(false);
 	let pingError = $state(false);
 	let markReadError = $state(false);
+	// #190 (Fable audit @ e5a2848): toggleNotifications used to discard both profiles.update's and
+	// syncFavoritedFoods's `{error}` returns and flip notificationsEnabled unconditionally -- an RLS
+	// rejection (or any other server-side failure) left the checkbox optimistically showing "Alerts
+	// on"/"Alerts off" while the server never actually matched it. Same badge/setTimeout convention
+	// as pingError/markReadError above.
+	let notificationsError = $state(false);
 
 	let friendNameById = $derived(new Map(friends.map((f) => [f.user_id, f.display_name])));
 
@@ -244,13 +250,29 @@
 		// (needsPermission), toggling off the raw flag would be the wrong direction: a user tapping
 		// the visually-unchecked needs-action state to finish enabling would instead turn it off.
 		const next = !(notificationsEnabled && !needsPermission);
-		await supabase.from("profiles").update({ notifications_enabled: next }).eq("user_id", session.user.id);
+		const { error: profileError } = await supabase.from("profiles").update({ notifications_enabled: next }).eq("user_id", session.user.id);
+		// #190: mirrors mobile's favoriteFoodAlerts.ts #146 bail-out -- don't flip the checkbox or
+		// touch favorites/push-token state on a rejected write, and tell the user instead of lying.
+		if (profileError) {
+			console.error("Couldn't update notifications:", profileError);
+			notificationsError = true;
+			setTimeout(() => (notificationsError = false), 3000);
+			return;
+		}
 		notificationsEnabled = next;
 
 		// Sync (or clear) favorited_foods to match the new state — see CLAUDE.md: favorited_foods only
 		// syncs when signed in AND notifications_enabled.
 		const favorites: Favorite[] = next ? await favoritesStorage.getFavorites() : [];
 		const { error: favoritesSyncError } = await syncFavoritedFoods(supabase, session.user.id, favorites);
+		// #190: this was previously read only on the ON branch below (via needsPermission) and
+		// silently discarded on the OFF branch entirely -- a failed clear left favorited_foods still
+		// populated server-side with nothing telling the user their "off" didn't fully take.
+		if (favoritesSyncError) {
+			console.error("Couldn't sync favorited foods:", favoritesSyncError);
+			notificationsError = true;
+			setTimeout(() => (notificationsError = false), 3000);
+		}
 		// #286 round 2: only a REAL synced state counts -- a failed sync must not be mistaken for a
 		// done one (see favoritesSyncMarker.ts's own doc comment on why refresh() can't just re-derive
 		// this by calling syncFavoritedFoods itself).
@@ -348,6 +370,7 @@
 					Notify me when a favorited dish shows up on the menu.
 				{/if}
 			</p>
+			{#if notificationsError}<p role="alert" class="badge mt-2">Couldn't update notifications — try again.</p>{/if}
 		</div>
 		<div class="flex items-center gap-2">
 			<span class="badge">{notificationsEnabled && !needsPermission ? "Alerts on" : "Alerts off"}</span>

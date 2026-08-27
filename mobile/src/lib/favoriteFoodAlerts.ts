@@ -106,6 +106,14 @@ export interface FavoriteFoodAlerts {
    * on why syncFavoritedFoods can never safely run from refresh()). */
   needsPermission: boolean;
   toggle: (next: boolean) => Promise<{ error: string | null }>;
+  /** #190: true for the duration of toggle()'s multi-step chain (profiles.update -> favorites sync
+   * -> push-token register/delete) -- same `disabled`-while-pending convention as privacy.tsx's
+   * other guarded toggles (#158/#165/#167). Without this, a rapid ON->OFF tap could fire a second
+   * toggle() while the first is still mid-flight (e.g. between registering a push token and this
+   * hook's state settling), racing the two chains against each other and leaving a token registered
+   * server-side while the UI already shows off. Consumers must pass this as the control's
+   * `disabled` prop -- see notifications.tsx/privacy.tsx. */
+  pending: boolean;
   /** Re-runs the same mount/focus refresh this hook already does on its own (server-read of
    * notifications_enabled + self-heal) -- exposed so a caller that just mutated server state out
    * from under this hook (#272: deleteServerData turning notifications_enabled off) can pull the
@@ -127,6 +135,7 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [needsPermission, setNeedsPermission] = useState(false);
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     client.auth.getSession().then(({ data }: { data: { session: Session | null } }) => setSession(data.session));
@@ -174,6 +183,9 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
 
   async function toggle(next: boolean): Promise<{ error: string | null }> {
     if (!session) return { error: null };
+    // #190: guard the whole chain, not just the profiles.update leg -- see `pending`'s own doc
+    // comment on FavoriteFoodAlerts for the race this closes.
+    setPending(true);
     try {
       console.log(`[push] toggleNotifications(${next}): writing notifications_enabled...`);
       const { error: profileError } = await withTimeout(
@@ -273,8 +285,10 @@ export function useFavoriteFoodAlerts(client: SupabaseClient = supabase): Favori
       // optimistically flipped, same "stays off on failure" guarantee as the {error} path above.
       console.warn(`[push] toggleNotifications(${next}) failed`, e);
       return { error: null };
+    } finally {
+      setPending(false);
     }
   }
 
-  return { session, notificationsEnabled, favoritesCount, needsPermission, toggle, refresh };
+  return { session, notificationsEnabled, favoritesCount, needsPermission, pending, toggle, refresh };
 }
