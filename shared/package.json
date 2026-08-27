@@ -7,13 +7,14 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "TZ=America/New_York node --experimental-strip-types --test src/*.test.ts"
+    "test": "TZ=America/New_York node --experimental-strip-types --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "^2.112.3"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "typescript": "~6.0.3",
     "@types/node": "^22.10.0",
     "@supabase/supabase-js": "^2.112.3"
   }
