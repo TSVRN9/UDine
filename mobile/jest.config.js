@@ -24,4 +24,14 @@ process.env.TZ = "America/New_York";
 module.exports = {
   preset: "jest-expo",
   testTimeout: 30000,
+  // #325: `.txt` is metro.config.js's project-specific asset extension (the vendored pdf.js
+  // files, shipped as expo-asset bundled assets instead of base64 JS constants) -- jest-expo's own
+  // preset only wires its asset transform up for its own hardcoded default extension list, so this
+  // repo's `.txt` extension needs adding here too. jest-config merges a local `transform` key with
+  // the preset's own rather than replacing it (see jest-config/build/normalize.js's
+  // mergeOptionWithPreset), so this only adds a rule, it doesn't drop the preset's babel/asset
+  // transforms for every other extension.
+  transform: {
+    "\\.txt$": require.resolve("jest-expo/src/preset/assetFileTransformer.js"),
+  },
 };

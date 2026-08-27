@@ -22,18 +22,46 @@ jest.mock("expo-sharing", () => ({
   shareAsync: jest.fn(),
 }));
 
+// #325: the vendored pdf.js scripts now ship as expo-asset bundled assets (mobile/src/vendor/*.txt)
+// instead of base64 JS string constants -- resolved via Asset.fromModule(...).downloadAsync(), then
+// read back off disk. Both vendor files resolve to the SAME numeric module id under jest
+// (jest-expo's asset transform always emits `module.exports = 1` regardless of filename -- see
+// mobile/jest.config.js), so this mock can't branch on the id the way the real Metro bundler could.
+// What's actually deterministic is call ORDER: CafePdfViewer's buildViewerHtml always resolves
+// loadPdfjsMinJsBase64() before loadPdfjsWorkerMinJsBase64() (Promise.all evaluates array elements
+// in argument order), so the first Asset.fromModule call of a render is always the min.js asset and
+// the second is always the worker.
+const VENDOR_PDFJS_MIN_LOCAL_URI = "file:///vendor-assets/pdf.min.js.txt";
+const VENDOR_PDFJS_WORKER_LOCAL_URI = "file:///vendor-assets/pdf.worker.min.js.txt";
+const FAKE_PDFJS_MIN_BASE64 = "RkFLRV9QREZKU19NSU5fSlM="; // base64("FAKE_PDFJS_MIN_JS")
+const FAKE_PDFJS_WORKER_BASE64 = "RkFLRV9QREZKU19XT1JLRVJfSlM="; // base64("FAKE_PDFJS_WORKER_JS")
+
+const mockAssetDownloadAsync = jest.fn().mockResolvedValue(undefined);
+const mockAssetFromModule = jest.fn((_moduleId: number): { downloadAsync: typeof mockAssetDownloadAsync; localUri: string } => {
+  const localUri: string = mockAssetFromModule.mock.calls.length % 2 === 1 ? VENDOR_PDFJS_MIN_LOCAL_URI : VENDOR_PDFJS_WORKER_LOCAL_URI;
+  return { downloadAsync: mockAssetDownloadAsync, localUri };
+});
+jest.mock("expo-asset", () => ({
+  Asset: { fromModule: (moduleId: number) => mockAssetFromModule(moduleId) },
+}));
+
 const mockDownloadAsync = jest.fn().mockResolvedValue({ status: 200 });
-const mockReadAsStringAsync = jest.fn().mockResolvedValue("ZmFrZS1wZGYtYnl0ZXM="); // base64("fake-pdf-bytes")
+const mockReadAsStringAsync = jest.fn((uri: string): Promise<string> => {
+  if (uri === VENDOR_PDFJS_MIN_LOCAL_URI) return Promise.resolve(FAKE_PDFJS_MIN_BASE64);
+  if (uri === VENDOR_PDFJS_WORKER_LOCAL_URI) return Promise.resolve(FAKE_PDFJS_WORKER_BASE64);
+  return Promise.resolve("ZmFrZS1wZGYtYnl0ZXM="); // base64("fake-pdf-bytes") -- the downloaded PDF's own bytes
+});
 jest.mock("expo-file-system/legacy", () => ({
   cacheDirectory: "file:///cache/",
-  downloadAsync: (...args: unknown[]) => mockDownloadAsync(...args),
-  readAsStringAsync: (...args: unknown[]) => mockReadAsStringAsync(...args),
+  downloadAsync: (...args: [string, string]) => mockDownloadAsync(...args),
+  readAsStringAsync: (uri: string) => mockReadAsStringAsync(uri),
   EncodingType: { Base64: "base64" },
 }));
 
+import fs from "node:fs";
+import path from "node:path";
 import renderer, { act } from "react-test-renderer";
 import { CafePdfViewer, shouldAllowCafePdfNavigation } from "./CafePdfViewer";
-import { PDFJS_MIN_JS_BASE64, PDFJS_WORKER_MIN_JS_BASE64 } from "../vendor/pdfjs";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 
 function loadRequest(url: string): ShouldStartLoadRequest {
@@ -56,9 +84,26 @@ function lastWebViewProps(): CapturedWebViewProps {
   return call[0];
 }
 
+describe("#325: vendored pdf.js ships as expo-asset bundled assets, not inline base64 constants", () => {
+  it("pdfjs.ts has no giant inline string literal -- the old base64-JS-constant approach re-shipped ~1.88MB on every OTA update regardless of whether the update touched PDF viewing", () => {
+    // A plain file-size check, not a string-literal scan -- robust to quote style (template
+    // literal, single, double) and doesn't build an array of giant matches to Math.max over.
+    const { size } = fs.statSync(path.join(__dirname, "../vendor/pdfjs.ts"));
+    expect(size).toBeLessThan(10_000);
+  });
+
+  it("resolves both vendored scripts via expo-asset's Asset.fromModule + downloadAsync, not a hardcoded constant", async () => {
+    await renderViewer();
+    expect(mockAssetFromModule).toHaveBeenCalledTimes(2);
+    expect(mockAssetDownloadAsync).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("CafePdfViewer WebView lockdown (#219 review, finding 3+4)", () => {
   beforeEach(() => {
     mockWebView.mockClear();
+    mockAssetFromModule.mockClear();
+    mockAssetDownloadAsync.mockClear();
   });
 
   it("renders a WebView locked to about:blank -- no wildcard originWhitelist", async () => {
@@ -74,13 +119,13 @@ describe("CafePdfViewer WebView lockdown (#219 review, finding 3+4)", () => {
     expect(props.setSupportMultipleWindows).toBe(false);
   });
 
-  it("the generated viewer HTML references the vendored LOCAL pdf.js bytes, never cdnjs or any remote host", async () => {
+  it("the generated viewer HTML references the vendored LOCAL pdf.js bytes (resolved via expo-asset, #325), never cdnjs or any remote host", async () => {
     await renderViewer();
     const html = lastWebViewProps().source.html;
     expect(html).not.toMatch(/cdnjs\.cloudflare\.com/);
     expect(html).not.toMatch(/https?:\/\//); // no remote script/resource url anywhere in the page
-    expect(html).toContain(`data:text/javascript;base64,${PDFJS_MIN_JS_BASE64}`);
-    expect(html).toContain(`data:text/javascript;base64,${PDFJS_WORKER_MIN_JS_BASE64}`);
+    expect(html).toContain(`data:text/javascript;base64,${FAKE_PDFJS_MIN_BASE64}`);
+    expect(html).toContain(`data:text/javascript;base64,${FAKE_PDFJS_WORKER_BASE64}`);
   });
 
   it("passes the downloaded PDF's own bytes through as base64", async () => {
@@ -93,6 +138,8 @@ describe("CafePdfViewer error handling (#242)", () => {
   beforeEach(() => {
     mockWebView.mockClear();
     mockDownloadAsync.mockClear();
+    mockAssetFromModule.mockClear();
+    mockAssetDownloadAsync.mockClear();
   });
 
   it("renders a visible error state, not the viewer, when the download response is a non-2xx status", async () => {
