@@ -164,13 +164,38 @@ export function SocialPane() {
   const hallRowRefs = useRef<Map<number, View | null>>(new Map());
   const holdTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const offlineRef = useRef(false);
+  // #198: this is what actually keeps a HOLD_START re-render from recreating each avatar's
+  // PanResponder mid-gesture -- see panResponderFor's own comment. sendPing reads this instead of
+  // the `session` state var directly so the memoized responder still sees a fresh session (sign-out
+  // then sign-back-in without a remount, a token refresh) without needing to be recreated.
+  const sessionRef = useRef<Session | null>(null);
+  // ponytail: entries for a friend who leaves the list are never evicted -- a friends list is a
+  // handful of avatars, so the leak is negligible; revisit with a prune-on-refresh if this ever
+  // needs to track hundreds of friends.
+  const panResponders = useRef<Map<string, ReturnType<typeof PanResponder.create>>>(new Map());
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      sessionRef.current = data.session;
+      setSession(data.session);
+    });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      sessionRef.current = newSession;
+      setSession(newSession);
+    });
     return () => subscription.unsubscribe();
+  }, []);
+
+  // #198: holdTimers were never cleared on unmount -- a component torn down mid-hold (nav away,
+  // pane switch) left a live timer that would fire HOLD_START's setGesture against an unmounted
+  // component once LONG_PRESS_MS elapsed.
+  useEffect(() => {
+    return () => {
+      for (const timer of holdTimers.current.values()) clearTimeout(timer);
+      holdTimers.current.clear();
+    };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -266,7 +291,7 @@ export function SocialPane() {
    * split pingGesture.ts's own doc comment argues for.
    */
   async function sendPing(payload: PingPayload) {
-    const myId = session?.user.id;
+    const myId = sessionRef.current?.user.id;
     if (!myId) return;
     const outcome = await sendOrQueuePing(supabase, pingRow(myId, payload));
     if (outcome === "sent") {
@@ -302,8 +327,20 @@ export function SocialPane() {
   // -- the avatar row itself doesn't scroll and is a small tap-target area -- revisit with a
   // movement-distance threshold in onStartShouldSetPanResponder if that turns out to bite in
   // practice on-device.
+  //
+  // #198: memoized per friendId, not recreated every render. PanResponder.create() closes over its
+  // own internal gestureState (x0/y0/dx/dy bookkeeping, only initialized by that SAME instance's
+  // onResponderGrant) -- a HOLD_START dispatch mid-hold triggers setGesture, which re-renders this
+  // component, and RN's responder system dispatches subsequent move/release events to whatever
+  // panHandlers are CURRENTLY assigned to the view. Calling PanResponder.create() fresh on every
+  // render swapped in a brand-new instance mid-gesture whose gestureState never saw the grant,
+  // silently corrupting the release handler's dx/dy math. Reusing the same instance across renders
+  // fixes that; everything the handlers below read/write (refs, dispatch, sendPing via sessionRef)
+  // is already render-independent, so a stale closure isn't reintroduced by memoizing.
   function panResponderFor(friendId: string) {
-    return PanResponder.create({
+    const existing = panResponders.current.get(friendId);
+    if (existing) return existing;
+    const responder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         clearHoldTimer(friendId);
@@ -340,6 +377,8 @@ export function SocialPane() {
         dispatch({ type: "CANCEL" });
       },
     });
+    panResponders.current.set(friendId, responder);
+    return responder;
   }
 
   const holdingFriendName = gesture.phase === "holding" ? (profilesById.get(gesture.friendId)?.display_name ?? "them") : "";

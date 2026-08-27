@@ -23,7 +23,7 @@ import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
-import { SqliteFavoritesStorage } from "../../lib/favoritesStorage";
+import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
 import {
   addOrIncrement,
   listBottomPadding,
@@ -112,6 +112,7 @@ export default function GrabNGoScreen() {
   const [bannerHeight, setBannerHeight] = useState(0);
   const insets = useSafeAreaInsets();
   const guardedLogPlate = useGuardedLogPlate(storage);
+  const guardedToggleFavorite = useGuardedToggleFavorite(favoritesStorage, (favs) => setFavoriteDishKeys(new Set(favs.filter((f) => f.type === "dish").map(favoriteKey))));
 
   useEffect(() => {
     if (!gngTid) return;
@@ -210,16 +211,12 @@ export default function GrabNGoScreen() {
   const isToday = date.toDateString() === now.toDateString();
   const subtitle = retailHours && isToday ? retailHeaderSubtitle(retailOpenStatus(retailHours, now)) : "";
 
+  // #198: guarded per dish key -- see useGuardedToggleFavorite's own doc comment (shared with
+  // halls/[slug].tsx) for why a rapid second tap on the same star must be dropped, not re-decided
+  // from stale state.
   async function toggleDishFavorite(dishName: string) {
     const favorite: Favorite = { type: "dish", dishName };
-    const key = favoriteKey(favorite);
-    if (favoriteDishKeys.has(key)) {
-      await favoritesStorage.removeFavorite(favorite);
-    } else {
-      await favoritesStorage.addFavorite(favorite);
-    }
-    const favs = await favoritesStorage.getFavorites();
-    setFavoriteDishKeys(new Set(favs.filter((f) => f.type === "dish").map(favoriteKey)));
+    await guardedToggleFavorite(favorite, favoriteDishKeys.has(favoriteKey(favorite)));
   }
 
   function addToPlate(item: MenuItem, count = 1) {
