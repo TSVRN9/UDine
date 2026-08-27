@@ -100,6 +100,7 @@
 		try {
 			const favorites = await favoritesStorage.getFavorites();
 			favoriteHallTids = new Set(favorites.filter((f) => f.type === "location").map((f) => f.hallTid));
+			loadError = false;
 		} catch {
 			loadError = true;
 		}
