@@ -79,7 +79,7 @@ export default function FiltersScreen() {
       <View style={styles.thinRule} />
       <View style={styles.chipRow}>
         {allergens.map((a) => (
-          <Pressable key={a} style={[styles.chip, prefs.allergensToAvoid.includes(a) && styles.chipActive]} onPress={() => toggleAllergen(a)}>
+          <Pressable key={a} style={[styles.chip, prefs.allergensToAvoid.includes(a) && styles.chipActive]} onPress={() => toggleAllergen(a)} accessibilityRole="button">
             <Text style={[styles.chipText, prefs.allergensToAvoid.includes(a) && styles.chipTextActive]}>{a}</Text>
           </Pressable>
         ))}
@@ -90,7 +90,7 @@ export default function FiltersScreen() {
       <View style={styles.thinRule} />
       <View style={styles.chipRow}>
         {dietTags.map((t) => (
-          <Pressable key={t} style={[styles.chip, prefs.requiredDietTags.includes(t) && styles.chipActive]} onPress={() => toggleDietTag(t)}>
+          <Pressable key={t} style={[styles.chip, prefs.requiredDietTags.includes(t) && styles.chipActive]} onPress={() => toggleDietTag(t)} accessibilityRole="button">
             <Text style={[styles.chipText, prefs.requiredDietTags.includes(t) && styles.chipTextActive]}>{t}</Text>
           </Pressable>
         ))}

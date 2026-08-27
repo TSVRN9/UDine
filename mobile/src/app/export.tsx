@@ -153,7 +153,7 @@ export default function ExportScreen() {
           <Text style={styles.formatLabel}>FORMAT</Text>
           <View style={styles.formatPill}>
             {FORMAT_SEGMENTS.map((seg) => (
-              <Pressable key={seg.value} style={[styles.formatSegment, format === seg.value && styles.formatSegmentActive]} onPress={() => setFormat(seg.value)}>
+              <Pressable key={seg.value} style={[styles.formatSegment, format === seg.value && styles.formatSegmentActive]} onPress={() => setFormat(seg.value)} accessibilityRole="button">
                 <Text style={[styles.formatSegmentText, format === seg.value && styles.formatSegmentTextActive]}>{seg.label}</Text>
               </Pressable>
             ))}
@@ -166,7 +166,7 @@ export default function ExportScreen() {
           <Text style={styles.selectedCount}>{selectedList.length} selected</Text>
           {selectedList.length > 0 && <Text style={styles.selectedNames}>{selectedStoreLabel(selectedList)}</Text>}
         </View>
-        <Pressable style={[styles.exportButton, !canExport && styles.exportButtonDisabled]} onPress={runExport} disabled={!canExport}>
+        <Pressable style={[styles.exportButton, !canExport && styles.exportButtonDisabled]} onPress={runExport} disabled={!canExport} accessibilityRole="button">
           <Text style={[styles.exportButtonText, !canExport && styles.exportButtonTextDisabled]}>↓ EXPORT</Text>
         </Pressable>
       </View>
