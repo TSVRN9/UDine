@@ -109,6 +109,41 @@ describe("DOT_HIT_SLOP", () => {
   });
 });
 
+// #230: PaneHeader is pointerEvents="box-none" -- only the dots (and, implicitly, the title)
+// actually capture a touch; every other point in the header's box passes straight through to
+// whatever pane content is scrolled underneath. The header's own visible/opaque box is where the
+// backdrop (#245 item 3) actually hides content -- fine for a dot's hitSlop to cover, since
+// nothing under it is visible to tap anyway. But if a dot's hitSlop pokes even a few dp *past*
+// that box, it starts eating taps aimed at content that IS genuinely visible once scrolled to that
+// position -- found on the You pane's "ALL LOGS" link (#230), which was unreachable at whatever
+// scroll offset put it directly under a dot's expanded hit region. Pinned as a PaneHeader-only
+// invariant rather than a YouPane-specific one: a hit region that never leaves the header's own
+// box can't shadow ANY pane's content at ANY scroll offset, which strictly dominates checking one
+// pane's one link at rest (also not really checkable here -- react-test-renderer has no real
+// layout engine, so a Card's intrinsic on-screen height isn't derivable from its style props).
+//
+// The assertion below compares `dotBoxHeight + hitSlop.bottom` against `titleSlotHeight` alone,
+// with no `paddingTop` term on either side -- that's deliberate, not an omission. The container's
+// `alignItems: "flex-start"` top-aligns the dotsRow and the titleSlot to the exact same y (both
+// start right after the header's shared `paddingTop`), so a dot's hit-bottom is
+// `paddingTop + dotBoxHeight + hitSlop.bottom` and the header's own visible bottom is
+// `paddingTop + titleSlotHeight` -- the shared `paddingTop` cancels, leaving exactly the
+// inequality below. `dotBoxHeight` is read off the dot's own Press node (found by accessibility
+// label) rather than a parallel `spacing(4)` calculation, tracking `styles.dotTapTarget` even if
+// it changes -- valid because Press (see its own doc comment) collapses to one node, so the style
+// carrying that layout box is on the very node this test finds, not a wrapper around it.
+describe("DOT_HIT_SLOP vertical", () => {
+  it("keeps a dot's hitSlop-expanded touch area from reaching past the header's own visible box", () => {
+    const json = renderHeader(1);
+    const wrapper = findByAccessibilityLabel(json, "Go to UDINE");
+    if (!wrapper) throw new Error("dot not found");
+    const dotBoxHeight = (StyleSheet.flatten(wrapper.props.style as never) as { height?: number }).height ?? 0;
+    const titleSlotJson = json.children![0] as ReactTestRendererJSON;
+    const titleSlotHeight = (StyleSheet.flatten(titleSlotJson.props.style as never) as { height?: number }).height ?? 0;
+    expect(dotBoxHeight + DOT_HIT_SLOP.bottom).toBeLessThanOrEqual(titleSlotHeight);
+  });
+});
+
 // #245 item 3 (occlusion sub-problem): the fixed header sits above the pane content, and used to
 // have no background at all -- scrolled content became visible through the gaps around the
 // title/dots instead of being hidden behind an opaque bar. The artboard has no visually distinct

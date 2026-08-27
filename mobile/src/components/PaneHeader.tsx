@@ -12,26 +12,34 @@ const TITLES = ["SOCIAL", "UDINE", "YOU"] as const;
 const CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 
 // A dot's own tap-target box is spacing(4) = 16dp at the artboard width, shrinking with it on
-// narrower screens (13dp at the 320dp breakpoint). The fixed (unscaled) vertical hitSlop on top of
-// that gets the *vertical* effective hit height to 41dp at 320dp (13 + 14 + 14), not the full 44dp
-// guideline -- correcting an earlier version of this comment that overstated it. Horizontally, the
-// spec's own ≥16px tap-target target is met only via hitSlop at that breakpoint (13 visible + 2 +
-// 2 = 17dp effective), not by the visible box alone.
+// narrower screens (13dp at the 320dp breakpoint). #230 moved the vertical hitSlop from symmetric
+// (14 top, 14 bottom) to asymmetric (20 top, 8 bottom) -- top+bottom still sums to 28 either way,
+// so the *total* effective hit height is deliberately unchanged by that move: 44dp at the artboard
+// width / 41dp at 320dp (13 + 20 + 8, same 13 + 14 + 14 as before) -- this 41dp-vs-the-44dp-
+// guideline note itself predates #230 and corrects a still-earlier version of this comment that
+// overstated it, not anything #230 touched. Horizontally, the spec's own ≥16px tap-target target
+// is met only via hitSlop at the 320dp breakpoint (13 visible + 2 + 2 = 17dp effective), not by
+// the visible box alone.
 //
-// Horizontal hitSlop is capped well under half the row's `gap` (dotsRow, below): a uniform 14 on
-// all sides (dots 16dp wide, only 6dp apart) made the leftmost (SOCIAL) dot completely untappable
-// on-device (Agent_Emulator_Wide, #179 review) -- every point in its own real box also fell inside
-// the middle (UDINE) dot's expanded region, and UDINE won every one of them. Left/right capped at
-// 2, comfortably under half of the row's smallest on-device gap (`gap: spacing(1.5)` bottoms out
-// at 5dp at the narrowest supported breakpoint, scale ~0.82 -- see docs/agents/emulator-pool.md;
-// reasoned from that minimum, confirmed arithmetically -- DOT_HIT_SLOP.left*2 (4) < gap (5), 1dp
-// of clearance -- not itself observed on a real 320dp device), keeps adjacent dots' expanded
-// regions from overlapping at all, so this can't reoccur. See PaneHeader.test.tsx for the pinned
-// invariant.
+// Vertical hitSlop is capped on the bottom side to keep the dot's touch-response area from
+// reaching past the header's own visible/opaque box (`styles.container`'s backdrop, #245 item 3)
+// into pane content scrolled underneath -- the header is pointerEvents="box-none", so anything
+// past a dot's own hit region falls through to whatever's beneath it, and a symmetric top+bottom
+// 14 pokes ~2-4dp past that box depending on breakpoint. Found on-device: at rest, the You pane's
+// "ALL LOGS" link sits nowhere near the header, but once scrolled far enough for it to land in
+// that few-dp band directly under the header's bottom edge, a tap there hit the dot instead (#230)
+// -- nothing above the dots is tappable (that space is the header's own paddingTop), so the slack
+// moved there instead of shrinking the total. Left/right capped at 2, comfortably under half of
+// the row's smallest on-device gap (`gap: spacing(1.5)` bottoms out at 5dp at the narrowest
+// supported breakpoint, scale ~0.82 -- see docs/agents/emulator-pool.md; reasoned from that
+// minimum, confirmed arithmetically -- DOT_HIT_SLOP.left*2 (4) < gap (5), 1dp of clearance -- not
+// itself observed on a real 320dp device), keeps adjacent dots' expanded regions from overlapping
+// at all. #179 fixed the horizontal case, #230 fixed the vertical one -- both pinned as invariants
+// in PaneHeader.test.tsx rather than today's specific numbers, so neither can silently reoccur.
 //
-// Exported so that invariant is checkable from outside this file, per #134 (test the logic, not
+// Exported so both invariants are checkable from outside this file, per #134 (test the logic, not
 // just the pixels it happens to produce today).
-export const DOT_HIT_SLOP = { top: 14, bottom: 14, left: 2, right: 2 };
+export const DOT_HIT_SLOP = { top: 20, bottom: 8, left: 2, right: 2 };
 
 /**
  * Fixed header pinned above the 3-pane strip (#179): pane-position dots top-right, the active
