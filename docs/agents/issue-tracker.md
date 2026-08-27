@@ -2,6 +2,12 @@
 
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
+**Issues are for humans, not agent-to-agent handoff.** Two legitimate uses: (a) a human files a
+ticket and the orchestrator reads it and dispatches the work inline; (b) after work completes, the
+orchestrator optionally comments/closes as a receipt for human visibility. The orchestrator does
+not create an issue in order to dispatch an agent to read it — the task goes in the dispatch prompt
+(`orchestration.md`), and the audit trail is `task-log.jsonl`.
+
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
