@@ -38,6 +38,10 @@
 	let favoriteDishKeys: Set<string> = $state(new Set());
 	let loggedMessage = $state("");
 	let showPdf = $state(false);
+	// #322: set when an IndexedDB read/write here fails (issue #193's bug class -- e.g. a blocked
+	// open from a stale pre-deploy tab). Without this, the favorite-star toggle and log-a-dish
+	// writes below just silently no-op'd on a blocked/failed open.
+	let dbError = $state(false);
 
 	// Same seeding rule as halls/[slug]/+page.svelte: existence check (`in`), not `??=`, so clearing
 	// an input to blank doesn't get stomped back to 1.
@@ -47,20 +51,31 @@
 
 	onMount(async () => {
 		prefs = loadPreferences();
-		const favorites = await favoritesStorage.getFavorites();
-		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
+		try {
+			const favorites = await favoritesStorage.getFavorites();
+			favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
+		} catch {
+			dbError = true;
+		}
 	});
 
+	// Whole body in one try/catch, not just the write -- see /'s toggleFavoriteHall for why
+	// catching only the write and still unconditionally re-reading would let a succeeding read
+	// reset dbError back to false right after this catch set it.
 	async function toggleFavoriteDish(dishName: string) {
 		const favorite: Favorite = { type: "dish", dishName };
 		const key = favoriteKey(favorite);
-		if (favoriteDishKeys.has(key)) {
-			await favoritesStorage.removeFavorite(favorite);
-		} else {
-			await favoritesStorage.addFavorite(favorite);
+		try {
+			if (favoriteDishKeys.has(key)) {
+				await favoritesStorage.removeFavorite(favorite);
+			} else {
+				await favoritesStorage.addFavorite(favorite);
+			}
+			const favorites = await favoritesStorage.getFavorites();
+			favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
+		} catch {
+			dbError = true;
 		}
-		const favorites = await favoritesStorage.getFavorites();
-		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
 	}
 
 	async function logItem(item: MenuItem) {
@@ -72,7 +87,12 @@
 			servings: qty,
 			nutrition: item.nutrition,
 		};
-		await storage.addEntry(entry);
+		try {
+			await storage.addEntry(entry);
+		} catch {
+			dbError = true;
+			return;
+		}
 		loggedMessage = `Logged ${qty} × ${item.dishName}`;
 		setTimeout(() => (loggedMessage = ""), 2000);
 	}
@@ -159,6 +179,12 @@
 	<h1 class="page-title mt-1">{data.cafe.name}</h1>
 	<div class="label-rule mt-2 text-gold-500"></div>
 </header>
+
+{#if dbError}
+	<p role="alert" class="badge mt-4">
+		Couldn't save — try closing other UDine tabs and reloading this page.
+	</p>
+{/if}
 
 {#if hiddenCount > 0 && hiddenCount < data.items.length}
 	<p class="mt-4 rounded-md border border-gold-500/50 bg-gold-500/10 px-4 py-3 text-sm">

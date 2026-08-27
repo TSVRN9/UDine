@@ -41,6 +41,10 @@
 	// selection itself lives in @udine/shared (pickPostLogComparisonPair) -- this page only wires
 	// it up to IndexedDB reads and the applyComparison/applyFoodComparison write-back.
 	let comparePrompt: [LoggedDish, LoggedDish] | null = $state(null);
+	// #322: set when an IndexedDB read/write here fails (issue #193's bug class -- e.g. a blocked
+	// open from a stale pre-deploy tab). Without this, the favorite-star toggle and log-a-dish
+	// writes below just silently no-op'd on a blocked/failed open.
+	let dbError = $state(false);
 	// #82: the bottom-anchored toast/prompt stack's own rendered height, tracked via bind:clientHeight
 	// below (Svelte wires this to a ResizeObserver, so it stays current as the stack's content
 	// changes -- e.g. the prompt appearing/disappearing -- with no manual effect needed). Used to size
@@ -81,20 +85,31 @@
 
 	onMount(async () => {
 		prefs = loadPreferences();
-		const favorites = await favoritesStorage.getFavorites();
-		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
+		try {
+			const favorites = await favoritesStorage.getFavorites();
+			favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
+		} catch {
+			dbError = true;
+		}
 	});
 
+	// Whole body in one try/catch, not just the write -- see /'s toggleFavoriteHall for why
+	// catching only the write and still unconditionally re-reading would let a succeeding read
+	// reset dbError back to false right after this catch set it.
 	async function toggleFavoriteDish(dishName: string) {
 		const favorite: Favorite = { type: "dish", dishName };
 		const key = favoriteKey(favorite);
-		if (favoriteDishKeys.has(key)) {
-			await favoritesStorage.removeFavorite(favorite);
-		} else {
-			await favoritesStorage.addFavorite(favorite);
+		try {
+			if (favoriteDishKeys.has(key)) {
+				await favoritesStorage.removeFavorite(favorite);
+			} else {
+				await favoritesStorage.addFavorite(favorite);
+			}
+			const favorites = await favoritesStorage.getFavorites();
+			favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
+		} catch {
+			dbError = true;
 		}
-		const favorites = await favoritesStorage.getFavorites();
-		favoriteDishKeys = new Set(favorites.filter((f) => f.type === "dish").map(favoriteKey));
 	}
 
 	async function logItem(item: MenuItem) {
@@ -113,16 +128,27 @@
 			servings: qty,
 			nutrition: item.nutrition
 		};
-		await storage.addEntry(entry);
+		try {
+			await storage.addEntry(entry);
+		} catch {
+			dbError = true;
+			return;
+		}
 		loggedMessage = `Logged ${qty} × ${item.dishName}`;
 		setTimeout(() => (loggedMessage = ""), 2000);
 
 		// Offer a one-tap comparison against another logged dish, if a valid pair exists. Fire-and-forget
 		// relative to the toast above -- logging stays one tap regardless of whether this resolves to a
-		// pair or null.
-		const allEntries = await storage.getAllEntries();
-		const rankedDishes = await rankingStorage.getRankedDishes();
-		comparePrompt = pickPostLogComparisonPair(allEntries, { dishName: item.dishName, hallTid: item.hallTid }, rankedDishes);
+		// pair or null. Best-effort: the log itself already succeeded above, so a failed read here just
+		// means no comparison prompt this time, not a broken log -- same "degrade, don't alarm" posture
+		// as refreshRetail() on the home dashboard, not the dbError banner.
+		try {
+			const allEntries = await storage.getAllEntries();
+			const rankedDishes = await rankingStorage.getRankedDishes();
+			comparePrompt = pickPostLogComparisonPair(allEntries, { dishName: item.dishName, hallTid: item.hallTid }, rankedDishes);
+		} catch {
+			// no-op -- see comment above
+		}
 	}
 
 	// Updates both Elo tracks (RankedDish + RankedFood), same as /rank's own choose() -- see ADR 0001's
@@ -134,19 +160,26 @@
 	// features working off stale data until their next /rank visit. Sanctioned by CLAUDE.md's data
 	// residency table -- favorite dining halls (coarse, hall-level, not dish-level) are the one
 	// ranking-derived thing the server may see, and only for a signed-in user.
+	// #322: whole body in one try/catch -- a failed save must not clear comparePrompt and claim the
+	// comparison went through, same "don't lie about a write that didn't happen" reasoning as
+	// /rank's choose().
 	async function chooseCompare(winner: LoggedDish, loser: LoggedDish) {
-		const rankedDishes = applyComparison(await rankingStorage.getRankedDishes(), winner, loser);
-		const rankedFoods = applyFoodComparison(await rankingStorage.getRankedFoods(), winner, loser);
-		await rankingStorage.saveRankedDishes(rankedDishes);
-		await rankingStorage.saveRankedFoods(rankedFoods);
+		try {
+			const rankedDishes = applyComparison(await rankingStorage.getRankedDishes(), winner, loser);
+			const rankedFoods = applyFoodComparison(await rankingStorage.getRankedFoods(), winner, loser);
+			await rankingStorage.saveRankedDishes(rankedDishes);
+			await rankingStorage.saveRankedFoods(rankedFoods);
 
-		const session = page.data.session;
-		if (session && page.data.supabase) {
-			// Fire-and-forget: don't block dismissing the prompt on the network round-trip.
-			// syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
-			void syncDiningHallRanks(page.data.supabase, session.user.id, rankedDishes);
+			const session = page.data.session;
+			if (session && page.data.supabase) {
+				// Fire-and-forget: don't block dismissing the prompt on the network round-trip.
+				// syncDiningHallRanks catches and logs its own failures, so nothing to .catch() here.
+				void syncDiningHallRanks(page.data.supabase, session.user.id, rankedDishes);
+			}
+		} catch {
+			dbError = true;
+			return;
 		}
-
 		comparePrompt = null;
 	}
 
@@ -165,6 +198,12 @@
 	<h1 class="page-title mt-1">{data.hall.name}</h1>
 	<div class="label-rule mt-2 text-gold-500"></div>
 </header>
+
+{#if dbError}
+	<p role="alert" class="badge mt-4">
+		Couldn't save — try closing other UDine tabs and reloading this page.
+	</p>
+{/if}
 
 <!-- #72: no past nav (API has no history -- prev is disabled once we're already on today) and no
      forward cap (UMass's publish window rolls and isn't hardcoded here -- see
