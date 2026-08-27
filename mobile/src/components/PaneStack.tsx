@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { Animated, Easing, PanResponder, StyleSheet, View } from "react-native";
 import { PaneHeader } from "./PaneHeader";
 import { isHorizontalSwipe, paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility } from "../lib/paneShell";
@@ -50,17 +50,33 @@ export function PaneStack({
   onActiveIndexChange: (index: number) => void;
   topInset: number;
 }) {
+  // #336: idiomatic RN pattern, reading `.current` once during render for a stable
+  // Animated.Value identity; never reassigned.
+  // eslint-disable-next-line react-hooks/refs
   const panePos = useRef(new Animated.Value(activeIndex)).current;
+  // eslint-disable-next-line react-hooks/refs -- #336: same stable-identity idiom as above.
   const paneOpacityPos = useRef(new Animated.Value(activeIndex)).current;
   // Read inside the responder's own callbacks (refs, not state) so a swipe always resolves against
   // the pane it actually started on, even if activeIndex changes mid-drag some other way.
   const activeIndexRef = useRef(activeIndex);
-  activeIndexRef.current = activeIndex;
+  // useLayoutEffect (not useEffect / not a write during render, #336): the sync must land during the
+  // commit phase, before a gesture responder (onPanResponderGrant/Release) can possibly fire and read
+  // a stale value, and it must not run during render itself -- React Compiler may memoize this
+  // component and skip re-executing the body on a render it infers as a no-op, which would drop a
+  // plain render-time write silently. A passive useEffect is scheduled after paint, leaving a window
+  // where a touch could start before the ref is caught up; useLayoutEffect closes that window.
+  useLayoutEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
   const dragStartIndex = useRef(activeIndex);
 
   useEffect(() => {
     Animated.timing(panePos, { toValue: activeIndex, duration: 340, easing: PANE_CURVE, useNativeDriver: true }).start();
     Animated.timing(paneOpacityPos, { toValue: activeIndex, duration: 260, easing: Easing.ease, useNativeDriver: true }).start();
+    // #336: panePos/paneOpacityPos are stable useRef(...).current identities (see above); listed
+    // so this effect only re-fires on a real activeIndex commit, per the comment below -- not a
+    // reassignment.
+    // eslint-disable-next-line react-hooks/refs
   }, [activeIndex, panePos, paneOpacityPos]);
 
   // Separate from the effect above (not a shared/memoized helper referenced by both): the effect's
@@ -74,6 +90,10 @@ export function PaneStack({
   }
 
   const panResponder = useRef(
+    // #336: closes over panePos/paneOpacityPos/dragStartIndex/activeIndexRef (all refs) so the
+    // SAME PanResponder instance persists across renders (see comment above); reads them, never
+    // reassigns them here.
+    // eslint-disable-next-line react-hooks/refs
     PanResponder.create({
       onMoveShouldSetPanResponder: (_e, gesture) => isHorizontalSwipe(gesture.dx, gesture.dy),
       onPanResponderGrant: () => {
@@ -102,8 +122,15 @@ export function PaneStack({
   ).current;
 
   return (
+    // #336: panResponder is a stable useRef(...).current identity (see below), read once here for
+    // the panHandlers spread; never reassigned.
+    // eslint-disable-next-line react-hooks/refs
     <View style={styles.root} {...panResponder.panHandlers}>
-      {panes.map((pane, j) => {
+      {/* panePos/paneOpacityPos (read here via each pane's interpolate()) are stable
+         useRef(...).current identities, see above -- not a reassignment. */}
+      {
+        // eslint-disable-next-line react-hooks/refs -- #336: see comment above.
+        panes.map((pane, j) => {
         const { zIndex, pointerEvents } = paneVisibility(j, activeIndex);
         return (
           <Animated.View
