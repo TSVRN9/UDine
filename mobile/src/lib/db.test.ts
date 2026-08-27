@@ -1,13 +1,13 @@
 // Repro for #244 item 2: db.ts cached a rejected openDatabaseAsync forever. openDatabaseAsync is
 // mocked at the expo-sqlite boundary (same technique as menuHoursCache.test.ts) so getDb()'s own
 // singleton/table-creation code stays in play.
+import { getDb } from "./db";
+
 const mockOpen = jest.fn();
 
 jest.mock("expo-sqlite", () => ({
   openDatabaseAsync: (...args: unknown[]) => mockOpen(...args),
 }));
-
-import { getDb } from "./db";
 
 beforeEach(() => {
   mockOpen.mockReset();

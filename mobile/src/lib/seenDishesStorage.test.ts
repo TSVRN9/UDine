@@ -4,6 +4,8 @@
 // the real expo-sqlite module here throws "NativeDatabase is not a constructor" — no JS-only test
 // double ships with the package). Mocked at the expo-sqlite boundary (not "./db") so getDb()'s own
 // code — table creation, the promise-caching singleton — stays in play.
+import { SqliteSeenDishesStorage } from "./seenDishesStorage";
+
 const mockRows = new Map<string, string>();
 
 jest.mock("expo-sqlite", () => ({
@@ -15,8 +17,6 @@ jest.mock("expo-sqlite", () => ({
     getFirstAsync: async (_sql: string, key: string) => (mockRows.has(key) ? { value_json: mockRows.get(key) } : null),
   }),
 }));
-
-import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 
 beforeEach(() => mockRows.clear());
 

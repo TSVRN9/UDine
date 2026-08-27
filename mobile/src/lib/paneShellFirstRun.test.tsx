@@ -7,6 +7,9 @@
 // HomePane/YouPane's own dependencies never need to be pulled in (JSX for the `panes` prop builds
 // element descriptors either way, but React never mounts/calls them unless something renders those
 // children).
+import renderer, { act } from "react-test-renderer";
+import PaneShellScreen from "../app/index";
+
 jest.mock("../components/PaneStack", () => ({ PaneStack: () => null }));
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -41,9 +44,6 @@ jest.mock("../lib/supabase", () => ({
 // dependent) -- same reason homePane.test.tsx/homePaneOffline.test.tsx stub this out wholesale
 // rather than letting it load for real, even though nothing here ever calls signInWithGoogle.
 jest.mock("../lib/auth", () => ({ signInWithGoogle: jest.fn(), signOut: jest.fn() }));
-
-import renderer, { act } from "react-test-renderer";
-import PaneShellScreen from "../app/index";
 
 beforeEach(() => {
   mockPush.mockClear();

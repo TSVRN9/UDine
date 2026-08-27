@@ -3,6 +3,11 @@
 // the fix: a fetch failure renders #181's MenuErrorCard (retry state) instead of spinning forever,
 // and TRY AGAIN refetches successfully.
 
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import { fetchMenu, type MenuItem } from "@udine/shared";
+import FiltersScreen from "../app/filters";
+
 jest.mock("../lib/preferences", () => ({
   getPreferences: jest.fn().mockResolvedValue({ allergensToAvoid: [], requiredDietTags: [] }),
   setPreferences: jest.fn(),
@@ -12,11 +17,6 @@ jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import { fetchMenu, type MenuItem } from "@udine/shared";
-import FiltersScreen from "../app/filters";
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
 

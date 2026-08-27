@@ -1,5 +1,4 @@
-import type { HallCompletion } from "@udine/shared";
-import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
+import type { HallCompletion , LogEntry, RankedDish, RankedFood } from "@udine/shared";
 import { MEAL_PERIODS } from "@udine/shared";
 import {
   buildTopFoods,

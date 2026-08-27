@@ -164,7 +164,7 @@ function HallCard({
       <Link href={grabRouteFor(hall.slug) as never} asChild>
         <PressDim hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])} accessibilityRole="button">
           <View style={styles.grabStripLeft}>
-            <Text style={[styles.grabStripLabel, !grab.open && styles.grabStripTextClosed]}>GRAB 'N GO</Text>
+            <Text style={[styles.grabStripLabel, !grab.open && styles.grabStripTextClosed]}>GRAB &apos;N GO</Text>
             {grab.text ? <Text style={[styles.grabStripHours, !grab.open && styles.grabStripTextClosed]}>{grab.text}</Text> : null}
           </View>
           <Text style={[styles.grabStripChevron, !grab.open && styles.grabStripTextClosed]}>›</Text>
@@ -271,7 +271,7 @@ export function HomePane() {
       {/* error only reaches here on the genuine dead end -- fetch failed AND no cache exists.
           Anything with a cache falls back to `offline` (see HeroBlock) instead, per #181's owner
           decision that offline is not an error state. */}
-      {error && <Text style={styles.error}>Couldn't load dining hours: {error}</Text>}
+      {error && <Text style={styles.error}>Couldn&apos;t load dining hours: {error}</Text>}
       <HeroBlock hero={hero} now={now} offline={offline} cachedAt={cachedAt} pending={pending} />
 
       <View style={styles.hallList}>

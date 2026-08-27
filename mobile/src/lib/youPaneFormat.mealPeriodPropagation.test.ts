@@ -9,6 +9,9 @@
 // hallMenuTabs.mealPeriodPropagation.test.ts does, because mealPeriodForTime would never bucket an
 // entry into it without a window added to MEAL_BOUNDARIES too. This test instead proves the part
 // that *is* consolidated: the four existing periods' display order and labels.
+import type { LogEntry } from "@udine/shared";
+import { groupEntriesByMeal } from "./youPaneFormat";
+
 jest.mock("@udine/shared", () => {
   const actual = jest.requireActual("@udine/shared");
   return {
@@ -20,9 +23,6 @@ jest.mock("@udine/shared", () => {
     mealPeriodLabel: (period: string) => `Custom ${period}`,
   };
 });
-
-import type { LogEntry } from "@udine/shared";
-import { groupEntriesByMeal } from "./youPaneFormat";
 
 function mealEntry(id: string, loggedAt: string): LogEntry {
   return {

@@ -17,6 +17,12 @@
 // that means the SYNC toggles for Hall completion/Top 5 foods AND the SHARE toggle for Favorite
 // dining halls all read ON for a freshly seeded account.
 
+import renderer, { act } from "react-test-renderer";
+import { Alert, Text } from "react-native";
+import { Toggle } from "../components/ui";
+import { supabase } from "./supabase";
+import PrivacyScreen from "../app/privacy";
+
 jest.mock("./sqliteStorage", () => {
   const getAllEntries = jest.fn().mockResolvedValue([]);
   return { SqliteLogStorage: jest.fn().mockImplementation(() => ({ getAllEntries })) };
@@ -166,12 +172,6 @@ jest.mock("./supabase", () => ({
     from: (...args: unknown[]) => mockFrom(...args),
   },
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Alert, Text } from "react-native";
-import { Toggle } from "../components/ui";
-import { supabase } from "./supabase";
-import PrivacyScreen from "../app/privacy";
 
 // createdAt defaults to well before #248 Part C's 2026-08-26 ship date -- every pre-existing test in
 // this file calls session() without a createdAt, and must keep exercising the "existing account,

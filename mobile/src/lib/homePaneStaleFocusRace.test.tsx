@@ -9,6 +9,10 @@
 // registered callback/cleanup pair directly so the test can drive focus/blur by hand.
 import type { DiningHoursFeed } from "@udine/shared";
 
+import renderer, { act } from "react-test-renderer";
+import { Text } from "react-native";
+import { HomePane } from "../app/index";
+
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -53,10 +57,6 @@ jest.mock("../lib/menuHoursCache", () => ({
   fetchHoursAndCache: () => mockFetchHoursAndCache(),
   getCachedHours: () => mockGetCachedHours(),
 }));
-
-import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
-import { HomePane } from "../app/index";
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children).flat().join(" ");

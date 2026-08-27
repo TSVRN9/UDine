@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Animated, Text, View } from "react-native";
 import renderer, { act } from "react-test-renderer";
 
+import { PaneStack } from "../components/PaneStack";
+
 // Jest hoists jest.mock() above imports and only allows referencing out-of-scope variables whose
 // name starts with "mock" inside the factory -- hence the prefix on all three.
 const mockMountCount = { current: 0 };
@@ -38,8 +40,6 @@ jest.mock("../components/PaneHeader", () => {
     },
   };
 });
-
-import { PaneStack } from "../components/PaneStack";
 
 function Pane({ label }: { label: string }) {
   return <Text>{label}</Text>;
@@ -78,7 +78,7 @@ function fakeTouch(previousPageX: number, currentPageX: number, timeStamp: numbe
       indexOfSingleActiveTouch: 0,
       mostRecentTimeStamp: timeStamp,
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
   } as any;
 }
 

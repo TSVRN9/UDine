@@ -423,7 +423,7 @@ export default function PrivacyScreen() {
               <View style={styles.alertsRow}>
                 <View style={styles.alertsText}>
                   <Text style={styles.rowLabel}>Favorite dining halls</Text>
-                  <Text style={styles.alertsSubline}>Enables "come eat with me" ping suggestions.</Text>
+                  <Text style={styles.alertsSubline}>Enables &quot;come eat with me&quot; ping suggestions.</Text>
                 </View>
                 <Toggle value={hallSyncOn} onValueChange={toggleHallSync} disabled={hallSyncPending} />
               </View>
@@ -462,11 +462,11 @@ export default function PrivacyScreen() {
                 <Toggle value={discoverable} onValueChange={toggleFindable} disabled={findablePending} />
               </View>
             </Card>
-            <Text style={styles.footer}>Accepted friends only · a stat that isn't synced can't be shared.</Text>
+            <Text style={styles.footer}>Accepted friends only · a stat that isn&apos;t synced can&apos;t be shared.</Text>
           </View>
 
           <Text style={styles.footer}>
-            Also on the server: pings you've sent friends and food-sighting history for favorite-food alerts -- not covered by these toggles yet.
+            Also on the server: pings you&apos;ve sent friends and food-sighting history for favorite-food alerts -- not covered by these toggles yet.
           </Text>
         </>
       )}

@@ -6,6 +6,12 @@
 
 // WebView needs a native module not present under jest. Mocked as a jest.fn (not `() => null`) so
 // this file can inspect exactly what props it was rendered with -- the point of this test.
+import fs from "node:fs";
+import path from "node:path";
+import renderer, { act } from "react-test-renderer";
+import { CafePdfViewer, shouldAllowCafePdfNavigation } from "./CafePdfViewer";
+import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
+
 interface CapturedWebViewProps {
   source: { html: string };
   originWhitelist: string[];
@@ -57,12 +63,6 @@ jest.mock("expo-file-system/legacy", () => ({
   readAsStringAsync: (uri: string) => mockReadAsStringAsync(uri),
   EncodingType: { Base64: "base64" },
 }));
-
-import fs from "node:fs";
-import path from "node:path";
-import renderer, { act } from "react-test-renderer";
-import { CafePdfViewer, shouldAllowCafePdfNavigation } from "./CafePdfViewer";
-import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 
 function loadRequest(url: string): ShouldStartLoadRequest {
   // Only `url` is read by shouldAllowCafePdfNavigation -- the rest of ShouldStartLoadRequest's

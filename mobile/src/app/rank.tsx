@@ -147,7 +147,7 @@ export default function RankScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <Text style={styles.pageTitle}>Rank Dishes</Text>
       <View style={styles.rule} />
-      <Text style={styles.hint}>Compare dishes you've actually logged — ranking is built from what you've eaten, not the full menu.</Text>
+      <Text style={styles.hint}>Compare dishes you&apos;ve actually logged — ranking is built from what you&apos;ve eaten, not the full menu.</Text>
 
       {loggedDishes.length < 2 ? (
         <Text style={styles.hint}>Log a couple of meals first, then come back here to rank them.</Text>

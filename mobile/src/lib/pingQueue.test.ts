@@ -1,4 +1,7 @@
 // Same fake expo-sqlite technique as seenDishesStorage.test.ts / menuHoursCache.test.ts.
+import { Alert } from "react-native";
+import { enqueuePing, flushQueuedPings, getQueuedPings, isTransientPingError, sendOrQueuePing, type PingInsertRow } from "./pingQueue";
+
 const mockRows = new Map<string, string>();
 
 jest.mock("expo-sqlite", () => ({
@@ -10,9 +13,6 @@ jest.mock("expo-sqlite", () => ({
     getFirstAsync: async (_sql: string, key: string) => (mockRows.has(key) ? { value_json: mockRows.get(key) } : null),
   }),
 }));
-
-import { Alert } from "react-native";
-import { enqueuePing, flushQueuedPings, getQueuedPings, isTransientPingError, sendOrQueuePing, type PingInsertRow } from "./pingQueue";
 
 beforeEach(() => mockRows.clear());
 

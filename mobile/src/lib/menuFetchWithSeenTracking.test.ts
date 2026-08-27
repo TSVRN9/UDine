@@ -1,5 +1,7 @@
 import type { MenuItem } from "@udine/shared";
 
+import { fetchMenuAndRecordSeen } from "./menuFetchWithSeenTracking";
+
 const mockFetchMenu = jest.fn<Promise<MenuItem[]>, [number, Date]>();
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
@@ -17,8 +19,6 @@ jest.mock("./seenDishesStorage", () => ({
     recordSeen: (...args: [number, string[]]) => mockRecordSeen(...args),
   })),
 }));
-
-import { fetchMenuAndRecordSeen } from "./menuFetchWithSeenTracking";
 
 function item(dishName: string, hallTid: number): MenuItem {
   return {
