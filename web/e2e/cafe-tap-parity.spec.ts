@@ -110,6 +110,22 @@ async function mockMenu(page: Page, byTid: Record<number, MenuItem[]>) {
 	});
 }
 
+// #224: /api/pdf is a same-origin server route that fetches the upstream PDF and re-serves it with
+// Content-Disposition: attachment. It's a real server route (unlike the client-fetched /api/hours
+// and /api/menu, it's requested by clicking an `<a download>`), so it needs its own page.route()
+// mock -- otherwise the real handler would try to fetch PDF_CAFE's fake, non-existent upstream URL
+// and 502.
+async function mockPdf(page: Page) {
+	await page.route("**/api/pdf**", (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: "application/pdf",
+			headers: { "content-disposition": 'attachment; filename="Test_Menu.pdf"' },
+			body: Buffer.from("%PDF-1.4 fake test pdf"),
+		}),
+	);
+}
+
 test("home lists cafés/markets and links each one through to its own café page", async ({ page }) => {
 	await mockHours(page, [MENU_CAFE]);
 	await page.goto("/");
@@ -197,6 +213,7 @@ test("a café with nothing at all renders the fallback sheet minus the menu sect
 test("a PDF-only standing menu opens inline, in-app -- no new tab, no navigation away", async ({ page, context }) => {
 	await mockHours(page, [PDF_CAFE]);
 	await mockMenu(page, { [PDF_CAFE_TID]: [] });
+	await mockPdf(page);
 
 	await gotoCafe(page, PDF_CAFE_TID, "PDF Café");
 	await expect(page.getByTestId("cafe-fallback-sheet")).toContainText("today's menu isn't posted yet");
@@ -213,14 +230,21 @@ test("a PDF-only standing menu opens inline, in-app -- no new tab, no navigation
 		"https://umassdining.com/sites/default/files/2025-08/Test%20Menu.pdf",
 	);
 
-	// #178 pr-review: SAVE's `download` attribute is only honored same-origin, and this PDF is
-	// cross-origin (umassdining.com) -- a bare same-tab `<a download>` there silently falls back to
-	// a normal navigation, which would replace this whole app in the current tab (exactly the
-	// "bounce to an external viewer" #177 forbids, just same-tab instead of new-tab). SAVE opens in
-	// a NEW tab instead: the app in THIS tab must never be unloaded/navigated away by it.
+	// #224: SAVE now fetches the PDF through the same-origin /api/pdf proxy and downloads the bytes
+	// via a synthetic same-origin <a download> -- a REAL download, no new tab, no navigation away in
+	// this tab either. Before the proxy existed, the only way to avoid unloading the app was the
+	// #178 pr-review interim fix (a new-tab `target="_blank"`, non-destructive but not a genuine
+	// download) -- this replaces that interim fix outright, it doesn't sit alongside it. SAVE is a
+	// <button> now, not an <a> -- see +page.svelte's own comment for why a plain `<a href download>`
+	// can't be reliably tested (or trusted not to silently hit the live network) here.
 	const appUrlBeforeSave = page.url();
-	const [newPage] = await Promise.all([context.waitForEvent("page"), page.getByRole("link", { name: "SAVE" }).click()]);
+	const pagesBeforeSave = context.pages().length;
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByRole("button", { name: "SAVE" }).click(),
+	]);
 	expect(page.url()).toBe(appUrlBeforeSave); // this tab never navigated away
-	expect(newPage.url()).toContain("Test%20Menu.pdf");
-	await newPage.close();
+	expect(context.pages().length).toBe(pagesBeforeSave); // and no new tab/window opened either
+	expect(download.suggestedFilename()).toBe("Test_Menu.pdf");
+	expect((await download.path()) !== null).toBe(true); // the download actually completed with bytes
 });
