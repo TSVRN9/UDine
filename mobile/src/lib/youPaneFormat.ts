@@ -1,5 +1,4 @@
 import {
-  hallNameFor,
   hallNameForOrNull,
   MEAL_PERIODS,
   mealPeriodLabel,
@@ -11,6 +10,7 @@ import {
   type RankedDish,
   type RankedFood,
 } from "@udine/shared";
+import { hallOrRetailName } from "./retailHallNames";
 
 /**
  * Carry-over note 3 (#92, from #97's review): shared's HallCompletion.pct rounds half-up
@@ -95,7 +95,7 @@ export function entryDishName(entry: LogEntry): string {
 export function logItemLine(entry: LogEntry): string {
   const name = entryDishName(entry);
   const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
-  const hall = entry.source.type === "umass-menu" ? ` · ${hallNameFor(entry.source.hallTid)}` : "";
+  const hall = entry.source.type === "umass-menu" ? ` · ${hallOrRetailName(entry.source.hallTid)}` : "";
   return `${name}${qty}${hall}`;
 }
 

@@ -197,24 +197,35 @@ export function HomePane() {
   const [cafeSheetVisible, setCafeSheetVisible] = useState(false);
   const [cafeSheetPdf, setCafeSheetPdf] = useState<{ url: string; label: string } | null>(null);
 
+  // #243 bug B: `current` guards against a stale response winning a race -- leaving this screen
+  // and refocusing it (e.g. switching panes/tabs and back) while the first focus's fetch is still
+  // in flight fires a second, overlapping load(). Without this, a slow first fetch that later
+  // rejects (or whose own getCachedHours() fallback resolves slowly) can land AFTER the second,
+  // newer focus's fetch already succeeded -- overwriting the fresh feed with a stale cached copy
+  // and showing a false offline banner. Same "current" pattern halls/[slug].tsx's item-fetch
+  // effect already uses for the analogous date-stepper race.
   const load = useCallback(() => {
+    let current = true;
     setNow(new Date());
     favoritesStorage.getFavorites().then((favs) => {
-      setFavoriteHallKeys(new Set(favs.filter((f) => f.type === "location").map(favoriteKey)));
+      if (current) setFavoriteHallKeys(new Set(favs.filter((f) => f.type === "location").map(favoriteKey)));
     });
     fetchHoursAndCache()
       .then((feed) => {
+        if (!current) return;
         setHoursFeed(feed);
         setOffline(false);
         setError(null);
       })
       .catch((e) => {
+        if (!current) return;
         // "offline" here really means "the last fetch failed" -- a rejected fetch as the
         // reachability signal, not a true OS-level connectivity check (no netinfo dependency in
         // this codebase). Good enough proxy: a real network error and a genuine server outage both
         // land here, and both get the same "render from what we've got" treatment.
         getCachedHours()
           .then((cached) => {
+            if (!current) return;
             if (cached) {
               setHoursFeed(cached.feed);
               setOffline(true);
@@ -224,8 +235,13 @@ export function HomePane() {
               setError(String(e));
             }
           })
-          .catch(() => setError(String(e)));
+          .catch(() => {
+            if (current) setError(String(e));
+          });
       });
+    return () => {
+      current = false;
+    };
   }, []);
 
   useFocusEffect(load);
