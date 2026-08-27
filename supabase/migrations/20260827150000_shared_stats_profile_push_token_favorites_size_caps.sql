@@ -129,8 +129,9 @@ alter table public.push_tokens
 -- once per row, i.e. 100,000 separate queries against the same bulk insert. The
 -- `referencing new table as new_rows` transition table lets this trigger fire ONCE per statement and
 -- check all inserted rows in a single query, which is the only reason it's used here (verified
--- locally that both versions correctly reject a 100,000-row insert and allow a legitimate
--- delete-then-reinsert resync at exactly the cap).
+-- locally that a row-level version's count(*) does see same-statement rows and also rejects a
+-- 100,000-row insert; separately verified the shipped statement-level version rejects that same
+-- insert while still allowing a legitimate delete-then-reinsert resync at exactly the cap).
 create or replace function public.enforce_favorited_foods_cap()
 returns trigger
 language plpgsql
