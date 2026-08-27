@@ -83,7 +83,7 @@ jest.mock("./sharedStatsSeed", () => ({
   },
 }));
 
-const alertsState = { notificationsEnabled: false, favoritesCount: 0, needsPermission: false };
+const alertsState = { notificationsEnabled: false, favoritesCount: 0, needsPermission: false, pending: false };
 const mockToggleAlerts = jest.fn().mockResolvedValue({ error: null });
 const mockRefreshAlerts = jest.fn().mockResolvedValue(undefined);
 jest.mock("./favoriteFoodAlerts", () => ({
@@ -243,6 +243,7 @@ beforeEach(() => {
   alertsState.notificationsEnabled = false;
   alertsState.favoritesCount = 0;
   alertsState.needsPermission = false;
+  alertsState.pending = false;
   mockHallSyncStore = true;
   mockSharedStatsSeedState.seeded.clear();
   mockSharedStatsSeedState.disclosureDismissed.clear();
@@ -777,6 +778,18 @@ describe("PrivacyScreen: favorite-food alerts toggle", () => {
     });
 
     expect(Alert.alert).toHaveBeenCalledWith("Couldn't update notifications", expect.any(String));
+  });
+
+  // #190: this was the one toggle on this screen not wired to the hook's pending state -- its four
+  // siblings (hall sync, the three shared-stat toggles, findable) all pass their own `pending`
+  // through to `disabled` already. Red-first: before this fix, privacy.tsx's alerts Toggle had no
+  // `disabled` prop at all, so this read `undefined`, not `true`.
+  it("disables the toggle while the hook reports pending", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue(session("me"));
+    alertsState.pending = true;
+    const root = await renderScreen();
+    const alertsToggle = root.root.findAllByType(Toggle)[TOGGLE.alerts];
+    expect(alertsToggle.props.disabled).toBe(true);
   });
 });
 

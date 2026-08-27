@@ -414,7 +414,10 @@ export default function PrivacyScreen() {
                     {alerts.notificationsEnabled && alerts.needsPermission ? "Tap to finish turning on -- allow notifications when asked." : alertsSubline(alerts.favoritesCount)}
                   </Text>
                 </View>
-                <Toggle value={alerts.notificationsEnabled && !alerts.needsPermission} onValueChange={toggleAlerts} />
+                {/* #190: this was the one toggle on this screen that skipped the #158/#165/#167
+                    disabled-while-pending convention its four siblings below all use -- a rapid
+                    ON->OFF tap could fire a second alerts.toggle() mid-chain. */}
+                <Toggle value={alerts.notificationsEnabled && !alerts.needsPermission} onValueChange={toggleAlerts} disabled={alerts.pending} />
               </View>
               <View style={styles.divider} />
               <View style={styles.alertsRow}>
