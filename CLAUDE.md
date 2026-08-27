@@ -23,10 +23,9 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
 
 ## Backend
 
-- Supabase project: **UDine** (`ubogyqskqzvkcqboqbhw`, org `tsvrn`, us-east-1, free tier).
-- An older unrelated project **bricktime** (`nhxsplkkwcscoyhibotc`) still exists in the same org —
-  the user asked to delete it, but the Supabase MCP toolset has no `delete_project` call. Delete it
-  manually from the dashboard if it's still unwanted; do not attempt to repurpose it.
+- Supabase project: **UDine** (`ubogyqskqzvkcqboqbhw`, org `tsvrn`, us-east-1, free tier). The
+  previously-noted unrelated **bricktime** project no longer exists — re-confirmed 2026-08-27
+  (`list_projects` returns exactly one project in the org). Bullet retired; no owner action needed.
 - **Auth: DONE.** Supabase Auth, Google OAuth provider — client ID/secret configured by the user
   directly in the Supabase dashboard (Authentication > Providers). Verified live (2026-08-17) by
   hitting `GET https://ubogyqskqzvkcqboqbhw.supabase.co/auth/v1/authorize?provider=google`, which
@@ -69,10 +68,11 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   ever be done by hand. **Half 2 (migration-tracked, done):** `hook_restrict_signup_by_umass_domain`
   (same function name, no dashboard re-selection needed) now also rejects any signup whose
   `event->'user'->'app_metadata'->>'provider'` isn't `'google'` —
-  `supabase/migrations/20260826120000_restrict_signup_by_google_provider.sql`. **Not yet applied to
-  the live project** — that happens only after this PR is reviewed and approved, same rule as
-  `shared_stats` above; half 1 (provider off) is what's actually protecting live today, half 2 exists
-  only in the repo until applied. Field choice
+  `supabase/migrations/20260826120000_restrict_signup_by_google_provider.sql`. **Applied to the live
+  project** — confirmed present in `list_migrations` as of 2026-08-27 (this bullet previously said
+  "not yet applied"; that was stale — same staleness class as the `shared_stats` correction above,
+  found via the same verification pass). Half 1 (provider off) is still what's actually protecting
+  live today regardless; half 2 is now live defense-in-depth on top of it. Field choice
   (`provider`, not the sibling `providers` array) matches Supabase's own docs example for exactly
   this use case (Auth Hooks > Before User Created hook > "Block by OAuth Provider"): at
   user-creation time there's exactly one identity being created, so `providers` is always a
@@ -140,26 +140,33 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `EXPO_ACCESS_TOKEN` all set; `mobile/`
   has an EAS project link (`eas.json`, `app.json`'s `extra.eas.projectId`), `google-services.json`,
   and the Android package renamed to `com.udinetogether.udine` (Firebase Android app registration
-  needs a real, lowercase package name). **Unconfirmed**: whether the FCM V1 service-account key
-  was actually uploaded to EAS via `eas credentials` — that step needs a real TTY (couldn't be
-  driven non-interactively) and its completion was never independently verified; run
-  `npx eas-cli credentials` from `mobile/` and check Push Notifications shows a configured service
-  account before treating Android push delivery as reliable. Web Push subscription registration
-  (`/web`) and Expo push-token registration (`/mobile`) are both implemented, writing to
-  `push_tokens`. **Push dispatch: implemented and deployed (2026-08-18, function v7).** Sends Web
-  Push (via `npm:web-push`) and Expo push per new `food_sightings` row, deletes permanently-dead
-  tokens, gates each platform on its own secrets independently. Deployed live and invoked directly
-  (`curl` against the function URL) to confirm it actually boots and runs on the real Supabase Edge
-  Runtime — this mattered because `npm:web-push` was only ever tested locally before deploying, and
-  a broken import there would have crashed the whole function, including the previously-working
-  matching logic. **Result: `npm:web-push` imports and runs fine on the real Edge Runtime** — the
-  first live invocation 500'd, but from a much smaller, unrelated bug: the `VAPID_SUBJECT` secret
-  was set to a bare email (`udine.dlbo0@aleeas.com`) instead of a `mailto:` URI, which `web-push`'s
-  `setVapidDetails` requires. Fixed by resetting the secret to `mailto:udine.dlbo0@aleeas.com`; a
-  follow-up invocation returned `200 {"checkedHalls":4,...,"pushConfigured":true,"pushSent":0,...}`
-  cleanly. **Still unverified**: an actual push landing on a real device/browser — no registered
-  token exists yet to send to, and Android delivery additionally depends on the still-unconfirmed
-  FCM V1 upload noted above. **`pg_cron` scheduling: DONE (2026-08-18).** ADR 0002's deferral
+  needs a real, lowercase package name). **FCM V1 service-account upload: CONFIRMED (2026-08-18,
+  project `udine-a6996`).** The earlier "unconfirmed, needs a real TTY" caveat is resolved — per the
+  owner, `eas credentials` was run interactively and the service-account key is uploaded to EAS.
+  This session couldn't re-verify it independently (no EAS MCP tool/TTY access here), so this is
+  relying on the owner's report, not a fresh `npx eas-cli credentials` read — re-run that check
+  yourself before treating Android push delivery as reliable if it matters for what you're doing.
+  Web Push subscription registration (`/web`) and Expo push-token registration (`/mobile`) are both
+  implemented, writing to `push_tokens`. **Push dispatch: implemented and deployed (2026-08-18,
+  function v7 originally).** Sends Web Push (via `npm:web-push`) and Expo push per new
+  `food_sightings` row, deletes permanently-dead tokens, gates each platform on its own secrets
+  independently. Deployed live and invoked directly (`curl` against the function URL) to confirm it
+  actually boots and runs on the real Supabase Edge Runtime — this mattered because `npm:web-push`
+  was only ever tested locally before deploying, and a broken import there would have crashed the
+  whole function, including the previously-working matching logic. **Result: `npm:web-push` imports
+  and runs fine on the real Edge Runtime** — the first live invocation 500'd, but from a much
+  smaller, unrelated bug: the `VAPID_SUBJECT` secret was set to a bare email
+  (`udine.dlbo0@aleeas.com`) instead of a `mailto:` URI, which `web-push`'s `setVapidDetails`
+  requires. Fixed by resetting the secret to `mailto:udine.dlbo0@aleeas.com`; a follow-up invocation
+  returned `200 {"checkedHalls":4,...,"pushConfigured":true,"pushSent":0,...}` cleanly. **Still
+  unverified**: an actual push landing on a real device/browser — no registered token exists yet to
+  send to. **Deployed version has since moved past v7 as fixes landed** — re-verified live via the
+  Supabase MCP `list_edge_functions`/`get_edge_function` tools on 2026-08-27: `check-favorited-foods`
+  is at **v14**, and its deployed source is **byte-identical** to this repo's
+  `supabase/functions/check-favorited-foods/index.ts` (and its `_shared/{hours,push,paging}.ts`
+  dependencies) at the current HEAD — confirmed by diffing the fetched deployed source against the
+  repo file, not just comparing version numbers. Re-run the same MCP diff before trusting this claim
+  again; it drifts every time a fix is deployed. **`pg_cron` scheduling: DONE (2026-08-18).** ADR 0002's deferral
   condition (push dispatch verified working) was met, so the job was wired up and applied to the
   live project — `pg_cron`/`pg_net` extensions enabled, `cron.job` shows
   `check-favorited-foods-hourly` active on schedule `0 11-23,0-1 * * *` (hourly, ~7am–9pm Eastern,
@@ -171,12 +178,28 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   via `net._http_response` that it actually got back a live `200` with the function's normal JSON
   body, not just that `net.http_post` returned a request id (which it does unconditionally,
   regardless of the HTTP outcome — see the migration's own comment on this pitfall).
-- **`shared_stats` schema + RLS (#94): DONE, local pgTAP green.** One row per user
+- **`send-ping-push` Edge Function (#95): DONE, deployed, live at v4** (verified 2026-08-27 via the
+  Supabase MCP `list_edge_functions` tool). Pushes a notification to a ping's receiver the moment a
+  ping is sent, rather than waiting on the hourly `check-favorited-foods` cron — pings are
+  latency-sensitive ("come eat with me, I'm here now"). Reuses `_shared/push.ts`'s senders and
+  dead-token cleanup (the same module `check-favorited-foods` uses); does not gate on
+  `profiles.notifications_enabled` — that flag is scoped to favorited-food alerts, a ping is a direct
+  friend interaction, not a food-alert preference. Triggered by a per-insert `pg_net` webhook on
+  `public.pings` (`supabase/migrations/20260821120000_ping_push_trigger.sql`,
+  `security definer`/`search_path = ''`, wrapped in its own exception handler so a push failure never
+  fails the underlying ping insert), reusing the same Vault auth secret the
+  `check-favorited-foods` cron already seeded. A companion migration
+  (`20260821120100_revoke_notify_ping_push_execute.sql`) revokes public `EXECUTE` on the trigger
+  function. Both migrations are applied live (present in `list_migrations`). Covered by
+  `supabase/tests/database/07_ping_push_trigger.sql` and further hardened by
+  `20260827100000_ping_replay_guard_and_db_hardening.sql` (#196/#228, replay-guard — not yet applied
+  live as of this writing, same "after PR review" rule as everything else in this section).
+- **`shared_stats` schema + RLS (#94): DONE, local pgTAP green, APPLIED LIVE.** One row per user
   (`supabase/migrations/20260820120000_shared_stats.sql`), three independently-nullable jsonb
   columns (`completion`, `top_foods`, `hall_ranks`) instead of three tables, so "opted in or not" is
   presence/absence of one column, enforced down to a check constraint — only a real absent/SQL-NULL
-  column counts as "not shared". **#271 tightened this check (not yet applied to the live
-  project — same "after PR review" rule as the rest of this bullet):** the original constraints
+  column counts as "not shared". **#271 tightened this check (applied live — confirmed via
+  `list_migrations` 2026-08-27):** the original constraints
   only rejected the JSON `null` literal, so an accepted friend could upsert any other non-array
   jsonb shape (a string/object/number, or an array with a malformed element) via a raw PostgREST
   call and crash the friend-profile screen's rendering. `supabase/migrations/
@@ -204,9 +227,11 @@ from `/mobile`. Confirmed working end-to-end on the `Agent_Emulator` AVD (2026-0
   missing-table one: loosening the friend-select policy to `using (true)` flipped the
   stranger/pending-friend denial assertions red; reverting it turned them green again. Explicit
   `select/insert/update/delete` grants to `authenticated`/`service_role` per the 2026-10-30
-  auto-expose deprecation (see the grant migration above). **Not yet applied to the live project** —
-  per #94's own instruction, that happens only after this PR is reviewed and approved, not
-  automatically once local pgTAP is green. Mobile: `mobile/src/lib/privacySettings.ts` derives each
+  auto-expose deprecation (see the grant migration above). **Applied to the live project** — merged
+  via #126 (2026-08-21), satisfying #94's own "migration applies to live only after review approves
+  it" instruction; the base `shared_stats` table and (per the paragraph above) the #271 array-shape
+  constraint tightening are both confirmed present in the live migration list as of 2026-08-27.
+  Mobile: `mobile/src/lib/privacySettings.ts` derives each
   stat's synced payload (a truncated cut — no `pct`/`tone`/comparison counts, see its own doc
   comment) and decides what a toggle should push; `shared/src/sync.ts`'s `syncSharedStat` does the
   actual upsert-or-null-out. Both jest- and node:test-covered, red-first (mutation-tested, not just
