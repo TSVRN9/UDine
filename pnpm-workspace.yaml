@@ -15,3 +15,5 @@ minimumReleaseAgeExclude:
   - expo-splash-screen@57.0.7
   - expo@57.0.14
   - expo-sharing@57.0.13
+  - expo-asset@57.0.15
+  - expo-constants@57.0.15

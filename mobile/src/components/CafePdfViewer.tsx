@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { WebView } from "react-native-webview";
 import type { ShouldStartLoadRequest, WebViewMessageEvent } from "react-native-webview/lib/WebViewTypes";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
-import { PDFJS_MIN_JS_BASE64, PDFJS_VERSION, PDFJS_WORKER_MIN_JS_BASE64 } from "../vendor/pdfjs";
+import { loadPdfjsMinJsBase64, loadPdfjsWorkerMinJsBase64 } from "../vendor/pdfjs";
 
 interface Props {
   url: string;
@@ -29,15 +29,20 @@ interface Props {
  * failing offline despite the PDF bytes already being on disk -- there was never a good reason for
  * an in-app PDF render to need network access beyond the initial PDF download itself).
  */
-function buildViewerHtml(base64: string): string {
+async function buildViewerHtml(base64: string): Promise<string> {
+  // #325: the two vendored scripts now ship as expo-asset bundled assets (mobile/src/vendor/*.txt)
+  // instead of base64 JS string constants, so resolving them to bytes is async -- see
+  // ../vendor/pdfjs.ts's doc comment for why (OTA payload size, not correctness; #226 already
+  // confirmed the viewer itself renders/scrolls/pinch-zooms correctly on-device).
+  const [pdfjsBase64, workerBase64] = await Promise.all([loadPdfjsMinJsBase64(), loadPdfjsWorkerMinJsBase64()]);
   return `<!DOCTYPE html>
 <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <style>body{margin:0;background:${colors.paper50};} canvas{display:block;margin:0 auto 8px auto;}</style>
 </head><body>
 <div id="pages"></div>
-<script src="data:text/javascript;base64,${PDFJS_MIN_JS_BASE64}"></script>
+<script src="data:text/javascript;base64,${pdfjsBase64}"></script>
 <script>
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "data:text/javascript;base64,${PDFJS_WORKER_MIN_JS_BASE64}";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "data:text/javascript;base64,${workerBase64}";
   var raw = atob("${base64}");
   var bytes = new Uint8Array(raw.length);
   for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -93,15 +98,19 @@ export function shouldAllowCafePdfNavigation(request: ShouldStartLoadRequest): b
  * integrity), expo-file-system (already a dependency) for the download SAVE also reuses.
  */
 export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
-  const [base64, setBase64] = useState<string | null>(null);
   const [localUri, setLocalUri] = useState<string | null>(null);
+  // #325: buildViewerHtml is now async (it resolves the two vendored pdf.js scripts from
+  // expo-asset bundled assets rather than reading hardcoded JS string constants), so the finished
+  // HTML has to live in state -- JSX render can't await it inline the way it could call the old
+  // synchronous buildViewerHtml(base64) directly.
+  const [viewerHtml, setViewerHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let current = true;
     setError(null);
-    setBase64(null);
+    setViewerHtml(null);
     setLocalUri(null);
     // ponytail: each open writes a new timestamped file under cacheDirectory and nothing ever
     // deletes it -- the OS is free to reclaim cache space under pressure, but a heavy user
@@ -120,10 +129,11 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
         }
         return FileSystem.readAsStringAsync(dest, { encoding: FileSystem.EncodingType.Base64 });
       })
-      .then((b64) => {
+      .then((b64) => buildViewerHtml(b64))
+      .then((html) => {
         if (!current) return;
         setLocalUri(dest);
-        setBase64(b64);
+        setViewerHtml(html);
       })
       .catch((e) => {
         if (current) setError(String(e instanceof Error ? e.message : e));
@@ -186,11 +196,11 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
               <Text style={styles.retryButtonText}>RETRY</Text>
             </Pressable>
           </View>
-        ) : !base64 ? (
+        ) : !viewerHtml ? (
           <ActivityIndicator color={colors.gold500} style={styles.loading} />
         ) : (
           <WebView
-            source={{ html: buildViewerHtml(base64) }}
+            source={{ html: viewerHtml }}
             originWhitelist={["about:blank"]}
             onShouldStartLoadWithRequest={shouldAllowCafePdfNavigation}
             onMessage={handleWebViewMessage}
