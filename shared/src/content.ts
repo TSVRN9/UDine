@@ -81,7 +81,9 @@ export function htmlToText(html: string | null | undefined): string {
 // #178 pr-review: exact-host or real-subdomain match only -- `endsWith(".umassdining.com")`, not a
 // bare `.includes("umassdining.com")`, which a URL like `https://umassdining.com.evil.example/x.pdf`
 // would also satisfy despite resolving to `evil.example`, not us.
-function isUmassDiningHost(url: string): boolean {
+// #224: exported so the web PDF proxy route can apply the same host gate to the url it's asked to
+// fetch, instead of re-deriving its own version of this check.
+export function isUmassDiningHost(url: string): boolean {
   try {
     const { hostname } = new URL(url);
     return hostname === "umassdining.com" || hostname.endsWith(".umassdining.com");

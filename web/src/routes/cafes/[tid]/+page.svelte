@@ -98,6 +98,31 @@
 	}
 	const standingMenu = $derived(standingMenuFor(data.cafe));
 
+	// #224: fetches the PDF through /api/pdf (same-origin proxy, see the SAVE button's own comment
+	// below for why this goes through fetch+blob rather than a plain `<a href download>`) and
+	// downloads the resulting blob via a synthetic same-origin anchor -- a real save, no navigation.
+	// Filename comes from the proxy's own Content-Disposition header (it already computed a safe
+	// one from the upstream URL) rather than re-deriving it here.
+	async function savePdf(pdfUrl: string) {
+		try {
+			const res = await fetch(`/api/pdf?url=${encodeURIComponent(pdfUrl)}`);
+			if (!res.ok) throw new Error(`pdf proxy responded ${res.status}`);
+			const filename = /filename="?([^"]+)"?/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? "menu.pdf";
+			const blobUrl = URL.createObjectURL(await res.blob());
+			const link = document.createElement("a");
+			link.href = blobUrl;
+			link.download = filename;
+			link.click();
+			URL.revokeObjectURL(blobUrl);
+		} catch {
+			// Best-effort fallback if the proxy itself is unreachable: try the old interim behavior
+			// (new tab, cross-origin) rather than leaving SAVE silently dead. Not guaranteed --
+			// this runs after an `await`, so some browsers' popup blockers may treat it as no longer
+			// user-initiated and block it; there's no further fallback beyond this one attempt.
+			window.open(pdfUrl, "_blank", "noreferrer");
+		}
+	}
+
 	// Reuses the shared, already-tested openStatus/DiningHallHours math instead of a bespoke
 	// retail-status helper -- a café only ever publishes one "general" window (RetailLocationHours.
 	// hours), so it's just openStatus fed a DiningHallHours with every per-meal field null.
@@ -234,18 +259,24 @@
 	     browser PDF rendering via <object> (see PR body for why this beats pdf.js/<embed> here) --
 	     gives scroll+zoom for free, no new dependency, and this <object> itself is genuinely in-app
 	     (it's embedded content on this page, not a navigation).
-	     #178 pr-review: the SAVE link is a DIFFERENT case -- `download` is only honored same-origin;
-	     the PDF is served from umassdining.com, so a bare `<a href download>` there silently falls
-	     back to a normal navigation, and clicking SAVE would have replaced this whole app (unloading
-	     it) with the browser's native full-page PDF view -- exactly the "bounce to an external
-	     viewer" #177 forbids, just same-tab instead of new-tab. Proxying the PDF bytes through our
-	     own origin (so `download` actually forces a save, no navigation) is the fully-correct fix and
-	     is filed as a follow-up (see PR body) rather than done here. `target="_blank"` is the interim
-	     fix: SAVE still opens the PDF in a new tab (browser's own viewer, from which the user can
-	     genuinely save/print), but the app in THIS tab is never unloaded -- the in-app <object> above
-	     stays the primary viewing path, SAVE is an explicit, secondary, clearly-labeled export action.
-	     Same reasoning applies to the <object> fallback link (only rendered when a browser has no PDF
-	     renderer at all -- rare, but the same "don't unload the app" rule should still hold). -->
+	     #224: SAVE fetches the PDF through our own same-origin /api/pdf proxy (host-validated via
+	     isUmassDiningHost, same gate parseRetailMenuHtml applies) and downloads the bytes via a
+	     synthetic same-origin <a download> -- not the upstream umassdining.com URL directly.
+	     `download` is only honored same-origin, so a bare cross-origin `<a href download>`
+	     previously either fell back to a same-tab navigation (unloading the whole app -- the #177
+	     "bounce to an external viewer" violation) or, in the #178 pr-review interim fix, opened a
+	     new tab (non-destructive, but not a real download). A plain `<a href="/api/pdf?..." download>`
+	     would also genuinely save (that's the whole point of the proxy), but a bare anchor click
+	     hands the request straight to the browser's own download manager before it ever reaches the
+	     page's normal fetch/network stack -- unlike every other server route this app calls, that
+	     request is invisible to page.route() in the e2e suite (confirmed: it either hangs waiting
+	     for a "download" event that never fires, or silently falls through to the real
+	     umassdining.com network -- exactly what mockHours' own comment above says this suite exists
+	     to catch). Fetching the bytes ourselves and downloading the resulting blob keeps the request
+	     on the same fetch() path /api/hours and /api/menu already use, which route() mocks reliably.
+	     The <object> fallback link below still points at the raw upstream URL and keeps
+	     target="_blank" -- that's a *viewing* fallback (browser has no PDF renderer at all), not a
+	     save, so #177's "never unload the app" rule still applies to it the old way. -->
 	<div class="fixed inset-0 z-50 flex flex-col bg-maroon-900 text-paper-50">
 		<div class="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
 			<div class="flex min-w-0 items-start gap-3">
@@ -255,15 +286,12 @@
 					<p class="mt-0.5 text-xs text-paper-50/55">Menu · PDF</p>
 				</div>
 			</div>
-			<a
-				href={standingMenu.url}
-				download
-				target="_blank"
-				rel="noreferrer"
-				class="shrink-0 rounded-sm border border-paper-50/30 px-3 py-1.5 text-xs font-semibold tracking-wide text-paper-50/85 no-underline hover:bg-paper-50/10"
+			<button
+				onclick={() => savePdf(standingMenu.url)}
+				class="shrink-0 rounded-sm border border-paper-50/30 px-3 py-1.5 text-xs font-semibold tracking-wide text-paper-50/85 hover:bg-paper-50/10"
 			>
 				SAVE
-			</a>
+			</button>
 		</div>
 
 		<object
