@@ -1,18 +1,16 @@
-import { syncSharedStat, type SharedStatField } from "@udine/shared";
+import { syncDiningHallRanks, syncSharedStat, type RankedDish, type SharedStatField } from "@udine/shared";
 import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, EmptyState, SectionHeader, Toggle } from "../components/ui";
-import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
+import { colors, fonts, fs, spacing, withOpacity } from "../lib/theme";
 import { acceptedFriendCount, alertsSubline, countLabel, deviceDataCounts, profileSummaryLine } from "../lib/dataMap";
-import { deleteServerData } from "../lib/deleteServerData";
+import { isHallSyncEnabled, setHallSyncEnabled } from "../lib/hallSyncPreference";
 import { SHARED_STAT_FIELDS, deriveSharedStatsPayloads, fieldsNeedingRefresh, sharedStatValueForToggle, shouldSeedSharedStatsDefault } from "../lib/privacySettings";
 import { useFavoriteFoodAlerts } from "../lib/favoriteFoodAlerts";
-import { pendingSelfHeal } from "../lib/pendingSelfHeal";
 import { dismissSharedStatsDisclosure, hasSeededSharedStatsDefault, isSharedStatsDisclosureDismissed, markSharedStatsDefaultSeeded } from "../lib/sharedStatsSeed";
-import { withTimeout } from "../lib/withTimeout";
 import { supabase } from "../lib/supabase";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
@@ -22,82 +20,57 @@ const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
 const seenDishesStorage = new SqliteSeenDishesStorage();
 
-// Same bounded wait as favoriteFoodAlerts.ts's toggle()-off and auth.ts's signOut() use for the
-// identical self-heal race (#272).
-const SELF_HEAL_WAIT_TIMEOUT_MS = 15000;
-
 type SharedStatsRow = { completion: unknown; top_foods: unknown; hall_ranks: unknown } | null;
 
-// #182: the artboard names five "Shared with friends" toggles (Today's calories, Logging streak,
-// Hall completion, Top foods, Favorite halls), but #94's shared_stats backend only has three
-// opt-in columns (completion/top_foods/hall_ranks) -- see the issue #182 comment thread. Today's
-// calories and Logging streak have no backend field (adding one would be a new amendment to
-// CLAUDE.md's device-only-health-data table, an owner call, not something to add silently here),
-// so only the three that map onto real columns render. "Favorite halls" reads as `hall_ranks` (the
-// full ranked order shared_stats stores), not the separate favorite_dining_halls table (that one
-// isn't opt-in -- it syncs unconditionally on sign-in for ping-hall suggestions; wiring this toggle
-// to it instead would make turning it "off" break pings, which the artboard's own copy doesn't
-// describe).
-// #237: what "Delete server data" actually does today -- ONE pair of clauses, reused by the confirm
-// dialog, the row's own subline, AND the post-delete honest-copy alert, so no two of those three can
-// drift apart the way the pre-#237 copy did (it claimed "profile" was removed when it never was).
+// #285 ("Your Data v3", variant A): the previous "Delete server data" button is gone -- SYNC toggle
+// off IS the delete now, immediately, per category. No separate delete path exists any more for the
+// four SYNC categories below; deleteServerData.ts (the old whole-account delete) is unreferenced by
+// this screen as of this change, left in place for #253's future account-delete work rather than
+// deleted along with its own test file.
 //
-// DELETE_REMOVES: friendships/favorited_foods/shared_stats/favorite_dining_halls/push_tokens/
-// pings(sent) all have an owner DELETE policy + grant (see deleteServerData.ts's own doc comment).
-// "the dining halls synced for ping suggestions" (not "favorite halls") is deliberate wording --
-// favorite_dining_halls has no toggle of its own on this screen, but SHARED_TOGGLES above already
-// has a toggle literally labeled "Favorite halls" for the unrelated hall_ranks column (part of
-// shared_stats, already covered by "shared stats" earlier in the same sentence). Reusing "favorite
-// halls" here would read as double-counting or naming the wrong table.
-//
-// DELETE_STAYS: profiles/food_sightings/qr_tokens have no owner DELETE policy or grant (attempted
-// and reported as `undeletableSteps` -- see deleteServerData.ts). Pings a FRIEND sent to this user
-// are not attempted at all (no receiver-delete policy exists, only the sender-delete one this user's
-// own sent pings use) -- named here so this "stays" clause is the actual exhaustive list of
-// server-side residue, not just the two/three tables that happen to be attempted-and-reported.
-// #253 item 3: rank.tsx re-syncs favorite_dining_halls unconditionally on the very next comparison
-// while signed in (CLAUDE.md-policy-consistent, not a bug) -- so unlike the other items in this
-// list, the dining-halls removal isn't durable. The parenthetical says so instead of implying a
-// permanent delete.
-const DELETE_REMOVES = "Friendships, favorites, shared stats, the dining halls synced for ping suggestions (until you rank again), push tokens, and sent pings";
-// #272: deleteServerData's new "notifications" step (profiles.update({notifications_enabled: false,
-// discoverable: false})) is a state change, not a delete -- doesn't belong in DELETE_REMOVES's own
-// "X, Y, and Z are gone" grammar, so it's its own sentence, still single-sourced here rather than
-// hardcoded into both DELETE_SCOPE_SUMMARY and DELETE_SUCCESS_MESSAGE separately.
-const DELETE_TURNS_OFF = "Turns off favorite-food alerts and friend-search discoverability.";
-const DELETE_STAYS = "Your profile, food-sighting history, friend QR code, and pings friends sent you stay on the server -- deleting those isn't available yet.";
-const DELETE_SCOPE_SUMMARY = `Removes ${DELETE_REMOVES.charAt(0).toLowerCase()}${DELETE_REMOVES.slice(1)}. ${DELETE_TURNS_OFF} ${DELETE_STAYS} Phone data stays.`;
-const DELETE_SUCCESS_MESSAGE = `${DELETE_REMOVES} are gone. ${DELETE_TURNS_OFF} ${DELETE_STAYS}`;
-// #253 item 1: profiles/food_sightings/qr_tokens are denied on every invocation TODAY (no owner
-// DELETE policy -- see deleteServerData.ts), so `undeletableSteps` is never empty in practice. But
-// gating the entire success alert on that meant the day a DELETE policy lands for all three,
-// `undeletableSteps` goes empty and a fully clean delete gives zero feedback for a destructive
-// action the user just confirmed. Same "gone" clause, minus the residue sentence that no longer
-// applies.
-const DELETE_SUCCESS_MESSAGE_CLEAN = `${DELETE_REMOVES} are gone. ${DELETE_TURNS_OFF}`;
-
-const SHARED_TOGGLES: { field: SharedStatField; label: string }[] = [
+// SYNC: what leaves the phone at all. "Favorite dining halls" here is the favorite_dining_halls
+// table (ping-hall suggestions) -- it has no shared_stats column of its own, so its on/off state is
+// a device-local preference (hallSyncPreference.ts) that also gates rank.tsx's own sync call.
+// "Hall completion"/"Top 5 foods" are shared_stats.completion/top_foods -- reuses the existing
+// per-field syncSharedStat(..., null) revoke (#186/#241 guarded) verbatim.
+const SYNC_STAT_TOGGLES: { field: SharedStatField; label: string }[] = [
   { field: "completion", label: "Hall completion" },
-  { field: "top_foods", label: "Top foods" },
-  { field: "hall_ranks", label: "Favorite halls" },
+  { field: "top_foods", label: "Top 5 foods" },
 ];
+
+// SHARE: what an accepted friend can actually see. Disabled (greyed) while the paired SYNC toggle
+// above is off -- a stat that isn't synced can't be shared. "Favorite dining halls" SHARE reads as
+// `hall_ranks` (shared_stats' full ranked hall order) -- a different table than its SYNC namesake;
+// they split naturally because favorite_dining_halls (owner-only, ping suggestions) and
+// shared_stats.hall_ranks (the shared cut) already are two different columns. Hall completion/Top 5
+// foods get no SHARE row of their own: today `shared_stats` has no independent visibility flag, so
+// syncing one of those two IS sharing it (see PR body for the schema-consequence decision).
+const SHARE_HALL_RANKS_FIELD: SharedStatField = "hall_ranks";
 
 type Friendship = { status: string };
 
 /**
- * "Your data" screen (#182, artboard "Your data (final)") -- opens from the You pane's "Your data"
- * row. Three carded groups + a destructive row:
+ * "Your data" screen (#182 original, rebuilt for #285/variant A) -- opens from the You pane's "Your
+ * data" row. Three sections:
  *  1. Stays on this phone -- device-local counts, always visible (no account needed; this screen
  *     IS the residency UI CLAUDE.md's data-table calls for).
- *  2. On UDine's server -- profile/friends summary + the favorite-food-alerts toggle (reuses
- *     useFavoriteFoodAlerts, the same hook/backend app/notifications.tsx uses).
- *  3. Shared with friends -- the three real shared_stats toggles (see SHARED_TOGGLES above),
- *     ported verbatim from the previous version of this screen (same "privacy by presence"
- *     refresh-on-focus behavior, same #94 semantics). #248 Part C (2026-08-26) flipped these to
- *     default ON for accounts created on/after that date -- see refresh()'s one-time seed block
- *     and privacySettings.ts's shouldSeedSharedStatsDefault for the decision, and CLAUDE.md's data
- *     residency table for the product decision this supersedes (epic #87, 2026-08-19).
- * Groups 2/3 and the delete row require a session; group 1 does not.
+ *  2. On UDine's server (SYNC) -- profile/friends summary (info only) + four toggles: Favorite
+ *     foods (useFavoriteFoodAlerts, unchanged), Favorite dining halls (new, device-local pref),
+ *     Hall completion, Top 5 foods (both shared_stats, reusing privacySettings.ts verbatim).
+ *  3. Shared with friends (SHARE) -- two toggles: Favorite dining halls (shared_stats.hall_ranks,
+ *     disabled while its SYNC pair is off) and Findable by search (profiles.discoverable, same
+ *     column add-friends.tsx's own toggle reads/writes).
+ * Sections 2/3 require a session; section 1 does not. "Toggle off IS the delete" for every SYNC
+ * row -- there is no separate delete button any more.
+ *
+ * #248 Part C (2026-08-26, reconciled into this rebuild rather than dropped): new accounts get all
+ * three shared_stats fields (completion, top_foods, hall_ranks) seeded ON via a one-time client-
+ * driven push on this screen's first load (refresh()'s seed block below, shouldSeedSharedStatsDefault
+ * in privacySettings.ts) -- the seed only decides the INITIAL value of each field; the SYNC/SHARE
+ * toggles above still work exactly as #285 describes afterward (toggle off still deletes
+ * immediately). hall_ranks's SHARE toggle is never seeded into a disabled state: favorite dining
+ * halls SYNC (hallSyncPreference) defaults to enabled for every device, seeded or not, so a newly
+ * seeded account never has its SHARE row seeded ON while greyed out.
  */
 export default function PrivacyScreen() {
   const insets = useSafeAreaInsets();
@@ -113,16 +86,23 @@ export default function PrivacyScreen() {
   const [seededThisAccount, setSeededThisAccount] = useState(false);
   const [disclosureDismissed, setDisclosureDismissed] = useState(false);
   const [counts, setCounts] = useState({ logEntryCount: 0, rankedCount: 0, seenDishCount: 0 });
-  const [deleting, setDeleting] = useState(false);
+  const [hallSyncOn, setHallSyncOn] = useState(true);
+  const [hallSyncPending, setHallSyncPending] = useState(false);
+  const [discoverable, setDiscoverable] = useState(true);
+  const [findablePending, setFindablePending] = useState(false);
   const alerts = useFavoriteFoodAlerts();
   // #186: refresh()'s re-push loop below can be mid-flight (parked on an await) when the user
-  // revokes a field via toggleShared -- without this, the stale loop resumes and re-pushes the
-  // field's old value, resurrecting a stat the user just deleted server-side. toggleShared bumps
-  // this on every real toggle; confirmDelete bumps it too (#241, same hazard for "Delete server
-  // data" -- deleteServerData wipes the row, and without the bump the parked loop would resurrect
-  // it right after). refresh captures the value at its own start and checks it again before EACH
-  // re-push, dropping the push if a toggle or delete happened in between.
+  // revokes a field via toggleShared/toggleHallSync -- without this, the stale loop resumes and
+  // re-pushes the field's old value, resurrecting a stat the user just deleted server-side.
+  // refresh captures the value at its own start and checks it again before EACH re-push, dropping
+  // the push if a toggle happened in between. #248 Part C's seed loop reuses the same guard (see
+  // below) rather than duplicating it.
   const generationRef = useRef(0);
+  // #285: toggleHallSync(true) re-pushes the CURRENT ranking immediately (same "toggle on pushes
+  // the current derived value" convention as the shared_stats toggles) -- refresh() already loads
+  // rankedDishes to compute device counts, so this just keeps the latest copy around instead of a
+  // second SqliteRankingStorage read.
+  const rankedDishesRef = useRef<RankedDish[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -141,6 +121,7 @@ export default function PrivacyScreen() {
       seenDishesStorage.getAllSeenDishNames(),
     ]);
     setCounts(deviceDataCounts(entries, rankedDishes, rankedFoods, seenByHall));
+    rankedDishesRef.current = rankedDishes;
 
     const myId = session?.user.id;
     if (!myId) {
@@ -149,8 +130,13 @@ export default function PrivacyScreen() {
       return;
     }
 
+    setHallSyncOn(await isHallSyncEnabled());
+
     const { data } = await supabase.from("shared_stats").select("completion, top_foods, hall_ranks").eq("user_id", myId).maybeSingle();
     setRow(data ?? null);
+
+    const { data: profile } = await supabase.from("profiles").select("discoverable").eq("user_id", myId).maybeSingle();
+    setDiscoverable((profile as { discoverable?: boolean } | null)?.discoverable ?? true);
 
     const { data: friendshipRows } = await supabase.from("friendships").select("status").or(`user_a.eq.${myId},user_b.eq.${myId}`);
     setFriendships(friendshipRows ?? []);
@@ -182,9 +168,9 @@ export default function PrivacyScreen() {
     if (shouldSeedSharedStatsDefault({ row: data ?? null, createdAt: session?.user.created_at, alreadySeeded })) {
       const derivedForSeed = deriveSharedStatsPayloads(seenByHall, entries, rankedDishes, rankedFoods);
       for (const field of SHARED_STAT_FIELDS) {
-        // #186/#241/#217 guard, reused: a toggle or a Delete-server-data confirm firing mid-seed
-        // bumps generationRef. Checked before starting this field's push (a race during an earlier
-        // await in this same refresh) -- if the race already happened, don't even start.
+        // #186/#241/#217 guard, reused: a toggle or a hall-sync cascade firing mid-seed bumps
+        // generationRef. Checked before starting this field's push (a race during an earlier await
+        // in this same refresh) -- if the race already happened, don't even start.
         if (generationRef.current !== startGeneration) break;
         const value = sharedStatValueForToggle(field, true, derivedForSeed);
         const { error } = await syncSharedStat(supabase, myId, field, value);
@@ -287,64 +273,66 @@ export default function PrivacyScreen() {
     setDisclosureDismissed(true);
   }
 
-  function goToExport() {
-    router.push("/export");
-  }
-
-  async function confirmDelete() {
+  // #285: "Favorite dining halls" SYNC. Off deletes favorite_dining_halls immediately AND turns its
+  // SHARE pair (shared_stats.hall_ranks) off with it -- the issue's own "turning SYNC off deletes
+  // the server copy immediately and turns that category's SHARE off with it" rule. On re-pushes the
+  // current ranking right away (same convention as the other SYNC toggles), rather than waiting for
+  // the user's next comparison on /rank.
+  async function toggleHallSync(next: boolean) {
     const myId = session?.user.id;
     if (!myId) return;
-    Alert.alert("Delete server data?", DELETE_SCOPE_SUMMARY, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          generationRef.current += 1; // invalidate any in-flight refresh() re-push loop -- see #186/#241
-          setDeleting(true);
-          try {
-            // #272: the alerts hook's own refresh() (this screen's own useFocusEffect, above) can
-            // have a self-heal re-registration already in flight -- a real network round trip --
-            // when Delete is confirmed. Without waiting for it here, that self-heal's
-            // register_push_token can land AFTER deleteServerData's push_tokens delete, with a
-            // still-live session, resurrecting the row this delete just removed (send-ping-push
-            // doesn't gate on notifications_enabled, so ping pushes would keep arriving to a device
-            // whose server data the user just deleted). Same bounded await-before-delete ordering
-            // as favoriteFoodAlerts.ts's toggle()-off and auth.ts's signOut() use for this race.
-            const heal = pendingSelfHeal();
-            if (heal) {
-              try {
-                await withTimeout(heal, SELF_HEAL_WAIT_TIMEOUT_MS, "pendingSelfHeal (delete server data)");
-              } catch (e) {
-                console.warn("[privacy] confirmDelete: waiting for an in-flight self-heal timed out or failed -- proceeding with delete anyway", e);
-              }
-            }
-            const result = await deleteServerData(supabase, myId);
-            // #237: only a genuinely RETRYABLE failure gets "try again" copy -- profiles/
-            // food_sightings show up in `undeletableSteps`, not `failedSteps`, precisely so this
-            // branch (and its "try again", which would never once succeed for them) doesn't fire
-            // on every single invocation.
-            if (result.failedSteps.length > 0) {
-              Alert.alert("Couldn't delete everything", `Failed: ${result.failedSteps.join(", ")}. Please try again.`);
-              return;
-            }
-            setRow(null);
-            setFriendships([]);
-            // #272: deleteServerData's own "notifications" step already flipped
-            // notifications_enabled=false server-side (before push_tokens was deleted, so the row
-            // can't be resurrected by a later focus) -- this re-reads that state into the alerts
-            // hook immediately, so the toggle reads OFF without waiting for the user to leave and
-            // come back to this screen.
-            await alerts.refresh();
-            // #253 item 1: always tell the user something happened, not just when residue remains --
-            // see DELETE_SUCCESS_MESSAGE_CLEAN's doc comment.
-            Alert.alert("Server data deleted", result.undeletableSteps.length > 0 ? DELETE_SUCCESS_MESSAGE : DELETE_SUCCESS_MESSAGE_CLEAN);
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
+    generationRef.current += 1; // same stale-re-push guard toggleShared uses -- see #186
+    setHallSyncPending(true);
+    try {
+      if (!next) {
+        const { error: deleteError } = await supabase.from("favorite_dining_halls").delete().eq("user_id", myId);
+        if (deleteError) {
+          console.warn("[privacy] toggleHallSync(false): favorite_dining_halls delete failed", deleteError);
+          Alert.alert("Couldn't update sync", "Please try again.");
+          return;
+        }
+        const { error: shareError } = await syncSharedStat(supabase, myId, SHARE_HALL_RANKS_FIELD, null);
+        if (shareError) {
+          // Same honest-failure treatment as toggleShared: don't optimistically flip SYNC off (or
+          // clear hall_ranks locally) when the server-side clear actually failed. Note the
+          // favorite_dining_halls delete above has already succeeded by this point, so the UI now
+          // shows SYNC=ON with the halls rows already gone server-side -- that's the right side to
+          // err on (never under-claim what's still shared; hall_ranks SHARE stays ON because it's
+          // still actually present), and the next rank change re-syncs favorite_dining_halls anyway
+          // (syncDiningHallRanks's own "a failed sync is a re-derivable summary" contract).
+          console.warn("[privacy] toggleHallSync(false): hall_ranks clear failed", shareError);
+          Alert.alert("Couldn't update sync", "Please try again.");
+          return;
+        }
+        setRow((prev) => ({ completion: prev?.completion ?? null, top_foods: prev?.top_foods ?? null, hall_ranks: null }));
+      } else {
+        void syncDiningHallRanks(supabase, myId, rankedDishesRef.current);
+      }
+      await setHallSyncEnabled(next);
+      setHallSyncOn(next);
+    } finally {
+      setHallSyncPending(false);
+    }
+  }
+
+  async function toggleFindable(next: boolean) {
+    const myId = session?.user.id;
+    if (!myId) return;
+    setFindablePending(true);
+    try {
+      const { error } = await supabase.from("profiles").update({ discoverable: next }).eq("user_id", myId);
+      if (error) {
+        Alert.alert("Couldn't update this setting", "Please try again.");
+        return;
+      }
+      setDiscoverable(next);
+    } finally {
+      setFindablePending(false);
+    }
+  }
+
+  function goToExport() {
+    router.push("/export");
   }
 
   return (
@@ -387,6 +375,23 @@ export default function PrivacyScreen() {
         </View>
       ) : (
         <>
+          {/* #248 Part C: one-time first-run notice for an account that was just (or previously)
+              defaulted into sharing -- gated on seededThisAccount (see refresh()'s seed block) so an
+              existing account that was never auto-seeded never sees this. Sits above both sections
+              below since the three defaulted fields span both (Hall completion/Top 5 foods are SYNC
+              toggles, Favorite dining halls sharing is a SHARE toggle) -- a single section-scoped
+              placement would misleadingly imply only that section's toggles were affected. */}
+          {seededThisAccount && !disclosureDismissed && (
+            <Card style={styles.disclosureCard}>
+              <Text style={styles.disclosureText}>
+                Hall completion, top 5 foods, and favorite dining halls sharing are on by default for new accounts. Turn any of them off below -- that deletes it from the server right away.
+              </Text>
+              <Pressable onPress={dismissDisclosure} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.disclosureDismiss}>GOT IT</Text>
+              </Pressable>
+            </Card>
+          )}
+
           <View style={styles.section}>
             <SectionHeader title="On UDine's server" />
             <Card>
@@ -397,7 +402,7 @@ export default function PrivacyScreen() {
               <View style={styles.divider} />
               <View style={styles.alertsRow}>
                 <View style={styles.alertsText}>
-                  <Text style={styles.rowLabel}>Favorite-food alerts</Text>
+                  <Text style={styles.rowLabel}>Favorite foods</Text>
                   {/* PR #286 review (Part B): notifications_enabled defaulting true (#248) can be
                       true server-side for a device that never granted OS permission and so never
                       registered a token or synced a favorite -- rendering ON here would be exactly
@@ -411,25 +416,17 @@ export default function PrivacyScreen() {
                 </View>
                 <Toggle value={alerts.notificationsEnabled && !alerts.needsPermission} onValueChange={toggleAlerts} />
               </View>
-            </Card>
-          </View>
-
-          <View style={styles.section}>
-            <SectionHeader title="Shared with friends" />
-            {seededThisAccount && !disclosureDismissed && (
-              <Card style={styles.disclosureCard}>
-                <Text style={styles.disclosureText}>
-                  Hall completion, top foods, and favorite halls share with your accepted friends by default. Turn any of them off below -- that deletes it from the server right away.
-                </Text>
-                <Pressable onPress={dismissDisclosure} hitSlop={8} accessibilityRole="button">
-                  <Text style={styles.disclosureDismiss}>GOT IT</Text>
-                </Pressable>
-              </Card>
-            )}
-            <Card>
-              {SHARED_TOGGLES.map(({ field, label }, i) => (
+              <View style={styles.divider} />
+              <View style={styles.alertsRow}>
+                <View style={styles.alertsText}>
+                  <Text style={styles.rowLabel}>Favorite dining halls</Text>
+                  <Text style={styles.alertsSubline}>Enables "come eat with me" ping suggestions.</Text>
+                </View>
+                <Toggle value={hallSyncOn} onValueChange={toggleHallSync} disabled={hallSyncPending} />
+              </View>
+              {SYNC_STAT_TOGGLES.map(({ field, label }) => (
                 <View key={field}>
-                  {i > 0 && <View style={styles.divider} />}
+                  <View style={styles.divider} />
                   <View style={styles.sharedRow}>
                     <Text style={styles.rowLabel}>{label}</Text>
                     <Toggle value={row?.[field] != null} onValueChange={(next) => toggleShared(field, next)} disabled={pending === field} />
@@ -437,18 +434,37 @@ export default function PrivacyScreen() {
                 </View>
               ))}
             </Card>
-            <Text style={styles.footer}>Shared by default on new accounts · accepted friends only · switching off deletes it from the server immediately.</Text>
+            <Text style={styles.footer}>
+              Turning one off deletes it from the server immediately · hall completion and top 5 foods are visible to accepted friends only.
+            </Text>
           </View>
 
           <View style={styles.section}>
-            <Pressable style={styles.deleteCard} onPress={confirmDelete} disabled={deleting}>
-              <View style={styles.deleteText}>
-                <Text style={styles.deleteLabel}>Delete server data</Text>
-                <Text style={styles.deleteSubline}>{DELETE_SCOPE_SUMMARY}</Text>
+            <SectionHeader title="Shared with friends" />
+            <Card>
+              <View style={[styles.sharedRow, !hallSyncOn && styles.rowDisabled]}>
+                <View style={styles.alertsText}>
+                  <Text style={styles.rowLabel}>Favorite dining halls</Text>
+                  {!hallSyncOn && <Text style={styles.alertsSubline}>Turn on sync above to share.</Text>}
+                </View>
+                <Toggle
+                  value={row?.[SHARE_HALL_RANKS_FIELD] != null}
+                  onValueChange={(next) => toggleShared(SHARE_HALL_RANKS_FIELD, next)}
+                  disabled={!hallSyncOn || pending === SHARE_HALL_RANKS_FIELD}
+                />
               </View>
-              <Text style={styles.deleteChevron}>›</Text>
-            </Pressable>
+              <View style={styles.divider} />
+              <View style={styles.sharedRow}>
+                <Text style={styles.rowLabel}>Findable by search</Text>
+                <Toggle value={discoverable} onValueChange={toggleFindable} disabled={findablePending} />
+              </View>
+            </Card>
+            <Text style={styles.footer}>Accepted friends only · a stat that isn't synced can't be shared.</Text>
           </View>
+
+          <Text style={styles.footer}>
+            Also on the server: pings you've sent friends and food-sighting history for favorite-food alerts -- not covered by these toggles yet.
+          </Text>
         </>
       )}
     </ScrollView>
@@ -486,6 +502,9 @@ const styles = StyleSheet.create({
   alertsSubline: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
 
   sharedRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing(2), paddingHorizontal: spacing(3.5), minHeight: fs(42) },
+  // Variant A spec: a SHARE row whose paired SYNC toggle is off dims to 0.38 opacity across the
+  // whole row (label + sub-copy + toggle), not just the toggle itself.
+  rowDisabled: { opacity: 0.38 },
 
   disclosureCard: {
     borderColor: withOpacity(colors.gold500, 45),
@@ -496,22 +515,4 @@ const styles = StyleSheet.create({
   disclosureDismiss: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600, alignSelf: "flex-end" },
 
   footer: { fontFamily: fonts.body400, fontSize: fs(11), lineHeight: fs(15.4), color: withOpacity(colors.ink900, 55) },
-
-  deleteCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.paper50,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.maroon600, 35),
-    borderRadius: radii.md,
-    paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(3.5),
-    minHeight: fs(44),
-    gap: spacing(2),
-  },
-  deleteText: { flex: 1, gap: 2 },
-  deleteLabel: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
-  deleteSubline: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
-  deleteChevron: { fontFamily: fonts.body400, fontSize: fs(16), color: colors.maroon600 },
 });
