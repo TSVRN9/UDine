@@ -285,6 +285,11 @@
 				console.error("Couldn't read favorites from IndexedDB");
 				notificationsError = true;
 				setTimeout(() => (notificationsError = false), 3000);
+				// #333 rework: without this return, `favorites` stays [] and falls through to
+				// syncFavoritedFoods(supabase, userId, []) below -- which unconditionally deletes every
+				// existing favorited_foods row before no-op'ing the insert. A blocked IndexedDB read on
+				// the ON path must abort the toggle entirely, not wipe server-side favorites.
+				return;
 			}
 		}
 		const { error: favoritesSyncError } = await syncFavoritedFoods(supabase, session.user.id, favorites);

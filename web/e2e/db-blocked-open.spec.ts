@@ -1,4 +1,7 @@
-import { test, expect, type Page } from "@playwright/test";
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { test, expect, type Page, type Route } from "@playwright/test";
 import { parseCategoryItems } from "@udine/shared";
 
 // Issue #193: a stale pre-deploy tab holding an older IndexedDB version blocks a newer version's
@@ -34,6 +37,60 @@ async function blockIndexedDbOpenFromNowOn(page: Page) {
 			return req;
 		};
 	});
+}
+
+// #322 rework: minimal session/REST mocking for the one signed-in page in this file
+// (/notifications). Deliberately not shared with friends-notifications.spec.ts's own (much fuller)
+// helpers of the same shape -- this file's scope is IndexedDB-blocking, not auth, and duplicating a
+// few lines here is cheaper than coupling two independent spec files together.
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+
+function fakeSessionCookie(): [string, string] {
+	const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+	const envPath = existsSync(path.join(webDir, ".env")) ? path.join(webDir, ".env") : path.join(webDir, ".env.example");
+	const match = readFileSync(envPath, "utf-8").match(/^PUBLIC_SUPABASE_URL=(.+)$/m);
+	if (!match) throw new Error(`PUBLIC_SUPABASE_URL not found in ${envPath}`);
+	const projectRef = new URL(match[1].trim()).hostname.split(".")[0];
+	const now = Math.floor(Date.now() / 1000);
+	const exp = now + 3600;
+	const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString("base64url");
+	const accessToken = [b64url({ alg: "HS256", typ: "JWT" }), b64url({ sub: USER_ID, role: "authenticated", exp }), "fakesig"].join(".");
+	const session = {
+		access_token: accessToken,
+		token_type: "bearer",
+		expires_in: 3600,
+		expires_at: exp,
+		refresh_token: "fake-refresh-token",
+		user: { id: USER_ID, aud: "authenticated", role: "authenticated", email: "test@umass.edu", app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() },
+	};
+	return [`sb-${projectRef}-auth-token`, "base64-" + Buffer.from(JSON.stringify(session)).toString("base64url")];
+}
+
+/** Signs in and mocks just enough of the REST surface for /notifications to render and its toggle
+ * to run: profiles (single-row GET + the toggle's own PATCH), and empty-array 200s for every other
+ * table this page queries (food_sightings, pings, friendships, favorited_foods). Returns the
+ * captured requests so the test can assert what did (or didn't) reach favorited_foods. */
+async function signInAndMockNotifications(page: Page): Promise<{ table: string; method: string }[]> {
+	const [name, value] = fakeSessionCookie();
+	await page.addInitScript(([n, v]) => {
+		document.cookie = `${n}=${v}; path=/`;
+	}, [name, value]);
+
+	const requests: { table: string; method: string }[] = [];
+	await page.route("**/rest/v1/**", async (route: Route) => {
+		const url = new URL(route.request().url());
+		const table = url.pathname.replace("/rest/v1/", "");
+		const method = route.request().method();
+		requests.push({ table, method });
+		if (table === "profiles" && !url.searchParams.get("user_id")?.startsWith("in.")) {
+			return route.fulfill({ json: method === "PATCH" ? {} : { notifications_enabled: false } });
+		}
+		return route.fulfill({ json: [] });
+	});
+	await page.route("**/auth/v1/**", (route) => route.fulfill({ json: {} }));
+	await page.routeWebSocket(/realtime/, (ws) => ws.close());
+
+	return requests;
 }
 
 test("home surfaces an error instead of hanging forever when IndexedDB open is blocked", async ({ page }) => {
@@ -210,4 +267,25 @@ test("logging a dish on /halls/[slug] surfaces an error, not a silent no-op, whe
 
 	await expect(page.getByRole("alert")).toContainText("Couldn't save");
 	await expect(page.getByRole("status")).toHaveCount(0);
+});
+
+// #322 rework (pr-reviewer finding): toggleNotifications()'s ON branch reads favorites from
+// IndexedDB via getFavorites() *before* calling syncFavoritedFoods(), which unconditionally deletes
+// every existing favorited_foods row for this user before (no-op) inserting the passed-in list. The
+// catch around that read fell through to syncFavoritedFoods(supabase, userId, []) instead of
+// aborting -- turning "IndexedDB blocked" into "wipe the user's server-side favorited_foods", the
+// exact opposite of what turning alerts ON is supposed to do. Blocks IndexedDB mid-session (after
+// the page's own onMount read has already succeeded) the same way the write-path tests above do,
+// then asserts the toggle never reaches favorited_foods at all once it fails closed.
+test("turning notifications on while IndexedDB is blocked mid-session does not touch server-side favorited_foods", async ({ page }) => {
+	const requests = await signInAndMockNotifications(page);
+
+	await page.goto("/notifications");
+	await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 15_000 }); // hydration proof
+
+	await blockIndexedDbOpenFromNowOn(page);
+	await page.locator("#notif-toggle").click();
+
+	await expect(page.getByRole("alert")).toContainText("Couldn't update notifications");
+	expect(requests.some((r) => r.table === "favorited_foods")).toBe(false);
 });
