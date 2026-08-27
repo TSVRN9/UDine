@@ -42,7 +42,8 @@
           "cameraPermission": "UDine uses the camera to scan a friend's in-person add code."
         }
       ],
-      "./plugins/withOAuthColdStartIntentFix"
+      "./plugins/withOAuthColdStartIntentFix",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

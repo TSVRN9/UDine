@@ -9,6 +9,7 @@
     "@supabase/supabase-js": "^2.112.3",
     "@udine/shared": "workspace:*",
     "expo": "~57.0.14",
+    "expo-asset": "57.0.12",
     "expo-camera": "~57.0.4",
     "expo-constants": "~57.0.12",
     "expo-crypto": "~57.0.1",
