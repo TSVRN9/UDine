@@ -1,8 +1,9 @@
 /** Pane order for the 3-pane shell: Social ← Home → You, landing on Home. #179 replaced the
  * horizontal-ScrollView pager with the artboard's "shared-axis" transition — panes are stacked
- * (position absolute) and reposition via transform/opacity keyed off an integer activePane index,
- * not a continuous scroll offset. See PaneStack (components/) for the animated wiring; this file
- * stays pure/testable per #134. */
+ * (position absolute) and reposition via transform/opacity. The committed position (`activeIndex`)
+ * is still an integer, but #245 drives the animated position continuously from the in-flight drag
+ * (`paneDragPosition`) rather than only on commit -- see PaneStack (components/) for the animated
+ * wiring; this file stays pure/testable per #134. */
 export const PANE_COUNT = 3;
 export const HOME_PANE_INDEX = 1;
 
@@ -54,6 +55,16 @@ export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boole
 export function paneIndexForSwipe(activeIndex: number, dx: number): number {
   if (Math.abs(dx) < SWIPE_COMMIT_PX) return activeIndex;
   return clampPaneIndex(activeIndex + (dx < 0 ? 1 : -1));
+}
+
+/** #245 item 2: the in-flight drag position, continuous rather than the discrete commit above --
+ * mid-swipe the pane (and header title, see PaneStack/PaneHeader) must track the finger instead of
+ * only moving once the gesture resolves. Reuses SWIPE_COMMIT_PX as the divisor so the visual slide
+ * finishes exactly at the drag distance where paneIndexForSwipe commits to the neighbor -- no jump
+ * between "still dragging" and "just committed". Clamped to the real pane range so you can't drag
+ * a fractional index past the first/last pane. */
+export function paneDragPosition(dragStartIndex: number, dx: number): number {
+  return clampPaneIndex(dragStartIndex - dx / SWIPE_COMMIT_PX);
 }
 
 /** Side of one square hall card in the 2-up wrapped grid, from the grid's measured width.

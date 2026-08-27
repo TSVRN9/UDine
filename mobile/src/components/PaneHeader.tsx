@@ -39,20 +39,47 @@ export const DOT_HIT_SLOP = { top: 14, bottom: 14, left: 2, right: 2 };
  * per-pane loop -- it must never remount across pane switches (a remount would restart these
  * Animated.Values and desync the in-flight crossfade from the pane transition it's meant to
  * track). `topInset` is the safe-area top inset; the artboard's 18px assumes no status bar.
+ *
+ * #245 item 2: `titlePos`/`titleOpacityPos` are optional so PaneStack can hand down its own
+ * gesture-driven Animated.Values -- the title then tracks the drag continuously, same as the
+ * panes, instead of only crossfading on commit. Omitted (as in this file's own standalone tests),
+ * PaneHeader falls back to driving its own commit-only values off `activeIndex`. The dot morph
+ * always stays commit-only regardless -- it animates width/height/backgroundColor with
+ * useNativeDriver: false, which can't share a value with panePos's useNativeDriver: true.
+ *
+ * #245 item 3: `styles.container` carries an opaque cream backdrop (matching the artboard, which
+ * has no visually distinct header bar -- title/dots just sit on the same page background) so
+ * content scrolling underneath it is actually hidden, not visible through a transparent header.
  */
-export function PaneHeader({ activeIndex, onSelectPane, topInset }: { activeIndex: number; onSelectPane: (index: number) => void; topInset: number }) {
+export function PaneHeader({
+  activeIndex,
+  onSelectPane,
+  topInset,
+  titlePos: sharedTitlePos,
+  titleOpacityPos: sharedTitleOpacityPos,
+}: {
+  activeIndex: number;
+  onSelectPane: (index: number) => void;
+  topInset: number;
+  titlePos?: Animated.Value;
+  titleOpacityPos?: Animated.Value;
+}) {
   // Initialized to activeIndex (not 0) so mount never animates from a wrong starting pane -- see
   // PaneStack's own comment on the #f5f0d5b landing race this avoids reintroducing by a new cause.
-  const titlePos = useRef(new Animated.Value(activeIndex)).current;
-  const titleOpacityPos = useRef(new Animated.Value(activeIndex)).current;
+  const ownTitlePos = useRef(new Animated.Value(activeIndex)).current;
+  const ownTitleOpacityPos = useRef(new Animated.Value(activeIndex)).current;
   const dotPos = useRef(new Animated.Value(activeIndex)).current;
+  const titlePos = sharedTitlePos ?? ownTitlePos;
+  const titleOpacityPos = sharedTitleOpacityPos ?? ownTitleOpacityPos;
 
   useEffect(() => {
-    Animated.timing(titlePos, { toValue: activeIndex, duration: 320, easing: CURVE, useNativeDriver: true }).start();
-    Animated.timing(titleOpacityPos, { toValue: activeIndex, duration: 240, easing: Easing.ease, useNativeDriver: true }).start();
+    // When PaneStack shares its own values, it already drives them (continuously, from the drag) --
+    // driving ownTitlePos/ownTitleOpacityPos here too would just animate values nothing reads.
+    if (!sharedTitlePos) Animated.timing(ownTitlePos, { toValue: activeIndex, duration: 340, easing: CURVE, useNativeDriver: true }).start();
+    if (!sharedTitleOpacityPos) Animated.timing(ownTitleOpacityPos, { toValue: activeIndex, duration: 260, easing: Easing.ease, useNativeDriver: true }).start();
     // width/height/backgroundColor aren't native-driver properties.
     Animated.timing(dotPos, { toValue: activeIndex, duration: 200, easing: Easing.ease, useNativeDriver: false }).start();
-  }, [activeIndex, titlePos, titleOpacityPos, dotPos]);
+  }, [activeIndex, ownTitlePos, ownTitleOpacityPos, dotPos, sharedTitlePos, sharedTitleOpacityPos]);
 
   return (
     <View style={[styles.container, { paddingTop: topInset + spacing(4.5) }]} pointerEvents="box-none">
@@ -111,6 +138,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 5,
+    // #245 item 3: opaque, matching the artboard (no separate header-bar color -- title/dots sit on
+    // the same page background) so content scrolling underneath is hidden, not visible through it.
+    backgroundColor: colors.cream100,
     paddingHorizontal: spacing(5),
     flexDirection: "row",
     justifyContent: "space-between",
