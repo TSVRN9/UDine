@@ -1,15 +1,12 @@
 import { computeDailyTotals, hallCompletion, hallNameFor, isoDateOf, rankDiningHalls, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
-import type { Session } from "@supabase/supabase-js";
-import { Link, router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Press } from "../components/Press";
 import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
-import { signInWithGoogle, signOut } from "../lib/auth";
-import { supabase } from "../lib/supabase";
 import { getCachedHours } from "../lib/menuHoursCache";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
@@ -73,25 +70,21 @@ function TopFoodRow({ dishName, score, hallName: hall, tone }: { dishName: strin
 /**
  * The You pane's internals (#92): macro stat card, today's log, HALL COMPLETION bars (#89, fed by
  * #91's menu fetch once it adopts menuFetchWithSeenTracking.ts — see that file's doc comment),
- * YOUR TOP FOODS 0-10 pills (#89), FAVORITE HALLS chips, Account/Friends rows. Extracted out of
- * app/index.tsx into its own file so PaneShellScreen's diff there stays a mechanical import swap.
+ * YOUR TOP FOODS 0-10 pills (#89), FAVORITE HALLS chips. Extracted out of app/index.tsx into its
+ * own file so PaneShellScreen's diff there stays a mechanical import swap.
+ *
+ * MVP cut (temporary, see archive/full-features): the Account section (sign-in/out, Friends,
+ * Your data links) is shelved along with friends/account -- Top Foods/Favorite Halls stay as
+ * read-only stats even though rank.tsx (their data source) is cut too, so they freeze at whatever
+ * data is already on the device. Deliberate, not an oversight.
  */
 export function YouPane() {
-  const [session, setSession] = useState<Session | null>(null);
   const [allEntries, setAllEntries] = useState<LogEntry[]>([]);
   const [rankedDishes, setRankedDishes] = useState<RankedDish[]>([]);
   const [rankedFoods, setRankedFoods] = useState<RankedFood[]>([]);
   const [seenByHall, setSeenByHall] = useState<Map<number, string[]>>(new Map());
   const insets = useSafeAreaInsets();
   const [, forceRetailNamesRerender] = useState(0);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
-    return () => subscription.unsubscribe();
-  }, []);
 
   // #243 bug A remaining gap: PaneStack keeps this pane permanently mounted alongside HomePane, so
   // useFocusEffect(load) below (which fires on route focus, not pane visibility) is the only
@@ -113,14 +106,6 @@ export function YouPane() {
   }, []);
 
   useFocusEffect(load);
-
-  async function handleSignIn() {
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      Alert.alert("Sign-in failed", err instanceof Error ? err.message : String(err));
-    }
-  }
 
   const date = todayIso();
   const todaysEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === date);
@@ -200,9 +185,9 @@ export function YouPane() {
       <View style={styles.section}>
         <SectionHeader title="Your Top Foods" />
         {rankedFoods.length === 0 ? (
-          <EmptyState title="No comparisons yet" message="Rank a few dishes you've logged to build your top foods." />
+          <EmptyState title="No comparisons yet" message="Dish ranking is on hold for now — this fills in once it's back." />
         ) : topFoods.length === 0 ? (
-          <EmptyState title="Almost there" message="Compare a food a couple more times to unlock its score." />
+          <EmptyState title="Not enough data yet" message="Dish ranking is on hold for now, so this stays as-is until it's back." />
         ) : (
           <View style={styles.rowList}>
             {topFoods.map((f) => (
@@ -215,7 +200,7 @@ export function YouPane() {
       <View style={styles.section}>
         <SectionHeader title="Favorite Halls" />
         {hallRanking.ranked.length === 0 ? (
-          <EmptyState title="No ranking yet" message="Compare dishes at a hall to see it show up here." />
+          <EmptyState title="No ranking yet" message="Dish ranking is on hold for now — this fills in once it's back." />
         ) : (
           <View style={styles.favoriteHallsRow}>
             {hallRanking.ranked.slice(0, 3).map((h, i) => (
@@ -228,44 +213,6 @@ export function YouPane() {
         )}
       </View>
 
-      <View style={styles.section}>
-        <SectionHeader title="Account" />
-        <Card style={styles.accountCard}>
-          {session ? (
-            <>
-              <Text style={styles.accountText}>Signed in as {session.user.email}</Text>
-              <Press onPress={() => signOut()} accessibilityRole="button">
-                <Text style={styles.accountLink}>Sign out</Text>
-              </Press>
-            </>
-          ) : (
-            <Press onPress={handleSignIn} accessibilityRole="button">
-              <Text style={styles.accountLink}>Sign in with Google</Text>
-            </Press>
-          )}
-        </Card>
-        <Link href="/add-friends" asChild>
-          <Press accessibilityRole="button">
-            <Card style={styles.friendsRow}>
-              <Text style={styles.friendsText}>Friends</Text>
-              <Text style={styles.friendsChevron}>›</Text>
-            </Card>
-          </Press>
-        </Link>
-        {/* #182: was "Privacy" -- now "Your data", the data-map + share-toggles + delete-server-data
-        screen (still the /privacy route; renamed in place, see that file's own doc comment). This
-        row also replaces the old inline "Export Your Data" section below it: export now lives
-        behind Your data's own EXPORT row (device-local counts + share toggles need their own
-        screen real estate the You pane can't spare). */}
-        <Link href="/privacy" asChild>
-          <Press accessibilityRole="button">
-            <Card style={styles.friendsRow}>
-              <Text style={styles.friendsText}>Your data</Text>
-              <Text style={styles.friendsChevron}>›</Text>
-            </Card>
-          </Press>
-        </Link>
-      </View>
     </ScrollView>
   );
 }
@@ -339,26 +286,4 @@ const styles = StyleSheet.create({
   favoriteHallRank: { fontFamily: fonts.display700, fontSize: fs(16), color: withOpacity(colors.ink900, 40) },
   favoriteHallRankTop: { color: colors.gold500 },
   favoriteHallName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
-
-  accountCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: spacing(2),
-    paddingVertical: spacing(3),
-    paddingHorizontal: spacing(3.5),
-    minHeight: fs(44),
-  },
-  accountText: { flexShrink: 1, color: withOpacity(colors.ink900, 60), fontFamily: fonts.body400, fontSize: fs(13) },
-  accountLink: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: fs(13) },
-  friendsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: spacing(3),
-    paddingHorizontal: spacing(3.5),
-    minHeight: fs(44),
-  },
-  friendsText: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
-  friendsChevron: { fontFamily: fonts.body400, fontSize: fs(18), lineHeight: fs(20), color: colors.maroon600 },
 });

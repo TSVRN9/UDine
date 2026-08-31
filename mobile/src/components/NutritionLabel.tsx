@@ -125,7 +125,12 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream100 },
   header: {
     flexDirection: "row",
-    alignItems: "center",
+    // flex-start, not center: a long dishName wraps headerText to 2+ lines (real menu items do
+    // this -- see e.g. "Bun Bo Hue (Vietnamese Beef Noodle Bowl)"), and centering against that
+    // taller block dragged the back chevron down into the wrapped second line instead of staying
+    // pinned to the title's top. flex-start keeps the chevron level with line 1 regardless of how
+    // many lines the title wraps to.
+    alignItems: "flex-start",
     gap: spacing(3),
     paddingHorizontal: spacing(5),
     paddingBottom: spacing(3),

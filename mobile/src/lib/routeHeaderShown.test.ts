@@ -22,7 +22,7 @@ const LAYOUT_PATH = path.join(APP_DIR, "_layout.tsx");
 // The only routes that intentionally show the native header instead of their own chrome --
 // verified by reading each one: none of them use useSafeAreaInsets or draw a back button, they
 // rely entirely on the native header for title, back affordance, and top inset.
-const NATIVE_HEADER_ROUTES = new Set(["filters", "favorites", "rank", "friends", "notifications", "events", "event-detail", "press", "newsletter"]);
+const NATIVE_HEADER_ROUTES = new Set(["filters", "favorites", "event-detail", "press", "newsletter"]);
 
 function parseLayout(source: string): { rootHeaderShown: boolean | undefined; perRoute: Map<string, boolean | undefined> } {
   const screenOptionsMatch = source.match(/<Stack\s+screenOptions=\{\{([\s\S]*?)\}\}\s*>/);
@@ -70,17 +70,9 @@ describe("every route resolves headerShown correctly (guards the #151/#219/#281 
 
   it("actually discovered route files (fails closed if the app/ layout ever changes)", () => {
     expect(routes.length).toBeGreaterThan(0);
-    for (const expected of [
-      "add-friends",
-      "add-friend-qr",
-      "export",
-      "qr-confirm",
-      "privacy",
-      "cafe/[name]",
-      "friend/[id]",
-      "grab-n-go/[slug]",
-      "halls/[slug]",
-    ]) {
+    // MVP cut (temporary, see archive/full-features): add-friends, add-friend-qr, qr-confirm,
+    // privacy, friend/[id] are shelved along with friends/account.
+    for (const expected of ["export", "cafe/[name]", "grab-n-go/[slug]", "halls/[slug]"]) {
       expect(routes).toContain(expected);
     }
   });

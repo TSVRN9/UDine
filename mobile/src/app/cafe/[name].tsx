@@ -3,10 +3,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CafePdfViewer } from "../../components/CafePdfViewer";
-import { CafeSheet } from "../../components/CafeSheet";
 import { HallMenuScreenBody, type HallMenuSubject } from "../halls/[slug]";
 import { cafeTapTarget } from "../../lib/cafeMenu";
+import { requestCafeSheet } from "../../lib/cafeSheetHandoff";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import { fetchHoursAndCache, getCachedHours, getCachedMenu } from "../../lib/menuHoursCache";
 import { colors, fonts, fs, spacing } from "../../lib/theme";
@@ -18,14 +17,15 @@ import { colors, fonts, fs, spacing } from "../../lib/theme";
  * doesn't survive the navigation) to find this location, then -- only if it has a locationId --
  * probes `fetchMenu(locationId, today)` per the issue's "do not precompute tiers" runtime model.
  * Non-empty routes to the existing hall-menu screen body (HallMenuScreenBody, shared with
- * `/halls/[slug]`); empty renders the CafeSheet fallback instead.
+ * `/halls/[slug]`); empty hands off to HomePane's own CafeSheet instead of rendering one here --
+ * see cafeSheetHandoff.ts for why (this used to render CafeSheet inline, which meant a blank
+ * pushed screen behind the sheet instead of the sheet alone over Home).
  */
 export default function CafeScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const decodedName = decodeURIComponent(name ?? "");
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [items, setItems] = useState<MenuItem[] | null>(null);
-  const [pdf, setPdf] = useState<{ url: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
@@ -93,6 +93,20 @@ export default function CafeScreen() {
     };
   }, [loc]);
 
+  const target = hoursFeed && loc && items !== null ? cafeTapTarget(loc.locationId, items) : null;
+
+  // Sheet-only outcome (no locationId, or a locationId that probed empty -- e.g. a
+  // standing-menu-only location) hands off to HomePane's own CafeSheet instead of rendering one
+  // here -- see cafeSheetHandoff.ts. Dependency array is `target?.kind` (a stable string), not
+  // `target` itself -- cafeTapTarget returns a fresh object literal every call, so depending on
+  // the object would re-fire this effect (and call router.back() again) on every render once
+  // resolved, not just the one transition into "sheet".
+  useEffect(() => {
+    if (target?.kind !== "sheet" || !loc) return;
+    requestCafeSheet(loc.name);
+    router.back();
+  }, [target?.kind, loc]);
+
   function loadingChrome(message: string) {
     return (
       <View style={styles.loadingScreen}>
@@ -122,22 +136,18 @@ export default function CafeScreen() {
     return loadingChrome(`Couldn't find ${decodedName}.`);
   }
 
-  if (!hoursFeed || !loc || items === null) {
+  if (!target) {
     return loadingChrome("");
   }
 
-  const target = cafeTapTarget(loc.locationId, items);
   if (target.kind === "menu") {
     // hall is non-null here -- cafeTapTarget only returns "menu" when loc.locationId is defined.
     return <HallMenuScreenBody hall={hall!} />;
   }
 
-  return (
-    <View style={styles.loadingScreen}>
-      <CafeSheet visible={!pdf} loc={loc} now={new Date()} onClose={() => router.back()} onOpenPdf={(url, label) => setPdf({ url, label })} />
-      {pdf ? <CafePdfViewer url={pdf.url} label={pdf.label} cafeName={loc.name} onClose={() => setPdf(null)} /> : null}
-    </View>
-  );
+  // "sheet" -- the handoff effect above is popping this screen back to Home imminently; render
+  // nothing but the loading chrome in the meantime so there's no content flash behind it.
+  return loadingChrome("");
 }
 
 const styles = StyleSheet.create({

@@ -22,7 +22,6 @@ jest.mock("../lib/supabase", () => ({
 }));
 
 jest.mock("../lib/auth", () => ({ signInWithGoogle: jest.fn(), signOut: jest.fn() }));
-jest.mock("../lib/firstRun", () => ({ isFirstRunDismissed: jest.fn().mockResolvedValue(true), dismissFirstRun: jest.fn() }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));
 jest.mock("react-native-webview", () => ({ WebView: () => null }));
 

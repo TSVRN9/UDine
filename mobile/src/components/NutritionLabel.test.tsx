@@ -54,6 +54,35 @@ describe("NutritionLabel", () => {
     expect(body).toMatch(/Vegetarian/);
   });
 
+  // Device-observed bug (Agent_Emulator_Narrow, 360dp): a long dishName wraps the header's title
+  // block to 2+ lines (e.g. "Bun Bo Hue (Vietnamese Beef Noodle Bowl)") -- `header`'s
+  // `alignItems: "center"` centered the back chevron against that taller block instead of keeping
+  // it pinned to the title's top, dragging it down into the wrapped second line. Pins the fix as a
+  // style-token invariant (same convention as PaneHeader.test.tsx's dotStyle assertions) rather
+  // than a snapshot, since react-test-renderer doesn't do real text measurement/wrapping.
+  it("pins the header row to flex-start, not center, so a wrapped multi-line dish name can't drag the back chevron into it", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <NutritionLabel
+          visible
+          dishName="Bun Bo Hue (Vietnamese Beef Noodle Bowl)"
+          nutrition={NUTRITION}
+          allergens={[]}
+          dietTags={[]}
+          onClose={() => {}}
+        />,
+      );
+    });
+
+    // The header row is the Close Pressable's direct parent View in the JSX tree.
+    const closeButton = root.root.findByProps({ accessibilityLabel: "Close" });
+    const header = closeButton.parent!;
+    expect(header.type).toBe("View");
+    const flatStyle = Object.assign({}, ...(Array.isArray(header.props.style) ? header.props.style : [header.props.style]));
+    expect(flatStyle.alignItems).toBe("flex-start");
+  });
+
   it("calls onClose from the header Close control", () => {
     const onClose = jest.fn();
     let root!: renderer.ReactTestRenderer;
