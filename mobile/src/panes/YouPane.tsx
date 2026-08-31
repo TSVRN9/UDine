@@ -185,9 +185,9 @@ export function YouPane() {
       <View style={styles.section}>
         <SectionHeader title="Your Top Foods" />
         {rankedFoods.length === 0 ? (
-          <EmptyState title="No comparisons yet" message="Rank a few dishes you've logged to build your top foods." />
+          <EmptyState title="No comparisons yet" message="Dish ranking is on hold for now — this fills in once it's back." />
         ) : topFoods.length === 0 ? (
-          <EmptyState title="Almost there" message="Compare a food a couple more times to unlock its score." />
+          <EmptyState title="Not enough data yet" message="Dish ranking is on hold for now, so this stays as-is until it's back." />
         ) : (
           <View style={styles.rowList}>
             {topFoods.map((f) => (
@@ -200,7 +200,7 @@ export function YouPane() {
       <View style={styles.section}>
         <SectionHeader title="Favorite Halls" />
         {hallRanking.ranked.length === 0 ? (
-          <EmptyState title="No ranking yet" message="Compare dishes at a hall to see it show up here." />
+          <EmptyState title="No ranking yet" message="Dish ranking is on hold for now — this fills in once it's back." />
         ) : (
           <View style={styles.favoriteHallsRow}>
             {hallRanking.ranked.slice(0, 3).map((h, i) => (

@@ -115,7 +115,7 @@ export function EventsPane() {
 
         {/* #181: evergreen reassurance copy, exact per the canvas spec -- not gated on `offline`,
             it's true regardless of connectivity and the artboard shows it as a standing footer. */}
-        <Text style={styles.footerReassurance}>Your log, plate, and rankings all keep working offline — they live on this phone.</Text>
+        <Text style={styles.footerReassurance}>Your log and plate keep working offline — they live on this phone.</Text>
       </ScrollView>
     </View>
   );

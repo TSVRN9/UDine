@@ -146,7 +146,7 @@ describe("YouPane", () => {
 
     const root = await renderYouPane();
     const body = texts(root);
-    expect(body).toMatch(/Almost there/);
+    expect(body).toMatch(/Not enough data yet/);
     expect(body).not.toMatch(/No comparisons yet/);
     expect(body).not.toMatch(/No ranking yet/);
     expect(body).toMatch(/Worcester/); // hallTid 1
@@ -165,7 +165,7 @@ describe("YouPane", () => {
     const body = texts(root);
     expect(body).not.toMatch(/Nothing logged yet/);
     expect(body).not.toMatch(/No comparisons yet/);
-    expect(body).not.toMatch(/Almost there/);
+    expect(body).not.toMatch(/Not enough data yet/);
     expect(body).not.toMatch(/No ranking yet/);
     expect(body).toMatch(/Chicken Parm/);
     expect(body).toMatch(/500/); // calorie total

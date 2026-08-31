@@ -236,6 +236,6 @@ describe("EventsPane", () => {
   it("shows the evergreen footer reassurance copy regardless of online/offline state", async () => {
     mockFetchEvents.mockResolvedValue([]);
     const online = await renderEventsPane();
-    expect(texts(online)).toMatch(/Your log, plate, and rankings all keep working offline — they live on this phone\./);
+    expect(texts(online)).toMatch(/Your log and plate keep working offline — they live on this phone\./);
   });
 });
