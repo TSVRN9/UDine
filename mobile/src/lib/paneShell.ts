@@ -61,10 +61,21 @@ export function paneIndexForSwipe(activeIndex: number, dx: number): number {
  * mid-swipe the pane (and header title, see PaneStack/PaneHeader) must track the finger instead of
  * only moving once the gesture resolves. Reuses SWIPE_COMMIT_PX as the divisor so the visual slide
  * finishes exactly at the drag distance where paneIndexForSwipe commits to the neighbor -- no jump
- * between "still dragging" and "just committed". Clamped to the real pane range so you can't drag
- * a fractional index past the first/last pane. */
+ * between "still dragging" and "just committed".
+ *
+ * Clamped to `dragStartIndex ± 1`, not the full pane range -- paneIndexForSwipe (above) never
+ * commits more than one pane away from where the drag started, but a long/fast drag's raw
+ * `dragStartIndex - dx / SWIPE_COMMIT_PX` can overshoot well past that (e.g. dragStartIndex=0,
+ * dx=-180 -> raw 3). Clamping only to `[0, PANE_COUNT)` let that overshoot visually sweep the
+ * animated position straight through the neighboring pane and onto the one past it, which on
+ * release then snapped back to the ±1 commit target -- reading as "skip the middle pane, then
+ * snap back". Clamping to the drag's own ±1 neighborhood first (then still through
+ * clampPaneIndex, for the drags that start at an end pane) keeps the visual sweep and the
+ * possible commit target in lockstep. */
 export function paneDragPosition(dragStartIndex: number, dx: number): number {
-  return clampPaneIndex(dragStartIndex - dx / SWIPE_COMMIT_PX);
+  const raw = dragStartIndex - dx / SWIPE_COMMIT_PX;
+  const neighborClamped = Math.max(dragStartIndex - 1, Math.min(dragStartIndex + 1, raw));
+  return clampPaneIndex(neighborClamped);
 }
 
 /** Side of one square hall card in the 2-up wrapped grid, from the grid's measured width.
