@@ -81,41 +81,30 @@ export default function RootLayout() {
         //
         // What that guard does NOT check (accepted ceiling, #283 review): headerShown resolving
         // to false only proves no *native* header renders -- it can't prove the screen drew its
-        // OWN back affordance. #283 found add-friends.tsx's signed-out branch had exactly this
-        // gap (no chevron, unreachable-back dead end) even though headerShown correctly resolved
-        // false. Extending the guard to catch that would mean rendering every header-less route
-        // with its full dependency graph mocked (supabase session state, router, focus effects)
-        // just to probe for a Back-labeled pressable -- disproportionate to the bug class this
-        // guards. Documented here instead: every header-less route must draw its own way back,
-        // and that's a per-screen review responsibility, not a static-analysis one. Known
-        // exemptions (no back needed by design, not an oversight): `index` (tab-shell root),
-        // `redirect` (transient OAuth landing), `qr-confirm` (ADD THEM / CANCEL buttons are the
-        // affordance, no chevron), `login` ("Continue with Google" and login.tsx:67's "Skip -- use
-        // without an account" -> done() -> router.back() are the affordance, no chevron).
+        // OWN back affordance. That's a per-screen review responsibility, not a static-analysis
+        // one. Known exemptions (no back needed by design, not an oversight): `index` (tab-shell
+        // root).
+        //
+        // MVP cut (temporary, see archive/full-features): rank, friends, friend/[id], add-friends,
+        // add-friend-qr, qr-confirm, notifications, privacy, login, redirect are shelved along with
+        // ranking/friends/account. `export` still needs no entry -- it draws its own chrome and
+        // inherits headerShown: false, same as before.
         headerShown: false,
       }}
     >
       {/* index (the 3-pane shell), halls/[slug], grab-n-go/[slug], cafe/[name], and logs draw their own canvas-style headers. */}
       <Stack.Screen name="index" />
-      <Stack.Screen name="redirect" options={{ animation: "none" }} />
       <Stack.Screen name="halls/[slug]" />
       <Stack.Screen name="grab-n-go/[slug]" />
       <Stack.Screen name="cafe/[name]" />
       <Stack.Screen name="logs" />
-      <Stack.Screen name="login" options={{ animation: "fade" }} />
       {/* These are the only routes that want the native maroon header instead of their own chrome. */}
       <Stack.Screen name="filters" options={{ headerShown: true, title: "Dietary Filters" }} />
       <Stack.Screen name="favorites" options={{ headerShown: true, title: "Favorites" }} />
-      <Stack.Screen name="rank" options={{ headerShown: true, title: "Rank Dishes" }} />
-      <Stack.Screen name="friends" options={{ headerShown: true, title: "Friends" }} />
-      <Stack.Screen name="friend/[id]" />
-      <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications" }} />
-      <Stack.Screen name="events" options={{ headerShown: true, title: "Events" }} />
       <Stack.Screen name="event-detail" options={{ headerShown: true, title: "Event" }} />
       <Stack.Screen name="press" options={{ headerShown: true, title: "Press" }} />
       <Stack.Screen name="newsletter" options={{ headerShown: true, title: "Newsletter" }} />
-      {/* privacy, add-friends, add-friend-qr, export, qr-confirm need no entry at all: they draw
-          their own chrome and now correctly inherit headerShown: false from screenOptions above. */}
+      {/* export needs no entry at all: it draws its own chrome and inherits headerShown: false. */}
     </Stack>
   );
 }

@@ -1,4 +1,4 @@
-/** Pane order for the 3-pane shell: Social ← Home → You, landing on Home. #179 replaced the
+/** Pane order for the 3-pane shell: Events ← Home → You, landing on Home. #179 replaced the
  * horizontal-ScrollView pager with the artboard's "shared-axis" transition — panes are stacked
  * (position absolute) and reposition via transform/opacity. The committed position (`activeIndex`)
  * is still an integer, but #245 drives the animated position continuously from the in-flight drag
@@ -42,8 +42,8 @@ export function paneVisibility(paneIndex: number, activeIndex: number): { zIndex
 export const SWIPE_COMMIT_PX = 60;
 
 /** Horizontal dominance test for claiming a swipe over each pane's own vertical ScrollView -- not
- * just "any X movement" (see SocialPane's own PanResponder for the established pattern of this
- * app not reaching for a second gesture library). */
+ * just "any X movement" -- established pattern in this app for not reaching for a second gesture
+ * library. */
 export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boolean {
   return Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy);
 }

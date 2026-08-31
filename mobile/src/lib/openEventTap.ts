@@ -13,7 +13,7 @@ import { classifyEventTap, type EventDetailParams } from "./eventTapTarget";
  * openBrowserAsync's promise is awaited/caught, not floated -- PR #129 review finding 4: a rapid
  * double-tap on a link card makes the second call reject ("Another WebBrowser is already being
  * presented"), which a floating promise would swallow as a silent unhandled rejection. Same
- * try/catch + Alert.alert pattern as SocialPane.tsx's handleSignIn.
+ * try/catch + Alert.alert pattern used elsewhere in this app for a fire-and-forget action.
  */
 export async function openEventTap(item: DiningEvent): Promise<void> {
   const target = classifyEventTap(item);

@@ -1,15 +1,13 @@
-// Same rationale as FirstRunCard.test.tsx/index.test.tsx: explicit factories, not bare automocks --
-// the real ../lib/supabase, ../lib/sqliteStorage, ../lib/rankingStorage, and ../lib/seenDishesStorage
-// all drag in native bindings (Supabase client validation, expo-sqlite) unavailable outside
+// Explicit factories, not bare automocks -- the real ../lib/sqliteStorage, ../lib/rankingStorage,
+// and ../lib/seenDishesStorage all drag in native bindings (expo-sqlite) unavailable outside
 // jest-expo's native harness. Each storage's jest.fn()s are created *inside* its factory (not
 // referenced from an outer `const mock... = jest.fn()`) -- YouPane.tsx instantiates each storage
 // eagerly at module scope, and a factory that instead closed over an outer-scope mock var would
 // capture it before it's initialized (Babel hoists the compiled `require` for YouPane's own imports
 // above other top-level statements in this file -- see menuFetchWithSeenTracking.test.ts's comment
-// on the same hazard). Below, a second `new SqliteLogStorage()` etc. (mirroring index.test.tsx's
-// `firstRun as jest.Mocked<typeof firstRun>` pattern, adapted for a class) grabs the exact same
-// jest.fn() references the factory closed over -- every mockImplementation() call returns a fresh
-// wrapper object around the *same* fns, so this is the same mock YouPane.tsx's own singleton uses.
+// on the same hazard). Below, a second `new SqliteLogStorage()` etc. grabs the exact same jest.fn()
+// references the factory closed over -- every mockImplementation() call returns a fresh wrapper
+// object around the *same* fns, so this is the same mock YouPane.tsx's own singleton uses.
 import renderer, { act } from "react-test-renderer";
 import { Text, View } from "react-native";
 import { router } from "expo-router";
@@ -39,20 +37,6 @@ jest.mock("../lib/seenDishesStorage", () => {
   return { SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ getAllSeenDishNames })) };
 });
 
-jest.mock("../lib/supabase", () => ({
-  supabase: {
-    auth: {
-      getSession: jest.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: jest.fn().mockReturnValue({ data: { subscription: { unsubscribe: jest.fn() } } }),
-    },
-  },
-}));
-
-jest.mock("../lib/auth", () => ({
-  signInWithGoogle: jest.fn(),
-  signOut: jest.fn(),
-}));
-
 jest.mock("../lib/date", () => ({ todayIso: () => "2026-08-19" }));
 
 // #243 bug A remaining gap: getCachedHours is cache-only/no-network (menuHoursCache.ts) -- mocked
@@ -66,13 +50,12 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
-// YouPane always renders a Link (the Friends row) -- stub it flat since there's no navigator here.
-// `router.push` is also stubbed (#118's ALL LOGS link). The jest.fn() is created *inside* the
-// factory, not closed over from an outer-scope const -- same hazard as sqliteStorage/etc.'s mocks
-// above (babel hoists jest.mock factories above other top-level statements); the test grabs the
-// exact same fn reference back via `import { router } from "expo-router"` below, post-mock.
+// `router.push` is stubbed (#118's ALL LOGS link -- the only navigation YouPane does now that
+// Account/Friends is cut). The jest.fn() is created *inside* the factory, not closed over from an
+// outer-scope const -- same hazard as sqliteStorage/etc.'s mocks above (babel hoists jest.mock
+// factories above other top-level statements); the test grabs the exact same fn reference back via
+// `import { router } from "expo-router"` below, post-mock.
 jest.mock("expo-router", () => ({
-  Link: require("../lib/mockLink").mockLink,
   useFocusEffect: (callback: () => void) => callback(),
   router: { push: jest.fn() },
 }));

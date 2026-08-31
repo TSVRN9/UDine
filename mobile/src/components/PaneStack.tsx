@@ -33,8 +33,8 @@ const PANE_OFFSET = fs(36);
  * gesture started on), settling to the committed index with the decided motion (340ms transform /
  * 260ms opacity) on release. `onMoveShouldSetPanResponder` (not `onStartShouldSet`) with
  * horizontal-dominance gating so each pane's own vertical ScrollView still wins ordinary scrolls --
- * same PanResponder-only approach SocialPane's ping gesture already uses in this app (no
- * gesture-handler/reanimated dependency). `panePos`/`paneOpacityPos` are also handed to PaneHeader
+ * same PanResponder-only approach used elsewhere in this app (no gesture-handler/reanimated
+ * dependency). `panePos`/`paneOpacityPos` are also handed to PaneHeader
  * so its title crossfade tracks the same drag (the dot morph stays commit-only -- it animates
  * width/height/backgroundColor with useNativeDriver: false, which can't share a native-driven
  * value with the panes' transform/opacity).
