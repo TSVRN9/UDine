@@ -14,6 +14,7 @@ import { PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { grabRouteFor, grabStripState } from "../lib/grabStrip";
+import { takePendingCafeSheet } from "../lib/cafeSheetHandoff";
 import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
@@ -239,7 +240,32 @@ export function HomePane() {
     };
   }, []);
 
-  useFocusEffect(load);
+  // One useFocusEffect registration, not two: `load` returns a cleanup ("current" guard), and this
+  // repo's useFocusEffect test shims (e.g. homePaneStaleFocusRace.test.tsx) capture "the" latest
+  // registered callback by hook-call order -- a second, separate useFocusEffect call would shadow
+  // `load`'s in those shims, not run alongside it.
+  //
+  // The pickup half handles a café/[name] hand-off (cafeSheetHandoff.ts): that screen calls
+  // requestCafeSheet then router.back() the instant it resolves to a sheet-only outcome (no
+  // locationId, or a locationId whose probe came back empty -- e.g. a standing-menu-only
+  // location), so this fires the moment Home regains focus from that pop. Reads `hoursFeed` fresh
+  // each time (the dependency array below, not a one-shot [] effect) since the café the request
+  // names must be looked up in whatever hours feed Home currently has loaded; takePendingCafeSheet
+  // clears itself, so a re-fire with nothing pending is just a no-op.
+  useFocusEffect(
+    useCallback(() => {
+      const cleanup = load();
+      const pendingName = takePendingCafeSheet();
+      if (pendingName) {
+        const loc = hoursFeed?.retail?.find((r) => r.name === pendingName);
+        if (loc) {
+          setCafeSheetLoc(loc);
+          setCafeSheetVisible(true);
+        }
+      }
+      return cleanup;
+    }, [load, hoursFeed]),
+  );
 
   async function toggleHall(hallTid: number) {
     const favorite: Favorite = { type: "location", hallTid };

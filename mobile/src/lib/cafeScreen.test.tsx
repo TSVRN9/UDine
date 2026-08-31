@@ -1,13 +1,15 @@
 // /cafe/[name].tsx's own wiring (#177's probe-at-tap runtime model): fetch hours, find the
 // tapped location, probe fetchMenu(locationId, today) only if there's a locationId, and route to
-// either the existing hall-menu screen body (non-empty) or the CafeSheet fallback (empty / no
-// locationId). Same jest.mock-factory pattern as hallMenu.test.tsx (which this reuses -- the
-// "menu" branch renders the real HallMenuScreenBody, so it needs the same storage mocks).
+// either the existing hall-menu screen body (non-empty) or hand off to HomePane's own CafeSheet
+// (empty / no locationId -- see cafeSheetHandoff.ts for why this screen never renders a sheet
+// itself). Same jest.mock-factory pattern as hallMenu.test.tsx (which this reuses -- the "menu"
+// branch renders the real HallMenuScreenBody, so it needs the same storage mocks).
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { fetchMenu, type MenuItem } from "@udine/shared";
 import CafeScreen from "../app/cafe/[name]";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
+import { takePendingCafeSheet } from "./cafeSheetHandoff";
 
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
@@ -87,10 +89,11 @@ jest.mock("./menuHoursCache", () => ({
 // "unknown name" test below point useLocalSearchParams at a name absent from the mocked hours feed
 // without a second jest.mock factory.
 let mockSearchParamName = "People's Organic Coffee";
+const mockRouterBack = jest.fn();
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ name: encodeURIComponent(mockSearchParamName) }),
   useFocusEffect: (_callback: () => void) => {},
-  router: { back: jest.fn(), push: jest.fn() },
+  router: { back: (...args: unknown[]) => mockRouterBack(...args), push: jest.fn() },
 }));
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
@@ -106,6 +109,8 @@ beforeEach(() => {
   mockFetchHoursAndCache.mockReset().mockResolvedValue(DEFAULT_HOURS_FEED);
   mockGetCachedHours.mockReset().mockResolvedValue(null);
   mockGetCachedMenu.mockReset().mockResolvedValue(null);
+  mockRouterBack.mockReset();
+  takePendingCafeSheet(); // drain any stray request left by a prior test
 });
 
 function texts(root: renderer.ReactTestRenderer) {
@@ -155,11 +160,15 @@ describe("/cafe/[name] probe-at-tap routing (#177)", () => {
     expect(texts(root).flat().join(" ")).not.toMatch(/OPEN · TIL|CLOSED/);
   });
 
-  it("empty fetchMenu -> the CafeSheet fallback, not the hall-menu screen", async () => {
+  // #standing-menu-double-screen fix: an empty probe used to render CafeSheet inline, inside this
+  // pushed route -- a blank pushed screen with the sheet stacked on top of it. Now it hands off to
+  // HomePane's own CafeSheet (cafeSheetHandoff.ts) and pops itself instead of rendering anything.
+  it("empty fetchMenu -> hands off to HomePane's CafeSheet and pops itself, rendering neither the sheet nor the hall-menu screen here", async () => {
     const root = await renderCafeScreen([]);
     expect(mockedFetchMenu).toHaveBeenCalledWith(32, expect.any(Date));
-    expect(texts(root).flat()).toContain("People's Organic Coffee");
-    expect(texts(root).flat().join(" ")).toMatch(/OPEN|CLOSED/);
+    expect(texts(root).flat()).not.toContain("People's Organic Coffee"); // no CafeSheet rendered in this screen
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
+    expect(takePendingCafeSheet()).toBe("People's Organic Coffee");
   });
 
   it("a name absent from the resolved hours feed shows an error instead of spinning forever", async () => {
@@ -203,13 +212,15 @@ describe("/cafe/[name] probe-at-tap routing (#177)", () => {
       root = renderer.create(<CafeScreen />);
     });
     expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load/);
-    expect(texts(root).flat()).toContain("People's Organic Coffee");
+    // Resolved to the sheet-only outcome and handed off (not rendered here) -- see the fix note above.
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
+    expect(takePendingCafeSheet()).toBe("People's Organic Coffee");
     // Pins the fallback wiring itself (getCachedMenu actually consulted with the right args) --
-    // the render-level assertions above pass through the "nothing cached" (`null`) branch alone,
-    // so without this a mutation deleting the `cached ? cached.items : []` fallback and always
-    // returning `[]` would stay green. The "cached menu has real items" branch's own render
-    // behavior is covered by getCachedMenu's round-trip in menuHoursCache.test.ts, not end-to-end
-    // here -- see the comment below for why a full render of that path isn't reachable in this file.
+    // the assertions above pass through the "nothing cached" (`null`) branch alone, so without
+    // this a mutation deleting the `cached ? cached.items : []` fallback and always returning `[]`
+    // would stay green. The "cached menu has real items" branch's own render behavior is covered
+    // by getCachedMenu's round-trip in menuHoursCache.test.ts, not end-to-end here -- see the
+    // comment below for why a full render of that path isn't reachable in this file.
     expect(mockGetCachedMenu).toHaveBeenCalledWith(32, expect.any(Date));
   });
 
@@ -244,13 +255,14 @@ describe("/cafe/[name] probe-at-tap routing (#177)", () => {
   // cached either" case, which degrades to the CafeSheet fallback instead of a hard error, since
   // there's genuinely nothing else to show; the "a cached menu exists" case is covered above by
   // the offline-tap (#243 bug C) test.
-  it("a rejected fetchMenu with no cached menu either falls back to the CafeSheet fallback, not a spinning/error dead end", async () => {
+  it("a rejected fetchMenu with no cached menu either hands off to the CafeSheet fallback, not a spinning/error dead end", async () => {
     mockedFetchMenu.mockRejectedValue(new Error("upstream 500"));
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
       root = renderer.create(<CafeScreen />);
     });
     expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load/);
-    expect(texts(root).flat()).toContain("People's Organic Coffee");
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
+    expect(takePendingCafeSheet()).toBe("People's Organic Coffee");
   });
 });
