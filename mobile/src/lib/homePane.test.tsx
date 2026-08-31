@@ -1,6 +1,6 @@
 // Explicit factories, not bare automocks -- automock still imports the real module to derive its
-// shape, and the real ../lib/supabase / ../lib/firstRun both drag in native bindings (AsyncStorage,
-// the Supabase client's url/key validation) unavailable outside jest-expo's native harness.
+// shape, and the real ../lib/supabase drags in native bindings (AsyncStorage, the Supabase
+// client's url/key validation) unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { HomePane } from "../app/index";
@@ -17,11 +17,6 @@ jest.mock("../lib/supabase", () => ({
 jest.mock("../lib/auth", () => ({
   signInWithGoogle: jest.fn(),
   signOut: jest.fn(),
-}));
-
-jest.mock("../lib/firstRun", () => ({
-  isFirstRunDismissed: jest.fn().mockResolvedValue(true),
-  dismissFirstRun: jest.fn(),
 }));
 
 // HomePane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as

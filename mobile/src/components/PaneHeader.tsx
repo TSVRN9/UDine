@@ -4,8 +4,9 @@ import { Press } from "./Press";
 import { PANE_COUNT, paneOffsetRange } from "../lib/paneShell";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
-/** Pane order: Social, Home, You (matches PaneStack's pane array). */
-const TITLES = ["SOCIAL", "UDINE", "YOU"] as const;
+/** Pane order: Events, Home, You (matches PaneStack's pane array). MVP cut (temporary, see
+ * archive/full-features): was Social/Ping-a-Friend, now just Events. */
+const TITLES = ["EVENTS", "UDINE", "YOU"] as const;
 
 // The artboard's own cubic-bezier -- shared by the pane transition (PaneStack) and this header's
 // title crossfade, at their own independently-tuned durations (#179 styling spec).

@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import type { ShouldStartLoadRequest, WebViewMessageEvent } from "react-native-webview/lib/WebViewTypes";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -170,54 +170,62 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Text style={styles.backChevron}>‹</Text>
-        </Pressable>
-        <View style={styles.headerTitleBlock}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {cafeName}
-          </Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {label} · PDF
-          </Text>
-        </View>
-        <Pressable style={styles.saveButton} onPress={handleSave} disabled={!localUri} accessibilityRole="button" accessibilityLabel="Save PDF">
-          <Text style={styles.saveButtonText}>SAVE ⬇</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.documentSurface}>
-        {error ? (
-          <View style={styles.errorBlock}>
-            <Text style={styles.error}>Couldn&apos;t load menu: {error}</Text>
-            <Pressable onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Retry" style={styles.retryButton}>
-              <Text style={styles.retryButtonText}>RETRY</Text>
-            </Pressable>
+    // Animation-consistency fix: this used to be a bare conditionally-mounted View -- every other
+    // full-screen/sheet overlay in the app (NutritionLabel's slide-up Modal, CafeSheet/
+    // HallInfoSheet/PlateSheet's useSheetAnim fade+translate) animates in, but this one popped
+    // into existence instantly. Same full-screen-page treatment as NutritionLabel (RN's own native
+    // slide, not useSheetAnim -- there's no backdrop to fade since this is opaque and covers the
+    // whole screen, same reasoning as that file's own doc comment).
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+            <Text style={styles.backChevron}>‹</Text>
+          </Pressable>
+          <View style={styles.headerTitleBlock}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {cafeName}
+            </Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {label} · PDF
+            </Text>
           </View>
-        ) : !viewerHtml ? (
-          <ActivityIndicator color={colors.gold500} style={styles.loading} />
-        ) : (
-          <WebView
-            source={{ html: viewerHtml }}
-            originWhitelist={["about:blank"]}
-            onShouldStartLoadWithRequest={shouldAllowCafePdfNavigation}
-            onMessage={handleWebViewMessage}
-            allowFileAccess={false}
-            setSupportMultipleWindows={false}
-            style={styles.webview}
-          />
-        )}
-      </View>
+          <Pressable style={styles.saveButton} onPress={handleSave} disabled={!localUri} accessibilityRole="button" accessibilityLabel="Save PDF">
+            <Text style={styles.saveButtonText}>SAVE ⬇</Text>
+          </Pressable>
+        </View>
 
-      <View style={styles.hintBar}>
-        {/* PR #219 review: pages render stacked in one vertical scroll (buildViewerHtml appends
-        each page's <canvas> into the same #pages container), not a swipeable pager -- "scroll",
-        not the styling spec's verbatim "swipe", is what this screen actually does. */}
-        <Text style={styles.hintText}>Rendered in-app · pinch to zoom · scroll for pages</Text>
+        <View style={styles.documentSurface}>
+          {error ? (
+            <View style={styles.errorBlock}>
+              <Text style={styles.error}>Couldn&apos;t load menu: {error}</Text>
+              <Pressable onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Retry" style={styles.retryButton}>
+                <Text style={styles.retryButtonText}>RETRY</Text>
+              </Pressable>
+            </View>
+          ) : !viewerHtml ? (
+            <ActivityIndicator color={colors.gold500} style={styles.loading} />
+          ) : (
+            <WebView
+              source={{ html: viewerHtml }}
+              originWhitelist={["about:blank"]}
+              onShouldStartLoadWithRequest={shouldAllowCafePdfNavigation}
+              onMessage={handleWebViewMessage}
+              allowFileAccess={false}
+              setSupportMultipleWindows={false}
+              style={styles.webview}
+            />
+          )}
+        </View>
+
+        <View style={styles.hintBar}>
+          {/* PR #219 review: pages render stacked in one vertical scroll (buildViewerHtml appends
+          each page's <canvas> into the same #pages container), not a swipeable pager -- "scroll",
+          not the styling spec's verbatim "swipe", is what this screen actually does. */}
+          <Text style={styles.hintText}>Rendered in-app · pinch to zoom · scroll for pages</Text>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 

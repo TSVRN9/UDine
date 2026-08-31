@@ -1,7 +1,7 @@
 import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favorite, type RetailLocationHours } from "@udine/shared";
 import { LinearGradient } from "expo-linear-gradient";
-import { Link, router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Link, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CafePdfViewer } from "../components/CafePdfViewer";
@@ -14,30 +14,26 @@ import { PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { grabRouteFor, grabStripState } from "../lib/grabStrip";
+import { takePendingCafeSheet } from "../lib/cafeSheetHandoff";
 import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
-import { isFirstRunDismissed } from "../lib/firstRun";
-import { supabase } from "../lib/supabase";
-import { SocialPane } from "../panes/SocialPane";
+import { EventsPane } from "../panes/EventsPane";
 import { YouPane } from "../panes/YouPane";
 
 const favoritesStorage = new SqliteFavoritesStorage();
 
 // #90 canvas doesn't carry these (its Home artboard is hero + hall cards + cafés/markets), but
-// dropping them would strand /filters, /favorites, /rank, /events, /press, /newsletter with no
-// in-app entry point — #91-#93 re-home this list as they replace each pane's internals. #93's
-// SocialPane doesn't mount NotificationsBody (the Social artboard has no notifications toggle/
-// sightings feed) -- /notifications is added here so that feature (and the cron job/Edge Function
-// behind it) stays reachable from the UI.
+// dropping them would strand /filters, /favorites, /press, /newsletter, /export with no in-app
+// entry point. MVP cut (temporary, see archive/full-features): rank dishes and notifications are
+// shelved along with ranking/friends/account; export stays reachable here now that its old home
+// (behind /privacy's own EXPORT row) is gone too.
 const QUICK_LINKS: { href: string; label: string }[] = [
   { href: "/filters", label: "Dietary filters" },
   { href: "/favorites", label: "Favorites" },
-  { href: "/rank", label: "Rank dishes" },
-  { href: "/events", label: "Events" },
   { href: "/press", label: "Press" },
   { href: "/newsletter", label: "Newsletter" },
-  { href: "/notifications", label: "Notifications" },
+  { href: "/export", label: "Export data" },
 ];
 
 // #181: hero is null both while the very first fetch is genuinely pending (real skeleton) AND on
@@ -174,7 +170,7 @@ function HallCard({
   );
 }
 
-// Exported so it's independently testable (#104 review round) without pulling in SocialPane's/
+// Exported so it's independently testable (#104 review round) without pulling in EventsPane's/
 // YouPane's own network- and storage-backed siblings, which the pager mounts eagerly alongside it.
 export function HomePane() {
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
@@ -244,7 +240,32 @@ export function HomePane() {
     };
   }, []);
 
-  useFocusEffect(load);
+  // One useFocusEffect registration, not two: `load` returns a cleanup ("current" guard), and this
+  // repo's useFocusEffect test shims (e.g. homePaneStaleFocusRace.test.tsx) capture "the" latest
+  // registered callback by hook-call order -- a second, separate useFocusEffect call would shadow
+  // `load`'s in those shims, not run alongside it.
+  //
+  // The pickup half handles a café/[name] hand-off (cafeSheetHandoff.ts): that screen calls
+  // requestCafeSheet then router.back() the instant it resolves to a sheet-only outcome (no
+  // locationId, or a locationId whose probe came back empty -- e.g. a standing-menu-only
+  // location), so this fires the moment Home regains focus from that pop. Reads `hoursFeed` fresh
+  // each time (the dependency array below, not a one-shot [] effect) since the café the request
+  // names must be looked up in whatever hours feed Home currently has loaded; takePendingCafeSheet
+  // clears itself, so a re-fire with nothing pending is just a no-op.
+  useFocusEffect(
+    useCallback(() => {
+      const cleanup = load();
+      const pendingName = takePendingCafeSheet();
+      if (pendingName) {
+        const loc = hoursFeed?.retail?.find((r) => r.name === pendingName);
+        if (loc) {
+          setCafeSheetLoc(loc);
+          setCafeSheetVisible(true);
+        }
+      }
+      return cleanup;
+    }, [load, hoursFeed]),
+  );
 
   async function toggleHall(hallTid: number) {
     const favorite: Favorite = { type: "location", hallTid };
@@ -366,7 +387,7 @@ export function HomePane() {
 }
 
 /**
- * The 3-pane shell (Social ← Home → You). #179 replaced the horizontal-ScrollView pager with the
+ * The 3-pane shell (Events ← Home → You). #179 replaced the horizontal-ScrollView pager with the
  * artboard's shared-axis transition (see PaneStack) — panes are stacked, not a translating strip,
  * so there's no scroll offset/contentSize race to land on Home any more (the #f5f0d5b bug this
  * used to guard against). Landing on Home is now just PaneStack's own Animated.Values starting AT
@@ -376,37 +397,16 @@ export default function PaneShellScreen() {
   const [activeIndex, setActiveIndex] = useState(HOME_PANE_INDEX);
   const insets = useSafeAreaInsets();
 
-  // First launch → the full-screen login/value-prop screen (#96, replaces #68's FirstRunCard).
-  // Pushed (not replaced) so both of its exits just pop back to the shell.
-  //
-  // #278: also gated on a live session, not just the first-run flag. The #54 cold-start OAuth path
-  // (app process killed mid Custom-Tab) lands here via redirect.tsx's <Redirect href="/" /> with the
-  // first-run flag still undismissed -- dismissFirstRun() only ever runs inside login.tsx's done(),
-  // which that path never reaches (signInWithGoogle() itself never resolves on a cold start; see
-  // auth.ts). This does NOT suppress the single push on the cold-start landing itself: at that
-  // instant no session has ever been persisted yet (first sign-in, detectSessionInUrl: false) and
-  // redirect.tsx's exchangeCode is still in flight (not awaited before its <Redirect> renders), so
-  // getSession() here is still null too -- this check and redirect.tsx's exchange are racing the
-  // same instant, and getSession() loses it exactly as the #54 issue reproduced. What it does close
-  // is the DURABLE form of the bug: main re-pushed /login on every subsequent app open until the
-  // user actually completed the login screen, because the flag alone stayed undismissed forever.
-  // Once the exchange lands, this check makes every later launch see the persisted session and skip
-  // the push -- the spurious one-shot on the cold-start instant self-clears the moment the user hits
-  // either exit on /login (both call done()). Closing the instant itself means gating redirect.tsx's
-  // <Redirect> on the exchange, which touches the pinned #54 double-exchange guard
-  // (shouldExchangeCode/isSignInInFlight) -- out of scope here, tracked separately.
-  useEffect(() => {
-    Promise.all([isFirstRunDismissed(), supabase.auth.getSession()]).then(([dismissed, { data }]) => {
-      if (!dismissed && !data.session) router.push("/login");
-    });
-  }, []);
+  // MVP cut (temporary, see archive/full-features): the first-launch push to /login (#96/#278) is
+  // shelved along with login.tsx/redirect.tsx and the rest of account -- nothing in the kept
+  // surface needs a session, so there's no first-run gate left to run.
 
   return (
     <PaneStack
       activeIndex={activeIndex}
       onActiveIndexChange={setActiveIndex}
       topInset={insets.top}
-      panes={[<SocialPane key="social" />, <HomePane key="home" />, <YouPane key="you" />]}
+      panes={[<EventsPane key="events" />, <HomePane key="home" />, <YouPane key="you" />]}
     />
   );
 }

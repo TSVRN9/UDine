@@ -75,7 +75,7 @@ describe("PaneHeader dot active-state", () => {
   it("gives the active dot the bigger, maroon treatment and inactive dots the smaller, grey one", () => {
     const json = renderHeader(1); // UDINE active
     const active = dotStyle(json, "Go to UDINE");
-    const inactive = dotStyle(json, "Go to SOCIAL");
+    const inactive = dotStyle(json, "Go to EVENTS");
 
     expect(active.width).toBe(fs(8));
     expect(active.height).toBe(fs(8));
@@ -87,18 +87,18 @@ describe("PaneHeader dot active-state", () => {
   });
 
   it("moves the big+maroon treatment to whichever dot activeIndex points at", () => {
-    const json = renderHeader(0); // SOCIAL active
-    const social = dotStyle(json, "Go to SOCIAL");
+    const json = renderHeader(0); // EVENTS active
+    const events = dotStyle(json, "Go to EVENTS");
     const you = dotStyle(json, "Go to YOU");
 
-    expect(social.width).toBe(fs(8));
+    expect(events.width).toBe(fs(8));
     expect(you.width).toBe(fs(6));
   });
 });
 
 // #179 review: commit 5fa7b15 fixed a real on-device bug (uniform hitSlop=14 on 16dp dots spaced
 // 6dp apart made the leftmost dot's expanded hit-region a strict subset of its neighbor's --
-// SOCIAL was never reachable) but shipped with zero test coverage. This pins the invariant that
+// EVENTS was never reachable) but shipped with zero test coverage. This pins the invariant that
 // fix depends on, not just today's specific numbers: two adjacent dots' horizontally-expanded hit
 // regions must never be able to touch, even at the row's smallest on-device gap.
 describe("DOT_HIT_SLOP", () => {

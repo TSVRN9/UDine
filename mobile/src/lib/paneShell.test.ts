@@ -122,4 +122,14 @@ describe("paneDragPosition", () => {
     expect(paneDragPosition(0, SWIPE_COMMIT_PX)).toBe(0);
     expect(paneDragPosition(2, -SWIPE_COMMIT_PX)).toBe(2);
   });
+
+  // Overscroll/skip-middle-pane bug: a long/fast drag from an end pane used to be able to sweep
+  // the animated position straight past its immediate neighbor (visually skipping over it) even
+  // though paneIndexForSwipe never commits more than one pane away -- release then snapped back,
+  // reading as "skip the middle pane, then snap back". The drag position must never lead the
+  // commit target it could possibly resolve to.
+  it("never drags past dragStartIndex's immediate neighbor, however far/fast the drag goes", () => {
+    expect(paneDragPosition(0, -SWIPE_COMMIT_PX * 3)).toBe(1); // not 2
+    expect(paneDragPosition(2, SWIPE_COMMIT_PX * 3)).toBe(1); // not 0
+  });
 });
