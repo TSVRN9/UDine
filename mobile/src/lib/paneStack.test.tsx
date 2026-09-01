@@ -3,7 +3,7 @@ import { Animated, Text, View } from "react-native";
 import renderer, { act } from "react-test-renderer";
 
 import { PaneStack } from "../components/PaneStack";
-import { PANE_DRAG_PX } from "./paneShell";
+import { PANE_DRAG_PX, paneDragPosition, settleDuration } from "./paneShell";
 
 // Jest hoists jest.mock() above imports and only allows referencing out-of-scope variables whose
 // name starts with "mock" inside the factory -- hence the prefix on all three.
@@ -211,6 +211,42 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     for (const [, config] of settleCalls) {
       expect((config as { toValue: number }).toValue).toBe(2);
     }
+  });
+
+  // Regression guard (PR #339 review): settlePosition's `from` argument (the actual in-flight drag
+  // position at release) is what makes settleDuration scale the animation by real remaining
+  // distance -- without it, `from` defaults to `target` and every release settles over a flat 40%
+  // of the base duration, indistinguishable from a release that had barely moved at all. Reverting
+  // the gesture handlers back to `settlePosition(next)` (dropping the drag-position argument) left
+  // every other test in this file green, since none of them assert on `duration` -- only `toValue`.
+  it("(d) release settle duration reflects the in-flight drag position, not a target-only fallback", () => {
+    const onActiveIndexChange = jest.fn();
+    const handlers = renderGestureHarness(onActiveIndexChange);
+    const timingSpy = jest.spyOn(Animated, "timing");
+
+    act(() => {
+      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+    });
+    act(() => {
+      handlers.onResponderMove(fakeTouch(0, -80, 1000)); // dx=-80, past the 60px commit threshold
+    });
+    const callsBeforeRelease = timingSpy.mock.calls.length;
+    act(() => {
+      handlers.onResponderRelease(fakeTouch(-80, -80, 1001));
+    });
+
+    expect(onActiveIndexChange).toHaveBeenCalledWith(2);
+    const fromPos = paneDragPosition(1, -80);
+    const expectedTransformDuration = settleDuration(fromPos, 2, 340);
+    const expectedOpacityDuration = settleDuration(fromPos, 2, 260);
+    // Both computed durations sit above the 40% floor -- a `from` defaulting to the target (the
+    // bug this guards against) would floor both at 340*0.4 / 260*0.4 instead.
+    expect(expectedTransformDuration).not.toBeCloseTo(340 * 0.4);
+    expect(expectedOpacityDuration).not.toBeCloseTo(260 * 0.4);
+
+    const durations = timingSpy.mock.calls.slice(callsBeforeRelease).map(([, config]) => (config as { duration: number }).duration);
+    expect(durations).toContainEqual(expectedTransformDuration);
+    expect(durations).toContainEqual(expectedOpacityDuration);
   });
 
   // The fling path (paneShell.test.ts unit-tests paneIndexForSwipe's own vx arithmetic) -- this
