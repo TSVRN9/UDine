@@ -64,7 +64,7 @@ describe("grabStripState", () => {
 });
 
 describe("grabRouteFor", () => {
-  it("builds the #115 Grab 'N Go route path (/grab-n-go/[slug], per #115's posted route name)", () => {
-    expect(grabRouteFor("worcester")).toBe("/grab-n-go/worcester");
+  it("deep-links into the hall-menu screen with the Grab 'N Go tab preselected, not the retired standalone route", () => {
+    expect(grabRouteFor("worcester")).toBe("/halls/worcester?meal=grab");
   });
 });

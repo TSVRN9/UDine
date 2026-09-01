@@ -72,7 +72,7 @@ describe("every route resolves headerShown correctly (guards the #151/#219/#281 
     expect(routes.length).toBeGreaterThan(0);
     // MVP cut (temporary, see archive/full-features): add-friends, add-friend-qr, qr-confirm,
     // privacy, friend/[id] are shelved along with friends/account.
-    for (const expected of ["export", "cafe/[name]", "grab-n-go/[slug]", "halls/[slug]"]) {
+    for (const expected of ["export", "cafe/[name]", "halls/[slug]"]) {
       expect(routes).toContain(expected);
     }
   });

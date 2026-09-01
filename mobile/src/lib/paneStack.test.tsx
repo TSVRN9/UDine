@@ -3,6 +3,7 @@ import { Animated, Text, View } from "react-native";
 import renderer, { act } from "react-test-renderer";
 
 import { PaneStack } from "../components/PaneStack";
+import { PANE_DRAG_PX } from "./paneShell";
 
 // Jest hoists jest.mock() above imports and only allows referencing out-of-scope variables whose
 // name starts with "mock" inside the factory -- hence the prefix on all three.
@@ -69,6 +70,16 @@ beforeEach(() => {
 // of the SAME event (RN's PanResponder accumulates gestureState.dx from that per-event delta, not
 // from diffing across separate calls) -- so a move's own prev/curr pair IS the gesture's step, and
 // grant's pageX value is irrelevant (PaneStack's onPanResponderGrant reads no gesture fields).
+//
+// `gesture.vx` (read by PaneStack for the fling-commit path) is computed by RN's PanResponder as
+// `(step's dx) / (this move's timeStamp - the PREVIOUS move's timeStamp)` -- and a release event
+// does NOT recompute it, it just reuses whatever vx the last onResponderMove call left in the
+// shared gestureState (see PanResponder.js's onResponderRelease, which never calls
+// _updateGestureStateOnMove). So `timeStamp` isn't just event ordering here: for any test whose
+// release cares about vx, the LAST move's timeStamp gap needs to be a plausible real duration (RN
+// frames are ~16ms) relative to its own dx, or the synthetic vx comes out absurdly large/small.
+// Distance-only tests (checking dx-driven position/commit, not vx) can keep using small sequential
+// values -- only vx-sensitive ones need realistic gaps.
 function fakeTouch(previousPageX: number, currentPageX: number, timeStamp: number) {
   return {
     nativeEvent: { touches: [{}], changedTouches: [{}], timestamp: timeStamp },
@@ -137,21 +148,21 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
       handlers.onResponderGrant(fakeTouch(0, 0, 1));
     });
     act(() => {
-      // Finger moves left 30px: dx=-30 -> paneDragPosition(1, -30) = 1 - (-30/60) = 1.5.
-      handlers.onResponderMove(fakeTouch(0, -30, 2));
+      // Finger moves left half of PANE_DRAG_PX: paneDragPosition(1, -PANE_DRAG_PX/2) = 1.5.
+      handlers.onResponderMove(fakeTouch(0, -PANE_DRAG_PX / 2, 2));
     });
     expect(readAnimatedValue(mockLatestTitlePos!)).toBeCloseTo(1.5);
     expect(onActiveIndexChange).not.toHaveBeenCalled();
 
     act(() => {
-      // Finger continues to -45px total: dx accumulates to -45 -> paneDragPosition(1, -45) = 1.75.
-      handlers.onResponderMove(fakeTouch(-30, -45, 3));
+      // Finger continues to 3/4 of PANE_DRAG_PX total -> paneDragPosition(1, ...) = 1.75.
+      handlers.onResponderMove(fakeTouch(-PANE_DRAG_PX / 2, -PANE_DRAG_PX * 0.75, 3));
     });
     expect(readAnimatedValue(mockLatestTitlePos!)).toBeCloseTo(1.75);
     expect(onActiveIndexChange).not.toHaveBeenCalled();
   });
 
-  it("(c) release below SWIPE_COMMIT_PX settles back to the drag-start index", () => {
+  it("(c) release below SWIPE_COMMIT_PX and below SWIPE_FLING_VELOCITY settles back to the drag-start index", () => {
     const onActiveIndexChange = jest.fn();
     const handlers = renderGestureHarness(onActiveIndexChange);
     const timingSpy = jest.spyOn(Animated, "timing");
@@ -160,11 +171,14 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
       handlers.onResponderGrant(fakeTouch(0, 0, 1));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -45, 2)); // dx=-45, below the 60px commit threshold
+      // dx=-45 (below the 60px commit threshold) over a realistic 1000ms -- vx a tiny -0.045px/ms,
+      // nowhere near SWIPE_FLING_VELOCITY (see fakeTouch's own doc on why the gap has to be
+      // realistic here: release reuses this move's vx as-is).
+      handlers.onResponderMove(fakeTouch(0, -45, 1000));
     });
     const callsBeforeRelease = timingSpy.mock.calls.length;
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-45, -45, 3));
+      handlers.onResponderRelease(fakeTouch(-45, -45, 1001));
     });
 
     expect(onActiveIndexChange).not.toHaveBeenCalled();
@@ -184,11 +198,11 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
       handlers.onResponderGrant(fakeTouch(0, 0, 1));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -80, 2)); // dx=-80, past the 60px commit threshold
+      handlers.onResponderMove(fakeTouch(0, -80, 1000)); // dx=-80, past the 60px commit threshold
     });
     const callsBeforeRelease = timingSpy.mock.calls.length;
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-80, -80, 3));
+      handlers.onResponderRelease(fakeTouch(-80, -80, 1001));
     });
 
     expect(onActiveIndexChange).toHaveBeenCalledWith(2); // negative dx commits to the next pane
@@ -197,6 +211,33 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     for (const [, config] of settleCalls) {
       expect((config as { toValue: number }).toValue).toBe(2);
     }
+  });
+
+  // The fling path (paneShell.test.ts unit-tests paneIndexForSwipe's own vx arithmetic) -- this
+  // proves the real PanResponder's computed gesture.vx actually reaches it end to end: a fast
+  // flick commits even though dx alone never gets anywhere near SWIPE_COMMIT_PX.
+  it("(fling) a fast flick well short of SWIPE_COMMIT_PX still commits, driven by the release's carried-over velocity", () => {
+    const onActiveIndexChange = jest.fn();
+    const handlers = renderGestureHarness(onActiveIndexChange);
+
+    act(() => {
+      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+    });
+    act(() => {
+      // Small settling move first (realistic dt, negligible vx) so the flick below is measured
+      // against a normal previous timestamp, not the _accountsForMovesUpTo-starts-at-0 artifact.
+      handlers.onResponderMove(fakeTouch(0, -5, 1000));
+    });
+    act(() => {
+      // 20px more in 16ms (one frame) -> vx = -20/16 = -1.25px/ms, well past SWIPE_FLING_VELOCITY
+      // (0.5) -- total dx is only -25, far short of SWIPE_COMMIT_PX (60).
+      handlers.onResponderMove(fakeTouch(-5, -25, 1016));
+    });
+    act(() => {
+      handlers.onResponderRelease(fakeTouch(-25, -25, 1017));
+    });
+
+    expect(onActiveIndexChange).toHaveBeenCalledWith(2);
   });
 });
 
