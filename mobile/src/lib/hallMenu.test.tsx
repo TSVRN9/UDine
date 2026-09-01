@@ -13,12 +13,13 @@
 // halls/[slug].tsx instantiates its storage singletons at module top level, and importing
 // HallMenuScreen below is what loads that module.
 import renderer, { act } from "react-test-renderer";
-import { StyleSheet, Text, SectionList } from "react-native";
+import { StyleSheet, Text, View, SectionList } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { fetchEvents, fetchMenu, type MenuItem } from "@udine/shared";
+import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
+import { colors } from "./theme";
 import { stepDate } from "./hallMenuTabs";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
@@ -307,12 +308,38 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     expect(steppedDate.getTime()).toBe(stepDate(initialDate, 1).getTime());
   });
 
-  it("navigates to the hall's Grab 'N Go route when its tab is pressed", async () => {
+  it("selects the Grab 'N Go tab in place (gold underline moves to it) instead of navigating to a separate route, and fetches the hall's Grab 'N Go tid, not its regular hall tid", async () => {
     const root = await renderScreen([PIZZA]);
-    act(() => {
+    mockedFetchMenu.mockResolvedValueOnce([]);
+    await act(async () => {
       root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
     });
-    expect(mockedRouterPush).toHaveBeenCalledWith("/grab-n-go/worcester");
+    expect(mockedRouterPush).not.toHaveBeenCalled();
+    expect(mockedFetchMenu).toHaveBeenCalledWith(GRAB_N_GO_TIDS.worcester, expect.any(Date));
+
+    const grabTab = root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" });
+    const underline = grabTab.findAllByType(View).at(-1);
+    const flatStyle = StyleSheet.flatten(underline!.props.style) as { backgroundColor?: string };
+    expect(flatStyle.backgroundColor).toBe(colors.gold500);
+  });
+
+  it("renders the Grab tab's own station-grouped items, deduped by dish identity across mealPeriod values sharing one category, distinct from the hall's own meal-tab items", async () => {
+    const root = await renderScreen([PIZZA]);
+    mockedFetchMenu.mockResolvedValueOnce([
+      { ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester, mealPeriod: "lunch" },
+      { ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester, mealPeriod: "breakfast" },
+    ]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Grab Wrap/);
+    expect(body).not.toMatch(/Pizza/); // the hall's own lunch-tab item, not shown while on the Grab tab
+
+    const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
+    expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
+    expect(sections[0].data).toHaveLength(1); // deduped, not two identical rows
   });
 
   it("ignores a stale response for a previously-selected date that resolves after a newer one (network order isn't request order)", async () => {
@@ -340,6 +367,99 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     const body = texts(root).flat().join(" ");
     expect(body).toMatch(/Salad/);
     expect(body).not.toMatch(/Pizza/);
+  });
+});
+
+// Grab 'N Go used to be its own screen (grab-n-go/[slug].tsx, retired) -- these cover what's
+// specific to it now that it's the hall screen's 4th tab: its own fetch/date-stepper wiring, its
+// own loading/error/empty states, its open/closed subtitle, and the deep link that preselects it.
+// Plate/log/nutrition-label/favoriting wiring is already covered above (same shared code path,
+// same renderDishRow) -- not duplicated here.
+describe("HallMenuScreen Grab 'N Go tab (merged from the retired grab-n-go/[slug].tsx)", () => {
+  it("steps the date forward while on the Grab tab and refetches its own menu for the new date, ignoring a stale response for the date navigated away from", async () => {
+    // Stepping the date re-fires BOTH the hall's own menu effect and the Grab effect (one shared
+    // stepper, per the artboard spec) -- branch the shared fetchMenu mock by which tid it's called
+    // with, rather than by call order, since the two effects' fetches can't be told apart by order.
+    const grabWrap = { ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester };
+    const staleGrabItem = { ...grabWrap, dishName: "Stale Grab Item" };
+    let resolveStaleGrab!: (items: MenuItem[]) => void;
+    const staleGrabFetch = new Promise<MenuItem[]>((resolve) => {
+      resolveStaleGrab = resolve;
+    });
+
+    mockedFetchMenu.mockImplementation((tid: number) => (tid === GRAB_N_GO_TIDS.worcester ? staleGrabFetch : Promise.resolve([PIZZA])));
+    const root = await renderScreen([PIZZA]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+    // Today's Grab fetch is still pending (staleGrabFetch) -- switch it to resolve with the next
+    // date's items before stepping, so the stepped-to date "wins" the race deterministically.
+    mockedFetchMenu.mockImplementation((tid: number) => (tid === GRAB_N_GO_TIDS.worcester ? Promise.resolve([grabWrap]) : Promise.resolve([PIZZA])));
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Grab Wrap/);
+
+    // The first (now-stale) date's response resolves late -- must not overwrite the newer date's.
+    await act(async () => {
+      resolveStaleGrab([staleGrabItem]);
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Grab Wrap/);
+    expect(body).not.toMatch(/Stale Grab Item/);
+  });
+
+  it("shows the Grab tab's own error text on a fetch failure, not the hall-menu MenuErrorCard", async () => {
+    const root = await renderScreen([PIZZA]);
+    mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Failed to load Grab 'N Go menu:.*network down/);
+    expect(body).not.toMatch(/Menu didn't load/); // the hall-menu screen's own MenuErrorCard copy
+  });
+
+  it("shows the Grab tab's own empty-state message when the day has no Grab 'N Go items", async () => {
+    const root = await renderScreen([PIZZA]);
+    mockedFetchMenu.mockResolvedValueOnce([]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/No Grab 'N Go menu/);
+  });
+
+  it("shows the Grab tab's open/closed subtitle for today, and omits it once the date stepper moves off today (get_infov2 only ever publishes today's hours)", async () => {
+    mockFetchHoursAndCache.mockResolvedValueOnce({
+      halls: [],
+      retail: [{ name: "Worcester Grab ‘N Go", hours: { openTime: "12:00 AM", closeTime: "11:59 PM" } }],
+    });
+    const root = await renderScreen([PIZZA]);
+    mockedFetchMenu.mockResolvedValueOnce([]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/open now/);
+
+    mockedFetchMenu.mockResolvedValueOnce([]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/open now/);
+  });
+
+  it("preselects the Grab tab when opened via the ?meal=grab deep link (Home's GRAB 'N GO strip, grabRouteFor)", async () => {
+    // Mounting fires the hall's own menu effect too (it doesn't check selectedMeal) -- branch by
+    // tid, same reasoning as the date-stepper test above.
+    const grabWrap = { ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester };
+    mockedFetchMenu.mockImplementation((tid: number) => (tid === GRAB_N_GO_TIDS.worcester ? Promise.resolve([grabWrap]) : Promise.resolve([PIZZA])));
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "worcester", meal: "grab" });
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Grab Wrap/);
+    expect(mockedFetchMenu).toHaveBeenCalledWith(GRAB_N_GO_TIDS.worcester, expect.any(Date));
   });
 });
 
@@ -601,9 +721,14 @@ describe("HallMenuScreen plate wiring", () => {
     mockAddEntry.mockReset().mockResolvedValue(undefined);
   });
 
-  it("does not mount the plate bar while the plate is empty (mutation a)", async () => {
+  // Was "does not mount the plate bar while the plate is empty" -- the bar is now always mounted
+  // (it's the only entry point into the plate sheet's OFF search, needed just as much with nothing
+  // staged as with something on the plate) and shows its empty-state variant instead of unmounting.
+  it("mounts the plate bar, in its empty-state variant, while the plate is empty", async () => {
     const root = await renderScreen();
-    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
+    expect(texts(root).flat().join(" ")).toMatch(/Plate is empty.*search for something not on the menu/);
   });
 
   it("mounts the plate bar once an item is added, with the item count it reports", async () => {
@@ -613,7 +738,7 @@ describe("HallMenuScreen plate wiring", () => {
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(1);
   });
 
-  it("tracks the SectionList's bottom padding to the plate bar's measured height while it's up, and drops to 0 once the plate is empty (mutation c)", async () => {
+  it("tracks the SectionList's bottom padding to the plate bar's measured height, and keeps it once the plate empties again (the bar stays mounted, just switches to its empty-state variant)", async () => {
     const root = await renderScreen();
     addToPlate(root, "Pizza");
 
@@ -622,12 +747,11 @@ describe("HallMenuScreen plate wiring", () => {
     });
     expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(88);
 
-    // Step the item back down to 0 -- the row's own stepper minus button removes it, emptying the
-    // plate and unmounting the bar. The list's padding must collapse to 0, not keep the stale 88
-    // that's still sitting in barHeight state (nothing re-measures a bar that no longer exists).
+    // Step the item back down to 0 -- the row's own stepper minus button removes it, but the bar
+    // itself never unmounts, so the list's padding must hold at 88, not collapse to 0.
     stepPlate(root, "Pizza", "Remove one");
-    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(0);
+    expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(88);
   });
 
   it("LOG writes one addEntry call per plate row, with servings equal to that row's stepped count, and clears the plate on success (mutation b)", async () => {
@@ -647,8 +771,8 @@ describe("HallMenuScreen plate wiring", () => {
       ]),
     );
 
-    // Plate cleared -> bar gone.
-    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    // Plate cleared -> bar switches to its empty-state variant (still mounted).
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     expect(texts(root).flat().join(" ")).toMatch(/Logged 3 items/);
   });
 
@@ -725,7 +849,7 @@ describe("HallMenuScreen plate wiring", () => {
     // A second, real addEntry call landing at all (not dropped) proves the guard released despite
     // the throw, and it actually committed this time -- plate cleared, success message shown.
     expect(mockAddEntry).toHaveBeenCalledTimes(2);
-    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     expect(texts(root).flat().join(" ")).toMatch(/Logged 1 item\b/);
   });
 
@@ -767,7 +891,7 @@ describe("HallMenuScreen plate wiring", () => {
       await Promise.resolve();
     });
 
-    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     expect(texts(root).flat().join(" ")).toMatch(/Logged 1 item\b/);
   });
 
@@ -879,12 +1003,12 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
     expect(texts(root).flat().join(" ")).not.toMatch(/Logged 1 item/);
   });
 
-  it("keeps the list's bottom padding banner-aware while the banner alone is visible (no bar, plate just cleared)", async () => {
+  it("keeps the list's bottom padding banner-aware while the banner alone is visible (bar never measured, plate just cleared)", async () => {
     const root = await renderScreen();
     addToPlate(root, "Pizza");
-    await openSheetAndLog(root); // success: plate clears, bar unmounts, banner shows
+    await openSheetAndLog(root); // success: plate clears (bar stays mounted, empty-state variant), banner shows
 
-    expect(root.root.findAllByType(PlateBar)).toHaveLength(0);
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     act(() => {
       findBannerContainer(root, /Logged 1 item/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });

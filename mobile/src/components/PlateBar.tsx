@@ -11,53 +11,59 @@ interface Props {
   priceTotal?: string | null;
   onPress: () => void;
   onLayout?: (e: LayoutChangeEvent) => void;
-  /** #181: the empty-plate variant shown while the menu is loading or failed to load, instead of
-   * hiding the bar entirely (canvas: "Hall menu - loading"'s "Plate is empty" bar, and "Hall menu -
-   * fetch failed"'s "your plate is safe" sub-line reusing the same shell). Only meaningful when
-   * itemCount is 0 -- a plate that already has real items always shows the normal, functional bar
-   * regardless of the menu's own fetch state, since the plate itself doesn't depend on it. */
+  /** #181: the empty-plate variant, always passed by the caller now that the bar is always mounted
+   * (canvas: "Hall menu - loading"'s "Plate is empty" bar, and "Hall menu - fetch failed"'s "your
+   * plate is safe" sub-line reusing the same shell -- plus a third, ordinary "menu loaded, nothing
+   * staged yet" state inviting OFF search). Only meaningful when itemCount is 0 -- a plate that
+   * already has real items always shows the normal, functional bar regardless of the menu's own
+   * fetch state, since the plate itself doesn't depend on it. */
   emptyState?: { subline: string; disabled?: boolean };
 }
 
 /**
  * Collapsed bottom summary bar (canvas: "Hall menu + plate bar") — tap anywhere to open the
- * expanded sheet. Only rendered by the caller while the plate is non-empty. Absolutely positioned
- * over the dish list, so it pads for the bottom safe-area inset itself (else it reproduces the
- * occlusion-class bug from PR #78/#84 against the system nav bar instead of against list content).
- * expo-router's root already wraps the app in SafeAreaProvider, so useSafeAreaInsets works here
- * without any _layout.tsx change.
+ * expanded sheet. Always tappable, including the empty-plate variant below: opening the sheet is
+ * how OFF search (the plate sheet's "Add something else") gets reached, and that has nothing to do
+ * with whether anything's staged yet or whether the on-menu list has loaded -- see the caller's own
+ * note on why this is unconditionally mounted now, not just while the plate has items. Absolutely
+ * positioned over the dish list, so it pads for the bottom safe-area inset itself (else it
+ * reproduces the occlusion-class bug from PR #78/#84 against the system nav bar instead of against
+ * list content). expo-router's root already wraps the app in SafeAreaProvider, so
+ * useSafeAreaInsets works here without any _layout.tsx change.
  */
 export function PlateBar({ itemCount, totals, priceTotal, onPress, onLayout, emptyState }: Props) {
   const insets = useSafeAreaInsets();
-  if (emptyState && itemCount === 0) {
-    return (
-      <View style={[styles.bar, { paddingBottom: spacing(4) + insets.bottom }]} onLayout={onLayout}>
-        <View style={styles.summary}>
-          <Text style={styles.emptyHeadline}>Plate is empty</Text>
-          <Text style={styles.emptySubline}>{emptyState.subline}</Text>
-        </View>
-        <View style={[styles.logButton, emptyState.disabled && styles.logButtonDisabled]}>
-          <Text style={[styles.logButtonText, emptyState.disabled && styles.logButtonTextDisabled]}>Log</Text>
-        </View>
-      </View>
-    );
-  }
+  const showEmptyState = emptyState && itemCount === 0;
   return (
     <Pressable style={[styles.bar, { paddingBottom: spacing(4) + insets.bottom }]} onPress={onPress} onLayout={onLayout} accessibilityRole="button">
-      <View style={styles.summary}>
-        <View style={styles.headlineRow}>
-          <Text style={styles.chevron}>⌃</Text>
-          <Text style={styles.headline}>
-            {itemCount} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal{priceTotal ? ` · ${priceTotal}` : ""}
-          </Text>
-        </View>
-        <Text style={styles.macros}>
-          {totals.proteinG.toFixed(0)}g protein · {totals.totalCarbG.toFixed(0)}g carbs · {totals.totalFatG.toFixed(0)}g fat
-        </Text>
-      </View>
-      <View style={styles.logButton}>
-        <Text style={styles.logButtonText}>Log</Text>
-      </View>
+      {showEmptyState ? (
+        <>
+          <View style={styles.summary}>
+            <Text style={styles.emptyHeadline}>Plate is empty</Text>
+            <Text style={styles.emptySubline}>{emptyState.subline}</Text>
+          </View>
+          <View style={[styles.logButton, emptyState.disabled && styles.logButtonDisabled]}>
+            <Text style={[styles.logButtonText, emptyState.disabled && styles.logButtonTextDisabled]}>Log</Text>
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.summary}>
+            <View style={styles.headlineRow}>
+              <Text style={styles.chevron}>⌃</Text>
+              <Text style={styles.headline}>
+                {itemCount} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal{priceTotal ? ` · ${priceTotal}` : ""}
+              </Text>
+            </View>
+            <Text style={styles.macros}>
+              {totals.proteinG.toFixed(0)}g protein · {totals.totalCarbG.toFixed(0)}g carbs · {totals.totalFatG.toFixed(0)}g fat
+            </Text>
+          </View>
+          <View style={styles.logButton}>
+            <Text style={styles.logButtonText}>Log</Text>
+          </View>
+        </>
+      )}
     </Pressable>
   );
 }

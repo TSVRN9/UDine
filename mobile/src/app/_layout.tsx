@@ -92,10 +92,10 @@ export default function RootLayout() {
         headerShown: false,
       }}
     >
-      {/* index (the 3-pane shell), halls/[slug], grab-n-go/[slug], cafe/[name], and logs draw their own canvas-style headers. */}
+      {/* index (the 3-pane shell), halls/[slug] (Grab 'N Go is its 4th tab now, not its own route
+      -- see grabRouteFor), cafe/[name], and logs draw their own canvas-style headers. */}
       <Stack.Screen name="index" />
       <Stack.Screen name="halls/[slug]" />
-      <Stack.Screen name="grab-n-go/[slug]" />
       <Stack.Screen name="cafe/[name]" />
       <Stack.Screen name="logs" />
       {/* These are the only routes that want the native maroon header instead of their own chrome. */}
