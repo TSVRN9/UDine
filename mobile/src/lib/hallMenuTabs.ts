@@ -65,7 +65,11 @@ export function hallInfoHoursRows(hours: DiningHallHours, now: Date): HallHoursR
     period,
     label: mealPeriodLabel(period),
     window: hours[period],
-    isNow: current === period,
+    // `hours[period] !== null` too, not just `current === period`: currentMealPeriod can now match
+    // via shared's standard-schedule fallback (no real per-meal data published, e.g. summer hours)
+    // -- this sheet only ever shows real published windows (`hallInfoWindowText`'s "not served here"
+    // above), so a row with no window must never be flagged as the current one.
+    isNow: current === period && hours[period] !== null,
   }));
 }
 

@@ -1,5 +1,5 @@
 import { DINING_HALLS } from "./umassDining.ts";
-import type { DiningHallHours, DiningHoursFeed, MealStatus, OpenStatus, RetailLocationHours, TimeWindow } from "./types.ts";
+import type { DiningHallHours, DiningHoursFeed, HallMealPeriod, MealStatus, OpenStatus, RetailLocationHours, TimeWindow } from "./types.ts";
 
 const BASE = "https://www.umassdining.com/uapp";
 
@@ -251,11 +251,66 @@ const MEAL_WINDOWS: { period: MealStatus; key: "breakfast" | "lunch" | "dinner" 
   { period: "latenight", key: "latenight" },
 ];
 
+/** UMass's own reference app labels meals using this fixed clock schedule whenever a hall has no
+ * real per-meal times published (get_infov2's Summer Hours shape: a lone `general` window, no
+ * breakfast/lunch/dinner) -- confirmed live 2026-09-01 by installing the real UMassDining APK and
+ * reading its Full Menu tab for Berkshire Commons on both a Summer Hours day (general 7 AM-9 PM)
+ * and the following semester day (general to midnight): the meal labels' clock times were
+ * identical on both days, only which meals had a tab at all changed (driven by that day's actual
+ * published menu, not by these times) -- so this is a static convention the app applies, not
+ * something derived from a live per-hall/per-day feed. */
+const STANDARD_MEAL_WINDOWS: Record<HallMealPeriod, TimeWindow> = {
+  breakfast: { openTime: "7:00 AM", closeTime: "11:00 AM" },
+  lunch: { openTime: "11:00 AM", closeTime: "4:30 PM" },
+  dinner: { openTime: "4:30 PM", closeTime: "9:00 PM" },
+  latenight: { openTime: "9:00 PM", closeTime: "12:00 AM" },
+};
+
+/** Formats a resolved Date back into get_infov2's own "H:MM AM/PM" wire format -- the inverse of
+ * parseTimeOfDay, needed because effectiveMealWindow below clamps a synthesized window's Date
+ * bounds and must hand back a TimeWindow (string times), not the Dates themselves, to stay a drop-
+ * in replacement for `hours[key]` everywhere it's read. Exported so mobile's homeHero.ts (display
+ * formatting for the same H:MM AM/PM shape) can reuse this instead of a byte-for-byte duplicate
+ * (review nit, 2026-09-01). */
+export function formatTimeOfDay(date: Date): string {
+  let hour = date.getHours();
+  const minute = date.getMinutes();
+  const suffix = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+/** The window actually governing `key` for `hours` right now: the hall's own published per-meal
+ * window when UMass publishes one, otherwise the standard fallback above -- gated on `general`
+ * independently confirming the hall is actually open right now, so a hall with no general window
+ * either (fully closed) never gets a synthesized meal window. Exported so consumers that need the
+ * window itself (not just which period it is), e.g. to compute a closesAt, use the same fallback
+ * instead of reading `hours[key]` directly and silently missing the synthesized case.
+ *
+ * The synthesized window is clamped to `general`'s own resolved open/close, not returned as the
+ * raw standard window -- otherwise a hall whose real published hours end earlier than a standard
+ * boundary (e.g. general closes 1 PM but standard lunch runs to 4:30 PM) would report a closesAt
+ * past when the hall is actually open, the exact bug class `deriveHomeHero`'s own #104 comment
+ * already guards against for real per-meal windows (review finding, 2026-09-01). */
+export function effectiveMealWindow(hours: DiningHallHours, key: HallMealPeriod, now: Date): TimeWindow | null {
+  if (hours[key]) return hours[key];
+  if (!hours.general) return null;
+  const general = resolveWindow(now, hours.general);
+  if (!general.contains) return null;
+  const standard = resolveWindow(now, STANDARD_MEAL_WINDOWS[key]);
+  if (!standard.valid) return null;
+  const open = standard.open > general.open ? standard.open : general.open;
+  const close = standard.close < general.close ? standard.close : general.close;
+  if (open >= close) return null; // standard window and general don't actually overlap
+  return { openTime: formatTimeOfDay(open), closeTime: formatTimeOfDay(close) };
+}
+
 /** Which specific meal (if any) `hours` is currently serving. "closed" covers both a hall with no
  * hours published today and a hall between meal windows (e.g. after breakfast, before lunch). */
 export function currentMealPeriod(hours: DiningHallHours, now: Date): MealStatus {
   for (const { period, key } of MEAL_WINDOWS) {
-    const window = hours[key];
+    const window = effectiveMealWindow(hours, key, now);
     if (window && resolveWindow(now, window).contains) return period;
   }
   return "closed";

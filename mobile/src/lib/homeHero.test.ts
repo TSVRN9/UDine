@@ -73,12 +73,23 @@ describe("deriveHomeHero", () => {
     expect(hero.closesAt.getMinutes()).toBe(30);
   });
 
-  it("reports open-with-general-hours-only when no hall has an active named meal period but one is open", () => {
+  it("reports a named meal period from the standard schedule when only general hours are published (UMass's own app does this too — confirmed live 2026-09-01)", () => {
     const halls = [hall({ hallTid: 3, general: window("7:00 AM", "9:00 PM") })];
     const hero = deriveHomeHero(halls, NOON);
+    expect(hero.kind).toBe("meal");
+    if (hero.kind !== "meal") throw new Error("expected meal");
+    expect(hero.period).toBe("lunch");
+    expect(hero.closesAt.getHours()).toBe(16);
+    expect(hero.closesAt.getMinutes()).toBe(30);
+  });
+
+  it("reports open-with-general-hours-only when general hours cover now but the standard schedule doesn't (e.g. an overnight window)", () => {
+    const halls = [hall({ hallTid: 3, general: window("11:00 PM", "7:00 AM") })];
+    const earlyMorning = new Date(2026, 7, 19, 2, 0, 0, 0);
+    const hero = deriveHomeHero(halls, earlyMorning);
     expect(hero.kind).toBe("open");
     if (hero.kind !== "open") throw new Error("expected open");
-    expect(hero.closesAt.getHours()).toBe(21);
+    expect(hero.closesAt.getHours()).toBe(7);
   });
 
   it("reports closed-opens-later when every hall is closed now but at least one has a future opening today", () => {
@@ -189,9 +200,21 @@ describe("hallHeaderSubtitle", () => {
     expect(hallHeaderSubtitle(h, NOON)).toBe("Lunch · being served now · until 2:30 PM");
   });
 
-  it("falls back to plain open status when no named meal is active", () => {
+  it("names a standard-schedule meal period when only general hours are published", () => {
     const h = hall({ general: window("7:00 AM", "9:00 PM") });
-    expect(hallHeaderSubtitle(h, NOON)).toBe("Open · until 9:00 PM");
+    expect(hallHeaderSubtitle(h, NOON)).toBe("Lunch · being served now · until 4:30 PM");
+  });
+
+  it("falls back to plain open status when general hours cover now but the standard schedule doesn't (e.g. an overnight window)", () => {
+    const h = hall({ general: window("11:00 PM", "7:00 AM") });
+    const earlyMorning = new Date(2026, 7, 19, 2, 0, 0, 0);
+    expect(hallHeaderSubtitle(h, earlyMorning)).toBe("Open · until 7:00 AM");
+  });
+
+  it("clamps a standard-schedule meal's closesAt to general's own close, not the standard boundary (review finding, 2026-09-01)", () => {
+    // general closes at 1 PM, before standard lunch's 4:30 PM boundary -- must report 1 PM.
+    const h = hall({ general: window("7:00 AM", "1:00 PM") });
+    expect(hallHeaderSubtitle(h, NOON)).toBe("Lunch · being served now · until 1:00 PM");
   });
 
   it("shows the next opening when closed, and 'Closed today' when nothing is left", () => {

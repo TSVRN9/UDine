@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { currentMealPeriod, mapInfoV2, openStatus, parseMapAddress, parseStreetAddress, type InfoV2Location } from "./hours.ts";
+import { currentMealPeriod, effectiveMealWindow, mapInfoV2, openStatus, parseMapAddress, parseStreetAddress, type InfoV2Location } from "./hours.ts";
 import type { DiningHallHours, TimeWindow } from "./types.ts";
 
 // Real sample captured from GET https://www.umassdining.com/uapp/get_infov2, 2026-08-19 (curl -L,
@@ -311,6 +311,62 @@ test("currentMealPeriod resolves an overnight late-night window in the next-day 
 test("currentMealPeriod returns closed exactly at the overnight window's close time", () => {
   const hall = hallWith({ latenight: LATE_NIGHT_OVERNIGHT });
   assert.equal(currentMealPeriod(hall, new Date(2026, 7, 20, 1, 0)), "closed");
+});
+
+// UMass's own reference app (confirmed live 2026-09-01 against the real APK's Full Menu tab, both
+// on a Summer Hours day and the following semester day) labels meals using a fixed clock schedule
+// whenever a hall has no real per-meal times published -- get_infov2's Summer Hours shape (a lone
+// `general` window, no breakfast/lunch/dinner) being the case that motivated this.
+test("currentMealPeriod falls back to the standard meal schedule when only general hours are published", () => {
+  const hall = hallWith({ general: { openTime: "7:00 AM", closeTime: "9:00 PM" } });
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 19, 12, 0)), "lunch");
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 19, 8, 0)), "breakfast");
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 19, 18, 0)), "dinner");
+});
+
+test("currentMealPeriod's standard-schedule fallback never fires when general doesn't cover now (hall not actually open)", () => {
+  const hall = hallWith({ general: { openTime: "7:00 AM", closeTime: "9:00 PM" } });
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 19, 5, 0)), "closed");
+});
+
+test("currentMealPeriod's standard-schedule fallback never fires with no general window either (hall fully closed)", () => {
+  const hall = hallWith({});
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 19, 12, 0)), "closed");
+});
+
+test("currentMealPeriod prefers a real published per-meal window over the standard-schedule fallback", () => {
+  // Real lunch window (11-2) disagrees with the standard schedule's lunch window (11-4:30) --
+  // published data must win, e.g. this hall's real 2 PM close, not the standard fallback's 4:30 PM.
+  const hall = hallWith({ lunch: LUNCH, general: { openTime: "7:00 AM", closeTime: "9:00 PM" } });
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 19, 15, 0)), "closed");
+});
+
+test("effectiveMealWindow clamps the synthesized window to general's own close, not the standard schedule's (review finding, 2026-09-01)", () => {
+  // general closes at 1 PM, well before standard lunch's 4:30 PM boundary -- the hall is NOT
+  // actually open until 4:30, so the synthesized window must report 1 PM, not 4:30 PM.
+  const hall = hallWith({ general: { openTime: "7:00 AM", closeTime: "1:00 PM" } });
+  const noon = new Date(2026, 7, 19, 12, 0);
+  assert.equal(currentMealPeriod(hall, noon), "lunch");
+  const status = openStatus(hall, noon);
+  assert.equal(status.open, true);
+  const window = effectiveMealWindow(hall, "lunch", noon);
+  assert.deepEqual(window, { openTime: "11:00 AM", closeTime: "1:00 PM" });
+});
+
+test("effectiveMealWindow clamps the synthesized window to general's own open too", () => {
+  // general opens at 12:30 PM, after standard lunch's 11 AM start -- the hall wasn't actually open
+  // for the first 90 minutes of the standard lunch window.
+  const hall = hallWith({ general: { openTime: "12:30 PM", closeTime: "9:00 PM" } });
+  const window = effectiveMealWindow(hall, "lunch", new Date(2026, 7, 19, 13, 0));
+  assert.deepEqual(window, { openTime: "12:30 PM", closeTime: "4:30 PM" });
+});
+
+test("effectiveMealWindow returns null when general is open now but doesn't overlap this particular standard meal window at all", () => {
+  // general is only open 5-6 AM (e.g. an early grab-and-go window); standard breakfast starts at
+  // 7 AM, so they don't overlap even though general genuinely covers `now`.
+  const hall = hallWith({ general: { openTime: "5:00 AM", closeTime: "6:00 AM" } });
+  const window = effectiveMealWindow(hall, "breakfast", new Date(2026, 7, 19, 5, 30));
+  assert.equal(window, null);
 });
 
 test("openStatus reports open with closesAt during a window", () => {
