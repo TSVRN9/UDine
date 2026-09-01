@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { Animated, Easing, PanResponder, StyleSheet, View } from "react-native";
 import { PaneHeader } from "./PaneHeader";
-import { isHorizontalSwipe, paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility } from "../lib/paneShell";
+import { isHorizontalSwipe, paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration } from "../lib/paneShell";
 import { colors, fs } from "../lib/theme";
 
 // The artboard's own cubic-bezier for the pane transform (#179 styling spec).
@@ -84,9 +84,16 @@ export function PaneStack({
   // a real commit, not on every render -- an un-memoized closure sitting in that array would restart
   // the animation constantly (Home re-renders often: hours fetch, favorites, focus). This one runs
   // only from the gesture handlers below, imperatively, never from a dependency array.
-  function settlePosition(target: number) {
-    Animated.timing(panePos, { toValue: target, duration: 340, easing: PANE_CURVE, useNativeDriver: true }).start();
-    Animated.timing(paneOpacityPos, { toValue: target, duration: 260, easing: Easing.ease, useNativeDriver: true }).start();
+  //
+  // `from` (both gesture-handler callers below always pass the drag's actual last position;
+  // defaults to `target` only as a safe fallback) scales the duration by how much of the pane-step
+  // is actually left to animate (settleDuration) -- a release right at the SWIPE_COMMIT_PX edge has
+  // almost no visual distance left (paneDragPosition already tracked it most of the way there) and
+  // shouldn't take the same 340ms/260ms as a fast flick released early with nearly the whole step
+  // still to cover.
+  function settlePosition(target: number, from: number = target) {
+    Animated.timing(panePos, { toValue: target, duration: settleDuration(from, target, 340), easing: PANE_CURVE, useNativeDriver: true }).start();
+    Animated.timing(paneOpacityPos, { toValue: target, duration: settleDuration(from, target, 260), easing: Easing.ease, useNativeDriver: true }).start();
   }
 
   const panResponder = useRef(
@@ -109,14 +116,17 @@ export function PaneStack({
         paneOpacityPos.setValue(dragPos);
       },
       onPanResponderRelease: (_e, gesture) => {
-        const next = paneIndexForSwipe(dragStartIndex.current, gesture.dx);
-        settlePosition(next);
+        // vx: a fast short flick commits even under SWIPE_COMMIT_PX of travel (paneIndexForSwipe's
+        // own doc) -- the biggest single source of the swipe reading as unresponsive was a quick
+        // flick doing nothing at all because it never crossed the distance threshold.
+        const next = paneIndexForSwipe(dragStartIndex.current, gesture.dx, gesture.vx);
+        settlePosition(next, paneDragPosition(dragStartIndex.current, gesture.dx));
         if (next !== activeIndexRef.current) onActiveIndexChange(next);
       },
       // A responder can be preempted mid-drag (e.g. a parent gesture/navigation stealing it) --
       // settle back to where the drag started instead of stranding the pane at a fractional offset.
-      onPanResponderTerminate: () => {
-        settlePosition(dragStartIndex.current);
+      onPanResponderTerminate: (_e, gesture) => {
+        settlePosition(dragStartIndex.current, paneDragPosition(dragStartIndex.current, gesture.dx));
       },
     }),
   ).current;

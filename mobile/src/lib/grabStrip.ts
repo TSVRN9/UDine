@@ -30,10 +30,10 @@ export function grabStripState(retail: RetailLocationHours[], hallName: string, 
   return { open: status.open, text: formatGrabStripText(status) };
 }
 
-/** The Grab 'N Go screen route (#115, built in a sibling ticket) -- `/grab-n-go/[slug]`, per #115's
- * discovery-step comment: NOT nested under `/halls/[slug]` because expo-router doesn't allow both a
- * `[slug].tsx` file and a `[slug]/` directory at the same segment, and staying independent of
- * `/halls/[slug]` keeps this route unaffected by #117's in-flight hall-menu header rework. */
+/** Deep-links into the hall-menu screen with its Grab 'N Go tab preselected. The standalone
+ * `/grab-n-go/[slug]` route (#115) is retired -- Grab 'N Go is now the hall-menu screen's 4th tab
+ * (per the artboard's "DECIDED" spec), reusing the same station-grouped rendering, plate, and log
+ * pipeline instead of a forked screen. */
 export function grabRouteFor(hallSlug: string): string {
-  return `/grab-n-go/${hallSlug}`;
+  return `/halls/${hallSlug}?meal=grab`;
 }

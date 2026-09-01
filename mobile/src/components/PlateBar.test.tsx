@@ -62,6 +62,28 @@ describe("PlateBar", () => {
     expect(body).not.toMatch(/0 items/);
   });
 
+  // The empty-plate variant used to be a plain, non-tappable View -- opening the sheet (where OFF
+  // search lives) had no entry point at all with nothing staged. It's a Pressable now, same as the
+  // normal bar.
+  it("calls onPress when the empty-plate variant is tapped", () => {
+    const onPress = jest.fn();
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PlateBar
+          itemCount={0}
+          totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
+          onPress={onPress}
+          emptyState={{ subline: "search for something not on the menu" }}
+        />,
+      );
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityRole: "button" }).props.onPress();
+    });
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the normal functional bar even during emptyState if the plate already has real items", () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {

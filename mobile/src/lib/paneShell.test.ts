@@ -3,12 +3,15 @@ import {
   HOME_PANE_INDEX,
   isHorizontalSwipe,
   PANE_COUNT,
+  PANE_DRAG_PX,
   paneDelta,
   paneDragPosition,
   paneIndexForSwipe,
   paneOffsetRange,
   paneVisibility,
+  settleDuration,
   SWIPE_COMMIT_PX,
+  SWIPE_FLING_VELOCITY,
 } from "./paneShell";
 
 describe("constants", () => {
@@ -76,7 +79,7 @@ describe("isHorizontalSwipe", () => {
 });
 
 describe("paneIndexForSwipe", () => {
-  it("snaps back (no-op) short of SWIPE_COMMIT_PX", () => {
+  it("snaps back (no-op) short of SWIPE_COMMIT_PX with no meaningful velocity", () => {
     expect(paneIndexForSwipe(1, SWIPE_COMMIT_PX - 1)).toBe(1);
     expect(paneIndexForSwipe(1, -(SWIPE_COMMIT_PX - 1))).toBe(1);
   });
@@ -93,34 +96,66 @@ describe("paneIndexForSwipe", () => {
     expect(paneIndexForSwipe(0, SWIPE_COMMIT_PX)).toBe(0);
     expect(paneIndexForSwipe(2, -SWIPE_COMMIT_PX)).toBe(2);
   });
+
+  // A fast flick used to do nothing at all if it let go before crossing SWIPE_COMMIT_PX -- the
+  // single biggest source of the swipe reading as unresponsive, since a real flick gesture often
+  // releases well under 60px of travel.
+  describe("velocity-based fling commit", () => {
+    it("commits on a fast leftward flick even far short of SWIPE_COMMIT_PX", () => {
+      expect(paneIndexForSwipe(1, -10, -SWIPE_FLING_VELOCITY)).toBe(2);
+    });
+
+    it("commits on a fast rightward flick even far short of SWIPE_COMMIT_PX", () => {
+      expect(paneIndexForSwipe(1, 10, SWIPE_FLING_VELOCITY)).toBe(0);
+    });
+
+    it("still snaps back on a slow drag under both the distance and velocity thresholds", () => {
+      expect(paneIndexForSwipe(1, 10, 0.1)).toBe(1);
+    });
+
+    it("clamps a fling at the ends instead of wrapping", () => {
+      expect(paneIndexForSwipe(0, 10, SWIPE_FLING_VELOCITY)).toBe(0);
+      expect(paneIndexForSwipe(2, -10, -SWIPE_FLING_VELOCITY)).toBe(2);
+    });
+
+    it("distance-based commits are unaffected when vx is omitted (existing callers/tests)", () => {
+      expect(paneIndexForSwipe(1, -SWIPE_COMMIT_PX)).toBe(2);
+      expect(paneIndexForSwipe(1, SWIPE_COMMIT_PX - 1)).toBe(1);
+    });
+  });
 });
 
 // #245 item 2: the pane must track the finger continuously mid-drag, not just snap on commit.
-// SWIPE_COMMIT_PX doubles as the full-pane-slide divisor, so the visual position finishes its
-// slide to the neighbor at exactly the same drag distance where paneIndexForSwipe commits to it --
-// release before that point settles back, release past it completes the same motion already in
-// flight instead of jumping.
 describe("paneDragPosition", () => {
   it("stays put with no movement", () => {
     expect(paneDragPosition(1, 0)).toBe(1);
   });
 
-  it("moves proportionally toward the next pane on a leftward drag", () => {
-    expect(paneDragPosition(1, -SWIPE_COMMIT_PX / 2)).toBe(1.5);
+  it("moves proportionally toward the next pane on a leftward drag, using PANE_DRAG_PX as the divisor", () => {
+    expect(paneDragPosition(1, -PANE_DRAG_PX / 2)).toBe(1.5);
   });
 
   it("moves proportionally toward the previous pane on a rightward drag", () => {
-    expect(paneDragPosition(1, SWIPE_COMMIT_PX / 2)).toBe(0.5);
+    expect(paneDragPosition(1, PANE_DRAG_PX / 2)).toBe(0.5);
   });
 
-  it("reaches exactly the neighboring index at the same drag distance paneIndexForSwipe commits at", () => {
-    expect(paneDragPosition(1, -SWIPE_COMMIT_PX)).toBe(paneIndexForSwipe(1, -SWIPE_COMMIT_PX));
-    expect(paneDragPosition(1, SWIPE_COMMIT_PX)).toBe(paneIndexForSwipe(1, SWIPE_COMMIT_PX));
+  // The original design reused SWIPE_COMMIT_PX (60) as this divisor, so the crossfade finished
+  // its ENTIRE transition by 60px of travel -- a fraction of PANE_DRAG_PX's larger, more natural
+  // full-swipe distance -- and then sat visually dead for the rest of a normal-length gesture. The
+  // fix is exactly that PANE_DRAG_PX is now bigger than SWIPE_COMMIT_PX, so the two constants stay
+  // decoupled and don't silently collapse back into the same value.
+  it("PANE_DRAG_PX is not SWIPE_COMMIT_PX -- the drag-tracking divisor and the commit threshold are deliberately different jobs", () => {
+    expect(PANE_DRAG_PX).not.toBe(SWIPE_COMMIT_PX);
+    expect(PANE_DRAG_PX).toBeGreaterThan(SWIPE_COMMIT_PX);
+  });
+
+  it("has not yet reached the neighboring index at SWIPE_COMMIT_PX -- there's still real distance left to cover on release, unlike the old coupled design", () => {
+    expect(paneDragPosition(1, -SWIPE_COMMIT_PX)).toBeLessThan(paneIndexForSwipe(1, -SWIPE_COMMIT_PX));
   });
 
   it("clamps at the ends instead of dragging past the first/last pane", () => {
-    expect(paneDragPosition(0, SWIPE_COMMIT_PX)).toBe(0);
-    expect(paneDragPosition(2, -SWIPE_COMMIT_PX)).toBe(2);
+    expect(paneDragPosition(0, PANE_DRAG_PX)).toBe(0);
+    expect(paneDragPosition(2, -PANE_DRAG_PX)).toBe(2);
   });
 
   // Overscroll/skip-middle-pane bug: a long/fast drag from an end pane used to be able to sweep
@@ -129,7 +164,30 @@ describe("paneDragPosition", () => {
   // reading as "skip the middle pane, then snap back". The drag position must never lead the
   // commit target it could possibly resolve to.
   it("never drags past dragStartIndex's immediate neighbor, however far/fast the drag goes", () => {
-    expect(paneDragPosition(0, -SWIPE_COMMIT_PX * 3)).toBe(1); // not 2
-    expect(paneDragPosition(2, SWIPE_COMMIT_PX * 3)).toBe(1); // not 0
+    expect(paneDragPosition(0, -PANE_DRAG_PX * 3)).toBe(1); // not 2
+    expect(paneDragPosition(2, PANE_DRAG_PX * 3)).toBe(1); // not 0
+  });
+});
+
+// A release right at the SWIPE_COMMIT_PX edge has very little visual distance left to animate
+// (paneDragPosition already tracked most of the way there); a fast flick released early still has
+// nearly the whole pane-step left. Both used to settle over the exact same flat duration -- the
+// former reading as sluggish, the latter as an abrupt jump.
+describe("settleDuration", () => {
+  it("returns the full base duration when the whole pane-step is still left to cover", () => {
+    expect(settleDuration(0, 1, 340)).toBe(340);
+  });
+
+  it("scales down proportionally when only part of the step is left (above the 40% floor)", () => {
+    expect(settleDuration(0.5, 1, 340)).toBeCloseTo(340 * 0.5);
+  });
+
+  it("floors at 40% of the base duration instead of animating an already-arrived release at ~0ms", () => {
+    expect(settleDuration(1, 1, 340)).toBe(340 * 0.4);
+    expect(settleDuration(0.98, 1, 340)).toBe(340 * 0.4);
+  });
+
+  it("treats overshoot beyond a full pane-step the same as a full step (never exceeds the base duration)", () => {
+    expect(settleDuration(-1, 1, 340)).toBe(340);
   });
 });

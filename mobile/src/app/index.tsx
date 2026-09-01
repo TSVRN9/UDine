@@ -95,15 +95,11 @@ const GRAB_STRIP_HIT_SLOP = { top: 16, bottom: 12, left: 8, right: 8 };
 function HallCard({
   hall,
   chip,
-  isFavorite,
-  onToggleFavorite,
   grab,
   pending,
 }: {
   hall: { slug: string; name: string; tid: number };
   chip: { open: boolean; text: string };
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
   grab: { open: boolean; text: string };
   /** #181: hall NAME/monogram below are always known (DINING_HALLS is static); only the
    * open/closed chip needs hoursFeed, so only it shimmers while `pending`. */
@@ -139,17 +135,6 @@ function HallCard({
             <Text style={[styles.hallCardName, !chip.open && styles.hallCardNameClosed]}>{hall.name}</Text>
           </PressDim>
         </Link>
-        {/* Not on the artboard, but /favorites only lists — this star is the sole way to favorite a
-            hall, so it stays (top-left; the canvas's top-right corner belongs to the status pill). */}
-        <Pressable
-          onPress={onToggleFavorite}
-          hitSlop={8}
-          style={styles.hallCardStar}
-          accessibilityRole="button"
-          accessibilityLabel={`${isFavorite ? "Unfavorite" : "Favorite"} ${hall.name}`}
-        >
-          <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
-        </Pressable>
       </View>
 
       {/* expo-router's <Slot> (what asChild renders) clones its direct child and can't handle an
@@ -267,6 +252,10 @@ export function HomePane() {
     }, [load, hoursFeed]),
   );
 
+  // Home currently has no UI calling this -- the hall-card star that used to be its only trigger
+  // was removed to match the artboard. Kept (with favoriteHallKeys/favoritesStorage below) because
+  // dish ranking, per its own design, derives favorite halls into this same storage -- a future
+  // replacement entry point wires back into this, not a rebuild.
   async function toggleHall(hallTid: number) {
     const favorite: Favorite = { type: "location", hallTid };
     const key = favoriteKey(favorite);
@@ -299,19 +288,8 @@ export function HomePane() {
         {DINING_HALLS.map((hall) => {
           const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
           const chip = hallHours ? formatLocationChip(openStatus(hallHours, now)) : { open: false, text: "" };
-          const isFavorite = favoriteHallKeys.has(favoriteKey({ type: "location", hallTid: hall.tid }));
           const grab = grabStripState(hoursFeed?.retail ?? [], hall.name, now);
-          return (
-            <HallCard
-              key={hall.slug}
-              hall={hall}
-              chip={chip}
-              isFavorite={isFavorite}
-              onToggleFavorite={() => toggleHall(hall.tid)}
-              grab={grab}
-              pending={pending}
-            />
-          );
+          return <HallCard key={hall.slug} hall={hall} chip={chip} grab={grab} pending={pending} />;
         })}
       </View>
 
@@ -477,9 +455,6 @@ const styles = StyleSheet.create({
   hallChipText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, textTransform: "uppercase" },
   hallChipTextOpen: { color: colors.maroon900 },
   hallChipTextClosed: { color: colors.paper50 },
-  hallCardStar: { position: "absolute", top: spacing(1), left: spacing(1.5), padding: spacing(1) },
-  star: { fontSize: fs(18), color: withOpacity(colors.paper50, 45) },
-  starActive: { color: colors.gold500 },
 
   // Translucent band over the same card gradient (own semi-transparent black background, not a
   // second gradient) with a hairline top divider, per the canvas's split-card strip.

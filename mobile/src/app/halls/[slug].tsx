@@ -3,6 +3,7 @@ import {
   DINING_HALLS,
   fetchEvents,
   favoriteKey,
+  GRAB_N_GO_TIDS,
   menuItemMatchesPreferences,
   type DiningEvent,
   type DiningHoursFeed,
@@ -16,6 +17,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
@@ -24,7 +26,7 @@ import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
-import { formatTime } from "../../lib/homeHero";
+import { formatTime, retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
 import {
   directionsUrl,
   formatDateStepperLabel,
@@ -37,6 +39,7 @@ import {
   toggleExpandedKey,
 } from "../../lib/hallMenuTabs";
 import { deriveCafeMealTabs } from "../../lib/cafeMenu";
+import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
@@ -75,6 +78,25 @@ const favoritesStorage = new SqliteFavoritesStorage();
 // round-trip through router search params (Expo Router params are strings only), and neither needs
 // a back-stack entry of its own. Register in _layout.tsx only if that changes.
 
+/** Tab selection: the 4 real meal periods, or the Grab 'N Go tab -- Grab isn't a `MealPeriod` on
+ * this hall's own menu (its items fetch from a different tid, `GRAB_N_GO_TIDS`, and come back
+ * tagged with ordinary breakfast/lunch/etc. mealPeriod values, never a distinct "grab" one -- see
+ * the sections memo below), so it's a sibling of MealPeriod, not a member of it. */
+type TabSelection = MealPeriod | "grab";
+
+/** Bag/takeout glyph for the Grab 'N Go tab (artboard spec: "bag icon, same muted ink as the other
+ * inactive tabs"). A real react-native-svg icon, not a Unicode stand-in -- emoji is out per
+ * CLAUDE.md and the app previously had no SVG dependency at all; this is that dependency's first
+ * use, added deliberately for this tab (see #336-era comment this replaces). */
+function GrabBagIcon({ color }: { color: string }) {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+      <Path d="M7 9V6a5 5 0 0 1 10 0v3" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M5 9h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 9Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 /** Filled maroon pill stepper — the canvas's in-plate control on a dish row. */
 function RowStepper({ count, dishName, onStep }: { count: number; dishName: string; onStep: (delta: number) => void }) {
   return (
@@ -90,7 +112,7 @@ function RowStepper({ count, dishName, onStep }: { count: number; dishName: stri
   );
 }
 
-export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
+export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubject; initialMeal?: TabSelection }) {
   const isRealHall = hall.slug !== undefined;
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,9 +135,18 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
   // #177: a café has no fixed "lunch" tab to default to (People's Organic only ever has "allday") --
   // null here means "not yet chosen," resolved once items load by the effect below, to whichever
   // period deriveCafeMealTabs finds first. A real hall keeps the static "lunch" default unchanged.
-  const [selectedMeal, setSelectedMeal] = useState<MealPeriod | null>(isRealHall ? "lunch" : null);
+  const [selectedMeal, setSelectedMeal] = useState<TabSelection | null>(initialMeal ?? (isRealHall ? "lunch" : null));
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const mealTabs = useMemo<readonly MealPeriod[]>(() => (isRealHall ? MEAL_TABS : deriveCafeMealTabs(items ?? [])), [isRealHall, items]);
+
+  // Grab 'N Go's own items -- a different tid (GRAB_N_GO_TIDS), not a MealPeriod filter on this
+  // hall's own menu (see TabSelection's doc). Fetched lazily: only once the Grab tab is actually
+  // selected, not on every hall-screen mount, so browsing a hall that never opens Grab costs no
+  // extra network call. Re-fires on a date step while the tab is active; shared's fetchMenu already
+  // holds a 30-min in-memory cache, so flipping tabs away and back without changing the date is a
+  // cheap cache hit, not a fresh request.
+  const [grabItems, setGrabItems] = useState<MenuItem[] | null>(null);
+  const [grabError, setGrabError] = useState<string | null>(null);
 
   const [plate, setPlate] = useState<PlateEntry[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -164,6 +195,23 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
     // retryToken: not read inside the effect body, only bumped by TRY AGAIN to re-run this exact
     // fetch without duplicating its logic in a second function.
   }, [hall, selectedDate, retryToken]);
+
+  useEffect(() => {
+    if (!hall.slug || selectedMeal !== "grab") return;
+    let current = true;
+    setGrabItems(null);
+    setGrabError(null);
+    fetchMenuAndRecordSeen(GRAB_N_GO_TIDS[hall.slug], selectedDate)
+      .then((result) => {
+        if (current) setGrabItems(result);
+      })
+      .catch((e) => {
+        if (current) setGrabError(String(e));
+      });
+    return () => {
+      current = false;
+    };
+  }, [hall, selectedDate, selectedMeal]);
 
   function retryMenuFetch() {
     setRetryToken((t) => t + 1);
@@ -234,9 +282,30 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
     return () => clearTimeout(timer);
   }, [logged]);
 
-  // Sections are stations (the foodpro category names), not meal periods -- meal periods are now
-  // the tab row above, so a given render only ever shows one meal's worth of items at all.
+  // Sections are stations (the foodpro category names). For the 3 real meal tabs, that's a single
+  // meal period's worth of items (meal periods are the tab row above, so a given render only ever
+  // shows one meal at all). Grab 'N Go has no meal-period concept of its own -- its items come back
+  // tagged with ordinary breakfast/lunch/etc. values with no filtering by any of them -- and needs a
+  // dedup step the other tabs don't: the same dish can appear twice under two different mealPeriod
+  // values sharing one trimmed category, which would otherwise put two identical rows sharing one
+  // plate stepper in the same section (ported from the retired grab-n-go/[slug].tsx, #130 item 3).
   const sections = useMemo(() => {
+    if (selectedMeal === "grab") {
+      if (!grabItems) return [];
+      const filtered = grabItems.filter((i) => menuItemMatchesPreferences(i, prefs));
+      const byCategory = new Map<string, Map<string, MenuItem>>();
+      for (const item of filtered) {
+        const title = item.category.trim();
+        let bucket = byCategory.get(title);
+        if (!bucket) {
+          bucket = new Map();
+          byCategory.set(title, bucket);
+        }
+        const key = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
+        if (!bucket.has(key)) bucket.set(key, item);
+      }
+      return Array.from(byCategory, ([title, bucket]) => ({ title, data: Array.from(bucket.values()) }));
+    }
     if (!items || selectedMeal === null) return [];
     const filtered = items.filter((i) => i.mealPeriod === selectedMeal && menuItemMatchesPreferences(i, prefs));
     const categoriesInOrder: string[] = [];
@@ -247,7 +316,7 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
       title: category,
       data: filtered.filter((i) => i.category === category),
     }));
-  }, [items, prefs, selectedMeal]);
+  }, [items, grabItems, prefs, selectedMeal]);
 
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
   const priceTotal = useMemo(() => totalPlatePrice(plate), [plate]);
@@ -268,6 +337,22 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
   const hoursRows = hallHours ? hallInfoHoursRows(hallHours, now) : [];
   const grabNGoWindow = hoursFeed ? hallInfoGrabNGoWindow(hoursFeed.retail, hall.name) : null;
   const infoDirectionsUrl = directionsUrl(hallHours?.mapAddress);
+
+  // Grab tab's own open/closed header line (ported from the retired grab-n-go/[slug].tsx). Only
+  // meaningful for today -- get_infov2 (hoursFeed) never publishes anything but today's hours, so
+  // showing it against a stepped-to date would paint a confidently wrong "open now · until ..." over
+  // a menu that isn't today's; omitted once the date stepper moves off today, same call the retired
+  // screen made (matching #117's sibling mealTabSubtitle for the same reason).
+  const grabRetailHours = hoursFeed ? findGrabNGoLocation(hoursFeed.retail, hall.name) : null;
+  const isSelectedDateToday = selectedDate.toDateString() === now.toDateString();
+  const grabSubtitle = grabRetailHours && isSelectedDateToday ? retailHeaderSubtitle(retailOpenStatus(grabRetailHours, now)) : "";
+
+  // Whichever tab is currently selected, not always the hall's own -- the plate bar's empty-state
+  // copy (below) needs to know if THIS tab's own list has loaded, not just the hall's. Error takes
+  // priority over loading: a failed fetch leaves `items`/`grabItems` permanently null, so without
+  // this a fetch failure would forever read as "still loading" instead of "failed".
+  const currentTabError = selectedMeal === "grab" ? grabError : error;
+  const currentTabLoading = !currentTabError && (selectedMeal === "grab" ? !grabItems : !items || selectedMeal === null);
 
   function toggleExpanded(key: string) {
     setExpandedKeys((prev) => toggleExpandedKey(prev, key));
@@ -296,9 +381,18 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
     setPlate((p) => addOrIncrement(p, offResultToPlateEntry(result)));
   }
 
+  // Logs one OFF result on its own -- the "grabbed a piece of fruit, nothing else to log" case
+  // PlateSheet's own doc on `onLogOffResult` describes. Shares guardedLogPlate's single inFlight
+  // guard with the bulk logPlate below (same screen, same underlying storage writes) -- a direct
+  // log and a bulk LOG N ITEMS correctly can't run concurrently into the same SQLite log table.
+  async function logOffResultDirectly(result: OffSearchResult): Promise<boolean> {
+    const outcome = await guardedLogPlate([offResultToPlateEntry(result)], nowLocalIso());
+    return outcome?.ok ?? false;
+  }
+
   async function logPlate() {
-    // #147: guarded by useGuardedLogPlate (shared with grab-n-go/[slug].tsx) -- drops a second tap
-    // that lands before this one's sequential addEntry() writes finish, instead of re-running
+    // #147: guarded by useGuardedLogPlate -- drops a second tap that lands before this one's
+    // sequential addEntry() writes finish, instead of re-running
     // toLogEntries (fresh ids) and duplicating every row. Also drops a tap landing on an
     // already-emptied plate (the "Logged 0 items" symptom). Local-date-prefixed loggedAt, not
     // `.toISOString()` (UTC) -- see nowLocalIso's own comment (issue #111: evening logs were filing
@@ -319,6 +413,87 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
     setPlate([]);
     setSheetOpen(false);
     setLogged(`Logged ${result.count} ${result.count === 1 ? "item" : "items"}`);
+  }
+
+  // Shared by both SectionLists below (the 3 real meal tabs and the Grab tab) -- same dish-row
+  // card, same plate/favorite/nutrition-label wiring, regardless of which tid the item came from.
+  function renderDishRow({ item }: { item: MenuItem }) {
+    const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
+    const plateEntry = plate.find((p) => p.key === dishKey);
+    const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
+    const expanded = expandedKeys.has(dishKey);
+    return (
+      // #117: whole card is tappable and expands in place -- the (i) info button is gone,
+      // replaced by this and the FULL NUTRITION LABEL link below. The expand toggle is a
+      // SIBLING absolute-fill Pressable, not a parent of the star/stepper/add/label-link
+      // Pressables -- index.tsx's HallCard already flagged why: "targets don't nest --
+      // nested Pressables in RN double-fire/steal gestures." Purely-visual children get
+      // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls
+      // through to this background Pressable instead of being silently swallowed.
+      <View style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => toggleExpanded(dishKey)}
+          accessibilityRole="button"
+          accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
+        />
+        <View style={styles.rowMainLine} pointerEvents="box-none">
+          <Pressable
+            onPress={() => toggleDishFavorite(item.dishName)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`${isFavorite ? "Unfavorite" : "Favorite"} ${item.dishName}`}
+          >
+            <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
+          </Pressable>
+          <View style={styles.rowMain} pointerEvents="none">
+            <Text style={styles.rowText}>{item.dishName}</Text>
+            {/* #177 styling spec: price leads the meta line, same row as cal/protein, gap
+                8px. No price in the data (every hall dish, most café dishes) -- renders
+                exactly as today, a single Text with no price chip. */}
+            <View style={styles.rowMetaLine}>
+              {item.price ? <Text style={styles.rowPrice}>{item.price}</Text> : null}
+              <Text style={styles.rowCalories}>
+                {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
+              </Text>
+            </View>
+          </View>
+          {plateEntry ? (
+            <RowStepper count={plateEntry.count} dishName={item.dishName} onStep={(delta) => stepPlateItem(item, delta)} />
+          ) : (
+            <Pressable style={styles.addButton} onPress={() => addToPlate(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add ${item.dishName} to plate`}>
+              <Text style={styles.addButtonText}>+</Text>
+            </Pressable>
+          )}
+        </View>
+        {expanded && (
+          <View style={styles.expandedContent} pointerEvents="box-none">
+            <View style={styles.expandedDivider} pointerEvents="none" />
+            <Text style={styles.servingSummary} pointerEvents="none">
+              {formatServingSummary(item.nutrition)}
+            </Text>
+            {item.dietTags.length > 0 && (
+              <View style={styles.dietChipRow} pointerEvents="none">
+                {item.dietTags.map((tag) => (
+                  <View key={tag} style={styles.dietChip}>
+                    <Text style={styles.dietChipText}>{tag.toUpperCase()}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <Pressable
+              onPress={() => setLabelItem(item)}
+              hitSlop={8}
+              style={styles.fullLabelLink}
+              accessibilityRole="button"
+              accessibilityLabel={`Full nutrition label for ${item.dishName}`}
+            >
+              <Text style={styles.fullLabelLinkText}>FULL NUTRITION LABEL ›</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    );
   }
 
   return (
@@ -389,6 +564,7 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
           </Pressable>
         </View>
       </View>
+      {selectedMeal === "grab" && grabSubtitle ? <Text style={styles.headerSubtitle}>{grabSubtitle}</Text> : null}
 
       <View style={styles.tabRow}>
         {mealTabs.map((period) => {
@@ -415,24 +591,52 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
           <>
             <View style={styles.tabDivider} />
             <Pressable
-              onPress={() => router.push(`/grab-n-go/${hall.slug}`)}
+              onPress={() => setSelectedMeal("grab")}
               hitSlop={12}
               style={styles.tab}
               accessibilityRole="button"
               accessibilityLabel={`${hall.name} Grab 'N Go menu`}
             >
-              {/* ponytail: text-only, no bag glyph -- react-native-svg isn't a dependency (login.tsx's
-              same call: text stand-ins over adding an svg/image-asset dependency for one decorative
-              icon) and emoji is out per CLAUDE.md. Add an svg icon if the fifth tab reads as
-              ambiguous without one in practice. */}
-              <Text style={styles.tabText}>Grab &apos;N Go</Text>
-              <View style={styles.tabUnderline} />
+              <View style={styles.tabIconRow}>
+                <GrabBagIcon color={selectedMeal === "grab" ? colors.maroon900 : withOpacity(colors.ink900, 45)} />
+                <Text style={[styles.tabText, selectedMeal === "grab" && styles.tabTextActive]}>Grab &apos;N Go</Text>
+              </View>
+              <View style={[styles.tabUnderline, selectedMeal === "grab" && styles.tabUnderlineActive]} />
             </Pressable>
           </>
         ) : null}
       </View>
 
-      {error ? (
+      {selectedMeal === "grab" ? (
+        grabError ? (
+          <Text style={styles.error}>Failed to load Grab &apos;N Go menu: {grabError}</Text>
+        ) : !grabItems ? (
+          <View style={styles.skeletonList}>
+            <StationHeaderSkeleton width={fs(118)} />
+            <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
+            <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
+            <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
+            <View style={styles.skeletonSpinnerRow}>
+              <Spinner size={fs(14)} />
+              <Text style={styles.skeletonSpinnerText}>Getting today&apos;s Grab &apos;N Go menu from UMass Dining…</Text>
+            </View>
+          </View>
+        ) : sections.length === 0 ? (
+          <EmptyState title="No Grab 'N Go menu" message={`No Grab 'N Go items published at ${hall.name} for this day.`} />
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
+            contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
+            renderSectionHeader={({ section }) => (
+              <View style={styles.sectionHeaderWrap}>
+                <SectionHeader title={section.title} />
+              </View>
+            )}
+            renderItem={renderDishRow}
+          />
+        )
+      ) : error ? (
         <MenuErrorCard
           savedCopyTime={cachedMenu ? formatTime(new Date(cachedMenu.fetchedAt)) : null}
           onRetry={retryMenuFetch}
@@ -461,90 +665,13 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
         <SectionList
           sections={sections}
           keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
-          contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, plate.length > 0) + (logged ? bannerHeight : 0) }}
+          contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
           renderSectionHeader={({ section }) => (
             <View style={styles.sectionHeaderWrap}>
               <SectionHeader title={section.title} />
             </View>
           )}
-          renderItem={({ item }) => {
-            const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
-            const plateEntry = plate.find((p) => p.key === dishKey);
-            const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
-            const expanded = expandedKeys.has(dishKey);
-            return (
-              // #117: whole card is tappable and expands in place -- the (i) info button is gone,
-              // replaced by this and the FULL NUTRITION LABEL link below. The expand toggle is a
-              // SIBLING absolute-fill Pressable, not a parent of the star/stepper/add/label-link
-              // Pressables -- index.tsx's HallCard already flagged why: "targets don't nest --
-              // nested Pressables in RN double-fire/steal gestures." Purely-visual children get
-              // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls
-              // through to this background Pressable instead of being silently swallowed.
-              <View style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
-                <Pressable
-                  style={StyleSheet.absoluteFill}
-                  onPress={() => toggleExpanded(dishKey)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
-                />
-                <View style={styles.rowMainLine} pointerEvents="box-none">
-                  <Pressable
-                    onPress={() => toggleDishFavorite(item.dishName)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${isFavorite ? "Unfavorite" : "Favorite"} ${item.dishName}`}
-                  >
-                    <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
-                  </Pressable>
-                  <View style={styles.rowMain} pointerEvents="none">
-                    <Text style={styles.rowText}>{item.dishName}</Text>
-                    {/* #177 styling spec: price leads the meta line, same row as cal/protein, gap
-                        8px. No price in the data (every hall dish, most café dishes) -- renders
-                        exactly as today, a single Text with no price chip. */}
-                    <View style={styles.rowMetaLine}>
-                      {item.price ? <Text style={styles.rowPrice}>{item.price}</Text> : null}
-                      <Text style={styles.rowCalories}>
-                        {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
-                      </Text>
-                    </View>
-                  </View>
-                  {plateEntry ? (
-                    <RowStepper count={plateEntry.count} dishName={item.dishName} onStep={(delta) => stepPlateItem(item, delta)} />
-                  ) : (
-                    <Pressable style={styles.addButton} onPress={() => addToPlate(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add ${item.dishName} to plate`}>
-                      <Text style={styles.addButtonText}>+</Text>
-                    </Pressable>
-                  )}
-                </View>
-                {expanded && (
-                  <View style={styles.expandedContent} pointerEvents="box-none">
-                    <View style={styles.expandedDivider} pointerEvents="none" />
-                    <Text style={styles.servingSummary} pointerEvents="none">
-                      {formatServingSummary(item.nutrition)}
-                    </Text>
-                    {item.dietTags.length > 0 && (
-                      <View style={styles.dietChipRow} pointerEvents="none">
-                        {item.dietTags.map((tag) => (
-                          <View key={tag} style={styles.dietChip}>
-                            <Text style={styles.dietChipText}>{tag.toUpperCase()}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    <Pressable
-                      onPress={() => setLabelItem(item)}
-                      hitSlop={8}
-                      style={styles.fullLabelLink}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Full nutrition label for ${item.dishName}`}
-                    >
-                      <Text style={styles.fullLabelLinkText}>FULL NUTRITION LABEL ›</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            );
-          }}
+          renderItem={renderDishRow}
         />
       )}
       {logged && (
@@ -557,26 +684,33 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
         // gesture nav when there's no bar to already clear that space), and reports its own measured
         // height via onLayout so the list's paddingBottom above can add it in while it's showing.
         <View
-          style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight, plate.length > 0), paddingBottom: spacing(2) + insets.bottom }]}
+          style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight), paddingBottom: spacing(2) + insets.bottom }]}
           onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
         >
           <Text style={styles.loggedBannerText}>{logged}</Text>
         </View>
       )}
-      {(plate.length > 0 || (!items && !error) || error) && (
-        <PlateBar
-          itemCount={totalItemCount(plate)}
-          totals={totals}
-          priceTotal={priceTotal}
-          onPress={() => setSheetOpen(true)}
-          onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
-          // #181: "visible-but-disabled" while loading, "survives" (functional look, just a
-          // reassurance sub-line) on a fetch failure -- only the loading LOG button is spec'd
-          // disabled. Both are no-ops when the plate already has real items (see PlateBar's own
-          // doc): a populated plate always shows the normal bar regardless of menu fetch state.
-          emptyState={!items && !error ? { subline: "add dishes once the menu loads", disabled: true } : error ? { subline: "your plate is safe — it lives on this phone" } : undefined}
-        />
-      )}
+      <PlateBar
+        itemCount={totalItemCount(plate)}
+        totals={totals}
+        priceTotal={priceTotal}
+        onPress={() => setSheetOpen(true)}
+        onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
+        // Always mounted now (not just while the plate has items, still loading, or errored) --
+        // the bar is the only way to open the plate sheet, and the sheet's OFF search is exactly
+        // how something not on the menu (a grabbed piece of fruit, say) gets logged when nothing
+        // else is staged. #181: "visible-but-disabled" while loading, "survives" (functional look,
+        // just a reassurance sub-line) on a fetch failure -- only the loading LOG button is spec'd
+        // disabled. All three are no-ops once the plate has real items (see PlateBar's own doc): a
+        // populated plate always shows the normal bar regardless of tab/fetch state.
+        emptyState={
+          currentTabLoading
+            ? { subline: "add dishes once the menu loads", disabled: true }
+            : currentTabError
+              ? { subline: "your plate is safe — it lives on this phone" }
+              : { subline: "search for something not on the menu" }
+        }
+      />
       <PlateSheet
         visible={sheetOpen}
         plate={plate}
@@ -584,6 +718,7 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
         contextLabel={hall.name}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onAddOffResult={addOffResult}
+        onLogOffResult={logOffResultDirectly}
         onLog={logPlate}
         onClose={() => setSheetOpen(false)}
       />
@@ -628,7 +763,10 @@ export function HallMenuScreenBody({ hall }: { hall: HallMenuSubject }) {
  * non-empty-fetchMenu branch of its own runtime model — same screen, a café's {tid, name} with no
  * slug. */
 export default function HallMenuScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  // `meal` is the retired /grab-n-go/[slug] route's replacement deep link (grabRouteFor,
+  // lib/grabStrip.ts): "grab" preselects the Grab 'N Go tab instead of pushing a separate screen.
+  // Any other/missing value falls through to the normal default (isRealHall ? "lunch" : null).
+  const { slug, meal } = useLocalSearchParams<{ slug: string; meal?: string }>();
   const hall = DINING_HALLS.find((h) => h.slug === slug);
   // #284 nit 2: only reachable via a crafted deep link (no in-app path produces an unknown slug),
   // but a dead end with no way back is still a bug -- same back-chevron affordance every other
@@ -642,7 +780,7 @@ export default function HallMenuScreen() {
         <Text style={styles.error}>Unknown dining hall</Text>
       </View>
     );
-  return <HallMenuScreenBody hall={hall} />;
+  return <HallMenuScreenBody hall={hall} initialMeal={meal === "grab" ? "grab" : undefined} />;
 }
 
 const styles = StyleSheet.create({
@@ -710,6 +848,15 @@ const styles = StyleSheet.create({
     color: withOpacity(colors.ink900, 60),
   },
 
+  // Grab tab's own open/closed line -- ported from the retired grab-n-go/[slug].tsx.
+  headerSubtitle: {
+    paddingHorizontal: spacing(5),
+    paddingBottom: spacing(1.5),
+    fontFamily: fonts.body400,
+    fontSize: fs(12),
+    color: withOpacity(colors.ink900, 60),
+  },
+
   tabRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -720,6 +867,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing(1),
   },
   tab: { paddingVertical: spacing(2.5), alignItems: "center" },
+  tabIconRow: { flexDirection: "row", alignItems: "center", gap: spacing(1) },
   tabText: {
     fontFamily: fonts.display600,
     fontSize: fs(12),

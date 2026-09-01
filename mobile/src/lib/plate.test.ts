@@ -191,15 +191,15 @@ describe("toLogEntries", () => {
 });
 
 describe("listBottomPadding", () => {
-  // The plate bar floats over the dish list (occlusion-bug class, PR #78/#84) — the list needs
-  // bottom padding equal to the bar's measured height while it's showing, and none once the plate
-  // (and therefore the bar) is gone, even though the last-measured height is still sitting in state.
-  it("returns the measured bar height while the plate has items", () => {
-    expect(listBottomPadding(96, true)).toBe(96);
+  // The plate bar floats over the dish list (occlusion-bug class, PR #78/#84) and is now always
+  // mounted (an empty plate still needs a tappable entry point into OFF search) -- the list always
+  // needs bottom padding equal to the bar's measured height.
+  it("returns the measured bar height", () => {
+    expect(listBottomPadding(96)).toBe(96);
   });
 
-  it("returns 0 once the plate is empty, ignoring a stale leftover measured height", () => {
-    expect(listBottomPadding(96, false)).toBe(0);
+  it("returns 0 when the bar hasn't been measured yet", () => {
+    expect(listBottomPadding(0)).toBe(0);
   });
 });
 

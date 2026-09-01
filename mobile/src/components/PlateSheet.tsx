@@ -1,11 +1,24 @@
 import { searchProducts, type DailyMacroTotals, type OffSearchResult } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Animated, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Path } from "react-native-svg";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
 import { Button, Stat } from "./ui";
 import { useSheetAnim } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
+
+/** Magnifying-glass icon for the "Add something else" entry (artboard spec) -- a real
+ * react-native-svg icon, not a Unicode stand-in (see halls/[slug].tsx's GrabBagIcon, this
+ * dependency's other use). */
+function SearchIcon({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 20 20" fill="none">
+      <Circle cx={9} cy={9} r={5.5} stroke={color} strokeWidth={1.6} />
+      <Path d="M13.5 13.5L17 17" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 interface Props {
   visible: boolean;
@@ -15,6 +28,12 @@ interface Props {
   contextLabel?: string;
   onStep: (key: string, delta: number) => void;
   onAddOffResult: (result: OffSearchResult) => void;
+  /** Logs a single OFF result on its own, independent of whatever's staged on the plate -- the
+   * "grabbed a piece of fruit, nothing else to log" case, which the plate/LOG N ITEMS flow alone
+   * can't cover (that always logs everything staged, not just the item just searched for).
+   * Resolves true on success so this component can show its own inline confirmation without
+   * depending on the caller's own (screen-level, hidden behind this Modal) logged-banner. */
+  onLogOffResult: (result: OffSearchResult) => Promise<boolean>;
   onLog: () => void;
   onClose: () => void;
 }
@@ -26,13 +45,34 @@ interface Props {
  * halls/[slug].tsx's note): no route, no _layout.tsx change, no MenuItem serialization through
  * router params.
  */
-export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAddOffResult, onLog, onClose }: Props) {
+export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAddOffResult, onLogOffResult, onLog, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<OffSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  // Direct-log state for a single search result row -- independent of the plate/LOG N ITEMS flow.
+  // `barcode`, not the whole result object, since that's all identity a row needs to match itself.
+  const [loggingBarcode, setLoggingBarcode] = useState<string | null>(null);
+  const [directLogOutcome, setDirectLogOutcome] = useState<{ barcode: string; ok: boolean } | null>(null);
   const insets = useSafeAreaInsets();
   const { backdropStyle, panelStyle } = useSheetAnim(visible);
+  const scrollRef = useRef<ScrollView>(null);
+  // KeyboardAvoidingView's automatic height-tracking doesn't reach content mounted inside an
+  // Android RN <Modal> -- confirmed on-device: with `behavior="height"` set, the sheet never
+  // resized or shifted at all when the keyboard opened, leaving the search input fully hidden
+  // behind it. Tracked manually instead, still via RN's own built-in Keyboard API (no new
+  // dependency) -- see the sheet's own style below for how this is applied.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
   // #198: bumped on every new search and on close -- a resolving searchProducts call only applies
   // its result if this still matches the seq it captured when it started, so a slower/stale
   // response can never overwrite a newer query's results (or repaint a sheet the user closed).
@@ -50,8 +90,18 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
       setResults(null);
       setSearchError(null);
       setQuery("");
+      setLoggingBarcode(null);
+      setDirectLogOutcome(null);
     }
   }, [visible]);
+
+  async function logResultDirectly(result: OffSearchResult) {
+    setLoggingBarcode(result.barcode);
+    setDirectLogOutcome(null);
+    const ok = await onLogOffResult(result);
+    setLoggingBarcode(null);
+    setDirectLogOutcome({ barcode: result.barcode, ok });
+  }
 
   async function runSearch() {
     // #198: onSubmitEditing had no guard against a search already in flight (unlike the Search
@@ -60,6 +110,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
+    setDirectLogOutcome(null);
     try {
       const found = await searchProducts(query.trim());
       if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
@@ -85,7 +136,11 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
           <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
         </Animated.View>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        {/* keyboardHeight (tracked above) pushes the sheet up by the keyboard's own height --
+        KeyboardAvoidingView doesn't reach content mounted inside an Android Modal (confirmed
+        on-device: its automatic height-tracking never engaged here at all), so this is done
+        manually instead of via that component. */}
+        <View style={{ marginBottom: keyboardHeight }}>
           <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
             <View style={styles.handleRow}>
               <View style={styles.handle} />
@@ -95,7 +150,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
               {contextLabel ? <Text style={styles.context}>{contextLabel}</Text> : null}
             </View>
 
-            <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
               <View style={styles.itemList}>
                 {plate.map((entry) => (
                   <View key={entry.key} style={styles.itemRow}>
@@ -140,8 +195,13 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
               </Button>
 
               <View style={styles.addSection}>
-                <Text style={styles.addHeading}>Add something else</Text>
-                <Text style={styles.addSub}>Search packaged foods (OpenFoodFacts) — for foods not on the menu</Text>
+                <View style={styles.addHeadingRow}>
+                  <SearchIcon color={colors.maroon600} />
+                  <View style={styles.addHeadingText}>
+                    <Text style={styles.addHeading}>Add something else</Text>
+                    <Text style={styles.addSub}>Search packaged foods (OpenFoodFacts) — for foods not on the menu</Text>
+                  </View>
+                </View>
                 <View style={styles.searchRow}>
                   <TextInput
                     style={styles.searchInput}
@@ -150,6 +210,11 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
                     placeholder="Search packaged foods"
                     placeholderTextColor={withOpacity(colors.ink900, 45)}
                     onSubmitEditing={runSearch}
+                    // Even with the keyboardHeight fix above, this box sits after the item
+                    // list/totals/LOG button in a plain ScrollView, which doesn't reliably scroll a
+                    // newly-focused input into view on its own -- scroll it to the end (it's the
+                    // last thing in the sheet) so the query stays visible while typing.
+                    onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
                     returnKeyType="search"
                   />
                   <Button variant="secondary" size="sm" onPress={runSearch} disabled={searching || !query.trim()}>
@@ -160,23 +225,38 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
                 {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
                 {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
                 {results?.map((r) => (
-                  <Pressable
-                    key={r.barcode}
-                    style={styles.resultRow}
-                    onPress={() => pickResult(r)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Add ${r.productName} to plate`}
-                  >
-                    <Text style={styles.resultLabel}>{r.productName}</Text>
-                    <Text style={styles.resultCalories}>
-                      {Math.round(r.nutrition.calories)} cal{isEstimatedServing(r.nutrition) ? " · est. per 100g" : ""}
-                    </Text>
-                  </Pressable>
+                  <View key={r.barcode} style={styles.resultRow}>
+                    <Pressable
+                      style={styles.resultInfo}
+                      onPress={() => pickResult(r)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${r.productName} to plate`}
+                    >
+                      <Text style={styles.resultLabel}>{r.productName}</Text>
+                      <Text style={styles.resultCalories}>
+                        {Math.round(r.nutrition.calories)} cal{isEstimatedServing(r.nutrition) ? " · est. per 100g" : ""}
+                      </Text>
+                      {directLogOutcome?.barcode === r.barcode && (
+                        <Text style={directLogOutcome.ok ? styles.resultLogSuccess : styles.resultLogError}>
+                          {directLogOutcome.ok ? "Logged" : "Couldn't log — try again"}
+                        </Text>
+                      )}
+                    </Pressable>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => logResultDirectly(r)}
+                      disabled={loggingBarcode === r.barcode}
+                      accessibilityLabel={`Log ${r.productName} now, without adding the rest of the plate`}
+                    >
+                      {loggingBarcode === r.barcode ? "…" : "Log"}
+                    </Button>
+                  </View>
                 ))}
               </View>
             </ScrollView>
           </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
@@ -233,6 +313,8 @@ const styles = StyleSheet.create({
     padding: spacing(3.5),
     gap: spacing(1),
   },
+  addHeadingRow: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
+  addHeadingText: { flex: 1, gap: spacing(0.5) },
   addHeading: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
   addSub: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center", marginTop: spacing(1.5) },
@@ -249,7 +331,18 @@ const styles = StyleSheet.create({
   searchSpinner: { marginTop: spacing(2) },
   searchError: { fontFamily: fonts.body400, fontSize: fs(13), color: "#b00020", marginTop: spacing(2) },
   searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55), marginTop: spacing(2) },
-  resultRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing(2), borderBottomWidth: StyleSheet.hairlineWidth, borderColor: withOpacity(colors.ink900, 15) },
-  resultLabel: { flex: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing(2),
+    paddingVertical: spacing(2),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: withOpacity(colors.ink900, 15),
+  },
+  resultInfo: { flex: 1, gap: 1 },
+  resultLabel: { fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
   resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
+  resultLogSuccess: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.maroon600, marginTop: spacing(0.5) },
+  resultLogError: { fontFamily: fonts.body600, fontSize: fs(12), color: "#b00020", marginTop: spacing(0.5) },
 });

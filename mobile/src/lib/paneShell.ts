@@ -38,8 +38,28 @@ export function paneVisibility(paneIndex: number, activeIndex: number): { zIndex
   return { zIndex: active ? 3 : 1, pointerEvents: active ? "auto" : "none" };
 }
 
-/** A drag shorter than this is a scroll/tap, not a committed pane swipe -- release does nothing. */
+/** A drag shorter than this is a scroll/tap, not a committed pane swipe -- release does nothing,
+ * UNLESS it clears SWIPE_FLING_VELOCITY (see paneIndexForSwipe) -- a fast short flick commits too. */
 export const SWIPE_COMMIT_PX = 60;
+
+/** PanResponder's `gesture.vx`/`vy` are in px/ms. A flick this fast commits even under
+ * SWIPE_COMMIT_PX of travel -- without this, a quick short flick did nothing at all (silently
+ * snapped back), which was the single biggest source of the swipe reading as unresponsive/clunky:
+ * a real swipe gesture releases well before 60px of travel if it's moving fast. ~0.5px/ms is a
+ * commonly-used "this was a fling, not a drag" threshold across RN gesture libraries. */
+export const SWIPE_FLING_VELOCITY = 0.5;
+
+/** The in-flight drag position's own divisor (see paneDragPosition) -- deliberately NOT
+ * SWIPE_COMMIT_PX. Reusing the 60px commit threshold as the divisor (the original #245 design)
+ * meant the ENTIRE shared-axis transition -- both panes' 36px translate and the full opacity
+ * crossfade -- finished by the time the finger had moved 60px, a fraction of a typical swipe's
+ * actual travel distance. Past that point the drag position pins at its target
+ * (paneDragPosition's own clamp) while the finger keeps moving, so a normal-length swipe popped
+ * through its whole transition in the first ~1/6th of the gesture and then went visually dead for
+ * the rest -- read as clunky/unresponsive even though the eventual commit was correct. This is
+ * sized to a natural full-swipe travel distance instead, so the crossfade tracks the finger across
+ * the whole gesture. SWIPE_COMMIT_PX keeps its own job (the commit/snap-back decision) unchanged. */
+export const PANE_DRAG_PX = 140;
 
 /** Horizontal dominance test for claiming a swipe over each pane's own vertical ScrollView -- not
  * just "any X movement" -- established pattern in this app for not reaching for a second gesture
@@ -49,33 +69,54 @@ export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boole
 }
 
 /** A released horizontal drag commits to the neighboring pane (±1, clamped) once it clears
- * SWIPE_COMMIT_PX -- discrete, not proportional: the artboard's transition curves are keyed to an
- * integer activePane flip, not a drag-proportional position (#179). Short of that, snaps back to
- * the pane you started on. */
-export function paneIndexForSwipe(activeIndex: number, dx: number): number {
-  if (Math.abs(dx) < SWIPE_COMMIT_PX) return activeIndex;
-  return clampPaneIndex(activeIndex + (dx < 0 ? 1 : -1));
+ * SWIPE_COMMIT_PX, OR once its release velocity clears SWIPE_FLING_VELOCITY regardless of how far
+ * it's traveled -- a fast flick commits, a slow short drag doesn't. Discrete, not proportional: the
+ * artboard's transition curves are keyed to an integer activePane flip, not a drag-proportional
+ * position (#179). Short of both thresholds, snaps back to the pane you started on. `vx` defaults
+ * to 0 (existing distance-only callers/tests are unaffected). */
+export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0): number {
+  const commits = Math.abs(dx) >= SWIPE_COMMIT_PX || Math.abs(vx) >= SWIPE_FLING_VELOCITY;
+  if (!commits) return activeIndex;
+  // A pure-velocity commit can fire on a drag that's barely moved yet (still well under
+  // SWIPE_COMMIT_PX) -- direction has to come from whichever of dx/vx actually carries a
+  // meaningful sign. dx is the more direct signal once it's non-zero (it's where the pane visually
+  // is right now, via paneDragPosition); only fall back to vx's sign for the vx-only case.
+  const direction = dx !== 0 ? dx : vx;
+  return clampPaneIndex(activeIndex + (direction < 0 ? 1 : -1));
 }
 
 /** #245 item 2: the in-flight drag position, continuous rather than the discrete commit above --
  * mid-swipe the pane (and header title, see PaneStack/PaneHeader) must track the finger instead of
- * only moving once the gesture resolves. Reuses SWIPE_COMMIT_PX as the divisor so the visual slide
- * finishes exactly at the drag distance where paneIndexForSwipe commits to the neighbor -- no jump
- * between "still dragging" and "just committed".
+ * only moving once the gesture resolves. Uses PANE_DRAG_PX, not SWIPE_COMMIT_PX, as the divisor
+ * (see that constant's own doc for why they used to be the same value, and why that was the root
+ * cause of the swipe feeling clunky).
  *
  * Clamped to `dragStartIndex ± 1`, not the full pane range -- paneIndexForSwipe (above) never
  * commits more than one pane away from where the drag started, but a long/fast drag's raw
- * `dragStartIndex - dx / SWIPE_COMMIT_PX` can overshoot well past that (e.g. dragStartIndex=0,
- * dx=-180 -> raw 3). Clamping only to `[0, PANE_COUNT)` let that overshoot visually sweep the
- * animated position straight through the neighboring pane and onto the one past it, which on
- * release then snapped back to the ±1 commit target -- reading as "skip the middle pane, then
- * snap back". Clamping to the drag's own ±1 neighborhood first (then still through
- * clampPaneIndex, for the drags that start at an end pane) keeps the visual sweep and the
- * possible commit target in lockstep. */
+ * `dragStartIndex - dx / PANE_DRAG_PX` can overshoot well past that. Clamping only to
+ * `[0, PANE_COUNT)` let that overshoot visually sweep the animated position straight through the
+ * neighboring pane and onto the one past it, which on release then snapped back to the ±1 commit
+ * target -- reading as "skip the middle pane, then snap back". Clamping to the drag's own ±1
+ * neighborhood first (then still through clampPaneIndex, for the drags that start at an end pane)
+ * keeps the visual sweep and the possible commit target in lockstep. */
 export function paneDragPosition(dragStartIndex: number, dx: number): number {
-  const raw = dragStartIndex - dx / SWIPE_COMMIT_PX;
+  const raw = dragStartIndex - dx / PANE_DRAG_PX;
   const neighborClamped = Math.max(dragStartIndex - 1, Math.min(dragStartIndex + 1, raw));
   return clampPaneIndex(neighborClamped);
+}
+
+/** Scales a release-settle animation's duration by how much of the pane-step is actually left to
+ * cover, instead of a flat duration regardless of where the drag let go. Before this, a release
+ * right at the SWIPE_COMMIT_PX edge (almost no visual distance left, since paneDragPosition has
+ * already tracked the position most of the way there) and a fast flick released early (nearly the
+ * whole pane-step still to animate) took the exact same 340ms/260ms -- the former read as
+ * sluggish (animating a tiny remaining distance for the full duration), the latter as an abrupt
+ * jump (covering most of the distance in the same window a small settle gets). Floors at 40% of
+ * `baseDuration` so an already-arrived release doesn't animate at ~0ms, which reads as a glitchy
+ * instant snap rather than a settle. */
+export function settleDuration(from: number, to: number, baseDuration: number): number {
+  const remaining = Math.min(1, Math.abs(to - from));
+  return Math.max(baseDuration * 0.4, baseDuration * remaining);
 }
 
 /** Side of one square hall card in the 2-up wrapped grid, from the grid's measured width.

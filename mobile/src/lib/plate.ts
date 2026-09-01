@@ -89,11 +89,12 @@ export function totalPlatePrice(plate: PlateEntry[]): string | null {
 }
 
 /** Bottom padding a scrollable dish list needs to keep its last row reachable while the plate bar
- * floats over it (the occlusion-bug class from PR #78/#84) — always 0 once the plate is empty, even
- * though the bar's last-measured height is still sitting in the caller's state (the bar itself
- * unmounts with nothing left to re-measure it down to 0). */
-export function listBottomPadding(barHeight: number, plateHasItems: boolean): number {
-  return plateHasItems ? barHeight : 0;
+ * floats over it (the occlusion-bug class from PR #78/#84). The bar is now always mounted (an empty
+ * plate still needs a tappable entry point into OFF search, not just a spot to review staged items
+ * -- see PlateBar's own doc), so this is just the bar's own measured height, unconditionally; it no
+ * longer takes a "does the plate have items" flag to zero itself out against. */
+export function listBottomPadding(barHeight: number): number {
+  return barHeight;
 }
 
 /**
