@@ -1,4 +1,4 @@
-import { currentMealPeriod, MEAL_PERIODS, mealPeriodLabel, openStatus, type DiningHallHours, type MealPeriod, type OpenStatus, type RetailLocationHours, type TimeWindow } from "@udine/shared";
+import { currentMealPeriod, effectiveMealWindow, formatTimeOfDay, MEAL_PERIODS, mealPeriodLabel, openStatus, type DiningHallHours, type MealPeriod, type OpenStatus, type RetailLocationHours, type TimeWindow } from "@udine/shared";
 
 /**
  * The Home pane's mealtime hero, aggregated across all 4 commons for one "what's being served
@@ -48,7 +48,7 @@ export function deriveHomeHero(halls: DiningHallHours[], now: Date): HomeHero {
     // otherwise report the meal as open past its own window's end (#104 review blocker 1).
     let closesAt: Date | null = null;
     for (const h of serving) {
-      const window = h.hall[period];
+      const window = effectiveMealWindow(h.hall, period, now);
       if (!window) continue; // currentMealPeriod matched this key, so this shouldn't happen
       const mealStatus = singleWindowStatus(window, now);
       if (mealStatus.open && (closesAt === null || mealStatus.closesAt > closesAt)) closesAt = mealStatus.closesAt;
@@ -76,16 +76,11 @@ export function deriveHomeHero(halls: DiningHallHours[], now: Date): HomeHero {
   return { kind: "closed", opensAt };
 }
 
-// Exported so grabStrip.ts (Home split-card Grab 'N Go strip, #116) can reuse the exact same
-// H:MM AM/PM formatting instead of a second implementation.
-export function formatTime(date: Date): string {
-  let hour = date.getHours();
-  const minute = date.getMinutes();
-  const suffix = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12;
-  if (hour === 0) hour = 12;
-  return `${hour}:${String(minute).padStart(2, "0")} ${suffix}`;
-}
+// Re-exported (not a second implementation) so grabStrip.ts (Home split-card Grab 'N Go strip,
+// #116) can keep importing formatTime from here -- shared's hours.ts owns the actual H:MM AM/PM
+// logic now (formatTimeOfDay, the inverse of its own parseTimeOfDay), reused verbatim instead of
+// a byte-for-byte duplicate (review nit, 2026-09-01).
+export const formatTime = formatTimeOfDay;
 
 /** #181: offline-line copy on Home ("updated 7:12 AM"-style, canvas spec) -- the cached feed's own
  * fetchedAt, not `now`, so it genuinely reflects when the data was last live rather than claiming
@@ -124,7 +119,7 @@ export function hallHeaderSubtitle(hours: DiningHallHours, now: Date): string {
   const period = currentMealPeriod(hours, now);
   const status = openStatus(hours, now);
   if (status.open && period !== "closed") {
-    const window = hours[period];
+    const window = effectiveMealWindow(hours, period, now);
     const mealStatus = window ? singleWindowStatus(window, now) : status;
     const closesAt = mealStatus.open ? mealStatus.closesAt : status.closesAt;
     const label = mealPeriodLabel(period);

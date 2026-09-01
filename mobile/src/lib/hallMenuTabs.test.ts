@@ -80,6 +80,13 @@ describe("hallInfoHoursRows", () => {
     expect(rows.every((r) => !r.isNow)).toBe(true);
   });
 
+  it("flags no row as isNow when the hall only has general hours -- currentMealPeriod can match via shared's standard-schedule fallback, but this sheet only shows real published windows", () => {
+    const hours = hall({ general: window("7:00 AM", "9:00 PM") });
+    const rows = hallInfoHoursRows(hours, NOON);
+    expect(rows.every((r) => r.isNow === false)).toBe(true);
+    expect(rows.find((r) => r.period === "lunch")?.window).toBeNull();
+  });
+
   it("carries each period's window through unchanged, including null for an unpublished one", () => {
     const hours = hall({ lunch: window("11:00 AM", "2:30 PM") });
     const rows = hallInfoHoursRows(hours, NOON);
