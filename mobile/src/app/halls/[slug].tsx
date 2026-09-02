@@ -4,7 +4,6 @@ import {
   fetchEvents,
   favoriteKey,
   GRAB_N_GO_TIDS,
-  menuItemMatchesPreferences,
   type DiningEvent,
   type DiningHoursFeed,
   type Favorite,
@@ -21,6 +20,7 @@ import Svg, { Path } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
+import { MealTabPager } from "../../components/MealTabPager";
 import { MenuErrorCard } from "../../components/MenuErrorCard";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
@@ -39,6 +39,7 @@ import {
   toggleExpandedKey,
 } from "../../lib/hallMenuTabs";
 import { deriveCafeMealTabs } from "../../lib/cafeMenu";
+import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
@@ -224,14 +225,20 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   }
 
   // #177: a café's initial tab can't be a static default (see selectedMeal's own comment) -- once
-  // items load, land on whichever period deriveCafeMealTabs finds first. Only fires once per load
-  // (guarded on selectedMeal already being null); switching dates re-fetches items but deliberately
-  // doesn't re-run this, so a manual tab choice survives stepping the date, same as a real hall's.
+  // items load, land on whichever period deriveCafeMealTabs finds first. A manual tab choice
+  // survives stepping the date, same as a real hall's -- UNLESS the new date's derived tab set no
+  // longer contains it (a café's mealTabs is per-day, not fixed like a real hall's MEAL_TABS): PR
+  // review finding, a stale selectedMeal pointing at a period the new date doesn't serve used to
+  // fall back silently to tab index 0 (Math.max(0, tabs.indexOf(-1)) below) while selectedMeal
+  // itself still held the old, now-absent value -- rendering tab 0's real dishes with NO tab
+  // pill highlighted (active = period === selectedMeal never matched anything), instead of the
+  // honest "no menu for this period" empty state a stale selection showed before this pager existed.
   useEffect(() => {
-    if (isRealHall || selectedMeal !== null || !items || items.length === 0) return;
-    const firstTab = deriveCafeMealTabs(items)[0];
+    if (isRealHall || !items || items.length === 0) return;
+    if (selectedMeal !== null && mealTabs.includes(selectedMeal as MealPeriod)) return;
+    const firstTab = mealTabs[0];
     if (firstTab) setSelectedMeal(firstTab);
-  }, [isRealHall, selectedMeal, items]);
+  }, [isRealHall, selectedMeal, items, mealTabs]);
 
   // Expanded state keys on dish identity alone (hallTid + dishName, via plateKeyFor), not meal
   // period or date -- the same dish name can recur across meals/days, so without this a card
@@ -289,34 +296,15 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // dedup step the other tabs don't: the same dish can appear twice under two different mealPeriod
   // values sharing one trimmed category, which would otherwise put two identical rows sharing one
   // plate stepper in the same section (ported from the retired grab-n-go/[slug].tsx, #130 item 3).
-  const sections = useMemo(() => {
-    if (selectedMeal === "grab") {
-      if (!grabItems) return [];
-      const filtered = grabItems.filter((i) => menuItemMatchesPreferences(i, prefs));
-      const byCategory = new Map<string, Map<string, MenuItem>>();
-      for (const item of filtered) {
-        const title = item.category.trim();
-        let bucket = byCategory.get(title);
-        if (!bucket) {
-          bucket = new Map();
-          byCategory.set(title, bucket);
-        }
-        const key = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
-        if (!bucket.has(key)) bucket.set(key, item);
-      }
-      return Array.from(byCategory, ([title, bucket]) => ({ title, data: Array.from(bucket.values()) }));
-    }
-    if (!items || selectedMeal === null) return [];
-    const filtered = items.filter((i) => i.mealPeriod === selectedMeal && menuItemMatchesPreferences(i, prefs));
-    const categoriesInOrder: string[] = [];
-    for (const i of filtered) {
-      if (!categoriesInOrder.includes(i.category)) categoriesInOrder.push(i.category);
-    }
-    return categoriesInOrder.map((category) => ({
-      title: category,
-      data: filtered.filter((i) => i.category === category),
-    }));
-  }, [items, grabItems, prefs, selectedMeal]);
+  // Every mounted pane computes its own sections (not just whichever tab is selected) so the swipe
+  // pager's windowed neighbors have real content to crossfade, not a placeholder -- pulled out to
+  // lib/hallMenuSections.ts (sectionsForPeriod/grabSections) so it's pure/testable and shared.
+  const sectionsByPeriod = useMemo(() => {
+    const map = new Map<MealPeriod, MenuSection[]>();
+    for (const period of mealTabs) map.set(period, sectionsForPeriod(items ?? [], period, prefs));
+    return map;
+  }, [items, mealTabs, prefs]);
+  const grabSectionsMemo = useMemo(() => (grabItems ? grabSections(grabItems, prefs) : []), [grabItems, prefs]);
 
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
   const priceTotal = useMemo(() => totalPlatePrice(plate), [plate]);
@@ -496,6 +484,117 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     );
   }
 
+  // Grab isn't in `mealTabs` (see TabSelection's own doc) -- appended as the swipeable sequence's
+  // last item for a real hall only, matching the tab row's own rendering order below. `tabs`/
+  // `activeIndex` are local to this screen; MealTabPager never sees TabSelection/MealPeriod/"grab",
+  // just an index.
+  const tabs: readonly TabSelection[] = isRealHall ? [...mealTabs, "grab" as const] : mealTabs;
+  // -1 guard covers the café pre-load instant (selectedMeal still null, see its own comment above).
+  const activeIndex = Math.max(0, tabs.indexOf(selectedMeal as TabSelection));
+  function handleActiveIndexChange(i: number) {
+    setSelectedMeal(tabs[i]);
+  }
+
+  // One real meal period's pane -- reproduces the pre-swipe non-Grab branch verbatim, just
+  // parameterized by which period this pane is for instead of reading selectedMeal globally. Error/
+  // loading checks stay per-pane (not hoisted above the pager): `items`/`error` are hall-global, so
+  // every meal pane agrees regardless -- but Grab's own pane below is checked independently, so it
+  // stays reachable even when the hall's regular menu fetch failed, same as it is today.
+  //
+  // A plain function CALLED to produce JSX, not a component TAGGED as JSX (`mealPane(period)`, not
+  // `<MealPane period={period} />`) -- tagging it would redeclare a fresh function/type identity on
+  // every HallMenuScreenBody render (this function is defined inside the body, closing over
+  // items/prefs/etc.), and React reconciles by element type: a changed type unmounts and remounts
+  // the whole subtree instead of re-rendering it. That would tear down and rebuild each pane's real
+  // SectionList (losing scroll position, replaying its mount) on every parent re-render -- a plate
+  // tap, an expand toggle, a layout measurement, anything. Calling it as a function returns the same
+  // *kind* of stable element (SectionList/View/EmptyState) React already knows how to reconcile.
+  function mealPane(period: MealPeriod) {
+    const periodSections = sectionsByPeriod.get(period) ?? [];
+    if (error) {
+      return <MenuErrorCard savedCopyTime={cachedMenu ? formatTime(new Date(cachedMenu.fetchedAt)) : null} onRetry={retryMenuFetch} onShowSavedCopy={showSavedCopy} />;
+    }
+    if (!items || selectedMeal === null) {
+      // #181: honest skeleton -- header + meal tabs above already rendered fully (known without
+      // the network); only the dish list itself is unknown, so only it shimmers. Widths vary a
+      // little (canvas: "96-176px") so it doesn't read as a uniform grid.
+      return (
+        <View style={styles.skeletonList}>
+          <StationHeaderSkeleton width={fs(118)} />
+          <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
+          <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
+          <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
+          <View style={styles.skeletonSpinnerRow}>
+            <Spinner size={fs(14)} />
+            <Text style={styles.skeletonSpinnerText}>Getting today&apos;s menu from UMass Dining…</Text>
+          </View>
+        </View>
+      );
+    }
+    if (periodSections.length === 0) {
+      // #117 review: was hardcoded "today" regardless of the stepped date -- "for this day"
+      // matches grab-n-go/[slug].tsx's own EmptyState copy (also date-agnostic by construction,
+      // so it's correct whether selectedDate is today or not, no isToday branch needed).
+      return <EmptyState title="No matching dishes" message={`No ${mealTabLabel(period).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />;
+    }
+    return (
+      <SectionList
+        sections={periodSections}
+        keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeaderWrap}>
+            <SectionHeader title={section.title} />
+          </View>
+        )}
+        renderItem={renderDishRow}
+      />
+    );
+  }
+
+  // Grab 'N Go's pane -- reproduces the pre-swipe Grab branch verbatim. When mounted as a windowed
+  // neighbor before it's ever been selected, grabItems is still null, so this naturally shows the
+  // same loading skeleton it always has between a tap/swipe-commit and the fetch resolving -- no new
+  // "unselected Grab" state to invent, and no eager fetch (see the lazy-fetch effect above, still
+  // gated on selectedMeal === "grab" alone, unchanged by any of this).
+  //
+  // Same "call it, don't tag it" reasoning as mealPane above.
+  function grabPane() {
+    if (grabError) {
+      return <Text style={styles.error}>Failed to load Grab &apos;N Go menu: {grabError}</Text>;
+    }
+    if (!grabItems) {
+      return (
+        <View style={styles.skeletonList}>
+          <StationHeaderSkeleton width={fs(118)} />
+          <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
+          <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
+          <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
+          <View style={styles.skeletonSpinnerRow}>
+            <Spinner size={fs(14)} />
+            <Text style={styles.skeletonSpinnerText}>Getting today&apos;s Grab &apos;N Go menu from UMass Dining…</Text>
+          </View>
+        </View>
+      );
+    }
+    if (grabSectionsMemo.length === 0) {
+      return <EmptyState title="No Grab 'N Go menu" message={`No Grab 'N Go items published at ${hall.name} for this day.`} />;
+    }
+    return (
+      <SectionList
+        sections={grabSectionsMemo}
+        keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeaderWrap}>
+            <SectionHeader title={section.title} />
+          </View>
+        )}
+        renderItem={renderDishRow}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing(4.5) }]}>
@@ -607,45 +706,10 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         ) : null}
       </View>
 
-      {selectedMeal === "grab" ? (
-        grabError ? (
-          <Text style={styles.error}>Failed to load Grab &apos;N Go menu: {grabError}</Text>
-        ) : !grabItems ? (
-          <View style={styles.skeletonList}>
-            <StationHeaderSkeleton width={fs(118)} />
-            <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
-            <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
-            <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
-            <View style={styles.skeletonSpinnerRow}>
-              <Spinner size={fs(14)} />
-              <Text style={styles.skeletonSpinnerText}>Getting today&apos;s Grab &apos;N Go menu from UMass Dining…</Text>
-            </View>
-          </View>
-        ) : sections.length === 0 ? (
-          <EmptyState title="No Grab 'N Go menu" message={`No Grab 'N Go items published at ${hall.name} for this day.`} />
-        ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
-            contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
-            renderSectionHeader={({ section }) => (
-              <View style={styles.sectionHeaderWrap}>
-                <SectionHeader title={section.title} />
-              </View>
-            )}
-            renderItem={renderDishRow}
-          />
-        )
-      ) : error ? (
-        <MenuErrorCard
-          savedCopyTime={cachedMenu ? formatTime(new Date(cachedMenu.fetchedAt)) : null}
-          onRetry={retryMenuFetch}
-          onShowSavedCopy={showSavedCopy}
-        />
-      ) : !items || selectedMeal === null ? (
-        // #181: honest skeleton -- header + meal tabs above already rendered fully (known without
-        // the network); only the dish list itself is unknown, so only it shimmers. Widths vary a
-        // little (canvas: "96-176px") so it doesn't read as a uniform grid.
+      {tabs.length === 0 ? (
+        // Café pre-load: deriveCafeMealTabs hasn't found a first tab yet (see the effect above that
+        // resolves selectedMeal once items load) -- same honest skeleton the non-Grab branch below
+        // shows once there IS at least one tab, shown directly here without mounting a 0-pane pager.
         <View style={styles.skeletonList}>
           <StationHeaderSkeleton width={fs(118)} />
           <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
@@ -656,22 +720,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
             <Text style={styles.skeletonSpinnerText}>Getting today&apos;s menu from UMass Dining…</Text>
           </View>
         </View>
-      ) : sections.length === 0 ? (
-        // #117 review: was hardcoded "today" regardless of the stepped date -- "for this day"
-        // matches grab-n-go/[slug].tsx's own EmptyState copy (also date-agnostic by construction,
-        // so it's correct whether selectedDate is today or not, no isToday branch needed).
-        <EmptyState title="No matching dishes" message={`No ${mealTabLabel(selectedMeal).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
-          contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
-          renderSectionHeader={({ section }) => (
-            <View style={styles.sectionHeaderWrap}>
-              <SectionHeader title={section.title} />
-            </View>
-          )}
-          renderItem={renderDishRow}
+        <MealTabPager
+          activeIndex={activeIndex}
+          onActiveIndexChange={handleActiveIndexChange}
+          panes={tabs.map((tab) => (tab === "grab" ? grabPane() : mealPane(tab)))}
         />
       )}
       {logged && (

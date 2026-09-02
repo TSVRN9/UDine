@@ -7,8 +7,11 @@
 export const PANE_COUNT = 3;
 export const HOME_PANE_INDEX = 1;
 
-export function clampPaneIndex(index: number): number {
-  return Math.max(0, Math.min(PANE_COUNT - 1, index));
+/** `count` defaults to PANE_COUNT (the 3-pane Home shell) -- MealTabPager passes its own tab count
+ * explicitly so this same clamp works for a 4/5-tab hall or a 1-tab café without touching any
+ * existing PANE_COUNT-implicit call site. */
+export function clampPaneIndex(index: number, count: number = PANE_COUNT): number {
+  return Math.max(0, Math.min(count - 1, index));
 }
 
 /** `d` in the artboard's own formula (`d = j - activePane`) -- drives both the pane's translateX
@@ -74,7 +77,7 @@ export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boole
  * artboard's transition curves are keyed to an integer activePane flip, not a drag-proportional
  * position (#179). Short of both thresholds, snaps back to the pane you started on. `vx` defaults
  * to 0 (existing distance-only callers/tests are unaffected). */
-export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0): number {
+export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0, count: number = PANE_COUNT): number {
   const commits = Math.abs(dx) >= SWIPE_COMMIT_PX || Math.abs(vx) >= SWIPE_FLING_VELOCITY;
   if (!commits) return activeIndex;
   // A pure-velocity commit can fire on a drag that's barely moved yet (still well under
@@ -82,7 +85,7 @@ export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0): numb
   // meaningful sign. dx is the more direct signal once it's non-zero (it's where the pane visually
   // is right now, via paneDragPosition); only fall back to vx's sign for the vx-only case.
   const direction = dx !== 0 ? dx : vx;
-  return clampPaneIndex(activeIndex + (direction < 0 ? 1 : -1));
+  return clampPaneIndex(activeIndex + (direction < 0 ? 1 : -1), count);
 }
 
 /** #245 item 2: the in-flight drag position, continuous rather than the discrete commit above --
@@ -99,10 +102,10 @@ export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0): numb
  * target -- reading as "skip the middle pane, then snap back". Clamping to the drag's own ±1
  * neighborhood first (then still through clampPaneIndex, for the drags that start at an end pane)
  * keeps the visual sweep and the possible commit target in lockstep. */
-export function paneDragPosition(dragStartIndex: number, dx: number): number {
+export function paneDragPosition(dragStartIndex: number, dx: number, count: number = PANE_COUNT): number {
   const raw = dragStartIndex - dx / PANE_DRAG_PX;
   const neighborClamped = Math.max(dragStartIndex - 1, Math.min(dragStartIndex + 1, raw));
-  return clampPaneIndex(neighborClamped);
+  return clampPaneIndex(neighborClamped, count);
 }
 
 /** Scales a release-settle animation's duration by how much of the pane-step is actually left to
