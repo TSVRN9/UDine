@@ -128,6 +128,23 @@ function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
 }
 
+// The swipe pager (MealTabPager) windows in the active tab's ± 1 neighbors -- they're mounted
+// (accessibility-hidden, pointerEvents: "none") so a drag can crossfade into them, not just the
+// active tab. Whole-tree `texts`/`findByProps` queries above still work fine for plain positive
+// matches (extra hidden content elsewhere doesn't break a `toMatch`), but a query that needs
+// "only what's actually visible/tappable right now" -- a `not.toMatch` exclusion, or `findByProps`
+// expecting exactly one match -- has to scope to the one pane MealTabPager marks
+// `importantForAccessibility: "auto"`, or it can spuriously see a hidden neighbor's identical
+// content/controls (e.g. three mounted-but-hidden "Try again" buttons when the hall's menu fetch
+// fails, since that error state isn't period-specific and every windowed pane renders it).
+function activePane(root: renderer.ReactTestRenderer) {
+  return root.root.findAllByType(View).find((n) => n.props.importantForAccessibility === "auto")!;
+}
+
+function activePaneTexts(root: renderer.ReactTestRenderer) {
+  return activePane(root).findAllByType(Text).map((n) => n.props.children);
+}
+
 function nutrition(calories: number): MenuItem["nutrition"] {
   return {
     servingSize: "1 each",
@@ -277,7 +294,9 @@ describe("HallMenuScreen seen-dish tracking (#107)", () => {
 describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () => {
   it("defaults to the Lunch tab -- lunch items show, other meal periods' items don't", async () => {
     const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
-    const body = texts(root).flat().join(" ");
+    // Breakfast is windowed in as Lunch's left neighbor (mounted, hidden) -- scope to the active
+    // pane so its Oatmeal doesn't leak into this "other periods' items don't show" assertion.
+    const body = activePaneTexts(root).flat().join(" ");
     expect(body).toMatch(/Pizza/);
     expect(body).not.toMatch(/Oatmeal/);
   });
@@ -287,9 +306,22 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     act(() => {
       root.root.findByProps({ accessibilityLabel: "Breakfast menu" }).props.onPress();
     });
-    const body = texts(root).flat().join(" ");
+    // Lunch is now windowed in as Breakfast's right neighbor -- same scoping as above.
+    const body = activePaneTexts(root).flat().join(" ");
     expect(body).toMatch(/Oatmeal/);
     expect(body).not.toMatch(/Pizza/);
+  });
+
+  it("keeps the previous tab's content mounted but marks it non-interactive/hidden after switching (swipe crossfade windowing, not an unmount-and-remount)", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Breakfast menu" }).props.onPress();
+    });
+    // Whole-tree, unscoped: Lunch's Pizza is still mounted (windowed in as Breakfast's neighbor).
+    expect(texts(root).flat().join(" ")).toMatch(/Pizza/);
+    const hiddenPanes = root.root.findAllByType(View).filter((n) => n.props.importantForAccessibility === "no-hide-descendants");
+    expect(hiddenPanes.length).toBeGreaterThan(0);
+    for (const pane of hiddenPanes) expect(pane.props.accessibilityElementsHidden).toBe(true);
   });
 
   it("steps the date forward by exactly one calendar day and refetches the menu for it", async () => {
@@ -335,11 +367,35 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
 
     const body = texts(root).flat().join(" ");
     expect(body).toMatch(/Grab Wrap/);
+    // Grab sits at the tab sequence's own end (index 4 of 4), so Lunch (index 1) falls outside its
+    // ± 1 window and is fully unmounted, not just hidden -- this assertion (and the single-match
+    // findByType(SectionList) below) rely on that being true. A future reorder that puts Grab
+    // anywhere but last would put Lunch back in the window (mounted, hidden) and silently break
+    // both -- see activePane()'s own doc above on why a windowed-in neighbor needs scoping.
     expect(body).not.toMatch(/Pizza/); // the hall's own lunch-tab item, not shown while on the Grab tab
 
     const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
     expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
     expect(sections[0].data).toHaveLength(1); // deduped, not two identical rows
+  });
+
+  // The single most important regression the swipe pager's windowing could introduce: Grab's own
+  // fetch is deliberately lazy (only fires once selectedMeal actually becomes "grab"), and Grab's
+  // pane only mounts once it's within the ± 1 window of the active tab -- cycling through the 4 real
+  // meal tabs (Breakfast/Lunch/Dinner/Late) never puts Grab (the 5th, last tab) in that window, so
+  // it must never fetch.
+  it("never fetches Grab 'N Go while only cycling through the 4 real meal tabs (lazy fetch stays lazy under windowing)", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    const callsBefore = mockedFetchMenu.mock.calls.length;
+
+    for (const label of ["Breakfast menu", "Dinner menu", "Late menu", "Lunch menu"]) {
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: label }).props.onPress();
+      });
+    }
+
+    const grabCalls = mockedFetchMenu.mock.calls.slice(callsBefore).filter(([tid]) => tid === GRAB_N_GO_TIDS.worcester);
+    expect(grabCalls).toHaveLength(0);
   });
 
   it("ignores a stale response for a previously-selected date that resolves after a newer one (network order isn't request order)", async () => {
@@ -656,7 +712,9 @@ describe("HallMenuScreen loading/error states (#181)", () => {
 
     mockedFetchMenu.mockResolvedValueOnce([PIZZA]);
     await act(async () => {
-      root.root.findByProps({ accessibilityLabel: "Try again" }).props.onPress();
+      // Every windowed pane independently renders the retry card (the fetch failure isn't
+      // period-specific) -- scope to the active one, the only actually-tappable copy.
+      activePane(root).findByProps({ accessibilityLabel: "Try again" }).props.onPress();
     });
     const retriedBody = texts(root).flat().join(" ");
     expect(retriedBody).not.toMatch(/Menu didn't load/);
@@ -686,8 +744,9 @@ describe("HallMenuScreen loading/error states (#181)", () => {
 
     await act(async () => {
       // fetchedAt is fixed at "2026-08-19T12:00:00.000Z" -- 8:00 AM Eastern (this suite runs under
-      // TZ=America/New_York), matching formatTime's output for that instant.
-      root.root.findByProps({ accessibilityLabel: "Show saved copy from 8:00 AM" }).props.onPress();
+      // TZ=America/New_York), matching formatTime's output for that instant. Scoped to the active
+      // pane for the same reason as the "Try again" tap above -- every windowed pane renders it.
+      activePane(root).findByProps({ accessibilityLabel: "Show saved copy from 8:00 AM" }).props.onPress();
     });
     const savedBody = texts(root).flat().join(" ");
     expect(savedBody).toMatch(/Salad/);
@@ -1104,6 +1163,64 @@ describe("HallMenuScreenBody as a café (#177 -- non-empty fetchMenu path, tid w
     const root = await renderCafeScreen([COFFEE]);
     expect(root.root.findAllByProps({ accessibilityLabel: "People's Organic Coffee info" }).length).toBe(0);
     expect(texts(root).flat().join(" ")).not.toMatch(/Dining Commons/);
+  });
+
+  // PR review finding: unlike a real hall (mealTabs is the fixed MEAL_TABS), a café's tab set is
+  // derived per-day from whatever periods that day's items actually carry -- a manual tab choice
+  // that survives a date step (by design, see the effect's own comment) can point at a period the
+  // NEW date simply doesn't serve. That used to silently fall back to tab index 0 while selectedMeal
+  // still held the now-absent value, rendering tab 0's real dishes with no tab pill highlighted --
+  // that "no tab pill highlighted" symptom is the actual observable bug (content alone can look
+  // identical to a legitimate single-tab café), so it's asserted directly below, not just content.
+  //
+  // Second-round review finding: an earlier version of this test also simulated a swipe afterward,
+  // claiming it doubled as a regression test for MealTabPager's countRef/onActiveIndexChangeRef
+  // fix. It didn't -- proven by mutation-testing the claim, not just re-reading the code. Every
+  // fetch in this screen's effect calls setItems(null) BEFORE the new items resolve, so mealTabs
+  // (derived from items) always passes through [] on every date step, which trips the
+  // tabs.length===0 guard in [slug].tsx and fully unmounts MealTabPager -- it always remounts fresh
+  // afterward with a brand-new PanResponder, never reusing the one built with the old, larger tab
+  // count. A café can structurally never reach MealTabPager's stale-closure risk through this
+  // integration path at all; that fix's own regression test lives at the MealTabPager level instead
+  // (see MealTabPager.test.tsx's "stale-closure resistance" describe block), where the same
+  // component instance can actually be kept mounted across a shrinking panes prop.
+  it("re-resolves a stale selectedMeal when the tab set shrinks across a date step, healing both the shown content and the tab-row highlight", async () => {
+    const cafeBreakfast: MenuItem = { ...COFFEE, dishName: "Oatmeal", category: "Breakfast", mealPeriod: "breakfast" };
+    const cafeLunch: MenuItem = { ...COFFEE, dishName: "Sandwich", category: "Lunch", mealPeriod: "lunch" };
+
+    mockedFetchMenu.mockResolvedValueOnce([cafeBreakfast, cafeLunch]);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreenBody hall={{ tid: 32, name: "People's Organic Coffee" }} />);
+    });
+    expect(texts(root).flat()).toContain("Breakfast");
+    expect(texts(root).flat()).toContain("Lunch");
+
+    // Manually select Lunch -- the tab that's about to disappear on the next date.
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Lunch menu" }).props.onPress();
+    });
+    expect(activePaneTexts(root).flat()).toContain("Sandwich");
+
+    // Step to a date this café only serves breakfast on.
+    mockedFetchMenu.mockResolvedValueOnce([cafeBreakfast]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    // The stale "lunch" selection must resolve to the only remaining tab -- not silently show
+    // Breakfast's real dishes with no tab highlighted.
+    expect(texts(root).flat()).not.toContain("Lunch"); // the Lunch tab itself is gone
+    expect(activePaneTexts(root).flat().join(" ")).toMatch(/Oatmeal/);
+
+    // The tab pill itself must actually be highlighted -- this is the symptom the pre-fix bug
+    // produced (real content, no highlighted tab), and content matching alone can't tell the two
+    // apart for a café that only ever has one tab to begin with.
+    const breakfastTab = root.root.findByProps({ accessibilityLabel: "Breakfast menu" });
+    const underline = breakfastTab.findAllByType(View).at(-1);
+    expect(StyleSheet.flatten(underline!.props.style).backgroundColor).toBe(colors.gold500);
+    const label = breakfastTab.findByType(Text);
+    expect(StyleSheet.flatten(label.props.style).color).toBe(colors.maroon900);
   });
 });
 

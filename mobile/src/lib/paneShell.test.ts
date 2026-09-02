@@ -22,11 +22,27 @@ describe("constants", () => {
 });
 
 describe("clampPaneIndex", () => {
-  it("clamps into [0, PANE_COUNT)", () => {
+  it("clamps into [0, PANE_COUNT) when count is omitted", () => {
     expect(clampPaneIndex(-1)).toBe(0);
     expect(clampPaneIndex(0)).toBe(0);
     expect(clampPaneIndex(2)).toBe(2);
     expect(clampPaneIndex(3)).toBe(2);
+  });
+
+  // MealTabPager passes its own tab count explicitly -- a café with exactly one derived meal tab
+  // must clamp everything to 0, never throw or return a fractional/negative index.
+  it("clamps everything to 0 when count is 1", () => {
+    expect(clampPaneIndex(-1, 1)).toBe(0);
+    expect(clampPaneIndex(0, 1)).toBe(0);
+    expect(clampPaneIndex(1, 1)).toBe(0);
+    expect(clampPaneIndex(5, 1)).toBe(0);
+  });
+
+  it("clamps into [0, 5) for a real hall's 4 meal periods + Grab", () => {
+    expect(clampPaneIndex(-1, 5)).toBe(0);
+    expect(clampPaneIndex(0, 5)).toBe(0);
+    expect(clampPaneIndex(4, 5)).toBe(4);
+    expect(clampPaneIndex(5, 5)).toBe(4);
   });
 });
 
@@ -123,6 +139,24 @@ describe("paneIndexForSwipe", () => {
       expect(paneIndexForSwipe(1, SWIPE_COMMIT_PX - 1)).toBe(1);
     });
   });
+
+  // MealTabPager's count param: a 1-tab café swipe is always inert (never leaves index 0, whatever
+  // the drag distance or velocity), and a 5-tab real hall (4 meal periods + Grab) clamps at its own
+  // ends instead of the 3-pane Home shell's.
+  describe("count param", () => {
+    it("never leaves index 0 when count is 1, distance or velocity commit alike", () => {
+      expect(paneIndexForSwipe(0, -SWIPE_COMMIT_PX, 0, 1)).toBe(0);
+      expect(paneIndexForSwipe(0, SWIPE_COMMIT_PX, 0, 1)).toBe(0);
+      expect(paneIndexForSwipe(0, -10, -SWIPE_FLING_VELOCITY, 1)).toBe(0);
+    });
+
+    it("commits within a 5-item range and clamps at its own ends", () => {
+      expect(paneIndexForSwipe(2, -SWIPE_COMMIT_PX, 0, 5)).toBe(3);
+      expect(paneIndexForSwipe(2, SWIPE_COMMIT_PX, 0, 5)).toBe(1);
+      expect(paneIndexForSwipe(4, -SWIPE_COMMIT_PX, 0, 5)).toBe(4);
+      expect(paneIndexForSwipe(0, SWIPE_COMMIT_PX, 0, 5)).toBe(0);
+    });
+  });
 });
 
 // #245 item 2: the pane must track the finger continuously mid-drag, not just snap on commit.
@@ -166,6 +200,17 @@ describe("paneDragPosition", () => {
   it("never drags past dragStartIndex's immediate neighbor, however far/fast the drag goes", () => {
     expect(paneDragPosition(0, -PANE_DRAG_PX * 3)).toBe(1); // not 2
     expect(paneDragPosition(2, PANE_DRAG_PX * 3)).toBe(1); // not 0
+  });
+
+  it("pins to 0 for a 1-tab café regardless of drag distance", () => {
+    expect(paneDragPosition(0, 0, 1)).toBe(0);
+    expect(paneDragPosition(0, -PANE_DRAG_PX / 2, 1)).toBe(0);
+    expect(paneDragPosition(0, PANE_DRAG_PX * 3, 1)).toBe(0);
+  });
+
+  it("clamps at the last index (4) for a 5-item real-hall tab count", () => {
+    expect(paneDragPosition(4, -PANE_DRAG_PX, 5)).toBe(4);
+    expect(paneDragPosition(0, PANE_DRAG_PX, 5)).toBe(0);
   });
 });
 
