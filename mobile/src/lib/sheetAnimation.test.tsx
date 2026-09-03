@@ -10,13 +10,16 @@ import TestRenderer, { act } from "react-test-renderer";
 import { useSheetAnim } from "./sheetAnimation";
 
 let latestTranslateY: any = null;
+let latestAnim: any = null;
 
 function Harness({ visible }: { visible: boolean }) {
-  const { panelStyle } = useSheetAnim(visible);
+  const { panelStyle, backdropStyle } = useSheetAnim(visible);
   const translateY = (panelStyle.transform[0] as any).translateY;
+  const anim = backdropStyle.opacity; // `anim` itself -- backdropStyle reads it undecorated
   useEffect(() => {
     latestTranslateY = translateY;
-  }, [translateY]);
+    latestAnim = anim;
+  }, [translateY, anim]);
   return null;
 }
 
@@ -32,6 +35,29 @@ describe("useSheetAnim", () => {
     // Before the fix, the Animated.Value was seeded via `new Animated.Value(visible ? 1 : 0)`,
     // i.e. 1 (open) at construction -- translateY read 0 (fully open) even though no reveal
     // animation had run yet.
+    expect(readValue()).toBe(400);
+  });
+
+  it("resets a stale open value back to closed before animating open (the detach-reseed case)", () => {
+    let root: any;
+    act(() => {
+      root = TestRenderer.create(<Harness visible={false} />);
+    });
+    // Simulate exactly what a native-driver detach leaves behind on close (see sheetAnimation.ts's
+    // doc comment): `anim`'s JS-side `_value` stuck at the open value even though the sheet is
+    // closed, because the animation never got to sync a real 0 back into it.
+    act(() => {
+      latestAnim.setValue(1);
+    });
+    expect(readValue()).toBe(0); // sanity: stale-open is in effect (panelTravel * (1 - 1) = 0)
+
+    // Reopen. Without the `if (visible) anim.setValue(0)` reset, `Animated.timing` would animate
+    // 1 -> 1 (no motion) exactly like the real bug -- useNativeDriver never updates `_value`
+    // mid-animation (see sheetAnimation.ts's doc comment / the PR body), so this read is a direct
+    // check of the reset line's own effect, not of the animation "finishing".
+    act(() => {
+      root.update(<Harness visible={true} />);
+    });
     expect(readValue()).toBe(400);
   });
 });
