@@ -1,27 +1,56 @@
-import { Animated, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { GestureDetector } from "react-native-gesture-handler";
+import type { GestureType, GestureUpdateEvent } from "react-native-gesture-handler";
+import * as Reanimated from "react-native-reanimated";
 import renderer, { act } from "react-test-renderer";
 import { MealTabPager } from "./MealTabPager";
 import { PANE_DRAG_PX, paneDragPosition, settleDuration } from "../lib/paneShell";
+
+// react-native-worklets' Babel plugin auto-workletizes the callbacks passed to `Gesture.Pan()`'s
+// `.onBegin`/`.onUpdate`/`.onEnd` (and any function marked "worklet", like MealTabPager's own
+// `settlePosition`): it rewrites their free-variable references (including imported reanimated
+// functions like `withTiming`) into reads off a `__closure` object populated ONCE, AT THE MOMENT
+// THE GESTURE OBJECT IS BUILT (i.e. at render time) -- not a live property lookup on every call the
+// way a plain (non-worklet) function reads an import. That's the correct, intentional design for
+// real native execution (a UI-thread worklet can't do a live module lookup back into the JS
+// thread's module registry), but it means `jest.spyOn(Reanimated, "withTiming")` only reaches calls
+// made from closures built AFTER the spy exists. Installing the spy here, at module scope (before
+// any test/render runs), instead of inside each `it()` after its own render, is what makes every
+// render in this file -- including the very first one -- capture the spied version. Confirmed
+// empirically against PaneStack.tsx's identical worklets (see paneStack.test.tsx's own longer note
+// on this): spying after a render's own worklets were already built left `spy.mock.calls` at 0 for
+// that render's callbacks even though the calls genuinely happened.
+const withTimingSpy = jest.spyOn(Reanimated, "withTiming");
+
+afterEach(() => {
+  withTimingSpy.mockClear();
+});
 
 function Pane({ label }: { label: string }) {
   return <Text>{label}</Text>;
 }
 
-// Same synthetic single-touch PanResponder event shape paneStack.test.tsx already established --
-// see that file's own doc for why dx is the move's own prev/curr delta (not diffed across calls)
-// and why vx-sensitive tests need a realistic timeStamp gap (release reuses the last move's vx
-// as-is, it never recomputes it).
-function fakeTouch(previousPageX: number, currentPageX: number, timeStamp: number) {
+// Gesture.Pan()'s callbacks are plain functions stored on the built gesture object's own
+// `.handlers` (see react-native-gesture-handler/src/handlers/gestures/gesture.ts's BaseGesture --
+// `.onBegin(cb)`/`.onUpdate(cb)`/`.onEnd(cb)` just assign `this.handlers.onBegin = cb` etc.), so a
+// test can invoke them directly instead of simulating the full native event pipeline. `translationX`
+// is RNGH's name for the SAME "total accumulated distance since the gesture began" PanResponder
+// called `gestureState.dx` (confirmed against RN's own PanResponder docs and this file's pre-
+// migration fakeTouch helper) -- so every dx/vx value below carries over unchanged from the
+// PanResponder-era tests this file replaces.
+function panEvent(translationX: number, velocityX = 0) {
   return {
-    nativeEvent: { touches: [{}], changedTouches: [{}], timestamp: timeStamp },
-    touchHistory: {
-      touchBank: [{ touchActive: true, currentTimeStamp: timeStamp, currentPageX, currentPageY: 0, previousPageX, previousPageY: 0 }],
-      numberActiveTouches: 1,
-      indexOfSingleActiveTouch: 0,
-      mostRecentTimeStamp: timeStamp,
-    },
-
-  } as any;
+    translationX,
+    translationY: 0,
+    velocityX,
+    velocityY: 0,
+    x: 0,
+    y: 0,
+    absoluteX: 0,
+    absoluteY: 0,
+    numberOfPointers: 1,
+    stylusData: undefined,
+  } as unknown as GestureUpdateEvent<never>;
 }
 
 function fivePanes() {
@@ -39,17 +68,15 @@ function renderGestureHarness(activeIndex: number, panes: React.ReactNode[], onA
   act(() => {
     root = renderer.create(<MealTabPager activeIndex={activeIndex} onActiveIndexChange={onActiveIndexChange} panes={panes} />);
   });
-  const candidates = root.root.findAllByType(View).filter((n) => typeof n.props.onResponderGrant === "function");
-  expect(candidates.length).toBe(1);
-  return {
-    root,
-    handlers: candidates[0].props as {
-      onResponderGrant: (e: unknown) => void;
-      onResponderMove: (e: unknown) => void;
-      onResponderRelease: (e: unknown) => void;
-      onResponderTerminate: (e: unknown) => void;
-    },
-  };
+  // Re-read from the CURRENT tree every time (not captured once) -- MealTabPager rebuilds
+  // `Gesture.Pan()` fresh every render (see its own doc comment on why: RNGH's own docs warn
+  // against caching a gesture object across renders), so the gesture actually wired to the latest
+  // props is whichever one the CURRENT tree holds, same as how the real native side only ever calls
+  // into the latest reconciled callback set.
+  function gesture(): GestureType {
+    return root.root.findByType(GestureDetector).props.gesture as GestureType;
+  }
+  return { root, gesture };
 }
 
 describe("MealTabPager windowing", () => {
@@ -83,9 +110,6 @@ describe("MealTabPager windowing", () => {
     act(() => {
       root = renderer.create(<MealTabPager activeIndex={1} onActiveIndexChange={() => {}} panes={fivePanes()} />);
     });
-    // findAllByType(View), not findAllByProps -- Animated.View forwards props to its underlying
-    // host View, so a props-only query matches both the composite and host node per pane (same
-    // "filter host View nodes" strategy the swipe-gesture harness above already uses).
     const hostViews = root.root.findAllByType(View);
     const visible = hostViews.filter((n) => n.props.importantForAccessibility === "auto");
     expect(visible.length).toBe(1);
@@ -107,65 +131,63 @@ describe("MealTabPager non-adjacent jump handling", () => {
     act(() => {
       root = renderer.create(<MealTabPager activeIndex={0} onActiveIndexChange={() => {}} panes={fivePanes()} />);
     });
-    const timingSpy = jest.spyOn(Animated, "timing");
-    const callsBefore = timingSpy.mock.calls.length;
+    const callsBefore = withTimingSpy.mock.calls.length;
 
     act(() => {
       root.update(<MealTabPager activeIndex={4} onActiveIndexChange={() => {}} panes={fivePanes()} />);
     });
 
-    // No tween at all for this transition -- a mutated version that always calls Animated.timing
-    // would show 2 calls here (panePos + paneOpacityPos) instead of 0.
-    expect(timingSpy.mock.calls.slice(callsBefore).length).toBe(0);
+    // No tween at all for this transition -- a mutated version that always calls withTiming would
+    // show 2 calls here (panePos + paneOpacityPos) instead of 0.
+    expect(withTimingSpy.mock.calls.slice(callsBefore).length).toBe(0);
     // The destination pane is immediately the sole active/visible one, not mid-crossfade.
     const hostViews = root.root.findAllByType(View);
     expect(hostViews.filter((n) => n.props.importantForAccessibility === "auto").length).toBe(1);
   });
 
-  it("still animates smoothly via Animated.timing for an adjacent (single-step) index change, tab-tap or swipe alike", () => {
+  it("still animates smoothly via withTiming for an adjacent (single-step) index change, tab-tap or swipe alike", () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(<MealTabPager activeIndex={1} onActiveIndexChange={() => {}} panes={fivePanes()} />);
     });
-    const timingSpy = jest.spyOn(Animated, "timing");
-    const callsBefore = timingSpy.mock.calls.length;
+    const callsBefore = withTimingSpy.mock.calls.length;
 
     act(() => {
       root.update(<MealTabPager activeIndex={2} onActiveIndexChange={() => {}} panes={fivePanes()} />);
     });
 
-    const calls = timingSpy.mock.calls.slice(callsBefore);
+    const calls = withTimingSpy.mock.calls.slice(callsBefore);
     expect(calls.length).toBe(2); // panePos + paneOpacityPos
-    for (const [, config] of calls) expect((config as { toValue: number }).toValue).toBe(2);
+    for (const [toValue] of calls) expect(toValue).toBe(2);
   });
 });
 
 describe("MealTabPager swipe gesture wiring", () => {
   it("(a) onPanResponderMove drives the shared position continuously, well before any commit", () => {
     const onActiveIndexChange = jest.fn();
-    const { handlers } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
+    const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -PANE_DRAG_PX / 2, 2));
+      gesture().handlers.onUpdate?.(panEvent(-PANE_DRAG_PX / 2));
     });
     expect(onActiveIndexChange).not.toHaveBeenCalled();
   });
 
   it("(b) release below SWIPE_COMMIT_PX and below SWIPE_FLING_VELOCITY settles back, no commit", () => {
     const onActiveIndexChange = jest.fn();
-    const { handlers } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
+    const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -45, 1000)); // below the 60px commit threshold, realistic dt
+      gesture().handlers.onUpdate?.(panEvent(-45)); // below the 60px commit threshold
     });
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-45, -45, 1001));
+      gesture().handlers.onEnd?.(panEvent(-45, -0.045), true);
     });
 
     expect(onActiveIndexChange).not.toHaveBeenCalled();
@@ -173,40 +195,37 @@ describe("MealTabPager swipe gesture wiring", () => {
 
   it("(c) release above SWIPE_COMMIT_PX commits to the neighboring tab", () => {
     const onActiveIndexChange = jest.fn();
-    const { handlers } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
-    const timingSpy = jest.spyOn(Animated, "timing");
+    const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -80, 1000)); // dx=-80, past the 60px commit threshold
+      gesture().handlers.onUpdate?.(panEvent(-80)); // past the 60px commit threshold
     });
-    const callsBeforeRelease = timingSpy.mock.calls.length;
+    const callsBeforeRelease = withTimingSpy.mock.calls.length;
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-80, -80, 1001));
+      gesture().handlers.onEnd?.(panEvent(-80), true);
     });
 
     expect(onActiveIndexChange).toHaveBeenCalledWith(2); // negative dx commits to the next tab
-    const settleCalls = timingSpy.mock.calls.slice(callsBeforeRelease);
+    const settleCalls = withTimingSpy.mock.calls.slice(callsBeforeRelease);
     expect(settleCalls.length).toBeGreaterThan(0);
-    for (const [, config] of settleCalls) {
-      expect((config as { toValue: number }).toValue).toBe(2);
-    }
+    for (const [toValue] of settleCalls) expect(toValue).toBe(2);
   });
 
   it("(d) clamps at the last tab instead of committing past it", () => {
     const onActiveIndexChange = jest.fn();
-    const { handlers } = renderGestureHarness(4, fivePanes(), onActiveIndexChange);
+    const { gesture } = renderGestureHarness(4, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -80, 1000)); // leftward past the last tab
+      gesture().handlers.onUpdate?.(panEvent(-80)); // leftward past the last tab
     });
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-80, -80, 1001));
+      gesture().handlers.onEnd?.(panEvent(-80), true);
     });
 
     expect(onActiveIndexChange).not.toHaveBeenCalled(); // already at the last index, nothing to commit to
@@ -214,41 +233,39 @@ describe("MealTabPager swipe gesture wiring", () => {
 
   it("(e) release settle duration reflects the in-flight drag position", () => {
     const onActiveIndexChange = jest.fn();
-    const { handlers } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
-    const timingSpy = jest.spyOn(Animated, "timing");
+    const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -80, 1000));
+      gesture().handlers.onUpdate?.(panEvent(-80));
     });
-    const callsBeforeRelease = timingSpy.mock.calls.length;
+    const callsBeforeRelease = withTimingSpy.mock.calls.length;
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-80, -80, 1001));
+      gesture().handlers.onEnd?.(panEvent(-80), true);
     });
 
     const fromPos = paneDragPosition(1, -80, 5);
     const expectedTransformDuration = settleDuration(fromPos, 2, 340);
-    const durations = timingSpy.mock.calls.slice(callsBeforeRelease).map(([, config]) => (config as { duration: number }).duration);
+    const durations = withTimingSpy.mock.calls
+      .slice(callsBeforeRelease)
+      .map(([, config]) => (config as { duration: number }).duration);
     expect(durations).toContainEqual(expectedTransformDuration);
   });
 
   it("(fling) a fast flick well short of SWIPE_COMMIT_PX still commits", () => {
     const onActiveIndexChange = jest.fn();
-    const { handlers } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
+    const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -5, 1000));
+      gesture().handlers.onUpdate?.(panEvent(-25, -1.25)); // vx past SWIPE_FLING_VELOCITY, dx far short of SWIPE_COMMIT_PX
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(-5, -25, 1016)); // vx = -20/16 = -1.25px/ms, past SWIPE_FLING_VELOCITY
-    });
-    act(() => {
-      handlers.onResponderRelease(fakeTouch(-25, -25, 1017));
+      gesture().handlers.onEnd?.(panEvent(-25, -1.25), true);
     });
 
     expect(onActiveIndexChange).toHaveBeenCalledWith(2);
@@ -256,67 +273,75 @@ describe("MealTabPager swipe gesture wiring", () => {
 
   it("a single-tab café (panes.length === 1) never commits, whatever the drag", () => {
     const onActiveIndexChange = jest.fn();
-    const { handlers } = renderGestureHarness(0, [<Pane key="allday" label="All Day" />], onActiveIndexChange);
+    const { gesture } = renderGestureHarness(0, [<Pane key="allday" label="All Day" />], onActiveIndexChange);
 
+    // .enabled(count > 1) means RNGH would never even activate this gesture natively for a single
+    // tab; the callbacks below are invoked directly (bypassing that native gate, same as every
+    // other test here does) purely to prove the fallback math still refuses to commit even if they
+    // somehow fired.
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -80, 1000));
+      gesture().handlers.onUpdate?.(panEvent(-80));
     });
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-80, -80, 1001));
+      gesture().handlers.onEnd?.(panEvent(-80), true);
     });
 
     expect(onActiveIndexChange).not.toHaveBeenCalled();
   });
+
+  it("a cancelled/terminated drag settles back to the drag-start index instead of committing", () => {
+    const onActiveIndexChange = jest.fn();
+    const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
+
+    act(() => {
+      gesture().handlers.onBegin?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(-80)); // past the commit threshold
+    });
+    const callsBeforeEnd = withTimingSpy.mock.calls.length;
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(-80), false); // cancelled, e.g. a parent gesture stole it
+    });
+
+    expect(onActiveIndexChange).not.toHaveBeenCalled();
+    const settleCalls = withTimingSpy.mock.calls.slice(callsBeforeEnd);
+    expect(settleCalls.length).toBeGreaterThan(0);
+    for (const [toValue] of settleCalls) expect(toValue).toBe(1); // dragStartIndex, not a commit
+  });
 });
 
-// The PanResponder below is built exactly once (useRef) -- without countRef/onActiveIndexChangeRef,
-// its callbacks would close over whatever `panes.length` was at that first render forever after.
-// This can only matter while the SAME component instance survives a panes-length change (a fresh
-// renderer.create -- what most tests above do -- always builds a fresh, already-correct
-// PanResponder, so it can't exercise this at all). Reviewed and confirmed (PR review, second pass):
-// an integration test that goes through halls/[slug].tsx's café date-stepping can't reach this
-// either -- that screen's fetch effect always nulls `items` before the new items resolve, so its
-// derived tab count always passes through 0 on every date step, which fully unmounts/remounts
-// MealTabPager (a fresh PanResponder every time) before that caller could ever exercise a live
-// panes-length shrink. That's incidental to an unrelated implementation detail in today's sole
-// caller (item-nulling on refetch), not a guarantee `panes: ReactNode[]` makes as a public prop --
-// a future caller (or a change to this one, e.g. keeping stale items during refetch to avoid a
-// skeleton flash) could hit this live with no change to MealTabPager itself. Testing directly at
-// this level, via root.update with a shrunk `panes` array on the SAME renderer instance, is what
-// actually exercises the fix against that contract.
-describe("MealTabPager stale-closure resistance (countRef)", () => {
-  it("a swipe after panes.length shrinks on the same mounted instance resolves against the fresh count, not the count from when the PanResponder was first built", () => {
+// The old PanResponder-era version of this suite guarded against a `useRef`-once PanResponder
+// closing over a stale `panes.length`/`onActiveIndexChange` forever after construction. Rebuilding
+// `Gesture.Pan()` fresh every render (this component's own doc comment explains why) removes that
+// failure mode structurally -- there's no persisted closure to go stale -- but this test still
+// exercises the same scenario end to end: a swipe after `panes.length` shrinks on the SAME mounted
+// instance must resolve against the fresh count.
+describe("MealTabPager stale-closure resistance", () => {
+  it("a swipe after panes.length shrinks on the same mounted instance resolves against the fresh count, not a count from an earlier render", () => {
     const onActiveIndexChange = jest.fn();
     const fourPanes = fivePanes().slice(0, 4); // indices 0-3
-    const { root, handlers } = renderGestureHarness(3, fourPanes, onActiveIndexChange); // active on the last of 4
+    const { root, gesture } = renderGestureHarness(3, fourPanes, onActiveIndexChange); // active on the last of 4
 
-    // Shrinks to 3 panes, same renderer instance (root.update, not a fresh renderer.create) -- the
-    // exact scenario the PanResponder's useRef-once construction risks going stale on. Still on
-    // "the last tab", now correctly index 2 in the smaller array (mirrors how
-    // halls/[slug].tsx recomputes activeIndex when a still-valid selectedMeal's tab shifts position
-    // after mealTabs shrinks).
     const threePanes = fivePanes().slice(0, 3);
     act(() => {
       root.update(<MealTabPager activeIndex={2} onActiveIndexChange={onActiveIndexChange} panes={threePanes} />);
     });
 
     act(() => {
-      handlers.onResponderGrant(fakeTouch(0, 0, 1));
+      gesture().handlers.onBegin?.(panEvent(0));
     });
     act(() => {
-      handlers.onResponderMove(fakeTouch(0, -80, 1000)); // leftward past SWIPE_COMMIT_PX -- "commit to the next tab"
+      gesture().handlers.onUpdate?.(panEvent(-80)); // leftward past SWIPE_COMMIT_PX -- "commit to the next tab"
     });
     act(() => {
-      handlers.onResponderRelease(fakeTouch(-80, -80, 1001));
+      gesture().handlers.onEnd?.(panEvent(-80), true);
     });
 
     // Fresh count (3): activeIndex 2 is already the last valid index -- clamped, no commit.
-    // A stale count (4, from the render this PanResponder was originally built at) would compute
-    // activeIndex 2 as NOT the last index under a 4-count, incorrectly committing to index 3 --
-    // out of range for the 3-pane array this component is actually rendering now.
     expect(onActiveIndexChange).not.toHaveBeenCalled();
   });
 });

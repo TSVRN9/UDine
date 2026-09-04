@@ -11,6 +11,7 @@ export const HOME_PANE_INDEX = 1;
  * explicitly so this same clamp works for a 4/5-tab hall or a 1-tab café without touching any
  * existing PANE_COUNT-implicit call site. */
 export function clampPaneIndex(index: number, count: number = PANE_COUNT): number {
+  "worklet";
   return Math.max(0, Math.min(count - 1, index));
 }
 
@@ -68,6 +69,7 @@ export const PANE_DRAG_PX = 140;
  * just "any X movement" -- established pattern in this app for not reaching for a second gesture
  * library. */
 export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boolean {
+  "worklet";
   return Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy);
 }
 
@@ -78,6 +80,7 @@ export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boole
  * position (#179). Short of both thresholds, snaps back to the pane you started on. `vx` defaults
  * to 0 (existing distance-only callers/tests are unaffected). */
 export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0, count: number = PANE_COUNT): number {
+  "worklet";
   const commits = Math.abs(dx) >= SWIPE_COMMIT_PX || Math.abs(vx) >= SWIPE_FLING_VELOCITY;
   if (!commits) return activeIndex;
   // A pure-velocity commit can fire on a drag that's barely moved yet (still well under
@@ -103,6 +106,7 @@ export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0, count
  * neighborhood first (then still through clampPaneIndex, for the drags that start at an end pane)
  * keeps the visual sweep and the possible commit target in lockstep. */
 export function paneDragPosition(dragStartIndex: number, dx: number, count: number = PANE_COUNT): number {
+  "worklet";
   const raw = dragStartIndex - dx / PANE_DRAG_PX;
   const neighborClamped = Math.max(dragStartIndex - 1, Math.min(dragStartIndex + 1, raw));
   return clampPaneIndex(neighborClamped, count);
@@ -118,6 +122,7 @@ export function paneDragPosition(dragStartIndex: number, dx: number, count: numb
  * `baseDuration` so an already-arrived release doesn't animate at ~0ms, which reads as a glitchy
  * instant snap rather than a settle. */
 export function settleDuration(from: number, to: number, baseDuration: number): number {
+  "worklet";
   const remaining = Math.min(1, Math.abs(to - from));
   return Math.max(baseDuration * 0.4, baseDuration * remaining);
 }
