@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { LogEntry, MenuItem, NutritionFacts, OffSearchResult } from "@udine/shared";
+import type { HistoryDish } from "./dishHistory";
 
 /**
  * One row on the in-memory plate (#91): a dish/product plus how many servings the user has
@@ -30,6 +31,19 @@ export function menuItemToPlateEntry(item: MenuItem, count = 1): PlateEntry {
 export function offResultToPlateEntry(result: OffSearchResult, count = 1): PlateEntry {
   const source: LogEntry["source"] = { type: "off", barcode: result.barcode, productName: result.productName };
   return { key: plateKeyFor(source), label: result.productName, nutrition: result.nutrition, source, count };
+}
+
+/**
+ * A previously-logged dish, picked from the plate's food-history search, staged back onto the
+ * plate. `dish.nutrition` is already the per-serving snapshot the original LogEntry carried (see
+ * HistoryDish's own doc) -- carried through unchanged here, same as menuItemToPlateEntry/
+ * offResultToPlateEntry above, NOT divided or multiplied by however many servings were logged
+ * historically. `count` always resets to 1 (the default) regardless of that original servings value
+ * -- this is a fresh add, not a resumption of the old log entry.
+ */
+export function historyDishToPlateEntry(dish: HistoryDish, count = 1): PlateEntry {
+  const source: LogEntry["source"] = { type: "umass-menu", dishName: dish.dishName, hallTid: dish.hallTid };
+  return { key: plateKeyFor(source), label: dish.dishName, nutrition: dish.nutrition, source, count };
 }
 
 /** True when this nutrition snapshot came from OFF's per-100g fallback rather than the product's
