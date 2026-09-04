@@ -58,7 +58,6 @@ describe("PlateSheet", () => {
           totals={{ date: "x", calories: 600, proteinG: 27, totalCarbG: 72, totalFatG: 24 }}
           onStep={() => {}}
           onAddOffResult={() => {}}
-          onLogOffResult={async () => true}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -83,7 +82,6 @@ describe("PlateSheet", () => {
           totals={{ date: "x", calories: 400, proteinG: 18, totalCarbG: 48, totalFatG: 16 }}
           onStep={onStep}
           onAddOffResult={() => {}}
-          onLogOffResult={async () => true}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -115,7 +113,6 @@ describe("PlateSheet", () => {
           totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
           onStep={() => {}}
           onAddOffResult={onAddOffResult}
-          onLogOffResult={async () => true}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -139,97 +136,8 @@ describe("PlateSheet", () => {
     expect(onAddOffResult).toHaveBeenCalledWith({ barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } });
   });
 
-  // The direct-log path: logging a single OFF result (e.g. a piece of fruit) with nothing else
-  // staged, without detouring through the plate/LOG N ITEMS flow -- see PlateSheet's own doc on
-  // onLogOffResult.
-  describe("logging a single OFF search result directly", () => {
-    const TRAIL_MIX = { barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } };
-
-    async function renderWithSearchResult(onLogOffResult: (result: typeof TRAIL_MIX) => Promise<boolean>, onAddOffResult = jest.fn()) {
-      mockedSearchProducts.mockResolvedValue([TRAIL_MIX]);
-      let root!: renderer.ReactTestRenderer;
-      act(() => {
-        root = renderer.create(
-          <PlateSheet
-            visible
-            plate={[]}
-            totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
-            onStep={() => {}}
-            onAddOffResult={onAddOffResult}
-            onLogOffResult={onLogOffResult}
-            onLog={() => {}}
-            onClose={() => {}}
-          />,
-        );
-      });
-      act(() => {
-        root.root.findByType(TextInput).props.onChangeText("trail mix");
-      });
-      await act(async () => {
-        root.root.findByType(TextInput).props.onSubmitEditing();
-      });
-      return { root, onAddOffResult };
-    }
-
-    it("calls onLogOffResult with the tapped result, not onAddOffResult -- it's a parallel action, not a detour through the plate", async () => {
-      const onLogOffResult = jest.fn().mockResolvedValue(true);
-      const { root, onAddOffResult } = await renderWithSearchResult(onLogOffResult);
-
-      await act(async () => {
-        root.root.findByProps({ accessibilityLabel: "Log Trail Mix now, without adding the rest of the plate" }).props.onPress();
-      });
-
-      expect(onLogOffResult).toHaveBeenCalledWith(TRAIL_MIX);
-      expect(onAddOffResult).not.toHaveBeenCalled();
-    });
-
-    it("shows an inline 'Logged' confirmation on the result row when onLogOffResult resolves true, without closing the sheet", async () => {
-      const onClose = jest.fn();
-      const onLogOffResult = jest.fn().mockResolvedValue(true);
-      mockedSearchProducts.mockResolvedValue([TRAIL_MIX]);
-      let root!: renderer.ReactTestRenderer;
-      act(() => {
-        root = renderer.create(
-          <PlateSheet
-            visible
-            plate={[]}
-            totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
-            onStep={() => {}}
-            onAddOffResult={() => {}}
-            onLogOffResult={onLogOffResult}
-            onLog={() => {}}
-            onClose={onClose}
-          />,
-        );
-      });
-      act(() => {
-        root.root.findByType(TextInput).props.onChangeText("trail mix");
-      });
-      await act(async () => {
-        root.root.findByType(TextInput).props.onSubmitEditing();
-      });
-      await act(async () => {
-        root.root.findByProps({ accessibilityLabel: "Log Trail Mix now, without adding the rest of the plate" }).props.onPress();
-      });
-
-      expect(texts(root).flat().join(" ")).toMatch(/Trail Mix.*Logged/);
-      expect(onClose).not.toHaveBeenCalled();
-    });
-
-    it("shows an inline failure message on the result row when onLogOffResult resolves false", async () => {
-      const onLogOffResult = jest.fn().mockResolvedValue(false);
-      const { root } = await renderWithSearchResult(onLogOffResult);
-
-      await act(async () => {
-        root.root.findByProps({ accessibilityLabel: "Log Trail Mix now, without adding the rest of the plate" }).props.onPress();
-      });
-
-      expect(texts(root).flat().join(" ")).toMatch(/Couldn't log — try again/);
-    });
-  });
-
   const ZERO_TOTALS = { date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 };
-  const noopProps = { plate: [], totals: ZERO_TOTALS, onStep: () => {}, onAddOffResult: () => {}, onLogOffResult: async () => true, onLog: () => {} };
+  const noopProps = { plate: [], totals: ZERO_TOTALS, onStep: () => {}, onAddOffResult: () => {}, onLog: () => {} };
 
   // #198: onSubmitEditing had no guard against a search already in flight -- the Search BUTTON
   // already disables on `searching`, but hitting Enter/the keyboard's search key went straight to
@@ -330,7 +238,6 @@ describe("PlateSheet", () => {
           totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
           onStep={() => {}}
           onAddOffResult={() => {}}
-          onLogOffResult={async () => true}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -356,7 +263,6 @@ describe("PlateSheet", () => {
           totals={{ date: "x", calories: 150, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
           onStep={() => {}}
           onAddOffResult={() => {}}
-          onLogOffResult={async () => true}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -376,7 +282,6 @@ describe("PlateSheet", () => {
           totals={{ date: "x", calories: 200, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
           onStep={() => {}}
           onAddOffResult={() => {}}
-          onLogOffResult={async () => true}
           onLog={() => {}}
           onClose={() => {}}
         />,

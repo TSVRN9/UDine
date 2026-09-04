@@ -369,15 +369,6 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     setPlate((p) => addOrIncrement(p, offResultToPlateEntry(result)));
   }
 
-  // Logs one OFF result on its own -- the "grabbed a piece of fruit, nothing else to log" case
-  // PlateSheet's own doc on `onLogOffResult` describes. Shares guardedLogPlate's single inFlight
-  // guard with the bulk logPlate below (same screen, same underlying storage writes) -- a direct
-  // log and a bulk LOG N ITEMS correctly can't run concurrently into the same SQLite log table.
-  async function logOffResultDirectly(result: OffSearchResult): Promise<boolean> {
-    const outcome = await guardedLogPlate([offResultToPlateEntry(result)], nowLocalIso());
-    return outcome?.ok ?? false;
-  }
-
   async function logPlate() {
     // #147: guarded by useGuardedLogPlate -- drops a second tap that lands before this one's
     // sequential addEntry() writes finish, instead of re-running
@@ -771,7 +762,6 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         contextLabel={hall.name}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onAddOffResult={addOffResult}
-        onLogOffResult={logOffResultDirectly}
         onLog={logPlate}
         onClose={() => setSheetOpen(false)}
       />

@@ -28,12 +28,6 @@ interface Props {
   contextLabel?: string;
   onStep: (key: string, delta: number) => void;
   onAddOffResult: (result: OffSearchResult) => void;
-  /** Logs a single OFF result on its own, independent of whatever's staged on the plate -- the
-   * "grabbed a piece of fruit, nothing else to log" case, which the plate/LOG N ITEMS flow alone
-   * can't cover (that always logs everything staged, not just the item just searched for).
-   * Resolves true on success so this component can show its own inline confirmation without
-   * depending on the caller's own (screen-level, hidden behind this Modal) logged-banner. */
-  onLogOffResult: (result: OffSearchResult) => Promise<boolean>;
   onLog: () => void;
   onClose: () => void;
 }
@@ -45,15 +39,11 @@ interface Props {
  * halls/[slug].tsx's note): no route, no _layout.tsx change, no MenuItem serialization through
  * router params.
  */
-export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAddOffResult, onLogOffResult, onLog, onClose }: Props) {
+export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAddOffResult, onLog, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<OffSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  // Direct-log state for a single search result row -- independent of the plate/LOG N ITEMS flow.
-  // `barcode`, not the whole result object, since that's all identity a row needs to match itself.
-  const [loggingBarcode, setLoggingBarcode] = useState<string | null>(null);
-  const [directLogOutcome, setDirectLogOutcome] = useState<{ barcode: string; ok: boolean } | null>(null);
   const insets = useSafeAreaInsets();
   const { backdropStyle, panelStyle } = useSheetAnim(visible);
   const scrollRef = useRef<ScrollView>(null);
@@ -90,18 +80,8 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
       setResults(null);
       setSearchError(null);
       setQuery("");
-      setLoggingBarcode(null);
-      setDirectLogOutcome(null);
     }
   }, [visible]);
-
-  async function logResultDirectly(result: OffSearchResult) {
-    setLoggingBarcode(result.barcode);
-    setDirectLogOutcome(null);
-    const ok = await onLogOffResult(result);
-    setLoggingBarcode(null);
-    setDirectLogOutcome({ barcode: result.barcode, ok });
-  }
 
   async function runSearch() {
     // #198: onSubmitEditing had no guard against a search already in flight (unlike the Search
@@ -110,7 +90,6 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
-    setDirectLogOutcome(null);
     try {
       const found = await searchProducts(query.trim());
       if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
@@ -236,21 +215,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
                       <Text style={styles.resultCalories}>
                         {Math.round(r.nutrition.calories)} cal{isEstimatedServing(r.nutrition) ? " · est. per 100g" : ""}
                       </Text>
-                      {directLogOutcome?.barcode === r.barcode && (
-                        <Text style={directLogOutcome.ok ? styles.resultLogSuccess : styles.resultLogError}>
-                          {directLogOutcome.ok ? "Logged" : "Couldn't log — try again"}
-                        </Text>
-                      )}
                     </Pressable>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onPress={() => logResultDirectly(r)}
-                      disabled={loggingBarcode === r.barcode}
-                      accessibilityLabel={`Log ${r.productName} now, without adding the rest of the plate`}
-                    >
-                      {loggingBarcode === r.barcode ? "…" : "Log"}
-                    </Button>
                   </View>
                 ))}
               </View>
@@ -343,6 +308,4 @@ const styles = StyleSheet.create({
   resultInfo: { flex: 1, gap: 1 },
   resultLabel: { fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
   resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
-  resultLogSuccess: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.maroon600, marginTop: spacing(0.5) },
-  resultLogError: { fontFamily: fonts.body600, fontSize: fs(12), color: "#b00020", marginTop: spacing(0.5) },
 });
