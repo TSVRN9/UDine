@@ -62,6 +62,21 @@ module.exports = defineConfig([
     rules: { "react-hooks/refs": "off" },
   },
   {
+    // Gesture-handler/reanimated migration (pane-gesture-handler): `react-hooks/immutability`
+    // flags every `sharedValue.value = ...` assignment made from inside a `Gesture.Pan()` callback
+    // (onBegin/onUpdate/onEnd) or a "worklet"-marked helper (settlePosition, cancelInFlightSettle)
+    // as "modifying a value used previously in an effect function or as an effect dependency" --
+    // the compiler sees `panePos`/`paneOpacityPos` read in the commit-driven `useEffect` above AND
+    // mutated elsewhere, and can't tell that a Reanimated `SharedValue`'s `.value` setter is the
+    // library's own, intentional escape hatch for exactly this (same category of false positive
+    // `react-hooks/refs` already carves out above for `useRef(...).current` mutation -- a
+    // React-Compiler-legible "this looks like a plain object being mutated" pattern that's actually
+    // a documented external-mutable-container API). Every remaining finding in both files is this
+    // same pattern; none of it is a real cross-render mutation bug the rule is meant to catch.
+    files: ["src/components/PaneStack.tsx", "src/components/MealTabPager.tsx"],
+    rules: { "react-hooks/immutability": "off" },
+  },
+  {
     // #336: the compiler's own safe bailout (it explicitly skips optimizing this component
     // rather than guessing), not a miscompilation risk -- see the rule's message: the memo's
     // dependency array is deliberately narrower than `loc` itself (#243's fix for a re-render

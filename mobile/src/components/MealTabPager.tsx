@@ -1,6 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
-import { Animated, Easing, PanResponder, StyleSheet, View } from "react-native";
-import { isHorizontalSwipe, paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration } from "../lib/paneShell";
+import { useEffect, useRef, type ReactNode } from "react";
+import { StyleSheet, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  cancelAnimation,
+  Easing,
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration } from "../lib/paneShell";
 import { colors, fs } from "../lib/theme";
 
 // Same cubic-bezier PaneStack.tsx uses for its own pane transform -- one shared "how a pane
@@ -9,6 +20,52 @@ import { colors, fs } from "../lib/theme";
 // whole screen, so a smaller lateral shift reads proportionate.
 const PANE_CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 const PANE_OFFSET = fs(24);
+
+// isHorizontalSwipe's own dominance threshold (10px), reused here so the gesture-handler dominance
+// gate matches the original PanResponder-era feel instead of an unrelated new constant.
+const HORIZONTAL_DOMINANCE_PX = 10;
+
+/**
+ * One windowed pane -- its own component (not an inline `.map()` callback in MealTabPager's body)
+ * because `useAnimatedStyle` is a hook: with a variable `panes.length` (1-5 tabs) and windowing that
+ * skips all but ~3 indices, calling it directly inside the parent's `.map()` would vary the hook
+ * count render to render. A sibling instance per pane sidesteps that -- each one follows the rules
+ * of hooks on its own.
+ */
+function MealTabPane({
+  pane,
+  index,
+  activeIndex,
+  panePos,
+  paneOpacityPos,
+}: {
+  pane: ReactNode;
+  index: number;
+  activeIndex: number;
+  panePos: ReturnType<typeof useSharedValue<number>>;
+  paneOpacityPos: ReturnType<typeof useSharedValue<number>>;
+}) {
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(panePos.value, [index - 1, index, index + 1], paneOffsetRange(PANE_OFFSET), Extrapolation.CLAMP),
+      },
+    ],
+    opacity: interpolate(paneOpacityPos.value, [index - 1, index, index + 1], [0, 1, 0], Extrapolation.CLAMP),
+  }));
+  const active = index === activeIndex;
+  const { zIndex, pointerEvents } = paneVisibility(index, activeIndex);
+  return (
+    <Animated.View
+      pointerEvents={pointerEvents}
+      accessibilityElementsHidden={!active}
+      importantForAccessibility={active ? "auto" : "no-hide-descendants"}
+      style={[styles.pane, { zIndex }, style]}
+    >
+      {pane}
+    </Animated.View>
+  );
+}
 
 /**
  * Swipeable, crossfading tab pager for the hall/café menu screen's meal tabs (Breakfast / Lunch /
@@ -19,11 +76,24 @@ const PANE_OFFSET = fs(24);
  * `PaneHeader`'s own dot morph, which is commit-only for the same reason: it can't share a
  * native-driven value with the panes' transform/opacity).
  *
- * The gesture math itself (PanResponder wiring, `Animated.Value`s, commit/settle) is copied from
+ * The gesture math itself (`Gesture.Pan()` wiring, shared values, commit/settle) is copied from
  * `PaneStack.tsx`'s established pattern rather than duplicated by hand from scratch -- but the tuned
  * constants and thresholds (`SWIPE_COMMIT_PX`, `PANE_DRAG_PX`, fling velocity, settle-duration curve)
  * stay single-sourced in `lib/paneShell.ts`, now generalized to take this pager's own `panes.length`
  * instead of always assuming the Home shell's 3.
+ *
+ * Migrated off `PanResponder` to `react-native-gesture-handler`'s `Gesture.Pan()` (native gesture
+ * recognition/arbitration instead of JS-thread responder negotiation) driving `react-native-
+ * reanimated` shared values (so the drag position updates on the UI thread, not via a JS round trip
+ * per touch-move frame -- see PaneStack.tsx's own doc for why plain gesture-handler alone, without
+ * Reanimated, doesn't get there). The `Gesture.Pan()` object is rebuilt fresh every render (RNGH's
+ * own documented pattern -- their docs explicitly warn against memoizing/ref-caching a gesture
+ * object across renders, since that reintroduces exactly the stale-closure bug a `useRef`-once
+ * `PanResponder` had) rather than ported forward via the old `countRef`/`onActiveIndexChangeRef`
+ * indirection: `count`, `activeIndex`, and `onActiveIndexChange` are just closed over directly, and
+ * a fresh render always means a fresh, correctly-scoped closure. `dragStartIndex` is the one piece
+ * of state that genuinely needs to survive across a single gesture's begin/update/end -- that's a
+ * `useSharedValue`, readable from the worklets these callbacks compile to.
  *
  * Windowed to `activeIndex ± 1` (renders `null` for anything further away): every mounted pane here
  * is a real `SectionList` doing real filtering, not lightweight screen chrome, and `paneDragPosition`
@@ -42,118 +112,108 @@ export function MealTabPager({
   onActiveIndexChange: (index: number) => void;
 }) {
   const count = panes.length;
-  // eslint-disable-next-line react-hooks/refs -- stable Animated.Value identity, read once, never reassigned.
-  const panePos = useRef(new Animated.Value(activeIndex)).current;
-  // eslint-disable-next-line react-hooks/refs -- same stable-identity idiom as above.
-  const paneOpacityPos = useRef(new Animated.Value(activeIndex)).current;
-  // Read inside the responder's own callbacks (a ref, not state) so a swipe always resolves against
-  // the pane it actually started on, even if activeIndex changes mid-drag some other way (a tab tap).
-  const activeIndexRef = useRef(activeIndex);
-  // The PanResponder below is built exactly once (useRef), so its callbacks close over whatever
-  // `count`/`onActiveIndexChange` were at that first render forever after -- unlike PaneStack.tsx
-  // (a constant PANE_COUNT and a stable useState setter, so it never needed this), this pager's
-  // `panes.length` can genuinely change (a café's derived tab count) and `onActiveIndexChange` is a
-  // fresh closure every render (halls/[slug].tsx's handleActiveIndexChange isn't memoized). Refs,
-  // synced the same useLayoutEffect way as activeIndexRef above, so the callbacks always read the
-  // current values instead of whatever was true at mount.
-  const countRef = useRef(count);
-  const onActiveIndexChangeRef = useRef(onActiveIndexChange);
-  useLayoutEffect(() => {
-    activeIndexRef.current = activeIndex;
-    countRef.current = count;
-    onActiveIndexChangeRef.current = onActiveIndexChange;
-  }, [activeIndex, count, onActiveIndexChange]);
-  const dragStartIndex = useRef(activeIndex);
+  const panePos = useSharedValue(activeIndex);
+  const paneOpacityPos = useSharedValue(activeIndex);
+  // The one piece of state that must survive across a single gesture's onStart -> onUpdate -> onEnd
+  // sequence, which can span a re-render (the Gesture.Pan() object below is rebuilt every render --
+  // see this component's own doc comment -- but a shared value's identity, like a ref's, persists
+  // across that rebuild).
+  const dragStartIndex = useSharedValue(activeIndex);
   // Tracks this effect's own "where did the animated position last land" -- separate from
-  // activeIndexRef (which the layout effect above already advances to the NEW value before this
-  // effect runs, since layout effects fire before passive ones in the same commit). Needed to tell
-  // an adjacent commit (swipe, or a single-step tab tap) from a multi-hop one (tapping a
-  // non-adjacent tab): a continuous tween only ever passes through index values whose panes are
-  // guaranteed mounted when the jump is ±1 (paneDragPosition's own ±1 clamp; windowing mounts
-  // activeIndex ± 1). A jump of more than 1 sweeps the SHARED animated position through pane
-  // indices outside that window -- panes that are either unmounted (nothing to show, a blank flash)
-  // or briefly mounted-then-unmounted at the wrong moment (an unrelated tab's real content flashing
-  // fully visible mid-transition, since its own opacity interpolate peaks at 1 exactly where the
-  // sweep passes through its index). Real swipes can never trigger this (the shared engine only
-  // ever commits ±1), so this only matters for a tab tap more than one tab away -- seed the
-  // position directly instead of tweening through panes that were never meant to be seen.
+  // `activeIndex` itself. Needed to tell an adjacent commit (swipe, or a single-step tab tap) from a
+  // multi-hop one (tapping a non-adjacent tab): a continuous tween only ever passes through index
+  // values whose panes are guaranteed mounted when the jump is ±1 (paneDragPosition's own ±1 clamp;
+  // windowing mounts activeIndex ± 1). A jump of more than 1 sweeps the SHARED animated position
+  // through pane indices outside that window -- panes that are either unmounted (nothing to show, a
+  // blank flash) or briefly mounted-then-unmounted at the wrong moment (an unrelated tab's real
+  // content flashing fully visible mid-transition, since its own opacity interpolate peaks at 1
+  // exactly where the sweep passes through its index). Real swipes can never trigger this (the
+  // shared engine only ever commits ±1), so this only matters for a tab tap more than one tab away
+  // -- seed the position directly instead of tweening through panes that were never meant to be
+  // seen. Plain ref (not a shared value): only ever read/written from this JS-thread effect, never
+  // from a worklet.
   const committedIndexRef = useRef(activeIndex);
 
   useEffect(() => {
     const from = committedIndexRef.current;
     if (Math.abs(activeIndex - from) > 1) {
-      panePos.setValue(activeIndex);
-      paneOpacityPos.setValue(activeIndex);
+      panePos.value = activeIndex;
+      paneOpacityPos.value = activeIndex;
     } else {
-      Animated.timing(panePos, { toValue: activeIndex, duration: 340, easing: PANE_CURVE, useNativeDriver: true }).start();
-      Animated.timing(paneOpacityPos, { toValue: activeIndex, duration: 260, easing: Easing.ease, useNativeDriver: true }).start();
+      panePos.value = withTiming(activeIndex, { duration: 340, easing: PANE_CURVE });
+      paneOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
     }
     committedIndexRef.current = activeIndex;
-    // eslint-disable-next-line react-hooks/refs -- panePos/paneOpacityPos are stable identities (see above).
+    // panePos/paneOpacityPos are stable useSharedValue identities; listed so this effect only
+    // re-fires on a real activeIndex commit, not on every render.
   }, [activeIndex, panePos, paneOpacityPos]);
 
+  // Worklet (runs on the UI thread from the gesture callbacks below, and directly as plain JS when
+  // called nowhere else needs it) -- mirrors PaneStack.tsx's identical helper.
   function settlePosition(target: number, from: number = target) {
-    Animated.timing(panePos, { toValue: target, duration: settleDuration(from, target, 340), easing: PANE_CURVE, useNativeDriver: true }).start();
-    Animated.timing(paneOpacityPos, { toValue: target, duration: settleDuration(from, target, 260), easing: Easing.ease, useNativeDriver: true }).start();
+    "worklet";
+    panePos.value = withTiming(target, { duration: settleDuration(from, target, 340), easing: PANE_CURVE });
+    paneOpacityPos.value = withTiming(target, { duration: settleDuration(from, target, 260), easing: Easing.ease });
   }
 
-  const panResponder = useRef(
-    // eslint-disable-next-line react-hooks/refs -- closes over refs only; same SAME-instance idiom as PaneStack.tsx.
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, gesture) => countRef.current > 1 && isHorizontalSwipe(gesture.dx, gesture.dy),
-      onPanResponderGrant: () => {
-        dragStartIndex.current = activeIndexRef.current;
-        panePos.stopAnimation();
-        paneOpacityPos.stopAnimation();
-      },
-      onPanResponderMove: (_e, gesture) => {
-        const dragPos = paneDragPosition(dragStartIndex.current, gesture.dx, countRef.current);
-        panePos.setValue(dragPos);
-        paneOpacityPos.setValue(dragPos);
-      },
-      onPanResponderRelease: (_e, gesture) => {
-        const next = paneIndexForSwipe(dragStartIndex.current, gesture.dx, gesture.vx, countRef.current);
-        settlePosition(next, paneDragPosition(dragStartIndex.current, gesture.dx, countRef.current));
-        if (next !== activeIndexRef.current) onActiveIndexChangeRef.current(next);
-      },
-      onPanResponderTerminate: (_e, gesture) => {
-        settlePosition(dragStartIndex.current, paneDragPosition(dragStartIndex.current, gesture.dx, countRef.current));
-      },
-    }),
-  ).current;
+  const pan = Gesture.Pan()
+    .enabled(count > 1)
+    // Native equivalent of the old `onMoveShouldSetPanResponder`'s `isHorizontalSwipe` dominance
+    // check: activates only past 10px of horizontal travel -- gesture ARBITRATION happens natively
+    // now instead of a per-move JS decision, unlike PanResponder. Deliberately NOT the exact same
+    // formula (`isHorizontalSwipe` is `|dx| > 10 && |dx| > |dy|`, a diagonal-dominance test --
+    // `activeOffsetX` alone is a plain horizontal-distance threshold, slightly narrower for a
+    // sharply diagonal drag): a `failOffsetY` counterpart was tried and dropped, since it fails the
+    // gesture permanently past 10px of vertical travel regardless of how large `dx` grows
+    // afterward, which is stricter than the old dominance check ever was. `activeOffsetX` alone
+    // already lets RNGH's own native arbitration resolve the vertical-scroll-vs-horizontal-swipe
+    // conflict (a pane's SectionList only starts scrolling once ITS OWN threshold is crossed; this
+    // gesture doesn't activate until 10px of horizontal travel either, so a vertical scroll that
+    // never accumulates 10px of horizontal drift never contests it).
+    .activeOffsetX([-HORIZONTAL_DOMINANCE_PX, HORIZONTAL_DOMINANCE_PX])
+    // `onStart` (fires on transition to ACTIVE, i.e. once `activeOffsetX` is actually crossed) is
+    // the analog of `onPanResponderGrant` -- NOT `onBegin`. `onBegin` fires at BEGAN, on every
+    // touch-down, before recognition -- capturing `dragStartIndex`/cancelling the in-flight settle
+    // there would fire on every tab tap or vertical scroll too (anything that touches this View),
+    // and since `onEnd` "will be called only if the handler was previously in the ACTIVE state"
+    // (RNGH's own doc comment on `onEnd`), a touch that never activates would cancel a settle
+    // animation with nothing to ever restore it (no onEnd fires to call `settlePosition` back).
+    .onStart(() => {
+      dragStartIndex.value = activeIndex;
+      // A settle from the previous gesture (release/cancel) can still be in flight when a new drag
+      // starts -- cancel it so onUpdate's assignment below isn't fighting a running animation.
+      cancelAnimation(panePos);
+      cancelAnimation(paneOpacityPos);
+    })
+    .onUpdate((e) => {
+      const dragPos = paneDragPosition(dragStartIndex.value, e.translationX, count);
+      panePos.value = dragPos;
+      paneOpacityPos.value = dragPos;
+    })
+    .onEnd((e, success) => {
+      if (!success) {
+        // Cancelled/failed mid-drag (e.g. a parent gesture stole it) -- settle back to where the
+        // drag started instead of stranding the pane at a fractional offset.
+        settlePosition(dragStartIndex.value, paneDragPosition(dragStartIndex.value, e.translationX, count));
+        return;
+      }
+      // velocityX: a fast short flick commits even under SWIPE_COMMIT_PX of travel (paneIndexForSwipe's
+      // own doc) -- the biggest single source of the swipe reading as unresponsive was a quick
+      // flick doing nothing at all because it never crossed the distance threshold.
+      const next = paneIndexForSwipe(dragStartIndex.value, e.translationX, e.velocityX, count);
+      settlePosition(next, paneDragPosition(dragStartIndex.value, e.translationX, count));
+      if (next !== activeIndex) runOnJS(onActiveIndexChange)(next);
+    });
 
   return (
-    // eslint-disable-next-line react-hooks/refs -- panResponder is a stable identity, see above.
-    <View style={styles.root} {...panResponder.panHandlers}>
-      {
-        // eslint-disable-next-line react-hooks/refs -- see comment above.
-        panes.map((pane, j) => {
+    <GestureDetector gesture={pan}>
+      <View style={styles.root}>
+        {panes.map((pane, j) => {
           if (Math.abs(j - activeIndex) > 1) return null;
-          const active = j === activeIndex;
-          const { zIndex, pointerEvents } = paneVisibility(j, activeIndex);
-          return (
-            <Animated.View
-              key={j}
-              pointerEvents={pointerEvents}
-              accessibilityElementsHidden={!active}
-              importantForAccessibility={active ? "auto" : "no-hide-descendants"}
-              style={[
-                styles.pane,
-                {
-                  zIndex,
-                  transform: [
-                    { translateX: panePos.interpolate({ inputRange: [j - 1, j, j + 1], outputRange: paneOffsetRange(PANE_OFFSET), extrapolate: "clamp" }) },
-                  ],
-                  opacity: paneOpacityPos.interpolate({ inputRange: [j - 1, j, j + 1], outputRange: [0, 1, 0], extrapolate: "clamp" }),
-                },
-              ]}
-            >
-              {pane}
-            </Animated.View>
-          );
-        })
-      }
-    </View>
+          return <MealTabPane key={j} pane={pane} index={j} activeIndex={activeIndex} panePos={panePos} paneOpacityPos={paneOpacityPos} />;
+        })}
+      </View>
+    </GestureDetector>
   );
 }
 
