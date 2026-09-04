@@ -143,11 +143,12 @@ export function PaneStack({
 
   // A settle from the previous gesture (release/cancel) can still be in flight when a new drag
   // starts -- cancel it so onUpdate's assignment below isn't fighting a running animation. Its own
-  // named worklet (not inlined into onBegin below) for the same reason settlePosition is its own
+  // named worklet (not inlined into onStart below) for the same reason settlePosition is its own
   // function: a plain top-level `"worklet"` function calls through to the CURRENT `cancelAnimation`
-  // export, where an inline arrow passed straight to `.onBegin()` gets its free variables captured
-  // into the gesture's closure at BUILD time (this render) -- fine for values, but for a function
-  // reference it bakes in whatever `cancelAnimation` was AT BUILD TIME rather than reading it fresh.
+  // export, where an inline arrow passed straight to a gesture builder method gets its free
+  // variables captured into the gesture's closure at BUILD time (this render) -- fine for values,
+  // but for a function reference it bakes in whatever `cancelAnimation` was AT BUILD TIME rather
+  // than reading it fresh.
   function cancelInFlightSettle() {
     "worklet";
     cancelAnimation(panePos);
@@ -156,12 +157,26 @@ export function PaneStack({
 
   const pan = Gesture.Pan()
     // Native equivalent of the old `onMoveShouldSetPanResponder`'s `isHorizontalSwipe` dominance
-    // check: activates only past 10px of horizontal travel, and fails (yields to a pane's own
-    // vertical ScrollView) past 10px of vertical travel first -- gesture ARBITRATION happens
-    // natively now instead of a per-move JS decision, unlike PanResponder.
+    // check: activates only past 10px of horizontal travel -- gesture ARBITRATION happens natively
+    // now instead of a per-move JS decision, unlike PanResponder. Deliberately NOT the exact same
+    // formula (`isHorizontalSwipe` is `|dx| > 10 && |dx| > |dy|`, a diagonal-dominance test --
+    // `activeOffsetX` alone is a plain horizontal-distance threshold, slightly narrower for a
+    // sharply diagonal drag): a `failOffsetY` counterpart was tried and dropped, since it fails the
+    // gesture permanently past 10px of vertical travel regardless of how large `dx` grows
+    // afterward, which is stricter than the old dominance check ever was. `activeOffsetX` alone
+    // already lets RNGH's own native arbitration resolve the vertical-scroll-vs-horizontal-swipe
+    // conflict (a pane's ScrollView only starts scrolling once ITS OWN threshold is crossed; this
+    // gesture doesn't activate until 10px of horizontal travel either, so a vertical scroll that
+    // never accumulates 10px of horizontal drift never contests it).
     .activeOffsetX([-HORIZONTAL_DOMINANCE_PX, HORIZONTAL_DOMINANCE_PX])
-    .failOffsetY([-HORIZONTAL_DOMINANCE_PX, HORIZONTAL_DOMINANCE_PX])
-    .onBegin(() => {
+    // `onStart` (fires on transition to ACTIVE, i.e. once `activeOffsetX` is actually crossed) is
+    // the analog of `onPanResponderGrant` -- NOT `onBegin`. `onBegin` fires at BEGAN, on every
+    // touch-down, before recognition -- capturing `dragStartIndex`/cancelling the in-flight settle
+    // there would fire on every tap or vertical scroll too (anything that touches this View),
+    // and since `onEnd` "will be called only if the handler was previously in the ACTIVE state"
+    // (RNGH's own doc comment on `onEnd`), a touch that never activates would cancel a settle
+    // animation with nothing to ever restore it (no onEnd fires to call `settlePosition` back).
+    .onStart(() => {
       dragStartIndex.value = activeIndex;
       cancelInFlightSettle();
     })

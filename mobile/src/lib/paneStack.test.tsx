@@ -139,16 +139,36 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     return gesture;
   }
 
-  it("(b) onPanResponderGrant stops any in-flight settle animation before a new drag starts", () => {
+  it("(b) onStart (the gesture actually being recognized) stops any in-flight settle animation before a new drag starts", () => {
     const gesture = renderGestureHarness(() => {});
     expect(mockLatestTitlePos).not.toBeNull();
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+
+    expect(cancelAnimationSpy).toHaveBeenCalledWith(mockLatestTitlePos);
+    expect(cancelAnimationSpy).toHaveBeenCalledWith(mockLatestTitleOpacityPos);
+  });
+
+  // Regression guard: `onBegin` fires at BEGAN -- on every touch-down, before `activeOffsetX` is
+  // even crossed -- so a touch that never becomes a swipe (a tap, a vertical scroll that stays
+  // under the horizontal threshold) must NOT disturb an in-flight settle. Only `onStart` (ACTIVE)
+  // should. Getting this wrong (capturing dragStartIndex / cancelling the settle in `onBegin`
+  // instead of `onStart`) is invisible to every other test in this file, since none of them
+  // exercise `onBegin` in isolation without a following `onStart` -- and it's a real regression:
+  // RNGH's own doc comment on `onEnd` says it "will be called only if the handler was previously in
+  // the ACTIVE state", so a gesture that begins and then fails (never reaches ACTIVE) never fires
+  // onEnd either -- nothing would ever restore a settle animation cancelled at BEGAN.
+  it("onBegin alone (a touch that never activates) does not cancel an in-flight settle", () => {
+    const gesture = renderGestureHarness(() => {});
+    cancelAnimationSpy.mockClear();
 
     act(() => {
       gesture().handlers.onBegin?.(panEvent(0));
     });
 
-    expect(cancelAnimationSpy).toHaveBeenCalledWith(mockLatestTitlePos);
-    expect(cancelAnimationSpy).toHaveBeenCalledWith(mockLatestTitleOpacityPos);
+    expect(cancelAnimationSpy).not.toHaveBeenCalled();
   });
 
   it("(a) onPanResponderMove drives the shared position continuously across two in-flight moves, well before any commit", () => {
@@ -156,7 +176,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     const gesture = renderGestureHarness(onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       // Finger moves left half of PANE_DRAG_PX: paneDragPosition(1, -PANE_DRAG_PX/2) = 1.5.
@@ -178,7 +198,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     const gesture = renderGestureHarness(onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       // dx=-45 (below the 60px commit threshold), vx a tiny -0.045px/ms, nowhere near
@@ -203,7 +223,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     const gesture = renderGestureHarness(onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80)); // dx=-80, past the 60px commit threshold
@@ -230,7 +250,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     const gesture = renderGestureHarness(onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80)); // dx=-80, past the 60px commit threshold
@@ -264,7 +284,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     const gesture = renderGestureHarness(onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       // 20px more in 16ms (one frame) -> vx = -20/16 = -1.25px/ms, well past SWIPE_FLING_VELOCITY
@@ -283,7 +303,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     const gesture = renderGestureHarness(onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80)); // past the commit threshold
@@ -326,7 +346,7 @@ describe("PaneStack resolves a swipe against the latest activeIndex", () => {
     const gesture = root.root.findByType(GestureDetector).props.gesture as GestureType;
 
     act(() => {
-      gesture.handlers.onBegin?.(panEvent(0));
+      gesture.handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture.handlers.onUpdate?.(panEvent(-80)); // dx=-80, past the 60px commit threshold

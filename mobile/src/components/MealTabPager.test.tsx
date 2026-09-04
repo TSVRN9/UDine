@@ -21,9 +21,11 @@ import { PANE_DRAG_PX, paneDragPosition, settleDuration } from "../lib/paneShell
 // on this): spying after a render's own worklets were already built left `spy.mock.calls` at 0 for
 // that render's callbacks even though the calls genuinely happened.
 const withTimingSpy = jest.spyOn(Reanimated, "withTiming");
+const cancelAnimationSpy = jest.spyOn(Reanimated, "cancelAnimation");
 
 afterEach(() => {
   withTimingSpy.mockClear();
+  cancelAnimationSpy.mockClear();
 });
 
 function Pane({ label }: { label: string }) {
@@ -163,12 +165,30 @@ describe("MealTabPager non-adjacent jump handling", () => {
 });
 
 describe("MealTabPager swipe gesture wiring", () => {
+  // Regression guard: `onBegin` fires at BEGAN -- on every touch-down, before `activeOffsetX` is
+  // even crossed -- so a touch that never becomes a swipe (a tap, a vertical scroll inside a windowed
+  // pane's own SectionList) must NOT disturb an in-flight settle. Only `onStart` (ACTIVE) should.
+  // See paneStack.test.tsx's identical guard for the full reasoning (RNGH's `onEnd` doc comment:
+  // it "will be called only if the handler was previously in the ACTIVE state", so a gesture that
+  // begins and fails before activating never fires onEnd either -- nothing would ever restore a
+  // settle animation cancelled at BEGAN).
+  it("onBegin alone (a touch that never activates) does not cancel an in-flight settle", () => {
+    const { gesture } = renderGestureHarness(1, fivePanes(), () => {});
+    cancelAnimationSpy.mockClear();
+
+    act(() => {
+      gesture().handlers.onBegin?.(panEvent(0));
+    });
+
+    expect(cancelAnimationSpy).not.toHaveBeenCalled();
+  });
+
   it("(a) onPanResponderMove drives the shared position continuously, well before any commit", () => {
     const onActiveIndexChange = jest.fn();
     const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-PANE_DRAG_PX / 2));
@@ -181,7 +201,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-45)); // below the 60px commit threshold
@@ -198,7 +218,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80)); // past the 60px commit threshold
@@ -219,7 +239,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     const { gesture } = renderGestureHarness(4, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80)); // leftward past the last tab
@@ -236,7 +256,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80));
@@ -259,7 +279,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-25, -1.25)); // vx past SWIPE_FLING_VELOCITY, dx far short of SWIPE_COMMIT_PX
@@ -280,7 +300,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     // other test here does) purely to prove the fallback math still refuses to commit even if they
     // somehow fired.
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80));
@@ -297,7 +317,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange);
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80)); // past the commit threshold
@@ -332,7 +352,7 @@ describe("MealTabPager stale-closure resistance", () => {
     });
 
     act(() => {
-      gesture().handlers.onBegin?.(panEvent(0));
+      gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
       gesture().handlers.onUpdate?.(panEvent(-80)); // leftward past SWIPE_COMMIT_PX -- "commit to the next tab"
