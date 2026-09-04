@@ -9,6 +9,7 @@ import { Stack, type ErrorBoundaryProps } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { registerNotificationHandler } from "../lib/notificationHandler";
 import { colors, fonts, fs, radii, spacing } from "../lib/theme";
 
@@ -37,6 +38,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
+
 const errorStyles = StyleSheet.create({
   screen: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.cream100, padding: spacing(6), gap: spacing(3) },
   title: { fontFamily: fonts.display700, fontSize: fs(22), color: colors.maroon900, textAlign: "center" },
@@ -64,47 +69,52 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.maroon900 },
-        headerTintColor: colors.paper50,
-        headerTitleStyle: { fontFamily: fonts.display700 },
-        contentStyle: { backgroundColor: colors.cream100 },
-        // #281: default header-less. Every route draws its own chrome (back button, title,
-        // insets.top padding) unless it's one of the explicit opt-ins below -- this was the
-        // third time a route was added without a Stack.Screen entry and silently got a native
-        // header on top of its own (#151, #219, #281). A route that's merely absent from this
-        // list, or present without an explicit `headerShown`, now inherits `false` -- safe by
-        // construction, so a fourth route can't repeat the class. See
-        // src/lib/routeHeaderShown.test.ts, which enumerates every route file and guards this
-        // invariant.
-        //
-        // What that guard does NOT check (accepted ceiling, #283 review): headerShown resolving
-        // to false only proves no *native* header renders -- it can't prove the screen drew its
-        // OWN back affordance. That's a per-screen review responsibility, not a static-analysis
-        // one. Known exemptions (no back needed by design, not an oversight): `index` (tab-shell
-        // root).
-        //
-        // MVP cut (temporary, see archive/full-features): rank, friends, friend/[id], add-friends,
-        // add-friend-qr, qr-confirm, notifications, privacy, login, redirect are shelved along with
-        // ranking/friends/account. `export` still needs no entry -- it draws its own chrome and
-        // inherits headerShown: false, same as before.
-        headerShown: false,
-      }}
-    >
-      {/* index (the 3-pane shell), halls/[slug] (Grab 'N Go is its 4th tab now, not its own route
-      -- see grabRouteFor), cafe/[name], and logs draw their own canvas-style headers. */}
-      <Stack.Screen name="index" />
-      <Stack.Screen name="halls/[slug]" />
-      <Stack.Screen name="cafe/[name]" />
-      <Stack.Screen name="logs" />
-      {/* These are the only routes that want the native maroon header instead of their own chrome. */}
-      <Stack.Screen name="filters" options={{ headerShown: true, title: "Dietary Filters" }} />
-      <Stack.Screen name="favorites" options={{ headerShown: true, title: "Favorites" }} />
-      <Stack.Screen name="event-detail" options={{ headerShown: true, title: "Event" }} />
-      <Stack.Screen name="press" options={{ headerShown: true, title: "Press" }} />
-      <Stack.Screen name="newsletter" options={{ headerShown: true, title: "Newsletter" }} />
-      {/* export needs no entry at all: it draws its own chrome and inherits headerShown: false. */}
-    </Stack>
+    // react-native-gesture-handler's one-time root-level requirement (its own setup docs): every
+    // GestureDetector in the tree (PaneStack, MealTabPager) needs an ancestor GestureHandlerRootView
+    // to receive touches at all -- without it, gestures silently fail to recognize on Android.
+    <GestureHandlerRootView style={styles.root}>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.maroon900 },
+          headerTintColor: colors.paper50,
+          headerTitleStyle: { fontFamily: fonts.display700 },
+          contentStyle: { backgroundColor: colors.cream100 },
+          // #281: default header-less. Every route draws its own chrome (back button, title,
+          // insets.top padding) unless it's one of the explicit opt-ins below -- this was the
+          // third time a route was added without a Stack.Screen entry and silently got a native
+          // header on top of its own (#151, #219, #281). A route that's merely absent from this
+          // list, or present without an explicit `headerShown`, now inherits `false` -- safe by
+          // construction, so a fourth route can't repeat the class. See
+          // src/lib/routeHeaderShown.test.ts, which enumerates every route file and guards this
+          // invariant.
+          //
+          // What that guard does NOT check (accepted ceiling, #283 review): headerShown resolving
+          // to false only proves no *native* header renders -- it can't prove the screen drew its
+          // OWN back affordance. That's a per-screen review responsibility, not a static-analysis
+          // one. Known exemptions (no back needed by design, not an oversight): `index` (tab-shell
+          // root).
+          //
+          // MVP cut (temporary, see archive/full-features): rank, friends, friend/[id], add-friends,
+          // add-friend-qr, qr-confirm, notifications, privacy, login, redirect are shelved along with
+          // ranking/friends/account. `export` still needs no entry -- it draws its own chrome and
+          // inherits headerShown: false, same as before.
+          headerShown: false,
+        }}
+      >
+        {/* index (the 3-pane shell), halls/[slug] (Grab 'N Go is its 4th tab now, not its own route
+        -- see grabRouteFor), cafe/[name], and logs draw their own canvas-style headers. */}
+        <Stack.Screen name="index" />
+        <Stack.Screen name="halls/[slug]" />
+        <Stack.Screen name="cafe/[name]" />
+        <Stack.Screen name="logs" />
+        {/* These are the only routes that want the native maroon header instead of their own chrome. */}
+        <Stack.Screen name="filters" options={{ headerShown: true, title: "Dietary Filters" }} />
+        <Stack.Screen name="favorites" options={{ headerShown: true, title: "Favorites" }} />
+        <Stack.Screen name="event-detail" options={{ headerShown: true, title: "Event" }} />
+        <Stack.Screen name="press" options={{ headerShown: true, title: "Press" }} />
+        <Stack.Screen name="newsletter" options={{ headerShown: true, title: "Newsletter" }} />
+        {/* export needs no entry at all: it draws its own chrome and inherits headerShown: false. */}
+      </Stack>
+    </GestureHandlerRootView>
   );
 }

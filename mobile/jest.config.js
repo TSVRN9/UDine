@@ -34,4 +34,30 @@ module.exports = {
   transform: {
     "\\.txt$": require.resolve("jest-expo/src/preset/assetFileTransformer.js"),
   },
+  // react-native-gesture-handler's own jestSetup mocks its native module (RNGestureHandlerModule)
+  // so Gesture.Pan()/GestureDetector can run under jest without a real native runtime, and expose
+  // fireGestureHandler for driving gesture callbacks in tests (see MealTabPager.test.tsx /
+  // paneStack.test.tsx). Same array-merge-with-preset behavior as `transform` above -- this adds a
+  // setup file, it doesn't drop jest-expo's own.
+  setupFiles: [require.resolve("react-native-gesture-handler/jestSetup")],
+  // react-native-reanimated ships a same-shape JS-only mock (synchronous shared values, withTiming/
+  // withSpring resolving immediately, runOnJS as identity) that's REQUIRED under jest -- the real
+  // package reaches for a native TurboModule that doesn't exist in this environment. Same
+  // moduleNameMapper the library's own docs recommend for any RN project's Jest config.
+  moduleNameMapper: {
+    "^react-native-reanimated$": "react-native-reanimated/mock",
+  },
+  // react-native-reanimated's own mock still pulls in a few real (non-mocked) helpers from its own
+  // index, which in turn reach into react-native-worklets' `.native.ts` files -- those touch a
+  // native TurboModule that doesn't exist under jest ("Cannot read properties of undefined
+  // (reading 'loadUnpackersWithCode')" without this). react-native-worklets ships a resolver at a
+  // stable public path for exactly that (steers its own imports away from the `.native` extension
+  // under jest) -- but its guard is a raw substring check on `basedir` that false-positives under
+  // pnpm's isolated node_modules layout (see ./jest.worklets-resolver.js's own doc for the specific
+  // collision this caused: expo-modules-core's pnpm-hashed directory name happens to embed
+  // "react-native-worklets" as one of ITS OWN peer-dependency qualifiers, tripping the same
+  // extension-stripping meant only for worklets' own files and breaking jest-expo's native-view-
+  // manager mocking for unrelated packages like expo-linear-gradient). This local wrapper applies
+  // the same fix, scoped to an actual `node_modules/react-native-worklets/` path segment.
+  resolver: require.resolve("./jest.worklets-resolver.js"),
 };

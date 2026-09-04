@@ -7,10 +7,27 @@
 export const PANE_COUNT = 3;
 export const HOME_PANE_INDEX = 1;
 
-/** `count` defaults to PANE_COUNT (the 3-pane Home shell) -- MealTabPager passes its own tab count
- * explicitly so this same clamp works for a 4/5-tab hall or a 1-tab café without touching any
- * existing PANE_COUNT-implicit call site. */
-export function clampPaneIndex(index: number, count: number = PANE_COUNT): number {
+/** `count` defaults to the 3-pane Home shell -- MealTabPager passes its own tab count explicitly so
+ * this same clamp works for a 4/5-tab hall or a 1-tab café without touching any existing
+ * PANE_COUNT-implicit call site.
+ *
+ * The default is the literal `3`, NOT `PANE_COUNT` -- this function (like `paneIndexForSwipe`/
+ * `paneDragPosition` below) runs as a worklet from PaneStack's gesture callbacks. The worklets
+ * Babel plugin rewrites a worklet's captured outer identifiers into a `const {PANE_COUNT, ...} =
+ * this.__closure` destructuring statement injected at the top of the function BODY -- but a default
+ * PARAMETER expression (`= PANE_COUNT`) is evaluated in JS's own parameter scope, one level
+ * *outside* the body, before that destructuring statement has run. Same rule applies to plain JS
+ * (a default can't see a `const` declared later in the body either); it only bites here because the
+ * plugin's rewrite is what turns `PANE_COUNT` from "a real lexical closure over module scope" (which
+ * would resolve fine) into "a body-local rebinding" (which a default parameter is scoped too early
+ * to see). Confirmed on-device: PaneStack.tsx briefly relied on `= PANE_COUNT` here and crashed with
+ * "Property 'PANE_COUNT' doesn't exist" on the UI thread the moment a real swipe omitted the
+ * argument -- see that fix's own commit. A literal needs no identifier lookup at all, in either
+ * scope, so it can never repeat that crash regardless of what future call site forgets to pass
+ * `count` explicitly. Keep this in sync with `PANE_COUNT` by eye; it's re-exported right above
+ * specifically so a change to one is hard to miss next to the other. */
+export function clampPaneIndex(index: number, count: number = 3): number {
+  "worklet";
   return Math.max(0, Math.min(count - 1, index));
 }
 
@@ -29,6 +46,7 @@ export function paneDelta(paneIndex: number, activeIndex: number): number {
  * `itemIndex - 1` (i.e. activeIndex is one behind this item, so this item's own d = +1),
  * translateX = +offset; at `itemIndex + 1` (d = -1), translateX = -offset. */
 export function paneOffsetRange(offset: number): [number, number, number] {
+  "worklet";
   return [offset, 0, -offset];
 }
 
@@ -68,6 +86,7 @@ export const PANE_DRAG_PX = 140;
  * just "any X movement" -- established pattern in this app for not reaching for a second gesture
  * library. */
 export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boolean {
+  "worklet";
   return Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy);
 }
 
@@ -76,8 +95,11 @@ export function isHorizontalSwipe(dx: number, dy: number, threshold = 10): boole
  * it's traveled -- a fast flick commits, a slow short drag doesn't. Discrete, not proportional: the
  * artboard's transition curves are keyed to an integer activePane flip, not a drag-proportional
  * position (#179). Short of both thresholds, snaps back to the pane you started on. `vx` defaults
- * to 0 (existing distance-only callers/tests are unaffected). */
-export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0, count: number = PANE_COUNT): number {
+ * to 0 (existing distance-only callers/tests are unaffected). `count` defaults to the literal `3`,
+ * not `PANE_COUNT` -- see `clampPaneIndex`'s own doc for why a worklet-called default can't safely
+ * reference an outer identifier. */
+export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0, count: number = 3): number {
+  "worklet";
   const commits = Math.abs(dx) >= SWIPE_COMMIT_PX || Math.abs(vx) >= SWIPE_FLING_VELOCITY;
   if (!commits) return activeIndex;
   // A pure-velocity commit can fire on a drag that's barely moved yet (still well under
@@ -101,8 +123,11 @@ export function paneIndexForSwipe(activeIndex: number, dx: number, vx = 0, count
  * neighboring pane and onto the one past it, which on release then snapped back to the ±1 commit
  * target -- reading as "skip the middle pane, then snap back". Clamping to the drag's own ±1
  * neighborhood first (then still through clampPaneIndex, for the drags that start at an end pane)
- * keeps the visual sweep and the possible commit target in lockstep. */
-export function paneDragPosition(dragStartIndex: number, dx: number, count: number = PANE_COUNT): number {
+ * keeps the visual sweep and the possible commit target in lockstep. `count` defaults to the
+ * literal `3`, not `PANE_COUNT` -- see `clampPaneIndex`'s own doc for why a worklet-called default
+ * can't safely reference an outer identifier. */
+export function paneDragPosition(dragStartIndex: number, dx: number, count: number = 3): number {
+  "worklet";
   const raw = dragStartIndex - dx / PANE_DRAG_PX;
   const neighborClamped = Math.max(dragStartIndex - 1, Math.min(dragStartIndex + 1, raw));
   return clampPaneIndex(neighborClamped, count);
@@ -118,6 +143,7 @@ export function paneDragPosition(dragStartIndex: number, dx: number, count: numb
  * `baseDuration` so an already-arrived release doesn't animate at ~0ms, which reads as a glitchy
  * instant snap rather than a settle. */
 export function settleDuration(from: number, to: number, baseDuration: number): number {
+  "worklet";
   const remaining = Math.min(1, Math.abs(to - from));
   return Math.max(baseDuration * 0.4, baseDuration * remaining);
 }

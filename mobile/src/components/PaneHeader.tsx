@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
+import Reanimated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { Press } from "./Press";
 import { PANE_COUNT, paneOffsetRange } from "../lib/paneShell";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -11,6 +12,15 @@ const TITLES = ["EVENTS", "UDINE", "YOU"] as const;
 // The artboard's own cubic-bezier -- shared by the pane transition (PaneStack) and this header's
 // title crossfade, at their own independently-tuned durations (#179 styling spec).
 const CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
+
+// Hoisted to a module-scope constant (computed once, on the JS thread, at import time) rather than
+// called inline as `fs(28)` inside PaneTitle's `useAnimatedStyle` body below -- same pattern
+// PaneStack.tsx/MealTabPager.tsx already use for their own pane offsets (`PANE_OFFSET = fs(36)` /
+// `fs(24)`). `fs` itself carries no `"worklet"` directive, so calling it directly from inside a
+// worklet crashes at runtime ("Tried to synchronously call a Remote Function") -- jest's mocked
+// `useAnimatedStyle` runs worklet bodies as plain synchronous JS with no UI/JS runtime split, so
+// this class of bug is invisible to the test suite and only surfaces on a real device/emulator.
+const TITLE_OFFSET = fs(28);
 
 // A dot's own tap-target box is spacing(4) = 16dp at the artboard width, shrinking with it on
 // narrower screens (13dp at the 320dp breakpoint). #230 moved the vertical hitSlop from symmetric
@@ -42,19 +52,33 @@ const CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 // just the pixels it happens to produce today).
 export const DOT_HIT_SLOP = { top: 20, bottom: 8, left: 2, right: 2 };
 
+/** One crossfading title -- its own component (not an inline `.map()` callback) so
+ * `useAnimatedStyle` follows the rules of hooks the same way PaneStack.tsx's `StackedPane` /
+ * MealTabPager.tsx's `MealTabPane` do. */
+function PaneTitle({ title, index, titlePos, titleOpacityPos }: { title: string; index: number; titlePos: SharedValue<number>; titleOpacityPos: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(titlePos.value, [index - 1, index, index + 1], paneOffsetRange(TITLE_OFFSET), Extrapolation.CLAMP) }],
+    opacity: interpolate(titleOpacityPos.value, [index - 1, index, index + 1], [0, 1, 0], Extrapolation.CLAMP),
+  }));
+  return (
+    <Reanimated.Text style={[styles.title, style]}>{title}</Reanimated.Text>
+  );
+}
+
 /**
  * Fixed header pinned above the 3-pane strip (#179): pane-position dots top-right, the active
  * screen's title crossfading through one top-left slot. Mounted once by PaneStack, outside the
  * per-pane loop -- it must never remount across pane switches (a remount would restart these
- * Animated.Values and desync the in-flight crossfade from the pane transition it's meant to
- * track). `topInset` is the safe-area top inset; the artboard's 18px assumes no status bar.
+ * shared values and desync the in-flight crossfade from the pane transition it's meant to track).
+ * `topInset` is the safe-area top inset; the artboard's 18px assumes no status bar.
  *
  * #245 item 2: `titlePos`/`titleOpacityPos` are optional so PaneStack can hand down its own
- * gesture-driven Animated.Values -- the title then tracks the drag continuously, same as the
- * panes, instead of only crossfading on commit. Omitted (as in this file's own standalone tests),
+ * gesture-driven shared values -- the title then tracks the drag continuously, same as the panes,
+ * instead of only crossfading on commit. Omitted (as in this file's own standalone tests),
  * PaneHeader falls back to driving its own commit-only values off `activeIndex`. The dot morph
- * always stays commit-only regardless -- it animates width/height/backgroundColor with
- * useNativeDriver: false, which can't share a value with panePos's useNativeDriver: true.
+ * always stays on plain RN `Animated` regardless -- it animates width/height/backgroundColor with
+ * `useNativeDriver: false` (not native-driver-eligible RN properties), so there's no UI-thread
+ * value to share with the panes' Reanimated-driven transform/opacity even if it wanted to.
  *
  * #245 item 3: `styles.container` carries an opaque cream backdrop (matching the artboard, which
  * has no visually distinct header bar -- title/dots just sit on the same page background) so
@@ -70,13 +94,13 @@ export function PaneHeader({
   activeIndex: number;
   onSelectPane: (index: number) => void;
   topInset: number;
-  titlePos?: Animated.Value;
-  titleOpacityPos?: Animated.Value;
+  titlePos?: SharedValue<number>;
+  titleOpacityPos?: SharedValue<number>;
 }) {
   // Initialized to activeIndex (not 0) so mount never animates from a wrong starting pane -- see
   // PaneStack's own comment on the #f5f0d5b landing race this avoids reintroducing by a new cause.
-  const ownTitlePos = useRef(new Animated.Value(activeIndex)).current;
-  const ownTitleOpacityPos = useRef(new Animated.Value(activeIndex)).current;
+  const ownTitlePos = useSharedValue(activeIndex);
+  const ownTitleOpacityPos = useSharedValue(activeIndex);
   const dotPos = useRef(new Animated.Value(activeIndex)).current;
   const titlePos = sharedTitlePos ?? ownTitlePos;
   const titleOpacityPos = sharedTitleOpacityPos ?? ownTitleOpacityPos;
@@ -84,8 +108,8 @@ export function PaneHeader({
   useEffect(() => {
     // When PaneStack shares its own values, it already drives them (continuously, from the drag) --
     // driving ownTitlePos/ownTitleOpacityPos here too would just animate values nothing reads.
-    if (!sharedTitlePos) Animated.timing(ownTitlePos, { toValue: activeIndex, duration: 340, easing: CURVE, useNativeDriver: true }).start();
-    if (!sharedTitleOpacityPos) Animated.timing(ownTitleOpacityPos, { toValue: activeIndex, duration: 260, easing: Easing.ease, useNativeDriver: true }).start();
+    if (!sharedTitlePos) ownTitlePos.value = withTiming(activeIndex, { duration: 340, easing: CURVE });
+    if (!sharedTitleOpacityPos) ownTitleOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
     // width/height/backgroundColor aren't native-driver properties.
     Animated.timing(dotPos, { toValue: activeIndex, duration: 200, easing: Easing.ease, useNativeDriver: false }).start();
   }, [activeIndex, ownTitlePos, ownTitleOpacityPos, dotPos, sharedTitlePos, sharedTitleOpacityPos]);
@@ -94,22 +118,7 @@ export function PaneHeader({
     <View style={[styles.container, { paddingTop: topInset + spacing(4.5) }]} pointerEvents="box-none">
       <View style={styles.titleSlot}>
         {TITLES.map((title, j) => (
-          <Animated.Text
-            key={title}
-            style={[
-              styles.title,
-              {
-                transform: [
-                  {
-                    translateX: titlePos.interpolate({ inputRange: [j - 1, j, j + 1], outputRange: paneOffsetRange(fs(28)), extrapolate: "clamp" }),
-                  },
-                ],
-                opacity: titleOpacityPos.interpolate({ inputRange: [j - 1, j, j + 1], outputRange: [0, 1, 0], extrapolate: "clamp" }),
-              },
-            ]}
-          >
-            {title}
-          </Animated.Text>
+          <PaneTitle key={title} title={title} index={j} titlePos={titlePos} titleOpacityPos={titleOpacityPos} />
         ))}
       </View>
       <View style={styles.dotsRow}>
