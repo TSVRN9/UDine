@@ -13,6 +13,15 @@ const TITLES = ["EVENTS", "UDINE", "YOU"] as const;
 // title crossfade, at their own independently-tuned durations (#179 styling spec).
 const CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 
+// Hoisted to a module-scope constant (computed once, on the JS thread, at import time) rather than
+// called inline as `fs(28)` inside PaneTitle's `useAnimatedStyle` body below -- same pattern
+// PaneStack.tsx/MealTabPager.tsx already use for their own pane offsets (`PANE_OFFSET = fs(36)` /
+// `fs(24)`). `fs` itself carries no `"worklet"` directive, so calling it directly from inside a
+// worklet crashes at runtime ("Tried to synchronously call a Remote Function") -- jest's mocked
+// `useAnimatedStyle` runs worklet bodies as plain synchronous JS with no UI/JS runtime split, so
+// this class of bug is invisible to the test suite and only surfaces on a real device/emulator.
+const TITLE_OFFSET = fs(28);
+
 // A dot's own tap-target box is spacing(4) = 16dp at the artboard width, shrinking with it on
 // narrower screens (13dp at the 320dp breakpoint). #230 moved the vertical hitSlop from symmetric
 // (14 top, 14 bottom) to asymmetric (20 top, 8 bottom) -- top+bottom still sums to 28 either way,
@@ -48,7 +57,7 @@ export const DOT_HIT_SLOP = { top: 20, bottom: 8, left: 2, right: 2 };
  * MealTabPager.tsx's `MealTabPane` do. */
 function PaneTitle({ title, index, titlePos, titleOpacityPos }: { title: string; index: number; titlePos: SharedValue<number>; titleOpacityPos: SharedValue<number> }) {
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateX: interpolate(titlePos.value, [index - 1, index, index + 1], paneOffsetRange(fs(28)), Extrapolation.CLAMP) }],
+    transform: [{ translateX: interpolate(titlePos.value, [index - 1, index, index + 1], paneOffsetRange(TITLE_OFFSET), Extrapolation.CLAMP) }],
     opacity: interpolate(titleOpacityPos.value, [index - 1, index, index + 1], [0, 1, 0], Extrapolation.CLAMP),
   }));
   return (

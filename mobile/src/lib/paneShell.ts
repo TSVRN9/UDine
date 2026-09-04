@@ -30,6 +30,7 @@ export function paneDelta(paneIndex: number, activeIndex: number): number {
  * `itemIndex - 1` (i.e. activeIndex is one behind this item, so this item's own d = +1),
  * translateX = +offset; at `itemIndex + 1` (d = -1), translateX = -offset. */
 export function paneOffsetRange(offset: number): [number, number, number] {
+  "worklet";
   return [offset, 0, -offset];
 }
 

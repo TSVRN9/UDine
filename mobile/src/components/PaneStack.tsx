@@ -12,7 +12,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { PaneHeader } from "./PaneHeader";
-import { paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration } from "../lib/paneShell";
+import { PANE_COUNT, paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration } from "../lib/paneShell";
 import { colors, fs } from "../lib/theme";
 
 // The artboard's own cubic-bezier for the pane transform (#179 styling spec).
@@ -181,7 +181,15 @@ export function PaneStack({
       cancelInFlightSettle();
     })
     .onUpdate((e) => {
-      const dragPos = paneDragPosition(dragStartIndex.value, e.translationX);
+      // PANE_COUNT passed explicitly, not left to paneDragPosition's own `= PANE_COUNT` default --
+      // a default PARAMETER expression referencing a module-scope const is evaluated inside
+      // paneDragPosition's own worklet scope, which does NOT automatically pull in identifiers only
+      // referenced there (confirmed on-device: "Property 'PANE_COUNT' doesn't exist" thrown from the
+      // UI thread the moment this default was actually relied on). A plain identifier referenced in
+      // THIS worklet's own body (this callback) closes over correctly, same as `activeIndex`/
+      // `dragStartIndex` do -- passing it through explicitly is what makes the value reach
+      // paneDragPosition at all.
+      const dragPos = paneDragPosition(dragStartIndex.value, e.translationX, PANE_COUNT);
       panePos.value = dragPos;
       paneOpacityPos.value = dragPos;
     })
@@ -189,14 +197,14 @@ export function PaneStack({
       if (!success) {
         // Cancelled/terminated mid-drag (e.g. a parent gesture/navigation stealing it) -- settle
         // back to where the drag started instead of stranding the pane at a fractional offset.
-        settlePosition(dragStartIndex.value, paneDragPosition(dragStartIndex.value, e.translationX));
+        settlePosition(dragStartIndex.value, paneDragPosition(dragStartIndex.value, e.translationX, PANE_COUNT));
         return;
       }
       // velocityX: a fast short flick commits even under SWIPE_COMMIT_PX of travel (paneIndexForSwipe's
       // own doc) -- the biggest single source of the swipe reading as unresponsive was a quick
       // flick doing nothing at all because it never crossed the distance threshold.
-      const next = paneIndexForSwipe(dragStartIndex.value, e.translationX, e.velocityX);
-      settlePosition(next, paneDragPosition(dragStartIndex.value, e.translationX));
+      const next = paneIndexForSwipe(dragStartIndex.value, e.translationX, e.velocityX, PANE_COUNT);
+      settlePosition(next, paneDragPosition(dragStartIndex.value, e.translationX, PANE_COUNT));
       if (next !== activeIndex) runOnJS(onActiveIndexChange)(next);
     });
 
