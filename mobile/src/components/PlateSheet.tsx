@@ -1,8 +1,9 @@
-import { searchProducts, type DailyMacroTotals, type OffSearchResult } from "@udine/shared";
+import { searchProducts, type DailyMacroTotals, type LogStorage, type OffSearchResult } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
+import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
 import { Button, Stat } from "./ui";
 import { useSheetAnim } from "../lib/sheetAnimation";
@@ -26,8 +27,18 @@ interface Props {
   totals: DailyMacroTotals;
   /** Right-of-title context per the canvas ("Hampshire · Lunch") — the caller's hall name. */
   contextLabel?: string;
+  /** Backs the "search food you've had before" box (getLoggedUmassDishHistory reads this
+   * directly) -- halls/[slug].tsx already owns one SqliteLogStorage instance for logging, passed
+   * straight through rather than duplicated here. */
+  logStorage: LogStorage;
+  /** The hall (or café) currently being browsed -- history search is scoped to this hallTid only,
+   * never cross-hall (see dishHistory.ts's own doc: a re-added dish's hallTid feeds server-synced
+   * hall-completion/favorite-hall derivation, so a cross-hall dedup could misattribute credit
+   * between two halls sharing a dish name -- #344 review). */
+  hallTid: number;
   onStep: (key: string, delta: number) => void;
   onAddOffResult: (result: OffSearchResult) => void;
+  onAddHistoryDish: (dish: HistoryDish) => void;
   onLog: () => void;
   onClose: () => void;
 }
@@ -39,11 +50,25 @@ interface Props {
  * halls/[slug].tsx's note): no route, no _layout.tsx change, no MenuItem serialization through
  * router params.
  */
-export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAddOffResult, onLog, onClose }: Props) {
+export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onAddOffResult, onAddHistoryDish, onLog, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<OffSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  // Second, independent search box (dining halls don't always list everything they serve on a
+  // given day) -- mirrors the OFF search state above exactly, but reads local log history instead
+  // of hitting OpenFoodFacts. Kept as its own state/seq rather than shared with the OFF search so
+  // the two boxes' in-flight requests never race or invalidate each other.
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyResults, setHistoryResults] = useState<HistoryDish[] | null>(null);
+  const [historySearching, setHistorySearching] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const historySearchSeq = useRef(0);
+  // The history section now renders BEFORE the OFF section (see the JSX below) so the OFF box
+  // keeps being the last thing in the sheet and its existing scrollToEnd-on-focus stays correct
+  // unmodified. That means the history box is no longer last, so it needs its own scroll target --
+  // captured via onLayout on its container -- instead of scrollToEnd.
+  const historySectionY = useRef(0);
   const insets = useSafeAreaInsets();
   const { backdropStyle, panelStyle } = useSheetAnim(visible);
   const scrollRef = useRef<ScrollView>(null);
@@ -80,6 +105,12 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
       setResults(null);
       setSearchError(null);
       setQuery("");
+
+      historySearchSeq.current++;
+      setHistorySearching(false);
+      setHistoryResults(null);
+      setHistoryError(null);
+      setHistoryQuery("");
     }
   }, [visible]);
 
@@ -107,6 +138,30 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
     onAddOffResult(result);
     setQuery("");
     setResults(null);
+  }
+
+  async function runHistorySearch() {
+    if (!historyQuery.trim() || historySearching) return;
+    const seq = ++historySearchSeq.current;
+    setHistorySearching(true);
+    setHistoryError(null);
+    try {
+      const found = await getLoggedUmassDishHistory(logStorage, hallTid, historyQuery.trim());
+      if (historySearchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
+      setHistoryResults(found);
+    } catch (e) {
+      if (historySearchSeq.current !== seq) return;
+      setHistoryError(String(e));
+      setHistoryResults(null);
+    } finally {
+      if (historySearchSeq.current === seq) setHistorySearching(false);
+    }
+  }
+
+  function pickHistoryDish(dish: HistoryDish) {
+    onAddHistoryDish(dish);
+    setHistoryQuery("");
+    setHistoryResults(null);
   }
 
   return (
@@ -172,6 +227,57 @@ export function PlateSheet({ visible, plate, totals, contextLabel, onStep, onAdd
               <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
                 {`LOG ${itemCount} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
               </Button>
+
+              {/* Dining halls don't always list everything they serve on a given day -- this
+              searches dishes the user has logged before (from this device's own history), even if
+              today's menu doesn't happen to show them. A second, independent search affordance
+              alongside the OFF box below, not a replacement for it. Rendered BEFORE the OFF
+              section (not last in the sheet) -- onLayout captures where it sits so its onFocus
+              handler can scroll it into view without disturbing the OFF box's own scrollToEnd,
+              which depends on staying last. */}
+              <View style={styles.addSection} onLayout={(e) => (historySectionY.current = e.nativeEvent.layout.y)}>
+                <View style={styles.addHeadingRow}>
+                  <SearchIcon color={colors.maroon600} />
+                  <View style={styles.addHeadingText}>
+                    <Text style={styles.addHeading}>Search something you&apos;ve had before</Text>
+                    <Text style={styles.addSub}>For dishes not showing on today&apos;s menu, but you&apos;ve logged before</Text>
+                  </View>
+                </View>
+                <View style={styles.searchRow}>
+                  <TextInput
+                    style={styles.searchInput}
+                    value={historyQuery}
+                    onChangeText={setHistoryQuery}
+                    placeholder="Search your food history"
+                    placeholderTextColor={withOpacity(colors.ink900, 45)}
+                    onSubmitEditing={runHistorySearch}
+                    // This box isn't the last thing in the sheet (the OFF search below is) --
+                    // scrollToEnd would overshoot past it, so scroll to its own measured position
+                    // instead (see historySectionY's onLayout above).
+                    onFocus={() => scrollRef.current?.scrollTo({ y: historySectionY.current, animated: true })}
+                    returnKeyType="search"
+                  />
+                  <Button variant="secondary" size="sm" onPress={runHistorySearch} disabled={historySearching || !historyQuery.trim()}>
+                    Search
+                  </Button>
+                </View>
+                {historySearching && <ActivityIndicator color={colors.maroon600} style={styles.searchSpinner} />}
+                {historyError && <Text style={styles.searchError}>Search failed: {historyError}</Text>}
+                {historyResults?.length === 0 && !historySearching && <Text style={styles.searchHint}>No matches.</Text>}
+                {historyResults?.map((dish) => (
+                  <View key={`${dish.hallTid}:${dish.dishName}`} style={styles.resultRow}>
+                    <Pressable
+                      style={styles.resultInfo}
+                      onPress={() => pickHistoryDish(dish)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${dish.dishName} from your history to plate`}
+                    >
+                      <Text style={styles.resultLabel}>{dish.dishName}</Text>
+                      <Text style={styles.resultCalories}>{Math.round(dish.nutrition.calories)} cal</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
 
               <View style={styles.addSection}>
                 <View style={styles.addHeadingRow}>

@@ -1,11 +1,10 @@
 // PlateSheet reads safe-area insets; no SafeAreaProvider in this render tree (same fix as
 // PlateBar.test.tsx).
 import renderer, { act } from "react-test-renderer";
-import { Text, TextInput } from "react-native";
-import { searchProducts } from "@udine/shared";
+import { Text } from "react-native";
+import { InMemoryLogStorage, searchProducts, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
 import { menuItemToPlateEntry, offResultToPlateEntry } from "../lib/plate";
-import type { MenuItem } from "@udine/shared";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -20,6 +19,26 @@ const mockedSearchProducts = searchProducts as jest.Mock;
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
+}
+
+// The OFF search box and the new food-history search box are both plain TextInputs -- tests that
+// only care about one of them disambiguate by placeholder rather than relying on findByType(TextInput)
+// returning a single match.
+function offSearchInput(root: renderer.ReactTestRenderer) {
+  return root.root.findByProps({ placeholder: "Search packaged foods" });
+}
+function historySearchInput(root: renderer.ReactTestRenderer) {
+  return root.root.findByProps({ placeholder: "Search your food history" });
+}
+
+function emptyLogStorage(): LogStorage {
+  return new InMemoryLogStorage();
+}
+
+async function logStorageWith(entries: LogEntry[]): Promise<LogStorage> {
+  const storage = new InMemoryLogStorage();
+  for (const entry of entries) await storage.addEntry(entry);
+  return storage;
 }
 
 const DISH: MenuItem = {
@@ -56,8 +75,11 @@ describe("PlateSheet", () => {
           visible
           plate={plate}
           totals={{ date: "x", calories: 600, proteinG: 27, totalCarbG: 72, totalFatG: 24 }}
+          logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
+          onAddHistoryDish={() => {}}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -80,8 +102,11 @@ describe("PlateSheet", () => {
           visible
           plate={plate}
           totals={{ date: "x", calories: 400, proteinG: 18, totalCarbG: 48, totalFatG: 16 }}
+          logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={onStep}
           onAddOffResult={() => {}}
+          onAddHistoryDish={() => {}}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -111,8 +136,11 @@ describe("PlateSheet", () => {
           visible
           plate={[]}
           totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
+          logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={onAddOffResult}
+          onAddHistoryDish={() => {}}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -120,10 +148,10 @@ describe("PlateSheet", () => {
     });
 
     act(() => {
-      root.root.findByType(TextInput).props.onChangeText("trail mix");
+      offSearchInput(root).props.onChangeText("trail mix");
     });
     await act(async () => {
-      root.root.findByType(TextInput).props.onSubmitEditing();
+      offSearchInput(root).props.onSubmitEditing();
     });
 
     expect(mockedSearchProducts).toHaveBeenCalledWith("trail mix");
@@ -137,7 +165,16 @@ describe("PlateSheet", () => {
   });
 
   const ZERO_TOTALS = { date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 };
-  const noopProps = { plate: [], totals: ZERO_TOTALS, onStep: () => {}, onAddOffResult: () => {}, onLog: () => {} };
+  const noopProps = {
+    plate: [],
+    totals: ZERO_TOTALS,
+    logStorage: emptyLogStorage(),
+    hallTid: 1,
+    onStep: () => {},
+    onAddOffResult: () => {},
+    onAddHistoryDish: () => {},
+    onLog: () => {},
+  };
 
   // #198: onSubmitEditing had no guard against a search already in flight -- the Search BUTTON
   // already disables on `searching`, but hitting Enter/the keyboard's search key went straight to
@@ -154,16 +191,16 @@ describe("PlateSheet", () => {
     });
 
     act(() => {
-      root.root.findByType(TextInput).props.onChangeText("a");
+      offSearchInput(root).props.onChangeText("a");
     });
     act(() => {
-      root.root.findByType(TextInput).props.onSubmitEditing(); // search #1 starts, unresolved
+      offSearchInput(root).props.onSubmitEditing(); // search #1 starts, unresolved
     });
     act(() => {
-      root.root.findByType(TextInput).props.onChangeText("banana");
+      offSearchInput(root).props.onChangeText("banana");
     });
     act(() => {
-      root.root.findByType(TextInput).props.onSubmitEditing(); // must be dropped -- #1 is still in flight
+      offSearchInput(root).props.onSubmitEditing(); // must be dropped -- #1 is still in flight
     });
 
     expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
@@ -187,10 +224,10 @@ describe("PlateSheet", () => {
       root = renderer.create(<PlateSheet visible {...noopProps} onClose={() => {}} />);
     });
     act(() => {
-      root.root.findByType(TextInput).props.onChangeText("a");
+      offSearchInput(root).props.onChangeText("a");
     });
     act(() => {
-      root.root.findByType(TextInput).props.onSubmitEditing(); // stale search now in flight
+      offSearchInput(root).props.onSubmitEditing(); // stale search now in flight
     });
 
     // Sheet closes before the stale search resolves...
@@ -203,10 +240,10 @@ describe("PlateSheet", () => {
       root.update(<PlateSheet visible {...noopProps} onClose={() => {}} />);
     });
     act(() => {
-      root.root.findByType(TextInput).props.onChangeText("banana");
+      offSearchInput(root).props.onChangeText("banana");
     });
     await act(async () => {
-      root.root.findByType(TextInput).props.onSubmitEditing();
+      offSearchInput(root).props.onSubmitEditing();
       await Promise.resolve();
     });
     expect(texts(root).flat().join(" ")).toMatch(/Banana Chips/);
@@ -236,18 +273,21 @@ describe("PlateSheet", () => {
           visible
           plate={[]}
           totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
+          logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
+          onAddHistoryDish={() => {}}
           onLog={() => {}}
           onClose={() => {}}
         />,
       );
     });
     act(() => {
-      root.root.findByType(TextInput).props.onChangeText("trail mix");
+      offSearchInput(root).props.onChangeText("trail mix");
     });
     await act(async () => {
-      root.root.findByType(TextInput).props.onSubmitEditing();
+      offSearchInput(root).props.onSubmitEditing();
     });
     expect(texts(root).flat().join(" ")).toMatch(/est\. per 100g/);
 
@@ -261,8 +301,11 @@ describe("PlateSheet", () => {
           visible
           plate={[offResultToPlateEntry({ barcode: "999", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150, servingSize: "per 100g" } })]}
           totals={{ date: "x", calories: 150, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
+          logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
+          onAddHistoryDish={() => {}}
           onLog={() => {}}
           onClose={() => {}}
         />,
@@ -280,13 +323,156 @@ describe("PlateSheet", () => {
           visible
           plate={plate}
           totals={{ date: "x", calories: 200, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
+          logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
+          onAddHistoryDish={() => {}}
           onLog={() => {}}
           onClose={() => {}}
         />,
       );
     });
     expect(texts(root).flat().join(" ")).not.toMatch(/est\./);
+  });
+
+  describe("food-history search (dishes logged before, not necessarily on today's menu)", () => {
+    function historyEntry(dishName: string, hallTid: number, calories: number, loggedAt: string, servings = 1): LogEntry {
+      return {
+        id: `${dishName}-${loggedAt}`,
+        loggedAt,
+        source: { type: "umass-menu", dishName, hallTid },
+        servings,
+        nutrition: { ...DISH.nutrition, calories },
+      };
+    }
+
+    it("searches local log history on submit and stages a picked dish via onAddHistoryDish, not onAddOffResult", async () => {
+      const storage = await logStorageWith([historyEntry("Falafel Wrap", 3, 350, "2026-08-01T12:00:00.000Z")]);
+      const onAddHistoryDish = jest.fn();
+      const onAddOffResult = jest.fn();
+      let root!: renderer.ReactTestRenderer;
+      act(() => {
+        root = renderer.create(
+          <PlateSheet
+            visible
+            plate={[]}
+            totals={ZERO_TOTALS}
+            logStorage={storage}
+            hallTid={3}
+            onStep={() => {}}
+            onAddOffResult={onAddOffResult}
+            onAddHistoryDish={onAddHistoryDish}
+            onLog={() => {}}
+            onClose={() => {}}
+          />,
+        );
+      });
+
+      act(() => {
+        historySearchInput(root).props.onChangeText("falafel");
+      });
+      await act(async () => {
+        historySearchInput(root).props.onSubmitEditing();
+      });
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Falafel Wrap/);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Add Falafel Wrap from your history to plate" }).props.onPress();
+      });
+      expect(onAddHistoryDish).toHaveBeenCalledWith({ dishName: "Falafel Wrap", hallTid: 3, nutrition: { ...DISH.nutrition, calories: 350 } });
+      expect(onAddOffResult).not.toHaveBeenCalled();
+    });
+
+    it("never surfaces an OFF-sourced past log entry from the history search", async () => {
+      const storage: LogStorage = new InMemoryLogStorage();
+      await storage.addEntry({
+        id: "off-1",
+        loggedAt: "2026-08-01T12:00:00.000Z",
+        source: { type: "off", barcode: "123", productName: "Trail Mix" },
+        servings: 1,
+        nutrition: { ...DISH.nutrition, calories: 150 },
+      });
+      let root!: renderer.ReactTestRenderer;
+      act(() => {
+        root = renderer.create(
+          <PlateSheet
+            visible
+            plate={[]}
+            totals={ZERO_TOTALS}
+            logStorage={storage}
+            hallTid={1}
+            onStep={() => {}}
+            onAddOffResult={() => {}}
+            onAddHistoryDish={() => {}}
+            onLog={() => {}}
+            onClose={() => {}}
+          />,
+        );
+      });
+
+      act(() => {
+        historySearchInput(root).props.onChangeText("trail");
+      });
+      await act(async () => {
+        historySearchInput(root).props.onSubmitEditing();
+      });
+
+      const body = texts(root).flat().join(" ");
+      expect(body).not.toMatch(/Trail Mix/);
+      expect(body).toMatch(/No matches/);
+    });
+
+    it("dedupes by dish name, surfacing only the most recent nutrition snapshot", async () => {
+      const storage = await logStorageWith([
+        historyEntry("Pizza", 1, 999, "2026-08-01T12:00:00.000Z", 3),
+        historyEntry("Pizza", 1, 200, "2026-08-05T12:00:00.000Z", 1),
+      ]);
+      let root!: renderer.ReactTestRenderer;
+      act(() => {
+        root = renderer.create(<PlateSheet visible {...noopProps} logStorage={storage} onClose={() => {}} />);
+      });
+
+      act(() => {
+        historySearchInput(root).props.onChangeText("pizza");
+      });
+      await act(async () => {
+        historySearchInput(root).props.onSubmitEditing();
+      });
+
+      const body = texts(root).flat().join(" ");
+      const pizzaRows = texts(root)
+        .flat()
+        .filter((t) => typeof t === "string" && t.includes("Pizza"));
+      expect(pizzaRows).toHaveLength(1);
+      expect(body).toMatch(/200/);
+      expect(body).not.toMatch(/999/);
+    });
+
+    // #344 review: dedup used to be hall-agnostic -- a dish logged at a different hall than the one
+    // currently open could still surface and, if picked, would restage against ITS original hallTid
+    // rather than the hall being browsed. That hallTid feeds server-synced hall-completion/
+    // favorite-hall derivation (#94), so this must never cross halls.
+    it("never surfaces a dish logged at a different hall than the one currently being browsed", async () => {
+      const storage = await logStorageWith([historyEntry("Pizza", 2, 200, "2026-08-01T12:00:00.000Z")]);
+      let root!: renderer.ReactTestRenderer;
+      act(() => {
+        // hallTid 1 -- the logged entry above is at hallTid 2.
+        root = renderer.create(<PlateSheet visible {...noopProps} logStorage={storage} hallTid={1} onClose={() => {}} />);
+      });
+
+      act(() => {
+        historySearchInput(root).props.onChangeText("pizza");
+      });
+      await act(async () => {
+        historySearchInput(root).props.onSubmitEditing();
+      });
+
+      const body = texts(root).flat().join(" ");
+      expect(body).not.toMatch(/Pizza/);
+      expect(body).toMatch(/No matches/);
+    });
   });
 });
