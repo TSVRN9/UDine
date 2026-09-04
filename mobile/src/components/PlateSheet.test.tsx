@@ -76,6 +76,7 @@ describe("PlateSheet", () => {
           plate={plate}
           totals={{ date: "x", calories: 600, proteinG: 27, totalCarbG: 72, totalFatG: 24 }}
           logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
           onAddHistoryDish={() => {}}
@@ -102,6 +103,7 @@ describe("PlateSheet", () => {
           plate={plate}
           totals={{ date: "x", calories: 400, proteinG: 18, totalCarbG: 48, totalFatG: 16 }}
           logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={onStep}
           onAddOffResult={() => {}}
           onAddHistoryDish={() => {}}
@@ -135,6 +137,7 @@ describe("PlateSheet", () => {
           plate={[]}
           totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
           logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={onAddOffResult}
           onAddHistoryDish={() => {}}
@@ -166,6 +169,7 @@ describe("PlateSheet", () => {
     plate: [],
     totals: ZERO_TOTALS,
     logStorage: emptyLogStorage(),
+    hallTid: 1,
     onStep: () => {},
     onAddOffResult: () => {},
     onAddHistoryDish: () => {},
@@ -270,6 +274,7 @@ describe("PlateSheet", () => {
           plate={[]}
           totals={{ date: "x", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 }}
           logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
           onAddHistoryDish={() => {}}
@@ -297,6 +302,7 @@ describe("PlateSheet", () => {
           plate={[offResultToPlateEntry({ barcode: "999", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150, servingSize: "per 100g" } })]}
           totals={{ date: "x", calories: 150, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
           logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
           onAddHistoryDish={() => {}}
@@ -318,6 +324,7 @@ describe("PlateSheet", () => {
           plate={plate}
           totals={{ date: "x", calories: 200, proteinG: 9, totalCarbG: 24, totalFatG: 8 }}
           logStorage={emptyLogStorage()}
+          hallTid={1}
           onStep={() => {}}
           onAddOffResult={() => {}}
           onAddHistoryDish={() => {}}
@@ -352,6 +359,7 @@ describe("PlateSheet", () => {
             plate={[]}
             totals={ZERO_TOTALS}
             logStorage={storage}
+            hallTid={3}
             onStep={() => {}}
             onAddOffResult={onAddOffResult}
             onAddHistoryDish={onAddHistoryDish}
@@ -395,6 +403,7 @@ describe("PlateSheet", () => {
             plate={[]}
             totals={ZERO_TOTALS}
             logStorage={storage}
+            hallTid={1}
             onStep={() => {}}
             onAddOffResult={() => {}}
             onAddHistoryDish={() => {}}
@@ -440,6 +449,30 @@ describe("PlateSheet", () => {
       expect(pizzaRows).toHaveLength(1);
       expect(body).toMatch(/200/);
       expect(body).not.toMatch(/999/);
+    });
+
+    // #344 review: dedup used to be hall-agnostic -- a dish logged at a different hall than the one
+    // currently open could still surface and, if picked, would restage against ITS original hallTid
+    // rather than the hall being browsed. That hallTid feeds server-synced hall-completion/
+    // favorite-hall derivation (#94), so this must never cross halls.
+    it("never surfaces a dish logged at a different hall than the one currently being browsed", async () => {
+      const storage = await logStorageWith([historyEntry("Pizza", 2, 200, "2026-08-01T12:00:00.000Z")]);
+      let root!: renderer.ReactTestRenderer;
+      act(() => {
+        // hallTid 1 -- the logged entry above is at hallTid 2.
+        root = renderer.create(<PlateSheet visible {...noopProps} logStorage={storage} hallTid={1} onClose={() => {}} />);
+      });
+
+      act(() => {
+        historySearchInput(root).props.onChangeText("pizza");
+      });
+      await act(async () => {
+        historySearchInput(root).props.onSubmitEditing();
+      });
+
+      const body = texts(root).flat().join(" ");
+      expect(body).not.toMatch(/Pizza/);
+      expect(body).toMatch(/No matches/);
     });
   });
 });

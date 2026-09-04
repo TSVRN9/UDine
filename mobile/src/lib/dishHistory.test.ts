@@ -33,19 +33,32 @@ describe("getLoggedUmassDishHistory", () => {
       { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Pizza", hallTid: 1 }, servings: 1, nutrition: nutrition(200) },
       { id: "2", loggedAt: "2026-08-02T00:00:00.000Z", source: { type: "off", barcode: "123", productName: "Trail Mix" }, servings: 1, nutrition: nutrition(150) },
     ]);
-    const results = await getLoggedUmassDishHistory(storage, "");
+    const results = await getLoggedUmassDishHistory(storage, 1, "");
     expect(results).toHaveLength(1);
     expect(results[0].dishName).toBe("Pizza");
   });
 
-  it("dedupes by dish name, keeping the most recent occurrence's nutrition -- not whichever entry happens to come last in storage order", async () => {
+  // #344 review: dedup used to be hall-agnostic (by dishName alone, across every hall), which meant
+  // a staged HistoryDish could carry forward a *different* hall's hallTid than the one the user is
+  // currently browsing -- and that hallTid feeds server-synced hall-completion/favorite-hall
+  // derivation (#94), so two halls sharing an identical dish name could misattribute credit. Search
+  // is now scoped to one hall at a time.
+  it("never surfaces a dish logged at a different hall than the one being searched", async () => {
+    const storage = fakeStorage([
+      { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Pizza", hallTid: 2 }, servings: 1, nutrition: nutrition(200) },
+    ]);
+    const results = await getLoggedUmassDishHistory(storage, 1, "pizza");
+    expect(results).toHaveLength(0);
+  });
+
+  it("dedupes by dish name within the given hall, keeping the most recent occurrence's nutrition -- not whichever entry happens to come last in storage order", async () => {
     const storage = fakeStorage([
       // Deliberately out of chronological order in the array itself -- a correct implementation
       // must compare loggedAt, not just overwrite-by-iteration-order, to prove real dedup logic.
       { id: "2", loggedAt: "2026-08-05T00:00:00.000Z", source: { type: "umass-menu", dishName: "Pizza", hallTid: 1 }, servings: 1, nutrition: nutrition(200) },
       { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Pizza", hallTid: 1 }, servings: 3, nutrition: nutrition(999) },
     ]);
-    const results = await getLoggedUmassDishHistory(storage, "");
+    const results = await getLoggedUmassDishHistory(storage, 1, "");
     expect(results).toHaveLength(1);
     expect(results[0].nutrition.calories).toBe(200);
   });
@@ -55,7 +68,7 @@ describe("getLoggedUmassDishHistory", () => {
       { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Chicken Parm", hallTid: 1 }, servings: 1, nutrition: nutrition(200) },
       { id: "2", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Salad", hallTid: 1 }, servings: 1, nutrition: nutrition(50) },
     ]);
-    const results = await getLoggedUmassDishHistory(storage, "CHICK");
+    const results = await getLoggedUmassDishHistory(storage, 1, "CHICK");
     expect(results.map((r) => r.dishName)).toEqual(["Chicken Parm"]);
   });
 
@@ -63,7 +76,7 @@ describe("getLoggedUmassDishHistory", () => {
     const storage = fakeStorage([
       { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Pizza", hallTid: 3 }, servings: 1, nutrition: nutrition(200) },
     ]);
-    const [dish] = await getLoggedUmassDishHistory(storage, "pizza");
+    const [dish] = await getLoggedUmassDishHistory(storage, 3, "pizza");
     expect(dish.hallTid).toBe(3);
     expect(dish.nutrition.calories).toBe(200);
   });

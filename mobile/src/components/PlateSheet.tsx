@@ -1,4 +1,4 @@
-import { hallNameFor, searchProducts, type DailyMacroTotals, type LogStorage, type OffSearchResult } from "@udine/shared";
+import { searchProducts, type DailyMacroTotals, type LogStorage, type OffSearchResult } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +31,11 @@ interface Props {
    * directly) -- halls/[slug].tsx already owns one SqliteLogStorage instance for logging, passed
    * straight through rather than duplicated here. */
   logStorage: LogStorage;
+  /** The hall (or café) currently being browsed -- history search is scoped to this hallTid only,
+   * never cross-hall (see dishHistory.ts's own doc: a re-added dish's hallTid feeds server-synced
+   * hall-completion/favorite-hall derivation, so a cross-hall dedup could misattribute credit
+   * between two halls sharing a dish name -- #344 review). */
+  hallTid: number;
   onStep: (key: string, delta: number) => void;
   onAddOffResult: (result: OffSearchResult) => void;
   onAddHistoryDish: (dish: HistoryDish) => void;
@@ -45,7 +50,7 @@ interface Props {
  * halls/[slug].tsx's note): no route, no _layout.tsx change, no MenuItem serialization through
  * router params.
  */
-export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, onStep, onAddOffResult, onAddHistoryDish, onLog, onClose }: Props) {
+export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onAddOffResult, onAddHistoryDish, onLog, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<OffSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -141,7 +146,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, o
     setHistorySearching(true);
     setHistoryError(null);
     try {
-      const found = await getLoggedUmassDishHistory(logStorage, historyQuery.trim());
+      const found = await getLoggedUmassDishHistory(logStorage, hallTid, historyQuery.trim());
       if (historySearchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
       setHistoryResults(found);
     } catch (e) {
@@ -268,9 +273,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, o
                       accessibilityLabel={`Add ${dish.dishName} from your history to plate`}
                     >
                       <Text style={styles.resultLabel}>{dish.dishName}</Text>
-                      <Text style={styles.resultCalories}>
-                        {hallNameFor(dish.hallTid)} · {Math.round(dish.nutrition.calories)} cal
-                      </Text>
+                      <Text style={styles.resultCalories}>{Math.round(dish.nutrition.calories)} cal</Text>
                     </Pressable>
                   </View>
                 ))}

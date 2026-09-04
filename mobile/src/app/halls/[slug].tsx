@@ -767,6 +767,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         totals={totals}
         contextLabel={hall.name}
         logStorage={storage}
+        hallTid={hall.tid}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onAddOffResult={addOffResult}
         onAddHistoryDish={addHistoryDish}
