@@ -1,6 +1,7 @@
 import type { MenuItem, NutritionFacts, OffSearchResult } from "@udine/shared";
 import {
   addOrIncrement,
+  historyDishToPlateEntry,
   isEstimatedServing,
   listBottomPadding,
   menuItemToPlateEntry,
@@ -13,6 +14,7 @@ import {
   totalPlatePrice,
   type PlateEntry,
 } from "./plate";
+import type { HistoryDish } from "./dishHistory";
 
 function nutrition(calories: number): NutritionFacts {
   return {
@@ -210,6 +212,28 @@ describe("offResultToPlateEntry", () => {
     expect(entry.count).toBe(1);
     expect(entry.label).toBe("Chips");
     expect(entry.key).toBe(plateKeyFor({ type: "off", barcode: "999", productName: "Chips" }));
+  });
+});
+
+describe("historyDishToPlateEntry", () => {
+  // #339-followup finding: LogEntry.nutrition is a per-serving snapshot -- toLogEntries stores
+  // p.nutrition unchanged and computeDailyTotals is the thing that multiplies by servings (see
+  // shared/src/macros.ts). A history-dish conversion must carry that per-serving value straight
+  // through, NOT divide it by (or multiply it by) however many servings were logged historically --
+  // doing so would silently double or halve macros on re-add with nothing else catching it.
+  it("carries the historical nutrition value through unchanged and resets count to 1, regardless of how many servings were originally logged", () => {
+    const dish: HistoryDish = { dishName: "Pizza", hallTid: 1, nutrition: nutrition(200) };
+    const entry = historyDishToPlateEntry(dish);
+    expect(entry.nutrition.calories).toBe(200); // unchanged -- not 600 (x3) or 66.67 (/3)
+    expect(entry.count).toBe(1); // reset default, never carries over the original historical servings
+  });
+
+  it("keys, labels, and sources a history dish the same way a fresh menu dish from that hall would", () => {
+    const dish: HistoryDish = { dishName: "Pizza", hallTid: 1, nutrition: nutrition(200) };
+    const entry = historyDishToPlateEntry(dish);
+    expect(entry.key).toBe(plateKeyFor({ type: "umass-menu", dishName: "Pizza", hallTid: 1 }));
+    expect(entry.label).toBe("Pizza");
+    expect(entry.source).toEqual({ type: "umass-menu", dishName: "Pizza", hallTid: 1 });
   });
 });
 

@@ -42,10 +42,12 @@ import { deriveCafeMealTabs } from "../../lib/cafeMenu";
 import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
+import type { HistoryDish } from "../../lib/dishHistory";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
 import {
   addOrIncrement,
+  historyDishToPlateEntry,
   listBottomPadding,
   menuItemToPlateEntry,
   offResultToPlateEntry,
@@ -367,6 +369,10 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
 
   function addOffResult(result: OffSearchResult) {
     setPlate((p) => addOrIncrement(p, offResultToPlateEntry(result)));
+  }
+
+  function addHistoryDish(dish: HistoryDish) {
+    setPlate((p) => addOrIncrement(p, historyDishToPlateEntry(dish)));
   }
 
   async function logPlate() {
@@ -760,8 +766,10 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         plate={plate}
         totals={totals}
         contextLabel={hall.name}
+        logStorage={storage}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onAddOffResult={addOffResult}
+        onAddHistoryDish={addHistoryDish}
         onLog={logPlate}
         onClose={() => setSheetOpen(false)}
       />
