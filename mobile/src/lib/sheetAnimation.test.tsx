@@ -149,11 +149,16 @@ describe("useDraggableSheet modal timing", () => {
     expect(latestModalVisible).toBe(true);
   });
 
-  it("open forces the shared value back to closed first (cancels any in-flight animation)", () => {
+  // Mirrors the exact invariant useSheetAnim's own suite pinned on the open side (a sheet mounted
+  // already-`visible` -- CafeSheet's `cafeSheetLoc`/`cafeSheetVisible` set in the same handler --
+  // must still start its reveal from closed, not skip straight to open). Not just "cancelAnimation
+  // was called" -- the actual reveal-to-1 animation must follow it, on the very first render.
+  it("a sheet mounted already-visible still cancels first and reveals via a real 0 -> 1 animation", () => {
     act(() => {
       TestRenderer.create(<Harness visible={true} onClose={() => {}} />);
     });
-    expect(cancelAnimationSpy).toHaveBeenCalled();
+    expect(cancelAnimationSpy).toHaveBeenCalledTimes(1);
+    expect(withTimingCalls.map((c) => c.toValue)).toContain(1);
   });
 });
 
