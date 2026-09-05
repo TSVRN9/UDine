@@ -1,12 +1,14 @@
 import { searchProducts, type DailyMacroTotals, type LogStorage, type OffSearchResult } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
 import { Button, Stat } from "./ui";
-import { useSheetAnim } from "../lib/sheetAnimation";
+import { useDraggableSheet } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /** Magnifying-glass icon for the "Add something else" entry (artboard spec) -- a real
@@ -70,7 +72,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
   // captured via onLayout on its container -- instead of scrollToEnd.
   const historySectionY = useRef(0);
   const insets = useSafeAreaInsets();
-  const { backdropStyle, panelStyle } = useSheetAnim(visible);
+  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose);
   const scrollRef = useRef<ScrollView>(null);
   // KeyboardAvoidingView's automatic height-tracking doesn't reach content mounted inside an
   // Android RN <Modal> -- confirmed on-device: with `behavior="height"` set, the sheet never
@@ -165,8 +167,11 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
   }
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose}>
+      {/* RNGH's own documented caveat: a root-level GestureHandlerRootView (mobile/src/app/_layout.tsx)
+      doesn't reliably propagate into a Modal's separate native host/window, so each sheet nests its
+      own here -- see this PR's own body for what the on-device spike confirmed. */}
+      <GestureHandlerRootView style={styles.backdrop}>
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
           <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
         </Animated.View>
@@ -176,9 +181,11 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
         manually instead of via that component. */}
         <View style={{ marginBottom: keyboardHeight }}>
           <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
-            <View style={styles.handleRow}>
-              <View style={styles.handle} />
-            </View>
+            <GestureDetector gesture={gesture}>
+              <View style={styles.handleRow}>
+                <View style={styles.handle} />
+              </View>
+            </GestureDetector>
             <View style={styles.header}>
               <Text style={styles.title}>Your Plate</Text>
               {contextLabel ? <Text style={styles.context}>{contextLabel}</Text> : null}
@@ -328,7 +335,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
             </ScrollView>
           </Animated.View>
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -344,7 +351,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(5),
     maxHeight: fs(640),
   },
-  handleRow: { alignItems: "center", marginBottom: spacing(2.5) },
+  // paddingVertical bumped from a bare 0 to spacing(5) (~20dp a side): the 40x4 pill alone was far
+  // too small a real touch/drag target -- ~44dp of touchable height (handle + padding) is the usual
+  // minimum for a draggable handle.
+  handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(2.5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: spacing(3) },
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
