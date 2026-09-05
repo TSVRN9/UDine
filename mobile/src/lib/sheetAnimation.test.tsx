@@ -1,63 +1,260 @@
-// Reveal-doesn't-replay bug (see sheetAnimation.ts's doc comment for the full mechanism): RN's
-// Modal unmounts its children on close, and a native-driven Animated.Value's JS-side `_value`
-// never gets updated by the animation itself -- only by a detach reading the real (still-open)
-// native value back in. Jest's native-driver mock can't reproduce that on-device detach/reseed
-// race (see the PR body), so this test instead pins the invariant the fix guarantees: a sheet
-// mounted already-`visible` (CafeSheet's case -- `cafeSheetLoc`/`cafeSheetVisible` are set in the
-// same handler) must still start its reveal from the closed position, not already-open.
-import React, { useEffect } from "react";
+import { useEffect } from "react";
+import { View } from "react-native";
+import { GestureDetector } from "react-native-gesture-handler";
+import type { GestureType, GestureUpdateEvent } from "react-native-gesture-handler";
+import * as Reanimated from "react-native-reanimated";
 import TestRenderer, { act } from "react-test-renderer";
-import { useSheetAnim } from "./sheetAnimation";
+import { SHEET_DISMISS_PX, SHEET_FLING_VELOCITY, shouldDismissSheet, useDraggableSheet } from "./sheetAnimation";
 
-let latestTranslateY: any = null;
-let latestAnim: any = null;
+// Same reasoning as paneStack.test.tsx's own comment on this exact pattern: react-native-worklets'
+// Babel plugin bakes a worklet's free variables (imported reanimated functions included) into a
+// `__closure` object populated ONCE, at gesture-build time (render time) -- so `jest.spyOn` must
+// exist before any render, at module scope, or the very first render's callbacks close over the
+// real (unspied) function instead.
+//
+// A full mockImplementation, not just a spy on the real mock's passthrough: the shipped
+// react-native-reanimated/mock's own `withTiming` invokes its callback SYNCHRONOUSLY with
+// `finished: true` on every call (see node_modules/react-native-reanimated/src/mock.ts), which
+// would make the close path's `modalVisible` flip false in the same tick as the close animation
+// starts -- exactly indistinguishable from the pre-fix bug this hook exists to close. Capturing the
+// callback instead of auto-firing it is what lets these tests actually drive "the close animation
+// hasn't finished yet" as its own observable state.
+const withTimingCalls: { toValue: number; callback?: (finished?: boolean) => void }[] = [];
+const withTimingSpy = jest
+  .spyOn(Reanimated, "withTiming")
+  .mockImplementation(((toValue: number, _config?: unknown, callback?: (finished?: boolean) => void) => {
+    withTimingCalls.push({ toValue, callback });
+    return toValue as unknown as ReturnType<typeof Reanimated.withTiming>;
+  }) as typeof Reanimated.withTiming);
+const cancelAnimationSpy = jest.spyOn(Reanimated, "cancelAnimation");
 
-function Harness({ visible }: { visible: boolean }) {
-  const { panelStyle, backdropStyle } = useSheetAnim(visible);
-  const translateY = (panelStyle.transform[0] as any).translateY;
-  const anim = backdropStyle.opacity; // `anim` itself -- backdropStyle reads it undecorated
+afterEach(() => {
+  withTimingSpy.mockClear();
+  cancelAnimationSpy.mockClear();
+  withTimingCalls.length = 0;
+});
+
+let latestModalVisible = false;
+
+function Harness({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { gesture, modalVisible } = useDraggableSheet(visible, onClose);
   useEffect(() => {
-    latestTranslateY = translateY;
-    latestAnim = anim;
-  }, [translateY, anim]);
-  return null;
+    latestModalVisible = modalVisible;
+  });
+  return (
+    <GestureDetector gesture={gesture}>
+      <View />
+    </GestureDetector>
+  );
 }
 
-function readValue() {
-  return (latestTranslateY as any).__getValue();
+// Y-axis analog of paneStack.test.tsx's own `panEvent` helper -- translationY/velocityY are what
+// this hook's vertical drag reads; the other fields are just shape filler for the event type.
+function panEvent(translationY: number, velocityY = 0): GestureUpdateEvent<never> {
+  return {
+    translationX: 0,
+    translationY,
+    velocityX: 0,
+    velocityY,
+    x: 0,
+    y: 0,
+    absoluteX: 0,
+    absoluteY: 0,
+    numberOfPointers: 1,
+    stylusData: undefined,
+  } as unknown as GestureUpdateEvent<never>;
 }
 
-describe("useSheetAnim", () => {
-  it("starts a sheet mounted already-visible from the closed position (panelTravel), not pre-opened", () => {
-    act(() => {
-      TestRenderer.create(<Harness visible={true} />);
-    });
-    // Before the fix, the Animated.Value was seeded via `new Animated.Value(visible ? 1 : 0)`,
-    // i.e. 1 (open) at construction -- translateY read 0 (fully open) even though no reveal
-    // animation had run yet.
-    expect(readValue()).toBe(400);
+describe("shouldDismissSheet", () => {
+  it("does not commit under both thresholds", () => {
+    expect(shouldDismissSheet(SHEET_DISMISS_PX - 1, SHEET_FLING_VELOCITY - 1)).toBe(false);
   });
 
-  it("resets a stale open value back to closed before animating open (the detach-reseed case)", () => {
-    let root: any;
-    act(() => {
-      root = TestRenderer.create(<Harness visible={false} />);
-    });
-    // Simulate exactly what a native-driver detach leaves behind on close (see sheetAnimation.ts's
-    // doc comment): `anim`'s JS-side `_value` stuck at the open value even though the sheet is
-    // closed, because the animation never got to sync a real 0 back into it.
-    act(() => {
-      latestAnim.setValue(1);
-    });
-    expect(readValue()).toBe(0); // sanity: stale-open is in effect (panelTravel * (1 - 1) = 0)
+  it("commits once the drag distance reaches SHEET_DISMISS_PX, even at zero velocity", () => {
+    expect(shouldDismissSheet(SHEET_DISMISS_PX, 0)).toBe(true);
+  });
 
-    // Reopen. Without the `if (visible) anim.setValue(0)` reset, `Animated.timing` would animate
-    // 1 -> 1 (no motion) exactly like the real bug -- useNativeDriver never updates `_value`
-    // mid-animation (see sheetAnimation.ts's doc comment / the PR body), so this read is a direct
-    // check of the reset line's own effect, not of the animation "finishing".
+  it("commits on a fast flick well short of SHEET_DISMISS_PX, once velocity reaches SHEET_FLING_VELOCITY", () => {
+    expect(shouldDismissSheet(5, SHEET_FLING_VELOCITY)).toBe(true);
+  });
+
+  it("does not commit just short of the velocity threshold with negligible distance", () => {
+    expect(shouldDismissSheet(5, SHEET_FLING_VELOCITY - 1)).toBe(false);
+  });
+});
+
+describe("useDraggableSheet modal timing", () => {
+  it("flips modalVisible true immediately when visible becomes true (open is never delayed)", () => {
+    let root!: TestRenderer.ReactTestRenderer;
     act(() => {
-      root.update(<Harness visible={true} />);
+      root = TestRenderer.create(<Harness visible={false} onClose={() => {}} />);
     });
-    expect(readValue()).toBe(400);
+    expect(latestModalVisible).toBe(false);
+
+    act(() => {
+      root.update(<Harness visible={true} onClose={() => {}} />);
+    });
+    expect(latestModalVisible).toBe(true);
+  });
+
+  // The actual bug: RN's <Modal visible={false}> unmounts synchronously, so the fix must keep the
+  // Modal mounted (modalVisible still true) for the whole close animation, only flipping false from
+  // the animation's own completion callback.
+  it("keeps modalVisible true until the close animation's completion callback fires", () => {
+    let root!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      root = TestRenderer.create(<Harness visible={true} onClose={() => {}} />);
+    });
+    expect(latestModalVisible).toBe(true);
+
+    act(() => {
+      root.update(<Harness visible={false} onClose={() => {}} />);
+    });
+    // Not yet -- the close withTiming was started but its callback (captured below) hasn't run.
+    expect(latestModalVisible).toBe(true);
+
+    const closeCall = withTimingCalls[withTimingCalls.length - 1];
+    expect(closeCall.toValue).toBe(0);
+    act(() => {
+      closeCall.callback?.(true);
+    });
+    expect(latestModalVisible).toBe(false);
+  });
+
+  // Reveal-doesn't-replay, close-side analog of sheetAnimation.ts's own documented open-side bug: a
+  // stale close callback firing after a reopen must not hide the reopened sheet.
+  it("does not hide a reopened sheet when a stale close callback fires after reopening", () => {
+    let root!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      root = TestRenderer.create(<Harness visible={true} onClose={() => {}} />);
+    });
+
+    act(() => {
+      root.update(<Harness visible={false} onClose={() => {}} />);
+    });
+    const staleCloseCall = withTimingCalls[withTimingCalls.length - 1];
+    expect(latestModalVisible).toBe(true);
+
+    // Reopen before the close animation's callback ever fires.
+    act(() => {
+      root.update(<Harness visible={true} onClose={() => {}} />);
+    });
+    expect(latestModalVisible).toBe(true);
+
+    // The stale close animation was interrupted by the reopen's own pos.value reassignment --
+    // Reanimated's real withTiming fires an interrupted animation's callback with finished: false.
+    act(() => {
+      staleCloseCall.callback?.(false);
+    });
+    expect(latestModalVisible).toBe(true);
+  });
+
+  it("open forces the shared value back to closed first (cancels any in-flight animation)", () => {
+    act(() => {
+      TestRenderer.create(<Harness visible={true} onClose={() => {}} />);
+    });
+    expect(cancelAnimationSpy).toHaveBeenCalled();
+  });
+});
+
+describe("useDraggableSheet handle drag", () => {
+  function renderGestureHarness(onClose: () => void) {
+    let root!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      root = TestRenderer.create(<Harness visible={true} onClose={onClose} />);
+    });
+    function gesture(): GestureType {
+      return root.root.findByType(GestureDetector).props.gesture as GestureType;
+    }
+    return gesture;
+  }
+
+  it("calls onClose once the drag clears SHEET_DISMISS_PX", () => {
+    const onClose = jest.fn();
+    const gesture = renderGestureHarness(onClose);
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(SHEET_DISMISS_PX + 20));
+    });
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(SHEET_DISMISS_PX + 20), true);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onClose on a fast downward flick well short of SHEET_DISMISS_PX", () => {
+    const onClose = jest.fn();
+    const gesture = renderGestureHarness(onClose);
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(10, SHEET_FLING_VELOCITY + 100));
+    });
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(10, SHEET_FLING_VELOCITY + 100), true);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("snaps back open (no onClose) when the drag falls short of both thresholds", () => {
+    const onClose = jest.fn();
+    const gesture = renderGestureHarness(onClose);
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(20));
+    });
+    const callsBeforeEnd = withTimingCalls.length;
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(20, 0), true);
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    const settleCalls = withTimingCalls.slice(callsBeforeEnd);
+    expect(settleCalls.some((c) => c.toValue === 1)).toBe(true);
+  });
+
+  it("snaps back open instead of closing when the gesture is cancelled mid-drag (success === false)", () => {
+    const onClose = jest.fn();
+    const gesture = renderGestureHarness(onClose);
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(SHEET_DISMISS_PX + 50)); // well past the commit distance
+    });
+    const callsBeforeEnd = withTimingCalls.length;
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(SHEET_DISMISS_PX + 50), false);
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    const settleCalls = withTimingCalls.slice(callsBeforeEnd);
+    expect(settleCalls.some((c) => c.toValue === 1)).toBe(true);
+  });
+
+  it("does not drag the panel past fully open on an upward (negative) drag", () => {
+    // Documented via the clamp's absence of any thrown/NaN behavior -- onUpdate must not crash or
+    // produce a pos outside [0, 1] on a drag that overshoots past open.
+    const onClose = jest.fn();
+    const gesture = renderGestureHarness(onClose);
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    expect(() => {
+      act(() => {
+        gesture().handlers.onUpdate?.(panEvent(-500));
+      });
+    }).not.toThrow();
   });
 });
