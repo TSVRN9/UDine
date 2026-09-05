@@ -115,11 +115,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
       ]);
       if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
 
-      if (historySettled.status === "rejected" && catalogSettled.status === "rejected" && offSettled.status === "rejected") {
-        setSearchError(String(offSettled.reason));
-        setResults(null);
-        return;
-      }
+      const rejections = [historySettled, catalogSettled, offSettled].filter((r): r is PromiseRejectedResult => r.status === "rejected");
 
       const history = historySettled.status === "fulfilled" ? historySettled.value : [];
       const catalogHits = catalogSettled.status === "fulfilled" ? catalogSettled.value : [];
@@ -137,10 +133,26 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
         umassByName.set(dish.dishName.toLowerCase(), dish); // history wins on collision
       }
 
-      setResults([
+      const merged: PlateSearchResult[] = [
         ...[...umassByName.values()].map((dish): PlateSearchResult => ({ kind: "umass", dish })),
         ...off.map((product): PlateSearchResult => ({ kind: "off", product })),
-      ]);
+      ];
+
+      // A rejection is only surfaced as a failure when it left the user with nothing: a real hit
+      // from a surviving source is still useful, and pairing it with "Search failed" text would be
+      // more confusing than helpful, so a partial failure alongside results is silently treated as
+      // a success. But an EMPTY merged result plus any rejection is NOT the same as "genuinely no
+      // matches" -- previously only an all-three-rejected search showed the failure text, so e.g. a
+      // rejected OpenFoodFacts call alongside two sources that both legitimately resolved empty
+      // (the common case) fell through to "No matches", lying to the user about why nothing showed.
+      if (merged.length === 0 && rejections.length > 0) {
+        setSearchError(String(rejections[0].reason));
+        setResults(null);
+        return;
+      }
+
+      setSearchError(null);
+      setResults(merged);
     } finally {
       if (searchSeq.current === seq) setSearching(false);
     }

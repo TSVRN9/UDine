@@ -383,5 +383,36 @@ describe("PlateSheet", () => {
 
       expect(texts(root).flat().join(" ")).toMatch(/Search failed/);
     });
+
+    // pr-reviewer finding on #351: `allFailed` required ALL THREE sources to reject before
+    // surfacing an error -- if OFF rejected (e.g. network down) while history/catalog both
+    // legitimately resolved empty (the common case for a dish nobody's logged or cached yet), the
+    // merged result was an empty array and the sheet rendered "No matches", telling the user their
+    // food doesn't exist on OpenFoodFacts when the real problem is the search didn't complete.
+    it("#351 review: shows the failure text, not 'No matches', when OFF rejects and the other two sources resolve empty", async () => {
+      mockedSearchProducts.mockRejectedValue(new Error("network down"));
+      const root = renderSheet(); // empty logStorage + null catalog -> history and catalog both resolve empty
+
+      await runSearch(root, "anything");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Search failed/);
+      expect(body).not.toMatch(/No matches/);
+    });
+
+    // A rejection alongside a real hit from a surviving source is NOT treated as a failure -- the
+    // user still got something useful, so the sheet shows it plainly rather than pairing a real
+    // result with confusing error text.
+    it("#351 review: still shows a real hit from a surviving source when OFF rejects, without an error message", async () => {
+      mockedSearchProducts.mockRejectedValue(new Error("network down"));
+      const storage = await logStorageWith([historyEntry("Falafel Wrap", 1, 350, "2026-08-01T12:00:00.000Z")]);
+      const root = renderSheet({ logStorage: storage, hallTid: 1 });
+
+      await runSearch(root, "falafel");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Falafel Wrap/);
+      expect(body).not.toMatch(/Search failed/);
+    });
   });
 });
