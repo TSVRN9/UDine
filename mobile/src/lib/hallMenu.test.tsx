@@ -62,6 +62,18 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// PlateSheet (rendered by this screen) now imports the real ../lib/supabase singleton for its
+// background dish-catalog refresh -- explicit factory, not a bare automock, same reasoning as
+// homePane.test.tsx: the real module drags in native bindings (AsyncStorage) unavailable outside
+// jest-expo's native harness. dishCatalog itself is mocked too so PlateSheet's mount-time refresh
+// is a no-op here, same as menuHoursCache's mocks above/below.
+jest.mock("../lib/supabase", () => ({ supabase: {} }));
+jest.mock("../lib/dishCatalog", () => ({
+  getCachedDishCatalog: jest.fn().mockResolvedValue(null),
+  refreshDishCatalogIfStale: jest.fn().mockResolvedValue(undefined),
+  searchCachedDishes: jest.fn().mockReturnValue([]),
+}));
+
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),
