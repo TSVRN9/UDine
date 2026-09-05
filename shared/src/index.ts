@@ -7,6 +7,7 @@ export * from "./storage.ts";
 export * from "./content.ts";
 export * from "./ranking.ts";
 export * from "./sync.ts";
+export * from "./dishes.ts";
 export * from "./hours.ts";
 export * from "./scores.ts";
 export * from "./completion.ts";
