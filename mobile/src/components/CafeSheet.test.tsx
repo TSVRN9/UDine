@@ -1,7 +1,12 @@
 // CafeSheet reads safe-area insets; no SafeAreaProvider in this render tree (same fix as
 // PlateBar.test.tsx/PlateSheet.test.tsx).
 import renderer, { act } from "react-test-renderer";
-import { Animated, Modal, Text } from "react-native";
+import { Modal, Text } from "react-native";
+// The sheet's backdrop/panel Animated.View layers are react-native-reanimated's own component
+// (useDraggableSheet's panelStyle/backdropStyle come from useAnimatedStyle) since the #245-item-5
+// follow-up (draggable bottom sheets) migrated off plain RN Animated -- react-native's own
+// Animated.View is a different component reference and would never match findAllByType below.
+import Animated from "react-native-reanimated";
 import type { RetailLocationHours } from "@udine/shared";
 import { CafeSheet } from "./CafeSheet";
 
