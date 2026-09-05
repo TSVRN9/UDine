@@ -2,24 +2,19 @@ import { searchProducts, type DailyMacroTotals, type LogStorage, type OffSearchR
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Path } from "react-native-svg";
+import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
+import { supabase } from "../lib/supabase";
 import { Button, Stat } from "./ui";
 import { useSheetAnim } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
-/** Magnifying-glass icon for the "Add something else" entry (artboard spec) -- a real
- * react-native-svg icon, not a Unicode stand-in (see halls/[slug].tsx's GrabBagIcon, this
- * dependency's other use). */
-function SearchIcon({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 20 20" fill="none">
-      <Circle cx={9} cy={9} r={5.5} stroke={color} strokeWidth={1.6} />
-      <Path d="M13.5 13.5L17 17" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
-    </Svg>
-  );
-}
+/** One merged search result: either a UMass-side dish (device log history, or the server dish
+ * nutrition catalog cached locally -- see dishCatalog.ts) or an OpenFoodFacts packaged-food hit.
+ * Tagged so the result row can badge it instead of the search box needing separate explanatory
+ * headings per source. */
+type PlateSearchResult = { kind: "umass"; dish: HistoryDish } | { kind: "off"; product: OffSearchResult };
 
 interface Props {
   visible: boolean;
@@ -27,14 +22,15 @@ interface Props {
   totals: DailyMacroTotals;
   /** Right-of-title context per the canvas ("Hampshire · Lunch") — the caller's hall name. */
   contextLabel?: string;
-  /** Backs the "search food you've had before" box (getLoggedUmassDishHistory reads this
+  /** Backs the local-history half of the merged search (getLoggedUmassDishHistory reads this
    * directly) -- halls/[slug].tsx already owns one SqliteLogStorage instance for logging, passed
    * straight through rather than duplicated here. */
   logStorage: LogStorage;
   /** The hall (or café) currently being browsed -- history search is scoped to this hallTid only,
    * never cross-hall (see dishHistory.ts's own doc: a re-added dish's hallTid feeds server-synced
    * hall-completion/favorite-hall derivation, so a cross-hall dedup could misattribute credit
-   * between two halls sharing a dish name -- #344 review). */
+   * between two halls sharing a dish name -- #344 review). A catalog-only hit is scoped to this
+   * same hallTid when staged (see runSearch below). */
   hallTid: number;
   onStep: (key: string, delta: number) => void;
   onAddOffResult: (result: OffSearchResult) => void;
@@ -45,30 +41,16 @@ interface Props {
 
 /**
  * Expanded plate sheet (canvas: "Plate expanded") — a bottom sheet over a dimmed scrim: drag
- * handle, per-item steppers, totals grid, LOG N ITEMS, and the dashed "Add something else"
- * OpenFoodFacts search. A transparent RN Modal, same structural call as NutritionLabel (see
- * halls/[slug].tsx's note): no route, no _layout.tsx change, no MenuItem serialization through
- * router params.
+ * handle, per-item steppers, totals grid, LOG N ITEMS, and a single merged search box (local
+ * device history + the cached dish catalog + OpenFoodFacts, tagged per-row). A transparent RN
+ * Modal, same structural call as NutritionLabel (see halls/[slug].tsx's note): no route, no
+ * _layout.tsx change, no MenuItem serialization through router params.
  */
 export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onAddOffResult, onAddHistoryDish, onLog, onClose }: Props) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<OffSearchResult[] | null>(null);
+  const [results, setResults] = useState<PlateSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  // Second, independent search box (dining halls don't always list everything they serve on a
-  // given day) -- mirrors the OFF search state above exactly, but reads local log history instead
-  // of hitting OpenFoodFacts. Kept as its own state/seq rather than shared with the OFF search so
-  // the two boxes' in-flight requests never race or invalidate each other.
-  const [historyQuery, setHistoryQuery] = useState("");
-  const [historyResults, setHistoryResults] = useState<HistoryDish[] | null>(null);
-  const [historySearching, setHistorySearching] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const historySearchSeq = useRef(0);
-  // The history section now renders BEFORE the OFF section (see the JSX below) so the OFF box
-  // keeps being the last thing in the sheet and its existing scrollToEnd-on-focus stays correct
-  // unmodified. That means the history box is no longer last, so it needs its own scroll target --
-  // captured via onLayout on its container -- instead of scrollToEnd.
-  const historySectionY = useRef(0);
   const insets = useSafeAreaInsets();
   const { backdropStyle, panelStyle } = useSheetAnim(visible);
   const scrollRef = useRef<ScrollView>(null);
@@ -88,9 +70,18 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
       hideSub.remove();
     };
   }, []);
-  // #198: bumped on every new search and on close -- a resolving searchProducts call only applies
-  // its result if this still matches the seq it captured when it started, so a slower/stale
-  // response can never overwrite a newer query's results (or repaint a sheet the user closed).
+  // PlateSheet stays mounted across open/close (only the Modal's `visible` prop toggles) --
+  // mount-once is the right place to fire off a background catalog refresh. Fire-and-forget:
+  // refreshDishCatalogIfStale already swallows its own errors, and this screen must never block on
+  // (or fail because of) a background sync.
+  useEffect(() => {
+    refreshDishCatalogIfStale(supabase);
+  }, []);
+  // #198: bumped on every new search and on close -- a resolving search only applies its result if
+  // this still matches the seq it captured when it started, so a slower/stale response can never
+  // overwrite a newer query's results (or repaint a sheet the user closed). Local history/catalog
+  // lookups resolve fast, but the one real network call (searchProducts) can still be slow -- the
+  // whole merged result is gated behind this seq so the OFF portion can never land stale.
   const searchSeq = useRef(0);
 
   const itemCount = totalItemCount(plate);
@@ -105,12 +96,6 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
       setResults(null);
       setSearchError(null);
       setQuery("");
-
-      historySearchSeq.current++;
-      setHistorySearching(false);
-      setHistoryResults(null);
-      setHistoryError(null);
-      setHistoryQuery("");
     }
   }, [visible]);
 
@@ -118,50 +103,54 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
     // #198: onSubmitEditing had no guard against a search already in flight (unlike the Search
     // button's own `disabled` prop below) -- mashing Enter while typing fired overlapping requests.
     if (!query.trim() || searching) return;
+    const q = query.trim();
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
     try {
-      const found = await searchProducts(query.trim());
+      const [historySettled, catalogSettled, offSettled] = await Promise.allSettled([
+        getLoggedUmassDishHistory(logStorage, hallTid, q),
+        getCachedDishCatalog().then((catalog) => searchCachedDishes(catalog, q)),
+        searchProducts(q),
+      ]);
       if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
-      setResults(found);
-    } catch (e) {
-      if (searchSeq.current !== seq) return;
-      setSearchError(String(e));
-      setResults(null);
+
+      if (historySettled.status === "rejected" && catalogSettled.status === "rejected" && offSettled.status === "rejected") {
+        setSearchError(String(offSettled.reason));
+        setResults(null);
+        return;
+      }
+
+      const history = historySettled.status === "fulfilled" ? historySettled.value : [];
+      const catalogHits = catalogSettled.status === "fulfilled" ? catalogSettled.value : [];
+      const off = offSettled.status === "fulfilled" ? offSettled.value : [];
+
+      // Merge the two UMass-side sources by dishName (case-insensitive). Local history wins on a
+      // name collision -- it's already confirmed-logged at this exact hall, no network dependency.
+      // A catalog-only hit is staged as a HistoryDish scoped to the CURRENTLY-BROWSED hall so it
+      // flows through the existing historyDishToPlateEntry/onAddHistoryDish path unchanged.
+      const umassByName = new Map<string, HistoryDish>();
+      for (const entry of catalogHits) {
+        umassByName.set(entry.dishName.toLowerCase(), { dishName: entry.dishName, hallTid, nutrition: entry.nutrition });
+      }
+      for (const dish of history) {
+        umassByName.set(dish.dishName.toLowerCase(), dish); // history wins on collision
+      }
+
+      setResults([
+        ...[...umassByName.values()].map((dish): PlateSearchResult => ({ kind: "umass", dish })),
+        ...off.map((product): PlateSearchResult => ({ kind: "off", product })),
+      ]);
     } finally {
       if (searchSeq.current === seq) setSearching(false);
     }
   }
 
-  function pickResult(result: OffSearchResult) {
-    onAddOffResult(result);
+  function pickResult(result: PlateSearchResult) {
+    if (result.kind === "umass") onAddHistoryDish(result.dish);
+    else onAddOffResult(result.product);
     setQuery("");
     setResults(null);
-  }
-
-  async function runHistorySearch() {
-    if (!historyQuery.trim() || historySearching) return;
-    const seq = ++historySearchSeq.current;
-    setHistorySearching(true);
-    setHistoryError(null);
-    try {
-      const found = await getLoggedUmassDishHistory(logStorage, hallTid, historyQuery.trim());
-      if (historySearchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
-      setHistoryResults(found);
-    } catch (e) {
-      if (historySearchSeq.current !== seq) return;
-      setHistoryError(String(e));
-      setHistoryResults(null);
-    } finally {
-      if (historySearchSeq.current === seq) setHistorySearching(false);
-    }
-  }
-
-  function pickHistoryDish(dish: HistoryDish) {
-    onAddHistoryDish(dish);
-    setHistoryQuery("");
-    setHistoryResults(null);
   }
 
   return (
@@ -228,77 +217,19 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
                 {`LOG ${itemCount} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
               </Button>
 
-              {/* Dining halls don't always list everything they serve on a given day -- this
-              searches dishes the user has logged before (from this device's own history), even if
-              today's menu doesn't happen to show them. A second, independent search affordance
-              alongside the OFF box below, not a replacement for it. Rendered BEFORE the OFF
-              section (not last in the sheet) -- onLayout captures where it sits so its onFocus
-              handler can scroll it into view without disturbing the OFF box's own scrollToEnd,
-              which depends on staying last. */}
-              <View style={styles.addSection} onLayout={(e) => (historySectionY.current = e.nativeEvent.layout.y)}>
-                <View style={styles.addHeadingRow}>
-                  <SearchIcon color={colors.maroon600} />
-                  <View style={styles.addHeadingText}>
-                    <Text style={styles.addHeading}>Search something you&apos;ve had before</Text>
-                    <Text style={styles.addSub}>For dishes not showing on today&apos;s menu, but you&apos;ve logged before</Text>
-                  </View>
-                </View>
-                <View style={styles.searchRow}>
-                  <TextInput
-                    style={styles.searchInput}
-                    value={historyQuery}
-                    onChangeText={setHistoryQuery}
-                    placeholder="Search your food history"
-                    placeholderTextColor={withOpacity(colors.ink900, 45)}
-                    onSubmitEditing={runHistorySearch}
-                    // This box isn't the last thing in the sheet (the OFF search below is) --
-                    // scrollToEnd would overshoot past it, so scroll to its own measured position
-                    // instead (see historySectionY's onLayout above).
-                    onFocus={() => scrollRef.current?.scrollTo({ y: historySectionY.current, animated: true })}
-                    returnKeyType="search"
-                  />
-                  <Button variant="secondary" size="sm" onPress={runHistorySearch} disabled={historySearching || !historyQuery.trim()}>
-                    Search
-                  </Button>
-                </View>
-                {historySearching && <ActivityIndicator color={colors.maroon600} style={styles.searchSpinner} />}
-                {historyError && <Text style={styles.searchError}>Search failed: {historyError}</Text>}
-                {historyResults?.length === 0 && !historySearching && <Text style={styles.searchHint}>No matches.</Text>}
-                {historyResults?.map((dish) => (
-                  <View key={`${dish.hallTid}:${dish.dishName}`} style={styles.resultRow}>
-                    <Pressable
-                      style={styles.resultInfo}
-                      onPress={() => pickHistoryDish(dish)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Add ${dish.dishName} from your history to plate`}
-                    >
-                      <Text style={styles.resultLabel}>{dish.dishName}</Text>
-                      <Text style={styles.resultCalories}>{Math.round(dish.nutrition.calories)} cal</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-
               <View style={styles.addSection}>
-                <View style={styles.addHeadingRow}>
-                  <SearchIcon color={colors.maroon600} />
-                  <View style={styles.addHeadingText}>
-                    <Text style={styles.addHeading}>Add something else</Text>
-                    <Text style={styles.addSub}>Search packaged foods (OpenFoodFacts) — for foods not on the menu</Text>
-                  </View>
-                </View>
                 <View style={styles.searchRow}>
                   <TextInput
                     style={styles.searchInput}
                     value={query}
                     onChangeText={setQuery}
-                    placeholder="Search packaged foods"
+                    placeholder="Search for a food"
                     placeholderTextColor={withOpacity(colors.ink900, 45)}
                     onSubmitEditing={runSearch}
-                    // Even with the keyboardHeight fix above, this box sits after the item
-                    // list/totals/LOG button in a plain ScrollView, which doesn't reliably scroll a
-                    // newly-focused input into view on its own -- scroll it to the end (it's the
-                    // last thing in the sheet) so the query stays visible while typing.
+                    // This box sits after the item list/totals/LOG button in a plain ScrollView,
+                    // which doesn't reliably scroll a newly-focused input into view on its own --
+                    // scroll it to the end (it's the last thing in the sheet) so the query stays
+                    // visible while typing.
                     onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
                     returnKeyType="search"
                   />
@@ -309,21 +240,35 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
                 {searching && <ActivityIndicator color={colors.maroon600} style={styles.searchSpinner} />}
                 {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
                 {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
-                {results?.map((r) => (
-                  <View key={r.barcode} style={styles.resultRow}>
-                    <Pressable
-                      style={styles.resultInfo}
-                      onPress={() => pickResult(r)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Add ${r.productName} to plate`}
-                    >
-                      <Text style={styles.resultLabel}>{r.productName}</Text>
-                      <Text style={styles.resultCalories}>
-                        {Math.round(r.nutrition.calories)} cal{isEstimatedServing(r.nutrition) ? " · est. per 100g" : ""}
-                      </Text>
-                    </Pressable>
-                  </View>
-                ))}
+                {results?.map((r) => {
+                  const key = r.kind === "umass" ? `umass:${r.dish.hallTid}:${r.dish.dishName}` : `off:${r.product.barcode}`;
+                  const label = r.kind === "umass" ? r.dish.dishName : r.product.productName;
+                  const nutrition = r.kind === "umass" ? r.dish.nutrition : r.product.nutrition;
+                  return (
+                    <View key={key} style={styles.resultRow}>
+                      <Pressable
+                        style={styles.resultInfo}
+                        onPress={() => pickResult(r)}
+                        accessibilityRole="button"
+                        // The badge (UMass/Packaged) is visual-only -- an explicit accessibilityLabel
+                        // replaces the Pressable's rendered text for assistive tech, so the source
+                        // distinction has to be spelled out here too, or a screen-reader user gets two
+                        // indistinguishable "Add Pizza to plate" actions on a name collision.
+                        accessibilityLabel={`Add ${label} to plate (${r.kind === "umass" ? "UMass" : "packaged"})`}
+                      >
+                        <View style={styles.resultHeaderRow}>
+                          <Text style={styles.resultLabel}>{label}</Text>
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{r.kind === "umass" ? "UMass" : "Packaged"}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.resultCalories}>
+                          {Math.round(nutrition.calories)} cal{isEstimatedServing(nutrition) ? " · est. per 100g" : ""}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
               </View>
             </ScrollView>
           </Animated.View>
@@ -384,11 +329,7 @@ const styles = StyleSheet.create({
     padding: spacing(3.5),
     gap: spacing(1),
   },
-  addHeadingRow: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
-  addHeadingText: { flex: 1, gap: spacing(0.5) },
-  addHeading: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
-  addSub: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
-  searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center", marginTop: spacing(1.5) },
+  searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
   searchInput: {
     flex: 1,
     borderWidth: 1,
@@ -412,6 +353,15 @@ const styles = StyleSheet.create({
     borderColor: withOpacity(colors.ink900, 15),
   },
   resultInfo: { flex: 1, gap: 1 },
+  resultHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing(1.5) },
   resultLabel: { fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
   resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
+  badge: {
+    borderWidth: 1,
+    borderColor: withOpacity(colors.maroon600, 45),
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing(1.5),
+    paddingVertical: 1,
+  },
+  badgeText: { fontFamily: fonts.mono, fontSize: fs(10), letterSpacing: 0.5, textTransform: "uppercase", color: colors.maroon600 },
 });
