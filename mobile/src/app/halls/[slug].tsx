@@ -42,10 +42,12 @@ import { deriveCafeMealTabs } from "../../lib/cafeMenu";
 import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
+import type { HistoryDish } from "../../lib/dishHistory";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
 import {
   addOrIncrement,
+  historyDishToPlateEntry,
   listBottomPadding,
   menuItemToPlateEntry,
   offResultToPlateEntry,
@@ -369,13 +371,8 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     setPlate((p) => addOrIncrement(p, offResultToPlateEntry(result)));
   }
 
-  // Logs one OFF result on its own -- the "grabbed a piece of fruit, nothing else to log" case
-  // PlateSheet's own doc on `onLogOffResult` describes. Shares guardedLogPlate's single inFlight
-  // guard with the bulk logPlate below (same screen, same underlying storage writes) -- a direct
-  // log and a bulk LOG N ITEMS correctly can't run concurrently into the same SQLite log table.
-  async function logOffResultDirectly(result: OffSearchResult): Promise<boolean> {
-    const outcome = await guardedLogPlate([offResultToPlateEntry(result)], nowLocalIso());
-    return outcome?.ok ?? false;
+  function addHistoryDish(dish: HistoryDish) {
+    setPlate((p) => addOrIncrement(p, historyDishToPlateEntry(dish)));
   }
 
   async function logPlate() {
@@ -769,9 +766,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         plate={plate}
         totals={totals}
         contextLabel={hall.name}
+        logStorage={storage}
+        hallTid={hall.tid}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onAddOffResult={addOffResult}
-        onLogOffResult={logOffResultDirectly}
+        onAddHistoryDish={addHistoryDish}
         onLog={logPlate}
         onClose={() => setSheetOpen(false)}
       />
