@@ -160,6 +160,9 @@ const styles = StyleSheet.create({
     // the same page background) so content scrolling underneath is hidden, not visible through it.
     backgroundColor: colors.cream100,
     paddingHorizontal: spacing(5),
+    // Breathing room against the pane content scrolling in underneath -- without it, content
+    // butts straight up against the header's bottom edge once scrolled past the first screenful.
+    paddingBottom: spacing(2.5),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
