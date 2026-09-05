@@ -1,6 +1,7 @@
 import { fetchEvents, type DiningEvent } from "@udine/shared";
 import { useCallback, useEffect, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineLine } from "../components/OfflineLine";
 import { Press } from "../components/Press";
@@ -88,7 +89,7 @@ export function EventsPane() {
 
   return (
     <View style={styles.paneWrap}>
-      <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
+      <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
         {offline ? (
           <View style={styles.offlineRow}>
             <OfflineLine text="offline · showing what's cached" onRetry={loadEvents} />
