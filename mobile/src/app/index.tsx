@@ -86,7 +86,13 @@ function HeroBlock({
 // own Pressable *after* the hall zone in the card's column, so its top hitSlop reaching back up
 // into the hall zone's area wins hit-testing there (RN resolves overlaps in child order) without
 // the two zones' Pressables needing to nest.
-const GRAB_STRIP_HIT_SLOP = { top: 16, bottom: 12, left: 8, right: 8 };
+//
+// `bottom` is capped below the smallest `hallList` gap (`spacing(2.5)`) across supported screen
+// widths (~8dp at 320dp) -- unlike `top`, it must NOT reach past this card's own bottom edge, or it
+// bleeds through the inter-card gap into the NEXT hall card's zone below it (bug: a fixed 12dp
+// bottom exceeded that gap on any screen narrower than ~390dp). Still a deliberate raw-px value,
+// same as `top` -- just now correctly bounded instead of run through fs()/spacing().
+const GRAB_STRIP_HIT_SLOP = { top: 16, bottom: 4, left: 8, right: 8 };
 
 /** Split hall card per the #116 canvas delta: one rounded unit, two tap zones -- the hall area
  * (opens the hall menu) and a translucent Grab 'N Go strip along the bottom of the same card
