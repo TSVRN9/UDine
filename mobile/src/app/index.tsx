@@ -355,6 +355,11 @@ export function HomePane() {
         </View>
       </View>
       </ScrollView>
+      {/* ponytail: CafeSheet's close animation (useDraggableSheet, sheetAnimation.ts) depends on
+      this component staying mounted across open/close -- it only works today because
+      setCafeSheetLoc is never called with null (grep it before changing that). If a future change
+      resets cafeSheetLoc on dismiss, this sheet's close will silently revert to an instant unmount
+      with no test catching it -- render it unconditionally (or guard on something else) instead. */}
       {cafeSheetLoc ? (
         <CafeSheet
           visible={cafeSheetVisible && !cafeSheetPdf}
