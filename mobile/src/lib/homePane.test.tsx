@@ -95,3 +95,26 @@ describe("HallCard tap target (#229)", () => {
     }
   });
 });
+
+// The Grab 'N Go strip's hitSlop.bottom must stay under the smallest `hallList` gap the app
+// renders across supported screen widths (theme.ts's spacing(2.5) shrinks to ~8dp at 320dp), or
+// the strip's hit zone bleeds past the inter-card gap into the NEXT hall card's tap zone below it.
+describe("Grab 'N Go strip hitSlop (bottom-bleed regression)", () => {
+  it("keeps hitSlop.bottom under the narrowest-screen hallList gap (~8dp)", async () => {
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+
+    // Identify the strip's Pressable by its distinctive left/right hitSlop (8/8, shared with no
+    // other pressable in this tree) rather than by index, so this doesn't silently start checking
+    // the wrong node if HomePane's render order ever changes.
+    const stripPressables = root.root.findAll(
+      (n) => n.props.hitSlop && n.props.hitSlop.left === 8 && n.props.hitSlop.right === 8 && n.props.hitSlop.top === 16,
+    );
+    expect(stripPressables.length).toBeGreaterThan(0);
+    for (const node of stripPressables) {
+      expect(node.props.hitSlop.bottom).toBeLessThan(8);
+    }
+  });
+});
