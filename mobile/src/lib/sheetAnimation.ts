@@ -77,16 +77,7 @@ export function shouldDismissSheet(dragDownPx: number, velocityYPtsPerSec: numbe
  * button) or snaps back open otherwise -- `success === false` (gesture cancelled/stolen, e.g. by a
  * parent nav gesture) also snaps back rather than stranding the panel mid-drag.
  */
-export function useDraggableSheet(
-  visible: boolean,
-  onClose: () => void,
-  panelTravel = 400,
-): {
-  gesture: ReturnType<typeof Gesture.Pan>;
-  panelStyle: ReturnType<typeof useAnimatedStyle>;
-  backdropStyle: ReturnType<typeof useAnimatedStyle>;
-  modalVisible: boolean;
-} {
+export function useDraggableSheet(visible: boolean, onClose: () => void, panelTravel = 400) {
   const pos = useSharedValue(0); // 0 = fully closed, 1 = fully open
   const dragStartPos: SharedValue<number> = useSharedValue(0);
   // Seeded from `visible`, not always false -- a sheet mounted already-visible (CafeSheet's
