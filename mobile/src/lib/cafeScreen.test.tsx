@@ -38,6 +38,18 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// PlateSheet (rendered via the "menu" branch's HallMenuScreenBody) now imports the real
+// ../lib/supabase singleton for its background dish-catalog refresh -- explicit factory, not a
+// bare automock, same reasoning as homePane.test.tsx: the real module drags in native bindings
+// (AsyncStorage) unavailable outside jest-expo's native harness. dishCatalog itself is mocked too
+// so PlateSheet's mount-time refresh is a no-op here.
+jest.mock("../lib/supabase", () => ({ supabase: {} }));
+jest.mock("../lib/dishCatalog", () => ({
+  getCachedDishCatalog: jest.fn().mockResolvedValue(null),
+  refreshDishCatalogIfStale: jest.fn().mockResolvedValue(undefined),
+  searchCachedDishes: jest.fn().mockReturnValue([]),
+}));
+
 // react-native-webview needs a native module not present under jest -- CafePdfViewer (rendered
 // only once a PDF row is tapped, which neither test below does) is the only importer reached from
 // this screen.
