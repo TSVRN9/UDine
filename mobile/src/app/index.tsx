@@ -2,7 +2,8 @@ import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favor
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CafePdfViewer } from "../components/CafePdfViewer";
 import { CafeSheet } from "../components/CafeSheet";
@@ -277,7 +278,7 @@ export function HomePane() {
 
   return (
     <>
-      <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
+      <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
       {/* error only reaches here on the genuine dead end -- fetch failed AND no cache exists.
           Anything with a cache falls back to `offline` (see HeroBlock) instead, per #181's owner
           decision that offline is not an error state. */}

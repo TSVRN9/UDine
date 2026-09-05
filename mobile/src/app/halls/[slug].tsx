@@ -15,6 +15,7 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
+import { createNativeWrapper } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
@@ -62,6 +63,16 @@ import {
 import { getPreferences } from "../../lib/preferences";
 import { nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
+
+// react-native-gesture-handler doesn't export a gesture-aware SectionList (only ScrollView/FlatList
+// wrap createNativeWrapper for you) -- a plain RN SectionList nested under MealTabPager's
+// GestureDetector doesn't participate in RNGH's native touch arbitration, so its own scroll can
+// steal the touch mid-drag and cancel an in-progress pane swipe. Same fix RNGH's own ScrollView/
+// FlatList use internally, applied directly since SectionList has no built-in equivalent.
+const GestureSectionList = createNativeWrapper(SectionList, {
+  disallowInterruption: true,
+  shouldCancelWhenOutside: false,
+}) as unknown as typeof SectionList;
 
 /** A hall-menu-screen subject: a real DINING_HALLS entry (`slug` present -- gets Grab 'N Go +
  * the fixed 4-tab MEAL_TABS + the "being served now" subtitle) or a café (#177 -- `slug` absent,
@@ -535,7 +546,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       return <EmptyState title="No matching dishes" message={`No ${mealTabLabel(period).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />;
     }
     return (
-      <SectionList
+      <GestureSectionList
         sections={periodSections}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
@@ -578,7 +589,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       return <EmptyState title="No Grab 'N Go menu" message={`No Grab 'N Go items published at ${hall.name} for this day.`} />;
     }
     return (
-      <SectionList
+      <GestureSectionList
         sections={grabSectionsMemo}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
