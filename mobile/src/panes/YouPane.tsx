@@ -1,7 +1,8 @@
 import { computeDailyTotals, hallCompletion, hallNameFor, isoDateOf, rankDiningHalls, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
 import { router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Press } from "../components/Press";
 import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
@@ -121,7 +122,7 @@ export function YouPane() {
   const topFoods = buildTopFoods(rankedFoods, rankedDishes, allEntries, TOP_FOODS_LIMIT);
 
   return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) }]}>
+    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
       <Card style={styles.statsCard}>
         <View style={styles.statCell}>
           <Stat label="Calories" value={String(displayedCalories)} />
