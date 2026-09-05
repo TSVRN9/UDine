@@ -347,3 +347,13 @@ Owner request (hosted-runner usage): the workflow is `workflow_dispatch`-only an
 no longer requires status checks. Re-enable by restoring the `pull_request`/`push` triggers and
 re-adding the required checks. `gh act -j <job>` (config in `.actrc`, Docker required) is validated
 working for CI parity; `supabase-rls-tests` runs host-direct, not under act.
+
+## public.dishes: global nutrition catalog (2026-09-05)
+
+Added `public.dishes` (one row per unique dish name across all 4 halls) for an upcoming mobile
+local-search feature, populated daily by the new `populate-dishes` Edge Function running as
+`service_role` — no client write grant at all, same no-client-write shape as `food_sightings`. This
+doesn't conflict with "menu cache stays device-only": the menu cache is a per-session/per-device
+fetch of what's being served *today*, keyed to a user's own browsing; `public.dishes` is one global,
+public, read-only reference row per dish name (nutrition facts only, no per-user or per-session
+data at all), more like the dining-hall/tid table than a cache of anyone's activity.
