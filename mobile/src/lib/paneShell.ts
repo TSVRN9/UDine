@@ -73,14 +73,20 @@ export const SWIPE_COMMIT_PX = 60;
  * as unresponsive/clunky: a real swipe gesture releases well before 60px of travel if it's moving
  * fast.
  *
- * 800 points/second, picked from on-device `emulator-5556` measurements of this exact gesture (a
+ * 500 points/second, picked from on-device `emulator-5556` measurements of this exact gesture (a
  * temporary console.log probe on `e.velocityX` in PaneStack's `onEnd`, real synthetic swipes via
- * `adb shell input swipe`, not guessed): a slow, gentle drag release measured 0-~280pts/s; a real
- * short flick that clears well under SWIPE_COMMIT_PX (22px) but is unambiguously a fling measured
- * ~830-3300pts/s. 800 sits above the slow-release band and below the smallest real flick observed,
- * comfortably inside the few-hundred-to-~1500pts/s range typical for a full-width horizontal swipe
- * this size (PANE_DRAG_PX = 140). */
-export const SWIPE_FLING_VELOCITY = 800;
+ * `adb shell input swipe`, not guessed): a genuinely slow, gentle drag release (400-2000ms to
+ * travel a few tens of px) measured 0-33pts/s; a real short flick that clears well under
+ * SWIPE_COMMIT_PX (as little as 5-22px of travel) but is unambiguously a fling measured
+ * 833-3333pts/s. 500 sits roughly midway between those two observed bands -- comfortable margin
+ * above the slowest deliberate drag and comfortable margin below the smallest real flick, rather
+ * than hugging either edge -- so a variance in a real finger's release speed a hair either side of
+ * either measured band still classifies correctly. (A `Gesture.Pan()` fast-flick-but-short synthetic
+ * swipe in the 50-120px/40-60ms range measured 278-833pts/s -- a real intermediate speed, not noise
+ * -- and is deliberately left on the "commits" side of 500: a 50px drag in 60ms is a real, if
+ * moderate, flick intent, not the "barely moved the finger" case this threshold exists to protect
+ * against.) */
+export const SWIPE_FLING_VELOCITY = 500;
 
 /** The in-flight drag position's own divisor (see paneDragPosition) -- deliberately NOT
  * SWIPE_COMMIT_PX. Reusing the 60px commit threshold as the divisor (the original #245 design)

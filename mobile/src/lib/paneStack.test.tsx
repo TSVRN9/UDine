@@ -202,7 +202,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     });
     act(() => {
       // dx=-45 (below the 60px commit threshold), vx a tiny -0.045pts/s, nowhere near
-      // SWIPE_FLING_VELOCITY (800).
+      // SWIPE_FLING_VELOCITY (500).
       gesture().handlers.onUpdate?.(panEvent(-45));
     });
     const callsBeforeRelease = withTimingSpy.mock.calls.length;
@@ -288,7 +288,7 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     });
     act(() => {
       // RNGH's velocityX is points/second, not px/ms (SWIPE_FLING_VELOCITY's own doc) -- -1250
-      // is well past SWIPE_FLING_VELOCITY (800), well within the ~830-3300pts/s range measured
+      // is well past SWIPE_FLING_VELOCITY (500), well within the ~830-3300pts/s range measured
       // on-device for a real short flick. Total dx is only -25, far short of SWIPE_COMMIT_PX (60).
       gesture().handlers.onUpdate?.(panEvent(-25, -1250));
     });

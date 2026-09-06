@@ -283,7 +283,7 @@ describe("MealTabPager swipe gesture wiring", () => {
     });
     act(() => {
       // RNGH's velocityX is points/second, not px/ms (SWIPE_FLING_VELOCITY's own doc) -- -1250 is
-      // past SWIPE_FLING_VELOCITY (800); dx (-25) is far short of SWIPE_COMMIT_PX (60).
+      // past SWIPE_FLING_VELOCITY (500); dx (-25) is far short of SWIPE_COMMIT_PX (60).
       gesture().handlers.onUpdate?.(panEvent(-25, -1250));
     });
     act(() => {
