@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
+import { Easing, StyleSheet, View } from "react-native";
 import Reanimated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { Press } from "./Press";
-import { PANE_COUNT, paneOffsetRange } from "../lib/paneShell";
+import { PANE_COUNT, paneMorph, paneOffsetRange } from "../lib/paneShell";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /** Pane order: Events, Home, You (matches PaneStack's pane array). MVP cut (temporary, see
@@ -21,6 +21,10 @@ const CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 // `useAnimatedStyle` runs worklet bodies as plain synchronous JS with no UI/JS runtime split, so
 // this class of bug is invisible to the test suite and only surfaces on a real device/emulator.
 const TITLE_OFFSET = fs(28);
+
+// Preserves the old 6dp-inactive / 8dp-active dot sizing ratio, now expressed as a scale factor off
+// a fixed-size box instead of an interpolated width/height (see PaneDot below).
+const DOT_MIN_SCALE = fs(6) / fs(8);
 
 // A dot's own tap-target box is spacing(4) = 16dp at the artboard width, shrinking with it on
 // narrower screens (13dp at the 320dp breakpoint). #230 moved the vertical hitSlop from symmetric
@@ -65,6 +69,31 @@ function PaneTitle({ title, index, titlePos, titleOpacityPos }: { title: string;
   );
 }
 
+/** One pane-position dot: a fixed-size box (never itself animated -- Yoga/layout must not re-run
+ * per frame) scaled down via `transform` when inactive, containing two absolutely-positioned fill
+ * layers that cross-fade opacity -- the transform+opacity equivalent of the old width/height/
+ * backgroundColor interpolation, now driven by `morph` (the same shared value driving the title
+ * crossfade, see PaneHeader's own doc) instead of a separate JS-thread `Animated.Value`. Uses
+ * `paneMorph` (paneShell.ts), not `interpolate()`, for the peak/falloff shape -- see that
+ * function's own doc for why. */
+function PaneDot({ index, morph }: { index: number; morph: SharedValue<number> }) {
+  const boxStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: paneMorph(morph.value, index, DOT_MIN_SCALE) }],
+  }));
+  const activeStyle = useAnimatedStyle(() => ({
+    opacity: paneMorph(morph.value, index),
+  }));
+  const inactiveStyle = useAnimatedStyle(() => ({
+    opacity: 1 - paneMorph(morph.value, index),
+  }));
+  return (
+    <Reanimated.View style={[styles.dotBox, boxStyle]}>
+      <Reanimated.View style={[styles.dotFill, { backgroundColor: withOpacity(colors.ink900, 25) }, inactiveStyle]} />
+      <Reanimated.View style={[styles.dotFill, { backgroundColor: colors.maroon600 }, activeStyle]} />
+    </Reanimated.View>
+  );
+}
+
 /**
  * Fixed header pinned above the 3-pane strip (#179): pane-position dots top-right, the active
  * screen's title crossfading through one top-left slot. Mounted once by PaneStack, outside the
@@ -76,9 +105,8 @@ function PaneTitle({ title, index, titlePos, titleOpacityPos }: { title: string;
  * gesture-driven shared values -- the title then tracks the drag continuously, same as the panes,
  * instead of only crossfading on commit. Omitted (as in this file's own standalone tests),
  * PaneHeader falls back to driving its own commit-only values off `activeIndex`. The dot morph
- * always stays on plain RN `Animated` regardless -- it animates width/height/backgroundColor with
- * `useNativeDriver: false` (not native-driver-eligible RN properties), so there's no UI-thread
- * value to share with the panes' Reanimated-driven transform/opacity even if it wanted to.
+ * (PaneDot, above) shares `titleOpacityPos` -- its `[index-1, index, index+1] -> [0, 1, 0]` peak
+ * shape is exactly the shape the dot needs, so no separate value is driven for it.
  *
  * #245 item 3: `styles.container` carries an opaque cream backdrop (matching the artboard, which
  * has no visually distinct header bar -- title/dots just sit on the same page background) so
@@ -101,7 +129,6 @@ export function PaneHeader({
   // PaneStack's own comment on the #f5f0d5b landing race this avoids reintroducing by a new cause.
   const ownTitlePos = useSharedValue(activeIndex);
   const ownTitleOpacityPos = useSharedValue(activeIndex);
-  const dotPos = useRef(new Animated.Value(activeIndex)).current;
   const titlePos = sharedTitlePos ?? ownTitlePos;
   const titleOpacityPos = sharedTitleOpacityPos ?? ownTitleOpacityPos;
 
@@ -110,9 +137,7 @@ export function PaneHeader({
     // driving ownTitlePos/ownTitleOpacityPos here too would just animate values nothing reads.
     if (!sharedTitlePos) ownTitlePos.value = withTiming(activeIndex, { duration: 340, easing: CURVE });
     if (!sharedTitleOpacityPos) ownTitleOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
-    // width/height/backgroundColor aren't native-driver properties.
-    Animated.timing(dotPos, { toValue: activeIndex, duration: 200, easing: Easing.ease, useNativeDriver: false }).start();
-  }, [activeIndex, ownTitlePos, ownTitleOpacityPos, dotPos, sharedTitlePos, sharedTitleOpacityPos]);
+  }, [activeIndex, ownTitlePos, ownTitleOpacityPos, sharedTitlePos, sharedTitleOpacityPos]);
 
   return (
     <View style={[styles.container, { paddingTop: topInset + spacing(4.5) }]} pointerEvents="box-none">
@@ -131,17 +156,7 @@ export function PaneHeader({
             accessibilityRole="button"
             accessibilityLabel={`Go to ${TITLES[i]}`}
           >
-            <Animated.View
-              style={{
-                width: dotPos.interpolate({ inputRange: [i - 1, i, i + 1], outputRange: [fs(6), fs(8), fs(6)], extrapolate: "clamp" }),
-                height: dotPos.interpolate({ inputRange: [i - 1, i, i + 1], outputRange: [fs(6), fs(8), fs(6)], extrapolate: "clamp" }),
-                borderRadius: radii.pill,
-                backgroundColor: dotPos.interpolate({
-                  inputRange: [i - 1, i, i + 1],
-                  outputRange: [withOpacity(colors.ink900, 25), colors.maroon600, withOpacity(colors.ink900, 25)],
-                }),
-              }}
-            />
+            <PaneDot index={i} morph={titleOpacityPos} />
           </Press>
         ))}
       </View>
@@ -180,4 +195,8 @@ const styles = StyleSheet.create({
   // Touch-target box, not type -- spacing() (not fs(), fonts/lineHeights only per its own doc
   // comment) is the width-proportional helper for this, same as the container's padding/gap above.
   dotTapTarget: { width: spacing(4), height: spacing(4), alignItems: "center", justifyContent: "center" },
+  // Fixed box, never itself animated (see PaneDot) -- fs(8) is the old "active" size, since scaling
+  // down from a max size (rather than growing from a min one) is what transform: scale wants.
+  dotBox: { width: fs(8), height: fs(8) },
+  dotFill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: radii.pill },
 });

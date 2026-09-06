@@ -15,12 +15,28 @@ All three share the single installed system image: `system-images;android-35;goo
 Base device profiles: `Agent_Emulator` = emulator default (no profile), Narrow = `Nexus 5`,
 Wide = `Nexus 7 2013`.
 
-> **Pool state as of 2026-08-25 10:17:** Narrow (5556) and Wide (5558) are booted and attached;
-> **`Agent_Emulator` (5554) is NOT running** and holds no lock — so the 320dp stress case is
-> currently unavailable, and any claim of 320dp verification since 2026-08-24 is reasoned, not
-> observed. It is owned separately (do not restart or kill it), so bring the narrow-breakpoint
-> question to the owner rather than launching it yourself. Verify with `adb devices` before
-> planning around any device in this table; a booted pool is not guaranteed.
+> **Pool state as of 2026-09-05 23:51 UTC:** only **Narrow (5556)** is booted and attached.
+> `Agent_Emulator` (5554) and `Wide` (5558) are NOT running, and no lock directories exist for
+> any device (`/tmp` is tmpfs — see below; they don't survive a host reboot). Verify with
+> `adb devices` before planning around any device in this table; a booted pool is not guaranteed.
+>
+> **Root-caused and fixed 2026-09-05: `Agent_Emulator_Narrow` was found squatting on port 5554**
+> (i.e. `adb devices` showed it as `emulator-5554`, misidentifiable as `Agent_Emulator`) — a qemu
+> process launched 2026-09-03 21:45:47 with `-avd Agent_Emulator_Narrow` and **no `-port` flag**,
+> so it took the first free default port instead of its documented 5556. This is exactly the "always
+> pass `-port` explicitly" failure mode this doc already warns about, just never previously observed
+> live. Confirmed stale before touching it (same three-signal check as the log below): no holder
+> process on any lock path (none existed), no `gradle`/`metro`/`expo run`/`expo start` process
+> running, and `com.udinetogether.udine`'s `lastUpdateTime` (2026-09-03 21:49:42) matched the
+> emulator's own boot timestamp to the minute — i.e. one build installed right after cold boot, then
+> two days of total silence, not an agent mid-task. Killed cleanly (`adb -s emulator-5554 emu kill`)
+> and relaunched correctly (`-avd Agent_Emulator_Narrow -port 5556 -gpu swangle_indirect`, per the
+> restart recipe below) — confirmed live afterward: `emulator-5556`, `wm size` 1080x1920, `wm
+> density` 480, matching this table's Narrow row exactly. **This was NOT the protected pre-existing
+> `Agent_Emulator`** (that device is a distinct AVD/disk image reserved for port 5554 specifically,
+> and per the note below is not to be restarted/killed by an agent) — the "do not restart or kill
+> it" rule never applied here; what was actually running was one of this pool's own three AVDs,
+> mislabeled by `adb`'s port-based serial naming, which is squarely this doc's own to fix.
 
 `Agent_Emulator`'s numbers are read from its `hardware-qemu.ini`, **not** queried live — it is
 owned by another agent and was deliberately not touched. Narrow and Wide were verified live

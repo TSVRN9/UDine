@@ -72,9 +72,11 @@ function MealTabPane({
  * Dinner / Late Night / Grab 'N Go). Deliberately a sibling of `PaneStack.tsx`, not a reuse of it:
  * `PaneStack` is coupled to `PaneHeader`'s title-dot chrome (Home/Events/You specific), which this
  * screen doesn't want -- its tab row above already renders labels and its own underline, driven off
- * the committed `activeIndex`/`onActiveIndexChange`, not live-tracked during the drag (matching
- * `PaneHeader`'s own dot morph, which is commit-only for the same reason: it can't share a
- * native-driven value with the panes' transform/opacity).
+ * the committed `activeIndex`/`onActiveIndexChange`, not live-tracked during the drag. (`PaneHeader`'s
+ * own dot morph used to be commit-only for an unrelated reason -- a JS-thread-only `Animated.Value`
+ * that couldn't share a native-driven value with the panes' transform/opacity -- but now shares a
+ * Reanimated value the same way its title crossfade always did; this pager's own underline is a
+ * separate design choice, by its own tab-row implementation, unaffected by that.)
  *
  * The gesture math itself (`Gesture.Pan()` wiring, shared values, commit/settle) is copied from
  * `PaneStack.tsx`'s established pattern rather than duplicated by hand from scratch -- but the tuned

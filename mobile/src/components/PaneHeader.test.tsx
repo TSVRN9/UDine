@@ -4,22 +4,15 @@ import type { ReactTestRendererJSON, ReactTestRendererNode } from "react-test-re
 import { DOT_HIT_SLOP, PaneHeader } from "./PaneHeader";
 import { colors, fs } from "../lib/theme";
 
-// dotPos's width/height/backgroundColor animate via Animated.timing with useNativeDriver: false
-// (they aren't native-driver properties) -- a JS-ticked animation that keeps scheduling frames
-// past a bare `await act()`, tripping react-test-renderer's "environment torn down" error. Fake
-// timers make the 200ms dot-morph settle deterministically inside the test instead.
+// The dot morph is now Reanimated (useAnimatedStyle/interpolate), same as the title crossfade --
+// the mocked shared values/withTiming resolve synchronously (jest.config.js's own comment on the
+// react-native-reanimated/mock mapping), so no fake-timer dance is needed to settle it.
 function renderHeader(activeIndex: number): ReactTestRendererJSON {
-  jest.useFakeTimers();
   let root!: renderer.ReactTestRenderer;
   act(() => {
     root = renderer.create(<PaneHeader activeIndex={activeIndex} onSelectPane={() => {}} topInset={0} />);
   });
-  act(() => {
-    jest.advanceTimersByTime(500);
-  });
-  const json = root.toJSON() as ReactTestRendererJSON;
-  jest.useRealTimers();
-  return json;
+  return root.toJSON() as ReactTestRendererJSON;
 }
 
 function findByAccessibilityLabel(node: ReactTestRendererNode | ReactTestRendererNode[] | null, label: string): ReactTestRendererJSON | null {
@@ -35,13 +28,22 @@ function findByAccessibilityLabel(node: ReactTestRendererNode | ReactTestRendere
   return findByAccessibilityLabel(node.children, label);
 }
 
-/** The dot's actual visible size/color -- the Animated.View one level inside the `Press` tap
- * target identified by its accessibilityLabel. */
-function dotStyle(json: ReactTestRendererJSON, label: string): { width?: number; height?: number; backgroundColor?: string } {
+/** The dot's actual rendered scale (the box, one level inside the `Press` tap target identified by
+ * its accessibilityLabel) and the two cross-fading fill layers' opacity (inactive fill first, then
+ * active fill, matching PaneHeader's own JSX order). */
+function dotStyle(json: ReactTestRendererJSON, label: string): { scale?: number; inactiveOpacity?: number; activeOpacity?: number } {
   const wrapper = findByAccessibilityLabel(json, label);
   if (!wrapper || !wrapper.children || wrapper.children.length === 0) throw new Error(`dot "${label}" not found`);
-  const inner = wrapper.children[0] as ReactTestRendererJSON;
-  return inner.props.style as { width?: number; height?: number; backgroundColor?: string };
+  const box = wrapper.children[0] as ReactTestRendererJSON;
+  const boxFlat = StyleSheet.flatten(box.props.style as never) as { transform?: { scale?: number }[] };
+  const [inactiveFill, activeFill] = box.children as ReactTestRendererJSON[];
+  const inactiveFlat = StyleSheet.flatten(inactiveFill.props.style as never) as { opacity?: number };
+  const activeFlat = StyleSheet.flatten(activeFill.props.style as never) as { opacity?: number };
+  return {
+    scale: boxFlat.transform?.[0]?.scale,
+    inactiveOpacity: inactiveFlat.opacity,
+    activeOpacity: activeFlat.opacity,
+  };
 }
 
 /** The dotsRow View's own rendered `gap` -- read off the tree rather than recomputed in the test,
@@ -66,33 +68,35 @@ function dotsRowGap(node: ReactTestRendererNode | ReactTestRendererNode[] | null
 
 // #179 review: paneDots() in paneShell.ts computed the active-index boolean map correctly and had
 // its own passing test -- but no production caller. PaneHeader derives each dot's active state
-// straight from dotPos.interpolate() inline, so paneDots (and its decoy test, now deleted) could
-// stay green forever while the *rendered* active-state logic silently broke. This exercises the
-// real rendered output instead. Proven red: inverting PaneHeader's width/height/backgroundColor
-// outputRanges (so the inactive dots read big+maroon and the active dot reads small+grey) still
-// left the other 467 tests green -- only this test caught it (see PR body for the mutation run).
+// straight from an interpolation inline, so paneDots (and its decoy test, now deleted) could stay
+// green forever while the *rendered* active-state logic silently broke. This exercises the real
+// rendered output instead -- still true after the dot moved from width/height/backgroundColor (RN
+// `Animated`) to transform: scale + cross-fading opacity (Reanimated): inverting either
+// interpolation's outputRange must still turn this test red.
 describe("PaneHeader dot active-state", () => {
-  it("gives the active dot the bigger, maroon treatment and inactive dots the smaller, grey one", () => {
+  const MIN_SCALE = fs(6) / fs(8);
+
+  it("gives the active dot full scale and full active-fill opacity, inactive dots the shrunk, faded treatment", () => {
     const json = renderHeader(1); // UDINE active
     const active = dotStyle(json, "Go to UDINE");
     const inactive = dotStyle(json, "Go to EVENTS");
 
-    expect(active.width).toBe(fs(8));
-    expect(active.height).toBe(fs(8));
-    expect(active.backgroundColor).toContain("124, 36, 48"); // colors.maroon600 = #7c2430
+    expect(active.scale).toBeCloseTo(1);
+    expect(active.activeOpacity).toBeCloseTo(1);
+    expect(active.inactiveOpacity).toBeCloseTo(0);
 
-    expect(inactive.width).toBe(fs(6));
-    expect(inactive.height).toBe(fs(6));
-    expect(inactive.backgroundColor).toContain("36, 26, 20"); // withOpacity(colors.ink900, 25)
+    expect(inactive.scale).toBeCloseTo(MIN_SCALE);
+    expect(inactive.activeOpacity).toBeCloseTo(0);
+    expect(inactive.inactiveOpacity).toBeCloseTo(1);
   });
 
-  it("moves the big+maroon treatment to whichever dot activeIndex points at", () => {
+  it("moves the full-scale, full-active-opacity treatment to whichever dot activeIndex points at", () => {
     const json = renderHeader(0); // EVENTS active
     const events = dotStyle(json, "Go to EVENTS");
     const you = dotStyle(json, "Go to YOU");
 
-    expect(events.width).toBe(fs(8));
-    expect(you.width).toBe(fs(6));
+    expect(events.scale).toBeCloseTo(1);
+    expect(you.scale).toBeCloseTo(MIN_SCALE);
   });
 });
 
