@@ -7,6 +7,7 @@ import {
   paneDelta,
   paneDragPosition,
   paneIndexForSwipe,
+  paneMorph,
   paneOffsetRange,
   paneVisibility,
   settleDuration,
@@ -66,6 +67,34 @@ describe("paneOffsetRange", () => {
     // At inputPos === itemIndex + 1, d = -1 -> -offset. At inputPos === itemIndex, d = 0 -> 0.
     expect(paneOffsetRange(36)).toEqual([36, 0, -36]);
     expect(paneOffsetRange(28)).toEqual([28, 0, -28]);
+  });
+});
+
+describe("paneMorph", () => {
+  // A plain function, not interpolate() -- the shipped react-native-reanimated/mock's own
+  // interpolate is a hard no-op (always returns undefined) under Jest, which is untestable through
+  // any rendered useAnimatedStyle output. Extracting the same symmetric peak/falloff shape
+  // paneOffsetRange already models (see its own doc) is what keeps this math unit-testable, the
+  // same reason that function exists.
+  it("peaks at 1 exactly at the given index", () => {
+    expect(paneMorph(2, 2)).toBe(1);
+  });
+
+  it("falls linearly to `min` one pane-step away in either direction", () => {
+    expect(paneMorph(1, 2)).toBe(0);
+    expect(paneMorph(3, 2)).toBe(0);
+    expect(paneMorph(1.5, 2)).toBeCloseTo(0.5);
+  });
+
+  it("clamps beyond one pane-step away instead of continuing past `min`", () => {
+    expect(paneMorph(0, 2)).toBe(0);
+    expect(paneMorph(5, 2)).toBe(0);
+  });
+
+  it("scales the falloff floor to a non-zero `min`", () => {
+    expect(paneMorph(2, 2, 0.75)).toBe(1);
+    expect(paneMorph(1, 2, 0.75)).toBeCloseTo(0.75);
+    expect(paneMorph(1.5, 2, 0.75)).toBeCloseTo(0.875);
   });
 });
 

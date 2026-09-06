@@ -50,6 +50,20 @@ export function paneOffsetRange(offset: number): [number, number, number] {
   return [offset, 0, -offset];
 }
 
+/** Symmetric "peak" shape: 1 exactly at `index`, falling linearly to `min` by one pane-step away in
+ * either direction, clamped beyond -- the falloff a title's opacity or a position dot's scale/
+ * opacity should follow across a swipe (same `[index-1, index, index+1]` three-point shape
+ * `paneOffsetRange` models for translateX, above). A plain function, not `interpolate()`: the
+ * shipped `react-native-reanimated/mock`'s own `interpolate` is a hard no-op under Jest (always
+ * returns undefined), which no rendered `useAnimatedStyle` output can ever observe -- see
+ * PaneHeader.test.tsx's own dot tests. `"worklet"` so it can be called directly from a UI-thread
+ * `useAnimatedStyle` body. */
+export function paneMorph(pos: number, index: number, min = 0): number {
+  "worklet";
+  const distance = Math.min(1, Math.abs(pos - index));
+  return 1 - distance * (1 - min);
+}
+
 /** z-index and pointer-events are NOT part of the CSS transition (only transform/opacity are, per
  * the artboard spec) -- they flip the instant activeIndex changes. Callers must read these off the
  * plain activeIndex, never off an in-flight animated value, or a still-animating-out pane would

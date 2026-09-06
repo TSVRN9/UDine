@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { Gesture } from "react-native-gesture-handler";
 import {
   cancelAnimation,
@@ -10,6 +10,7 @@ import {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
+import { settleDuration } from "./paneShell";
 
 const SHEET_DURATION = 220;
 
@@ -85,6 +86,28 @@ export function useDraggableSheet(visible: boolean, onClose: () => void, panelTr
   // its Modal immediately, not wait a render for the effect below to catch up.
   const [modalVisible, setModalVisible] = useState(visible);
 
+  // Named worklet (not inlined into onEnd/the effect below) so the drag-dismiss path and the
+  // visible-prop-driven path share exactly one implementation -- mirrors PaneStack's own
+  // settlePosition/cancelInFlightSettle split for the identical reason. `from` has no default and
+  // both call sites pass it explicitly -- a default referencing captured `pos` would hit the exact
+  // bug paneShell.ts's own worklet functions document: a default parameter expression evaluates
+  // before the worklet body's closure is reconstructed, so it can't see anything not passed as a
+  // real argument. Duration is scaled by remaining distance via settleDuration (same helper the pane
+  // engine uses) so a release near-closed doesn't take the full flat duration for a few leftover px.
+  // useCallback (stable across renders, since `pos` is) so the effect below can list it as a real
+  // dependency instead of triggering exhaustive-deps -- an unmemoized function reference would
+  // either be omitted (silently stale) or included and re-run the effect on every render.
+  const closeSheet = useCallback(
+    (from: number) => {
+      "worklet";
+      cancelAnimation(pos);
+      pos.value = withTiming(0, { duration: settleDuration(from, 0, SHEET_DURATION) }, (finished) => {
+        if (finished) runOnJS(setModalVisible)(false);
+      });
+    },
+    [pos],
+  );
+
   useLayoutEffect(() => {
     // useLayoutEffect, not useEffect, so the reset below lands before paint -- same reasoning as
     // useSheetAnim's own doc comment (and PaneStack's #336 comment it cites): otherwise the sheet
@@ -95,12 +118,9 @@ export function useDraggableSheet(visible: boolean, onClose: () => void, panelTr
       pos.value = 0;
       pos.value = withTiming(1, { duration: SHEET_DURATION });
     } else {
-      cancelAnimation(pos);
-      pos.value = withTiming(0, { duration: SHEET_DURATION }, (finished) => {
-        if (finished) runOnJS(setModalVisible)(false);
-      });
+      closeSheet(pos.value);
     }
-  }, [visible, pos]);
+  }, [visible, pos, closeSheet]);
 
   const pan = Gesture.Pan()
     .onStart(() => {
@@ -113,11 +133,15 @@ export function useDraggableSheet(visible: boolean, onClose: () => void, panelTr
     })
     .onEnd((e, success) => {
       if (success && shouldDismissSheet(e.translationY, e.velocityY)) {
-        runOnJS(onClose)();
+        // Start the close on the UI thread right now -- don't wait for onClose's setState to round
+        // trip back into a `visible={false}` prop (see closeSheet's own doc; that round trip used to
+        // be the only thing that ever started this animation, freezing the panel until it landed).
+        closeSheet(pos.value);
+        runOnJS(onClose)(); // still flip the parent's state, so backdrop/button closes stay on the same path
       } else {
         // Snap back open -- either the drag fell short of both thresholds, or the gesture was
         // cancelled/stolen mid-drag (success === false) and shouldn't strand the panel partway.
-        pos.value = withTiming(1, { duration: SHEET_DURATION });
+        pos.value = withTiming(1, { duration: settleDuration(pos.value, 1, SHEET_DURATION) });
       }
     });
 

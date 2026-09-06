@@ -171,12 +171,12 @@ describe("useDraggableSheet handle drag", () => {
     function gesture(): GestureType {
       return root.root.findByType(GestureDetector).props.gesture as GestureType;
     }
-    return gesture;
+    return { gesture, root };
   }
 
   it("calls onClose once the drag clears SHEET_DISMISS_PX", () => {
     const onClose = jest.fn();
-    const gesture = renderGestureHarness(onClose);
+    const { gesture } = renderGestureHarness(onClose);
 
     act(() => {
       gesture().handlers.onStart?.(panEvent(0));
@@ -193,7 +193,7 @@ describe("useDraggableSheet handle drag", () => {
 
   it("calls onClose on a fast downward flick well short of SHEET_DISMISS_PX", () => {
     const onClose = jest.fn();
-    const gesture = renderGestureHarness(onClose);
+    const { gesture } = renderGestureHarness(onClose);
 
     act(() => {
       gesture().handlers.onStart?.(panEvent(0));
@@ -208,9 +208,29 @@ describe("useDraggableSheet handle drag", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // The reported bug: onEnd used to only call onClose and wait for the parent's setState to round
+  // trip back into a `visible={false}` prop before the close withTiming ever started -- freezing the
+  // panel wherever the finger released it. The close must start on the UI thread from onEnd itself.
+  it("starts the close animation immediately on a committed dismiss, without waiting for onClose's round trip", () => {
+    const onClose = jest.fn();
+    const { gesture } = renderGestureHarness(onClose);
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(SHEET_DISMISS_PX + 20));
+    });
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(SHEET_DISMISS_PX + 20), true);
+    });
+
+    expect(withTimingCalls.some((c) => c.toValue === 0)).toBe(true);
+  });
+
   it("snaps back open (no onClose) when the drag falls short of both thresholds", () => {
     const onClose = jest.fn();
-    const gesture = renderGestureHarness(onClose);
+    const { gesture } = renderGestureHarness(onClose);
 
     act(() => {
       gesture().handlers.onStart?.(panEvent(0));
@@ -230,7 +250,7 @@ describe("useDraggableSheet handle drag", () => {
 
   it("snaps back open instead of closing when the gesture is cancelled mid-drag (success === false)", () => {
     const onClose = jest.fn();
-    const gesture = renderGestureHarness(onClose);
+    const { gesture } = renderGestureHarness(onClose);
 
     act(() => {
       gesture().handlers.onStart?.(panEvent(0));
@@ -252,7 +272,7 @@ describe("useDraggableSheet handle drag", () => {
     // Documented via the clamp's absence of any thrown/NaN behavior -- onUpdate must not crash or
     // produce a pos outside [0, 1] on a drag that overshoots past open.
     const onClose = jest.fn();
-    const gesture = renderGestureHarness(onClose);
+    const { gesture } = renderGestureHarness(onClose);
     act(() => {
       gesture().handlers.onStart?.(panEvent(0));
     });
@@ -261,5 +281,47 @@ describe("useDraggableSheet handle drag", () => {
         gesture().handlers.onUpdate?.(panEvent(-500));
       });
     }).not.toThrow();
+  });
+
+  // The double-invocation this hook's own fix relies on: onEnd starts closeSheet on the UI thread
+  // immediately, AND still calls onClose, whose parent setState eventually flips the `visible` prop
+  // and re-runs the effect, which calls closeSheet again. Confirms this doesn't race: the first
+  // (interrupted) call's callback must be a no-op, and modalVisible must flip false exactly once,
+  // from whichever call's callback actually finishes.
+  it("closeSheet fires from both onEnd and the subsequent visible=false re-render without racing modalVisible", () => {
+    const onClose = jest.fn(() => {
+      act(() => {
+        root.update(<Harness visible={false} onClose={onClose} />);
+      });
+    });
+    const { gesture, root } = renderGestureHarness(onClose);
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(SHEET_DISMISS_PX + 20));
+    });
+    act(() => {
+      // onClose (called from onEnd) synchronously re-renders with visible=false above, so by the
+      // time this act() flushes, both closeSheet call sites have already fired.
+      gesture().handlers.onEnd?.(panEvent(SHEET_DISMISS_PX + 20), true);
+    });
+
+    const closeCalls = withTimingCalls.filter((c) => c.toValue === 0);
+    expect(closeCalls).toHaveLength(2);
+    expect(latestModalVisible).toBe(true); // neither callback has fired yet
+
+    // The first (onEnd-started) close was interrupted by the effect's own cancelAnimation -- a real
+    // withTiming fires an interrupted animation's callback with finished: false.
+    act(() => {
+      closeCalls[0].callback?.(false);
+    });
+    expect(latestModalVisible).toBe(true);
+
+    act(() => {
+      closeCalls[1].callback?.(true);
+    });
+    expect(latestModalVisible).toBe(false);
   });
 });
