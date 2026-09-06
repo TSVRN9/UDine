@@ -63,12 +63,24 @@ export function paneVisibility(paneIndex: number, activeIndex: number): { zIndex
  * UNLESS it clears SWIPE_FLING_VELOCITY (see paneIndexForSwipe) -- a fast short flick commits too. */
 export const SWIPE_COMMIT_PX = 60;
 
-/** PanResponder's `gesture.vx`/`vy` are in px/ms. A flick this fast commits even under
- * SWIPE_COMMIT_PX of travel -- without this, a quick short flick did nothing at all (silently
- * snapped back), which was the single biggest source of the swipe reading as unresponsive/clunky:
- * a real swipe gesture releases well before 60px of travel if it's moving fast. ~0.5px/ms is a
- * commonly-used "this was a fling, not a drag" threshold across RN gesture libraries. */
-export const SWIPE_FLING_VELOCITY = 0.5;
+/** react-native-gesture-handler's `Gesture.Pan()` reports `velocityX`/`velocityY` in **points per
+ * second** (RNGH's own type doc on `PanGestureHandlerEventPayload`, confirmed on-device below) --
+ * NOT px/ms, which an earlier PanResponder-era version of this comment claimed (stale since #245's
+ * migration off PanResponder to RNGH; PanResponder's `gesture.vx`/`vy` really were px/ms, but that
+ * stopped being the mechanism here without this constant getting rescaled to match). A flick this
+ * fast commits even under SWIPE_COMMIT_PX of travel -- without this, a quick short flick did
+ * nothing at all (silently snapped back), which was the single biggest source of the swipe reading
+ * as unresponsive/clunky: a real swipe gesture releases well before 60px of travel if it's moving
+ * fast.
+ *
+ * 800 points/second, picked from on-device `emulator-5556` measurements of this exact gesture (a
+ * temporary console.log probe on `e.velocityX` in PaneStack's `onEnd`, real synthetic swipes via
+ * `adb shell input swipe`, not guessed): a slow, gentle drag release measured 0-~280pts/s; a real
+ * short flick that clears well under SWIPE_COMMIT_PX (22px) but is unambiguously a fling measured
+ * ~830-3300pts/s. 800 sits above the slow-release band and below the smallest real flick observed,
+ * comfortably inside the few-hundred-to-~1500pts/s range typical for a full-width horizontal swipe
+ * this size (PANE_DRAG_PX = 140). */
+export const SWIPE_FLING_VELOCITY = 800;
 
 /** The in-flight drag position's own divisor (see paneDragPosition) -- deliberately NOT
  * SWIPE_COMMIT_PX. Reusing the 60px commit threshold as the divisor (the original #245 design)
