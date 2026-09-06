@@ -82,10 +82,10 @@ export const SWIPE_COMMIT_PX = 60;
  * above the slowest deliberate drag and comfortable margin below the smallest real flick, rather
  * than hugging either edge -- so a variance in a real finger's release speed a hair either side of
  * either measured band still classifies correctly. (A `Gesture.Pan()` fast-flick-but-short synthetic
- * swipe in the 50-120px/40-60ms range measured 278-833pts/s -- a real intermediate speed, not noise
- * -- and is deliberately left on the "commits" side of 500: a 50px drag in 60ms is a real, if
- * moderate, flick intent, not the "barely moved the finger" case this threshold exists to protect
- * against.) */
+ * swipe in the 50-120px/40-60ms range measured 278-833pts/s -- a real intermediate speed, not noise.
+ * Only the upper part of that band, roughly 500-833pts/s, clears SWIPE_FLING_VELOCITY and commits;
+ * the lower part, 278-499pts/s, falls short of the threshold and does not, same as any other release
+ * below 500.) */
 export const SWIPE_FLING_VELOCITY = 500;
 
 /** The in-flight drag position's own divisor (see paneDragPosition) -- deliberately NOT

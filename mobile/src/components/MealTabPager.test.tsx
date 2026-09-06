@@ -207,7 +207,7 @@ describe("MealTabPager swipe gesture wiring", () => {
       gesture().handlers.onUpdate?.(panEvent(-45)); // below the 60px commit threshold
     });
     act(() => {
-      gesture().handlers.onEnd?.(panEvent(-45, -0.045), true);
+      gesture().handlers.onEnd?.(panEvent(-45, -45), true); // -45pts/s, nowhere near SWIPE_FLING_VELOCITY (500)
     });
 
     expect(onActiveIndexChange).not.toHaveBeenCalled();

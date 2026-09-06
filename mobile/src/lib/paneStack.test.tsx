@@ -201,13 +201,13 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
       gesture().handlers.onStart?.(panEvent(0));
     });
     act(() => {
-      // dx=-45 (below the 60px commit threshold), vx a tiny -0.045pts/s, nowhere near
+      // dx=-45 (below the 60px commit threshold), vx a gentle -45pts/s, nowhere near
       // SWIPE_FLING_VELOCITY (500).
       gesture().handlers.onUpdate?.(panEvent(-45));
     });
     const callsBeforeRelease = withTimingSpy.mock.calls.length;
     act(() => {
-      gesture().handlers.onEnd?.(panEvent(-45, -0.045), true);
+      gesture().handlers.onEnd?.(panEvent(-45, -45), true);
     });
 
     expect(onActiveIndexChange).not.toHaveBeenCalled();
