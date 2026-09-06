@@ -15,6 +15,7 @@
       }
     },
     "production": {
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ubogyqskqzvkcqboqbhw.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_sNs-0ho2fQDRiVR340N5MA_R25HyvI4"
