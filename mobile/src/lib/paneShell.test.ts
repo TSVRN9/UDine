@@ -129,6 +129,23 @@ describe("paneIndexForSwipe", () => {
       expect(paneIndexForSwipe(1, 10, 0.1)).toBe(1);
     });
 
+    // Regression for the px/ms-vs-points/second unit mismatch: RNGH's `velocityX`/`velocityY` are
+    // points/second (see SWIPE_FLING_VELOCITY's own doc), so a realistic gentle-release residual
+    // velocity is in the tens, not a sub-1 fraction. On-device measurement (emulator-5556, a slow
+    // deliberate drag released gently over 400-2000ms) read 0-33pts/s. 100 is comfortably above
+    // that but still well under SWIPE_FLING_VELOCITY (500) -- a real slow drag with SOME residual
+    // velocity should still snap back, not commit. This would have incorrectly committed under the
+    // old (pre-fix) 0.5 threshold, since any realistic points/second velocity clears 0.5.
+    it("does not falsely commit on a realistic slow-drag residual velocity (points/second, not px/ms)", () => {
+      expect(paneIndexForSwipe(1, 10, 100)).toBe(1);
+    });
+
+    // The other side of the same regression: a real short flick clears SWIPE_FLING_VELOCITY at a
+    // realistic points/second magnitude (on-device: 833-3333pts/s for an unambiguous flick).
+    it("commits on a realistic fast-flick velocity (points/second)", () => {
+      expect(paneIndexForSwipe(1, -22, -900)).toBe(2);
+    });
+
     it("clamps a fling at the ends instead of wrapping", () => {
       expect(paneIndexForSwipe(0, 10, SWIPE_FLING_VELOCITY)).toBe(0);
       expect(paneIndexForSwipe(2, -10, -SWIPE_FLING_VELOCITY)).toBe(2);

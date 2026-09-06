@@ -63,12 +63,30 @@ export function paneVisibility(paneIndex: number, activeIndex: number): { zIndex
  * UNLESS it clears SWIPE_FLING_VELOCITY (see paneIndexForSwipe) -- a fast short flick commits too. */
 export const SWIPE_COMMIT_PX = 60;
 
-/** PanResponder's `gesture.vx`/`vy` are in px/ms. A flick this fast commits even under
- * SWIPE_COMMIT_PX of travel -- without this, a quick short flick did nothing at all (silently
- * snapped back), which was the single biggest source of the swipe reading as unresponsive/clunky:
- * a real swipe gesture releases well before 60px of travel if it's moving fast. ~0.5px/ms is a
- * commonly-used "this was a fling, not a drag" threshold across RN gesture libraries. */
-export const SWIPE_FLING_VELOCITY = 0.5;
+/** react-native-gesture-handler's `Gesture.Pan()` reports `velocityX`/`velocityY` in **points per
+ * second** (RNGH's own type doc on `PanGestureHandlerEventPayload`, confirmed on-device below) --
+ * NOT px/ms, which an earlier PanResponder-era version of this comment claimed (stale since #245's
+ * migration off PanResponder to RNGH; PanResponder's `gesture.vx`/`vy` really were px/ms, but that
+ * stopped being the mechanism here without this constant getting rescaled to match). A flick this
+ * fast commits even under SWIPE_COMMIT_PX of travel -- without this, a quick short flick did
+ * nothing at all (silently snapped back), which was the single biggest source of the swipe reading
+ * as unresponsive/clunky: a real swipe gesture releases well before 60px of travel if it's moving
+ * fast.
+ *
+ * 500 points/second, picked from on-device `emulator-5556` measurements of this exact gesture (a
+ * temporary console.log probe on `e.velocityX` in PaneStack's `onEnd`, real synthetic swipes via
+ * `adb shell input swipe`, not guessed): a genuinely slow, gentle drag release (400-2000ms to
+ * travel a few tens of px) measured 0-33pts/s; a real short flick that clears well under
+ * SWIPE_COMMIT_PX (as little as 5-22px of travel) but is unambiguously a fling measured
+ * 833-3333pts/s. 500 sits roughly midway between those two observed bands -- comfortable margin
+ * above the slowest deliberate drag and comfortable margin below the smallest real flick, rather
+ * than hugging either edge -- so a variance in a real finger's release speed a hair either side of
+ * either measured band still classifies correctly. (A `Gesture.Pan()` fast-flick-but-short synthetic
+ * swipe in the 50-120px/40-60ms range measured 278-833pts/s -- a real intermediate speed, not noise.
+ * Only the upper part of that band, roughly 500-833pts/s, clears SWIPE_FLING_VELOCITY and commits;
+ * the lower part, 278-499pts/s, falls short of the threshold and does not, same as any other release
+ * below 500.) */
+export const SWIPE_FLING_VELOCITY = 500;
 
 /** The in-flight drag position's own divisor (see paneDragPosition) -- deliberately NOT
  * SWIPE_COMMIT_PX. Reusing the 60px commit threshold as the divisor (the original #245 design)

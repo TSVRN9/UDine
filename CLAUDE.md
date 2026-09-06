@@ -52,6 +52,7 @@ explicitly exports it or opts a truncated summary in.
 | Shared stats (#94: hall completion counts, top-5 foods, hall rank order) | Server, opt-in per stat, **default ON for accounts created on/after 2026-08-26** (#248 Part C — supersedes epic #87's 2026-08-19 "default off" decision; new-accounts-only, never backfilled onto existing rows), friends-only. Un-opted stat is SQL NULL, never written ("privacy by presence", check-constrained). Opting out deletes it immediately. Never raw comparisons, counts, timestamps, or the log. Payload cut defined in `mobile/src/lib/privacySettings.ts` |
 | Favorited foods (spotted-elsewhere alerts) | Server only if signed in + notifications on. `profiles.notifications_enabled` defaults **true** for accounts created on/after 2026-08-26 (#248 Part B, a column default — not backfilled onto existing rows); the device only actually registers a push token once OS permission is granted, and the server-side RPC itself now refuses to register a token at all when the flag is off (#277) |
 | Friends, pings, profile, auth identity | Server |
+| Dish nutrition catalog (`public.dishes`) | Server, public/read-only — deduplicated dish names + nutrition only, no per-user data; not a consumption log or a menu cache |
 
 **Anonymous-first:** menus, nutrition, events, press, filters, local logging/ranking work with zero
 account. Sign-in gates only friends, pings, cross-device sync, push alerts, server favorite halls.

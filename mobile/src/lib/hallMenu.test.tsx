@@ -62,6 +62,18 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// PlateSheet (rendered by this screen) now imports the real ../lib/supabase singleton for its
+// background dish-catalog refresh -- explicit factory, not a bare automock, same reasoning as
+// homePane.test.tsx: the real module drags in native bindings (AsyncStorage) unavailable outside
+// jest-expo's native harness. dishCatalog itself is mocked too so PlateSheet's mount-time refresh
+// is a no-op here, same as menuHoursCache's mocks above/below.
+jest.mock("../lib/supabase", () => ({ supabase: {} }));
+jest.mock("../lib/dishCatalog", () => ({
+  getCachedDishCatalog: jest.fn().mockResolvedValue(null),
+  refreshDishCatalogIfStale: jest.fn().mockResolvedValue(undefined),
+  searchCachedDishes: jest.fn().mockReturnValue([]),
+}));
+
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),
@@ -195,6 +207,17 @@ const OATMEAL: MenuItem = {
   dietTags: [],
 };
 
+const STEAK: MenuItem = {
+  dishName: "Steak",
+  category: "Entrees",
+  mealPeriod: "dinner",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(400),
+  allergens: [],
+  dietTags: [],
+};
+
 async function renderScreen(items: MenuItem[] = [PIZZA, SALAD]) {
   mockedFetchMenu.mockResolvedValue(items);
   let root!: renderer.ReactTestRenderer;
@@ -299,6 +322,38 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     const body = activePaneTexts(root).flat().join(" ");
     expect(body).toMatch(/Pizza/);
     expect(body).not.toMatch(/Oatmeal/);
+  });
+
+  // Root-cause fix for the "always lands on Lunch" bug: once hoursFeed resolves and the hall is
+  // currently inside a different meal's window, the initial tab should land on that meal instead of
+  // sitting on the static "lunch" interim default forever.
+  it("lands on the Dinner tab (not the static Lunch default) once hours resolve and the hall is currently inside its dinner window", async () => {
+    // Wed 2026-08-19, 6:00 PM local -- inside the mocked dinner window below.
+    jest.setSystemTime(new Date(2026, 7, 19, 18, 0, 0, 0));
+    mockFetchHoursAndCache.mockResolvedValueOnce({
+      halls: [
+        {
+          hallTid: 1,
+          breakfast: null,
+          lunch: { openTime: "11:00 AM", closeTime: "2:30 PM" },
+          dinner: { openTime: "5:00 PM", closeTime: "8:00 PM" },
+          latenight: null,
+          general: null,
+        },
+      ],
+      retail: [],
+    });
+    const root = await renderScreen([PIZZA, STEAK]);
+    await act(async () => {}); // flush fetchHoursAndCache's resolution
+
+    const body = activePaneTexts(root).flat().join(" ");
+    expect(body).toMatch(/Steak/);
+    expect(body).not.toMatch(/Pizza/);
+
+    const dinnerTab = root.root.findByProps({ accessibilityLabel: "Dinner menu" });
+    const underline = dinnerTab.findAllByType(View).at(-1);
+    const flatStyle = StyleSheet.flatten(underline!.props.style) as { backgroundColor?: string };
+    expect(flatStyle.backgroundColor).toBe(colors.gold500);
   });
 
   it("switching to the Breakfast tab shows breakfast items and hides the previously-shown lunch items", async () => {

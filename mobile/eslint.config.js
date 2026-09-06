@@ -73,7 +73,10 @@ module.exports = defineConfig([
     // React-Compiler-legible "this looks like a plain object being mutated" pattern that's actually
     // a documented external-mutable-container API). Every remaining finding in both files is this
     // same pattern; none of it is a real cross-render mutation bug the rule is meant to catch.
-    files: ["src/components/PaneStack.tsx", "src/components/MealTabPager.tsx"],
+    // src/lib/sheetAnimation.ts joined this list for the same reason (#245 item 5 follow-up,
+    // draggable bottom sheets): useDraggableSheet's `pos.value = ...` assignments, from inside
+    // Gesture.Pan() callbacks, are the identical documented false positive.
+    files: ["src/components/PaneStack.tsx", "src/components/MealTabPager.tsx", "src/lib/sheetAnimation.ts"],
     rules: { "react-hooks/immutability": "off" },
   },
   {

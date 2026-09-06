@@ -1,5 +1,6 @@
 import {
   computeDailyTotals,
+  currentMealPeriod,
   DINING_HALLS,
   fetchEvents,
   favoriteKey,
@@ -13,7 +14,7 @@ import {
   type OffSearchResult,
 } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { createNativeWrapper } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -150,6 +151,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // null here means "not yet chosen," resolved once items load by the effect below, to whichever
   // period deriveCafeMealTabs finds first. A real hall keeps the static "lunch" default unchanged.
   const [selectedMeal, setSelectedMeal] = useState<TabSelection | null>(initialMeal ?? (isRealHall ? "lunch" : null));
+  // Tracks whether the user has manually picked a meal tab -- seeded true when initialMeal was
+  // explicitly passed via route params (today, only the Grab 'N Go deep link), since that's already
+  // an explicit choice that must never be overridden by the current-meal-period auto-select effect
+  // below. Not state: flipping it must never itself trigger a re-render.
+  const hasManuallyPickedMeal = useRef(initialMeal !== undefined);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const mealTabs = useMemo<readonly MealPeriod[]>(() => (isRealHall ? MEAL_TABS : deriveCafeMealTabs(items ?? [])), [isRealHall, items]);
 
@@ -226,6 +232,14 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       current = false;
     };
   }, [hall, selectedDate, selectedMeal]);
+
+  // User-driven tab picks route through this wrapper (not setSelectedMeal directly) so the
+  // current-meal-period auto-select effect below knows never to stomp a choice the user already
+  // made -- the café auto-resolve effect just below is NOT user-driven and must not set this flag.
+  function selectMeal(next: TabSelection) {
+    hasManuallyPickedMeal.current = true;
+    setSelectedMeal(next);
+  }
 
   function retryMenuFetch() {
     setRetryToken((t) => t + 1);
@@ -338,6 +352,25 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   const hoursRows = hallHours ? hallInfoHoursRows(hallHours, now) : [];
   const grabNGoWindow = hoursFeed ? hallInfoGrabNGoWindow(hoursFeed.retail, hall.name) : null;
   const infoDirectionsUrl = directionsUrl(hallHours?.mapAddress);
+
+  // #117 follow-up: a real hall's initial tab was hardcoded "lunch" regardless of what's actually
+  // being served right now. Resolves once hallHours loads (fires once in the normal case -- hallHours
+  // above only changes once per hall once hoursFeed resolves), landing on the current meal period
+  // instead -- but only if the user hasn't already manually picked a tab (hasManuallyPickedMeal is a
+  // ref, not state, so this effect doesn't need it in its dependency list). useLayoutEffect (not
+  // useEffect), same before-paint reasoning as sheetAnimation.ts's own doc comment, so the interim
+  // "lunch" default never has a chance to flash before the real one paints.
+  useLayoutEffect(() => {
+    if (!isRealHall || hasManuallyPickedMeal.current || !hallHours) return;
+    const period = currentMealPeriod(hallHours, new Date());
+    // Guard on tab membership, not just "closed" -- currentMealPeriod can return "latenight", which
+    // a real hall's fixed MEAL_TABS may not include. Setting selectedMeal to a period absent from
+    // mealTabs would reproduce the exact bug the café comment above already documents for a stale
+    // selection: tab-0 content renders with no pill highlighted. A period the hall has no tab for
+    // (closed, or outside MEAL_TABS) leaves the static "lunch" interim default in place.
+    if (!mealTabs.includes(period as MealPeriod)) return;
+    setSelectedMeal(period as MealPeriod);
+  }, [isRealHall, hallHours, mealTabs]);
 
   // Grab tab's own open/closed header line (ported from the retired grab-n-go/[slug].tsx). Only
   // meaningful for today -- get_infov2 (hoursFeed) never publishes anything but today's hours, so
@@ -500,7 +533,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // -1 guard covers the café pre-load instant (selectedMeal still null, see its own comment above).
   const activeIndex = Math.max(0, tabs.indexOf(selectedMeal as TabSelection));
   function handleActiveIndexChange(i: number) {
-    setSelectedMeal(tabs[i]);
+    selectMeal(tabs[i]);
   }
 
   // One real meal period's pane -- reproduces the pre-swipe non-Grab branch verbatim, just
@@ -679,7 +712,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           return (
             <Pressable
               key={period}
-              onPress={() => setSelectedMeal(period)}
+              onPress={() => selectMeal(period)}
               hitSlop={12}
               style={styles.tab}
               accessibilityRole="button"
@@ -698,7 +731,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           <>
             <View style={styles.tabDivider} />
             <Pressable
-              onPress={() => setSelectedMeal("grab")}
+              onPress={() => selectMeal("grab")}
               hitSlop={12}
               style={styles.tab}
               accessibilityRole="button"
