@@ -7,6 +7,13 @@
     "icon": "./assets/images/icon.png",
     "scheme": "udine",
     "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.udinetogether.udine",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "2"
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#840028",

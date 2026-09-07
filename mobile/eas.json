@@ -33,7 +33,8 @@
         "ascApiKeyPath": "./AuthKey_3CC32P33C5.p8",
         "ascApiKeyIssuerId": "b70c7474-d4b2-4a58-b887-404f2c56c3e2",
         "ascApiKeyId": "3CC32P33C5",
-        "appleTeamId": "U4S8T7M657"
+        "appleTeamId": "U4S8T7M657",
+        "ascAppId": "6809176937"
       }
     }
   }
