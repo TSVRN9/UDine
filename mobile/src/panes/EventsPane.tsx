@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
 
   eventsList: { gap: spacing(2.5) },
   eventCard: { overflow: "hidden" },
-  eventBanner: { width: "100%", height: fs(84), backgroundColor: withOpacity(colors.ink900, 8) },
+  eventBanner: { width: "100%", aspectRatio: 1024 / 432, backgroundColor: withOpacity(colors.ink900, 8) },
   // Matches the artboard exactly (10px 14px, not the wider 14px 14px it read as before -- owner
   // feedback: "the space around the caption for events is huge").
   eventRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing(2), paddingVertical: spacing(2.5), paddingHorizontal: spacing(3.5) },

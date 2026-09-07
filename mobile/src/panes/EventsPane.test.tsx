@@ -1,7 +1,7 @@
 import type { DiningEvent } from "@udine/shared";
 
 import renderer, { act } from "react-test-renderer";
-import { Image, Text } from "react-native";
+import { Image, StyleSheet, Text } from "react-native";
 import { EventsPane } from "./EventsPane";
 
 // Real @udine/shared's fetchEvents does a live network fetch -- keep everything else real, stub
@@ -119,6 +119,18 @@ describe("EventsPane", () => {
     // The banner event actually renders its image (clean, no overlay).
     const images = root.root.findAllByType(Image);
     expect(images.some((img) => img.props.source?.uri === harvestDinner.featuredImage)).toBe(true);
+  });
+
+  // Real fetchEvents banners are full poster graphics (~1024x432, 2.37:1) -- a fixed banner height
+  // forces resizeMode="cover" to crop most of the poster off. aspectRatio lets cover fill the width
+  // without cropping a well-formed poster.
+  it("banner image uses aspectRatio, not a fixed crop-prone height", async () => {
+    mockFetchEvents.mockResolvedValue([harvestDinner]);
+    const root = await renderEventsPane();
+    const image = root.root.findAllByType(Image).find((img) => img.props.source?.uri === harvestDinner.featuredImage);
+    const style = StyleSheet.flatten(image!.props.style);
+    expect(style.aspectRatio).toBeCloseTo(1024 / 432);
+    expect(style.height).toBeUndefined();
   });
 
   it("events v2.1 (#120): tapping a card whose payload resolves to an http(s) link opens the pop-up in-app browser (expo-web-browser), not a bare Linking.openURL", async () => {
