@@ -75,9 +75,12 @@ test("parseCategoryItems extracts both dishes with correct nutrition and decodes
   assert.deepEqual(toast.allergens, ["Milk", "Eggs", "Gluten", "Soy", "Corn", "Wheat"]);
   assert.deepEqual(toast.dietTags, ["Local", "Sustainable", "Vegetarian"]);
   assert.ok(toast.nutrition.servingSize === "1 each");
+  // Entity-decoded, not the raw &#039; -- same decodeEntities call dishName already gets.
+  assert.equal(toast.ingredients, "FREIHOFFER'S Country White Bread");
 
   assert.equal(plantain.dishName, "Fried Plantain");
   assert.equal(plantain.nutrition.calories, 69);
+  assert.equal(plantain.ingredients, "Sweet Plantains");
 });
 
 test("parseCategoryItems captures %DV attributes, including the cholesterol_dv underscore quirk, with blanks as null", () => {
@@ -112,6 +115,11 @@ test("parseCategoryItems distinguishes an absent %DV attribute (undefined) from 
   const [toast] = parseCategoryItems(REAL_FRAGMENT, "Breakfast Entrees", "breakfast", 3, "2026-08-19");
   assert.equal(toast.nutrition.cholesterolDv, null);
   assert.notEqual(toast.nutrition.cholesterolDv, undefined);
+});
+
+test("parseCategoryItems leaves ingredients undefined when data-ingredient-list is absent, same absent-attribute contract as price/servingSize", () => {
+  const [item] = parseCategoryItems(FRAGMENT_MISSING_DV_ATTR, "x", "breakfast", 3, "2026-08-19");
+  assert.equal(item.ingredients, undefined);
 });
 
 test("parseCategoryItems returns nothing for a fragment with no dishes", () => {
@@ -157,6 +165,14 @@ test("parseCategoryItems does not leak a following item's price onto an unpriced
   assert.equal(items[1].price, undefined); // load-bearing: no meal-price span for this item at all
   assert.equal(items[2].dishName, "Pepperoni Pizza");
   assert.equal(items[2].price, "$5.00");
+});
+
+test("parseCategoryItems decodes ingredient-list entities and keeps nested parens intact", () => {
+  const [cheese] = parseCategoryItems(REAL_HARVEST_MARKET_PIZZA_FRAGMENT, "Pizza", "lunch", 4306, "2026-08-24");
+  assert.equal(
+    cheese.ingredients,
+    "Local Pizza Dough (It'll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Pizza Sauce (Peeled Ground Tomatoes (Vine-Ripened Fresh Peeled Ground Tomatoes, Extra Heavy Tomato Puree, Salt.), Granulated Sugar, Oregano Leaves (Oregano Leaves ), Kosher Salt (Sea Salt), Ground Black Pepper)",
+  );
 });
 
 // pr-reviewer finding on #176: an empty span (`<span class="meal-price"></span>`) previously came

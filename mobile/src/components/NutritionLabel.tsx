@@ -13,6 +13,8 @@ interface Props {
   nutrition: NutritionFacts;
   allergens: string[];
   dietTags: string[];
+  /** Raw ingredient-statement prose from the feed (data-ingredient-list). Omitted → no section. */
+  ingredients?: string;
   /** Canvas bottom bar: quantity stepper + ADD TO PLATE. Omitted → the bar isn't rendered. */
   onAddToPlate?: (count: number) => void;
   onClose: () => void;
@@ -24,7 +26,7 @@ interface Props {
  * Android hardware back button; the header back chevron covers everyone else, since a modal with no
  * Stack header otherwise has no way back.
  */
-export function NutritionLabel({ visible, dishName, subtitle, nutrition, allergens, dietTags, onAddToPlate, onClose }: Props) {
+export function NutritionLabel({ visible, dishName, subtitle, nutrition, allergens, dietTags, ingredients, onAddToPlate, onClose }: Props) {
   const rows = buildLabelRows(nutrition);
   const [count, setCount] = useState(1);
   const insets = useSafeAreaInsets();
@@ -88,6 +90,13 @@ export function NutritionLabel({ visible, dishName, subtitle, nutrition, allerge
                   <Text style={styles.dietPillText}>{t}</Text>
                 </View>
               ))}
+            </View>
+          )}
+
+          {ingredients && (
+            <View style={styles.ingredientsBlock}>
+              <Text style={styles.chipHeading}>Ingredients</Text>
+              <Text style={styles.ingredientsText}>{ingredients}</Text>
             </View>
           )}
         </ScrollView>
@@ -207,6 +216,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(2.5),
   },
   dietPillText: { fontFamily: fonts.body600, fontSize: fs(12), color: colors.ink900 },
+
+  ingredientsBlock: { marginTop: spacing(1) },
+  ingredientsText: { fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(18), color: withOpacity(colors.ink900, 75), marginTop: spacing(0.5) },
 
   footer: {
     flexDirection: "row",

@@ -69,6 +69,11 @@ export interface MenuItem {
   // known retail price is USD, so a currency field would carry no information a fixed "$" prefix
   // doesn't already convey.
   price?: string;
+  // Raw prose from the feed's data-ingredient-list (e.g. "Local Pizza Dough (It'll Be Dough:
+  // Enriched Flour (...), ...), Shredded Mozzarella Cheese (...)") -- a free-text ingredient
+  // statement with its own nested parens, not a clean tag list like allergens/dietTags, so this
+  // stays a single string rather than string[].
+  ingredients?: string;
 }
 
 /** One food-logging entry. Device-local only — never sent to the server. */

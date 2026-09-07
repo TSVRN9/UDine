@@ -52,6 +52,7 @@ module.exports = defineConfig([
     // remove the only lint-level guard against that exact bug coming back, so its findings get
     // per-site `eslint-disable-next-line` comments in the file itself instead.
     files: [
+      "src/components/FavoriteStar.tsx",
       "src/components/PaneHeader.tsx",
       "src/components/Press.tsx",
       "src/components/Skeleton.tsx",

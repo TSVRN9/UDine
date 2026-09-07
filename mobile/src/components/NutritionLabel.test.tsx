@@ -54,6 +54,39 @@ describe("NutritionLabel", () => {
     expect(body).toMatch(/Vegetarian/);
   });
 
+  it("renders an Ingredients section when ingredients text is provided", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <NutritionLabel
+          visible
+          dishName="Cheese Pizza"
+          nutrition={NUTRITION}
+          allergens={[]}
+          dietTags={[]}
+          ingredients="Local Pizza Dough (It'll Be Dough: Enriched Flour (Wheat Flour, Niacin)), Shredded Mozzarella Cheese"
+          onClose={() => {}}
+        />,
+      );
+    });
+
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Ingredients/);
+    expect(body).toMatch(/Local Pizza Dough/);
+  });
+
+  it("omits the Ingredients section when ingredients is undefined", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <NutritionLabel visible dishName="French Toast" nutrition={NUTRITION} allergens={[]} dietTags={[]} onClose={() => {}} />,
+      );
+    });
+
+    const body = texts(root).flat().join(" ");
+    expect(body).not.toMatch(/Ingredients/);
+  });
+
   // Device-observed bug (Agent_Emulator_Narrow, 360dp): a long dishName wraps the header's title
   // block to 2+ lines (e.g. "Bun Bo Hue (Vietnamese Beef Noodle Bowl)") -- `header`'s
   // `alignItems: "center"` centered the back chevron against that taller block instead of keeping

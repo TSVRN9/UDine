@@ -249,6 +249,10 @@ export function parseCategoryItems(html: string, category: string, mealPeriod: M
       proteinDv: dv(attrs, "data-protein-dv"),
     };
     const price = priceAfter(html, tagPattern.lastIndex);
+    // getAttrRaw (not getAttr) so a present-but-empty attribute also collapses to undefined here,
+    // same "|| undefined" contract priceAfter already uses -- an empty ingredients section is worse
+    // than none.
+    const ingredients = getAttrRaw(attrs, "data-ingredient-list") || undefined;
     items.push({
       dishName,
       category,
@@ -259,6 +263,7 @@ export function parseCategoryItems(html: string, category: string, mealPeriod: M
       allergens: csvList(getAttr(attrs, "data-allergens")),
       dietTags: csvList(getAttr(attrs, "data-clean-diet-str")),
       ...(price !== undefined ? { price } : {}),
+      ...(ingredients !== undefined ? { ingredients } : {}),
     });
   }
   return items;

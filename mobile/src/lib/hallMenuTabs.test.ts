@@ -8,6 +8,7 @@ import {
   hallInfoHoursRows,
   hallInfoWindowText,
   mealTabLabel,
+  shouldAutoCorrectMealTab,
   stepDate,
   toggleExpandedKey,
 } from "./hallMenuTabs";
@@ -29,6 +30,37 @@ describe("mealTabLabel", () => {
     expect(mealTabLabel("lunch")).toBe("Lunch");
     expect(mealTabLabel("dinner")).toBe("Dinner");
     expect(mealTabLabel("latenight")).toBe("Late");
+  });
+});
+
+describe("shouldAutoCorrectMealTab", () => {
+  const REAL_HALL_TABS: readonly ("breakfast" | "lunch" | "dinner" | "latenight")[] = ["breakfast", "lunch", "dinner", "latenight"];
+
+  // The bug this guards against (PR review finding): opening a hall during its actual current meal
+  // period (the static "lunch" default already matches) previously still armed [slug].tsx's
+  // one-shot mealTabInstantRef flag, because the guard only checked tab membership. setSelectedMeal
+  // with the value it already holds is a same-value no-op React bails on -- activeIndex never
+  // changes, MealTabPager's consuming effect never re-fires, and the armed flag leaked onto the
+  // user's NEXT real swipe/tap, wrongly snapping it instead of tweening it.
+  it("returns false when the resolved period already matches the currently-selected tab (the no-op case that used to leak the instant flag)", () => {
+    expect(shouldAutoCorrectMealTab("lunch", "lunch", REAL_HALL_TABS)).toBe(false);
+  });
+
+  it("returns true when the resolved period differs from the currently-selected tab and is a real tab", () => {
+    expect(shouldAutoCorrectMealTab("dinner", "lunch", REAL_HALL_TABS)).toBe(true);
+    expect(shouldAutoCorrectMealTab("breakfast", "lunch", REAL_HALL_TABS)).toBe(true);
+  });
+
+  it("returns false for a period the hall has no tab for (e.g. resolved 'closed', cast through by the caller) even if it differs from selectedMeal", () => {
+    expect(shouldAutoCorrectMealTab("closed" as never, "lunch", REAL_HALL_TABS)).toBe(false);
+  });
+
+  it("returns true comparing against the 'grab' tab selection, since 'grab' never equals a MealPeriod", () => {
+    expect(shouldAutoCorrectMealTab("dinner", "grab", REAL_HALL_TABS)).toBe(true);
+  });
+
+  it("returns true comparing against a null selection (not yet chosen)", () => {
+    expect(shouldAutoCorrectMealTab("lunch", null, REAL_HALL_TABS)).toBe(true);
   });
 });
 
