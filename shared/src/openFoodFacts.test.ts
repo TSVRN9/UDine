@@ -155,6 +155,56 @@ test("lookupBarcode throws when the HTTP response is not ok", async () => {
   );
 });
 
+test("lookupBarcode retries once on a 503 and succeeds on the following 200", async () => {
+  let calls = 0;
+  const result = await withFetch(
+    async () => {
+      calls++;
+      if (calls === 1) return { ok: false, status: 503, json: async () => ({}) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ status: 1, product: { product_name: "Cheerios", nutriments: {} } }),
+      } as Response;
+    },
+    () => lookupBarcode("016000275270"),
+  );
+  assert.equal(calls, 2);
+  assert.equal(result?.productName, "Cheerios");
+});
+
+test("lookupBarcode throws after a second consecutive 503 (retry exhausted, not retried again)", async () => {
+  let calls = 0;
+  await assert.rejects(
+    () =>
+      withFetch(
+        async () => {
+          calls++;
+          return { ok: false, status: 503, json: async () => ({}) } as Response;
+        },
+        () => lookupBarcode("016000275270"),
+      ),
+    /OpenFoodFacts 503/,
+  );
+  assert.equal(calls, 2);
+});
+
+test("lookupBarcode sends a User-Agent header", async () => {
+  let seenHeaders: Record<string, string> | undefined;
+  await withFetch(
+    async (_url, init) => {
+      seenHeaders = init?.headers as Record<string, string>;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ status: 1, product: { product_name: "X", nutriments: {} } }),
+      } as Response;
+    },
+    () => lookupBarcode("1"),
+  );
+  assert.equal(seenHeaders?.["User-Agent"], "UDine/1.0 (+https://github.com/TSVRN9/UDine)");
+});
+
 // searchProducts: the mobile plate sheet's "Add something else" row (#91), SEARCH only — barcode
 // scanning needs a native dep, out of scope for #91.
 
@@ -279,4 +329,22 @@ test("searchProducts throws when the HTTP response is not ok", async () => {
       ),
     /OpenFoodFacts search 503/,
   );
+});
+
+test("searchProducts retries once on a 503 and succeeds on the following 200", async () => {
+  let calls = 0;
+  const result = await withFetch(
+    async () => {
+      calls++;
+      if (calls === 1) return { ok: false, status: 503, json: async () => ({}) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ products: [{ code: "1", product_name: "Cheerios", nutriments: {} }] }),
+      } as Response;
+    },
+    () => searchProducts("cheerios"),
+  );
+  assert.equal(calls, 2);
+  assert.equal(result[0]?.productName, "Cheerios");
 });
