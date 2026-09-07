@@ -40,8 +40,22 @@ function mapNutriments(n: Record<string, number>, servingSize: string): Nutritio
   };
 }
 
+/** Retries once after a short jittered backoff if OpenFoodFacts returns 503 (transient overload),
+ * shared by lookupBarcode and searchProducts.
+ * ponytail: fixed single retry for transient blips, not a general backoff policy — if 503s are
+ * still frequent after this, upgrade to real retries/backoff or move off the legacy search endpoint. */
+async function fetchWithRetry503(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, init);
+  if (res.status !== 503) return res;
+  await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 300));
+  return fetch(url, init);
+}
+
 export async function lookupBarcode(barcode: string): Promise<OffProduct | null> {
-  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`);
+  const res = await fetchWithRetry503(
+    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
+    { headers: { "User-Agent": "UDine/1.0 (+https://github.com/TSVRN9/UDine)" } },
+  );
   if (!res.ok) throw new Error(`OpenFoodFacts ${res.status}`);
   const data = (await res.json()) as OffApiResponse;
   if (data.status !== 1 || !data.product) return null;
@@ -85,7 +99,7 @@ interface OffSearchApiResponse {
  */
 export async function searchProducts(query: string): Promise<OffSearchResult[]> {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20&fields=code,product_name,serving_size,nutriments`;
-  const res = await fetch(url, { headers: { "User-Agent": "UDine/1.0 (+https://github.com/TSVRN9/UDine)" } });
+  const res = await fetchWithRetry503(url, { headers: { "User-Agent": "UDine/1.0 (+https://github.com/TSVRN9/UDine)" } });
   if (!res.ok) throw new Error(`OpenFoodFacts search ${res.status}`);
   const data = (await res.json()) as OffSearchApiResponse;
   return (data.products ?? [])
