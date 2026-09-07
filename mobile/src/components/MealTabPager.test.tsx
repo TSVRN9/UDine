@@ -164,6 +164,50 @@ describe("MealTabPager non-adjacent jump handling", () => {
   });
 });
 
+// #117 follow-up: opening a hall outside lunch hours used to visibly swipe from the static "lunch"
+// default to the real current meal once hours loaded, because this single-step index change always
+// tweened. instantRef lets a caller (the data-driven auto-correction, not a real swipe) opt one
+// specific commit out of that tween.
+describe("MealTabPager instantRef (data-driven auto-correction, not a real swipe)", () => {
+  it("snaps instead of tweening a single-step index change when instantRef.current is true, and consumes the flag", () => {
+    let root!: renderer.ReactTestRenderer;
+    const instantRef = { current: false };
+    act(() => {
+      root = renderer.create(<MealTabPager activeIndex={1} onActiveIndexChange={() => {}} panes={fivePanes()} instantRef={instantRef} />);
+    });
+    const callsBefore = withTimingSpy.mock.calls.length;
+    instantRef.current = true;
+
+    act(() => {
+      root.update(<MealTabPager activeIndex={2} onActiveIndexChange={() => {}} panes={fivePanes()} instantRef={instantRef} />);
+    });
+
+    expect(withTimingSpy.mock.calls.slice(callsBefore).length).toBe(0);
+    expect(instantRef.current).toBe(false); // one-shot: consumed by the commit it applied to
+
+    // The flag was consumed -- a later single-step change tweens normally again.
+    const callsBeforeNext = withTimingSpy.mock.calls.length;
+    act(() => {
+      root.update(<MealTabPager activeIndex={3} onActiveIndexChange={() => {}} panes={fivePanes()} instantRef={instantRef} />);
+    });
+    expect(withTimingSpy.mock.calls.slice(callsBeforeNext).length).toBe(2);
+  });
+
+  it("tweens normally when instantRef is omitted entirely", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<MealTabPager activeIndex={1} onActiveIndexChange={() => {}} panes={fivePanes()} />);
+    });
+    const callsBefore = withTimingSpy.mock.calls.length;
+
+    act(() => {
+      root.update(<MealTabPager activeIndex={2} onActiveIndexChange={() => {}} panes={fivePanes()} />);
+    });
+
+    expect(withTimingSpy.mock.calls.slice(callsBefore).length).toBe(2);
+  });
+});
+
 describe("MealTabPager swipe gesture wiring", () => {
   // Regression guard: `onBegin` fires at BEGAN -- on every touch-down, before `activeOffsetX` is
   // even crossed -- so a touch that never becomes a swipe (a tap, a vertical scroll inside a windowed

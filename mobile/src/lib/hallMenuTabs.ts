@@ -27,6 +27,43 @@ export function mealTabLabel(period: MealPeriod): string {
   return mealPeriodLabel(period);
 }
 
+/**
+ * Whether [slug].tsx's current-meal auto-correction effect should actually fire `setSelectedMeal`
+ * for a resolved `period` -- pulled out of that effect as a pure predicate so the guard's DECISION
+ * is unit-testable without mounting the whole screen (see this file's own tests).
+ *
+ * The guard's real-world consequence -- whether an armed `mealTabInstantRef` leaks onto
+ * MealTabPager's next commit -- is deliberately NOT covered by a wiring-level test through the full
+ * screen. Confirmed by direct investigation (source-level logging, not just reasoning) while
+ * reviewing this exact fix: react-native-reanimated's Jest mock (jest.config.js's
+ * `^react-native-reanimated$` mapping) returns a fresh, non-memoized object from `useSharedValue` on
+ * every render, so MealTabPager's commit `useEffect` -- keyed in part on `panePos`/`paneOpacityPos`
+ * -- re-fires on EVERY re-render of the full screen for unrelated reasons (e.g. the hours fetch
+ * itself resolving via `setHoursFeed`), not just on a genuine `activeIndex` change. That spurious
+ * extra firing silently self-consumes any armed flag before a real leak can ever be observed end to
+ * end, so a full-screen mounted test of this consequence would pass whether or not the guard above
+ * is actually correct -- confirmed by writing exactly such a test, mutating the guard back to the
+ * original bug shape, and watching the "regression" test still pass. This is a real gap in what
+ * Jest can verify here, not a decision to skip testing; the mitigation is this predicate's own
+ * thorough unit coverage plus the source-level reasoning in this comment, reviewed carefully in PR
+ * review instead.
+ *
+ * Two guards, both load-bearing:
+ * - `mealTabs.includes(period)`: `currentMealPeriod` can return "latenight", which a real hall's
+ *   fixed MEAL_TABS may not include. Correcting to a period absent from `mealTabs` would reproduce
+ *   the same stale-selection bug the café tab-derivation guards against elsewhere: tab-0 content
+ *   renders with no pill highlighted. A period the hall has no tab for (closed, or outside
+ *   MEAL_TABS) means the static default should stand.
+ * - `period !== selectedMeal`: the common case is the static "lunch" default already matching the
+ *   real current meal (opened during actual lunch) -- calling `setSelectedMeal` with the value it
+ *   already holds is a same-value no-op React bails on, which would leave `mealTabInstantRef`
+ *   armed with nothing to consume it, and it would wrongly snap the user's NEXT real swipe/tap
+ *   instead of tweening it.
+ */
+export function shouldAutoCorrectMealTab(period: MealPeriod, selectedMeal: MealPeriod | "grab" | null, mealTabs: readonly MealPeriod[]): boolean {
+  return mealTabs.includes(period) && period !== selectedMeal;
+}
+
 /** Steps a date by whole calendar days, preserving time-of-day. Returns a new Date -- never
  * mutates the one passed in (callers hold the previous selectedDate in state). */
 export function stepDate(date: Date, deltaDays: number): Date {

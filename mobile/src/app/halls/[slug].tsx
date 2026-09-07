@@ -17,10 +17,12 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { createNativeWrapper } from "react-native-gesture-handler";
+import Reanimated, { FadeIn, FadeOut, FadeOutDown, FadeInDown, LinearTransition, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
+import { FavoriteStar } from "../../components/FavoriteStar";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
 import { MealTabPager } from "../../components/MealTabPager";
 import { MenuErrorCard } from "../../components/MenuErrorCard";
@@ -37,6 +39,7 @@ import {
   hallInfoHoursRows,
   MEAL_TABS,
   mealTabLabel,
+  shouldAutoCorrectMealTab,
   stepDate,
   toggleExpandedKey,
 } from "../../lib/hallMenuTabs";
@@ -112,10 +115,12 @@ function GrabBagIcon({ color }: { color: string }) {
   );
 }
 
-/** Filled maroon pill stepper — the canvas's in-plate control on a dish row. */
+/** Filled maroon pill stepper — the canvas's in-plate control on a dish row. `entering={ZoomIn}`
+ * (scale+fade, Reanimated's own built-in preset -- no custom worklet needed) so it visibly grows in
+ * from the `+` button it replaces instead of hard-swapping. */
 function RowStepper({ count, dishName, onStep }: { count: number; dishName: string; onStep: (delta: number) => void }) {
   return (
-    <View style={styles.stepper}>
+    <Reanimated.View entering={ZoomIn.duration(180)} style={styles.stepper}>
       <Pressable style={styles.stepperButton} onPress={() => onStep(-1)} accessibilityRole="button" accessibilityLabel={`Remove one ${dishName}`}>
         <Text style={styles.stepperButtonText}>−</Text>
       </Pressable>
@@ -123,7 +128,7 @@ function RowStepper({ count, dishName, onStep }: { count: number; dishName: stri
       <Pressable style={styles.stepperButton} onPress={() => onStep(1)} accessibilityRole="button" accessibilityLabel={`Add one ${dishName}`}>
         <Text style={styles.stepperButtonText}>+</Text>
       </Pressable>
-    </View>
+    </Reanimated.View>
   );
 }
 
@@ -156,6 +161,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // an explicit choice that must never be overridden by the current-meal-period auto-select effect
   // below. Not state: flipping it must never itself trigger a re-render.
   const hasManuallyPickedMeal = useRef(initialMeal !== undefined);
+  // Set true right before the current-meal auto-correction effect below calls setSelectedMeal, so
+  // MealTabPager snaps to it instead of visibly swiping through the tabs in between (#117 follow-up
+  // -- see that effect's own comment). Never set for a real user swipe/tap, which goes through
+  // handleActiveIndexChange instead and always keeps its tween.
+  const mealTabInstantRef = useRef(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const mealTabs = useMemo<readonly MealPeriod[]>(() => (isRealHall ? MEAL_TABS : deriveCafeMealTabs(items ?? [])), [isRealHall, items]);
 
@@ -358,19 +368,29 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // above only changes once per hall once hoursFeed resolves), landing on the current meal period
   // instead -- but only if the user hasn't already manually picked a tab (hasManuallyPickedMeal is a
   // ref, not state, so this effect doesn't need it in its dependency list). useLayoutEffect (not
-  // useEffect), same before-paint reasoning as sheetAnimation.ts's own doc comment, so the interim
-  // "lunch" default never has a chance to flash before the real one paints.
+  // useEffect) so the correction commits before the browser/native paint of THIS render -- but
+  // hallHours itself only ever arrives via fetchHoursAndCache's async fetch, so this effect
+  // necessarily fires on a LATER render, after the interim "lunch" default has already painted once.
+  // mealTabInstantRef (set below, read by MealTabPager) is what actually keeps that correction from
+  // reading as a visible swipe through the tabs in between -- useLayoutEffect alone doesn't prevent
+  // the flash, it just avoids adding a synchronous extra one on top of the async one.
   useLayoutEffect(() => {
     if (!isRealHall || hasManuallyPickedMeal.current || !hallHours) return;
     const period = currentMealPeriod(hallHours, new Date());
-    // Guard on tab membership, not just "closed" -- currentMealPeriod can return "latenight", which
-    // a real hall's fixed MEAL_TABS may not include. Setting selectedMeal to a period absent from
-    // mealTabs would reproduce the exact bug the café comment above already documents for a stale
-    // selection: tab-0 content renders with no pill highlighted. A period the hall has no tab for
-    // (closed, or outside MEAL_TABS) leaves the static "lunch" interim default in place.
-    if (!mealTabs.includes(period as MealPeriod)) return;
+    // shouldAutoCorrectMealTab (hallMenuTabs.ts) owns the two-part guard's reasoning -- pulled out
+    // as a pure predicate so it's unit-testable without mounting this screen or fighting Jest's
+    // react-native-reanimated mock (see its own doc comment).
+    if (!shouldAutoCorrectMealTab(period as MealPeriod, selectedMeal, mealTabs)) return;
+    mealTabInstantRef.current = true;
     setSelectedMeal(period as MealPeriod);
-  }, [isRealHall, hallHours, mealTabs]);
+    // ponytail: this still lets a single frame of the static "lunch" default paint before hours
+    // resolve -- MealTabPager just no longer visibly swipes past it. Upgrade path: seed hallHours
+    // synchronously from an in-memory (not SQLite) hours cache if one's ever added, so the very
+    // first paint already lands on the real meal.
+    // selectedMeal is read above (the no-op guard) -- listed so a manual pick's own setSelectedMeal
+    // (which always sets hasManuallyPickedMeal.current first, see selectMeal) re-runs this effect
+    // to bail via that ref check instead of comparing against a stale selectedMeal closure.
+  }, [isRealHall, hallHours, mealTabs, selectedMeal]);
 
   // Grab tab's own open/closed header line (ported from the retired grab-n-go/[slug].tsx). Only
   // meaningful for today -- get_infov2 (hoursFeed) never publishes anything but today's hours, so
@@ -459,7 +479,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       // nested Pressables in RN double-fire/steal gestures." Purely-visual children get
       // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls
       // through to this background Pressable instead of being silently swallowed.
-      <View style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
+      <Reanimated.View layout={LinearTransition.duration(180)} style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={() => toggleExpanded(dishKey)}
@@ -467,14 +487,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
         />
         <View style={styles.rowMainLine} pointerEvents="box-none">
-          <Pressable
-            onPress={() => toggleDishFavorite(item.dishName)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${isFavorite ? "Unfavorite" : "Favorite"} ${item.dishName}`}
-          >
-            <Text style={[styles.star, isFavorite && styles.starActive]}>{isFavorite ? "★" : "☆"}</Text>
-          </Pressable>
+          <FavoriteStar isFavorite={isFavorite} dishName={item.dishName} onPress={() => toggleDishFavorite(item.dishName)} />
           <View style={styles.rowMain} pointerEvents="none">
             <Text style={styles.rowText}>{item.dishName}</Text>
             {/* #177 styling spec: price leads the meta line, same row as cal/protein, gap
@@ -490,13 +503,15 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           {plateEntry ? (
             <RowStepper count={plateEntry.count} dishName={item.dishName} onStep={(delta) => stepPlateItem(item, delta)} />
           ) : (
-            <Pressable style={styles.addButton} onPress={() => addToPlate(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add ${item.dishName} to plate`}>
-              <Text style={styles.addButtonText}>+</Text>
-            </Pressable>
+            <Reanimated.View exiting={FadeOut.duration(120)}>
+              <Pressable style={styles.addButton} onPress={() => addToPlate(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add ${item.dishName} to plate`}>
+                <Text style={styles.addButtonText}>+</Text>
+              </Pressable>
+            </Reanimated.View>
           )}
         </View>
         {expanded && (
-          <View style={styles.expandedContent} pointerEvents="box-none">
+          <Reanimated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.expandedContent} pointerEvents="box-none">
             <View style={styles.expandedDivider} pointerEvents="none" />
             <Text style={styles.servingSummary} pointerEvents="none">
               {formatServingSummary(item.nutrition)}
@@ -519,9 +534,9 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
             >
               <Text style={styles.fullLabelLinkText}>FULL NUTRITION LABEL ›</Text>
             </Pressable>
-          </View>
+          </Reanimated.View>
         )}
-      </View>
+      </Reanimated.View>
     );
   }
 
@@ -766,6 +781,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           activeIndex={activeIndex}
           onActiveIndexChange={handleActiveIndexChange}
           panes={tabs.map((tab) => (tab === "grab" ? grabPane() : mealPane(tab)))}
+          instantRef={mealTabInstantRef}
         />
       )}
       {logged && (
@@ -777,12 +793,14 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         // finding: also pads for the bottom safe-area inset itself (else its own text gets clipped by
         // gesture nav when there's no bar to already clear that space), and reports its own measured
         // height via onLayout so the list's paddingBottom above can add it in while it's showing.
-        <View
+        <Reanimated.View
+          entering={FadeInDown.duration(200)}
+          exiting={FadeOutDown.duration(150)}
           style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight), paddingBottom: spacing(2) + insets.bottom }]}
           onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
         >
           <Text style={styles.loggedBannerText}>{logged}</Text>
-        </View>
+        </Reanimated.View>
       )}
       <PlateBar
         itemCount={totalItemCount(plate)}
@@ -843,6 +861,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           nutrition={labelItem.nutrition}
           allergens={labelItem.allergens}
           dietTags={labelItem.dietTags}
+          ingredients={labelItem.ingredients}
           onAddToPlate={(count) => {
             addToPlate(labelItem, count);
             setLabelItem(null);
@@ -1003,9 +1022,6 @@ const styles = StyleSheet.create({
   rowMetaLine: { flexDirection: "row", alignItems: "baseline", gap: spacing(2) },
   rowPrice: { fontSize: fs(12), fontFamily: fonts.mono, fontWeight: "600", color: colors.maroon600 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
-  star: { fontSize: fs(20), color: withOpacity(colors.ink900, 30) },
-  starActive: { color: colors.gold500 },
-
   expandedContent: { gap: spacing(2.5) },
   expandedDivider: { height: 1, backgroundColor: withOpacity(colors.ink900, 10) },
   servingSummary: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 70) },

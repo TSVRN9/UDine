@@ -108,10 +108,17 @@ export function MealTabPager({
   panes,
   activeIndex,
   onActiveIndexChange,
+  instantRef,
 }: {
   panes: ReactNode[];
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
+  /** One-shot flag a caller sets to `true` right before an `activeIndex` change it wants to land
+   * without a tween -- e.g. [slug].tsx's own current-meal auto-correction, which isn't a real swipe
+   * and shouldn't visibly animate through the tabs in between. Consumed (reset to `false`) by the
+   * very next commit below, same lifecycle as `committedIndexRef`. A ref, not a prop value read
+   * once, so setting it doesn't itself trigger a re-render. */
+  instantRef?: { current: boolean };
 }) {
   const count = panes.length;
   const panePos = useSharedValue(activeIndex);
@@ -138,7 +145,9 @@ export function MealTabPager({
 
   useEffect(() => {
     const from = committedIndexRef.current;
-    if (Math.abs(activeIndex - from) > 1) {
+    const instant = instantRef?.current === true;
+    if (instant) instantRef!.current = false;
+    if (instant || Math.abs(activeIndex - from) > 1) {
       panePos.value = activeIndex;
       paneOpacityPos.value = activeIndex;
     } else {
@@ -146,9 +155,10 @@ export function MealTabPager({
       paneOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
     }
     committedIndexRef.current = activeIndex;
-    // panePos/paneOpacityPos are stable useSharedValue identities; listed so this effect only
-    // re-fires on a real activeIndex commit, not on every render.
-  }, [activeIndex, panePos, paneOpacityPos]);
+    // panePos/paneOpacityPos are stable useSharedValue identities; instantRef's identity is stable
+    // too (a ref) -- listed so this effect only re-fires on a real activeIndex commit, not on every
+    // render.
+  }, [activeIndex, panePos, paneOpacityPos, instantRef]);
 
   // Worklet (runs on the UI thread from the gesture callbacks below, and directly as plain JS when
   // called nowhere else needs it) -- mirrors PaneStack.tsx's identical helper.
