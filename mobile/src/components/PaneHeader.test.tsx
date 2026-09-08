@@ -3,6 +3,14 @@ import { StyleSheet } from "react-native";
 import type { ReactTestRendererJSON, ReactTestRendererNode } from "react-test-renderer";
 import { DOT_HIT_SLOP, PaneHeader } from "./PaneHeader";
 import { colors, fs } from "../lib/theme";
+import { YOU_PANE_INDEX } from "../lib/paneShell";
+
+// The export shortcut (#90 nav reorg) is the only navigation PaneHeader itself does -- same
+// router.push mechanism YouPane.tsx's goToAllLogs uses. The jest.fn() is created *inside* the
+// factory (not closed over an outer-scope const) for the same hoisting reason YouPane.test.tsx's
+// own expo-router mock documents.
+jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+const mockRouterPush = jest.requireMock("expo-router").router.push as jest.Mock;
 
 // The dot morph is now Reanimated (useAnimatedStyle/interpolate), same as the title crossfade --
 // the mocked shared values/withTiming resolve synchronously (jest.config.js's own comment on the
@@ -153,6 +161,38 @@ describe("DOT_HIT_SLOP vertical", () => {
 // title/dots instead of being hidden behind an opaque bar. The artboard has no visually distinct
 // header-bar color (title/dots just sit on the same page background), so opaque cream is the
 // correct fill, not a guess.
+// #90 nav reorg: the You pane's only settings-style action (export) lives in the shared header,
+// next to the pane-position dots, not in YouPane's own scroll content -- it must stay reachable at
+// any scroll offset, and PaneHeader is the fixed element that never scrolls.
+describe("PaneHeader export shortcut", () => {
+  beforeEach(() => {
+    mockRouterPush.mockClear();
+  });
+
+  it("shows the export icon only when the You pane is active", () => {
+    const you = renderHeader(YOU_PANE_INDEX);
+    expect(findByAccessibilityLabel(you, "Export data")).not.toBeNull();
+
+    const events = renderHeader(0);
+    expect(findByAccessibilityLabel(events, "Export data")).toBeNull();
+
+    const home = renderHeader(1);
+    expect(findByAccessibilityLabel(home, "Export data")).toBeNull();
+  });
+
+  it("pushes /export when tapped", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<PaneHeader activeIndex={YOU_PANE_INDEX} onSelectPane={() => {}} topInset={0} />);
+    });
+    const button = root.root.findByProps({ accessibilityLabel: "Export data" });
+    act(() => {
+      button.props.onPress();
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith("/export");
+  });
+});
+
 describe("PaneHeader backdrop", () => {
   it("is opaque cream, matching the artboard's page background, so scrolled content is hidden behind it", () => {
     const json = renderHeader(1);

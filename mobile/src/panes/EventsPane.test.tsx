@@ -1,16 +1,20 @@
-import type { DiningEvent } from "@udine/shared";
+import type { DiningEvent, NewsletterIssue, PressRelease } from "@udine/shared";
 
 import renderer, { act } from "react-test-renderer";
 import { Image, StyleSheet, Text } from "react-native";
 import { EventsPane } from "./EventsPane";
 
-// Real @udine/shared's fetchEvents does a live network fetch -- keep everything else real, stub
-// just the network call. Same pattern as menuFetchWithSeenTracking.test.ts's @udine/shared partial
-// mock.
+// Real @udine/shared's fetchEvents/fetchPressReleases/fetchNewsletter all do a live network fetch
+// -- keep everything else real, stub just the network calls. Same pattern as
+// menuFetchWithSeenTracking.test.ts's @udine/shared partial mock.
 const mockFetchEvents = jest.fn<Promise<DiningEvent[]>, []>();
+const mockFetchPressReleases = jest.fn<Promise<PressRelease[]>, []>();
+const mockFetchNewsletter = jest.fn<Promise<NewsletterIssue[]>, []>();
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchEvents: () => mockFetchEvents(),
+  fetchPressReleases: () => mockFetchPressReleases(),
+  fetchNewsletter: () => mockFetchNewsletter(),
 }));
 
 // EventsPane reads safe-area insets; there's no SafeAreaProvider in this render tree (same fix as
@@ -41,18 +45,20 @@ function texts(root: renderer.ReactTestRenderer) {
     .join(" ");
 }
 
-// findAllByType(Pressable) doesn't reliably match RN's Pressable export under jest-expo's
-// renderer -- accessibilityRole="button" is the reliable handle. The event card is the only such
-// node in this trimmed pane (retry, when rendered, is a Press too -- callers pick the right one by
-// accessibilityLabel instead).
-function lastButton(root: renderer.ReactTestRenderer) {
-  const buttons = root.root.findAllByProps({ accessibilityRole: "button" }).filter((b) => typeof b.props.onPress === "function");
-  return buttons[buttons.length - 1];
+// #90 nav reorg added a SEE ALL button (with its own trailing chevron) below the events list for
+// each of the new Press/Newsletter sections, so "the event card is the only button in this pane"
+// is no longer true -- every event card still carries an explicit accessibilityLabel={item.title}
+// (PR #129 review finding 3, see EventCard's own comment), so selecting by that label is what
+// keeps these lookups scoped to one specific card regardless of what else the pane renders.
+function eventButton(root: renderer.ReactTestRenderer, title: string) {
+  return root.root.findByProps({ accessibilityRole: "button", accessibilityLabel: title });
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockFetchEvents.mockResolvedValue([]);
+  mockFetchPressReleases.mockResolvedValue([]);
+  mockFetchNewsletter.mockResolvedValue([]);
 });
 
 async function renderEventsPane() {
@@ -137,7 +143,7 @@ describe("EventsPane", () => {
     mockFetchEvents.mockResolvedValue([fallFest]); // externalLink: "https://example.com", no featuredImage -- the only Pressable is the event card.
 
     const root = await renderEventsPane();
-    const eventPressable = lastButton(root);
+    const eventPressable = eventButton(root, fallFest.title);
     act(() => {
       eventPressable.props.onPress();
     });
@@ -149,7 +155,7 @@ describe("EventsPane", () => {
     mockFetchEvents.mockResolvedValue([pamphletEvent]);
 
     const root = await renderEventsPane();
-    const eventPressable = lastButton(root);
+    const eventPressable = eventButton(root, pamphletEvent.title);
     act(() => {
       eventPressable.props.onPress();
     });
@@ -173,22 +179,27 @@ describe("EventsPane", () => {
     mockFetchEvents.mockResolvedValue([fallFest]); // link-classified: externalLink set, no pdfLink
 
     const root = await renderEventsPane();
-    const allTexts = root.root.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
+    // Scoped to the event card's own subtree, not the whole pane -- #90 nav reorg's Press/
+    // Newsletter SEE ALL rows carry their own "›" chevrons below the events list, so a whole-tree
+    // scan for "›" no longer proves anything about THIS card's own trailing glyph.
+    const card = eventButton(root, fallFest.title);
+    const cardTexts = card.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
     // Rendering only a link-classified event: seeing "›" here (and not "↗") would mean the glyphs
     // got swapped/inverted, since there is no in-app-content card in this render to legitimately
     // produce a "›". This is what a glyph-swap mutation flips -- see openEventTap.test.ts's own
     // exact-match test for the tap-destination side of the same spec.
-    expect(allTexts).toContain("↗");
-    expect(allTexts).not.toContain("›");
+    expect(cardTexts).toContain("↗");
+    expect(cardTexts).not.toContain("›");
   });
 
   it("events v2.1 (#120): trailing icon is derived from the tap destination -- in-app content (pamphletEvent) gets the chevron, never the external-link glyph", async () => {
     mockFetchEvents.mockResolvedValue([pamphletEvent]); // content-classified: no externalLink, a usable pdfLink
 
     const root = await renderEventsPane();
-    const allTexts = root.root.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
-    expect(allTexts).toContain("›");
-    expect(allTexts).not.toContain("↗");
+    const card = eventButton(root, pamphletEvent.title);
+    const cardTexts = card.findAllByType(Text).map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children));
+    expect(cardTexts).toContain("›");
+    expect(cardTexts).not.toContain("↗");
   });
 
   it("events v2.1 (#120): a banner event card's accessible name is its title, not just the date-line footer text left after the title row was dropped", async () => {
@@ -212,7 +223,7 @@ describe("EventsPane", () => {
 
     const root = await renderEventsPane();
     expect(texts(root)).toMatch(/Mystery Event/);
-    const eventPressable = lastButton(root);
+    const eventPressable = eventButton(root, brokenEvent.title);
     act(() => {
       eventPressable.props.onPress();
     });
@@ -249,5 +260,97 @@ describe("EventsPane", () => {
     mockFetchEvents.mockResolvedValue([]);
     const online = await renderEventsPane();
     expect(texts(online)).toMatch(/Your log and plate keep working offline — they live on this phone\./);
+  });
+
+  // #90 nav reorg: Press and Newsletter sections give /press and /newsletter a real in-app entry
+  // point now that QUICK_LINKS (index.tsx) is gone. The footer reassurance line must still be the
+  // last thing on the pane.
+  it("keeps the footer reassurance line after the new Press/Newsletter sections, not swallowed between them", async () => {
+    const root = await renderEventsPane();
+    const body = texts(root);
+    const pressIdx = body.indexOf("Press");
+    const newsletterIdx = body.indexOf("Newsletter");
+    const footerIdx = body.indexOf("Your log and plate keep working offline");
+    expect(pressIdx).toBeGreaterThan(-1);
+    expect(newsletterIdx).toBeGreaterThan(pressIdx);
+    expect(footerIdx).toBeGreaterThan(newsletterIdx);
+  });
+});
+
+const pressRelease: PressRelease = { title: "UDine covered by the Collegian", url: "https://example.com/article", image: "", date: "2026-08-01" };
+const newsletterIssue: NewsletterIssue = { period: "August 2026", link: "https://example.com/newsletter/aug", content: "" };
+
+describe("EventsPane Press section", () => {
+  it("shows the empty state when there are no press releases", async () => {
+    const root = await renderEventsPane();
+    expect(texts(root)).toMatch(/No press releases/);
+  });
+
+  it("renders real press releases (title + date, same fields press.tsx already renders)", async () => {
+    mockFetchPressReleases.mockResolvedValue([pressRelease]);
+    const root = await renderEventsPane();
+    const body = texts(root);
+    expect(body).toMatch(/UDine covered by the Collegian/);
+    expect(body).toMatch(/2026-08-01/);
+  });
+
+  it("renders a SEE ALL link, and tapping it navigates to /press", async () => {
+    mockFetchPressReleases.mockResolvedValue([pressRelease]);
+    const root = await renderEventsPane();
+    const button = root.root.findByProps({ accessibilityRole: "button", accessibilityLabel: "See all press releases" });
+    act(() => {
+      button.props.onPress();
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith("/press");
+  });
+
+  // pr-reviewer #361 finding: a fetchPressReleases failure was silently rendered as the same "no
+  // releases" empty state as a genuine empty response -- during the same outage that flips
+  // `offline` (fetchEvents fails too, showing the "offline · showing what's cached" banner up top),
+  // this section directly contradicted that banner by claiming UMass published nothing.
+  it("shows an offline-aware message, not the genuine-empty-response one, when press releases fail during a network outage", async () => {
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+    mockFetchPressReleases.mockRejectedValue(new Error("network down"));
+    const root = await renderEventsPane();
+    const body = texts(root);
+    // Scoped to a phrase unique to this section's own offline copy -- the pane's top OfflineLine
+    // banner ("offline · showing what's cached") ALSO renders in this same scenario, so a bare
+    // /offline/i match wouldn't distinguish "this section got its own offline-aware message" from
+    // "the pre-existing top banner happens to mention offline".
+    expect(body).not.toMatch(/No press releases right now/);
+    expect(body).toMatch(/press releases will show once you're back online/i);
+  });
+});
+
+describe("EventsPane Newsletter section", () => {
+  it("shows the empty state when there are no newsletter issues", async () => {
+    const root = await renderEventsPane();
+    expect(texts(root)).toMatch(/No newsletter issues/);
+  });
+
+  it("renders real newsletter issues (period, same field newsletter.tsx already renders)", async () => {
+    mockFetchNewsletter.mockResolvedValue([newsletterIssue]);
+    const root = await renderEventsPane();
+    expect(texts(root)).toMatch(/August 2026/);
+  });
+
+  it("renders a SEE ALL link, and tapping it navigates to /newsletter", async () => {
+    mockFetchNewsletter.mockResolvedValue([newsletterIssue]);
+    const root = await renderEventsPane();
+    const button = root.root.findByProps({ accessibilityRole: "button", accessibilityLabel: "See all newsletter issues" });
+    act(() => {
+      button.props.onPress();
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith("/newsletter");
+  });
+
+  // pr-reviewer #361 finding, same as the Press section above.
+  it("shows an offline-aware message, not the genuine-empty-response one, when newsletter issues fail during a network outage", async () => {
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+    mockFetchNewsletter.mockRejectedValue(new Error("network down"));
+    const root = await renderEventsPane();
+    const body = texts(root);
+    expect(body).not.toMatch(/No newsletter issues right now/);
+    expect(body).toMatch(/newsletter issues will show once you're back online/i);
   });
 });

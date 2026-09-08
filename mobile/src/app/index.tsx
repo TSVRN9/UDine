@@ -24,19 +24,6 @@ import { YouPane } from "../panes/YouPane";
 
 const favoritesStorage = new SqliteFavoritesStorage();
 
-// #90 canvas doesn't carry these (its Home artboard is hero + hall cards + cafés/markets), but
-// dropping them would strand /filters, /favorites, /press, /newsletter, /export with no in-app
-// entry point. MVP cut (temporary, see archive/full-features): rank dishes and notifications are
-// shelved along with ranking/friends/account; export stays reachable here now that its old home
-// (behind /privacy's own EXPORT row) is gone too.
-const QUICK_LINKS: { href: string; label: string }[] = [
-  { href: "/filters", label: "Dietary filters" },
-  { href: "/favorites", label: "Favorites" },
-  { href: "/press", label: "Press" },
-  { href: "/newsletter", label: "Newsletter" },
-  { href: "/export", label: "Export data" },
-];
-
 // #181: hero is null both while the very first fetch is genuinely pending (real skeleton) AND on
 // the dead-end case -- fetch failed with no cache to fall back to (`error` is set instead). Those
 // two null cases must render differently: `pending` distinguishes them. Without it (#181 review
@@ -342,18 +329,6 @@ export function HomePane() {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <SectionHeader title="More" />
-        <View style={styles.quickLinks}>
-          {QUICK_LINKS.map((link) => (
-            <Link key={link.href} href={link.href as never} asChild>
-              <Pressable style={styles.quickLink} accessibilityRole="button">
-                <Text style={styles.quickLinkText}>{link.label}</Text>
-              </Pressable>
-            </Link>
-          ))}
-        </View>
-      </View>
       </ScrollView>
       {/* ponytail: CafeSheet's close animation (useDraggableSheet, sheetAnimation.ts) depends on
       this component staying mounted across open/close -- it only works today because
@@ -515,15 +490,4 @@ const styles = StyleSheet.create({
   retailStatusOpen: { color: colors.maroon600 },
   retailStatusClosed: { color: withOpacity(colors.ink900, 45) },
   retailChevron: { fontFamily: fonts.body400, fontSize: fs(18), color: withOpacity(colors.ink900, 35) },
-
-  quickLinks: { flexDirection: "row", flexWrap: "wrap", gap: spacing(2) },
-  quickLink: {
-    borderWidth: 1,
-    borderColor: withOpacity(colors.ink900, 12),
-    backgroundColor: colors.paper50,
-    borderRadius: radii.md,
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
-  },
-  quickLinkText: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: fs(13) },
 });
