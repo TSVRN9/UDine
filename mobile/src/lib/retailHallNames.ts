@@ -26,7 +26,9 @@ export function recordRetailNames(retail: RetailLocationHours[]): void {
     // Café-screen unification review finding: a locationId-less café now logs for real (its
     // info-only state mounts PlateSheet same as any other), so it needs a real name recorded too --
     // keyed by the same synthetic per-name hallTid PlateSheet/the standing-menu waterfall use for
-    // it (syntheticHallTidForName, cafeMenu.ts), not skipped the way it used to be.
+    // it (syntheticHallTidForName, cafeMenu.ts), not skipped the way it used to be. `loc.name` is
+    // typed non-optional (RetailLocationHours), so two locationId-less entries colliding on an
+    // empty/blank name is speculative, not an observed real case -- not guarded against here.
     retailNames.set(loc.locationId ?? syntheticHallTidForName(loc.name), loc.name);
   }
 }

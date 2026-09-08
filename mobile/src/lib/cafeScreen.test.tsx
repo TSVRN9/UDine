@@ -10,6 +10,10 @@ import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { fetchMenu, type MenuItem } from "@udine/shared";
 import CafeScreen from "../app/cafe/[name]";
+import { Button } from "../components/ui";
+import { PlateBar } from "../components/PlateBar";
+import { syntheticHallTidForName } from "./cafeMenu";
+import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 
 jest.mock("../lib/sqliteStorage", () => ({
@@ -115,12 +119,32 @@ function recordSeenMock(): jest.Mock | undefined {
   return (SqliteSeenDishesStorage as unknown as jest.Mock).mock.results[0]?.value?.recordSeen;
 }
 
+// halls/[slug].tsx's `const storage = new SqliteLogStorage();` (module top level) is a singleton,
+// created once by the first render that imports the module -- same lazy-access pattern
+// recordSeenMock above already uses for the seen-dishes singleton (and hallMenu.test.tsx's own
+// mockAddEntry, which this mirrors).
+function mockAddEntry(): jest.Mock {
+  return (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.addEntry as jest.Mock;
+}
+
+// hallMenu.test.tsx's own file-wide fix for the exact same class of crash: logPlate's success path
+// (HallMenuScreenBody, unchanged by this PR) schedules a real setTimeout for the "Logged N items"
+// banner's auto-dismiss -- with no unmount and no fake timers, that timer fires ~4s after THIS
+// test finishes, well past teardown, and crashes the whole run with "window.dispatchEvent is not a
+// function" instead of just failing the one test. Only the new locationId-less-café LOG test below
+// actually reaches logPlate's success path, but this is file-wide (not scoped to one describe/it)
+// for the same reason hallMenu.test.tsx's is: any future test here that logs inherits the same risk.
 beforeEach(() => {
+  jest.useFakeTimers();
   mockFetchHoursAndCache.mockReset().mockResolvedValue(DEFAULT_HOURS_FEED);
   mockGetCachedHours.mockReset().mockResolvedValue(null);
   mockGetCachedMenu.mockReset().mockResolvedValue(null);
   mockedGetCachedDishCatalog.mockReset().mockResolvedValue(null);
   mockedSearchCachedDishes.mockReset().mockReturnValue([]);
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 function texts(root: renderer.ReactTestRenderer) {
@@ -302,5 +326,47 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
 
     expect(mockedFetchMenu.mock.calls.length).toBe(fetchCallsBefore);
     expect(recordSeenMock()?.mock.calls.length ?? 0).toBe(recordSeenCallsBefore);
+  });
+
+  // pr-reviewer 3rd-pass finding: cafeMenu.test.ts/retailHallNames.test.ts's own tests pin
+  // syntheticHallTidForName and recordRetailNames in isolation, but neither one exercises the ACTUAL
+  // call site that matters -- halls/[slug].tsx's `cafeHallTid = hall.tid ?? syntheticHallTidForName
+  // (hall.name)`, which is what feeds both the waterfall's synthetic MenuItem and PlateSheet's own
+  // `hallTid` prop (history scoping). Reverting that call site back to the pre-fix `hall.tid ?? -1`
+  // must fail THIS test (confirmed -- see the commit this fix landed in) even though every locationId
+  // fixture elsewhere in this file (32) never exercises the locationId-less branch at all.
+  it("a locationId-less café logs a dish under its own real synthetic hallTid, not the old shared -1 sentinel", async () => {
+    mockFetchHoursAndCache.mockResolvedValue({
+      halls: [],
+      retail: [{ ...DEFAULT_HOURS_FEED.retail[0], name: "Mystery Cart", locationId: undefined, breakfastMenu: "<p>Mystery Snack</p>" }],
+    });
+    // A catalog hit -- so the standing entry is a normal, directly-addable dish row (matched), not
+    // an unmatched name+price row that would need the search flow just to get something onto the
+    // plate at all.
+    mockedSearchCachedDishes.mockReturnValue([{ dishName: "Mystery Snack", nutrition: COFFEE.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+    mockSearchParamName = "Mystery Cart";
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<CafeScreen />);
+    });
+    mockSearchParamName = "People's Organic Coffee"; // reset for later tests in this file
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Add Mystery Snack to plate" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByType(PlateBar).props.onPress();
+    });
+    const logButton = root.root.findAllByType(Button).find((n) => typeof n.props.children === "string" && /^LOG \d+ ITEMS?$/.test(n.props.children));
+    if (!logButton) throw new Error("LOG N ITEMS button not found -- is the sheet actually open?");
+    await act(async () => {
+      await logButton.props.onPress();
+    });
+
+    const addEntryMock = mockAddEntry();
+    expect(addEntryMock).toHaveBeenCalledTimes(1);
+    const loggedEntry = addEntryMock.mock.calls[0][0];
+    expect(loggedEntry.source).toEqual({ type: "umass-menu", dishName: "Mystery Snack", hallTid: syntheticHallTidForName("Mystery Cart") });
+    expect(loggedEntry.source.hallTid).not.toBe(-1);
   });
 });
