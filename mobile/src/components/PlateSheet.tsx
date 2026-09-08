@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
 import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
+import { formatServings, parseServingsInput } from "../lib/servingsStepper";
 import { supabase } from "../lib/supabase";
 import { Button, Stat } from "./ui";
 import { useDraggableSheet } from "../lib/sheetAnimation";
@@ -35,6 +36,9 @@ interface Props {
    * same hallTid when staged (see runSearch below). */
   hallTid: number;
   onStep: (key: string, delta: number) => void;
+  /** Manual entry (tap the count, type an exact amount -- halves and any other decimal, not
+   * just ±1 steps). Wired straight to plate.ts's setCount. */
+  onSetCount: (key: string, count: number) => void;
   onAddOffResult: (result: OffSearchResult) => void;
   onAddHistoryDish: (dish: HistoryDish) => void;
   onLog: () => void;
@@ -48,8 +52,14 @@ interface Props {
  * Modal, same structural call as NutritionLabel (see halls/[slug].tsx's note): no route, no
  * _layout.tsx change, no MenuItem serialization through router params.
  */
-export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onAddOffResult, onAddHistoryDish, onLog, onClose }: Props) {
+export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onSetCount, onAddOffResult, onAddHistoryDish, onLog, onClose }: Props) {
   const [query, setQuery] = useState("");
+  // Tap-to-type serving entry: which row's count is currently an editable TextInput (null = none
+  // are). Only one row edits at a time -- starting a new one commits whatever was already typed
+  // into the row being left, rather than relying on TextInput's onBlur firing before it unmounts
+  // (RN doesn't guarantee that ordering when the conditional swaps the child out from under it).
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [results, setResults] = useState<PlateSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -98,8 +108,25 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
       setResults(null);
       setSearchError(null);
       setQuery("");
+      setEditingKey(null);
     }
   }, [visible]);
+
+  function beginEditingCount(entry: PlateEntry) {
+    if (editingKey && editingKey !== entry.key) commitEditingCount();
+    setEditingKey(entry.key);
+    setEditingText(formatServings(entry.count));
+  }
+
+  // Invalid/empty input (parseServingsInput returns null) leaves the count untouched rather than
+  // falling back to Number("")'s 0, which setCount would treat as "remove this row".
+  function commitEditingCount() {
+    if (editingKey) {
+      const parsed = parseServingsInput(editingText);
+      if (parsed !== null) onSetCount(editingKey, parsed);
+    }
+    setEditingKey(null);
+  }
 
   async function runSearch() {
     // #198: onSubmitEditing had no guard against a search already in flight (unlike the Search
@@ -206,7 +233,23 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
                       <Pressable style={styles.stepperButton} onPress={() => onStep(entry.key, -1)} accessibilityRole="button" accessibilityLabel={`Remove one ${entry.label}`}>
                         <Text style={styles.stepperButtonText}>−</Text>
                       </Pressable>
-                      <Text style={styles.stepperCount}>{entry.count}</Text>
+                      {editingKey === entry.key ? (
+                        <TextInput
+                          style={styles.stepperInput}
+                          value={editingText}
+                          onChangeText={setEditingText}
+                          keyboardType="decimal-pad"
+                          autoFocus
+                          selectTextOnFocus
+                          onSubmitEditing={commitEditingCount}
+                          onBlur={commitEditingCount}
+                          accessibilityLabel={`Servings for ${entry.label}`}
+                        />
+                      ) : (
+                        <Pressable onPress={() => beginEditingCount(entry)} accessibilityRole="button" accessibilityLabel={`Edit servings for ${entry.label}`}>
+                          <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
+                        </Pressable>
+                      )}
                       <Pressable style={styles.stepperButton} onPress={() => onStep(entry.key, 1)} accessibilityRole="button" accessibilityLabel={`Add one ${entry.label}`}>
                         <Text style={styles.stepperButtonText}>+</Text>
                       </Pressable>
@@ -233,7 +276,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
               </View>
 
               <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
-                {`LOG ${itemCount} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
+                {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
               </Button>
 
               <View style={styles.addSection}>
@@ -332,7 +375,21 @@ const styles = StyleSheet.create({
   },
   stepperButton: { width: fs(42), height: fs(44), alignItems: "center", justifyContent: "center" },
   stepperButtonText: { fontSize: fs(18), color: colors.maroon600 },
-  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 24, textAlign: "center", color: colors.ink900 },
+  // minWidth 34 (was 24): fits "1.5" without the pill visibly resizing on every fractional count.
+  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 34, textAlign: "center", color: colors.ink900 },
+  stepperInput: {
+    fontFamily: fonts.mono,
+    fontSize: fs(14),
+    fontWeight: "600",
+    minWidth: 34,
+    textAlign: "center",
+    color: colors.ink900,
+    borderWidth: 1.5,
+    borderColor: colors.gold500,
+    borderRadius: radii.sm,
+    paddingVertical: 2,
+    paddingHorizontal: spacing(1),
+  },
 
   divider: { height: 1, backgroundColor: withOpacity(colors.ink900, 12), marginVertical: spacing(3.5) },
 

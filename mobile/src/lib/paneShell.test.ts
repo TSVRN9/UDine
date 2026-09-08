@@ -13,6 +13,7 @@ import {
   settleDuration,
   SWIPE_COMMIT_PX,
   SWIPE_FLING_VELOCITY,
+  tabUnderlineInsets,
 } from "./paneShell";
 
 describe("constants", () => {
@@ -280,5 +281,36 @@ describe("settleDuration", () => {
 
   it("treats overshoot beyond a full pane-step the same as a full step (never exceeds the base duration)", () => {
     expect(settleDuration(-1, 1, 340)).toBe(340);
+  });
+});
+
+describe("tabUnderlineInsets", () => {
+  it("is a full, uninset bar exactly at the tab's own index", () => {
+    expect(tabUnderlineInsets(2, 2)).toEqual({ left: 0, right: 0 });
+  });
+
+  it("shrinks from the left as the position moves past the tab (d >= 0), right stays pinned at 0", () => {
+    expect(tabUnderlineInsets(2.5, 2)).toEqual({ left: 0.5, right: 0 });
+    expect(tabUnderlineInsets(3, 2)).toEqual({ left: 1, right: 0 });
+  });
+
+  it("draws in from the left as the position approaches the tab (d < 0), left stays pinned at 0", () => {
+    expect(tabUnderlineInsets(1.5, 2)).toEqual({ left: 0, right: 0.5 });
+    expect(tabUnderlineInsets(1, 2)).toEqual({ left: 0, right: 1 });
+  });
+
+  it("clamps a tab more than one swipe away to fully collapsed, either direction", () => {
+    expect(tabUnderlineInsets(4, 2)).toEqual({ left: 1, right: 0 });
+    expect(tabUnderlineInsets(0, 2)).toEqual({ left: 0, right: 1 });
+  });
+
+  // A "backward" swipe (higher-indexed tab -> lower-indexed one) needs no separate formula: the
+  // SAME shrink-from-left case above (d >= 0) is what a lower-index destination tab sees as the
+  // position settles DOWN onto it, and the same draw-in-from-right case is what the higher-index
+  // SOURCE tab sees as the position leaves it -- just with source/destination swapped relative to
+  // the forward-swipe examples above. One case per tab, decided purely by that tab's own `d`.
+  it("gives the higher-indexed source tab a right-side draw-out as the position settles onto a lower-indexed tab", () => {
+    expect(tabUnderlineInsets(2.5, 3)).toEqual({ left: 0, right: 0.5 });
+    expect(tabUnderlineInsets(2, 3)).toEqual({ left: 0, right: 1 });
   });
 });

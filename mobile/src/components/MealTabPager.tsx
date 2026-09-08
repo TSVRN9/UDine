@@ -10,8 +10,9 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
-import { paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration } from "../lib/paneShell";
+import { paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration, tabUnderlineInsets } from "../lib/paneShell";
 import { colors, fs } from "../lib/theme";
 
 // Same cubic-bezier PaneStack.tsx uses for its own pane transform -- one shared "how a pane
@@ -109,6 +110,7 @@ export function MealTabPager({
   activeIndex,
   onActiveIndexChange,
   instantRef,
+  panePos: externalPanePos,
 }: {
   panes: ReactNode[];
   activeIndex: number;
@@ -119,34 +121,70 @@ export function MealTabPager({
    * very next commit below, same lifecycle as `committedIndexRef`. A ref, not a prop value read
    * once, so setting it doesn't itself trigger a re-render. */
   instantRef?: { current: boolean };
+  /** Optional: a shared value the CALLER also wants to read this pager's live drag/settle position
+   * from -- e.g. [slug].tsx's tab row, to animate its underline in lockstep with the same position
+   * driving the pane crossfade (AnimatedTabUnderline below). Created here as a fallback when the
+   * caller doesn't need it, same "parent creates it, child takes it as a prop" shape as this
+   * session's HoldSlideHost -- but via an unconditional hook call selected by a plain ternary, not
+   * a conditional hook call, so every render still calls the same hooks in the same order whether
+   * or not a caller passes one. */
+  panePos?: SharedValue<number>;
 }) {
   const count = panes.length;
-  const panePos = useSharedValue(activeIndex);
+  const ownPanePos = useSharedValue(activeIndex);
+  const panePos = externalPanePos ?? ownPanePos;
   const paneOpacityPos = useSharedValue(activeIndex);
   // The one piece of state that must survive across a single gesture's onStart -> onUpdate -> onEnd
   // sequence, which can span a re-render (the Gesture.Pan() object below is rebuilt every render --
   // see this component's own doc comment -- but a shared value's identity, like a ref's, persists
   // across that rebuild).
   const dragStartIndex = useSharedValue(activeIndex);
-  // Tracks this effect's own "where did the animated position last land" -- separate from
-  // `activeIndex` itself. Needed to tell an adjacent commit (swipe, or a single-step tab tap) from a
-  // multi-hop one (tapping a non-adjacent tab): a continuous tween only ever passes through index
-  // values whose panes are guaranteed mounted when the jump is ±1 (paneDragPosition's own ±1 clamp;
-  // windowing mounts activeIndex ± 1). A jump of more than 1 sweeps the SHARED animated position
-  // through pane indices outside that window -- panes that are either unmounted (nothing to show, a
-  // blank flash) or briefly mounted-then-unmounted at the wrong moment (an unrelated tab's real
-  // content flashing fully visible mid-transition, since its own opacity interpolate peaks at 1
-  // exactly where the sweep passes through its index). Real swipes can never trigger this (the
-  // shared engine only ever commits ±1), so this only matters for a tab tap more than one tab away
-  // -- seed the position directly instead of tweening through panes that were never meant to be
-  // seen. Plain ref (not a shared value): only ever read/written from this JS-thread effect, never
-  // from a worklet.
+  // "Where did the animated position last land" for THIS effect's own instant-vs-tween decision --
+  // deliberately a plain `useRef`, not a shared value: a `useSharedValue` mock/implementation can
+  // legitimately re-derive its `.value` from the CURRENT `activeIndex` argument on every render
+  // (confirmed against this repo's own Jest reanimated mock, `useSharedValue: (init) => ({value:
+  // init})` called fresh every render -- real Reanimated's shared values behave like `useRef`
+  // instead, persisting independent of a hook's argument after mount, but nothing here should
+  // depend on that subtlety to be correct), which would make "did a gesture already commit this
+  // value" untestable and, worse, ambiguous by construction. A ref has no such ambiguity in either
+  // environment.
+  //
+  // Written from TWO places, both eagerly, specifically to avoid the exact race an earlier version
+  // of this fix still had: `commitActiveIndex` (below) writes it on the JS thread the INSTANT a
+  // gesture's `onEnd` reports a commit -- in the SAME call that triggers `onActiveIndexChange`,
+  // before React has re-rendered -- so a run of several rapid gesture commits keeps this ref
+  // correctly caught up to the LATEST one even if React coalesces/skips rendering the intermediate
+  // `activeIndex` values in between (confirmed: `MealTabPager.test.tsx`'s "5 rapid alternating
+  // swipes" case). This effect's own trailing write covers the other path into a commit -- a tab
+  // TAP, or the instant auto-correct -- which never touches `commitActiveIndex` at all.
   const committedIndexRef = useRef(activeIndex);
+  // JS-thread only (never called from a worklet) -- the single place a gesture's commit reaches
+  // `onActiveIndexChange`, so `committedIndexRef` above and the caller's own `activeIndex` state
+  // update happen from the exact same synchronous call, in true commit order, however fast commits
+  // arrive.
+  // Mutates committedIndexRef -- see the eslint-disable-next-line on the .onEnd() call below that
+  // reaches this function via runOnJS for why that's safe here.
+  function commitActiveIndex(next: number) {
+    committedIndexRef.current = next;
+    onActiveIndexChange(next);
+  }
 
   useEffect(() => {
     const from = committedIndexRef.current;
     const instant = instantRef?.current === true;
     if (instant) instantRef!.current = false;
+    // A swipe's own onEnd already eagerly recorded this exact activeIndex in committedIndexRef AND
+    // already started settling panePos/paneOpacityPos there itself (see commitActiveIndex/onEnd) --
+    // if this effect fired because THAT commit round-tripped back to a render, `from` already
+    // equals `activeIndex` and there is nothing left to animate. Re-triggering a SECOND, independent
+    // withTiming here anyway is exactly what caused the on-device rapid-reversal corruption (two
+    // competing tweens retargeting the same shared value from different starting points, on top of
+    // each other, never cleanly resolving -- symptoms: the pane appearing frozen for several
+    // seconds, then two panes' content briefly visible at once). Only a change that did NOT come
+    // from a just-completed gesture -- a tab TAP, or the instant auto-correct path -- still needs
+    // this effect to do the animating; `instant` always falls through below even if `from` happens
+    // to already match, but that's a harmless no-op re-seed, not a race.
+    if (!instant && from === activeIndex) return;
     if (instant || Math.abs(activeIndex - from) > 1) {
       panePos.value = activeIndex;
       paneOpacityPos.value = activeIndex;
@@ -155,10 +193,11 @@ export function MealTabPager({
       paneOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
     }
     committedIndexRef.current = activeIndex;
+    dragStartIndex.value = activeIndex;
     // panePos/paneOpacityPos are stable useSharedValue identities; instantRef's identity is stable
     // too (a ref) -- listed so this effect only re-fires on a real activeIndex commit, not on every
     // render.
-  }, [activeIndex, panePos, paneOpacityPos, instantRef]);
+  }, [activeIndex, panePos, paneOpacityPos, instantRef, dragStartIndex]);
 
   // Worklet (runs on the UI thread from the gesture callbacks below, and directly as plain JS when
   // called nowhere else needs it) -- mirrors PaneStack.tsx's identical helper.
@@ -191,7 +230,14 @@ export function MealTabPager({
     // (RNGH's own doc comment on `onEnd`), a touch that never activates would cancel a settle
     // animation with nothing to ever restore it (no onEnd fires to call `settlePosition` back).
     .onStart(() => {
-      dragStartIndex.value = activeIndex;
+      // Deliberately does NOT reseed dragStartIndex.value from the closed-over `activeIndex` prop
+      // here -- that prop can still be one render behind if this touch begins before React has
+      // committed the previous gesture's onActiveIndexChange (a fast reversal: swipe, release,
+      // swipe again, all before the JS round trip lands). dragStartIndex is instead kept
+      // authoritative by onEnd's own eager write below (zero-latency, UI thread) and by the effect
+      // above (covers a tab tap, which never reaches onEnd) -- so by the time a new gesture can
+      // start, it already holds the true last-committed index.
+      //
       // A settle from the previous gesture (release/cancel) can still be in flight when a new drag
       // starts -- cancel it so onUpdate's assignment below isn't fighting a running animation.
       cancelAnimation(panePos);
@@ -202,19 +248,42 @@ export function MealTabPager({
       panePos.value = dragPos;
       paneOpacityPos.value = dragPos;
     })
+    // react-hooks/refs flags the .onEnd(...) call below because commitActiveIndex (reached via
+    // runOnJS inside it) touches committedIndexRef, and this whole callback is BUILT during render
+    // (same as every Gesture.Pan() callback in this file) -- but it's never CALLED during render,
+    // only later, by the native gesture runtime, once a real touch sequence ends. Same "function
+    // created during render, invoked later by an event" shape as a plain
+    // `onPress={() => (ref.current = x)}` handler, which this rule does not flag -- and the same
+    // class of false positive this file's own `react-hooks/immutability: off` override (see
+    // eslint.config.js) already documents for the shared-value writes throughout this same
+    // callback. Disabled per-site, not via a file-wide `react-hooks/refs: off`, so the rule still
+    // guards the rest of this file against an actual render-time ref mutation.
+    // eslint-disable-next-line react-hooks/refs
     .onEnd((e, success) => {
+      // Read once, at the top: this is the drag's true starting point regardless of whether
+      // `activeIndex` (the closed-over prop) has caught up to it yet -- see onStart's comment.
+      const from = dragStartIndex.value;
       if (!success) {
         // Cancelled/failed mid-drag (e.g. a parent gesture stole it) -- settle back to where the
         // drag started instead of stranding the pane at a fractional offset.
-        settlePosition(dragStartIndex.value, paneDragPosition(dragStartIndex.value, e.translationX, count));
+        settlePosition(from, paneDragPosition(from, e.translationX, count));
         return;
       }
       // velocityX: a fast short flick commits even under SWIPE_COMMIT_PX of travel (paneIndexForSwipe's
       // own doc) -- the biggest single source of the swipe reading as unresponsive was a quick
       // flick doing nothing at all because it never crossed the distance threshold.
-      const next = paneIndexForSwipe(dragStartIndex.value, e.translationX, e.velocityX, count);
-      settlePosition(next, paneDragPosition(dragStartIndex.value, e.translationX, count));
-      if (next !== activeIndex) runOnJS(onActiveIndexChange)(next);
+      const next = paneIndexForSwipe(from, e.translationX, e.velocityX, count);
+      settlePosition(next, paneDragPosition(from, e.translationX, count));
+      // Eager, UI-thread write -- the very next gesture's onStart (which may begin before this
+      // commit's runOnJS below has round-tripped back to a re-render) reads this, not the prop.
+      dragStartIndex.value = next;
+      // Compare against `from`, not the closed-over `activeIndex` prop: on a fast reversal the
+      // prop can still be stale here too, and comparing against it could skip this call entirely
+      // (committing the shared-value position to `next` while React never hears about it) --
+      // exactly the "skips a tab" symptom. Routed through commitActiveIndex, not
+      // onActiveIndexChange directly -- see its own doc comment for why the eager
+      // committedIndexRef write has to happen in the exact same JS-thread call as this one.
+      if (next !== from) runOnJS(commitActiveIndex)(next);
     });
 
   return (
@@ -229,10 +298,30 @@ export function MealTabPager({
   );
 }
 
+/** The tab row's own active-tab underline, live-tracking the SAME `panePos` a `MealTabPager`
+ * reads for its pane crossfade (pass the exact value handed to that pager's own `panePos` prop) --
+ * so the underline moves with a swipe instead of snapping only once the swipe commits, and draws
+ * in on a tab tap's instant position-snap the same way it does on a swipe's settle tween (both are
+ * just this same pure function of whatever `panePos` currently holds). Renders once per tab,
+ * absolutely positioned to fill its tab's own underline slot (the caller keeps that slot's layout
+ * -- height/margin -- in normal flow; this only paints the animated fill inside it). The actual
+ * shrink/draw-in math is `tabUnderlineInsets` in paneShell.ts (unit-tested there) -- see its own
+ * doc comment for the visual intent (canvas request: "the left side of the bar should gradually
+ * move to the right, with the right side fixed" while swiping away; "draw the bar from left to
+ * right" while settling onto a tab). */
+export function AnimatedTabUnderline({ index, panePos }: { index: number; panePos: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => {
+    const { left, right } = tabUnderlineInsets(panePos.value, index);
+    return { left: `${left * 100}%`, right: `${right * 100}%` };
+  });
+  return <Animated.View style={[styles.underlineFill, style]} />;
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   // Same background as PaneStack.tsx's own pane style -- without it, the outgoing pane's real
   // background (its own View/SectionList content) shows through the incoming pane's transparent gap
   // during the crossfade instead of a solid backdrop.
   pane: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.cream100 },
+  underlineFill: { position: "absolute", top: 0, bottom: 0, backgroundColor: colors.gold500, borderRadius: 2 },
 });

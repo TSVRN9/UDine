@@ -1,6 +1,7 @@
 import type { DailyMacroTotals } from "@udine/shared";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { formatServings } from "../lib/servingsStepper";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
@@ -52,7 +53,7 @@ export function PlateBar({ itemCount, totals, priceTotal, onPress, onLayout, emp
             <View style={styles.headlineRow}>
               <Text style={styles.chevron}>⌃</Text>
               <Text style={styles.headline}>
-                {itemCount} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal{priceTotal ? ` · ${priceTotal}` : ""}
+                {formatServings(itemCount)} {itemCount === 1 ? "item" : "items"} · {Math.round(totals.calories)} cal{priceTotal ? ` · ${priceTotal}` : ""}
               </Text>
             </View>
             <Text style={styles.macros}>

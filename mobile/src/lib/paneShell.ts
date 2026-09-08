@@ -180,6 +180,24 @@ export function settleDuration(from: number, to: number, baseDuration: number): 
   return Math.max(baseDuration * 0.4, baseDuration * remaining);
 }
 
+/** A tab row's active-underline fill for one tab, given the live pane position and that tab's own
+ * index -- see MealTabPager.tsx's `AnimatedTabUnderline` for the visual intent this implements
+ * (shrink from the leading edge while swiping away, draw in from the leading edge while settling
+ * onto a tab). `d`, this tab's signed distance from the live position, is clamped to ±1 (a tab more
+ * than one swipe away never shows any fill) -- `d >= 0` means the position is at or past this tab
+ * (it's the one being swiped AWAY from: `right` stays 0, `left` grows 0->1 as the fill is eaten from
+ * the left); `d < 0` means the position is approaching this tab from behind (it's the one being
+ * swiped TOWARD: `left` stays 0, `right` shrinks 1->0 as the fill grows in from the left). One
+ * formula for both directions and for a tab tap's instant snap alike -- no direction branching, no
+ * separate "is this a drag or a settle or a tap" case, since it's a pure function of the live
+ * position, whatever animation (or none) is currently driving that position. Returns fractions
+ * (0-1), not percentage strings -- the caller formats those for style. */
+export function tabUnderlineInsets(pos: number, index: number): { left: number; right: number } {
+  "worklet";
+  const d = Math.max(-1, Math.min(1, pos - index));
+  return { left: Math.max(0, d), right: Math.max(0, -d) };
+}
+
 /** Side of one square hall card in the 2-up wrapped grid, from the grid's measured width.
  * Explicit numeric sizes only: width:"47%" + aspectRatio paints nothing on this RN/Fabric build
  * (cards reserved layout but had no pixels/taps — device pass 2026-08-19). 0 until measured. */

@@ -51,8 +51,14 @@ module.exports = defineConfig([
     // activeIndexRef write), fixed above. Blanket-disabling react-hooks/refs there too would
     // remove the only lint-level guard against that exact bug coming back, so its findings get
     // per-site `eslint-disable-next-line` comments in the file itself instead.
+    //
+    // HoldSlideAddButton.tsx (fractional-servings hold-and-drag): reads refs passed in as a
+    // prop (`blocksScrollRefs`) during `Gesture.LongPress().blocksExternalGesture(...refs)` --
+    // same read-once-for-construction shape as the rest of this list. It never assigns to those
+    // refs itself; only the parent screen's own `ref={...}` JSX attachment does that.
     files: [
       "src/components/FavoriteStar.tsx",
+      "src/components/HoldSlideAddButton.tsx",
       "src/components/PaneHeader.tsx",
       "src/components/Press.tsx",
       "src/components/Skeleton.tsx",
@@ -77,7 +83,17 @@ module.exports = defineConfig([
     // src/lib/sheetAnimation.ts joined this list for the same reason (#245 item 5 follow-up,
     // draggable bottom sheets): useDraggableSheet's `pos.value = ...` assignments, from inside
     // Gesture.Pan() callbacks, are the identical documented false positive.
-    files: ["src/components/PaneStack.tsx", "src/components/MealTabPager.tsx", "src/lib/sheetAnimation.ts"],
+    //
+    // HoldSlideAddButton.tsx (fractional-servings hold-and-drag): same pattern, one level further
+    // removed -- `liveCount`/`liveIndex` are shared values CREATED by the parent screen and
+    // passed down as props (deliberately: many rows share the same two values so only one
+    // screen-level overlay is ever needed, see [slug].tsx's own doc comment), and
+    // every `.value = ...` write happens inside this component's `Gesture.LongPress()`/
+    // `Gesture.Pan()` worklets. The compiler flags it as "modifying a prop," which is technically
+    // true of the JS reference but not of what's actually being mutated (the shared value's own
+    // internal cell, its documented API) -- the same false positive as the rest of this list, one
+    // hop further through a prop instead of a local `useSharedValue()`.
+    files: ["src/components/PaneStack.tsx", "src/components/MealTabPager.tsx", "src/lib/sheetAnimation.ts", "src/components/HoldSlideAddButton.tsx"],
     rules: { "react-hooks/immutability": "off" },
   },
   {

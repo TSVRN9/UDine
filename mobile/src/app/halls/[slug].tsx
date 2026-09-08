@@ -14,17 +14,30 @@ import {
   type OffSearchResult,
 } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { createNativeWrapper } from "react-native-gesture-handler";
-import Reanimated, { FadeIn, FadeOut, FadeOutDown, FadeInDown, LinearTransition, ZoomIn } from "react-native-reanimated";
+import Reanimated, {
+  FadeIn,
+  FadeOut,
+  FadeOutDown,
+  FadeInDown,
+  LinearTransition,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
 import { FavoriteStar } from "../../components/FavoriteStar";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
-import { MealTabPager } from "../../components/MealTabPager";
+import { HoldSlideAddButton } from "../../components/HoldSlideAddButton";
+import { HoldSlideHost, type HoldSlideHostHandle } from "../../components/HoldSlideOverlay";
+import { AnimatedTabUnderline, MealTabPager } from "../../components/MealTabPager";
 import { MenuErrorCard } from "../../components/MenuErrorCard";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
@@ -57,6 +70,7 @@ import {
   menuItemToPlateEntry,
   offResultToPlateEntry,
   plateKeyFor,
+  setCount,
   stepCount,
   toLogEntries,
   totalItemCount,
@@ -65,6 +79,7 @@ import {
   type PlateEntry,
 } from "../../lib/plate";
 import { getPreferences } from "../../lib/preferences";
+import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
 
@@ -115,19 +130,106 @@ function GrabBagIcon({ color }: { color: string }) {
   );
 }
 
-/** Filled maroon pill stepper — the canvas's in-plate control on a dish row. `entering={ZoomIn}`
- * (scale+fade, Reanimated's own built-in preset -- no custom worklet needed) so it visibly grows in
- * from the `+` button it replaces instead of hard-swapping. */
-function RowStepper({ count, dishName, onStep }: { count: number; dishName: string; onStep: (delta: number) => void }) {
+// The "+" slot is always this wide/tall -- it's the same physical anchor whether it's holding the
+// gesture-enabled HoldSlideAddButton (nothing on the plate yet) or the plain +1 button (already in
+// the plate), so the pill's right edge never has to jump when the two swap.
+const PLUS_SLOT_SIZE = fs(44);
+const MINUS_SLOT_WIDTH = fs(34);
+const COUNT_SLOT_WIDTH = fs(34);
+// Precomputed outside the worklet below -- withOpacity isn't itself worklet-marked, and calling
+// a plain JS-thread function from inside useAnimatedStyle's UI-thread callback throws ("Tried to
+// synchronously call a Remote Function," caught on-device). Worklets can close over a plain
+// string constant fine; they just can't call out to arbitrary JS to compute one per frame.
+const MAROON_TRANSPARENT = withOpacity(colors.maroon600, 0);
+const STEPPER_FULL_WIDTH = PLUS_SLOT_SIZE + COUNT_SLOT_WIDTH + MINUS_SLOT_WIDTH;
+
+/** Filled maroon pill — the dish row's add control, both the empty-plate "+" and the in-plate
+ * "− N +" stepper are the SAME persistent element, not two components swapped by a ternary. The
+ * "+" slot (`flexDirection: row-reverse`, so it's the first child but renders pinned to the right)
+ * never moves; growing the pill is just animating this wrapper's `width` from `PLUS_SLOT_SIZE` up
+ * to `STEPPER_FULL_WIDTH` with `overflow: hidden` clipping the rest -- the "−"/count portion is
+ * revealed from the left as the clip widens, which is what "the left edge of the + expands out"
+ * (review feedback) actually means: a single directional reveal anchored at the button's own
+ * fixed right edge, not two views crossfading at different rects (the previous attempt: a
+ * layout-tracked wrapper around a ternary-swapped `+`/stepper, which read as a hard swap with a
+ * resize animated on top rather than one continuous grow). The "−"/count are always mounted (never
+ * conditionally, so there's no gap between removing them and the clip re-narrowing when the count
+ * drops back to 0) but only ever hit-testable via `pointerEvents` while actually in the plate --
+ * `overflow: hidden` in RN clips paint, not touch dispatch, so an always-mounted "−" button behind
+ * a narrow clip could otherwise still be tapped through it. */
+function PlateAddControl({
+  plateEntry,
+  item,
+  onStep,
+  blocksScrollRefs,
+  onQuickAdd,
+  onHoldStart,
+  onHoldDrag,
+  onHoldEnd,
+  liveCount,
+  liveIndex,
+}: {
+  plateEntry: PlateEntry | undefined;
+  item: MenuItem;
+  onStep: (delta: number) => void;
+  blocksScrollRefs: RefObject<any>[];
+  onQuickAdd: () => void;
+  onHoldStart: (anchor: { x: number; y: number; width: number; height: number }) => void;
+  onHoldDrag: (count: number) => void;
+  onHoldEnd: () => void;
+  liveCount: SharedValue<number>;
+  liveIndex: SharedValue<number>;
+}) {
+  const inPlate = !!plateEntry;
+  const widthProgress = useSharedValue(inPlate ? 1 : 0);
+  useEffect(() => {
+    widthProgress.value = withTiming(inPlate ? 1 : 0, { duration: 180 });
+  }, [inPlate, widthProgress]);
+  const clipStyle = useAnimatedStyle(() => ({
+    width: PLUS_SLOT_SIZE + widthProgress.value * (STEPPER_FULL_WIDTH - PLUS_SLOT_SIZE),
+    // The empty-plate "+" is a ghost-outline button (maroon border/text on a see-through
+    // background, matching HoldSlideAddButton's own standalone styling) -- it was never designed
+    // to sit on a filled pill. Fading the fill in alongside the width, rather than always having
+    // it, keeps that outline visible while empty instead of painting maroon text/border directly
+    // on top of a solid maroon background (on-device catch: the + was completely invisible).
+    backgroundColor: interpolateColor(widthProgress.value, [0, 1], [MAROON_TRANSPARENT, colors.maroon600]),
+  }));
+
   return (
-    <Reanimated.View entering={ZoomIn.duration(180)} style={styles.stepper}>
-      <Pressable style={styles.stepperButton} onPress={() => onStep(-1)} accessibilityRole="button" accessibilityLabel={`Remove one ${dishName}`}>
-        <Text style={styles.stepperButtonText}>−</Text>
-      </Pressable>
-      <Text style={styles.stepperCount}>{count}</Text>
-      <Pressable style={styles.stepperButton} onPress={() => onStep(1)} accessibilityRole="button" accessibilityLabel={`Add one ${dishName}`}>
-        <Text style={styles.stepperButtonText}>+</Text>
-      </Pressable>
+    <Reanimated.View style={[styles.stepperClip, clipStyle]}>
+      <View style={styles.stepperRow}>
+        <View style={styles.plusSlot}>
+          {inPlate ? (
+            <Pressable style={styles.plusSlot} onPress={() => onStep(1)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add one ${item.dishName}`}>
+              <Text style={styles.stepperButtonText}>+</Text>
+            </Pressable>
+          ) : (
+            <HoldSlideAddButton
+              dishName={item.dishName}
+              blocksScrollRefs={blocksScrollRefs}
+              onQuickAdd={onQuickAdd}
+              onHoldStart={onHoldStart}
+              onHoldDrag={onHoldDrag}
+              onHoldEnd={onHoldEnd}
+              liveCount={liveCount}
+              liveIndex={liveIndex}
+            />
+          )}
+        </View>
+        <Text style={[styles.stepperCount, { width: COUNT_SLOT_WIDTH }]} numberOfLines={1} pointerEvents="none">
+          {formatServings(plateEntry?.count ?? 1)}
+        </Text>
+        <Pressable
+          style={[styles.stepperButton, { width: MINUS_SLOT_WIDTH }]}
+          onPress={() => onStep(-1)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove one ${item.dishName}`}
+          pointerEvents={inPlate ? "auto" : "none"}
+        >
+          <Text style={styles.stepperButtonText}>−</Text>
+        </Pressable>
+      </View>
     </Reanimated.View>
   );
 }
@@ -179,6 +281,33 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   const [grabError, setGrabError] = useState<string | null>(null);
 
   const [plate, setPlate] = useState<PlateEntry[]>([]);
+  // Hold-and-drag add (canvas: "F: inline vertical slide"). The live count/ladder-position/cancel
+  // state during a drag are Reanimated shared values, not React state -- HoldSlideAddButton writes
+  // them directly from its UI-thread gesture worklet (see its own doc comment), and the overlay
+  // reads them the same way, so a drag never triggers a React re-render of anything up here.
+  // holdSlideHostRef mounts/unmounts the overlay itself (see HoldSlideHost below) via an
+  // imperative ref instead of state living in THIS component -- this component is the one that
+  // owns the whole dish-list SectionList, and re-rendering it on every drag step (which state
+  // here would do) used to force the SectionList to re-render every visible row on every touch-
+  // move frame, the dominant remaining cause of "still feels slow" after the per-frame bridge-
+  // crossing fix. The item being committed on release lives in dragStateRef, read there rather
+  // than closed-over state so onHoldEnd never risks acting on a stale render's item.
+  const liveHoldCount = useSharedValue(MIN_DRAG_SERVINGS);
+  const liveHoldIndex = useSharedValue(0);
+  const holdSlideHostRef = useRef<HoldSlideHostHandle>(null);
+  const dragStateRef = useRef<{ item: MenuItem } | null>(null);
+  // Refs to both GestureSectionLists, passed to every HoldSlideAddButton so its LongPress can
+  // blocksExternalGesture() them -- see that component's own doc comment for why this native-
+  // level relationship (not a reactive scrollEnabled toggle, which was tried first and confirmed
+  // too slow on-device) is what actually lets the hold-and-drag gesture win against the list's
+  // own deliberately non-interruptible scroll. Both refs are always passed; only one list is ever
+  // mounted-and-relevant for a given row, the other's ref is simply unattached and ignored.
+  // `any`, not ElementRef<typeof GestureSectionList>: GestureSectionList's `as unknown as typeof
+  // SectionList` cast (above) erases MenuItem's generic, so a properly-typed ref for a
+  // MenuItem-specialized SectionList doesn't line up with the erased type -- RNGH only needs
+  // *some* ref to resolve against the underlying native handler tag at gesture-attach time.
+  const mealListRef = useRef<any>(null);
+  const grabListRef = useRef<any>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   // #180: separate from `sheetOpen` above (the Plate sheet) -- the two are independent modals, a
   // user could in principle have tapped the title before opening the plate. `events` is separate
@@ -420,11 +549,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   }
 
   function addToPlate(item: MenuItem, count = 1) {
-    setPlate((p) => {
-      let next = p;
-      for (let i = 0; i < count; i++) next = addOrIncrement(next, menuItemToPlateEntry(item));
-      return next;
-    });
+    setPlate((p) => addOrIncrement(p, menuItemToPlateEntry(item, count)));
   }
 
   function stepPlateItem(item: MenuItem, delta: number) {
@@ -461,7 +586,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     }
     setPlate([]);
     setSheetOpen(false);
-    setLogged(`Logged ${result.count} ${result.count === 1 ? "item" : "items"}`);
+    setLogged(`Logged ${formatServings(result.count)} ${result.count === 1 ? "item" : "items"}`);
   }
 
   // Shared by both SectionLists below (the 3 real meal tabs and the Grab tab) -- same dish-row
@@ -500,15 +625,29 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
               </Text>
             </View>
           </View>
-          {plateEntry ? (
-            <RowStepper count={plateEntry.count} dishName={item.dishName} onStep={(delta) => stepPlateItem(item, delta)} />
-          ) : (
-            <Reanimated.View exiting={FadeOut.duration(120)}>
-              <Pressable style={styles.addButton} onPress={() => addToPlate(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add ${item.dishName} to plate`}>
-                <Text style={styles.addButtonText}>+</Text>
-              </Pressable>
-            </Reanimated.View>
-          )}
+          <PlateAddControl
+            plateEntry={plateEntry}
+            item={item}
+            onStep={(delta) => stepPlateItem(item, delta)}
+            blocksScrollRefs={[mealListRef, grabListRef]}
+            onQuickAdd={() => addToPlate(item)}
+            onHoldStart={(anchor) => {
+              dragStateRef.current = { item };
+              holdSlideHostRef.current?.open(anchor);
+            }}
+            onHoldDrag={(count) => holdSlideHostRef.current?.updateCount(count)}
+            onHoldEnd={() => {
+              // 0 is the drag's cancel rung (CANCEL_SERVINGS), never a real add -- see
+              // servingsStepper.ts's own doc comment.
+              if (dragStateRef.current && liveHoldCount.value > 0) {
+                addToPlate(dragStateRef.current.item, liveHoldCount.value);
+              }
+              dragStateRef.current = null;
+              holdSlideHostRef.current?.close();
+            }}
+            liveCount={liveHoldCount}
+            liveIndex={liveHoldIndex}
+          />
         </View>
         {expanded && (
           <Reanimated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.expandedContent} pointerEvents="box-none">
@@ -550,6 +689,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   function handleActiveIndexChange(i: number) {
     selectMeal(tabs[i]);
   }
+  // Created here, not inside MealTabPager, so the tab row's own AnimatedTabUnderline (below) can
+  // read the exact same live drag/settle position the pager's pane crossfade uses -- same
+  // "parent creates the shared value, children read it as a prop" shape as HoldSlideHost earlier
+  // this session. Initial value only (useSharedValue's argument is read once, on first mount).
+  const tabPanePos = useSharedValue(activeIndex);
 
   // One real meal period's pane -- reproduces the pre-swipe non-Grab branch verbatim, just
   // parameterized by which period this pane is for instead of reading selectedMeal globally. Error/
@@ -595,6 +739,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     }
     return (
       <GestureSectionList
+        ref={mealListRef}
         sections={periodSections}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
@@ -638,6 +783,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     }
     return (
       <GestureSectionList
+        ref={grabListRef}
         sections={grabSectionsMemo}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
@@ -734,7 +880,12 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
               accessibilityLabel={`${mealTabLabel(period)} menu`}
             >
               <Text style={[styles.tabText, active && styles.tabTextActive]}>{mealTabLabel(period)}</Text>
-              <View style={[styles.tabUnderline, active && styles.tabUnderlineActive]} />
+              <View style={styles.tabUnderline}>
+                {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
+                    one and Grab's below) reading the same swipeable-sequence index MealTabPager
+                    itself uses, immune to `tabs` ever reordering relative to `mealTabs`. */}
+                <AnimatedTabUnderline index={tabs.indexOf(period)} panePos={tabPanePos} />
+              </View>
             </Pressable>
           );
         })}
@@ -756,7 +907,9 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
                 <GrabBagIcon color={selectedMeal === "grab" ? colors.maroon900 : withOpacity(colors.ink900, 45)} />
                 <Text style={[styles.tabText, selectedMeal === "grab" && styles.tabTextActive]}>Grab &apos;N Go</Text>
               </View>
-              <View style={[styles.tabUnderline, selectedMeal === "grab" && styles.tabUnderlineActive]} />
+              <View style={styles.tabUnderline}>
+                <AnimatedTabUnderline index={tabs.indexOf("grab")} panePos={tabPanePos} />
+              </View>
             </Pressable>
           </>
         ) : null}
@@ -782,6 +935,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           onActiveIndexChange={handleActiveIndexChange}
           panes={tabs.map((tab) => (tab === "grab" ? grabPane() : mealPane(tab)))}
           instantRef={mealTabInstantRef}
+          panePos={tabPanePos}
         />
       )}
       {logged && (
@@ -831,6 +985,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         logStorage={storage}
         hallTid={hall.tid}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
+        onSetCount={(key, count) => setPlate((p) => setCount(p, key, count))}
         onAddOffResult={addOffResult}
         onAddHistoryDish={addHistoryDish}
         onLog={logPlate}
@@ -869,6 +1024,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           onClose={() => setLabelItem(null)}
         />
       )}
+      <HoldSlideHost ref={holdSlideHostRef} liveIndex={liveHoldIndex} />
     </View>
   );
 }
@@ -991,8 +1147,10 @@ const styles = StyleSheet.create({
     color: withOpacity(colors.ink900, 45),
   },
   tabTextActive: { color: colors.maroon900 },
-  tabUnderline: { height: 3, width: "100%", marginTop: spacing(1), backgroundColor: "transparent", borderRadius: 2 },
-  tabUnderlineActive: { backgroundColor: colors.gold500 },
+  // Just the layout slot (height/width/spacing) -- AnimatedTabUnderline paints the actual fill,
+  // absolutely positioned inside this, so it can animate independently per-tab off the live pane
+  // position instead of snapping between a flat "transparent"/"gold" swap on commit.
+  tabUnderline: { height: 3, width: "100%", marginTop: spacing(1), borderRadius: 2, overflow: "hidden" },
   tabSpacer: { flexGrow: 1 },
   tabDivider: { width: 1, height: fs(16), backgroundColor: withOpacity(colors.ink900, 20) },
 
@@ -1040,21 +1198,20 @@ const styles = StyleSheet.create({
   fullLabelLink: { flexDirection: "row", alignItems: "center", gap: spacing(1), minHeight: 44 },
   fullLabelLinkText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
 
-  addButton: {
-    width: fs(44),
-    height: fs(44),
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.maroon600, 45),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: { fontSize: fs(20), color: colors.maroon600, lineHeight: fs(22) },
-
-  stepper: { flexDirection: "row", alignItems: "center", backgroundColor: colors.maroon600, borderRadius: radii.pill },
-  stepperButton: { width: fs(34), height: fs(44), alignItems: "center", justifyContent: "center" },
+  // overflow hidden is the whole trick -- see PlateAddControl's own doc comment. alignItems:
+  // "flex-end" is load-bearing, not decoration: stepperRow has a fixed width wider than this
+  // clip's own (animated, narrower-than-content while collapsed) width, and the default stretch
+  // alignment falls back to flex-start for a fixed-width child -- which anchors the row's LEFT
+  // edge to the clip's left edge instead of the row's right edge to the clip's right edge. Since
+  // the visible window is always [0, clipWidth] measured from the row's own left edge, without
+  // this the collapsed clip showed the row-reverse row's OTHER end (the "−" button) instead of
+  // the "+" slot -- pr-reviewer catch, verified against RN's actual Yoga layout output.
+  stepperClip: { overflow: "hidden", alignItems: "flex-end", borderRadius: radii.pill },
+  stepperRow: { flexDirection: "row-reverse", alignItems: "center", width: STEPPER_FULL_WIDTH },
+  plusSlot: { width: PLUS_SLOT_SIZE, height: PLUS_SLOT_SIZE, alignItems: "center", justifyContent: "center" },
+  stepperButton: { height: fs(44), alignItems: "center", justifyContent: "center" },
   stepperButtonText: { fontSize: fs(18), color: colors.paper50 },
-  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 16, textAlign: "center", color: colors.paper50 },
+  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", textAlign: "center", color: colors.paper50 },
 
   loggedBanner: { backgroundColor: colors.maroon900, padding: spacing(2) },
   loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body400, fontSize: fs(13) },
