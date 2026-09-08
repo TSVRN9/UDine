@@ -11,12 +11,13 @@
 import renderer, { act } from "react-test-renderer";
 import { Text, View } from "react-native";
 import { router } from "expo-router";
-import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
+import type { Favorite, LogEntry, RankedDish, RankedFood } from "@udine/shared";
 import { YouPane } from "./YouPane";
 import { colors } from "../lib/theme";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
+import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { getCachedHours } from "../lib/menuHoursCache";
 import { __resetRetailNamesForTest, recordRetailNames } from "../lib/retailHallNames";
 
@@ -35,6 +36,15 @@ jest.mock("../lib/rankingStorage", () => {
 jest.mock("../lib/seenDishesStorage", () => {
   const getAllSeenDishNames = jest.fn().mockResolvedValue(new Map());
   return { SqliteSeenDishesStorage: jest.fn().mockImplementation(() => ({ getAllSeenDishNames })) };
+});
+
+// #90 nav reorg: the You pane's own Favorites section (real device data, not a stub) -- same
+// mock shape favoritesStorage.ts's other call sites already use (e.g. hallMenu.test.tsx).
+jest.mock("../lib/favoritesStorage", () => {
+  const getFavorites = jest.fn().mockResolvedValue([]);
+  const addFavorite = jest.fn().mockResolvedValue(undefined);
+  const removeFavorite = jest.fn().mockResolvedValue(undefined);
+  return { SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites, addFavorite, removeFavorite })) };
 });
 
 jest.mock("../lib/date", () => ({ todayIso: () => "2026-08-19" }));
@@ -63,6 +73,7 @@ jest.mock("expo-router", () => ({
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock; removeEntry: jest.Mock };
 const rankingMock = new SqliteRankingStorage() as unknown as { getRankedDishes: jest.Mock; getRankedFoods: jest.Mock };
 const seenMock = new SqliteSeenDishesStorage() as unknown as { getAllSeenDishNames: jest.Mock };
+const favoritesMock = new SqliteFavoritesStorage() as unknown as { getFavorites: jest.Mock };
 const mockRouterPush = router.push as jest.Mock;
 const mockGetCachedHours = getCachedHours as jest.Mock;
 
@@ -125,6 +136,7 @@ beforeEach(() => {
   rankingMock.getRankedDishes.mockResolvedValue([]);
   rankingMock.getRankedFoods.mockResolvedValue([]);
   seenMock.getAllSeenDishNames.mockResolvedValue(new Map());
+  favoritesMock.getFavorites.mockReset().mockResolvedValue([]);
   mockRouterPush.mockReset();
   mockGetCachedHours.mockReset().mockResolvedValue(null);
   __resetRetailNamesForTest();
@@ -341,5 +353,64 @@ describe("YouPane cold-start retail-name race (#243 bug A)", () => {
     const body = texts(root);
     expect(body).toMatch(/Latte · People's Organic Coffee/);
     expect(body).not.toMatch(/Hall 32/);
+  });
+});
+
+// --- #90 nav reorg: Favorites section (real SqliteFavoritesStorage data, not a stub), grouped
+// with Top Foods/Favorite Halls under one "Your Food" heading. -------------------------------
+
+describe("YouPane Favorites section", () => {
+  it("shows the empty state when there are no favorites yet", async () => {
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/Favorites/);
+    expect(body).toMatch(/No favorites yet/);
+  });
+
+  it("renders real favorites with the same dish/hall badge favorites.tsx uses", async () => {
+    const favs: Favorite[] = [
+      { type: "dish", dishName: "Chicken Parm" },
+      { type: "location", hallTid: 1 }, // Worcester
+    ];
+    favoritesMock.getFavorites.mockResolvedValue(favs);
+
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/Chicken Parm/);
+    expect(body).toMatch(/Worcester/);
+    expect(body).toMatch(/Dish/);
+    expect(body).toMatch(/Hall/);
+  });
+
+  it("renders the SEE ALL link, and tapping it navigates to /favorites", async () => {
+    favoritesMock.getFavorites.mockResolvedValue([{ type: "dish", dishName: "Chicken Parm" }]);
+
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/SEE ALL/);
+
+    // Two SEE-ALL-style links now exist (ALL LOGS, Favorites' SEE ALL) -- disambiguate by the
+    // exact accessible text, same convention the existing ALL LOGS test uses.
+    const seeAllPressable = root.root.findAll((node) => typeof node.props.onPress === "function" && textsOf(node).includes("SEE ALL"))[0];
+    seeAllPressable.props.onPress();
+    expect(mockRouterPush).toHaveBeenCalledWith("/favorites");
+  });
+});
+
+describe("YouPane Your Food grouping", () => {
+  it("groups Favorites, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading", async () => {
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/Your Food/);
+    expect(body).toMatch(/Favorites/);
+    expect(body).toMatch(/Your Top Foods/);
+    expect(body).toMatch(/Favorite Halls/);
+  });
+});
+
+describe("YouPane header export shortcut", () => {
+  it("renders no export button of its own -- the settings/export icon lives in the shared PaneHeader (see PaneHeader.test.tsx), not in the pane's own scroll content", async () => {
+    const root = await renderYouPane();
+    expect(root.root.findAllByProps({ accessibilityLabel: "Export data" })).toHaveLength(0);
   });
 });

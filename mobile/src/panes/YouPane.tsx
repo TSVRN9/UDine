@@ -1,26 +1,38 @@
-import { computeDailyTotals, hallCompletion, hallNameFor, isoDateOf, rankDiningHalls, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
+import { computeDailyTotals, hallCompletion, hallNameFor, isoDateOf, rankDiningHalls, type Favorite, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
 import { router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Press } from "../components/Press";
-import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
+import { Badge, Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
 import { getCachedHours } from "../lib/menuHoursCache";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
+import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { buildTopFoods, displayCompletionPct, entryCalories, groupEntriesByMeal, logItemLine } from "../lib/youPaneFormat";
 
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
 const seenDishesStorage = new SqliteSeenDishesStorage();
+const favoritesStorage = new SqliteFavoritesStorage();
 
 // YOUR TOP FOODS row cap — keeps the pane's chip-row density in line with the canvas rather than
 // rendering every food that ever cleared the scoring gate.
 const TOP_FOODS_LIMIT = 5;
+
+// FAVORITES row cap, same "handful" convention as TOP_FOODS_LIMIT -- SEE ALL (-> /favorites) is
+// the full list. getFavorites() has no ORDER BY (favoritesStorage.ts), so which favorites show up
+// in the handful is whatever order SQLite's table scan happens to return, not "most recent".
+const FAVORITES_LIMIT = 5;
+
+/** #90 nav reorg: same router.push mechanism goToAllLogs already uses for /logs. */
+function goToFavorites() {
+  router.push("/favorites");
+}
 
 // logItemLine now lives in youPaneFormat.ts (imported above) -- #119's Logs & stats screen reuses
 // the exact same collapsed-row text instead of re-deriving it. Hall-name lookup is @udine/shared's
@@ -54,6 +66,18 @@ function CompletionBar({ completion, gold }: { completion: HallCompletion; gold:
   );
 }
 
+/** One favorite row -- same Badge(type) + name pattern app/favorites.tsx's own full-list screen
+ * already renders, just in a Card matching this pane's other row styles instead of favorites.tsx's
+ * FlatList row. */
+function FavoriteRow({ favorite }: { favorite: Favorite }) {
+  return (
+    <Card style={styles.favoriteRow}>
+      <Badge>{favorite.type === "dish" ? "Dish" : "Hall"}</Badge>
+      <Text style={styles.favoriteRowText}>{favorite.type === "dish" ? favorite.dishName : hallNameFor(favorite.hallTid)}</Text>
+    </Card>
+  );
+}
+
 function TopFoodRow({ dishName, score, hallName: hall, tone }: { dishName: string; score: number; hallName: string | null; tone: "gold" | "maroon" }) {
   return (
     <Card style={styles.topFoodRow}>
@@ -84,6 +108,7 @@ export function YouPane() {
   const [rankedDishes, setRankedDishes] = useState<RankedDish[]>([]);
   const [rankedFoods, setRankedFoods] = useState<RankedFood[]>([]);
   const [seenByHall, setSeenByHall] = useState<Map<number, string[]>>(new Map());
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
   const insets = useSafeAreaInsets();
   const [, forceRetailNamesRerender] = useState(0);
 
@@ -104,6 +129,7 @@ export function YouPane() {
     rankingStorage.getRankedDishes().then(setRankedDishes);
     rankingStorage.getRankedFoods().then(setRankedFoods);
     seenDishesStorage.getAllSeenDishNames().then(setSeenByHall);
+    favoritesStorage.getFavorites().then(setFavorites);
   }, []);
 
   useFocusEffect(load);
@@ -183,35 +209,67 @@ export function YouPane() {
         </Card>
       </View>
 
-      <View style={styles.section}>
-        <SectionHeader title="Your Top Foods" />
-        {rankedFoods.length === 0 ? (
-          <EmptyState title="No comparisons yet" message="Dish ranking is on hold for now — this fills in once it's back." />
-        ) : topFoods.length === 0 ? (
-          <EmptyState title="Not enough data yet" message="Dish ranking is on hold for now, so this stays as-is until it's back." />
-        ) : (
-          <View style={styles.rowList}>
-            {topFoods.map((f) => (
-              <TopFoodRow key={f.dishName} dishName={f.dishName} score={f.score} hallName={f.hallName} tone={f.tone} />
-            ))}
-          </View>
-        )}
-      </View>
+      {/* "Your Food" (#90 nav reorg): Favorites, Your Top Foods, and Favorite Halls visually
+          grouped under one shared heading -- a heavier rule marks the group, each of the three
+          keeps its own lighter SectionHeader sub-header inside it (unchanged rendering for Top
+          Foods/Favorite Halls, just wrapped). */}
+      <View style={styles.group}>
+        <View style={styles.groupHeader}>
+          <View style={styles.groupRule} />
+          <Text style={styles.groupTitle}>Your Food</Text>
+        </View>
 
-      <View style={styles.section}>
-        <SectionHeader title="Favorite Halls" />
-        {hallRanking.ranked.length === 0 ? (
-          <EmptyState title="No ranking yet" message="Dish ranking is on hold for now — this fills in once it's back." />
-        ) : (
-          <View style={styles.favoriteHallsRow}>
-            {hallRanking.ranked.slice(0, 3).map((h, i) => (
-              <Card key={h.hallTid} style={[styles.favoriteHallCard, i === 0 && styles.favoriteHallCardTop]}>
-                <Text style={[styles.favoriteHallRank, i === 0 && styles.favoriteHallRankTop]}>{h.rank}</Text>
-                <Text style={styles.favoriteHallName}>{hallNameFor(h.hallTid)}</Text>
-              </Card>
-            ))}
-          </View>
-        )}
+        <View style={styles.subsection}>
+          <SectionHeader
+            title="Favorites"
+            right={
+              <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button">
+                <Text style={styles.allLogsText}>SEE ALL</Text>
+                <Text style={styles.allLogsChevron}>›</Text>
+              </Press>
+            }
+          />
+          {favorites.length === 0 ? (
+            <EmptyState title="No favorites yet" message="Star a dish or dining hall to add one." />
+          ) : (
+            <View style={styles.rowList}>
+              {favorites.slice(0, FAVORITES_LIMIT).map((f, i) => (
+                <FavoriteRow key={`${f.type}-${f.type === "dish" ? f.dishName : f.hallTid}-${i}`} favorite={f} />
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.subsection}>
+          <SectionHeader title="Your Top Foods" />
+          {rankedFoods.length === 0 ? (
+            <EmptyState title="No comparisons yet" message="Dish ranking is on hold for now — this fills in once it's back." />
+          ) : topFoods.length === 0 ? (
+            <EmptyState title="Not enough data yet" message="Dish ranking is on hold for now, so this stays as-is until it's back." />
+          ) : (
+            <View style={styles.rowList}>
+              {topFoods.map((f) => (
+                <TopFoodRow key={f.dishName} dishName={f.dishName} score={f.score} hallName={f.hallName} tone={f.tone} />
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.subsection}>
+          <SectionHeader title="Favorite Halls" />
+          {hallRanking.ranked.length === 0 ? (
+            <EmptyState title="No ranking yet" message="Dish ranking is on hold for now — this fills in once it's back." />
+          ) : (
+            <View style={styles.favoriteHallsRow}>
+              {hallRanking.ranked.slice(0, 3).map((h, i) => (
+                <Card key={h.hallTid} style={[styles.favoriteHallCard, i === 0 && styles.favoriteHallCardTop]}>
+                  <Text style={[styles.favoriteHallRank, i === 0 && styles.favoriteHallRankTop]}>{h.rank}</Text>
+                  <Text style={styles.favoriteHallName}>{hallNameFor(h.hallTid)}</Text>
+                </Card>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
 
     </ScrollView>
@@ -224,6 +282,17 @@ const styles = StyleSheet.create({
 
   section: { marginTop: spacing(4), gap: spacing(2.5) },
   hint: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
+
+  // "Your Food" group (#90): a heavier rule + its own title mark the group as a whole; each
+  // subsection inside keeps the normal (lighter) SectionHeader gold rule, unchanged.
+  group: { marginTop: spacing(5), gap: spacing(3.5) },
+  groupHeader: { gap: spacing(1.5) },
+  groupRule: { height: 3, backgroundColor: colors.gold500 },
+  groupTitle: { fontFamily: fonts.display700, fontSize: fs(15), letterSpacing: 1.5, textTransform: "uppercase", color: colors.maroon900 },
+  subsection: { gap: spacing(2.5) },
+
+  favoriteRow: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: spacing(2.5), paddingHorizontal: spacing(3.5) },
+  favoriteRowText: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
 
   statsCard: { marginTop: spacing(3.5), padding: spacing(3.5), flexDirection: "row", gap: spacing(2.5) },
   statCell: { flex: 1 },
