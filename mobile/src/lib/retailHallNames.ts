@@ -1,4 +1,5 @@
 import { hallNameFor, hallNameForOrNull, type RetailLocationHours } from "@udine/shared";
+import { syntheticHallTidForName } from "./cafeMenu";
 
 /**
  * #243 bug A: shared's hallNameFor is correct to fall back to "Hall <tid>" for a genuinely
@@ -22,7 +23,11 @@ let retailNames = new Map<number, string>();
 
 export function recordRetailNames(retail: RetailLocationHours[]): void {
   for (const loc of retail) {
-    if (loc.locationId !== undefined) retailNames.set(loc.locationId, loc.name);
+    // Café-screen unification review finding: a locationId-less café now logs for real (its
+    // info-only state mounts PlateSheet same as any other), so it needs a real name recorded too --
+    // keyed by the same synthetic per-name hallTid PlateSheet/the standing-menu waterfall use for
+    // it (syntheticHallTidForName, cafeMenu.ts), not skipped the way it used to be.
+    retailNames.set(loc.locationId ?? syntheticHallTidForName(loc.name), loc.name);
   }
 }
 

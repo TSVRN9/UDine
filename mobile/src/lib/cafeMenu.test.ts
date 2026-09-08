@@ -1,6 +1,6 @@
 import type { DishCatalogEntry, MenuItem } from "@udine/shared";
 import type { CachedDishCatalog } from "./dishCatalog";
-import { cafeStatusPillText, deriveCafeMealTabs, directionsUrl, pickCafeMenuHtml, resolveCafeMenuState } from "./cafeMenu";
+import { cafeStatusPillText, deriveCafeMealTabs, directionsUrl, pickCafeMenuHtml, resolveCafeMenuState, syntheticHallTidForName } from "./cafeMenu";
 
 function item(mealPeriod: MenuItem["mealPeriod"], dishName = "Coffee"): MenuItem {
   return {
@@ -120,6 +120,45 @@ describe("resolveCafeMenuState (unified café screen waterfall)", () => {
 
   test("empty ajax + undefined standing HTML -> info state with no pdf", () => {
     expect(resolveCafeMenuState([], undefined, null, 61, TODAY)).toEqual({ kind: "info", pdf: null });
+  });
+
+  // Non-blocking review finding: matchStandingMenuItem's own exact-over-first-hit preference had no
+  // coverage that would catch a regression -- pinned here via resolveCafeMenuState's public surface
+  // (matchStandingMenuItem itself isn't exported).
+  test("prefers an exact (trimmed, case-insensitive) catalog match over an earlier substring-only hit", () => {
+    const state = resolveCafeMenuState(
+      [],
+      "<p>bacon croissant</p>",
+      catalog(catalogEntry("Bacon Croissant Deluxe"), catalogEntry("Bacon Croissant")),
+      32,
+      TODAY,
+    );
+    expect(state.kind).toBe("standing");
+    if (state.kind !== "standing") throw new Error("unreachable");
+    expect(state.entries).toEqual([{ matched: true, item: expect.objectContaining({ dishName: "Bacon Croissant" }) }]);
+  });
+});
+
+describe("syntheticHallTidForName (locationId-less café logging/history identity)", () => {
+  // Café-screen unification review finding: a locationId-less café used to share a single `-1`
+  // sentinel hallTid with every other one -- this gives each a distinct, stable numeric identity
+  // instead (retailHallNames.ts keys its display-name map off the same value, and PlateSheet's
+  // history search scopes by it, so two different locationId-less cafés must never collide here).
+  test("is deterministic for the same name", () => {
+    expect(syntheticHallTidForName("Mystery Cart")).toBe(syntheticHallTidForName("Mystery Cart"));
+  });
+
+  test("is distinct for two different names", () => {
+    expect(syntheticHallTidForName("Mystery Cart")).not.toBe(syntheticHallTidForName("Taco Truck"));
+  });
+
+  // Always negative (<= -2) -- real hall tids (1-4), every known café locationId, and every
+  // GRAB_N_GO_TIDS entry are positive, so this can never collide with a genuine numeric identity.
+  // -1 itself is excluded too -- CafeSheet.tsx's own unrelated openStatus() placeholder already uses it.
+  test("is always <= -2, never colliding with a real tid/locationId or the old -1 placeholder", () => {
+    for (const name of ["Mystery Cart", "Taco Truck", "", "Paciugo", "The Hub"]) {
+      expect(syntheticHallTidForName(name)).toBeLessThanOrEqual(-2);
+    }
   });
 });
 

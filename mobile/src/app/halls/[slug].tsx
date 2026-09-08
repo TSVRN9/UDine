@@ -63,7 +63,7 @@ import {
   stepDate,
   toggleExpandedKey,
 } from "../../lib/hallMenuTabs";
-import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, type CafeMenuState, type StandingMenuEntry } from "../../lib/cafeMenu";
+import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, syntheticHallTidForName, type CafeMenuState, type StandingMenuEntry } from "../../lib/cafeMenu";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
 import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
@@ -361,13 +361,13 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // handleActiveIndexChange instead and always keeps its tween.
   const mealTabInstantRef = useRef(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
-  // Café-screen unification: -1 is this repo's existing "not a real hall" sentinel (CafeSheet.tsx's
-  // own openStatus({hallTid: -1, ...}) call predates this file) -- used only when hall.tid itself is
-  // undefined (no locationId at all), so the tier-2/3 waterfall and any synthetic MenuItem it
-  // produces, plus PlateSheet's own hallTid-scoped history search below, still have SOME number to
-  // key off. ponytail: a shared "no real hall" sentinel constant would be cleaner than two
-  // independently-written -1s; not worth introducing for the second call site alone.
-  const cafeHallTid = hall.tid ?? -1;
+  // Café-screen unification review finding: a locationId-less café (hall.tid undefined) used to
+  // share a single `-1` sentinel hallTid across every such café -- harmless while that state never
+  // mounted PlateSheet, wrong now that it does (every locationId-less café's logged dishes and
+  // "recent history" search would conflate into one identity, and none would ever get a real
+  // display name). syntheticHallTidForName gives each a distinct, stable per-name number instead --
+  // see its own doc comment (cafeMenu.ts) and retailHallNames.ts's matching recordRetailNames fix.
+  const cafeHallTid = hall.tid ?? syntheticHallTidForName(hall.name);
 
   // Café-screen unification: the local dish-catalog cache, read once on mount -- café only (a real
   // hall's `mealTabs`/sections never touch it). Fire-and-forget background refresh alongside it,

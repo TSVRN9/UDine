@@ -11,6 +11,33 @@ function isoDate(date: Date): string {
   return `${date.getFullYear()}-${mm}-${dd}`;
 }
 
+/**
+ * Café-screen unification review finding: a locationId-less café (get_infov2 sometimes omits it)
+ * used to log under a single shared `-1` hallTid sentinel -- harmless before this PR (that state was
+ * read-only, no PlateSheet mounted at all), but this PR mounts PlateSheet in every state, including
+ * that one, so `-1` became a REAL, reachable, and WRONG logging identity: every locationId-less café
+ * would conflate into the same "recent history" (getLoggedUmassDishHistory scopes by hallTid alone)
+ * and none of them would ever get a real display name (retailHallNames.ts's map is keyed by number,
+ * and a locationId-less café had no number to record one under).
+ *
+ * This derives a stable per-name numeric hallTid instead -- always negative (<= -2), so it can never
+ * collide with a real hall tid (1-4), a café locationId, or a GRAB_N_GO_TIDS entry (all positive).
+ * retailHallNames.ts's recordRetailNames keys its display-name map by this same value for a
+ * locationId-less entry, so hallOrRetailName resolves it to the real name instead of "Hall <tid>".
+ *
+ * ponytail: a plain djb2-xor string hash, not a cryptographic one -- two different café NAMES
+ * colliding is possible in principle but not worth guarding against for the small, real-world set
+ * of locationId-less vendors (food trucks, mostly); upgrade to a wider hash (or thread a real
+ * string-keyed identity through shared) if a collision is ever observed live.
+ */
+export function syntheticHallTidForName(name: string): number {
+  let hash = 5381;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 33) ^ name.charCodeAt(i);
+  }
+  return -(Math.abs(hash) + 2);
+}
+
 /** One row of a café's standing menu (parseRetailMenuHtml's "items" shape), after a best-effort
  * catalog match. A match gets a synthetic MenuItem carrying the catalog's real nutrition/allergens/
  * dietTags -- mealPeriod "allday" ("daily offerings", same convention deriveCafeMealTabs already
