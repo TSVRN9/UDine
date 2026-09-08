@@ -18,6 +18,12 @@ Hermes under the hood — `docs/apk-reverse-engineering.md`). Two clients, one b
 Lanes are listed in the header comment of `.github/workflows/ci.yml` — run the ones your diff
 touches. Android native build needs JDK 17:
 `JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk PATH="$JAVA_HOME/bin:$PATH" npx expo run:android` from `/mobile`.
+To test uncommitted changes on a phone that already has a Play-track build installed
+(alpha builds are re-signed by Google, so no local/EAS build can ever update one in place —
+installing over it means uninstalling first, which wipes device-local plate/log history):
+`pnpm build:internal-android -- --install` from `/mobile` builds and installs a separate
+"UDine (internal)" package (`com.udinetogether.udine.internal`) side by side instead — see
+`mobile/scripts/build-internal-android.sh`'s own header for why each step exists.
 
 ## CI is local-only
 
