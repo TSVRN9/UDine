@@ -7,8 +7,15 @@ import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { fetchMenu, type MenuItem } from "@udine/shared";
 import FiltersScreen from "../app/filters";
+import { setPreferences } from "./preferences";
 
+// Spread the real module (not a bare replacement) -- filters.tsx now calls the real, pure
+// toggleAllergen/toggleDietTag (extracted for menu-filters-macros) to compute the next prefs before
+// handing them to setPreferences below; only the SQLite-backed getPreferences/setPreferences need
+// mocking here, same reasoning as hallMenu.test.tsx's favoritesStorage mock keeping
+// useGuardedToggleFavorite real.
 jest.mock("../lib/preferences", () => ({
+  ...jest.requireActual("../lib/preferences"),
   getPreferences: jest.fn().mockResolvedValue({ allergensToAvoid: [], requiredDietTags: [] }),
   setPreferences: jest.fn(),
 }));
@@ -19,6 +26,7 @@ jest.mock("@udine/shared", () => ({
 }));
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
+const mockedSetPreferences = setPreferences as jest.Mock;
 
 function item(allergens: string[], dietTags: string[]): MenuItem {
   return {
@@ -39,6 +47,7 @@ function texts(root: renderer.ReactTestRenderer): string[] {
 describe("FiltersScreen loading/error states (#191)", () => {
   beforeEach(() => {
     mockedFetchMenu.mockReset();
+    mockedSetPreferences.mockClear();
   });
 
   it("shows the retry card (not a stuck spinner) when a hall fetch fails, and TRY AGAIN refetches", async () => {
@@ -112,5 +121,67 @@ describe("FiltersScreen loading/error states (#191)", () => {
     const finalBody = texts(root).join(" ");
     expect(finalBody).toMatch(/NEW/);
     expect(finalBody).not.toMatch(/OLD/);
+  });
+});
+
+// pr-reviewer (#362 REQUEST-CHANGES, finding 2): mutating toggleAllergen to `return prefs` (a no-op)
+// left the full suite green -- nothing here tapped a chip and asserted the resulting persisted
+// preference. These do, exercising the real extracted toggleAllergen/toggleDietTag through the
+// screen's own onPress wiring, not just the pure function in isolation.
+describe("FiltersScreen chip toggles persist via setPreferences (#362 review)", () => {
+  beforeEach(() => {
+    mockedFetchMenu.mockReset();
+    mockedSetPreferences.mockClear();
+  });
+
+  it("pressing an unselected allergen chip adds it to allergensToAvoid and persists the updated prefs", async () => {
+    mockedFetchMenu.mockResolvedValue([item(["Peanuts"], ["Vegan"])]);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<FiltersScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Allergen Peanuts" }).props.onPress();
+    });
+
+    expect(mockedSetPreferences).toHaveBeenCalledWith({ allergensToAvoid: ["Peanuts"], requiredDietTags: [] });
+  });
+
+  it("pressing an already-selected allergen chip removes it again (toggle, not one-way add)", async () => {
+    mockedFetchMenu.mockResolvedValue([item(["Peanuts"], ["Vegan"])]);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<FiltersScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Allergen Peanuts" }).props.onPress(); // add
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Allergen Peanuts" }).props.onPress(); // remove
+    });
+
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: [], requiredDietTags: [] });
+  });
+
+  it("pressing a diet-tag chip adds it to requiredDietTags and persists the updated prefs", async () => {
+    mockedFetchMenu.mockResolvedValue([item(["Peanuts"], ["Vegan"])]);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<FiltersScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Diet tag Vegan" }).props.onPress();
+    });
+
+    expect(mockedSetPreferences).toHaveBeenCalledWith({ allergensToAvoid: [], requiredDietTags: ["Vegan"] });
   });
 });

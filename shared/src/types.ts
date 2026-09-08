@@ -97,12 +97,41 @@ export interface DailyMacroTotals {
 export interface FoodPreferences {
   allergensToAvoid: string[]; // matches values in MenuItem.allergens, e.g. "Milk", "Gluten"
   requiredDietTags: string[]; // matches values in MenuItem.dietTags, e.g. "Vegan", "Halal" — item must have ALL of these
+  // Menu-filters-macros (#320ish): which macro badges (see MacroPreset/menuItemMacroBadges below) are
+  // currently enabled. Optional, not required -- mobile's preferences.ts migrates a pre-feature stored
+  // blob (and a genuinely fresh one) to a real array (["high-protein","high-fiber"]) on read, but web's
+  // own preferences.ts/routes (out of scope for this change, #311-adjacent) don't set this field at
+  // all, so `undefined` is a real value this type has to admit, not just an implementation detail.
+  macroPresets?: MacroPreset[];
 }
 
 export function menuItemMatchesPreferences(item: MenuItem, prefs: FoodPreferences): boolean {
   const hasExcludedAllergen = item.allergens.some((a) => prefs.allergensToAvoid.includes(a));
   if (hasExcludedAllergen) return false;
   return prefs.requiredDietTags.every((tag) => item.dietTags.includes(tag));
+}
+
+/** Informational macro badges (menu-filters-macros) -- unlike allergens/dietTags above, these never
+ * exclude anything from a menu; they only flag which of the caller's *enabled* presets an item
+ * qualifies for, for rendering a small badge next to the dish. Thresholds are FDA-grounded and fixed
+ * (not user-configurable): "high" nutrient claims sit at >=20% DV-ish absolute cuts, "low"/"under" at
+ * conservative absolute caps. Order returned follows `prefs.macroPresets`'s own order, not a fixed
+ * canonical one -- purely informational, so there's no "correct" order to enforce. */
+export type MacroPreset = "high-protein" | "low-sodium" | "under-500-cal" | "low-fat" | "high-fiber";
+
+const MACRO_PRESET_CHECKS: Record<MacroPreset, (n: NutritionFacts) => boolean> = {
+  "high-protein": (n) => n.proteinG >= 20,
+  "low-sodium": (n) => n.sodiumMg <= 400,
+  "under-500-cal": (n) => n.calories <= 500,
+  // Guard calories === 0 -- otherwise a 0-calorie item (no fat calories either) divides 0/0 into NaN,
+  // and NaN <= 0.3 is false anyway, but dividing by a literal 0 is worth being explicit about rather
+  // than relying on that IEEE-754 accident.
+  "low-fat": (n) => n.calories !== 0 && (n.totalFatG * 9) / n.calories <= 0.3,
+  "high-fiber": (n) => n.dietaryFiberG >= 5,
+};
+
+export function menuItemMacroBadges(item: MenuItem, prefs: FoodPreferences): MacroPreset[] {
+  return (prefs.macroPresets ?? []).filter((preset) => MACRO_PRESET_CHECKS[preset](item.nutrition));
 }
 
 export type Favorite = { type: "dish"; dishName: string } | { type: "location"; hallTid: number };

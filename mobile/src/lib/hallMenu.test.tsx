@@ -25,6 +25,7 @@ import { stepDate } from "./hallMenuTabs";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
+import { setPreferences } from "./preferences";
 
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
@@ -42,8 +43,14 @@ jest.mock("../lib/favoritesStorage", () => ({
   useGuardedToggleFavorite: jest.requireActual("../lib/favoritesStorage").useGuardedToggleFavorite,
 }));
 
+// Spread the real module (menu-filters-macros) -- the screen now also imports setPreferences (fired
+// when a FilterSheet allergen/diet/macro chip is toggled) and FilterSheet.tsx itself imports the
+// real, pure toggleAllergen/toggleDietTag/toggleMacroPreset -- only the SQLite-backed
+// getPreferences/setPreferences need mocking, same reasoning as filtersScreen.test.tsx's mock.
 jest.mock("../lib/preferences", () => ({
+  ...jest.requireActual("../lib/preferences"),
   getPreferences: jest.fn().mockResolvedValue({ allergensToAvoid: [], requiredDietTags: [] }),
+  setPreferences: jest.fn(),
 }));
 
 jest.mock("expo-router", () => ({
@@ -120,6 +127,7 @@ jest.mock("./menuHoursCache", () => ({
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
 const mockedRouterPush = router.push as jest.Mock;
+const mockedSetPreferences = setPreferences as jest.Mock;
 // menuFetchWithSeenTracking.ts instantiates SqliteSeenDishesStorage eagerly at module scope, but
 // only if something actually imports that wrapper -- until #107's wiring lands, the screen doesn't,
 // so the constructor never runs and `.mock.results` is empty. Read this lazily (inside the test,
@@ -454,6 +462,71 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
     expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
     expect(sections[0].data).toHaveLength(1); // deduped, not two identical rows
+  });
+
+  // pr-reviewer (#362 REQUEST-CHANGES, finding 1): reintroducing station/price-filtering on
+  // grabSectionsMemo (mutating it back to `grabSections(stationPriceFilteredGrabItems, prefs)`) left
+  // the full suite green -- nothing exercised the Grab tab with a station filter selected. FilterSheet's
+  // "Stations Here" checklist is built from the hall's own `items` (here, PIZZA's "Entrees"), never
+  // from `grabItems` -- so selecting "Entrees" must have zero effect on Grab's own "Grab n'Go Hot"
+  // section, which this pins directly.
+  it("a station filter selected via FilterSheet does not silently empty the Grab 'N Go tab (its own stations aren't in that checklist)", async () => {
+    const root = await renderScreen([PIZZA]); // category "Entrees"
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Filters" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Station Entrees" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Done" }).props.onPress();
+    });
+
+    mockedFetchMenu.mockResolvedValueOnce([{ ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester }]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+
+    const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
+    expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
+  });
+
+  // pr-reviewer (#362 REQUEST-CHANGES round 2): the persisted chips' onPress handlers inside
+  // FilterSheet.tsx itself (rendered from THIS screen, via the FAB) had zero coverage above the pure
+  // toggleAllergen/toggleDietTag/toggleMacroPreset level -- filtersScreen.test.tsx's interaction
+  // tests exercise filters.tsx's own call site, not this one. Reviewer mutated the allergen chip's
+  // onPress to a no-op here and the full suite stayed green. This presses all three persisted chip
+  // kinds (allergen, diet-tag, macro) through the real FAB -> sheet -> chip path and asserts each
+  // toggles into the resulting setPreferences call correctly.
+  it("pressing a persisted chip in the FilterSheet (allergen, diet-tag, macro) toggles it and persists via setPreferences", async () => {
+    mockedSetPreferences.mockClear();
+    const root = await renderScreen([{ ...PIZZA, allergens: ["Peanuts"], dietTags: ["Vegan"] }]);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Filters" }).props.onPress();
+    });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Allergen Peanuts" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: ["Peanuts"], requiredDietTags: [] });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Diet tag Vegan" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: ["Peanuts"], requiredDietTags: ["Vegan"] });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Macro High Protein" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: ["Peanuts"], requiredDietTags: ["Vegan"], macroPresets: ["high-protein"] });
+
+    // Pressing the same allergen chip again removes it -- a real toggle, not a one-way add.
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Allergen Peanuts" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: [], requiredDietTags: ["Vegan"], macroPresets: ["high-protein"] });
   });
 
   // The single most important regression the swipe pager's windowing could introduce: Grab's own
