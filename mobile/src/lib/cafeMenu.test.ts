@@ -1,5 +1,6 @@
-import type { MenuItem } from "@udine/shared";
-import { cafeStatusPillText, cafeTapTarget, deriveCafeMealTabs, directionsUrl, pickCafeMenuHtml } from "./cafeMenu";
+import type { DishCatalogEntry, MenuItem } from "@udine/shared";
+import type { CachedDishCatalog } from "./dishCatalog";
+import { cafeStatusPillText, deriveCafeMealTabs, directionsUrl, pickCafeMenuHtml, resolveCafeMenuState } from "./cafeMenu";
 
 function item(mealPeriod: MenuItem["mealPeriod"], dishName = "Coffee"): MenuItem {
   return {
@@ -27,20 +28,98 @@ function item(mealPeriod: MenuItem["mealPeriod"], dishName = "Coffee"): MenuItem
   };
 }
 
-describe("cafeTapTarget", () => {
-  // The three branches the issue's runtime model enumerates (plus the undefined-locationId case
-  // the comments call out as a fourth): non-empty fetchMenu -> menu; empty -> sheet; no locationId
-  // at all -> sheet without ever having called fetchMenu.
-  test("non-empty items routes to the hall-style menu screen", () => {
-    expect(cafeTapTarget(32, [item("allday")])).toEqual({ kind: "menu" });
+function catalogEntry(dishName: string, overrides: Partial<DishCatalogEntry> = {}): DishCatalogEntry {
+  return {
+    dishName,
+    nutrition: {
+      servingSize: "1 serving",
+      calories: 120,
+      caloriesFromFat: 10,
+      totalFatG: 1,
+      satFatG: 0,
+      transFatG: 0,
+      cholesterolMg: 0,
+      sodiumMg: 5,
+      totalCarbG: 20,
+      dietaryFiberG: 1,
+      sugarsG: 2,
+      proteinG: 3,
+    },
+    allergens: [],
+    dietTags: [],
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function catalog(...entries: DishCatalogEntry[]): CachedDishCatalog {
+  return { entries, lastSyncedAt: "2026-08-01T00:00:00.000Z" };
+}
+
+const TODAY = new Date(2026, 7, 24);
+
+describe("resolveCafeMenuState (unified café screen waterfall)", () => {
+  // Tier 1: the same fetchMenu the 4 dining halls use, keyed by the café's own locationId --
+  // non-empty routes to the exact hall-shaped "integrated" state (full nutrition, real tabs).
+  test("non-empty ajax items -> integrated, verbatim", () => {
+    const items = [item("allday")];
+    expect(resolveCafeMenuState(items, "<p>ignored</p>", null, 32, TODAY)).toEqual({ kind: "integrated", items });
   });
 
-  test("empty items routes to the fallback sheet", () => {
-    expect(cafeTapTarget(32, [])).toEqual({ kind: "sheet" });
+  // Tier 2: ajax empty, standing-menu HTML parses to an item list -- each item best-effort matched
+  // against the cached dish catalog (searchCachedDishes, same lookup PlateSheet's search uses).
+  test("empty ajax + standing HTML items, all matched -> standing state with full-nutrition synthetic items", () => {
+    const state = resolveCafeMenuState([], "<p>Bacon Croissant $3.00</p>", catalog(catalogEntry("Bacon Croissant")), 32, TODAY);
+    expect(state.kind).toBe("standing");
+    if (state.kind !== "standing") throw new Error("unreachable");
+    expect(state.entries).toEqual([
+      {
+        matched: true,
+        item: expect.objectContaining({ dishName: "Bacon Croissant", mealPeriod: "allday", hallTid: 32, price: "$3.00" }),
+      },
+    ]);
   });
 
-  test("undefined locationId routes to the fallback sheet even with items around", () => {
-    expect(cafeTapTarget(undefined, [item("allday")])).toEqual({ kind: "sheet" });
+  test("empty ajax + standing HTML items with no catalog hit -> standing state, unmatched name+price only", () => {
+    const state = resolveCafeMenuState([], "<p>Bacon Croissant $3.00</p>", catalog(), 32, TODAY);
+    expect(state).toEqual({ kind: "standing", entries: [{ matched: false, name: "Bacon Croissant", price: "$3.00" }] });
+  });
+
+  test("empty ajax + standing HTML, catalog missing entirely (not yet loaded) -> every entry unmatched, never throws", () => {
+    const state = resolveCafeMenuState([], "<p>Bacon Croissant $3.00</p>", null, 32, TODAY);
+    expect(state).toEqual({ kind: "standing", entries: [{ matched: false, name: "Bacon Croissant", price: "$3.00" }] });
+  });
+
+  test("mixed standing menu: some rows match the catalog, some don't, in original order", () => {
+    const state = resolveCafeMenuState([], "<p>Coffee</p><p>Bagel $2.50</p>", catalog(catalogEntry("Coffee")), 32, TODAY);
+    expect(state.kind).toBe("standing");
+    if (state.kind !== "standing") throw new Error("unreachable");
+    expect(state.entries).toHaveLength(2);
+    expect(state.entries[0]).toMatchObject({ matched: true, item: expect.objectContaining({ dishName: "Coffee" }) });
+    expect(state.entries[1]).toEqual({ matched: false, name: "Bagel", price: "$2.50" });
+  });
+
+  // Tier 3a: ajax empty, standing HTML is a PDF link (babyBerk/Commonwealth shape) -- info-only,
+  // with the existing CafePdfViewer affordance surfaced from inside this same state.
+  test("empty ajax + PDF-shaped standing HTML -> info state carrying the pdf link", () => {
+    const state = resolveCafeMenuState(
+      [],
+      '<p><a href="https://umassdining.com/sites/default/files/menu.pdf">Baby Berk Menu</a></p>',
+      null,
+      61,
+      TODAY,
+    );
+    expect(state).toEqual({ kind: "info", pdf: { url: "https://umassdining.com/sites/default/files/menu.pdf", label: "Baby Berk Menu" } });
+  });
+
+  // Tier 3b: nothing at all (no ajax, no html, no PDF -- babyBerk's *_menu fields can also be
+  // entirely null) -- info-only, no pdf affordance.
+  test("empty ajax + no standing HTML at all -> info state with no pdf", () => {
+    expect(resolveCafeMenuState([], null, null, 61, TODAY)).toEqual({ kind: "info", pdf: null });
+  });
+
+  test("empty ajax + undefined standing HTML -> info state with no pdf", () => {
+    expect(resolveCafeMenuState([], undefined, null, 61, TODAY)).toEqual({ kind: "info", pdf: null });
   });
 });
 

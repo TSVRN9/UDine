@@ -82,6 +82,13 @@ jest.mock("../lib/dishCatalog", () => ({
   searchCachedDishes: jest.fn().mockReturnValue([]),
 }));
 
+// Café-screen unification: halls/[slug].tsx now imports CafePdfViewer too (mounted for a café's
+// info-only PDF affordance) -- same react-native-webview native-module gap every other importer of
+// it already works around under jest (see cafeScreen.test.tsx/CafePdfViewer.test.tsx). This suite
+// never taps into that PDF affordance (it's café-only, and every hall here is a real DINING_HALLS
+// entry), so a bare `() => null` stub is enough.
+jest.mock("react-native-webview", () => ({ WebView: () => null }));
+
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   fetchMenu: jest.fn(),

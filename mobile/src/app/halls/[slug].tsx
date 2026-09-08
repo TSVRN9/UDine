@@ -15,10 +15,11 @@ import {
   type MealPeriod,
   type MenuItem,
   type OffSearchResult,
+  type RetailLocationHours,
 } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { createNativeWrapper } from "react-native-gesture-handler";
 import Reanimated, {
   FadeIn,
@@ -36,6 +37,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
+import { CafePdfViewer } from "../../components/CafePdfViewer";
+import { CafeSheet } from "../../components/CafeSheet";
 import { FavoriteStar } from "../../components/FavoriteStar";
 import { FilterSheet, itemMatchesStationAndPriceFilter, MACRO_PRESET_LABELS, type PriceBucket } from "../../components/FilterSheet";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
@@ -60,13 +63,15 @@ import {
   stepDate,
   toggleExpandedKey,
 } from "../../lib/hallMenuTabs";
-import { deriveCafeMealTabs } from "../../lib/cafeMenu";
+import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, type CafeMenuState, type StandingMenuEntry } from "../../lib/cafeMenu";
+import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
 import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
 import type { HistoryDish } from "../../lib/dishHistory";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
+import { supabase } from "../../lib/supabase";
 import {
   addOrIncrement,
   historyDishToPlateEntry,
@@ -101,9 +106,18 @@ const GestureSectionList = createNativeWrapper(SectionList, {
  * the fixed 4-tab MEAL_TABS + the "being served now" subtitle) or a café (#177 -- `slug` absent,
  * meal tabs derived from whatever the fetched items actually carry, per deriveCafeMealTabs). */
 export interface HallMenuSubject {
-  tid: number;
+  /** Undefined ONLY for a café with no locationId at all (get_infov2 sometimes omits it, hours.ts's
+   * mapInfoV2 degrades it to undefined rather than throwing) -- there's no tid to ever probe
+   * fetchMenu with, so the ajax fetch effect below short-circuits straight to the waterfall's
+   * standing/info tiers off `retailLoc` alone. Always defined for a real hall. */
+  tid?: number;
   name: string;
   slug?: string;
+  /** Café-only (café-screen unification): the RetailLocationHours row from get_infov2, resolved by
+   * cafe/[name].tsx before this ever mounts -- feeds the waterfall's standing-menu-HTML fallback
+   * tier (resolveCafeMenuState) and the info-only state's hours/address/payment content
+   * (CafeSheet). Undefined for a real hall, which needs neither. */
+  retailLoc?: RetailLocationHours;
 }
 
 const storage = new SqliteLogStorage();
@@ -160,6 +174,35 @@ function FilterGlyphIcon({ color }: { color: string }) {
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
       <Path d="M4 5h16l-6 8v6l-4 2v-8L4 5Z" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
     </Svg>
+  );
+}
+
+/** Café-screen unification: a "standing" state's unmatched rows (parseRetailMenuHtml items with no
+ * catalog match) -- name+price only, no nutrition to show or plate/log directly. Tapping one opens
+ * the plate sheet's search pre-filled with its own name instead of being a dead end (see
+ * openUnmatchedItemSearch/PlateSheet's own `initialQuery`). Rendered as the meal pane's
+ * ListFooterComponent (mealPane above), not mixed into `sections` -- these aren't MenuItems, so
+ * they don't fit hallMenuSections.ts's per-station MenuSection shape. */
+function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingMenuEntry, { matched: false }>[]; onTapItem: (name: string) => void }) {
+  return (
+    <View style={styles.unmatchedBlock}>
+      <View style={styles.sectionHeaderWrap}>
+        <SectionHeader title="Also On The Menu" />
+      </View>
+      {entries.map((entry, i) => (
+        <Pressable
+          key={`${entry.name}-${i}`}
+          style={styles.unmatchedRow}
+          onPress={() => onTapItem(entry.name)}
+          accessibilityRole="button"
+          accessibilityLabel={`Search for ${entry.name}`}
+        >
+          <Text style={styles.unmatchedRowName}>{entry.name}</Text>
+          {entry.price ? <Text style={styles.unmatchedRowPrice}>{entry.price}</Text> : null}
+          <Text style={styles.unmatchedRowChevron}>›</Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -277,6 +320,22 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // renders "when a cache exists").
   const [retryToken, setRetryToken] = useState(0);
   const [cachedMenu, setCachedMenu] = useState<CachedMenu | null>(null);
+  // Café-screen unification: the local dish-catalog cache, read once for the waterfall's tier-2
+  // standing-menu-item matching (resolveCafeMenuState) -- café only, a real hall never needs it.
+  // `catalogLoaded` (not just `catalog !== null`, which a genuinely-empty local cache can't be told
+  // apart from "hasn't read yet") gates cafeState below so the FIRST paint of a standing menu
+  // already reflects whatever's cached, instead of painting every row unmatched for one frame and
+  // then flipping some to matched the instant this resolves (it's a local SQLite read, fast, but
+  // still async).
+  const [catalog, setCatalog] = useState<CachedDishCatalog | null>(null);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  // Café info-only state's PDF affordance -- same in-app viewer CafeSheet always opened, just
+  // mounted here instead of from index.tsx (see CafeSheet's own doc comment on why).
+  const [cafePdf, setCafePdf] = useState<{ url: string; label: string } | null>(null);
+  // An unmatched standing-menu row's tap seeds this, then opens the plate sheet with it -- see
+  // PlateSheet's own `initialQuery` doc. Cleared the moment the sheet closes (below) so a later
+  // plain PlateBar tap doesn't reseed a stale query.
+  const [plateSearchSeed, setPlateSearchSeed] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
   const [favoriteDishKeys, setFavoriteDishKeys] = useState<Set<string>>(new Set());
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
@@ -302,7 +361,79 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // handleActiveIndexChange instead and always keeps its tween.
   const mealTabInstantRef = useRef(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
-  const mealTabs = useMemo<readonly MealPeriod[]>(() => (isRealHall ? MEAL_TABS : deriveCafeMealTabs(items ?? [])), [isRealHall, items]);
+  // Café-screen unification: -1 is this repo's existing "not a real hall" sentinel (CafeSheet.tsx's
+  // own openStatus({hallTid: -1, ...}) call predates this file) -- used only when hall.tid itself is
+  // undefined (no locationId at all), so the tier-2/3 waterfall and any synthetic MenuItem it
+  // produces, plus PlateSheet's own hallTid-scoped history search below, still have SOME number to
+  // key off. ponytail: a shared "no real hall" sentinel constant would be cleaner than two
+  // independently-written -1s; not worth introducing for the second call site alone.
+  const cafeHallTid = hall.tid ?? -1;
+
+  // Café-screen unification: the local dish-catalog cache, read once on mount -- café only (a real
+  // hall's `mealTabs`/sections never touch it). Fire-and-forget background refresh alongside it,
+  // same call PlateSheet.tsx's own mount-time refresh already makes -- this is a SECOND read of the
+  // same cache, not a duplicated sync; refreshDishCatalogIfStale is itself a no-op unless the local
+  // copy is actually stale.
+  useEffect(() => {
+    if (isRealHall) return;
+    let current = true;
+    getCachedDishCatalog().then((c) => {
+      if (current) {
+        setCatalog(c);
+        setCatalogLoaded(true);
+      }
+    });
+    refreshDishCatalogIfStale(supabase);
+    return () => {
+      current = false;
+    };
+  }, [isRealHall]);
+
+  // The waterfall's own decision (resolveCafeMenuState, cafeMenu.ts) -- null while still unresolved
+  // (real hall, ajax fetch still in flight, or the catalog read above hasn't settled yet), otherwise
+  // exactly one of integrated/standing/info. Every mealPane/render-time consumer below reads THIS,
+  // never `items` directly, once it's a café -- `items` alone can't tell "still loading" apart from
+  // "ajax genuinely came back empty, waterfall fell through to tier 2/3".
+  //
+  // `error` (a REJECTED ajax fetch, not just an empty result) is treated as "no ajax items" here,
+  // same as a genuinely empty result -- `items ?? []` falls through to the standing/info tiers off
+  // `hall.retailLoc` alone, which need no network beyond the hours feed already in hand. Pre-
+  // unification, this exact case (a locationId whose probe rejected) already degraded to the
+  // fallback sheet rather than an error screen (see cafe/[name].tsx's own #243 bug C comment on the
+  // pre-unification version of this file) -- this is that same call, just made HERE now that both
+  // outcomes render from inside this one component instead of two. `items === null && !error` is
+  // "still in flight," the one case this must NOT resolve for.
+  const cafeState = useMemo<CafeMenuState | null>(() => {
+    if (isRealHall || !catalogLoaded) return null;
+    if (items === null && !error) return null;
+    return resolveCafeMenuState(items ?? [], hall.retailLoc ? pickCafeMenuHtml(hall.retailLoc) : null, catalog, cafeHallTid, selectedDate);
+  }, [isRealHall, items, error, catalogLoaded, catalog, hall.retailLoc, cafeHallTid, selectedDate]);
+
+  const mealTabs = useMemo<readonly MealPeriod[]>(() => {
+    if (isRealHall) return MEAL_TABS;
+    if (!cafeState) return [];
+    if (cafeState.kind === "integrated") return deriveCafeMealTabs(cafeState.items);
+    // "standing" is always exactly one synthetic "allday" tab (#175's "daily offerings" convention,
+    // same as an integrated café whose own items never split into breakfast/lunch/dinner) --
+    // "info" has no tabs at all, its own top-level render branch below replaces the tab pager
+    // entirely rather than showing an empty one.
+    return cafeState.kind === "standing" ? (["allday"] as const) : [];
+  }, [isRealHall, cafeState]);
+
+  // Café-screen unification: every downstream consumer that used to read `items` for
+  // filtering/sections/FilterSheet purposes (a real hall's own items, unchanged) now reads THIS --
+  // for a café, the matched half of a "standing" state's entries (synthetic MenuItems, full
+  // nutrition) or the plain ajax items of an "integrated" one; [] for "info" (nothing to filter) or
+  // while cafeState is still unresolved.
+  const effectiveItems = useMemo<MenuItem[]>(() => {
+    if (isRealHall) return items ?? [];
+    if (!cafeState) return [];
+    if (cafeState.kind === "integrated") return cafeState.items;
+    if (cafeState.kind === "standing") {
+      return cafeState.entries.filter((e): e is Extract<StandingMenuEntry, { matched: true }> => e.matched).map((e) => e.item);
+    }
+    return [];
+  }, [isRealHall, items, cafeState]);
 
   // Grab 'N Go's own items -- a different tid (GRAB_N_GO_TIDS), not a MealPeriod filter on this
   // hall's own menu (see TabSelection's doc). Fetched lazily: only once the Grab tab is actually
@@ -372,7 +503,17 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     setItems(null);
     setError(null);
     setCachedMenu(null);
-    fetchMenuAndRecordSeen(hall.tid, selectedDate)
+    const tid = hall.tid;
+    if (tid === undefined) {
+      // Café-screen unification: no locationId at all (see HallMenuSubject's own doc) -- there's no
+      // tid to ever probe fetchMenu with, straight to the waterfall's standing/info tiers off
+      // hall.retailLoc alone (cafeState below), same as an ajax call that genuinely came back empty.
+      setItems([]);
+      return () => {
+        current = false;
+      };
+    }
+    fetchMenuAndRecordSeen(tid, selectedDate)
       .then((result) => {
         if (current) setItems(result);
       })
@@ -381,7 +522,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         setError(String(e));
         // #181: only looked up on failure, not eagerly on every load -- the retry card is the only
         // place this matters, and it doesn't exist until there's an error to show it in.
-        getCachedMenu(hall.tid, selectedDate)
+        getCachedMenu(tid, selectedDate)
           .then((cached) => {
             if (current) setCachedMenu(cached);
           })
@@ -430,20 +571,22 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   }
 
   // #177: a café's initial tab can't be a static default (see selectedMeal's own comment) -- once
-  // items load, land on whichever period deriveCafeMealTabs finds first. A manual tab choice
-  // survives stepping the date, same as a real hall's -- UNLESS the new date's derived tab set no
-  // longer contains it (a café's mealTabs is per-day, not fixed like a real hall's MEAL_TABS): PR
+  // mealTabs resolves (café-screen unification: driven by cafeState now, not raw `items.length` --
+  // an all-unmatched "standing" state still gets its one "allday" tab even though its OWN items
+  // (effectiveItems, matched-only) are empty), land on whichever period comes first. A manual tab
+  // choice survives stepping the date, same as a real hall's -- UNLESS the new date's derived tab set
+  // no longer contains it (a café's mealTabs is per-day, not fixed like a real hall's MEAL_TABS): PR
   // review finding, a stale selectedMeal pointing at a period the new date doesn't serve used to
   // fall back silently to tab index 0 (Math.max(0, tabs.indexOf(-1)) below) while selectedMeal
   // itself still held the old, now-absent value -- rendering tab 0's real dishes with NO tab
   // pill highlighted (active = period === selectedMeal never matched anything), instead of the
   // honest "no menu for this period" empty state a stale selection showed before this pager existed.
   useEffect(() => {
-    if (isRealHall || !items || items.length === 0) return;
+    if (isRealHall || mealTabs.length === 0) return;
     if (selectedMeal !== null && mealTabs.includes(selectedMeal as MealPeriod)) return;
     const firstTab = mealTabs[0];
     if (firstTab) setSelectedMeal(firstTab);
-  }, [isRealHall, selectedMeal, items, mealTabs]);
+  }, [isRealHall, selectedMeal, mealTabs]);
 
   // Expanded state keys on dish identity alone (hallTid + dishName, via plateKeyFor), not meal
   // period or date -- the same dish name can recur across meals/days, so without this a card
@@ -511,9 +654,12 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // checklist is built from `items` (this hall's own menu) only, not `grabItems` (a different tid,
   // fetched lazily only once the Grab tab is opened) -- station-filtering Grab against a checklist
   // that never lists Grab's own categories would silently empty that tab with no checkbox to undo it.
+  // effectiveItems (café-screen unification), not `items` directly -- a café's own matched-standing
+  // synthetic items need the exact same station/price/macro filtering a real hall's items get; see
+  // effectiveItems' own doc comment above.
   const stationPriceFilteredItems = useMemo(
-    () => (items ?? []).filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter)),
-    [items, stationFilter, priceFilter],
+    () => effectiveItems.filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter)),
+    [effectiveItems, stationFilter, priceFilter],
   );
   const sectionsByPeriod = useMemo(() => {
     const map = new Map<MealPeriod, MenuSection[]>();
@@ -525,7 +671,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // macros never filter, so they never drive this, same derivation web's +page.svelte already uses
   // (data.items.filter(i => !menuItemMatchesPreferences(i, prefs)).length), on the UNFILTERED item
   // list (station/price selections must not change what the badge reports).
-  const hiddenCount = useMemo(() => (items ?? []).filter((i) => !menuItemMatchesPreferences(i, prefs)).length, [items, prefs]);
+  const hiddenCount = useMemo(() => effectiveItems.filter((i) => !menuItemMatchesPreferences(i, prefs)).length, [effectiveItems, prefs]);
 
   // FilterSheet is presentational/controlled (see its own doc) -- this screen owns persistence.
   function onChangePreferences(next: FoodPreferences) {
@@ -594,8 +740,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // Whichever tab is currently selected, not always the hall's own -- the plate bar's empty-state
   // copy (below) needs to know if THIS tab's own list has loaded, not just the hall's. Error takes
   // priority over loading: a failed fetch leaves `items`/`grabItems` permanently null, so without
-  // this a fetch failure would forever read as "still loading" instead of "failed".
-  const currentTabError = selectedMeal === "grab" ? grabError : error;
+  // this a fetch failure would forever read as "still loading" instead of "failed". `isRealHall &&`
+  // on the plain `error` half -- a café's rejected ajax fetch is folded into `cafeState` (falls
+  // through to the standing/info tiers), never surfaced as an error to the plate bar either; a real
+  // hall has no such fallback, so its own error still drives this.
+  const currentTabError = selectedMeal === "grab" ? grabError : isRealHall && error;
   const currentTabLoading = !currentTabError && (selectedMeal === "grab" ? !grabItems : !items || selectedMeal === null);
 
   function toggleExpanded(key: string) {
@@ -623,6 +772,14 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
 
   function addHistoryDish(dish: HistoryDish) {
     setPlate((p) => addOrIncrement(p, historyDishToPlateEntry(dish)));
+  }
+
+  // Café-screen unification: tapping an unmatched standing-menu row (UnmatchedMenuBlock, mealPane
+  // above) -- opens the plate sheet's "add something else" search pre-filled with the item's own
+  // name (PlateSheet's own `initialQuery`), instead of leaving it a dead end.
+  function openUnmatchedItemSearch(name: string) {
+    setPlateSearchSeed(name);
+    setSheetOpen(true);
   }
 
   async function logPlate() {
@@ -780,10 +937,29 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // *kind* of stable element (SectionList/View/EmptyState) React already knows how to reconcile.
   function mealPane(period: MealPeriod) {
     const periodSections = sectionsByPeriod.get(period) ?? [];
-    if (error) {
+    // Café-screen unification: a "standing" state's UNMATCHED rows (parseRetailMenuHtml items with
+    // no catalog hit) never make it into `sectionsByPeriod` -- they aren't MenuItems (no nutrition/
+    // allergens to group by station), so they can't fit hallMenuSections.ts's per-category
+    // MenuSection shape. Rendered as this SectionList's own ListFooterComponent instead, below.
+    const unmatchedEntries =
+      !isRealHall && cafeState?.kind === "standing" && period === "allday"
+        ? cafeState.entries.filter((e): e is Extract<StandingMenuEntry, { matched: false }> => !e.matched)
+        : [];
+    // Real-hall only -- a café's rejected ajax fetch is folded into `cafeState` above (falls
+    // through to the standing/info tiers) rather than surfaced as a retry card; a real hall has no
+    // such fallback, so its own error is still terminal here.
+    if (isRealHall && error) {
       return <MenuErrorCard savedCopyTime={cachedMenu ? formatTime(new Date(cachedMenu.fetchedAt)) : null} onRetry={retryMenuFetch} onShowSavedCopy={showSavedCopy} />;
     }
-    if (!items || selectedMeal === null) {
+    // A real hall's own `items` is the loading signal (mealTabs/tabs are the fixed MEAL_TABS
+    // constant for a real hall, so this pane can be reached before the fetch even settles) --
+    // `cafeState` is the café equivalent, and the one that's actually reliable there: a café's
+    // `items` can stay `null` forever on a REJECTED ajax fetch even after `cafeState` has already
+    // resolved via the fallback (see cafeState's own doc comment on folding `error` into it), so
+    // gating on `!items` for a café would skeleton-lock a standing/integrated state that's already
+    // fully resolved and ready to render.
+    const stillLoading = isRealHall ? !items : !cafeState;
+    if (stillLoading || selectedMeal === null) {
       // #181: honest skeleton -- header + meal tabs above already rendered fully (known without
       // the network); only the dish list itself is unknown, so only it shimmers. Widths vary a
       // little (canvas: "96-176px") so it doesn't read as a uniform grid.
@@ -800,7 +976,10 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         </View>
       );
     }
-    if (periodSections.length === 0) {
+    // unmatchedEntries.length > 0 keeps an all-unmatched standing menu (nothing the catalog has ever
+    // seen -- e.g. a café whose whole menu is drinks) OUT of the empty state: every row still shows,
+    // just without nutrition, instead of an honest-but-wrong "No matching dishes".
+    if (periodSections.length === 0 && unmatchedEntries.length === 0) {
       // #117 review: was hardcoded "today" regardless of the stepped date -- "for this day"
       // matches grab-n-go/[slug].tsx's own EmptyState copy (also date-agnostic by construction,
       // so it's correct whether selectedDate is today or not, no isToday branch needed).
@@ -818,6 +997,19 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           </View>
         )}
         renderItem={renderDishRow}
+        // Standing-menu caveat (owner-binding copy, verbatim, formerly CafeSheet's own menu-card
+        // header strip) -- only for the café "standing" state's one real pane, never a real hall's.
+        ListHeaderComponent={
+          !isRealHall && cafeState?.kind === "standing" && period === "allday"
+            ? () => (
+                <View style={styles.standingMenuBanner}>
+                  <Text style={styles.standingMenuBannerLabel}>MENU</Text>
+                  <Text style={styles.standingMenuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
+                </View>
+              )
+            : undefined
+        }
+        ListFooterComponent={unmatchedEntries.length > 0 ? () => <UnmatchedMenuBlock entries={unmatchedEntries} onTapItem={openUnmatchedItemSearch} /> : undefined}
       />
     );
   }
@@ -984,10 +1176,22 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         ) : null}
       </View>
 
-      {tabs.length === 0 ? (
-        // Café pre-load: deriveCafeMealTabs hasn't found a first tab yet (see the effect above that
-        // resolves selectedMeal once items load) -- same honest skeleton the non-Grab branch below
-        // shows once there IS at least one tab, shown directly here without mounting a 0-pane pager.
+      {!isRealHall && cafeState?.kind === "info" && hall.retailLoc ? (
+        // Café-screen unification's third internal state: the waterfall found nothing loggable at
+        // all (no ajax items, no standing-menu item list -- maybe a PDF, maybe nothing) -- content
+        // ONLY, no tab pager, mounted directly in this same screen rather than a separate Modal/
+        // route (see CafeSheet's own doc comment on why this used to be exactly that). The
+        // `hall.retailLoc` guard is defensive, not a real branch -- cafe/[name].tsx always resolves
+        // and passes it before this screen ever mounts for a café; if it's somehow absent this just
+        // falls through to the skeleton below instead of crashing on a missing prop.
+        <ScrollView style={styles.infoScroll}>
+          <CafeSheet loc={hall.retailLoc} now={new Date()} pdf={cafeState.pdf} onOpenPdf={(url, label) => setCafePdf({ url, label })} />
+        </ScrollView>
+      ) : tabs.length === 0 ? (
+        // Café pre-load: mealTabs hasn't resolved yet (real hall: never true; café: ajax fetch or
+        // the dish-catalog read still in flight -- see cafeState's own comment) -- same honest
+        // skeleton the non-Grab branch below shows once there IS at least one tab, shown directly
+        // here without mounting a 0-pane pager.
         <View style={styles.skeletonList}>
           <StationHeaderSkeleton width={fs(118)} />
           <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
@@ -1028,20 +1232,24 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       {/* Menu-filters-macros: permanent, in-context filter FAB -- pinned above the plate bar (48x48,
       right:20/bottom:108 per the canvas). Bare/inactive when nothing's currently hidden; dark-filled
       with a gold hidden-count badge once allergens/diet-tags are excluding something (macros never
-      drive this -- see hiddenCount's own comment above). Opens FilterSheet in place, no navigation. */}
-      <Pressable
-        style={[styles.filterFab, hiddenCount > 0 && styles.filterFabActive]}
-        onPress={() => setFilterSheetOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={hiddenCount > 0 ? `Filters, hiding ${hiddenCount} ${hiddenCount === 1 ? "dish" : "dishes"}` : "Filters"}
-      >
-        <FilterGlyphIcon color={hiddenCount > 0 ? colors.paper50 : colors.maroon600} />
-        {hiddenCount > 0 && (
-          <View style={styles.filterFabBadge}>
-            <Text style={styles.filterFabBadgeText}>{hiddenCount}</Text>
-          </View>
-        )}
-      </Pressable>
+      drive this -- see hiddenCount's own comment above). Opens FilterSheet in place, no navigation.
+      Café-screen unification: hidden entirely for the info-only state -- effectiveItems is always
+      [] there, so there is nothing for it to ever filter. */}
+      {cafeState?.kind !== "info" && (
+        <Pressable
+          style={[styles.filterFab, hiddenCount > 0 && styles.filterFabActive]}
+          onPress={() => setFilterSheetOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={hiddenCount > 0 ? `Filters, hiding ${hiddenCount} ${hiddenCount === 1 ? "dish" : "dishes"}` : "Filters"}
+        >
+          <FilterGlyphIcon color={hiddenCount > 0 ? colors.paper50 : colors.maroon600} />
+          {hiddenCount > 0 && (
+            <View style={styles.filterFabBadge}>
+              <Text style={styles.filterFabBadgeText}>{hiddenCount}</Text>
+            </View>
+          )}
+        </Pressable>
+      )}
       <PlateBar
         itemCount={totalItemCount(plate)}
         totals={totals}
@@ -1069,17 +1277,21 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         totals={totals}
         contextLabel={hall.name}
         logStorage={storage}
-        hallTid={hall.tid}
+        hallTid={cafeHallTid}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onSetCount={(key, count) => setPlate((p) => setCount(p, key, count))}
         onAddOffResult={addOffResult}
         onAddHistoryDish={addHistoryDish}
         onLog={logPlate}
-        onClose={() => setSheetOpen(false)}
+        onClose={() => {
+          setSheetOpen(false);
+          setPlateSearchSeed(null);
+        }}
+        initialQuery={plateSearchSeed ?? undefined}
       />
       <FilterSheet
         visible={filterSheetOpen}
-        items={items ?? []}
+        items={effectiveItems}
         prefs={prefs}
         onChangePreferences={onChangePreferences}
         stationFilter={stationFilter}
@@ -1126,6 +1338,10 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         />
       )}
       <HoldSlideHost ref={holdSlideHostRef} liveIndex={liveHoldIndex} />
+      {/* Café-screen unification: the info-only state's PDF affordance (CafeSheet above) --
+      mounted here, alongside this screen's own NutritionLabel/FilterSheet/etc. modals, instead of
+      from index.tsx (see CafeSheet's own doc comment on why that used to be a separate code path). */}
+      {cafePdf ? <CafePdfViewer url={cafePdf.url} label={cafePdf.label} cafeName={hall.name} onClose={() => setCafePdf(null)} /> : null}
     </View>
   );
 }
@@ -1158,6 +1374,9 @@ export default function HallMenuScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream100 },
   error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body400 },
+  // Café-screen unification's info-only state -- CafeSheet's content, scrollable in place of the
+  // tab pager.
+  infoScroll: { flex: 1 },
   skeletonList: { paddingHorizontal: spacing(5), paddingTop: spacing(3), gap: spacing(2) },
   skeletonSpinnerRow: { flexDirection: "row", alignItems: "center", gap: spacing(2), marginTop: spacing(2), justifyContent: "center" },
   skeletonSpinnerText: { fontFamily: fonts.body500, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
@@ -1261,6 +1480,33 @@ const styles = StyleSheet.create({
     paddingBottom: spacing(2),
     backgroundColor: colors.cream100,
   },
+
+  // Café-screen unification: standing-menu caveat banner + unmatched-item block, same visual
+  // language CafeSheet's own (now-retired) menu card used.
+  standingMenuBanner: {
+    marginHorizontal: spacing(5),
+    marginTop: spacing(3),
+    backgroundColor: withOpacity(colors.gold500, 12),
+    borderRadius: radii.md,
+    paddingVertical: spacing(2.25),
+    paddingHorizontal: spacing(3.5),
+    gap: 2,
+  },
+  standingMenuBannerLabel: { fontFamily: fonts.display600, fontSize: fs(11), letterSpacing: 1.2, textTransform: "uppercase", color: colors.maroon900 },
+  standingMenuCaveat: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 50) },
+  unmatchedBlock: { paddingBottom: spacing(3) },
+  unmatchedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    paddingVertical: spacing(2.5),
+    paddingHorizontal: spacing(5),
+    borderTopWidth: 1,
+    borderTopColor: withOpacity(colors.ink900, 8),
+  },
+  unmatchedRowName: { flex: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
+  unmatchedRowPrice: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: colors.maroon600 },
+  unmatchedRowChevron: { fontFamily: fonts.body400, fontSize: fs(16), color: withOpacity(colors.ink900, 35) },
 
   row: {
     flexDirection: "column",

@@ -1,12 +1,10 @@
-import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favorite, type RetailLocationHours } from "@udine/shared";
+import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CafePdfViewer } from "../components/CafePdfViewer";
-import { CafeSheet } from "../components/CafeSheet";
 import { OfflineLine } from "../components/OfflineLine";
 import { SkeletonBar } from "../components/Skeleton";
 import { SectionHeader } from "../components/ui";
@@ -15,7 +13,6 @@ import { PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { grabRouteFor, grabStripState } from "../lib/grabStrip";
-import { takePendingCafeSheet } from "../lib/cafeSheetHandoff";
 import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
@@ -162,15 +159,6 @@ export function HomePane() {
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
   const insets = useSafeAreaInsets();
-  // #245 item 8: a café with no `locationId` can never have a probed menu (cafeTapTarget's own
-  // "no tid to fetch with" branch, see /cafe/[name].tsx) -- that's knowable right here, synchronously,
-  // off the same hoursFeed.retail data already in hand, so those rows open CafeSheet inline instead
-  // of navigating to /cafe/[name] just to land on its identical fallback-sheet-over-a-blank-screen
-  // render. Cafés WITH a locationId still probe via the existing route (target.kind isn't knowable
-  // until that fetch resolves).
-  const [cafeSheetLoc, setCafeSheetLoc] = useState<RetailLocationHours | null>(null);
-  const [cafeSheetVisible, setCafeSheetVisible] = useState(false);
-  const [cafeSheetPdf, setCafeSheetPdf] = useState<{ url: string; label: string } | null>(null);
 
   // #243 bug B: `current` guards against a stale response winning a race -- leaving this screen
   // and refocusing it (e.g. switching panes/tabs and back) while the first focus's fetch is still
@@ -223,28 +211,7 @@ export function HomePane() {
   // repo's useFocusEffect test shims (e.g. homePaneStaleFocusRace.test.tsx) capture "the" latest
   // registered callback by hook-call order -- a second, separate useFocusEffect call would shadow
   // `load`'s in those shims, not run alongside it.
-  //
-  // The pickup half handles a café/[name] hand-off (cafeSheetHandoff.ts): that screen calls
-  // requestCafeSheet then router.back() the instant it resolves to a sheet-only outcome (no
-  // locationId, or a locationId whose probe came back empty -- e.g. a standing-menu-only
-  // location), so this fires the moment Home regains focus from that pop. Reads `hoursFeed` fresh
-  // each time (the dependency array below, not a one-shot [] effect) since the café the request
-  // names must be looked up in whatever hours feed Home currently has loaded; takePendingCafeSheet
-  // clears itself, so a re-fire with nothing pending is just a no-op.
-  useFocusEffect(
-    useCallback(() => {
-      const cleanup = load();
-      const pendingName = takePendingCafeSheet();
-      if (pendingName) {
-        const loc = hoursFeed?.retail?.find((r) => r.name === pendingName);
-        if (loc) {
-          setCafeSheetLoc(loc);
-          setCafeSheetVisible(true);
-        }
-      }
-      return cleanup;
-    }, [load, hoursFeed]),
-  );
+  useFocusEffect(load);
 
   // Home currently has no UI calling this -- the hall-card star that used to be its only trigger
   // was removed to match the artboard. Kept (with favoriteHallKeys/favoritesStorage below) because
@@ -290,37 +257,21 @@ export function HomePane() {
       <View style={styles.section}>
         <SectionHeader title="Cafés & Markets" />
         <View style={styles.retailList}>
-          {/* #177: café/market rows were display-only -- now tappable (chevron per the canvas),
-              probing that location's menu at tap time (never precomputed, see cafe/[name].tsx's own
-              doc comment on the issue's runtime model). */}
+          {/* #177: café/market rows were display-only -- now tappable (chevron per the canvas).
+              Café-screen unification: EVERY row navigates to /cafe/[name] now, regardless of
+              locationId -- that screen is always the same unified menu screen (integrated/standing/
+              info-only, see halls/[slug].tsx's HallMenuScreenBody), so there's no reason left for a
+              locationId-less café to open a sheet inline here instead; see this PR's own body for
+              the retired cafeSheetHandoff.ts mechanism this replaces. */}
           {(hoursFeed?.retail ?? []).map((loc) => {
             const chip = formatLocationChip(retailOpenStatus(loc, now));
-            const row = (
-              <View style={styles.retailInfo}>
-                <Text style={styles.retailName}>{loc.name}</Text>
-                <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
-              </View>
-            );
-            if (loc.locationId === undefined) {
-              return (
-                <Pressable
-                  key={loc.name}
-                  style={styles.retailRow}
-                  onPress={() => {
-                    setCafeSheetLoc(loc);
-                    setCafeSheetVisible(true);
-                  }}
-                  accessibilityRole="button"
-                >
-                  {row}
-                  <Text style={styles.retailChevron}>›</Text>
-                </Pressable>
-              );
-            }
             return (
               <Link key={loc.name} href={`/cafe/${encodeURIComponent(loc.name)}`} asChild>
                 <Pressable style={styles.retailRow} accessibilityRole="button">
-                  {row}
+                  <View style={styles.retailInfo}>
+                    <Text style={styles.retailName}>{loc.name}</Text>
+                    <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
+                  </View>
                   <Text style={styles.retailChevron}>›</Text>
                 </Pressable>
               </Link>
@@ -330,23 +281,6 @@ export function HomePane() {
       </View>
 
       </ScrollView>
-      {/* ponytail: CafeSheet's close animation (useDraggableSheet, sheetAnimation.ts) depends on
-      this component staying mounted across open/close -- it only works today because
-      setCafeSheetLoc is never called with null (grep it before changing that). If a future change
-      resets cafeSheetLoc on dismiss, this sheet's close will silently revert to an instant unmount
-      with no test catching it -- render it unconditionally (or guard on something else) instead. */}
-      {cafeSheetLoc ? (
-        <CafeSheet
-          visible={cafeSheetVisible && !cafeSheetPdf}
-          loc={cafeSheetLoc}
-          now={now}
-          onClose={() => setCafeSheetVisible(false)}
-          onOpenPdf={(url, label) => setCafeSheetPdf({ url, label })}
-        />
-      ) : null}
-      {cafeSheetPdf ? (
-        <CafePdfViewer url={cafeSheetPdf.url} label={cafeSheetPdf.label} cafeName={cafeSheetLoc?.name ?? ""} onClose={() => setCafeSheetPdf(null)} />
-      ) : null}
     </>
   );
 }

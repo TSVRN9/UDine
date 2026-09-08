@@ -43,6 +43,13 @@ interface Props {
   onAddHistoryDish: (dish: HistoryDish) => void;
   onLog: () => void;
   onClose: () => void;
+  /** Café-screen unification: a standing-menu row with no catalog match ("add something else"
+   * instead of a dead end) opens this sheet pre-seeded with its parsed name -- filled into the
+   * search box AND searched immediately, not just typed in for the user to press Search again.
+   * Undefined/absent for every other opener (the plain PlateBar tap), which starts on a blank box
+   * same as before. The caller is expected to clear whatever it passed the moment `onClose` fires
+   * (see halls/[slug].tsx), so reopening via the plain PlateBar tap afterward doesn't reseed. */
+  initialQuery?: string;
 }
 
 /**
@@ -52,7 +59,7 @@ interface Props {
  * Modal, same structural call as NutritionLabel (see halls/[slug].tsx's note): no route, no
  * _layout.tsx change, no MenuItem serialization through router params.
  */
-export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onSetCount, onAddOffResult, onAddHistoryDish, onLog, onClose }: Props) {
+export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onSetCount, onAddOffResult, onAddHistoryDish, onLog, onClose, initialQuery }: Props) {
   const [query, setQuery] = useState("");
   // Tap-to-type serving entry: which row's count is currently an editable TextInput (null = none
   // are). Only one row edits at a time -- starting a new one commits whatever was already typed
@@ -128,11 +135,29 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
     setEditingKey(null);
   }
 
-  async function runSearch() {
+  // Seeds the search box (and runs the search) the instant a caller opens this sheet with a
+  // pre-filled query (see initialQuery's own doc) -- keyed on `[visible, initialQuery]`, not just
+  // `initialQuery`, so re-showing the SAME seed after a close (visible false -> true again) fires
+  // again rather than being silently swallowed by React bailing out on an unchanged prop.
+  // `runSearch(initialQuery)` (not a bare `runSearch()` after `setQuery`) -- setQuery is
+  // async/batched, so a same-tick runSearch() would still close over the PREVIOUS render's `query`.
+  // `runSearch` deliberately NOT a dependency here -- it closes over `query`/`searching`/etc, all
+  // irrelevant to "did a NEW seed just arrive," and it's a fresh function identity every render, so
+  // listing it would refire this on every keystroke-driven re-render, not just a fresh seed.
+  useEffect(() => {
+    if (visible && initialQuery) {
+      setQuery(initialQuery);
+      runSearch(initialQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, initialQuery]);
+
+  async function runSearch(queryOverride?: string) {
     // #198: onSubmitEditing had no guard against a search already in flight (unlike the Search
     // button's own `disabled` prop below) -- mashing Enter while typing fired overlapping requests.
-    if (!query.trim() || searching) return;
-    const q = query.trim();
+    const raw = queryOverride ?? query;
+    if (!raw.trim() || searching) return;
+    const q = raw.trim();
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
@@ -287,7 +312,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
                     onChangeText={setQuery}
                     placeholder="Search for a food"
                     placeholderTextColor={withOpacity(colors.ink900, 45)}
-                    onSubmitEditing={runSearch}
+                    onSubmitEditing={() => runSearch()}
                     // This box sits after the item list/totals/LOG button in a plain ScrollView,
                     // which doesn't reliably scroll a newly-focused input into view on its own --
                     // scroll it to the end (it's the last thing in the sheet) so the query stays
@@ -295,7 +320,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
                     onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
                     returnKeyType="search"
                   />
-                  <Button variant="secondary" size="sm" onPress={runSearch} disabled={searching || !query.trim()}>
+                  <Button variant="secondary" size="sm" onPress={() => runSearch()} disabled={searching || !query.trim()}>
                     Search
                   </Button>
                 </View>
