@@ -17,6 +17,7 @@ import { StyleSheet, Text, View, SectionList } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
+import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
 import { colors } from "./theme";
@@ -237,6 +238,27 @@ function stepPlate(root: renderer.ReactTestRenderer, dishName: string, dir: "Add
   act(() => {
     root.root.findByProps({ accessibilityLabel: `${dir} ${dishName}` }).props.onPress();
   });
+}
+
+// Drives HoldSlideAddButton's onHoldStart/onHoldEnd props directly and writes straight to the
+// liveCount shared value it's handed as a prop, bypassing real gesture recognition (react-test-
+// renderer can't simulate RNGH's native touch arbitration, nor the UI-thread worklet that
+// normally computes this -- see that component's own doc comment; the drag-distance -> count
+// math itself is unit-tested directly in servingsStepper.test.ts). This exercises the actual bug
+// pr-reviewer caught: addToPlate used to loop `for (let i = 0; i < count; i++)`, broken for a
+// fractional count -- now a single addOrIncrement(item, count) call. HoldSlideAddButton's
+// onHoldEnd is the only real caller that ever passes a non-1 count, so this is the one place that
+// regression can actually be caught. A count of 0 is the drag's cancel rung (CANCEL_SERVINGS) --
+// [slug].tsx's onHoldEnd guards on `liveCount.value > 0`, so passing 0 here exercises "released
+// at the bottom of the drag" without a separate cancel axis/flag.
+function holdSlideAdd(root: renderer.ReactTestRenderer, dishName: string, count: number) {
+  const button = root.root.findAllByType(HoldSlideAddButton).find((n) => n.props.dishName === dishName);
+  if (!button) throw new Error(`HoldSlideAddButton not found for ${dishName}`);
+  act(() => button.props.onHoldStart({ x: 0, y: 0, width: 44, height: 44 }));
+  act(() => {
+    button.props.liveCount.value = count;
+  });
+  act(() => button.props.onHoldEnd());
 }
 
 function starPressable(root: renderer.ReactTestRenderer, dishName: string) {
@@ -850,6 +872,25 @@ describe("HallMenuScreen plate wiring", () => {
     addToPlate(root, "Pizza");
     expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(1);
+  });
+
+  // pr-reviewer catch: addToPlate used to loop `for (let i = 0; i < count; i++) addOrIncrement(...)`,
+  // which silently breaks for a fractional count (looping 1.5 times isn't meaningful) -- fixed to a
+  // single addOrIncrement(item, count) call. HoldSlideAddButton's onHoldEnd is the only real caller
+  // that ever passes a non-1 count, so this drives it directly (see holdSlideAdd's own comment).
+  it("a hold-and-drag add lands the exact fractional count on the plate, not a loop-broken one", async () => {
+    const root = await renderScreen();
+    holdSlideAdd(root, "Pizza", 1.5);
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(1.5);
+    expect(texts(root).flat().join(" ")).toMatch(/1\.5/);
+  });
+
+  // Releasing at the bottom of the drag (CANCEL_SERVINGS, 0) must add nothing at all, not clamp
+  // to some minimum count -- the whole point of the drag's cancel rung.
+  it("releasing a hold-and-drag at the cancel rung (0 servings) adds nothing to the plate", async () => {
+    const root = await renderScreen();
+    holdSlideAdd(root, "Pizza", 0);
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
   });
 
   it("tracks the SectionList's bottom padding to the plate bar's measured height, and keeps it once the plate empties again (the bar stays mounted, just switches to its empty-state variant)", async () => {

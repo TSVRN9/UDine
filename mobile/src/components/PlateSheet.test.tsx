@@ -87,6 +87,7 @@ function renderSheet(overrides: Partial<Parameters<typeof PlateSheet>[0]> = {}) 
         logStorage={emptyLogStorage()}
         hallTid={1}
         onStep={() => {}}
+        onSetCount={() => {}}
         onAddOffResult={() => {}}
         onAddHistoryDish={() => {}}
         onLog={() => {}}
@@ -141,6 +142,70 @@ describe("PlateSheet", () => {
     expect(onStep).toHaveBeenCalledWith(plate[0].key, -1);
   });
 
+  it("renders a fractional count as a decimal (1.5), not a whole-number-only display", () => {
+    const plate = [{ ...menuItemToPlateEntry(DISH), count: 1.5 }];
+    const root = renderSheet({ plate });
+    expect(texts(root).flat().join(" ")).toMatch(/1\.5/);
+  });
+
+  it("tapping the count opens an editable field seeded with the current value; submitting an exact decimal calls onSetCount", () => {
+    const onSetCount = jest.fn();
+    const plate = [{ ...menuItemToPlateEntry(DISH), count: 2 }];
+    const root = renderSheet({ plate, onSetCount });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Edit servings for Pizza" }).props.onPress();
+    });
+    const field = root.root.findByProps({ accessibilityLabel: "Servings for Pizza" });
+    expect(field.props.value).toBe("2");
+
+    act(() => {
+      field.props.onChangeText("2.5");
+    });
+    act(() => {
+      field.props.onSubmitEditing();
+    });
+
+    expect(onSetCount).toHaveBeenCalledWith(plate[0].key, 2.5);
+  });
+
+  it("blurring with invalid or empty text leaves the count unchanged (doesn't call onSetCount, doesn't delete the row)", () => {
+    const onSetCount = jest.fn();
+    const plate = [{ ...menuItemToPlateEntry(DISH), count: 2 }];
+    const root = renderSheet({ plate, onSetCount });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Edit servings for Pizza" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Servings for Pizza" }).props.onChangeText("");
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Servings for Pizza" }).props.onBlur();
+    });
+
+    expect(onSetCount).not.toHaveBeenCalled();
+  });
+
+  it("starting to edit a second row commits whatever was typed into the row being left", () => {
+    const onSetCount = jest.fn();
+    const pizza = { ...menuItemToPlateEntry(DISH), count: 1 };
+    const salad = { ...menuItemToPlateEntry({ ...DISH, dishName: "Salad" }), count: 1 };
+    const root = renderSheet({ plate: [pizza, salad], onSetCount });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Edit servings for Pizza" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Servings for Pizza" }).props.onChangeText("1.5");
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Edit servings for Salad" }).props.onPress();
+    });
+
+    expect(onSetCount).toHaveBeenCalledWith(pizza.key, 1.5);
+  });
+
   it("fires a background dish-catalog refresh once on mount", () => {
     renderSheet();
     expect(mockedRefreshDishCatalogIfStale).toHaveBeenCalledTimes(1);
@@ -185,18 +250,18 @@ describe("PlateSheet", () => {
 
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(<PlateSheet visible plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
+      root = renderer.create(<PlateSheet visible plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onSetCount={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
     });
     await runSearch(root, "a"); // stale search now in flight (unresolved)
 
     // Sheet closes before the stale search resolves...
     act(() => {
-      root.update(<PlateSheet visible={false} plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
+      root.update(<PlateSheet visible={false} plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onSetCount={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
     });
     // ...then reopens, and the user runs a different, faster search.
     mockedSearchProducts.mockResolvedValueOnce([{ barcode: "999", productName: "Banana Chips", nutrition: DISH.nutrition }]);
     act(() => {
-      root.update(<PlateSheet visible plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
+      root.update(<PlateSheet visible plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onSetCount={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
     });
     await runSearch(root, "banana");
     expect(texts(root).flat().join(" ")).toMatch(/Banana Chips/);

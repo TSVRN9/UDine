@@ -410,4 +410,108 @@ describe("MealTabPager stale-closure resistance", () => {
     // Fresh count (3): activeIndex 2 is already the last valid index -- clamped, no commit.
     expect(onActiveIndexChange).not.toHaveBeenCalled();
   });
+
+  // A real fast back-and-forth swipe: the second gesture begins before React has re-rendered with
+  // the first gesture's committed activeIndex (onActiveIndexChange's runOnJS callback hasn't
+  // round-tripped to a `root.update` yet, deliberately omitted below to simulate that gap). Before
+  // this fix, onStart reseeded dragStartIndex from the stale `activeIndex` prop and onEnd's commit
+  // guard compared `next` against that same stale prop -- together they could compute the wrong
+  // `next` AND silently swallow the correct one, which is what "swiping back and forth quickly
+  // skips a tab" actually was.
+  it("a swipe immediately reversed, before activeIndex's own commit has rendered, resolves back to the true starting tab", () => {
+    const onActiveIndexChange = jest.fn();
+    const { gesture } = renderGestureHarness(1, fivePanes(), onActiveIndexChange); // start on Lunch (1)
+
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(-80)); // leftward past SWIPE_COMMIT_PX
+    });
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(-80), true); // commits Lunch (1) -> Dinner (2)
+    });
+
+    // No root.update here -- activeIndex is still 1 in this tree's closures, exactly the race.
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(80)); // rightward, reversing
+    });
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(80), true); // should commit Dinner (2) -> back to Lunch (1)
+    });
+
+    expect(onActiveIndexChange).toHaveBeenNthCalledWith(1, 2);
+    expect(onActiveIndexChange).toHaveBeenNthCalledWith(2, 1);
+  });
+});
+
+// On-device (emulator) verification of round-4's rapid-reversal fix above found it incomplete: 5
+// quick alternating swipes landed on the wrong tab every time, with two panes' content and the tab
+// underline briefly visible at once -- corruption the 2-cycle test above (which never lets React
+// actually re-render between gestures, so this component's own commit-effect never fires) couldn't
+// see. Root cause: that effect used to track "where did the animated position last land" with its
+// own separate `committedIndexRef`, on the JS thread, updated only when the effect itself ran --
+// but `dragStartIndex` (the shared value onEnd already writes eagerly, on the UI thread, the
+// instant a swipe commits) is the SAME fact tracked a second, independently-updated way. Once a
+// swipe's commit round-trips back to a render, the effect fired again anyway and started a SECOND,
+// redundant withTiming retargeting the exact position the gesture's own onEnd had already started
+// settling -- under a rapid sequence, each new commit's effect re-fires before the previous one (or
+// the gesture that caused it) has settled, piling up competing tweens that never cleanly resolve.
+describe("MealTabPager commit-effect vs. gesture-settle race", () => {
+  function swipeCommit(gesture: () => GestureType, dx: number) {
+    act(() => {
+      gesture().handlers.onStart?.(panEvent(0));
+    });
+    act(() => {
+      gesture().handlers.onUpdate?.(panEvent(dx));
+    });
+    act(() => {
+      gesture().handlers.onEnd?.(panEvent(dx), true);
+    });
+  }
+
+  it("does not re-tween a swipe's own commit once it round-trips back to a render", () => {
+    const onActiveIndexChange = jest.fn();
+    const { root, gesture } = renderGestureHarness(0, fivePanes(), onActiveIndexChange);
+
+    swipeCommit(gesture, -80); // commits Breakfast (0) -> Lunch (1)
+    const callsAfterGesture = withTimingSpy.mock.calls.length; // settlePosition's own 2 calls (panePos + paneOpacityPos)
+    expect(callsAfterGesture).toBe(2);
+
+    // The commit round-trips back to a real render -- this is what the 2-cycle test above never
+    // does, and exactly the point where the old, separately-tracked committedIndexRef could (and
+    // did, on-device) disagree with dragStartIndex about whether anything was still left to animate.
+    act(() => {
+      root.update(<MealTabPager activeIndex={1} onActiveIndexChange={onActiveIndexChange} panes={fivePanes()} />);
+    });
+
+    // No additional tween -- the gesture already fully handled this exact transition.
+    expect(withTimingSpy.mock.calls.length).toBe(callsAfterGesture);
+  });
+
+  it("resolves 5 rapid alternating swipes to the true starting tab, each fully settled before the next begins", () => {
+    const onActiveIndexChange = jest.fn();
+    let activeIndex = 1; // start on Lunch
+    const { root, gesture } = renderGestureHarness(activeIndex, fivePanes(), onActiveIndexChange);
+
+    for (let i = 0; i < 5; i++) {
+      const dx = i % 2 === 0 ? -80 : 80; // alternate: forward, back, forward, back, forward
+      swipeCommit(gesture, dx);
+      activeIndex = onActiveIndexChange.mock.calls.at(-1)![0];
+      act(() => {
+        root.update(<MealTabPager activeIndex={activeIndex} onActiveIndexChange={onActiveIndexChange} panes={fivePanes()} />);
+      });
+    }
+
+    // 5 alternating commits from Lunch (1): 2, 1, 2, 1, 2 -- ends one tab over (Dinner), an odd
+    // number of steps taken. Every intermediate commit must also have been correct (not skipped,
+    // not doubled) for this final value to be right at all.
+    expect(activeIndex).toBe(2);
+    expect(onActiveIndexChange.mock.calls.map((c) => c[0])).toEqual([2, 1, 2, 1, 2]);
+    // Exactly one settle (2 withTiming calls) per commit -- no redundant effect-triggered retween.
+    expect(withTimingSpy.mock.calls.length).toBe(10);
+  });
 });
