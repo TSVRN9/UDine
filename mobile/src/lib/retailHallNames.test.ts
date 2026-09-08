@@ -1,4 +1,5 @@
 import { __resetRetailNamesForTest, hallOrRetailName, recordRetailNames } from "./retailHallNames";
+import { syntheticHallTidForName } from "./cafeMenu";
 
 beforeEach(() => {
   __resetRetailNamesForTest();
@@ -22,7 +23,16 @@ describe("hallOrRetailName", () => {
     expect(hallOrRetailName(32)).toBe("People's Organic Coffee");
   });
 
-  it("skips a retail entry with no locationId rather than crashing", () => {
+  // Café-screen unification review finding: a locationId-less café's info-only state mounts
+  // PlateSheet now (it didn't before this PR), so a name recorded ONLY for a real locationId left
+  // every dish logged there literally displaying as "Hall <negative sentinel>" forever. Recorded
+  // under the same synthetic per-name hallTid PlateSheet/the standing-menu waterfall use for it.
+  it("records a retail entry with no locationId under its synthetic per-name hallTid, not skipped", () => {
+    recordRetailNames([{ name: "Mystery Cart", hours: null }]);
+    expect(hallOrRetailName(syntheticHallTidForName("Mystery Cart"))).toBe("Mystery Cart");
+  });
+
+  it("still falls back to 'Hall <tid>' for an unrelated tid nothing ever recorded", () => {
     recordRetailNames([{ name: "Mystery Cart", hours: null }]);
     expect(hallOrRetailName(999)).toBe("Hall 999");
   });

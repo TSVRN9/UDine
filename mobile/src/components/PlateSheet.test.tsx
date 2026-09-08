@@ -480,4 +480,42 @@ describe("PlateSheet", () => {
       expect(body).not.toMatch(/Search failed/);
     });
   });
+
+  // Café-screen unification: an unmatched standing-menu row opens this sheet via `initialQuery`
+  // instead of leaving a dead end -- the box must come up pre-filled AND already searched, not just
+  // pre-typed for the user to press Search again.
+  describe("initialQuery (café-screen unification: unmatched standing item -> search)", () => {
+    it("seeds the search box and runs the search immediately when opened with an initialQuery", async () => {
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Bacon Croissant", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(
+          <PlateSheet
+            visible
+            plate={[]}
+            totals={ZERO_TOTALS}
+            logStorage={emptyLogStorage()}
+            hallTid={1}
+            onStep={() => {}}
+            onSetCount={() => {}}
+            onAddOffResult={() => {}}
+            onAddHistoryDish={() => {}}
+            onLog={() => {}}
+            onClose={() => {}}
+            initialQuery="Bacon Croissant"
+          />,
+        );
+      });
+
+      expect(searchInput(root).props.value).toBe("Bacon Croissant");
+      expect(mockedSearchCachedDishes).toHaveBeenCalledWith(null, "Bacon Croissant");
+      expect(texts(root).flat()).toContain("Bacon Croissant");
+    });
+
+    it("does not seed anything when initialQuery is absent (the plain PlateBar-tap open)", () => {
+      const root = renderSheet();
+      expect(searchInput(root).props.value).toBe("");
+      expect(mockedSearchCachedDishes).not.toHaveBeenCalled();
+    });
+  });
 });

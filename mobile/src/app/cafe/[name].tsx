@@ -1,31 +1,34 @@
-import type { DiningHoursFeed, MenuItem } from "@udine/shared";
+import type { DiningHoursFeed } from "@udine/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HallMenuScreenBody, type HallMenuSubject } from "../halls/[slug]";
-import { cafeTapTarget } from "../../lib/cafeMenu";
-import { requestCafeSheet } from "../../lib/cafeSheetHandoff";
-import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
-import { fetchHoursAndCache, getCachedHours, getCachedMenu } from "../../lib/menuHoursCache";
+import { fetchHoursAndCache, getCachedHours } from "../../lib/menuHoursCache";
 import { colors, fonts, fs, spacing } from "../../lib/theme";
 
 /**
- * `/cafe/[name]` -- #177's probe-at-tap runtime model. `name` is the café's own `name` (URL-
- * encoded; retail locations have no static slug list the way DINING_HALLS does, since they come
- * from the live get_infov2 feed, not a hardcoded array). Fetches hours fresh (Home's own hoursFeed
- * doesn't survive the navigation) to find this location, then -- only if it has a locationId --
- * probes `fetchMenu(locationId, today)` per the issue's "do not precompute tiers" runtime model.
- * Non-empty routes to the existing hall-menu screen body (HallMenuScreenBody, shared with
- * `/halls/[slug]`); empty hands off to HomePane's own CafeSheet instead of rendering one here --
- * see cafeSheetHandoff.ts for why (this used to render CafeSheet inline, which meant a blank
- * pushed screen behind the sheet instead of the sheet alone over Home).
+ * `/cafe/[name]` -- café-screen unification (this PR): ALWAYS the same pushed screen
+ * (HallMenuScreenBody, shared verbatim with `/halls/[slug]`), regardless of what data is actually
+ * available for this café that day. `name` is the café's own `name` (URL-encoded; retail locations
+ * have no static slug list the way DINING_HALLS does, since they come from the live get_infov2
+ * feed, not a hardcoded array).
+ *
+ * This screen's ONLY job is resolving `loc` (fetch hours, find the tapped name in `retail`) and
+ * handing it to HallMenuScreenBody as a `HallMenuSubject` -- `hall.retailLoc` carries the raw
+ * RetailLocationHours row down so that body's own waterfall (resolveCafeMenuState, cafeMenu.ts) can
+ * try `fetchMenu(locationId, date)` (tier 1, `hall.tid`), then fall back to the standing-menu HTML
+ * (tier 2/3, `hall.retailLoc`) -- ALL of that (including its own recordSeen tracking, retry-card/
+ * cached-menu-on-failure handling) is HallMenuScreenBody's own fetch effect, not duplicated here;
+ * an older version of this screen ran its own separate probe first to decide whether to push this
+ * screen or hand off to a fallback sheet elsewhere -- since this screen is now ALWAYS what renders,
+ * there's nothing left for that second fetch to decide, so it's gone (see git history/PR body for
+ * the retired `cafeTapTarget`/cafeSheetHandoff.ts mechanism this replaces).
  */
 export default function CafeScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const decodedName = decodeURIComponent(name ?? "");
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
-  const [items, setItems] = useState<MenuItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
@@ -51,61 +54,11 @@ export default function CafeScreen() {
   // #243 bug D: a fresh `{tid, name}` object literal every render fed into HallMenuScreenBody's
   // `hall` prop -- whose fetch effects are keyed on that object's identity, not its contents (see
   // halls/[slug].tsx) -- meant any unrelated re-render of this screen (rotation, inset change) reset
-  // items to null and refetched, duplicating recordSeen. Memoized on the two primitive values that
-  // actually identify the café, so identity only changes when the café itself does.
-  const hall = useMemo<HallMenuSubject | null>(
-    () => (loc?.locationId === undefined ? null : { tid: loc.locationId, name: loc.name }),
-    [loc?.locationId, loc?.name],
-  );
-
-  useEffect(() => {
-    if (!loc) return;
-    if (loc.locationId === undefined) {
-      setItems([]); // no tid to fetch with -- straight to the fallback sheet, no probe
-      return;
-    }
-    let current = true;
-    const date = new Date();
-    const locationId = loc.locationId;
-    fetchMenuAndRecordSeen(locationId, date)
-      .then((result) => {
-        if (current) setItems(result);
-      })
-      .catch((e) => {
-        if (!current) return;
-        // #243 bug C, second half: an offline tap that DOES resolve `loc` from the hours cache
-        // above still has to probe the live menu -- which fails the same way offline. Falling back
-        // to a cached menu (same getCachedMenu store menuFetchWithSeenTracking.ts already writes
-        // to on every success) is what actually makes the tap succeed instead of just moving the
-        // error one fetch later; no cached menu at all degrades to the CafeSheet fallback (loc's
-        // own description/hours/standing-menu HTML render fine from the cache alone) rather than a
-        // hard error, since there's genuinely nothing else to show.
-        getCachedMenu(locationId, date)
-          .then((cached) => {
-            if (current) setItems(cached ? cached.items : []);
-          })
-          .catch(() => {
-            if (current) setItems([]);
-          });
-      });
-    return () => {
-      current = false;
-    };
-  }, [loc]);
-
-  const target = hoursFeed && loc && items !== null ? cafeTapTarget(loc.locationId, items) : null;
-
-  // Sheet-only outcome (no locationId, or a locationId that probed empty -- e.g. a
-  // standing-menu-only location) hands off to HomePane's own CafeSheet instead of rendering one
-  // here -- see cafeSheetHandoff.ts. Dependency array is `target?.kind` (a stable string), not
-  // `target` itself -- cafeTapTarget returns a fresh object literal every call, so depending on
-  // the object would re-fire this effect (and call router.back() again) on every render once
-  // resolved, not just the one transition into "sheet".
-  useEffect(() => {
-    if (target?.kind !== "sheet" || !loc) return;
-    requestCafeSheet(loc.name);
-    router.back();
-  }, [target?.kind, loc]);
+  // its menu items to null and refetched, duplicating recordSeen. Memoized on `loc` itself (not just
+  // the two primitives the pre-unification version used) so `retailLoc` -- read by
+  // HallMenuScreenBody's own waterfall, never as an identity key -- rides along without widening
+  // this memo's dependency list.
+  const hall = useMemo<HallMenuSubject | null>(() => (loc ? { tid: loc.locationId, name: loc.name, retailLoc: loc } : null), [loc]);
 
   function loadingChrome(message: string) {
     return (
@@ -121,33 +74,26 @@ export default function CafeScreen() {
   }
 
   if (error) {
-    // Either fetch above (`fetchHoursAndCache`+`getCachedHours` or `fetchMenuAndRecordSeen`) rejecting used to leave
-    // `hoursFeed`/`items` null forever -- a permanent spinner behind only a back chevron, plus an
-    // unhandled promise rejection (PR #219 review). Both `.catch`es above route here instead, same
-    // shape as halls/[slug].tsx's own `error` branch.
+    // A rejected fetchHoursAndCache with no cache to fall back to used to leave `hoursFeed` null
+    // forever -- a permanent spinner behind only a back chevron, plus an unhandled promise
+    // rejection (PR #219 review). The `.catch` above routes here instead, same shape as
+    // halls/[slug].tsx's own `error` branch.
     return loadingChrome(`Failed to load ${decodedName}: ${error}`);
   }
 
   if (hoursFeed && !loc) {
     // Hours resolved and this name isn't in it -- a stale/mismatched Link target, not a load in
     // progress. This branch (plus the `error` branch above, for a rejected fetch) is what keeps
-    // `loc` staying undefined, or either fetch never resolving, from spinning the loading state
-    // indefinitely (its own fetch effect above never fires without a `loc` to read locationId from).
+    // `loc` staying undefined, or the fetch never resolving, from spinning the loading state
+    // indefinitely.
     return loadingChrome(`Couldn't find ${decodedName}.`);
   }
 
-  if (!target) {
+  if (!hall) {
     return loadingChrome("");
   }
 
-  if (target.kind === "menu") {
-    // hall is non-null here -- cafeTapTarget only returns "menu" when loc.locationId is defined.
-    return <HallMenuScreenBody hall={hall!} />;
-  }
-
-  // "sheet" -- the handoff effect above is popping this screen back to Home imminently; render
-  // nothing but the loading chrome in the meantime so there's no content flash behind it.
-  return loadingChrome("");
+  return <HallMenuScreenBody hall={hall} />;
 }
 
 const styles = StyleSheet.create({

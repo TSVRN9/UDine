@@ -1,15 +1,20 @@
-// /cafe/[name].tsx's own wiring (#177's probe-at-tap runtime model): fetch hours, find the
-// tapped location, probe fetchMenu(locationId, today) only if there's a locationId, and route to
-// either the existing hall-menu screen body (non-empty) or hand off to HomePane's own CafeSheet
-// (empty / no locationId -- see cafeSheetHandoff.ts for why this screen never renders a sheet
-// itself). Same jest.mock-factory pattern as hallMenu.test.tsx (which this reuses -- the "menu"
-// branch renders the real HallMenuScreenBody, so it needs the same storage mocks).
+// /cafe/[name].tsx's own wiring, post-café-screen-unification: fetch hours, find the tapped
+// location, hand it straight to HallMenuScreenBody as a HallMenuSubject (tid + retailLoc) -- that
+// shared screen (also used by /halls/[slug]) owns the whole waterfall (ajax -> standing-menu-HTML
+// match -> info-only) and picks its OWN internal state; this screen never probes anything or routes
+// between a screen and a separate fallback sheet anymore (that mechanism -- cafeTapTarget,
+// cafeSheetHandoff.ts -- is retired, see this PR's body). Same jest.mock-factory pattern as
+// hallMenu.test.tsx (which this reuses -- HallMenuScreenBody renders unconditionally now, so it
+// needs the same storage/dish-catalog/supabase mocks that file already establishes).
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { fetchMenu, type MenuItem } from "@udine/shared";
 import CafeScreen from "../app/cafe/[name]";
+import { Button } from "../components/ui";
+import { PlateBar } from "../components/PlateBar";
+import { syntheticHallTidForName } from "./cafeMenu";
+import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
-import { takePendingCafeSheet } from "./cafeSheetHandoff";
 
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
@@ -38,21 +43,22 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
-// PlateSheet (rendered via the "menu" branch's HallMenuScreenBody) now imports the real
-// ../lib/supabase singleton for its background dish-catalog refresh -- explicit factory, not a
-// bare automock, same reasoning as homePane.test.tsx: the real module drags in native bindings
-// (AsyncStorage) unavailable outside jest-expo's native harness. dishCatalog itself is mocked too
-// so PlateSheet's mount-time refresh is a no-op here.
+// HallMenuScreenBody (rendered directly by this screen now, always -- not just a "menu" branch)
+// imports the real ../lib/supabase singleton for its own dish-catalog background refresh -- explicit
+// factory, not a bare automock, same reasoning as homePane.test.tsx: the real module drags in native
+// bindings (AsyncStorage) unavailable outside jest-expo's native harness. dishCatalog itself is
+// mocked too so that refresh, and the standing-menu waterfall's own catalog read, are controllable.
 jest.mock("../lib/supabase", () => ({ supabase: {} }));
+const mockedGetCachedDishCatalog = jest.fn().mockResolvedValue(null);
+const mockedSearchCachedDishes = jest.fn().mockReturnValue([]);
 jest.mock("../lib/dishCatalog", () => ({
-  getCachedDishCatalog: jest.fn().mockResolvedValue(null),
+  getCachedDishCatalog: (...args: unknown[]) => mockedGetCachedDishCatalog(...args),
   refreshDishCatalogIfStale: jest.fn().mockResolvedValue(undefined),
-  searchCachedDishes: jest.fn().mockReturnValue([]),
+  searchCachedDishes: (...args: unknown[]) => mockedSearchCachedDishes(...args),
 }));
 
-// react-native-webview needs a native module not present under jest -- CafePdfViewer (rendered
-// only once a PDF row is tapped, which neither test below does) is the only importer reached from
-// this screen.
+// react-native-webview needs a native module not present under jest -- CafePdfViewer (rendered only
+// once a PDF row is tapped, which no test below does) is the only importer reached from this screen.
 jest.mock("react-native-webview", () => ({ WebView: () => null }));
 
 // Inlined directly in the factory, not a module-scope const referenced from it -- jest.mock
@@ -97,15 +103,11 @@ jest.mock("./menuHoursCache", () => ({
   saveCachedMenu: jest.fn().mockResolvedValue(undefined),
 }));
 
-// A mutable module-scope binding the factory reads live (not captured at hoist time) -- lets the
-// "unknown name" test below point useLocalSearchParams at a name absent from the mocked hours feed
-// without a second jest.mock factory.
 let mockSearchParamName = "People's Organic Coffee";
-const mockRouterBack = jest.fn();
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ name: encodeURIComponent(mockSearchParamName) }),
   useFocusEffect: (_callback: () => void) => {},
-  router: { back: (...args: unknown[]) => mockRouterBack(...args), push: jest.fn() },
+  router: { back: jest.fn(), push: jest.fn() },
 }));
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
@@ -117,12 +119,32 @@ function recordSeenMock(): jest.Mock | undefined {
   return (SqliteSeenDishesStorage as unknown as jest.Mock).mock.results[0]?.value?.recordSeen;
 }
 
+// halls/[slug].tsx's `const storage = new SqliteLogStorage();` (module top level) is a singleton,
+// created once by the first render that imports the module -- same lazy-access pattern
+// recordSeenMock above already uses for the seen-dishes singleton (and hallMenu.test.tsx's own
+// mockAddEntry, which this mirrors).
+function mockAddEntry(): jest.Mock {
+  return (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.addEntry as jest.Mock;
+}
+
+// hallMenu.test.tsx's own file-wide fix for the exact same class of crash: logPlate's success path
+// (HallMenuScreenBody, unchanged by this PR) schedules a real setTimeout for the "Logged N items"
+// banner's auto-dismiss -- with no unmount and no fake timers, that timer fires ~4s after THIS
+// test finishes, well past teardown, and crashes the whole run with "window.dispatchEvent is not a
+// function" instead of just failing the one test. Only the new locationId-less-café LOG test below
+// actually reaches logPlate's success path, but this is file-wide (not scoped to one describe/it)
+// for the same reason hallMenu.test.tsx's is: any future test here that logs inherits the same risk.
 beforeEach(() => {
+  jest.useFakeTimers();
   mockFetchHoursAndCache.mockReset().mockResolvedValue(DEFAULT_HOURS_FEED);
   mockGetCachedHours.mockReset().mockResolvedValue(null);
   mockGetCachedMenu.mockReset().mockResolvedValue(null);
-  mockRouterBack.mockReset();
-  takePendingCafeSheet(); // drain any stray request left by a prior test
+  mockedGetCachedDishCatalog.mockReset().mockResolvedValue(null);
+  mockedSearchCachedDishes.mockReset().mockReturnValue([]);
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 function texts(root: renderer.ReactTestRenderer) {
@@ -163,24 +185,68 @@ async function renderCafeScreen(items: MenuItem[]) {
   return root;
 }
 
-describe("/cafe/[name] probe-at-tap routing (#177)", () => {
-  it("non-empty fetchMenu -> the existing hall-menu screen body, not the fallback sheet", async () => {
+describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () => {
+  it("non-empty fetchMenu -> the integrated state, full nutrition, no info-only content", async () => {
     const root = await renderCafeScreen([COFFEE]);
     expect(texts(root).flat()).toContain("Coffee");
-    // CafeSheet's title renders the café name in its own Text; the hall-menu screen's header does
-    // too, so distinguish by CafeSheet's status-pill styling spec copy, which only it ever renders.
+    // CafeSheet's status-pill copy only ever renders in the info-only state -- its absence here
+    // proves this rendered the integrated dish list, not the info-only content.
     expect(texts(root).flat().join(" ")).not.toMatch(/OPEN · TIL|CLOSED/);
   });
 
-  // #standing-menu-double-screen fix: an empty probe used to render CafeSheet inline, inside this
-  // pushed route -- a blank pushed screen with the sheet stacked on top of it. Now it hands off to
-  // HomePane's own CafeSheet (cafeSheetHandoff.ts) and pops itself instead of rendering anything.
-  it("empty fetchMenu -> hands off to HomePane's CafeSheet and pops itself, rendering neither the sheet nor the hall-menu screen here", async () => {
+  // Café-screen unification: an empty ajax probe with a parseable standing-menu item list no longer
+  // hands off anywhere -- it renders right here, in the SAME screen, as the "standing" state.
+  it("empty fetchMenu + standing-menu HTML -> renders the item (unmatched: name only, no nutrition) in this same screen", async () => {
     const root = await renderCafeScreen([]);
     expect(mockedFetchMenu).toHaveBeenCalledWith(32, expect.any(Date));
-    expect(texts(root).flat()).not.toContain("People's Organic Coffee"); // no CafeSheet rendered in this screen
-    expect(mockRouterBack).toHaveBeenCalledTimes(1);
-    expect(takePendingCafeSheet()).toBe("People's Organic Coffee");
+    const flat = texts(root).flat();
+    expect(flat).toContain("Bacon Croissant");
+    expect(flat).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+  });
+
+  // A catalog hit on the same standing-menu name gets full nutrition, rendered via the exact same
+  // dish-row pipeline an integrated/hall item uses.
+  it("empty fetchMenu + standing-menu HTML matched against the catalog -> full nutrition, not just name+price", async () => {
+    mockedSearchCachedDishes.mockReturnValue([
+      { dishName: "Bacon Croissant", nutrition: { ...COFFEE.nutrition, calories: 420, proteinG: 12 }, allergens: [], dietTags: [], updatedAt: "x" },
+    ]);
+    const root = await renderCafeScreen([]);
+    const flat = texts(root).flat();
+    expect(flat).toContain("Bacon Croissant");
+    expect(flat.join(" ")).toMatch(/420\s*cal/);
+  });
+
+  // Café-screen unification AC 2's second half: an unmatched standing-menu row is tappable into the
+  // plate sheet's "add something else" search, pre-filled with its own name -- not a dead end. This
+  // is the one seam (openUnmatchedItemSearch -> plateSearchSeed -> PlateSheet's initialQuery) no
+  // other test crosses; PlateSheet.test.tsx covers `initialQuery` in isolation, this covers the
+  // actual tap wiring that feeds it.
+  it("tapping an unmatched standing-menu row opens the plate sheet's search pre-filled with its name", async () => {
+    const root = await renderCafeScreen([]);
+    const row = root.root.findByProps({ accessibilityLabel: "Search for Bacon Croissant" });
+    await act(async () => {
+      row.props.onPress();
+    });
+    const searchInput = root.root.findByProps({ placeholder: "Search for a food" });
+    expect(searchInput.props.value).toBe("Bacon Croissant");
+  });
+
+  it("empty fetchMenu + no standing menu at all -> the info-only state's content, within this same screen (no menu/dish rows, no filter FAB)", async () => {
+    mockFetchHoursAndCache.mockResolvedValue({
+      halls: [],
+      retail: [{ ...DEFAULT_HOURS_FEED.retail[0], breakfastMenu: null }],
+    });
+    const root = await renderCafeScreen([]);
+    const flat = texts(root).flat();
+    // Neither the standing-menu caveat nor a dish row renders -- this resolved "info", not
+    // "standing"/"integrated". The café's own name still appears TWICE: once in the pushed
+    // screen's header (unchanged for every café state) and once in CafeSheet's own title, proving
+    // CafeSheet actually mounted as this state's content.
+    expect(flat).not.toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+    expect(flat.filter((t) => t === "People's Organic Coffee").length).toBe(2);
+    // Café-screen unification: the filter FAB is hidden entirely in the info-only state (nothing to
+    // filter -- see halls/[slug].tsx's own comment).
+    expect(root.root.findAllByProps({ accessibilityLabel: "Filters" }).length).toBe(0);
   });
 
   it("a name absent from the resolved hours feed shows an error instead of spinning forever", async () => {
@@ -193,15 +259,9 @@ describe("/cafe/[name] probe-at-tap routing (#177)", () => {
     expect(texts(root).flat().join(" ")).toMatch(/Couldn.t find\s+Not A Real Café/);
   });
 
-  // PR #219 review, finding 1: neither fetch below had a `.catch` -- a rejection left the screen
-  // spinning behind only a back chevron forever, plus an unhandled promise rejection. Revert either
-  // `.catch` in cafe/[name].tsx and this test hangs (act(async) never settles on a resolved state)
-  // instead of failing clean, which is itself the bug: a real rejected promise never resolves the
-  // `hoursFeed`/`items` state either, so there was no render for `texts()` to assert against.
-  //
-  // #243 bug C fix note: a rejected fetchHoursAndCache now falls back to getCachedHours() (see
-  // cafe/[name].tsx) -- this test pins the GENUINE dead end (fetch rejects AND no cache exists),
-  // not the offline-with-a-warm-cache case, which has its own test below.
+  // PR #219 review, finding 1: a rejected fetchHoursAndCache with no cache to fall back to used to
+  // leave this screen spinning behind only a back chevron forever, plus an unhandled promise
+  // rejection. `.catch` in cafe/[name].tsx routes here instead.
   it("a rejected fetchHoursAndCache with no cache to fall back to shows an error instead of spinning forever", async () => {
     mockFetchHoursAndCache.mockRejectedValue(new Error("network down"));
     mockGetCachedHours.mockResolvedValue(null);
@@ -215,34 +275,41 @@ describe("/cafe/[name] probe-at-tap routing (#177)", () => {
   // #243 bug C: the actual reported symptom -- a café row Home just rendered FROM CACHE while
   // offline must still be tappable, not error out just because the live hours re-fetch this
   // screen does on its own mount fails the same way it did for Home.
-  it("an offline tap still resolves the café from a warm hours cache instead of erroring (#243 bug C)", async () => {
+  it("an offline tap still resolves the café from a warm hours cache and renders its menu (#243 bug C)", async () => {
     mockFetchHoursAndCache.mockRejectedValue(new Error("network down"));
     mockGetCachedHours.mockResolvedValue({ feed: DEFAULT_HOURS_FEED, fetchedAt: "2026-08-19T12:00:00.000Z" });
+    // HallMenuScreenBody's own ajax fetch (fetchMenuAndRecordSeen) also fails offline -- it falls
+    // back to its own retry-card/cached-menu handling (unit-covered by hallMenu.test.tsx), not this
+    // screen's concern any more; here it just needs to not crash or dead-end.
     mockedFetchMenu.mockRejectedValue(new Error("network down"));
+    mockGetCachedMenu.mockResolvedValue(null);
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
       root = renderer.create(<CafeScreen />);
     });
-    expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load/);
-    // Resolved to the sheet-only outcome and handed off (not rendered here) -- see the fix note above.
-    expect(mockRouterBack).toHaveBeenCalledTimes(1);
-    expect(takePendingCafeSheet()).toBe("People's Organic Coffee");
-    // Pins the fallback wiring itself (getCachedMenu actually consulted with the right args) --
-    // the assertions above pass through the "nothing cached" (`null`) branch alone, so without
-    // this a mutation deleting the `cached ? cached.items : []` fallback and always returning `[]`
-    // would stay green. The "cached menu has real items" branch's own render behavior is covered
-    // by getCachedMenu's round-trip in menuHoursCache.test.ts, not end-to-end here -- see the
-    // comment below for why a full render of that path isn't reachable in this file.
-    expect(mockGetCachedMenu).toHaveBeenCalledWith(32, expect.any(Date));
+    expect(texts(root).flat().join(" ")).not.toMatch(/Couldn.t find|Failed to load/);
   });
 
-  // Note: this screen's own item-fetch effect resolves cached items fine (proven by the
-  // getCachedMenu unit coverage in menuHoursCache.test.ts), but routing to "menu" here means
-  // handing off to HallMenuScreenBody, which does its OWN independent fetchMenuAndRecordSeen call
-  // on mount and only reads its cache manually (the "SHOW SAVED COPY" retry-card link) -- not
-  // proactively. Making that mount-time fetch cache-aware is a real gap, but it's HallMenuScreenBody's
-  // own behavior (shared with every real hall screen too), not something #243 asks this screen to
-  // fix -- out of scope here.
+  // A REJECTED ajax fetch (not just an empty result) must still fall through to the standing-menu
+  // tier, same as an empty one -- pre-unification, this exact outcome (locationId's probe rejects)
+  // already degraded to the fallback sheet rather than a permanent error/skeleton (cafe/[name].tsx's
+  // old #243 bug C comment); this pins that same degradation now that both outcomes render from
+  // inside this one screen. Without cafeState folding `error` into the waterfall, this used to
+  // skeleton-lock forever: `items` stays null on a rejection, mealTabs/tabs never populate, and
+  // HallMenuScreenBody's own top-level `tabs.length === 0` branch never resolves past the loading
+  // skeleton -- see this file's own cafeState doc comment for the fix.
+  it("a rejected ajax fetch with a standing menu still renders that standing menu, not a permanent skeleton", async () => {
+    mockedFetchMenu.mockRejectedValue(new Error("upstream 500"));
+    mockGetCachedMenu.mockResolvedValue(null);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<CafeScreen />);
+    });
+    const flat = texts(root).flat();
+    expect(flat).toContain("Bacon Croissant");
+    expect(flat).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+    expect(flat.join(" ")).not.toMatch(/Getting today.s menu from UMass Dining/); // not the loading skeleton
+  });
 
   // #243 bug D: HallMenuScreenBody's fetch effects are keyed on `hall`'s object IDENTITY (see
   // halls/[slug].tsx), and this screen used to pass a fresh `{tid, name}` literal every render --
@@ -261,20 +328,45 @@ describe("/cafe/[name] probe-at-tap routing (#177)", () => {
     expect(recordSeenMock()?.mock.calls.length ?? 0).toBe(recordSeenCallsBefore);
   });
 
-  // #243 bug C review finding: a rejected menu probe used to set `error` unconditionally (a
-  // permanent "Failed to load" screen even though `loc`'s own hours/description/standing-menu
-  // HTML are already in hand). Now falls back to getCachedMenu first -- this test is the "nothing
-  // cached either" case, which degrades to the CafeSheet fallback instead of a hard error, since
-  // there's genuinely nothing else to show; the "a cached menu exists" case is covered above by
-  // the offline-tap (#243 bug C) test.
-  it("a rejected fetchMenu with no cached menu either hands off to the CafeSheet fallback, not a spinning/error dead end", async () => {
-    mockedFetchMenu.mockRejectedValue(new Error("upstream 500"));
+  // pr-reviewer 3rd-pass finding: cafeMenu.test.ts/retailHallNames.test.ts's own tests pin
+  // syntheticHallTidForName and recordRetailNames in isolation, but neither one exercises the ACTUAL
+  // call site that matters -- halls/[slug].tsx's `cafeHallTid = hall.tid ?? syntheticHallTidForName
+  // (hall.name)`, which is what feeds both the waterfall's synthetic MenuItem and PlateSheet's own
+  // `hallTid` prop (history scoping). Reverting that call site back to the pre-fix `hall.tid ?? -1`
+  // must fail THIS test (confirmed -- see the commit this fix landed in) even though every locationId
+  // fixture elsewhere in this file (32) never exercises the locationId-less branch at all.
+  it("a locationId-less café logs a dish under its own real synthetic hallTid, not the old shared -1 sentinel", async () => {
+    mockFetchHoursAndCache.mockResolvedValue({
+      halls: [],
+      retail: [{ ...DEFAULT_HOURS_FEED.retail[0], name: "Mystery Cart", locationId: undefined, breakfastMenu: "<p>Mystery Snack</p>" }],
+    });
+    // A catalog hit -- so the standing entry is a normal, directly-addable dish row (matched), not
+    // an unmatched name+price row that would need the search flow just to get something onto the
+    // plate at all.
+    mockedSearchCachedDishes.mockReturnValue([{ dishName: "Mystery Snack", nutrition: COFFEE.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+    mockSearchParamName = "Mystery Cart";
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
       root = renderer.create(<CafeScreen />);
     });
-    expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load/);
-    expect(mockRouterBack).toHaveBeenCalledTimes(1);
-    expect(takePendingCafeSheet()).toBe("People's Organic Coffee");
+    mockSearchParamName = "People's Organic Coffee"; // reset for later tests in this file
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Add Mystery Snack to plate" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByType(PlateBar).props.onPress();
+    });
+    const logButton = root.root.findAllByType(Button).find((n) => typeof n.props.children === "string" && /^LOG \d+ ITEMS?$/.test(n.props.children));
+    if (!logButton) throw new Error("LOG N ITEMS button not found -- is the sheet actually open?");
+    await act(async () => {
+      await logButton.props.onPress();
+    });
+
+    const addEntryMock = mockAddEntry();
+    expect(addEntryMock).toHaveBeenCalledTimes(1);
+    const loggedEntry = addEntryMock.mock.calls[0][0];
+    expect(loggedEntry.source).toEqual({ type: "umass-menu", dishName: "Mystery Snack", hallTid: syntheticHallTidForName("Mystery Cart") });
+    expect(loggedEntry.source.hallTid).not.toBe(-1);
   });
 });

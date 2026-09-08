@@ -1,19 +1,107 @@
-import type { MealPeriod, MenuItem, OpenStatus, RetailLocationHours } from "@udine/shared";
+import { parseRetailMenuHtml, type MealPeriod, type MenuItem, type OpenStatus, type RetailLocationHours } from "@udine/shared";
+import { searchCachedDishes, type CachedDishCatalog } from "./dishCatalog";
 import { formatTime } from "./homeHero";
 
-/**
- * #177's runtime model, decided by investigation (issue body): probe `fetchMenu(locationId, today)`
- * at tap time, never precompute a tier -- the foodpro set shifts seasonally. This is the pure
- * decision the probe result maps to; the caller (cafe/[name].tsx) owns actually calling fetchMenu
- * and waiting for it. `locationId === undefined` short-circuits to "sheet" without ever calling
- * fetchMenu at all -- get_infov2 sometimes omits location_id (hours.ts's mapInfoV2 degrades it to
- * undefined rather than throwing), and there's no tid to fetch with in that case.
- */
-export type CafeTapTarget = { kind: "menu" } | { kind: "sheet" };
+/** `Date` -> `YYYY-MM-DD`, for a synthetic standing-menu MenuItem's `.date` field. Not
+ * mobile/src/lib/date.ts's `todayIso` -- that one's hardcoded to `new Date()`, this needs an
+ * arbitrary café-screen `selectedDate`. */
+function isoDate(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
 
-export function cafeTapTarget(locationId: number | undefined, items: MenuItem[]): CafeTapTarget {
-  if (locationId === undefined) return { kind: "sheet" };
-  return items.length > 0 ? { kind: "menu" } : { kind: "sheet" };
+/**
+ * Café-screen unification review finding: a locationId-less café (get_infov2 sometimes omits it)
+ * used to log under a single shared `-1` hallTid sentinel -- harmless before this PR (that state was
+ * read-only, no PlateSheet mounted at all), but this PR mounts PlateSheet in every state, including
+ * that one, so `-1` became a REAL, reachable, and WRONG logging identity: every locationId-less café
+ * would conflate into the same "recent history" (getLoggedUmassDishHistory scopes by hallTid alone)
+ * and none of them would ever get a real display name (retailHallNames.ts's map is keyed by number,
+ * and a locationId-less café had no number to record one under).
+ *
+ * This derives a stable per-name numeric hallTid instead -- always negative (<= -2), so it can never
+ * collide with a real hall tid (1-4), a café locationId, or a GRAB_N_GO_TIDS entry (all positive).
+ * retailHallNames.ts's recordRetailNames keys its display-name map by this same value for a
+ * locationId-less entry, so hallOrRetailName resolves it to the real name instead of "Hall <tid>".
+ *
+ * ponytail: a plain djb2-xor string hash, not a cryptographic one -- two different café NAMES
+ * colliding is possible in principle but not worth guarding against for the small, real-world set
+ * of locationId-less vendors (food trucks, mostly); upgrade to a wider hash (or thread a real
+ * string-keyed identity through shared) if a collision is ever observed live.
+ */
+export function syntheticHallTidForName(name: string): number {
+  let hash = 5381;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 33) ^ name.charCodeAt(i);
+  }
+  return -(Math.abs(hash) + 2);
+}
+
+/** One row of a café's standing menu (parseRetailMenuHtml's "items" shape), after a best-effort
+ * catalog match. A match gets a synthetic MenuItem carrying the catalog's real nutrition/allergens/
+ * dietTags -- mealPeriod "allday" ("daily offerings", same convention deriveCafeMealTabs already
+ * uses for a café with no breakfast/lunch/dinner split) and category "Menu" (standing HTML carries
+ * no station breakdown to group by) -- so it renders/logs through the exact same dish-row/plate
+ * pipeline as any hall or integrated-café item, no fork needed. A miss stays name/price only. */
+export type StandingMenuEntry = { matched: true; item: MenuItem } | { matched: false; name: string; price: string | null };
+
+/** Best-effort case-insensitive catalog match for one standing-menu row -- reuses
+ * dishCatalog.ts's searchCachedDishes verbatim (same lookup PlateSheet's own search already uses),
+ * preferring an exact (trimmed, case-insensitive) name match over its first substring hit.
+ * ponytail: no fuzzier ranking (edit distance, token overlap) than that -- a genuine false-positive
+ * substring match hasn't been observed against a real catalog; upgrade if one shows up in practice. */
+function matchStandingMenuItem(parsed: { name: string; price: string | null }, catalog: CachedDishCatalog | null, hallTid: number, date: Date): StandingMenuEntry {
+  const hits = searchCachedDishes(catalog, parsed.name);
+  const hit = hits.find((h) => h.dishName.trim().toLowerCase() === parsed.name.trim().toLowerCase()) ?? hits[0];
+  if (!hit) return { matched: false, name: parsed.name, price: parsed.price };
+  return {
+    matched: true,
+    item: {
+      dishName: hit.dishName,
+      category: "Menu",
+      mealPeriod: "allday",
+      hallTid,
+      date: isoDate(date),
+      nutrition: hit.nutrition,
+      allergens: hit.allergens,
+      dietTags: hit.dietTags,
+      price: parsed.price ?? undefined,
+    },
+  };
+}
+
+/**
+ * Café-screen unification: `cafeTapTarget`'s old binary {menu}|{sheet} navigation decision is
+ * retired -- the café route is now ALWAYS the same pushed screen (see halls/[slug].tsx's
+ * HallMenuScreenBody, which now renders both halls and cafés), so there's nothing left to route
+ * between. This is what that ONE screen uses to pick which of its three internal states to show,
+ * per the waterfall investigation confirmed live against real UMass endpoints:
+ *
+ *   1. `ajaxItems` non-empty (the same `fetchMenu(locationId, date)` call the 4 dining halls use,
+ *      just keyed by the café's own location_id) -> "integrated": full nutrition, real meal tabs,
+ *      identical treatment to a dining hall.
+ *   2. else, the standing-menu HTML (get_infov2's *_menu fields, already picked by
+ *      pickCafeMenuHtml) parses (parseRetailMenuHtml) to an item list -> "standing": each row
+ *      best-effort matched against the cached dish catalog (matchStandingMenuItem above).
+ *   3. else, that HTML is a PDF link -> "info" carrying it (CafePdfViewer's existing affordance,
+ *      surfaced from inside this same state); no html/items/pdf at all -> "info" with none --
+ *      hours/address/directions/payment only (CafeSheet, narrowed to just that content).
+ */
+export type CafeMenuState =
+  | { kind: "integrated"; items: MenuItem[] }
+  | { kind: "standing"; entries: StandingMenuEntry[] }
+  | { kind: "info"; pdf: { url: string; label: string } | null };
+
+export function resolveCafeMenuState(ajaxItems: MenuItem[], standingHtml: string | null | undefined, catalog: CachedDishCatalog | null, hallTid: number, date: Date): CafeMenuState {
+  if (ajaxItems.length > 0) return { kind: "integrated", items: ajaxItems };
+
+  const parsed = parseRetailMenuHtml(standingHtml);
+  if (parsed.kind === "items") {
+    return { kind: "standing", entries: parsed.items.map((i) => matchStandingMenuItem(i, catalog, hallTid, date)) };
+  }
+  if (parsed.kind === "pdf") return { kind: "info", pdf: { url: parsed.url, label: parsed.label } };
+  return { kind: "info", pdf: null };
 }
 
 /**
