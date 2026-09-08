@@ -42,8 +42,14 @@ jest.mock("../lib/favoritesStorage", () => ({
   useGuardedToggleFavorite: jest.requireActual("../lib/favoritesStorage").useGuardedToggleFavorite,
 }));
 
+// Spread the real module (menu-filters-macros) -- the screen now also imports setPreferences (fired
+// when a FilterSheet allergen/diet/macro chip is toggled) and FilterSheet.tsx itself imports the
+// real, pure toggleAllergen/toggleDietTag/toggleMacroPreset -- only the SQLite-backed
+// getPreferences/setPreferences need mocking, same reasoning as filtersScreen.test.tsx's mock.
 jest.mock("../lib/preferences", () => ({
+  ...jest.requireActual("../lib/preferences"),
   getPreferences: jest.fn().mockResolvedValue({ allergensToAvoid: [], requiredDietTags: [] }),
+  setPreferences: jest.fn(),
 }));
 
 jest.mock("expo-router", () => ({
@@ -454,6 +460,34 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
     expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
     expect(sections[0].data).toHaveLength(1); // deduped, not two identical rows
+  });
+
+  // pr-reviewer (#362 REQUEST-CHANGES, finding 1): reintroducing station/price-filtering on
+  // grabSectionsMemo (mutating it back to `grabSections(stationPriceFilteredGrabItems, prefs)`) left
+  // the full suite green -- nothing exercised the Grab tab with a station filter selected. FilterSheet's
+  // "Stations Here" checklist is built from the hall's own `items` (here, PIZZA's "Entrees"), never
+  // from `grabItems` -- so selecting "Entrees" must have zero effect on Grab's own "Grab n'Go Hot"
+  // section, which this pins directly.
+  it("a station filter selected via FilterSheet does not silently empty the Grab 'N Go tab (its own stations aren't in that checklist)", async () => {
+    const root = await renderScreen([PIZZA]); // category "Entrees"
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Filters" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Station Entrees" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Done" }).props.onPress();
+    });
+
+    mockedFetchMenu.mockResolvedValueOnce([{ ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester }]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+
+    const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
+    expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
   });
 
   // The single most important regression the swipe pager's windowing could introduce: Grab's own

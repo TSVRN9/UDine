@@ -73,6 +73,12 @@ interface Props {
   onChangeStationFilter: (next: Set<string>) => void;
   priceFilter: ReadonlySet<PriceBucket>;
   onChangePriceFilter: (next: Set<PriceBucket>) => void;
+  /** True while the caller's own station/price filtering has no visible effect on what's currently
+   * shown (e.g. halls/[slug].tsx's Grab 'N Go tab, whose sections are never station/price-filtered --
+   * see that screen's own comment on why) -- hides Stations Here/Price entirely rather than showing
+   * controls that would silently do nothing until the user switches to a different tab. #362 review
+   * (non-blocking finding 3). */
+  stationsPriceDisabled?: boolean;
   onClose: () => void;
 }
 
@@ -83,14 +89,25 @@ interface Props {
  * parent screen owns FoodPreferences (persisted) and the station/price selection (ephemeral, local
  * state, never saved) and passes both down.
  */
-export function FilterSheet({ visible, items, prefs, onChangePreferences, stationFilter, onChangeStationFilter, priceFilter, onChangePriceFilter, onClose }: Props) {
+export function FilterSheet({
+  visible,
+  items,
+  prefs,
+  onChangePreferences,
+  stationFilter,
+  onChangeStationFilter,
+  priceFilter,
+  onChangePriceFilter,
+  stationsPriceDisabled = false,
+  onClose,
+}: Props) {
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose);
 
   const allergens = [...new Set(items.flatMap((i) => i.allergens))].sort();
   const dietTags = [...new Set(items.flatMap((i) => i.dietTags))].sort();
   const stations = distinctStations(items);
-  const showPrice = items.some((i) => i.price !== undefined);
+  const showPrice = !stationsPriceDisabled && items.some((i) => i.price !== undefined);
   const enabledMacroPresets = prefs.macroPresets ?? [];
 
   function toggleStation(station: string) {
@@ -149,6 +166,7 @@ export function FilterSheet({ visible, items, prefs, onChangePreferences, statio
                         style={[styles.excludeChip, active && styles.excludeChipActive]}
                         onPress={() => onChangePreferences(toggleAllergen(prefs, a))}
                         accessibilityRole="button"
+                        accessibilityLabel={`Allergen ${a}`}
                         accessibilityState={{ selected: active }}
                       >
                         <Text style={[styles.excludeChipText, active && styles.excludeChipTextActive]}>
@@ -179,6 +197,7 @@ export function FilterSheet({ visible, items, prefs, onChangePreferences, statio
                         style={[styles.excludeChip, active && styles.excludeChipActive]}
                         onPress={() => onChangePreferences(toggleDietTag(prefs, t))}
                         accessibilityRole="button"
+                        accessibilityLabel={`Diet tag ${t}`}
                         accessibilityState={{ selected: active }}
                       >
                         <Text style={[styles.excludeChipText, active && styles.excludeChipTextActive]}>
@@ -206,6 +225,7 @@ export function FilterSheet({ visible, items, prefs, onChangePreferences, statio
                       style={[styles.toggleChip, active && styles.toggleChipActive]}
                       onPress={() => onChangePreferences(toggleMacroPreset(prefs, preset))}
                       accessibilityRole="button"
+                      accessibilityLabel={`Macro ${MACRO_PRESET_LABELS[preset]}`}
                       accessibilityState={{ selected: active }}
                     >
                       <Text style={[styles.toggleChipText, active && styles.toggleChipTextActive]}>
@@ -218,31 +238,34 @@ export function FilterSheet({ visible, items, prefs, onChangePreferences, statio
               </View>
             </View>
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Stations Here</Text>
-                <Text style={styles.sectionSubtext}>this menu only</Text>
+            {!stationsPriceDisabled && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Stations Here</Text>
+                  <Text style={styles.sectionSubtext}>this menu only</Text>
+                </View>
+                <View style={styles.chipRow}>
+                  {stations.map((station) => {
+                    const active = stationFilter.has(station);
+                    return (
+                      <Pressable
+                        key={station}
+                        style={[styles.toggleChip, active && styles.toggleChipActive]}
+                        onPress={() => toggleStation(station)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Station ${station}`}
+                        accessibilityState={{ selected: active }}
+                      >
+                        <Text style={[styles.toggleChipText, active && styles.toggleChipTextActive]}>
+                          {active ? "✓ " : ""}
+                          {station}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
-              <View style={styles.chipRow}>
-                {stations.map((station) => {
-                  const active = stationFilter.has(station);
-                  return (
-                    <Pressable
-                      key={station}
-                      style={[styles.toggleChip, active && styles.toggleChipActive]}
-                      onPress={() => toggleStation(station)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                    >
-                      <Text style={[styles.toggleChipText, active && styles.toggleChipTextActive]}>
-                        {active ? "✓ " : ""}
-                        {station}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+            )}
 
             {showPrice && (
               <View style={styles.section}>
@@ -259,6 +282,7 @@ export function FilterSheet({ visible, items, prefs, onChangePreferences, statio
                         style={[styles.toggleChip, active && styles.toggleChipActive]}
                         onPress={() => togglePrice(bucket)}
                         accessibilityRole="button"
+                        accessibilityLabel={`Price ${PRICE_BUCKET_LABELS[bucket]}`}
                         accessibilityState={{ selected: active }}
                       >
                         <Text style={[styles.toggleChipText, active && styles.toggleChipTextActive]}>
@@ -274,10 +298,10 @@ export function FilterSheet({ visible, items, prefs, onChangePreferences, statio
           </ScrollView>
 
           <View style={styles.footer}>
-            <Pressable style={styles.footerGhost} onPress={clearAll} accessibilityRole="button">
+            <Pressable style={styles.footerGhost} onPress={clearAll} accessibilityRole="button" accessibilityLabel="Clear all filters">
               <Text style={styles.footerGhostText}>CLEAR ALL</Text>
             </Pressable>
-            <Pressable style={styles.footerPrimary} onPress={onClose} accessibilityRole="button">
+            <Pressable style={styles.footerPrimary} onPress={onClose} accessibilityRole="button" accessibilityLabel="Done">
               <Text style={styles.footerPrimaryText}>DONE</Text>
             </Pressable>
           </View>

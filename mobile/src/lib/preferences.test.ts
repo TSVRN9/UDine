@@ -5,7 +5,8 @@
 // technique as dishCatalog.test.ts -- mocked at the expo-sqlite boundary so getDb()'s own
 // table-creation/singleton code stays in play.
 
-import { getPreferences, setPreferences } from "./preferences";
+import type { FoodPreferences } from "@udine/shared";
+import { getPreferences, setPreferences, toggleAllergen, toggleDietTag, toggleMacroPreset } from "./preferences";
 
 const mockRows = new Map<string, string>();
 
@@ -45,5 +46,33 @@ describe("getPreferences macroPresets migration", () => {
     await setPreferences({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["low-sodium"] });
     const prefs = await getPreferences();
     expect(prefs.macroPresets).toEqual(["low-sodium"]);
+  });
+});
+
+// pr-reviewer (#362 REQUEST-CHANGES, finding 2): mutating toggleAllergen to a no-op (`return prefs`)
+// left the full mobile suite green -- nothing exercised these pure functions directly. Direct tests
+// on the exact functions the mutation targeted, so a future no-op/wrong-field mutation fails here
+// immediately rather than depending on some caller happening to assert on the result.
+describe("toggleAllergen/toggleDietTag/toggleMacroPreset (pure)", () => {
+  const BASE: FoodPreferences = { allergensToAvoid: ["Milk"], requiredDietTags: ["Vegan"], macroPresets: ["high-fiber"] };
+
+  it("toggleAllergen adds an absent allergen and removes a present one, leaving other fields untouched", () => {
+    expect(toggleAllergen(BASE, "Gluten")).toEqual({ ...BASE, allergensToAvoid: ["Milk", "Gluten"] });
+    expect(toggleAllergen(BASE, "Milk")).toEqual({ ...BASE, allergensToAvoid: [] });
+  });
+
+  it("toggleDietTag adds an absent tag and removes a present one, leaving other fields untouched", () => {
+    expect(toggleDietTag(BASE, "Halal")).toEqual({ ...BASE, requiredDietTags: ["Vegan", "Halal"] });
+    expect(toggleDietTag(BASE, "Vegan")).toEqual({ ...BASE, requiredDietTags: [] });
+  });
+
+  it("toggleMacroPreset adds an absent preset and removes a present one, leaving other fields untouched", () => {
+    expect(toggleMacroPreset(BASE, "high-protein")).toEqual({ ...BASE, macroPresets: ["high-fiber", "high-protein"] });
+    expect(toggleMacroPreset(BASE, "high-fiber")).toEqual({ ...BASE, macroPresets: [] });
+  });
+
+  it("toggleMacroPreset treats a missing macroPresets field (pre-migration blob) as empty, not a crash", () => {
+    const noMacros = { allergensToAvoid: [], requiredDietTags: [] } as FoodPreferences;
+    expect(toggleMacroPreset(noMacros, "low-sodium")).toEqual({ ...noMacros, macroPresets: ["low-sodium"] });
   });
 });

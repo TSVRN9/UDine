@@ -75,7 +75,13 @@ export default function FiltersScreen() {
       <View style={styles.thinRule} />
       <View style={styles.chipRow}>
         {allergens.map((a) => (
-          <Pressable key={a} style={[styles.chip, prefs.allergensToAvoid.includes(a) && styles.chipActive]} onPress={() => onToggleAllergen(a)} accessibilityRole="button">
+          <Pressable
+            key={a}
+            style={[styles.chip, prefs.allergensToAvoid.includes(a) && styles.chipActive]}
+            onPress={() => onToggleAllergen(a)}
+            accessibilityRole="button"
+            accessibilityLabel={`Allergen ${a}`}
+          >
             <Text style={[styles.chipText, prefs.allergensToAvoid.includes(a) && styles.chipTextActive]}>{a}</Text>
           </Pressable>
         ))}
@@ -86,7 +92,13 @@ export default function FiltersScreen() {
       <View style={styles.thinRule} />
       <View style={styles.chipRow}>
         {dietTags.map((t) => (
-          <Pressable key={t} style={[styles.chip, prefs.requiredDietTags.includes(t) && styles.chipActive]} onPress={() => onToggleDietTag(t)} accessibilityRole="button">
+          <Pressable
+            key={t}
+            style={[styles.chip, prefs.requiredDietTags.includes(t) && styles.chipActive]}
+            onPress={() => onToggleDietTag(t)}
+            accessibilityRole="button"
+            accessibilityLabel={`Diet tag ${t}`}
+          >
             <Text style={[styles.chipText, prefs.requiredDietTags.includes(t) && styles.chipTextActive]}>{t}</Text>
           </Pressable>
         ))}
