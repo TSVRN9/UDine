@@ -5,10 +5,13 @@ import {
   fetchEvents,
   favoriteKey,
   GRAB_N_GO_TIDS,
+  menuItemMacroBadges,
+  menuItemMatchesPreferences,
   type DiningEvent,
   type DiningHoursFeed,
   type Favorite,
   type FoodPreferences,
+  type MacroPreset,
   type MealPeriod,
   type MenuItem,
   type OffSearchResult,
@@ -34,6 +37,7 @@ import Svg, { Path } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
 import { FavoriteStar } from "../../components/FavoriteStar";
+import { FilterSheet, itemMatchesStationAndPriceFilter, MACRO_PRESET_LABELS, type PriceBucket } from "../../components/FilterSheet";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
 import { HoldSlideAddButton } from "../../components/HoldSlideAddButton";
 import { HoldSlideHost, type HoldSlideHostHandle } from "../../components/HoldSlideOverlay";
@@ -78,7 +82,7 @@ import {
   useGuardedLogPlate,
   type PlateEntry,
 } from "../../lib/plate";
-import { getPreferences } from "../../lib/preferences";
+import { getPreferences, setPreferences } from "../../lib/preferences";
 import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
@@ -126,6 +130,35 @@ function GrabBagIcon({ color }: { color: string }) {
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
       <Path d="M7 9V6a5 5 0 0 1 10 0v3" stroke={color} strokeWidth={2} strokeLinecap="round" />
       <Path d="M5 9h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 9Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+/** menu-filters-macros: a single-letter circular badge (thin gold stroke, matching this file's
+ * existing icon/chip palette) for one enabled macro preset -- deliberately not a hand-drawn per-
+ * preset SVG glyph (5 distinct icons with no design asset to match would be guessing); the letter is
+ * distinct per preset and accessibilityLabel carries the full name for anyone not just eyeballing it. */
+const MACRO_BADGE_GLYPH: Record<MacroPreset, string> = {
+  "high-protein": "P",
+  "low-sodium": "S",
+  "under-500-cal": "C",
+  "low-fat": "L",
+  "high-fiber": "F",
+};
+
+function MacroBadgeIcon({ preset }: { preset: MacroPreset }) {
+  return (
+    <View style={styles.macroBadge} accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
+      <Text style={styles.macroBadgeText}>{MACRO_BADGE_GLYPH[preset]}</Text>
+    </View>
+  );
+}
+
+/** Filter-funnel glyph for the FilterSheet FAB -- same thin-stroke style as GrabBagIcon above. */
+function FilterGlyphIcon({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 5h16l-6 8v6l-4 2v-8L4 5Z" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
     </Svg>
   );
 }
@@ -315,6 +348,12 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // (get_beacons_events vs get_infov2) -- see HallInfoSheet's own doc for why it's unfiltered by
   // hall despite the "per-hall events" framing.
   const [infoSheetOpen, setInfoSheetOpen] = useState(false);
+  // Menu-filters-macros: FilterSheet's own open state, plus its two ephemeral (never persisted,
+  // "this menu only") refinements -- reset on every reopen isn't needed here since these are plain
+  // local state that starts empty each mount and Clear All resets explicitly; nothing else writes them.
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [stationFilter, setStationFilter] = useState<Set<string>>(new Set());
+  const [priceFilter, setPriceFilter] = useState<Set<PriceBucket>>(new Set());
   const [events, setEvents] = useState<DiningEvent[]>([]);
   const [labelItem, setLabelItem] = useState<MenuItem | null>(null);
   const [barHeight, setBarHeight] = useState(0);
@@ -465,12 +504,34 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // Every mounted pane computes its own sections (not just whichever tab is selected) so the swipe
   // pager's windowed neighbors have real content to crossfade, not a placeholder -- pulled out to
   // lib/hallMenuSections.ts (sectionsForPeriod/grabSections) so it's pure/testable and shared.
+  // Station/price are ephemeral, "this menu only" refinements (menu-filters-macros) -- filtered in
+  // HERE, before hallMenuSections.ts's own sectionsForPeriod/grabSections, which stays
+  // allergens/diet-tags only per CLAUDE.md (macros/station/price never exclude anything there).
+  // Grab 'N Go items are deliberately EXCLUDED from this filter: FilterSheet's "Stations Here"
+  // checklist is built from `items` (this hall's own menu) only, not `grabItems` (a different tid,
+  // fetched lazily only once the Grab tab is opened) -- station-filtering Grab against a checklist
+  // that never lists Grab's own categories would silently empty that tab with no checkbox to undo it.
+  const stationPriceFilteredItems = useMemo(
+    () => (items ?? []).filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter)),
+    [items, stationFilter, priceFilter],
+  );
   const sectionsByPeriod = useMemo(() => {
     const map = new Map<MealPeriod, MenuSection[]>();
-    for (const period of mealTabs) map.set(period, sectionsForPeriod(items ?? [], period, prefs));
+    for (const period of mealTabs) map.set(period, sectionsForPeriod(stationPriceFilteredItems, period, prefs));
     return map;
-  }, [items, mealTabs, prefs]);
+  }, [stationPriceFilteredItems, mealTabs, prefs]);
   const grabSectionsMemo = useMemo(() => (grabItems ? grabSections(grabItems, prefs) : []), [grabItems, prefs]);
+  // FAB state (menu-filters-macros): driven ONLY by allergens/diet-tags currently hiding something --
+  // macros never filter, so they never drive this, same derivation web's +page.svelte already uses
+  // (data.items.filter(i => !menuItemMatchesPreferences(i, prefs)).length), on the UNFILTERED item
+  // list (station/price selections must not change what the badge reports).
+  const hiddenCount = useMemo(() => (items ?? []).filter((i) => !menuItemMatchesPreferences(i, prefs)).length, [items, prefs]);
+
+  // FilterSheet is presentational/controlled (see its own doc) -- this screen owns persistence.
+  function onChangePreferences(next: FoodPreferences) {
+    setPrefs(next);
+    setPreferences(next);
+  }
 
   const totals = useMemo(() => computeDailyTotals("plate", toLogEntries(plate, "1970-01-01T00:00:00.000Z")), [plate]);
   const priceTotal = useMemo(() => totalPlatePrice(plate), [plate]);
@@ -596,6 +657,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     const plateEntry = plate.find((p) => p.key === dishKey);
     const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
     const expanded = expandedKeys.has(dishKey);
+    const macroBadges = menuItemMacroBadges(item, prefs);
     return (
       // #117: whole card is tappable and expands in place -- the (i) info button is gone,
       // replaced by this and the FULL NUTRITION LABEL link below. The expand toggle is a
@@ -623,6 +685,13 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
               <Text style={styles.rowCalories}>
                 {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
               </Text>
+              {macroBadges.length > 0 && (
+                <View style={styles.macroBadgeRow}>
+                  {macroBadges.map((preset) => (
+                    <MacroBadgeIcon key={preset} preset={preset} />
+                  ))}
+                </View>
+              )}
             </View>
           </View>
           <PlateAddControl
@@ -956,6 +1025,23 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           <Text style={styles.loggedBannerText}>{logged}</Text>
         </Reanimated.View>
       )}
+      {/* Menu-filters-macros: permanent, in-context filter FAB -- pinned above the plate bar (48x48,
+      right:20/bottom:108 per the canvas). Bare/inactive when nothing's currently hidden; dark-filled
+      with a gold hidden-count badge once allergens/diet-tags are excluding something (macros never
+      drive this -- see hiddenCount's own comment above). Opens FilterSheet in place, no navigation. */}
+      <Pressable
+        style={[styles.filterFab, hiddenCount > 0 && styles.filterFabActive]}
+        onPress={() => setFilterSheetOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={hiddenCount > 0 ? `Filters, hiding ${hiddenCount} ${hiddenCount === 1 ? "dish" : "dishes"}` : "Filters"}
+      >
+        <FilterGlyphIcon color={hiddenCount > 0 ? colors.paper50 : colors.maroon600} />
+        {hiddenCount > 0 && (
+          <View style={styles.filterFabBadge}>
+            <Text style={styles.filterFabBadgeText}>{hiddenCount}</Text>
+          </View>
+        )}
+      </Pressable>
       <PlateBar
         itemCount={totalItemCount(plate)}
         totals={totals}
@@ -990,6 +1076,21 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         onAddHistoryDish={addHistoryDish}
         onLog={logPlate}
         onClose={() => setSheetOpen(false)}
+      />
+      <FilterSheet
+        visible={filterSheetOpen}
+        items={items ?? []}
+        prefs={prefs}
+        onChangePreferences={onChangePreferences}
+        stationFilter={stationFilter}
+        onChangeStationFilter={setStationFilter}
+        priceFilter={priceFilter}
+        onChangePriceFilter={setPriceFilter}
+        // #362 review (non-blocking finding 3): Grab's own sections are never station/price-filtered
+        // (see grabSectionsMemo's own comment above) -- hide those two controls while on the Grab tab
+        // instead of showing ones that would silently do nothing until switching tabs.
+        stationsPriceDisabled={selectedMeal === "grab"}
+        onClose={() => setFilterSheetOpen(false)}
       />
       {/* Real-hall only -- see the header render's own comment on why a café has no glyph to open
       this from at all. `infoSheetOpen` can never become true for a café since no Pressable ever
@@ -1180,6 +1281,36 @@ const styles = StyleSheet.create({
   rowMetaLine: { flexDirection: "row", alignItems: "baseline", gap: spacing(2) },
   rowPrice: { fontSize: fs(12), fontFamily: fonts.mono, fontWeight: "600", color: colors.maroon600 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
+  macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
+  macroBadge: { width: fs(15), height: fs(15), borderRadius: fs(15) / 2, borderWidth: 1, borderColor: colors.gold500, alignItems: "center", justifyContent: "center" },
+  macroBadgeText: { fontSize: fs(8), fontFamily: fonts.mono, fontWeight: "700", color: colors.maroon600 },
+  filterFab: {
+    position: "absolute",
+    right: 20,
+    bottom: 108,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: withOpacity(colors.maroon600, 35),
+    backgroundColor: colors.paper50,
+  },
+  filterFabActive: { backgroundColor: colors.maroon900, borderColor: colors.maroon900 },
+  filterFabBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: fs(18),
+    height: fs(18),
+    borderRadius: fs(9),
+    paddingHorizontal: 3,
+    backgroundColor: colors.gold500,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterFabBadgeText: { fontSize: fs(10), fontFamily: fonts.mono, fontWeight: "700", color: colors.maroon900 },
   expandedContent: { gap: spacing(2.5) },
   expandedDivider: { height: 1, backgroundColor: withOpacity(colors.ink900, 10) },
   servingSummary: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 70) },

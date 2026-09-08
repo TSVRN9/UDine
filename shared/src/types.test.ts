@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { favoriteKey, menuItemMatchesPreferences } from "./types.ts";
-import type { MenuItem, NutritionFacts } from "./types.ts";
+import { favoriteKey, menuItemMacroBadges, menuItemMatchesPreferences } from "./types.ts";
+import type { FoodPreferences, MacroPreset, MenuItem, NutritionFacts } from "./types.ts";
 
 const NUTRITION: NutritionFacts = {
   servingSize: "1 serving",
@@ -51,4 +51,59 @@ test("menuItemMatchesPreferences passes a dish with no conflicts and no requirem
 test("favoriteKey distinguishes dish and location favorites", () => {
   assert.equal(favoriteKey({ type: "dish", dishName: "Black Beans" }), "dish:Black Beans");
   assert.equal(favoriteKey({ type: "location", hallTid: 3 }), "location:3");
+});
+
+function prefsWith(macroPresets: MacroPreset[]): FoodPreferences {
+  return { allergensToAvoid: [], requiredDietTags: [], macroPresets };
+}
+
+const ALL_PRESETS: MacroPreset[] = ["high-protein", "low-sodium", "under-500-cal", "low-fat", "high-fiber"];
+
+test("menuItemMacroBadges never returns a preset the caller hasn't enabled", () => {
+  const dish = item({ nutrition: { ...NUTRITION, proteinG: 30 } });
+  assert.deepEqual(menuItemMacroBadges(dish, prefsWith([])), []);
+});
+
+test("menuItemMacroBadges treats a missing macroPresets field as none enabled", () => {
+  const dish = item({ nutrition: { ...NUTRITION, proteinG: 30 } });
+  assert.deepEqual(menuItemMacroBadges(dish, { allergensToAvoid: [], requiredDietTags: [] }), []);
+});
+
+test("high-protein badges at >=20g protein, not below", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, proteinG: 20 } }), prefsWith(["high-protein"])), ["high-protein"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, proteinG: 19.9 } }), prefsWith(["high-protein"])), []);
+});
+
+test("low-sodium badges at <=400mg sodium, not above", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, sodiumMg: 400 } }), prefsWith(["low-sodium"])), ["low-sodium"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, sodiumMg: 401 } }), prefsWith(["low-sodium"])), []);
+});
+
+test("under-500-cal badges at <=500 calories, not above", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 500 } }), prefsWith(["under-500-cal"])), ["under-500-cal"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 501 } }), prefsWith(["under-500-cal"])), []);
+});
+
+test("low-fat badges at <=30% fat-calorie ratio, not above, and guards calories === 0", () => {
+  // 27 fat-cal / 90 cal = 0.30 exactly -> at threshold, badges.
+  assert.deepEqual(
+    menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 90, totalFatG: 3 } }), prefsWith(["low-fat"])),
+    ["low-fat"],
+  );
+  // 27.9 fat-cal / 90 cal = 0.31 -> just above threshold, no badge.
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 90, totalFatG: 3.1 } }), prefsWith(["low-fat"])), []);
+  // calories === 0 must not divide by zero into a false-positive NaN comparison.
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 0, totalFatG: 0 } }), prefsWith(["low-fat"])), []);
+});
+
+test("high-fiber badges at >=5g dietary fiber, not below", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, dietaryFiberG: 5 } }), prefsWith(["high-fiber"])), ["high-fiber"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, dietaryFiberG: 4.9 } }), prefsWith(["high-fiber"])), []);
+});
+
+test("menuItemMacroBadges returns every enabled preset a dish qualifies for", () => {
+  const dish = item({
+    nutrition: { ...NUTRITION, proteinG: 25, sodiumMg: 100, calories: 200, totalFatG: 2, dietaryFiberG: 6 },
+  });
+  assert.deepEqual(menuItemMacroBadges(dish, prefsWith(ALL_PRESETS)), ALL_PRESETS);
 });
