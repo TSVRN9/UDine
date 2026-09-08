@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { EmptyState } from "../components/ui";
 import { MenuErrorCard } from "../components/MenuErrorCard";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
-import { getPreferences, setPreferences } from "../lib/preferences";
+import { getPreferences, setPreferences, toggleAllergen, toggleDietTag } from "../lib/preferences";
 
 export default function FiltersScreen() {
   const [allergens, setAllergens] = useState<string[] | null>(null);
@@ -44,18 +44,14 @@ export default function FiltersScreen() {
     };
   }, [loadMenus]);
 
-  function toggleAllergen(allergen: string) {
-    const next = prefs.allergensToAvoid.includes(allergen)
-      ? prefs.allergensToAvoid.filter((a) => a !== allergen)
-      : [...prefs.allergensToAvoid, allergen];
-    const updated = { ...prefs, allergensToAvoid: next };
+  function onToggleAllergen(allergen: string) {
+    const updated = toggleAllergen(prefs, allergen);
     setPrefs(updated);
     setPreferences(updated);
   }
 
-  function toggleDietTag(tag: string) {
-    const next = prefs.requiredDietTags.includes(tag) ? prefs.requiredDietTags.filter((t) => t !== tag) : [...prefs.requiredDietTags, tag];
-    const updated = { ...prefs, requiredDietTags: next };
+  function onToggleDietTag(tag: string) {
+    const updated = toggleDietTag(prefs, tag);
     setPrefs(updated);
     setPreferences(updated);
   }
@@ -79,7 +75,7 @@ export default function FiltersScreen() {
       <View style={styles.thinRule} />
       <View style={styles.chipRow}>
         {allergens.map((a) => (
-          <Pressable key={a} style={[styles.chip, prefs.allergensToAvoid.includes(a) && styles.chipActive]} onPress={() => toggleAllergen(a)} accessibilityRole="button">
+          <Pressable key={a} style={[styles.chip, prefs.allergensToAvoid.includes(a) && styles.chipActive]} onPress={() => onToggleAllergen(a)} accessibilityRole="button">
             <Text style={[styles.chipText, prefs.allergensToAvoid.includes(a) && styles.chipTextActive]}>{a}</Text>
           </Pressable>
         ))}
@@ -90,7 +86,7 @@ export default function FiltersScreen() {
       <View style={styles.thinRule} />
       <View style={styles.chipRow}>
         {dietTags.map((t) => (
-          <Pressable key={t} style={[styles.chip, prefs.requiredDietTags.includes(t) && styles.chipActive]} onPress={() => toggleDietTag(t)} accessibilityRole="button">
+          <Pressable key={t} style={[styles.chip, prefs.requiredDietTags.includes(t) && styles.chipActive]} onPress={() => onToggleDietTag(t)} accessibilityRole="button">
             <Text style={[styles.chipText, prefs.requiredDietTags.includes(t) && styles.chipTextActive]}>{t}</Text>
           </Pressable>
         ))}
