@@ -1,18 +1,10 @@
-// CafeSheet reads safe-area insets; no SafeAreaProvider in this render tree (same fix as
-// PlateBar.test.tsx/PlateSheet.test.tsx).
+// CafeSheet reads no safe-area insets or Modal machinery anymore (café-screen unification: it's
+// plain content mounted inside HallMenuScreenBody's info-only state, not a standalone sheet Modal
+// -- see this file's own doc comment).
 import renderer, { act } from "react-test-renderer";
-import { Modal, Text } from "react-native";
-// The sheet's backdrop/panel Animated.View layers are react-native-reanimated's own component
-// (useDraggableSheet's panelStyle/backdropStyle come from useAnimatedStyle) since the #245-item-5
-// follow-up (draggable bottom sheets) migrated off plain RN Animated -- react-native's own
-// Animated.View is a different component reference and would never match findAllByType below.
-import Animated from "react-native-reanimated";
+import { Text } from "react-native";
 import type { RetailLocationHours } from "@udine/shared";
 import { CafeSheet } from "./CafeSheet";
-
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
@@ -36,68 +28,28 @@ function loc(overrides: Partial<RetailLocationHours> = {}): RetailLocationHours 
   };
 }
 
-function render(location: RetailLocationHours, onOpenPdf = jest.fn()) {
+function render(location: RetailLocationHours, pdf: { url: string; label: string } | null = null, onOpenPdf = jest.fn()) {
   let root!: renderer.ReactTestRenderer;
   act(() => {
-    root = renderer.create(<CafeSheet visible loc={location} now={NOON} onClose={jest.fn()} onOpenPdf={onOpenPdf} />);
+    root = renderer.create(<CafeSheet loc={location} now={NOON} pdf={pdf} onOpenPdf={onOpenPdf} />);
   });
   return root;
 }
 
-describe("CafeSheet (#177 fallback sheet)", () => {
-  it("labels the standing menu with the exact caveat copy the issue's owner comment requires -- never presented as today's menu", () => {
-    // Real capture shape, hours.test.ts's REAL_PEOPLES_ORGANIC.breakfast_menu.
-    const root = render(loc({ breakfastMenu: "<p>Bacon Croissant</p><p>Veggie Croissant</p>" }));
-    expect(texts(root).flat()).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
-    expect(texts(root).flat()).toContain("MENU");
-  });
-
-  it("renders sanitized item-list menu rows (name + price) via the shared trust-boundary parser, never the raw markup", () => {
-    // "Name $X.XX" is parseRetailMenuHtml's own price-splitting shape (shared/src/content.ts) --
-    // Coffee's line has no price, Bagel's does, matching real feed variety (People's Organic's own
-    // capture is name-only; the parser also handles an embedded price on the same line).
-    const root = render(loc({ breakfastMenu: "<p>Coffee</p><p>Bagel $2.50</p>" }));
-    const flat = texts(root).flat();
-    expect(flat).toContain("Coffee");
-    expect(flat).toContain("Bagel");
-    expect(flat).toContain("$2.50");
-    // Never the raw HTML fragment -- proves this renders parsed text, not {@html}-style raw markup.
-    expect(flat.some((t) => typeof t === "string" && t.includes("<p>"))).toBe(false);
-  });
-
-  it("renders each <br>-separated line within one <p> block as its own priced row (#178/#216 parser fix)", () => {
-    // Real shape several cafés use (Argo Tea/Peet's/Courtside, per #178's pr-review): the WHOLE
-    // menu packed into one <p> with <br>-separated lines, not one <p> per dish. shared/src/
-    // content.ts's parseRetailMenuHtml.test.ts already proves the parser itself splits this
-    // correctly; this proves the render layer actually produces N separate RN Text rows from that
-    // parsed result, not one run-on row.
-    const root = render(loc({ breakfastMenu: "<p>Chai Latte $3.75<br>Matcha Latte $4.25<br>Green Tea $2.50<br>Black Tea</p>" }));
-    const flat = texts(root).flat();
-    expect(flat).toContain("Chai Latte");
-    expect(flat).toContain("$3.75");
-    expect(flat).toContain("Matcha Latte");
-    expect(flat).toContain("$4.25");
-    expect(flat).toContain("Green Tea");
-    expect(flat).toContain("$2.50");
-    expect(flat).toContain("Black Tea"); // no embedded price -- still its own row, price omitted
-  });
-
-  it("renders no menu card at all when nothing is posted (state 4 -- e.g. Paciugo/The Hub)", () => {
+describe("CafeSheet (info-only state content, #177/café-screen-unification)", () => {
+  it("renders no menu card at all when the waterfall found no pdf (state 3 -- e.g. Paciugo/The Hub)", () => {
     const root = render(loc());
     expect(texts(root).flat()).not.toContain("MENU");
   });
 
-  it("a PDF-shaped *_menu (babyBerk/Commonwealth) renders a tappable row that calls onOpenPdf, not Linking.openURL", () => {
+  it("a pdf prop renders the caveat copy and a tappable row that calls onOpenPdf, not Linking.openURL", () => {
     const onOpenPdf = jest.fn();
-    // Real capture, hours.test.ts's REAL_BABYBERK.breakfast_menu.
-    const root = render(
-      loc({ breakfastMenu: '<p><a href="https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf" target="_blank">Baby Berk Menu</a></p>' }),
-      onOpenPdf,
-    );
+    const root = render(loc(), { url: "https://umassdining.com/menu.pdf", label: "Baby Berk Menu" }, onOpenPdf);
+    expect(texts(root).flat()).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
     act(() => {
       root.root.findByProps({ accessibilityLabel: "View Baby Berk Menu" }).props.onPress();
     });
-    expect(onOpenPdf).toHaveBeenCalledWith("https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf", "Baby Berk Menu");
+    expect(onOpenPdf).toHaveBeenCalledWith("https://umassdining.com/menu.pdf", "Baby Berk Menu");
   });
 
   it("shows the status pill with the styling spec's exact 'OPEN · TIL' copy", () => {
@@ -118,24 +70,5 @@ describe("CafeSheet (#177 fallback sheet)", () => {
   it("joins acceptedPayment with the styling spec's ' · ' separator", () => {
     const root = render(loc({ acceptedPayment: "Cash, Credit Cards, UCard, Dining Dollars, YCMP" }));
     expect(texts(root).flat()).toContain("Cash · Credit Cards · UCard · Dining Dollars · YCMP");
-  });
-
-  // #245 item 5: the backdrop must fade (opacity), not travel with the sheet panel (transform) --
-  // RN Modal's own animationType="slide" moves both together, so it must be off here, with the
-  // two Animated.View layers driving opacity/transform independently instead.
-  it("disables Modal's built-in slide animation and animates the backdrop/panel on separate style props", () => {
-    const root = render(loc());
-    expect(root.root.findByType(Modal).props.animationType).toBe("none");
-
-    const animatedViews = root.root.findAllByType(Animated.View);
-    const flatStyles = animatedViews.map((n) => (Array.isArray(n.props.style) ? n.props.style : [n.props.style]));
-    const backdropLayer = flatStyles.find((s) => s.some((part: object | null) => part && "opacity" in part));
-    const panelLayer = flatStyles.find((s) => s.some((part: object | null) => part && "transform" in part));
-
-    expect(backdropLayer).toBeDefined();
-    expect(panelLayer).toBeDefined();
-    // Opacity-only layer must not also carry the panel's translateY -- proves they're decoupled,
-    // not the same Animated.View wearing both styles (which would reproduce the original bug).
-    expect(backdropLayer!.some((part: object | null) => part && "transform" in part)).toBe(false);
   });
 });

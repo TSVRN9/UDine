@@ -1,41 +1,41 @@
-import { htmlToText, openStatus, parseRetailMenuHtml, type RetailLocationHours } from "@udine/shared";
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { cafeStatusPillText, directionsUrl, pickCafeMenuHtml } from "../lib/cafeMenu";
-import { useDraggableSheet } from "../lib/sheetAnimation";
+import { htmlToText, openStatus, type RetailLocationHours } from "@udine/shared";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { cafeStatusPillText, directionsUrl } from "../lib/cafeMenu";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
-  visible: boolean;
   loc: RetailLocationHours;
   now: Date;
-  onClose: () => void;
-  /** Tapping a PDF standing-menu link -- opens the in-app viewer (CafePdfSheet), never an
-   * external browser (owner decision, #177). */
+  /** Set only when the waterfall's standing-menu parse (resolveCafeMenuState, cafeMenu.ts) found a
+   * PDF link rather than an item list -- babyBerk/Commonwealth's shape. Undefined for a café with
+   * no standing menu at all (Paciugo/The Hub). */
+  pdf: { url: string; label: string } | null;
+  /** Tapping the PDF row -- opens the in-app viewer (CafePdfViewer), never an external browser
+   * (owner decision, #177). */
   onOpenPdf: (url: string, label: string) => void;
 }
 
 /**
- * Café fallback sheet (#177's "Cafe fallback (menu not posted)" artboard, née "Cafe detail sheet"
- * -- see the owner's binding comment on the issue: this never presents *_menu content as today's
- * menu, only as the STANDING menu). House bottom-sheet pattern -- same structural shape as
- * PlateSheet.tsx (transparent Modal, scrim, radius-12-top sheet, drag handle), styled per the
- * issue's verbatim styling spec instead of PlateSheet's own tokens.
+ * Café info-only content (#177's "Cafe fallback (menu not posted)" artboard, née "Cafe detail
+ * sheet") -- hours/status/description/address/payment, PLUS the PDF-menu affordance when the
+ * waterfall found one. Café-screen unification (issue in this PR's own body): this used to be a
+ * standalone bottom-sheet Modal, reached via its OWN code path (a tap-and-navigate-away dance
+ * through cafeSheetHandoff.ts, or index.tsx opening it inline for a locationId-less café) --
+ * SEPARATE from the hall-shaped menu screen a café with real ajax/standing-menu data got instead.
+ * That was the exact "confusing dual system" this PR fixes: now this is plain content, mounted
+ * directly inside halls/[slug].tsx's HallMenuScreenBody as ONE of that single screen's three
+ * internal states (see resolveCafeMenuState, cafeMenu.ts) -- never a Modal, never a separate route.
  *
- * Trust boundary: description/address/*_menu are raw third-party HTML off get_infov2 (#176).
- * htmlToText/parseRetailMenuHtml (shared/src/content.ts) are #178's (web café-tap parity)
- * additive exports for exactly this -- structured parsing, not a sanitize-then-render pass, and
- * the one implementation of this boundary both clients use. Do not add a second one here.
+ * Trust boundary unchanged from the original sheet: description/address are raw third-party HTML
+ * off get_infov2 (#176), rendered via htmlToText (shared/src/content.ts), never {@html}-style raw
+ * markup. The standing-menu item-list rendering this component used to own moved to
+ * HallMenuScreenBody's own dish rows (matched items) plus a small unmatched-row block (see that
+ * file) -- an item LIST means the waterfall resolved "standing", not "info", so this component
+ * never sees one.
  */
-export function CafeSheet({ visible, loc, now, onClose, onOpenPdf }: Props) {
-  const insets = useSafeAreaInsets();
-  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose);
+export function CafeSheet({ loc, now, pdf, onOpenPdf }: Props) {
   const status = openStatus({ hallTid: -1, breakfast: null, lunch: null, dinner: null, latenight: null, general: loc.hours }, now);
   const description = htmlToText(loc.description);
-  const menuHtml = pickCafeMenuHtml(loc);
-  const menuContent = parseRetailMenuHtml(menuHtml);
   const addressLines = htmlToText(loc.address).split("\n").filter(Boolean);
   const mapsUrl = directionsUrl(loc.mapAddress);
   const payments = loc.acceptedPayment
@@ -46,120 +46,72 @@ export function CafeSheet({ visible, loc, now, onClose, onOpenPdf }: Props) {
     : [];
 
   return (
-    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose}>
-      {/* RNGH's own documented caveat: a root-level GestureHandlerRootView (mobile/src/app/_layout.tsx)
-      doesn't reliably propagate into a Modal's separate native host/window, so each sheet nests its
-      own here -- see this PR's own body for what the on-device spike confirmed. */}
-      <GestureHandlerRootView style={styles.backdrop}>
-        <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
-          <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        </Animated.View>
-        <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
-          <GestureDetector gesture={gesture}>
-            <View style={styles.handleRow}>
-              <View style={styles.handle} />
-            </View>
-          </GestureDetector>
+    <View style={styles.container}>
+      <Text style={styles.title}>{loc.name}</Text>
+      <View style={styles.statusRow}>
+        <View style={styles.statusPill}>
+          <Text style={styles.statusPillText}>{cafeStatusPillText(status)}</Text>
+        </View>
+      </View>
 
-          <ScrollView>
-            <Text style={styles.title}>{loc.name}</Text>
-            <View style={styles.statusRow}>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{cafeStatusPillText(status)}</Text>
-              </View>
-            </View>
+      {description ? <Text style={styles.description}>{description}</Text> : null}
 
-            {description ? <Text style={styles.description}>{description}</Text> : null}
+      {pdf ? (
+        <View style={styles.menuCard}>
+          <View style={styles.menuHeaderStrip}>
+            <Text style={styles.menuHeaderLabel}>MENU</Text>
+            <Text style={styles.menuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
+          </View>
+          <Pressable style={styles.menuRow} onPress={() => onOpenPdf(pdf.url, pdf.label)} accessibilityRole="button" accessibilityLabel={`View ${pdf.label}`}>
+            <Text style={styles.menuItemName}>{pdf.label}</Text>
+            <Text style={styles.menuItemPrice}>›</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-            {menuContent.kind !== "empty" ? (
-              <View style={styles.menuCard}>
-                <View style={styles.menuHeaderStrip}>
-                  <Text style={styles.menuHeaderLabel}>MENU</Text>
-                  <Text style={styles.menuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
-                </View>
-                {menuContent.kind === "items"
-                  ? menuContent.items.map((item, i) => (
-                      <View key={`${item.name}-${i}`} style={[styles.menuRow, i > 0 && styles.menuRowDivider]}>
-                        <Text style={styles.menuItemName}>{item.name}</Text>
-                        {item.price ? <Text style={styles.menuItemPrice}>{item.price}</Text> : null}
-                      </View>
-                    ))
-                  : (
-                      <Pressable
-                        style={styles.menuRow}
-                        onPress={() => onOpenPdf(menuContent.url, menuContent.label)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ${menuContent.label}`}
-                      >
-                        <Text style={styles.menuItemName}>{menuContent.label}</Text>
-                        <Text style={styles.menuItemPrice}>›</Text>
-                      </Pressable>
-                    )}
-              </View>
-            ) : null}
+      {addressLines.length > 0 ? (
+        <View style={styles.locationRow}>
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationVenue}>{addressLines[0]}</Text>
+            <Text style={styles.locationCity}>UMass Amherst</Text>
+          </View>
+          {mapsUrl ? (
+            <Pressable onPress={() => Linking.openURL(mapsUrl)} accessibilityRole="button" accessibilityLabel="Get directions">
+              <Text style={styles.directions}>DIRECTIONS ↗</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
-            {addressLines.length > 0 ? (
-              <View style={styles.locationRow}>
-                <View style={styles.locationInfo}>
-                  <Text style={styles.locationVenue}>{addressLines[0]}</Text>
-                  <Text style={styles.locationCity}>UMass Amherst</Text>
-                </View>
-                {mapsUrl ? (
-                  <Pressable onPress={() => Linking.openURL(mapsUrl)} accessibilityRole="button" accessibilityLabel="Get directions">
-                    <Text style={styles.directions}>DIRECTIONS ↗</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
-
-            {payments.length > 0 ? (
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentGlyph}>▭</Text>
-                <Text style={styles.paymentText}>{payments.join(" · ")}</Text>
-              </View>
-            ) : null}
-          </ScrollView>
-        </Animated.View>
-      </GestureHandlerRootView>
-    </Modal>
+      {payments.length > 0 ? (
+        <View style={styles.paymentRow}>
+          <Text style={styles.paymentGlyph}>▭</Text>
+          <Text style={styles.paymentText}>{payments.join(" · ")}</Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "flex-end" },
-  scrim: { ...StyleSheet.absoluteFill, backgroundColor: withOpacity(colors.ink900, 50) },
-  sheet: {
-    backgroundColor: colors.paper50,
-    borderTopLeftRadius: fs(12),
-    borderTopRightRadius: fs(12),
-    paddingHorizontal: spacing(5),
-    paddingTop: spacing(2.5),
-    gap: spacing(3),
-    maxHeight: fs(640),
-  },
-  // paddingVertical bumped from 0 to spacing(5) (~20dp a side) -- see PlateSheet.tsx's identical
-  // note: the bare 40x4 pill was far too small a real touch/drag target on its own.
-  handleRow: { alignItems: "center", paddingVertical: spacing(5) },
-  handle: { width: fs(40), height: fs(4), borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
+  container: { paddingHorizontal: spacing(5), paddingTop: spacing(3), gap: spacing(3) },
 
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
-  statusRow: { flexDirection: "row", alignItems: "center", gap: spacing(2), marginTop: spacing(1.5) },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   statusPill: { backgroundColor: colors.gold500, borderRadius: radii.pill, paddingVertical: spacing(0.75), paddingHorizontal: spacing(2.25) },
   statusPillText: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 0.5, color: colors.maroon900 },
 
-  description: { marginTop: spacing(3), fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(18), color: withOpacity(colors.ink900, 70) },
+  description: { fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(18), color: withOpacity(colors.ink900, 70) },
 
-  menuCard: { marginTop: spacing(3), borderWidth: 1, borderColor: withOpacity(colors.ink900, 12), borderRadius: radii.md, overflow: "hidden" },
+  menuCard: { borderWidth: 1, borderColor: withOpacity(colors.ink900, 12), borderRadius: radii.md, overflow: "hidden" },
   menuHeaderStrip: { backgroundColor: withOpacity(colors.gold500, 12), paddingVertical: spacing(2.25), paddingHorizontal: spacing(3.5), gap: 2 },
   menuHeaderLabel: { fontFamily: fonts.display600, fontSize: fs(11), letterSpacing: 1.2, textTransform: "uppercase", color: colors.maroon900 },
   menuCaveat: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 50) },
   menuRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing(2), paddingHorizontal: spacing(3.5) },
-  menuRowDivider: { borderTopWidth: 1, borderTopColor: withOpacity(colors.ink900, 8), marginLeft: spacing(3.5) },
   menuItemName: { flex: 1, fontFamily: fonts.body400, fontSize: fs(13), color: colors.ink900 },
   menuItemPrice: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: colors.maroon600 },
 
   locationRow: {
-    marginTop: spacing(3),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -174,7 +126,7 @@ const styles = StyleSheet.create({
   locationCity: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
   directions: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
 
-  paymentRow: { marginTop: spacing(2.5), flexDirection: "row", alignItems: "flex-start", gap: spacing(2) },
+  paymentRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing(2) },
   paymentGlyph: { fontSize: fs(13), color: withOpacity(colors.ink900, 45) },
   paymentText: { flex: 1, fontFamily: fonts.body400, fontSize: fs(11), lineHeight: fs(16), color: withOpacity(colors.ink900, 55) },
 });
