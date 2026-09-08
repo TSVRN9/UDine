@@ -507,20 +507,20 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // Station/price are ephemeral, "this menu only" refinements (menu-filters-macros) -- filtered in
   // HERE, before hallMenuSections.ts's own sectionsForPeriod/grabSections, which stays
   // allergens/diet-tags only per CLAUDE.md (macros/station/price never exclude anything there).
+  // Grab 'N Go items are deliberately EXCLUDED from this filter: FilterSheet's "Stations Here"
+  // checklist is built from `items` (this hall's own menu) only, not `grabItems` (a different tid,
+  // fetched lazily only once the Grab tab is opened) -- station-filtering Grab against a checklist
+  // that never lists Grab's own categories would silently empty that tab with no checkbox to undo it.
   const stationPriceFilteredItems = useMemo(
     () => (items ?? []).filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter)),
     [items, stationFilter, priceFilter],
-  );
-  const stationPriceFilteredGrabItems = useMemo(
-    () => (grabItems ?? []).filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter)),
-    [grabItems, stationFilter, priceFilter],
   );
   const sectionsByPeriod = useMemo(() => {
     const map = new Map<MealPeriod, MenuSection[]>();
     for (const period of mealTabs) map.set(period, sectionsForPeriod(stationPriceFilteredItems, period, prefs));
     return map;
   }, [stationPriceFilteredItems, mealTabs, prefs]);
-  const grabSectionsMemo = useMemo(() => (grabItems ? grabSections(stationPriceFilteredGrabItems, prefs) : []), [grabItems, stationPriceFilteredGrabItems, prefs]);
+  const grabSectionsMemo = useMemo(() => (grabItems ? grabSections(grabItems, prefs) : []), [grabItems, prefs]);
   // FAB state (menu-filters-macros): driven ONLY by allergens/diet-tags currently hiding something --
   // macros never filter, so they never drive this, same derivation web's +page.svelte already uses
   // (data.items.filter(i => !menuItemMatchesPreferences(i, prefs)).length), on the UNFILTERED item
