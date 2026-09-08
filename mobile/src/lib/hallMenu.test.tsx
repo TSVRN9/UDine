@@ -25,6 +25,7 @@ import { stepDate } from "./hallMenuTabs";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
+import { setPreferences } from "./preferences";
 
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
@@ -126,6 +127,7 @@ jest.mock("./menuHoursCache", () => ({
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
 const mockedRouterPush = router.push as jest.Mock;
+const mockedSetPreferences = setPreferences as jest.Mock;
 // menuFetchWithSeenTracking.ts instantiates SqliteSeenDishesStorage eagerly at module scope, but
 // only if something actually imports that wrapper -- until #107's wiring lands, the screen doesn't,
 // so the constructor never runs and `.mock.results` is empty. Read this lazily (inside the test,
@@ -488,6 +490,43 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
 
     const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
     expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
+  });
+
+  // pr-reviewer (#362 REQUEST-CHANGES round 2): the persisted chips' onPress handlers inside
+  // FilterSheet.tsx itself (rendered from THIS screen, via the FAB) had zero coverage above the pure
+  // toggleAllergen/toggleDietTag/toggleMacroPreset level -- filtersScreen.test.tsx's interaction
+  // tests exercise filters.tsx's own call site, not this one. Reviewer mutated the allergen chip's
+  // onPress to a no-op here and the full suite stayed green. This presses all three persisted chip
+  // kinds (allergen, diet-tag, macro) through the real FAB -> sheet -> chip path and asserts each
+  // toggles into the resulting setPreferences call correctly.
+  it("pressing a persisted chip in the FilterSheet (allergen, diet-tag, macro) toggles it and persists via setPreferences", async () => {
+    mockedSetPreferences.mockClear();
+    const root = await renderScreen([{ ...PIZZA, allergens: ["Peanuts"], dietTags: ["Vegan"] }]);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Filters" }).props.onPress();
+    });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Allergen Peanuts" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: ["Peanuts"], requiredDietTags: [] });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Diet tag Vegan" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: ["Peanuts"], requiredDietTags: ["Vegan"] });
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Macro High Protein" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: ["Peanuts"], requiredDietTags: ["Vegan"], macroPresets: ["high-protein"] });
+
+    // Pressing the same allergen chip again removes it -- a real toggle, not a one-way add.
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Allergen Peanuts" }).props.onPress();
+    });
+    expect(mockedSetPreferences).toHaveBeenLastCalledWith({ allergensToAvoid: [], requiredDietTags: ["Vegan"], macroPresets: ["high-protein"] });
   });
 
   // The single most important regression the swipe pager's windowing could introduce: Grab's own
