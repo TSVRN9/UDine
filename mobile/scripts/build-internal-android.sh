@@ -56,6 +56,15 @@ fi
 
 mkdir -p "$OUT_DIR"
 
+# eas-cli-local-build-plugin's OWN working directory -- where it actually copies the whole
+# project + node_modules and runs Gradle, far bigger than the final APK above -- defaults to
+# `env-paths`'s `temp` dir (`/tmp/$USER/eas-build-local-nodejs/<uuid>`), the exact same
+# tmpfs-quota problem as the artifact output, just for more data and hit earlier in the
+# build. EAS_LOCAL_BUILD_WORKINGDIR is the plugin's own documented override
+# (see eas-cli-local-build-plugin/dist/config.js); the plugin creates and cleans up this
+# directory itself, so this only needs to hand it an empty one on real disk.
+WORKINGDIR="$(mktemp -d "$OUT_DIR/eas-local-build.XXXXXX")"
+
 BACKUP="$(mktemp)"
 cp app.json "$BACKUP"
 restore_app_json() {
@@ -79,6 +88,7 @@ node -e '
 rm -rf android
 
 JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk PATH="$JAVA_HOME/bin:$PATH" \
+  EAS_LOCAL_BUILD_WORKINGDIR="$WORKINGDIR" \
   npx eas-cli build --platform android --profile preview --local --non-interactive --output "$OUT"
 
 echo "Built: $OUT ($INTERNAL_PACKAGE, \"$INTERNAL_NAME\")"
