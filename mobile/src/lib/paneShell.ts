@@ -6,6 +6,7 @@
  * wiring; this file stays pure/testable per #134. */
 export const PANE_COUNT = 3;
 export const HOME_PANE_INDEX = 1;
+export const YOU_PANE_INDEX = 2;
 
 /** `count` defaults to the 3-pane Home shell -- MealTabPager passes its own tab count explicitly so
  * this same clamp works for a 4/5-tab hall or a 1-tab café without touching any existing

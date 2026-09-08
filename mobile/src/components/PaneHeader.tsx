@@ -1,9 +1,18 @@
 import { useEffect } from "react";
-import { Easing, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+import { Easing, StyleSheet, Text, View } from "react-native";
 import Reanimated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { Press } from "./Press";
-import { PANE_COUNT, paneMorph, paneOffsetRange } from "../lib/paneShell";
+import { PANE_COUNT, YOU_PANE_INDEX, paneMorph, paneOffsetRange } from "../lib/paneShell";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
+
+/** #90 nav reorg: same router.push mechanism YouPane.tsx's goToAllLogs already uses for /logs --
+ * the export shortcut itself lives here (not in YouPane's own scroll content) because "near the
+ * pane-position dots" means the fixed header bar, which never scrolls away, not a row at the top
+ * of the pane's ScrollView. */
+function goToExport() {
+  router.push("/export");
+}
 
 /** Pane order: Events, Home, You (matches PaneStack's pane array). MVP cut (temporary, see
  * archive/full-features): was Social/Ping-a-Friend, now just Events. */
@@ -160,6 +169,15 @@ export function PaneHeader({
           </Press>
         ))}
       </View>
+      {/* You pane's only settings-style action (#90): a single icon, not a new screen. Reuses
+          DOT_HIT_SLOP rather than a fresh generous symmetric one -- see that constant's own doc on
+          why its bottom side is capped (must not reach past this header's opaque box into content
+          scrolled underneath it). */}
+      {activeIndex === YOU_PANE_INDEX && (
+        <Press onPress={goToExport} hitSlop={DOT_HIT_SLOP} style={styles.exportButton} accessibilityRole="button" accessibilityLabel="Export data">
+          <Text style={styles.exportIcon}>↓</Text>
+        </Press>
+      )}
     </View>
   );
 }
@@ -192,6 +210,11 @@ const styles = StyleSheet.create({
     color: colors.maroon900,
   },
   dotsRow: { flexDirection: "row", gap: spacing(1.5), alignItems: "center" },
+  // marginLeft, not `gap` on a shared wrapper -- dotsRowGap() (PaneHeader.test.tsx) reads the
+  // first numeric `gap` style it finds in DFS order to pin the dots' own hit-region invariant, and
+  // a wrapper `gap` here would shadow that real value instead of adding a sibling.
+  exportButton: { marginLeft: spacing(2), width: spacing(4), height: spacing(4), alignItems: "center", justifyContent: "center" },
+  exportIcon: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.maroon600 },
   // Touch-target box, not type -- spacing() (not fs(), fonts/lineHeights only per its own doc
   // comment) is the width-proportional helper for this, same as the container's padding/gap above.
   dotTapTarget: { width: spacing(4), height: spacing(4), alignItems: "center", justifyContent: "center" },
