@@ -220,10 +220,14 @@ export function YouPane() {
         </View>
 
         <View style={styles.subsection}>
+          {/* accessibilityLabel is explicit, not left to the rendered "SEE ALL ›" children --
+              PR #129's explicit-labeling convention (see EventCard's own comment in
+              EventsPane.tsx), and disambiguates this from ALL LOGS' identical-looking link for
+              anything that finds a Pressable by its accessible name rather than by text content. */}
           <SectionHeader
             title="Favorites"
             right={
-              <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button">
+              <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button" accessibilityLabel="See all favorites">
                 <Text style={styles.allLogsText}>SEE ALL</Text>
                 <Text style={styles.allLogsChevron}>›</Text>
               </Press>

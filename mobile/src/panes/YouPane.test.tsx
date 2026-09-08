@@ -390,21 +390,37 @@ describe("YouPane Favorites section", () => {
     expect(body).toMatch(/SEE ALL/);
 
     // Two SEE-ALL-style links now exist (ALL LOGS, Favorites' SEE ALL) -- disambiguate by the
-    // exact accessible text, same convention the existing ALL LOGS test uses.
-    const seeAllPressable = root.root.findAll((node) => typeof node.props.onPress === "function" && textsOf(node).includes("SEE ALL"))[0];
+    // explicit accessibilityLabel (PR #129's explicit-labeling convention, same as EventsPane's
+    // own SeeAllLink), not a fragile "first match" index-pick over every onPress handler.
+    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all favorites" });
     seeAllPressable.props.onPress();
     expect(mockRouterPush).toHaveBeenCalledWith("/favorites");
   });
 });
 
 describe("YouPane Your Food grouping", () => {
-  it("groups Favorites, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading", async () => {
+  it("groups Favorites, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading, not just present somewhere on the pane", async () => {
     const root = await renderYouPane();
-    const body = texts(root);
-    expect(body).toMatch(/Your Food/);
-    expect(body).toMatch(/Favorites/);
-    expect(body).toMatch(/Your Top Foods/);
-    expect(body).toMatch(/Favorite Halls/);
+
+    const heading = root.root.findAllByType(Text).find((node) => node.props.children === "Your Food")!;
+    // Walk up from the heading Text to the shared group container: Text -> groupHeader View ->
+    // group View (see YouPane.tsx's JSX). A structural check, not a substring scan of the whole
+    // pane -- a substring scan would still pass even if the wrapping <View style={group}> were
+    // deleted and the heading left dangling with the three sections rendered as ordinary
+    // (ungrouped) siblings elsewhere in the pane.
+    let group = heading.parent!;
+    while (group.parent && !textsOf(group).includes("Favorite Halls")) group = group.parent;
+    const groupText = textsOf(group);
+    expect(groupText).toMatch(/Favorites/);
+    expect(groupText).toMatch(/Your Top Foods/);
+    expect(groupText).toMatch(/Favorite Halls/);
+    // Content that stays OUTSIDE the group (Today's Log/ALL LOGS, Hall Completion, both rendered
+    // above it) must not leak into this subtree -- if `group` above resolved to some much broader
+    // ancestor (e.g. because the wrapping View were removed), these would appear too and the
+    // assertions above would pass without the grouping actually existing.
+    expect(groupText).not.toMatch(/Today's Log/);
+    expect(groupText).not.toMatch(/ALL LOGS/);
+    expect(groupText).not.toMatch(/Hall Completion/);
   });
 });
 

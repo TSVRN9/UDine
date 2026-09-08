@@ -137,10 +137,12 @@ export function EventsPane() {
     loadEvents();
   }, [loadEvents]);
 
-  // Press/Newsletter are a supplementary "handful" here (the Events section above already owns
-  // this pane's offline/error UI) -- a failure just degrades to the empty state rather than adding
-  // a second error line, same as fetchEvents' own dead-simple failure-to-empty fallback elsewhere
-  // in this app never being layered with a redundant one.
+  // pr-reviewer #361 finding: a failure here still degrades to the empty-list render (no second
+  // error line -- `offline`, computed from fetchEvents above, already owns this pane's offline
+  // banner), but the empty STATE COPY below must tell "genuinely nothing published" apart from
+  // "couldn't reach the network" -- the outage that flips `offline` also fails these two fetches,
+  // so silently reusing the empty-response message would contradict the offline banner right above
+  // it (claiming UMass published nothing when the real cause is connectivity).
   useEffect(() => {
     fetchPressReleases()
       .then(setPressItems)
@@ -184,7 +186,11 @@ export function EventsPane() {
           {pressItems === null ? (
             <Text style={styles.empty}>Loading…</Text>
           ) : pressItems.length === 0 ? (
-            <EmptyState title="No press releases" message="No press releases right now." />
+            offline ? (
+              <EmptyState title="Can't load right now" message="You're offline — press releases will show once you're back online." />
+            ) : (
+              <EmptyState title="No press releases" message="No press releases right now." />
+            )
           ) : (
             <View style={styles.contentList}>
               {pressItems.slice(0, PRESS_LIMIT).map((item, i) => (
@@ -200,7 +206,11 @@ export function EventsPane() {
           {newsletterIssues === null ? (
             <Text style={styles.empty}>Loading…</Text>
           ) : newsletterIssues.length === 0 ? (
-            <EmptyState title="No newsletter issues" message="No newsletter issues right now." />
+            offline ? (
+              <EmptyState title="Can't load right now" message="You're offline — newsletter issues will show once you're back online." />
+            ) : (
+              <EmptyState title="No newsletter issues" message="No newsletter issues right now." />
+            )
           ) : (
             <View style={styles.contentList}>
               {newsletterIssues.slice(0, NEWSLETTER_LIMIT).map((item, i) => (

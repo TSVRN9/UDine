@@ -303,6 +303,23 @@ describe("EventsPane Press section", () => {
     });
     expect(mockRouterPush).toHaveBeenCalledWith("/press");
   });
+
+  // pr-reviewer #361 finding: a fetchPressReleases failure was silently rendered as the same "no
+  // releases" empty state as a genuine empty response -- during the same outage that flips
+  // `offline` (fetchEvents fails too, showing the "offline · showing what's cached" banner up top),
+  // this section directly contradicted that banner by claiming UMass published nothing.
+  it("shows an offline-aware message, not the genuine-empty-response one, when press releases fail during a network outage", async () => {
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+    mockFetchPressReleases.mockRejectedValue(new Error("network down"));
+    const root = await renderEventsPane();
+    const body = texts(root);
+    // Scoped to a phrase unique to this section's own offline copy -- the pane's top OfflineLine
+    // banner ("offline · showing what's cached") ALSO renders in this same scenario, so a bare
+    // /offline/i match wouldn't distinguish "this section got its own offline-aware message" from
+    // "the pre-existing top banner happens to mention offline".
+    expect(body).not.toMatch(/No press releases right now/);
+    expect(body).toMatch(/press releases will show once you're back online/i);
+  });
 });
 
 describe("EventsPane Newsletter section", () => {
@@ -325,5 +342,15 @@ describe("EventsPane Newsletter section", () => {
       button.props.onPress();
     });
     expect(mockRouterPush).toHaveBeenCalledWith("/newsletter");
+  });
+
+  // pr-reviewer #361 finding, same as the Press section above.
+  it("shows an offline-aware message, not the genuine-empty-response one, when newsletter issues fail during a network outage", async () => {
+    mockFetchEvents.mockRejectedValue(new Error("network down"));
+    mockFetchNewsletter.mockRejectedValue(new Error("network down"));
+    const root = await renderEventsPane();
+    const body = texts(root);
+    expect(body).not.toMatch(/No newsletter issues right now/);
+    expect(body).toMatch(/newsletter issues will show once you're back online/i);
   });
 });
