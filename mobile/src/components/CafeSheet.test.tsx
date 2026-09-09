@@ -2,7 +2,7 @@
 // plain content mounted inside HallMenuScreenBody's info-only state, not a standalone sheet Modal
 // -- see this file's own doc comment).
 import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import type { RetailLocationHours } from "@udine/shared";
 import { CafeSheet } from "./CafeSheet";
 
@@ -72,6 +72,27 @@ describe("CafeSheet (info-only state content, #177/café-screen-unification)", (
   it("shows the status pill with the styling spec's exact 'OPEN · TIL' copy", () => {
     const root = render(loc({ hours: { openTime: "7:00 AM", closeTime: "6:00 PM" } }));
     expect(texts(root).flat()).toContain("OPEN · TIL 6:00 PM");
+  });
+
+  it("#416: hoursBox pill uses CafeMenuInfoOnly.dc.html:39's smaller/bolder spec, distinct from the top status pill (CafeSheet.dc.html:36)", () => {
+    const root = render(loc({ hours: { openTime: "7:00 AM", closeTime: "6:00 PM" } }));
+    const pills = root.root.findAllByType(Text).filter((n) => {
+      const kids = Array.isArray(n.props.children) ? n.props.children.join("") : String(n.props.children);
+      return kids.includes("OPEN · TIL");
+    });
+    expect(pills.length).toBe(2);
+    const topStyle = StyleSheet.flatten(pills[0].props.style as never) as {
+      fontSize?: number;
+      letterSpacing?: number;
+    };
+    const hoursStyle = StyleSheet.flatten(pills[1].props.style as never) as {
+      fontSize?: number;
+      letterSpacing?: number;
+    };
+    expect(topStyle.fontSize).toBe(10);
+    expect(topStyle.letterSpacing).toBe(0.5);
+    expect(hoursStyle.fontSize).toBe(9);
+    expect(hoursStyle.letterSpacing).toBe(0.8);
   });
 
   it("hides DIRECTIONS for babyBerk's degenerate ',' mapAddress instead of opening a blank query", () => {
