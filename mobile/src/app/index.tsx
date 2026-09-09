@@ -12,7 +12,7 @@ import { PaneStack } from "../components/PaneStack";
 import { PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
-import { grabRouteFor, grabStripState } from "../lib/grabStrip";
+import { excludeGrabNGoLocations, grabRouteFor, grabStripState } from "../lib/grabStrip";
 import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
@@ -263,7 +263,7 @@ export function HomePane() {
               info-only, see halls/[slug].tsx's HallMenuScreenBody), so there's no reason left for a
               locationId-less café to open a sheet inline here instead; see this PR's own body for
               the retired cafeSheetHandoff.ts mechanism this replaces. */}
-          {(hoursFeed?.retail ?? []).map((loc) => {
+          {excludeGrabNGoLocations(hoursFeed?.retail ?? [], DINING_HALLS).map((loc) => {
             const chip = formatLocationChip(retailOpenStatus(loc, now));
             return (
               <Link key={loc.name} href={`/cafe/${encodeURIComponent(loc.name)}`} asChild>
