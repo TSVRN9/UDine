@@ -10,7 +10,8 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 /** The 3 price buckets the Price section groups a feed price string into -- see priceBucketFor. */
 export type PriceBucket = "under-5" | "5-10" | "10-plus";
 
-export const ALL_MACRO_PRESETS: MacroPreset[] = ["high-protein", "low-sodium", "under-500-cal", "low-fat", "high-fiber"];
+// Order matches docs/design/FilterSheet.dc.html:78-99 (High Protein, High Fiber, Low Sodium, Under 500 Cal, Low Fat).
+export const ALL_MACRO_PRESETS: MacroPreset[] = ["high-protein", "high-fiber", "low-sodium", "under-500-cal", "low-fat"];
 
 export const MACRO_PRESET_LABELS: Record<MacroPreset, string> = {
   "high-protein": "High Protein",
@@ -79,6 +80,10 @@ interface Props {
    * controls that would silently do nothing until the user switches to a different tab. #362 review
    * (non-blocking finding 3). */
   stationsPriceDisabled?: boolean;
+  /** Count of items the screen's current filters hide, for the "N items hidden" counter in the
+   * title row (docs/design/FilterSheet.dc.html:37-40) -- computed by the parent screen, passed
+   * straight through. */
+  hiddenCount: number;
   onClose: () => void;
 }
 
@@ -99,13 +104,14 @@ export function FilterSheet({
   priceFilter,
   onChangePriceFilter,
   stationsPriceDisabled = false,
+  hiddenCount,
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets();
-  // panelTravel must match styles.sheet's maxHeight (fs(680)) -- the default 400 undershoots this
+  // panelTravel must match styles.sheet's maxHeight (fs(640)) -- the default 400 undershoots this
   // sheet's real rendered height, leaving the sheet visibly un-closed/un-opened at rest (bug found
   // in on-device QA on PR #362).
-  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(680));
+  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
 
   const allergens = [...new Set(items.flatMap((i) => i.allergens))].sort();
   const dietTags = [...new Set(items.flatMap((i) => i.dietTags))].sort();
@@ -149,7 +155,14 @@ export function FilterSheet({
             </View>
           </GestureDetector>
 
-          <Text style={styles.title}>Filters</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Filters</Text>
+            {hiddenCount > 0 && (
+              <Text style={styles.hiddenCountText}>
+                {hiddenCount} {hiddenCount === 1 ? "item" : "items"} hidden
+              </Text>
+            )}
+          </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             <View style={styles.section}>
@@ -323,43 +336,58 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     paddingTop: spacing(2.5),
     paddingHorizontal: spacing(5),
-    maxHeight: fs(680),
+    maxHeight: fs(640),
+    // docs/design/FilterSheet.dc.html:31 -- box-shadow: 0 -8px 24px rgba(36,26,20,0.25). Same
+    // shadowColor/Offset/Opacity/Radius + Android elevation pattern as HoldSlideOverlay.tsx's panel.
+    shadowColor: colors.ink900,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
   },
   handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(1) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
-  title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900, marginBottom: spacing(2) },
+  titleRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: spacing(2) },
+  title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
+  hiddenCountText: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   scroll: { flexGrow: 0 },
 
   section: { marginBottom: spacing(5) },
   sectionHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: spacing(2) },
-  sectionTitle: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 0.5, textTransform: "uppercase", color: colors.maroon900 },
-  sectionSubtext: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 50) },
+  sectionTitle: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 1.2, textTransform: "uppercase", color: colors.maroon900 },
+  sectionSubtext: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 45) },
   emptyHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55) },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing(2) },
 
-  // Exclusion chips (allergens/diet tags): an "×"-to-remove pill, maroon outline -- these hide dishes.
-  excludeChip: { paddingVertical: spacing(1.5), paddingHorizontal: spacing(3), borderRadius: 999, borderWidth: 1, borderColor: colors.maroon600 },
-  excludeChipActive: { backgroundColor: colors.maroon600 },
-  excludeChipText: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: fs(13) },
-  excludeChipTextActive: { color: colors.paper50 },
+  // Exclusion chips (allergens/diet tags): an "×"-to-remove pill, ink-tinted outline when inactive
+  // -- these hide dishes. docs/design/FilterSheet.dc.html:50-56: inactive is a muted ink border with
+  // regular-weight maroon900 text; bold is reserved for the active (filled) state.
+  excludeChip: { paddingVertical: spacing(2), paddingHorizontal: spacing(3.5), borderRadius: radii.pill, borderWidth: 1, borderColor: withOpacity(colors.ink900, 25) },
+  excludeChipActive: { backgroundColor: colors.maroon600, borderColor: "transparent" },
+  excludeChipText: { color: colors.maroon900, fontFamily: fonts.body400, fontSize: fs(13) },
+  excludeChipTextActive: { color: colors.paper50, fontFamily: fonts.body600 },
   // Diet-tag chips are exclusion-shaped ("×" pill) like excludeChip above, but gold when active --
   // approved design distinguishes them from Avoid Allergens' maroon fill (maroon900 text for contrast
   // against gold500, same pairing toggleChipTextActive already uses against a gold-tinted background).
-  dietChipActive: { backgroundColor: colors.gold500 },
-  dietChipTextActive: { color: colors.maroon900 },
+  dietChipActive: { backgroundColor: colors.gold500, borderColor: "transparent" },
+  dietChipTextActive: { color: colors.maroon900, fontFamily: fonts.body600 },
 
-  // Toggle chips (macros/stations/price): a checkmark-style toggle, gold outline -- these never hide
-  // anything on their own (macros badge only; stations/price filter the visible list but don't imply
-  // exclusion the way an allergen chip does), visually distinct from the excludeChip pair above.
-  toggleChip: { paddingVertical: spacing(1.5), paddingHorizontal: spacing(3), borderRadius: radii.md, borderWidth: 1, borderColor: withOpacity(colors.gold500, 70) },
-  toggleChipActive: { backgroundColor: withOpacity(colors.gold500, 25), borderColor: colors.gold500 },
+  // Toggle chips (macros/stations/price): a checkmark-style toggle, full pill (docs/design/
+  // FilterSheet.dc.html:66,88,110,123) -- these never hide anything on their own (macros badge only;
+  // stations/price filter the visible list but don't imply exclusion the way an allergen chip does),
+  // visually distinct from the excludeChip pair above. Active fill is solid gold500 (lines 65,78,
+  // 83,109,124), not a pale wash.
+  toggleChip: { paddingVertical: spacing(2), paddingHorizontal: spacing(3.5), borderRadius: radii.pill, borderWidth: 1, borderColor: withOpacity(colors.ink900, 25) },
+  toggleChipActive: { backgroundColor: colors.gold500, borderColor: colors.gold500 },
   toggleChipText: { color: colors.ink900, fontFamily: fonts.body600, fontSize: fs(13) },
   toggleChipTextActive: { color: colors.maroon900 },
 
   footer: { flexDirection: "row", gap: spacing(3), paddingTop: spacing(3), borderTopWidth: 1, borderColor: withOpacity(colors.ink900, 12) },
-  footerGhost: { flex: 1, height: fs(46), borderRadius: radii.md, borderWidth: 1, borderColor: withOpacity(colors.maroon600, 45), alignItems: "center", justifyContent: "center" },
-  footerGhostText: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, color: colors.maroon600 },
-  footerPrimary: { flex: 1, height: fs(46), borderRadius: radii.md, backgroundColor: colors.maroon600, alignItems: "center", justifyContent: "center" },
+  // docs/design/FilterSheet.dc.html:132-133 -- "Clear All" is ink-toned (no maroon), "Done" is
+  // maroon900 (#3b0a0f), not maroon600.
+  footerGhost: { flex: 1, height: fs(46), borderRadius: radii.md, borderWidth: 1, borderColor: withOpacity(colors.ink900, 20), alignItems: "center", justifyContent: "center" },
+  footerGhostText: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, color: withOpacity(colors.ink900, 65) },
+  footerPrimary: { flex: 1, height: fs(46), borderRadius: radii.md, backgroundColor: colors.maroon900, alignItems: "center", justifyContent: "center" },
   footerPrimaryText: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, color: colors.paper50 },
 });
