@@ -161,11 +161,24 @@ describe("hallInfoHoursRows", () => {
     expect(rows.every((r) => !r.isNow)).toBe(true);
   });
 
-  it("flags no row as isNow when the hall only has general hours -- currentMealPeriod can match via shared's standard-schedule fallback, but this sheet only shows real published windows", () => {
+  it("#432: collapses to a single general-hours row when breakfast/lunch/dinner are all null but general is published, instead of three 'not served here' rows", () => {
     const hours = hall({ general: window("7:00 AM", "9:00 PM") });
     const rows = hallInfoHoursRows(hours, NOON);
-    expect(rows.every((r) => r.isNow === false)).toBe(true);
-    expect(rows.find((r) => r.period === "lunch")?.window).toBeNull();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({ period: "general", label: "Hours", window: { openTime: "7:00 AM", closeTime: "9:00 PM" }, isNow: false });
+  });
+
+  it("keeps the normal 4-row breakfast/lunch/dinner/latenight layout when at least one per-meal window is published, even alongside general", () => {
+    const hours = hall({ lunch: window("11:00 AM", "2:30 PM"), general: window("7:00 AM", "9:00 PM") });
+    const rows = hallInfoHoursRows(hours, NOON);
+    expect(rows.map((r) => r.period)).toEqual(["breakfast", "lunch", "dinner", "latenight"]);
+  });
+
+  it("shows three 'not served here' rows (not the general fallback) when everything, including general, is null", () => {
+    const hours = hall({});
+    const rows = hallInfoHoursRows(hours, NOON);
+    expect(rows.map((r) => r.period)).toEqual(["breakfast", "lunch", "dinner", "latenight"]);
+    expect(rows.every((r) => r.window === null)).toBe(true);
   });
 
   it("carries each period's window through unchanged, including null for an unpublished one", () => {
