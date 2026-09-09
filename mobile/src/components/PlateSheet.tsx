@@ -256,7 +256,13 @@ export function PlateSheet({
       // rejected OpenFoodFacts call alongside sources that all legitimately resolved empty (the
       // common case) fell through to "No matches", lying to the user about why nothing showed.
       if (merged.length === 0 && rejections.length > 0) {
-        setSearchError(String(rejections[0].reason));
+        // Generic, honest copy -- never the raw rejection (e.g. a UnknownHostException from a
+        // rate-limited source), which leaks implementation details. `results` stays null here (as
+        // before -- setting it to [] would also trigger the "No matches" hint below, which is
+        // exactly the confusing-alongside-an-error text the #351 fix above was written to avoid).
+        // The footer's gating condition (below) is what's widened instead, so the "Create a custom
+        // food" escape hatch stays available here too.
+        setSearchError("please try again, or create a custom food below");
         setResults(null);
         setOffHasMore(false);
         setUsdaHasMore(false);
@@ -458,8 +464,10 @@ export function PlateSheet({
                 {/* Standing footer row (canvas: not gated strictly on an empty result) -- shown
                 whenever a search has actually run, whether or not it found anything, since no
                 database this sheet searches will ever have every food (a homemade recipe, a
-                friend's cooking). */}
-                {results !== null && (
+                friend's cooking). Also shown on the all-rejected-with-nothing-usable error branch
+                above (results stays null there) -- that's exactly when the user most needs this
+                escape hatch. */}
+                {(results !== null || searchError !== null) && (
                   <Pressable
                     style={styles.customFoodRow}
                     onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
