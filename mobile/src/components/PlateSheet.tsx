@@ -399,9 +399,6 @@ export function PlateSheet({
                     </View>
                   </View>
                 ))}
-                {/* #392 canvas: docs/design/ServingsG.dc.html:65 -- shown once, not per-row, while any
-                row is in edit mode. */}
-                {editingKey && <Text style={styles.editingHint}>Tap the number to type an exact amount</Text>}
               </View>
 
               <View style={styles.divider} />
@@ -599,9 +596,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: spacing(1),
   },
-  // #392 canvas: docs/design/ServingsG.dc.html:65 -- shown once while any row is being edited.
-  editingHint: { fontSize: fs(11), color: withOpacity(colors.ink900, 50), textAlign: "right", marginTop: -4 },
-
   divider: { height: 1, backgroundColor: withOpacity(colors.ink900, 12), marginVertical: spacing(3.5) },
 
   totalsRow: { flexDirection: "row", gap: spacing(2.5), marginBottom: spacing(3.5) },
@@ -639,7 +633,7 @@ const styles = StyleSheet.create({
   },
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
-  addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 50) },
+  addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
   searchInput: {
     flex: 1,
@@ -680,7 +674,7 @@ const styles = StyleSheet.create({
   badgeText: { fontFamily: fonts.body600, fontSize: fs(9), letterSpacing: 0.4, textTransform: "uppercase" },
   // #381 canvas: docs/design/PlateSheetResults.dc.html:99 -- Oswald/600/12px uppercase with a
   // visible border (was Button's ghost variant: transparent border, no uppercase).
-  loadMoreButton: { alignSelf: "center", marginTop: spacing(2), borderWidth: 1, borderColor: withOpacity(colors.ink900, 20), borderRadius: 6 },
+  loadMoreButton: { alignSelf: "center", marginTop: spacing(1.5), borderWidth: 1, borderColor: withOpacity(colors.ink900, 20), borderRadius: 6 },
   loadMoreButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.8, textTransform: "uppercase", color: withOpacity(colors.ink900, 65) },
   // #381 canvas: docs/design/PlateSheetResults.dc.html:103 -- a dashed box with a "+" icon (was a
   // plain hairline-top row with centered text only).
