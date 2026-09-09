@@ -201,7 +201,7 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
     expect(mockedFetchMenu).toHaveBeenCalledWith(32, expect.any(Date));
     const flat = texts(root).flat();
     expect(flat).toContain("Bacon Croissant");
-    expect(flat).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+    expect(flat).toContain("Today's menu isn't posted — standing menu from umassdining.com.");
   });
 
   // Café-screen QA fix (bug 2): a "standing" state has no real MealPeriod to build tabs from --
@@ -213,7 +213,7 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
     expect(root.root.findAllByProps({ accessibilityLabel: "All Day menu" }).length).toBe(0);
     expect(texts(root).flat()).not.toContain("All Day");
     // The caveat banner itself must still be there, just not inside a tab row.
-    expect(texts(root).flat()).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+    expect(texts(root).flat()).toContain("Today's menu isn't posted — standing menu from umassdining.com.");
   });
 
   // A catalog hit on the same standing-menu name gets full nutrition, rendered via the exact same
@@ -246,12 +246,12 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
   // Café-screen QA fix (bug 3): an unmatched standing-menu row (no catalog hit, name+price only)
   // used to render as a plain flat row visually indistinguishable from a matched dish row except by
   // tapping it -- must instead be clearly marked "not a real, loggable dish yet": dashed border
-  // (matched rows/the section's own dividers are solid), and its own "Nutrition not found" text.
-  it("an unmatched standing-menu row is visually distinct -- dashed border, 'Nutrition not found' text", async () => {
+  // (matched rows/the section's own dividers are solid), and its own "nutrition not found" text.
+  it("an unmatched standing-menu row is visually distinct -- dashed border, 'nutrition not found' text", async () => {
     const root = await renderCafeScreen([]);
     const row = root.root.findByProps({ accessibilityLabel: "Search for Bacon Croissant, nutrition not found" });
     expect(row.props.style).toEqual(expect.objectContaining({ borderStyle: "dashed" }));
-    expect(texts(root).flat()).toContain("Nutrition not found");
+    expect(texts(root).flat()).toContain("nutrition not found");
   });
 
   it("empty fetchMenu + no standing menu at all -> the info-only state's content, within this same screen (no menu/dish rows, no filter FAB)", async () => {
@@ -265,7 +265,7 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
     // "standing"/"integrated". The café's own name still appears TWICE: once in the pushed
     // screen's header (unchanged for every café state) and once in CafeSheet's own title, proving
     // CafeSheet actually mounted as this state's content.
-    expect(flat).not.toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+    expect(flat).not.toContain("Today's menu isn't posted — standing menu from umassdining.com.");
     expect(flat.filter((t) => t === "People's Organic Coffee").length).toBe(2);
     // Café-screen unification: the filter FAB is hidden entirely in the info-only state (nothing to
     // filter -- see halls/[slug].tsx's own comment).
@@ -379,7 +379,7 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
     });
     const flat = texts(root).flat();
     expect(flat).toContain("Bacon Croissant");
-    expect(flat).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+    expect(flat).toContain("Today's menu isn't posted — standing menu from umassdining.com.");
     expect(flat.join(" ")).not.toMatch(/Getting today.s menu from UMass Dining/); // not the loading skeleton
   });
 
