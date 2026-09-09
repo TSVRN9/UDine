@@ -626,6 +626,36 @@ describe("PlateSheet", () => {
 
       expect(root.root.findByProps({ placeholder: "Search for a food" })).toBeTruthy();
     });
+
+    // #409: addSection's dashed border (docs/design/PlateExpanded.dc.html:87) is idle-only --
+    // once expanded it must switch to the plain solid border the artboard specifies for the
+    // active search row (docs/design/PlateSheetResults.dc.html:35), not stay dashed around the
+    // whole search UI.
+    it("#409: addSection is dashed maroon while idle, and switches to a solid border once expanded", () => {
+      const { StyleSheet } = require("react-native");
+      const { colors, withOpacity } = require("../lib/theme");
+      const root = renderSheet();
+
+      // addSection is the only style in this component with a minHeight -- a stable marker
+      // regardless of which other style objects are composed alongside it.
+      const findAddSection = () =>
+        root.root.findAll((n) => {
+          const flat = StyleSheet.flatten(n.props.style);
+          return !!flat && flat.minHeight !== undefined;
+        })[0];
+
+      const idleFlat = StyleSheet.flatten(findAddSection().props.style);
+      expect(idleFlat.borderStyle).toBe("dashed");
+      expect(idleFlat.borderColor).toBe(withOpacity(colors.maroon600, 45));
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Add something else" }).props.onPress();
+      });
+
+      const expandedFlat = StyleSheet.flatten(findAddSection().props.style);
+      expect(expandedFlat.borderStyle).not.toBe("dashed");
+      expect(expandedFlat.borderColor).toBe(withOpacity(colors.ink900, 20));
+    });
   });
 
   describe("OFF/USDA pagination (Load more)", () => {
