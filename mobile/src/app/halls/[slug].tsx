@@ -1258,7 +1258,16 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         // and passes it before this screen ever mounts for a café; if it's somehow absent this just
         // falls through to the skeleton below instead of crashing on a missing prop.
         <ScrollView style={styles.infoScroll}>
-          <CafeSheet loc={hall.retailLoc} now={new Date()} pdf={cafeState.pdf} onOpenPdf={(url, label) => setCafePdf({ url, label })} />
+          <CafeSheet
+            loc={hall.retailLoc}
+            now={new Date()}
+            pdf={cafeState.pdf}
+            onOpenPdf={(url, label) => setCafePdf({ url, label })}
+            onOpenCustomFoodForm={(prefillName) => {
+              setCustomFoodFormPrefill(prefillName);
+              setCustomFoodFormOpen(true);
+            }}
+          />
         </ScrollView>
       ) : tabs.length === 0 ? (
         // Café pre-load: mealTabs hasn't resolved yet (real hall: never true; café: ajax fetch or
