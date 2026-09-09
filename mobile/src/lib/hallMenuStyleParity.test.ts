@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const SOURCE_PATH = path.join(__dirname, "[slug].tsx");
+const SOURCE_PATH = path.join(__dirname, "..", "app", "halls", "[slug].tsx");
 const source = fs.readFileSync(SOURCE_PATH, "utf8");
 
 describe("#413: in-plate stepper plus width matches ServingsF.dc.html (40px), not the standalone empty-plate circle (44px)", () => {
