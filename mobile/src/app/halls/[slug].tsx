@@ -251,7 +251,9 @@ function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingM
 // gesture-enabled HoldSlideAddButton (nothing on the plate yet) or the plain +1 button (already in
 // the plate), so the pill's right edge never has to jump when the two swap.
 const PLUS_SLOT_SIZE = fs(44);
-const MINUS_SLOT_WIDTH = fs(34);
+// Literal, not fs(40) -- spec (ServingsF.dc.html:58) pins the minus slot at 40px; touch targets
+// don't scale (see fs()'s own doc comment).
+const MINUS_SLOT_WIDTH = 40;
 const COUNT_SLOT_WIDTH = fs(34);
 // Precomputed outside the worklet below -- withOpacity isn't itself worklet-marked, and calling
 // a plain JS-thread function from inside useAnimatedStyle's UI-thread callback throws ("Tried to
