@@ -1,4 +1,4 @@
-import { DINING_HALLS, favoriteKey, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
+import { DINING_HALLS, favoriteKey, htmlToText, openStatus, type DiningHoursFeed, type Favorite } from "@udine/shared";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -20,6 +20,21 @@ import { EventsPane } from "../panes/EventsPane";
 import { YouPane } from "../panes/YouPane";
 
 const favoritesStorage = new SqliteFavoritesStorage();
+
+/** #375: `RetailLocationHours.address` is raw HTML (possibly multi-line, e.g. a full street
+ * address) -- the row only has room for one short subtitle line, so take the first non-blank
+ * line, same trick CafeSheet already uses for its address block. */
+function retailSubtitle(address: string | undefined): string | null {
+  return htmlToText(address).split("\n").find((line) => line.trim().length > 0)?.trim() ?? null;
+}
+
+// docs/design/HomeLoading.dc.html:113-135 -- 3 placeholder rows, sized to match the real spread of
+// name/subtitle lengths rather than one repeated width.
+const RETAIL_SKELETON_ROWS = [
+  { title: 96, subtitle: 132 },
+  { title: 118, subtitle: 104 },
+  { title: 148, subtitle: 90 },
+];
 
 // #181: hero is null both while the very first fetch is genuinely pending (real skeleton) AND on
 // the dead-end case -- fetch failed with no cache to fall back to (`error` is set instead). Those
@@ -55,7 +70,12 @@ function HeroBlock({
             <Text style={styles.heroSubtitle}>{formatHeroLine(hero).subtitle}</Text>
           </>
         ) : pending ? (
-          <SkeletonBar width={fs(160)} height={fs(40)} />
+          <>
+            {/* docs/design/HomeLoading.dc.html:34-35 -- title bar + subtitle bar side by side,
+                gap 12/baseline already supplied by heroRow (matches the real-content branch above). */}
+            <SkeletonBar width={fs(148)} height={fs(42)} />
+            <SkeletonBar width={fs(128)} height={fs(13)} />
+          </>
         ) : null}
       </View>
       <View style={styles.heroGoldBar} />
@@ -115,9 +135,9 @@ function HallCard({
           <PressDim style={styles.hallZoneTap} accessibilityRole="button">
             <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]}>{hall.name.charAt(0)}</Text>
             {pending ? (
-              <View style={[styles.hallChip, styles.hallChipClosed]}>
-                <SkeletonBar width={fs(46)} height={fs(11)} />
-              </View>
+              // docs/design/HomeLoading.dc.html:44 -- one continuously-shimmering 132x20 pill, not
+              // a static hallChip wrapping a smaller shimmer sliver.
+              <SkeletonBar width={fs(132)} height={fs(20)} style={styles.hallChipPending} />
             ) : chip.text ? (
               <View style={[styles.hallChip, chip.open ? styles.hallChipOpen : styles.hallChipClosed]}>
                 <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
@@ -263,20 +283,33 @@ export function HomePane() {
               info-only, see halls/[slug].tsx's HallMenuScreenBody), so there's no reason left for a
               locationId-less café to open a sheet inline here instead; see this PR's own body for
               the retired cafeSheetHandoff.ts mechanism this replaces. */}
-          {excludeGrabNGoLocations(hoursFeed?.retail ?? [], DINING_HALLS).map((loc) => {
-            const chip = formatLocationChip(retailOpenStatus(loc, now));
-            return (
-              <Link key={loc.name} href={`/cafe/${encodeURIComponent(loc.name)}`} asChild>
-                <Pressable style={styles.retailRow} accessibilityRole="button">
+          {pending
+            ? RETAIL_SKELETON_ROWS.map((row, i) => (
+                <View key={i} style={styles.retailRow}>
                   <View style={styles.retailInfo}>
-                    <Text style={styles.retailName}>{loc.name}</Text>
-                    <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
+                    <SkeletonBar width={fs(row.title)} height={fs(13)} />
+                    <SkeletonBar width={fs(row.subtitle)} height={fs(11)} />
                   </View>
-                  <Text style={styles.retailChevron}>›</Text>
-                </Pressable>
-              </Link>
-            );
-          })}
+                  <SkeletonBar width={fs(84)} height={fs(11)} />
+                </View>
+              ))
+            : excludeGrabNGoLocations(hoursFeed?.retail ?? [], DINING_HALLS).map((loc) => {
+                const chip = formatLocationChip(retailOpenStatus(loc, now));
+                return (
+                  <Link key={loc.name} href={`/cafe/${encodeURIComponent(loc.name)}`} asChild>
+                    <Pressable style={styles.retailRow} accessibilityRole="button">
+                      <View style={styles.retailInfo}>
+                        <Text style={styles.retailName}>{loc.name}</Text>
+                        {/* docs/design/HomeOffline.dc.html:117-119, Main.dc.html:111-113 -- location
+                            subtitle (building/area), e.g. "Campus Center". */}
+                        {retailSubtitle(loc.address) ? <Text style={styles.retailSubtitle}>{retailSubtitle(loc.address)}</Text> : null}
+                        <Text style={[styles.retailStatus, chip.open ? styles.retailStatusOpen : styles.retailStatusClosed]}>{chip.text}</Text>
+                      </View>
+                      <Text style={styles.retailChevron}>›</Text>
+                    </Pressable>
+                  </Link>
+                );
+              })}
         </View>
       </View>
 
@@ -371,6 +404,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(1),
     paddingHorizontal: spacing(2.5),
   },
+  hallChipPending: { position: "absolute", top: 10, right: 10, borderRadius: radii.pill },
   hallChipOpen: { backgroundColor: colors.gold500 },
   hallChipClosed: { backgroundColor: withOpacity(colors.paper50, 18) },
   hallChipText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, textTransform: "uppercase" },
@@ -420,6 +454,7 @@ const styles = StyleSheet.create({
   },
   retailInfo: { flexShrink: 1, gap: 1 },
   retailName: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  retailSubtitle: { flexShrink: 1, fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   retailStatus: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.3, textTransform: "uppercase" },
   retailStatusOpen: { color: colors.maroon600 },
   retailStatusClosed: { color: withOpacity(colors.ink900, 45) },

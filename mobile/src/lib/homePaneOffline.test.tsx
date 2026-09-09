@@ -54,7 +54,10 @@ function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
 }
 
-function hours(overrides: Partial<DiningHoursFeed["halls"][number]> = {}): DiningHoursFeed {
+function hours(
+  overrides: Partial<DiningHoursFeed["halls"][number]> = {},
+  retail: DiningHoursFeed["retail"] = [],
+): DiningHoursFeed {
   return {
     halls: [
       { hallTid: 1, breakfast: null, lunch: { openTime: "11:00 AM", closeTime: "2:30 PM" }, dinner: null, latenight: null, general: null, ...overrides },
@@ -62,7 +65,7 @@ function hours(overrides: Partial<DiningHoursFeed["halls"][number]> = {}): Dinin
       { hallTid: 3, breakfast: null, lunch: null, dinner: null, latenight: null, general: null },
       { hallTid: 4, breakfast: null, lunch: null, dinner: null, latenight: null, general: null },
     ],
-    retail: [],
+    retail,
   };
 }
 
@@ -110,6 +113,36 @@ describe("HomePane loading (#181)", () => {
     });
     expect(texts(root).flat().join(" ")).toMatch(/Couldn't load dining hours/); // the real dead-end state
     expect(root.root.findAllByProps({ testID: "skeleton-bar" }).length).toBe(0); // not still "loading"
+  });
+
+  // #375: the Cafés & Markets row only rendered name + status chip -- the location subtitle
+  // (address, e.g. "Campus Center") was dropped even though the field is already on the fetched
+  // data.
+  it("renders the location subtitle under each Cafés & Markets row's name (#375)", async () => {
+    mockFetchHoursAndCache.mockResolvedValue(
+      hours({}, [{ name: "Blue Wall", hours: { openTime: "7:00 AM", closeTime: "8:00 PM" }, address: "Campus Center" }]),
+    );
+    mockGetCachedHours.mockResolvedValue(null);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Campus Center/);
+  });
+
+  // #387: while `pending`, the Cafés & Markets section rendered zero rows (hoursFeed?.retail
+  // defaults to []) instead of a skeleton -- the whole section silently vanished during loading.
+  it("shows Cafés & Markets skeleton rows (not an empty section) while the first fetch is pending", async () => {
+    mockFetchHoursAndCache.mockReturnValue(new Promise(() => {})); // never resolves
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+    // A count-based assertion would be muddied by however many skeleton bars the hero/hall
+    // sections already contribute -- assert directly on one of the retail skeleton rows' own bar
+    // dimensions (docs/design/HomeLoading.dc.html:119: first row's 96x13 title bar), which only
+    // exists once the retail section has a pending branch at all.
+    expect(root.root.findAllByProps({ width: 96, height: 13 }).length).toBeGreaterThan(0);
   });
 });
 
