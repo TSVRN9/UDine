@@ -27,6 +27,15 @@ export function mealTabLabel(period: MealPeriod): string {
   return mealPeriodLabel(period);
 }
 
+/** Café-context override of mealTabLabel: an integrated/standing café's "allday" tab reads "Daily
+ * Offerings" per the CafeMenuIntegrated artboard (#378), not shared's generic "All Day" --
+ * mealPeriodLabel/mealTabLabel stay untouched since "All Day" is still correct for a real dining
+ * hall's own all-day period elsewhere. `isRealHall` scopes the override to café rendering only. */
+export function cafeMealTabLabel(period: MealPeriod, isRealHall: boolean): string {
+  if (!isRealHall && period === "allday") return "Daily Offerings";
+  return mealTabLabel(period);
+}
+
 /**
  * Whether [slug].tsx's current-meal auto-correction effect should actually fire `setSelectedMeal`
  * for a resolved `period` -- pulled out of that effect as a pure predicate so the guard's DECISION
