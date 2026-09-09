@@ -14,16 +14,20 @@ import { Button, Stat } from "./ui";
 import { useDraggableSheet } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
-/** Per-kind badge label/color -- PlateSearchResult (lib/plate.ts) is the merged-search tagged union
- * this reads off of. Distinct tones per the approved canvas: UMass stays the original maroon
- * outline, Packaged a neutral grey, USDA a muted sage, Custom the app's gold accent (same token the
- * menu-filters-macros badges already use). */
-const BADGE_INFO: Record<PlateSearchResult["kind"], { label: string; color: string }> = {
-  umass: { label: "UMass", color: colors.maroon600 },
-  off: { label: "Packaged", color: withOpacity(colors.ink900, 55) },
-  usda: { label: "USDA", color: colors.sage600 },
-  custom: { label: "Custom", color: colors.gold500 },
+/** Per-kind badge label/fill/text -- PlateSearchResult (lib/plate.ts) is the merged-search tagged
+ * union this reads off of. Filled pills (docs/design/PlateSheetResults.dc.html:49,60,71,82,93), not
+ * the old outline treatment -- exact fill/text pairs per kind straight off that artboard. */
+const BADGE_INFO: Record<PlateSearchResult["kind"], { label: string; fill: string; color: string }> = {
+  umass: { label: "UMass", fill: "rgba(59,10,15,0.08)", color: "#3b0a0f" },
+  custom: { label: "Custom", fill: "rgba(201,154,46,0.16)", color: "#8a6a1a" },
+  off: { label: "Packaged", fill: "rgba(36,26,20,0.08)", color: "rgba(36,26,20,0.65)" },
+  usda: { label: "USDA", fill: "rgba(92,112,72,0.16)", color: "#4a5c3a" },
 };
+
+// Both networked search sources page at 20 results (OFF_PAGE_SIZE in shared/src/openFoodFacts.ts,
+// FDC_PAGE_SIZE in shared/src/usdaFoodData.ts) -- neither constant is exported, so the literal is
+// mirrored here for the "Load N More" button copy (docs/design/PlateSheetResults.dc.html:99).
+const SEARCH_PAGE_SIZE = 20;
 
 interface Props {
   visible: boolean;
@@ -102,6 +106,10 @@ export function PlateSheet({
   // (RN doesn't guarantee that ordering when the conditional swaps the child out from under it).
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
+  // "Add something else" starts idle (dashed row, no live input) until tapped -- #382, canvas:
+  // docs/design/PlateExpanded.dc.html:87-93. Auto-expanded by the initialQuery effect below since
+  // that path seeds and runs a search immediately, so there's nothing to be idle about.
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const [results, setResults] = useState<PlateSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -159,6 +167,7 @@ export function PlateSheet({
       setSearchError(null);
       setQuery("");
       setEditingKey(null);
+      setSearchExpanded(false);
       setOffPage(1);
       setOffHasMore(false);
       setUsdaPage(1);
@@ -195,6 +204,7 @@ export function PlateSheet({
   useEffect(() => {
     if (visible && initialQuery) {
       setQuery(initialQuery);
+      setSearchExpanded(true);
       runSearch(initialQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,8 +362,13 @@ export function PlateSheet({
                         {Math.round(entry.nutrition.calories)} cal each{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
                       </Text>
                     </View>
-                    <View style={styles.stepper}>
-                      <Pressable style={styles.stepperButton} onPress={() => onStep(entry.key, -1)} accessibilityRole="button" accessibilityLabel={`Remove one ${entry.label}`}>
+                    <View style={[styles.stepper, editingKey === entry.key && styles.stepperEditing]}>
+                      <Pressable
+                        style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                        onPress={() => onStep(entry.key, -1)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove one ${entry.label}`}
+                      >
                         <Text style={styles.stepperButtonText}>−</Text>
                       </Pressable>
                       {editingKey === entry.key ? (
@@ -373,12 +388,20 @@ export function PlateSheet({
                           <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
                         </Pressable>
                       )}
-                      <Pressable style={styles.stepperButton} onPress={() => onStep(entry.key, 1)} accessibilityRole="button" accessibilityLabel={`Add one ${entry.label}`}>
+                      <Pressable
+                        style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                        onPress={() => onStep(entry.key, 1)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Add one ${entry.label}`}
+                      >
                         <Text style={styles.stepperButtonText}>+</Text>
                       </Pressable>
                     </View>
                   </View>
                 ))}
+                {/* #392 canvas: docs/design/ServingsG.dc.html:65 -- shown once, not per-row, while any
+                row is in edit mode. */}
+                {editingKey && <Text style={styles.editingHint}>Tap the number to type an exact amount</Text>}
               </View>
 
               <View style={styles.divider} />
@@ -402,82 +425,105 @@ export function PlateSheet({
                 {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
               </Button>
 
-              <View style={styles.addSection}>
-                <View style={styles.searchRow}>
-                  <TextInput
-                    style={styles.searchInput}
-                    value={query}
-                    onChangeText={setQuery}
-                    placeholder="Search for a food"
-                    placeholderTextColor={withOpacity(colors.ink900, 45)}
-                    onSubmitEditing={() => runSearch()}
-                    // This box sits after the item list/totals/LOG button in a plain ScrollView,
-                    // which doesn't reliably scroll a newly-focused input into view on its own --
-                    // scroll it to the end (it's the last thing in the sheet) so the query stays
-                    // visible while typing.
-                    onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
-                    returnKeyType="search"
-                  />
-                  <Button variant="secondary" size="sm" onPress={() => runSearch()} disabled={searching || !query.trim()}>
-                    Search
-                  </Button>
-                </View>
-                {searching && <ActivityIndicator color={colors.maroon600} style={styles.searchSpinner} />}
-                {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
-                {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
-                {results?.map((r) => {
-                  const key = plateSearchResultKey(r);
-                  const detail = plateSearchResultDetail(r);
-                  const badge = BADGE_INFO[r.kind];
-                  return (
-                    <View key={key} style={styles.resultRow}>
-                      <Pressable
-                        style={styles.resultInfo}
-                        onPress={() => onShowResultDetail(r)}
-                        accessibilityRole="button"
-                        // The badge is visual-only -- an explicit accessibilityLabel replaces the
-                        // Pressable's rendered text for assistive tech, so the source distinction
-                        // has to be spelled out here too, or a screen-reader user gets two
-                        // indistinguishable "View Pizza" actions on a name collision. "View", not
-                        // "Add" -- tapping a result now opens the confirm/detail step, not an
-                        // instant add (#91 follow-on).
-                        accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
-                      >
-                        <View style={styles.resultHeaderRow}>
-                          <Text style={styles.resultLabel}>{detail.dishName}</Text>
-                          <View style={[styles.badge, { borderColor: badge.color }]}>
-                            <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+              {searchExpanded ? (
+                <View style={styles.addSection}>
+                  <View style={styles.searchRow}>
+                    <TextInput
+                      style={styles.searchInput}
+                      value={query}
+                      onChangeText={setQuery}
+                      placeholder="Search for a food"
+                      placeholderTextColor={withOpacity(colors.ink900, 45)}
+                      onSubmitEditing={() => runSearch()}
+                      // This box sits after the item list/totals/LOG button in a plain ScrollView,
+                      // which doesn't reliably scroll a newly-focused input into view on its own --
+                      // scroll it to the end (it's the last thing in the sheet) so the query stays
+                      // visible while typing.
+                      onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                      returnKeyType="search"
+                    />
+                    <Button variant="secondary" size="sm" onPress={() => runSearch()} disabled={searching || !query.trim()}>
+                      Search
+                    </Button>
+                  </View>
+                  {searching && <ActivityIndicator color={colors.maroon600} style={styles.searchSpinner} />}
+                  {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
+                  {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
+                  {results?.map((r) => {
+                    const key = plateSearchResultKey(r);
+                    const detail = plateSearchResultDetail(r);
+                    const badge = BADGE_INFO[r.kind];
+                    return (
+                      <View key={key} style={styles.resultRow}>
+                        <Pressable
+                          style={styles.resultInfo}
+                          onPress={() => onShowResultDetail(r)}
+                          accessibilityRole="button"
+                          // The badge is visual-only -- an explicit accessibilityLabel replaces the
+                          // Pressable's rendered text for assistive tech, so the source distinction
+                          // has to be spelled out here too, or a screen-reader user gets two
+                          // indistinguishable "View Pizza" actions on a name collision. "View", not
+                          // "Add" -- tapping a result now opens the confirm/detail step, not an
+                          // instant add (#91 follow-on).
+                          accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
+                        >
+                          <View style={styles.resultHeaderRow}>
+                            <Text style={styles.resultLabel}>{detail.dishName}</Text>
+                            <View style={[styles.badge, { backgroundColor: badge.fill }]}>
+                              <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                            </View>
                           </View>
-                        </View>
-                        <Text style={styles.resultCalories}>
-                          {Math.round(detail.nutrition.calories)} cal{isEstimatedServing(detail.nutrition) ? " · est. per 100g" : ""}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  );
-                })}
-                {(offHasMore || usdaHasMore) && (
-                  <Button variant="ghost" size="sm" style={styles.loadMoreButton} onPress={loadMore} disabled={loadingMore}>
-                    {loadingMore ? "Loading…" : "Load more"}
-                  </Button>
-                )}
-                {/* Standing footer row (canvas: not gated strictly on an empty result) -- shown
-                whenever a search has actually run, whether or not it found anything, since no
-                database this sheet searches will ever have every food (a homemade recipe, a
-                friend's cooking). Also shown on the all-rejected-with-nothing-usable error branch
-                above (results stays null there) -- that's exactly when the user most needs this
-                escape hatch. */}
-                {(results !== null || searchError !== null) && (
-                  <Pressable
-                    style={styles.customFoodRow}
-                    onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Create a custom food"
-                  >
-                    <Text style={styles.customFoodRowText}>Can&apos;t find it? Create a custom food</Text>
-                  </Pressable>
-                )}
-              </View>
+                          <Text style={styles.resultCalories}>
+                            {Math.round(detail.nutrition.calories)} cal{isEstimatedServing(detail.nutrition) ? " · est. per 100g" : ""}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                  {(offHasMore || usdaHasMore) && (
+                    <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
+                      {loadingMore ? "Loading…" : `Load ${SEARCH_PAGE_SIZE} More`}
+                    </Button>
+                  )}
+                  {/* Standing footer row (canvas: not gated strictly on an empty result) -- shown
+                  whenever a search has actually run, whether or not it found anything, since no
+                  database this sheet searches will ever have every food (a homemade recipe, a
+                  friend's cooking). Also shown on the all-rejected-with-nothing-usable error branch
+                  above (results stays null there) -- that's exactly when the user most needs this
+                  escape hatch. */}
+                  {(results !== null || searchError !== null) && (
+                    <Pressable
+                      style={styles.customFoodRow}
+                      onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Create a custom food"
+                    >
+                      <Text style={styles.customFoodRowIcon}>+</Text>
+                      <Text style={styles.customFoodRowText}>Can&apos;t find it? Create a custom food</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ) : (
+                // Idle state (#382, canvas: docs/design/PlateExpanded.dc.html:87-93). The artboard's
+                // hint copy is "Search or scan a barcode — for foods not on the menu", but there's no
+                // barcode-scan feature anywhere in this app (grepped) -- promising one here would be
+                // a caption for a capability that doesn't exist, so that clause is dropped.
+                <Pressable
+                  style={[styles.addSection, styles.addSectionIdle]}
+                  onPress={() => setSearchExpanded(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add something else"
+                >
+                  <View style={styles.addIdleIcon}>
+                    <View style={styles.addIdleIconRing} />
+                    <View style={styles.addIdleIconHandle} />
+                  </View>
+                  <View style={styles.addIdleText}>
+                    <Text style={styles.addIdleTitle}>Add something else</Text>
+                    <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
+                  </View>
+                </Pressable>
+              )}
             </ScrollView>
           </Animated.View>
         </View>
@@ -496,13 +542,23 @@ const styles = StyleSheet.create({
     paddingTop: spacing(2.5),
     paddingHorizontal: spacing(5),
     maxHeight: fs(640),
+    // #373 canvas: docs/design/PlateExpanded.dc.html:27 & ServingsG.dc.html:27 --
+    // box-shadow: 0 -8px 24px rgba(36,26,20,0.25). Pattern per HoldSlideOverlay.tsx (the only other
+    // shadow in this codebase): shadowColor plain + shadowOpacity separate, elevation for Android.
+    shadowColor: colors.ink900,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
   },
   // paddingVertical bumped from a bare 0 to spacing(5) (~20dp a side): the 40x4 pill alone was far
   // too small a real touch/drag target -- ~44dp of touchable height (handle + padding) is the usual
   // minimum for a draggable handle.
   handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(2.5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: spacing(3) },
+  // marginBottom 14 (spacing(3.5)), matching the 14px gap PlateExpanded.dc.html:27 uses uniformly
+  // between every top-level section of the sheet (divider/totalsRow/addSection below already did).
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: spacing(3.5) },
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   context: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   scroll: { flexGrow: 0 },
@@ -520,22 +576,31 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   stepperButton: { width: fs(42), height: fs(44), alignItems: "center", justifyContent: "center" },
+  // #392 canvas: docs/design/ServingsG.dc.html:56-57 -- narrower 38px +/- buttons with a 6px gap and
+  // 0/3px padding around the pill, only for the row currently in edit mode (the 42px non-editing
+  // buttons/pill are untouched).
+  stepperEditing: { gap: spacing(1.5), paddingHorizontal: 3 },
+  stepperButtonEditing: { width: fs(38) },
   stepperButtonText: { fontSize: fs(18), color: colors.maroon600 },
   // minWidth 34 (was 24): fits "1.5" without the pill visibly resizing on every fractional count.
   stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 34, textAlign: "center", color: colors.ink900 },
+  // #392 canvas: docs/design/ServingsG.dc.html:58-59 -- minWidth 46/height 32/radius 8, text
+  // 15px/#3b0a0f (was minWidth 34, no fixed height, radii.sm=2, fs(14)/ink900).
   stepperInput: {
     fontFamily: fonts.mono,
-    fontSize: fs(14),
+    fontSize: fs(15),
     fontWeight: "600",
-    minWidth: 34,
+    minWidth: fs(46),
+    height: fs(32),
     textAlign: "center",
-    color: colors.ink900,
+    color: colors.maroon900,
     borderWidth: 1.5,
     borderColor: colors.gold500,
-    borderRadius: radii.sm,
-    paddingVertical: 2,
+    borderRadius: 8,
     paddingHorizontal: spacing(1),
   },
+  // #392 canvas: docs/design/ServingsG.dc.html:65 -- shown once while any row is being edited.
+  editingHint: { fontSize: fs(11), color: withOpacity(colors.ink900, 50), textAlign: "right", marginTop: -4 },
 
   divider: { height: 1, backgroundColor: withOpacity(colors.ink900, 12), marginVertical: spacing(3.5) },
 
@@ -545,15 +610,36 @@ const styles = StyleSheet.create({
   logButton: { height: fs(52), borderRadius: radii.md },
   logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
+  // #382 canvas: docs/design/PlateExpanded.dc.html:87-93 -- asymmetric 12px/14px padding and a
+  // 44px min-height (was a uniform spacing(3.5)=14px pad, no min-height). Doubles as both the idle
+  // row's own box and the expanded search area's wrapper.
   addSection: {
     marginTop: spacing(3.5),
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: withOpacity(colors.maroon600, 45),
     borderRadius: radii.md,
-    padding: spacing(3.5),
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
+    minHeight: fs(44),
     gap: spacing(1),
   },
+  addSectionIdle: { flexDirection: "row", alignItems: "center", gap: spacing(3) },
+  addIdleIcon: { width: fs(20), height: fs(20), alignItems: "center", justifyContent: "center" },
+  addIdleIconRing: { position: "absolute", top: 0, left: 0, width: fs(11), height: fs(11), borderRadius: 999, borderWidth: 1.6, borderColor: colors.maroon600 },
+  addIdleIconHandle: {
+    position: "absolute",
+    bottom: fs(2),
+    right: fs(1),
+    width: fs(7),
+    height: 1.6,
+    borderRadius: 1,
+    backgroundColor: colors.maroon600,
+    transform: [{ rotate: "45deg" }],
+  },
+  addIdleText: { flexShrink: 1, gap: 0 },
+  addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
+  addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 50) },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
   searchInput: {
     flex: 1,
@@ -581,15 +667,35 @@ const styles = StyleSheet.create({
   resultHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing(1.5) },
   resultLabel: { fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
   resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
+  // #381 canvas: docs/design/PlateSheetResults.dc.html:49,60,71,82,93 -- filled pill, no border,
+  // 9px/700 sans-serif at 0.4px letterspacing, 2px/6px padding (was an outline pill, mono, fs(10)).
+  // fonts.body600 (600) is the closest loaded weight to the spec's 700 -- Libre Franklin's 700 cut
+  // isn't one of the @expo-google-fonts weights this app loads, and pairing a lighter weighted
+  // family with an explicit fontWeight fake-bolds it on Android (see theme.ts's own note).
   badge: {
-    borderWidth: 1,
-    borderColor: withOpacity(colors.maroon600, 45),
     borderRadius: radii.pill,
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  badgeText: { fontFamily: fonts.mono, fontSize: fs(10), letterSpacing: 0.5, textTransform: "uppercase", color: colors.maroon600 },
-  loadMoreButton: { alignSelf: "center", marginTop: spacing(2) },
-  customFoodRow: { marginTop: spacing(2.5), paddingTop: spacing(2.5), borderTopWidth: StyleSheet.hairlineWidth, borderColor: withOpacity(colors.ink900, 15) },
-  customFoodRowText: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600, textAlign: "center" },
+  badgeText: { fontFamily: fonts.body600, fontSize: fs(9), letterSpacing: 0.4, textTransform: "uppercase" },
+  // #381 canvas: docs/design/PlateSheetResults.dc.html:99 -- Oswald/600/12px uppercase with a
+  // visible border (was Button's ghost variant: transparent border, no uppercase).
+  loadMoreButton: { alignSelf: "center", marginTop: spacing(2), borderWidth: 1, borderColor: withOpacity(colors.ink900, 20), borderRadius: 6 },
+  loadMoreButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.8, textTransform: "uppercase", color: withOpacity(colors.ink900, 65) },
+  // #381 canvas: docs/design/PlateSheetResults.dc.html:103 -- a dashed box with a "+" icon (was a
+  // plain hairline-top row with centered text only).
+  customFoodRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2.5),
+    marginTop: spacing(1.5),
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: withOpacity(colors.maroon600, 45),
+    borderRadius: 6,
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
+  },
+  customFoodRowIcon: { fontSize: fs(16), fontWeight: "700", color: colors.maroon600 },
+  customFoodRowText: { flex: 1, fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
 });
