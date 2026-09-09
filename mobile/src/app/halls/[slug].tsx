@@ -173,10 +173,11 @@ function MacroBadgeIcon({ preset }: { preset: MacroPreset }) {
 }
 
 /** Filter-funnel glyph for the FilterSheet FAB -- same thin-stroke style as GrabBagIcon above. */
+// Filter-lines glyph -- docs/design/MenuFAB_Active.dc.html:75, docs/design/MenuFAB_Inactive.dc.html:75
 function FilterGlyphIcon({ color }: { color: string }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 5h16l-6 8v6l-4 2v-8L4 5Z" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+    <Svg width={18} height={18} viewBox="0 0 16 16" fill="none">
+      <Path d="M2.5 3.5h11M4.5 8h7M6.5 12.5h3" stroke={color} strokeWidth={1.7} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -1339,7 +1340,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           accessibilityRole="button"
           accessibilityLabel={hiddenCount > 0 ? `Filters, hiding ${hiddenCount} ${hiddenCount === 1 ? "dish" : "dishes"}` : "Filters"}
         >
-          <FilterGlyphIcon color={hiddenCount > 0 ? colors.paper50 : colors.maroon600} />
+          <FilterGlyphIcon color={hiddenCount > 0 ? colors.paper50 : colors.maroon900} />
           {hiddenCount > 0 && (
             <View style={styles.filterFabBadge}>
               <Text style={styles.filterFabBadgeText}>{hiddenCount}</Text>
@@ -1678,24 +1679,36 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: withOpacity(colors.maroon600, 35),
+    borderWidth: 1.5,
+    borderColor: withOpacity(colors.ink900, 20),
     backgroundColor: colors.paper50,
+    shadowColor: colors.ink900,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  filterFabActive: { backgroundColor: colors.maroon900, borderColor: colors.maroon900 },
+  filterFabActive: {
+    backgroundColor: colors.maroon900,
+    borderColor: colors.maroon900,
+    shadowOpacity: 0.35,
+    elevation: 6,
+  },
   filterFabBadge: {
     position: "absolute",
     top: -4,
     right: -4,
-    minWidth: fs(18),
-    height: fs(18),
-    borderRadius: fs(9),
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     paddingHorizontal: 3,
     backgroundColor: colors.gold500,
+    borderWidth: 2,
+    borderColor: colors.cream100,
     alignItems: "center",
     justifyContent: "center",
   },
-  filterFabBadgeText: { fontSize: fs(10), fontFamily: fonts.mono, fontWeight: "700", color: colors.maroon900 },
+  filterFabBadgeText: { fontSize: 9, fontFamily: fonts.mono, fontWeight: "700", color: colors.maroon900 },
   expandedContent: { gap: spacing(2.5) },
   expandedDivider: { height: 1, backgroundColor: withOpacity(colors.ink900, 10) },
   servingSummary: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 70) },
