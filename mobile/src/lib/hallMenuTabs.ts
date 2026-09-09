@@ -155,6 +155,36 @@ export function hallInfoEventsEmptyCopy(hallName: string): string {
   return `No events at ${hallName} this week`;
 }
 
+/**
+ * Café-screen QA fix (bug 1): whether the plate bar's "still loading" empty-state should show for
+ * the CURRENTLY selected tab -- pulled out as a pure predicate so the café "info" case is
+ * unit-testable without mounting the whole screen. [slug].tsx's original inline formula treated
+ * `selectedMeal === null` as "still loading" for every café, real hall alike -- correct for a real
+ * hall (its 4 tabs are always the same MEAL_TABS, so a null selectedMeal only ever means the
+ * current-meal-period effect hasn't landed yet) and for an "integrated"/"standing" café (mealTabs
+ * resolves and the pick-first-tab effect fires selectedMeal moments later) -- but WRONG for an
+ * "info" café: it has no mealTabs at all (see mealTabs' own doc comment), so the effect that would
+ * ever set selectedMeal never runs, and it stays null forever. That made an info-only café's plate
+ * bar read as PERMANENTLY loading -- disabled LOG button, "add dishes once the menu loads" copy
+ * that can never come true (the whole point of this ticket: it should read and work like the normal
+ * "search for something not on the menu" empty state instead, same as it already does for a real
+ * hall whose menu genuinely has zero matching dishes).
+ */
+export function isCurrentTabLoading(params: {
+  selectedMeal: MealPeriod | "grab" | null;
+  isRealHall: boolean;
+  hasItems: boolean;
+  hasGrabItems: boolean;
+  cafeStateKind: "integrated" | "standing" | "info" | null;
+}): boolean {
+  const { selectedMeal, isRealHall, hasItems, hasGrabItems, cafeStateKind } = params;
+  if (selectedMeal === "grab") return !hasGrabItems;
+  if (isRealHall) return !hasItems || selectedMeal === null;
+  if (cafeStateKind === null) return true; // waterfall still resolving (ajax in flight, or catalog not yet read)
+  if (cafeStateKind === "info") return false; // no tabs to ever select -- never "loading" on that account
+  return selectedMeal === null; // integrated/standing: brief moment before the pick-first-tab effect lands
+}
+
 /** Toggles one dish card's expanded state. Immutable -- returns a new Set, never mutates the one
  * passed in (React state). Cards expand independently (a Set of keys, not a single "the expanded
  * one"), matching the canvas's tap-any-card-to-expand-in-place behavior. */

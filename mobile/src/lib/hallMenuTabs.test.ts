@@ -7,6 +7,7 @@ import {
   hallInfoGrabNGoWindow,
   hallInfoHoursRows,
   hallInfoWindowText,
+  isCurrentTabLoading,
   mealTabLabel,
   shouldAutoCorrectMealTab,
   stepDate,
@@ -61,6 +62,35 @@ describe("shouldAutoCorrectMealTab", () => {
 
   it("returns true comparing against a null selection (not yet chosen)", () => {
     expect(shouldAutoCorrectMealTab("lunch", null, REAL_HALL_TABS)).toBe(true);
+  });
+});
+
+// Café-screen QA fix (bug 1): the info-only café's plate bar used to read as PERMANENTLY loading --
+// no mealTabs means selectedMeal never leaves null, and the original inline formula treated that as
+// "still loading" unconditionally.
+describe("isCurrentTabLoading", () => {
+  it("an info-only café is never 'loading', even though selectedMeal stays null forever", () => {
+    expect(isCurrentTabLoading({ selectedMeal: null, isRealHall: false, hasItems: true, hasGrabItems: false, cafeStateKind: "info" })).toBe(false);
+  });
+
+  it("a café whose waterfall hasn't resolved yet (cafeStateKind null) IS loading", () => {
+    expect(isCurrentTabLoading({ selectedMeal: null, isRealHall: false, hasItems: false, hasGrabItems: false, cafeStateKind: null })).toBe(true);
+  });
+
+  it("an integrated/standing café is loading only until selectedMeal picks its first tab", () => {
+    expect(isCurrentTabLoading({ selectedMeal: null, isRealHall: false, hasItems: true, hasGrabItems: false, cafeStateKind: "standing" })).toBe(true);
+    expect(isCurrentTabLoading({ selectedMeal: "allday", isRealHall: false, hasItems: true, hasGrabItems: false, cafeStateKind: "standing" })).toBe(false);
+  });
+
+  it("a real hall is loading while its items haven't arrived, or before the initial tab lands", () => {
+    expect(isCurrentTabLoading({ selectedMeal: "lunch", isRealHall: true, hasItems: false, hasGrabItems: false, cafeStateKind: null })).toBe(true);
+    expect(isCurrentTabLoading({ selectedMeal: null, isRealHall: true, hasItems: true, hasGrabItems: false, cafeStateKind: null })).toBe(true);
+    expect(isCurrentTabLoading({ selectedMeal: "lunch", isRealHall: true, hasItems: true, hasGrabItems: false, cafeStateKind: null })).toBe(false);
+  });
+
+  it("the grab tab is loading purely off hasGrabItems, regardless of isRealHall/cafeStateKind", () => {
+    expect(isCurrentTabLoading({ selectedMeal: "grab", isRealHall: true, hasItems: true, hasGrabItems: false, cafeStateKind: null })).toBe(true);
+    expect(isCurrentTabLoading({ selectedMeal: "grab", isRealHall: true, hasItems: true, hasGrabItems: true, cafeStateKind: null })).toBe(false);
   });
 });
 
