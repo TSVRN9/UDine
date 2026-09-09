@@ -247,7 +247,8 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: withOpacity(colors.paper50, 85) },
 
-  documentSurface: { flex: 1, marginHorizontal: spacing(3.5), backgroundColor: colors.paper50, borderTopLeftRadius: radii.md, borderTopRightRadius: radii.md, overflow: "hidden" },
+  // 8px matches CafePdf.dc.html:32 (border-radius: 8px 8px 0 0); doesn't land on an existing radii token.
+  documentSurface: { flex: 1, marginHorizontal: spacing(3.5), backgroundColor: colors.paper50, borderTopLeftRadius: 8, borderTopRightRadius: 8, overflow: "hidden" },
   webview: { flex: 1, backgroundColor: colors.paper50 },
   loading: { flex: 1 },
   errorBlock: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing(3), padding: spacing(4) },
