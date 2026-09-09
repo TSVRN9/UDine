@@ -10,6 +10,7 @@ import {
   plateKeyFor,
   plateSearchResultDetail,
   plateSearchResultToPlateEntry,
+  resolvePlateAndCustomFoodVisibility,
   setCount,
   stepCount,
   toLogEntries,
@@ -348,5 +349,30 @@ describe("isEstimatedServing", () => {
 
   it("does not flag a umass-menu item (servingSize is never the literal marker string)", () => {
     expect(isEstimatedServing({ ...nutrition(160), servingSize: "1 each" })).toBe(false);
+  });
+});
+
+describe("resolvePlateAndCustomFoodVisibility", () => {
+  // #436: PlateSheet's own "Can't find it? Create a custom food" row flips customFoodFormOpen
+  // while sheetOpen is still true -- both Modals must never be visible=true at once on Android
+  // (silently fails to present the second one). CustomFoodForm must win, forcing PlateSheet closed.
+  it("closes PlateSheet the instant CustomFoodForm should open, even though sheetOpen never changes", () => {
+    expect(resolvePlateAndCustomFoodVisibility(true, true)).toEqual({ plateSheetVisible: false, customFoodFormVisible: true });
+  });
+
+  // Once CustomFoodForm is dismissed, PlateSheet reopens on its own -- sheetOpen was never
+  // touched, so no separate "remember to reopen" state is needed.
+  it("reopens PlateSheet on its own once customFoodFormOpen goes back to false", () => {
+    expect(resolvePlateAndCustomFoodVisibility(true, false)).toEqual({ plateSheetVisible: true, customFoodFormVisible: false });
+  });
+
+  // CafeSheet's identical trigger (sheetOpen never becomes true there) must keep working exactly
+  // as before -- CustomFoodForm alone, no PlateSheet in the picture.
+  it("leaves CustomFoodForm alone when PlateSheet was never open (CafeSheet's flow)", () => {
+    expect(resolvePlateAndCustomFoodVisibility(false, true)).toEqual({ plateSheetVisible: false, customFoodFormVisible: true });
+  });
+
+  it("both closed is both closed", () => {
+    expect(resolvePlateAndCustomFoodVisibility(false, false)).toEqual({ plateSheetVisible: false, customFoodFormVisible: false });
   });
 });
