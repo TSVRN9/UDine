@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   InMemoryLogStorage,
+  exportCustomFoodsAsCsv,
+  exportCustomFoodsAsJson,
   exportEntriesAsCsv,
   exportEntriesAsJson,
   exportFavoritesAsCsv,
@@ -11,7 +13,30 @@ import {
   exportRankedFoodsAsCsv,
   exportRankedFoodsAsJson,
 } from "./storage.ts";
-import type { Favorite, LogEntry, RankedDish, RankedFood } from "./types.ts";
+import type { CustomFood, Favorite, LogEntry, RankedDish, RankedFood } from "./types.ts";
+
+function customFood(overrides: Partial<CustomFood>): CustomFood {
+  return {
+    id: "c1",
+    name: "Grandma's Lasagna",
+    servingSize: "1 slice",
+    nutrition: {
+      servingSize: "1 slice",
+      calories: 420,
+      caloriesFromFat: 0,
+      totalFatG: 18,
+      satFatG: 8,
+      transFatG: 0,
+      cholesterolMg: 60,
+      sodiumMg: 650,
+      totalCarbG: 35,
+      dietaryFiberG: 2,
+      sugarsG: 4,
+      proteinG: 22,
+    },
+    ...overrides,
+  };
+}
 
 function entry(overrides: Partial<LogEntry>): LogEntry {
   return {
@@ -341,4 +366,35 @@ test("exportFavoritesAsCsv leaves a dishName with =/+/-/@ NOT in the leading pos
   const favorites: Favorite[] = [{ type: "dish", dishName: "Mac & Cheese = Comfort" }];
   const expected = ["type,dishName,hallTid", '"dish","Mac & Cheese = Comfort",""'].join("\n");
   assert.equal(exportFavoritesAsCsv(favorites), expected);
+});
+
+test("exportCustomFoodsAsJson returns an empty array literal for no custom foods", () => {
+  assert.equal(exportCustomFoodsAsJson([]), "[]");
+});
+
+test("exportCustomFoodsAsJson round-trips a known fixture, ingredients included", () => {
+  const foods = [customFood({ ingredients: "Pasta, tomato sauce, cheese" })];
+  assert.deepEqual(JSON.parse(exportCustomFoodsAsJson(foods)), foods);
+});
+
+test("exportCustomFoodsAsCsv returns only the header row for no custom foods", () => {
+  assert.equal(exportCustomFoodsAsCsv([]), "id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients");
+});
+
+test("exportCustomFoodsAsCsv matches a hand-computed CSV string, ingredients omitted when absent", () => {
+  const foods = [customFood({})];
+  const expected = [
+    "id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients",
+    '"c1","Grandma\'s Lasagna","1 slice","420","22","35","18",""',
+  ].join("\n");
+  assert.equal(exportCustomFoodsAsCsv(foods), expected);
+});
+
+test("exportCustomFoodsAsCsv prefixes a leading =/+/-/@ in name with a tab, neutralizing formula injection", () => {
+  const foods = [customFood({ name: "=SUM(A1:A2)" })];
+  const expected = [
+    "id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients",
+    '"c1","\t=SUM(A1:A2)","1 slice","420","22","35","18",""',
+  ].join("\n");
+  assert.equal(exportCustomFoodsAsCsv(foods), expected);
 });

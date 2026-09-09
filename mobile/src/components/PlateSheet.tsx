@@ -1,23 +1,29 @@
-import { searchProducts, type DailyMacroTotals, type LogStorage, type OffSearchResult } from "@udine/shared";
+import { searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type LogStorage } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
-import { isEstimatedServing, totalItemCount, type PlateEntry } from "../lib/plate";
+import { isEstimatedServing, plateSearchResultDetail, plateSearchResultKey, totalItemCount, type PlateEntry, type PlateSearchResult } from "../lib/plate";
 import { formatServings, parseServingsInput } from "../lib/servingsStepper";
 import { supabase } from "../lib/supabase";
 import { Button, Stat } from "./ui";
 import { useDraggableSheet } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
-/** One merged search result: either a UMass-side dish (device log history, or the server dish
- * nutrition catalog cached locally -- see dishCatalog.ts) or an OpenFoodFacts packaged-food hit.
- * Tagged so the result row can badge it instead of the search box needing separate explanatory
- * headings per source. */
-type PlateSearchResult = { kind: "umass"; dish: HistoryDish } | { kind: "off"; product: OffSearchResult };
+/** Per-kind badge label/color -- PlateSearchResult (lib/plate.ts) is the merged-search tagged union
+ * this reads off of. Distinct tones per the approved canvas: UMass stays the original maroon
+ * outline, Packaged a neutral grey, USDA a muted sage, Custom the app's gold accent (same token the
+ * menu-filters-macros badges already use). */
+const BADGE_INFO: Record<PlateSearchResult["kind"], { label: string; color: string }> = {
+  umass: { label: "UMass", color: colors.maroon600 },
+  off: { label: "Packaged", color: withOpacity(colors.ink900, 55) },
+  usda: { label: "USDA", color: colors.sage600 },
+  custom: { label: "Custom", color: colors.gold500 },
+};
 
 interface Props {
   visible: boolean;
@@ -29,6 +35,10 @@ interface Props {
    * directly) -- halls/[slug].tsx already owns one SqliteLogStorage instance for logging, passed
    * straight through rather than duplicated here. */
   logStorage: LogStorage;
+  /** Backs the custom-food half of the merged search (4th source, see PlateSearchResult) --
+   * halls/[slug].tsx owns one SqliteCustomFoodsStorage instance, same pass-through convention as
+   * logStorage above. */
+  customFoodsStorage: CustomFoodsStorage;
   /** The hall (or café) currently being browsed -- history search is scoped to this hallTid only,
    * never cross-hall (see dishHistory.ts's own doc: a re-added dish's hallTid feeds server-synced
    * hall-completion/favorite-hall derivation, so a cross-hall dedup could misattribute credit
@@ -39,8 +49,17 @@ interface Props {
   /** Manual entry (tap the count, type an exact amount -- halves and any other decimal, not
    * just ±1 steps). Wired straight to plate.ts's setCount. */
   onSetCount: (key: string, count: number) => void;
-  onAddOffResult: (result: OffSearchResult) => void;
-  onAddHistoryDish: (dish: HistoryDish) => void;
+  /** Tapping any search result (all 4 PlateSearchResult kinds) opens the shared NutritionLabel
+   * confirm/detail step -- lifted to the caller (see halls/[slug].tsx) rather than nested inside
+   * this sheet's own <Modal>: no precedent in this codebase for a Modal mounted inside another
+   * Modal, and PlateSheet.tsx's own header note already documents the scar tissue around Modals
+   * getting their own native host. The caller renders NutritionLabel as a sibling and its own
+   * onAddToPlate is what actually adds the result to the plate (plateSearchResultToPlateEntry). */
+  onShowResultDetail: (result: PlateSearchResult) => void;
+  /** The standing "Can't find it? Create a custom food" footer row -- also lifted to the caller for
+   * the same nested-Modal reason as onShowResultDetail. Prefilled with whatever's currently typed
+   * in the search box, if anything. */
+  onOpenCustomFoodForm: (prefillName: string | undefined) => void;
   onLog: () => void;
   onClose: () => void;
   /** Café-screen unification: a standing-menu row with no catalog match ("add something else"
@@ -55,11 +74,27 @@ interface Props {
 /**
  * Expanded plate sheet (canvas: "Plate expanded") — a bottom sheet over a dimmed scrim: drag
  * handle, per-item steppers, totals grid, LOG N ITEMS, and a single merged search box (local
- * device history + the cached dish catalog + OpenFoodFacts, tagged per-row). A transparent RN
- * Modal, same structural call as NutritionLabel (see halls/[slug].tsx's note): no route, no
- * _layout.tsx change, no MenuItem serialization through router params.
+ * device history + the cached dish catalog + OpenFoodFacts + USDA FoodData Central + saved custom
+ * foods, tagged per-row). A transparent RN Modal, same structural call as NutritionLabel (see
+ * halls/[slug].tsx's note): no route, no _layout.tsx change, no MenuItem serialization through
+ * router params.
  */
-export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, hallTid, onStep, onSetCount, onAddOffResult, onAddHistoryDish, onLog, onClose, initialQuery }: Props) {
+export function PlateSheet({
+  visible,
+  plate,
+  totals,
+  contextLabel,
+  logStorage,
+  customFoodsStorage,
+  hallTid,
+  onStep,
+  onSetCount,
+  onShowResultDetail,
+  onOpenCustomFoodForm,
+  onLog,
+  onClose,
+  initialQuery,
+}: Props) {
   const [query, setQuery] = useState("");
   // Tap-to-type serving entry: which row's count is currently an editable TextInput (null = none
   // are). Only one row edits at a time -- starting a new one commits whatever was already typed
@@ -70,6 +105,14 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
   const [results, setResults] = useState<PlateSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  // Pagination cursors for the two networked sources (OFF/USDA) -- umass history/catalog and
+  // custom foods are local device queries with no meaningful "next page" of their own. Reset on
+  // every fresh search (runSearch) and advanced by loadMore below.
+  const [offPage, setOffPage] = useState(1);
+  const [offHasMore, setOffHasMore] = useState(false);
+  const [usdaPage, setUsdaPage] = useState(1);
+  const [usdaHasMore, setUsdaHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
   const scrollRef = useRef<ScrollView>(null);
@@ -116,6 +159,11 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
       setSearchError(null);
       setQuery("");
       setEditingKey(null);
+      setOffPage(1);
+      setOffHasMore(false);
+      setUsdaPage(1);
+      setUsdaHasMore(false);
+      setLoadingMore(false);
     }
   }, [visible]);
 
@@ -162,23 +210,29 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
     setSearching(true);
     setSearchError(null);
     try {
-      const [historySettled, catalogSettled, offSettled] = await Promise.allSettled([
+      const [historySettled, catalogSettled, offSettled, usdaSettled, customSettled] = await Promise.allSettled([
         getLoggedUmassDishHistory(logStorage, hallTid, q),
         getCachedDishCatalog().then((catalog) => searchCachedDishes(catalog, q)),
         searchProducts(q),
+        searchFoods(q),
+        customFoodsStorage.getAllCustomFoods().then((foods) => searchCustomFoods(foods, q)),
       ]);
       if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
 
-      const rejections = [historySettled, catalogSettled, offSettled].filter((r): r is PromiseRejectedResult => r.status === "rejected");
+      const rejections = [historySettled, catalogSettled, offSettled, usdaSettled, customSettled].filter(
+        (r): r is PromiseRejectedResult => r.status === "rejected",
+      );
 
       const history = historySettled.status === "fulfilled" ? historySettled.value : [];
       const catalogHits = catalogSettled.status === "fulfilled" ? catalogSettled.value : [];
-      const off = offSettled.status === "fulfilled" ? offSettled.value : [];
+      const off = offSettled.status === "fulfilled" ? offSettled.value : { results: [], hasMore: false };
+      const usda = usdaSettled.status === "fulfilled" ? usdaSettled.value : { results: [], hasMore: false };
+      const custom = customSettled.status === "fulfilled" ? customSettled.value : [];
 
       // Merge the two UMass-side sources by dishName (case-insensitive). Local history wins on a
       // name collision -- it's already confirmed-logged at this exact hall, no network dependency.
       // A catalog-only hit is staged as a HistoryDish scoped to the CURRENTLY-BROWSED hall so it
-      // flows through the existing historyDishToPlateEntry/onAddHistoryDish path unchanged.
+      // flows through the existing historyDishToPlateEntry path unchanged.
       const umassByName = new Map<string, HistoryDish>();
       for (const entry of catalogHits) {
         umassByName.set(entry.dishName.toLowerCase(), { dishName: entry.dishName, hallTid, nutrition: entry.nutrition });
@@ -189,34 +243,72 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
 
       const merged: PlateSearchResult[] = [
         ...[...umassByName.values()].map((dish): PlateSearchResult => ({ kind: "umass", dish })),
-        ...off.map((product): PlateSearchResult => ({ kind: "off", product })),
+        ...custom.map((food): PlateSearchResult => ({ kind: "custom", food })),
+        ...off.results.map((product): PlateSearchResult => ({ kind: "off", product })),
+        ...usda.results.map((food): PlateSearchResult => ({ kind: "usda", food })),
       ];
 
       // A rejection is only surfaced as a failure when it left the user with nothing: a real hit
       // from a surviving source is still useful, and pairing it with "Search failed" text would be
       // more confusing than helpful, so a partial failure alongside results is silently treated as
       // a success. But an EMPTY merged result plus any rejection is NOT the same as "genuinely no
-      // matches" -- previously only an all-three-rejected search showed the failure text, so e.g. a
-      // rejected OpenFoodFacts call alongside two sources that both legitimately resolved empty
-      // (the common case) fell through to "No matches", lying to the user about why nothing showed.
+      // matches" -- previously only an all-rejected search showed the failure text, so e.g. a
+      // rejected OpenFoodFacts call alongside sources that all legitimately resolved empty (the
+      // common case) fell through to "No matches", lying to the user about why nothing showed.
       if (merged.length === 0 && rejections.length > 0) {
         setSearchError(String(rejections[0].reason));
         setResults(null);
+        setOffHasMore(false);
+        setUsdaHasMore(false);
         return;
       }
 
       setSearchError(null);
       setResults(merged);
+      setOffPage(1);
+      setUsdaPage(1);
+      setOffHasMore(off.hasMore);
+      setUsdaHasMore(usda.hasMore);
     } finally {
       if (searchSeq.current === seq) setSearching(false);
     }
   }
 
-  function pickResult(result: PlateSearchResult) {
-    if (result.kind === "umass") onAddHistoryDish(result.dish);
-    else onAddOffResult(result.product);
-    setQuery("");
-    setResults(null);
+  /** Fetches the next page of whichever of OFF/USDA still has more (#91 follow-on pagination) and
+   * appends the new hits -- umass history/catalog and custom foods have no "next page" of their
+   * own (local, unpaginated queries), so this only ever touches the two networked sources. */
+  async function loadMore() {
+    if (loadingMore || (!offHasMore && !usdaHasMore)) return;
+    const q = query.trim();
+    if (!q) return;
+    const seq = searchSeq.current; // gated the same way runSearch is -- a stale response must not append onto a newer/closed search
+    setLoadingMore(true);
+    try {
+      const [offSettled, usdaSettled] = await Promise.allSettled([
+        offHasMore ? searchProducts(q, offPage + 1) : Promise.resolve(null),
+        usdaHasMore ? searchFoods(q, usdaPage + 1) : Promise.resolve(null),
+      ]);
+      if (searchSeq.current !== seq) return;
+
+      const off = offSettled.status === "fulfilled" ? offSettled.value : null;
+      const usda = usdaSettled.status === "fulfilled" ? usdaSettled.value : null;
+
+      const additions: PlateSearchResult[] = [
+        ...(off?.results.map((product): PlateSearchResult => ({ kind: "off", product })) ?? []),
+        ...(usda?.results.map((food): PlateSearchResult => ({ kind: "usda", food })) ?? []),
+      ];
+      if (additions.length > 0) setResults((prev) => [...(prev ?? []), ...additions]);
+      if (off) {
+        setOffPage((p) => p + 1);
+        setOffHasMore(off.hasMore);
+      }
+      if (usda) {
+        setUsdaPage((p) => p + 1);
+        setUsdaHasMore(usda.hasMore);
+      }
+    } finally {
+      if (searchSeq.current === seq) setLoadingMore(false);
+    }
   }
 
   return (
@@ -328,34 +420,55 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
                 {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
                 {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
                 {results?.map((r) => {
-                  const key = r.kind === "umass" ? `umass:${r.dish.hallTid}:${r.dish.dishName}` : `off:${r.product.barcode}`;
-                  const label = r.kind === "umass" ? r.dish.dishName : r.product.productName;
-                  const nutrition = r.kind === "umass" ? r.dish.nutrition : r.product.nutrition;
+                  const key = plateSearchResultKey(r);
+                  const detail = plateSearchResultDetail(r);
+                  const badge = BADGE_INFO[r.kind];
                   return (
                     <View key={key} style={styles.resultRow}>
                       <Pressable
                         style={styles.resultInfo}
-                        onPress={() => pickResult(r)}
+                        onPress={() => onShowResultDetail(r)}
                         accessibilityRole="button"
-                        // The badge (UMass/Packaged) is visual-only -- an explicit accessibilityLabel
-                        // replaces the Pressable's rendered text for assistive tech, so the source
-                        // distinction has to be spelled out here too, or a screen-reader user gets two
-                        // indistinguishable "Add Pizza to plate" actions on a name collision.
-                        accessibilityLabel={`Add ${label} to plate (${r.kind === "umass" ? "UMass" : "packaged"})`}
+                        // The badge is visual-only -- an explicit accessibilityLabel replaces the
+                        // Pressable's rendered text for assistive tech, so the source distinction
+                        // has to be spelled out here too, or a screen-reader user gets two
+                        // indistinguishable "View Pizza" actions on a name collision. "View", not
+                        // "Add" -- tapping a result now opens the confirm/detail step, not an
+                        // instant add (#91 follow-on).
+                        accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
                       >
                         <View style={styles.resultHeaderRow}>
-                          <Text style={styles.resultLabel}>{label}</Text>
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{r.kind === "umass" ? "UMass" : "Packaged"}</Text>
+                          <Text style={styles.resultLabel}>{detail.dishName}</Text>
+                          <View style={[styles.badge, { borderColor: badge.color }]}>
+                            <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
                           </View>
                         </View>
                         <Text style={styles.resultCalories}>
-                          {Math.round(nutrition.calories)} cal{isEstimatedServing(nutrition) ? " · est. per 100g" : ""}
+                          {Math.round(detail.nutrition.calories)} cal{isEstimatedServing(detail.nutrition) ? " · est. per 100g" : ""}
                         </Text>
                       </Pressable>
                     </View>
                   );
                 })}
+                {(offHasMore || usdaHasMore) && (
+                  <Button variant="ghost" size="sm" style={styles.loadMoreButton} onPress={loadMore} disabled={loadingMore}>
+                    {loadingMore ? "Loading…" : "Load more"}
+                  </Button>
+                )}
+                {/* Standing footer row (canvas: not gated strictly on an empty result) -- shown
+                whenever a search has actually run, whether or not it found anything, since no
+                database this sheet searches will ever have every food (a homemade recipe, a
+                friend's cooking). */}
+                {results !== null && (
+                  <Pressable
+                    style={styles.customFoodRow}
+                    onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Create a custom food"
+                  >
+                    <Text style={styles.customFoodRowText}>Can&apos;t find it? Create a custom food</Text>
+                  </Pressable>
+                )}
               </View>
             </ScrollView>
           </Animated.View>
@@ -468,4 +581,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   badgeText: { fontFamily: fonts.mono, fontSize: fs(10), letterSpacing: 0.5, textTransform: "uppercase", color: colors.maroon600 },
+  loadMoreButton: { alignSelf: "center", marginTop: spacing(2) },
+  customFoodRow: { marginTop: spacing(2.5), paddingTop: spacing(2.5), borderTopWidth: StyleSheet.hairlineWidth, borderColor: withOpacity(colors.ink900, 15) },
+  customFoodRowText: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600, textAlign: "center" },
 });

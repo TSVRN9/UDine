@@ -21,6 +21,10 @@ export const colors = {
   cream100: "#f3ead8",
   paper50: "#fbf7ef",
   ink900: "#241a14",
+  // Added for the add-item flow's USDA search-result badge (#91 follow-on) -- a muted sage green,
+  // distinct from maroon600 (UMass badge)/gold500 (Custom badge)/grey (Packaged badge) per the
+  // approved canvas. No existing token was close enough to reuse.
+  sage600: "#6b8a5e",
 } as const;
 
 /**

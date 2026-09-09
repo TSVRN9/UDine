@@ -1,4 +1,6 @@
 import {
+  exportCustomFoodsAsCsv,
+  exportCustomFoodsAsJson,
   exportEntriesAsCsv,
   exportEntriesAsJson,
   exportFavoritesAsCsv,
@@ -10,6 +12,7 @@ import {
 } from "@udine/shared";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import { SqliteCustomFoodsStorage } from "./customFoodsStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteRankingStorage } from "./rankingStorage";
@@ -17,6 +20,7 @@ import { SqliteRankingStorage } from "./rankingStorage";
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
+const customFoodsStorage = new SqliteCustomFoodsStorage();
 
 export type ExportFormat = "json" | "csv";
 
@@ -60,4 +64,10 @@ export async function exportFavorites(format: ExportFormat) {
   const favorites = await favoritesStorage.getFavorites();
   const content = format === "json" ? exportFavoritesAsJson(favorites) : exportFavoritesAsCsv(favorites);
   await shareExport("udine-favorites", format, content);
+}
+
+export async function exportCustomFoods(format: ExportFormat) {
+  const foods = await customFoodsStorage.getAllCustomFoods();
+  const content = format === "json" ? exportCustomFoodsAsJson(foods) : exportCustomFoodsAsCsv(foods);
+  await shareExport("udine-custom-foods", format, content);
 }

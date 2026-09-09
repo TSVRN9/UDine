@@ -5,10 +5,11 @@
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
-import { InMemoryLogStorage, searchProducts, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
+import { InMemoryLogStorage, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
-import { menuItemToPlateEntry, offResultToPlateEntry } from "../lib/plate";
+import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } from "../lib/plate";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
+import { searchCustomFoods } from "../lib/customFoodsStorage";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -19,6 +20,7 @@ jest.mock("../lib/supabase", () => ({ supabase: {} }));
 jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   searchProducts: jest.fn(),
+  searchFoods: jest.fn(),
 }));
 
 jest.mock("../lib/dishCatalog", () => ({
@@ -27,10 +29,16 @@ jest.mock("../lib/dishCatalog", () => ({
   searchCachedDishes: jest.fn(),
 }));
 
+jest.mock("../lib/customFoodsStorage", () => ({
+  searchCustomFoods: jest.fn(),
+}));
+
 const mockedSearchProducts = searchProducts as jest.Mock;
+const mockedSearchFoods = searchFoods as jest.Mock;
 const mockedGetCachedDishCatalog = getCachedDishCatalog as jest.Mock;
 const mockedRefreshDishCatalogIfStale = refreshDishCatalogIfStale as jest.Mock;
 const mockedSearchCachedDishes = searchCachedDishes as jest.Mock;
+const mockedSearchCustomFoods = searchCustomFoods as jest.Mock;
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
@@ -48,6 +56,10 @@ async function logStorageWith(entries: LogEntry[]): Promise<LogStorage> {
   const storage = new InMemoryLogStorage();
   for (const entry of entries) await storage.addEntry(entry);
   return storage;
+}
+
+function fakeCustomFoodsStorage(): CustomFoodsStorage {
+  return { addCustomFood: jest.fn(), removeCustomFood: jest.fn(), getAllCustomFoods: jest.fn().mockResolvedValue([]) };
 }
 
 const DISH: MenuItem = {
@@ -85,11 +97,12 @@ function renderSheet(overrides: Partial<Parameters<typeof PlateSheet>[0]> = {}) 
         plate={[]}
         totals={ZERO_TOTALS}
         logStorage={emptyLogStorage()}
+        customFoodsStorage={fakeCustomFoodsStorage()}
         hallTid={1}
         onStep={() => {}}
         onSetCount={() => {}}
-        onAddOffResult={() => {}}
-        onAddHistoryDish={() => {}}
+        onShowResultDetail={() => {}}
+        onOpenCustomFoodForm={() => {}}
         onLog={() => {}}
         onClose={() => {}}
         {...overrides}
@@ -109,10 +122,12 @@ async function runSearch(root: renderer.ReactTestRenderer, q: string) {
 }
 
 beforeEach(() => {
-  mockedSearchProducts.mockReset().mockResolvedValue([]);
+  mockedSearchProducts.mockReset().mockResolvedValue({ results: [], hasMore: false });
+  mockedSearchFoods.mockReset().mockResolvedValue({ results: [], hasMore: false });
   mockedGetCachedDishCatalog.mockReset().mockResolvedValue(null);
   mockedRefreshDishCatalogIfStale.mockReset().mockResolvedValue(undefined);
   mockedSearchCachedDishes.mockReset().mockReturnValue([]);
+  mockedSearchCustomFoods.mockReset().mockReturnValue([]);
 });
 
 describe("PlateSheet", () => {
@@ -236,7 +251,7 @@ describe("PlateSheet", () => {
     expect(mockedSearchProducts).toHaveBeenCalledWith("a");
 
     await act(async () => {
-      resolveFirst([]);
+      resolveFirst({ results: [], hasMore: false });
       await Promise.resolve();
     });
   });
@@ -250,25 +265,70 @@ describe("PlateSheet", () => {
 
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(<PlateSheet visible plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onSetCount={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
+      root = renderer.create(
+        <PlateSheet
+          visible
+          plate={[]}
+          totals={ZERO_TOTALS}
+          logStorage={emptyLogStorage()}
+          customFoodsStorage={fakeCustomFoodsStorage()}
+          hallTid={1}
+          onStep={() => {}}
+          onSetCount={() => {}}
+          onShowResultDetail={() => {}}
+          onOpenCustomFoodForm={() => {}}
+          onLog={() => {}}
+          onClose={() => {}}
+        />,
+      );
     });
     await runSearch(root, "a"); // stale search now in flight (unresolved)
 
     // Sheet closes before the stale search resolves...
     act(() => {
-      root.update(<PlateSheet visible={false} plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onSetCount={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
+      root.update(
+        <PlateSheet
+          visible={false}
+          plate={[]}
+          totals={ZERO_TOTALS}
+          logStorage={emptyLogStorage()}
+          customFoodsStorage={fakeCustomFoodsStorage()}
+          hallTid={1}
+          onStep={() => {}}
+          onSetCount={() => {}}
+          onShowResultDetail={() => {}}
+          onOpenCustomFoodForm={() => {}}
+          onLog={() => {}}
+          onClose={() => {}}
+        />,
+      );
     });
     // ...then reopens, and the user runs a different, faster search.
-    mockedSearchProducts.mockResolvedValueOnce([{ barcode: "999", productName: "Banana Chips", nutrition: DISH.nutrition }]);
+    mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "999", productName: "Banana Chips", nutrition: DISH.nutrition }], hasMore: false });
     act(() => {
-      root.update(<PlateSheet visible plate={[]} totals={ZERO_TOTALS} logStorage={emptyLogStorage()} hallTid={1} onStep={() => {}} onSetCount={() => {}} onAddOffResult={() => {}} onAddHistoryDish={() => {}} onLog={() => {}} onClose={() => {}} />);
+      root.update(
+        <PlateSheet
+          visible
+          plate={[]}
+          totals={ZERO_TOTALS}
+          logStorage={emptyLogStorage()}
+          customFoodsStorage={fakeCustomFoodsStorage()}
+          hallTid={1}
+          onStep={() => {}}
+          onSetCount={() => {}}
+          onShowResultDetail={() => {}}
+          onOpenCustomFoodForm={() => {}}
+          onLog={() => {}}
+          onClose={() => {}}
+        />,
+      );
     });
     await runSearch(root, "banana");
     expect(texts(root).flat().join(" ")).toMatch(/Banana Chips/);
 
     // The stale first search finally resolves -- must not clobber the fresh results now showing.
     await act(async () => {
-      resolveStale([{ barcode: "1", productName: "STALE RESULT", nutrition: DISH.nutrition }]);
+      resolveStale({ results: [{ barcode: "1", productName: "STALE RESULT", nutrition: DISH.nutrition }], hasMore: false });
       await Promise.resolve();
     });
 
@@ -278,7 +338,10 @@ describe("PlateSheet", () => {
   });
 
   it("flags a per-100g-estimated OFF result on both the search-result row and once it's a plate row", async () => {
-    mockedSearchProducts.mockResolvedValue([{ barcode: "999", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150, servingSize: "per 100g" } }]);
+    mockedSearchProducts.mockResolvedValue({
+      results: [{ barcode: "999", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150, servingSize: "per 100g" } }],
+      hasMore: false,
+    });
     const root = renderSheet();
     await runSearch(root, "trail mix");
     expect(texts(root).flat().join(" ")).toMatch(/est\. per 100g/);
@@ -299,7 +362,7 @@ describe("PlateSheet", () => {
     expect(texts(root).flat().join(" ")).not.toMatch(/est\./);
   });
 
-  describe("merged search (device history + cached dish catalog + OpenFoodFacts, one box)", () => {
+  describe("merged search (device history + cached dish catalog + OpenFoodFacts + USDA FDC + custom foods, one box)", () => {
     function historyEntry(dishName: string, hallTid: number, calories: number, loggedAt: string, servings = 1): LogEntry {
       return {
         id: `${dishName}-${loggedAt}`,
@@ -310,11 +373,14 @@ describe("PlateSheet", () => {
       };
     }
 
-    it("surfaces a dish that only matches local device history, tagged UMass, and stages it via onAddHistoryDish", async () => {
+    // Tapping any result now opens the shared NutritionLabel confirm/detail step (routed via
+    // onShowResultDetail, lifted to the caller -- see halls/[slug].tsx) instead of adding straight
+    // to the plate (#91 follow-on).
+
+    it("surfaces a dish that only matches local device history, tagged UMass, and routes a tap through onShowResultDetail", async () => {
       const storage = await logStorageWith([historyEntry("Falafel Wrap", 3, 350, "2026-08-01T12:00:00.000Z")]);
-      const onAddHistoryDish = jest.fn();
-      const onAddOffResult = jest.fn();
-      const root = renderSheet({ logStorage: storage, hallTid: 3, onAddHistoryDish, onAddOffResult });
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ logStorage: storage, hallTid: 3, onShowResultDetail });
 
       await runSearch(root, "falafel");
 
@@ -324,18 +390,18 @@ describe("PlateSheet", () => {
       expect(body).not.toMatch(/Packaged/);
 
       act(() => {
-        root.root.findByProps({ accessibilityLabel: "Add Falafel Wrap to plate (UMass)" }).props.onPress();
+        root.root.findByProps({ accessibilityLabel: "View Falafel Wrap (UMass)" }).props.onPress();
       });
-      expect(onAddHistoryDish).toHaveBeenCalledWith({ dishName: "Falafel Wrap", hallTid: 3, nutrition: { ...DISH.nutrition, calories: 350 } });
-      expect(onAddOffResult).not.toHaveBeenCalled();
+      const expected: PlateSearchResult = { kind: "umass", dish: { dishName: "Falafel Wrap", hallTid: 3, nutrition: { ...DISH.nutrition, calories: 350 } } };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
     });
 
     it("surfaces a dish that only matches the cached dish catalog, tagged UMass, scoped to the currently-browsed hall", async () => {
       mockedSearchCachedDishes.mockReturnValue([
         { dishName: "Miso Ramen", nutrition: { ...DISH.nutrition, calories: 420 }, allergens: [], dietTags: [], updatedAt: "x" },
       ]);
-      const onAddHistoryDish = jest.fn();
-      const root = renderSheet({ hallTid: 4, onAddHistoryDish });
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ hallTid: 4, onShowResultDetail });
 
       await runSearch(root, "ramen");
       expect(mockedSearchCachedDishes).toHaveBeenCalledWith(null, "ramen");
@@ -345,18 +411,17 @@ describe("PlateSheet", () => {
       expect(body).toMatch(/UMass/);
 
       act(() => {
-        root.root.findByProps({ accessibilityLabel: "Add Miso Ramen to plate (UMass)" }).props.onPress();
+        root.root.findByProps({ accessibilityLabel: "View Miso Ramen (UMass)" }).props.onPress();
       });
-      // Catalog-only hit becomes a HistoryDish scoped to the currently-browsed hall (4) -- flows
-      // through the existing onAddHistoryDish path unchanged, no separate catalog-add callback.
-      expect(onAddHistoryDish).toHaveBeenCalledWith({ dishName: "Miso Ramen", hallTid: 4, nutrition: { ...DISH.nutrition, calories: 420 } });
+      // Catalog-only hit becomes a HistoryDish scoped to the currently-browsed hall (4).
+      const expected: PlateSearchResult = { kind: "umass", dish: { dishName: "Miso Ramen", hallTid: 4, nutrition: { ...DISH.nutrition, calories: 420 } } };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
     });
 
     it("when a dish matches both local history and the cached catalog, renders only one row, tagged UMass, using history's nutrition", async () => {
       const storage = await logStorageWith([historyEntry("Pizza", 1, 210, "2026-08-01T12:00:00.000Z")]);
       mockedSearchCachedDishes.mockReturnValue([{ dishName: "Pizza", nutrition: { ...DISH.nutrition, calories: 999 }, allergens: [], dietTags: [], updatedAt: "x" }]);
-      const onAddHistoryDish = jest.fn();
-      const root = renderSheet({ logStorage: storage, hallTid: 1, onAddHistoryDish });
+      const root = renderSheet({ logStorage: storage, hallTid: 1 });
 
       await runSearch(root, "pizza");
 
@@ -367,18 +432,12 @@ describe("PlateSheet", () => {
       const body = texts(root).flat().join(" ");
       expect(body).toMatch(/210/); // history's nutrition wins
       expect(body).not.toMatch(/999/); // catalog's nutrition discarded on collision
-
-      act(() => {
-        root.root.findByProps({ accessibilityLabel: "Add Pizza to plate (UMass)" }).props.onPress();
-      });
-      expect(onAddHistoryDish).toHaveBeenCalledWith({ dishName: "Pizza", hallTid: 1, nutrition: { ...DISH.nutrition, calories: 210 } });
     });
 
-    it("surfaces a dish that only matches OpenFoodFacts, tagged Packaged, and stages it via onAddOffResult", async () => {
-      mockedSearchProducts.mockResolvedValue([{ barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } }]);
-      const onAddOffResult = jest.fn();
-      const onAddHistoryDish = jest.fn();
-      const root = renderSheet({ onAddOffResult, onAddHistoryDish });
+    it("surfaces a dish that only matches OpenFoodFacts, tagged Packaged, and routes a tap through onShowResultDetail", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } }], hasMore: false });
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ onShowResultDetail });
 
       await runSearch(root, "trail mix");
 
@@ -388,13 +447,50 @@ describe("PlateSheet", () => {
       expect(body).not.toMatch(/UMass/);
 
       act(() => {
-        root.root.findByProps({ accessibilityLabel: "Add Trail Mix to plate (packaged)" }).props.onPress();
+        root.root.findByProps({ accessibilityLabel: "View Trail Mix (Packaged)" }).props.onPress();
       });
-      expect(onAddOffResult).toHaveBeenCalledWith({ barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } });
-      expect(onAddHistoryDish).not.toHaveBeenCalled();
+      const expected: PlateSearchResult = { kind: "off", product: { barcode: "123", productName: "Trail Mix", nutrition: { ...DISH.nutrition, calories: 150 } } };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
     });
 
-    it("shows No matches when none of the three sources return anything", async () => {
+    it("surfaces a hit that only matches USDA FoodData Central, tagged USDA, and routes a tap through onShowResultDetail", async () => {
+      mockedSearchFoods.mockResolvedValue({ results: [{ fdcId: "173944", productName: "Banana, raw", nutrition: { ...DISH.nutrition, calories: 89 } }], hasMore: false });
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ onShowResultDetail });
+
+      await runSearch(root, "banana");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Banana, raw/);
+      expect(body).toMatch(/USDA/);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "View Banana, raw (USDA)" }).props.onPress();
+      });
+      const expected: PlateSearchResult = { kind: "usda", food: { fdcId: "173944", productName: "Banana, raw", nutrition: { ...DISH.nutrition, calories: 89 } } };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
+    });
+
+    it("surfaces a saved custom food as the 4th source, tagged Custom, and routes a tap through onShowResultDetail", async () => {
+      const customFood = { id: "c1", name: "Grandma's Lasagna", servingSize: "1 slice", nutrition: { ...DISH.nutrition, calories: 420 } };
+      mockedSearchCustomFoods.mockReturnValue([customFood]);
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ onShowResultDetail });
+
+      await runSearch(root, "lasagna");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Grandma's Lasagna/);
+      expect(body).toMatch(/Custom/);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "View Grandma's Lasagna (Custom)" }).props.onPress();
+      });
+      const expected: PlateSearchResult = { kind: "custom", food: customFood };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
+    });
+
+    it("shows No matches when none of the 4 sources return anything", async () => {
       const root = renderSheet();
       await runSearch(root, "nonexistent");
       const body = texts(root).flat().join(" ");
@@ -435,28 +531,30 @@ describe("PlateSheet", () => {
       expect(body).toMatch(/No matches/);
     });
 
-    it("shows the existing 'Search failed' text only when all three sources fail", async () => {
+    it("shows the existing 'Search failed' text only when every source fails", async () => {
       mockedSearchProducts.mockRejectedValue(new Error("off down"));
+      mockedSearchFoods.mockRejectedValue(new Error("usda down"));
       const storage: LogStorage = new InMemoryLogStorage();
       const failingStorage: LogStorage = { ...storage, getAllEntries: () => Promise.reject(new Error("db down")) } as LogStorage;
       mockedSearchCachedDishes.mockImplementation(() => {
         throw new Error("catalog down");
       });
-      const root = renderSheet({ logStorage: failingStorage });
+      const failingCustomFoodsStorage: CustomFoodsStorage = { ...fakeCustomFoodsStorage(), getAllCustomFoods: () => Promise.reject(new Error("custom down")) };
+      const root = renderSheet({ logStorage: failingStorage, customFoodsStorage: failingCustomFoodsStorage });
 
       await runSearch(root, "anything");
 
       expect(texts(root).flat().join(" ")).toMatch(/Search failed/);
     });
 
-    // pr-reviewer finding on #351: `allFailed` required ALL THREE sources to reject before
-    // surfacing an error -- if OFF rejected (e.g. network down) while history/catalog both
-    // legitimately resolved empty (the common case for a dish nobody's logged or cached yet), the
-    // merged result was an empty array and the sheet rendered "No matches", telling the user their
-    // food doesn't exist on OpenFoodFacts when the real problem is the search didn't complete.
-    it("#351 review: shows the failure text, not 'No matches', when OFF rejects and the other two sources resolve empty", async () => {
+    // pr-reviewer finding on #351: `allFailed` required ALL sources to reject before surfacing an
+    // error -- if OFF rejected (e.g. network down) while every other source legitimately resolved
+    // empty (the common case for a dish nobody's logged/cached/created yet), the merged result was
+    // an empty array and the sheet rendered "No matches", telling the user their food doesn't exist
+    // when the real problem is the search didn't complete.
+    it("#351 review: shows the failure text, not 'No matches', when OFF rejects and every other source resolves empty", async () => {
       mockedSearchProducts.mockRejectedValue(new Error("network down"));
-      const root = renderSheet(); // empty logStorage + null catalog -> history and catalog both resolve empty
+      const root = renderSheet(); // everything else resolves empty
 
       await runSearch(root, "anything");
 
@@ -481,6 +579,72 @@ describe("PlateSheet", () => {
     });
   });
 
+  describe("OFF/USDA pagination (Load more)", () => {
+    it("shows a Load more button when either OFF or USDA reports hasMore, and pages both on tap", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Off Page 1", nutrition: DISH.nutrition }], hasMore: true });
+      mockedSearchFoods.mockResolvedValue({ results: [{ fdcId: "1", productName: "Usda Page 1", nutrition: DISH.nutrition }], hasMore: true });
+      const root = renderSheet();
+      await runSearch(root, "chicken");
+
+      expect(texts(root).flat().join(" ")).toMatch(/Load more/);
+
+      mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "2", productName: "Off Page 2", nutrition: DISH.nutrition }], hasMore: false });
+      mockedSearchFoods.mockResolvedValueOnce({ results: [{ fdcId: "2", productName: "Usda Page 2", nutrition: DISH.nutrition }], hasMore: false });
+
+      await act(async () => {
+        root.root.findByProps({ children: "Load more" }).props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(mockedSearchProducts).toHaveBeenCalledWith("chicken", 2);
+      expect(mockedSearchFoods).toHaveBeenCalledWith("chicken", 2);
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Off Page 1/);
+      expect(body).toMatch(/Off Page 2/);
+      expect(body).toMatch(/Usda Page 1/);
+      expect(body).toMatch(/Usda Page 2/);
+      // Both sources reported hasMore:false on their 2nd page -- button gone.
+      expect(body).not.toMatch(/Load more/);
+    });
+
+    it("does not show Load more when neither OFF nor USDA has more", async () => {
+      const root = renderSheet();
+      await runSearch(root, "chicken");
+      expect(texts(root).flat().join(" ")).not.toMatch(/Load more/);
+    });
+  });
+
+  describe("custom food creation footer row", () => {
+    it("shows the standing 'Create a custom food' row once a search has run, even with real matches", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Trail Mix", nutrition: DISH.nutrition }], hasMore: false });
+      const root = renderSheet();
+      await runSearch(root, "trail mix");
+      expect(texts(root).flat().join(" ")).toMatch(/Create a custom food/);
+    });
+
+    it("shows the row on a genuinely empty result too", async () => {
+      const root = renderSheet();
+      await runSearch(root, "nonexistent");
+      expect(texts(root).flat().join(" ")).toMatch(/Create a custom food/);
+    });
+
+    it("does not show the row before any search has run", () => {
+      const root = renderSheet();
+      expect(texts(root).flat().join(" ")).not.toMatch(/Create a custom food/);
+    });
+
+    it("tapping it calls onOpenCustomFoodForm with the current (trimmed) query", async () => {
+      const onOpenCustomFoodForm = jest.fn();
+      const root = renderSheet({ onOpenCustomFoodForm });
+      await runSearch(root, "  Grandma's Lasagna  ");
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Create a custom food" }).props.onPress();
+      });
+      expect(onOpenCustomFoodForm).toHaveBeenCalledWith("Grandma's Lasagna");
+    });
+  });
+
   // Café-screen unification: an unmatched standing-menu row opens this sheet via `initialQuery`
   // instead of leaving a dead end -- the box must come up pre-filled AND already searched, not just
   // pre-typed for the user to press Search again.
@@ -495,11 +659,12 @@ describe("PlateSheet", () => {
             plate={[]}
             totals={ZERO_TOTALS}
             logStorage={emptyLogStorage()}
+            customFoodsStorage={fakeCustomFoodsStorage()}
             hallTid={1}
             onStep={() => {}}
             onSetCount={() => {}}
-            onAddOffResult={() => {}}
-            onAddHistoryDish={() => {}}
+            onShowResultDetail={() => {}}
+            onOpenCustomFoodForm={() => {}}
             onLog={() => {}}
             onClose={() => {}}
             initialQuery="Bacon Croissant"

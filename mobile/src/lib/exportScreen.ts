@@ -1,4 +1,4 @@
-import type { Favorite, LogEntry } from "@udine/shared";
+import type { CustomFood, Favorite, LogEntry } from "@udine/shared";
 import { countLabel } from "./dataMap";
 
 /**
@@ -6,17 +6,20 @@ import { countLabel } from "./dataMap";
  * batch select)"). Kept out of the screen component so it's testable without rendering -- same
  * split as dataMap.ts/privacySettings.ts.
  */
-export type StoreKey = "log" | "dishRankings" | "foodRankings" | "favorites";
+export type StoreKey = "log" | "dishRankings" | "foodRankings" | "favorites" | "customFoods";
 export type FormatChoice = "csv" | "json" | "both";
 
-/** Checklist row order, per the artboard. Also the order jobs run in regardless of selection order. */
-export const STORE_ORDER: StoreKey[] = ["log", "dishRankings", "foodRankings", "favorites"];
+/** Checklist row order, per the artboard (customFoods appended -- #91 follow-on, CLAUDE.md's "every
+ * device-local table needs export" applies to it same as every other store here). Also the order
+ * jobs run in regardless of selection order. */
+export const STORE_ORDER: StoreKey[] = ["log", "dishRankings", "foodRankings", "favorites", "customFoods"];
 
 export const STORE_TITLE: Record<StoreKey, string> = {
   log: "Food log",
   dishRankings: "Dish rankings",
   foodRankings: "Off-menu food rankings",
   favorites: "Favorites",
+  customFoods: "Custom foods",
 };
 
 /** Short names for the bottom bar's "N selected" line, per the artboard's own example
@@ -26,6 +29,7 @@ export const STORE_SHORT_NAME: Record<StoreKey, string> = {
   dishRankings: "dish rankings",
   foodRankings: "food rankings",
   favorites: "favorites",
+  customFoods: "custom foods",
 };
 
 export function logSubline(entries: LogEntry[]): string {
@@ -44,6 +48,10 @@ export function rankedSubline(items: { comparisonCount: number }[]): string {
 
 export function favoritesSubline(favorites: Favorite[]): string {
   return countLabel(favorites.length, "favorites");
+}
+
+export function customFoodsSubline(foods: CustomFood[]): string {
+  return countLabel(foods.length, "custom foods");
 }
 
 export function selectedStoreLabel(selected: StoreKey[]): string {

@@ -21,16 +21,22 @@ jest.mock("./favoritesStorage", () => {
   const getFavorites = jest.fn().mockResolvedValue([]);
   return { SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites })) };
 });
+jest.mock("./customFoodsStorage", () => {
+  const getAllCustomFoods = jest.fn().mockResolvedValue([]);
+  return { SqliteCustomFoodsStorage: jest.fn().mockImplementation(() => ({ getAllCustomFoods })) };
+});
 
 const mockExportLog = jest.fn().mockResolvedValue(undefined);
 const mockExportRankedDishes = jest.fn().mockResolvedValue(undefined);
 const mockExportRankedFoods = jest.fn().mockResolvedValue(undefined);
 const mockExportFavorites = jest.fn().mockResolvedValue(undefined);
+const mockExportCustomFoods = jest.fn().mockResolvedValue(undefined);
 jest.mock("./exportShare", () => ({
   exportLog: (...args: unknown[]) => mockExportLog(...args),
   exportRankedDishes: (...args: unknown[]) => mockExportRankedDishes(...args),
   exportRankedFoods: (...args: unknown[]) => mockExportRankedFoods(...args),
   exportFavorites: (...args: unknown[]) => mockExportFavorites(...args),
+  exportCustomFoods: (...args: unknown[]) => mockExportCustomFoods(...args),
 }));
 
 const mockRouterBack = jest.fn();
@@ -249,5 +255,21 @@ describe("ExportScreen: format + export wiring", () => {
 
     // The failure is surfaced, not silently dropped.
     expect(Alert.alert).toHaveBeenCalledWith("Some exports failed", expect.stringContaining("dish rankings"));
+  });
+
+  // #91 follow-on: custom foods is the 5th device-local store this screen exports (CLAUDE.md's
+  // "every device-local table needs export").
+  it("selecting Custom foods runs exportCustomFoods", async () => {
+    const root = await renderScreen();
+    await act(async () => {
+      pressRow(root, "Custom foods");
+    });
+    await act(async () => {
+      pressRow(root, "↓ EXPORT");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockExportCustomFoods).toHaveBeenCalledWith("csv");
   });
 });
