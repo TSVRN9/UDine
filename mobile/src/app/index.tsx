@@ -25,7 +25,11 @@ const favoritesStorage = new SqliteFavoritesStorage();
  * address) -- the row only has room for one short subtitle line, so take the first non-blank
  * line, same trick CafeSheet already uses for its address block. */
 function retailSubtitle(address: string | undefined): string | null {
-  return htmlToText(address).split("\n").find((line) => line.trim().length > 0)?.trim() ?? null;
+  // #421: a food-truck-type location's address can be a degenerate HTML blob (babyBerk's raw
+  // `<p><br/>,  </p>`) that htmlToText still reduces to a non-blank line -- a lone ",". Require at
+  // least one alphanumeric character, not just non-blank, so an orphaned separator gets skipped
+  // instead of rendered as the subtitle.
+  return htmlToText(address).split("\n").find((line) => /[a-zA-Z0-9]/.test(line))?.trim() ?? null;
 }
 
 // docs/design/HomeLoading.dc.html:113-135 -- 3 placeholder rows, sized to match the real spread of
@@ -157,7 +161,12 @@ function HallCard({
         <PressDim hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])} accessibilityRole="button">
           <View style={styles.grabStripLeft}>
             <Text style={[styles.grabStripLabel, !grab.open && styles.grabStripTextClosed]}>GRAB &apos;N GO</Text>
-            {grab.text ? <Text style={[styles.grabStripHours, !grab.open && styles.grabStripTextClosed]}>{grab.text}</Text> : null}
+            {pending ? (
+              // docs/design/HomeLoading.dc.html:51 -- 68x11 skeleton bar for the strip's hours text.
+              <SkeletonBar width={fs(68)} height={fs(11)} />
+            ) : grab.text ? (
+              <Text style={[styles.grabStripHours, !grab.open && styles.grabStripTextClosed]}>{grab.text}</Text>
+            ) : null}
           </View>
           <Text style={[styles.grabStripChevron, !grab.open && styles.grabStripTextClosed]}>›</Text>
         </PressDim>
