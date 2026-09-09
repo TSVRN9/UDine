@@ -7,6 +7,7 @@ import {
   GRAB_N_GO_TIDS,
   menuItemMacroBadges,
   menuItemMatchesPreferences,
+  parseRetailMenuHtml,
   type DiningEvent,
   type DiningHoursFeed,
   type Favorite,
@@ -57,6 +58,7 @@ import {
   formatServingSummary,
   hallInfoGrabNGoWindow,
   hallInfoHoursRows,
+  isCurrentTabLoading,
   MEAL_TABS,
   mealTabLabel,
   shouldAutoCorrectMealTab,
@@ -177,12 +179,31 @@ function FilterGlyphIcon({ color }: { color: string }) {
   );
 }
 
+/** Magnifying-glass glyph for an unmatched standing-menu row (café-screen QA fix, bug 3) -- same
+ * thin-stroke style as GrabBagIcon/FilterGlyphIcon above. Replaces the plain `›` chevron those rows
+ * used to render, which read no differently from a matched dish row's own affordance; this one
+ * signals "tap to search," not "tap to add." */
+function MagnifierIcon({ color }: { color: string }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke={color} strokeWidth={2} />
+      <Path d="M21 21l-4.35-4.35" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** Café-screen unification: a "standing" state's unmatched rows (parseRetailMenuHtml items with no
  * catalog match) -- name+price only, no nutrition to show or plate/log directly. Tapping one opens
  * the plate sheet's search pre-filled with its own name instead of being a dead end (see
  * openUnmatchedItemSearch/PlateSheet's own `initialQuery`). Rendered as the meal pane's
  * ListFooterComponent (mealPane above), not mixed into `sections` -- these aren't MenuItems, so
- * they don't fit hallMenuSections.ts's per-station MenuSection shape. */
+ * they don't fit hallMenuSections.ts's per-station MenuSection shape.
+ *
+ * Café-screen QA fix (bug 3): these rows used to be visually identical to a real, matched dish row
+ * (solid divider, plain `›` chevron) except by tapping one -- nothing on screen distinguished "this
+ * is a name UMass Dining published with no nutrition behind it yet" from a normal loggable dish.
+ * Dashed border + a magnifying-glass icon (not the add-icon a real row gets) + explicit "Nutrition
+ * not found" text now mark that difference structurally, not just by behavior. */
 function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingMenuEntry, { matched: false }>[]; onTapItem: (name: string) => void }) {
   return (
     <View style={styles.unmatchedBlock}>
@@ -197,9 +218,11 @@ function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingM
           accessibilityRole="button"
           accessibilityLabel={`Search for ${entry.name}`}
         >
-          <Text style={styles.unmatchedRowName}>{entry.name}</Text>
-          {entry.price ? <Text style={styles.unmatchedRowPrice}>{entry.price}</Text> : null}
-          <Text style={styles.unmatchedRowChevron}>›</Text>
+          <View style={styles.unmatchedRowMain}>
+            <Text style={styles.unmatchedRowName}>{entry.name}</Text>
+            <Text style={styles.unmatchedRowMeta}>{entry.price ? `${entry.price} · ` : ""}Nutrition not found</Text>
+          </View>
+          <MagnifierIcon color={withOpacity(colors.ink900, 45)} />
         </Pressable>
       ))}
     </View>
@@ -408,6 +431,28 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     if (items === null && !error) return null;
     return resolveCafeMenuState(items ?? [], hall.retailLoc ? pickCafeMenuHtml(hall.retailLoc) : null, catalog, cafeHallTid, selectedDate);
   }, [isRealHall, items, error, catalogLoaded, catalog, hall.retailLoc, cafeHallTid, selectedDate]);
+
+  // Café-screen QA fix (bug 5): while the waterfall is still resolving (cafeState null below), the
+  // loading skeleton unconditionally assumed the "integrated" shape (dish rows + filter FAB) --
+  // correct for that one outcome, but the more common real-world outcome for a café (this
+  // investigation's own confirmed examples: babyBerk/Commonwealth -> info, Argo Tea/Yum! Bakery ->
+  // standing) swaps the ENTIRE shape out the instant cafeState resolves. `hall.retailLoc`'s
+  // standing-menu HTML is already in hand at MOUNT (resolved by cafe/[name].tsx before this screen
+  // ever renders -- see HallMenuSubject's own doc), so parsing it here costs nothing extra and
+  // predicts "not integrated, and no item list either" (i.e. "info") correctly whenever the ajax
+  // probe (tier 1, the one genuinely un-predictable network call) turns out empty -- the common
+  // case. It can't rule out a genuine "integrated" café ahead of that network call landing (ajax
+  // non-empty overrides both other tiers regardless of what retailLoc parses to -- see
+  // resolveCafeMenuState's own tier order), but getting that one case "wrong" just means the dish
+  // rows/FAB APPEAR once ajax resolves, not disappear -- a smaller, less jarring change than the
+  // reverse. Standing-vs-integrated is deliberately NOT distinguished here (both keep the filter
+  // FAB and a dish-row-shaped skeleton is a reasonable stand-in for either) -- fully shape-matching
+  // "standing"'s own flat-list-no-tabs layout ahead of time would need a second dedicated skeleton
+  // shape, a larger change than this fix pass; noted as a follow-up, not attempted here.
+  const cafeSkeletonLooksLikeInfo = useMemo(() => {
+    if (isRealHall || !hall.retailLoc) return false;
+    return parseRetailMenuHtml(pickCafeMenuHtml(hall.retailLoc)).kind !== "items";
+  }, [isRealHall, hall.retailLoc]);
 
   const mealTabs = useMemo<readonly MealPeriod[]>(() => {
     if (isRealHall) return MEAL_TABS;
@@ -745,7 +790,12 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // through to the standing/info tiers), never surfaced as an error to the plate bar either; a real
   // hall has no such fallback, so its own error still drives this.
   const currentTabError = selectedMeal === "grab" ? grabError : isRealHall && error;
-  const currentTabLoading = !currentTabError && (selectedMeal === "grab" ? !grabItems : !items || selectedMeal === null);
+  // isCurrentTabLoading (hallMenuTabs.ts): pulled out as a pure predicate -- see its own doc comment
+  // on why the info-only café case needs its OWN branch instead of reusing the real-hall/other-café
+  // "selectedMeal === null" check (café-screen QA fix, bug 1).
+  const currentTabLoading =
+    !currentTabError &&
+    isCurrentTabLoading({ selectedMeal, isRealHall, hasItems: !!items, hasGrabItems: !!grabItems, cafeStateKind: cafeState?.kind ?? null });
 
   function toggleExpanded(key: string) {
     setExpandedKeys((prev) => toggleExpandedKey(prev, key));
@@ -997,18 +1047,10 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           </View>
         )}
         renderItem={renderDishRow}
-        // Standing-menu caveat (owner-binding copy, verbatim, formerly CafeSheet's own menu-card
-        // header strip) -- only for the café "standing" state's one real pane, never a real hall's.
-        ListHeaderComponent={
-          !isRealHall && cafeState?.kind === "standing" && period === "allday"
-            ? () => (
-                <View style={styles.standingMenuBanner}>
-                  <Text style={styles.standingMenuBannerLabel}>MENU</Text>
-                  <Text style={styles.standingMenuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
-                </View>
-              )
-            : undefined
-        }
+        // Café-screen QA fix (bug 2): the standing-menu caveat banner used to render here, as this
+        // list's own ListHeaderComponent -- moved to the tab strip's fixed position above (see this
+        // screen's own render, right below the header) so it reads as a persistent state indicator,
+        // not scrollable list content that disappears as soon as the user scrolls past it.
         ListFooterComponent={unmatchedEntries.length > 0 ? () => <UnmatchedMenuBlock entries={unmatchedEntries} onTapItem={openUnmatchedItemSearch} /> : undefined}
       />
     );
@@ -1128,53 +1170,66 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       </View>
       {selectedMeal === "grab" && grabSubtitle ? <Text style={styles.headerSubtitle}>{grabSubtitle}</Text> : null}
 
-      <View style={styles.tabRow}>
-        {mealTabs.map((period) => {
-          const active = period === selectedMeal;
-          return (
-            <Pressable
-              key={period}
-              onPress={() => selectMeal(period)}
-              hitSlop={12}
-              style={styles.tab}
-              accessibilityRole="button"
-              accessibilityLabel={`${mealTabLabel(period)} menu`}
-            >
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{mealTabLabel(period)}</Text>
-              <View style={styles.tabUnderline}>
-                {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
-                    one and Grab's below) reading the same swipeable-sequence index MealTabPager
-                    itself uses, immune to `tabs` ever reordering relative to `mealTabs`. */}
-                <AnimatedTabUnderline index={tabs.indexOf(period)} panePos={tabPanePos} />
-              </View>
-            </Pressable>
-          );
-        })}
-        <View style={styles.tabSpacer} />
-        {/* Grab 'N Go is a hall-only 5th tab (its own station, not a MealPeriod) -- cafés have no
-            slug and no such station, per the issue's "stations/FDA/plate/logging/ranking unchanged"
-            for the menu path plus its own "meal tabs only for periods the café actually has." */}
-        {hall.slug ? (
-          <>
-            <View style={styles.tabDivider} />
-            <Pressable
-              onPress={() => selectMeal("grab")}
-              hitSlop={12}
-              style={styles.tab}
-              accessibilityRole="button"
-              accessibilityLabel={`${hall.name} Grab 'N Go menu`}
-            >
-              <View style={styles.tabIconRow}>
-                <GrabBagIcon color={selectedMeal === "grab" ? colors.maroon900 : withOpacity(colors.ink900, 45)} />
-                <Text style={[styles.tabText, selectedMeal === "grab" && styles.tabTextActive]}>Grab &apos;N Go</Text>
-              </View>
-              <View style={styles.tabUnderline}>
-                <AnimatedTabUnderline index={tabs.indexOf("grab")} panePos={tabPanePos} />
-              </View>
-            </Pressable>
-          </>
-        ) : null}
-      </View>
+      {/* Café-screen QA fix (bug 2): a "standing" state has no real MealPeriod to build tabs from --
+      deriveCafeMealTabs' own "allday" synthetic tab (the "daily offerings" convention) rendered as a
+      degenerate single-tab strip ("ALL DAY"), which the approved design says shouldn't exist for
+      this state at all. The caveat banner (formerly the meal pane's own ListHeaderComponent, see
+      mealPane below) takes the tab strip's exact place instead -- same fixed position, not scrolled
+      away with the list. */}
+      {!isRealHall && cafeState?.kind === "standing" ? (
+        <View style={styles.standingMenuBanner}>
+          <Text style={styles.standingMenuBannerLabel}>MENU</Text>
+          <Text style={styles.standingMenuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
+        </View>
+      ) : (
+        <View style={styles.tabRow}>
+          {mealTabs.map((period) => {
+            const active = period === selectedMeal;
+            return (
+              <Pressable
+                key={period}
+                onPress={() => selectMeal(period)}
+                hitSlop={12}
+                style={styles.tab}
+                accessibilityRole="button"
+                accessibilityLabel={`${mealTabLabel(period)} menu`}
+              >
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{mealTabLabel(period)}</Text>
+                <View style={styles.tabUnderline}>
+                  {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
+                      one and Grab's below) reading the same swipeable-sequence index MealTabPager
+                      itself uses, immune to `tabs` ever reordering relative to `mealTabs`. */}
+                  <AnimatedTabUnderline index={tabs.indexOf(period)} panePos={tabPanePos} />
+                </View>
+              </Pressable>
+            );
+          })}
+          <View style={styles.tabSpacer} />
+          {/* Grab 'N Go is a hall-only 5th tab (its own station, not a MealPeriod) -- cafés have no
+              slug and no such station, per the issue's "stations/FDA/plate/logging/ranking unchanged"
+              for the menu path plus its own "meal tabs only for periods the café actually has." */}
+          {hall.slug ? (
+            <>
+              <View style={styles.tabDivider} />
+              <Pressable
+                onPress={() => selectMeal("grab")}
+                hitSlop={12}
+                style={styles.tab}
+                accessibilityRole="button"
+                accessibilityLabel={`${hall.name} Grab 'N Go menu`}
+              >
+                <View style={styles.tabIconRow}>
+                  <GrabBagIcon color={selectedMeal === "grab" ? colors.maroon900 : withOpacity(colors.ink900, 45)} />
+                  <Text style={[styles.tabText, selectedMeal === "grab" && styles.tabTextActive]}>Grab &apos;N Go</Text>
+                </View>
+                <View style={styles.tabUnderline}>
+                  <AnimatedTabUnderline index={tabs.indexOf("grab")} panePos={tabPanePos} />
+                </View>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      )}
 
       {!isRealHall && cafeState?.kind === "info" && hall.retailLoc ? (
         // Café-screen unification's third internal state: the waterfall found nothing loggable at
@@ -1192,16 +1247,29 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         // the dish-catalog read still in flight -- see cafeState's own comment) -- same honest
         // skeleton the non-Grab branch below shows once there IS at least one tab, shown directly
         // here without mounting a 0-pane pager.
-        <View style={styles.skeletonList}>
-          <StationHeaderSkeleton width={fs(118)} />
-          <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
-          <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
-          <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
-          <View style={styles.skeletonSpinnerRow}>
-            <Spinner size={fs(14)} />
-            <Text style={styles.skeletonSpinnerText}>Getting today&apos;s menu from UMass Dining…</Text>
+        //
+        // Café-screen QA fix (bug 5): cafeSkeletonLooksLikeInfo predicts this café won't have dish
+        // rows or a filter FAB at all once it resolves -- a neutral spinner-only placeholder instead
+        // of the dish-row skeleton, rather than committing to a shape that's about to disappear.
+        cafeSkeletonLooksLikeInfo ? (
+          <View style={styles.skeletonList}>
+            <View style={styles.skeletonSpinnerRow}>
+              <Spinner size={fs(14)} />
+              <Text style={styles.skeletonSpinnerText}>Getting café info…</Text>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.skeletonList}>
+            <StationHeaderSkeleton width={fs(118)} />
+            <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
+            <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
+            <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
+            <View style={styles.skeletonSpinnerRow}>
+              <Spinner size={fs(14)} />
+              <Text style={styles.skeletonSpinnerText}>Getting today&apos;s menu from UMass Dining…</Text>
+            </View>
+          </View>
+        )
       ) : (
         <MealTabPager
           activeIndex={activeIndex}
@@ -1234,8 +1302,10 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       with a gold hidden-count badge once allergens/diet-tags are excluding something (macros never
       drive this -- see hiddenCount's own comment above). Opens FilterSheet in place, no navigation.
       Café-screen unification: hidden entirely for the info-only state -- effectiveItems is always
-      [] there, so there is nothing for it to ever filter. */}
-      {cafeState?.kind !== "info" && (
+      [] there, so there is nothing for it to ever filter. Café-screen QA fix (bug 5): also hidden
+      while STILL RESOLVING if cafeSkeletonLooksLikeInfo predicts "info" -- see that memo's own
+      comment on why showing it now just to hide it again a moment later is the more jarring order. */}
+      {(cafeState ? cafeState.kind !== "info" : !cafeSkeletonLooksLikeInfo) && (
         <Pressable
           style={[styles.filterFab, hiddenCount > 0 && styles.filterFabActive]}
           onPress={() => setFilterSheetOpen(true)}
@@ -1494,19 +1564,24 @@ const styles = StyleSheet.create({
   },
   standingMenuBannerLabel: { fontFamily: fonts.display600, fontSize: fs(11), letterSpacing: 1.2, textTransform: "uppercase", color: colors.maroon900 },
   standingMenuCaveat: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 50) },
-  unmatchedBlock: { paddingBottom: spacing(3) },
+  unmatchedBlock: { paddingBottom: spacing(3), gap: spacing(2) },
+  // Café-screen QA fix (bug 3): dashed border (not the matched dish rows' solid divider/card look)
+  // -- a structural, always-visible cue that this row is "unconfirmed," not just a plainer dish row.
   unmatchedRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(2),
+    marginHorizontal: spacing(5),
     paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(5),
-    borderTopWidth: 1,
-    borderTopColor: withOpacity(colors.ink900, 8),
+    paddingHorizontal: spacing(3.5),
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: withOpacity(colors.ink900, 25),
+    borderRadius: radii.md,
   },
-  unmatchedRowName: { flex: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
-  unmatchedRowPrice: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: colors.maroon600 },
-  unmatchedRowChevron: { fontFamily: fonts.body400, fontSize: fs(16), color: withOpacity(colors.ink900, 35) },
+  unmatchedRowMain: { flex: 1, gap: 2 },
+  unmatchedRowName: { fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
+  unmatchedRowMeta: { fontFamily: fonts.mono, fontSize: fs(11), color: withOpacity(colors.ink900, 45) },
 
   row: {
     flexDirection: "column",

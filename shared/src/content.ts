@@ -146,7 +146,17 @@ export function parseRetailMenuHtml(html: string | null | undefined): ParsedReta
     }
   }
 
-  const items = html
+  // Café-screen QA fix: a real capture (Argo Tea's get_infov2 breakfast_menu, confirmed live) wraps
+  // a section LABEL in <strong>, not a dish -- `<p><strong>Sample Menu items:<\/strong><br
+  // \/>Black tea Hot or Iced<br \/>...</p>`. Every real item line in that same block is plain text;
+  // only the heading is bold. Stripping <strong>/<b> tags AND their content before splitting into
+  // lines (same "drop the body, not just the tag" treatment htmlToText already gives <script>/
+  // <style>, for the same "this whole span isn't real content" reason) removes the heading
+  // structurally instead of pattern-matching its specific wording, which would miss the same shape
+  // at any other café with a differently-worded label.
+  const withoutHeadings = html.replace(/<(strong|b)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
+
+  const items = withoutHeadings
     .split(/<\/(?:p|li|div)>/i)
     .flatMap((chunk) => htmlToText(chunk).split("\n"))
     .filter(Boolean)

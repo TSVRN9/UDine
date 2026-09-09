@@ -250,6 +250,23 @@ test("parseRetailMenuHtml splits <br>-separated lines within one block into sepa
   ]);
 });
 
+// Real capture, Argo Tea breakfast_menu -- a whole menu packed into one <p>, <br>-separated, same
+// shape as BR_SEPARATED_MENU_SHAPE above, EXCEPT the very first line is a section heading wrapped in
+// <strong>, not a dish: "Sample Menu items:". café-screen QA finding (device pass on PR #363): this
+// heading was rendering as if it were a real menu row.
+const REAL_ARGO_TEA_BREAKFAST_MENU =
+  "<p><strong>Sample Menu items:</strong><br />Black tea Hot or Iced<br />Green tea Hot or Iced<br />Earl Gray tea Hot or Iced<br />Freshly brewed coffee Hot or Iced<br />Cappuccino<br />Caffe Mocha<br />Chai hot or iced<br />Teappuccino hot or iced<br />Mate Late Hot or Iced<br />Matcha Vanilla Latte hot or iced<br />Green Tea Ginger Twist hot or iced<br />Bubble Tea<br />Tea Sparkle<br /><br />Blueberry Muffin<br />Macarons<br />Croissants<br />Paninis<br />Raw Bars</p>";
+
+test("parseRetailMenuHtml drops a <strong>-wrapped section heading instead of rendering it as a dish (#363 QA fix)", () => {
+  const parsed = parseRetailMenuHtml(REAL_ARGO_TEA_BREAKFAST_MENU);
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  const names = parsed.items.map((i) => i.name);
+  assert.ok(!names.some((n) => n.includes("Sample Menu items")), `heading leaked into items: ${JSON.stringify(names)}`);
+  assert.ok(names.includes("Black tea Hot or Iced"));
+  assert.ok(names.includes("Blueberry Muffin"));
+});
+
 // Real capture, babyBerk breakfast_menu (hours.test.ts's REAL_BABYBERK) -- a PDF link, not an item
 // list.
 const REAL_BABYBERK_BREAKFAST_MENU =

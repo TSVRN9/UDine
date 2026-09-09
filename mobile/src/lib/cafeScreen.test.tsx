@@ -204,6 +204,18 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
     expect(flat).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
   });
 
+  // Café-screen QA fix (bug 2): a "standing" state has no real MealPeriod to build tabs from --
+  // deriveCafeMealTabs' own "allday" synthetic tab used to render as a degenerate single-tab strip
+  // ("ALL DAY"), which the approved design says shouldn't exist for this state at all. The caveat
+  // banner takes the tab strip's place instead.
+  it("standing-state café renders NO tab strip -- the caveat banner takes its place", async () => {
+    const root = await renderCafeScreen([]);
+    expect(root.root.findAllByProps({ accessibilityLabel: "All Day menu" }).length).toBe(0);
+    expect(texts(root).flat()).not.toContain("All Day");
+    // The caveat banner itself must still be there, just not inside a tab row.
+    expect(texts(root).flat()).toContain("today's menu isn't posted yet — standing menu from umassdining.com");
+  });
+
   // A catalog hit on the same standing-menu name gets full nutrition, rendered via the exact same
   // dish-row pipeline an integrated/hall item uses.
   it("empty fetchMenu + standing-menu HTML matched against the catalog -> full nutrition, not just name+price", async () => {
@@ -231,6 +243,17 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
     expect(searchInput.props.value).toBe("Bacon Croissant");
   });
 
+  // Café-screen QA fix (bug 3): an unmatched standing-menu row (no catalog hit, name+price only)
+  // used to render as a plain flat row visually indistinguishable from a matched dish row except by
+  // tapping it -- must instead be clearly marked "not a real, loggable dish yet": dashed border
+  // (matched rows/the section's own dividers are solid), and its own "Nutrition not found" text.
+  it("an unmatched standing-menu row is visually distinct -- dashed border, 'Nutrition not found' text", async () => {
+    const root = await renderCafeScreen([]);
+    const row = root.root.findByProps({ accessibilityLabel: "Search for Bacon Croissant" });
+    expect(row.props.style).toEqual(expect.objectContaining({ borderStyle: "dashed" }));
+    expect(texts(root).flat()).toContain("Nutrition not found");
+  });
+
   it("empty fetchMenu + no standing menu at all -> the info-only state's content, within this same screen (no menu/dish rows, no filter FAB)", async () => {
     mockFetchHoursAndCache.mockResolvedValue({
       halls: [],
@@ -247,6 +270,55 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
     // Café-screen unification: the filter FAB is hidden entirely in the info-only state (nothing to
     // filter -- see halls/[slug].tsx's own comment).
     expect(root.root.findAllByProps({ accessibilityLabel: "Filters" }).length).toBe(0);
+  });
+
+  // Café-screen QA fix (bug 1): the info-only café never gets a mealTabs entry (see mealTabs' own
+  // doc), so selectedMeal stays null forever -- the plate bar's own "still loading" formula used to
+  // read that as permanent loading: disabled LOG button, "add dishes once the menu loads" copy that
+  // can never come true since this café's menu structurally never loads. Tapping the plate bar's
+  // body still opened PlateSheet's search underneath (the whole bar is one Pressable), but nothing
+  // on screen said so -- it read as broken. The plate bar must present its normal, working
+  // "search for something not on the menu" empty state instead, same as a real hall whose menu has
+  // genuinely zero matching dishes.
+  it("info-only café's plate bar is NOT stuck on the disabled loading state -- LOG works, copy doesn't contradict itself", async () => {
+    mockFetchHoursAndCache.mockResolvedValue({
+      halls: [],
+      retail: [{ ...DEFAULT_HOURS_FEED.retail[0], breakfastMenu: null }],
+    });
+    const root = await renderCafeScreen([]);
+    const plateBar = root.root.findByType(PlateBar);
+    expect(plateBar.props.emptyState.disabled).not.toBe(true);
+    expect(plateBar.props.emptyState.subline).not.toMatch(/menu loads/);
+  });
+
+  // Café-screen QA fix (bug 5): the loading skeleton always assumed the "integrated" shape (dish
+  // rows + filter FAB) regardless of which state this café will actually resolve to -- for a café
+  // whose retailLoc has no standing-menu item list at all (predictable synchronously, no network
+  // needed -- see [slug].tsx's own cafeSkeletonLooksLikeInfo comment), that FAB popped in during
+  // loading and vanished the instant cafeState resolved to "info". It should never show in the
+  // first place for that predicted case.
+  it("café loading skeleton hides the filter FAB while still resolving, when retailLoc predicts 'info' (bug 5)", async () => {
+    mockFetchHoursAndCache.mockResolvedValue({
+      halls: [],
+      retail: [{ ...DEFAULT_HOURS_FEED.retail[0], breakfastMenu: null }],
+    });
+    let resolveFetch!: (items: MenuItem[]) => void;
+    mockedFetchMenu.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<CafeScreen />);
+    });
+    // Still loading: the ajax probe (mockedFetchMenu) hasn't resolved yet, so cafeState is still
+    // null and this screen is on the skeleton branch.
+    expect(root.root.findAllByProps({ accessibilityLabel: "Filters" }).length).toBe(0);
+    await act(async () => {
+      resolveFetch([]);
+      await Promise.resolve();
+    });
   });
 
   it("a name absent from the resolved hours feed shows an error instead of spinning forever", async () => {
