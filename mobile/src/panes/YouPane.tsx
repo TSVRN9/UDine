@@ -248,10 +248,11 @@ export function YouPane() {
               anything that finds a Pressable by its accessible name rather than by text content. */}
           <SectionHeader
             title="Favorites"
+            variant="subtle"
             right={
               <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button" accessibilityLabel="See all favorites">
-                <Text style={styles.allLogsText}>SEE ALL</Text>
-                <Text style={styles.allLogsChevron}>›</Text>
+                <Text style={styles.seeAllText}>SEE ALL</Text>
+                <Text style={styles.seeAllChevron}>›</Text>
               </Press>
             }
           />
@@ -268,7 +269,7 @@ export function YouPane() {
         </View>
 
         <View style={styles.subsection}>
-          <SectionHeader title="Your Top Foods" />
+          <SectionHeader title="Your Top Foods" variant="subtle" />
           <Text style={styles.groupHint}>From your head-to-head comparisons only — not something you can set directly.</Text>
           {rankedFoods.length === 0 ? (
             <EmptyState title="No comparisons yet" message="Dish ranking is on hold for now — this fills in once it's back." />
@@ -284,7 +285,7 @@ export function YouPane() {
         </View>
 
         <View style={styles.subsection}>
-          <SectionHeader title="Favorite Halls" />
+          <SectionHeader title="Favorite Halls" variant="subtle" />
           <Text style={styles.groupHint}>Ranked by your dish comparisons at each hall — not editable.</Text>
           {hallRanking.ranked.length === 0 ? (
             <EmptyState title="No ranking yet" message="Dish ranking is on hold for now — this fills in once it's back." />
@@ -335,6 +336,10 @@ const styles = StyleSheet.create({
   allLogsLink: { flexDirection: "row", alignItems: "center", gap: spacing(1) },
   allLogsText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
   allLogsChevron: { fontFamily: fonts.body400, fontSize: fs(12), color: colors.maroon600 },
+  // SEE ALL (Favorites) is smaller than ALL LOGS -- YouPaneGrouped.dc.html:80-81 specs 10px for
+  // both the text and the chevron, distinct from ALL LOGS' 11px/12px (#419).
+  seeAllText: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 0.5, color: colors.maroon600 },
+  seeAllChevron: { fontFamily: fonts.body400, fontSize: fs(10), color: colors.maroon600 },
 
   // Today's Log, meal-grouped (#118): one card, per-meal header + subtotal, single-line item rows,
   // a hairline divider between meal groups.
