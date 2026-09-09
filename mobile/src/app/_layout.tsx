@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { registerNotificationHandler } from "../lib/notificationHandler";
+import { prefetchTodaysMenus } from "../lib/menuPrefetch";
 import { colors, fonts, fs, radii, spacing } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync();
@@ -65,6 +66,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    prefetchTodaysMenus();
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 
