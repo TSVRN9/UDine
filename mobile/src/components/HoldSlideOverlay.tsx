@@ -20,6 +20,14 @@ const LADDER_OFFSETS = [-2, -1, 0, 1, 2];
 // textAlign centered) at the SAME computed left/top -- replaces two independently hand-tuned `left`
 // offsets (one per glyph, `-9` vs `-7`) that never actually agreed with each other.
 const GLYPH_BOX = 22;
+// Spec (ServingsF.dc.html:134) wants an OUTSET ring around the thumb circle -- box-shadow:
+// 0 0 0 5px, painting outside the 44px circle, leaving the circle's own fill untouched (it
+// needs to stay visible/animatable through the cancel-drag color blend). RN box-shadow doesn't
+// reproduce a solid-color ring reliably, so this is a same-size-plus-outset sibling view whose
+// OWN BORDER (not fill) sits in that outward band -- borderWidth: PLUS_RING_OUTSET,
+// backgroundColor: "transparent" -- so its interior stays see-through over the real circle
+// instead of washing over it.
+const PLUS_RING_OUTSET = 5;
 
 interface Props {
   anchor: ButtonAnchor;
@@ -114,7 +122,18 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
         {LADDER_OFFSETS.map((k) => (
           <LadderTick key={k} k={k} anchorWidth={anchor.width} liveIndex={liveIndex} />
         ))}
-        <View style={[styles.plusRing, { top: TRACK_HEIGHT - BUTTON_ZONE, width: anchor.width, height: BUTTON_ZONE, borderRadius: anchor.width / 2 }]} />
+        <View
+          style={[
+            styles.plusRing,
+            {
+              top: TRACK_HEIGHT - BUTTON_ZONE - PLUS_RING_OUTSET,
+              left: -PLUS_RING_OUTSET,
+              width: anchor.width + PLUS_RING_OUTSET * 2,
+              height: BUTTON_ZONE + PLUS_RING_OUTSET * 2,
+              borderRadius: (anchor.width + PLUS_RING_OUTSET * 2) / 2,
+            },
+          ]}
+        />
         <Reanimated.Text style={[styles.plusGlyph, plusStyle, { top: glyphTop, left: glyphLeft }]}>+</Reanimated.Text>
         <Reanimated.Text style={[styles.plusGlyph, cancelGlyphStyle, { top: glyphTop, left: glyphLeft }]}>✕</Reanimated.Text>
       </Reanimated.View>
@@ -187,7 +206,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 4,
   },
-  plusRing: { position: "absolute", borderWidth: 5, borderColor: withOpacity(colors.gold500, 30) },
+  plusRing: {
+    position: "absolute",
+    backgroundColor: "transparent",
+    borderWidth: PLUS_RING_OUTSET,
+    borderColor: withOpacity(colors.gold500, 30),
+  },
   plusGlyph: {
     position: "absolute",
     width: GLYPH_BOX,
@@ -220,7 +244,8 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   bubbleLabel: {
-    fontSize: fs(11),
+    // Literal, not fs(10) -- spec (ServingsF.dc.html:131) pins this at 10px.
+    fontSize: 10,
     color: withOpacity(colors.paper50, 70),
     padding: 0,
     margin: 0,
