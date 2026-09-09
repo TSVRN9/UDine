@@ -13,6 +13,10 @@ interface Props {
   /** Tapping the PDF row -- opens the in-app viewer (CafePdfViewer), never an external browser
    * (owner decision, #177). */
   onOpenPdf: (url: string, label: string) => void;
+  /** #376: the "Log What You Got Here" CTA (shown only when there's no menu at all -- see `pdf`
+   * above) routes into the SAME add-item/custom-food flow PlateSheet's search footer uses, not a
+   * new one -- reuses [slug].tsx's existing customFoodFormOpen/CustomFoodForm wiring. */
+  onOpenCustomFoodForm: (prefillName?: string) => void;
 }
 
 /**
@@ -33,7 +37,7 @@ interface Props {
  * file) -- an item LIST means the waterfall resolved "standing", not "info", so this component
  * never sees one.
  */
-export function CafeSheet({ loc, now, pdf, onOpenPdf }: Props) {
+export function CafeSheet({ loc, now, pdf, onOpenPdf, onOpenCustomFoodForm }: Props) {
   const status = openStatus({ hallTid: -1, breakfast: null, lunch: null, dinner: null, latenight: null, general: loc.hours }, now);
   const description = htmlToText(loc.description);
   const addressLines = htmlToText(loc.address).split("\n").filter(Boolean);
@@ -47,12 +51,47 @@ export function CafeSheet({ loc, now, pdf, onOpenPdf }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{loc.name}</Text>
+      {/* #377: no internal title -- CafeSheet only ever mounts inline under HallMenuScreenBody's
+      own 22px header ([slug].tsx), which already renders the café name. A second title here
+      duplicated it on screen; the hall-name secondary text CafeSheet.dc.html:37 shows next to the
+      status pill is NOT added below -- no field anywhere (RetailLocationHours, hours.ts) derives
+      which real hall a café is near/inside, so that piece needs new data plumbing, out of scope
+      for this diff. */}
       <View style={styles.statusRow}>
         <View style={styles.statusPill}>
           <Text style={styles.statusPillText}>{cafeStatusPillText(status)}</Text>
         </View>
       </View>
+
+      {/* #376: info-only café's CTA into the add-item/custom-food flow (docs/design/
+      CafeMenuInfoOnly.dc.html:27-43) -- only when there's truly nothing to browse (no PDF either;
+      an existing PDF already gives a way into the menu via the menuCard below). */}
+      {!pdf ? (
+        <>
+          <Pressable
+            style={styles.logCta}
+            onPress={() => onOpenCustomFoodForm(undefined)}
+            accessibilityRole="button"
+            accessibilityLabel="Log what you got here"
+          >
+            <View style={styles.logCtaText}>
+              <Text style={styles.logCtaHeadline}>Log What You Got Here</Text>
+              <Text style={styles.logCtaSubtext}>No menu posted for {loc.name} today</Text>
+            </View>
+            <Text style={styles.logCtaChevron}>›</Text>
+          </Pressable>
+
+          <View style={styles.hoursBox}>
+            <View style={styles.hoursBoxLeft}>
+              <Text style={styles.hoursBoxLabel}>Today</Text>
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>{cafeStatusPillText(status)}</Text>
+              </View>
+            </View>
+            <Text style={styles.hoursBoxRange}>{loc.hours ? `${loc.hours.openTime} – ${loc.hours.closeTime}` : "Closed"}</Text>
+          </View>
+        </>
+      ) : null}
 
       {description ? <Text style={styles.description}>{description}</Text> : null}
 
@@ -94,12 +133,54 @@ export function CafeSheet({ loc, now, pdf, onOpenPdf }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: spacing(5), paddingTop: spacing(3), gap: spacing(3) },
+  // #373: CafeSheet.dc.html's sheet panel spec, `box-shadow: 0 -8px 24px rgba(36,26,20,0.25)` --
+  // RN shadow props structured the same way HoldSlideOverlay.tsx's `pill`/`bubble` styles do.
+  container: {
+    paddingHorizontal: spacing(5),
+    paddingTop: spacing(3),
+    gap: spacing(3),
+    shadowColor: colors.ink900,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+  },
 
-  title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   statusPill: { backgroundColor: colors.gold500, borderRadius: radii.pill, paddingVertical: spacing(0.75), paddingHorizontal: spacing(2.25) },
   statusPillText: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 0.5, color: colors.maroon900 },
+
+  // #376: CafeMenuInfoOnly.dc.html:19-24 CTA card.
+  logCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing(2.5),
+    backgroundColor: colors.maroon900,
+    borderRadius: 8,
+    paddingVertical: spacing(3.5),
+    paddingHorizontal: spacing(4),
+  },
+  logCtaText: { gap: 2 },
+  logCtaHeadline: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 0.6, textTransform: "uppercase", color: colors.paper50 },
+  logCtaSubtext: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.paper50, 60) },
+  logCtaChevron: { fontFamily: fonts.body600, fontSize: fs(16), fontWeight: "600", color: colors.gold500 },
+
+  // #376: CafeMenuInfoOnly.dc.html:26-33 boxed hours row, distinct from the plain status pill above.
+  hoursBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: withOpacity(colors.gold500, 12),
+    borderWidth: 1,
+    borderColor: withOpacity(colors.ink900, 12),
+    borderRadius: radii.md,
+    paddingVertical: spacing(2.25),
+    paddingHorizontal: spacing(3.5),
+  },
+  hoursBoxLeft: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
+  hoursBoxLabel: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon900 },
+  hoursBoxRange: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: colors.maroon900 },
 
   description: { fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(18), color: withOpacity(colors.ink900, 70) },
 
