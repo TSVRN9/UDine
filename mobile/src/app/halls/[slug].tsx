@@ -216,7 +216,11 @@ function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingM
           style={styles.unmatchedRow}
           onPress={() => onTapItem(entry.name)}
           accessibilityRole="button"
-          accessibilityLabel={`Search for ${entry.name}`}
+          // Café-screen QA fix (bug 3): an explicit accessibilityLabel on a Pressable suppresses
+          // announcement of its own child Text nodes on a screen reader -- without "nutrition not
+          // found" folded in here too, this row's whole visual point (bug 3 is specifically about
+          // marking "not a real, loggable dish yet") would be silent for anyone not sighted.
+          accessibilityLabel={`Search for ${entry.name}, nutrition not found`}
         >
           <View style={styles.unmatchedRowMain}>
             <Text style={styles.unmatchedRowName}>{entry.name}</Text>
@@ -1177,9 +1181,15 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       mealPane below) takes the tab strip's exact place instead -- same fixed position, not scrolled
       away with the list. */}
       {!isRealHall && cafeState?.kind === "standing" ? (
-        <View style={styles.standingMenuBanner}>
-          <Text style={styles.standingMenuBannerLabel}>MENU</Text>
-          <Text style={styles.standingMenuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
+        // PR review (post-QA-fix pass): the tab strip it replaces carried its own bottom divider
+        // (tabRow's borderBottomWidth) separating the header from whatever's below -- without an
+        // equivalent here, this banner butted directly against the header with no divider at all.
+        // Same divider treatment, wrapped around the banner instead of styled onto tabRow itself.
+        <View style={styles.standingMenuBannerWrap}>
+          <View style={styles.standingMenuBanner}>
+            <Text style={styles.standingMenuBannerLabel}>MENU</Text>
+            <Text style={styles.standingMenuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
+          </View>
         </View>
       ) : (
         <View style={styles.tabRow}>
@@ -1553,9 +1563,19 @@ const styles = StyleSheet.create({
 
   // Café-screen unification: standing-menu caveat banner + unmatched-item block, same visual
   // language CafeSheet's own (now-retired) menu card used.
+  //
+  // Café-screen QA fix (bug 2): standingMenuBannerWrap takes the tab strip's exact place (see this
+  // screen's own render) -- same bottom divider (borderBottomWidth/borderColor) tabRow carried, so
+  // the header-to-content transition reads the same regardless of which of the two this café shows.
+  standingMenuBannerWrap: {
+    paddingBottom: spacing(1),
+    borderBottomWidth: 1,
+    borderColor: withOpacity(colors.ink900, 15),
+  },
   standingMenuBanner: {
     marginHorizontal: spacing(5),
     marginTop: spacing(3),
+    marginBottom: spacing(1),
     backgroundColor: withOpacity(colors.gold500, 12),
     borderRadius: radii.md,
     paddingVertical: spacing(2.25),

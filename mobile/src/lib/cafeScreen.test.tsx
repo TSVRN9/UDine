@@ -235,7 +235,7 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
   // actual tap wiring that feeds it.
   it("tapping an unmatched standing-menu row opens the plate sheet's search pre-filled with its name", async () => {
     const root = await renderCafeScreen([]);
-    const row = root.root.findByProps({ accessibilityLabel: "Search for Bacon Croissant" });
+    const row = root.root.findByProps({ accessibilityLabel: "Search for Bacon Croissant, nutrition not found" });
     await act(async () => {
       row.props.onPress();
     });
@@ -249,7 +249,7 @@ describe("/cafe/[name] -- unified café screen (always HallMenuScreenBody)", () 
   // (matched rows/the section's own dividers are solid), and its own "Nutrition not found" text.
   it("an unmatched standing-menu row is visually distinct -- dashed border, 'Nutrition not found' text", async () => {
     const root = await renderCafeScreen([]);
-    const row = root.root.findByProps({ accessibilityLabel: "Search for Bacon Croissant" });
+    const row = root.root.findByProps({ accessibilityLabel: "Search for Bacon Croissant, nutrition not found" });
     expect(row.props.style).toEqual(expect.objectContaining({ borderStyle: "dashed" }));
     expect(texts(root).flat()).toContain("Nutrition not found");
   });

@@ -156,14 +156,29 @@ export function parseRetailMenuHtml(html: string | null | undefined): ParsedReta
   // at any other café with a differently-worded label.
   const withoutHeadings = html.replace(/<(strong|b)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
 
-  const items = withoutHeadings
-    .split(/<\/(?:p|li|div)>/i)
-    .flatMap((chunk) => htmlToText(chunk).split("\n"))
-    .filter(Boolean)
-    .map((line) => {
-      const m = /^(.*?)\s+(\$\d+(?:\.\d{2})?)$/.exec(line);
-      return m ? { name: m[1].trim(), price: m[2] } : { name: line, price: null };
-    });
+  function extractItems(source: string) {
+    return source
+      .split(/<\/(?:p|li|div)>/i)
+      .flatMap((chunk) => htmlToText(chunk).split("\n"))
+      .filter(Boolean)
+      .map((line) => {
+        const m = /^(.*?)\s+(\$\d+(?:\.\d{2})?)$/.exec(line);
+        return m ? { name: m[1].trim(), price: m[2] } : { name: line, price: null };
+      });
+  }
+
+  const items = extractItems(withoutHeadings);
+  // Live-verified (2026-09) against every real get_infov2 location: <strong>/<b> only ever wraps a
+  // section LABEL (Argo Tea's "Sample Menu items:"), never real item lines. But that's an
+  // observation about today's data, not a guarantee -- if some other café ever bolds its ENTIRE item
+  // list instead of a label, the strip above would empty it down to nothing, and this whole café's
+  // menu would silently vanish from the app (falls through to the "info" state). If stripping headings
+  // produced nothing but the RAW html still had real item lines, prefer the unstripped result -- a
+  // menu with an un-filtered heading line in it is a much smaller problem than a menu that disappears.
+  if (items.length === 0) {
+    const unstripped = extractItems(html);
+    if (unstripped.length > 0) return { kind: "items", items: unstripped };
+  }
 
   return items.length > 0 ? { kind: "items", items } : { kind: "empty" };
 }

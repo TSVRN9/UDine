@@ -267,6 +267,24 @@ test("parseRetailMenuHtml drops a <strong>-wrapped section heading instead of re
   assert.ok(names.includes("Blueberry Muffin"));
 });
 
+// Not a live capture -- a defensive guard: if some café ever bolds its WHOLE item list (unlike Argo
+// Tea, which only bolds a label), stripping every <strong>/<b> span would empty the menu down to
+// nothing, and that café's real menu would silently vanish from the app (falls through to "info").
+// Preferring the unstripped parse whenever the stripped one comes back empty keeps the menu itself
+// showing (with the bold heading text as a stray "item," same as before this whole fix) rather than
+// disappearing outright -- losing the item list entirely is the worse failure mode of the two.
+const ALL_BOLD_MENU_SHAPE = "<p><strong>Chai Latte $3.75</strong></p><p><strong>Matcha Latte $4.25</strong></p>";
+
+test("parseRetailMenuHtml falls back to the unstripped parse rather than emptying a menu whose ENTIRE item list happens to be bold", () => {
+  const parsed = parseRetailMenuHtml(ALL_BOLD_MENU_SHAPE);
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.deepEqual(parsed.items, [
+    { name: "Chai Latte", price: "$3.75" },
+    { name: "Matcha Latte", price: "$4.25" },
+  ]);
+});
+
 // Real capture, babyBerk breakfast_menu (hours.test.ts's REAL_BABYBERK) -- a PDF link, not an item
 // list.
 const REAL_BABYBERK_BREAKFAST_MENU =
