@@ -119,6 +119,20 @@ describe("MealTabPager windowing", () => {
     expect(hidden.length).toBe(2); // the two windowed neighbors (Breakfast, Dinner)
     for (const v of hidden) expect(v.props.accessibilityElementsHidden).toBe(true);
   });
+
+  // Android jank fix: without this prop, animating a MealTabPane's transform can't be flattened
+  // into a cached bitmap layer, so Android recomposites the real (heavy SectionList) subtree every
+  // frame instead -- this is the pane most worth fixing, per MealTabPane's own doc comment.
+  it("marks each pane's Animated.View host for hardware-texture rendering on Android", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<MealTabPager activeIndex={1} onActiveIndexChange={() => {}} panes={fivePanes()} />);
+    });
+    const hostViews = root.root.findAllByType(View);
+    const panes = hostViews.filter((n) => n.props.importantForAccessibility !== undefined);
+    expect(panes.length).toBeGreaterThan(0);
+    for (const p of panes) expect(p.props.renderToHardwareTextureAndroid).toBe(true);
+  });
 });
 
 // PR review finding: a committed jump of more than one index (only reachable via a tab tap -- a
