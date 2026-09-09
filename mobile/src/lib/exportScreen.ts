@@ -47,7 +47,7 @@ export function rankedSubline(items: { comparisonCount: number }[]): string {
 }
 
 export function favoritesSubline(favorites: Favorite[]): string {
-  return countLabel(favorites.length, "favorites");
+  return countLabel(favorites.length, "dishes");
 }
 
 export function customFoodsSubline(foods: CustomFood[]): string {
