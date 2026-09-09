@@ -1403,6 +1403,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         // (see grabSectionsMemo's own comment above) -- hide those two controls while on the Grab tab
         // instead of showing ones that would silently do nothing until switching tabs.
         stationsPriceDisabled={selectedMeal === "grab"}
+        hiddenCount={hiddenCount}
         onClose={() => setFilterSheetOpen(false)}
       />
       {/* Real-hall only -- see the header render's own comment on why a café has no glyph to open
