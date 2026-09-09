@@ -130,6 +130,23 @@ describe("HomePane loading (#181)", () => {
     expect(texts(root).flat().join(" ")).toMatch(/Campus Center/);
   });
 
+  // #421: babyBerk (a food truck) publishes a degenerate address blob (`<p><br/>,  </p>`, see
+  // CLAUDE.md/shared's hours.test.ts REAL_BABYBERK) -- htmlToText reduces it to a lone "," line,
+  // which used to render as-is: a stray comma with no real content.
+  it("omits the Cafés & Markets subtitle instead of rendering a stray ',' for a degenerate address (#421)", async () => {
+    mockFetchHoursAndCache.mockResolvedValue(hours({}, [{ name: "babyBerk", hours: null, address: "<p><br/>,  </p>" }]));
+    mockGetCachedHours.mockResolvedValue(null);
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/babyBerk/);
+    // Not a body-wide comma check (the hero date line, e.g. "Wednesday, September 9", legitimately
+    // has one) -- assert directly that no rendered Text is the stray "," subtitle itself.
+    expect(root.root.findAll((n) => n.type === Text && n.props.children === ",")).toHaveLength(0);
+  });
+
   // #387: while `pending`, the Cafés & Markets section rendered zero rows (hoursFeed?.retail
   // defaults to []) instead of a skeleton -- the whole section silently vanished during loading.
   it("shows Cafés & Markets skeleton rows (not an empty section) while the first fetch is pending", async () => {
@@ -143,6 +160,19 @@ describe("HomePane loading (#181)", () => {
     // dimensions (docs/design/HomeLoading.dc.html:119: first row's 96x13 title bar), which only
     // exists once the retail section has a pending branch at all.
     expect(root.root.findAllByProps({ width: 96, height: 13 }).length).toBeGreaterThan(0);
+  });
+
+  // #410: the hall card's Grab 'N Go strip hours-text slot rendered nothing while pending
+  // (grabStripState(hoursFeed?.retail ?? [], ...) returns text: "" when hoursFeed is null), unlike
+  // every other loading slot on the card, which shimmers. docs/design/HomeLoading.dc.html:51 wants
+  // a 68x11 skeleton bar there too.
+  it("shows a Grab 'N Go strip hours skeleton bar (not nothing) while the first fetch is pending (#410)", async () => {
+    mockFetchHoursAndCache.mockReturnValue(new Promise(() => {})); // never resolves
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+    expect(root.root.findAllByProps({ width: 68, height: 11 }).length).toBeGreaterThan(0);
   });
 });
 
