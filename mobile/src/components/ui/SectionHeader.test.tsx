@@ -54,4 +54,24 @@ describe("SectionHeader variant", () => {
     expect(ruleStyle.height).toBe(1);
     expect(ruleStyle.backgroundColor).not.toBe(withOpacity(colors.gold500, 50));
   });
+
+  // #437: YouPaneGrouped.dc.html's Favorites row (the only isSubtle+right case) uses
+  // align-items: baseline, distinct from every other header row's "center".
+  it('aligns the isSubtle && right row on baseline, unlike the default row\'s "center"', () => {
+    let subtleRoot!: renderer.ReactTestRenderer;
+    act(() => {
+      subtleRoot = renderer.create(
+        <SectionHeader title="Favorites" variant="subtle" right={<Text>SEE ALL</Text>} />,
+      );
+    });
+    const subtleRow = flatStyle(subtleRoot.root.findAllByType(View)[0].props.style);
+    expect(subtleRow.alignItems).toBe("baseline");
+
+    let defaultRoot!: renderer.ReactTestRenderer;
+    act(() => {
+      defaultRoot = renderer.create(<SectionHeader title="Today's Log" />);
+    });
+    const defaultRow = flatStyle(defaultRoot.root.findAllByType(View)[0].props.style);
+    expect(defaultRow.alignItems).toBe("center");
+  });
 });
