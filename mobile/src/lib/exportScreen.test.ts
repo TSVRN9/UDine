@@ -28,9 +28,9 @@ describe("rankedSubline", () => {
 });
 
 describe("favoritesSubline", () => {
-  it("counts favorites", () => {
+  it("counts favorites, per the artboard's `9 dishes`", () => {
     const favorites: Favorite[] = [{ type: "dish", dishName: "A" }, { type: "location", hallTid: 1 }];
-    expect(favoritesSubline(favorites)).toBe("2 favorites");
+    expect(favoritesSubline(favorites)).toBe("2 dishes");
   });
 });
 
