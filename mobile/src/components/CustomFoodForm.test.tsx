@@ -20,7 +20,7 @@ function fakeCustomFoodsStorage(): CustomFoodsStorage {
 }
 
 function saveButton(root: renderer.ReactTestRenderer) {
-  return root.root.findByProps({ children: "Save custom food" });
+  return root.root.findByProps({ children: "Save Custom Food" });
 }
 
 function setField(root: renderer.ReactTestRenderer, label: string, value: string) {
