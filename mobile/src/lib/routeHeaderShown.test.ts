@@ -24,12 +24,18 @@ const LAYOUT_PATH = path.join(APP_DIR, "_layout.tsx");
 // rely entirely on the native header for title, back affordance, and top inset.
 const NATIVE_HEADER_ROUTES = new Set(["filters", "favorites", "event-detail", "press", "newsletter"]);
 
-function parseLayout(source: string): { rootHeaderShown: boolean | undefined; perRoute: Map<string, boolean | undefined> } {
+function parseLayout(source: string): {
+  rootHeaderShown: boolean | undefined;
+  rootHeaderBackButtonDisplayMode: string | undefined;
+  perRoute: Map<string, boolean | undefined>;
+} {
   const screenOptionsMatch = source.match(/<Stack\s+screenOptions=\{\{([\s\S]*?)\}\}\s*>/);
   if (!screenOptionsMatch) throw new Error("Could not find <Stack screenOptions={{...}}> in _layout.tsx -- guard's parser is stale");
   const rootBlock = screenOptionsMatch[1];
   const rootMatch = rootBlock.match(/headerShown:\s*(true|false)/);
   const rootHeaderShown = rootMatch ? rootMatch[1] === "true" : undefined;
+  const backButtonDisplayModeMatch = rootBlock.match(/headerBackButtonDisplayMode:\s*"([^"]*)"/);
+  const rootHeaderBackButtonDisplayMode = backButtonDisplayModeMatch ? backButtonDisplayModeMatch[1] : undefined;
 
   const perRoute = new Map<string, boolean | undefined>();
   const screenRegex = /<Stack\.Screen\s+name="([^"]+)"(?:\s+options=\{\{([\s\S]*?)\}\}\s*)?\/>/g;
@@ -39,7 +45,7 @@ function parseLayout(source: string): { rootHeaderShown: boolean | undefined; pe
     const headerShownMatch = optionsBlock?.match(/headerShown:\s*(true|false)/);
     perRoute.set(name, headerShownMatch ? headerShownMatch[1] === "true" : undefined);
   }
-  return { rootHeaderShown, perRoute };
+  return { rootHeaderShown, rootHeaderBackButtonDisplayMode, perRoute };
 }
 
 function effectiveHeaderShown(routeName: string, parsed: ReturnType<typeof parseLayout>): boolean {
@@ -80,5 +86,32 @@ describe("every route resolves headerShown correctly (guards the #151/#219/#281 
   it.each(discoverRouteNames(APP_DIR).sort())("%s resolves headerShown as intended", (routeName) => {
     const wantsNativeHeader = NATIVE_HEADER_ROUTES.has(routeName);
     expect(effectiveHeaderShown(routeName, parsed)).toBe(wantsNativeHeader);
+  });
+});
+
+// Bug: "the iOS back button sometimes says 'index'". Root cause (confirmed by reading
+// expo-router's vendored native-stack, node_modules/expo-router/build/react-navigation/
+// native-stack/views/NativeStackView.native.js): the back button's label falls back to
+// `getHeaderTitle(previousDescriptor.options, previousDescriptor.route.name)` -- i.e. the
+// PREVIOUS screen's own `title`/`headerTitle`, and if neither is set, the previous screen's raw
+// route NAME. `index` (the 3-pane shell) has headerShown: false and no title, so every push from
+// it into a native-header screen (favorites/press/newsletter/event-detail, all reached via
+// EventsPane.tsx/YouPane.tsx/openEventTap.ts while `index` is the current route) inherited the
+// literal string "index" as the back button's fallback label. Not actually flaky -- deterministic
+// every time from those entry points -- but it reads as "sometimes" because most navigation (into
+// halls/[slug], cafe/[name], logs) draws its own chrome and never shows a native back button at
+// all.
+//
+// Fix (see _layout.tsx's root `screenOptions`): `headerBackButtonDisplayMode: "minimal"` forces
+// every native-header back button to render chevron-only, independent of whatever the previous
+// screen's title happens to resolve to -- covers `index` today and any future headerShown:false
+// route that becomes a predecessor, without needing to invent a truthful label for a 3-pane shell
+// that has none (back can land on any of Home/Events/You).
+describe("native-header back buttons never show a route-name fallback (guards the 'back button says index' bug)", () => {
+  const source = fs.readFileSync(LAYOUT_PATH, "utf8");
+  const parsed = parseLayout(source);
+
+  it("root screenOptions forces chevron-only back buttons", () => {
+    expect(parsed.rootHeaderBackButtonDisplayMode).toBe("minimal");
   });
 });
