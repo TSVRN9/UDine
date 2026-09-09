@@ -2,7 +2,7 @@ import type { CustomFood, CustomFoodsStorage } from "@udine/shared";
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { buildCustomFood, type CustomFoodFormInput } from "../lib/customFoodForm";
+import { buildCustomFood, hasRequiredCoreMacros, type CustomFoodFormInput } from "../lib/customFoodForm";
 import { Button } from "./ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
@@ -65,7 +65,15 @@ export function CustomFoodForm({ visible, initialName, customFoodsStorage, onSav
     setFields((f) => ({ ...f, [key]: value }));
   }
 
+  const coreMacrosFilled = hasRequiredCoreMacros(fields);
+
   async function handleSave() {
+    // Belt-and-suspenders on top of the Save button's own `disabled` below -- if it's ever
+    // wrong/stale, this still stops the save rather than silently shipping a 0-macro entry.
+    if (!coreMacrosFilled) {
+      setError("Calories, protein, carbs, and fat are required.");
+      return;
+    }
     const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
     const food = buildCustomFood(fields, id);
     if (!food) {
@@ -133,7 +141,7 @@ export function CustomFoodForm({ visible, initialName, customFoodsStorage, onSav
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: spacing(3) + insets.bottom }]}>
-          <Button variant="primary" style={styles.saveButton} onPress={handleSave} disabled={saving || !fields.name.trim()}>
+          <Button variant="primary" style={styles.saveButton} onPress={handleSave} disabled={saving || !fields.name.trim() || !coreMacrosFilled}>
             {saving ? "Saving…" : "Save custom food"}
           </Button>
         </View>
@@ -170,6 +178,7 @@ function Field({
         placeholderTextColor={withOpacity(colors.ink900, 45)}
         keyboardType={keyboardType}
         multiline={multiline}
+        accessibilityLabel={label}
       />
     </View>
   );

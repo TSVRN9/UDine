@@ -25,10 +25,26 @@ export interface CustomFoodFormInput {
 
 /** Blank/non-numeric text-field input defaults to 0 rather than NaN -- a quick entry that only
  * fills the 4 required macros must not silently ship NaN into every unset NutritionFacts field
- * (the log/macro-totals math downstream has no NaN guards of its own). */
+ * (the log/macro-totals math downstream has no NaN guards of its own). This is a mapping
+ * primitive only, NOT the "are the core macros filled in" check -- see hasRequiredCoreMacros
+ * below, which the form gates Save on so this fallback is never actually reachable for a core
+ * field from the UI. */
 function num(value: string | undefined): number {
   const n = Number(value);
   return value !== undefined && value.trim() !== "" && Number.isFinite(n) ? n : 0;
+}
+
+const CORE_MACRO_FIELDS = ["calories", "proteinG", "totalCarbG", "totalFatG"] as const;
+
+/** The "4 core macros required up front" contract (canvas spec, this file's own doc above) --
+ * CustomFoodForm.tsx gates its Save button on this so a blank/non-numeric core field can never
+ * reach buildCustomFood's silent num()->0 fallback (that fallback exists for the truly-optional
+ * "more nutrition fields" section, not these). */
+export function hasRequiredCoreMacros(input: Pick<CustomFoodFormInput, (typeof CORE_MACRO_FIELDS)[number]>): boolean {
+  return CORE_MACRO_FIELDS.every((field) => {
+    const trimmed = input[field].trim();
+    return trimmed !== "" && Number.isFinite(Number(trimmed));
+  });
 }
 
 /** Builds a CustomFood from form input, or null when the one truly required field (name) is

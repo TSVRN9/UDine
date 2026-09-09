@@ -1,4 +1,4 @@
-import { buildCustomFood } from "./customFoodForm";
+import { buildCustomFood, hasRequiredCoreMacros } from "./customFoodForm";
 
 const CORE_ONLY = {
   name: "Grandma's Lasagna",
@@ -67,4 +67,22 @@ test("blank or non-numeric core macro fields default to 0 rather than NaN", () =
   const food = buildCustomFood({ ...CORE_ONLY, calories: "", proteinG: "not a number" }, "c1");
   expect(food?.nutrition.calories).toBe(0);
   expect(food?.nutrition.proteinG).toBe(0);
+});
+
+describe("hasRequiredCoreMacros", () => {
+  it("is true once all 4 core macros are filled with real numbers", () => {
+    expect(hasRequiredCoreMacros(CORE_ONLY)).toBe(true);
+  });
+
+  it.each(["calories", "proteinG", "totalCarbG", "totalFatG"] as const)("is false when %s is blank", (field) => {
+    expect(hasRequiredCoreMacros({ ...CORE_ONLY, [field]: "" })).toBe(false);
+  });
+
+  it("is false when a core macro is whitespace-only", () => {
+    expect(hasRequiredCoreMacros({ ...CORE_ONLY, calories: "   " })).toBe(false);
+  });
+
+  it("is false when a core macro is non-numeric", () => {
+    expect(hasRequiredCoreMacros({ ...CORE_ONLY, proteinG: "a lot" })).toBe(false);
+  });
 });
