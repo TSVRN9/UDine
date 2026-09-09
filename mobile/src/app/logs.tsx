@@ -30,7 +30,9 @@ function WeekChip({ chip, onPress }: { chip: WeekDayChip; onPress: () => void })
   const accessibleDate = localDateFromIso(chip.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   return (
     <Pressable style={styles.chipColumn} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibleDate}>
-      <Text style={styles.chipLabel}>{chip.dayLabel}</Text>
+      <Text style={[styles.chipLabel, chip.isSelected ? styles.chipLabelSelected : chip.isFuture ? styles.chipLabelFuture : styles.chipLabelOutlined]}>
+        {chip.dayLabel}
+      </Text>
       <View
         style={[
           styles.chipCircle,
@@ -323,7 +325,10 @@ const styles = StyleSheet.create({
   // Week strip -- 7 chips, selected filled maroon, past/today outlined, future muted.
   weekStrip: { flexDirection: "row", justifyContent: "space-between" },
   chipColumn: { alignItems: "center", gap: spacing(1) },
-  chipLabel: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 1, color: colors.maroon900 },
+  chipLabel: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 1 },
+  chipLabelSelected: { color: colors.maroon900 },
+  chipLabelOutlined: { color: withOpacity(colors.ink900, 50) },
+  chipLabelFuture: { color: withOpacity(colors.ink900, 35) },
   chipCircle: { width: fs(36), height: fs(36), borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
   chipCircleSelected: { backgroundColor: colors.maroon600 },
   chipCircleOutlined: { borderWidth: 1, borderColor: withOpacity(colors.ink900, 20) },
@@ -387,7 +392,7 @@ const styles = StyleSheet.create({
   // 72px plot area, not text that needs to stay legible at small widths. (chartBarWrap/chartBar's
   // *width* uses fs(32) already, predating this PR and out of scope for #142 -- not touched here,
   // though it's arguably the same category of "not text" and could be revisited together later.)
-  chartCard: { paddingVertical: spacing(3.5), paddingHorizontal: spacing(3.5), gap: spacing(2) },
+  chartCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2) },
   chartBars: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 72 },
   chartBarWrap: { width: fs(32), alignItems: "center" },
   chartBar: { width: fs(32), borderTopLeftRadius: 3, borderTopRightRadius: 3 },
@@ -399,8 +404,8 @@ const styles = StyleSheet.create({
   chartCaption: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 70) },
 
   // For Fun 2x2 stat grid.
-  funGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  funCard: { width: "48%", marginBottom: spacing(2), padding: spacing(3), gap: spacing(1) },
+  funGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing(2) },
+  funCard: { width: "48%", paddingVertical: spacing(2.5), paddingHorizontal: spacing(3), gap: spacing(0.5) },
   funFigure: { fontFamily: fonts.display700, fontSize: fs(22), color: colors.maroon600 },
   funFigureGold: { color: colors.gold500 },
   funCaption: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 60) },
