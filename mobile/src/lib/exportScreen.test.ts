@@ -1,5 +1,5 @@
 import type { CustomFood, Favorite, LogEntry } from "@udine/shared";
-import { buildExportPlan, customFoodsSubline, favoritesSubline, logSubline, rankedSubline, selectedStoreLabel } from "./exportScreen";
+import { buildExportPlan, customFoodsSubline, favoritesSubline, foodRankingsSubline, logSubline, rankedSubline, selectedStoreLabel } from "./exportScreen";
 
 function entry(id: string, loggedAt: string): LogEntry {
   return { id, loggedAt, source: { type: "umass-menu", dishName: "X", hallTid: 1 }, servings: 1, nutrition: { servingSize: "1", calories: 1, caloriesFromFat: 1, totalFatG: 1, satFatG: 1, transFatG: 0, cholesterolMg: 1, sodiumMg: 1, totalCarbG: 1, dietaryFiberG: 1, sugarsG: 1, proteinG: 1 } };
@@ -24,6 +24,16 @@ describe("rankedSubline", () => {
 
   it("is zero-safe", () => {
     expect(rankedSubline([])).toBe("0 ranked · 0 comparisons");
+  });
+});
+
+describe("foodRankingsSubline", () => {
+  it("shows a plain count, per the artboard's Off-menu food rankings row (no ranked/comparisons breakdown)", () => {
+    expect(foodRankingsSubline(5)).toBe("5 foods");
+  });
+
+  it("is zero-safe", () => {
+    expect(foodRankingsSubline(0)).toBe("0 foods");
   });
 });
 
