@@ -21,9 +21,12 @@ const LADDER_OFFSETS = [-2, -1, 0, 1, 2];
 // offsets (one per glyph, `-9` vs `-7`) that never actually agreed with each other.
 const GLYPH_BOX = 22;
 // Spec (ServingsF.dc.html:134) wants an OUTSET ring around the thumb circle -- box-shadow:
-// 0 0 0 5px, painting outside the 44px circle -- not an inset border. RN box-shadow doesn't
-// reproduce a solid-color ring reliably, so this is a slightly larger sibling view sized
-// +5px on each side, drawn behind the circle instead.
+// 0 0 0 5px, painting outside the 44px circle, leaving the circle's own fill untouched (it
+// needs to stay visible/animatable through the cancel-drag color blend). RN box-shadow doesn't
+// reproduce a solid-color ring reliably, so this is a same-size-plus-outset sibling view whose
+// OWN BORDER (not fill) sits in that outward band -- borderWidth: PLUS_RING_OUTSET,
+// backgroundColor: "transparent" -- so its interior stays see-through over the real circle
+// instead of washing over it.
 const PLUS_RING_OUTSET = 5;
 
 interface Props {
@@ -203,7 +206,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 4,
   },
-  plusRing: { position: "absolute", backgroundColor: withOpacity(colors.gold500, 30) },
+  plusRing: {
+    position: "absolute",
+    backgroundColor: "transparent",
+    borderWidth: PLUS_RING_OUTSET,
+    borderColor: withOpacity(colors.gold500, 30),
+  },
   plusGlyph: {
     position: "absolute",
     width: GLYPH_BOX,
