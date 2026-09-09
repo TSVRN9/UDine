@@ -105,6 +105,9 @@ export function CustomFoodForm({ visible, initialName, customFoodsStorage, onSav
           <Field label="Name" value={fields.name} onChangeText={(v) => set("name", v)} placeholder="e.g. Grandma's Lasagna" emphasized />
           <Field label="Serving size" value={fields.servingSize} onChangeText={(v) => set("servingSize", v)} placeholder="e.g. 1 slice" />
 
+          <View style={styles.divider} />
+
+          <Text style={styles.fieldLabel}>Per Serving</Text>
           <View style={styles.macroGrid}>
             <View style={styles.macroRow}>
               <MacroField label="Calories" value={fields.calories} onChangeText={(v) => set("calories", v)} style={styles.macroCell} />
@@ -235,6 +238,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: spacing(3) },
   rowField: { flex: 1 },
 
+  // Line 37: hairline divider between Serving Size and the "Per Serving" macro grid.
+  divider: { height: 1, backgroundColor: withOpacity(colors.ink900, 10) },
+
   field: { gap: spacing(1) },
   // CustomFoodForm.dc.html line 26 (non-emphasized field label): 11px/600/1px-letterspacing/uppercase/55%.
   fieldLabel: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 1, textTransform: "uppercase", color: withOpacity(colors.ink900, 55) },
@@ -243,9 +249,11 @@ const styles = StyleSheet.create({
     // Line 33/42/46/50/54: non-emphasized fields use a 20%-opacity border.
     borderColor: withOpacity(colors.ink900, 20),
     borderRadius: radii.md,
-    paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
+    // Line 27/33: padding: 12px 14px.
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
     fontFamily: fonts.body400,
+    fontSize: fs(14),
     color: colors.ink900,
   },
   fieldInputMultiline: { minHeight: fs(72), textAlignVertical: "top" },

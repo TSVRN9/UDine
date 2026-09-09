@@ -96,4 +96,22 @@ describe("CustomFoodForm", () => {
     expect(customFoodsStorage.addCustomFood).toHaveBeenCalledWith(expect.objectContaining({ name: "Grandma's Lasagna", nutrition: expect.objectContaining({ calories: 420 }) }));
     expect(onSaved).toHaveBeenCalled();
   });
+
+  // #411: CustomFoodForm.dc.html line 40 has a "Per Serving" section heading above the macro
+  // grid, styled like the other field labels (fieldLabel).
+  it("shows a Per Serving section heading above the macro grid", () => {
+    const root = renderForm();
+    expect(root.root.findByProps({ children: "Per Serving" }).props.style).toEqual(root.root.findByProps({ children: "Name" }).props.style);
+  });
+
+  // #412: fieldInput padding should be 12px vertical / 14px horizontal (CustomFoodForm.dc.html
+  // lines 27/33), with an explicit 14px font size.
+  it("field inputs use 12px vertical / 14px horizontal padding and 14px font size", () => {
+    const root = renderForm();
+    const style = root.root.findByProps({ accessibilityLabel: "Serving size" }).props.style;
+    const flat = Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+    expect(flat.paddingVertical).toBe(12);
+    expect(flat.paddingHorizontal).toBe(14);
+    expect(flat.fontSize).toBe(14);
+  });
 });
