@@ -1306,11 +1306,11 @@ async function renderCafeScreen(items: MenuItem[]) {
 describe("HallMenuScreenBody as a café (#177 -- non-empty fetchMenu path, tid with no slug)", () => {
   it("auto-selects the single 'allday' tab a People's-Organic-shaped café has, with no static 'Lunch' default", async () => {
     const root = await renderCafeScreen([COFFEE, BAGEL]);
-    // The tab reads "All Day" (shared's mealPeriodLabel, reused via hallMenuTabs' mealTabLabel --
-    // #177 doesn't need its own override now that #175's label fix landed on main), and both items
-    // show without any tab tap -- a static "lunch" default would show neither, since this café has
-    // no lunch tab.
-    expect(texts(root).flat()).toContain("All Day");
+    // The tab reads "Daily Offerings" (#378: hallMenuTabs' cafeMealTabLabel override of the
+    // "allday" period for café context, not shared's generic "All Day"), and both items show
+    // without any tab tap -- a static "lunch" default would show neither, since this café has no
+    // lunch tab.
+    expect(texts(root).flat()).toContain("Daily Offerings");
     expect(texts(root).flat()).toContain("Coffee");
     expect(texts(root).flat()).toContain("Bagel");
   });
@@ -1320,10 +1320,12 @@ describe("HallMenuScreenBody as a café (#177 -- non-empty fetchMenu path, tid w
     expect(texts(root).flat()).not.toContain("Grab 'N Go");
   });
 
-  it("shows the price leading the meta line for a priced item, and renders exactly as today (no price chip) for an unpriced one", async () => {
+  it("shows the price folded into the same uniform-color meta string, and renders exactly as today (no price segment) for an unpriced one", async () => {
     const root = await renderCafeScreen([COFFEE, BAGEL]);
     const flat = texts(root).flat();
-    expect(flat).toContain("$3.00");
+    // #378 (CafeMenuMixed.dc.html:43): price is no longer its own maroon-highlighted Text --
+    // it's the leading segment of the same meta-line string as cal/protein.
+    expect(flat).toContain("$3.00 · ");
     // Bagel's meta line is untouched -- calorie/protein text present, no stray price string for it.
     expect(flat).toContain(250);
     expect(flat).toContain("g protein");

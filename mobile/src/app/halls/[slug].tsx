@@ -34,7 +34,7 @@ import Reanimated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
 import { CafePdfViewer } from "../../components/CafePdfViewer";
@@ -53,6 +53,7 @@ import { PlateSheet } from "../../components/PlateSheet";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { formatTime, retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
 import {
+  cafeMealTabLabel,
   directionsUrl,
   formatDateStepperLabel,
   formatServingSummary,
@@ -60,7 +61,6 @@ import {
   hallInfoHoursRows,
   isCurrentTabLoading,
   MEAL_TABS,
-  mealTabLabel,
   shouldAutoCorrectMealTab,
   stepDate,
   toggleExpandedKey,
@@ -195,6 +195,17 @@ function MagnifierIcon({ color }: { color: string }) {
   );
 }
 
+/** Note-box glyph for the standing-menu caveat banner (CafeMenuMixed.dc.html:29-32) -- same
+ * thin-stroke style as the other small glyphs on this screen. */
+function NoteIcon({ color }: { color: string }) {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 14 14" fill="none">
+      <Rect x={2} y={2} width={10} height={10} rx={2} stroke={color} strokeWidth={1.3} />
+      <Path d="M7 4.5v3M7 9.2v.1" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** Café-screen unification: a "standing" state's unmatched rows (parseRetailMenuHtml items with no
  * catalog match) -- name+price only, no nutrition to show or plate/log directly. Tapping one opens
  * the plate sheet's search pre-filled with its own name instead of being a dead end (see
@@ -227,7 +238,7 @@ function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingM
         >
           <View style={styles.unmatchedRowMain}>
             <Text style={styles.unmatchedRowName}>{entry.name}</Text>
-            <Text style={styles.unmatchedRowMeta}>{entry.price ? `${entry.price} · ` : ""}Nutrition not found</Text>
+            <Text style={styles.unmatchedRowMeta}>{entry.price ? `${entry.price} · ` : ""}nutrition not found</Text>
           </View>
           <MagnifierIcon color={withOpacity(colors.ink900, 45)} />
         </Pressable>
@@ -897,12 +908,12 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           <FavoriteStar isFavorite={isFavorite} dishName={item.dishName} onPress={() => toggleDishFavorite(item.dishName)} />
           <View style={styles.rowMain} pointerEvents="none">
             <Text style={styles.rowText}>{item.dishName}</Text>
-            {/* #177 styling spec: price leads the meta line, same row as cal/protein, gap
-                8px. No price in the data (every hall dish, most café dishes) -- renders
-                exactly as today, a single Text with no price chip. */}
+            {/* #378 (CafeMenuMixed.dc.html:43): price folds into the same uniform-color meta
+                string as cal/protein, no separate maroon-highlighted price Text -- was two
+                differently-styled Texts (rowPrice/rowCalories) that no longer matches spec. */}
             <View style={styles.rowMetaLine}>
-              {item.price ? <Text style={styles.rowPrice}>{item.price}</Text> : null}
               <Text style={styles.rowCalories}>
+                {item.price ? `${item.price} · ` : ""}
                 {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
               </Text>
               {macroBadges.length > 0 && (
@@ -1046,7 +1057,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       // #117 review: was hardcoded "today" regardless of the stepped date -- "for this day"
       // matches grab-n-go/[slug].tsx's own EmptyState copy (also date-agnostic by construction,
       // so it's correct whether selectedDate is today or not, no isToday branch needed).
-      return <EmptyState title="No matching dishes" message={`No ${mealTabLabel(period).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />;
+      return <EmptyState title="No matching dishes" message={`No ${cafeMealTabLabel(period, isRealHall).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />;
     }
     return (
       <GestureSectionList
@@ -1196,8 +1207,8 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         // Same divider treatment, wrapped around the banner instead of styled onto tabRow itself.
         <View style={styles.standingMenuBannerWrap}>
           <View style={styles.standingMenuBanner}>
-            <Text style={styles.standingMenuBannerLabel}>MENU</Text>
-            <Text style={styles.standingMenuCaveat}>today&apos;s menu isn&apos;t posted yet — standing menu from umassdining.com</Text>
+            <NoteIcon color={withOpacity(colors.ink900, 50)} />
+            <Text style={styles.standingMenuCaveat}>Today&apos;s menu isn&apos;t posted — standing menu from umassdining.com.</Text>
           </View>
         </View>
       ) : (
@@ -1211,9 +1222,9 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
                 hitSlop={12}
                 style={styles.tab}
                 accessibilityRole="button"
-                accessibilityLabel={`${mealTabLabel(period)} menu`}
+                accessibilityLabel={`${cafeMealTabLabel(period, isRealHall)} menu`}
               >
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>{mealTabLabel(period)}</Text>
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall)}</Text>
                 <View style={styles.tabUnderline}>
                   {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
                       one and Grab's below) reading the same swipeable-sequence index MealTabPager
@@ -1618,17 +1629,18 @@ const styles = StyleSheet.create({
     borderColor: withOpacity(colors.ink900, 15),
   },
   standingMenuBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2.5),
     marginHorizontal: spacing(5),
-    marginTop: spacing(3),
-    marginBottom: spacing(1),
-    backgroundColor: withOpacity(colors.gold500, 12),
-    borderRadius: radii.md,
+    marginTop: spacing(1),
+    marginBottom: spacing(2),
+    backgroundColor: withOpacity(colors.ink900, 5),
+    borderRadius: fs(8),
     paddingVertical: spacing(2.25),
     paddingHorizontal: spacing(3.5),
-    gap: 2,
   },
-  standingMenuBannerLabel: { fontFamily: fonts.display600, fontSize: fs(11), letterSpacing: 1.2, textTransform: "uppercase", color: colors.maroon900 },
-  standingMenuCaveat: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 50) },
+  standingMenuCaveat: { flex: 1, fontFamily: fonts.body400, fontSize: fs(11), lineHeight: fs(15), color: withOpacity(colors.ink900, 60) },
   unmatchedBlock: { paddingBottom: spacing(3), gap: spacing(2) },
   // Café-screen QA fix (bug 3): dashed border (not the matched dish rows' solid divider/card look)
   // -- a structural, always-visible cue that this row is "unconfirmed," not just a plainer dish row.
@@ -1641,12 +1653,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3.5),
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: withOpacity(colors.ink900, 25),
+    borderColor: withOpacity(colors.maroon600, 40),
     borderRadius: radii.md,
   },
   unmatchedRowMain: { flex: 1, gap: 2 },
-  unmatchedRowName: { fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
-  unmatchedRowMeta: { fontFamily: fonts.mono, fontSize: fs(11), color: withOpacity(colors.ink900, 45) },
+  unmatchedRowName: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  unmatchedRowMeta: { fontFamily: fonts.mono, fontSize: fs(11), color: withOpacity(colors.maroon600, 75) },
 
   row: {
     flexDirection: "column",
@@ -1665,7 +1677,6 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, gap: 1 },
   rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
   rowMetaLine: { flexDirection: "row", alignItems: "baseline", gap: spacing(2) },
-  rowPrice: { fontSize: fs(12), fontFamily: fonts.mono, fontWeight: "600", color: colors.maroon600 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
   macroBadge: { width: fs(15), height: fs(15), borderRadius: fs(15) / 2, borderWidth: 1, borderColor: colors.gold500, alignItems: "center", justifyContent: "center" },

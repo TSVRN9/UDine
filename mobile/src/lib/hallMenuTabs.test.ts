@@ -1,5 +1,6 @@
 import type { DiningHallHours, NutritionFacts, RetailLocationHours, TimeWindow } from "@udine/shared";
 import {
+  cafeMealTabLabel,
   directionsUrl,
   formatDateStepperLabel,
   formatServingSummary,
@@ -31,6 +32,24 @@ describe("mealTabLabel", () => {
     expect(mealTabLabel("lunch")).toBe("Lunch");
     expect(mealTabLabel("dinner")).toBe("Dinner");
     expect(mealTabLabel("latenight")).toBe("Late");
+  });
+});
+
+describe("cafeMealTabLabel", () => {
+  // #378: CafeMenuIntegrated.dc.html:30 spec's "Daily Offerings", not shared's generic "All Day"
+  // (confirmed by shared/src/umassDining.test.ts:233) -- café context only, a real hall's own
+  // "allday" period (if it ever had one) must still read "All Day".
+  it("reads 'Daily Offerings' for a café's allday tab", () => {
+    expect(cafeMealTabLabel("allday", false)).toBe("Daily Offerings");
+  });
+
+  it("leaves a real hall's allday tab as 'All Day'", () => {
+    expect(cafeMealTabLabel("allday", true)).toBe("All Day");
+  });
+
+  it("leaves every other period unchanged for a café", () => {
+    expect(cafeMealTabLabel("lunch", false)).toBe("Lunch");
+    expect(cafeMealTabLabel("latenight", false)).toBe("Late");
   });
 });
 
