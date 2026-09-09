@@ -250,6 +250,41 @@ test("parseRetailMenuHtml splits <br>-separated lines within one block into sepa
   ]);
 });
 
+// Real capture, Argo Tea breakfast_menu -- a whole menu packed into one <p>, <br>-separated, same
+// shape as BR_SEPARATED_MENU_SHAPE above, EXCEPT the very first line is a section heading wrapped in
+// <strong>, not a dish: "Sample Menu items:". café-screen QA finding (device pass on PR #363): this
+// heading was rendering as if it were a real menu row.
+const REAL_ARGO_TEA_BREAKFAST_MENU =
+  "<p><strong>Sample Menu items:</strong><br />Black tea Hot or Iced<br />Green tea Hot or Iced<br />Earl Gray tea Hot or Iced<br />Freshly brewed coffee Hot or Iced<br />Cappuccino<br />Caffe Mocha<br />Chai hot or iced<br />Teappuccino hot or iced<br />Mate Late Hot or Iced<br />Matcha Vanilla Latte hot or iced<br />Green Tea Ginger Twist hot or iced<br />Bubble Tea<br />Tea Sparkle<br /><br />Blueberry Muffin<br />Macarons<br />Croissants<br />Paninis<br />Raw Bars</p>";
+
+test("parseRetailMenuHtml drops a <strong>-wrapped section heading instead of rendering it as a dish (#363 QA fix)", () => {
+  const parsed = parseRetailMenuHtml(REAL_ARGO_TEA_BREAKFAST_MENU);
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  const names = parsed.items.map((i) => i.name);
+  assert.ok(!names.some((n) => n.includes("Sample Menu items")), `heading leaked into items: ${JSON.stringify(names)}`);
+  assert.ok(names.includes("Black tea Hot or Iced"));
+  assert.ok(names.includes("Blueberry Muffin"));
+});
+
+// Not a live capture -- a defensive guard: if some café ever bolds its WHOLE item list (unlike Argo
+// Tea, which only bolds a label), stripping every <strong>/<b> span would empty the menu down to
+// nothing, and that café's real menu would silently vanish from the app (falls through to "info").
+// Preferring the unstripped parse whenever the stripped one comes back empty keeps the menu itself
+// showing (with the bold heading text as a stray "item," same as before this whole fix) rather than
+// disappearing outright -- losing the item list entirely is the worse failure mode of the two.
+const ALL_BOLD_MENU_SHAPE = "<p><strong>Chai Latte $3.75</strong></p><p><strong>Matcha Latte $4.25</strong></p>";
+
+test("parseRetailMenuHtml falls back to the unstripped parse rather than emptying a menu whose ENTIRE item list happens to be bold", () => {
+  const parsed = parseRetailMenuHtml(ALL_BOLD_MENU_SHAPE);
+  assert.equal(parsed.kind, "items");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.deepEqual(parsed.items, [
+    { name: "Chai Latte", price: "$3.75" },
+    { name: "Matcha Latte", price: "$4.25" },
+  ]);
+});
+
 // Real capture, babyBerk breakfast_menu (hours.test.ts's REAL_BABYBERK) -- a PDF link, not an item
 // list.
 const REAL_BABYBERK_BREAKFAST_MENU =
