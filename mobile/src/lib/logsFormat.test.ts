@@ -319,7 +319,7 @@ describe("buildFunStats", () => {
     expect(stats[0].caption).toMatch(/streak/);
     expect(stats[1].figure).toBe("× 2");
     expect(stats[1].caption).toMatch(/French Toast/);
-    expect(stats[2].caption).toMatch(/distinct dish/);
+    expect(stats[2].caption).toBe("different dishes tried across all halls");
     expect(stats[3].gold).toBe(true);
   });
 

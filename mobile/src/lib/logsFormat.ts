@@ -212,7 +212,11 @@ export function buildFunStats(entries: LogEntry[], todayIso: string): FunStat[] 
 
   const distinct = computeDistinctDishCount(entries);
   if (distinct !== null) {
-    stats.push({ figure: String(distinct), caption: distinct === 1 ? "distinct dish tried" : "distinct dishes tried", gold: false });
+    stats.push({
+      figure: String(distinct),
+      caption: distinct === 1 ? "different dish tried across all halls" : "different dishes tried across all halls",
+      gold: false,
+    });
   }
 
   const mealShare = computeTopMealShare(entries);
