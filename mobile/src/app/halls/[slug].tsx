@@ -81,6 +81,7 @@ import {
   plateKeyFor,
   plateSearchResultDetail,
   plateSearchResultToPlateEntry,
+  resolvePlateAndCustomFoodVisibility,
   setCount,
   stepCount,
   toLogEntries,
@@ -1398,7 +1399,9 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         }
       />
       <PlateSheet
-        visible={sheetOpen}
+        // #436: never both visible=true at once -- see resolvePlateAndCustomFoodVisibility's own
+        // doc (lib/plate.ts) for why (Android silently drops a 2nd simultaneous native Modal).
+        visible={resolvePlateAndCustomFoodVisibility(sheetOpen, customFoodFormOpen).plateSheetVisible}
         plate={plate}
         totals={totals}
         contextLabel={hall.name}
@@ -1484,7 +1487,8 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         />
       )}
       <CustomFoodForm
-        visible={customFoodFormOpen}
+        // #436, same resolver as PlateSheet's `visible` above -- CustomFoodForm always wins.
+        visible={resolvePlateAndCustomFoodVisibility(sheetOpen, customFoodFormOpen).customFoodFormVisible}
         initialName={customFoodFormPrefill}
         customFoodsStorage={customFoodsStorage}
         onSaved={() => setCustomFoodFormOpen(false)}

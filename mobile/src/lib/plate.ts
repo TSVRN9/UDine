@@ -264,6 +264,21 @@ export type LogPlateResult = { ok: true; count: number } | { ok: false; error: u
  * withStepGuard -- and DROPS a second call outright while the first is still in flight, rather than
  * queuing it: the correct fix for a duplicate write is exactly one write, not two serialized ones.
  */
+/** #436: two simultaneous RN Modals on Android can silently fail to present the second one --
+ * confirmed on-device via PlateSheet's own "Can't find it? Create a custom food" row, which sets
+ * customFoodFormOpen while PlateSheet's own Modal (sheetOpen) was still visible=true, and
+ * CustomFoodForm's Modal just never appeared (no error, no visual sign). CafeSheet's identical
+ * trigger works fine because CafeSheet is never itself inside a Modal, so only one Modal is ever
+ * live there. Fix: CustomFoodForm always wins -- halls/[slug].tsx feeds both Modals' `visible`
+ * props through this instead of their raw sheetOpen/customFoodFormOpen state, so PlateSheet's
+ * Modal is forced closed the instant CustomFoodForm's should show, and reopens on its own once
+ * customFoodFormOpen goes back to false (sheetOpen itself is never touched, so no separate
+ * "reopen after" bookkeeping is needed). Pure so the swap is testable without rendering
+ * halls/[slug].tsx (1800+ lines, no existing render-test harness). */
+export function resolvePlateAndCustomFoodVisibility(sheetOpen: boolean, customFoodFormOpen: boolean): { plateSheetVisible: boolean; customFoodFormVisible: boolean } {
+  return { plateSheetVisible: sheetOpen && !customFoodFormOpen, customFoodFormVisible: customFoodFormOpen };
+}
+
 export function useGuardedLogPlate(storage: LogStorageLike) {
   const inFlight = useRef(false);
   return async function logPlate(plate: PlateEntry[], loggedAt: string): Promise<LogPlateResult | null> {
