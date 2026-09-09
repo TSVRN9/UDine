@@ -99,13 +99,23 @@ export function formatDateStepperLabel(date: Date): string {
  * the data itself has no other day to be about).
  */
 export interface HallHoursRow {
-  period: MealPeriod;
+  period: MealPeriod | "general";
   label: string;
   window: TimeWindow | null;
   isNow: boolean;
 }
 
+/** #432: get_infov2 currently publishes only `general` hours for every hall (all 4 commons'
+ * per-meal fields null, confirmed live 2026-09-09 -- same "Summer Hours" shape referenced above,
+ * just hitting semester dates too). The normal 3-row breakfast/lunch/dinner layout would render
+ * three "not served here" rows even though the hall is genuinely open per `general` -- so when
+ * every per-meal window is null AND `general` is published, collapse to a single row showing the
+ * real `general` window instead. Halls that publish any real per-meal data keep the normal rows
+ * unchanged (this only fires on the all-null case). */
 export function hallInfoHoursRows(hours: DiningHallHours, now: Date): HallHoursRow[] {
+  if (!hours.breakfast && !hours.lunch && !hours.dinner && hours.general) {
+    return [{ period: "general", label: "Hours", window: hours.general, isNow: false }];
+  }
   const current = currentMealPeriod(hours, now);
   return MEAL_TABS.map((period) => ({
     period,
