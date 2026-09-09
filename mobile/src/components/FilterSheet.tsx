@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   // 83,109,124), not a pale wash.
   toggleChip: { paddingVertical: spacing(2), paddingHorizontal: spacing(3.5), borderRadius: radii.pill, borderWidth: 1, borderColor: withOpacity(colors.ink900, 25) },
   toggleChipActive: { backgroundColor: colors.gold500, borderColor: colors.gold500 },
-  toggleChipText: { color: colors.ink900, fontFamily: fonts.body600, fontSize: fs(13) },
+  toggleChipText: { color: colors.maroon900, fontFamily: fonts.body600, fontSize: fs(13) },
   toggleChipTextActive: { color: colors.maroon900 },
 
   footer: { flexDirection: "row", gap: spacing(3), paddingTop: spacing(3), borderTopWidth: 1, borderColor: withOpacity(colors.ink900, 12) },
