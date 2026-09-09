@@ -243,26 +243,29 @@ test("searchProducts maps hits with per-serving nutriments, using the product's 
     () => searchProducts("cheerios"),
   );
 
-  assert.deepEqual(result, [
-    {
-      barcode: "016000275270",
-      productName: "Cheerios",
-      nutrition: {
-        servingSize: "28 g",
-        calories: 110,
-        caloriesFromFat: 0,
-        totalFatG: 2,
-        satFatG: 0.5,
-        transFatG: 0,
-        cholesterolMg: 0,
-        sodiumMg: 150,
-        totalCarbG: 22,
-        dietaryFiberG: 3,
-        sugarsG: 1,
-        proteinG: 3,
+  assert.deepEqual(result, {
+    results: [
+      {
+        barcode: "016000275270",
+        productName: "Cheerios",
+        nutrition: {
+          servingSize: "28 g",
+          calories: 110,
+          caloriesFromFat: 0,
+          totalFatG: 2,
+          satFatG: 0.5,
+          transFatG: 0,
+          cholesterolMg: 0,
+          sodiumMg: 150,
+          totalCarbG: 22,
+          dietaryFiberG: 3,
+          sugarsG: 1,
+          proteinG: 3,
+        },
       },
-    },
-  ]);
+    ],
+    hasMore: false,
+  });
 });
 
 test("searchProducts falls back to per-100g nutriments and marks the serving size as an estimate when a hit has no per-serving data", async () => {
@@ -291,10 +294,10 @@ test("searchProducts falls back to per-100g nutriments and marks the serving siz
     () => searchProducts("nutella"),
   );
 
-  assert.equal(result.length, 1);
-  assert.equal(result[0].nutrition.servingSize, "per 100g");
-  assert.equal(result[0].nutrition.calories, 539);
-  assert.equal(result[0].nutrition.proteinG, 6.3);
+  assert.equal(result.results.length, 1);
+  assert.equal(result.results[0].nutrition.servingSize, "per 100g");
+  assert.equal(result.results[0].nutrition.calories, 539);
+  assert.equal(result.results[0].nutrition.proteinG, 6.3);
 });
 
 test("searchProducts drops hits missing a barcode or product name", async () => {
@@ -309,7 +312,7 @@ test("searchProducts drops hits missing a barcode or product name", async () => 
       }) as Response,
     () => searchProducts("x"),
   );
-  assert.deepEqual(result, []);
+  assert.deepEqual(result.results, []);
 });
 
 test("searchProducts returns an empty array when the response has no products field", async () => {
@@ -317,7 +320,7 @@ test("searchProducts returns an empty array when the response has no products fi
     async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response,
     () => searchProducts("x"),
   );
-  assert.deepEqual(result, []);
+  assert.deepEqual(result.results, []);
 });
 
 test("searchProducts throws when the HTTP response is not ok", async () => {
@@ -346,5 +349,93 @@ test("searchProducts retries once on a 503 and succeeds on the following 200", a
     () => searchProducts("cheerios"),
   );
   assert.equal(calls, 2);
-  assert.equal(result[0]?.productName, "Cheerios");
+  assert.equal(result.results[0]?.productName, "Cheerios");
+});
+
+test("searchProducts requests the given page and reports hasMore true when count exceeds this page's reach", async () => {
+  let seenUrl: URL | undefined;
+  const result = await withFetch(
+    async (url) => {
+      seenUrl = new URL(String(url));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          count: 45,
+          products: Array.from({ length: 20 }, (_, i) => ({ code: String(i), product_name: `Product ${i}`, nutriments: {} })),
+        }),
+      } as Response;
+    },
+    () => searchProducts("cheerios", 2),
+  );
+  assert.equal(seenUrl?.searchParams.get("page"), "2");
+  assert.equal(result.results.length, 20);
+  assert.equal(result.hasMore, true); // page 2 * 20 = 40 < 45
+});
+
+test("searchProducts reports hasMore false once count is exhausted", async () => {
+  const result = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({ count: 45, products: [{ code: "1", product_name: "Last one", nutriments: {} }] }),
+      }) as Response,
+    () => searchProducts("cheerios", 3), // 3 * 20 = 60 >= 45
+  );
+  assert.equal(result.hasMore, false);
+});
+
+test("searchProducts falls back to a full-page heuristic for hasMore when the response omits count", async () => {
+  const fullPage = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          products: Array.from({ length: 20 }, (_, i) => ({ code: String(i), product_name: `Product ${i}`, nutriments: {} })),
+        }),
+      }) as Response,
+    () => searchProducts("x"),
+  );
+  assert.equal(fullPage.hasMore, true);
+
+  const shortPage = await withFetch(
+    async () => ({ ok: true, status: 200, json: async () => ({ products: [{ code: "1", product_name: "One", nutriments: {} }] }) }) as Response,
+    () => searchProducts("x"),
+  );
+  assert.equal(shortPage.hasMore, false);
+});
+
+test("searchProducts maps ingredients_text and title-cases/strips-locale from allergens_tags", async () => {
+  const result = await withFetch(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          products: [
+            {
+              code: "1",
+              product_name: "Trail Mix",
+              nutriments: {},
+              ingredients_text: "Peanuts, almonds, dried cranberries",
+              allergens_tags: ["en:milk", "en:tree-nuts"],
+            },
+          ],
+        }),
+      }) as Response,
+    () => searchProducts("trail mix"),
+  );
+  assert.equal(result.results[0].ingredients, "Peanuts, almonds, dried cranberries");
+  assert.deepEqual(result.results[0].allergens, ["Milk", "Tree Nuts"]);
+});
+
+test("searchProducts omits ingredients/allergens fields entirely when OFF has neither", async () => {
+  const result = await withFetch(
+    async () => ({ ok: true, status: 200, json: async () => ({ products: [{ code: "1", product_name: "Plain", nutriments: {} }] }) }) as Response,
+    () => searchProducts("plain"),
+  );
+  assert.equal("ingredients" in result.results[0], false);
+  assert.equal("allergens" in result.results[0], false);
 });

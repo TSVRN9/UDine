@@ -15,7 +15,6 @@ import {
   type MacroPreset,
   type MealPeriod,
   type MenuItem,
-  type OffSearchResult,
   type RetailLocationHours,
 } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -47,6 +46,7 @@ import { HoldSlideAddButton } from "../../components/HoldSlideAddButton";
 import { HoldSlideHost, type HoldSlideHostHandle } from "../../components/HoldSlideOverlay";
 import { AnimatedTabUnderline, MealTabPager } from "../../components/MealTabPager";
 import { MenuErrorCard } from "../../components/MenuErrorCard";
+import { CustomFoodForm } from "../../components/CustomFoodForm";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
@@ -70,17 +70,17 @@ import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog
 import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
-import type { HistoryDish } from "../../lib/dishHistory";
+import { SqliteCustomFoodsStorage } from "../../lib/customFoodsStorage";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
 import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
 import { supabase } from "../../lib/supabase";
 import {
   addOrIncrement,
-  historyDishToPlateEntry,
   listBottomPadding,
   menuItemToPlateEntry,
-  offResultToPlateEntry,
   plateKeyFor,
+  plateSearchResultDetail,
+  plateSearchResultToPlateEntry,
   setCount,
   stepCount,
   toLogEntries,
@@ -88,6 +88,7 @@ import {
   totalPlatePrice,
   useGuardedLogPlate,
   type PlateEntry,
+  type PlateSearchResult,
 } from "../../lib/plate";
 import { getPreferences, setPreferences } from "../../lib/preferences";
 import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
@@ -124,6 +125,7 @@ export interface HallMenuSubject {
 
 const storage = new SqliteLogStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
+const customFoodsStorage = new SqliteCustomFoodsStorage();
 
 // #91 rebuild: dish rows now feed an in-memory "plate" (steppers) instead of a single-selection log
 // bar, plus a full nutrition-label screen. Both the plate's expanded sheet and the label are RN
@@ -536,6 +538,13 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   const [priceFilter, setPriceFilter] = useState<Set<PriceBucket>>(new Set());
   const [events, setEvents] = useState<DiningEvent[]>([]);
   const [labelItem, setLabelItem] = useState<MenuItem | null>(null);
+  // PlateSheet's search-result confirm step and "create a custom food" row (#91 follow-on) --
+  // rendered as siblings of PlateSheet's own <Modal>, not nested inside it: no precedent in this
+  // codebase for a Modal mounted inside another Modal, and this file's own note above (near the
+  // Modal usages) already documents why each sheet has to manage its own native host.
+  const [searchDetailResult, setSearchDetailResult] = useState<PlateSearchResult | null>(null);
+  const [customFoodFormOpen, setCustomFoodFormOpen] = useState(false);
+  const [customFoodFormPrefill, setCustomFoodFormPrefill] = useState<string | undefined>(undefined);
   const [barHeight, setBarHeight] = useState(0);
   const [logged, setLogged] = useState<string | null>(null);
   const [bannerHeight, setBannerHeight] = useState(0);
@@ -820,12 +829,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     setPlate((p) => stepCount(p, plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid }), delta));
   }
 
-  function addOffResult(result: OffSearchResult) {
-    setPlate((p) => addOrIncrement(p, offResultToPlateEntry(result)));
-  }
-
-  function addHistoryDish(dish: HistoryDish) {
-    setPlate((p) => addOrIncrement(p, historyDishToPlateEntry(dish)));
+  // Single dispatch point for adding any of PlateSheet's 4 merged-search result kinds (#91
+  // follow-on: replaces the old addOffResult/addHistoryDish pair, which had no natural home for a
+  // 3rd/4th source) -- what the search-result confirm step's NutritionLabel.onAddToPlate calls.
+  function addSearchResult(result: PlateSearchResult, count: number) {
+    setPlate((p) => addOrIncrement(p, plateSearchResultToPlateEntry(result, count)));
   }
 
   // Café-screen unification: tapping an unmatched standing-menu row (UnmatchedMenuBlock, mealPane
@@ -1357,11 +1365,15 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         totals={totals}
         contextLabel={hall.name}
         logStorage={storage}
+        customFoodsStorage={customFoodsStorage}
         hallTid={cafeHallTid}
         onStep={(key, delta) => setPlate((p) => stepCount(p, key, delta))}
         onSetCount={(key, count) => setPlate((p) => setCount(p, key, count))}
-        onAddOffResult={addOffResult}
-        onAddHistoryDish={addHistoryDish}
+        onShowResultDetail={setSearchDetailResult}
+        onOpenCustomFoodForm={(prefillName) => {
+          setCustomFoodFormPrefill(prefillName);
+          setCustomFoodFormOpen(true);
+        }}
         onLog={logPlate}
         onClose={() => {
           setSheetOpen(false);
@@ -1417,6 +1429,28 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           onClose={() => setLabelItem(null)}
         />
       )}
+      {/* PlateSheet's search-result confirm step (#91 follow-on) -- a 2nd NutritionLabel instance,
+      siblings not nested (see searchDetailResult's own doc above). Reuses the same generic
+      component unmodified: plateSearchResultDetail (lib/plate.ts) maps any of the 4
+      PlateSearchResult kinds onto NutritionLabel's props, same as labelItem's MenuItem does above. */}
+      {searchDetailResult && (
+        <NutritionLabel
+          visible={!!searchDetailResult}
+          {...plateSearchResultDetail(searchDetailResult)}
+          onAddToPlate={(count) => {
+            addSearchResult(searchDetailResult, count);
+            setSearchDetailResult(null);
+          }}
+          onClose={() => setSearchDetailResult(null)}
+        />
+      )}
+      <CustomFoodForm
+        visible={customFoodFormOpen}
+        initialName={customFoodFormPrefill}
+        customFoodsStorage={customFoodsStorage}
+        onSaved={() => setCustomFoodFormOpen(false)}
+        onClose={() => setCustomFoodFormOpen(false)}
+      />
       <HoldSlideHost ref={holdSlideHostRef} liveIndex={liveHoldIndex} />
       {/* Café-screen unification: the info-only state's PDF affordance (CafeSheet above) --
       mounted here, alongside this screen's own NutritionLabel/FilterSheet/etc. modals, instead of

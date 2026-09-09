@@ -80,9 +80,28 @@ export interface MenuItem {
 export interface LogEntry {
   id: string;
   loggedAt: string; // ISO 8601
-  source: { type: "umass-menu"; dishName: string; hallTid: number } | { type: "off"; barcode: string; productName: string };
+  source:
+    | { type: "umass-menu"; dishName: string; hallTid: number }
+    | { type: "off"; barcode: string; productName: string }
+    | { type: "usda"; fdcId: string; productName: string }
+    | { type: "custom"; customFoodId: string; productName: string };
   servings: number;
   nutrition: NutritionFacts; // snapshot at log time — menu nutrition can change day to day
+}
+
+/**
+ * A manually-entered food with no database backing it (a homemade recipe, a friend's cooking) --
+ * device-local only, always, same residency posture as everything else in this table (no
+ * auth.uid() gate, never synced to Supabase -- see CLAUDE.md's data residency table and #91's
+ * PlateSheet add-item flow, which this is a 4th search source for). `ingredients` is free-text,
+ * user-typed, optional -- same shape as MenuItem.ingredients.
+ */
+export interface CustomFood {
+  id: string;
+  name: string;
+  servingSize: string;
+  nutrition: NutritionFacts;
+  ingredients?: string;
 }
 
 export interface DailyMacroTotals {

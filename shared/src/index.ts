@@ -2,6 +2,7 @@ export * from "./types.ts";
 export * from "./date.ts";
 export * from "./umassDining.ts";
 export * from "./openFoodFacts.ts";
+export * from "./usdaFoodData.ts";
 export * from "./macros.ts";
 export * from "./storage.ts";
 export * from "./content.ts";
