@@ -240,17 +240,26 @@ function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingM
             <Text style={styles.unmatchedRowName}>{entry.name}</Text>
             <Text style={styles.unmatchedRowMeta}>{entry.price ? `${entry.price} · ` : ""}nutrition not found</Text>
           </View>
-          <MagnifierIcon color={withOpacity(colors.ink900, 45)} />
+          <View style={styles.unmatchedRowIcon}>
+            <MagnifierIcon color={colors.maroon600} />
+          </View>
         </Pressable>
       ))}
     </View>
   );
 }
 
-// The "+" slot is always this wide/tall -- it's the same physical anchor whether it's holding the
-// gesture-enabled HoldSlideAddButton (nothing on the plate yet) or the plain +1 button (already in
-// the plate), so the pill's right edge never has to jump when the two swap.
+// Standalone empty-plate "+" circle only (ServingsF.dc.html:69/79 -- 44x44). The in-plate
+// stepper's own plus segment is narrower (IN_PLATE_PLUS_WIDTH below) -- #413 found these two
+// states were sharing one size ("so the pill's right edge doesn't jump" when the two swap), but
+// the artboards draw them at different widths; the slot's height and its pinned-right position
+// (see PlateAddControl's own doc comment) stay shared, only the width differs per state now, a
+// 4px shift on the add/remove transition.
 const PLUS_SLOT_SIZE = fs(44);
+// Literal, not fs(40) -- spec (ServingsF.dc.html:58/60/96/98) pins the in-plate stepper's +/-
+// segments at 40px each; touch targets don't scale (see fs()'s own doc comment). Distinct from
+// PLUS_SLOT_SIZE (44px), which is the standalone empty-plate "+" circle only -- #413.
+const IN_PLATE_PLUS_WIDTH = 40;
 // Literal, not fs(40) -- spec (ServingsF.dc.html:58) pins the minus slot at 40px; touch targets
 // don't scale (see fs()'s own doc comment).
 const MINUS_SLOT_WIDTH = 40;
@@ -260,7 +269,7 @@ const COUNT_SLOT_WIDTH = fs(34);
 // synchronously call a Remote Function," caught on-device). Worklets can close over a plain
 // string constant fine; they just can't call out to arbitrary JS to compute one per frame.
 const MAROON_TRANSPARENT = withOpacity(colors.maroon600, 0);
-const STEPPER_FULL_WIDTH = PLUS_SLOT_SIZE + COUNT_SLOT_WIDTH + MINUS_SLOT_WIDTH;
+const STEPPER_FULL_WIDTH = IN_PLATE_PLUS_WIDTH + COUNT_SLOT_WIDTH + MINUS_SLOT_WIDTH;
 
 /** Filled maroon pill — the dish row's add control, both the empty-plate "+" and the in-plate
  * "− N +" stepper are the SAME persistent element, not two components swapped by a ternary. The
@@ -317,9 +326,15 @@ function PlateAddControl({
   return (
     <Reanimated.View style={[styles.stepperClip, clipStyle]}>
       <View style={styles.stepperRow}>
-        <View style={styles.plusSlot}>
+        <View style={[styles.plusSlot, { width: inPlate ? IN_PLATE_PLUS_WIDTH : PLUS_SLOT_SIZE }]}>
           {inPlate ? (
-            <Pressable style={styles.plusSlot} onPress={() => onStep(1)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Add one ${item.dishName}`}>
+            <Pressable
+              style={[styles.plusSlot, { width: IN_PLATE_PLUS_WIDTH }]}
+              onPress={() => onStep(1)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Add one ${item.dishName}`}
+            >
               <Text style={styles.stepperButtonText}>+</Text>
             </Pressable>
           ) : (
@@ -1652,7 +1667,12 @@ const styles = StyleSheet.create({
     gap: spacing(2),
     marginHorizontal: spacing(5),
     paddingVertical: spacing(2.5),
-    paddingHorizontal: spacing(3.5),
+    // Spec (CafeMenuMixed.dc.html:50) pins this at 12px, matching every other menu row's card
+    // padding -- was 14 (spacing(3.5)).
+    paddingHorizontal: spacing(3),
+    // Spec (CafeMenuMixed.dc.html:50) wants the same paper50 card surface every other menu row
+    // gets -- this row had none, so it rendered on the bare screen background instead.
+    backgroundColor: colors.paper50,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: withOpacity(colors.maroon600, 40),
@@ -1660,7 +1680,20 @@ const styles = StyleSheet.create({
   },
   unmatchedRowMain: { flex: 1, gap: 2 },
   unmatchedRowName: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
-  unmatchedRowMeta: { fontFamily: fonts.mono, fontSize: fs(11), color: withOpacity(colors.maroon600, 75) },
+  // fontSize fs(12), not fs(11) -- spec (CafeMenuMixed.dc.html:53) pins this at 12px.
+  unmatchedRowMeta: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.maroon600, 75) },
+  // Same 44x44 circular touch-target badge every other dish-row action icon gets (see
+  // HoldSlideAddButton's addButton style) -- spec (CafeMenuMixed.dc.html:55) wraps the magnifier
+  // in one instead of rendering it bare.
+  unmatchedRowIcon: {
+    width: fs(44),
+    height: fs(44),
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: withOpacity(colors.maroon600, 45),
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   row: {
     flexDirection: "column",
@@ -1750,7 +1783,9 @@ const styles = StyleSheet.create({
   // the "+" slot -- pr-reviewer catch, verified against RN's actual Yoga layout output.
   stepperClip: { overflow: "hidden", alignItems: "flex-end", borderRadius: radii.pill },
   stepperRow: { flexDirection: "row-reverse", alignItems: "center", width: STEPPER_FULL_WIDTH },
-  plusSlot: { width: PLUS_SLOT_SIZE, height: PLUS_SLOT_SIZE, alignItems: "center", justifyContent: "center" },
+  // No static `width` -- it differs by state (PLUS_SLOT_SIZE vs IN_PLATE_PLUS_WIDTH, see #413),
+  // applied inline at each usage.
+  plusSlot: { height: PLUS_SLOT_SIZE, alignItems: "center", justifyContent: "center" },
   stepperButton: { height: fs(44), alignItems: "center", justifyContent: "center" },
   stepperButtonText: { fontSize: fs(18), color: colors.paper50 },
   stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", textAlign: "center", color: colors.paper50 },
