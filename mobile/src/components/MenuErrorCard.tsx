@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   tryAgain: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing(1.5),
+    gap: 10,
     backgroundColor: colors.gold500,
     borderRadius: radii.md,
     // #181 review finding 4: unscaled 48, not fs(48) -- theme.ts's own doc is explicit that touch
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   },
   tryAgainGlyph: { fontSize: fs(15), color: colors.maroon900 },
   tryAgainText: { fontFamily: fonts.display600, fontSize: fs(15), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
-  savedCopyLink: { flexDirection: "row", alignItems: "center", gap: spacing(1), minHeight: 44 },
+  savedCopyLink: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 44 },
   savedCopyText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
   savedCopyChevron: { fontSize: fs(12), color: colors.maroon600 },
 });
