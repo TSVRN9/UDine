@@ -136,6 +136,19 @@ describe("LogsScreen week strip", () => {
     expect(texts(root)).toMatch(/French Toast · Hampshire/);
     expect(texts(root)).not.toMatch(/Grilled Chicken · Worcester/);
   });
+
+  it("bolds past/selected day-number digits but not future ones (#420, matches the #388 label-color split)", async () => {
+    const root = await renderLogsScreen();
+    // todayIso mocked to 2026-08-20 (Thursday); Aug 21/22 fall later in the same week strip.
+    const pastChip = pressableWithLabel(root, "Tuesday, August 18");
+    const futureChip = pressableWithLabel(root, "Friday, August 21");
+    const chipNumberWeight = (chip: typeof pastChip) => {
+      const numberText = chip.findAllByType(Text)[1];
+      return Object.assign({}, ...([] as unknown[]).concat(numberText.props.style)).fontWeight;
+    };
+    expect(chipNumberWeight(pastChip)).toBe("600");
+    expect(chipNumberWeight(futureChip)).toBe("400");
+  });
 });
 
 describe("LogsScreen day log editing", () => {
