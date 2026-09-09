@@ -10,6 +10,16 @@ function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
 }
 
+// Some Text nodes interpolate JSX (`No menu posted for {name} today`), which react-test-renderer
+// gives back as separate array elements, not one joined string -- flatten each node's children to
+// a single string before joining across nodes, so substring assertions work the way they read.
+function allText(root: renderer.ReactTestRenderer): string {
+  return root.root
+    .findAllByType(Text)
+    .map((n) => (Array.isArray(n.props.children) ? n.props.children.join("") : String(n.props.children)))
+    .join(" | ");
+}
+
 const NOON = new Date(2026, 7, 24, 12, 0);
 
 function loc(overrides: Partial<RetailLocationHours> = {}): RetailLocationHours {
@@ -28,10 +38,17 @@ function loc(overrides: Partial<RetailLocationHours> = {}): RetailLocationHours 
   };
 }
 
-function render(location: RetailLocationHours, pdf: { url: string; label: string } | null = null, onOpenPdf = jest.fn()) {
+function render(
+  location: RetailLocationHours,
+  pdf: { url: string; label: string } | null = null,
+  onOpenPdf = jest.fn(),
+  onOpenCustomFoodForm = jest.fn(),
+) {
   let root!: renderer.ReactTestRenderer;
   act(() => {
-    root = renderer.create(<CafeSheet loc={location} now={NOON} pdf={pdf} onOpenPdf={onOpenPdf} />);
+    root = renderer.create(
+      <CafeSheet loc={location} now={NOON} pdf={pdf} onOpenPdf={onOpenPdf} onOpenCustomFoodForm={onOpenCustomFoodForm} />,
+    );
   });
   return root;
 }
@@ -70,5 +87,28 @@ describe("CafeSheet (info-only state content, #177/café-screen-unification)", (
   it("joins acceptedPayment with the styling spec's ' · ' separator", () => {
     const root = render(loc({ acceptedPayment: "Cash, Credit Cards, UCard, Dining Dollars, YCMP" }));
     expect(texts(root).flat()).toContain("Cash · Credit Cards · UCard · Dining Dollars · YCMP");
+  });
+
+  it("#377: never renders its own café-name title (dedupes against [slug].tsx's 22px header) -- no pdf/CTA state, so the name should appear nowhere", () => {
+    const root = render(loc({ name: "babyBerk" }), { url: "https://umassdining.com/menu.pdf", label: "Baby Berk Menu" });
+    expect(texts(root).flat()).not.toContain("babyBerk");
+  });
+
+  it("#376: no-menu-at-all state shows the 'Log What You Got Here' CTA and boxed hours row, and the CTA routes into the custom-food flow", () => {
+    const onOpenCustomFoodForm = jest.fn();
+    const root = render(loc({ name: "babyBerk", hours: { openTime: "11:00 AM", closeTime: "6:00 PM" } }), null, jest.fn(), onOpenCustomFoodForm);
+    expect(allText(root)).toContain("Log What You Got Here");
+    expect(allText(root)).toContain("No menu posted for babyBerk today");
+    expect(texts(root).flat()).toContain("Today");
+    expect(texts(root).flat()).toContain("11:00 AM – 6:00 PM");
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Log what you got here" }).props.onPress();
+    });
+    expect(onOpenCustomFoodForm).toHaveBeenCalledWith(undefined);
+  });
+
+  it("#376: the CTA does not show when a pdf menu was found instead", () => {
+    const root = render(loc(), { url: "https://umassdining.com/menu.pdf", label: "Baby Berk Menu" });
+    expect(texts(root).flat()).not.toContain("Log What You Got Here");
   });
 });
