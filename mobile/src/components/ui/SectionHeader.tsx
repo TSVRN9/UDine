@@ -31,7 +31,7 @@ export function SectionHeader({
   // justify-content instead of relying on the rule's flexGrow to consume the remaining space.
   if (isSubtle && right) {
     return (
-      <View style={[styles.row, styles.rowSpaceBetween]}>
+      <View style={[styles.row, styles.rowSpaceBetween, styles.rowBaseline]}>
         <View style={styles.row}>
           <Text style={titleStyle}>{title}</Text>
           <View style={styles.ruleSubtleFixed} />
@@ -62,6 +62,9 @@ const styles = StyleSheet.create({
   },
   rule: { height: 2, flexGrow: 1, backgroundColor: withOpacity(colors.gold500, 50) },
   rowSpaceBetween: { justifyContent: "space-between" },
+  // Favorites (#437): YouPaneGrouped.dc.html's Favorites row uses align-items: baseline, not the
+  // default row's "center" -- distinguishes it from Today's Log's header row.
+  rowBaseline: { alignItems: "baseline" },
   titleSubtle: {
     fontFamily: fonts.display600,
     fontSize: fs(12),
