@@ -61,6 +61,7 @@ function MealTabPane({
       pointerEvents={pointerEvents}
       accessibilityElementsHidden={!active}
       importantForAccessibility={active ? "auto" : "no-hide-descendants"}
+      renderToHardwareTextureAndroid={true}
       style={[styles.pane, { zIndex }, style]}
     >
       {pane}

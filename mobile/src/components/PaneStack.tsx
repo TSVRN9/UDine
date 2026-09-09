@@ -50,7 +50,12 @@ function StackedPane({
   }));
   const { zIndex, pointerEvents } = paneVisibility(index, activeIndex);
   return (
-    <Animated.View key={index} pointerEvents={pointerEvents} style={[styles.pane, { zIndex }, style]}>
+    <Animated.View
+      key={index}
+      pointerEvents={pointerEvents}
+      renderToHardwareTextureAndroid={true}
+      style={[styles.pane, { zIndex }, style]}
+    >
       {pane}
     </Animated.View>
   );
