@@ -8,8 +8,14 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 interface Props {
   visible: boolean;
   dishName: string;
-  /** Context line under the dish name per the canvas ("Hampshire · Lunch Entrées"). */
+  /** Context line under the dish name per the canvas ("Hampshire · Lunch Entrées"), or -- when
+   * `badge` is set -- the "via {source}" attribution caption next to the badge pill
+   * (docs/design/SearchResultDetail.dc.html:18-25). */
   subtitle?: string;
+  /** Filled source-badge pill label (e.g. "PACKAGED"/"UMASS"/"USDA"/"CUSTOM"), shown only for the
+   * PlateSheet search-result confirm step (plateSearchResultDetail in lib/plate.ts). Omitted → the
+   * base on-menu-dish header (plain subtitle line, no pill) used elsewhere is unaffected. */
+  badge?: string;
   nutrition: NutritionFacts;
   allergens: string[];
   dietTags: string[];
@@ -26,7 +32,7 @@ interface Props {
  * Android hardware back button; the header back chevron covers everyone else, since a modal with no
  * Stack header otherwise has no way back.
  */
-export function NutritionLabel({ visible, dishName, subtitle, nutrition, allergens, dietTags, ingredients, onAddToPlate, onClose }: Props) {
+export function NutritionLabel({ visible, dishName, subtitle, badge, nutrition, allergens, dietTags, ingredients, onAddToPlate, onClose }: Props) {
   const rows = buildLabelRows(nutrition);
   const [count, setCount] = useState(1);
   const insets = useSafeAreaInsets();
@@ -39,7 +45,16 @@ export function NutritionLabel({ visible, dishName, subtitle, nutrition, allerge
           </Pressable>
           <View style={styles.headerText}>
             <Text style={styles.dishName}>{dishName}</Text>
-            {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+            {badge ? (
+              <View style={styles.badgeRow}>
+                <View style={styles.badgePill}>
+                  <Text style={styles.badgePillText}>{badge}</Text>
+                </View>
+                {subtitle ? <Text style={styles.badgeCaption}>{subtitle}</Text> : null}
+              </View>
+            ) : subtitle ? (
+              <Text style={styles.headerSubtitle}>{subtitle}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -57,8 +72,6 @@ export function NutritionLabel({ visible, dishName, subtitle, nutrition, allerge
             </View>
             <View style={styles.mediumRule} />
 
-            <Text style={styles.dvHeader}>% Daily Value*</Text>
-
             {rows.map((row) => (
               <View key={row.label} style={[styles.row, row.indent && styles.rowIndent]}>
                 <Text style={[styles.rowLabel, row.indent && styles.rowLabelIndent]}>
@@ -67,8 +80,6 @@ export function NutritionLabel({ visible, dishName, subtitle, nutrition, allerge
                 {row.dv !== null && <Text style={styles.rowDv}>{row.dv}</Text>}
               </View>
             ))}
-
-            <Text style={styles.footnote}>* % Daily Value tells you how much a nutrient in a serving contributes to a daily diet.</Text>
           </View>
 
           {allergens.length > 0 && (
@@ -148,6 +159,10 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   dishName: { fontFamily: fonts.display700, fontSize: fs(22), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   headerSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: spacing(1.5) },
+  badgePill: { backgroundColor: withOpacity(colors.ink900, 8), borderRadius: radii.pill, paddingVertical: spacing(0.5), paddingHorizontal: spacing(2) },
+  badgePillText: { fontFamily: fonts.body600, fontSize: fs(10), fontWeight: "700", letterSpacing: 0.5, color: withOpacity(colors.ink900, 65) },
+  badgeCaption: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 50) },
 
   body: { paddingHorizontal: spacing(5), paddingBottom: spacing(6), gap: spacing(2) },
 
@@ -161,27 +176,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing(2),
   },
   title: { fontFamily: fonts.display700, fontSize: fs(26), letterSpacing: 0.5, color: colors.ink900 },
-  servingSize: { fontFamily: fonts.body400, fontSize: fs(13), color: colors.ink900, marginTop: spacing(1) },
+  servingSize: { fontFamily: fonts.body400, fontSize: fs(13), color: colors.ink900, marginTop: 6 },
   servingSizeValue: { fontFamily: fonts.mono, fontWeight: "600" },
   thickRule: { height: 8, backgroundColor: colors.ink900, marginVertical: spacing(1.5) },
   mediumRule: { height: 4, backgroundColor: colors.ink900, marginVertical: spacing(1.5) },
   caloriesRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   caloriesLabel: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
-  caloriesValue: { fontFamily: fonts.mono, fontSize: fs(30), fontWeight: "600", lineHeight: fs(32), color: colors.ink900 },
-  dvHeader: {
-    textAlign: "right",
-    fontFamily: fonts.body600,
-    fontSize: fs(12),
-    color: colors.ink900,
-    borderBottomWidth: 1,
-    borderColor: withOpacity(colors.ink900, 25),
-    paddingBottom: spacing(1),
-  },
+  caloriesValue: { fontFamily: fonts.mono, fontSize: fs(30), fontWeight: "600", lineHeight: fs(30), color: colors.ink900 },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "baseline",
-    paddingVertical: spacing(1),
+    paddingVertical: 3,
     borderBottomWidth: 1,
     borderColor: withOpacity(colors.ink900, 25),
   },
@@ -190,7 +196,6 @@ const styles = StyleSheet.create({
   rowLabelIndent: { fontFamily: fonts.body400 },
   rowAmount: { fontFamily: fonts.mono, fontWeight: "400" },
   rowDv: { fontFamily: fonts.mono, fontSize: fs(13), fontWeight: "600", color: colors.ink900 },
-  footnote: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 65), marginTop: spacing(2) },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing(1.5), marginTop: spacing(1) },
   chipHeading: {

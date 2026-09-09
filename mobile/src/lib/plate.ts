@@ -108,7 +108,11 @@ export function plateSearchResultToPlateEntry(result: PlateSearchResult, count =
  * allergens/dietTags props. */
 export interface PlateSearchResultDetail {
   dishName: string;
+  /** "via {source}" attribution caption -- NutritionLabel renders this under the badge pill
+   * (docs/design/SearchResultDetail.dc.html:18-25) rather than as a bare source name. */
   subtitle: string;
+  /** Filled source-badge pill label (PACKAGED/UMASS/USDA/CUSTOM), rendered next to the caption. */
+  badge: string;
   nutrition: NutritionFacts;
   allergens: string[];
   dietTags: string[];
@@ -118,11 +122,19 @@ export interface PlateSearchResultDetail {
 export function plateSearchResultDetail(result: PlateSearchResult): PlateSearchResultDetail {
   switch (result.kind) {
     case "umass":
-      return { dishName: result.dish.dishName, subtitle: "UMass Dining", nutrition: result.dish.nutrition, allergens: [], dietTags: [] };
+      return {
+        dishName: result.dish.dishName,
+        subtitle: "via UMass Dining",
+        badge: "UMASS",
+        nutrition: result.dish.nutrition,
+        allergens: [],
+        dietTags: [],
+      };
     case "off":
       return {
         dishName: result.product.productName,
-        subtitle: "OpenFoodFacts",
+        subtitle: "via OpenFoodFacts",
+        badge: "PACKAGED",
         nutrition: result.product.nutrition,
         allergens: result.product.allergens ?? [],
         dietTags: [],
@@ -131,7 +143,8 @@ export function plateSearchResultDetail(result: PlateSearchResult): PlateSearchR
     case "usda":
       return {
         dishName: result.food.productName,
-        subtitle: "USDA FoodData Central",
+        subtitle: "via USDA FoodData Central",
+        badge: "USDA",
         nutrition: result.food.nutrition,
         allergens: [],
         dietTags: [],
@@ -140,7 +153,8 @@ export function plateSearchResultDetail(result: PlateSearchResult): PlateSearchR
     case "custom":
       return {
         dishName: result.food.name,
-        subtitle: "Custom food",
+        subtitle: "via custom entry",
+        badge: "CUSTOM",
         nutrition: result.food.nutrition,
         allergens: [],
         dietTags: [],
