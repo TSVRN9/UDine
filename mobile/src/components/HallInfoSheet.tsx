@@ -140,6 +140,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(5),
     gap: spacing(3),
     maxHeight: fs(680),
+    // HallInfo.dc.html:30 -- box-shadow: 0 -8px 24px rgba(36,26,20,0.25)
+    shadowColor: colors.ink900,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
   },
   // paddingVertical bumped from 0 to spacing(5) (~20dp a side) -- see PlateSheet.tsx's identical
   // note: the bare 40x4 pill was far too small a real touch/drag target on its own.

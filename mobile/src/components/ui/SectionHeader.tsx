@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, fs, spacing, withOpacity } from "../../lib/theme";
+import { colors, fonts, fs, withOpacity } from "../../lib/theme";
 
 /**
  * Canvas section header: condensed uppercase label with the gold rule filling the rest of the row.
@@ -19,7 +19,8 @@ export function SectionHeader({ title, right }: { title: string; right?: ReactNo
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
+  // Literal 10px, not spacing(2.5) -- the canvas's 10px gap isn't a multiple of the 4px step.
+  row: { flexDirection: "row", alignItems: "center", gap: 10 },
   title: {
     fontFamily: fonts.display600,
     fontSize: fs(13),
