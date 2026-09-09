@@ -1,5 +1,5 @@
-import type { RetailLocationHours, TimeWindow } from "@udine/shared";
-import { findGrabNGoLocation, formatGrabStripText, grabRouteFor, grabStripState } from "./grabStrip";
+import type { DiningHall, RetailLocationHours, TimeWindow } from "@udine/shared";
+import { excludeGrabNGoLocations, findGrabNGoLocation, formatGrabStripText, grabRouteFor, grabStripState } from "./grabStrip";
 
 function window(openTime: string, closeTime: string): TimeWindow {
   return { openTime, closeTime };
@@ -60,6 +60,42 @@ describe("grabStripState", () => {
   it("falls back to a closed, textless state when the feed has no Grab 'N Go entry for the hall", () => {
     const state = grabStripState([], "Hampshire", NOON);
     expect(state).toEqual({ open: false, text: "" });
+  });
+});
+
+describe("excludeGrabNGoLocations", () => {
+  const halls: DiningHall[] = [
+    { tid: 1, slug: "worcester", name: "Worcester" },
+    { tid: 2, slug: "franklin", name: "Franklin" },
+    { tid: 3, slug: "hampshire", name: "Hampshire" },
+    { tid: 4, slug: "berkshire", name: "Berkshire" },
+  ];
+
+  it("drops each hall's own Grab 'N Go entry, keeping genuine cafés", () => {
+    const retailList = [
+      retail("Peet's Coffee"),
+      retail("Argo Tea"),
+      retail("babyBerk"),
+      retail("Roots Café"),
+      retail("Worcester Grab ‘N Go"),
+      retail("Franklin Grab ‘N Go"),
+      retail("Hampshire Grab ‘N Go"),
+      retail("Berkshire Grab ‘N Go"),
+    ];
+    const result = excludeGrabNGoLocations(retailList, halls);
+    expect(result.map((r) => r.name)).toEqual(["Peet's Coffee", "Argo Tea", "babyBerk", "Roots Café"]);
+  });
+
+  it("returns the list unchanged when no Grab 'N Go entries are present", () => {
+    const retailList = [retail("Peet's Coffee"), retail("Argo Tea")];
+    const result = excludeGrabNGoLocations(retailList, halls);
+    expect(result).toEqual(retailList);
+  });
+
+  it("doesn't remove anything or throw when a hall has no matching Grab 'N Go entry", () => {
+    const retailList = [retail("Peet's Coffee")];
+    expect(() => excludeGrabNGoLocations(retailList, halls)).not.toThrow();
+    expect(excludeGrabNGoLocations(retailList, halls)).toEqual(retailList);
   });
 });
 
