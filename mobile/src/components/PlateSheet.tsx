@@ -71,7 +71,7 @@ export function PlateSheet({ visible, plate, totals, contextLabel, logStorage, h
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose);
+  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
   const scrollRef = useRef<ScrollView>(null);
   // KeyboardAvoidingView's automatic height-tracking doesn't reach content mounted inside an
   // Android RN <Modal> -- confirmed on-device: with `behavior="height"` set, the sheet never

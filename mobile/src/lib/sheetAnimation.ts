@@ -15,9 +15,10 @@ import { settleDuration } from "./paneShell";
 const SHEET_DURATION = 220;
 
 /** A released handle-drag past this many px of downward travel dismisses the sheet outright,
- * regardless of velocity. Flat, not proportional to `panelTravel` -- every call site (PlateSheet,
- * HallInfoSheet, CafeSheet) uses the default 400px travel, so a single tuned number is simpler than
- * a percentage that would need its own justification. Provisional pending an on-device feel pass
+ * regardless of velocity. Flat, not proportional to `panelTravel` -- call sites now pass their own
+ * measured panel height (PlateSheet, HallInfoSheet, FilterSheet each pass their literal `maxHeight`;
+ * CafeSheet doesn't use this hook at all), so a percentage would vary by caller and need its own
+ * justification per sheet. Provisional pending an on-device feel pass
  * (see this PR's own body for what was actually verified). */
 export const SHEET_DISMISS_PX = 100;
 

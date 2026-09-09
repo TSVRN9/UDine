@@ -34,7 +34,7 @@ interface Props {
  */
 export function HallInfoSheet({ visible, hallName, address, directionsUrl, hoursRows, grabNGoWindow, events, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose);
+  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(680));
 
   async function openDirections() {
     if (!directionsUrl) return;
