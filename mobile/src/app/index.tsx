@@ -11,6 +11,7 @@ import { SectionHeader } from "../components/ui";
 import { PaneStack } from "../components/PaneStack";
 import { PressDim } from "../components/Press";
 import { colors, fonts, fs, hallGradientClosed, hallGradients, radii, spacing, withOpacity } from "../lib/theme";
+import { isRealAddressLine } from "../lib/address";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { excludeGrabNGoLocations, grabRouteFor, grabStripState } from "../lib/grabStrip";
 import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
@@ -22,14 +23,15 @@ import { YouPane } from "../panes/YouPane";
 const favoritesStorage = new SqliteFavoritesStorage();
 
 /** #375: `RetailLocationHours.address` is raw HTML (possibly multi-line, e.g. a full street
- * address) -- the row only has room for one short subtitle line, so take the first non-blank
- * line, same trick CafeSheet already uses for its address block. */
+ * address) -- the row only has room for one short subtitle line, so take the first real line,
+ * same trick CafeSheet already uses for its address block.
+ *
+ * #421/#431: a food-truck-type location's address can be a degenerate HTML blob (babyBerk's raw
+ * `<p><br/>,  </p>`) that htmlToText still reduces to a non-blank line -- a lone ",". Require at
+ * least one alphanumeric character (isRealAddressLine, shared with CafeSheet), not just
+ * non-blank, so an orphaned separator gets skipped instead of rendered as the subtitle. */
 function retailSubtitle(address: string | undefined): string | null {
-  // #421: a food-truck-type location's address can be a degenerate HTML blob (babyBerk's raw
-  // `<p><br/>,  </p>`) that htmlToText still reduces to a non-blank line -- a lone ",". Require at
-  // least one alphanumeric character, not just non-blank, so an orphaned separator gets skipped
-  // instead of rendered as the subtitle.
-  return htmlToText(address).split("\n").find((line) => /[a-zA-Z0-9]/.test(line))?.trim() ?? null;
+  return htmlToText(address).split("\n").find(isRealAddressLine)?.trim() ?? null;
 }
 
 // docs/design/HomeLoading.dc.html:113-135 -- 3 placeholder rows, sized to match the real spread of

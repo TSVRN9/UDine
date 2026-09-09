@@ -100,6 +100,14 @@ describe("CafeSheet (info-only state content, #177/café-screen-unification)", (
     expect(root.root.findAllByProps({ accessibilityLabel: "Get directions" }).length).toBe(0);
   });
 
+  // #431: same degenerate-address bug as #421 (index.tsx's retailSubtitle), but here in
+  // CafeSheet's own address block -- htmlToText(loc.address).split("\n").filter(Boolean) let the
+  // lone "," line through since Boolean(",") is true, rendering a stray comma as the address line.
+  it("omits the address row instead of rendering a stray ',' for babyBerk's degenerate address (#431)", () => {
+    const root = render(loc({ address: "<p><br/>,  </p>", mapAddress: undefined }));
+    expect(root.root.findAll((n) => n.type === Text && n.props.children === ",")).toHaveLength(0);
+  });
+
   it("shows DIRECTIONS for a real parseable mapAddress", () => {
     const root = render(loc({ address: "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>", mapAddress: "42.3915402,-72.5292962" }));
     expect(root.root.findAllByProps({ accessibilityLabel: "Get directions" }).length).toBeGreaterThan(0);
