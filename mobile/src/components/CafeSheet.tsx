@@ -84,8 +84,8 @@ export function CafeSheet({ loc, now, pdf, onOpenPdf, onOpenCustomFoodForm }: Pr
           <View style={styles.hoursBox}>
             <View style={styles.hoursBoxLeft}>
               <Text style={styles.hoursBoxLabel}>Today</Text>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{cafeStatusPillText(status)}</Text>
+              <View style={styles.hoursStatusPill}>
+                <Text style={styles.hoursStatusPillText}>{cafeStatusPillText(status)}</Text>
               </View>
             </View>
             <Text style={styles.hoursBoxRange}>{loc.hours ? `${loc.hours.openTime} – ${loc.hours.closeTime}` : "Closed"}</Text>
@@ -181,6 +181,11 @@ const styles = StyleSheet.create({
   hoursBoxLeft: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   hoursBoxLabel: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon900 },
   hoursBoxRange: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: colors.maroon900 },
+  // #416: CafeMenuInfoOnly.dc.html:39's pill is smaller/bolder than the top statusPill --
+  // padding 2px/7px vs 3px/9px, 9px/700/0.8 vs 10px/600/0.5. fontWeight "700" on top of body600
+  // matches HallInfoSheet.tsx's nowPillText convention (harmless fake-bold on Android).
+  hoursStatusPill: { backgroundColor: colors.gold500, borderRadius: radii.pill, paddingVertical: spacing(0.5), paddingHorizontal: spacing(1.75) },
+  hoursStatusPillText: { fontFamily: fonts.body600, fontWeight: "700", fontSize: fs(9), letterSpacing: 0.8, color: colors.maroon900 },
 
   description: { fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(18), color: withOpacity(colors.ink900, 70) },
 
