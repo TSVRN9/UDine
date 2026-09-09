@@ -606,19 +606,27 @@ const styles = StyleSheet.create({
 
   // #382 canvas: docs/design/PlateExpanded.dc.html:87-93 -- asymmetric 12px/14px padding and a
   // 44px min-height (was a uniform spacing(3.5)=14px pad, no min-height). Doubles as both the idle
-  // row's own box and the expanded search area's wrapper.
+  // row's own box and the expanded search area's wrapper. Base border is the expanded state's
+  // plain solid one (docs/design/PlateSheetResults.dc.html:35); the idle-only dashed maroon
+  // border (docs/design/PlateExpanded.dc.html:87) is layered on by addSectionIdle below -- #409,
+  // it must not wrap the whole active search area.
   addSection: {
     marginTop: spacing(3.5),
     borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: withOpacity(colors.maroon600, 45),
+    borderColor: withOpacity(colors.ink900, 20),
     borderRadius: radii.md,
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
     minHeight: fs(44),
     gap: spacing(1),
   },
-  addSectionIdle: { flexDirection: "row", alignItems: "center", gap: spacing(3) },
+  addSectionIdle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
+    borderStyle: "dashed",
+    borderColor: withOpacity(colors.maroon600, 45),
+  },
   addIdleIcon: { width: fs(20), height: fs(20), alignItems: "center", justifyContent: "center" },
   addIdleIconRing: { position: "absolute", top: 0, left: 0, width: fs(11), height: fs(11), borderRadius: 999, borderWidth: 1.6, borderColor: colors.maroon600 },
   addIdleIconHandle: {
