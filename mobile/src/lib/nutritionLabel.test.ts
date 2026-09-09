@@ -90,7 +90,9 @@ describe("buildLabelRows", () => {
 
     const protein = rows.find((r) => r.label === "Protein")!;
     expect(protein.amount).toBe("5.3g");
-    expect(protein.dv).toBe("9%");
+    // FDA label leaves Protein's %DV cell blank -- no column at all, not a formatted value or
+    // dash (docs/design/NutritionLabel.dc.html:69-72).
+    expect(protein.dv).toBeNull();
   });
 
   it("shows a DV of 0% when the source reports 0, not a blank dash", () => {

@@ -300,7 +300,7 @@ describe("plateSearchResultToPlateEntry", () => {
 describe("plateSearchResultDetail", () => {
   it("umass hits carry empty allergens/dietTags -- HistoryDish has no such data", () => {
     const detail = plateSearchResultDetail({ kind: "umass", dish: { dishName: "Pizza", hallTid: 1, nutrition: nutrition(200) } });
-    expect(detail).toEqual({ dishName: "Pizza", subtitle: "UMass Dining", nutrition: nutrition(200), allergens: [], dietTags: [] });
+    expect(detail).toEqual({ dishName: "Pizza", subtitle: "via UMass Dining", badge: "UMASS", nutrition: nutrition(200), allergens: [], dietTags: [] });
   });
 
   it("off hits surface allergens/ingredients when OFF provided them, omit ingredients otherwise", () => {
@@ -310,6 +310,8 @@ describe("plateSearchResultDetail", () => {
     });
     expect(withBoth.allergens).toEqual(["Milk", "Tree Nuts"]);
     expect(withBoth.ingredients).toBe("Peanuts, raisins");
+    expect(withBoth.badge).toBe("PACKAGED");
+    expect(withBoth.subtitle).toBe("via OpenFoodFacts");
 
     const withNeither = plateSearchResultDetail({ kind: "off", product: { barcode: "2", productName: "Plain", nutrition: nutrition(100) } });
     expect(withNeither.allergens).toEqual([]);
@@ -318,14 +320,16 @@ describe("plateSearchResultDetail", () => {
 
   it("usda hits use FDC's own subtitle and surface ingredients when present", () => {
     const detail = plateSearchResultDetail({ kind: "usda", food: { ...USDA_RESULT, ingredients: "100% banana" } });
-    expect(detail.subtitle).toBe("USDA FoodData Central");
+    expect(detail.subtitle).toBe("via USDA FoodData Central");
+    expect(detail.badge).toBe("USDA");
     expect(detail.ingredients).toBe("100% banana");
   });
 
   it("custom hits use the food's own name and ingredients", () => {
     const detail = plateSearchResultDetail({ kind: "custom", food: { ...CUSTOM_FOOD, ingredients: "Pasta, sauce, cheese" } });
     expect(detail.dishName).toBe("Grandma's Lasagna");
-    expect(detail.subtitle).toBe("Custom food");
+    expect(detail.subtitle).toBe("via custom entry");
+    expect(detail.badge).toBe("CUSTOM");
     expect(detail.ingredients).toBe("Pasta, sauce, cheese");
   });
 });

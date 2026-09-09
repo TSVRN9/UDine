@@ -39,6 +39,9 @@ export function buildLabelRows(n: NutritionFacts): LabelRow[] {
     { label: "Total Carbohydrate", amount: formatGrams(n.totalCarbG), dv: formatDv(n.totalCarbDv) },
     { label: "Dietary Fiber", amount: formatGrams(n.dietaryFiberG), dv: formatDv(n.dietaryFiberDv), indent: true },
     { label: "Total Sugars", amount: formatGrams(n.sugarsG), dv: null, indent: true },
-    { label: "Protein", amount: formatGrams(n.proteinG), dv: formatDv(n.proteinDv) },
+    // Protein's %DV cell is blank on the FDA label (docs/design/NutritionLabel.dc.html:69-72) --
+    // no dash, unlike a present-but-blank source attribute -- so this uses the same `dv: null`
+    // "no column" path as Trans Fat / Total Sugars, not formatDv.
+    { label: "Protein", amount: formatGrams(n.proteinG), dv: null },
   ];
 }
