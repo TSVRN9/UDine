@@ -1,6 +1,7 @@
 import { htmlToText, openStatus, type RetailLocationHours } from "@udine/shared";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { cafeStatusPillText, directionsUrl } from "../lib/cafeMenu";
+import { isRealAddressLine } from "../lib/address";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
@@ -40,7 +41,10 @@ interface Props {
 export function CafeSheet({ loc, now, pdf, onOpenPdf, onOpenCustomFoodForm }: Props) {
   const status = openStatus({ hallTid: -1, breakfast: null, lunch: null, dinner: null, latenight: null, general: loc.hours }, now);
   const description = htmlToText(loc.description);
-  const addressLines = htmlToText(loc.address).split("\n").filter(Boolean);
+  // #421/#431: a degenerate address blob (babyBerk's raw `<p><br/>,  </p>`) reduces via
+  // htmlToText to a non-blank line that's just punctuation -- a lone ",". filter(Boolean) let it
+  // through since Boolean(",") is true; isRealAddressLine requires actual alphanumeric content.
+  const addressLines = htmlToText(loc.address).split("\n").filter(isRealAddressLine);
   const mapsUrl = directionsUrl(loc.mapAddress);
   const payments = loc.acceptedPayment
     ? loc.acceptedPayment
