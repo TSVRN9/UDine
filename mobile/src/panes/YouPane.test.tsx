@@ -424,6 +424,46 @@ describe("YouPane Your Food grouping", () => {
   });
 });
 
+// #390: YouPane vs YouPaneGrouped.dc.html -- group title color/type were off-spec, and the
+// bell-glyph disambiguation the you-food-group-note canvas annotation calls for (favoriting is a
+// notify+highlight toggle, never a rating, and the Elo sections are read-only) was missing.
+describe("YouPane group styling and disambiguation copy (#390)", () => {
+  it("renders the 'Your Food' group title in the artboard's gold, 14px, 1.8 letter-spacing (not the old maroon/15px/1.5)", async () => {
+    const root = await renderYouPane();
+    const heading = root.root.findAllByType(Text).find((node) => node.props.children === "Your Food")!;
+    const style = flatStyle(heading.props.style);
+    expect(style.color).toBe(colors.gold500);
+    expect(style.fontSize).toBe(14);
+    expect(style.letterSpacing).toBe(1.8);
+  });
+
+  it("renders the disambiguation hint line under each of Favorites/Your Top Foods/Favorite Halls, per canvas.json's you-food-group-note", async () => {
+    favoritesMock.getFavorites.mockResolvedValue([{ type: "dish", dishName: "Chicken Parm" }]);
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/Get notified \(and see it highlighted\) when spotted elsewhere on campus\./);
+    expect(body).toMatch(/From your head-to-head comparisons only — not something you can set directly\./);
+    expect(body).toMatch(/Ranked by your dish comparisons at each hall — not editable\./);
+  });
+
+  it("renders favorite rows as a bell icon + name + 'Dish alert'/'Hall alert' caption, not the old Badge('Dish'/'Hall') pill", async () => {
+    const favs: Favorite[] = [
+      { type: "dish", dishName: "Chicken Parm" },
+      { type: "location", hallTid: 1 },
+    ];
+    favoritesMock.getFavorites.mockResolvedValue(favs);
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/Dish alert/);
+    expect(body).toMatch(/Hall alert/);
+    // The old pill rendered bare "Dish"/"Hall" as their own Text node (Badge's children prop);
+    // that's gone now that the caption ("Dish alert"/"Hall alert") is the only place those words
+    // appear.
+    const bareTypeTexts = root.root.findAllByType(Text).filter((n) => n.props.children === "Dish" || n.props.children === "Hall");
+    expect(bareTypeTexts).toHaveLength(0);
+  });
+});
+
 describe("YouPane header export shortcut", () => {
   it("renders no export button of its own -- the settings/export icon lives in the shared PaneHeader (see PaneHeader.test.tsx), not in the pane's own scroll content", async () => {
     const root = await renderYouPane();

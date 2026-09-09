@@ -4,8 +4,9 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 import { Press } from "../components/Press";
-import { Badge, Card, EmptyState, SectionHeader, Stat } from "../components/ui";
+import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
 import { getCachedHours } from "../lib/menuHoursCache";
@@ -66,14 +67,35 @@ function CompletionBar({ completion, gold }: { completion: HallCompletion; gold:
   );
 }
 
-/** One favorite row -- same Badge(type) + name pattern app/favorites.tsx's own full-list screen
- * already renders, just in a Card matching this pane's other row styles instead of favorites.tsx's
- * FlatList row. */
+/** Bell glyph (not a star) -- per canvas.json's you-food-group-note annotation, favoriting here is
+ * a notify+highlight toggle, never a rating, and a star would read as one. Path lifted from
+ * YouPaneGrouped.dc.html's own bell SVG. */
+function BellIcon() {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">
+      <Path
+        d="M8 2.5c-2 0-3.2 1.6-3.2 3.6v2.1L3.5 10.5h9L11.2 8.2V6.1c0-2-1.2-3.6-3.2-3.6z"
+        stroke={colors.maroon600}
+        strokeWidth={1.4}
+        strokeLinejoin="round"
+      />
+      <Path d="M6.6 12.2a1.5 1.5 0 0 0 2.8 0" stroke={colors.maroon600} strokeWidth={1.4} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** One favorite row: bell icon + name + a "Dish alert"/"Hall alert" caption, replacing the earlier
+ * Badge(type) pill -- same disambiguation the group's hint line makes (canvas.json's
+ * you-food-group-note): this is a notify+highlight toggle, not a rating, so it can't look like the
+ * read-only Elo sections below it. */
 function FavoriteRow({ favorite }: { favorite: Favorite }) {
   return (
     <Card style={styles.favoriteRow}>
-      <Badge>{favorite.type === "dish" ? "Dish" : "Hall"}</Badge>
-      <Text style={styles.favoriteRowText}>{favorite.type === "dish" ? favorite.dishName : hallNameFor(favorite.hallTid)}</Text>
+      <BellIcon />
+      <View style={styles.favoriteRowInfo}>
+        <Text style={styles.favoriteRowText}>{favorite.type === "dish" ? favorite.dishName : hallNameFor(favorite.hallTid)}</Text>
+        <Text style={styles.favoriteRowCaption}>{favorite.type === "dish" ? "Dish alert" : "Hall alert"}</Text>
+      </View>
     </Card>
   );
 }
@@ -233,6 +255,7 @@ export function YouPane() {
               </Press>
             }
           />
+          <Text style={styles.groupHint}>Get notified (and see it highlighted) when spotted elsewhere on campus.</Text>
           {favorites.length === 0 ? (
             <EmptyState title="No favorites yet" message="Star a dish or dining hall to add one." />
           ) : (
@@ -246,6 +269,7 @@ export function YouPane() {
 
         <View style={styles.subsection}>
           <SectionHeader title="Your Top Foods" />
+          <Text style={styles.groupHint}>From your head-to-head comparisons only — not something you can set directly.</Text>
           {rankedFoods.length === 0 ? (
             <EmptyState title="No comparisons yet" message="Dish ranking is on hold for now — this fills in once it's back." />
           ) : topFoods.length === 0 ? (
@@ -261,6 +285,7 @@ export function YouPane() {
 
         <View style={styles.subsection}>
           <SectionHeader title="Favorite Halls" />
+          <Text style={styles.groupHint}>Ranked by your dish comparisons at each hall — not editable.</Text>
           {hallRanking.ranked.length === 0 ? (
             <EmptyState title="No ranking yet" message="Dish ranking is on hold for now — this fills in once it's back." />
           ) : (
@@ -291,12 +316,15 @@ const styles = StyleSheet.create({
   // subsection inside keeps the normal (lighter) SectionHeader gold rule, unchanged.
   group: { marginTop: spacing(5), gap: spacing(3.5) },
   groupHeader: { gap: spacing(1.5) },
-  groupRule: { height: 3, backgroundColor: colors.gold500 },
-  groupTitle: { fontFamily: fonts.display700, fontSize: fs(15), letterSpacing: 1.5, textTransform: "uppercase", color: colors.maroon900 },
+  groupRule: { borderTopWidth: 2, borderTopColor: colors.gold500 },
+  groupTitle: { fontFamily: fonts.display700, fontSize: fs(14), letterSpacing: 1.8, textTransform: "uppercase", color: colors.gold500 },
+  groupHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55), marginTop: -spacing(1) },
   subsection: { gap: spacing(2.5) },
 
   favoriteRow: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: spacing(2.5), paddingHorizontal: spacing(3.5) },
-  favoriteRowText: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  favoriteRowInfo: { flexShrink: 1, gap: 1 },
+  favoriteRowText: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  favoriteRowCaption: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 50) },
 
   statsCard: { marginTop: spacing(3.5), padding: spacing(3.5), flexDirection: "row", gap: spacing(2.5) },
   statCell: { flex: 1 },
