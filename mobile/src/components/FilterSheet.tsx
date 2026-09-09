@@ -102,7 +102,10 @@ export function FilterSheet({
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose);
+  // panelTravel must match styles.sheet's maxHeight (fs(680)) -- the default 400 undershoots this
+  // sheet's real rendered height, leaving the sheet visibly un-closed/un-opened at rest (bug found
+  // in on-device QA on PR #362).
+  const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(680));
 
   const allergens = [...new Set(items.flatMap((i) => i.allergens))].sort();
   const dietTags = [...new Set(items.flatMap((i) => i.dietTags))].sort();
@@ -194,13 +197,13 @@ export function FilterSheet({
                     return (
                       <Pressable
                         key={t}
-                        style={[styles.excludeChip, active && styles.excludeChipActive]}
+                        style={[styles.excludeChip, active && styles.dietChipActive]}
                         onPress={() => onChangePreferences(toggleDietTag(prefs, t))}
                         accessibilityRole="button"
                         accessibilityLabel={`Diet tag ${t}`}
                         accessibilityState={{ selected: active }}
                       >
-                        <Text style={[styles.excludeChipText, active && styles.excludeChipTextActive]}>
+                        <Text style={[styles.excludeChipText, active && styles.dietChipTextActive]}>
                           {t}
                           {active ? " ×" : ""}
                         </Text>
@@ -340,6 +343,11 @@ const styles = StyleSheet.create({
   excludeChipActive: { backgroundColor: colors.maroon600 },
   excludeChipText: { color: colors.maroon600, fontFamily: fonts.body600, fontSize: fs(13) },
   excludeChipTextActive: { color: colors.paper50 },
+  // Diet-tag chips are exclusion-shaped ("×" pill) like excludeChip above, but gold when active --
+  // approved design distinguishes them from Avoid Allergens' maroon fill (maroon900 text for contrast
+  // against gold500, same pairing toggleChipTextActive already uses against a gold-tinted background).
+  dietChipActive: { backgroundColor: colors.gold500 },
+  dietChipTextActive: { color: colors.maroon900 },
 
   // Toggle chips (macros/stations/price): a checkmark-style toggle, gold outline -- these never hide
   // anything on their own (macros badge only; stations/price filter the visible list but don't imply
