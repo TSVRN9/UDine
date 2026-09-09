@@ -1,5 +1,5 @@
-import type { Favorite, LogEntry } from "@udine/shared";
-import { buildExportPlan, favoritesSubline, logSubline, rankedSubline, selectedStoreLabel } from "./exportScreen";
+import type { CustomFood, Favorite, LogEntry } from "@udine/shared";
+import { buildExportPlan, customFoodsSubline, favoritesSubline, logSubline, rankedSubline, selectedStoreLabel } from "./exportScreen";
 
 function entry(id: string, loggedAt: string): LogEntry {
   return { id, loggedAt, source: { type: "umass-menu", dishName: "X", hallTid: 1 }, servings: 1, nutrition: { servingSize: "1", calories: 1, caloriesFromFat: 1, totalFatG: 1, satFatG: 1, transFatG: 0, cholesterolMg: 1, sodiumMg: 1, totalCarbG: 1, dietaryFiberG: 1, sugarsG: 1, proteinG: 1 } };
@@ -31,6 +31,20 @@ describe("favoritesSubline", () => {
   it("counts favorites", () => {
     const favorites: Favorite[] = [{ type: "dish", dishName: "A" }, { type: "location", hallTid: 1 }];
     expect(favoritesSubline(favorites)).toBe("2 favorites");
+  });
+});
+
+describe("customFoodsSubline", () => {
+  it("counts custom foods", () => {
+    const foods: CustomFood[] = [
+      { id: "1", name: "A", servingSize: "1", nutrition: entry("x", "2026-08-01T00:00:00.000Z").nutrition },
+      { id: "2", name: "B", servingSize: "1", nutrition: entry("x", "2026-08-01T00:00:00.000Z").nutrition },
+    ];
+    expect(customFoodsSubline(foods)).toBe("2 custom foods");
+  });
+
+  it("is zero-safe", () => {
+    expect(customFoodsSubline([])).toBe("0 custom foods");
   });
 });
 

@@ -1,18 +1,23 @@
-import type { MenuItem, NutritionFacts, OffSearchResult } from "@udine/shared";
+import type { CustomFood, MenuItem, NutritionFacts, OffSearchResult, UsdaSearchResult } from "@udine/shared";
 import {
   addOrIncrement,
+  customFoodToPlateEntry,
   historyDishToPlateEntry,
   isEstimatedServing,
   listBottomPadding,
   menuItemToPlateEntry,
   offResultToPlateEntry,
   plateKeyFor,
+  plateSearchResultDetail,
+  plateSearchResultToPlateEntry,
   setCount,
   stepCount,
   toLogEntries,
   totalItemCount,
   totalPlatePrice,
+  usdaResultToPlateEntry,
   type PlateEntry,
+  type PlateSearchResult,
 } from "./plate";
 import type { HistoryDish } from "./dishHistory";
 
@@ -234,6 +239,94 @@ describe("historyDishToPlateEntry", () => {
     expect(entry.key).toBe(plateKeyFor({ type: "umass-menu", dishName: "Pizza", hallTid: 1 }));
     expect(entry.label).toBe("Pizza");
     expect(entry.source).toEqual({ type: "umass-menu", dishName: "Pizza", hallTid: 1 });
+  });
+});
+
+const USDA_RESULT: UsdaSearchResult = { fdcId: "173944", productName: "Banana, raw", nutrition: nutrition(89) };
+const CUSTOM_FOOD: CustomFood = { id: "c1", name: "Grandma's Lasagna", servingSize: "1 slice", nutrition: nutrition(420) };
+
+describe("usdaResultToPlateEntry", () => {
+  it("keys by fdcId and defaults count to 1", () => {
+    const entry = usdaResultToPlateEntry(USDA_RESULT);
+    expect(entry.key).toBe(plateKeyFor({ type: "usda", fdcId: "173944", productName: "Banana, raw" }));
+    expect(entry.label).toBe("Banana, raw");
+    expect(entry.nutrition.calories).toBe(89);
+    expect(entry.count).toBe(1);
+    expect(entry.source).toEqual({ type: "usda", fdcId: "173944", productName: "Banana, raw" });
+  });
+});
+
+describe("customFoodToPlateEntry", () => {
+  it("keys by the custom food's own id and defaults count to 1", () => {
+    const entry = customFoodToPlateEntry(CUSTOM_FOOD);
+    expect(entry.key).toBe(plateKeyFor({ type: "custom", customFoodId: "c1", productName: "Grandma's Lasagna" }));
+    expect(entry.label).toBe("Grandma's Lasagna");
+    expect(entry.nutrition.calories).toBe(420);
+    expect(entry.count).toBe(1);
+    expect(entry.source).toEqual({ type: "custom", customFoodId: "c1", productName: "Grandma's Lasagna" });
+  });
+});
+
+describe("plateKeyFor (usda/custom)", () => {
+  it("keys usda sources by fdcId, not productName", () => {
+    expect(plateKeyFor({ type: "usda", fdcId: "1", productName: "X" })).toBe(plateKeyFor({ type: "usda", fdcId: "1", productName: "Y" }));
+    expect(plateKeyFor({ type: "usda", fdcId: "1", productName: "X" })).not.toBe(plateKeyFor({ type: "usda", fdcId: "2", productName: "X" }));
+  });
+
+  it("keys custom sources by customFoodId, not productName", () => {
+    expect(plateKeyFor({ type: "custom", customFoodId: "c1", productName: "X" })).toBe(plateKeyFor({ type: "custom", customFoodId: "c1", productName: "Y" }));
+    expect(plateKeyFor({ type: "custom", customFoodId: "c1", productName: "X" })).not.toBe(plateKeyFor({ type: "custom", customFoodId: "c2", productName: "X" }));
+  });
+});
+
+describe("plateSearchResultToPlateEntry", () => {
+  const OFF_PRODUCT: OffSearchResult = { barcode: "123", productName: "Cheerios", nutrition: nutrition(110) };
+  const HISTORY_DISH: HistoryDish = { dishName: "Pizza", hallTid: 1, nutrition: nutrition(200) };
+
+  it.each<[string, PlateSearchResult, string]>([
+    ["umass", { kind: "umass", dish: HISTORY_DISH }, "Pizza"],
+    ["off", { kind: "off", product: OFF_PRODUCT }, "Cheerios"],
+    ["usda", { kind: "usda", food: USDA_RESULT }, "Banana, raw"],
+    ["custom", { kind: "custom", food: CUSTOM_FOOD }, "Grandma's Lasagna"],
+  ])("dispatches a %s result to the matching *ToPlateEntry conversion", (_kind, result, expectedLabel) => {
+    expect(plateSearchResultToPlateEntry(result).label).toBe(expectedLabel);
+  });
+
+  it("passes count through to the underlying conversion", () => {
+    expect(plateSearchResultToPlateEntry({ kind: "off", product: OFF_PRODUCT }, 3).count).toBe(3);
+  });
+});
+
+describe("plateSearchResultDetail", () => {
+  it("umass hits carry empty allergens/dietTags -- HistoryDish has no such data", () => {
+    const detail = plateSearchResultDetail({ kind: "umass", dish: { dishName: "Pizza", hallTid: 1, nutrition: nutrition(200) } });
+    expect(detail).toEqual({ dishName: "Pizza", subtitle: "UMass Dining", nutrition: nutrition(200), allergens: [], dietTags: [] });
+  });
+
+  it("off hits surface allergens/ingredients when OFF provided them, omit ingredients otherwise", () => {
+    const withBoth = plateSearchResultDetail({
+      kind: "off",
+      product: { barcode: "1", productName: "Trail Mix", nutrition: nutrition(500), allergens: ["Milk", "Tree Nuts"], ingredients: "Peanuts, raisins" },
+    });
+    expect(withBoth.allergens).toEqual(["Milk", "Tree Nuts"]);
+    expect(withBoth.ingredients).toBe("Peanuts, raisins");
+
+    const withNeither = plateSearchResultDetail({ kind: "off", product: { barcode: "2", productName: "Plain", nutrition: nutrition(100) } });
+    expect(withNeither.allergens).toEqual([]);
+    expect("ingredients" in withNeither).toBe(false);
+  });
+
+  it("usda hits use FDC's own subtitle and surface ingredients when present", () => {
+    const detail = plateSearchResultDetail({ kind: "usda", food: { ...USDA_RESULT, ingredients: "100% banana" } });
+    expect(detail.subtitle).toBe("USDA FoodData Central");
+    expect(detail.ingredients).toBe("100% banana");
+  });
+
+  it("custom hits use the food's own name and ingredients", () => {
+    const detail = plateSearchResultDetail({ kind: "custom", food: { ...CUSTOM_FOOD, ingredients: "Pasta, sauce, cheese" } });
+    expect(detail.dishName).toBe("Grandma's Lasagna");
+    expect(detail.subtitle).toBe("Custom food");
+    expect(detail.ingredients).toBe("Pasta, sauce, cheese");
   });
 });
 

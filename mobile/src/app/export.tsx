@@ -1,12 +1,13 @@
-import type { Favorite, LogEntry, RankedDish, RankedFood } from "@udine/shared";
+import type { CustomFood, Favorite, LogEntry, RankedDish, RankedFood } from "@udine/shared";
 import { useCallback, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
-import { exportFavorites, exportLog, exportRankedDishes, exportRankedFoods, type ExportFormat } from "../lib/exportShare";
+import { exportCustomFoods, exportFavorites, exportLog, exportRankedDishes, exportRankedFoods, type ExportFormat } from "../lib/exportShare";
 import {
   buildExportPlan,
+  customFoodsSubline,
   favoritesSubline,
   logSubline,
   rankedSubline,
@@ -18,6 +19,7 @@ import {
   type FormatChoice,
   type StoreKey,
 } from "../lib/exportScreen";
+import { SqliteCustomFoodsStorage } from "../lib/customFoodsStorage";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
@@ -25,12 +27,14 @@ import { SqliteRankingStorage } from "../lib/rankingStorage";
 const logStorage = new SqliteLogStorage();
 const rankingStorage = new SqliteRankingStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
+const customFoodsStorage = new SqliteCustomFoodsStorage();
 
 const RUN_EXPORT: Record<StoreKey, (format: ExportFormat) => Promise<void>> = {
   log: exportLog,
   dishRankings: exportRankedDishes,
   foodRankings: exportRankedFoods,
   favorites: exportFavorites,
+  customFoods: exportCustomFoods,
 };
 
 const FORMAT_SEGMENTS: { value: FormatChoice; label: string }[] = [
@@ -61,6 +65,7 @@ export default function ExportScreen() {
   const [rankedDishes, setRankedDishes] = useState<RankedDish[]>([]);
   const [rankedFoods, setRankedFoods] = useState<RankedFood[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [customFoods, setCustomFoods] = useState<CustomFood[]>([]);
   const [selected, setSelected] = useState<Set<StoreKey>>(new Set());
   const [format, setFormat] = useState<FormatChoice>("csv");
   const [exporting, setExporting] = useState(false);
@@ -71,6 +76,7 @@ export default function ExportScreen() {
       rankingStorage.getRankedDishes().then(setRankedDishes);
       rankingStorage.getRankedFoods().then(setRankedFoods);
       favoritesStorage.getFavorites().then(setFavorites);
+      customFoodsStorage.getAllCustomFoods().then(setCustomFoods);
     }, []),
   );
 
@@ -79,6 +85,7 @@ export default function ExportScreen() {
     dishRankings: rankedSubline(rankedDishes),
     foodRankings: rankedSubline(rankedFoods),
     favorites: favoritesSubline(favorites),
+    customFoods: customFoodsSubline(customFoods),
   };
 
   function toggleStore(store: StoreKey) {

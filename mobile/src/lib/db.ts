@@ -23,6 +23,10 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
          CREATE TABLE IF NOT EXISTS preferences_kv (
            key TEXT PRIMARY KEY NOT NULL,
            value_json TEXT NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS custom_foods (
+           id TEXT PRIMARY KEY NOT NULL,
+           food_json TEXT NOT NULL
          );`,
       );
       return db;

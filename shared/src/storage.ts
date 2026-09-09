@@ -1,4 +1,4 @@
-import type { Favorite, LogEntry, RankedDish, RankedFood } from "./types.ts";
+import type { CustomFood, Favorite, LogEntry, RankedDish, RankedFood } from "./types.ts";
 
 /**
  * Device-local persistence for health data. Implemented per-platform
@@ -103,4 +103,29 @@ export function exportFavoritesAsCsv(favorites: Favorite[]): string {
     [f.type, f.type === "dish" ? f.dishName : "", f.type === "location" ? f.hallTid : ""].map(csvField).join(","),
   );
   return [FAVORITE_CSV_COLUMNS.join(","), ...rows].join("\n");
+}
+
+/** Device-local persistence for user-created custom foods (see CustomFood's own doc) -- same
+ * device-only contract as FavoritesStorage/LogStorage above, no network call ever. */
+export interface CustomFoodsStorage {
+  addCustomFood(food: CustomFood): Promise<void>;
+  removeCustomFood(id: string): Promise<void>;
+  getAllCustomFoods(): Promise<CustomFood[]>;
+}
+
+/** JSON export of a device's custom foods (CustomFoodsStorage) -- release valve, same as every
+ * other device-local store per CLAUDE.md's data residency table. */
+export function exportCustomFoodsAsJson(foods: CustomFood[]): string {
+  return JSON.stringify(foods, null, 2);
+}
+
+const CUSTOM_FOOD_CSV_COLUMNS = ["id", "name", "servingSize", "calories", "proteinG", "totalCarbG", "totalFatG", "ingredients"] as const;
+
+export function exportCustomFoodsAsCsv(foods: CustomFood[]): string {
+  const rows = foods.map((f) =>
+    [f.id, f.name, f.servingSize, f.nutrition.calories, f.nutrition.proteinG, f.nutrition.totalCarbG, f.nutrition.totalFatG, f.ingredients ?? ""]
+      .map(csvField)
+      .join(","),
+  );
+  return [CUSTOM_FOOD_CSV_COLUMNS.join(","), ...rows].join("\n");
 }

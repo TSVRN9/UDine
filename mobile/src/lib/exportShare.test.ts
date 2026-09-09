@@ -11,10 +11,11 @@
 // below grabs the same jest.fn() references the factory closed over.
 import type { LogEntry, RankedDish } from "@udine/shared";
 import * as FileSystem from "expo-file-system/legacy";
+import { SqliteCustomFoodsStorage } from "./customFoodsStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteRankingStorage } from "./rankingStorage";
-import { exportFavorites, exportLog, exportRankedDishes, exportRankedFoods } from "./exportShare";
+import { exportCustomFoods, exportFavorites, exportLog, exportRankedDishes, exportRankedFoods } from "./exportShare";
 
 jest.mock("./sqliteStorage", () => {
   const getAllEntries = jest.fn();
@@ -29,6 +30,10 @@ jest.mock("./favoritesStorage", () => {
   const getFavorites = jest.fn();
   return { SqliteFavoritesStorage: jest.fn().mockImplementation(() => ({ getFavorites })) };
 });
+jest.mock("./customFoodsStorage", () => {
+  const getAllCustomFoods = jest.fn();
+  return { SqliteCustomFoodsStorage: jest.fn().mockImplementation(() => ({ getAllCustomFoods })) };
+});
 
 jest.mock("expo-file-system/legacy", () => ({ cacheDirectory: "file:///cache/", writeAsStringAsync: jest.fn() }));
 jest.mock("expo-sharing", () => ({ isAvailableAsync: jest.fn().mockResolvedValue(false), shareAsync: jest.fn() }));
@@ -37,6 +42,7 @@ const mockWriteAsStringAsync = FileSystem.writeAsStringAsync as jest.Mock;
 const logMock = new SqliteLogStorage() as unknown as { getAllEntries: jest.Mock };
 const rankingMock = new SqliteRankingStorage() as unknown as { getRankedDishes: jest.Mock; getRankedFoods: jest.Mock };
 const favoritesMock = new SqliteFavoritesStorage() as unknown as { getFavorites: jest.Mock };
+const customFoodsMock = new SqliteCustomFoodsStorage() as unknown as { getAllCustomFoods: jest.Mock };
 
 const NUTRITION = {
   servingSize: "1 serving",
@@ -136,5 +142,30 @@ describe("exportFavorites", () => {
     const [path, content] = mockWriteAsStringAsync.mock.calls[0];
     expect(path).toMatch(/udine-favorites\.csv$/);
     expect(content).toBe('type,dishName,hallTid\n"location","","3"');
+  });
+});
+
+describe("exportCustomFoods", () => {
+  const FOOD = {
+    id: "c1",
+    name: "Grandma's Lasagna",
+    servingSize: "1 slice",
+    nutrition: { servingSize: "1 slice", calories: 420, caloriesFromFat: 0, totalFatG: 18, satFatG: 8, transFatG: 0, cholesterolMg: 60, sodiumMg: 650, totalCarbG: 35, dietaryFiberG: 2, sugarsG: 4, proteinG: 22 },
+  };
+
+  it("exports the custom-foods store's data as JSON", async () => {
+    customFoodsMock.getAllCustomFoods.mockResolvedValue([FOOD]);
+    await exportCustomFoods("json");
+    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
+    expect(path).toMatch(/udine-custom-foods\.json$/);
+    expect(content).toMatch(/"name": "Grandma's Lasagna"/);
+  });
+
+  it("exports the custom-foods store's data as CSV, not JSON", async () => {
+    customFoodsMock.getAllCustomFoods.mockResolvedValue([FOOD]);
+    await exportCustomFoods("csv");
+    const [path, content] = mockWriteAsStringAsync.mock.calls[0];
+    expect(path).toMatch(/udine-custom-foods\.csv$/);
+    expect(content).toBe('id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients\n"c1","Grandma\'s Lasagna","1 slice","420","22","35","18",""');
   });
 });

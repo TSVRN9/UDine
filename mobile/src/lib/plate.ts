@@ -1,6 +1,17 @@
 import { useRef } from "react";
-import type { LogEntry, MenuItem, NutritionFacts, OffSearchResult } from "@udine/shared";
+import type { CustomFood, LogEntry, MenuItem, NutritionFacts, OffSearchResult, UsdaSearchResult } from "@udine/shared";
 import type { HistoryDish } from "./dishHistory";
+
+/** One merged search result from PlateSheet's "Search for a food" (#91, extended to 4 sources):
+ * device-local dish history/the cached public.dishes catalog ("umass"), an OpenFoodFacts hit
+ * ("off"), a USDA FoodData Central hit ("usda"), or a saved on-device CustomFood ("custom").
+ * Tagged so a result row can badge it and so plateSearchResultToPlateEntry/plateSearchResultDetail
+ * below can dispatch on it without the caller needing a 4-way if/else of its own. */
+export type PlateSearchResult =
+  | { kind: "umass"; dish: HistoryDish }
+  | { kind: "off"; product: OffSearchResult }
+  | { kind: "usda"; food: UsdaSearchResult }
+  | { kind: "custom"; food: CustomFood };
 
 /**
  * One row on the in-memory plate (#91): a dish/product plus how many servings the user has
@@ -18,9 +29,20 @@ export interface PlateEntry {
 }
 
 /** Same identity a plate row and its eventual LogEntry share: umass-menu dishes key by hall + dish
- * name (the same dish can be on the plate from two different halls), OFF products key by barcode. */
+ * name (the same dish can be on the plate from two different halls), everything else keys by its
+ * own source-specific id. A switch (not a ternary) so a 5th LogEntry source variant fails to
+ * compile here instead of silently falling through to the wrong branch. */
 export function plateKeyFor(source: LogEntry["source"]): string {
-  return source.type === "umass-menu" ? `menu:${source.hallTid}:${source.dishName}` : `off:${source.barcode}`;
+  switch (source.type) {
+    case "umass-menu":
+      return `menu:${source.hallTid}:${source.dishName}`;
+    case "off":
+      return `off:${source.barcode}`;
+    case "usda":
+      return `usda:${source.fdcId}`;
+    case "custom":
+      return `custom:${source.customFoodId}`;
+  }
 }
 
 export function menuItemToPlateEntry(item: MenuItem, count = 1): PlateEntry {
@@ -46,10 +68,93 @@ export function historyDishToPlateEntry(dish: HistoryDish, count = 1): PlateEntr
   return { key: plateKeyFor(source), label: dish.dishName, nutrition: dish.nutrition, source, count };
 }
 
-/** True when this nutrition snapshot came from OFF's per-100g fallback rather than the product's
- * own serving size (shared/src/openFoodFacts.ts's searchProducts sets the literal "per 100g" marker
- * when a search hit has no per-serving nutriments) -- lets the UI flag it as an estimate instead of
- * silently presenting 100g numbers as "1 serving". */
+export function usdaResultToPlateEntry(result: UsdaSearchResult, count = 1): PlateEntry {
+  const source: LogEntry["source"] = { type: "usda", fdcId: result.fdcId, productName: result.productName };
+  return { key: plateKeyFor(source), label: result.productName, nutrition: result.nutrition, source, count };
+}
+
+export function customFoodToPlateEntry(food: CustomFood, count = 1): PlateEntry {
+  const source: LogEntry["source"] = { type: "custom", customFoodId: food.id, productName: food.name };
+  return { key: plateKeyFor(source), label: food.name, nutrition: food.nutrition, source, count };
+}
+
+/** Single dispatch point for "add this search result to the plate", covering all 4
+ * PlateSearchResult kinds -- what NutritionLabel's onAddToPlate ultimately calls from PlateSheet,
+ * replacing the old onAddOffResult/onAddHistoryDish pair of narrow callbacks (#91 follow-on: a 4th
+ * source made two separate special-cased props awkward to keep extending). */
+/** Stable per-result key for a search-results list's row keys -- reuses plateSearchResultToPlateEntry
+ * rather than re-deriving the same switch a second time. */
+export function plateSearchResultKey(result: PlateSearchResult): string {
+  return plateSearchResultToPlateEntry(result).key;
+}
+
+export function plateSearchResultToPlateEntry(result: PlateSearchResult, count = 1): PlateEntry {
+  switch (result.kind) {
+    case "umass":
+      return historyDishToPlateEntry(result.dish, count);
+    case "off":
+      return offResultToPlateEntry(result.product, count);
+    case "usda":
+      return usdaResultToPlateEntry(result.food, count);
+    case "custom":
+      return customFoodToPlateEntry(result.food, count);
+  }
+}
+
+/** What NutritionLabel (the shared confirm/detail step, mobile/src/components/NutritionLabel.tsx)
+ * needs to render for any of the 4 search-result kinds -- UMass history/catalog hits carry no
+ * allergen/diet-tag/ingredient data (HistoryDish/DishCatalogEntry don't have it), so those come
+ * back empty rather than undefined, matching NutritionLabel's required (non-optional)
+ * allergens/dietTags props. */
+export interface PlateSearchResultDetail {
+  dishName: string;
+  subtitle: string;
+  nutrition: NutritionFacts;
+  allergens: string[];
+  dietTags: string[];
+  ingredients?: string;
+}
+
+export function plateSearchResultDetail(result: PlateSearchResult): PlateSearchResultDetail {
+  switch (result.kind) {
+    case "umass":
+      return { dishName: result.dish.dishName, subtitle: "UMass Dining", nutrition: result.dish.nutrition, allergens: [], dietTags: [] };
+    case "off":
+      return {
+        dishName: result.product.productName,
+        subtitle: "OpenFoodFacts",
+        nutrition: result.product.nutrition,
+        allergens: result.product.allergens ?? [],
+        dietTags: [],
+        ...(result.product.ingredients ? { ingredients: result.product.ingredients } : {}),
+      };
+    case "usda":
+      return {
+        dishName: result.food.productName,
+        subtitle: "USDA FoodData Central",
+        nutrition: result.food.nutrition,
+        allergens: [],
+        dietTags: [],
+        ...(result.food.ingredients ? { ingredients: result.food.ingredients } : {}),
+      };
+    case "custom":
+      return {
+        dishName: result.food.name,
+        subtitle: "Custom food",
+        nutrition: result.food.nutrition,
+        allergens: [],
+        dietTags: [],
+        ...(result.food.ingredients ? { ingredients: result.food.ingredients } : {}),
+      };
+  }
+}
+
+/** True when this nutrition snapshot is reported per 100g rather than per an actual serving --
+ * shared/src/openFoodFacts.ts's searchProducts sets the literal "per 100g" marker as a fallback
+ * when a search hit has no per-serving nutriments, and shared/src/usdaFoodData.ts's searchFoods
+ * sets the same marker unconditionally (Foundation/SR Legacy data is always reported per 100g, not
+ * a fallback there but still not "1 serving") -- lets the UI flag either case as an estimate
+ * instead of silently presenting 100g numbers as "1 serving". */
 export function isEstimatedServing(nutrition: NutritionFacts): boolean {
   return nutrition.servingSize === "per 100g";
 }
