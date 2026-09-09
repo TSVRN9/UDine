@@ -9,6 +9,7 @@ import {
   buildExportPlan,
   customFoodsSubline,
   favoritesSubline,
+  foodRankingsSubline,
   logSubline,
   rankedSubline,
   selectedStoreLabel,
@@ -83,7 +84,7 @@ export default function ExportScreen() {
   const subline: Record<StoreKey, string> = {
     log: logSubline(entries),
     dishRankings: rankedSubline(rankedDishes),
-    foodRankings: rankedSubline(rankedFoods),
+    foodRankings: foodRankingsSubline(rankedFoods.length),
     favorites: favoritesSubline(favorites),
     customFoods: customFoodsSubline(customFoods),
   };
