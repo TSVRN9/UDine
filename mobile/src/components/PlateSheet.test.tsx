@@ -44,6 +44,18 @@ function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
 }
 
+// #382: the search box starts hidden behind an idle "Add something else" row. Call this once,
+// OUTSIDE any surrounding act() the caller is about to open, before using searchInput() below --
+// nesting this act() inside another one defers the flush to the outer act's completion, so a
+// same-call findByProps right after would still see the pre-tap tree.
+function ensureSearchExpanded(root: renderer.ReactTestRenderer) {
+  if (root.root.findAllByProps({ placeholder: "Search for a food" }).length === 0) {
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Add something else" }).props.onPress();
+    });
+  }
+}
+
 function searchInput(root: renderer.ReactTestRenderer) {
   return root.root.findByProps({ placeholder: "Search for a food" });
 }
@@ -113,6 +125,7 @@ function renderSheet(overrides: Partial<Parameters<typeof PlateSheet>[0]> = {}) 
 }
 
 async function runSearch(root: renderer.ReactTestRenderer, q: string) {
+  ensureSearchExpanded(root);
   act(() => {
     searchInput(root).props.onChangeText(q);
   });
@@ -233,6 +246,7 @@ describe("PlateSheet", () => {
     let resolveFirst!: (v: unknown) => void;
     mockedSearchProducts.mockImplementation(() => new Promise((resolve) => (resolveFirst = resolve)));
     const root = renderSheet();
+    ensureSearchExpanded(root);
 
     act(() => {
       searchInput(root).props.onChangeText("a");
@@ -600,6 +614,20 @@ describe("PlateSheet", () => {
     });
   });
 
+  describe("idle search state (#382)", () => {
+    it("starts idle with 'Add something else', not a live search box, until tapped", () => {
+      const root = renderSheet();
+      expect(texts(root).flat().join(" ")).toMatch(/Add something else/);
+      expect(() => root.root.findByProps({ placeholder: "Search for a food" })).toThrow();
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Add something else" }).props.onPress();
+      });
+
+      expect(root.root.findByProps({ placeholder: "Search for a food" })).toBeTruthy();
+    });
+  });
+
   describe("OFF/USDA pagination (Load more)", () => {
     it("shows a Load more button when either OFF or USDA reports hasMore, and pages both on tap", async () => {
       mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Off Page 1", nutrition: DISH.nutrition }], hasMore: true });
@@ -607,13 +635,13 @@ describe("PlateSheet", () => {
       const root = renderSheet();
       await runSearch(root, "chicken");
 
-      expect(texts(root).flat().join(" ")).toMatch(/Load more/);
+      expect(texts(root).flat().join(" ")).toMatch(/Load 20 More/);
 
       mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "2", productName: "Off Page 2", nutrition: DISH.nutrition }], hasMore: false });
       mockedSearchFoods.mockResolvedValueOnce({ results: [{ fdcId: "2", productName: "Usda Page 2", nutrition: DISH.nutrition }], hasMore: false });
 
       await act(async () => {
-        root.root.findByProps({ children: "Load more" }).props.onPress();
+        root.root.findByProps({ children: "Load 20 More" }).props.onPress();
         await Promise.resolve();
       });
 
@@ -625,13 +653,13 @@ describe("PlateSheet", () => {
       expect(body).toMatch(/Usda Page 1/);
       expect(body).toMatch(/Usda Page 2/);
       // Both sources reported hasMore:false on their 2nd page -- button gone.
-      expect(body).not.toMatch(/Load more/);
+      expect(body).not.toMatch(/Load 20 More/);
     });
 
     it("does not show Load more when neither OFF nor USDA has more", async () => {
       const root = renderSheet();
       await runSearch(root, "chicken");
-      expect(texts(root).flat().join(" ")).not.toMatch(/Load more/);
+      expect(texts(root).flat().join(" ")).not.toMatch(/Load 20 More/);
     });
   });
 
@@ -700,6 +728,9 @@ describe("PlateSheet", () => {
 
     it("does not seed anything when initialQuery is absent (the plain PlateBar-tap open)", () => {
       const root = renderSheet();
+      // #382: nothing to seed also means the sheet stays idle -- no live search box at all until tapped.
+      expect(root.root.findAllByProps({ placeholder: "Search for a food" })).toHaveLength(0);
+      ensureSearchExpanded(root);
       expect(searchInput(root).props.value).toBe("");
       expect(mockedSearchCachedDishes).not.toHaveBeenCalled();
     });
