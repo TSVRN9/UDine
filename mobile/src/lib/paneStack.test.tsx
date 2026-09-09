@@ -412,4 +412,17 @@ describe("PaneStack", () => {
     expect(pointerEventsOf(homeText)).toBe("auto"); // HOME_PANE_INDEX starts active
     expect(pointerEventsOf(socialText)).toBe("none");
   });
+
+  // Android jank fix: without this prop, animating a StackedPane's transform can't be flattened
+  // into a cached bitmap layer, so Android recomposites the real subtree every frame instead.
+  it("marks each pane's Animated.View host for hardware-texture rendering on Android", async () => {
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<Harness />);
+    });
+    const homeText = root.root.findByProps({ children: "Home" });
+    let n: renderer.ReactTestInstance | null = homeText;
+    while (n && n.props.pointerEvents === undefined) n = n.parent;
+    expect(n?.props.renderToHardwareTextureAndroid).toBe(true);
+  });
 });
