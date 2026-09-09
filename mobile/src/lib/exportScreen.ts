@@ -50,6 +50,12 @@ export function favoritesSubline(favorites: Favorite[]): string {
   return countLabel(favorites.length, "dishes");
 }
 
+/** `N foods`, per the artboard's Off-menu food rankings row -- unlike dishRankings, this row
+ * doesn't show a ranked/comparisons breakdown. */
+export function foodRankingsSubline(count: number): string {
+  return countLabel(count, "foods");
+}
+
 export function customFoodsSubline(foods: CustomFood[]): string {
   return countLabel(foods.length, "custom foods");
 }
