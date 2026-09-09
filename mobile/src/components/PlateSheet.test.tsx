@@ -577,6 +577,27 @@ describe("PlateSheet", () => {
       expect(body).toMatch(/Falafel Wrap/);
       expect(body).not.toMatch(/Search failed/);
     });
+
+    // The all-rejected-with-nothing-usable branch must not strand the user: it's the exact moment
+    // they most need the "Create a custom food" escape hatch, and it must never leak the raw
+    // exception text (e.g. a UnknownHostException from a rate-limited source).
+    it("keeps the custom-food footer available and hides the raw exception when every source fails", async () => {
+      mockedSearchProducts.mockRejectedValue(new Error('fetch failed: java.net.UnknownHostException: Unable to resolve host "api.nal.usda.gov"'));
+      mockedSearchFoods.mockRejectedValue(new Error('fetch failed: java.net.UnknownHostException: Unable to resolve host "api.nal.usda.gov"'));
+      const failingStorage: LogStorage = { ...new InMemoryLogStorage(), getAllEntries: () => Promise.reject(new Error("db down")) } as LogStorage;
+      mockedSearchCachedDishes.mockImplementation(() => {
+        throw new Error("catalog down");
+      });
+      const failingCustomFoodsStorage: CustomFoodsStorage = { ...fakeCustomFoodsStorage(), getAllCustomFoods: () => Promise.reject(new Error("custom down")) };
+      const root = renderSheet({ logStorage: failingStorage, customFoodsStorage: failingCustomFoodsStorage });
+
+      await runSearch(root, "anything");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Search failed/);
+      expect(body).not.toMatch(/UnknownHostException/);
+      expect(body).toMatch(/Create a custom food/);
+    });
   });
 
   describe("OFF/USDA pagination (Load more)", () => {
