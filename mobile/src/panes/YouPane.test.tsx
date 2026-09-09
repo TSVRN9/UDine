@@ -398,6 +398,33 @@ describe("YouPane Favorites section", () => {
   });
 });
 
+// #419: YouPaneGrouped.dc.html:80-81 specs SEE ALL at 10px text/10px chevron, distinct from ALL
+// LOGS' 11px/12px -- YouPane.tsx used to reuse allLogsText/allLogsChevron for both, so SEE ALL
+// rendered oversized.
+describe("YouPane SEE ALL sizing (#419)", () => {
+  it("renders SEE ALL's text and chevron smaller than ALL LOGS'", async () => {
+    favoritesMock.getFavorites.mockResolvedValue([{ type: "dish", dishName: "Chicken Parm" }]);
+    logMock.getAllEntries.mockResolvedValue([logEntry("1", "French Toast", 3, "2026-08-19T07:00:00.000")]);
+
+    const root = await renderYouPane();
+
+    const allLogsPressable = root.root.findAll((node) => typeof node.props.onPress === "function" && textsOf(node).includes("ALL LOGS"))[0];
+    const [allLogsTextNode, allLogsChevronNode] = allLogsPressable.findAllByType(Text);
+    const allLogsTextStyle = flatStyle(allLogsTextNode.props.style);
+    const allLogsChevronStyle = flatStyle(allLogsChevronNode.props.style);
+
+    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all favorites" });
+    const [seeAllTextNode, seeAllChevronNode] = seeAllPressable.findAllByType(Text);
+    const seeAllTextStyle = flatStyle(seeAllTextNode.props.style);
+    const seeAllChevronStyle = flatStyle(seeAllChevronNode.props.style);
+
+    expect(seeAllTextStyle.fontSize).toBe(10);
+    expect(seeAllChevronStyle.fontSize).toBe(10);
+    expect(seeAllTextStyle.fontSize).toBeLessThan(allLogsTextStyle.fontSize as number);
+    expect(seeAllChevronStyle.fontSize).toBeLessThan(allLogsChevronStyle.fontSize as number);
+  });
+});
+
 describe("YouPane Your Food grouping", () => {
   it("groups Favorites, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading, not just present somewhere on the pane", async () => {
     const root = await renderYouPane();
