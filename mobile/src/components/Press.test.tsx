@@ -1,6 +1,7 @@
 import renderer, { act } from "react-test-renderer";
-import { StyleSheet, Text } from "react-native";
+import { Animated, StyleSheet, Text } from "react-native";
 import { Press, PressDim } from "./Press";
+import { durations } from "../lib/motion";
 
 // #179 review, round 2: Press first applied the caller's `style` to the *inner* Animated.View
 // instead of the Pressable -- box properties (flex/margin/width/height) landed on the wrong node.
@@ -48,6 +49,27 @@ describe("Press", () => {
     const flat = StyleSheet.flatten(tree.props.style as never) as { flex?: number; transform?: unknown };
     expect(flat.flex).toBe(1);
     expect(flat.transform).toEqual([{ scale: 1 }]);
+  });
+
+  // Motion tokens: the press/release tween runs over durations.press (120), not a hand-copied
+  // literal -- both `.press`'s onPressIn (rest -> pressed) and onPressOut (pressed -> rest).
+  it("animates press-in/out over durations.press", () => {
+    const timingSpy = jest.spyOn(Animated, "timing");
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <Press>
+          <Text>tap me</Text>
+        </Press>,
+      );
+    });
+    const pressable = root.root.find((n) => typeof n.props.onPressIn === "function");
+    act(() => {
+      pressable.props.onPressIn();
+    });
+    const config = timingSpy.mock.calls[timingSpy.mock.calls.length - 1][1] as { duration?: number };
+    expect(config.duration).toBe(durations.press);
+    timingSpy.mockRestore();
   });
 });
 

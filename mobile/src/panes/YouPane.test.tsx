@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import type { Favorite, LogEntry, RankedDish, RankedFood } from "@udine/shared";
 import { YouPane } from "./YouPane";
 import { colors } from "../lib/theme";
+import { artboardStyle, normalizeColor } from "../lib/artboard";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
@@ -418,8 +419,9 @@ describe("YouPane SEE ALL sizing (#419)", () => {
     const seeAllTextStyle = flatStyle(seeAllTextNode.props.style);
     const seeAllChevronStyle = flatStyle(seeAllChevronNode.props.style);
 
-    expect(seeAllTextStyle.fontSize).toBe(10);
-    expect(seeAllChevronStyle.fontSize).toBe(10);
+    const spec = artboardStyle("YouPaneGrouped.dc.html", "SEE ALL");
+    expect(seeAllTextStyle.fontSize).toBe(spec.fontSize);
+    expect(seeAllChevronStyle.fontSize).toBe(spec.fontSize);
     expect(seeAllTextStyle.fontSize).toBeLessThan(allLogsTextStyle.fontSize as number);
     expect(seeAllChevronStyle.fontSize).toBeLessThan(allLogsChevronStyle.fontSize as number);
   });
@@ -459,9 +461,11 @@ describe("YouPane group styling and disambiguation copy (#390)", () => {
     const root = await renderYouPane();
     const heading = root.root.findAllByType(Text).find((node) => node.props.children === "Your Food")!;
     const style = flatStyle(heading.props.style);
+    const spec = artboardStyle("YouPaneGrouped.dc.html", "Your Food");
     expect(style.color).toBe(colors.gold500);
-    expect(style.fontSize).toBe(14);
-    expect(style.letterSpacing).toBe(1.8);
+    expect(normalizeColor(style.color as string)).toBe(spec.color);
+    expect(style.fontSize).toBe(spec.fontSize);
+    expect(style.letterSpacing).toBe(spec.letterSpacing);
   });
 
   it("renders the disambiguation hint line under each of Favorites/Your Top Foods/Favorite Halls, per canvas.json's you-food-group-note", async () => {

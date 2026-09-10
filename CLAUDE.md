@@ -85,6 +85,32 @@ check-ins, porting `umassapi2`, SMS verification, digital signage. Newsletter/pr
 Build order: vertical slice (browse → log → today's macros) in both apps first; then filters/favorites/
 content; then auth, ranking, export; then friends, pings, push.
 
+## Design
+
+`docs/design/` is the spec: 49 artboards (`*.dc.html`) extracted from the Mobile v2 canvas, plus
+`canvas.json` (geometry, titles, annotations) and `README.md` (canvas URL, title→file map,
+re-extraction). The canvas is upstream — edit the design there and re-extract, never hand-edit an
+artboard. Artboards lay out at 390×844; the emulator pool's device widths derive from that.
+
+- **Cite artboards by filename** (`PlateExpanded.dc.html`), not by canvas title. `README.md`'s
+  table maps title → file → component.
+- **Values come from the artboard, not by eye.** Parity tests read them with
+  `artboardStyle()` / `artboardTransitions()` (`mobile/src/lib/artboard.ts`); durations and
+  easings live in `mobile/src/lib/motion.ts`, checked against `Prototype.dc.html`'s transitions.
+  No new duration/easing literal outside `motion.ts`.
+- **Every diff that changes rendered output ships a screenshot** from
+  `mobile/scripts/screenshot.sh <route>` (`--record` + a gesture for motion) in the PR body,
+  and the gate compares it to the artboard. The full check is in `docs/agents/dev-tracks.md`.
+  Mobile's *web* target does not build; the emulator pool is the render path.
+
+**No explanatory captions in UI.** Don't ship rendered text describing what an element is or does
+— "tap to open", "this row shows…", state legends, design rationale, risk notes. If a UI needs
+that text to be understood, the interaction isn't finished; fix the design instead of captioning
+it. This holds even when an artboard contains such a string: artboards sometimes carry notes meant
+for whoever reads the design, and those belong in `canvas.json`'s `annotations`, not in the app.
+Allowed: genuine end-user copy (a hint line, an empty-state message), and a screen title. Anything
+addressed to a reviewer goes in the PR body.
+
 ## Agents
 
 - Tracks (XS/S → `quick-fixer`→`spot-checker`; M/L → `issue-solver`/`heavy-debugger`→`pr-reviewer`;

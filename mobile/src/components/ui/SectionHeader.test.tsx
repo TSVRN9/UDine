@@ -5,6 +5,7 @@ import renderer, { act } from "react-test-renderer";
 import { Text, View } from "react-native";
 import { SectionHeader } from "./SectionHeader";
 import { colors, withOpacity } from "../../lib/theme";
+import { artboardStyle, normalizeColor } from "../../lib/artboard";
 
 it("renders the title/rule row with a 10px gap", () => {
   let root!: renderer.ReactTestRenderer;
@@ -31,8 +32,10 @@ describe("SectionHeader variant", () => {
       root = renderer.create(<SectionHeader title="Today's Log" />);
     });
     const title = flatStyle(root.root.findByType(Text).props.style);
-    expect(title.fontSize).toBe(13);
-    expect(title.letterSpacing).toBe(1.5);
+    const spec = artboardStyle("YouPaneGrouped.dc.html", "Today's Log");
+    expect(title.fontSize).toBe(spec.fontSize);
+    expect(title.letterSpacing).toBe(spec.letterSpacing);
+    expect(normalizeColor(title.color as string)).toBe(spec.color);
 
     const rule = root.root.findAllByType(View)[1];
     const ruleStyle = flatStyle(rule.props.style);
@@ -46,8 +49,10 @@ describe("SectionHeader variant", () => {
       root = renderer.create(<SectionHeader title="Your Top Foods" variant="subtle" />);
     });
     const title = flatStyle(root.root.findByType(Text).props.style);
-    expect(title.fontSize).toBe(12);
-    expect(title.letterSpacing).toBe(1.2);
+    const spec = artboardStyle("YouPaneGrouped.dc.html", "Favorites");
+    expect(title.fontSize).toBe(spec.fontSize);
+    expect(title.letterSpacing).toBe(spec.letterSpacing);
+    expect(normalizeColor(title.color as string)).toBe(spec.color);
 
     const rule = root.root.findAllByType(View)[1];
     const ruleStyle = flatStyle(rule.props.style);

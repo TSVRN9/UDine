@@ -27,6 +27,12 @@
 #                                            # was `expo lint` (bootstrapped, uncommitted config,
 #                                            # deliberately not run in CI); now a real committed
 #                                            # eslint.config.js, safe to run
+#   cd mobile && npx expo export --platform android --output-dir /tmp/udine-export
+#                                            # real Metro bundle (~1 min). tsc/jest/eslint all
+#                                            # passed while a stray test file under src/app/ broke
+#                                            # Expo Router for the whole app (#435); only a bundle
+#                                            # sees that. Run for any diff under mobile/src/app/ or
+#                                            # adding files to mobile/src.
 #   deno test --node-modules-dir=none --allow-env supabase/functions
 #                                            # --node-modules-dir=none: without it, deno test
 #                                            # detects pnpm-workspace.yaml and rewrites
@@ -109,6 +115,20 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter mobile test
+
+  mobile-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: npx expo export --platform android --output-dir /tmp/udine-export
+        working-directory: mobile
 
   supabase-functions-test:
     runs-on: ubuntu-latest

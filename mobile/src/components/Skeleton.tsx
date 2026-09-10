@@ -1,6 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View, type ViewStyle } from "react-native";
+import { durations } from "../lib/motion";
 import { colors, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /**
@@ -17,7 +18,7 @@ function Shimmer({ width }: { width: number }) {
 
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(progress, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(progress, { toValue: 1, duration: durations.shimmer, easing: Easing.linear, useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
@@ -56,7 +57,7 @@ export function Spinner({ size = 14 }: { size?: number }) {
   const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const loop = Animated.loop(Animated.timing(rotation, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }));
+    const loop = Animated.loop(Animated.timing(rotation, { toValue: 1, duration: durations.spin, easing: Easing.linear, useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
   }, [rotation]);
