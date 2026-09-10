@@ -13,12 +13,23 @@ re-extract; never hand-edit an artboard here, it will be overwritten.
 python3 docs/design/extract.py <that-file.html>
 ```
 
-The canvas is laid out in named pages (Prototype, Home & Pane Shell, Hall Menu & Ordering, Plate &
-Search, Half Servings, Cafe, You / Profile & Data, Events & Press, Badge Concepts, Archived / Cut
-Features), each a tidy grid with a `PAGE — <name>` title annotation above it and that page's own
-annotations in a column to its right. Draft variations that lost (the `Half servings v1/v2` A–E
-options, `Your data v3 — B`) were deleted outright, not archived — cut *features* (Social, friends,
-login, push, the full Privacy screen, …) are kept on the Archived page for reference, not deleted.
+The canvas uses the editor's own **pages** feature (`content.pages: [{id, name}]`, plus a `page`
+field on each artboard/annotation naming which page it's on — omitted entirely for the first page).
+Open the canvas URL above and use the page switcher (top left, "N pages") to jump between them:
+Prototype, Home & Pane Shell, Hall Menu & Ordering, Plate & Search, Half Servings, Cafe, You /
+Profile & Data, Events & Press, Badge Concepts, Badge Glyph Workshop, Archived / Cut Features. Each
+page is its own tidy grid (artboards in reading order, that page's own annotations in a column to
+the right — annotations are free-height text with no predictable render size, so give them their
+own lane rather than squeezing them above the grid). `extract.py` flattens every page's artboards
+into one `docs/design/` directory — the `page` field survives the round-trip in `canvas.json`, but
+individual `.dc.html` files don't carry it, so this file's own artboard table is the only local
+record of which page something lives on.
+
+Draft variations that lost (the `Half servings v1/v2` A–E options, `Your data v3 — B`) were deleted
+outright, not archived — cut *features* (Social, friends, login, push, the full Privacy screen, …)
+are kept on the Archived page for reference, not deleted. `extract.py` never deletes a local file
+that's no longer in the canvas — after a re-extract that removes an artboard, `git rm` its stale
+local copy by hand.
 
 ## Using an artboard as a spec
 
@@ -66,6 +77,7 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 |---|---|---|---|
 | Add friends (from Social) | `AddFriends.dc.html` | 390×844 | archived (`archive/full-features`) |
 | Add in person - QR | `AddFriendQR.dc.html` | 390×844 | archived (`archive/full-features`) |
+| Badge glyph workshop -- protein + sodium, 3 options each | `BadgeGlyphWorkshop.dc.html` | 390×844 | design-only |
 | Macro badge concepts (color exploration) | `BadgeConcepts.dc.html` | 390×844 | design-only |
 | Cafe fallback (menu not posted) | `CafeSheet.dc.html` | 390×844 | `components/CafeSheet.tsx` |
 | Cafe menu - PDF in-app | `CafePdf.dc.html` | 390×844 | `components/CafePdfViewer.tsx` |
