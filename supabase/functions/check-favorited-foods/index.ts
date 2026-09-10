@@ -10,6 +10,7 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HALL_TIDS, hallName, fetchHallHours, windowCloseLabel, type HallHours, type TimeWindow } from "../_shared/hours.ts";
 import { dispatchPushNotifications, readPushConfig, isPermanentWebPushError, findDeadExpoTokens } from "../_shared/push.ts";
 import { fetchAllPages, fetchAllForIds, type PagedResult } from "../_shared/paging.ts";
+import { requireCronSecret } from "../_shared/cronAuth.ts";
 
 export { isPermanentWebPushError, findDeadExpoTokens };
 
@@ -150,7 +151,11 @@ export async function fetchFavoritesForUsers(supabase: SupabaseClient, userIds: 
   return await fetchAllForIds(supabase, "favorited_foods", "user_id, dish_name", "user_id", userIds, ["user_id", "dish_name"]);
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  // Anyone holding the public anon key passes verify_jwt -- see _shared/cronAuth.ts.
+  const denied = requireCronSecret(req);
+  if (denied) return denied;
+
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const isoDate = todayIsoDate();

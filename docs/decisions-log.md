@@ -10,11 +10,15 @@ file: `docs/auth-status.md`.
 - The previously-noted unrelated **bricktime** project no longer exists — reconfirmed 2026-08-27
   (`list_projects` returns exactly one project in the org). No owner action needed.
 - **"Apply after review" rule:** migrations are applied to the live project only after their PR is
-  reviewed and approved — never automatically once local pgTAP is green. As of 2026-08-27, live is
-  current through `20260826130000`; everything merged after that date (the grant-revoke sweep,
-  discoverable-arm drop, ping-replay guard, DB hardening, cron timeout, RLS initplan cleanup, QR
-  already-friends fix, push-token gate — see sections below) is unapplied pending owner review.
-  Re-check `list_migrations` rather than trusting this note; it drifts fast.
+  reviewed and approved — never automatically once local pgTAP is green. As of 2026-09-09, live is
+  current through `20260905130000` (`schedule_populate_dishes`) — the full backlog noted below as
+  unapplied on 2026-08-27 (the grant-revoke sweep, discoverable-arm drop, ping-replay guard, DB
+  hardening, cron timeout, RLS initplan cleanup, QR already-friends fix, push-token gate, size caps,
+  and the `public.dishes` catalog + its cron) was applied in one pass, in order, owner-authorized,
+  after issue #441 (`public.dishes` PGRST205) surfaced the gap. `send-ping-push` was also redeployed
+  in the same pass — its live version predated the `pushed_at` replay-guard code the migration's
+  column addition depends on. Re-check `list_migrations` rather than trusting this note; it drifts
+  fast.
 
 ## Android builds need JDK 17 (2026-08-17)
 
@@ -119,7 +123,7 @@ definer`/`search_path = ''`, wrapped in its own exception handler so a push fail
 underlying ping insert). A companion migration revokes public `EXECUTE` on the trigger function. Both
 applied live. Covered by `supabase/tests/database/07_ping_push_trigger.sql`.
 
-**#196 — replay-guard hardening (2026-08-27, not yet applied live).** The function required only a
+**#196 — replay-guard hardening (2026-08-27, applied live 2026-09-09).** The function required only a
 valid JWT (the anon key ships in every client) plus any `ping_id` — no dedup, no rate limit, no
 sender check. A user could replay their own ping's id (readable via `pings` RLS) to re-push the same
 notification indefinitely, a push-spam primitive. Reproduced live locally before fixing: the same
@@ -206,7 +210,7 @@ policy didn't catch it because it only ever had one `friendships` row in scope, 
 correct semantics coincided; the fix added a second, unrelated row to the test fixture specifically
 to distinguish them.
 
-## Discoverable-directory unbounded read closed (#234, 2026-08-27, not yet applied live)
+## Discoverable-directory unbounded read closed (#234, 2026-08-27, applied live 2026-09-09)
 
 #233 closed a direct 1-query email-harvest via the `profiles.discoverable = true` SELECT policy arm,
 but the arm itself still permitted reading the whole discoverable directory (`user_id`,
@@ -245,7 +249,7 @@ text still contains the expected arms, no `anon`/`PUBLIC` EXECUTE on the three R
 robustness pattern (assert ambient state, not just the test's own repair-and-break cycle) is now the
 convention for every new pgTAP file in this repo** — see #201/#221's suite for another example.
 
-## `check-favorited-foods` cron delivery flaky (#200, 2026-08-27, not yet applied live)
+## `check-favorited-foods` cron delivery flaky (#200, 2026-08-27, applied live 2026-09-09)
 
 3 of the last 6 hourly `pg_net` deliveries to `check-favorited-foods-hourly` were timing out
 (`net._http_response.timed_out = true`) — the function's runtime (2-16s observed) regularly exceeds
@@ -255,7 +259,7 @@ Supabase MCP tools that live's actual `cron.job.command` is still byte-identical
 scheduling migration as of 2026-08-27 — no undetected drift for this migration's full-command-text
 replacement to silently overwrite. Re-check that before applying if time has passed.
 
-## RLS initplan / FK-index / policy-dedup cleanup (#202, 2026-08-27, not yet applied live)
+## RLS initplan / FK-index / policy-dedup cleanup (#202, 2026-08-27, applied live 2026-09-09)
 
 Performance-only advisor cleanup, no semantic change intended (acceptance gate: pgTAP pass count
 must be stable except for new assertions). Wrapped `auth.uid()` as `(select auth.uid())` in 19 of 20
@@ -284,7 +288,7 @@ shows "Already friends" instead of ADD/CANCEL when set. Verified the real wire s
 (signed JWTs through PostgREST/Kong, not just SQL-direct) since neither pgTAP nor the jest mocks
 exercise what PostgREST actually serializes.
 
-## `register_push_token` gated on `notifications_enabled` (#277, 2026-08-27, not yet applied live)
+## `register_push_token` gated on `notifications_enabled` (#277, 2026-08-27, applied live 2026-09-09)
 
 Server-side close for three residual client-side races where a self-heal could re-register a push
 token the user had just disabled/deleted (client guards are ordering constraints, not atomic). The
@@ -297,7 +301,7 @@ registration the user no longer wants to succeed. The same gate blocks a disable
 stealing an already-registered token via the `unique(platform, token)` evict-and-reassign path, since
 both paths go through the same guarded insert statement.
 
-## Unbounded column/row-size caps closed (#327, split off #228's round-2/round-3 broadening, 2026-08-27, not yet applied live)
+## Unbounded column/row-size caps closed (#327, split off #228's round-2/round-3 broadening, 2026-08-27, applied live 2026-09-09)
 
 Round 2 (owner-reproduced): `shared_stats.{completion,top_foods,hall_ranks}` jsonb, `profiles.
 display_name`, and `push_tokens.token` were all unbounded for a plain authenticated user — a 50MB
@@ -357,3 +361,97 @@ doesn't conflict with "menu cache stays device-only": the menu cache is a per-se
 fetch of what's being served *today*, keyed to a user's own browsing; `public.dishes` is one global,
 public, read-only reference row per dish name (nutrition facts only, no per-user or per-session
 data at all), more like the dining-hall/tid table than a cache of anyone's activity.
+
+## Pending-migration backlog deployed live (issue #441, 2026-09-09)
+
+`refreshDishCatalogIfStale` failing with PGRST205 ("Could not find the table 'public.dishes'") on
+mobile turned out not to be a code bug — the live project's schema was 12 migrations behind `main`,
+last applied 2026-08-27. `public.dishes`'s own creation migration was one of the 12 unapplied ones;
+the other 10 were already-merged, already-approved fixes (grant-revoke sweep, discoverable-arm drop,
+ping-replay guard, cron timeout, RLS initplan/FK-index/policy-dedup cleanup, QR already-friends
+signal, push-token race gate, size/row-count caps) that had been sitting inert since 2026-08-27,
+each individually annotated "not yet applied live" above.
+
+Applied all 12, in ledger order, via the Supabase MCP tools, verifying after each risky one
+(`aclexplode`/`information_schema` grant checks, `pg_get_expr` on rewritten policies,
+`get_advisors` before/after). Two things beyond the migrations themselves:
+
+- **`send-ping-push` redeployed.** Its live version (checked via `get_edge_function`) predated the
+  `pushed_at` replay-guard code the `ping_replay_guard_and_db_hardening` migration's new column
+  depends on — the migration alone would have added a column nothing read. Redeployed from `main`'s
+  current source (version 4 → 5).
+- **`populate-dishes` deployed for the first time** and manually invoked once (rather than waiting
+  for the first 08:00 UTC cron tick) — 366 dishes upserted across all 4 halls on the first run,
+  confirmed queryable via the anon key.
+
+`get_advisors` before/after: `auth_rls_initplan` findings dropped from 20 to 1 (exactly the one
+policy the initplan-cleanup migration's own comment documents as deliberately left unwrapped —
+wrapping it recurses through the friendships INSERT policy's self-referencing idempotency check);
+`multiple_permissive_policies` (shared_stats) cleared; no new findings introduced. `list_migrations`
+confirms all 12 applied, matching `supabase/migrations/` exactly.
+
+`check-favorited-foods` was checked for the same kind of drift as `send-ping-push` (both import the
+same `_shared/` modules) and found current — not redeployed.
+
+## Edge Functions invocable with the public anon key (security pass 2026-09-09, applied live 2026-09-09)
+
+All three server-only Edge Functions (`check-favorited-foods`, `populate-dishes`, `send-ping-push`)
+are `verify_jwt = true` and nothing else -- and the anon/publishable key (in every app binary and
+the web bundle) is a valid Supabase-signed JWT. Confirmed live before fixing: `POST
+/functions/v1/send-ping-push` with only `Authorization: Bearer sb_publishable_...` and a random
+`ping_id` returned `200 {"sent":false,...}` (the handler ran; no header at all gets 401, so
+`verify_jwt` was the only gate). `check-favorited-foods`/`populate-dishes` ignore the request
+entirely, so the same bare-key call runs their whole service-role body on demand -- 4-5
+umassdining.com fetches, table scans, `food_sightings` upserts + push dispatch, or a ~400-row
+`dishes` upsert -- per call, in a loop, from anywhere: an Edge-invocation/egress burner and an
+umassdining.com abuse vector from Supabase's egress IPs. `send-ping-push` was already replay-safe
+via `pushed_at` (#196); it gains only a stop to no-op probing, but shares the caller (the pings
+trigger) so it's closed the same way. (Not reverting 20260818120000's anon-key-in-Vault choice --
+`verify_jwt` and that header are unchanged; this is a second factor on top.)
+
+Fix (`20260909200000_edge_cron_shared_secret.sql` + `supabase/functions/_shared/cronAuth.ts`, wired
+into all three handlers): the two `cron.job` commands and `notify_ping_push()` now also send
+`x-udine-cron-secret` from a new Vault entry `edge_cron_secret`; each function compares it against
+its `EDGE_CRON_SECRET` secret (length-then-XOR compare), 403 on mismatch/missing, 503 (fail closed)
+if the secret isn't configured. **Two one-time owner steps** (Vault seed + `supabase secrets set`)
+and a **three-step rollout order** (secrets -> migration -> function deploy) are spelled out in the
+migration header -- deploying the functions before seeding the secret makes every cron run 503, and
+`net.http_post` is fire-and-forget, so that would be silent (#200's lesson). Same migration also
+revokes anon/authenticated/public EXECUTE on `enforce_favorited_foods_cap()` (the one trigger
+function that lacked the 20260817220100/20260821120100 convention; not exploitable -- trigger
+functions can't be called directly and EXECUTE is only checked at `create trigger` time).
+
+Verified locally: `supabase/tests/database/22_edge_cron_shared_secret.sql` (9 assertions, ambient-state
+per #222) -- 7/9 red against a `db reset` with the migration removed, 9/9 green with it; full suite 23
+files / 313 tests green. `_shared/cronAuth.test.ts` (5 Deno tests; note `Request` trims header-value
+whitespace per HTTP, so a trailing-space "near miss" is not a mismatch); functions lane 65/65 green.
+
+Applied and verified live 2026-09-09. One hiccup worth recording: the first live check (`net.http_post`
+against `populate-dishes` with both headers) came back `403`, not the expected `200` -- `EDGE_CRON_SECRET`
+was already set (a `503` would mean unset), so the two one-time owner steps had used two *different*
+generated values instead of the same one. Fixed by generating one fresh value, writing it to the Vault
+secret directly (`vault.update_secret`), and having the owner paste that exact value into the function
+secret -- collapses the "two independent copy-pastes must match" failure mode to one. Re-verified after:
+bare publishable key -> `403 {"error":"forbidden"}` on both `send-ping-push` and `populate-dishes`;
+all three functions with the correct header -> `200` (`populate-dishes`: `dishesUpserted:365`;
+`check-favorited-foods`: `checkedHalls:4`; `send-ping-push`: `sent:false` for a nonexistent ping, i.e.
+past the gate and into real logic). Migration-ledger version drift (see below) fixed for this migration
+the same way as the 12 before it -- `supabase_migrations.schema_migrations` now reads `20260909200000`,
+matching the local filename.
+
+Same pass, looked at and confirmed fine (2026-09-09, live state via read-only MCP): every table's
+grants/column grants/policies match the migration ledger's intent (the 12 migrations applied
+2026-09-09, plus this one, all now carry version ids matching their local filenames exactly --
+`supabase_migrations.schema_migrations` was reconciled by hand after each apply, since
+`apply_migration` stamps its own timestamp-of-invocation version rather than deriving one from the
+filename; `supabase db push` will now correctly see all of them as already applied); all 12 public
+functions pin `search_path`, definers are `authenticated`-only
+(advisor 0029 lists 7, all intended RPCs); deployed function sources are functionally identical to
+`main` (the MCP deploy strips comments); `anon`/`authenticated` hold EXECUTE on `net.http_*` (pg_net
+default) but `net` isn't an exposed API schema, so it's unreachable through PostgREST; web SSR uses
+`getUser()`-validated `safeGetSession`, the OAuth callback redirects to a fixed `/`, mobile is PKCE;
+`/api/pdf` is host-gated. Left as owner calls, not patched: an accepted friend can insert unlimited
+`pings` (each = one pg_net call + one push to the receiver; the only remedy is unfriending), and
+`search_profiles`'s email-prefix search is a slow directory walk by design (#234's accepted residual).
+Mobile's social/notification screens were shelved in #338, so `docs/` references to
+`mobile/src/app/friends.tsx`, `favoriteFoodAlerts.ts`, `privacySettings.ts` etc. no longer resolve.

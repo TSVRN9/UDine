@@ -12,6 +12,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { hallName, fetchHallHours, currentlyOpenUntil } from "../_shared/hours.ts";
 import { dispatchPushNotifications, readPushConfig } from "../_shared/push.ts";
+import { requireCronSecret } from "../_shared/cronAuth.ts";
 
 const TRAILING_ELLIPSIS = /(…|\.\.\.)\s*$/;
 const MAX_MESSAGE_LENGTH = 100;
@@ -37,6 +38,12 @@ export function buildPingNotification(
 }
 
 Deno.serve(async (req) => {
+  // Anyone holding the public anon key passes verify_jwt; the pings trigger sends the shared
+  // secret alongside it -- see _shared/cronAuth.ts. pushed_at (below) already made a replay
+  // harmless, so this mostly stops probing/no-op invocations, not spam.
+  const denied = requireCronSecret(req);
+  if (denied) return denied;
+
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   let pingId: string | undefined;
