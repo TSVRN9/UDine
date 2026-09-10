@@ -13,13 +13,11 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration, tabUnderlineInsets } from "../lib/paneShell";
+import { durations, reanimatedPaneCurve } from "../lib/motion";
 import { colors, fs } from "../lib/theme";
 
-// Same cubic-bezier PaneStack.tsx uses for its own pane transform -- one shared "how a pane
-// crossfades" feel across the app, not a second curve to keep in sync by hand. Smaller offset than
-// PaneStack's full-screen 36px (fs(36)): this pager's panes are the tab content area only, not a
-// whole screen, so a smaller lateral shift reads proportionate.
-const PANE_CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
+// Smaller offset than PaneStack's full-screen 36px (fs(36)): this pager's panes are the tab
+// content area only, not a whole screen, so a smaller lateral shift reads proportionate.
 const PANE_OFFSET = fs(24);
 
 // isHorizontalSwipe's own dominance threshold (10px), reused here so the gesture-handler dominance
@@ -190,8 +188,8 @@ export function MealTabPager({
       panePos.value = activeIndex;
       paneOpacityPos.value = activeIndex;
     } else {
-      panePos.value = withTiming(activeIndex, { duration: 340, easing: PANE_CURVE });
-      paneOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
+      panePos.value = withTiming(activeIndex, { duration: durations.pane, easing: reanimatedPaneCurve });
+      paneOpacityPos.value = withTiming(activeIndex, { duration: durations.paneFade, easing: Easing.ease });
     }
     committedIndexRef.current = activeIndex;
     dragStartIndex.value = activeIndex;
@@ -204,8 +202,8 @@ export function MealTabPager({
   // called nowhere else needs it) -- mirrors PaneStack.tsx's identical helper.
   function settlePosition(target: number, from: number = target) {
     "worklet";
-    panePos.value = withTiming(target, { duration: settleDuration(from, target, 340), easing: PANE_CURVE });
-    paneOpacityPos.value = withTiming(target, { duration: settleDuration(from, target, 260), easing: Easing.ease });
+    panePos.value = withTiming(target, { duration: settleDuration(from, target, durations.pane), easing: reanimatedPaneCurve });
+    paneOpacityPos.value = withTiming(target, { duration: settleDuration(from, target, durations.paneFade), easing: Easing.ease });
   }
 
   const pan = Gesture.Pan()

@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+    .h { display: flex; align-items: center; gap: 8px; }
+    .h .t { font-family: "Oswald", "Arial Narrow", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f; }
+    .h .r { height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5); }
+    .card { background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column; }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box; gap: 10px; }
+    .div { height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px; }
+    .lab { font-weight: 600; font-size: 13px; }
+    .sub { font-size: 11px; color: rgba(36,26,20,0.55); line-height: 1.4; }
+    .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55); }
+    .on  { width: 44px; height: 26px; min-width: 44px; border-radius: 999px; background: #7c2430; display: flex; align-items: center; justify-content: flex-end; padding: 2px; box-sizing: border-box; }
+    .on  > div { width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; }
+    .off { width: 44px; height: 26px; min-width: 44px; border-radius: 999px; background: rgba(36,26,20,0.15); display: flex; align-items: center; padding: 2px; box-sizing: border-box; }
+    .off > div { width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.15); box-sizing: border-box; }
+    .dis { opacity: 0.38; }
+    .del { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430; white-space: nowrap; }
+    .lock { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: rgba(36,26,20,0.45); text-transform: uppercase; }
+    .chip { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+    .foot { font-size: 11px; line-height: 1.4; color: rgba(36,26,20,0.55); padding: 0 2px; }
+  </style>
+</helmet>
+<div style="width: 900px; height: 844px; background: #f3ead8; overflow: hidden; padding: 24px 28px; box-sizing: border-box; color: #241a14; display: flex; flex-direction: column; gap: 14px;">
+  <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Data model — what syncs, what's shared, what you can delete</div>
+  <div style="font-size: 12px; line-height: 1.5; color: rgba(36,26,20,0.7); max-width: 780px;">Three independent controls per category. <b>SYNC</b> = the phone sends a copy to UDine's server (needed for the feature named). <b>SHARE</b> = accepted friends can read it (only possible if it syncs). <b>DELETE</b> = remove the server copy now; the phone copy stays. Grey = not applicable.</div>
+  <div class="card" style="font-size: 12px;">
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 8px 14px; background: rgba(201,154,46,0.12); gap: 8px;">
+      <div class="lock">Category</div><div class="lock">Lives</div><div class="lock">Sync — enables</div><div class="lock">Share w/ friends</div><div class="lock">Delete server copy</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Food log &amp; macro history</div><div class="mono">phone only</div><div class="sub dis">never</div><div class="sub dis">never</div><div class="sub dis">n/a (export instead)</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Dish &amp; food rankings (raw)</div><div class="mono">phone only</div><div class="sub dis">never</div><div class="sub dis">never</div><div class="sub dis">n/a</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Favorite foods</div><div class="mono">phone → server</div><div class="sub">toggle · enables <b>spotted-elsewhere alerts</b></div><div class="sub dis">n/a</div><div class="del">DELETE</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Favorite dining halls</div><div class="mono">phone → server</div><div class="sub">toggle · enables <b>"come eat with me" suggestions</b></div><div class="sub">toggle · friends see your hall order</div><div class="del">DELETE</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Hall completion (counts)</div><div class="mono">phone → server</div><div class="sub">toggle · summary only, no dishes</div><div class="sub">toggle</div><div class="del">DELETE</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Top 5 foods (name · score · hall)</div><div class="mono">phone → server</div><div class="sub">toggle · truncated cut, no counts</div><div class="sub">toggle</div><div class="del">DELETE</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Profile (name · email · findable)</div><div class="mono">server</div><div class="sub dis">always (it's your account)</div><div class="sub">"Findable by search" toggle</div><div class="sub dis">account delete — not yet (#253)</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Push token (this phone)</div><div class="mono">server</div><div class="sub">follows Favorite-food alerts</div><div class="sub dis">n/a</div><div class="del">DELETE</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Pings you sent</div><div class="mono">server</div><div class="sub dis">always (sending is the sync)</div><div class="sub dis">the recipient, by definition</div><div class="del">DELETE</div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 1.15fr 1.05fr 1.05fr; padding: 9px 14px; gap: 8px; align-items: center;"><div class="lab">Sighting history (alerts sent to you)</div><div class="mono">server (derived)</div><div class="sub dis">side-effect of alerts</div><div class="sub dis">n/a</div><div class="sub dis">not yet (#237) — needs retention</div></div>
+  </div>
+  <div style="display: flex; gap: 14px; font-size: 11px; line-height: 1.45; color: rgba(36,26,20,0.7);">
+    <div style="flex: 1; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;"><b style="color:#3b0a0f;">Rule 1 — share needs sync.</b> A SHARE toggle is disabled (greyed) while its SYNC is off. Turning SYNC off turns SHARE off with it and deletes the server copy.</div>
+    <div style="flex: 1; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;"><b style="color:#3b0a0f;">Rule 2 — delete ≠ off.</b> DELETE removes what's there now; the toggle stays where it is. If SYNC is still on, the next sync re-uploads. Copy says so.</div>
+    <div style="flex: 1; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;"><b style="color:#3b0a0f;">Rule 3 — schema consequence.</b> Today a stat's server row IS the shared copy (sync == share). Separating them needs a per-stat visibility flag on <span class="mono">shared_stats</span>. Decide before building.</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

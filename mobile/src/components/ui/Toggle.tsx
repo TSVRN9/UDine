@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet } from "react-native";
+import { Animated, Pressable, StyleSheet } from "react-native";
+import { durations, rnPaneCurve } from "../../lib/motion";
 import { colors, fs, withOpacity } from "../../lib/theme";
 
 // Toggle track/knob geometry, verbatim from the Privacy/ExportChecklist artboards' shared
@@ -14,8 +15,6 @@ const TRACK_W = 44;
 const TRACK_H = 26;
 const KNOB = 22;
 const KNOB_TRAVEL = 18;
-const DURATION = 180;
-const KNOB_EASING = Easing.bezier(0.22, 0.61, 0.36, 1);
 
 interface Props {
   value: boolean;
@@ -34,8 +33,8 @@ export function Toggle({ value, onValueChange, disabled, accessibilityLabel }: P
   useEffect(() => {
     Animated.timing(anim, {
       toValue: value ? 1 : 0,
-      duration: DURATION,
-      easing: KNOB_EASING,
+      duration: durations.toggle,
+      easing: rnPaneCurve,
       useNativeDriver: false, // backgroundColor interpolation isn't supported by the native driver
     }).start();
   }, [value, anim]);

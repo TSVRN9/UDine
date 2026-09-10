@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet } from "react-native";
+import { durations } from "../lib/motion";
 import { colors, fs, withOpacity } from "../lib/theme";
 
 interface Props {
@@ -27,8 +28,8 @@ export function FavoriteStar({ isFavorite, dishName, onPress }: Props) {
       return;
     }
     Animated.sequence([
-      Animated.timing(scale, { toValue: 1.25, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 1, duration: 120, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1.25, duration: durations.favoritePop.in, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: durations.favoritePop.out, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start();
   }, [isFavorite, scale]);
 

@@ -11,8 +11,7 @@ import {
   type SharedValue,
 } from "react-native-reanimated";
 import { settleDuration } from "./paneShell";
-
-const SHEET_DURATION = 220;
+import { durations, reanimatedPaneCurve } from "./motion";
 
 /** A released handle-drag past this many px of downward travel dismisses the sheet outright,
  * regardless of velocity. Flat, not proportional to `panelTravel` -- call sites now pass their own
@@ -102,7 +101,7 @@ export function useDraggableSheet(visible: boolean, onClose: () => void, panelTr
     (from: number) => {
       "worklet";
       cancelAnimation(pos);
-      pos.value = withTiming(0, { duration: settleDuration(from, 0, SHEET_DURATION) }, (finished) => {
+      pos.value = withTiming(0, { duration: settleDuration(from, 0, durations.sheet), easing: reanimatedPaneCurve }, (finished) => {
         if (finished) runOnJS(setModalVisible)(false);
       });
     },
@@ -117,7 +116,7 @@ export function useDraggableSheet(visible: boolean, onClose: () => void, panelTr
       setModalVisible(true);
       cancelAnimation(pos);
       pos.value = 0;
-      pos.value = withTiming(1, { duration: SHEET_DURATION });
+      pos.value = withTiming(1, { duration: durations.sheet, easing: reanimatedPaneCurve });
     } else {
       closeSheet(pos.value);
     }
@@ -142,7 +141,7 @@ export function useDraggableSheet(visible: boolean, onClose: () => void, panelTr
       } else {
         // Snap back open -- either the drag fell short of both thresholds, or the gesture was
         // cancelled/stolen mid-drag (success === false) and shouldn't strand the panel partway.
-        pos.value = withTiming(1, { duration: settleDuration(pos.value, 1, SHEET_DURATION) });
+        pos.value = withTiming(1, { duration: settleDuration(pos.value, 1, durations.sheet), easing: reanimatedPaneCurve });
       }
     });
 

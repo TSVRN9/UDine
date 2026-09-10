@@ -8,6 +8,7 @@ import renderer, { act } from "react-test-renderer";
 
 import { PaneStack } from "../components/PaneStack";
 import { PANE_DRAG_PX, paneDragPosition, settleDuration } from "./paneShell";
+import { durations, reanimatedPaneCurve } from "./motion";
 
 // Jest hoists jest.mock() above imports and only allows referencing out-of-scope variables whose
 // name starts with "mock" inside the factory -- hence the prefix on all three.
@@ -138,6 +139,19 @@ describe("PaneStack swipe gesture wiring (#245 item 2)", () => {
     }
     return gesture;
   }
+
+  // Motion tokens: the mount-time commit (activeIndex seeded straight in, no gesture involved)
+  // must carry durations.pane/paneFade AND the shared pane curve -- easing was never asserted
+  // anywhere in this file before (every existing test here only reads `toValue`/`duration`).
+  it("mounts with durations.pane/paneFade and the shared pane curve on both the transform and opacity commits", () => {
+    renderGestureHarness(() => {});
+    const transformCall = withTimingSpy.mock.calls.find(([, config]) => (config as { duration?: number })?.duration === durations.pane);
+    const opacityCall = withTimingSpy.mock.calls.find(([, config]) => (config as { duration?: number })?.duration === durations.paneFade);
+    expect(transformCall).toBeDefined();
+    expect((transformCall?.[1] as { easing?: unknown })?.easing).toBe(reanimatedPaneCurve);
+    expect(opacityCall).toBeDefined();
+    expect((opacityCall?.[1] as { easing?: unknown })?.easing).toBe(Reanimated.Easing.ease);
+  });
 
   it("(b) onStart (the gesture actually being recognized) stops any in-flight settle animation before a new drag starts", () => {
     const gesture = renderGestureHarness(() => {});

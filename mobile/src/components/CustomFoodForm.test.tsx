@@ -10,6 +10,7 @@
 import renderer, { act } from "react-test-renderer";
 import type { CustomFoodsStorage } from "@udine/shared";
 import { CustomFoodForm } from "./CustomFoodForm";
+import { artboardStyle } from "../lib/artboard";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -110,8 +111,9 @@ describe("CustomFoodForm", () => {
     const root = renderForm();
     const style = root.root.findByProps({ accessibilityLabel: "Serving size" }).props.style;
     const flat = Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
-    expect(flat.paddingVertical).toBe(12);
-    expect(flat.paddingHorizontal).toBe(14);
-    expect(flat.fontSize).toBe(14);
+    const spec = artboardStyle("CustomFoodForm.dc.html", "1 shake (16oz)");
+    expect(flat.paddingVertical).toBe(spec.paddingVertical);
+    expect(flat.paddingHorizontal).toBe(spec.paddingHorizontal);
+    expect(flat.fontSize).toBe(spec.fontSize);
   });
 });

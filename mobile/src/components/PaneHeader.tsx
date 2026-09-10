@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { router } from "expo-router";
-import { Easing, StyleSheet, Text, View } from "react-native";
-import Reanimated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import { StyleSheet, Text, View } from "react-native";
+import Reanimated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { Press } from "./Press";
 import { PANE_COUNT, YOU_PANE_INDEX, paneMorph, paneOffsetRange } from "../lib/paneShell";
+import { durations, reanimatedPaneCurve } from "../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /** #90 nav reorg: same router.push mechanism YouPane.tsx's goToAllLogs already uses for /logs --
@@ -17,10 +18,6 @@ function goToExport() {
 /** Pane order: Events, Home, You (matches PaneStack's pane array). MVP cut (temporary, see
  * archive/full-features): was Social/Ping-a-Friend, now just Events. */
 const TITLES = ["EVENTS", "UDINE", "YOU"] as const;
-
-// The artboard's own cubic-bezier -- shared by the pane transition (PaneStack) and this header's
-// title crossfade, at their own independently-tuned durations (#179 styling spec).
-const CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 
 // Hoisted to a module-scope constant (computed once, on the JS thread, at import time) rather than
 // called inline as `fs(28)` inside PaneTitle's `useAnimatedStyle` body below -- same pattern
@@ -144,8 +141,8 @@ export function PaneHeader({
   useEffect(() => {
     // When PaneStack shares its own values, it already drives them (continuously, from the drag) --
     // driving ownTitlePos/ownTitleOpacityPos here too would just animate values nothing reads.
-    if (!sharedTitlePos) ownTitlePos.value = withTiming(activeIndex, { duration: 340, easing: CURVE });
-    if (!sharedTitleOpacityPos) ownTitleOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
+    if (!sharedTitlePos) ownTitlePos.value = withTiming(activeIndex, { duration: durations.paneTitle, easing: reanimatedPaneCurve });
+    if (!sharedTitleOpacityPos) ownTitleOpacityPos.value = withTiming(activeIndex, { duration: durations.paneTitleFade, easing: Easing.ease });
   }, [activeIndex, ownTitlePos, ownTitleOpacityPos, sharedTitlePos, sharedTitleOpacityPos]);
 
   return (

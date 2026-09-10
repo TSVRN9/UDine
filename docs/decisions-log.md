@@ -455,3 +455,30 @@ default) but `net` isn't an exposed API schema, so it's unreachable through Post
 `search_profiles`'s email-prefix search is a slow directory walk by design (#234's accepted residual).
 Mobile's social/notification screens were shelved in #338, so `docs/` references to
 `mobile/src/app/friends.tsx`, `favoriteFoodAlerts.ts`, `privacySettings.ts` etc. no longer resolve.
+
+## UI verification (2026-09-10)
+
+**What happened.** Of 53 UI tasks in `docs/agents/task-log.jsonl`, 9 were rendered on a device
+and 35 never mentioned one; every visual/runtime defect chain (#362→#364, #363→#366, #367→#369,
+#367→#436→#440, #428→#435, #429→#434, #430→#439) was caught by human QA, never by the gate. The
+2026-09-09 design audit filed ~48 drift tickets in a day. On 2026-09-10 three more shipped past a
+gate whose dispatch prompt said "no design check needed": search badges overlapping a button and
+not matching the artboard's icons, a 0.5-serving state stuck at half opacity with a "cancel"
+affordance (a boundary state a default-state check can't see), and a servings pill that didn't
+grow from the + button as `canvas.json`'s `servings-inline-slide` annotation describes. Motion had
+no spec-anchored test at all: 11 duration literals across ~24 sites, sheets at 220ms/no easing vs
+the spec's 300ms bezier.
+
+**What changed.** `docs/design/` committed (it was untracked, so invisible to worktree agents).
+`mobile/src/lib/artboard.ts` reads styles and transitions out of the artboards for tests;
+`mobile/src/lib/motion.ts` holds every duration/easing and is checked against
+`Prototype.dc.html`. `mobile/scripts/screenshot.sh` makes a device render one command (still or
+`--record` + gesture → frames), and a rendered-output diff without an image is REWORK, not
+"disclosed". An `expo export --platform android` bundle lane catches #435's class. Task-log lines
+carry a `ui` object so unrendered merges are queryable. Per-screen audits are a repeatable
+dispatch (`docs/agents/design-audit.md`). The rule text in `dev-tracks.md` was cut to the
+checklist; this entry holds the history.
+
+**Still open (owner).** Non-default states of the 31 `DCLogic` artboards exist only in the live
+canvas — one artboard per state (servings 0/0.5/max, badge kinds, FAB active/inactive) is the only
+way the committed spec can carry them. Web has no design spec.

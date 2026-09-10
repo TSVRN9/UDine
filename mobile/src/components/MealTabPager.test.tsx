@@ -5,6 +5,7 @@ import * as Reanimated from "react-native-reanimated";
 import renderer, { act } from "react-test-renderer";
 import { MealTabPager } from "./MealTabPager";
 import { PANE_DRAG_PX, paneDragPosition, settleDuration } from "../lib/paneShell";
+import { durations, reanimatedPaneCurve } from "../lib/motion";
 
 // react-native-worklets' Babel plugin auto-workletizes the callbacks passed to `Gesture.Pan()`'s
 // `.onBegin`/`.onUpdate`/`.onEnd` (and any function marked "worklet", like MealTabPager's own
@@ -175,6 +176,27 @@ describe("MealTabPager non-adjacent jump handling", () => {
     const calls = withTimingSpy.mock.calls.slice(callsBefore);
     expect(calls.length).toBe(2); // panePos + paneOpacityPos
     for (const [toValue] of calls) expect(toValue).toBe(2);
+  });
+
+  // Motion tokens: durations.pane/paneFade and the shared pane curve, not a hand-copied literal.
+  it("tweens with durations.pane/paneFade and the shared pane curve", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<MealTabPager activeIndex={1} onActiveIndexChange={() => {}} panes={fivePanes()} />);
+    });
+    const callsBefore = withTimingSpy.mock.calls.length;
+
+    act(() => {
+      root.update(<MealTabPager activeIndex={2} onActiveIndexChange={() => {}} panes={fivePanes()} />);
+    });
+
+    const calls = withTimingSpy.mock.calls.slice(callsBefore);
+    const transformCall = calls.find(([, config]) => (config as { duration?: number })?.duration === durations.pane);
+    const opacityCall = calls.find(([, config]) => (config as { duration?: number })?.duration === durations.paneFade);
+    expect(transformCall).toBeDefined();
+    expect((transformCall?.[1] as { easing?: unknown })?.easing).toBe(reanimatedPaneCurve);
+    expect(opacityCall).toBeDefined();
+    expect((opacityCall?.[1] as { easing?: unknown })?.easing).toBe(Reanimated.Easing.ease);
   });
 });
 

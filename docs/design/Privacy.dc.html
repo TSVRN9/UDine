@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+    a { color: #7c2430; } a:hover { color: #3b0a0f; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 0 20px; box-sizing: border-box; color: #241a14;">
+
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="min-width: 24px;"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Your data</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#3b0a0f" stroke-width="1.5"></rect><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#3b0a0f" stroke-width="1.5"></path></svg>
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Stays on this phone</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+    </div>
+    <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px;">
+        <div style="font-weight: 600; font-size: 13px;">Food log &amp; macro history</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">214 entries</div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px;">
+        <div style="font-weight: 600; font-size: 13px;">Dish &amp; food rankings</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">36 ranked</div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px;">
+        <div style="font-weight: 600; font-size: 13px;">Seen-dish index</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">253 dishes</div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; min-height: 44px; box-sizing: border-box;">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430;">EXPORT · JSON / CSV</div>
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4.5 11.5a3 3 0 0 1 .3-6 4 4 0 0 1 7.8 1.1 2.5 2.5 0 0 1-.6 4.9H4.5z" stroke="#3b0a0f" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">On UDine's server</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+    </div>
+    <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px;">
+        <div style="font-weight: 600; font-size: 13px;">Profile &amp; friends</div>
+        <div style="font-size: 12px; color: rgba(36,26,20,0.55);">mruiz@umass.edu · 3 friends</div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 44px; box-sizing: border-box;">
+        <div style="display: flex; flex-direction: column; gap: 1px;">
+          <div style="font-weight: 600; font-size: 13px;">Favorite-food alerts</div>
+          <div style="font-size: 11px; color: rgba(36,26,20,0.55);">keeps your 9 favorites on the server to watch menus</div>
+        </div>
+        <div style="width: 44px; height: 26px; min-width: 44px; border-radius: 999px; background: #7c2430; display: flex; align-items: center; justify-content: flex-end; padding: 2px; box-sizing: border-box;">
+          <div style="width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="6" rx="3" stroke="#3b0a0f" stroke-width="1.5"></rect><circle cx="11" cy="8" r="2" fill="#3b0a0f"></circle></svg>
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Shared with friends</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+    </div>
+    <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 13px;">Today's calories</div>
+        <div style="width: 44px; height: 26px; border-radius: 999px; background: rgba(36,26,20,0.15); display: flex; align-items: center; padding: 2px; box-sizing: border-box;">
+          <div style="width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.15); box-sizing: border-box;"></div>
+        </div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 13px;">Logging streak</div>
+        <div style="width: 44px; height: 26px; border-radius: 999px; background: #7c2430; display: flex; align-items: center; justify-content: flex-end; padding: 2px; box-sizing: border-box;">
+          <div style="width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef;"></div>
+        </div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 13px;">Hall completion</div>
+        <div style="width: 44px; height: 26px; border-radius: 999px; background: rgba(36,26,20,0.15); display: flex; align-items: center; padding: 2px; box-sizing: border-box;">
+          <div style="width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.15); box-sizing: border-box;"></div>
+        </div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 13px;">Top foods</div>
+        <div style="width: 44px; height: 26px; border-radius: 999px; background: rgba(36,26,20,0.15); display: flex; align-items: center; padding: 2px; box-sizing: border-box;">
+          <div style="width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.15); box-sizing: border-box;"></div>
+        </div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 13px;">Favorite halls</div>
+        <div style="width: 44px; height: 26px; border-radius: 999px; background: #7c2430; display: flex; align-items: center; justify-content: flex-end; padding: 2px; box-sizing: border-box;">
+          <div style="width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size: 11px; line-height: 1.4; color: rgba(36,26,20,0.55); padding: 0 2px;">Off by default · accepted friends only · switching off deletes it from the server immediately.</div>
+  </div>
+
+  <div style="margin-top: auto; padding-bottom: 16px;">
+    <div style="background: #fbf7ef; border: 1px solid rgba(124,36,48,0.35); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; min-height: 44px; box-sizing: border-box;">
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <div style="font-weight: 600; font-size: 13px; color: #7c2430;">Delete server data</div>
+        <div style="font-size: 11px; color: rgba(36,26,20,0.55);">Removes profile, friendships, favorites, shared stats. Phone data stays.</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="min-width: 16px;"><path d="M6 3l5 5-5 5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

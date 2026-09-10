@@ -13,10 +13,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { PaneHeader } from "./PaneHeader";
 import { PANE_COUNT, paneDragPosition, paneIndexForSwipe, paneOffsetRange, paneVisibility, settleDuration } from "../lib/paneShell";
+import { durations, reanimatedPaneCurve } from "../lib/motion";
 import { colors, fs } from "../lib/theme";
 
-// The artboard's own cubic-bezier for the pane transform (#179 styling spec).
-const PANE_CURVE = Easing.bezier(0.22, 0.61, 0.36, 1);
 const PANE_OFFSET = fs(36);
 
 // isHorizontalSwipe's own dominance threshold (10px) -- see this file's own doc on why the native
@@ -128,8 +127,8 @@ export function PaneStack({
   const dragStartIndex = useSharedValue(activeIndex);
 
   useEffect(() => {
-    panePos.value = withTiming(activeIndex, { duration: 340, easing: PANE_CURVE });
-    paneOpacityPos.value = withTiming(activeIndex, { duration: 260, easing: Easing.ease });
+    panePos.value = withTiming(activeIndex, { duration: durations.pane, easing: reanimatedPaneCurve });
+    paneOpacityPos.value = withTiming(activeIndex, { duration: durations.paneFade, easing: Easing.ease });
     // panePos/paneOpacityPos are stable useSharedValue identities; listed so this effect only
     // re-fires on a real activeIndex commit, not on every render.
   }, [activeIndex, panePos, paneOpacityPos]);
@@ -142,8 +141,8 @@ export function PaneStack({
   // 340ms/260ms as a fast flick released early with nearly the whole step still to cover.
   function settlePosition(target: number, from: number = target) {
     "worklet";
-    panePos.value = withTiming(target, { duration: settleDuration(from, target, 340), easing: PANE_CURVE });
-    paneOpacityPos.value = withTiming(target, { duration: settleDuration(from, target, 260), easing: Easing.ease });
+    panePos.value = withTiming(target, { duration: settleDuration(from, target, durations.pane), easing: reanimatedPaneCurve });
+    paneOpacityPos.value = withTiming(target, { duration: settleDuration(from, target, durations.paneFade), easing: Easing.ease });
   }
 
   // A settle from the previous gesture (release/cancel) can still be in flight when a new drag

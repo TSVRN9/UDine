@@ -5,6 +5,8 @@ import type { GestureType, GestureUpdateEvent } from "react-native-gesture-handl
 import * as Reanimated from "react-native-reanimated";
 import TestRenderer, { act } from "react-test-renderer";
 import { SHEET_DISMISS_PX, SHEET_FLING_VELOCITY, shouldDismissSheet, useDraggableSheet } from "./sheetAnimation";
+import { durations, reanimatedPaneCurve } from "./motion";
+import { settleDuration } from "./paneShell";
 
 // Same reasoning as paneStack.test.tsx's own comment on this exact pattern: react-native-worklets'
 // Babel plugin bakes a worklet's free variables (imported reanimated functions included) into a
@@ -19,11 +21,11 @@ import { SHEET_DISMISS_PX, SHEET_FLING_VELOCITY, shouldDismissSheet, useDraggabl
 // starts -- exactly indistinguishable from the pre-fix bug this hook exists to close. Capturing the
 // callback instead of auto-firing it is what lets these tests actually drive "the close animation
 // hasn't finished yet" as its own observable state.
-const withTimingCalls: { toValue: number; callback?: (finished?: boolean) => void }[] = [];
+const withTimingCalls: { toValue: number; config?: { duration?: number; easing?: unknown }; callback?: (finished?: boolean) => void }[] = [];
 const withTimingSpy = jest
   .spyOn(Reanimated, "withTiming")
-  .mockImplementation(((toValue: number, _config?: unknown, callback?: (finished?: boolean) => void) => {
-    withTimingCalls.push({ toValue, callback });
+  .mockImplementation(((toValue: number, config?: { duration?: number; easing?: unknown }, callback?: (finished?: boolean) => void) => {
+    withTimingCalls.push({ toValue, config, callback });
     return toValue as unknown as ReturnType<typeof Reanimated.withTiming>;
   }) as typeof Reanimated.withTiming);
 const cancelAnimationSpy = jest.spyOn(Reanimated, "cancelAnimation");
@@ -159,6 +161,42 @@ describe("useDraggableSheet modal timing", () => {
     });
     expect(cancelAnimationSpy).toHaveBeenCalledTimes(1);
     expect(withTimingCalls.map((c) => c.toValue)).toContain(1);
+  });
+});
+
+// #245/motion tokens: the open/close tween must carry the spec's duration (300, not the old 220)
+// AND its cubic-bezier easing (`.sheet` in Prototype.dc.html was always eased -- this hook simply
+// never set one before). Reading `config` off the recorder (not just `toValue`, which every other
+// test in this file already covers) is what makes this actually pin something new.
+describe("useDraggableSheet motion tokens (durations.sheet)", () => {
+  it("opens with durations.sheet and the shared pane curve", () => {
+    act(() => {
+      TestRenderer.create(<Harness visible={true} onClose={() => {}} />);
+    });
+    const openCall = withTimingCalls.find((c) => c.toValue === 1);
+    expect(openCall?.config?.duration).toBe(durations.sheet);
+    expect(openCall?.config?.easing).toBe(reanimatedPaneCurve);
+  });
+
+  it("closes with a settleDuration(durations.sheet) and the shared pane curve", () => {
+    // Not a flat durations.sheet: closeSheet runs settleDuration(from, 0, durations.sheet), same
+    // as every settle call elsewhere in the app -- and the mocked useSharedValue (unlike real
+    // Reanimated) re-inits to 0 on every React re-render rather than persisting like a ref, so
+    // `from` reads back as 0 here regardless of what the open animation set it to. That still
+    // exercises the real settleDuration/durations.sheet wiring end to end, just at the 40% floor
+    // this particular from/to pair lands on -- see paneStack.test.tsx's own settleDuration tests
+    // for the "from actually reflects live drag position" case, which doesn't hit this mock quirk
+    // because it never round-trips through a React re-render.
+    let root!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      root = TestRenderer.create(<Harness visible={true} onClose={() => {}} />);
+    });
+    act(() => {
+      root.update(<Harness visible={false} onClose={() => {}} />);
+    });
+    const closeCall = withTimingCalls.find((c) => c.toValue === 0);
+    expect(closeCall?.config?.duration).toBe(settleDuration(0, 0, durations.sheet));
+    expect(closeCall?.config?.easing).toBe(reanimatedPaneCurve);
   });
 });
 

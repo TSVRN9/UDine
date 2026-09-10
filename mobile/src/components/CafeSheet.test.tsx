@@ -5,6 +5,7 @@ import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text } from "react-native";
 import type { RetailLocationHours } from "@udine/shared";
 import { CafeSheet } from "./CafeSheet";
+import { artboardStyle } from "../lib/artboard";
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
@@ -89,10 +90,13 @@ describe("CafeSheet (info-only state content, #177/café-screen-unification)", (
       fontSize?: number;
       letterSpacing?: number;
     };
-    expect(topStyle.fontSize).toBe(10);
-    expect(topStyle.letterSpacing).toBe(0.5);
-    expect(hoursStyle.fontSize).toBe(9);
-    expect(hoursStyle.letterSpacing).toBe(0.8);
+    const topSpec = artboardStyle("CafeSheet.dc.html", "OPEN · TIL 6 PM");
+    const hoursSpec = artboardStyle("CafeMenuInfoOnly.dc.html", "OPEN · TIL 6 PM");
+    expect(topStyle.fontSize).toBe(topSpec.fontSize);
+    expect(topStyle.letterSpacing).toBe(topSpec.letterSpacing);
+    expect(hoursStyle.fontSize).toBe(hoursSpec.fontSize);
+    expect(hoursStyle.letterSpacing).toBe(hoursSpec.letterSpacing);
+    expect(hoursSpec.fontSize).toBeLessThan(topSpec.fontSize as number);
   });
 
   it("hides DIRECTIONS for babyBerk's degenerate ',' mapAddress instead of opening a blank query", () => {

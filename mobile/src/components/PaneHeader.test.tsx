@@ -1,9 +1,20 @@
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet } from "react-native";
+import * as Reanimated from "react-native-reanimated";
 import type { ReactTestRendererJSON, ReactTestRendererNode } from "react-test-renderer";
 import { DOT_HIT_SLOP, PaneHeader } from "./PaneHeader";
 import { colors, fs } from "../lib/theme";
 import { YOU_PANE_INDEX } from "../lib/paneShell";
+import { durations, reanimatedPaneCurve } from "../lib/motion";
+
+// Same module-scope-before-any-render reasoning as paneStack.test.tsx's own comment on this exact
+// pattern: the worklets babel plugin bakes a worklet's free variables (withTiming included) into a
+// closure at gesture/effect-build time, so the spy must exist before the very first render.
+const withTimingSpy = jest.spyOn(Reanimated, "withTiming");
+
+afterEach(() => {
+  withTimingSpy.mockClear();
+});
 
 // The export shortcut (#90 nav reorg) is the only navigation PaneHeader itself does -- same
 // router.push mechanism YouPane.tsx's goToAllLogs uses. The jest.fn() is created *inside* the
@@ -164,6 +175,22 @@ describe("DOT_HIT_SLOP vertical", () => {
 // #90 nav reorg: the You pane's only settings-style action (export) lives in the shared header,
 // next to the pane-position dots, not in YouPane's own scroll content -- it must stay reachable at
 // any scroll offset, and PaneHeader is the fixed element that never scrolls.
+// Motion tokens (#245 styling spec, Prototype.dc.html:1305's titleStyle): the title crossfade is
+// tuned separately from PaneStack's shared .pane duration (320/240, not 340/260) -- and was
+// previously built from RN's (not Reanimated's) Easing, fed into a Reanimated withTiming. This
+// pins both the corrected durations and that the easing is now genuinely reanimatedPaneCurve.
+describe("PaneHeader title crossfade motion tokens", () => {
+  it("drives its own title/opacity crossfade with durations.paneTitle/paneTitleFade and the shared pane curve", () => {
+    renderHeader(1);
+    const transformCall = withTimingSpy.mock.calls.find(([, config]) => (config as { duration?: number })?.duration === durations.paneTitle);
+    const opacityCall = withTimingSpy.mock.calls.find(([, config]) => (config as { duration?: number })?.duration === durations.paneTitleFade);
+    expect(transformCall).toBeDefined();
+    expect((transformCall?.[1] as { easing?: unknown })?.easing).toBe(reanimatedPaneCurve);
+    expect(opacityCall).toBeDefined();
+    expect((opacityCall?.[1] as { easing?: unknown })?.easing).toBe(Reanimated.Easing.ease);
+  });
+});
+
 describe("PaneHeader export shortcut", () => {
   beforeEach(() => {
     mockRouterPush.mockClear();

@@ -4,7 +4,9 @@
 // asserts the actual rendered knob position/track color mid-transition, not just that Animated.timing
 // was called.
 import renderer, { act } from "react-test-renderer";
+import { Animated } from "react-native";
 import { Toggle } from "./Toggle";
+import { durations, rnPaneCurve } from "../../lib/motion";
 
 function knobTranslateX(root: renderer.ReactTestRenderer): number {
   const knob = root.root.findAllByProps({}).find((n) => Array.isArray(n.props.style) && n.props.style.some((s: any) => s && "transform" in s));
@@ -41,6 +43,26 @@ describe("Toggle motion (#245 item 1)", () => {
       jest.advanceTimersByTime(200);
     });
     expect(knobTranslateX(root)).toBe(18);
+    jest.useRealTimers();
+  });
+
+  it("drives the track/knob tween with durations.toggle and the shared pane curve", () => {
+    jest.useFakeTimers();
+    const timingSpy = jest.spyOn(Animated, "timing");
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<Toggle value={false} onValueChange={() => {}} />);
+    });
+    act(() => {
+      root.update(<Toggle value={true} onValueChange={() => {}} />);
+    });
+    const config = timingSpy.mock.calls[timingSpy.mock.calls.length - 1][1] as { duration?: number; easing?: unknown };
+    expect(config.duration).toBe(durations.toggle);
+    expect(config.easing).toBe(rnPaneCurve);
+    act(() => {
+      jest.advanceTimersByTime(durations.toggle + 50);
+    });
+    timingSpy.mockRestore();
     jest.useRealTimers();
   });
 });

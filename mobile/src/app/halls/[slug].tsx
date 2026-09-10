@@ -50,6 +50,7 @@ import { CustomFoodForm } from "../../components/CustomFoodForm";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
+import { durations } from "../../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { formatTime, retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
 import {
@@ -312,7 +313,7 @@ function PlateAddControl({
   const inPlate = !!plateEntry;
   const widthProgress = useSharedValue(inPlate ? 1 : 0);
   useEffect(() => {
-    widthProgress.value = withTiming(inPlate ? 1 : 0, { duration: 180 });
+    widthProgress.value = withTiming(inPlate ? 1 : 0, { duration: durations.servingsPill });
   }, [inPlate, widthProgress]);
   const clipStyle = useAnimatedStyle(() => ({
     width: PLUS_SLOT_SIZE + widthProgress.value * (STEPPER_FULL_WIDTH - PLUS_SLOT_SIZE),
@@ -915,7 +916,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
       // nested Pressables in RN double-fire/steal gestures." Purely-visual children get
       // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls
       // through to this background Pressable instead of being silently swallowed.
-      <Reanimated.View layout={LinearTransition.duration(180)} style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
+      <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={() => toggleExpanded(dishKey)}
@@ -968,7 +969,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
           />
         </View>
         {expanded && (
-          <Reanimated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.expandedContent} pointerEvents="box-none">
+          <Reanimated.View entering={FadeIn.duration(durations.rowExpandIn)} exiting={FadeOut.duration(durations.rowExpandOut)} style={styles.expandedContent} pointerEvents="box-none">
             <View style={styles.expandedDivider} pointerEvents="none" />
             <Text style={styles.servingSummary} pointerEvents="none">
               {formatServingSummary(item.nutrition)}
@@ -1346,8 +1347,8 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         // gesture nav when there's no bar to already clear that space), and reports its own measured
         // height via onLayout so the list's paddingBottom above can add it in while it's showing.
         <Reanimated.View
-          entering={FadeInDown.duration(200)}
-          exiting={FadeOutDown.duration(150)}
+          entering={FadeInDown.duration(durations.loggedBannerIn)}
+          exiting={FadeOutDown.duration(durations.loggedBannerOut)}
           style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight), paddingBottom: spacing(2) + insets.bottom }]}
           onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
         >

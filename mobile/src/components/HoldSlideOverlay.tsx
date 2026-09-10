@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Reanimated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { DRAG_STEP_COUNT, DRAG_STEP_PX, cancelBlend, formatServings } from "../lib/servingsStepper";
+import { durations } from "../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import type { ButtonAnchor } from "./HoldSlideAddButton";
 
@@ -87,7 +88,7 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
   // comment), so a mount-only effect fires exactly once per hold, every hold.
   const heightProgress = useSharedValue(0);
   useEffect(() => {
-    heightProgress.value = withTiming(1, { duration: 180 });
+    heightProgress.value = withTiming(1, { duration: durations.servingsPill });
   }, [heightProgress]);
 
   const pillStyle = useAnimatedStyle(() => {

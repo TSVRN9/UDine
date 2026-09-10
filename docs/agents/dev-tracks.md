@@ -7,7 +7,7 @@ The task itself travels inline in the dispatch prompt (see `orchestration.md`), 
 | Track | Use for | Agents | Gate | Typical cost |
 |---|---|---|---|---|
 | **XS — direct** | Copy, comments, docs, assets, config values, one-line typo-class fixes. No logic change. | `quick-fixer` only | Orchestrator eyeballs `gh pr diff`, runs the one touched lane, merges | ~1 agent |
-| **S — fast-track** | Bug fixes and small behavior changes confined to ≤3 files in one package; a11y labels; UI polish items with a clear spec; test-only tickets. | `quick-fixer` → `spot-checker` | spot-checker MERGE (one red reproduced, touched lane green) | ~2 light agents |
+| **S — fast-track** | Bug fixes and small behavior changes confined to ≤3 files in one package; a11y labels; UI polish items with a clear spec (the spec is an artboard under `docs/design/` — name it in the dispatch); test-only tickets. | `quick-fixer` → `spot-checker` | spot-checker MERGE (one red reproduced, touched lane green) | ~2 light agents |
 | **M — standard** | New screens/features, anything crossing packages (`shared` + a client), sync/privacy logic, edge functions, anything touching `supabase/` (migrations, RLS, grants, hooks). | `issue-solver` → `pr-reviewer` | pr-reviewer MERGE: every touched lane, every new behavior mutation-tested, invariants listed | ~2 heavy agents |
 | **L — root-cause** | Intermittent, cross-layer, or previously mis-fixed bugs; native/build-toolchain problems. Entered only after an `issue-solver` attempt has failed — see the gate in `orchestration.md`. | `heavy-debugger` → `pr-reviewer` | As M, plus before/after repro tallies | heaviest |
 
@@ -18,6 +18,25 @@ The task itself travels inline in the dispatch prompt (see `orchestration.md`), 
 - Local lanes only (`.github/workflows/ci.yml` header); remote CI is disabled. `supabase test db` is M/L-only.
 - Merge = `gh pr merge N --squash --delete-branch` after the track's gate says MERGE. Owner-granted.
 - Worktree isolation for every agent, always.
+- **UI check, every track.** The gate decides from the diff whether rendered output changed;
+  a dispatch prompt or PR body saying it didn't is the claim under test, not a waiver. When it did:
+  1. **Screenshot in the PR body** from `mobile/scripts/screenshot.sh <route>` (one command;
+     `--record N --tap/--swipe/--longpress` for motion). The gate opens the PNG/frames and compares
+     to the artboard named in the PR. No image on a rendered-output diff → REWORK, not "disclosed".
+  2. **Values from the artboard, not by eye**: tests assert through `artboardStyle()` /
+     `artboardTransitions()` (`mobile/src/lib/artboard.ts`); durations/easings come from
+     `mobile/src/lib/motion.ts` — a new literal outside it is a REWORK.
+  3. **Icons and states**: does the artboard show an icon here, and does the component? Every
+     variant and every boundary the component can reach (0 / 0.5 / max, each badge kind), not the
+     default only. States the static artboard can't depict → say so and cite the `canvas.json`
+     annotation used instead.
+  4. **Motion**: frames from `--record` compared point by point to the annotation (origin,
+     direction, what grows from what). "Looks similar" is not a check.
+  5. **No captions** in rendered text; **comment hygiene** as its own line — a comment that
+     restates well-named code goes.
+  The verdict lists each line separately (logic, values, icons/states, motion, captions/comments).
+  Couldn't render → say so and ESCALATE; never MERGE on "read the code and it looks right".
+  Incident history behind this rule: `docs/decisions-log.md` → "UI verification (2026-09-10)".
 
 ## Cost levers (what changed vs. the old single loop)
 
