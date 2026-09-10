@@ -688,7 +688,11 @@ const styles = StyleSheet.create({
   },
   resultInfo: { flex: 1, gap: 1 },
   resultHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing(1.5) },
-  resultLabel: { fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
+  // flexShrink: 1 -- without it this Text refuses to shrink below its own content width (RN/Yoga
+  // default), so a long dish/product name pushes the sibling kind badge straight off the row's
+  // right edge instead of wrapping around it. Same fix already used for a Text+fixed-sibling row
+  // elsewhere in this app: logs.tsx's mealItemName, halls/[slug].tsx's titleTap children.
+  resultLabel: { flexShrink: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
   resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
   // #381 canvas: docs/design/PlateSheetResults.dc.html:49,60,71,82,93 -- filled pill, no border,
   // 9px/700 sans-serif at 0.4px letterspacing, 2px/6px padding (was an outline pill, mono, fs(10)).
