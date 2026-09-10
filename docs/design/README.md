@@ -13,6 +13,13 @@ re-extract; never hand-edit an artboard here, it will be overwritten.
 python3 docs/design/extract.py <that-file.html>
 ```
 
+The canvas is laid out in named pages (Prototype, Home & Pane Shell, Hall Menu & Ordering, Plate &
+Search, Half Servings, Cafe, You / Profile & Data, Events & Press, Badge Concepts, Archived / Cut
+Features), each a tidy grid with a `PAGE — <name>` title annotation above it and that page's own
+annotations in a column to its right. Draft variations that lost (the `Half servings v1/v2` A–E
+options, `Your data v3 — B`) were deleted outright, not archived — cut *features* (Social, friends,
+login, push, the full Privacy screen, …) are kept on the Archived page for reference, not deleted.
+
 ## Using an artboard as a spec
 
 The artboards are plain HTML with inline styles: hex values, px spacing, and
@@ -59,6 +66,7 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 |---|---|---|---|
 | Add friends (from Social) | `AddFriends.dc.html` | 390×844 | archived (`archive/full-features`) |
 | Add in person - QR | `AddFriendQR.dc.html` | 390×844 | archived (`archive/full-features`) |
+| Macro badge concepts (color exploration) | `BadgeConcepts.dc.html` | 390×844 | design-only |
 | Cafe fallback (menu not posted) | `CafeSheet.dc.html` | 390×844 | `components/CafeSheet.tsx` |
 | Cafe menu - PDF in-app | `CafePdf.dc.html` | 390×844 | `components/CafePdfViewer.tsx` |
 | Cafe menu - prices | `CafeMenu.dc.html` | 390×844 | `app/cafe/[name].tsx` |
@@ -77,11 +85,6 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | F3 -- Macro badges on menu items (new) | `MenuWithBadges.dc.html` | 390×844 | `app/halls/[slug].tsx` |
 | F3 -- You pane, Your Food group (new) | `YouPaneGrouped.dc.html` | 390×844 | `panes/YouPane.tsx`, `components/ui/SectionHeader.tsx` |
 | Friend profile (tap avatar) | `FriendProfile.dc.html` | 390×844 | archived (`archive/full-features`) |
-| Half servings v1 — A: long-press | `ServingsA.dc.html` | 390×844 | superseded by F |
-| Half servings v1 — B: three-button (− 0.5 +) | `ServingsB.dc.html` | 390×844 | superseded by F |
-| Half servings v1 — C: quantity chips (label footer) | `ServingsC.dc.html` | 390×844 | superseded by F |
-| Half servings v2 — D: hold + slide vertical track | `ServingsD.dc.html` | 390×844 | superseded by F |
-| Half servings v2 — E: hold + drag radial dial | `ServingsE.dc.html` | 390×844 | superseded by F |
 | Half servings v2 — F: inline vertical slide (grows from the + button) | `ServingsF.dc.html` | 390×844 | `components/HoldSlideOverlay.tsx`, `components/HoldSlideAddButton.tsx`, `lib/servingsStepper.ts`, `app/halls/[slug].tsx` |
 | Half servings v2 — G: type an exact amount, editing from the plate sheet | `ServingsG.dc.html` | 390×844 | `components/PlateSheet.tsx` |
 | Hall info sheet (i) | `HallInfo.dc.html` | 390×844 | `components/HallInfoSheet.tsx`, `lib/hallMenuTabs.ts` |
@@ -104,5 +107,4 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | You (swipe left) | `You.dc.html` | 390×844 | `panes/YouPane.tsx` |
 | Your data (final) | `Privacy.dc.html` | 390×844 | archived (`archive/full-features`) |
 | Your data v3 — A: three sections (lead) | `PrivacyV3A.dc.html` | 390×844 | archived (`archive/full-features`) |
-| Your data v3 — B: matrix rows | `PrivacyV3B.dc.html` | 390×844 | superseded by A |
 | Your data v3 — C: server-data detail | `ServerData.dc.html` | 390×844 | archived (`archive/full-features`) |

@@ -2,7 +2,7 @@
   "artboards": [
     {
       "file": "Prototype.dc.html",
-      "x": -500,
+      "x": 0,
       "y": 0,
       "w": 390,
       "h": 844,
@@ -11,31 +11,31 @@
     {
       "file": "Social.dc.html",
       "x": 0,
-      "y": 0,
+      "y": 14820,
       "w": 390,
       "h": 844,
       "title": "Social (swipe right)"
     },
     {
       "file": "Main.dc.html",
-      "x": 450,
-      "y": 0,
+      "x": 0,
+      "y": 1220,
       "w": 390,
       "h": 844,
       "title": "Home"
     },
     {
       "file": "You.dc.html",
-      "x": 900,
-      "y": 0,
+      "x": 0,
+      "y": 10200,
       "w": 390,
       "h": 844,
       "title": "You (swipe left)"
     },
     {
       "file": "Logs.dc.html",
-      "x": 1350,
-      "y": 0,
+      "x": 900,
+      "y": 10200,
       "w": 390,
       "h": 844,
       "title": "Logs & stats (from You)"
@@ -43,23 +43,23 @@
     {
       "file": "HallMenu.dc.html",
       "x": 0,
-      "y": 960,
+      "y": 2440,
       "w": 390,
       "h": 844,
       "title": "Hall menu + plate bar"
     },
     {
       "file": "PlateExpanded.dc.html",
-      "x": 450,
-      "y": 960,
+      "x": 0,
+      "y": 4620,
       "w": 390,
       "h": 844,
       "title": "Plate expanded"
     },
     {
       "file": "NutritionLabel.dc.html",
-      "x": 900,
-      "y": 960,
+      "x": 0,
+      "y": 5580,
       "w": 390,
       "h": 844,
       "title": "Nutrition label"
@@ -67,31 +67,31 @@
     {
       "file": "HallInfo.dc.html",
       "x": 1350,
-      "y": 960,
+      "y": 2440,
       "w": 390,
       "h": 844,
       "title": "Hall info sheet (i)"
     },
     {
       "file": "PingBubble.dc.html",
-      "x": 0,
-      "y": 1920,
+      "x": 1350,
+      "y": 14820,
       "w": 390,
       "h": 844,
       "title": "Ping - hold + release"
     },
     {
       "file": "FriendProfile.dc.html",
-      "x": 450,
-      "y": 1920,
+      "x": 900,
+      "y": 14820,
       "w": 390,
       "h": 844,
       "title": "Friend profile (tap avatar)"
     },
     {
       "file": "PushAlerts.dc.html",
-      "x": 900,
-      "y": 1920,
+      "x": 0,
+      "y": 16740,
       "w": 390,
       "h": 844,
       "title": "Notifications - push + in-app"
@@ -99,15 +99,15 @@
     {
       "file": "Login.dc.html",
       "x": 1350,
-      "y": 1920,
+      "y": 15780,
       "w": 390,
       "h": 844,
       "title": "Login / first launch"
     },
     {
       "file": "HomeLoading.dc.html",
-      "x": 0,
-      "y": 3300,
+      "x": 450,
+      "y": 1220,
       "w": 390,
       "h": 844,
       "title": "Home - loading"
@@ -115,7 +115,7 @@
     {
       "file": "MenuLoading.dc.html",
       "x": 450,
-      "y": 3300,
+      "y": 2440,
       "w": 390,
       "h": 844,
       "title": "Hall menu - loading"
@@ -123,39 +123,39 @@
     {
       "file": "HomeOffline.dc.html",
       "x": 900,
-      "y": 3300,
+      "y": 1220,
       "w": 390,
       "h": 844,
       "title": "Home - offline (cached)"
     },
     {
       "file": "MenuError.dc.html",
-      "x": 1350,
-      "y": 3300,
+      "x": 900,
+      "y": 2440,
       "w": 390,
       "h": 844,
       "title": "Hall menu - fetch failed"
     },
     {
       "file": "SocialOffline.dc.html",
-      "x": 1800,
-      "y": 3300,
+      "x": 450,
+      "y": 14820,
       "w": 390,
       "h": 844,
       "title": "Social - offline"
     },
     {
       "file": "Privacy.dc.html",
-      "x": 0,
-      "y": 4360,
+      "x": 450,
+      "y": 16740,
       "w": 390,
       "h": 844,
       "title": "Your data (final)"
     },
     {
       "file": "ExportChecklist.dc.html",
-      "x": 450,
-      "y": 4360,
+      "x": 1350,
+      "y": 10200,
       "w": 390,
       "h": 844,
       "title": "Export data (final - batch select)"
@@ -163,7 +163,7 @@
     {
       "file": "AddFriends.dc.html",
       "x": 0,
-      "y": 5420,
+      "y": 15780,
       "w": 390,
       "h": 844,
       "title": "Add friends (from Social)"
@@ -171,7 +171,7 @@
     {
       "file": "AddFriendQR.dc.html",
       "x": 450,
-      "y": 5420,
+      "y": 15780,
       "w": 390,
       "h": 844,
       "title": "Add in person - QR"
@@ -179,7 +179,7 @@
     {
       "file": "QRConfirm.dc.html",
       "x": 900,
-      "y": 5420,
+      "y": 15780,
       "w": 390,
       "h": 844,
       "title": "QR scan - confirm friend"
@@ -187,7 +187,7 @@
     {
       "file": "CafeMenu.dc.html",
       "x": 0,
-      "y": 6480,
+      "y": 8020,
       "w": 390,
       "h": 844,
       "title": "Cafe menu - prices"
@@ -195,7 +195,7 @@
     {
       "file": "CafeSheet.dc.html",
       "x": 450,
-      "y": 6480,
+      "y": 8020,
       "w": 390,
       "h": 844,
       "title": "Cafe fallback (menu not posted)"
@@ -203,7 +203,7 @@
     {
       "file": "CafePdf.dc.html",
       "x": 900,
-      "y": 6480,
+      "y": 8020,
       "w": 390,
       "h": 844,
       "title": "Cafe menu - PDF in-app"
@@ -211,111 +211,63 @@
     {
       "file": "DataModel.dc.html",
       "x": 0,
-      "y": 7540,
+      "y": 11160,
       "w": 900,
       "h": 844,
       "title": "Data model — sync / share / delete"
     },
     {
       "file": "PrivacyV3A.dc.html",
-      "x": 980,
-      "y": 7540,
+      "x": 900,
+      "y": 16740,
       "w": 390,
       "h": 844,
       "title": "Your data v3 — A: three sections (lead)"
     },
     {
-      "file": "PrivacyV3B.dc.html",
-      "x": 1430,
-      "y": 7540,
-      "w": 390,
-      "h": 844,
-      "title": "Your data v3 — B: matrix rows"
-    },
-    {
       "file": "ServerData.dc.html",
-      "x": 1880,
-      "y": 7540,
+      "x": 1350,
+      "y": 16740,
       "w": 390,
       "h": 844,
       "title": "Your data v3 — C: server-data detail"
     },
     {
-      "file": "ServingsA.dc.html",
-      "x": 0,
-      "y": 8600,
-      "w": 390,
-      "h": 844,
-      "title": "Half servings v1 — A: long-press"
-    },
-    {
-      "file": "ServingsB.dc.html",
-      "x": 450,
-      "y": 8600,
-      "w": 390,
-      "h": 844,
-      "title": "Half servings v1 — B: three-button (− 0.5 +)"
-    },
-    {
-      "file": "ServingsC.dc.html",
-      "x": 900,
-      "y": 8600,
-      "w": 390,
-      "h": 844,
-      "title": "Half servings v1 — C: quantity chips (label footer)"
-    },
-    {
-      "file": "ServingsD.dc.html",
-      "x": 1350,
-      "y": 8600,
-      "w": 390,
-      "h": 844,
-      "title": "Half servings v2 — D: hold + slide vertical track"
-    },
-    {
-      "file": "ServingsE.dc.html",
-      "x": 1800,
-      "y": 8600,
-      "w": 390,
-      "h": 844,
-      "title": "Half servings v2 — E: hold + drag radial dial"
-    },
-    {
       "file": "ServingsF.dc.html",
-      "x": 2250,
-      "y": 8600,
+      "x": 0,
+      "y": 6800,
       "w": 390,
       "h": 844,
       "title": "Half servings v2 — F: inline vertical slide (grows from the + button)"
     },
     {
       "file": "ServingsG.dc.html",
-      "x": 2700,
-      "y": 8600,
+      "x": 450,
+      "y": 6800,
       "w": 390,
       "h": 844,
       "title": "Half servings v2 — G: type an exact amount, editing from the plate sheet"
     },
     {
       "file": "FilterSheet.dc.html",
-      "x": 450,
-      "y": 9660,
+      "x": 1350,
+      "y": 3400,
       "w": 390,
       "h": 844,
       "title": "F3 -- Filter sheet, in place (new)"
     },
     {
       "file": "YouPaneGrouped.dc.html",
-      "x": 900,
-      "y": 9660,
+      "x": 450,
+      "y": 10200,
       "w": 390,
       "h": 844,
       "title": "F3 -- You pane, Your Food group (new)"
     },
     {
       "file": "EventsPanePress.dc.html",
-      "x": 1350,
-      "y": 9660,
+      "x": 0,
+      "y": 12380,
       "w": 390,
       "h": 844,
       "title": "F3 -- Events pane + Press/Newsletter (new)"
@@ -323,7 +275,7 @@
     {
       "file": "MenuFAB_Active.dc.html",
       "x": 0,
-      "y": 11780,
+      "y": 3400,
       "w": 390,
       "h": 844,
       "title": "F3 -- Filter FAB, active (final)"
@@ -331,7 +283,7 @@
     {
       "file": "MenuFAB_Inactive.dc.html",
       "x": 450,
-      "y": 11780,
+      "y": 3400,
       "w": 390,
       "h": 844,
       "title": "F3 -- Filter FAB, no filters (permanent, bare icon)"
@@ -339,240 +291,318 @@
     {
       "file": "MenuWithBadges.dc.html",
       "x": 900,
-      "y": 11780,
+      "y": 3400,
       "w": 390,
       "h": 844,
       "title": "F3 -- Macro badges on menu items (new)"
     },
     {
       "file": "CafeMenuIntegrated.dc.html",
-      "x": 0,
-      "y": 12840,
+      "x": 1350,
+      "y": 8020,
       "w": 390,
       "h": 844,
       "title": "F1 -- Cafe menu, POS-integrated (Peet's)"
     },
     {
       "file": "CafeMenuMixed.dc.html",
-      "x": 450,
-      "y": 12840,
+      "x": 0,
+      "y": 8980,
       "w": 390,
       "h": 844,
       "title": "F1 -- Cafe menu, standing + catalog match"
     },
     {
       "file": "CafeMenuInfoOnly.dc.html",
-      "x": 900,
-      "y": 12840,
+      "x": 450,
+      "y": 8980,
       "w": 390,
       "h": 844,
       "title": "F1 -- Cafe menu, info-only (food truck)"
     },
     {
       "file": "PlateSheetResults.dc.html",
-      "x": 0,
-      "y": 13900,
+      "x": 450,
+      "y": 4620,
       "w": 390,
       "h": 844,
       "title": "F2 -- Search results: paginated + custom badge"
     },
     {
       "file": "SearchResultDetail.dc.html",
-      "x": 450,
-      "y": 13900,
+      "x": 900,
+      "y": 4620,
       "w": 390,
       "h": 844,
       "title": "F2 -- Result confirm step (NutritionLabel reuse)"
     },
     {
       "file": "CustomFoodForm.dc.html",
-      "x": 900,
-      "y": 13900,
+      "x": 1350,
+      "y": 4620,
       "w": 390,
       "h": 844,
       "title": "F2 -- Create a custom food"
+    },
+    {
+      "file": "BadgeConcepts.dc.html",
+      "w": 390,
+      "h": 844,
+      "title": "Macro badge concepts (color exploration)",
+      "x": 0,
+      "y": 13600
     }
   ],
   "annotations": [
     {
+      "id": "page-title-prototype",
+      "x": 0,
+      "y": -90,
+      "w": 700,
+      "text": "PAGE — Prototype"
+    },
+    {
+      "id": "page-title-home-pane-shell",
+      "x": 0,
+      "y": 1130,
+      "w": 1350,
+      "text": "PAGE — Home & Pane Shell"
+    },
+    {
+      "id": "page-title-hall-menu-ordering",
+      "x": 0,
+      "y": 2350,
+      "w": 1800,
+      "text": "PAGE — Hall Menu & Ordering"
+    },
+    {
+      "id": "page-title-plate-search",
+      "x": 0,
+      "y": 4530,
+      "w": 1800,
+      "text": "PAGE — Plate & Search"
+    },
+    {
+      "id": "page-title-half-servings-shipped",
+      "x": 0,
+      "y": 6710,
+      "w": 900,
+      "text": "PAGE — Half Servings (shipped)"
+    },
+    {
+      "id": "page-title-cafe",
+      "x": 0,
+      "y": 7930,
+      "w": 1800,
+      "text": "PAGE — Cafe"
+    },
+    {
+      "id": "page-title-you-profile-data",
+      "x": 0,
+      "y": 10110,
+      "w": 1800,
+      "text": "PAGE — You / Profile & Data"
+    },
+    {
+      "id": "page-title-events-press",
+      "x": 0,
+      "y": 12290,
+      "w": 700,
+      "text": "PAGE — Events & Press"
+    },
+    {
+      "id": "page-title-badge-concepts",
+      "x": 0,
+      "y": 13510,
+      "w": 700,
+      "text": "PAGE — Badge Concepts"
+    },
+    {
+      "id": "page-title-archived-cut-features-kept-for-reference",
+      "x": 0,
+      "y": 14730,
+      "w": 1800,
+      "text": "PAGE — Archived / Cut Features (kept for reference)"
+    },
+    {
       "id": "prototype-note",
-      "x": -500,
-      "y": -210,
+      "x": 530,
+      "y": 0,
       "w": 390,
       "text": "INTERACTIVE PROTOTYPE - tap through the whole app. Dots switch the 3-pane strip (320ms slide). Hall card -> menu pushes in with a real skeleton load; meal tabs + date stepper live; + steppers fill the plate; plate bar slides up -> tap it for the bottom sheet -> LOG clears the plate, toasts, and bumps the You pane's totals. FULL NUTRITION LABEL is its own sheet. You pane: ALL LOGS, Your Data (all toggles animate + toast the server consequence), Export (batch select, format pill, live count). Social: Casey -> profile -> Ping (bubble -> pick a hall); + -> Add Friends -> QR (code/scan). Tweak chip 'offline' simulates the offline treatment everywhere at once. Not in the prototype: login (one-shot), OS push (system chrome), hold-to-ping gesture (tap stands in). Static artboards remain the per-screen spec.\n\nDECIDED (owner):\n- Pane transition = SHARED-AXIS: 36px drift + fade under the fixed title/dots header. Slide/parallax/crossfade workshop chips removed.\n- 'Being served now' line REMOVED from the hall menu - serving windows live only in the i sheet.\n- Hall info: the WHOLE TITLE is now the tap target (owner round 2 - the 22px circle still read as a button). A small hint sits after the name; workshop chip 'infoHint' flips it live: glyph (bare 13px i at 45% ink - lead) · chevron (caret-down, the 'title is a menu' idiom) · none (cleanest, least discoverable). Name + date are nowrap so the header can never wrap. Sheet unchanged: address + directions, serving windows with gold NOW, grab hours, events (get_infov2 + get_beacons_events). Static boards show the glyph lead; HallInfo's background shows it gold while the sheet is open."
     },
     {
       "id": "swipe-map",
-      "x": 450,
-      "y": -150,
+      "x": 1430,
+      "y": 1220,
       "w": 390,
       "text": "Top row = the 3-pane swipe strip, in on-screen order.\nSwipe RIGHT from Home reveals Social; swipe LEFT reveals You.\nDots under each header show the pane position."
     },
     {
       "id": "photo-sourcing",
-      "x": 1800,
-      "y": 0,
+      "x": 1430,
+      "y": 2900,
       "w": 260,
       "text": "Hall cards use placeholder gradients + monograms. The official APK bundles no hall photos (checked) - they load remotely. Implementation: pull photos from umassdining.com location pages, or ship our own bundled photos."
     },
     {
       "id": "menu-nav",
-      "x": 900,
-      "y": -150,
+      "x": 1430,
+      "y": 1640,
       "w": 320,
       "text": "Menu navigation, DECIDED: Home only shows the current date + meal (static heading, no picker). Day/meal switching lives in the hall menu - meal tabs plus the date stepper in its header - driving the foodpro-menu-ajax query (tid + date)."
     },
     {
       "id": "grabngo-tab",
-      "x": 1800,
-      "y": 300,
+      "x": 1880,
+      "y": 2440,
       "w": 260,
       "text": "Grab 'N Go, DECIDED: on Home it is the strip inside each hall card (split card); inside the hall menu it is the last tab in the meal-tab row (bag icon, same muted ink as the other inactive tabs, divider before it). Both open that hall's Grab 'N Go menu in the same station-grouped layout. Selecting the grab tab moves the gold underline there; the date stepper still applies."
     },
     {
       "id": "logs-view",
-      "x": 1800,
-      "y": 560,
+      "x": 1880,
+      "y": 10200,
       "w": 260,
       "text": "Logs view opens from ALL LOGS on the You pane. Tap a log row to edit in place (stepper + remove - French Toast shown in that state). Week strip flips days; gold dot = day has logs. All history and stats stay device-local."
     },
     {
       "id": "events-tap",
-      "x": 0,
-      "y": -190,
+      "x": 1430,
+      "y": 2060,
       "w": 390,
       "text": "Events: the banner IS the promo image (it usually contains the title), so no separate title row - just venue + date. Tapping opens the full pamphlet in-app; if the event links to an external site (external-link icon, e.g. Summer Hours), it opens in the pop-up in-app browser instead."
     },
     {
       "id": "off-search",
-      "x": 1340,
-      "y": 960,
+      "x": 1880,
+      "y": 4620,
       "w": 300,
       "text": "OpenFoodFacts placement (your open question): proposed as the 'Add something else' row inside the expanded plate sheet - off-menu foods enter at the moment of logging, so search/scan lives where logging happens. Could also surface on the You screen's log section as a secondary entry point."
     },
     {
       "id": "new-features",
-      "x": 0,
-      "y": 1560,
+      "x": 1880,
+      "y": 16080,
       "w": 300,
       "text": "Build plan: epic #87 (mobile-only; web workshopped later), children #88-#96.\n- Concoctions: SHELVED per owner decision - see issue #86; mockup kept for reference\n- Hall completion %: #89/#92 (device-local seen-dish index)\n- 0-10 scores: #89 (display mapping over Elo, min-comparisons gate)\n- Mealtime + hours: #88 (get_infov2 client)"
     },
     {
       "id": "ping-gesture",
-      "x": 0,
-      "y": 2820,
+      "x": 1880,
+      "y": 14820,
       "w": 340,
       "text": "Ping gesture v2 (replaced the radial per your feedback): hold a friend -> speech bubble with a playful message ('Let's go to...', 'Come to...', 'Meet me at...' - shuffles per hold), halls listed below, slide down and release on one. The sent ping carries the message + hall."
     },
     {
       "id": "friend-privacy",
-      "x": 450,
-      "y": 2820,
+      "x": 1880,
+      "y": 15240,
       "w": 340,
       "text": "PRIVACY: DECIDED (owner, 2026-08-19) - friend-visible stats are opt-in PER STAT, default all-off; only opted-in stats leave the device; accepted friends only; revoking a toggle deletes the stat server-side. Built in #94 (schema + RLS + settings UI + residency-table amendment). Un-shared stats render as 'doesn't share this' on the profile."
     },
     {
       "id": "notif-note",
-      "x": 900,
-      "y": 2820,
+      "x": 1880,
+      "y": 15660,
       "w": 300,
       "text": "Push mockups deliberately omit OS chrome (status bar/clock) - the real OS draws those. Food-sighting copy leads with WHERE and UNTIL WHEN, since that's the actionable part. The ping push reuses the bubble message verbatim."
     },
     {
       "id": "loading-strategy",
-      "x": 0,
-      "y": 3140,
+      "x": 1430,
+      "y": 2480,
       "w": 400,
       "text": "Loading + failure row. Skeletons: everything the app already knows renders immediately (hall names, date, meal tabs, stepper); only network slots shimmer. Offline, DECIDED (owner): the app keeps working - menus barely change day to day, so offline is NOT an error state. Just a small 'updated 7:12 AM' line with a wifi-off glyph in the date row (Home) / under the header (Social); everything else renders normally from the daily cache, including OPEN/CLOSED pills, which are computed on-device from cached hours + the clock, so they stay genuinely live. Pings queue and send on reconnect. Fetch-failed (hall menu) is the one loud state: retry card, 'menu not posted yet' second cause, saved-copy fallback. The plate bar survives every state - plate + log are device-local."
     },
     {
       "id": "privacy-final",
-      "x": 900,
-      "y": 4360,
+      "x": 1880,
+      "y": 11040,
       "w": 340,
       "text": "PRIVACY - DECIDED: data map layout with the share-with-friends toggles flattened inline - one screen: phone-only group (+ counts, EXPORT link), server group (profile/friends + favorite-food-alerts toggle), shared-with-friends group with all 5 per-stat toggles immediately editable (opt-in, default OFF, revoke deletes server-side), and Delete server data.\n\nEXPORT - DECIDED (owner): batch select. Checkboxes per store, CSV/JSON/BOTH format pill, one export button with the running count. Matches PR #157's per-store exports; multi-select + BOTH would need a small ticket on top (the shared exporters exist, the zip/multi-share wrapper doesn't)."
     },
     {
       "id": "cafe-note",
-      "x": 1350,
-      "y": 6480,
+      "x": 1880,
+      "y": 8020,
       "w": 360,
       "text": "CAFES (tickets #175-#178, investigation 2026-08-24, CORRECTED per owner): there is NO 'menu without nutrition' tier - a cafe with a daily menu is foodpro-backed with full FDA data (People's Organic proved it: 27KB of nutrition under the 'daily offerings' key our parser was dropping, #175). Two states only:\n1. fetchMenu(location_id) non-empty -> 'Cafe menu - prices': the normal menu screen, maroon price leading each dish's meta line, loggable/rankable.\n2. Empty (closed today / seasonal / PDF-only) -> 'Cafe fallback (menu not posted)': hours, description, the STANDING menu from get_infov2's *_menu HTML, explicitly labeled 'today's menu isn't posted yet' - a fallback, never presented as the daily menu. PDF standing menus (babyBerk x2, Commonwealth) -> 'Cafe menu - PDF in-app', rendered INSIDE the app (owner decision - no external viewer), SAVE to share sheet.\nSample items/prices illustrative."
     },
     {
       "id": "add-friends-note",
-      "x": 1350,
-      "y": 5420,
+      "x": 1880,
+      "y": 16500,
       "w": 340,
       "text": "Add friends: opens from the + avatar on the Social pane's Ping card. Search hits profiles (name or @umass email - hook guarantees every account is @umass.edu). ADD calls request_friendship; REQUESTED = pending outbound. Incoming accept/decline; Sent can cancel.\n\nTOGGLEABLE (owner): 'Findable by search' toggle at the bottom - OFF removes you from search entirely, so no one can request you remotely. The IN-PERSON QR path always works regardless: showing someone your code IS the consent. Code is short-lived (refreshes ~5 min) so a screenshot can't be used later - that's what keeps it in-person-only. Scanning creates the same request_friendship both users confirm. QR mock pattern is decorative, not a real encode.\n\nCONFIRM SCREEN (owner request): after a scan, both phones show the same confirm card - identity + 'scanned in person just now' badge, what friendship actually grants (per-stat sharing rule + pings), ADD button. Both-confirm = accepted, no inbox limbo. In the prototype: Scan tab -> tap the viewfinder to simulate."
     },
     {
       "id": "sync-share-delete",
-      "x": 0,
-      "y": 7330,
+      "x": 1880,
+      "y": 11460,
       "w": 900,
       "text": "SYNC / SHARE / DELETE WORKSHOP (owner ask, 2026-08-26). Today the Your-data screen conflates three ideas: whether a thing is COPIED to the server, whether FRIENDS can read it, and whether you can REMOVE the server copy. The data-model board (left) separates them per category, with three rules: share needs sync; delete is not the same as off (the toggle stays, a still-on sync re-uploads — copy must say so); and today a stat's server row IS its shared copy, so splitting sync from share for stats needs a per-stat visibility flag on shared_stats (schema decision before build).\n\nThree screen variants: A (lead) = three sections, SYNC above SHARE, delete-all at the bottom; SHARE rows grey out when their SYNC is off. B = one dense matrix, every row has Sync | Share | trash. C = keep Your data as an overview and push the detail to a second screen, one card per synced thing with its own delete. Pick one; the DataModel rules apply to all three. Note: owner also decided 2026-08-26 that the three stat toggles default ON (#248), so every variant here shows them on unless the user turned one off."
     },
     {
       "id": "servings-workshop",
-      "x": 0,
-      "y": 8390,
+      "x": 980,
+      "y": 6800,
       "w": 900,
       "text": "FRACTIONAL (HALF) SERVINGS — your open question, not yet decided. Nothing in the data model needs to change for this: servings is already a plain number (LogEntry.servings, PlateEntry.count) and every stepper handler is already delta/value-generic — this is purely a stepper UI gap, not a schema change. Three directions, all reachable from where we are today:\n\nA (lead) = same two-button − / + pill everywhere; long-press either button nudges by ½ instead of 1, with a small hint line under the row. Zero new tap targets, but the gesture only works if the hint actually teaches it — someone who never long-presses never finds ½.\n\nB = insert a middle ½ button into the pill (− ½ 1½ +). Fully discoverable, no gesture to learn, but the pill gets noticeably wider — tightest fit on the dish row's compact inline stepper, where it's crowding the dish name/cal line already.\n\nC = keep A or B's compact stepper on the dish row and plate sheet (space-constrained), but swap the roomier nutrition-label footer's stepper for a row of tappable quantity chips (½ · 1 · 1½ · 2 · 2½ · 3) — one tap lands on an exact count, no stepping through it. Only fits where there's room, so it complements A/B rather than replacing them everywhere.\n\nA and B apply to the SAME control (dish row + plate sheet); C is a different control (the nutrition label's own stepper) that either A or B still needs elsewhere. Pick a dish-row direction (A or B) and, separately, whether the label footer also gets C."
     },
     {
       "id": "servings-hold-slide",
-      "x": 1350,
-      "y": 8390,
+      "x": 980,
+      "y": 7220,
       "w": 900,
       "text": "HALF SERVINGS v2 — a different idea (your ask): instead of tapping ± or a chip, HOLD the + button — the screen dims around it, a drag surface appears, and you slide to a quantity (half-steps included) and lift to commit. Same underlying data (count is already a plain number, see the v1 note) — this changes the gesture, not the model.\n\nD (vertical track) = a slim slider rail floats straight up from the held button, ticked at each ½ step, current value called out in a pill that tracks your thumb. Familiar (same idiom as a volume/brightness slider), one axis to aim on, but it needs real headroom above the row — cramped on a dish near the top of the list.\n\nE (radial dial) = a fan of ticks arcs up-and-left from the button instead, thumb drags along the curve. Reads as more distinctive/playful and doesn't need vertical room, but a curved path is a harder target to hit precisely than a straight line, and radial gestures are a less-established idiom here than a slider.\n\nSee F for a subtler take on the same slide idea, with no scrim.\n\nBoth keep the existing tap-to-step interaction as the fast path for whole numbers — hold is the deliberate, precise path when you want a half. Open question either way: this is a MUCH bigger interaction to build/tune (real gesture recognition, haptics, an escape-by-dragging-off affordance) than v1's A/B/C, which are closer to a small patch on the existing stepper.\n\nE's dial geometry: center is the + button (336,558); ticks sit at radius 95, 18° apart, sweeping from straight up (0.5) to due left (3.0), coordinates computed as (cx - r·sin θ, cy - r·cos θ)."
     },
     {
       "id": "servings-inline-slide",
-      "x": 2250,
-      "y": 8390,
+      "x": 980,
+      "y": 7640,
       "w": 390,
       "text": "F — your follow-up round 1: more subtle than D. No lifted duplicate row — the whole rest of the screen stays exactly as it is. The track is one continuous maroon stem that grows straight up out of the + button in place, right in the row where it already lives, with only a soft drop shadow lifting it off the content behind (it can overlap the card above, same as any native popover). Same ticks/half-step callout as D, just anchored locally instead of staged as a full-screen takeover.\n\nRound 2: the track is now the SAME 44px WIDTH as the add button it grows out of (was a slimmer 22px), and a light scrim (not a full dim) now settles over the rest of the screen while it's held.\n\nRound 3 (your latest ask): fixed the seam between the button and the track above it — it's now ONE continuous stadium-shaped pill, same 44px width, rounded full on both ends, with the + glyph sitting at the bottom where the button always was. Holding it doesn't spawn a second shape next to the button; the button IS the track, stretched upward. Trade-off unchanged from round 1: shorter reach than D's full-height rail — fine for nudging around the current value, tighter for spanning the whole 0–3 range in one drag."
     },
     {
       "id": "servings-plate-edit",
-      "x": 2700,
-      "y": 8390,
+      "x": 980,
+      "y": 8060,
       "w": 390,
       "text": "G — your other ask: a way to adjust to a half serving AFTER it's already on the plate, not just at the moment of adding it from the hall menu.\n\nRounds 1-3 gave the plate row the same hold-and-slide gesture as F. Round 4 (your latest call): drag read as clunky in this denser sheet, and the value bubble had too much air between the number and \"servings\" — so the plate row drops the drag entirely. Tap the count, it becomes a direct text field (gold focus border + cursor shown), type the exact amount, halves included. − and + still work for quick single-step taps; typing is for landing on an exact number in one shot. No OS keyboard drawn (same convention as the rest of this canvas — that's system chrome).\n\nF (hall menu, adding) keeps the hold-and-slide — that row has the room and it's the moment you're already committing to a dish, so the deliberate gesture fits. G (plate, editing) types instead — tighter space, and you're more likely already know the exact number you want to correct to."
     },
     {
       "id": "f1-cafe-unification-note",
-      "x": 0,
-      "y": 12760,
+      "x": 1880,
+      "y": 8440,
       "w": 1290,
       "text": "F1 -- Cafe menu unification (3 states, one screen component, never a different modal shape):\n1. Integrated: fetchMenu(location_id, date) returns real items -> full nutrition, real meal-period tabs, same as a hall.\n2. Mixed/standing: no ajax items -> parseRetailMenuHtml() name+price rows. Matched-by-name against public.dishes get normal nutrition rows. Unmatched rows (dashed border, search glyph instead of +) are the entry point into Feature 2's add-item flow, pre-filled with the item's name -- not a dead end.\n3. Info-only: no ajax items, no standing-menu HTML, no PDF (confirmed real case: babyBerk tid 61). Hours/location/payment only, plus a CTA into Feature 2 so logging is still possible with zero menu data.\nCafeSheet.tsx's old content narrows to just state 3's info card -- states 1 and 2 replace the old cafeTapTarget() menu-vs-sheet branch entirely."
     },
     {
       "id": "f2-add-item-note",
-      "x": 0,
-      "y": 13820,
+      "x": 1880,
+      "y": 5040,
       "w": 1290,
       "text": "F2 -- Add-item flow (search fix + custom foods, on-device-only):\n1. Results list: OFF search gets real pagination (Load 20 More) past the old hard page_size=20 cap. Results now merge FOUR sources, not three -- UMass history/catalog, OpenFoodFacts, device-local Custom foods, and USDA FoodData Central (new -- closes OFF's produce/generic-food gap; free, CC0, same plain-API-key shape as OFF, no new backend proxy needed), each badged.\n2. Tapping ANY result (any badge) opens the confirm step -- NutritionLabel, reused as-is, not forked. OFF results now actually fetch ingredients_text/allergens_tags (previously discarded) so this step isn't UMass-only anymore. Replaces PlateSheet's old instant-add-on-tap.\n3. No matches (or Feature 1's unmatched standing-menu tap) -> Create a custom food: name, serving size, core macros required, secondary fields (fiber/sodium/etc) behind 'More nutrition fields'. Saves to a new on-device-only custom_foods table (shared/src CustomFood type) -- never touches Supabase, per the residency decision. Exported alongside log_entries/favorites."
     },
     {
       "id": "filter-highlight-badge",
-      "x": 450,
-      "y": 9560,
+      "x": 1880,
+      "y": 2860,
       "w": 390,
       "text": "The highlight badge toggle is deliberately distinct from the Allergens/Diet-Tags exclusion pills above it — icon + checkmark instead of a bare fill + ×, so \"highlight\" reads differently from \"exclude\" at a glance rather than looking like the same control twice."
     },
     {
       "id": "you-food-group-note",
-      "x": 900,
-      "y": 9560,
+      "x": 1880,
+      "y": 10620,
       "w": 390,
       "text": "Your Food group: Favorites, Top Foods, and Favorite Halls read as one family of personal food-relationship data instead of three disconnected flat sections — a heavier gold rule + one wrapping label marks the group, each member keeps its own lighter sub-header inside it. The settings icon is the sole account-level action (Export data); more settings can grow behind it later.\n\nFavoriting copy is deliberate: it's a notify+highlight toggle, never a rating input — the bell glyph (not a star) and the hint line under it are the disambiguation so it can't read as \"rate this dish/hall\" next to the Elo sections below, which are read-only by design (no edit affordance — the score comes only from head-to-head comparisons) and say so explicitly."
     },
     {
       "id": "events-press-newsletter-note",
-      "x": 1350,
-      "y": 9560,
+      "x": 530,
+      "y": 12380,
       "w": 390,
       "text": "Press and Newsletter both use the same \"few items + SEE ALL\" pattern as the You pane's Today's Log / Favorites, instead of standalone /press and /newsletter routes with no in-app entry point."
     }
