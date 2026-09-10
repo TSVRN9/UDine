@@ -1741,8 +1741,11 @@ const styles = StyleSheet.create({
   rowMainLine: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   rowMain: { flex: 1, gap: 1 },
   rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
-  rowMetaLine: { flexDirection: "row", alignItems: "baseline", gap: spacing(2) },
-  rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
+  // flexWrap + rowCalories' flexShrink -- a long price/calorie string plus several macro badges
+  // (up to 5 presets can match) could exceed rowMain's available width with nothing to wrap or
+  // shrink it, spilling past the row into the neighboring add button instead of onto a second line.
+  rowMetaLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: spacing(2) },
+  rowCalories: { flexShrink: 1, fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
   macroBadge: { width: fs(15), height: fs(15), borderRadius: fs(15) / 2, borderWidth: 1, borderColor: colors.gold500, alignItems: "center", justifyContent: "center" },
   macroBadgeText: { fontSize: fs(8), fontFamily: fonts.mono, fontWeight: "700", color: colors.maroon600 },
