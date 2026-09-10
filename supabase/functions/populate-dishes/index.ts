@@ -16,6 +16,7 @@
 // changes.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { HALL_TIDS } from "../_shared/hours.ts";
+import { requireCronSecret } from "../_shared/cronAuth.ts";
 
 // UMass Dining's calendar day runs on US/Eastern, not the Edge runtime's clock (UTC on Deno
 // Deploy) -- copied verbatim from check-favorited-foods/index.ts's own todayDateParam (Deno
@@ -188,7 +189,11 @@ export function buildUpsertRows(merged: Map<string, DishRow>, updatedAt: string)
   }));
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  // Anyone holding the public anon key passes verify_jwt -- see _shared/cronAuth.ts.
+  const denied = requireCronSecret(req);
+  if (denied) return denied;
+
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const hallDishes = new Map<number, Map<string, DishRow>>();
