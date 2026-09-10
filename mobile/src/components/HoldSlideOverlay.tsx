@@ -119,9 +119,18 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
         <Reanimated.Text numberOfLines={1} style={[styles.caption, styles.captionOverlay, cancelCaptionStyle]}>Slide down to cancel</Reanimated.Text>
       </View>
       <Reanimated.View style={[styles.pill, { left: pillLeft, width: anchor.width, borderRadius: anchor.width / 2 }, pillStyle]}>
-        {LADDER_OFFSETS.map((k) => (
-          <LadderTick key={k} k={k} anchorWidth={anchor.width} liveIndex={liveIndex} />
-        ))}
+        {/* Only the ladder ticks + glyphs clip to the animating box -- plusRing (below, outside
+         * this wrapper) deliberately paints OUTSIDE the pill's own bounds (see its own comment)
+         * and must stay a direct, unclipped child of the pill, not of this wrapper, or its outset
+         * border gets cut off on every side in the normal fully-grown resting state, not just
+         * mid-animation. */}
+        <View style={[StyleSheet.absoluteFill, styles.pillClip, { borderRadius: anchor.width / 2 }]}>
+          {LADDER_OFFSETS.map((k) => (
+            <LadderTick key={k} k={k} anchorWidth={anchor.width} liveIndex={liveIndex} />
+          ))}
+          <Reanimated.Text style={[styles.plusGlyph, plusStyle, { top: glyphTop, left: glyphLeft }]}>+</Reanimated.Text>
+          <Reanimated.Text style={[styles.plusGlyph, cancelGlyphStyle, { top: glyphTop, left: glyphLeft }]}>✕</Reanimated.Text>
+        </View>
         <View
           style={[
             styles.plusRing,
@@ -134,8 +143,6 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
             },
           ]}
         />
-        <Reanimated.Text style={[styles.plusGlyph, plusStyle, { top: glyphTop, left: glyphLeft }]}>+</Reanimated.Text>
-        <Reanimated.Text style={[styles.plusGlyph, cancelGlyphStyle, { top: glyphTop, left: glyphLeft }]}>✕</Reanimated.Text>
       </Reanimated.View>
       <Reanimated.View style={[styles.bubble, bubbleStyle, { left: pillLeft - 98, top: pillTop + CENTER_Y - 12 }]}>
         <Reanimated.View style={[styles.bubbleContent, countOpacityStyle]} pointerEvents="none">
@@ -194,11 +201,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   captionOverlay: { position: "absolute", left: 0, right: 0 },
-  // overflow: "hidden" clips the ladder/ring/glyphs (absolutely positioned at their final
-  // geometry, not scaled with heightProgress) to the pill's own animating height/top -- without
-  // it they render at full-height position immediately while only the background fill visibly
-  // grows, so the capsule doesn't read as expanding out of the button at all.
-  pill: { position: "absolute", overflow: "hidden", shadowColor: colors.ink900, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  // No overflow here (default "visible") -- plusRing is a direct child of `pill` and deliberately
+  // paints OUTSIDE the pill's bounds (an outset ring around the thumb, see plusRing's own
+  // comment); clipping `pill` itself would cut that ring off in the normal fully-grown resting
+  // state, not just mid-animation. The ladder ticks + glyphs (pill's OTHER children, which do
+  // need to clip to the animating box -- see pillClip below) live in their own nested wrapper
+  // instead.
+  pill: { position: "absolute", shadowColor: colors.ink900, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  // Clips the ladder ticks + glyphs (absolutely positioned at their final geometry, not scaled
+  // with heightProgress) to the pill's own animating height/top -- without it they render at
+  // full-height position immediately while only the background fill visibly grows, so the
+  // capsule doesn't read as expanding out of the button at all. Deliberately excludes plusRing
+  // (see `pill`'s own comment) -- this wrapper fills `pill`'s box exactly (StyleSheet.absoluteFill
+  // against a parent with no fixed size of its own), so it clips to the same animating bounds
+  // pill has at any given frame without needing its own animated style.
+  pillClip: { overflow: "hidden" },
   dot: { position: "absolute", width: TICK_SIZE, height: TICK_SIZE, borderRadius: radii.pill, backgroundColor: withOpacity(colors.paper50, 55) },
   currentDot: {
     position: "absolute",
