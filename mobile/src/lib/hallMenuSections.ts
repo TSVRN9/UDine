@@ -15,13 +15,19 @@ export interface MenuSection {
  * just the active one -- can compute its own tab's content for the swipe crossfade. */
 export function sectionsForPeriod(items: MenuItem[], period: MealPeriod, prefs: FoodPreferences): MenuSection[] {
   const filtered = items.filter((i) => i.mealPeriod === period && menuItemMatchesPreferences(i, prefs));
+  // .trim() the same way grabSections (below) and FilterSheet's distinctStations/
+  // itemMatchesStationAndPriceFilter already do -- the untrimmed scrape can hand back two entries
+  // for the same station differing only in trailing whitespace (confirmed real data, see
+  // grabNGo.test.ts's "Grab n'Go Hot " fixture), which used to render as duplicate section headers.
+  // Only the grouping key is trimmed, matching grabSections -- items themselves are returned as-is.
   const categoriesInOrder: string[] = [];
   for (const i of filtered) {
-    if (!categoriesInOrder.includes(i.category)) categoriesInOrder.push(i.category);
+    const category = i.category.trim();
+    if (!categoriesInOrder.includes(category)) categoriesInOrder.push(category);
   }
   return categoriesInOrder.map((category) => ({
     title: category,
-    data: filtered.filter((i) => i.category === category),
+    data: filtered.filter((i) => i.category.trim() === category),
   }));
 }
 

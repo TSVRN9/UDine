@@ -139,13 +139,18 @@ export function menuItemMatchesPreferences(item: MenuItem, prefs: FoodPreference
 export type MacroPreset = "high-protein" | "low-sodium" | "under-500-cal" | "low-fat" | "high-fiber";
 
 const MACRO_PRESET_CHECKS: Record<MacroPreset, (n: NutritionFacts) => boolean> = {
-  "high-protein": (n) => n.proteinG >= 20,
+  // FDA "high"/"excellent source" claim = >=20% of the 50g protein DV, i.e. 10g -- was 20g (40%
+  // DV), which contradicted this file's own stated rationale and under-badged real high-protein
+  // dishes.
+  "high-protein": (n) => n.proteinG >= 10,
   "low-sodium": (n) => n.sodiumMg <= 400,
   "under-500-cal": (n) => n.calories <= 500,
-  // Guard calories === 0 -- otherwise a 0-calorie item (no fat calories either) divides 0/0 into NaN,
-  // and NaN <= 0.3 is false anyway, but dividing by a literal 0 is worth being explicit about rather
-  // than relying on that IEEE-754 accident.
-  "low-fat": (n) => n.calories !== 0 && (n.totalFatG * 9) / n.calories <= 0.3,
+  // Absolute per-serving cap (standard "low fat" labeling convention), not a calorie ratio -- a
+  // ratio both under- and over-badges: it fails a near-zero-fat, near-zero-calorie condiment
+  // (their ratio is high even though the fat content isn't) and passes a high-fat, high-calorie
+  // dish at the same ratio. This matches the "conservative absolute caps" the doc comment above
+  // already promises for "low"/"under" presets.
+  "low-fat": (n) => n.totalFatG <= 3,
   "high-fiber": (n) => n.dietaryFiberG >= 5,
 };
 
