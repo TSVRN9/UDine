@@ -1,4 +1,4 @@
-import { searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type LogStorage } from "@udine/shared";
+import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type LogStorage } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -113,13 +113,18 @@ export function PlateSheet({
   const [results, setResults] = useState<PlateSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  // Pagination cursors for the two networked sources (OFF/USDA) -- umass history/catalog and
+  // Pagination cursors for the networked sources (OFF/USDA/Branded) -- umass history/catalog and
   // custom foods are local device queries with no meaningful "next page" of their own. Reset on
   // every fresh search (runSearch) and advanced by loadMore below.
   const [offPage, setOffPage] = useState(1);
   const [offHasMore, setOffHasMore] = useState(false);
   const [usdaPage, setUsdaPage] = useState(1);
   const [usdaHasMore, setUsdaHasMore] = useState(false);
+  // Branded (USDA FDC, dataType=Branded) is a second, independent parallel call alongside the
+  // Foundation/SR Legacy one above -- same "usda" PlateSearchResult kind/badge, its own pagination
+  // cursor since it's its own paged endpoint call (see usdaFoodData.ts's searchBrandedFoods doc).
+  const [brandedPage, setBrandedPage] = useState(1);
+  const [brandedHasMore, setBrandedHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
@@ -172,6 +177,8 @@ export function PlateSheet({
       setOffHasMore(false);
       setUsdaPage(1);
       setUsdaHasMore(false);
+      setBrandedPage(1);
+      setBrandedHasMore(false);
       setLoadingMore(false);
     }
   }, [visible]);
@@ -220,16 +227,17 @@ export function PlateSheet({
     setSearching(true);
     setSearchError(null);
     try {
-      const [historySettled, catalogSettled, offSettled, usdaSettled, customSettled] = await Promise.allSettled([
+      const [historySettled, catalogSettled, offSettled, usdaSettled, brandedSettled, customSettled] = await Promise.allSettled([
         getLoggedUmassDishHistory(logStorage, hallTid, q),
         getCachedDishCatalog().then((catalog) => searchCachedDishes(catalog, q)),
         searchProducts(q),
         searchFoods(q),
+        searchBrandedFoods(q),
         customFoodsStorage.getAllCustomFoods().then((foods) => searchCustomFoods(foods, q)),
       ]);
       if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
 
-      const rejections = [historySettled, catalogSettled, offSettled, usdaSettled, customSettled].filter(
+      const rejections = [historySettled, catalogSettled, offSettled, usdaSettled, brandedSettled, customSettled].filter(
         (r): r is PromiseRejectedResult => r.status === "rejected",
       );
 
@@ -237,6 +245,7 @@ export function PlateSheet({
       const catalogHits = catalogSettled.status === "fulfilled" ? catalogSettled.value : [];
       const off = offSettled.status === "fulfilled" ? offSettled.value : { results: [], hasMore: false };
       const usda = usdaSettled.status === "fulfilled" ? usdaSettled.value : { results: [], hasMore: false };
+      const branded = brandedSettled.status === "fulfilled" ? brandedSettled.value : { results: [], hasMore: false };
       const custom = customSettled.status === "fulfilled" ? customSettled.value : [];
 
       // Merge the two UMass-side sources by dishName (case-insensitive). Local history wins on a
@@ -256,6 +265,7 @@ export function PlateSheet({
         ...custom.map((food): PlateSearchResult => ({ kind: "custom", food })),
         ...off.results.map((product): PlateSearchResult => ({ kind: "off", product })),
         ...usda.results.map((food): PlateSearchResult => ({ kind: "usda", food })),
+        ...branded.results.map((food): PlateSearchResult => ({ kind: "usda", food })),
       ];
 
       // A rejection is only surfaced as a failure when it left the user with nothing: a real hit
@@ -276,6 +286,7 @@ export function PlateSheet({
         setResults(null);
         setOffHasMore(false);
         setUsdaHasMore(false);
+        setBrandedHasMore(false);
         return;
       }
 
@@ -283,35 +294,41 @@ export function PlateSheet({
       setResults(merged);
       setOffPage(1);
       setUsdaPage(1);
+      setBrandedPage(1);
       setOffHasMore(off.hasMore);
       setUsdaHasMore(usda.hasMore);
+      setBrandedHasMore(branded.hasMore);
     } finally {
       if (searchSeq.current === seq) setSearching(false);
     }
   }
 
-  /** Fetches the next page of whichever of OFF/USDA still has more (#91 follow-on pagination) and
-   * appends the new hits -- umass history/catalog and custom foods have no "next page" of their
-   * own (local, unpaginated queries), so this only ever touches the two networked sources. */
+  /** Fetches the next page of whichever of OFF/USDA/Branded still has more (#91 follow-on
+   * pagination) and appends the new hits -- umass history/catalog and custom foods have no "next
+   * page" of their own (local, unpaginated queries), so this only ever touches the three networked
+   * sources. */
   async function loadMore() {
-    if (loadingMore || (!offHasMore && !usdaHasMore)) return;
+    if (loadingMore || (!offHasMore && !usdaHasMore && !brandedHasMore)) return;
     const q = query.trim();
     if (!q) return;
     const seq = searchSeq.current; // gated the same way runSearch is -- a stale response must not append onto a newer/closed search
     setLoadingMore(true);
     try {
-      const [offSettled, usdaSettled] = await Promise.allSettled([
+      const [offSettled, usdaSettled, brandedSettled] = await Promise.allSettled([
         offHasMore ? searchProducts(q, offPage + 1) : Promise.resolve(null),
         usdaHasMore ? searchFoods(q, usdaPage + 1) : Promise.resolve(null),
+        brandedHasMore ? searchBrandedFoods(q, brandedPage + 1) : Promise.resolve(null),
       ]);
       if (searchSeq.current !== seq) return;
 
       const off = offSettled.status === "fulfilled" ? offSettled.value : null;
       const usda = usdaSettled.status === "fulfilled" ? usdaSettled.value : null;
+      const branded = brandedSettled.status === "fulfilled" ? brandedSettled.value : null;
 
       const additions: PlateSearchResult[] = [
         ...(off?.results.map((product): PlateSearchResult => ({ kind: "off", product })) ?? []),
         ...(usda?.results.map((food): PlateSearchResult => ({ kind: "usda", food })) ?? []),
+        ...(branded?.results.map((food): PlateSearchResult => ({ kind: "usda", food })) ?? []),
       ];
       if (additions.length > 0) setResults((prev) => [...(prev ?? []), ...additions]);
       if (off) {
@@ -321,6 +338,10 @@ export function PlateSheet({
       if (usda) {
         setUsdaPage((p) => p + 1);
         setUsdaHasMore(usda.hasMore);
+      }
+      if (branded) {
+        setBrandedPage((p) => p + 1);
+        setBrandedHasMore(branded.hasMore);
       }
     } finally {
       if (searchSeq.current === seq) setLoadingMore(false);
@@ -477,7 +498,7 @@ export function PlateSheet({
                       </View>
                     );
                   })}
-                  {(offHasMore || usdaHasMore) && (
+                  {(offHasMore || usdaHasMore || brandedHasMore) && (
                     <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
                       {loadingMore ? "Loading…" : `Load ${SEARCH_PAGE_SIZE} More`}
                     </Button>

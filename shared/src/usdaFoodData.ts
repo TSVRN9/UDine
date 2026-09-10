@@ -64,10 +64,11 @@ function findNutrient(nutrients: FdcNutrient[], namePart: string, unit?: string)
   return hit?.value ?? 0;
 }
 
-/** Foundation/SR Legacy values are always reported per 100g of the food -- not an estimate/fallback
- * like OFF's per-100g case, but genuinely how FDC's reference data is structured. Reuses the exact
- * "per 100g" marker plate.ts's isEstimatedServing checks for (see its own doc, updated to name both
- * sources) so the UI flags it the same way OFF's per-100g fallback already is. */
+/** Foundation/SR Legacy AND Branded values are both always reported per 100g of the food -- not an
+ * estimate/fallback like OFF's per-100g case, but genuinely how FDC's search-endpoint data is
+ * structured, regardless of dataType. Reuses the exact "per 100g" marker plate.ts's
+ * isEstimatedServing checks for (see its own doc, updated to name both sources) so the UI flags it
+ * the same way OFF's per-100g fallback already is. */
 function mapFdcFood(food: FdcFood): UsdaSearchResult {
   const nutrients = food.foodNutrients ?? [];
   const nutrition: NutritionFacts = {
@@ -102,7 +103,23 @@ const FDC_PAGE_SIZE = 20;
  * openFoodFacts.ts's searchProducts pagination shape.
  */
 export async function searchFoods(query: string, page = 1): Promise<UsdaSearchPage> {
-  const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey())}&query=${encodeURIComponent(query)}&dataType=${encodeURIComponent("Foundation,SR Legacy")}&pageNumber=${page}&pageSize=${FDC_PAGE_SIZE}`;
+  return searchByDataType(query, "Foundation,SR Legacy", page);
+}
+
+/**
+ * Same FDC /foods/search endpoint as searchFoods, but `dataType=Branded` -- manufacturer-submitted
+ * packaged goods (carries UPC/GTIN, not surfaced here -- nothing in this app consumes it, see
+ * UsdaSearchResult's own doc). Kept as an independent second call rather than broadening
+ * searchFoods's dataType filter, so both result sets stay at full quality in their own 20-result
+ * page instead of one crowding out the other (see searchFoods's doc for why Branded is excluded
+ * there -- it's exactly OpenFoodFacts's own territory in that shared page).
+ */
+export async function searchBrandedFoods(query: string, page = 1): Promise<UsdaSearchPage> {
+  return searchByDataType(query, "Branded", page);
+}
+
+async function searchByDataType(query: string, dataType: string, page: number): Promise<UsdaSearchPage> {
+  const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey())}&query=${encodeURIComponent(query)}&dataType=${encodeURIComponent(dataType)}&pageNumber=${page}&pageSize=${FDC_PAGE_SIZE}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`USDA FoodData Central search ${res.status}`);
   const data = (await res.json()) as FdcSearchApiResponse;
