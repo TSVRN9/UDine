@@ -614,6 +614,27 @@ describe("PlateSheet", () => {
     });
   });
 
+  // Bug report: a long dish/product name pushed the kind badge (UMass/Custom/Packaged/USDA)
+  // clean off the row's right edge instead of wrapping around it -- reproduced on-device with
+  // e.g. "Buffalo Chicken Salad w/Blue Cheese Dressing" and confirmed against the live design
+  // canvas (docs/design/PlateSheetResults.dc.html, unchanged from upstream) that no icon/overflow
+  // handling was ever specified there for this case.
+  it("lets a long dish name shrink/wrap instead of pushing its kind badge off the row", async () => {
+    mockedSearchCachedDishes.mockReturnValue([
+      { dishName: "Buffalo Chicken Salad w/Blue Cheese Dressing", nutrition: { ...DISH.nutrition, calories: 322 }, allergens: [], dietTags: [], updatedAt: "x" },
+    ]);
+    const root = renderSheet();
+
+    await runSearch(root, "buffalo");
+
+    const { StyleSheet } = require("react-native");
+    const label = root.root.findAll(
+      (n) => n.type === Text && Array.isArray(n.props.children) === false && n.props.children === "Buffalo Chicken Salad w/Blue Cheese Dressing",
+    )[0];
+    const flat = StyleSheet.flatten(label.props.style);
+    expect(flat.flexShrink).toBe(1);
+  });
+
   describe("idle search state (#382)", () => {
     it("starts idle with 'Add something else', not a live search box, until tapped", () => {
       const root = renderSheet();
