@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import type { Favorite, FavoritesStorage } from "@udine/shared";
 import { favoriteKey } from "@udine/shared";
 import { getDb } from "./db";
@@ -37,16 +37,22 @@ export class SqliteFavoritesStorage implements FavoritesStorage {
  */
 export function useGuardedToggleFavorite(storage: FavoritesStorage, onUpdate: (favorites: Favorite[]) => void) {
   const inFlight = useRef<Set<string>>(new Set());
-  return async function toggleFavorite(favorite: Favorite, currentlyFavorited: boolean): Promise<void> {
-    const key = favoriteKey(favorite);
-    if (inFlight.current.has(key)) return;
-    inFlight.current.add(key);
-    try {
-      if (currentlyFavorited) await storage.removeFavorite(favorite);
-      else await storage.addFavorite(favorite);
-      onUpdate(await storage.getFavorites());
-    } finally {
-      inFlight.current.delete(key);
-    }
-  };
+  // useCallback, not a plain returned closure -- callers (e.g. halls/[slug].tsx's renderDishRow)
+  // wrap handlers that call this in their own useCallback for SectionList row-memoization; a fresh
+  // function identity here every render would propagate through and defeat that.
+  return useCallback(
+    async function toggleFavorite(favorite: Favorite, currentlyFavorited: boolean): Promise<void> {
+      const key = favoriteKey(favorite);
+      if (inFlight.current.has(key)) return;
+      inFlight.current.add(key);
+      try {
+        if (currentlyFavorited) await storage.removeFavorite(favorite);
+        else await storage.addFavorite(favorite);
+        onUpdate(await storage.getFavorites());
+      } finally {
+        inFlight.current.delete(key);
+      }
+    },
+    [storage, onUpdate],
+  );
 }
