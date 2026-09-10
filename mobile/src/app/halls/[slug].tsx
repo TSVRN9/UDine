@@ -215,6 +215,9 @@ function MacroBadgeGlyph({ preset }: { preset: MacroPreset }) {
           <Circle cx={8.2} cy={9.6} r={1.15} fill={MACRO_BADGE_CIRCLE_FILL} />
         </>
       );
+    default:
+      preset satisfies never;
+      return null;
   }
 }
 
@@ -993,15 +996,8 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         <View style={styles.rowMainLine} pointerEvents="box-none">
           <FavoriteStar isFavorite={isFavorite} dishName={item.dishName} onPress={() => toggleDishFavorite(item.dishName)} />
           <View style={styles.rowMain} pointerEvents="none">
-            <Text style={styles.rowText}>{item.dishName}</Text>
-            {/* #378 (CafeMenuMixed.dc.html:43): price folds into the same uniform-color meta
-                string as cal/protein, no separate maroon-highlighted price Text -- was two
-                differently-styled Texts (rowPrice/rowCalories) that no longer matches spec. */}
-            <View style={styles.rowMetaLine}>
-              <Text style={styles.rowCalories}>
-                {item.price ? `${item.price} · ` : ""}
-                {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
-              </Text>
+            <View style={styles.rowNameLine}>
+              <Text style={styles.rowText}>{item.dishName}</Text>
               {macroBadges.length > 0 && (
                 <View style={styles.macroBadgeRow}>
                   {macroBadges.map((preset) => (
@@ -1010,6 +1006,13 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
                 </View>
               )}
             </View>
+            {/* #378 (CafeMenuMixed.dc.html:43): price folds into the same uniform-color meta
+                string as cal/protein, no separate maroon-highlighted price Text -- was two
+                differently-styled Texts (rowPrice/rowCalories) that no longer matches spec. */}
+            <Text style={styles.rowCalories}>
+              {item.price ? `${item.price} · ` : ""}
+              {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
+            </Text>
           </View>
           <PlateAddControl
             plateEntry={plateEntry}
@@ -1793,12 +1796,13 @@ const styles = StyleSheet.create({
   rowInPlate: { borderColor: colors.gold500 },
   rowMainLine: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   rowMain: { flex: 1, gap: 1 },
+  // flexWrap -- the dish name plus up to 5 macro badges could exceed rowMain's available width
+  // with nothing to wrap it, spilling past the row into the neighboring add button instead of
+  // wrapping the badges onto a second line. alignItems: "center" matches MenuWithBadges.dc.html's
+  // name-line row -- badges are centered on the name's line-height, not baseline-aligned to it.
+  rowNameLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing(2) },
   rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
-  // flexWrap + rowCalories' flexShrink -- a long price/calorie string plus several macro badges
-  // (up to 5 presets can match) could exceed rowMain's available width with nothing to wrap or
-  // shrink it, spilling past the row into the neighboring add button instead of onto a second line.
-  rowMetaLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: spacing(2) },
-  rowCalories: { flexShrink: 1, fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
+  rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
   filterFab: {
     position: "absolute",
