@@ -56,7 +56,9 @@ export const DRAG_STEP_COUNT = Math.round((MAX_DRAG_SERVINGS - CANCEL_SERVINGS) 
  * squeezed into the track's height; the full range needs far more travel than the track is
  * tall). 0 at CANCEL_SERVINGS (the cancel rung), DRAG_STEP_COUNT at MAX_DRAG_SERVINGS. Distinct
  * from servingsFromDrag's rounded result: this drives the ladder's smooth scroll offset;
- * servingsFromDrag drives the committed value and its text readout. */
+ * servingsFromDrag drives the committed value and its text readout -- servingsFromDrag rounds to
+ * the nearest rung, so index [k-0.5, k+0.5) all display as rung k's value (cancelBlend's own doc
+ * comment leans on this to know exactly where the cancel-vs-first-rung snap boundary falls). */
 export function dragContinuousIndex(startCount: number, translationY: number): number {
   "worklet";
   const startIndex = (startCount - CANCEL_SERVINGS) / SERVINGS_STEP;
@@ -64,13 +66,18 @@ export function dragContinuousIndex(startCount: number, translationY: number): n
   return Math.min(DRAG_STEP_COUNT, Math.max(0, raw));
 }
 
-/** How close the hold-and-drag track's ladder position is to its cancel rung (index 0,
- * CANCEL_SERVINGS) -- 0 (not canceling, index >= 1) to 1 (fully at the cancel rung, index <= 0),
- * ramping continuously over the last full step so HoldSlideOverlay's cancel visuals (glyph swap,
- * caption, pill/bubble color) fade in with the drag instead of snapping. Takes `dragContinuousIndex`'s
- * own result, not a raw drag distance -- this is a read of "where did the ladder land", shared by
- * every one of HoldSlideOverlay's cancel-state style callbacks so they can't independently drift. */
+/** How close the hold-and-drag track's ladder position is to actually releasing as a cancel
+ * (index 0, CANCEL_SERVINGS) -- 0 (not canceling) to 1 (releasing right now would cancel).
+ * Ramps only across index [0, 0.5): that's the actual snap boundary between rounding to
+ * CANCEL_SERVINGS and rounding to the first addable rung (0.5 servings, index 1) -- see
+ * `dragContinuousIndex`'s doc comment. Index 0.5 is already the whole display window for "0.5
+ * servings" (a valid, non-canceling value), so cancelBlend must already be 0 there; ramping
+ * across the full [0, 1) range (the previous, buggy behavior) kept a visible cancel bleed --
+ * dark pill color, faded count/plus, partial "Cancel"/X -- for half of that display window even
+ * though the readout still said "0.5 servings". Takes `dragContinuousIndex`'s own result, not a
+ * raw drag distance -- this is a read of "where did the ladder land", shared by every one of
+ * HoldSlideOverlay's cancel-state style callbacks so they can't independently drift. */
 export function cancelBlend(index: number): number {
   "worklet";
-  return Math.min(1, Math.max(0, 1 - index));
+  return Math.min(1, Math.max(0, 1 - index / 0.5));
 }

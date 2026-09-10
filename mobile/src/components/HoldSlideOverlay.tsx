@@ -194,7 +194,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   captionOverlay: { position: "absolute", left: 0, right: 0 },
-  pill: { position: "absolute", shadowColor: colors.ink900, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  // overflow: "hidden" clips the ladder/ring/glyphs (absolutely positioned at their final
+  // geometry, not scaled with heightProgress) to the pill's own animating height/top -- without
+  // it they render at full-height position immediately while only the background fill visibly
+  // grows, so the capsule doesn't read as expanding out of the button at all.
+  pill: { position: "absolute", overflow: "hidden", shadowColor: colors.ink900, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   dot: { position: "absolute", width: TICK_SIZE, height: TICK_SIZE, borderRadius: radii.pill, backgroundColor: withOpacity(colors.paper50, 55) },
   currentDot: {
     position: "absolute",
