@@ -117,9 +117,15 @@ describe("cancelBlend", () => {
     expect(cancelBlend(2)).toBe(0);
   });
 
-  it("ramps continuously between the cancel rung (0) and the first addable rung (1)", () => {
-    expect(cancelBlend(0.5)).toBeCloseTo(0.5);
-    expect(cancelBlend(0.25)).toBeCloseTo(0.75);
+  it("is 0 across the entire display window of the first addable rung (0.5 servings) -- index [0.5, 1.5) all round to 0.5 servings, none of it should show cancel bleed", () => {
+    expect(cancelBlend(0.5)).toBe(0);
+    expect(cancelBlend(0.75)).toBe(0);
+    expect(cancelBlend(1.4)).toBe(0);
+  });
+
+  it("ramps continuously only across the actual snap boundary (index 0 to 0.5) between the cancel rung and the first addable rung", () => {
+    expect(cancelBlend(0.25)).toBeCloseTo(0.5);
+    expect(cancelBlend(0.1)).toBeCloseTo(0.8);
   });
 
   it("is exactly 1 (fully canceling) at the cancel rung itself", () => {
