@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { Animated, Easing, Pressable, StyleSheet, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
+import { durations } from "../lib/motion";
 
 /**
  * Press-feedback rules (#179, owner round-2 decision): a full-width tap zone that's part of a
@@ -8,12 +9,10 @@ import { Animated, Easing, Pressable, StyleSheet, type GestureResponderEvent, ty
  * element (button, avatar, standalone card) scales instead. Both animate over the artboard's
  * 120ms ease (`.press` / `.pressd` in the styling spec).
  */
-const PRESS_MS = 120;
-
 function usePressAnim(restValue: number, pressedValue: number) {
   const anim = useRef(new Animated.Value(restValue)).current;
   function set(toValue: number) {
-    Animated.timing(anim, { toValue, duration: PRESS_MS, easing: Easing.ease, useNativeDriver: true }).start();
+    Animated.timing(anim, { toValue, duration: durations.press, easing: Easing.ease, useNativeDriver: true }).start();
   }
   return { anim, onPressIn: () => set(pressedValue), onPressOut: () => set(restValue) };
 }

@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+    a { color: #7c2430; } a:hover { color: #3b0a0f; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 0 20px; box-sizing: border-box; color: #241a14;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 1px; color: #3b0a0f;">YOU</div>
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <div style="width: 6px; height: 6px; border-radius: 999px; background: rgba(36,26,20,0.25);"></div>
+      <div style="width: 6px; height: 6px; border-radius: 999px; background: rgba(36,26,20,0.25);"></div>
+      <div style="width: 8px; height: 8px; border-radius: 999px; background: #7c2430;"></div>
+    </div>
+  </div>
+
+  <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Calories</div>
+      <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">1,240</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Protein</div>
+      <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">68g</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Carbs</div>
+      <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">132g</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Fat</div>
+      <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">47g</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Today's Log</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+      <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430;">ALL LOGS
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+    </div>
+    <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #3b0a0f;">Breakfast</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: rgba(36,26,20,0.7);">640 cal</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-size: 13px;">French Toast × 2 · Hampshire</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">640</div>
+        </div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08);"></div>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #3b0a0f;">Lunch</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: rgba(36,26,20,0.7);">600 cal</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-size: 13px;">Grilled Chicken Breast × 2 · Hampshire</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">320</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-size: 13px;">Home Fries · Hampshire</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">210</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-size: 13px;">Side Salad · Hampshire</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">70</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Hall Completion</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+    </div>
+    <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+          <div style="font-weight: 600;">Hampshire</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; color: rgba(36,26,20,0.7);">34% · 128 of 372 dishes</div>
+        </div>
+        <div style="height: 6px; border-radius: 999px; background: rgba(36,26,20,0.1); overflow: hidden;">
+          <div style="height: 6px; width: 34%; border-radius: 999px; background: #c99a2e;"></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+          <div style="font-weight: 600;">Worcester</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; color: rgba(36,26,20,0.7);">21% · 84 of 401 dishes</div>
+        </div>
+        <div style="height: 6px; border-radius: 999px; background: rgba(36,26,20,0.1); overflow: hidden;">
+          <div style="height: 6px; width: 21%; border-radius: 999px; background: #7c2430;"></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+          <div style="font-weight: 600;">Franklin</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; color: rgba(36,26,20,0.7);">12% · 41 of 338 dishes</div>
+        </div>
+        <div style="height: 6px; border-radius: 999px; background: rgba(36,26,20,0.1); overflow: hidden;">
+          <div style="height: 6px; width: 12%; border-radius: 999px; background: #7c2430;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Your Top Foods</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 14px;">
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <div style="font-weight: 600; font-size: 14px;">French Toast</div>
+        <div style="font-size: 12px; color: rgba(36,26,20,0.55);">Hampshire · 14 comparisons</div>
+      </div>
+      <div style="min-width: 44px; text-align: center; background: #c99a2e; color: #3b0a0f; border-radius: 999px; padding: 5px 0; font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px;">9.1</div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 14px;">
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <div style="font-weight: 600; font-size: 14px;">Fried Plantain</div>
+        <div style="font-size: 12px; color: rgba(36,26,20,0.55);">Hampshire · 9 comparisons</div>
+      </div>
+      <div style="min-width: 44px; text-align: center; background: #7c2430; color: #fbf7ef; border-radius: 999px; padding: 5px 0; font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px;">8.4</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Favorite Halls</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <div style="flex-grow: 1; display: flex; align-items: center; gap: 8px; background: #fbf7ef; border: 1px solid #c99a2e; border-radius: 6px; padding: 10px 12px;">
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 16px; color: #c99a2e;">1</div>
+        <div style="font-weight: 600; font-size: 13px;">Hampshire</div>
+      </div>
+      <div style="flex-grow: 1; display: flex; align-items: center; gap: 8px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 16px; color: rgba(36,26,20,0.4);">2</div>
+        <div style="font-weight: 600; font-size: 13px;">Berkshire</div>
+      </div>
+      <div style="flex-grow: 1; display: flex; align-items: center; gap: 8px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 16px; color: rgba(36,26,20,0.4);">3</div>
+        <div style="font-weight: 600; font-size: 13px;">Worcester</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 10px;">
+    <div style="flex-grow: 1; display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+      <div style="font-weight: 600; font-size: 13px;">Account</div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+    <div style="flex-grow: 1; display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+      <div style="font-weight: 600; font-size: 13px;">Friends (3)</div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

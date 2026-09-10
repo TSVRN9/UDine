@@ -1,0 +1,1522 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+    a { color: #7c2430; } a:hover { color: #3b0a0f; }
+    @keyframes shimmer { 0% { background-position: -260px 0; } 100% { background-position: 260px 0; } }
+    .sk { background: linear-gradient(90deg, rgba(36,26,20,0.09) 25%, rgba(36,26,20,0.045) 50%, rgba(36,26,20,0.09) 75%); background-size: 520px 100%; animation: shimmer 1.4s linear infinite; border-radius: 4px; }
+    .strip { transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+    .pane { transition: transform 340ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 260ms ease, filter 340ms ease; }
+    .layer { transition: transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+    .sheet { transition: transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+    .fade { transition: opacity 240ms ease; }
+    .tgl { transition: background 180ms ease; }
+    .knob { transition: transform 180ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+    .tab { transition: color 200ms ease, border-color 200ms ease; }
+    .press { transition: transform 120ms ease; cursor: pointer; }
+    .press:active { transform: scale(0.97); }
+    .pressd { transition: filter 120ms ease; cursor: pointer; }
+    .pressd:active { filter: brightness(0.82); }
+    .toastbox { transition: opacity 260ms ease, transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; position: relative; color: #241a14;">
+
+  <!-- ============ FIXED HEADER: title crossfade + pinned dots ============ -->
+  <div style="position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 20px; pointer-events: none;">
+    <div style="position: relative; height: 28px; flex-grow: 1;">
+      <div style="{{titleS}}">SOCIAL</div>
+      <div style="{{titleH}}">UDINE</div>
+      <div style="{{titleY}}">YOU</div>
+    </div>
+    <div style="display: flex; gap: 6px; align-items: center; pointer-events: auto;">
+      <div class="press" onClick="{{goSocial}}" style="width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;"><div style="{{dotS}}"></div></div>
+      <div class="press" onClick="{{goHome}}" style="width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;"><div style="{{dotH}}"></div></div>
+      <div class="press" onClick="{{goYou}}" style="width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;"><div style="{{dotY}}"></div></div>
+    </div>
+  </div>
+
+  <!-- ============ 3-PANE SWIPE STRIP ============ -->
+  <div style="position: absolute; inset: 0; overflow: hidden;">
+
+    <!-- ===== SOCIAL PANE ===== -->
+    <div class="pane" style="{{paneS}}">
+      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; align-items: center; gap: 6px; margin-top: -6px;">
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M2 8c4.5-4 11.5-4 16 0" stroke="rgba(36,26,20,0.4)" stroke-width="1.6" stroke-linecap="round"></path><path d="M5 11.5c2.9-2.5 7.1-2.5 10 0" stroke="rgba(36,26,20,0.4)" stroke-width="1.6" stroke-linecap="round"></path><circle cx="10" cy="15" r="1.4" fill="rgba(36,26,20,0.4)"></circle><path d="M3 3l14 14" stroke="rgba(36,26,20,0.4)" stroke-width="1.6" stroke-linecap="round"></path></svg>
+          <div style="font-size: 11px; font-weight: 500; color: rgba(36,26,20,0.5);">offline · pings will send when you're back</div>
+        </div>
+      </sc-if>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Ping a Friend</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; gap: 14px;">
+            <div class="press" onClick="{{openFriend}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <div style="width: 52px; height: 52px; border-radius: 999px; background: #7c2430; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 18px; border: 2px solid #c99a2e;">CS</div>
+              <div style="font-size: 11px; color: rgba(36,26,20,0.7);">Casey</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <div style="width: 52px; height: 52px; border-radius: 999px; background: #3b0a0f; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 18px;">JR</div>
+              <div style="font-size: 11px; color: rgba(36,26,20,0.7);">Jordan</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <div style="width: 52px; height: 52px; border-radius: 999px; background: #6b2f1e; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 18px;">MK</div>
+              <div style="font-size: 11px; color: rgba(36,26,20,0.7);">Mika</div>
+            </div>
+            <div class="press" onClick="{{openAddFriends}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <div style="width: 52px; height: 52px; border-radius: 999px; background: #fbf7ef; color: #7c2430; display: flex; align-items: center; justify-content: center; border: 1px dashed rgba(124,36,48,0.5);">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round"></path></svg>
+              </div>
+              <div style="font-size: 11px; color: rgba(36,26,20,0.7);">Add</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: rgba(36,26,20,0.55);">Tap Casey to open their profile — ping from there.</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Events</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div class="press" onClick="{{toastEvent}}" style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; overflow: hidden;">
+          <div style="height: 84px; background: linear-gradient(120deg, #c99a2e 0%, #8a6a1a 100%); display: flex; align-items: flex-end; padding: 10px 14px; box-sizing: border-box;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 18px; letter-spacing: 0.5px; text-transform: uppercase; color: #fbf7ef;">Local Harvest Dinner</div>
+          </div>
+          <div style="padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 12px; color: rgba(36,26,20,0.65);">Franklin · Thursday 5–8 PM</div>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+        <div class="press" onClick="{{toastExternal}}" style="display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px;">
+          <div style="display: flex; flex-direction: column; gap: 1px;">
+            <div style="font-weight: 600; font-size: 14px;">Summer Hours</div>
+            <div style="font-size: 12px; color: rgba(36,26,20,0.55);">All halls · through Sep 1</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6.5 3.5H3.5v9h9V9.5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9.5 3h3.5v3.5M12.8 3.2L8 8" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== HOME PANE ===== -->
+    <div class="pane" style="{{paneH}}">
+      <div style="padding: 52px 20px 14px 20px; display: flex; flex-direction: column; gap: 2px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Tuesday, August 19</div>
+          <sc-if value="{{offline}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M2 8c4.5-4 11.5-4 16 0" stroke="rgba(36,26,20,0.4)" stroke-width="1.6" stroke-linecap="round"></path><path d="M5 11.5c2.9-2.5 7.1-2.5 10 0" stroke="rgba(36,26,20,0.4)" stroke-width="1.6" stroke-linecap="round"></path><circle cx="10" cy="15" r="1.4" fill="rgba(36,26,20,0.4)"></circle><path d="M3 3l14 14" stroke="rgba(36,26,20,0.4)" stroke-width="1.6" stroke-linecap="round"></path></svg>
+              <div style="font-size: 11px; font-weight: 500; color: rgba(36,26,20,0.5);">updated 7:12 AM</div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 12px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 44px; line-height: 1.05; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Lunch</div>
+          <div style="font-size: 13px; font-weight: 500; color: rgba(36,26,20,0.65);">served now · until 2:30 PM</div>
+        </div>
+        <div style="height: 3px; width: 72px; background: #c99a2e; margin-top: 6px;"></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 20px;">
+
+        <div style="position: relative; border-radius: 6px; overflow: hidden; background: linear-gradient(120deg, #7c2430 0%, #3b0a0f 85%); display: flex; flex-direction: column;">
+          <div class="pressd" onClick="{{openHallW}}" style="position: relative; height: 76px; display: flex; align-items: flex-end;">
+            <div style="position: absolute; right: -8px; top: -24px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 100px; color: rgba(251,247,239,0.08); line-height: 1;">W</div>
+            <div style="position: absolute; top: 10px; right: 10px; background: #c99a2e; color: #3b0a0f; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 999px;">OPEN · CLOSES 10:00 PM</div>
+            <div style="padding: 8px 14px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #fbf7ef;">Worcester</div>
+          </div>
+          <div class="pressd" onClick="{{openGrabW}}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(0,0,0,0.28); border-top: 1px solid rgba(251,247,239,0.22);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 5h10l-1 9H4L3 5z" stroke="rgba(251,247,239,0.85)" stroke-width="1.5" stroke-linejoin="round"></path><path d="M5.5 5V4a2.5 2.5 0 0 1 5 0v1" stroke="rgba(251,247,239,0.85)" stroke-width="1.5"></path></svg>
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; color: #fbf7ef;">GRAB 'N GO</div>
+              <div style="font-size: 11px; color: rgba(251,247,239,0.6);">open til 7 PM</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="rgba(251,247,239,0.7)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+
+        <div style="position: relative; border-radius: 6px; overflow: hidden; background: linear-gradient(120deg, #8a3a2c 0%, #3b0a0f 85%); display: flex; flex-direction: column;">
+          <div class="pressd" onClick="{{openHallF}}" style="position: relative; height: 76px; display: flex; align-items: flex-end;">
+            <div style="position: absolute; right: -8px; top: -24px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 100px; color: rgba(251,247,239,0.08); line-height: 1;">F</div>
+            <div style="position: absolute; top: 10px; right: 10px; background: #c99a2e; color: #3b0a0f; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 999px;">OPEN · CLOSES 8:00 PM</div>
+            <div style="padding: 8px 14px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #fbf7ef;">Franklin</div>
+          </div>
+          <div class="pressd" onClick="{{openGrabF}}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(0,0,0,0.28); border-top: 1px solid rgba(251,247,239,0.22);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 5h10l-1 9H4L3 5z" stroke="rgba(251,247,239,0.85)" stroke-width="1.5" stroke-linejoin="round"></path><path d="M5.5 5V4a2.5 2.5 0 0 1 5 0v1" stroke="rgba(251,247,239,0.85)" stroke-width="1.5"></path></svg>
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; color: #fbf7ef;">GRAB 'N GO</div>
+              <div style="font-size: 11px; color: rgba(251,247,239,0.6);">open til 7 PM</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="rgba(251,247,239,0.7)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+
+        <div style="position: relative; border-radius: 6px; overflow: hidden; background: linear-gradient(120deg, #6b2f1e 0%, #2c0a08 85%); display: flex; flex-direction: column;">
+          <div class="pressd" onClick="{{openHallH}}" style="position: relative; height: 76px; display: flex; align-items: flex-end;">
+            <div style="position: absolute; right: -8px; top: -24px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 100px; color: rgba(251,247,239,0.08); line-height: 1;">H</div>
+            <div style="position: absolute; top: 10px; right: 10px; background: #c99a2e; color: #3b0a0f; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 999px;">OPEN · CLOSES 9:00 PM</div>
+            <div style="padding: 8px 14px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #fbf7ef;">Hampshire</div>
+          </div>
+          <div class="pressd" onClick="{{openGrabH}}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(0,0,0,0.28); border-top: 1px solid rgba(251,247,239,0.22);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 5h10l-1 9H4L3 5z" stroke="rgba(251,247,239,0.85)" stroke-width="1.5" stroke-linejoin="round"></path><path d="M5.5 5V4a2.5 2.5 0 0 1 5 0v1" stroke="rgba(251,247,239,0.85)" stroke-width="1.5"></path></svg>
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; color: #fbf7ef;">GRAB 'N GO</div>
+              <div style="font-size: 11px; color: rgba(251,247,239,0.6);">open til 7 PM</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="rgba(251,247,239,0.7)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+
+        <div style="position: relative; border-radius: 6px; overflow: hidden; background: linear-gradient(120deg, rgba(59,10,15,0.55) 0%, rgba(36,26,20,0.75) 85%); display: flex; flex-direction: column;">
+          <div class="pressd" onClick="{{openHallB}}" style="position: relative; height: 76px; display: flex; align-items: flex-end;">
+            <div style="position: absolute; right: -8px; top: -24px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 100px; color: rgba(251,247,239,0.06); line-height: 1;">B</div>
+            <div style="position: absolute; top: 10px; right: 10px; background: rgba(251,247,239,0.18); color: #fbf7ef; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 999px;">CLOSED · OPENS 4:30 PM</div>
+            <div style="padding: 8px 14px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: rgba(251,247,239,0.75);">Berkshire</div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(0,0,0,0.22); border-top: 1px solid rgba(251,247,239,0.15);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 5h10l-1 9H4L3 5z" stroke="rgba(251,247,239,0.45)" stroke-width="1.5" stroke-linejoin="round"></path><path d="M5.5 5V4a2.5 2.5 0 0 1 5 0v1" stroke="rgba(251,247,239,0.45)" stroke-width="1.5"></path></svg>
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; color: rgba(251,247,239,0.45);">GRAB 'N GO</div>
+              <div style="font-size: 11px; color: rgba(251,247,239,0.45);">closed · opens 4:30 PM</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="rgba(251,247,239,0.35)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+
+      </div>
+      <div style="padding: 18px 20px 0 20px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Cafés &amp; Markets</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; min-height: 44px;">
+          <div style="display: flex; flex-direction: column; gap: 1px;">
+            <div style="font-weight: 600; font-size: 14px;">Blue Wall</div>
+            <div style="font-size: 12px; color: rgba(36,26,20,0.55);">Campus Center</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="font-size: 11px; font-weight: 600; color: #7c2430;">OPEN · TIL 8 PM</div>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="rgba(36,26,20,0.35)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; min-height: 44px;">
+          <div style="display: flex; flex-direction: column; gap: 1px;">
+            <div style="font-weight: 600; font-size: 14px;">Harvest Market</div>
+            <div style="font-size: 12px; color: rgba(36,26,20,0.55);">Worcester Commons</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="font-size: 11px; font-weight: 600; color: rgba(36,26,20,0.45);">CLOSED · OPENS 11 AM</div>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="rgba(36,26,20,0.35)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== YOU PANE ===== -->
+    <div class="pane" style="{{paneY}}">
+      <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Calories</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">{{youCal}}</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Protein</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">{{youPro}}</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Carbs</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">{{youCarb}}</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Fat</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 19px; font-weight: 600; color: #3b0a0f;">{{youFat}}</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Today's Log</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+          <div class="press" onClick="{{openLogs}}" style="display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430; min-height: 24px;">ALL LOGS
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #3b0a0f;">Breakfast</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: rgba(36,26,20,0.7);">640 cal</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 13px;">French Toast × 2 · Hampshire</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">640</div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08);"></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #3b0a0f;">Lunch</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: rgba(36,26,20,0.7);">{{lunchCal}} cal</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 13px;">Grilled Chicken Breast × 2 · Hampshire</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">320</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 13px;">Home Fries · Hampshire</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">210</div>
+          </div>
+          <sc-if value="{{hasLoggedPlate}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <div style="font-size: 13px;">{{loggedLine}}</div>
+              <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">{{loggedCalStr}}</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Hall Completion</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <div style="font-weight: 600;">Hampshire</div>
+              <div style="font-family: ui-monospace, Menlo, monospace; color: rgba(36,26,20,0.7);">34% · 128 of 372 dishes</div>
+            </div>
+            <div style="height: 6px; border-radius: 999px; background: rgba(36,26,20,0.1); overflow: hidden;">
+              <div style="height: 6px; width: 34%; border-radius: 999px; background: #c99a2e;"></div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <div style="font-weight: 600;">Worcester</div>
+              <div style="font-family: ui-monospace, Menlo, monospace; color: rgba(36,26,20,0.7);">21% · 84 of 401 dishes</div>
+            </div>
+            <div style="height: 6px; border-radius: 999px; background: rgba(36,26,20,0.1); overflow: hidden;">
+              <div style="height: 6px; width: 21%; border-radius: 999px; background: #7c2430;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: auto; padding-bottom: 16px;">
+        <div class="press" onClick="{{openYourData}}" style="flex-grow: 1; display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+          <div style="font-weight: 600; font-size: 13px;">Your Data</div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div class="press" onClick="{{openAddFriends}}" style="flex-grow: 1; display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+          <div style="font-weight: 600; font-size: 13px;">Friends (3)</div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ LAYER 1: HALL MENU ============ -->
+  <div class="layer" style="{{hallStyle}}">
+    <div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; position: relative;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 6px 20px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="press" onClick="{{backTop}}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -6px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div class="press" onClick="{{openInfo}}" style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f; white-space: nowrap;">{{hallName}}</div>
+            <sc-if value="{{hintGlyph}}" hint-placeholder-val="{{true}}">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0; margin-top: 2px;"><circle cx="8" cy="8" r="6.4" stroke="rgba(36,26,20,0.45)" stroke-width="1.5"></circle><path d="M8 7.4v3.4" stroke="rgba(36,26,20,0.45)" stroke-width="1.6" stroke-linecap="round"></path><circle cx="8" cy="5" r="0.95" fill="rgba(36,26,20,0.45)"></circle></svg>
+            </sc-if>
+            <sc-if value="{{hintChevron}}" hint-placeholder-val="{{false}}">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style="flex-shrink: 0; margin-top: 3px;"><path d="M3.5 5.5L7 9l3.5-3.5" stroke="rgba(36,26,20,0.5)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="press" onClick="{{stepDate}}" style="width: 30px; height: 30px; border: 1px solid rgba(36,26,20,0.2); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9 3L5 7l4 4" stroke="#3b0a0f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.6); white-space: nowrap;">{{dateLabel}}</div>
+          <div class="press" onClick="{{stepDateFwd}}" style="width: 30px; height: 30px; border: 1px solid rgba(36,26,20,0.2); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#3b0a0f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 0 20px; border-bottom: 1px solid rgba(36,26,20,0.15); margin-bottom: 4px;">
+        <div class="press tab" onClick="{{tabBGo}}" style="{{tabB}}">Breakfast</div>
+        <div class="press tab" onClick="{{tabLGo}}" style="{{tabL}}">Lunch</div>
+        <div class="press tab" onClick="{{tabDGo}}" style="{{tabD}}">Dinner</div>
+        <div class="press tab" onClick="{{tabLateGo}}" style="{{tabLate}}">Late</div>
+        <div style="flex-grow: 1;"></div>
+        <div style="width: 1px; height: 16px; background: rgba(36,26,20,0.2);"></div>
+        <div class="press tab" onClick="{{tabGGo}}" style="{{tabG}}">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-right: 6px;"><path d="M3 5h10l-1 9H4L3 5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path><path d="M5.5 5V4a2.5 2.5 0 0 1 5 0v1" stroke="currentColor" stroke-width="1.5"></path></svg>Grab 'N Go
+        </div>
+      </div>
+
+      <sc-if value="{{menuLoading}}" hint-placeholder-val="{{false}}">
+
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 20px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+            <div class="sk" style="width: 118px; height: 13px;"></div>
+            <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+            <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
+              <div class="sk" style="width: 132px; height: 14px;"></div>
+              <div class="sk" style="width: 108px; height: 11px;"></div>
+            </div>
+            <div style="width: 44px; height: 44px; border: 1px solid rgba(36,26,20,0.12); border-radius: 999px;"></div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+            <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
+              <div class="sk" style="width: 158px; height: 14px;"></div>
+              <div class="sk" style="width: 96px; height: 11px;"></div>
+            </div>
+            <div style="width: 44px; height: 44px; border: 1px solid rgba(36,26,20,0.12); border-radius: 999px;"></div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+            <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
+              <div class="sk" style="width: 110px; height: 14px;"></div>
+              <div class="sk" style="width: 122px; height: 11px;"></div>
+            </div>
+            <div style="width: 44px; height: 44px; border: 1px solid rgba(36,26,20,0.12); border-radius: 999px;"></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{menuReady}}" hint-placeholder-val="{{true}}">
+
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 20px; flex-grow: 1; overflow: hidden;">
+
+          <sc-if value="{{grabMode}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Sandwiches &amp; Wraps</div>
+              <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+              <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+                <div style="font-weight: 600; font-size: 14px;">Turkey Club Wrap</div>
+                <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">460 cal · 24g protein</div>
+              </div>
+              <div class="press" onClick="{{toastGrab}}" style="width: 44px; height: 44px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 4v10M4 9h10" stroke="#7c2430" stroke-width="1.8" stroke-linecap="round"></path></svg>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Snacks &amp; Sides</div>
+              <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+              <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+                <div style="font-weight: 600; font-size: 14px;">Fresh Fruit Cup</div>
+                <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">90 cal · 1g protein</div>
+              </div>
+              <div class="press" onClick="{{toastGrab}}" style="width: 44px; height: 44px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 4v10M4 9h10" stroke="#7c2430" stroke-width="1.8" stroke-linecap="round"></path></svg>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{mealMode}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Griddle Station</div>
+              <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+            </div>
+
+            <div style="{{ftCardStyle}}">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+                  <div style="font-weight: 600; font-size: 14px;">French Toast</div>
+                  <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">320 cal · 11g protein</div>
+                </div>
+                <sc-if value="{{ftZero}}" hint-placeholder-val="{{true}}">
+                  <div class="press" onClick="{{incFt}}" style="width: 44px; height: 44px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 4v10M4 9h10" stroke="#7c2430" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ftPos}}" hint-placeholder-val="{{false}}">
+                  <div style="display: flex; align-items: center; gap: 0px; background: #7c2430; border-radius: 999px; color: #fbf7ef;">
+                    <div class="press" onClick="{{decFt}}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">−</div>
+                    <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 16px; text-align: center;">{{ft}}</div>
+                    <div class="press" onClick="{{incFt}}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">+</div>
+                  </div>
+                </sc-if>
+              </div>
+              <div class="press" onClick="{{openLabel}}" style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430; margin-top: 8px;">FULL NUTRITION LABEL
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Grill Station</div>
+              <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+            </div>
+
+            <div style="{{gcbCardStyle}}">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+                  <div style="font-weight: 600; font-size: 14px;">Grilled Chicken Breast</div>
+                  <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">160 cal · 27g protein</div>
+                </div>
+                <sc-if value="{{gcbZero}}" hint-placeholder-val="{{true}}">
+                  <div class="press" onClick="{{incGcb}}" style="width: 44px; height: 44px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 4v10M4 9h10" stroke="#7c2430" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                  </div>
+                </sc-if>
+                <sc-if value="{{gcbPos}}" hint-placeholder-val="{{false}}">
+                  <div style="display: flex; align-items: center; gap: 0px; background: #7c2430; border-radius: 999px; color: #fbf7ef;">
+                    <div class="press" onClick="{{decGcb}}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">−</div>
+                    <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 16px; text-align: center;">{{gcb}}</div>
+                    <div class="press" onClick="{{incGcb}}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">+</div>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="display: flex; gap: 6px; margin-top: 8px;">
+                <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: #3b0a0f; border: 1px solid rgba(36,26,20,0.2); border-radius: 999px; padding: 3px 9px;">HALAL</div>
+                <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: #3b0a0f; border: 1px solid rgba(36,26,20,0.2); border-radius: 999px; padding: 3px 9px;">GLUTEN-FREE</div>
+              </div>
+            </div>
+
+            <div style="{{hfCardStyle}}">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+                  <div style="font-weight: 600; font-size: 14px;">Home Fries</div>
+                  <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">210 cal · 3g protein</div>
+                </div>
+                <sc-if value="{{hfZero}}" hint-placeholder-val="{{true}}">
+                  <div class="press" onClick="{{incHf}}" style="width: 44px; height: 44px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 4v10M4 9h10" stroke="#7c2430" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                  </div>
+                </sc-if>
+                <sc-if value="{{hfPos}}" hint-placeholder-val="{{false}}">
+                  <div style="display: flex; align-items: center; gap: 0px; background: #7c2430; border-radius: 999px; color: #fbf7ef;">
+                    <div class="press" onClick="{{decHf}}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">−</div>
+                    <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 16px; text-align: center;">{{hf}}</div>
+                    <div class="press" onClick="{{incHf}}" style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">+</div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+      </sc-if>
+
+      <!-- plate bar -->
+      <div class="sheet" style="{{barStyle}}">
+        <div class="press" onClick="{{openPlate}}" style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 9l4-4 4 4" stroke="rgba(251,247,239,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <div style="font-weight: 600; font-size: 15px; color: #fbf7ef;">{{barTitle}}</div>
+          </div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(251,247,239,0.65);">{{barMacros}}</div>
+        </div>
+        <div class="press" onClick="{{logPlate}}" style="background: #c99a2e; color: #3b0a0f; border-radius: 6px; padding: 0 26px; height: 48px; display: flex; align-items: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px; letter-spacing: 1px; text-transform: uppercase;">Log</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LAYER 1: LOGS ============ -->
+  <div class="layer" style="{{logsStyle}}">
+    <div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 0 20px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="press" onClick="{{backTop}}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -6px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Logs</div>
+          <div style="font-size: 12px; color: rgba(36,26,20,0.6);">Tuesday, August 19</div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(36,26,20,0.5);">SUN</div>
+          <div style="width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(36,26,20,0.2); display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; color: #3b0a0f;">17</div>
+          <div style="width: 4px; height: 4px; border-radius: 999px; background: #c99a2e;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(36,26,20,0.5);">MON</div>
+          <div style="width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(36,26,20,0.2); display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; color: #3b0a0f;">18</div>
+          <div style="width: 4px; height: 4px; border-radius: 999px; background: #c99a2e;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; color: #3b0a0f;">TUE</div>
+          <div style="width: 36px; height: 36px; border-radius: 999px; background: #7c2430; display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; color: #fbf7ef;">19</div>
+          <div style="width: 4px; height: 4px; border-radius: 999px; background: #c99a2e;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(36,26,20,0.35);">WED</div>
+          <div style="width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(36,26,20,0.1); display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: rgba(36,26,20,0.35);">20</div>
+          <div style="width: 4px; height: 4px;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(36,26,20,0.35);">THU</div>
+          <div style="width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(36,26,20,0.1); display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: rgba(36,26,20,0.35);">21</div>
+          <div style="width: 4px; height: 4px;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(36,26,20,0.35);">FRI</div>
+          <div style="width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(36,26,20,0.1); display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: rgba(36,26,20,0.35);">22</div>
+          <div style="width: 4px; height: 4px;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(36,26,20,0.35);">SAT</div>
+          <div style="width: 36px; height: 36px; border-radius: 999px; border: 1px solid rgba(36,26,20,0.1); display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: rgba(36,26,20,0.35);">23</div>
+          <div style="width: 4px; height: 4px;"></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Tuesday's Log</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: rgba(36,26,20,0.7);">{{dayCal}} cal</div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #3b0a0f;">Breakfast</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: rgba(36,26,20,0.7);">{{bfastCal}} cal</div>
+          </div>
+          <sc-if value="{{ftLogPos}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid #c99a2e; border-radius: 6px; padding: 8px 10px;">
+              <div style="display: flex; flex-direction: column; gap: 1px;">
+                <div style="font-weight: 600; font-size: 13px;">French Toast</div>
+                <div style="font-size: 11px; color: rgba(36,26,20,0.55);">Hampshire · 8:40 AM · 320 cal each</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; background: #7c2430; border-radius: 999px; color: #fbf7ef;">
+                  <div class="press" onClick="{{decFtLog}}" style="width: 34px; height: 38px; display: flex; align-items: center; justify-content: center; font-size: 16px;">−</div>
+                  <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 13px; min-width: 14px; text-align: center;">{{ftLog}}</div>
+                  <div class="press" onClick="{{incFtLog}}" style="width: 34px; height: 38px; display: flex; align-items: center; justify-content: center; font-size: 16px;">+</div>
+                </div>
+                <div class="press" onClick="{{removeFtLog}}" style="width: 38px; height: 38px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round"></path></svg>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ftLogZero}}" hint-placeholder-val="{{false}}">
+            <div style="font-size: 12px; color: rgba(36,26,20,0.45); font-style: italic;">Nothing logged at breakfast.</div>
+          </sc-if>
+          <div style="height: 1px; background: rgba(36,26,20,0.08);"></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #3b0a0f;">Lunch</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: rgba(36,26,20,0.7);">600 cal</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 13px;">Grilled Chicken Breast × 2 · Hampshire</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">320</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 13px;">Home Fries · Hampshire</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">210</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 13px;">Side Salad · Hampshire</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">70</div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Last 7 Days</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; height: 72px;">
+            <div style="width: 32px; height: 63px; border-radius: 3px 3px 0 0; background: #7c2430;"></div>
+            <div style="width: 32px; height: 54px; border-radius: 3px 3px 0 0; background: #7c2430;"></div>
+            <div style="width: 32px; height: 70px; border-radius: 3px 3px 0 0; background: #7c2430;"></div>
+            <div style="width: 32px; height: 46px; border-radius: 3px 3px 0 0; background: #7c2430;"></div>
+            <div style="width: 32px; height: 58px; border-radius: 3px 3px 0 0; background: #7c2430;"></div>
+            <div style="width: 32px; height: 65px; border-radius: 3px 3px 0 0; background: #7c2430;"></div>
+            <div style="width: 32px; height: 39px; border-radius: 3px 3px 0 0; background: #c99a2e;"></div>
+          </div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.7);">Avg 1,880 cal / day · 92g protein / day</div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; color: #7c2430;">12</div>
+          <div style="font-size: 11px; color: rgba(36,26,20,0.6); line-height: 1.3;">day logging streak</div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; color: #7c2430;">× 23</div>
+          <div style="font-size: 11px; color: rgba(36,26,20,0.6); line-height: 1.3;">French Toast — your most logged dish</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LAYER 1: YOUR DATA ============ -->
+  <div class="layer" style="{{ydStyle}}">
+    <div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 0 20px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="press" onClick="{{backTop}}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -6px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Your data</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#3b0a0f" stroke-width="1.5"></rect><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#3b0a0f" stroke-width="1.5"></path></svg>
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Stays on this phone</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px;">
+            <div style="font-weight: 600; font-size: 13px;">Food log &amp; macro history</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">214 entries</div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px;">
+            <div style="font-weight: 600; font-size: 13px;">Dish &amp; food rankings</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">36 ranked</div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+          <div class="press" onClick="{{openExport}}" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; min-height: 44px; box-sizing: border-box;">
+            <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430;">EXPORT · JSON / CSV</div>
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4.5 11.5a3 3 0 0 1 .3-6 4 4 0 0 1 7.8 1.1 2.5 2.5 0 0 1-.6 4.9H4.5z" stroke="#3b0a0f" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">On UDine's server</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px;">
+            <div style="font-weight: 600; font-size: 13px;">Profile &amp; friends</div>
+            <div style="font-size: 12px; color: rgba(36,26,20,0.55);">mruiz@umass.edu · 3 friends</div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 44px; box-sizing: border-box;">
+            <div style="display: flex; flex-direction: column; gap: 1px;">
+              <div style="font-weight: 600; font-size: 13px;">Favorite-food alerts</div>
+              <div style="font-size: 11px; color: rgba(36,26,20,0.55);">keeps your 9 favorites on the server to watch menus</div>
+            </div>
+            <div class="press tgl" onClick="{{tAlerts}}" style="{{tAlertsTrack}}"><div class="knob" style="{{tAlertsKnob}}"></div></div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="6" rx="3" stroke="#3b0a0f" stroke-width="1.5"></rect><circle cx="11" cy="8" r="2" fill="#3b0a0f"></circle></svg>
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Shared with friends</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+            <div style="font-weight: 600; font-size: 13px;">Today's calories</div>
+            <div class="press tgl" onClick="{{tCal}}" style="{{tCalTrack}}"><div class="knob" style="{{tCalKnob}}"></div></div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+            <div style="font-weight: 600; font-size: 13px;">Logging streak</div>
+            <div class="press tgl" onClick="{{tStreak}}" style="{{tStreakTrack}}"><div class="knob" style="{{tStreakKnob}}"></div></div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+            <div style="font-weight: 600; font-size: 13px;">Hall completion</div>
+            <div class="press tgl" onClick="{{tComp}}" style="{{tCompTrack}}"><div class="knob" style="{{tCompKnob}}"></div></div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+            <div style="font-weight: 600; font-size: 13px;">Top foods</div>
+            <div class="press tgl" onClick="{{tTop}}" style="{{tTopTrack}}"><div class="knob" style="{{tTopKnob}}"></div></div>
+          </div>
+          <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box;">
+            <div style="font-weight: 600; font-size: 13px;">Favorite halls</div>
+            <div class="press tgl" onClick="{{tHalls}}" style="{{tHallsTrack}}"><div class="knob" style="{{tHallsKnob}}"></div></div>
+          </div>
+        </div>
+        <div style="font-size: 11px; line-height: 1.4; color: rgba(36,26,20,0.55); padding: 0 2px;">Off by default · accepted friends only · switching off deletes it from the server immediately.</div>
+      </div>
+      <div style="margin-top: auto; padding-bottom: 16px;">
+        <div class="press" onClick="{{toastDelete}}" style="background: #fbf7ef; border: 1px solid rgba(124,36,48,0.35); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; min-height: 44px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 1px;">
+            <div style="font-weight: 600; font-size: 13px; color: #7c2430;">Delete server data</div>
+            <div style="font-size: 11px; color: rgba(36,26,20,0.55);">Removes profile, friendships, favorites, shared stats. Phone data stays.</div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="min-width: 16px;"><path d="M6 3l5 5-5 5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LAYER 1: ADD FRIENDS ============ -->
+  <div class="layer" style="{{afStyle}}">
+    <div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 0 20px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="press" onClick="{{backTop}}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -6px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Add friends</div>
+      </div>
+      <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.25); border-radius: 6px; padding: 0 14px; height: 48px; display: flex; align-items: center; gap: 10px;">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="min-width: 16px;"><circle cx="8" cy="8" r="5" stroke="rgba(36,26,20,0.5)" stroke-width="1.6"></circle><path d="M12 12l3.5 3.5" stroke="rgba(36,26,20,0.5)" stroke-width="1.6" stroke-linecap="round"></path></svg>
+        <div style="font-size: 14px;">jor<span style="display: inline-block; width: 2px; height: 16px; background: #7c2430; vertical-align: text-bottom;"></span></div>
+      </div>
+      <div class="press" onClick="{{openQr}}" style="background: #3b0a0f; border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; min-height: 44px; box-sizing: border-box;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="min-width: 22px;"><rect x="3" y="3" width="7" height="7" rx="1" stroke="#c99a2e" stroke-width="1.6"></rect><rect x="5.2" y="5.2" width="2.6" height="2.6" fill="#c99a2e"></rect><rect x="14" y="3" width="7" height="7" rx="1" stroke="#c99a2e" stroke-width="1.6"></rect><rect x="16.2" y="5.2" width="2.6" height="2.6" fill="#c99a2e"></rect><rect x="3" y="14" width="7" height="7" rx="1" stroke="#c99a2e" stroke-width="1.6"></rect><rect x="5.2" y="16.2" width="2.6" height="2.6" fill="#c99a2e"></rect><rect x="14" y="14" width="2.6" height="2.6" fill="#c99a2e"></rect><rect x="18.4" y="14" width="2.6" height="2.6" fill="#c99a2e"></rect><rect x="16.2" y="16.2" width="2.6" height="2.6" fill="#c99a2e"></rect><rect x="14" y="18.4" width="2.6" height="2.6" fill="#c99a2e"></rect><rect x="18.4" y="18.4" width="2.6" height="2.6" fill="#c99a2e"></rect></svg>
+        <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+          <div style="font-weight: 600; font-size: 14px; color: #fbf7ef;">Add in person</div>
+          <div style="font-size: 11px; color: rgba(251,247,239,0.65);">Show or scan a code — always works, even with search off.</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#c99a2e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Results</div>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 44px; height: 44px; min-width: 44px; border-radius: 999px; background: #3b0a0f; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px;">JR</div>
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">Jordan Reyes</div>
+            <div style="font-size: 12px; color: rgba(36,26,20,0.55);">jreyes@umass.edu</div>
+          </div>
+          <sc-if value="{{jrNotAdded}}" hint-placeholder-val="{{true}}">
+            <div class="press" onClick="{{addJordan}}" style="height: 44px; padding: 0 18px; display: flex; align-items: center; gap: 7px; background: #7c2430; color: #fbf7ef; border-radius: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3 7h8" stroke="#fbf7ef" stroke-width="1.7" stroke-linecap="round"></path></svg>
+              ADD
+            </div>
+          </sc-if>
+          <sc-if value="{{jrAdded}}" hint-placeholder-val="{{false}}">
+            <div style="height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 7px; border: 1px solid rgba(36,26,20,0.2); color: rgba(36,26,20,0.5); border-radius: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="rgba(36,26,20,0.5)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              REQUESTED
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Requests for you</div>
+          <sc-if value="{{samPending}}" hint-placeholder-val="{{true}}">
+            <div style="min-width: 20px; height: 20px; border-radius: 999px; background: #c99a2e; color: #3b0a0f; display: flex; align-items: center; justify-content: center; font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; padding: 0 6px; box-sizing: border-box;">1</div>
+          </sc-if>
+          <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+        </div>
+        <sc-if value="{{samPending}}" hint-placeholder-val="{{true}}">
+          <div style="background: #fbf7ef; border: 1px solid #c99a2e; border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; min-width: 44px; border-radius: 999px; background: #7c2430; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px;">SO</div>
+            <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+              <div style="font-weight: 600; font-size: 14px;">Sam Okafor</div>
+              <div style="font-size: 12px; color: rgba(36,26,20,0.55);">sokafor@umass.edu</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <div class="press" onClick="{{acceptSam}}" style="width: 44px; height: 44px; border-radius: 999px; background: #7c2430; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5L6.5 11.5l6-7" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </div>
+              <div class="press" onClick="{{declineSam}}" style="width: 44px; height: 44px; border-radius: 999px; border: 1px solid rgba(36,26,20,0.2); display: flex; align-items: center; justify-content: center;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="rgba(36,26,20,0.55)" stroke-width="1.7" stroke-linecap="round"></path></svg>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{samDone}}" hint-placeholder-val="{{false}}">
+          <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; font-size: 12px; color: rgba(36,26,20,0.55);">{{samResult}}</div>
+        </sc-if>
+      </div>
+      <div style="margin-top: auto; padding-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 1px;">
+            <div style="font-weight: 600; font-size: 13px;">Findable by search</div>
+            <div style="font-size: 11px; line-height: 1.4; color: rgba(36,26,20,0.55);">Off = no one can find or request you here. Your in-person code still works.</div>
+          </div>
+          <div class="press tgl" onClick="{{tFind}}" style="{{tFindTrack}}"><div class="knob" style="{{tFindKnob}}"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LAYER 1: FRIEND PROFILE ============ -->
+  <div class="layer" style="{{frStyle}}">
+    <div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; position: relative;">
+      <div style="background: #3b0a0f; padding: 18px 20px 20px 20px; display: flex; flex-direction: column; gap: 14px;">
+        <div class="press" onClick="{{backTop}}" style="width: 32px; height: 32px; display: flex; align-items: center; margin-left: -6px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#fbf7ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="width: 64px; height: 64px; border-radius: 999px; background: #7c2430; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 22px; border: 2px solid #c99a2e;">CS</div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 24px; letter-spacing: 0.5px; color: #fbf7ef;">Casey</div>
+            <div style="font-size: 12px; color: rgba(251,247,239,0.6);">Friends since March · 41 meals logged</div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px; padding: 16px 20px 0 20px; flex-grow: 1;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Hall Completion</div>
+            <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+          </div>
+          <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <div style="font-weight: 600;">Berkshire</div>
+                <div style="font-family: ui-monospace, Menlo, monospace; color: rgba(36,26,20,0.7);">48% · 176 of 366 dishes</div>
+              </div>
+              <div style="height: 6px; border-radius: 999px; background: rgba(36,26,20,0.1); overflow: hidden;">
+                <div style="height: 6px; width: 48%; border-radius: 999px; background: #c99a2e;"></div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <div style="font-weight: 600;">Hampshire</div>
+                <div style="font-family: ui-monospace, Menlo, monospace; color: rgba(36,26,20,0.7);">19% · 71 of 372 dishes</div>
+              </div>
+              <div style="height: 6px; border-radius: 999px; background: rgba(36,26,20,0.1); overflow: hidden;">
+                <div style="height: 6px; width: 19%; border-radius: 999px; background: #7c2430;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Top Foods</div>
+            <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 14px;">
+            <div style="display: flex; flex-direction: column; gap: 1px;">
+              <div style="font-weight: 600; font-size: 14px;">Buffalo Chicken Pizza</div>
+              <div style="font-size: 12px; color: rgba(36,26,20,0.55);">Berkshire</div>
+            </div>
+            <div style="min-width: 44px; text-align: center; background: #c99a2e; color: #3b0a0f; border-radius: 999px; padding: 5px 0; font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px;">8.8</div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Their Hall Ranking</div>
+            <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+          </div>
+          <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 6px 14px; display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(36,26,20,0.08);">
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 16px; color: #c99a2e; min-width: 16px;">1</div>
+              <div style="font-weight: 600; font-size: 14px;">Berkshire</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0;">
+              <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 16px; color: rgba(36,26,20,0.4); min-width: 16px;">2</div>
+              <div style="font-weight: 600; font-size: 14px;">Hampshire</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 12px 20px 22px 20px;">
+        <div class="press" onClick="{{openPing}}" style="background: #7c2430; color: #fbf7ef; border-radius: 6px; height: 52px; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px; letter-spacing: 1px; text-transform: uppercase;">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6c-1 0-2-.25-2.8-.7L3 15l.7-3.2C3.25 11 3 10 3 9z" stroke="#fbf7ef" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+          Ping Casey
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LAYER 2: EXPORT ============ -->
+  <div class="layer" style="{{exportStyle}}">
+    <div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 0 20px; box-sizing: border-box; position: relative;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="press" onClick="{{closeL2}}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -6px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Export data</div>
+      </div>
+      <div style="font-size: 13px; line-height: 1.45; color: rgba(36,26,20,0.65);">Pick what to export. Files go to your share sheet — nothing is uploaded.</div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="press" onClick="{{selLogGo}}" style="{{selLogStyle}}">
+          <div style="{{selLogBox}}"><sc-if value="{{selLog}}" hint-placeholder-val="{{true}}"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></sc-if></div>
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">Food log</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">214 entries · since Aug 2</div>
+          </div>
+        </div>
+        <div class="press" onClick="{{selDishGo}}" style="{{selDishStyle}}">
+          <div style="{{selDishBox}}"><sc-if value="{{selDish}}" hint-placeholder-val="{{true}}"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></sc-if></div>
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">Dish rankings</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">36 ranked · 118 comparisons</div>
+          </div>
+        </div>
+        <div class="press" onClick="{{selOffGo}}" style="{{selOffStyle}}">
+          <div style="{{selOffBox}}"><sc-if value="{{selOff}}" hint-placeholder-val="{{false}}"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></sc-if></div>
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">Off-menu food rankings</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">12 foods</div>
+          </div>
+        </div>
+        <div class="press" onClick="{{selFavGo}}" style="{{selFavStyle}}">
+          <div style="{{selFavBox}}"><sc-if value="{{selFav}}" hint-placeholder-val="{{true}}"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></sc-if></div>
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">Favorites</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">9 dishes</div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Format</div>
+        <div style="display: flex; background: rgba(36,26,20,0.08); border-radius: 999px; padding: 3px;">
+          <div class="press tab" onClick="{{fmtCsv}}" style="{{fmtCsvStyle}}">CSV</div>
+          <div class="press tab" onClick="{{fmtJson}}" style="{{fmtJsonStyle}}">JSON</div>
+          <div class="press tab" onClick="{{fmtBoth}}" style="{{fmtBothStyle}}">BOTH</div>
+        </div>
+      </div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #3b0a0f; padding: 12px 20px 22px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-weight: 600; font-size: 15px; color: #fbf7ef;">{{selCount}} selected</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(251,247,239,0.65);">{{selList}}</div>
+        </div>
+        <div class="press" onClick="{{doExport}}" style="background: #c99a2e; color: #3b0a0f; border-radius: 6px; padding: 0 26px; height: 48px; display: flex; align-items: center; gap: 10px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px; letter-spacing: 1px; text-transform: uppercase;">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="#3b0a0f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path><path d="M3 12v2h10v-2" stroke="#3b0a0f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          Export
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LAYER 2: QR ============ -->
+  <div class="layer" style="{{qrStyle}}">
+    <div style="width: 390px; height: 844px; background: #3b0a0f; overflow: hidden; display: flex; flex-direction: column; gap: 18px; padding: 18px 20px 0 20px; box-sizing: border-box; color: #fbf7ef;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="press" onClick="{{closeL2}}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -6px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#fbf7ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #fbf7ef;">Add in person</div>
+      </div>
+      <div style="display: flex; background: rgba(251,247,239,0.12); border-radius: 999px; padding: 3px;">
+        <div class="press tab" onClick="{{qrCodeMode}}" style="{{qrCodeStyle}}">My code</div>
+        <div class="press tab" onClick="{{qrScanMode}}" style="{{qrScanStyle}}">Scan</div>
+      </div>
+      <sc-if value="{{qrShowCode}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 12px;">
+          <div style="background: #fbf7ef; border-radius: 10px; padding: 22px; display: flex; align-items: center; justify-content: center;">
+            <svg width="216" height="216" viewBox="0 0 29 29" fill="none" shape-rendering="crispEdges">
+              <rect x="0" y="0" width="29" height="29" fill="#fbf7ef"></rect>
+              <path d="M0 0h7v7H0z M1 1v5h5V1z" fill="#3b0a0f" fill-rule="evenodd"></path><rect x="2" y="2" width="3" height="3" fill="#3b0a0f"></rect>
+              <path d="M22 0h7v7h-7z M23 1v5h5V1z" fill="#3b0a0f" fill-rule="evenodd"></path><rect x="24" y="2" width="3" height="3" fill="#3b0a0f"></rect>
+              <path d="M0 22h7v7H0z M1 23v5h5v-5z" fill="#3b0a0f" fill-rule="evenodd"></path><rect x="2" y="24" width="3" height="3" fill="#3b0a0f"></rect>
+              <path d="M9 0h1v1H9z M11 0h2v1h-2z M15 0h1v2h-1z M18 0h2v1h-2z M9 2h1v2H9z M12 2h1v1h-1z M17 2h1v2h-1z M19 2h1v1h-1z M10 4h2v1h-2z M14 4h1v1h-1z M19 4h1v2h-1z M9 6h1v1H9z M12 6h2v1h-2z M16 6h1v1h-1z M0 9h2v1H0z M3 9h1v1H3z M5 9h2v1H5z M8 9h2v1H8z M12 9h1v2h-1z M15 9h2v1h-2z M19 9h1v1h-1z M22 9h1v1h-1z M25 9h2v1h-2z M28 9h1v1h-1z M1 11h1v1H1z M4 11h2v1H4z M8 11h1v1H8z M10 11h1v2h-1z M14 11h1v1h-1z M17 11h2v1h-2z M21 11h1v1h-1z M24 11h1v2h-1z M27 11h1v1h-1z M0 13h1v1H0z M2 13h2v1H2z M6 13h1v1H6z M9 13h1v1H9z M12 13h2v1h-2z M16 13h1v2h-1z M19 13h2v1h-2z M23 13h1v1h-1z M26 13h1v1h-1z M28 13h1v2h-1z M1 15h2v1H1z M5 15h1v1H5z M8 15h2v1H8z M11 15h1v1h-1z M14 15h2v1h-2z M18 15h1v1h-1z M21 15h2v1h-2z M25 15h1v1h-1z M27 15h1v1h-1z M0 17h1v2H0z M3 17h1v1H3z M6 17h2v1H6z M10 17h1v1h-1z M13 17h1v1h-1z M15 17h2v1h-2z M19 17h1v1h-1z M22 17h1v1h-1z M24 17h2v1h-2z M28 17h1v1h-1z M2 19h1v1H2z M5 19h1v1H5z M9 19h2v1H9z M12 19h1v1h-1z M16 19h1v1h-1z M18 19h2v1h-2z M23 19h2v1h-2z M26 19h2v1h-2z M9 22h1v1H9z M11 22h2v1h-2z M15 22h1v1h-1z M18 22h1v2h-1z M21 22h1v1h-1z M24 22h2v1h-2z M27 22h1v1h-1z M10 24h1v1h-1z M13 24h1v1h-1z M16 24h2v1h-2z M20 24h1v1h-1z M23 24h1v1h-1z M26 24h1v1h-1z M9 26h2v1H9z M12 26h1v1h-1z M14 26h2v1h-2z M17 26h1v1h-1z M19 26h2v1h-2z M22 26h1v1h-1z M25 26h2v1h-2z M28 26h1v1h-1z M9 28h1v1H9z M11 28h1v1h-1z M14 28h1v1h-1z M16 28h2v1h-2z M20 28h2v1h-2z M24 28h1v1h-1z M27 28h1v1h-1z" fill="#3b0a0f"></path>
+            </svg>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 40px; height: 40px; border-radius: 999px; background: #7c2430; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 15px; border: 2px solid #c99a2e;">MR</div>
+            <div style="display: flex; flex-direction: column; gap: 1px;">
+              <div style="font-weight: 600; font-size: 15px;">M. Ruiz</div>
+              <div style="font-size: 12px; color: rgba(251,247,239,0.6);">mruiz@umass.edu</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="rgba(251,247,239,0.5)" stroke-width="1.4"></circle><path d="M8 4.5V8l2.3 2.3" stroke="rgba(251,247,239,0.5)" stroke-width="1.4" stroke-linecap="round"></path></svg>
+            <div style="font-size: 11px; color: rgba(251,247,239,0.5);">Code refreshes every 5 minutes — only works face to face.</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{qrShowScan}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 12px;">
+          <div class="press" onClick="{{simScan}}" style="width: 260px; height: 260px; border-radius: 10px; border: 2px dashed rgba(251,247,239,0.35); display: flex; align-items: center; justify-content: center; position: relative;">
+            <div style="position: absolute; top: -2px; left: -2px; width: 34px; height: 34px; border-top: 3px solid #c99a2e; border-left: 3px solid #c99a2e; border-radius: 10px 0 0 0;"></div>
+            <div style="position: absolute; top: -2px; right: -2px; width: 34px; height: 34px; border-top: 3px solid #c99a2e; border-right: 3px solid #c99a2e; border-radius: 0 10px 0 0;"></div>
+            <div style="position: absolute; bottom: -2px; left: -2px; width: 34px; height: 34px; border-bottom: 3px solid #c99a2e; border-left: 3px solid #c99a2e; border-radius: 0 0 0 10px;"></div>
+            <div style="position: absolute; bottom: -2px; right: -2px; width: 34px; height: 34px; border-bottom: 3px solid #c99a2e; border-right: 3px solid #c99a2e; border-radius: 0 0 10px 0;"></div>
+            <div style="font-size: 12px; color: rgba(251,247,239,0.5);">Point at a friend's code — tap to simulate</div>
+          </div>
+          <div style="font-size: 13px; line-height: 1.5; color: rgba(251,247,239,0.8); text-align: center; max-width: 280px;">Scanning sends the request — you'll each confirm on your own phone.</div>
+        </div>
+      </sc-if>
+      <div style="margin-top: auto; padding-bottom: 20px;">
+        <div style="background: rgba(251,247,239,0.08); border: 1px solid rgba(251,247,239,0.15); border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 10px;">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="min-width: 15px;"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#c99a2e" stroke-width="1.5"></rect><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#c99a2e" stroke-width="1.5"></path></svg>
+          <div style="font-size: 11px; line-height: 1.45; color: rgba(251,247,239,0.7);">Works even with "Findable by search" off — handing someone your code is the consent.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SHEETS + OVERLAYS ============ -->
+  <div class="fade" onClick="{{closeSheets}}" style="{{backdropStyle}}"></div>
+
+  <!-- plate sheet -->
+  <div class="sheet" style="{{plateStyle}}">
+    <div style="display: flex; justify-content: center;">
+      <div style="width: 40px; height: 4px; border-radius: 999px; background: rgba(36,26,20,0.2);"></div>
+    </div>
+    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Your Plate</div>
+      <div style="font-size: 12px; color: rgba(36,26,20,0.55);">{{hallName}} · Lunch</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <sc-if value="{{ftPos}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">French Toast</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">320 cal each</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px;">
+            <div class="press" onClick="{{decFt}}" style="width: 42px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #7c2430;">−</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 24px; text-align: center;">{{ft}}</div>
+            <div class="press" onClick="{{incFt}}" style="width: 42px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #7c2430;">+</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{gcbPos}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">Grilled Chicken Breast</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">160 cal each</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px;">
+            <div class="press" onClick="{{decGcb}}" style="width: 42px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #7c2430;">−</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 24px; text-align: center;">{{gcb}}</div>
+            <div class="press" onClick="{{incGcb}}" style="width: 42px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #7c2430;">+</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{hfPos}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+            <div style="font-weight: 600; font-size: 14px;">Home Fries</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">210 cal each</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px;">
+            <div class="press" onClick="{{decHf}}" style="width: 42px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #7c2430;">−</div>
+            <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 24px; text-align: center;">{{hf}}</div>
+            <div class="press" onClick="{{incHf}}" style="width: 42px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #7c2430;">+</div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    <div style="height: 1px; background: rgba(36,26,20,0.12);"></div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Calories</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 18px; font-weight: 600; color: #3b0a0f;">{{plateCal}}</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Protein</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 18px; font-weight: 600; color: #3b0a0f;">{{platePro}}</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Carbs</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 18px; font-weight: 600; color: #3b0a0f;">{{plateCarb}}</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Fat</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 18px; font-weight: 600; color: #3b0a0f;">{{plateFat}}</div>
+      </div>
+    </div>
+    <div class="press" onClick="{{logPlate}}" style="background: #7c2430; color: #fbf7ef; border-radius: 6px; height: 52px; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px; letter-spacing: 1px; text-transform: uppercase;">{{logLabel}}</div>
+    <div class="press" onClick="{{toastOff}}" style="display: flex; align-items: center; gap: 12px; border: 1px dashed rgba(124,36,48,0.45); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="5.5" stroke="#7c2430" stroke-width="1.6"></circle><path d="M13.5 13.5L17 17" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round"></path></svg>
+      <div style="display: flex; flex-direction: column; gap: 0px;">
+        <div style="font-weight: 600; font-size: 13px; color: #7c2430;">Add something else</div>
+        <div style="font-size: 11px; color: rgba(36,26,20,0.55);">Search or scan a barcode — for foods not on the menu</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- nutrition label sheet -->
+  <div class="sheet" style="{{labelStyle}}">
+    <div style="display: flex; justify-content: center;">
+      <div style="width: 40px; height: 4px; border-radius: 999px; background: rgba(36,26,20,0.2);"></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">French Toast</div>
+      <div style="font-size: 12px; color: rgba(36,26,20,0.6);">{{hallName}} · Lunch Entrées</div>
+    </div>
+    <div style="background: #fbf7ef; border: 2px solid #241a14; border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 24px; letter-spacing: 0.5px; color: #241a14;">Nutrition Facts</div>
+      <div style="font-size: 13px;">Serving size <span style="font-family: ui-monospace, Menlo, monospace; font-weight: 600;">2 slices (104g)</span></div>
+      <div style="height: 8px; background: #241a14;"></div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="font-weight: 600; font-size: 14px;">Calories</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 30px; line-height: 1;">320</div>
+      </div>
+      <div style="height: 4px; background: #241a14;"></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(36,26,20,0.25);">
+        <div><span style="font-weight: 600;">Total Fat</span> <span style="font-family: ui-monospace, Menlo, monospace;">9g</span></div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600;">12%</div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(36,26,20,0.25);">
+        <div><span style="font-weight: 600;">Sodium</span> <span style="font-family: ui-monospace, Menlo, monospace;">480mg</span></div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600;">21%</div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(36,26,20,0.25);">
+        <div><span style="font-weight: 600;">Total Carbohydrate</span> <span style="font-family: ui-monospace, Menlo, monospace;">48g</span></div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600;">17%</div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0;">
+        <div><span style="font-weight: 600;">Protein</span> <span style="font-family: ui-monospace, Menlo, monospace;">11g</span></div>
+        <div></div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Allergens</div>
+      <div style="background: rgba(124,36,48,0.12); color: #7c2430; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px;">Wheat</div>
+      <div style="background: rgba(124,36,48,0.12); color: #7c2430; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px;">Egg</div>
+      <div style="background: rgba(124,36,48,0.12); color: #7c2430; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px;">Milk</div>
+    </div>
+    <div class="press" onClick="{{addFromLabel}}" style="background: #7c2430; color: #fbf7ef; border-radius: 6px; height: 48px; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 15px; letter-spacing: 1px; text-transform: uppercase;">Add to plate</div>
+  </div>
+
+  <!-- hall info sheet -->
+  <div class="sheet" style="{{infoStyle}}">
+    <div style="display: flex; justify-content: center;">
+      <div style="width: 40px; height: 4px; border-radius: 999px; background: rgba(36,26,20,0.2);"></div>
+    </div>
+    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">{{hallName}}</div>
+      <div style="font-size: 12px; color: rgba(36,26,20,0.55);">Dining Commons</div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 14px; min-height: 44px; box-sizing: border-box;">
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <div style="font-weight: 600; font-size: 13px;">{{infoAddress}}</div>
+        <div style="font-size: 11px; color: rgba(36,26,20,0.55);">UMass Amherst</div>
+      </div>
+      <div class="press" onClick="{{toastDirections}}" style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430; min-height: 32px;">DIRECTIONS
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6.5 3.5H3.5v9h9V9.5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9.5 3h3.5v3.5M12.8 3.2L8 8" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0px; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; padding: 9px 14px; font-size: 13px;">
+        <div style="color: rgba(36,26,20,0.7);">Breakfast</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.7);">7:00 – 10:45 AM</div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; font-size: 13px; background: rgba(201,154,46,0.12);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="font-weight: 600; color: #3b0a0f;">Lunch</div>
+          <div style="background: #c99a2e; color: #3b0a0f; font-size: 9px; font-weight: 700; letter-spacing: 0.8px; padding: 2px 7px; border-radius: 999px;">NOW</div>
+        </div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: #3b0a0f;">11:00 AM – 2:30 PM</div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; justify-content: space-between; padding: 9px 14px; font-size: 13px;">
+        <div style="color: rgba(36,26,20,0.7);">Dinner</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.7);">4:30 – 9:00 PM</div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px;"></div>
+      <div style="display: flex; justify-content: space-between; padding: 9px 14px; font-size: 13px;">
+        <div style="display: flex; align-items: center; gap: 8px; color: rgba(36,26,20,0.7);">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 5h10l-1 9H4L3 5z" stroke="rgba(36,26,20,0.6)" stroke-width="1.5" stroke-linejoin="round"></path><path d="M5.5 5V4a2.5 2.5 0 0 1 5 0v1" stroke="rgba(36,26,20,0.6)" stroke-width="1.5"></path></svg>
+          Grab 'N Go
+        </div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.7);">11:00 AM – 7:00 PM</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 14px; min-height: 44px; box-sizing: border-box;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="min-width: 14px;"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5" stroke="#7c2430" stroke-width="1.4"></rect><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke="#7c2430" stroke-width="1.4" stroke-linecap="round"></path></svg>
+      <div style="font-size: 12px; line-height: 1.4; color: rgba(36,26,20,0.7);">{{infoEvent}}</div>
+    </div>
+  </div>
+
+  <!-- ping bubble overlay -->
+  <div class="fade" style="{{pingStyle}}">
+    <div style="background: #fbf7ef; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; width: 280px; box-shadow: 0 12px 32px rgba(36,26,20,0.35);">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 36px; height: 36px; border-radius: 999px; background: #7c2430; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 14px; border: 2px solid #c99a2e;">CS</div>
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; color: #3b0a0f;">"Let's go to…"</div>
+      </div>
+      <div class="press" onClick="{{pingHamp}}" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(36,26,20,0.15); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 14px;">Hampshire</div>
+        <div style="font-size: 11px; color: rgba(36,26,20,0.5);">open til 9</div>
+      </div>
+      <div class="press" onClick="{{pingWor}}" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(36,26,20,0.15); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 14px;">Worcester</div>
+        <div style="font-size: 11px; color: rgba(36,26,20,0.5);">open til 10</div>
+      </div>
+      <div class="press" onClick="{{pingFra}}" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(36,26,20,0.15); border-radius: 6px; padding: 12px 14px; min-height: 44px; box-sizing: border-box;">
+        <div style="font-weight: 600; font-size: 14px;">Franklin</div>
+        <div style="font-size: 11px; color: rgba(36,26,20,0.5);">open til 8</div>
+      </div>
+      <div class="press" onClick="{{closePing}}" style="text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: rgba(36,26,20,0.5); min-height: 32px; display: flex; align-items: center; justify-content: center;">CANCEL</div>
+    </div>
+  </div>
+
+  <!-- QR scan confirmation overlay -->
+  <div class="fade" style="{{qrConfirmStyle}}">
+    <div style="background: #fbf7ef; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 280px; box-shadow: 0 12px 32px rgba(0,0,0,0.45); color: #241a14;">
+      <div style="width: 72px; height: 72px; border-radius: 999px; background: #7c2430; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 26px; border: 2px solid #c99a2e;">SO</div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+        <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 0.5px; color: #3b0a0f;">Sam Okafor</div>
+        <div style="font-size: 12px; color: rgba(36,26,20,0.55);">sokafor@umass.edu · scanned just now</div>
+      </div>
+      <div class="press" onClick="{{qrConfirm}}" style="align-self: stretch; background: #c99a2e; color: #3b0a0f; border-radius: 6px; height: 48px; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 15px; letter-spacing: 1px; text-transform: uppercase;">Add Sam</div>
+      <div class="press" onClick="{{qrCancelScan}}" style="font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: rgba(36,26,20,0.5); min-height: 32px; display: flex; align-items: center;">CANCEL</div>
+      <div style="font-size: 11px; line-height: 1.45; color: rgba(36,26,20,0.55); text-align: center;">You'll be friends once Sam confirms on their phone too.</div>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <div class="toastbox" style="{{toastStyle}}">{{toastMsg}}</div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"offline":{"editor":"boolean","default":false,"section":"Simulate"},"infoHint":{"editor":"enum","options":["glyph","chevron","none"],"default":"glyph","section":"Workshop"}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      pane: 1, top: null, l2: null,
+      menuLoading: false, grab: false, hallName: 'Hampshire', dateOff: 0,
+      mealTab: 'Lunch',
+      ft: 0, gcb: 0, hf: 0,
+      plateOpen: false, labelOpen: false,
+      loggedCal: 0, loggedPro: 0, loggedCarb: 0, loggedFat: 0, loggedItems: 0,
+      ftLog: 2,
+      tCal: false, tStreak: true, tComp: false, tTop: false, tHalls: true, tAlerts: true, tFind: true,
+      selLog: true, selDish: true, selOff: false, selFav: true, fmt: 'CSV',
+      jrAdded: false, sam: 'pending',
+      pingOpen: false, qrMode: 'code', qrScanned: false, hallInfoOpen: false,
+      toast: null
+    };
+    this._toastTimer = null;
+  }
+  say(msg) {
+    clearTimeout(this._toastTimer);
+    this.setState({ toast: msg });
+    this._toastTimer = setTimeout(() => this.setState({ toast: null }), 1900);
+  }
+  openHall(name, grab) {
+    this.setState({ top: 'hall', hallName: name, grab: grab, menuLoading: true, mealTab: grab ? 'Grab' : 'Lunch' });
+    setTimeout(() => this.setState({ menuLoading: false }), 750);
+  }
+  tgl(key) { this.setState({ [key]: !this.state[key] }); }
+  trackStyle(on) {
+    return 'width: 44px; height: 26px; min-width: 44px; border-radius: 999px; padding: 2px; box-sizing: border-box; display: flex; align-items: center; background: ' + (on ? '#7c2430' : 'rgba(36,26,20,0.15)') + ';';
+  }
+  knobStyle(on) {
+    return 'width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; ' + (on ? 'transform: translateX(18px); border: none;' : 'transform: translateX(0); border: 1px solid rgba(36,26,20,0.15); box-sizing: border-box;');
+  }
+  paneStyle(j, layout) {
+    // DECIDED (owner): shared-axis — 36px drift + fade, fixed header above.
+    const d = j - this.state.pane;
+    const base = 'position: absolute; top: 0; left: 0; width: 390px; height: 844px; overflow: hidden; background: #f3ead8; box-sizing: border-box; ' + layout;
+    return base + 'z-index: ' + (d === 0 ? 3 : 1) + '; transform: translateX(' + (d * 36) + 'px); opacity: ' + (d === 0 ? 1 : 0) + '; pointer-events: ' + (d === 0 ? 'auto' : 'none') + ';';
+  }
+  titleStyle(j) {
+    const d = j - this.state.pane;
+    return "position: absolute; left: 0; top: 0; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 1px; color: #3b0a0f; pointer-events: none; transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 240ms ease; transform: translateX(" + (d * 28) + "px); opacity: " + (d === 0 ? 1 : 0) + ";";
+  }
+  dotStyle(j) {
+    const on = this.state.pane === j;
+    return 'border-radius: 999px; transition: width 200ms ease, height 200ms ease, background 200ms ease; width: ' + (on ? 8 : 6) + 'px; height: ' + (on ? 8 : 6) + 'px; background: ' + (on ? '#7c2430' : 'rgba(36,26,20,0.25)') + ';';
+  }
+  tabStyle(active, extra) {
+    return "padding: 10px 0 8px 0; display: flex; align-items: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: -1px; " +
+      (active ? 'color: #3b0a0f; border-bottom: 3px solid #c99a2e;' : 'color: rgba(36,26,20,0.45); border-bottom: 3px solid transparent;') + (extra || '');
+  }
+  layerStyle(open, z) {
+    return 'position: absolute; inset: 0; z-index: ' + z + '; transform: translateX(' + (open ? '0' : '104%') + '); box-shadow: -12px 0 32px rgba(36,26,20,' + (open ? '0.22' : '0') + ');';
+  }
+  fmtBtn(active) {
+    return 'height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 999px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; padding: 0 16px; ' +
+      (active ? 'background: #3b0a0f; color: #fbf7ef;' : 'color: rgba(36,26,20,0.55);');
+  }
+  selCard(on) {
+    return 'background: #fbf7ef; border: 1px solid ' + (on ? '#c99a2e' : 'rgba(36,26,20,0.12)') + '; border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; min-height: 44px; box-sizing: border-box; transition: border-color 180ms ease;';
+  }
+  selBox(on) {
+    return 'width: 22px; height: 22px; min-width: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: background 180ms ease; ' +
+      (on ? 'background: #7c2430;' : 'border: 1.5px solid rgba(36,26,20,0.3); box-sizing: border-box;');
+  }
+  renderVals() {
+    const s = this.state;
+    const dishCard = (hot) => 'background: #fbf7ef; border: 1px solid ' + (hot ? '#c99a2e' : 'rgba(36,26,20,0.12)') + '; border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; transition: border-color 180ms ease;';
+    const plateCount = s.ft + s.gcb + s.hf;
+    const plateCal = 320 * s.ft + 160 * s.gcb + 210 * s.hf;
+    const platePro = 11 * s.ft + 27 * s.gcb + 3 * s.hf;
+    const plateCarb = 48 * s.ft + 0 * s.gcb + 26 * s.hf;
+    const plateFat = 9 * s.ft + 5 * s.gcb + 9 * s.hf;
+    const barVisible = s.top === 'hall' && !s.menuLoading && plateCount > 0 && !s.plateOpen && !s.labelOpen;
+    const sheetUp = s.plateOpen || s.labelOpen || s.pingOpen || s.hallInfoOpen;
+    const dates = ['Tue, Aug 19', 'Wed, Aug 20', 'Thu, Aug 21'];
+    const selCount = (s.selLog ? 1 : 0) + (s.selDish ? 1 : 0) + (s.selOff ? 1 : 0) + (s.selFav ? 1 : 0);
+    const selNames = [];
+    if (s.selLog) selNames.push('log');
+    if (s.selDish) selNames.push('dish rankings');
+    if (s.selOff) selNames.push('off-menu');
+    if (s.selFav) selNames.push('favorites');
+    return {
+      offline: !!this.props.offline,
+      // panes + dots
+      paneS: this.paneStyle(0, 'display: flex; flex-direction: column; gap: 14px; padding: 52px 20px 0 20px;'),
+      paneH: this.paneStyle(1, 'display: flex; flex-direction: column;'),
+      paneY: this.paneStyle(2, 'display: flex; flex-direction: column; gap: 14px; padding: 52px 20px 0 20px;'),
+      titleS: this.titleStyle(0), titleH: this.titleStyle(1), titleY: this.titleStyle(2),
+      dotS: this.dotStyle(0), dotH: this.dotStyle(1), dotY: this.dotStyle(2),
+      goSocial: () => this.setState({ pane: 0 }),
+      goHome: () => this.setState({ pane: 1 }),
+      goYou: () => this.setState({ pane: 2 }),
+      // home → hall menu
+      openHallW: () => this.openHall('Worcester', false),
+      openHallF: () => this.openHall('Franklin', false),
+      openHallH: () => this.openHall('Hampshire', false),
+      openHallB: () => this.say("Berkshire is closed — opens 4:30 PM"),
+      openGrabW: () => this.openHall('Worcester', true),
+      openGrabF: () => this.openHall('Franklin', true),
+      openGrabH: () => this.openHall('Hampshire', true),
+      // layers
+      hallStyle: this.layerStyle(s.top === 'hall', 10),
+      logsStyle: this.layerStyle(s.top === 'logs', 10),
+      ydStyle: this.layerStyle(s.top === 'yourdata', 10),
+      afStyle: this.layerStyle(s.top === 'addfriends', 10),
+      frStyle: this.layerStyle(s.top === 'friend', 10),
+      exportStyle: this.layerStyle(s.l2 === 'export', 20),
+      qrStyle: this.layerStyle(s.l2 === 'qr', 20),
+      backTop: () => this.setState({ top: null, plateOpen: false, labelOpen: false }),
+      closeL2: () => this.setState({ l2: null }),
+      openLogs: () => this.setState({ top: 'logs' }),
+      openYourData: () => this.setState({ top: 'yourdata' }),
+      openAddFriends: () => this.setState({ top: 'addfriends' }),
+      openFriend: () => this.setState({ top: 'friend' }),
+      openExport: () => this.setState({ l2: 'export' }),
+      openQr: () => this.setState({ l2: 'qr' }),
+      // hall menu
+      hallName: s.hallName,
+      dateLabel: dates[s.dateOff],
+      stepDate: () => { if (s.dateOff > 0) { this.setState({ dateOff: s.dateOff - 1, menuLoading: true }); setTimeout(() => this.setState({ menuLoading: false }), 550); } },
+      stepDateFwd: () => { if (s.dateOff < 2) { this.setState({ dateOff: s.dateOff + 1, menuLoading: true }); setTimeout(() => this.setState({ menuLoading: false }), 550); } },
+      menuLoading: s.menuLoading,
+      menuReady: !s.menuLoading,
+      grabMode: s.mealTab === 'Grab',
+      mealMode: s.mealTab !== 'Grab',
+      openInfo: () => this.setState({ hallInfoOpen: true }),
+      hintGlyph: (this.props.infoHint || 'glyph') === 'glyph',
+      hintChevron: this.props.infoHint === 'chevron',
+      infoStyle: 'position: absolute; left: 0; right: 0; bottom: 0; z-index: 31; background: #fbf7ef; border-radius: 12px 12px 0 0; padding: 10px 20px 24px 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -8px 24px rgba(36,26,20,0.25); transform: translateY(' + (s.hallInfoOpen ? '0' : '108%') + ');',
+      infoAddress: s.hallName === 'Worcester' ? '667 N Pleasant Street' : s.hallName === 'Franklin' ? '260 Stockbridge Road' : '141 Southwest Circle',
+      infoEvent: s.hallName === 'Franklin' ? 'Local Harvest Dinner · Thursday 5–8 PM, right here' : 'No events at ' + s.hallName + ' this week',
+      toastDirections: () => this.say('Opens in your maps app'),
+      tabB: this.tabStyle(s.mealTab === 'Breakfast'),
+      tabL: this.tabStyle(s.mealTab === 'Lunch'),
+      tabD: this.tabStyle(s.mealTab === 'Dinner'),
+      tabLate: this.tabStyle(s.mealTab === 'Late'),
+      tabG: this.tabStyle(s.mealTab === 'Grab'),
+      tabBGo: () => this.setState({ mealTab: 'Breakfast' }),
+      tabLGo: () => this.setState({ mealTab: 'Lunch' }),
+      tabDGo: () => this.setState({ mealTab: 'Dinner' }),
+      tabLateGo: () => this.setState({ mealTab: 'Late' }),
+      tabGGo: () => this.setState({ mealTab: 'Grab' }),
+      toastGrab: () => this.say('Added — grab items log like any dish'),
+      // dishes
+      ft: s.ft, gcb: s.gcb, hf: s.hf,
+      ftPos: s.ft > 0, ftZero: s.ft === 0,
+      gcbPos: s.gcb > 0, gcbZero: s.gcb === 0,
+      hfPos: s.hf > 0, hfZero: s.hf === 0,
+      ftCardStyle: dishCard(s.ft > 0),
+      gcbCardStyle: dishCard(s.gcb > 0),
+      hfCardStyle: dishCard(s.hf > 0),
+      incFt: () => this.setState({ ft: s.ft + 1 }),
+      decFt: () => this.setState({ ft: Math.max(0, s.ft - 1) }),
+      incGcb: () => this.setState({ gcb: s.gcb + 1 }),
+      decGcb: () => this.setState({ gcb: Math.max(0, s.gcb - 1) }),
+      incHf: () => this.setState({ hf: s.hf + 1 }),
+      decHf: () => this.setState({ hf: Math.max(0, s.hf - 1) }),
+      // plate bar + sheet
+      barStyle: 'position: absolute; left: 0; right: 0; bottom: 0; background: #3b0a0f; padding: 12px 20px 22px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; transform: translateY(' + (barVisible ? '0' : '110%') + ');',
+      barTitle: plateCount + (plateCount === 1 ? ' item · ' : ' items · ') + plateCal + ' cal',
+      barMacros: platePro + 'g protein · ' + plateCarb + 'g carbs · ' + plateFat + 'g fat',
+      openPlate: () => this.setState({ plateOpen: true }),
+      closeSheets: () => this.setState({ plateOpen: false, labelOpen: false, pingOpen: false, hallInfoOpen: false }),
+      backdropStyle: 'position: absolute; inset: 0; z-index: 30; background: rgba(36,26,20,0.5); opacity: ' + (sheetUp ? '1' : '0') + '; pointer-events: ' + (sheetUp ? 'auto' : 'none') + ';',
+      plateStyle: 'position: absolute; left: 0; right: 0; bottom: 0; z-index: 31; background: #fbf7ef; border-radius: 12px 12px 0 0; padding: 10px 20px 24px 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 -8px 24px rgba(36,26,20,0.25); transform: translateY(' + (s.plateOpen ? '0' : '108%') + ');',
+      plateCal: String(plateCal), platePro: platePro + 'g', plateCarb: plateCarb + 'g', plateFat: plateFat + 'g',
+      logLabel: plateCount > 0 ? ('Log ' + plateCount + (plateCount === 1 ? ' item' : ' items')) : 'Plate is empty',
+      logPlate: () => {
+        if (plateCount === 0) { this.say('Plate is empty — add a dish first'); return; }
+        this.setState({
+          loggedCal: s.loggedCal + plateCal, loggedPro: s.loggedPro + platePro,
+          loggedCarb: s.loggedCarb + plateCarb, loggedFat: s.loggedFat + plateFat,
+          loggedItems: s.loggedItems + plateCount,
+          ft: 0, gcb: 0, hf: 0, plateOpen: false
+        });
+        this.say('Logged ' + plateCount + (plateCount === 1 ? ' item · ' : ' items · ') + plateCal + ' cal');
+      },
+      // label sheet
+      openLabel: () => this.setState({ labelOpen: true }),
+      labelStyle: 'position: absolute; left: 0; right: 0; bottom: 0; z-index: 32; background: #fbf7ef; border-radius: 12px 12px 0 0; padding: 10px 20px 24px 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -8px 24px rgba(36,26,20,0.25); transform: translateY(' + (s.labelOpen ? '0' : '108%') + ');',
+      addFromLabel: () => { this.setState({ ft: s.ft + 1, labelOpen: false }); this.say('French Toast added to plate'); },
+      // You pane totals
+      youCal: (1240 + s.loggedCal).toLocaleString('en-US'),
+      youPro: (68 + s.loggedPro) + 'g',
+      youCarb: (132 + s.loggedCarb) + 'g',
+      youFat: (47 + s.loggedFat) + 'g',
+      lunchCal: String(600 + s.loggedCal),
+      hasLoggedPlate: s.loggedItems > 0,
+      loggedLine: 'From your plate × ' + s.loggedItems + ' · ' + s.hallName,
+      loggedCalStr: String(s.loggedCal),
+      // Logs screen
+      ftLog: s.ftLog,
+      ftLogPos: s.ftLog > 0, ftLogZero: s.ftLog === 0,
+      incFtLog: () => this.setState({ ftLog: s.ftLog + 1 }),
+      decFtLog: () => this.setState({ ftLog: Math.max(0, s.ftLog - 1) }),
+      removeFtLog: () => { this.setState({ ftLog: 0 }); this.say('French Toast removed from Tuesday'); },
+      bfastCal: String(320 * s.ftLog),
+      dayCal: (320 * s.ftLog + 600).toLocaleString('en-US'),
+      // Your Data toggles.
+      // NOTE: each handler toasts using the PRE-toggle value (`s.X` is captured before
+      // this.tgl flips state) — s.X === true means "was on, now off" => 'Deleted from server'.
+      // Do NOT "fix" this to read this.state after tgl(); that inverts all seven toasts.
+      tCalTrack: this.trackStyle(s.tCal), tCalKnob: this.knobStyle(s.tCal), tCal: () => { this.tgl('tCal'); this.say(s.tCal ? 'Deleted from server' : 'Shared with accepted friends'); },
+      tStreakTrack: this.trackStyle(s.tStreak), tStreakKnob: this.knobStyle(s.tStreak), tStreak: () => { this.tgl('tStreak'); this.say(s.tStreak ? 'Deleted from server' : 'Shared with accepted friends'); },
+      tCompTrack: this.trackStyle(s.tComp), tCompKnob: this.knobStyle(s.tComp), tComp: () => { this.tgl('tComp'); this.say(s.tComp ? 'Deleted from server' : 'Shared with accepted friends'); },
+      tTopTrack: this.trackStyle(s.tTop), tTopKnob: this.knobStyle(s.tTop), tTop: () => { this.tgl('tTop'); this.say(s.tTop ? 'Deleted from server' : 'Shared with accepted friends'); },
+      tHallsTrack: this.trackStyle(s.tHalls), tHallsKnob: this.knobStyle(s.tHalls), tHalls: () => { this.tgl('tHalls'); this.say(s.tHalls ? 'Deleted from server' : 'Shared with accepted friends'); },
+      tAlertsTrack: this.trackStyle(s.tAlerts), tAlertsKnob: this.knobStyle(s.tAlerts), tAlerts: () => { this.tgl('tAlerts'); this.say(s.tAlerts ? 'Favorites removed from server' : 'Watching menus for your favorites'); },
+      toastDelete: () => this.say('Would ask to confirm, then delete server data'),
+      // Export
+      selLog: s.selLog, selDish: s.selDish, selOff: s.selOff, selFav: s.selFav,
+      selLogStyle: this.selCard(s.selLog), selDishStyle: this.selCard(s.selDish), selOffStyle: this.selCard(s.selOff), selFavStyle: this.selCard(s.selFav),
+      selLogBox: this.selBox(s.selLog), selDishBox: this.selBox(s.selDish), selOffBox: this.selBox(s.selOff), selFavBox: this.selBox(s.selFav),
+      selLogGo: () => this.tgl('selLog'), selDishGo: () => this.tgl('selDish'), selOffGo: () => this.tgl('selOff'), selFavGo: () => this.tgl('selFav'),
+      fmtCsvStyle: this.fmtBtn(s.fmt === 'CSV'), fmtJsonStyle: this.fmtBtn(s.fmt === 'JSON'), fmtBothStyle: this.fmtBtn(s.fmt === 'BOTH'),
+      fmtCsv: () => this.setState({ fmt: 'CSV' }), fmtJson: () => this.setState({ fmt: 'JSON' }), fmtBoth: () => this.setState({ fmt: 'BOTH' }),
+      selCount: String(selCount),
+      selList: selNames.length ? selNames.join(' · ') : 'nothing selected',
+      doExport: () => this.say(selCount === 0 ? 'Pick at least one store' : selCount + (selCount === 1 ? ' file' : ' files') + ' (' + s.fmt + ') handed to the share sheet'),
+      // Add friends
+      jrNotAdded: !s.jrAdded, jrAdded: s.jrAdded,
+      addJordan: () => { this.setState({ jrAdded: true }); this.say('Request sent to Jordan'); },
+      samPending: s.sam === 'pending', samDone: s.sam !== 'pending',
+      samResult: s.sam === 'accepted' ? "You and Sam are friends now." : "Request declined — Sam won't be notified.",
+      acceptSam: () => { this.setState({ sam: 'accepted' }); this.say("You're now friends with Sam"); },
+      declineSam: () => this.setState({ sam: 'declined' }),
+      tFindTrack: this.trackStyle(s.tFind), tFindKnob: this.knobStyle(s.tFind),
+      tFind: () => { this.tgl('tFind'); this.say(s.tFind ? 'Hidden from search — QR still works' : 'Findable by search again'); },
+      // QR
+      qrShowCode: s.qrMode === 'code', qrShowScan: s.qrMode === 'scan',
+      qrCodeStyle: 'flex-grow: 1; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 999px; font-family: \'Oswald\', \'Arial Narrow\', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; ' + (s.qrMode === 'code' ? 'background: #c99a2e; color: #3b0a0f;' : 'color: rgba(251,247,239,0.65);'),
+      qrScanStyle: 'flex-grow: 1; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 999px; font-family: \'Oswald\', \'Arial Narrow\', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; ' + (s.qrMode === 'scan' ? 'background: #c99a2e; color: #3b0a0f;' : 'color: rgba(251,247,239,0.65);'),
+      qrCodeMode: () => this.setState({ qrMode: 'code' }),
+      qrScanMode: () => this.setState({ qrMode: 'scan' }),
+      simScan: () => this.setState({ qrScanned: true }),
+      qrConfirmStyle: 'position: absolute; inset: 0; z-index: 34; background: rgba(36,26,20,0.55); display: flex; align-items: center; justify-content: center; opacity: ' + (s.qrScanned ? '1' : '0') + '; pointer-events: ' + (s.qrScanned ? 'auto' : 'none') + ';',
+      qrConfirm: () => { this.setState({ qrScanned: false }); this.say("Request sent — Sam confirms on their phone too"); },
+      qrCancelScan: () => this.setState({ qrScanned: false }),
+      // Friend profile + ping
+      openPing: () => this.setState({ pingOpen: true }),
+      closePing: () => this.setState({ pingOpen: false }),
+      pingStyle: 'position: absolute; inset: 0; z-index: 33; display: flex; align-items: center; justify-content: center; opacity: ' + (s.pingOpen ? '1' : '0') + '; pointer-events: ' + (s.pingOpen ? 'auto' : 'none') + ';',
+      pingHamp: () => { this.setState({ pingOpen: false, top: null }); this.say(this.props.offline ? 'Ping queued — sends when back online' : 'Pinged Casey — "Let\'s go to Hampshire"'); },
+      pingWor: () => { this.setState({ pingOpen: false, top: null }); this.say(this.props.offline ? 'Ping queued — sends when back online' : 'Pinged Casey — "Let\'s go to Worcester"'); },
+      pingFra: () => { this.setState({ pingOpen: false, top: null }); this.say(this.props.offline ? 'Ping queued — sends when back online' : 'Pinged Casey — "Let\'s go to Franklin"'); },
+      // misc toasts
+      toastEvent: () => this.say('Opens the full pamphlet in-app'),
+      toastExternal: () => this.say('Opens in the pop-up browser'),
+      toastOff: () => this.say('OpenFoodFacts search — not in this prototype'),
+      // toast
+      toastMsg: s.toast || '',
+      toastStyle: 'position: absolute; left: 50%; bottom: 96px; z-index: 40; background: #241a14; color: #fbf7ef; font-size: 13px; font-weight: 500; padding: 12px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(36,26,20,0.35); white-space: nowrap; pointer-events: none; opacity: ' + (s.toast ? '1' : '0') + '; transform: translateX(-50%) translateY(' + (s.toast ? '0' : '12px') + ');'
+    };
+  }
+}
+</script>
+</body>
+</html>

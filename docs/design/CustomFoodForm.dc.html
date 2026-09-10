@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+    a { color: #7c2430; } a:hover { color: #3b0a0f; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; color: #241a14; position: relative;">
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 18px 20px 4px 20px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="min-width: 24px;"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">New Custom Food</div>
+  </div>
+
+  <div style="padding: 12px 20px 0 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; flex-grow: 1;">
+
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Name</div>
+      <div style="background: #fbf7ef; border: 1.5px solid #c99a2e; border-radius: 6px; padding: 12px 14px; font-size: 14px; font-weight: 600;">Dad's Protein Shake</div>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Serving Size</div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.2); border-radius: 6px; padding: 12px 14px; font-size: 14px;">1 shake (16oz)</div>
+      </div>
+    </div>
+
+    <div style="height: 1px; background: rgba(36,26,20,0.1); margin-top: 2px;"></div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Per Serving</div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.2); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(36,26,20,0.5);">Calories</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 600;">340</div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.2); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(36,26,20,0.5);">Protein (g)</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 600;">32</div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.2); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(36,26,20,0.5);">Carbs (g)</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 600;">28</div>
+        </div>
+        <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.2); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(36,26,20,0.5);">Fat (g)</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 600;">6</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(36,26,20,0.15); border-radius: 6px; padding: 11px 14px;">
+      <div style="font-size: 13px; font-weight: 600; color: #3b0a0f;">More nutrition fields</div>
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+
+  </div>
+
+  <div style="position: relative; background: #fbf7ef; border-top: 1px solid rgba(36,26,20,0.12); padding: 12px 20px 22px 20px;">
+    <div style="background: #3b0a0f; color: #fbf7ef; border-radius: 6px; height: 50px; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 15px; letter-spacing: 1px; text-transform: uppercase;">Save Custom Food</div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

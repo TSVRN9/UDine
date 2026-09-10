@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+    a { color: #7c2430; } a:hover { color: #3b0a0f; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 0 20px; box-sizing: border-box; color: #241a14; position: relative;">
+
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="min-width: 24px;"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Export data</div>
+  </div>
+
+  <div style="font-size: 13px; line-height: 1.45; color: rgba(36,26,20,0.65);">Pick what to export. Files go to your share sheet — nothing is uploaded.</div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+
+    <div style="background: #fbf7ef; border: 1px solid #c99a2e; border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; min-height: 44px; box-sizing: border-box;">
+      <div style="width: 22px; height: 22px; min-width: 22px; border-radius: 4px; background: #7c2430; display: flex; align-items: center; justify-content: center;">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+        <div style="font-weight: 600; font-size: 14px;">Food log</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">214 entries · since Aug 2</div>
+      </div>
+    </div>
+
+    <div style="background: #fbf7ef; border: 1px solid #c99a2e; border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; min-height: 44px; box-sizing: border-box;">
+      <div style="width: 22px; height: 22px; min-width: 22px; border-radius: 4px; background: #7c2430; display: flex; align-items: center; justify-content: center;">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+        <div style="font-weight: 600; font-size: 14px;">Dish rankings</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">36 ranked · 118 comparisons</div>
+      </div>
+    </div>
+
+    <div style="background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; min-height: 44px; box-sizing: border-box;">
+      <div style="width: 22px; height: 22px; min-width: 22px; border-radius: 4px; border: 1.5px solid rgba(36,26,20,0.3); box-sizing: border-box;"></div>
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+        <div style="font-weight: 600; font-size: 14px;">Off-menu food rankings</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">12 foods</div>
+      </div>
+    </div>
+
+    <div style="background: #fbf7ef; border: 1px solid #c99a2e; border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; min-height: 44px; box-sizing: border-box;">
+      <div style="width: 22px; height: 22px; min-width: 22px; border-radius: 4px; background: #7c2430; display: flex; align-items: center; justify-content: center;">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 7.5L6 10l5-6" stroke="#fbf7ef" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+        <div style="font-weight: 600; font-size: 14px;">Favorites</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55);">9 dishes</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55);">Format</div>
+    <div style="display: flex; background: rgba(36,26,20,0.08); border-radius: 999px; padding: 3px;">
+      <div style="height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #3b0a0f; color: #fbf7ef; font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; padding: 0 18px;">CSV</div>
+      <div style="height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 999px; color: rgba(36,26,20,0.55); font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; padding: 0 18px;">JSON</div>
+      <div style="height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 999px; color: rgba(36,26,20,0.55); font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; padding: 0 18px;">BOTH</div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #3b0a0f; padding: 12px 20px 22px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-weight: 600; font-size: 15px; color: #fbf7ef;">3 selected</div>
+      <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(251,247,239,0.65);">log · dish rankings · favorites</div>
+    </div>
+    <div style="background: #c99a2e; color: #3b0a0f; border-radius: 6px; padding: 0 26px; height: 48px; display: flex; align-items: center; gap: 10px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px; letter-spacing: 1px; text-transform: uppercase;">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="#3b0a0f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path><path d="M3 12v2h10v-2" stroke="#3b0a0f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      Export
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

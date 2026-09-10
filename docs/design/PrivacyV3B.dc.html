@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+    .h { display: flex; align-items: center; gap: 8px; }
+    .h .t { font-family: "Oswald", "Arial Narrow", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f; }
+    .h .r { height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5); }
+    .card { background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; display: flex; flex-direction: column; }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; min-height: 42px; box-sizing: border-box; gap: 10px; }
+    .div { height: 1px; background: rgba(36,26,20,0.08); margin: 0 14px; }
+    .lab { font-weight: 600; font-size: 13px; }
+    .sub { font-size: 11px; color: rgba(36,26,20,0.55); line-height: 1.4; }
+    .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.55); }
+    .on  { width: 44px; height: 26px; min-width: 44px; border-radius: 999px; background: #7c2430; display: flex; align-items: center; justify-content: flex-end; padding: 2px; box-sizing: border-box; }
+    .on  > div { width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; }
+    .off { width: 44px; height: 26px; min-width: 44px; border-radius: 999px; background: rgba(36,26,20,0.15); display: flex; align-items: center; padding: 2px; box-sizing: border-box; }
+    .off > div { width: 22px; height: 22px; border-radius: 999px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.15); box-sizing: border-box; }
+    .dis { opacity: 0.38; }
+    .del { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430; white-space: nowrap; }
+    .lock { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: rgba(36,26,20,0.45); text-transform: uppercase; }
+    .chip { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+    .foot { font-size: 11px; line-height: 1.4; color: rgba(36,26,20,0.55); padding: 0 2px; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 0 20px; box-sizing: border-box; color: #241a14;">
+  <div style="display: flex; align-items: center; gap: 12px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="min-width: 24px;"><path d="M15 5l-7 7 7 7" stroke="#3b0a0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Your data</div></div>
+  <div class="sub" style="font-size: 12px; color: rgba(36,26,20,0.65);">Each thing UDine knows about you, and where it goes. Phone-only rows have no switches.</div>
+  <div class="card">
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 7px 14px; gap: 6px; background: rgba(201,154,46,0.12); align-items: center;">
+      <div class="lock">Data</div><div class="lock" style="text-align:center;">Sync</div><div class="lock" style="text-align:center;">Share</div><div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Food log &amp; macros</div><div class="sub">214 entries · phone only</div></div><div class="lock" style="text-align:center;">—</div><div class="lock" style="text-align:center;">—</div><div></div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Rankings</div><div class="sub">36 ranked · phone only</div></div><div class="lock" style="text-align:center;">—</div><div class="lock" style="text-align:center;">—</div><div></div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Favorite foods</div><div class="sub">alerts when spotted elsewhere</div></div><div style="display:flex;justify-content:center;"><div class="on"><div></div></div></div><div class="lock" style="text-align:center;">—</div><div style="display:flex;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Favorite halls</div><div class="sub">ping suggestions</div></div><div style="display:flex;justify-content:center;"><div class="on"><div></div></div></div><div style="display:flex;justify-content:center;"><div class="on"><div></div></div></div><div style="display:flex;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Hall completion</div><div class="sub">counts only</div></div><div style="display:flex;justify-content:center;"><div class="on"><div></div></div></div><div style="display:flex;justify-content:center;"><div class="on"><div></div></div></div><div style="display:flex;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Top 5 foods</div><div class="sub">name · score · hall</div></div><div style="display:flex;justify-content:center;"><div class="off"><div></div></div></div><div style="display:flex;justify-content:center;"><div class="off dis"><div></div></div></div><div style="display:flex;justify-content:center;" class="dis"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Profile</div><div class="sub">mruiz@umass.edu · findable by search</div></div><div class="lock" style="text-align:center;">always</div><div style="display:flex;justify-content:center;"><div class="on"><div></div></div></div><div></div></div>
+    <div class="div"></div>
+    <div style="display: grid; grid-template-columns: 1fr 52px 52px 28px; padding: 9px 14px; gap: 6px; align-items: center;"><div><div class="lab">Pings you sent</div><div class="sub">12 · recipients only</div></div><div class="lock" style="text-align:center;">always</div><div class="lock" style="text-align:center;">—</div><div style="display:flex;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+  </div>
+  <div class="foot">SYNC off deletes the server copy and greys SHARE. The trash removes what's there now; if SYNC stays on it comes back next sync.</div>
+  <div style="margin-top: auto; padding-bottom: 16px;">
+    <div class="card" style="border-color: rgba(124,36,48,0.35);"><div class="row" style="min-height: 44px;"><div><div class="lab" style="color:#7c2430;">Delete everything synced</div><div class="sub">Profile and sighting history stay — deleting those isn't available yet.</div></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#7c2430" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

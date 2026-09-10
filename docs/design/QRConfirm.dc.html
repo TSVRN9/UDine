@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #3b0a0f; }
+    a { color: #c99a2e; } a:hover { color: #fbf7ef; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #3b0a0f; overflow: hidden; display: flex; flex-direction: column; gap: 18px; padding: 18px 20px 0 20px; box-sizing: border-box; color: #fbf7ef;">
+
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="min-width: 24px;"><path d="M15 5l-7 7 7 7" stroke="#fbf7ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #fbf7ef;">Add friend?</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 18px; margin-top: 36px;">
+    <div style="position: relative;">
+      <div style="width: 108px; height: 108px; border-radius: 999px; background: #7c2430; color: #fbf7ef; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 38px; border: 3px solid #c99a2e;">SO</div>
+      <div style="position: absolute; right: -4px; bottom: -4px; width: 36px; height: 36px; border-radius: 999px; background: #c99a2e; display: flex; align-items: center; justify-content: center; border: 3px solid #3b0a0f;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="6" height="6" rx="1" stroke="#3b0a0f" stroke-width="1.8"></rect><rect x="14" y="4" width="6" height="6" rx="1" stroke="#3b0a0f" stroke-width="1.8"></rect><rect x="4" y="14" width="6" height="6" rx="1" stroke="#3b0a0f" stroke-width="1.8"></rect><rect x="14.5" y="14.5" width="2.4" height="2.4" fill="#3b0a0f"></rect><rect x="17.6" y="17.6" width="2.4" height="2.4" fill="#3b0a0f"></rect></svg>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 28px; letter-spacing: 0.5px; color: #fbf7ef;">Sam Okafor</div>
+      <div style="font-size: 13px; color: rgba(251,247,239,0.6);">sokafor@umass.edu</div>
+      <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#c99a2e" stroke-width="1.4"></circle><path d="M5.5 8.2L7.2 10l3.3-4" stroke="#c99a2e" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: #c99a2e;">SCANNED IN PERSON · JUST NOW</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background: rgba(251,247,239,0.08); border: 1px solid rgba(251,247,239,0.15); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+    <div style="display: flex; align-items: flex-start; gap: 10px;">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="min-width: 15px; margin-top: 1px;"><rect x="2" y="5" width="12" height="6" rx="3" stroke="#c99a2e" stroke-width="1.5"></rect><circle cx="11" cy="8" r="2" fill="#c99a2e"></circle></svg>
+      <div style="font-size: 12px; line-height: 1.5; color: rgba(251,247,239,0.75);">Sam will only see the stats you've switched on in Your Data — nothing is shared just by becoming friends.</div>
+    </div>
+    <div style="height: 1px; background: rgba(251,247,239,0.12);"></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;">
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" style="min-width: 15px; margin-top: 1px;"><path d="M3 9c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6c-1 0-2-.25-2.8-.7L3 15l.7-3.2C3.25 11 3 10 3 9z" stroke="#c99a2e" stroke-width="1.4" stroke-linejoin="round"></path></svg>
+      <div style="font-size: 12px; line-height: 1.5; color: rgba(251,247,239,0.75);">Friends can ping you — "come eat with me" — and see your favorite halls if you share them.</div>
+    </div>
+  </div>
+
+  <div style="margin-top: auto; padding-bottom: 24px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="background: #c99a2e; color: #3b0a0f; border-radius: 6px; height: 52px; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 16px; letter-spacing: 1px; text-transform: uppercase;">
+      <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><circle cx="7" cy="6" r="3" stroke="#3b0a0f" stroke-width="1.6"></circle><path d="M2.5 15c.6-2.6 2.3-4 4.5-4s3.9 1.4 4.5 4" stroke="#3b0a0f" stroke-width="1.6" stroke-linecap="round"></path><path d="M13.5 6.5v5M11 9h5" stroke="#3b0a0f" stroke-width="1.6" stroke-linecap="round"></path></svg>
+      Add Sam
+    </div>
+    <div style="text-align: center; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: rgba(251,247,239,0.5); min-height: 32px; display: flex; align-items: center; justify-content: center;">CANCEL</div>
+    <div style="font-size: 11px; line-height: 1.5; color: rgba(251,247,239,0.5); text-align: center;">Sam gets this same screen on their phone. You're friends once you both confirm — no request sits in an inbox.</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
