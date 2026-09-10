@@ -18,6 +18,9 @@ export const colors = {
   maroon900: "#3b0a0f",
   maroon600: "#7c2430",
   gold500: "#c99a2e",
+  // Darker gold for macro-badge glyph fills -- gold500 itself is too light for a solid icon shape
+  // to read against its own translucent circle backdrop (MenuWithBadges.dc.html's badge icons).
+  gold700: "#8a6a1a",
   cream100: "#f3ead8",
   paper50: "#fbf7ef",
   ink900: "#241a14",
