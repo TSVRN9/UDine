@@ -75,6 +75,18 @@ describe("sectionsForPeriod", () => {
   it("returns no sections for an empty item list", () => {
     expect(sectionsForPeriod([], "lunch", NO_PREFS)).toEqual([]);
   });
+
+  // Same real trailing-whitespace fixture grabSections' own "trims category whitespace" test
+  // uses -- sectionsForPeriod used to leave the raw, untrimmed category in place, so two feed
+  // entries for the same station differing only in trailing whitespace rendered as two duplicate
+  // section headers instead of merging into one.
+  it("trims category whitespace, merging entries that differ only by it into one section", () => {
+    const untrimmed = { ...PIZZA, category: "Entrees " };
+    const trimmed = { ...SALAD, category: "Entrees" };
+    expect(sectionsForPeriod([untrimmed, trimmed], "lunch", NO_PREFS)).toEqual([
+      { title: "Entrees", data: [untrimmed, trimmed] },
+    ]);
+  });
 });
 
 describe("grabSections", () => {

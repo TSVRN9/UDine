@@ -228,9 +228,9 @@ export function FilterSheet({
             </View>
 
             <View style={styles.section}>
+              {/* No caption here -- the ✓-vs-"×" chip styling already distinguishes highlight from exclude (CLAUDE.md: no explanatory captions in UI). */}
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Macros</Text>
-                <Text style={styles.sectionSubtext}>badges menu items, never hides them</Text>
               </View>
               <View style={styles.chipRow}>
                 {ALL_MACRO_PRESETS.map((preset) => {

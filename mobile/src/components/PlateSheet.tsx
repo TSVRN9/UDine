@@ -4,6 +4,7 @@ import { ActivityIndicator, Keyboard, Modal, Platform, Pressable, ScrollView, St
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Path } from "react-native-svg";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
@@ -532,10 +533,13 @@ export function PlateSheet({
                   accessibilityRole="button"
                   accessibilityLabel="Add something else"
                 >
-                  <View style={styles.addIdleIcon}>
-                    <View style={styles.addIdleIconRing} />
-                    <View style={styles.addIdleIconHandle} />
-                  </View>
+                  {/* One clean SVG glyph (PlateExpanded.dc.html:87), not the two hand-positioned
+                      Views it replaces -- those read as a messy, obviously-composited icon rather
+                      than a real magnifying glass. */}
+                  <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
+                    <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
+                    <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
+                  </Svg>
                   <View style={styles.addIdleText}>
                     <Text style={styles.addIdleTitle}>Add something else</Text>
                     <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
@@ -647,18 +651,6 @@ const styles = StyleSheet.create({
     gap: spacing(3),
     borderStyle: "dashed",
     borderColor: withOpacity(colors.maroon600, 45),
-  },
-  addIdleIcon: { width: fs(20), height: fs(20), alignItems: "center", justifyContent: "center" },
-  addIdleIconRing: { position: "absolute", top: 0, left: 0, width: fs(11), height: fs(11), borderRadius: 999, borderWidth: 1.6, borderColor: colors.maroon600 },
-  addIdleIconHandle: {
-    position: "absolute",
-    bottom: fs(2),
-    right: fs(1),
-    width: fs(7),
-    height: 1.6,
-    borderRadius: 1,
-    backgroundColor: colors.maroon600,
-    transform: [{ rotate: "45deg" }],
   },
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },

@@ -581,7 +581,8 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   const [bannerHeight, setBannerHeight] = useState(0);
   const insets = useSafeAreaInsets();
   const guardedLogPlate = useGuardedLogPlate(storage);
-  const guardedToggleFavorite = useGuardedToggleFavorite(favoritesStorage, (favs) => setFavoriteDishKeys(new Set(favs.filter((f) => f.type === "dish").map(favoriteKey))));
+  const onFavoritesUpdate = useCallback((favs: Favorite[]) => setFavoriteDishKeys(new Set(favs.filter((f) => f.type === "dish").map(favoriteKey))), []);
+  const guardedToggleFavorite = useGuardedToggleFavorite(favoritesStorage, onFavoritesUpdate);
 
   useEffect(() => {
     // `current` guards against a stale response winning a race: two quick date-stepper taps fire
@@ -841,24 +842,33 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
     !currentTabError &&
     isCurrentTabLoading({ selectedMeal, isRealHall, hasItems: !!items, hasGrabItems: !!grabItems, cafeStateKind: cafeState?.kind ?? null });
 
-  function toggleExpanded(key: string) {
+  // useCallback (not a plain function) on these four -- renderDishRow below wraps itself in
+  // useCallback to stop rebuilding all 5 meal-tab SectionLists' renderItem identity (and thus
+  // defeating their row memoization) on every unrelated re-render; that only actually stabilizes
+  // renderDishRow if the handlers it closes over are themselves stable. toggleExpanded/addToPlate/
+  // stepPlateItem only ever call a setState updater function, never read the current state value
+  // directly, so an empty dep array is correct, not just convenient.
+  const toggleExpanded = useCallback((key: string) => {
     setExpandedKeys((prev) => toggleExpandedKey(prev, key));
-  }
+  }, []);
 
   // #198: guarded per dish key -- see useGuardedToggleFavorite's own doc comment for why a rapid
   // second tap on the same star must be dropped, not re-decided from stale state.
-  async function toggleDishFavorite(dishName: string) {
-    const favorite: Favorite = { type: "dish", dishName };
-    await guardedToggleFavorite(favorite, favoriteDishKeys.has(favoriteKey(favorite)));
-  }
+  const toggleDishFavorite = useCallback(
+    async (dishName: string) => {
+      const favorite: Favorite = { type: "dish", dishName };
+      await guardedToggleFavorite(favorite, favoriteDishKeys.has(favoriteKey(favorite)));
+    },
+    [favoriteDishKeys, guardedToggleFavorite],
+  );
 
-  function addToPlate(item: MenuItem, count = 1) {
+  const addToPlate = useCallback((item: MenuItem, count = 1) => {
     setPlate((p) => addOrIncrement(p, menuItemToPlateEntry(item, count)));
-  }
+  }, []);
 
-  function stepPlateItem(item: MenuItem, delta: number) {
+  const stepPlateItem = useCallback((item: MenuItem, delta: number) => {
     setPlate((p) => stepCount(p, plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid }), delta));
-  }
+  }, []);
 
   // Single dispatch point for adding any of PlateSheet's 4 merged-search result kinds (#91
   // follow-on: replaces the old addOffResult/addHistoryDish pair, which had no natural home for a
@@ -902,7 +912,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
 
   // Shared by both SectionLists below (the 3 real meal tabs and the Grab tab) -- same dish-row
   // card, same plate/favorite/nutrition-label wiring, regardless of which tid the item came from.
-  function renderDishRow({ item }: { item: MenuItem }) {
+  // useCallback, not a plain function: SectionList treats a changed `renderItem` identity as a
+  // reason to re-render its visible rows, so a fresh closure every render was defeating that
+  // memoization on all (up to 5) mounted panes on every unrelated state change -- part of the
+  // same JS-thread-congestion bug behind the swipe desync (see the pager's own note above).
+  const renderDishRow = useCallback(({ item }: { item: MenuItem }) => {
     const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
     const plateEntry = plate.find((p) => p.key === dishKey);
     const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
@@ -996,7 +1010,7 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         )}
       </Reanimated.View>
     );
-  }
+  }, [plate, expandedKeys, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex]);
 
   // Grab isn't in `mealTabs` (see TabSelection's own doc) -- appended as the swipeable sequence's
   // last item for a real hall only, matching the tab row's own rendering order below. `tabs`/
@@ -1332,7 +1346,18 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         <MealTabPager
           activeIndex={activeIndex}
           onActiveIndexChange={handleActiveIndexChange}
-          panes={tabs.map((tab) => (tab === "grab" ? grabPane() : mealPane(tab)))}
+          panes={tabs.map((tab, i) => {
+            // Only build the pane MealTabPager will actually mount (its own activeIndex ± 1
+            // window, MealTabPager.tsx:292) -- mealPane/grabPane each construct a full
+            // SectionList element tree; building all (up to 5) on every render, including every
+            // swipe commit's own re-render, was slow enough to widen the JS-thread window
+            // MealTabPager's rapid-reversal-commit guard (its own doc comment on
+            // committedIndexRef) depends on staying narrow -- confirmed as the cause of the
+            // menu/tab-label/underline desync on fast back-and-forth swiping, not just visible
+            // jank.
+            if (Math.abs(i - activeIndex) > 1) return null;
+            return tab === "grab" ? grabPane() : mealPane(tab);
+          })}
           instantRef={mealTabInstantRef}
           panePos={tabPanePos}
         />
@@ -1716,8 +1741,11 @@ const styles = StyleSheet.create({
   rowMainLine: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   rowMain: { flex: 1, gap: 1 },
   rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
-  rowMetaLine: { flexDirection: "row", alignItems: "baseline", gap: spacing(2) },
-  rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
+  // flexWrap + rowCalories' flexShrink -- a long price/calorie string plus several macro badges
+  // (up to 5 presets can match) could exceed rowMain's available width with nothing to wrap or
+  // shrink it, spilling past the row into the neighboring add button instead of onto a second line.
+  rowMetaLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: spacing(2) },
+  rowCalories: { flexShrink: 1, fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
   macroBadge: { width: fs(15), height: fs(15), borderRadius: fs(15) / 2, borderWidth: 1, borderColor: colors.gold500, alignItems: "center", justifyContent: "center" },
   macroBadgeText: { fontSize: fs(8), fontFamily: fonts.mono, fontWeight: "700", color: colors.maroon600 },

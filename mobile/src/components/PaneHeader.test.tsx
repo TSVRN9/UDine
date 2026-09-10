@@ -1,5 +1,6 @@
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet } from "react-native";
+import Svg from "react-native-svg";
 import * as Reanimated from "react-native-reanimated";
 import type { ReactTestRendererJSON, ReactTestRendererNode } from "react-test-renderer";
 import { DOT_HIT_SLOP, PaneHeader } from "./PaneHeader";
@@ -217,6 +218,24 @@ describe("PaneHeader export shortcut", () => {
       button.props.onPress();
     });
     expect(mockRouterPush).toHaveBeenCalledWith("/export");
+  });
+
+  // artboardStyle can't address this (YouPaneGrouped.dc.html:26's icon container has no text of
+  // its own to anchor on, per artboard.ts's own "text anchors only" doc comment) -- pinned
+  // directly against the artboard's read values instead, so a regression back to a bare glyph
+  // (no container, no border) fails a test rather than only a human eyeballing a screenshot.
+  it("renders a 30x30 bordered circle with an SVG gear glyph, not a bare text glyph (YouPaneGrouped.dc.html:24-27)", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<PaneHeader activeIndex={YOU_PANE_INDEX} onSelectPane={() => {}} topInset={0} />);
+    });
+    const button = root.root.findByProps({ accessibilityLabel: "Export data" });
+    const flat = StyleSheet.flatten(button.props.style as never) as { width?: number; height?: number; borderRadius?: number; borderWidth?: number };
+    expect(flat.width).toBe(fs(30));
+    expect(flat.height).toBe(fs(30));
+    expect(flat.borderRadius).toBe(999);
+    expect(flat.borderWidth).toBe(1);
+    expect(button.findAllByType(Svg).length).toBeGreaterThan(0);
   });
 });
 

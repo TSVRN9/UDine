@@ -69,9 +69,9 @@ test("menuItemMacroBadges treats a missing macroPresets field as none enabled", 
   assert.deepEqual(menuItemMacroBadges(dish, { allergensToAvoid: [], requiredDietTags: [] }), []);
 });
 
-test("high-protein badges at >=20g protein, not below", () => {
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, proteinG: 20 } }), prefsWith(["high-protein"])), ["high-protein"]);
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, proteinG: 19.9 } }), prefsWith(["high-protein"])), []);
+test("high-protein badges at >=10g protein (FDA 'high'/'excellent source' claim, 20% of the 50g DV), not below", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, proteinG: 10 } }), prefsWith(["high-protein"])), ["high-protein"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, proteinG: 9.9 } }), prefsWith(["high-protein"])), []);
 });
 
 test("low-sodium badges at <=400mg sodium, not above", () => {
@@ -84,16 +84,14 @@ test("under-500-cal badges at <=500 calories, not above", () => {
   assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 501 } }), prefsWith(["under-500-cal"])), []);
 });
 
-test("low-fat badges at <=30% fat-calorie ratio, not above, and guards calories === 0", () => {
-  // 27 fat-cal / 90 cal = 0.30 exactly -> at threshold, badges.
-  assert.deepEqual(
-    menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 90, totalFatG: 3 } }), prefsWith(["low-fat"])),
-    ["low-fat"],
-  );
-  // 27.9 fat-cal / 90 cal = 0.31 -> just above threshold, no badge.
+test("low-fat badges at <=3g total fat (standard 'low fat' labeling cap), not above", () => {
+  // An absolute per-serving cap, not a calorie ratio -- a ratio both under-badges a near-zero-
+  // fat/near-zero-calorie condiment and over-badges a high-fat, high-calorie dish at the same
+  // ratio, contradicting this file's own "conservative absolute caps" rationale. A 0-calorie item
+  // still badges correctly here since nothing divides by calories anymore.
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 90, totalFatG: 3 } }), prefsWith(["low-fat"])), ["low-fat"]);
   assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 90, totalFatG: 3.1 } }), prefsWith(["low-fat"])), []);
-  // calories === 0 must not divide by zero into a false-positive NaN comparison.
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 0, totalFatG: 0 } }), prefsWith(["low-fat"])), []);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 0, totalFatG: 0 } }), prefsWith(["low-fat"])), ["low-fat"]);
 });
 
 test("high-fiber badges at >=5g dietary fiber, not below", () => {
