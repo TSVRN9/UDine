@@ -5,7 +5,7 @@
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
-import { InMemoryLogStorage, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
+import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
 import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } from "../lib/plate";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
@@ -21,6 +21,7 @@ jest.mock("@udine/shared", () => ({
   ...jest.requireActual("@udine/shared"),
   searchProducts: jest.fn(),
   searchFoods: jest.fn(),
+  searchBrandedFoods: jest.fn(),
 }));
 
 jest.mock("../lib/dishCatalog", () => ({
@@ -35,6 +36,7 @@ jest.mock("../lib/customFoodsStorage", () => ({
 
 const mockedSearchProducts = searchProducts as jest.Mock;
 const mockedSearchFoods = searchFoods as jest.Mock;
+const mockedSearchBrandedFoods = searchBrandedFoods as jest.Mock;
 const mockedGetCachedDishCatalog = getCachedDishCatalog as jest.Mock;
 const mockedRefreshDishCatalogIfStale = refreshDishCatalogIfStale as jest.Mock;
 const mockedSearchCachedDishes = searchCachedDishes as jest.Mock;
@@ -137,6 +139,7 @@ async function runSearch(root: renderer.ReactTestRenderer, q: string) {
 beforeEach(() => {
   mockedSearchProducts.mockReset().mockResolvedValue({ results: [], hasMore: false });
   mockedSearchFoods.mockReset().mockResolvedValue({ results: [], hasMore: false });
+  mockedSearchBrandedFoods.mockReset().mockResolvedValue({ results: [], hasMore: false });
   mockedGetCachedDishCatalog.mockReset().mockResolvedValue(null);
   mockedRefreshDishCatalogIfStale.mockReset().mockResolvedValue(undefined);
   mockedSearchCachedDishes.mockReset().mockReturnValue([]);
@@ -485,6 +488,26 @@ describe("PlateSheet", () => {
       expect(onShowResultDetail).toHaveBeenCalledWith(expected);
     });
 
+    it("surfaces a Branded (USDA FDC) hit alongside a Foundation/SR-Legacy hit, both tagged USDA", async () => {
+      mockedSearchFoods.mockResolvedValue({ results: [{ fdcId: "173944", productName: "Banana, raw", nutrition: { ...DISH.nutrition, calories: 89 } }], hasMore: false });
+      mockedSearchBrandedFoods.mockResolvedValue({ results: [{ fdcId: "2001", productName: "Cheerios", nutrition: { ...DISH.nutrition, calories: 380 } }], hasMore: false });
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ onShowResultDetail });
+
+      await runSearch(root, "cheerios");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Banana, raw/);
+      expect(body).toMatch(/Cheerios/);
+      expect(texts(root).flat().filter((t) => t === "USDA")).toHaveLength(2);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "View Cheerios (USDA)" }).props.onPress();
+      });
+      const expected: PlateSearchResult = { kind: "usda", food: { fdcId: "2001", productName: "Cheerios", nutrition: { ...DISH.nutrition, calories: 380 } } };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
+    });
+
     it("surfaces a saved custom food as the 4th source, tagged Custom, and routes a tap through onShowResultDetail", async () => {
       const customFood = { id: "c1", name: "Grandma's Lasagna", servingSize: "1 slice", nutrition: { ...DISH.nutrition, calories: 420 } };
       mockedSearchCustomFoods.mockReturnValue([customFood]);
@@ -658,10 +681,11 @@ describe("PlateSheet", () => {
     });
   });
 
-  describe("OFF/USDA pagination (Load more)", () => {
-    it("shows a Load more button when either OFF or USDA reports hasMore, and pages both on tap", async () => {
+  describe("OFF/USDA/Branded pagination (Load more)", () => {
+    it("shows a Load more button when any of OFF/USDA/Branded reports hasMore, and pages all three on tap", async () => {
       mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Off Page 1", nutrition: DISH.nutrition }], hasMore: true });
       mockedSearchFoods.mockResolvedValue({ results: [{ fdcId: "1", productName: "Usda Page 1", nutrition: DISH.nutrition }], hasMore: true });
+      mockedSearchBrandedFoods.mockResolvedValue({ results: [{ fdcId: "b1", productName: "Branded Page 1", nutrition: DISH.nutrition }], hasMore: true });
       const root = renderSheet();
       await runSearch(root, "chicken");
 
@@ -669,6 +693,7 @@ describe("PlateSheet", () => {
 
       mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "2", productName: "Off Page 2", nutrition: DISH.nutrition }], hasMore: false });
       mockedSearchFoods.mockResolvedValueOnce({ results: [{ fdcId: "2", productName: "Usda Page 2", nutrition: DISH.nutrition }], hasMore: false });
+      mockedSearchBrandedFoods.mockResolvedValueOnce({ results: [{ fdcId: "b2", productName: "Branded Page 2", nutrition: DISH.nutrition }], hasMore: false });
 
       await act(async () => {
         root.root.findByProps({ children: "Load 20 More" }).props.onPress();
@@ -677,16 +702,19 @@ describe("PlateSheet", () => {
 
       expect(mockedSearchProducts).toHaveBeenCalledWith("chicken", 2);
       expect(mockedSearchFoods).toHaveBeenCalledWith("chicken", 2);
+      expect(mockedSearchBrandedFoods).toHaveBeenCalledWith("chicken", 2);
       const body = texts(root).flat().join(" ");
       expect(body).toMatch(/Off Page 1/);
       expect(body).toMatch(/Off Page 2/);
       expect(body).toMatch(/Usda Page 1/);
       expect(body).toMatch(/Usda Page 2/);
-      // Both sources reported hasMore:false on their 2nd page -- button gone.
+      expect(body).toMatch(/Branded Page 1/);
+      expect(body).toMatch(/Branded Page 2/);
+      // All three sources reported hasMore:false on their 2nd page -- button gone.
       expect(body).not.toMatch(/Load 20 More/);
     });
 
-    it("does not show Load more when neither OFF nor USDA has more", async () => {
+    it("does not show Load more when none of OFF/USDA/Branded has more", async () => {
       const root = renderSheet();
       await runSearch(root, "chicken");
       expect(texts(root).flat().join(" ")).not.toMatch(/Load 20 More/);

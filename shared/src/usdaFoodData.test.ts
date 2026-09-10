@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { searchFoods } from "./usdaFoodData.ts";
+import { searchBrandedFoods, searchFoods } from "./usdaFoodData.ts";
 
 // Same fetch-swap technique as openFoodFacts.test.ts -- searchFoods calls the global fetch
 // directly, no injectable client.
@@ -144,6 +144,81 @@ test("searchFoods reports hasMore false on the last page", async () => {
 test("searchFoods throws when the HTTP response is not ok", async () => {
   await assert.rejects(
     () => withFetch(async () => ({ ok: false, status: 500, json: async () => ({}) }) as Response, () => searchFoods("x")),
+    /USDA FoodData Central search 500/,
+  );
+});
+
+test("searchBrandedFoods requests dataType=Branded and maps a hit the same way searchFoods does", async () => {
+  let seenUrl: URL | undefined;
+  const result = await withFetch(
+    async (url) => {
+      seenUrl = new URL(String(url));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          totalHits: 1,
+          currentPage: 1,
+          totalPages: 1,
+          foods: [
+            {
+              fdcId: 2001,
+              description: "Cheerios",
+              ingredients: "Whole grain oats, sugar, corn starch",
+              dataType: "Branded",
+              foodNutrients: RAW_BANANA_NUTRIENTS,
+            },
+          ],
+        }),
+      } as Response;
+    },
+    () => searchBrandedFoods("cheerios"),
+  );
+
+  assert.equal(seenUrl?.searchParams.get("dataType"), "Branded");
+  assert.equal(seenUrl?.searchParams.get("query"), "cheerios");
+  assert.deepEqual(result, {
+    results: [
+      {
+        fdcId: "2001",
+        productName: "Cheerios",
+        ingredients: "Whole grain oats, sugar, corn starch",
+        nutrition: {
+          servingSize: "per 100g",
+          calories: 89,
+          caloriesFromFat: 0,
+          totalFatG: 0.33,
+          satFatG: 0.11,
+          transFatG: 0,
+          cholesterolMg: 0,
+          sodiumMg: 1,
+          totalCarbG: 22.8,
+          dietaryFiberG: 2.6,
+          sugarsG: 12.2,
+          proteinG: 1.09,
+        },
+      },
+    ],
+    hasMore: false,
+  });
+});
+
+test("searchBrandedFoods requests the given pageNumber and reports hasMore from currentPage/totalPages", async () => {
+  let seenUrl: URL | undefined;
+  const result = await withFetch(
+    async (url) => {
+      seenUrl = new URL(String(url));
+      return { ok: true, status: 200, json: async () => ({ totalHits: 60, currentPage: 2, totalPages: 3, foods: [] }) } as Response;
+    },
+    () => searchBrandedFoods("cheerios", 2),
+  );
+  assert.equal(seenUrl?.searchParams.get("pageNumber"), "2");
+  assert.equal(result.hasMore, true);
+});
+
+test("searchBrandedFoods throws when the HTTP response is not ok", async () => {
+  await assert.rejects(
+    () => withFetch(async () => ({ ok: false, status: 500, json: async () => ({}) }) as Response, () => searchBrandedFoods("x")),
     /USDA FoodData Central search 500/,
   );
 });
