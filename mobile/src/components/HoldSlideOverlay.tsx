@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Reanimated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { DRAG_STEP_COUNT, DRAG_STEP_PX, cancelBlend, formatServings } from "../lib/servingsStepper";
-import { durations } from "../lib/motion";
+import { durations, reanimatedPaneCurve } from "../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import type { ButtonAnchor } from "./HoldSlideAddButton";
 
@@ -88,7 +88,7 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
   // comment), so a mount-only effect fires exactly once per hold, every hold.
   const heightProgress = useSharedValue(0);
   useEffect(() => {
-    heightProgress.value = withTiming(1, { duration: durations.servingsPill });
+    heightProgress.value = withTiming(1, { duration: durations.servingsPill, easing: reanimatedPaneCurve });
   }, [heightProgress]);
 
   const pillStyle = useAnimatedStyle(() => {
@@ -99,7 +99,18 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
       backgroundColor: interpolateColor(cancelBlend(liveIndex.value), [0, 1], [colors.maroon600, colors.ink900]),
     };
   });
+  // The caption/bubble used to appear at full opacity, already at their final (fully-grown-track)
+  // position, the instant the overlay mounted -- only the pill itself grew underneath them. Since
+  // they're the most visually prominent, text-bearing elements, that mismatch is what actually read
+  // as "fading in and moving up": tying their entrance to the same heightProgress the pill grows
+  // with makes them arrive in sync with it instead of popping in ahead of it.
+  const entranceStyle = useAnimatedStyle(() => ({
+    opacity: heightProgress.value,
+    transform: [{ translateY: (1 - heightProgress.value) * 10 }],
+  }));
   const bubbleStyle = useAnimatedStyle(() => ({
+    opacity: heightProgress.value,
+    transform: [{ translateY: (1 - heightProgress.value) * 10 }],
     backgroundColor: interpolateColor(cancelBlend(liveIndex.value), [0, 1], [colors.maroon900, colors.ink900]),
   }));
   const countOpacityStyle = useAnimatedStyle(() => ({ opacity: 1 - cancelBlend(liveIndex.value) }));
@@ -115,10 +126,10 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={[StyleSheet.absoluteFill, styles.scrim]} />
-      <View style={[styles.captionWrap, { left: pillLeft + anchor.width / 2 - 80, top: pillTop - 20, width: 160 }]}>
+      <Reanimated.View style={[styles.captionWrap, { left: pillLeft + anchor.width / 2 - 80, top: pillTop - 20, width: 160 }, entranceStyle]}>
         <Reanimated.Text numberOfLines={1} style={[styles.caption, adjustCaptionStyle]}>Slide to adjust</Reanimated.Text>
         <Reanimated.Text numberOfLines={1} style={[styles.caption, styles.captionOverlay, cancelCaptionStyle]}>Slide down to cancel</Reanimated.Text>
-      </View>
+      </Reanimated.View>
       <Reanimated.View style={[styles.pill, { left: pillLeft, width: anchor.width, borderRadius: anchor.width / 2 }, pillStyle]}>
         {/* Only the ladder ticks + glyphs clip to the animating box -- plusRing (below, outside
          * this wrapper) deliberately paints OUTSIDE the pill's own bounds (see its own comment)
