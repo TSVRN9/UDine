@@ -1,7 +1,7 @@
-// Static-analysis guards for #413 (plus-slot width drift) and #415 (unmatched-row style drift),
-// same technique as routeHeaderShown.test.ts -- the screen this covers ([slug].tsx) is a full
-// hall-menu route with heavy deps, so parsing its source as text is far cheaper than mounting it
-// just to check a handful of style-constant values.
+// Static-analysis guards for #413 (plus-slot width drift), #415 (unmatched-row style drift), and
+// the macro-badge inline-placement fix (e753e24), same technique as routeHeaderShown.test.ts --
+// the screen this covers ([slug].tsx) is a full hall-menu route with heavy deps, so parsing its
+// source as text is far cheaper than mounting it just to check a handful of style-constant values.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -58,5 +58,30 @@ describe("#415: UnmatchedMenuBlock row matches CafeMenuMixed.dc.html's equivalen
     expect(iconStyle).toMatch(/width: fs\(44\)/);
     expect(iconStyle).toMatch(/height: fs\(44\)/);
     expect(iconStyle).toMatch(/borderRadius: radii\.pill/);
+  });
+});
+
+describe("macro-badge inline placement (e753e24) -- regression guards for two prior bugs in this exact code", () => {
+  it("does not reintroduce rowNameLine, the flex-row-sibling shape that dropped a wrapped badge to a wasted third line (7d8612f's bug)", () => {
+    // Badges must render as inline children OF the dish-name Text, not a flex-row View sibling of
+    // it inside a flexWrap container -- flex-wrap wraps whole items based on each item's own
+    // unwrapped size, so it can't tell a wrapped Text still has trailing space on its last line.
+    expect(source).not.toMatch(/rowNameLine/);
+  });
+
+  it("renders macroBadgeRow as an inline attachment nested inside the dish-name Text, not a sibling View", () => {
+    const nameTextBlock = source.match(/<Text style=\{styles\.rowText\}>([\s\S]*?)<\/Text>/)?.[1] ?? "";
+    expect(nameTextBlock).toMatch(/<View style=\{styles\.macroBadgeRow\}>/);
+  });
+
+  it("MacroBadgeIcon's Svg keeps the position:relative + top offset that centers it against the text (the metrics-anchoring bug this commit fixed)", () => {
+    // RN vertically anchors an inline Text attachment to a font-metric-derived reference and
+    // ignores margin/padding/position set on the attachment's own outer box (macroBadgeRow) --
+    // confirmed on-device: only offsetting the Svg itself (a normal child WITHIN the attachment)
+    // moves it. If this regresses to 0/removed, the badge silently goes back to sitting ~3dp too
+    // high relative to the dish name -- re-measure on-device (mobile/scripts/screenshot.sh) rather
+    // than trust a new number blind, per that Svg's own comment.
+    const svgBlock = source.match(/function MacroBadgeIcon\([\s\S]*?<Svg[^>]*>/)?.[0] ?? "";
+    expect(svgBlock).toMatch(/position: "relative", top: 4/);
   });
 });
