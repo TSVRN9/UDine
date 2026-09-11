@@ -141,6 +141,40 @@ const customFoodsStorage = new SqliteCustomFoodsStorage();
  * the sections memo below), so it's a sibling of MealPeriod, not a member of it. */
 type TabSelection = MealPeriod | "grab";
 
+/** Dev-only layout stress fixture (docs/agents/dev-tracks.md's UI check + mobile/scripts/
+ * screenshot.sh's --stress flag) -- a synthetic dish deliberately shaped to exercise the two
+ * worst-case row layouts real menu data may or may not contain on any given day: a name long
+ * enough to wrap (badge-placement bug e753e24 -- the earlier flex-row-sibling shape wasted a
+ * whole line here) and nutrition that clears every macro-badge threshold at once (max badge
+ * count -- shared/src/types.ts's MACRO_PRESET_CHECKS). __DEV__-gated and opt-in only via the
+ * `stress` route param -- never runs in a production build, never rendered unless asked for.
+ * One instance per meal period, so it shows up under whichever tab a screenshot lands on. */
+function stressFixtureItem(hallTid: number, mealPeriod: MealPeriod): MenuItem {
+  return {
+    dishName: "Mediterranean Roasted Vegetables & Chickpeas Deluxe Harvest Bowl (Stress Fixture)",
+    category: "Stress Test",
+    mealPeriod,
+    hallTid,
+    date: new Date().toISOString().slice(0, 10),
+    nutrition: {
+      servingSize: "1 stress fixture",
+      calories: 200,
+      caloriesFromFat: 9,
+      totalFatG: 1,
+      satFatG: 0,
+      transFatG: 0,
+      cholesterolMg: 0,
+      sodiumMg: 100,
+      totalCarbG: 30,
+      dietaryFiberG: 8,
+      sugarsG: 2,
+      proteinG: 15,
+    },
+    allergens: [],
+    dietTags: [],
+  };
+}
+
 /** Bag/takeout glyph for the Grab 'N Go tab (artboard spec: "bag icon, same muted ink as the other
  * inactive tabs"). A real react-native-svg icon, not a Unicode stand-in -- emoji is out per
  * CLAUDE.md and the app previously had no SVG dependency at all; this is that dependency's first
@@ -435,7 +469,16 @@ function PlateAddControl({
   );
 }
 
-export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubject; initialMeal?: TabSelection }) {
+export function HallMenuScreenBody({
+  hall,
+  initialMeal,
+  stressFixture,
+}: {
+  hall: HallMenuSubject;
+  initialMeal?: TabSelection;
+  /** dev-only stress-fixture selector, see stressFixtureItem's own doc comment above. */
+  stressFixture?: string;
+}) {
   const isRealHall = hall.slug !== undefined;
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -812,10 +855,18 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
   // effectiveItems (café-screen unification), not `items` directly -- a café's own matched-standing
   // synthetic items need the exact same station/price/macro filtering a real hall's items get; see
   // effectiveItems' own doc comment above.
-  const stationPriceFilteredItems = useMemo(
-    () => effectiveItems.filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter)),
-    [effectiveItems, stationFilter, priceFilter],
-  );
+  const stationPriceFilteredItems = useMemo(() => {
+    const filtered = effectiveItems.filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter));
+    if (__DEV__ && stressFixture === "long-names" && hall.tid != null) {
+      const tid = hall.tid;
+      // Prepended, not appended -- sectionsForPeriod orders sections by first-seen category, and
+      // SectionList virtualizes rows far off the initial viewport, so an appended fixture section
+      // sits unmounted below every real station until scrolled to. Prepending puts "Stress Test"
+      // first, visible in the very first screenshot.sh capture with no scroll gesture needed.
+      return [...mealTabs.map((period) => stressFixtureItem(tid, period)), ...filtered];
+    }
+    return filtered;
+  }, [effectiveItems, stationFilter, priceFilter, stressFixture, mealTabs, hall.tid]);
   const sectionsByPeriod = useMemo(() => {
     const map = new Map<MealPeriod, MenuSection[]>();
     for (const period of mealTabs) map.set(period, sectionsForPeriod(stationPriceFilteredItems, period, prefs));
@@ -1606,7 +1657,7 @@ export default function HallMenuScreen() {
   // `meal` is the retired /grab-n-go/[slug] route's replacement deep link (grabRouteFor,
   // lib/grabStrip.ts): "grab" preselects the Grab 'N Go tab instead of pushing a separate screen.
   // Any other/missing value falls through to the normal default (isRealHall ? "lunch" : null).
-  const { slug, meal } = useLocalSearchParams<{ slug: string; meal?: string }>();
+  const { slug, meal, stress } = useLocalSearchParams<{ slug: string; meal?: string; stress?: string }>();
   const hall = DINING_HALLS.find((h) => h.slug === slug);
   // #284 nit 2: only reachable via a crafted deep link (no in-app path produces an unknown slug),
   // but a dead end with no way back is still a bug -- same back-chevron affordance every other
@@ -1620,7 +1671,7 @@ export default function HallMenuScreen() {
         <Text style={styles.error}>Unknown dining hall</Text>
       </View>
     );
-  return <HallMenuScreenBody hall={hall} initialMeal={meal === "grab" ? "grab" : undefined} />;
+  return <HallMenuScreenBody hall={hall} initialMeal={meal === "grab" ? "grab" : undefined} stressFixture={stress} />;
 }
 
 const styles = StyleSheet.create({
