@@ -45,20 +45,12 @@ const FORMAT_SEGMENTS: { value: FormatChoice; label: string }[] = [
 ];
 
 /**
- * "Export data" screen (#183, artboard "Export data (final - batch select)") -- reached from
- * Your Data's EXPORT row. Batch-select checkboxes over the same 4 device-local stores YouPane's
- * old inline export buttons covered (#182 moved that logic to lib/exportShare.ts; this screen is
- * the new UI on top of it, not a rebuild of the exporters themselves), a CSV/JSON/BOTH format
- * pill, and a dark bottom bar that runs the selected (store, format) jobs sequentially.
+ * Export data screen, reached from Your Data's EXPORT row. Batch-select checkboxes over the 4
+ * device-local stores, a CSV/JSON/BOTH format pill, and a bottom bar that runs the selected
+ * (store, format) jobs sequentially.
  *
- * BOTH x multi-store, sequential shares vs. a zip: `expo-sharing`'s `shareAsync(url)` takes
- * exactly one file per call, and no zip library is installed in this project. Sequential
- * `shareAsync` calls (one native share sheet per file, run one after another) is the smaller
- * honest implementation over adding a zip dependency purely to bundle files the OS can already
- * hand off one at a time -- see buildExportPlan's own doc comment. Worst case (BOTH x all 4
- * stores) is 8 share sheets in a row; the bottom bar's "N selected" line is the only place that
- * cost is disclosed today (no separate toast/warning for large batches -- YAGNI unless real users
- * report it as friction).
+ * Sequential shares, not a zip: expo-sharing's shareAsync(url) takes exactly one file per call
+ * and no zip library is installed, so each job gets its own share sheet, one after another.
  */
 export default function ExportScreen() {
   const insets = useSafeAreaInsets();
@@ -103,13 +95,9 @@ export default function ExportScreen() {
     if (plan.length === 0) return;
     setExporting(true);
     try {
-      // Sequential, not Promise.all -- see the module doc comment on why (one share sheet at a
-      // time; awaiting each keeps them from stacking on top of each other). A single job's
-      // failure (e.g. the share sheet dismissed with an error, a write failure) doesn't abort the
-      // rest of the plan -- every job still gets attempted, same "keep going, then report" shape
-      // as deleteServerData.ts -- but it also isn't swallowed: every failure is collected and
-      // surfaced truthfully afterward (#158/#165/#167 convention), instead of the button just
-      // re-enabling silently with jobs after the failure never having run.
+      // Sequential (not Promise.all) keeps share sheets from stacking; a job's failure doesn't
+      // abort the rest of the plan -- every job still runs, and failures are collected and
+      // surfaced together afterward.
       const failed: ExportJob[] = [];
       for (const job of plan) {
         try {

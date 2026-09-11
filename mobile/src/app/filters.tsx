@@ -11,15 +11,12 @@ export default function FiltersScreen() {
   const [dietTags, setDietTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
-  // #191 rework: same generation-counter guard as halls/[slug].tsx's fetch effect -- a stale
-  // response from an earlier loadMenus() call (e.g. a slow initial fetch outlived by a retry)
-  // must not clobber a later one's result/error. Incremented per loadMenus() call and on unmount;
-  // a settled promise only applies its result if the generation it started with still matches.
+  // Generation counter: incremented per loadMenus() call and on unmount, so a stale response from
+  // an earlier call can't clobber a later one's result/error.
   const generation = useRef(0);
 
-  // #191: was a bare Promise.all with no .catch -- any hall fetch rejecting left `allergens` null
-  // forever, spinning the ActivityIndicator indefinitely. Reuses #181's MenuErrorCard (no saved-copy
-  // concept here, so savedCopyTime is always null and its link never renders).
+  // Reuses MenuErrorCard (no saved-copy concept here, so savedCopyTime is always null and its
+  // link never renders).
   const loadMenus = useCallback(() => {
     const gen = ++generation.current;
     setError(null);
