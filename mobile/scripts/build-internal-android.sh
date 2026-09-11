@@ -87,9 +87,13 @@ node -e '
 # package id would otherwise carry the wrong applicationId forward.
 rm -rf android
 
+# pnpm dlx refuses to run eas-cli's native deps' install scripts (dtrace-provider,
+# protobufjs) unless explicitly allowed -- --allow-build opts them in for this
+# throwaway dlx environment instead of requiring an interactive `pnpm approve-builds`.
 JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk PATH="$JAVA_HOME/bin:$PATH" \
   EAS_LOCAL_BUILD_WORKINGDIR="$WORKINGDIR" \
-  npx eas-cli build --platform android --profile preview --local --non-interactive --output "$OUT"
+  pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli \
+  build --platform android --profile preview --local --non-interactive --output "$OUT"
 
 echo "Built: $OUT ($INTERNAL_PACKAGE, \"$INTERNAL_NAME\")"
 
