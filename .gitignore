@@ -23,6 +23,9 @@ firebase-service-account*.json
 # Supabase CLI local session/cache
 supabase/.temp/
 
-# Agent session scratch — never commit
-.claude/
+# Agent session scratch — never commit. Exception: .claude/agents/ holds versioned,
+# project-scoped agent definitions (docs/agents/dev-tracks.md references them) — those travel
+# with the repo like any other doc, not local session state.
+.claude/*
+!.claude/agents/
 .scratch/

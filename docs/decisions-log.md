@@ -482,3 +482,50 @@ checklist; this entry holds the history.
 **Still open (owner).** Non-default states of the 31 `DCLogic` artboards exist only in the live
 canvas — one artboard per state (servings 0/0.5/max, badge kinds, FAB active/inactive) is the only
 way the committed spec can carry them. Web has no design spec.
+
+## Inconclusive visual verification (2026-09-11)
+
+**What happened.** Macro-badge placement went through three shipped iterations in one session
+before landing right (7d8612f → e753e24 → b457b90/dd2fe56, `mobile/src/app/halls/[slug].tsx`).
+Two distinct bugs slipped past a review pass each already had a chance to catch:
+
+1. On 7d8612f, the reviewer tried to verify whether a long dish name would wrap correctly (badge
+   trailing the last line) vs. the bug it turned out to have (badge dropping to a wasted new
+   line). `screenshot.sh` landed on the loading skeleton on the first attempt and the wrong screen
+   on the second; the reviewer's own report said plainly: "I did not get a pixel-level
+   confirmation either way... not a confirmed repro." The verdict that shipped was REWORK for a
+   separate, unrelated finding (a missing `flexShrink`) — the flexWrap concern rode through as an
+   unresolved caveat, not a blocker, and the wrap bug it correctly anticipated turned out real.
+2. Separately, a badge's vertical centering against its text was judged "well centered" by eye
+   twice — once by the implementer, once in an earlier reviewer pass — from a screenshot. It was
+   9 screen px (~3dp) off. An ad hoc pixel-measurement script (marker color + text-ink pixel
+   bounding boxes, compare centers), written and used once for this specific bug, found it
+   immediately once someone actually measured instead of looking.
+
+Neither failure was a reviewer competence problem — in case 1 the reviewer correctly identified
+the risk and tried to check it. The gap was structural: an explicit "I couldn't verify this" had
+nowhere to go but a footnote, `screenshot.sh` had no way to tell a loading skeleton from real
+content besides a fixed sleep, the measurement technique that actually worked wasn't a tool
+anyone could reach for again, and confirming a long-name/max-badge claim depended on live menu
+data happening to contain one that day (it often didn't — verification meant hand-editing a temp
+string into the render path and reverting it, done 3 times in this session, which is itself a
+"forgotten revert ships fake data" risk).
+
+**What changed.** `mobile/scripts/screenshot.sh` gained `--wait-for TEXT` (polls `uiautomator
+dump` for real content, exits loudly on timeout instead of capturing a stale frame) and `--stress
+NAME` (a `__DEV__`-gated fixture query param; `mobile/src/app/halls/[slug].tsx`'s
+`stressFixtureItem` is the one this repo ships, `NAME=long-names`). The pixel-measurement
+technique is now `mobile/scripts/measure-alignment.py`, a documented CLI. `docs/agents/
+dev-tracks.md`'s UI check rule now says explicitly that an unverified/inconclusive rendered-
+behavior claim is itself blocking — never a footnote next to an unrelated verdict — and names the
+three tools above as what to reach for before giving up on a claim. A new project-scoped agent,
+`.claude/agents/visual-verifier.md`, takes emulator-driving off `pr-reviewer`'s plate for M/L
+UI-visible diffs: it captures every named state and reports raw facts (paths, descriptions,
+measurements), no verdict, so a stuck capture doesn't compete with the rest of a code review for
+attention. Wired into `docs/agents/orchestration.md`'s dispatch loop.
+
+**Still open (owner).** `visual-verifier` is defined but not yet exercised by a real dispatch —
+new custom agent definitions aren't picked up mid-session, so this one hasn't run end-to-end yet.
+Confirm on the next M/L UI-visible ticket that it dispatches correctly and its report is actually
+useful to the gate, not just plausible-looking; adjust the agent file if the report format turns
+out to be missing something a real review needed.

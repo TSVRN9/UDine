@@ -9,7 +9,9 @@ session that will dispatch agents.
 1. **Intake.** A task arrives from the human — inline, or as a GitHub issue number (`gh issue view <n> --comments`).
    Agents never file issues for each other.
 2. **Triage** by blast radius per `dev-tracks.md`: XS/S → `quick-fixer` (→ `spot-checker`); M → `issue-solver`
-   (→ `pr-reviewer`); L → `heavy-debugger` only through the gate below. When in doubt, one track heavier.
+   (→ [`visual-verifier`] → `pr-reviewer`); L → `heavy-debugger` only through the gate below (→
+   [`visual-verifier`] → `pr-reviewer`). `visual-verifier` only when the task is UI-visible; it's
+   project-scoped (`.claude/agents/visual-verifier.md`). When in doubt, one track heavier.
 3. **Assemble context.** The dispatch prompt is the agent's whole world. Include:
    - Task description and the acceptance criteria (per-criterion, checkable).
    - Files involved (paths), and callers you already know about.
@@ -21,6 +23,13 @@ session that will dispatch agents.
      should read through `artboardStyle()`, the `canvas.json` annotation id if motion or a
      non-default state is involved, and the `screenshot.sh` route (+ gesture) that shows the change.
      A UI task dispatched without these is a triage error; fix it before dispatch.
+   - **`visual-verifier`'s dispatch, separately, names the states to capture** — not just one
+     route, but each state the diff can reach (0/0.5/max, each variant/badge kind, before/after a
+     gesture), each with a `--wait-for TEXT` real-content marker (never leave this blank for a
+     data-fetching screen — see `dev-tracks.md`'s UI check for why) and, for any alignment/spacing
+     claim, the marker color for `measure-alignment.py`. A stress-fixture state
+     (`--stress long-names`) belongs here whenever the claim is about wrapping/overflow/max-content
+     and today's live menu might not happen to contain a long-enough case.
    - **Steer implementers, never waive the gate.** "This shouldn't need a rendered-output change"
      is guidance; the gate still decides from the diff. Paste `dev-tracks.md`'s UI check into the
      gate's dispatch verbatim, with this component's state list filled in.
@@ -30,13 +39,19 @@ session that will dispatch agents.
      "to be safe"; say explicitly when `supabase test db` is not needed.
    - Red-first requirement: failing test first, red output pasted, then green.
    - Issue number only if a human filed one.
-4. **Dispatch** the agent with that prompt. Then the gate agent (spot-checker / pr-reviewer) with the
-   diff location + the same acceptance criteria.
+4. **Dispatch** the agent with that prompt. If the diff changed rendered output and the track is
+   M/L, dispatch `visual-verifier` next with the state list from step 3 — its report (screenshot/
+   frame paths, plain descriptions, `measure-alignment.py` numbers) goes into the gate's dispatch
+   prompt alongside the diff, so the gate reads evidence instead of re-driving the emulator
+   itself. Then the gate agent (spot-checker / pr-reviewer) with the diff location + the same
+   acceptance criteria (+ the visual-verifier report, when one exists).
 5. **Read the result.** Verdict MERGE → merge (if authorized). REQUEST-CHANGES/REWORK → route findings
    back to the same implementing agent. BLOCK/ESCALATE → re-triage one track heavier. Budget-cap
    report from issue-solver → see escalation. **A UI diff with no screenshot/frames is not merged
    on any verdict**: `gh pr edit N --add-label needs-device`, leave it open, log `ui.screenshot`
-   as `none: <reason>`. Disclosure is a queue for the next device pass, not acceptance.
+   as `none: <reason>`. Disclosure is a queue for the next device pass, not acceptance. **A
+   `visual-verifier` report with any failed/inconclusive capture is not merged on any verdict
+   either** — same rule, same reason: unknown-and-shipped is what this whole flow exists to catch.
 6. **Log** (below). Optionally, if a human-filed issue exists, `gh issue comment` a receipt and close it.
 
 ## Escalation gates
