@@ -1801,7 +1801,11 @@ const styles = StyleSheet.create({
   // wrapping the badges onto a second line. alignItems: "center" matches MenuWithBadges.dc.html's
   // name-line row -- badges are centered on the name's line-height, not baseline-aligned to it.
   rowNameLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing(2) },
-  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
+  // flexShrink: 1 -- RN/Yoga defaults flex-item shrink to 0, so without this a long dish name
+  // renders at its single-line intrinsic width and can overflow past rowMain into the add button
+  // instead of wrapping (the same failure mode rowCalories used to guard against on this line
+  // before badges moved here -- pr-reviewer caught this missing on the Text that took over that role).
+  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900, flexShrink: 1 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
   filterFab: {
