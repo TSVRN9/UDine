@@ -229,6 +229,8 @@ function MacroBadgeIcon({ preset }: { preset: MacroPreset }) {
   // not the attachment. 4dp was reverse-engineered from an on-device pixel measurement (badge
   // center sat 9 screen px / ~3dp above the text's true visual center at 3x density) -- if the
   // font, weight, or badge size ever changes, re-measure rather than trust this number blind.
+  // Measured on Android only (no iOS device in this environment) -- this value is font-metrics-
+  // derived, and iOS's text engine may anchor the attachment differently; spot-check on iOS too.
   return (
     <Svg width={15} height={15} viewBox="0 0 20 20" style={{ position: "relative", top: 4 }} accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
       <Circle cx={10} cy={10} r={10} fill={MACRO_BADGE_CIRCLE_FILL} />
@@ -1010,14 +1012,11 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
             <Text style={styles.rowText}>
               {item.dishName}
               {macroBadges.length > 0 && (
-                <>
-                  {"  "}
-                  <View style={styles.macroBadgeRow}>
-                    {macroBadges.map((preset) => (
-                      <MacroBadgeIcon key={preset} preset={preset} />
-                    ))}
-                  </View>
-                </>
+                <View style={styles.macroBadgeRow}>
+                  {macroBadges.map((preset) => (
+                    <MacroBadgeIcon key={preset} preset={preset} />
+                  ))}
+                </View>
               )}
             </Text>
             {/* #378 (CafeMenuMixed.dc.html:43): price folds into the same uniform-color meta
@@ -1812,7 +1811,10 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, gap: 1 },
   rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
-  macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
+  // paddingLeft (not gap, and not a literal "  " between the name and this View) -- gap doesn't
+  // apply across an inline Text attachment boundary, so this stands in for MenuWithBadges.dc.html's
+  // 6px name-to-badge gap the same spec-anchored way every other spacing value in this file does.
+  macroBadgeRow: { flexDirection: "row", gap: spacing(1), paddingLeft: spacing(1.5) },
   filterFab: {
     position: "absolute",
     right: 20,
