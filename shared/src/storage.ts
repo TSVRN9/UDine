@@ -62,7 +62,7 @@ export function exportEntriesAsCsv(entries: LogEntry[]): string {
   return [CSV_COLUMNS.join(","), ...rows].join("\n");
 }
 
-// --- #148: ranking (rankedDishes/rankedFoods) and favorites exporters -- the other two
+// --- ranking (rankedDishes/rankedFoods) and favorites exporters -- the other two
 // always-device-local stores per CLAUDE.md's data residency table ("every device-local table needs
 // a JSON/CSV export path"). Same release-valve shape as the log exporters above: export IS the
 // sanctioned way this data leaves the device, so these still never touch the network themselves.

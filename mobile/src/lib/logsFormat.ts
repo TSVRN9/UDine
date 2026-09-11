@@ -1,11 +1,10 @@
 import { isoDateOf, type LogEntry } from "@udine/shared";
 import { entryCalories, entryDishName, groupEntriesByMeal, type HallMealPeriod } from "./youPaneFormat";
 
-/** "8:40 AM" -- reintroduced here from #118 (You pane no longer needs a per-entry time now that
- * the log is meal-grouped, but the Logs screen's edit-state row shows one, e.g. "Hampshire · 8:40
- * AM · 320 cal each"). `new Date(loggedAt)` parses a bare (no "Z"/offset) ISO string as local time
- * per ECMA-262 (see date.ts's own comment on this), so getHours()/getMinutes() already read local
- * components for both freshly-stamped entries and legacy Z-suffixed ones. */
+/** "8:40 AM" -- the Logs screen's edit-state row shows a per-entry time (e.g. "Hampshire · 8:40 AM
+ * · 320 cal each"). `new Date(loggedAt)` parses a bare (no "Z"/offset) ISO string as local time per
+ * ECMA-262, so getHours()/getMinutes() already read local components for both freshly-stamped
+ * entries and legacy Z-suffixed ones. */
 export function formatLogTime(loggedAt: string): string {
   const d = new Date(loggedAt);
   let hour = d.getHours();
@@ -90,18 +89,15 @@ export interface WeekChartData {
 }
 
 /** Last 7 Days bar-chart data. Per-day calories: round-per-entry-then-sum, the same convention
- * groupEntriesByMeal (#118) uses for meal subtotals -- keeps a day's bar/total agreeing exactly
- * with that day's own log-screen total, not just approximately (see groupEntriesByMeal's doc
- * comment on why round-once and round-then-sum can otherwise disagree by a calorie). Averages are
- * over the full 7-day window, including no-log days -- "cal / day" reads as a daily rate over the
- * week, and a user who only logged 3 of the last 7 days should see that reflected as a lower
- * average, not one inflated by silently excluding the days they skipped.
+ * groupEntriesByMeal uses for meal subtotals -- keeps a day's bar/total agreeing exactly with that
+ * day's own log-screen total, not just approximately. Averages are over the full 7-day window,
+ * including no-log days -- "cal / day" reads as a daily rate over the week, and a user who only
+ * logged 3 of the last 7 days should see that reflected as a lower average, not one inflated by
+ * silently excluding the days they skipped.
  *
- * Protein follows the same round-per-entry-then-sum convention as calories, for consistency (PR
- * #140 review, issue #142) -- even though, unlike calories, there's no displayed protein subtotal
- * anywhere else on this screen for a raw-sum-then-round-once total to visibly disagree with. Kept
- * uniform anyway so the file has one rounding rule, not two, and so a future per-meal protein
- * subtotal wouldn't inherit a silent discrepancy. */
+ * Protein follows the same round-per-entry-then-sum convention as calories, for consistency, even
+ * though there's no displayed protein subtotal elsewhere on this screen to visibly disagree with.
+ * Kept uniform anyway so the file has one rounding rule, not two. */
 export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDate: string): WeekChartData {
   const dates = lastSevenDates(todayIso);
   const dateSet = new Set(dates);
@@ -123,9 +119,8 @@ export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDa
 
 /** Current consecutive-day logging streak, counted backward from today -- with a same-day grace
  * period: if today has no entry yet, start counting from yesterday instead, so not having logged
- * yet today doesn't zero out a streak the user already earned (standard habit-tracker convention).
- * Null (not 0) when there's no active streak -- issue #119's "skip fun stats with insufficient
- * data rather than rendering zeros" gate. */
+ * yet today doesn't zero out a streak the user already earned. Null (not 0) when there's no active
+ * streak. */
 export function computeLoggingStreak(entries: LogEntry[], todayIso: string): number | null {
   const loggedDates = new Set(entries.map((e) => isoDateOf(e.loggedAt)));
   let cursor = loggedDates.has(todayIso) ? todayIso : addDaysIso(todayIso, -1);
@@ -194,9 +189,9 @@ export interface FunStat {
 }
 
 /** For Fun's 2x2 stat grid, canvas order: logging streak, most-logged dish, distinct dishes tried,
- * top meal's calorie share. Each stat is independently gated -- issue #119's "skip any stat with
- * insufficient data rather than showing zeros" -- so the grid renders anywhere from 0 to 4 cards
- * depending on how much the device has logged. */
+ * top meal's calorie share. Each stat is independently gated -- skip any stat with insufficient
+ * data rather than showing zeros -- so the grid renders anywhere from 0 to 4 cards depending on how
+ * much the device has logged. */
 export function buildFunStats(entries: LogEntry[], todayIso: string): FunStat[] {
   const stats: FunStat[] = [];
 

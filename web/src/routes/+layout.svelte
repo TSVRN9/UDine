@@ -5,21 +5,18 @@
 	import { ownPushToken, clearStoredPushTokens } from "$lib/pushTokens";
 	import { pendingSelfHeal } from "$lib/pendingSelfHeal";
 
-	// No shared web withTimeout convention -- a Promise.race with a timer, matching mobile's
-	// withTimeout in spirit (mirrors mobile/src/lib/auth.ts's SIGN_OUT_STEP_TIMEOUT_MS).
+	// No shared web withTimeout helper; this is a Promise.race with a timer, matching mobile's
+	// SIGN_OUT_STEP_TIMEOUT_MS in spirit.
 	const SELF_HEAL_WAIT_TIMEOUT_MS = 15000;
 
 	let { children } = $props();
 
-	// Primary nav. The vertical-slice/rank/filters/favorites e2e specs click these by link text
-	// (getByRole("link", { name: ... }), which matches by *substring*) — so renaming an entry is a
-	// locator-breaking change, and adding one whose label contains an existing label would make
-	// those locators ambiguous (strict-mode violation). Adding an unrelated label is safe.
+	// e2e specs click these by link text (substring match), so renaming an entry or adding one
+	// whose label contains an existing label breaks/ambiguates those locators.
 	//
-	// Friends/Notifications live here rather than behind the disclosure below: they're the two
-	// destinations with incoming, time-sensitive content (a friend request, a favorited dish
-	// spotted today), which is exactly what shouldn't be one click further away than static
-	// read-only content.
+	// Friends/Notifications live here rather than behind the disclosure below: they carry incoming,
+	// time-sensitive content (a friend request, a favorited dish spotted today), unlike the static
+	// read-only content behind it.
 	const primaryNav = [
 		{ href: "/today", label: "Today's macros" },
 		{ href: "/rank", label: "Rank dishes" },
@@ -55,36 +52,26 @@
 		if (error) signingIn = false;
 	}
 
-	// #257: signOut() used to only call auth.signOut(), leaving this browser's push_tokens row
-	// registered under the signing-out user -- a shared device kept getting the previous user's
-	// favorited-food alerts. The delete has to happen BEFORE auth.signOut(): once the session is
-	// gone, RLS no longer lets this browser touch that row. Best-effort and scoped to this browser's
-	// own subscription (never a blanket "every device" delete, see clearStoredPushTokens's own doc
-	// comment) -- a failure here must not strand the user mid sign-out, and skipped entirely when
-	// this browser was never subscribed (nothing to clean up).
+	// The push_tokens delete has to happen BEFORE auth.signOut(): once the session is gone, RLS no
+	// longer lets this browser touch that row. Best-effort and scoped to this browser's own
+	// subscription only (never a blanket "every device" delete) -- a failure here must not strand
+	// the user mid sign-out.
 	//
 	// Deliberately does NOT flip notifications_enabled to false -- that's the user's stored
-	// preference for when they sign back in, not device-scoped state. See mobile/src/lib/auth.ts's
-	// signOut() for the same call and the same reasoning.
+	// preference for signing back in, not device-scoped state. Mirrors mobile/src/lib/auth.ts's
+	// signOut().
 	async function signOut() {
 		const supabase = page.data.supabase;
 		if (!supabase) return;
 		const userId = page.data.session?.user.id;
 		if (userId) {
-			// #264 review round 4: notifications/+page.svelte's self-heal (re-upserting this
-			// browser's push_tokens row whenever notifications_enabled is true and permission is
-			// granted) can still be mid-flight when the user clicks "Sign out". Two earlier fixes
-			// here (a pre-upsert flag, then a post-upsert "compensating delete" keyed off a sign-out
-			// epoch) both failed: the compensating delete ran *after* auth.signOut() below had
-			// already cleared the session, so it 403'd (push_tokens has no anon grant,
-			// `20260818130000:39-40`) and the resurrected row stayed -- reviewer-reproduced, not
-			// theoretical. Waiting for the self-heal HERE, before this function's own delete and
-			// before auth.signOut(), removes the race instead of detecting it after the fact: either
-			// the self-heal finishes first (and the delete below removes whatever it wrote, with the
-			// session still live) or it never started. Bounded so a hung self-heal can't hang
-			// sign-out -- a self-heal upsert whose request was already in flight with a still-valid
-			// JWT when the wait times out can still land afterward; #263's server-side unique-token
-			// constraint is the backstop for that sliver, not this code.
+			// notifications/+page.svelte's self-heal (re-upserting this browser's push_tokens row)
+			// can still be mid-flight when the user clicks "Sign out". Waiting for it HERE, before
+			// this function's own delete and before auth.signOut(), avoids a race where a post-signOut
+			// upsert would 403 (session gone) while a pre-signOut one would resurrect the row this
+			// delete just removed. Bounded so a hung self-heal can't hang sign-out; a self-heal
+			// request already in flight when the wait times out can still land afterward -- the
+			// server-side unique-token constraint on push_tokens is the backstop for that sliver.
 			const pending = pendingSelfHeal();
 			if (pending) {
 				await Promise.race([pending, new Promise((resolve) => setTimeout(resolve, SELF_HEAL_WAIT_TIMEOUT_MS))]);
@@ -140,16 +127,12 @@
 			</div>
 		</div>
 
-		<!-- One nav element, wrapping — deliberately not a desktop/mobile pair, which would put two
-		     links with the same name in the DOM and break every e2e nav click on strict mode. -->
+		<!-- One nav element, wrapping — not a desktop/mobile pair, which would put two links with the
+		     same name in the DOM and break e2e nav clicks on strict mode. -->
 		<nav
 			aria-label="Main"
 			class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 font-display text-sm tracking-wide uppercase sm:px-6"
 		>
-			<!-- #64: Today's macros leads, "Dining Halls" (now the Today-first dashboard's own route)
-			     follows the rest of primaryNav — reflects the Today-first IA without touching any label,
-			     so every spec's getByRole("link", { name: "Dining Halls" | "Today's macros" | ... })
-			     locator still resolves to the same element it always did. -->
 			{#each primaryNav as item (item.href)}
 				<a
 					href={item.href}
@@ -190,11 +173,9 @@
 
 		<div class="label-rule text-gold-500"></div>
 
-		<!-- Navigation loading indicator. Every route's `load` fetches from umassdining.com through
-		     /api/*, and SvelteKit blocks the navigation until it resolves — without this, clicking a
-		     dining hall looks like nothing happened for as long as that upstream takes. Not a
-		     role="status": the e2e specs assert on a single role="status" per page (the log/save
-		     toasts), and a second one would make those locators ambiguous. -->
+		<!-- Navigation loading indicator: every route's `load` fetches from umassdining.com through
+		     /api/*, so this covers the wait. Not role="status" -- each page already has one for its
+		     own log/save toast, and a second would make those locators ambiguous. -->
 		<div class="h-1 {navigating.to ? 'animate-pulse bg-gold-500' : ''}" aria-hidden="true"></div>
 	</header>
 

@@ -22,7 +22,7 @@ function hasPerServingData(n: Record<string, number>): boolean {
 }
 
 /** Maps OFF's `nutriments` bag to our NutritionFacts shape, preferring per-serving values and
- * falling back to per-100g — shared by lookupBarcode and searchProducts (#91). */
+ * falling back to per-100g — shared by lookupBarcode and searchProducts. */
 function mapNutriments(n: Record<string, number>, servingSize: string): NutritionFacts {
   return {
     servingSize,
@@ -117,20 +117,16 @@ function formatOffAllergenTag(tag: string): string {
 }
 
 /**
- * Text search for packaged foods — the mobile plate sheet's "Add something else" row (#91),
- * SEARCH only (barcode scanning needs a native dep, out of scope for #91). Uses OFF's `cgi/search.pl`
- * (the long-documented, stable text-search endpoint) rather than the newer search-a-licious service,
- * and requests only the fields the plate needs — OFF product records otherwise carry dozens of
- * unrelated fields. Search hits usually lack per-serving nutriments (unlike single-product lookups
- * via lookupBarcode), so this falls back to per-100g like lookupBarcode does, marking servingSize
- * with the literal "per 100g" so the UI can flag it as an estimate instead of silently presenting
- * 100g numbers as "1 serving" — see mobile/src/lib/plate.ts's isEstimatedServing, which reads this
- * exact marker, and PlateSheet.tsx, which renders it on both the search-result row and the row the
- * item becomes once added to the plate.
+ * Text search for packaged foods -- SEARCH only (barcode scanning needs a native dep). Uses OFF's
+ * `cgi/search.pl` (the long-documented, stable text-search endpoint) rather than the newer
+ * search-a-licious service, and requests only the fields the plate needs. Search hits usually lack
+ * per-serving nutriments (unlike single-product lookups via lookupBarcode), so this falls back to
+ * per-100g like lookupBarcode does, marking servingSize with the literal "per 100g" so the UI can
+ * flag it as an estimate instead of silently presenting 100g numbers as "1 serving" -- see
+ * mobile/src/lib/plate.ts's isEstimatedServing, which reads this exact marker.
  *
  * `page` (1-based, default 1) paginates past OFF's own OFF_PAGE_SIZE-per-request cap -- pass the
- * returned `hasMore`'s implied `page + 1` back in for the next page, same shape usdaFoodData.ts's
- * searchFoods uses for FDC.
+ * returned `hasMore`'s implied `page + 1` back in for the next page.
  */
 export async function searchProducts(query: string, page = 1): Promise<OffSearchPage> {
   const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page=${page}&page_size=${OFF_PAGE_SIZE}&fields=code,product_name,serving_size,nutriments,ingredients_text,allergens_tags`;

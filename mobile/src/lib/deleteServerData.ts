@@ -1,66 +1,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * "Delete server data" (#182, fixed for real in #237).
- *
- * Two buckets of steps, not one:
+ * "Delete server data" for the privacy screen. Two buckets of steps:
  *
  * - RETRYABLE: friendships, favorited_foods, shared_stats, favorite_dining_halls, push_tokens, and
- *   pings (sender-side only -- "senders can retract their pings" has no matching receiver-delete
- *   policy, so a ping someone sent TO this user survives; that's a real gap, noted in the PR body,
- *   not fixed here) all have an owner DELETE policy + grant today (see
- *   20260817213000_favorite_dining_halls.sql / 20260817220000_friends_pings_favorited_foods.sql /
- *   20260818130000_grant_authenticated_table_access.sql). A failure here is a genuine, transient
- *   thing (network blip, RLS regression) worth telling the user to retry.
+ *   pings (sender-side only -- a ping sent TO this user has no matching receiver-delete policy and
+ *   survives) all have an owner DELETE policy + grant. A failure here is a genuine, transient thing
+ *   (network blip, RLS regression) worth telling the user to retry.
  *
- *   "notifications" is also retryable: `profiles.update({ notifications_enabled: false,
- *   discoverable: false })` (column grant at 20260824150000_add_friends_discoverability_and_qr.sql:64).
- *   #272: without this, favoriteFoodAlerts.ts's refresh()-driven self-heal (#264) re-registers a
- *   push_tokens row the very next time /privacy or /notifications is focused, because
- *   notifications_enabled was left true even though the row it points at was just deleted. Ordered
- *   BEFORE the push_tokens step below -- a focus landing between the two steps must see
- *   notifications_enabled already false (so refresh()'s self-heal skips re-registering) rather than
- *   a window where the flag is still true and the row is already gone.
+ *   "notifications" (`profiles.update({ notifications_enabled: false, discoverable: false })`) must
+ *   run before the push_tokens delete: otherwise favoriteFoodAlerts.ts's refresh() self-heal could
+ *   see notifications_enabled still true and re-register a push_tokens row right after it's deleted.
  *
  * - UNDELETABLE (known, permanent, not a bug to retry): profiles, food_sightings, and qr_tokens have
  *   no owner DELETE policy or grant. All three are still attempted -- honest about what the backend
- *   actually allows, not silently skipped -- but a denial here is folded into a SEPARATE bucket from
- *   `failedSteps` so `ok` (and the UI's "try again" copy) only ever reflects the steps that could
- *   plausibly succeed on retry.
+ *   actually allows -- but a denial here goes into a separate `undeletableSteps` bucket so `ok` (and
+ *   the UI's "try again" copy) only reflects steps that could plausibly succeed on retry.
  *
- *   profiles specifically was a deliberate decision, not an oversight: `handle_new_user()` (see
- *   20260817220000_friends_pings_favorited_foods.sql) only fires `after insert on auth.users`, i.e.
- *   at signup, never at sign-in. Delete the profiles row and the same user signing back in gets NO
- *   new row -- no display_name/email/discoverable, and the profiles SELECT policy's "existing
- *   relationship" arm can no longer render them to friends (20260824150000). Nothing in this schema
- *   recreates it. #204 also went the other direction on this exact table, narrowing writes to a
- *   column grant rather than widening them. A real "delete my account" needs the Supabase Auth
- *   Admin API (service role) to remove the auth.users row too, which is a different, bigger feature
- *   than a client-side RLS policy -- not built here.
+ *   profiles is deliberate, not an oversight: `handle_new_user()` only fires on signup, never on
+ *   sign-in, so deleting the profiles row would leave a returning user with no row recreated -- no
+ *   display_name/email/discoverable, and friends could no longer see them. A real "delete my
+ *   account" needs the Supabase Auth Admin API to remove the auth.users row too -- a bigger feature
+ *   than a client-side RLS policy, not built here. food_sightings and qr_tokens don't share that
+ *   recreate-on-signin hazard, so an owner DELETE policy on either would likely be safe to add.
  *
- *   food_sightings and qr_tokens have none of profiles' recreate-on-signin hazard (qr_tokens is one
- *   row per user, replaced wholesale by mint_qr_token() the next time the user opens the QR screen
- *   regardless of whether an old row was ever deleted -- see 20260824150000_add_friends_
- *   discoverability_and_qr.sql -- and food_sightings is just notification-history rows), so an owner
- *   DELETE policy on either would likely be safe to add -- left as a question for the PR body rather
- *   than added unasked, per the issue's own "raise whether it needs one" framing (profiles got
- *   "decide", food_sightings got "raise"; qr_tokens is the same shape as food_sightings).
+ * Received pings (a friend's own sent-to-this-user row) aren't attempted at all -- there's no
+ * receiver-delete policy to even try. Surfaced as static "stays" copy in privacy.tsx instead.
  *
- * Received pings (a friend's own sent-to-this-user row) are not attempted at all, retryable or
- * undeletable -- there is no receiver-delete policy for pings to even try, only the sender-delete
- * one used below. Surfaced as static "stays" copy in privacy.tsx, not as a step here.
+ * Never throws: each step's `{ error }` is collected, and the caller decides how to render a
+ * partial failure.
  *
- * Never throws (same contract as syncFavoritedFoods/syncSharedStat): each step's `{ error }` is
- * collected, and the caller decides how to render a partial failure -- matching the #158/#165/#167
- * "surface {error}, truthful UI on partial failure" convention this ticket pins.
- *
- * Assumption baked into the retryable/undeletable split: a DENIED delete (missing grant or RLS)
- * always comes back as a non-null `{ error }` -- PostgREST returns 42501/permission-denied, never a
- * silent zero-rows-affected success. That's how profiles/food_sightings/qr_tokens end up in
- * `undeletableSteps` every real run. Nothing here has been exercised against a live PostgREST
- * instance (every test below hands the client a synthetic `{ error }`); if that assumption is ever
- * wrong for some future table, the honest "stays on the server" copy would silently go stale with
- * no test catching it.
+ * Assumes a denied delete (missing grant or RLS) always comes back as a non-null `{ error }`
+ * (PostgREST returns 42501/permission-denied, never a silent zero-rows-affected success) -- that's
+ * how profiles/food_sightings/qr_tokens end up in `undeletableSteps` every real run.
  */
 export interface DeleteServerDataResult {
   /** True iff every RETRYABLE step succeeded. Ignores `undeletableSteps` -- those are expected to

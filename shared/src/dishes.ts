@@ -2,8 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NutritionFacts } from "./types.ts";
 
 /** One row of public.dishes -- the global, read-only nutrition-fact catalog deduplicated by dish
- * name (see supabase/migrations/20260905120000_create_dishes_table.sql and the populate-dishes
- * Edge Function that writes it). */
+ * name. */
 export interface DishCatalogEntry {
   dishName: string;
   nutrition: NutritionFacts;
@@ -13,13 +12,9 @@ export interface DishCatalogEntry {
 }
 
 // MUST match supabase/config.toml's max_rows (also the Supabase cloud default) -- PostgREST caps
-// any single response at max_rows with no error at all, it just silently drops rows past it (see
-// supabase/functions/_shared/paging.ts's doc comment for the sibling incident, issue #261, that
-// bit favorited_foods/profiles on the write side). This table's migration comment says "a few
-// thousand dishes at most", comfortably past a single unpaginated page -- fetchDishCatalog pages
-// via .range() below, treating a page shorter than PAGE_SIZE as the end-of-data signal, same as
-// _shared/paging.ts's fetchAllPages (that module can't be imported from shared/ -- it's Deno-only
-// under supabase/functions -- so this is a small, local re-implementation of the same technique).
+// any single response at max_rows with no error at all, it just silently drops rows past it.
+// fetchDishCatalog pages via .range() below, treating a page shorter than PAGE_SIZE as the
+// end-of-data signal.
 const PAGE_SIZE = 1000;
 
 /**
@@ -41,9 +36,7 @@ export async function fetchDishCatalog(supabase: SupabaseClient, updatedSince?: 
   for (;;) {
     // .order("dish_name") (the table's own primary key) gives .range() a total, unique sort to
     // page against -- without one, Postgres/PostgREST make no row-order guarantee across separate
-    // offset/limit requests, which can silently duplicate or skip rows at a page boundary (see
-    // _shared/paging.ts's fetchAllForIds doc comment for the same warning, there against
-    // postgrest-js's own PostgrestTransformBuilder.range()).
+    // offset/limit requests, which can silently duplicate or skip rows at a page boundary.
     let query = supabase.from("dishes").select("dish_name, nutrition, allergens, diet_tags, updated_at").order("dish_name");
     if (updatedSince !== undefined) {
       query = query.gt("updated_at", updatedSince);

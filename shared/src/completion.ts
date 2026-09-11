@@ -10,11 +10,11 @@ import type { LogEntry } from "./types.ts";
  * snapshot. That excludes mobile's filters.tsx, which fetches all 4 halls' full menus at once
  * purely to derive the allergen/diet chip list -- wiring that call through recordSeen too would
  * spike every hall's denominator the instant Filters is opened, including halls the user never
- * browsed (PR #123 review). Mirrors LogStorage's interface style
- * (storage.ts) with a bulk getter (getAllSeenDishNames, like getAllEntries) — the shape hallCompletion
- * takes directly, since its only consumer (#92's You pane) needs all 4 halls at once, not one at a
- * time. Contract only here — implemented per-platform (mobile SQLite lands with #92). Nothing
- * implementing this interface may call a network API, per CLAUDE.md's data residency table.
+ * browsed. Mirrors LogStorage's interface style (storage.ts) with a bulk getter
+ * (getAllSeenDishNames, like getAllEntries) — the shape hallCompletion takes directly, since its
+ * only consumer (the You pane) needs all 4 halls at once, not one at a time. Contract only here —
+ * implemented per-platform. Nothing implementing this interface may call a network API, per
+ * CLAUDE.md's data residency table.
  */
 export interface SeenDishesStorage {
   recordSeen(hallTid: number, dishNames: string[]): Promise<void>;

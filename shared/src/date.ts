@@ -3,7 +3,7 @@ const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 // Clamps a `?date=` query param to a safe menu date: absent/empty/garbage/impossible/past all fall
 // back to `todayIso`; a valid future ISO date passes through unchanged.
 //
-// Two things the naive `dateParam ?? todayIso` replacement (see PR #76 review) misses:
+// A naive `dateParam ?? todayIso` replacement misses two things:
 //   1. It doesn't validate shape/range at all -- any truthy string passes through.
 //   2. Even a shape-validated version doing a plain `dateParam > todayIso` lexicographic compare is
 //      unsound for out-of-range components: "2026-13-99" and "9999-99-99" both match a bare
@@ -12,10 +12,9 @@ const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 //
 // Rejecting impossible dates is a build-and-read-back round trip: construct a Date from the local
 // components (not `new Date(string)`, which parses "YYYY-MM-DD" as UTC and can land on the wrong
-// calendar day under a negative-UTC-offset timezone -- see the same trap called out in
-// web/src/routes/api/menu/+server.ts) and check it reproduces the same year/month/day. An
-// out-of-range component (month 13, day 99, ...) rolls the Date forward instead of erroring, so it
-// won't read back the same components -- that mismatch is the rejection signal.
+// calendar day under a negative-UTC-offset timezone) and check it reproduces the same year/month/
+// day. An out-of-range component (month 13, day 99, ...) rolls the Date forward instead of
+// erroring, so it won't read back the same components -- that mismatch is the rejection signal.
 export function resolveMenuDate(dateParam: string | null | undefined, todayIso: string): string {
   if (!dateParam) return todayIso;
 
@@ -43,8 +42,8 @@ export function resolveMenuDate(dateParam: string | null | undefined, todayIso: 
 // `loggedAt` by calendar day (via `isoDateOf`, shared/src/macros.ts) assumes the stored string's
 // date prefix already IS the local day -- stamping with `.toISOString()` instead makes evening
 // entries (local time still today, UTC already tomorrow) file under tomorrow and silently vanish
-// from Today (mobile: issue #111/PR #122; web: issue #124). One helper, shared by both platforms
-// instead of forked per-platform copies, so they can't drift apart on this again.
+// from Today. One helper, shared by both platforms instead of forked per-platform copies, so they
+// can't drift apart on this again.
 //
 // A bare (no "Z"/offset) ISO-shaped string is parsed back as local time by `new Date(str)` per the
 // ECMA-262 Date Time String spec, so downstream `new Date(loggedAt).getHours()` (mobile's

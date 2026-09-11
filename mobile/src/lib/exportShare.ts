@@ -25,11 +25,8 @@ const customFoodsStorage = new SqliteCustomFoodsStorage();
 export type ExportFormat = "json" | "csv";
 
 /**
- * Extracted from YouPane.tsx (#182 -- the You pane's inline "Export Your Data" buttons are
- * replaced by the "Your data" screen's EXPORT row, which leads to the dedicated export screen
- * #183 builds on this module). Writes `content` to the cache dir and hands it to the OS share
- * sheet -- the common tail of every export* function below, regardless of which store/format it
- * came from.
+ * Writes `content` to the cache dir and hands it to the OS share sheet -- the common tail of every
+ * export* function below, regardless of which store/format it came from.
  */
 export async function shareExport(baseName: string, format: ExportFormat, content: string) {
   const path = `${FileSystem.cacheDirectory}${baseName}.${format}`;
@@ -41,8 +38,7 @@ export async function shareExport(baseName: string, format: ExportFormat, conten
 
 export async function exportLog(format: ExportFormat) {
   // Fresh read, not a stale render's state -- a just-removed entry can otherwise still be in a
-  // cached list if export is tapped before a remove()'s reload flushes. Matches today.tsx's
-  // original behavior (ported from, see PR #105's review).
+  // cached list if export is tapped before a remove()'s reload flushes.
   const entries = await logStorage.getAllEntries();
   const content = format === "json" ? exportEntriesAsJson(entries) : exportEntriesAsCsv(entries);
   await shareExport("udine-export", format, content);
