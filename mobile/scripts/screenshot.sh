@@ -11,6 +11,23 @@ set -euo pipefail
 # Usage:
 #   mobile/scripts/screenshot.sh <route> [--device AVD_NAME] [--out PATH]
 #     [--record SECONDS] [--tap X Y] [--swipe X1 Y1 X2 Y2 [MS]] [--longpress X Y MS]
+#     [--wait-for TEXT] [--stress NAME]
+#
+# --wait-for TEXT: after navigating, poll the on-screen UI (via `uiautomator dump`)
+#   until TEXT appears, instead of trusting a fixed sleep. A live-data screen (the
+#   hall menu hits umassdining.com) can still be showing skeleton placeholder rows
+#   after the fixed post-navigation sleep -- every capture in earlier sessions that
+#   silently landed on a skeleton or the wrong screen was this. Without --wait-for,
+#   the fixed sleeps are unchanged (backward compatible). With it and no match
+#   within the timeout (default 45s), this exits non-zero with a clear message --
+#   never silently captures a stale frame.
+# --stress NAME: dev-only stress-fixture query param, appended to the deep link as
+#   `?stress=NAME`. Requires the target route to read it and inject a fixture when
+#   __DEV__ (see mobile/src/app/halls/[slug].tsx's STRESS_FIXTURE for the one this
+#   repo ships: NAME=long-names adds one synthetic 60+ char dish name with all 5
+#   macro badges to every meal-period section, so a layout claim about a wrapped
+#   name / max badge count doesn't depend on live menu data happening to contain
+#   one today.
 
 APP_ID="com.udinetogether.udine"
 JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk
@@ -22,9 +39,12 @@ OUT=""
 RECORD_SECS=""
 GESTURE=""       # tap | swipe | longpress
 GESTURE_ARGS=()
+WAIT_FOR_TEXT=""
+WAIT_FOR_TIMEOUT=45
+STRESS=""
 
 usage() {
-  echo "Usage: $0 <route> [--device AVD_NAME] [--out PATH] [--record SECONDS] [--tap X Y] [--swipe X1 Y1 X2 Y2 [MS]] [--longpress X Y MS]" >&2
+  echo "Usage: $0 <route> [--device AVD_NAME] [--out PATH] [--record SECONDS] [--tap X Y] [--swipe X1 Y1 X2 Y2 [MS]] [--longpress X Y MS] [--wait-for TEXT] [--stress NAME]" >&2
   exit 1
 }
 
@@ -58,6 +78,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --longpress)
       GESTURE="longpress"; GESTURE_ARGS=("$2" "$3" "$4"); shift 4 ;;
+    --wait-for)
+      WAIT_FOR_TEXT="$2"; shift 2 ;;
+    --stress)
+      STRESS="$2"; shift 2 ;;
     *)
       echo "Unknown argument: $1" >&2
       usage
@@ -84,6 +108,7 @@ MOBILE_DIR="$REPO_ROOT/mobile"
 
 ROUTE_SLUG="${ROUTE//\//-}"
 [[ -z "$ROUTE_SLUG" ]] && ROUTE_SLUG="home"
+[[ -n "$STRESS" ]] && ROUTE_SLUG="${ROUTE_SLUG}-stress-${STRESS}"
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 SHOT_DIR="${CLAUDE_JOB_DIR:-/tmp}/tmp/shots"
 mkdir -p "$SHOT_DIR"
@@ -201,10 +226,48 @@ fi
 # black frame is on screen. Give it room before navigating further.
 sleep 4
 
+# wait_for_text: polls the live UI (not a screenshot -- `uiautomator dump`'s XML, which embeds
+# every visible string as a text="..." attribute) until TEXT appears, or exits loudly on timeout.
+# Used instead of a fixed sleep wherever the caller knows a string that only appears once real
+# content has rendered (a section header, a specific dish name, a state label) -- a fixed sleep
+# can't tell a live-data fetch (e.g. umassdining.com) apart from an instant one, so it either wastes
+# time or, worse, captures the skeleton/loading state and nobody notices until a human looks.
+wait_for_text() {
+  local text="$1"
+  local timeout="$2"
+  local waited=0
+  local dump=""
+  while [[ $waited -lt $timeout ]]; do
+    dump="$(adb -s "$SERIAL" shell uiautomator dump /sdcard/udine-wait-dump.xml 2>/dev/null && adb -s "$SERIAL" exec-out cat /sdcard/udine-wait-dump.xml 2>/dev/null || true)"
+    if [[ "$dump" == *"$text"* ]]; then
+      return 0
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+  return 1
+}
+
 # --- 6. Navigate to the route --------------------------------------------------------
 if [[ -n "$ROUTE" ]]; then
-  adb -s "$SERIAL" shell am start -a android.intent.action.VIEW -d "udine://$ROUTE" >/dev/null
-  sleep 4
+  DEEP_LINK="udine://$ROUTE"
+  if [[ -n "$STRESS" ]]; then
+    if [[ "$DEEP_LINK" == *"?"* ]]; then
+      DEEP_LINK="${DEEP_LINK}&stress=$STRESS"
+    else
+      DEEP_LINK="${DEEP_LINK}?stress=$STRESS"
+    fi
+  fi
+  adb -s "$SERIAL" shell am start -a android.intent.action.VIEW -d "$DEEP_LINK" >/dev/null
+  if [[ -n "$WAIT_FOR_TEXT" ]]; then
+    sleep 1  # let navigation actually start before the first dump
+    if ! wait_for_text "$WAIT_FOR_TEXT" "$WAIT_FOR_TIMEOUT"; then
+      echo "Timed out after ${WAIT_FOR_TIMEOUT}s waiting for \"$WAIT_FOR_TEXT\" to appear on $DEVICE -- the screen is likely still loading or on the wrong route. Not capturing a stale frame." >&2
+      exit 1
+    fi
+  else
+    sleep 4
+  fi
 fi
 
 fire_gesture() {
