@@ -3,6 +3,7 @@
 // render the component -- same safe-area mock as PlateSheet.test.tsx/PlateBar.test.tsx.
 import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
+import Svg from "react-native-svg";
 import type { FoodPreferences } from "@udine/shared";
 import { FilterSheet } from "./FilterSheet";
 
@@ -46,5 +47,14 @@ describe("FilterSheet hiddenCount title-row counter (#385)", () => {
   it("renders nothing when hiddenCount is 0", () => {
     const root = render(0);
     expect(texts(root).some((t) => t.includes("items hidden"))).toBe(false);
+  });
+});
+
+describe("Macros chips carry a per-preset icon glyph (FilterSheet.dc.html:75-99)", () => {
+  it("renders one Svg icon per macro preset, unlike the plain-text Stations/Price chips", () => {
+    const root = render(0);
+    // 5 macro presets == 5 icon Svgs. CheckGlyph (drawn checkmark) adds one more per active
+    // preset -- prefs has no macroPresets set, so none start active and none render here.
+    expect(root.root.findAllByType(Svg)).toHaveLength(5);
   });
 });

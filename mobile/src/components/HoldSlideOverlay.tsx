@@ -63,7 +63,9 @@ function LadderTick({ k, anchorWidth, liveIndex }: { k: number; anchorWidth: num
     const index = nearest + k;
     const outOfRange = index < 0 || index > DRAG_STEP_COUNT;
     return {
-      top: CENTER_Y - k * DRAG_STEP_PX + frac * DRAG_STEP_PX - size / 2,
+      // Measured from the pill's BOTTOM (fixed on screen throughout the grow animation), not its
+      // top (which moves as the pill grows) -- see the pill's own comment on why.
+      bottom: TRACK_HEIGHT - CENTER_Y + k * DRAG_STEP_PX - frac * DRAG_STEP_PX - size / 2,
       opacity: outOfRange ? 0 : 1,
     };
   });
@@ -121,7 +123,7 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
   const cancelCaptionStyle = useAnimatedStyle(() => ({ opacity: cancelBlend(liveIndex.value) }));
 
   const glyphLeft = anchor.width / 2 - GLYPH_BOX / 2;
-  const glyphTop = TRACK_HEIGHT - BUTTON_ZONE + (BUTTON_ZONE - GLYPH_BOX) / 2;
+  const glyphBottom = (BUTTON_ZONE - GLYPH_BOX) / 2;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -140,14 +142,14 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
           {LADDER_OFFSETS.map((k) => (
             <LadderTick key={k} k={k} anchorWidth={anchor.width} liveIndex={liveIndex} />
           ))}
-          <Reanimated.Text style={[styles.plusGlyph, plusStyle, { top: glyphTop, left: glyphLeft }]}>+</Reanimated.Text>
-          <Reanimated.Text style={[styles.plusGlyph, cancelGlyphStyle, { top: glyphTop, left: glyphLeft }]}>✕</Reanimated.Text>
+          <Reanimated.Text style={[styles.plusGlyph, plusStyle, { bottom: glyphBottom, left: glyphLeft }]}>+</Reanimated.Text>
+          <Reanimated.Text style={[styles.plusGlyph, cancelGlyphStyle, { bottom: glyphBottom, left: glyphLeft }]}>✕</Reanimated.Text>
         </View>
         <View
           style={[
             styles.plusRing,
             {
-              top: TRACK_HEIGHT - BUTTON_ZONE - PLUS_RING_OUTSET,
+              bottom: -PLUS_RING_OUTSET,
               left: -PLUS_RING_OUTSET,
               width: anchor.width + PLUS_RING_OUTSET * 2,
               height: BUTTON_ZONE + PLUS_RING_OUTSET * 2,
@@ -220,13 +222,10 @@ const styles = StyleSheet.create({
   // need to clip to the animating box -- see pillClip below) live in their own nested wrapper
   // instead.
   pill: { position: "absolute", shadowColor: colors.ink900, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
-  // Clips the ladder ticks + glyphs (absolutely positioned at their final geometry, not scaled
-  // with heightProgress) to the pill's own animating height/top -- without it they render at
-  // full-height position immediately while only the background fill visibly grows, so the
-  // capsule doesn't read as expanding out of the button at all. Deliberately excludes plusRing
-  // (see `pill`'s own comment) -- this wrapper fills `pill`'s box exactly (StyleSheet.absoluteFill
-  // against a parent with no fixed size of its own), so it clips to the same animating bounds
-  // pill has at any given frame without needing its own animated style.
+  // Ladder ticks + glyphs are positioned with `bottom` (fixed relative to the pill's bottom edge,
+  // which doesn't move as the pill grows) -- this clip is what makes the pill read as the track
+  // rising out of the button: content above its current (short) top edge stays hidden until the
+  // pill has grown tall enough to reveal it, instead of popping in near the end of the animation.
   pillClip: { overflow: "hidden" },
   dot: { position: "absolute", width: TICK_SIZE, height: TICK_SIZE, borderRadius: radii.pill, backgroundColor: withOpacity(colors.paper50, 55) },
   currentDot: {

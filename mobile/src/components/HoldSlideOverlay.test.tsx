@@ -84,6 +84,25 @@ describe("HoldSlideOverlay mount geometry", () => {
   });
 });
 
+describe("HoldSlideOverlay grow animation anchors content to the fixed bottom edge, not the moving top", () => {
+  // The "+" glyph, ladder ticks, and thumb ring are positioned at their resting geometry regardless
+  // of the current grow progress -- if that geometry were expressed as `top` (measured from the
+  // pill's own top-left, which moves as the pill grows taller), it would place them below the
+  // visible clipped area for most of the animation, popping in only once the pill is nearly fully
+  // grown instead of staying pinned to the button the whole time. `bottom` (measured from the
+  // pill's bottom edge, fixed on screen throughout) is what actually makes it read as the track
+  // rising out of the button.
+  it("positions the + glyph with `bottom`, not `top`, at a value that fits inside the button-sized mount height", () => {
+    const json = render(ANCHOR, 1, 5);
+    const glyph = findByStyleValue(json, "lineHeight", 22);
+    expect(glyph).not.toBeNull();
+    const flat = StyleSheet.flatten(glyph!.props.style as never) as { top?: number; bottom?: number; height?: number };
+    expect(flat.top).toBeUndefined();
+    expect(typeof flat.bottom).toBe("number");
+    expect(flat.bottom! + flat.height!).toBeLessThanOrEqual(BUTTON_ZONE);
+  });
+});
+
 describe("HoldSlideOverlay cancel-blend styles", () => {
   // cancelBlend only ramps across [0, 0.5) (servingsStepper.ts's own doc comment: the previous,
   // buggy behavior ramped across the full [0, 1), which bled the cancel treatment into index 0.5's

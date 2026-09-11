@@ -57,7 +57,7 @@ function prefsWith(macroPresets: MacroPreset[]): FoodPreferences {
   return { allergensToAvoid: [], requiredDietTags: [], macroPresets };
 }
 
-const ALL_PRESETS: MacroPreset[] = ["high-protein", "low-sodium", "under-500-cal", "low-fat", "high-fiber"];
+const ALL_PRESETS: MacroPreset[] = ["high-protein", "low-sodium", "under-300-cal", "low-fat", "high-fiber"];
 
 test("menuItemMacroBadges never returns a preset the caller hasn't enabled", () => {
   const dish = item({ nutrition: { ...NUTRITION, proteinG: 30 } });
@@ -74,14 +74,14 @@ test("high-protein badges at >=10g protein (FDA 'high'/'excellent source' claim,
   assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, proteinG: 9.9 } }), prefsWith(["high-protein"])), []);
 });
 
-test("low-sodium badges at <=400mg sodium, not above", () => {
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, sodiumMg: 400 } }), prefsWith(["low-sodium"])), ["low-sodium"]);
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, sodiumMg: 401 } }), prefsWith(["low-sodium"])), []);
+test("low-sodium badges at <=140mg sodium (FDA 'low sodium' claim), not above", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, sodiumMg: 140 } }), prefsWith(["low-sodium"])), ["low-sodium"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, sodiumMg: 141 } }), prefsWith(["low-sodium"])), []);
 });
 
-test("under-500-cal badges at <=500 calories, not above", () => {
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 500 } }), prefsWith(["under-500-cal"])), ["under-500-cal"]);
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 501 } }), prefsWith(["under-500-cal"])), []);
+test("under-300-cal badges at <=300 calories, not above", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 300 } }), prefsWith(["under-300-cal"])), ["under-300-cal"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 301 } }), prefsWith(["under-300-cal"])), []);
 });
 
 test("low-fat badges at <=3g total fat (standard 'low fat' labeling cap), not above", () => {
@@ -94,9 +94,9 @@ test("low-fat badges at <=3g total fat (standard 'low fat' labeling cap), not ab
   assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, calories: 0, totalFatG: 0 } }), prefsWith(["low-fat"])), ["low-fat"]);
 });
 
-test("high-fiber badges at >=5g dietary fiber, not below", () => {
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, dietaryFiberG: 5 } }), prefsWith(["high-fiber"])), ["high-fiber"]);
-  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, dietaryFiberG: 4.9 } }), prefsWith(["high-fiber"])), []);
+test("high-fiber badges at >=2g dietary fiber, not below", () => {
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, dietaryFiberG: 2 } }), prefsWith(["high-fiber"])), ["high-fiber"]);
+  assert.deepEqual(menuItemMacroBadges(item({ nutrition: { ...NUTRITION, dietaryFiberG: 1.9 } }), prefsWith(["high-fiber"])), []);
 });
 
 test("menuItemMacroBadges returns every enabled preset a dish qualifies for", () => {
