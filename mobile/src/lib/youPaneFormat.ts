@@ -13,10 +13,10 @@ import {
 import { hallOrRetailName } from "./retailHallNames";
 
 /**
- * Carry-over note 3 (#92, from #97's review): shared's HallCompletion.pct rounds half-up
- * (Math.round), so e.g. 199/200 seen dishes logged reads back as pct 100 even though one dish is
- * still unlogged. Recomputed from the raw counts with Math.floor instead — feeds both the bar's
- * fill width and its numeric label, so "100%" only ever appears once loggedDistinct === seenDistinct.
+ * shared's HallCompletion.pct rounds half-up (Math.round), so e.g. 199/200 seen dishes logged reads
+ * back as pct 100 even though one dish is still unlogged. Recomputed from the raw counts with
+ * Math.floor instead — feeds both the bar's fill width and its numeric label, so "100%" only ever
+ * appears once loggedDistinct === seenDistinct.
  */
 export function displayCompletionPct(c: Pick<HallCompletion, "loggedDistinct" | "seenDistinct">): number {
   return c.seenDistinct === 0 ? 0 : Math.floor((100 * c.loggedDistinct) / c.seenDistinct);
@@ -28,12 +28,10 @@ export function pillTone(score: number, maxScore: number): "gold" | "maroon" {
 }
 
 /**
- * Carry-over note 4: RankedFood scores are cross-hall (identity by dishName alone — see
- * docs/adr/0001), but the canvas shows a hall label next to each top food. Derived presentationally,
- * not part of the score: the highest-rated per-hall RankedDish sharing that name, or (if this device
- * never compared that dish at any hall — shouldn't normally happen, since a food comparison always
- * updates the matching RankedDish too, but logged-without-yet-compared is possible) the hall of the
- * most recent log entry for that dish name. Null if neither source has it.
+ * RankedFood scores are cross-hall (identity by dishName alone — see docs/adr/0001), but the canvas
+ * shows a hall label next to each top food. Derived presentationally, not part of the score: the
+ * highest-rated per-hall RankedDish sharing that name, or (if this device never compared that dish
+ * at any hall) the hall of the most recent log entry for that dish name. Null if neither source has it.
  */
 export function deriveTopFoodHall(dishName: string, rankedDishes: RankedDish[], logEntries: LogEntry[]): number | null {
   const candidates = rankedDishes.filter((d) => d.dishName === dishName);
@@ -58,8 +56,7 @@ export interface TopFoodDisplay {
  * YOUR TOP FOODS display list: highest-rated foods first, capped at `limit`, each with its 0-10
  * pill score, presentational hall label (deriveTopFoodHall), and pill tone. Foods below
  * scoreOutOfTen's MIN_COMPARISONS_FOR_SCORE gate are excluded — when every rankedFood is below that
- * gate (real comparisons exist, no scores yet), this returns [] even though rankedFoods isn't empty:
- * the "halls ranked, no food scores yet" in-between state from carry-over note 2.
+ * gate, this returns [] even though rankedFoods isn't empty.
  */
 export function buildTopFoods(rankedFoods: RankedFood[], rankedDishes: RankedDish[], logEntries: LogEntry[], limit = 5): TopFoodDisplay[] {
   const scores = scoreOutOfTen(rankedFoods);
@@ -80,18 +77,14 @@ export function buildTopFoods(rankedFoods: RankedFood[], rankedDishes: RankedDis
 }
 
 /** The dish/product name for a log entry, regardless of source: the menu dish name for an
- * on-campus entry, the OpenFoodFacts product name for an off-menu (barcode) one. PR #140 review
- * (issue #142): this ternary existed as three separate copies (here inline, logsFormat.ts's
- * entryDishName, logs.tsx's dishNameOf) -- consolidated onto this one export, which the other two
- * now both import instead of re-deriving. */
+ * on-campus entry, the OpenFoodFacts product name for an off-menu (barcode) one. Consolidated onto
+ * this one export so other call sites import it instead of re-deriving the same ternary. */
 export function entryDishName(entry: LogEntry): string {
   return entry.source.type === "umass-menu" ? entry.source.dishName : entry.source.productName;
 }
 
 /** Single-line item text per the canvas: "<dish> × <qty> · <hall>", qty omitted when it's 1, hall
- * omitted for off-menu (barcode) entries that don't have one. Extracted out of YouPane.tsx -- #119's
- * Logs & stats screen renders the same collapsed row. Hall lookup itself is @udine/shared's
- * hallNameFor (#108) -- this used to be a module-local copy of the same tid-to-name lookup. */
+ * omitted for off-menu (barcode) entries that don't have one. */
 export function logItemLine(entry: LogEntry): string {
   const name = entryDishName(entry);
   const qty = entry.servings !== 1 ? ` × ${entry.servings}` : "";
@@ -99,40 +92,27 @@ export function logItemLine(entry: LogEntry): string {
   return `${name}${qty}${hall}`;
 }
 
-// --- Today's Log meal grouping (#118) --------------------------------------------------------
+// --- Today's Log meal grouping ------------------------------------------------------------
 
-// Re-exported so existing consumers (logsFormat.ts) keep importing this from here --
-// previously a home-grown `Exclude<MealStatus, "closed">` derivation that landed on the same shape
-// as shared's own MealPeriod only because MealStatus redundantly re-lists "latenight" (#144: use
-// the real type instead of re-deriving it). #213: retyped MealPeriod -> HallMealPeriod -- these are
-// fixed local-clock buckets that can never hold a retail-only period ("allday"/"grabngo", added by
-// #203), so the wider MealPeriod let a bucket no MEAL_PERIODS filter would ever render silently
-// type-check its way in here.
+// Re-exported so existing consumers (logsFormat.ts) keep importing this from here. Typed as
+// HallMealPeriod, not the wider MealPeriod: these are fixed local-clock buckets that can never
+// hold a retail-only period ("allday"/"grabngo").
 export type { HallMealPeriod };
 
 /**
  * Canonical, contiguous local-clock windows (minutes since local midnight) a log entry's time gets
- * bucketed against -- NOT the live per-hall hours from #88's hours.ts (`currentMealPeriod` needs a
- * fetched `DiningHallHours` for a specific hall/day, which off-menu barcode entries don't have at
- * all and a device-local log spanning many past days can't retroactively re-fetch). These windows
- * cover the full 24h day back-to-back (late night's 9 PM start runs through breakfast's 5 AM start
- * the next morning), so every entry falls inside exactly one enclosing period by construction --
- * satisfying the issue's "outside any window falls to the nearest/enclosing period" ask without a
- * separate fallback branch. Sorted ascending; the last boundary <= the entry's minute-of-day wins,
- * with "latenight" as the default for minutes before breakfast's 5:00 AM start (the crossesMidnight
- * wrap). NOTE: this only decides which MEAL GROUP a 12:30 AM entry lands in (Late Night); which
- * DAY's card it renders on is a separate decision made upstream by the caller's own
- * `isoDateOf(loggedAt) === todayIso()` filter -- so a 12:30 AM entry shows in *today's* Today's Log,
- * grouped under Late Night alongside tonight's later entries, not "yesterday's" card.
+ * bucketed against -- not the live per-hall hours from hours.ts (`currentMealPeriod` needs a fetched
+ * `DiningHallHours` for a specific hall/day, which off-menu barcode entries don't have and a
+ * device-local log spanning past days can't retroactively re-fetch). These windows cover the full
+ * 24h day back-to-back (late night's 9 PM start runs through breakfast's 5 AM start the next
+ * morning), so every entry falls inside exactly one enclosing period by construction. Sorted
+ * ascending; the last boundary <= the entry's minute-of-day wins, with "latenight" as the default
+ * before breakfast's 5:00 AM start. This only decides which meal GROUP an entry lands in -- which
+ * DAY's card it renders on is a separate decision made upstream by the caller's own date filter.
  *
- * #144 NOTE: deliberately NOT consolidated onto shared's MEAL_PERIODS, unlike groupEntriesByMeal's
- * group order/labels below (now sourced from MEAL_PERIODS/mealPeriodLabel directly). This list is
- * the gate on which periods can receive entries at all -- mealPeriodForTime only
- * ever returns a period that has a boundary here, so a hypothetical period added to shared's
- * RAW_MEAL_PERIOD_KEYS would NOT show up in Today's Log until a window is added here too. That's
- * intentional, not a gap this issue is fixing: this table encodes fixed local-clock windows (PR
- * #128), not period names, and picking a window for a new period is a product decision (where does
- * it start?) shared's ordered-name list can't answer.
+ * Deliberately not consolidated onto shared's MEAL_PERIODS, unlike groupEntriesByMeal's group
+ * order/labels below: this table is the gate on which periods can receive entries at all, and
+ * picking a window for a new period is a product decision shared's ordered-name list can't answer.
  */
 export const MEAL_BOUNDARIES: { period: HallMealPeriod; startMinutes: number }[] = [
   { period: "breakfast", startMinutes: 5 * 60 }, // 5:00 AM
@@ -141,11 +121,10 @@ export const MEAL_BOUNDARIES: { period: HallMealPeriod; startMinutes: number }[]
   { period: "latenight", startMinutes: 21 * 60 }, // 9:00 PM
 ];
 
-/** Which meal period a LogEntry.loggedAt timestamp falls into, by LOCAL clock time. `new Date()`
- * parses a bare (no "Z"/offset) ISO string -- the shape every entry is stamped with post-#111 --
- * as local time per ECMA-262, so `getHours()`/`getMinutes()` already read local components; a
- * "Z"-suffixed string (old data, or a test fixture) also converts correctly since `getHours()` is
- * always local-timezone, never UTC. */
+/** Which meal period a LogEntry.loggedAt timestamp falls into, by local clock time. `new Date()`
+ * parses a bare (no "Z"/offset) ISO string as local time per ECMA-262, so `getHours()`/`getMinutes()`
+ * already read local components; a "Z"-suffixed string also converts correctly since `getHours()`
+ * is always local-timezone, never UTC. */
 export function mealPeriodForTime(loggedAt: string): HallMealPeriod {
   const d = new Date(loggedAt);
   const minutes = d.getHours() * 60 + d.getMinutes();
@@ -157,11 +136,8 @@ export function mealPeriodForTime(loggedAt: string): HallMealPeriod {
 }
 
 /** The one rounding definition for "this entry's calories, as displayed" -- used by both the item
- * row and the group subtotal (and, transitively, the stat card total derived from group subtotals
- * in YouPane.tsx) so the three render seams can't drift out of agreement with each other. Review
- * finding on #118's PR: writing `Math.round(calories * servings)` out twice (once here, once
- * inline in YouPane.tsx) left that agreement untested and unenforced -- a future edit to one site
- * and not the other would silently break the reconciliation this PR exists to guarantee. */
+ * row and the group subtotal (and, transitively, the stat card total in YouPane.tsx) so the render
+ * seams can't drift out of agreement with each other. */
 export function entryCalories(entry: LogEntry): number {
   return Math.round(entry.nutrition.calories * entry.servings);
 }
@@ -176,23 +152,16 @@ export interface MealLogGroup {
 /**
  * Buckets entries by mealPeriodForTime into canvas-order groups (Breakfast, Lunch, Dinner, Late
  * Night), omitting any period with no entries. Group order and labels come from shared's
- * MEAL_PERIODS/mealPeriodLabel (#144) rather than a second hardcoded list/record -- which periods
- * can appear at all is still gated by MEAL_BOUNDARIES above, see its own doc comment.
+ * MEAL_PERIODS/mealPeriodLabel -- which periods can appear at all is still gated by MEAL_BOUNDARIES.
  *
- * Each group's `totalCalories` sums the same *rounded*
- * per-entry calories the item rows themselves display (`Math.round(calories * servings)`), NOT the
- * raw float sum -- integer addition is exactly associative, so summing every group's totalCalories
- * always equals the sum over ALL entries computed the same way, regardless of how they're
- * partitioned into groups. That's what makes issue #118's "group subtotals must agree with the day
- * totals" ask hold *exactly*, not just approximately: rounding the raw float sum once at the end
- * (`Math.round(sum of raw calories)`) and rounding per-entry-then-summing can legitimately disagree
- * by a calorie whenever a source contributes fractional calories (UMass menu calories are whole
- * numbers, but OpenFoodFacts-sourced "off" entries aren't, e.g. `energy-kcal_serving: 137.5`) --
- * two 100.5-calorie entries in different meal groups each round to 101 (202 combined) while their
- * raw sum of 201.0 rounds to 201, a real off-by-one otherwise. Pre-rounding avoids that entirely.
- * Entries keep their input order within a group; callers already read entries chronologically
- * (SqliteLogStorage orders by logged_at), so groups render chronologically too without an extra
- * sort here.
+ * Each group's `totalCalories` sums the same *rounded* per-entry calories the item rows display
+ * (`Math.round(calories * servings)`), not the raw float sum -- integer addition is exactly
+ * associative, so group subtotals always sum to the overall total regardless of partitioning.
+ * Rounding the raw float sum once at the end can disagree by a calorie whenever a source contributes
+ * fractional calories (OpenFoodFacts entries aren't whole numbers): two 100.5-calorie entries in
+ * different groups each round to 101 (202 combined) while their raw sum of 201.0 rounds to 201.
+ * Pre-rounding avoids that. Entries keep their input order; callers already read them
+ * chronologically, so groups render chronologically too.
  */
 export function groupEntriesByMeal(entries: LogEntry[]): MealLogGroup[] {
   const byPeriod = new Map<HallMealPeriod, LogEntry[]>();

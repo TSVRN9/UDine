@@ -23,17 +23,15 @@ export class SqliteFavoritesStorage implements FavoritesStorage {
 }
 
 /**
- * #198: halls/[slug].tsx and grab-n-go/[slug].tsx had byte-for-byte identical toggleDishFavorite
- * bodies that decided add-vs-remove from the render-closure `favoriteDishKeys` state -- a second tap
- * on the same star landing before the first toggle's storage round-trip committed a fresh
- * setFavoriteDishKeys read the same stale value as the first tap, so both took the same branch
- * (e.g. add-then-add) instead of toggling back. Same stepper-class bug as #147's LOG guard --
- * one shared, guarded implementation instead of the guard living (or not) in each copy separately.
+ * halls/[slug].tsx and grab-n-go/[slug].tsx had byte-for-byte identical toggleDishFavorite bodies
+ * that decided add-vs-remove from the render-closure `favoriteDishKeys` state -- a second tap on
+ * the same star landing before the first toggle's storage round-trip committed read the same stale
+ * value as the first tap, so both took the same branch instead of toggling back. One shared,
+ * guarded implementation instead of the guard living (or not) in each copy separately.
  *
  * Guarded per favorite key (not one global lock like useGuardedLogPlate) so toggling one dish's star
  * never blocks an unrelated one still mid-flight. Drops a second call outright for the SAME key
- * while its first is in flight, rather than queuing it -- same "drop, don't queue" call rank.tsx's
- * choose() landed on for this exact stale-closure question (PR #159 review).
+ * while its first is in flight, rather than queuing it.
  */
 export function useGuardedToggleFavorite(storage: FavoritesStorage, onUpdate: (favorites: Favorite[]) => void) {
   const inFlight = useRef<Set<string>>(new Set());

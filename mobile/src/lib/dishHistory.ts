@@ -22,9 +22,8 @@ export interface HistoryDish {
  * Scoped to `hallTid` (the hall currently being browsed), not cross-hall -- a staged HistoryDish
  * carries its original hallTid forward (see historyDishToPlateEntry), and that hallTid feeds
  * shared/src/completion.ts's hallCompletion and shared/src/ranking.ts's dish ranking/favorite-hall
- * derivation, both of which can sync server-side (opt-in, #94). Two halls sharing an identical dish
- * name would otherwise misattribute hall-completion/favorite-hall credit if dedup ever crossed
- * halls -- see PR #344 review.
+ * derivation, both of which can sync server-side. Two halls sharing an identical dish name would
+ * otherwise misattribute hall-completion/favorite-hall credit if dedup ever crossed halls.
  *
  * Dedupes by dishName (within this hall), keeping the most recent occurrence's nutrition (a dish's
  * nutrition can drift day to day, so the freshest snapshot is the best guess for "what it probably

@@ -27,8 +27,8 @@ export interface LabelRow {
   indent?: boolean;
 }
 
-/** FDA-label row order and grouping (see the "Nutrition label" canvas artboard) for a NutritionFacts
- * snapshot — one row per line on the label, sub-nutrients indented under their parent. */
+/** FDA-label row order and grouping for a NutritionFacts snapshot — one row per line on the label,
+ * sub-nutrients indented under their parent. */
 export function buildLabelRows(n: NutritionFacts): LabelRow[] {
   return [
     { label: "Total Fat", amount: formatGrams(n.totalFatG), dv: formatDv(n.totalFatDv) },
@@ -39,9 +39,9 @@ export function buildLabelRows(n: NutritionFacts): LabelRow[] {
     { label: "Total Carbohydrate", amount: formatGrams(n.totalCarbG), dv: formatDv(n.totalCarbDv) },
     { label: "Dietary Fiber", amount: formatGrams(n.dietaryFiberG), dv: formatDv(n.dietaryFiberDv), indent: true },
     { label: "Total Sugars", amount: formatGrams(n.sugarsG), dv: null, indent: true },
-    // Protein's %DV cell is blank on the FDA label (docs/design/NutritionLabel.dc.html:69-72) --
-    // no dash, unlike a present-but-blank source attribute -- so this uses the same `dv: null`
-    // "no column" path as Trans Fat / Total Sugars, not formatDv.
+    // Protein's %DV cell is blank on the FDA label -- no dash, unlike a present-but-blank source
+    // attribute -- so this uses the same `dv: null` "no column" path as Trans Fat / Total Sugars,
+    // not formatDv.
     { label: "Protein", amount: formatGrams(n.proteinG), dv: null },
   ];
 }

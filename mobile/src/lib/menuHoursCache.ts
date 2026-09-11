@@ -3,22 +3,22 @@ import { getDb } from "./db";
 import { recordRetailNames } from "./retailHallNames";
 
 /**
- * #181's ticket-owned prerequisite: a device-local PERSISTENT menu/hours cache. #170's fetchMenu
- * TTL cache (shared/src/umassDining.ts) is process-lifetime only -- it evaporates on every cold
- * start, so it can't back an "offline, render from cache" screen. This sits underneath it, in
- * mobile only (residency table: menu cache is device-only, no new server surface -- SQLite here,
- * same as every other device-local table).
+ * A device-local PERSISTENT menu/hours cache -- shared's fetchMenu TTL cache
+ * (shared/src/umassDining.ts) is process-lifetime only and evaporates on every cold start, so it
+ * can't back an "offline, render from cache" screen. This sits underneath it, in mobile only (menu
+ * cache is device-only, no new server surface -- SQLite here, same as every other device-local
+ * table).
  *
  * Reuses the existing `preferences_kv` table (small JSON blobs) rather than adding new tables --
- * same call seenDishesStorage.ts already made for exactly this shape. Unlike that file's one-big-
+ * same approach seenDishesStorage.ts already takes for this shape. Unlike that file's one-big-
  * JSON-object-per-row design, though, this is ONE ROW PER (hallTid, date) menu entry, keyed
- * `menu_cache:<tid>|<date>` (#181 review finding 5): a hall-menu day's worth of nutrition payloads
- * is the largest single value in this table, and the date stepper lets a session accumulate many
- * of them. A single shared JSON blob would mean every save/read parses+stringifies the WHOLE
- * accumulated cache on the JS thread, a read-modify-write that grows without bound as more
- * (hall, date) pairs get visited. Per-entry rows turn every save into a single `INSERT OR REPLACE`
- * (no read-modify-write at all) and every read into a single-row lookup by exact key -- no RMW race
- * either, so (unlike pingQueue.ts's queue) this doesn't need write serialization.
+ * `menu_cache:<tid>|<date>`: a hall-menu day's worth of nutrition payloads is the largest single
+ * value in this table, and the date stepper lets a session accumulate many of them. A single shared
+ * JSON blob would mean every save/read parses+stringifies the WHOLE accumulated cache on the JS
+ * thread, a read-modify-write that grows without bound as more (hall, date) pairs get visited.
+ * Per-entry rows turn every save into a single `INSERT OR REPLACE` (no read-modify-write at all) and
+ * every read into a single-row lookup by exact key -- no RMW race either, so this doesn't need write
+ * serialization.
  *
  * ponytail: still unbounded -- one row accumulates per (hallTid, date) ever viewed, forever. Fine
  * at this volume (a handful of halls x a handful of recently-browsed dates); add pruning (delete
@@ -28,11 +28,11 @@ import { recordRetailNames } from "./retailHallNames";
 const MENU_KEY_PREFIX = "menu_cache:";
 const HOURS_KEY = "hours_cache:v1";
 
-// #181 review finding 6: schema version tag on both persisted shapes. Without it, an app upgrade
-// that changes MenuItem's or DiningHoursFeed's fields would parse an old cached blob as if it were
-// the current shape -- wrong types reaching the UI, not a clean cache miss. `CACHE_VERSION` is
-// bumped whenever either shape changes; a stored blob with a different (or missing) `v` is treated
-// as absent rather than trusted.
+// Schema version tag on both persisted shapes. Without it, an app upgrade that changes MenuItem's
+// or DiningHoursFeed's fields would parse an old cached blob as if it were the current shape --
+// wrong types reaching the UI, not a clean cache miss. `CACHE_VERSION` is bumped whenever either
+// shape changes; a stored blob with a different (or missing) `v` is treated as absent rather than
+// trusted.
 const CACHE_VERSION = 1;
 
 export interface CachedMenu {
@@ -87,10 +87,10 @@ export async function saveCachedHours(feed: DiningHoursFeed): Promise<void> {
 
 export async function getCachedHours(): Promise<CachedHours | null> {
   const cached = await readVersioned<CachedHours>(HOURS_KEY);
-  // #243 bug A: a cache HIT is a real DiningHoursFeed too -- an offline device that never
-  // reaches fetchHoursAndCache's own success branch below still needs retailHallNames.ts's
-  // tid->name map populated from whatever feed it does get, or café labels fall back to
-  // "Hall <tid>" for the entire offline session.
+  // A cache HIT is a real DiningHoursFeed too -- an offline device that never reaches
+  // fetchHoursAndCache's own success branch below still needs retailHallNames.ts's tid->name map
+  // populated from whatever feed it does get, or café labels fall back to "Hall <tid>" for the
+  // entire offline session.
   if (cached) recordRetailNames(cached.feed.retail);
   return cached;
 }
@@ -105,6 +105,6 @@ export async function getCachedHours(): Promise<CachedHours | null> {
 export async function fetchHoursAndCache(): Promise<DiningHoursFeed> {
   const feed = await fetchDiningHours();
   saveCachedHours(feed).catch(() => {});
-  recordRetailNames(feed.retail); // #243 bug A -- live half of the tid->name wiring, see getCachedHours
+  recordRetailNames(feed.retail); // live half of the tid->name wiring, see getCachedHours
   return feed;
 }

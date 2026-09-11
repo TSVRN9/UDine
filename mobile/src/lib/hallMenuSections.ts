@@ -17,9 +17,8 @@ export function sectionsForPeriod(items: MenuItem[], period: MealPeriod, prefs: 
   const filtered = items.filter((i) => i.mealPeriod === period && menuItemMatchesPreferences(i, prefs));
   // .trim() the same way grabSections (below) and FilterSheet's distinctStations/
   // itemMatchesStationAndPriceFilter already do -- the untrimmed scrape can hand back two entries
-  // for the same station differing only in trailing whitespace (confirmed real data, see
-  // grabNGo.test.ts's "Grab n'Go Hot " fixture), which used to render as duplicate section headers.
-  // Only the grouping key is trimmed, matching grabSections -- items themselves are returned as-is.
+  // for the same station differing only in trailing whitespace, which used to render as duplicate
+  // section headers. Only the grouping key is trimmed -- items themselves are returned as-is.
   const categoriesInOrder: string[] = [];
   for (const i of filtered) {
     const category = i.category.trim();

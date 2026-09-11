@@ -10,8 +10,7 @@
 	import { registerPendingSelfHeal, pendingSelfHeal } from "$lib/pendingSelfHeal";
 	import { PUBLIC_VAPID_KEY } from "$env/static/public";
 
-	// No shared web withTimeout convention -- a Promise.race with a timer, matching +layout.svelte's
-	// own signOut() (mirrors mobile's withTimeout in spirit).
+	// No shared web withTimeout helper; this is a Promise.race with a timer, matching +layout.svelte's signOut().
 	const SELF_HEAL_WAIT_TIMEOUT_MS = 15000;
 
 	type Sighting = { id: string; dish_name: string; hall_tid: number; sighted_date: string; read_at: string | null; created_at: string };
@@ -22,7 +21,7 @@
 		| { kind: "sighting"; id: string; createdAt: string; dishName: string; hallTid: number; sightedDate: string; readAt: string | null }
 		| { kind: "ping"; id: string; createdAt: string; senderName: string; hallTid: number | null; message: string | null };
 
-	// Standard urlBase64-to-Uint8Array conversion PushManager.subscribe needs for applicationServerKey.
+	// PushManager.subscribe's applicationServerKey needs a Uint8Array, not the base64 string VAPID keys ship as.
 	function urlBase64ToUint8Array(base64: string): Uint8Array {
 		const padded = (base64 + "=".repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
 		const raw = atob(padded);
@@ -33,10 +32,8 @@
 		return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && Boolean(PUBLIC_VAPID_KEY);
 	}
 
-	// PR #286 review (Part B): returns whether push actually ended up subscribed -- callers (mobile's
-	// mirror is favoriteFoodAlerts.ts's reregisterPushToken/registerForPushToken) use this to decide
-	// whether the toggle can honestly render "on" or must show a needs-action state instead. Was
-	// void before; every call site already only cared about side effects, so this is additive.
+	// Returns whether push actually ended up subscribed, so the caller can render a needs-action
+	// state instead of claiming "on" when it isn't.
 	async function enablePush(supabase: SupabaseClient): Promise<boolean> {
 		if (!pushSupported()) return false;
 		try {
@@ -48,15 +45,12 @@
 				userVisibleOnly: true,
 				applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY) as BufferSource,
 			});
-			// #263: a raw upsert let the same shared-device token sit under N users (push_tokens now
-			// has a unique(platform, token) backstop that would reject it). register_push_token is a
-			// security definer RPC that evicts any other owner's row for this token first, then
-			// upserts the caller's -- see the migration's own doc comment. It derives the owner from
-			// auth.uid() itself, so unlike the raw upsert this no longer needs userId passed in.
+			// register_push_token (not a raw upsert) evicts any other owner of this shared-device token
+			// first, since push_tokens has a unique(platform, token) constraint; it derives the owner
+			// from auth.uid() itself.
 			await supabase.rpc("register_push_token", { p_platform: "web", p_token: JSON.stringify(subscription.toJSON()) });
 			return true;
 		} catch (err) {
-			// Permission denied, malformed VAPID key, no service-worker support in this browser, etc. —
 			// notifications_enabled can still toggle for the in-app feed even if push registration fails.
 			console.error("Push subscription failed:", err);
 			return false;
@@ -79,21 +73,16 @@
 	const favoritesStorage = new IndexedDbFavoritesStorage();
 
 	let notificationsEnabled = $state(false);
-	// PR #286 review (Part B, both rounds): mirrors mobile's favoriteFoodAlerts.ts needsPermission --
-	// true when notificationsEnabled is true server-side (now defaulted true for new sign-ins, #248)
-	// but this browser/account combination isn't actually working yet: either push permission isn't
-	// granted, OR it IS granted but this account's favorites were never actually synced from this
-	// browser (round 2: a second account signing in on a browser that already granted this site
-	// permission -- refresh()'s self-heal re-subscribes without toggleNotifications() ever running).
-	// Consuming markup must render this as a needs-action prompt, not "Alerts on".
+	// True when notificationsEnabled is true server-side but this browser/account isn't actually
+	// receiving push yet: permission not granted, or granted but this account's favorites were never
+	// synced from this browser. Consuming markup must render this as needs-action, not "Alerts on".
 	let needsPermission = $state(false);
 	let sightings: Sighting[] = $state([]);
 	let pings: Ping[] = $state([]);
-	// Accepted friends only — enough to populate the "ping a friend" composer and to resolve a
-	// ping's sender name. Friend search/request/accept itself stays on /friends (see #66).
+	// Accepted friends only, to populate the ping composer and resolve a ping's sender name.
 	let friends: Profile[] = $state([]);
 	// Snapshot of "last time this feed was viewed", read once at mount before it's overwritten below
-	// -- deliberately a plain variable, not $state, so a ping's unread badge doesn't flip off mid-visit.
+	// -- a plain variable, not $state, so a ping's unread badge doesn't flip off mid-visit.
 	let feedLastSeenAt = "";
 
 	let selectedFriendId = $state("");
@@ -102,11 +91,6 @@
 	let pingSent = $state(false);
 	let pingError = $state(false);
 	let markReadError = $state(false);
-	// #190 (Fable audit @ e5a2848): toggleNotifications used to discard both profiles.update's and
-	// syncFavoritedFoods's `{error}` returns and flip notificationsEnabled unconditionally -- an RLS
-	// rejection (or any other server-side failure) left the checkbox optimistically showing "Alerts
-	// on"/"Alerts off" while the server never actually matched it. Same badge/setTimeout convention
-	// as pingError/markReadError above.
 	let notificationsError = $state(false);
 
 	let friendNameById = $derived(new Map(friends.map((f) => [f.user_id, f.display_name])));
@@ -119,10 +103,8 @@
 			...pings.map(
 				(p): FeedItem => ({ kind: "ping", id: p.id, createdAt: p.created_at, senderName: friendNameById.get(p.sender_id) ?? "A friend", hallTid: p.hall_tid, message: p.message }),
 			),
-			// b.localeCompare(a) for descending (newest-first) order. The previous `a < b ? 1 : -1`
-			// returned -1 for BOTH orderings of two equal-timestamp items (cmp(a,b) and cmp(b,a) both
-			// said "I go first"), an invalid comparator that Array.sort doesn't guarantee stable/correct
-			// results for.
+			// localeCompare, not `a < b ? 1 : -1`, which isn't a valid comparator: it returns -1 for
+			// both orderings of two equal-timestamp items.
 		].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
 	);
 
@@ -139,44 +121,24 @@
 
 		const { data: profile } = await supabase.from("profiles").select("notifications_enabled").eq("user_id", myId).single();
 		notificationsEnabled = profile?.notifications_enabled ?? false;
-		// PR #286 review (Part B, round 1): notificationsEnabled defaulting true (#248) for a
-		// brand-new sign-in means this can be true here with this browser never having granted push
-		// permission at all -- render that honestly (needs-action, not "Alerts on") rather than
-		// claiming a working subscription that doesn't exist.
-		// PR #286 review round 2: permission granted isn't enough either -- this account's favorites
-		// may never have been synced from THIS browser (see needsPermission's own doc comment above).
 		needsPermission = notificationsEnabled && (!pushSupported() || Notification.permission !== "granted" || !hasSyncedFavorites(myId));
 
 		// Browser permission can be revoked outside this page (browser settings) without us hearing
-		// about it — if that happened, the stored push_tokens row is now dead, so clear it. The
-		// in-app notifications_enabled flag (and food_sightings feed) is untouched either way.
-		//
-		// #185: this used to fire on any non-"granted" permission, including "default" -- the state of
-		// a browser that simply never asked (e.g. visiting this page from a second device/browser).
-		// That wiped out every OTHER browser's live token too, since clearStoredPushTokens() had no way
-		// to scope the delete. Only "denied" means *this* browser's subscription is actually dead; only
-		// clear when we can also identify which row is this browser's own.
+		// about it -- if so, the stored push_tokens row is dead, so clear it. Only "denied" means
+		// this browser's subscription is dead; "default" just means it never asked, and clearing on
+		// that would wipe another browser's live token too (clearStoredPushTokens can't scope by
+		// itself -- only clear when we can also identify which row is this browser's own).
 		if (notificationsEnabled && pushSupported() && Notification.permission === "denied") {
 			const ownToken = await ownPushToken();
 			if (ownToken) await clearStoredPushTokens(supabase, myId, ownToken);
 		}
 
-		// #264 review finding 1: our own signOut() (+layout.svelte) deletes this browser's
-		// push_tokens row but deliberately leaves the live PushSubscription and
-		// notifications_enabled=true alone -- otherwise the toggle would show ON forever with
-		// nothing behind it. Re-upsert from the still-live subscription so alerts self-heal on the
-		// next visit/sign-in without a re-toggle. Never prompts or subscribes -- ownPushToken() only
-		// reads a subscription that's already there.
-		//
-		// #264 review round 4: ownPushToken() + the RPC call below are a real network round trip that
-		// can still be in flight when the user clicks "Sign out" -- this promise is registered via
-		// registerPendingSelfHeal so +layout.svelte's signOut() can wait for it (bounded) BEFORE its
-		// own delete, instead of racing it. See pendingSelfHeal.ts's own doc comment for why that
-		// ordering, not a post-upsert compensating delete, is what actually closes the race.
-		//
-		// #263: a raw upsert here would 23505 against push_tokens' unique(platform, token) once this
-		// token is shared with another user -- register_push_token evicts that other owner first,
-		// same as enablePush() above. It derives the owner from auth.uid(), so myId isn't passed.
+		// signOut() (+layout.svelte) deletes this browser's push_tokens row but leaves the live
+		// PushSubscription and notifications_enabled=true alone, so the toggle stays honestly ON --
+		// re-upsert from that still-live subscription here so it self-heals without a re-toggle.
+		// ownPushToken() only reads an existing subscription, never prompts. The upsert is a real
+		// network round trip that can still be in flight when the user signs out, so it's registered
+		// via registerPendingSelfHeal for signOut() to await before its own delete, instead of racing it.
 		if (notificationsEnabled && pushSupported() && Notification.permission === "granted") {
 			const selfHeal = (async () => {
 				try {
@@ -228,8 +190,6 @@
 		const supabase = page.data.supabase;
 		if (!supabase || !myId) return;
 
-		// Moved here from /friends (#66) — the pings inbox now lives in this feed, not buried in the
-		// friends page's accepted-friends list.
 		const channel = supabase
 			.channel("pings-inbox")
 			.on("postgres_changes", { event: "INSERT", schema: "public", table: "pings", filter: `receiver_id=eq.${myId}` }, refresh)
@@ -248,35 +208,27 @@
 		const session = page.data.session;
 		if (!supabase || !session) return;
 
-		// PR #286 review (Part B): must flip from what the CHECKBOX shows (notificationsEnabled &&
-		// !needsPermission), not the raw notificationsEnabled flag -- once those two can diverge
-		// (needsPermission), toggling off the raw flag would be the wrong direction: a user tapping
-		// the visually-unchecked needs-action state to finish enabling would instead turn it off.
+		// Must flip from what the CHECKBOX shows (notificationsEnabled && !needsPermission), not the
+		// raw flag -- once those can diverge, toggling off the raw flag would turn off a user who was
+		// tapping the visually-unchecked needs-action state to finish enabling.
 		const next = !(notificationsEnabled && !needsPermission);
 		const { error: profileError } = await supabase.from("profiles").update({ notifications_enabled: next }).eq("user_id", session.user.id);
-		// #190: mirrors mobile's favoriteFoodAlerts.ts #146 bail-out -- don't flip the checkbox or
-		// touch favorites/push-token state on a rejected write, and tell the user instead of lying.
 		if (profileError) {
 			console.error("Couldn't update notifications:", profileError);
 			notificationsError = true;
 			setTimeout(() => (notificationsError = false), 3000);
-			// #190 follow-up: the `checked={...}` attribute below is a one-way binding -- the browser
-			// already flipped the native checkbox on click before this handler even ran, and since
-			// notificationsEnabled isn't reassigned on this early return, the reactive expression's
-			// value never changes, so Svelte never re-asserts the DOM state. Reset it explicitly so the
-			// control doesn't visually lie about a write that never happened.
+			// checked={...} below is a one-way binding; the browser already flipped the native checkbox
+			// on click, and notificationsEnabled isn't reassigned on this early return, so Svelte won't
+			// re-assert the DOM state on its own. Reset it explicitly so the control doesn't visually
+			// lie about a write that never happened.
 			checkboxEl.checked = notificationsEnabled && !needsPermission;
 			return;
 		}
 		notificationsEnabled = next;
 		notificationsError = false; // in case a still-live failure badge from an earlier attempt is showing
 
-		// Sync (or clear) favorited_foods to match the new state — see CLAUDE.md: favorited_foods only
+		// Sync (or clear) favorited_foods to match the new state -- CLAUDE.md: favorited_foods only
 		// syncs when signed in AND notifications_enabled.
-		// #322: getFavorites() reads IndexedDB (openDb(), issue #193's bug class -- e.g. a blocked
-		// open from a stale pre-deploy tab) and was unguarded here. Falls back to [] on a failed
-		// read (same "clear, don't leave stale data" direction as the OFF branch) and surfaces the
-		// existing notificationsError badge instead of leaving this an unhandled rejection.
 		let favorites: Favorite[] = [];
 		if (next) {
 			try {
@@ -285,42 +237,29 @@
 				console.error("Couldn't read favorites from IndexedDB");
 				notificationsError = true;
 				setTimeout(() => (notificationsError = false), 3000);
-				// #333 rework: without this return, `favorites` stays [] and falls through to
-				// syncFavoritedFoods(supabase, userId, []) below -- which unconditionally deletes every
-				// existing favorited_foods row before no-op'ing the insert. A blocked IndexedDB read on
-				// the ON path must abort the toggle entirely, not wipe server-side favorites.
+				// Must abort here, not fall through with favorites=[] -- syncFavoritedFoods(..., [])
+				// would delete every existing favorited_foods row before no-op'ing the insert.
 				return;
 			}
 		}
 		const { error: favoritesSyncError } = await syncFavoritedFoods(supabase, session.user.id, favorites);
-		// #190: this was previously read only on the ON branch below (via needsPermission) and
-		// silently discarded on the OFF branch entirely -- a failed clear left favorited_foods still
-		// populated server-side with nothing telling the user their "off" didn't fully take.
 		if (favoritesSyncError) {
 			console.error("Couldn't sync favorited foods:", favoritesSyncError);
 			notificationsError = true;
 			setTimeout(() => (notificationsError = false), 3000);
 		}
-		// #286 round 2: only a REAL synced state counts -- a failed sync must not be mistaken for a
-		// done one (see favoritesSyncMarker.ts's own doc comment on why refresh() can't just re-derive
-		// this by calling syncFavoritedFoods itself).
+		// Only a real synced state counts -- a failed sync must not be mistaken for a done one.
 		if (!favoritesSyncError && next) markFavoritesSynced(session.user.id);
 
 		if (next) {
 			const granted = await enablePush(supabase);
-			// Needs action unless BOTH permission is granted AND favorites actually synced just now --
-			// either half missing means this browser isn't really working yet, even though
-			// notificationsEnabled is (optimistically) true above.
+			// Needs action unless BOTH permission is granted AND favorites actually synced just now.
 			needsPermission = !granted || Boolean(favoritesSyncError);
 		} else {
 			needsPermission = false;
-			// #272 item B (mobile's mirror of this same race): refresh()'s self-heal above (re-
-			// upserting this browser's push_tokens row whenever notifications_enabled is true and
-			// permission is already granted) can still be mid-flight -- a real network round trip --
-			// when the user flips this toggle off. Without waiting for it here, that self-heal's
-			// register_push_token can land AFTER disablePush()'s own delete below, resurrecting the
-			// row this toggle-off just removed. Same bounded await-before-delete ordering
-			// +layout.svelte's signOut() already uses for the identical race.
+			// refresh()'s self-heal (re-upserting this browser's push_tokens row) can still be
+			// in flight when the user flips this off; without waiting, it could land AFTER
+			// disablePush()'s delete below and resurrect the row this toggle-off just removed.
 			const pending = pendingSelfHeal();
 			if (pending) {
 				await Promise.race([pending, new Promise((resolve) => setTimeout(resolve, SELF_HEAL_WAIT_TIMEOUT_MS))]);
@@ -355,8 +294,7 @@
 			message: pingMessage || null,
 		});
 		if (error) {
-			// e.g. RLS rejects the insert (not actually friends, receiver blocked). Previously this was
-			// never checked -- "Ping sent" showed unconditionally even when nothing was sent.
+			// e.g. RLS rejects the insert (not actually friends, receiver blocked).
 			pingSent = false; // in case a still-live success badge from an earlier attempt is showing
 			pingError = true;
 			setTimeout(() => (pingError = false), 3000);
@@ -378,17 +316,10 @@
 		<p class="mt-2 text-sm text-ink-900/70">Use "Sign in with Google" above to get started.</p>
 	</div>
 {:else}
-	<!-- .badge carries the on/off state in words, not just the checkbox, per #39's "notification
-	     toggle visually clear" criterion. -->
+	<!-- .badge carries the on/off state in words, not just the checkbox. -->
 	<section class="card mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
 		<div>
 			<label class="field-label" for="notif-toggle">Favorited-dish alerts</label>
-			<!-- PR #286 review (Part B): notifications_enabled defaulting true (#248) can be true here
-			     with this browser never having granted push permission (or having granted it but never
-			     synced this account's favorites, round 2) -- the badge/checkbox/hint below must show
-			     that honestly, not claim a working subscription that doesn't exist. A browser that
-			     can't do push at all (no service worker/PushManager, or no VAPID key configured) gets
-			     told that instead of "tap to finish" -- tapping again would just fail the same way. -->
 			<p class="mt-1 text-sm text-ink-900/70">
 				{#if notificationsEnabled && needsPermission && !pushSupported()}
 					Push isn't supported in this browser.
@@ -406,8 +337,6 @@
 		</div>
 	</section>
 
-	<!-- "Ping a friend" as a first-class action of the feed itself (#66), not buried in the friends
-	     page's accepted-friends list. -->
 	<section class="card mb-6 p-4">
 		<h2 class="section-title mb-3">Ping a friend</h2>
 		{#if friends.length === 0}
@@ -451,10 +380,7 @@
 		<ul class="space-y-2" aria-label="Activity feed">
 			{#each feedItems as item (item.kind + item.id)}
 				{@const unread = isUnread(item)}
-				<!-- opacity-60 (a Tailwind utility, not a new color) marks read rows; .badge marks
-				     unread ones "New". Sightings get an explicit "Mark as read" button (keyboard
-				     reachable, closes #62) alongside the pre-existing onmouseenter, which stays for
-				     mouse users. -->
+				<!-- Sightings also get a keyboard-reachable "Mark as read" button alongside onmouseenter. -->
 				<li class="card flex flex-wrap items-center gap-2 p-3 {unread ? '' : 'opacity-60'}" onmouseenter={item.kind === "sighting" ? () => markRead(item.id) : undefined}>
 					{#if unread}<span class="badge">New</span>{/if}
 					{#if item.kind === "sighting"}

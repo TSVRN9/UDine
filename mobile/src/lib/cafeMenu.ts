@@ -12,15 +12,10 @@ function isoDate(date: Date): string {
 }
 
 /**
- * Café-screen unification review finding: a locationId-less café (get_infov2 sometimes omits it)
- * used to log under a single shared `-1` hallTid sentinel -- harmless before this PR (that state was
- * read-only, no PlateSheet mounted at all), but this PR mounts PlateSheet in every state, including
- * that one, so `-1` became a REAL, reachable, and WRONG logging identity: every locationId-less café
- * would conflate into the same "recent history" (getLoggedUmassDishHistory scopes by hallTid alone)
- * and none of them would ever get a real display name (retailHallNames.ts's map is keyed by number,
- * and a locationId-less café had no number to record one under).
+ * A locationId-less café (get_infov2 sometimes omits it) needs a stable numeric hallTid to log
+ * against and to key a display name by, since it has no real locationId to record one under.
  *
- * This derives a stable per-name numeric hallTid instead -- always negative (<= -2), so it can never
+ * This derives a stable per-name numeric hallTid -- always negative (<= -2), so it can never
  * collide with a real hall tid (1-4), a café locationId, or a GRAB_N_GO_TIDS entry (all positive).
  * retailHallNames.ts's recordRetailNames keys its display-name map by this same value for a
  * locationId-less entry, so hallOrRetailName resolves it to the real name instead of "Hall <tid>".
@@ -72,11 +67,7 @@ function matchStandingMenuItem(parsed: { name: string; price: string | null }, c
 }
 
 /**
- * Café-screen unification: `cafeTapTarget`'s old binary {menu}|{sheet} navigation decision is
- * retired -- the café route is now ALWAYS the same pushed screen (see halls/[slug].tsx's
- * HallMenuScreenBody, which now renders both halls and cafés), so there's nothing left to route
- * between. This is what that ONE screen uses to pick which of its three internal states to show,
- * per the waterfall investigation confirmed live against real UMass endpoints:
+ * Which of a café screen's three internal states to show, resolved as a waterfall:
  *
  *   1. `ajaxItems` non-empty (the same `fetchMenu(locationId, date)` call the 4 dining halls use,
  *      just keyed by the café's own location_id) -> "integrated": full nutrition, real meal tabs,
@@ -84,9 +75,8 @@ function matchStandingMenuItem(parsed: { name: string; price: string | null }, c
  *   2. else, the standing-menu HTML (get_infov2's *_menu fields, already picked by
  *      pickCafeMenuHtml) parses (parseRetailMenuHtml) to an item list -> "standing": each row
  *      best-effort matched against the cached dish catalog (matchStandingMenuItem above).
- *   3. else, that HTML is a PDF link -> "info" carrying it (CafePdfViewer's existing affordance,
- *      surfaced from inside this same state); no html/items/pdf at all -> "info" with none --
- *      hours/address/directions/payment only (CafeSheet, narrowed to just that content).
+ *   3. else, that HTML is a PDF link -> "info" carrying it (CafePdfViewer's existing affordance);
+ *      no html/items/pdf at all -> "info" with none -- hours/address/directions/payment only.
  */
 export type CafeMenuState =
   | { kind: "integrated"; items: MenuItem[] }
@@ -106,11 +96,9 @@ export function resolveCafeMenuState(ajaxItems: MenuItem[], standingHtml: string
 
 /**
  * Meal tabs for a café's menu screen: derived from what the fetched items actually carry, in
- * first-seen order -- NOT hallMenuTabs.ts's fixed MEAL_TABS (breakfast/lunch/dinner/latenight),
- * which would silently drop a café-only period like "allday" ("daily offerings", #175) or
- * "grabngo" ever showing up as a tab, since a hall's selectedMeal can never equal either of those
- * (see types.ts's MealPeriod/HallMealPeriod split). Per the issue: "meal tabs only for periods the
- * café actually has."
+ * first-seen order -- not hallMenuTabs.ts's fixed MEAL_TABS (breakfast/lunch/dinner/latenight),
+ * which would silently drop a café-only period like "allday" or "grabngo" from ever showing up as
+ * a tab, since a hall's selectedMeal can never equal either of those.
  */
 export function deriveCafeMealTabs(items: MenuItem[]): MealPeriod[] {
   const seen: MealPeriod[] = [];
@@ -128,9 +116,9 @@ export function cafeStatusPillText(status: OpenStatus): string {
 }
 
 /**
- * Google Maps deep link from get_infov2's raw "lat,long" mapAddress -- null for anything that
- * isn't two parseable numbers, so a degenerate value (babyBerk's literal "," -- see CLAUDE.md and
- * hours.test.ts) hides the DIRECTIONS action instead of opening a bogus/blank maps query.
+ * Google Maps deep link from get_infov2's raw "lat,long" mapAddress -- null for anything that isn't
+ * two parseable numbers, so a degenerate value (e.g. a bare ",") hides the DIRECTIONS action instead
+ * of opening a bogus/blank maps query.
  */
 export function directionsUrl(mapAddress: string | undefined): string | null {
   if (!mapAddress) return null;
@@ -144,9 +132,9 @@ export function directionsUrl(mapAddress: string | undefined): string | null {
 
 /**
  * Which of the three *_menu fields backs the fallback sheet's standing-menu card. Real captures
- * (#176's hours.test.ts fixtures) only ever populate exactly one of the three at a time, so this
- * order (breakfast, then lunch, then dinner) is documented for the hypothetical case of more than
- * one being set, not something observed live.
+ * only ever populate exactly one of the three at a time, so this order (breakfast, then lunch, then
+ * dinner) is documented for the hypothetical case of more than one being set, not something observed
+ * live.
  */
 export function pickCafeMenuHtml(loc: Pick<RetailLocationHours, "breakfastMenu" | "lunchMenu" | "dinnerMenu">): string | null {
   return loc.breakfastMenu ?? loc.lunchMenu ?? loc.dinnerMenu ?? null;

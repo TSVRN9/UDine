@@ -2,34 +2,25 @@ import { DINING_HALLS, GRAB_N_GO_TIDS, fetchDiningHours, fetchMenu } from "@udin
 import { json, error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
-// #171: umassdining.com's foodpro-menu-ajax returns HTTP 200 with `[]` for an unknown tid rather
-// than an error, so a bare truthiness check let any tid through this public proxy — each one a
-// pointless upstream Drupal hit, and (once #170's fetchMenu cache lands) an unbounded junk cache
-// key. Restrict to the known-good tids shared/src/umassDining.ts already exports for exactly this
-// purpose, rather than trusting the query param.
+// umassdining.com's foodpro-menu-ajax returns HTTP 200 with `[]` for an unknown tid rather than an
+// error, so a bare truthiness check would let any tid through this public proxy -- each one a
+// pointless upstream hit and an unbounded junk cache key. Restrict to the known-good tids
+// shared/src/umassDining.ts exports, rather than trusting the query param.
 const VALID_TIDS = new Set<number>([...DINING_HALLS.map((h) => h.tid), ...Object.values(GRAB_N_GO_TIDS)]);
 
-// #178: café-tap parity needs this proxy to also accept a café/retail location's tid (its
-// get_infov2 location_id, which #176 confirmed IS the same tid foodpro-menu-ajax expects). Unlike
-// DINING_HALLS/GRAB_N_GO_TIDS, retail locations have no static list to check against — which cafés
-// exist and what tid each has is whatever get_infov2 (fetchDiningHours, #176's shared export)
-// reports *today*; hardcoding a second, café-shaped VALID_TIDS here would just be a second thing to
-// drift out of sync with that live feed. So: fetch it and cache the id set for a while instead of
-// re-hitting get_infov2 on every /api/menu call (this proxy fires once per meal-period render).
-// Doesn't need #170's fetchMenu cache's full generality (per-key TTL, in-flight dedup across many
-// keys) — this is one key, this module only — a bare timestamp check is enough.
+// Cafés/retail locations have no static tid list like DINING_HALLS/GRAB_N_GO_TIDS -- which ones
+// exist is whatever get_infov2 (fetchDiningHours) reports today, so a hardcoded list would drift
+// out of sync. Fetch and cache the id set instead of re-hitting get_infov2 on every /api/menu call.
+// A bare timestamp check is enough here (one key, this module only) -- no need for fetchMenu's
+// cache's fuller TTL/in-flight-dedup machinery.
 let retailTidCache: { ids: Set<number>; expiresAt: number } | null = null;
 const RETAIL_TID_CACHE_TTL_MS = 10 * 60 * 1000;
 
 async function isValidRetailTid(tid: number): Promise<boolean> {
 	const now = Date.now();
 	if (!retailTidCache || retailTidCache.expiresAt <= now) {
-		// #178 pr-review: fetchDiningHours() was unguarded here, and the cache only ever populates on
-		// success -- so during a get_infov2 outage, EVERY request for a garbage tid (not just a real
-		// retail one) re-threw straight past this function and SvelteKit turned it into a 500, not
-		// #172's own 400 "unknown tid". An upstream outage degrades to "no retail tids known right
-		// now" (same as a genuinely empty retail list), not a proxy-wide 500 -- #172's protection has
-		// to survive the thing it's protecting against being down.
+		// A get_infov2 outage must degrade to "no retail tids known right now" (same as a genuinely
+		// empty retail list), not an unguarded throw turning into a proxy-wide 500 instead of a 400.
 		try {
 			const { retail } = await fetchDiningHours();
 			const ids = new Set(retail.map((r) => r.locationId).filter((id): id is number => typeof id === "number"));

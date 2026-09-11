@@ -2,16 +2,15 @@ import type { CustomFood, Favorite, LogEntry } from "@udine/shared";
 import { countLabel } from "./dataMap";
 
 /**
- * Pure selection/count/plan logic for the Export screen (#183, artboard "Export data (final -
- * batch select)"). Kept out of the screen component so it's testable without rendering -- same
- * split as dataMap.ts/privacySettings.ts.
+ * Pure selection/count/plan logic for the Export screen. Kept out of the screen component so it's
+ * testable without rendering -- same split as dataMap.ts/privacySettings.ts.
  */
 export type StoreKey = "log" | "dishRankings" | "foodRankings" | "favorites" | "customFoods";
 export type FormatChoice = "csv" | "json" | "both";
 
-/** Checklist row order, per the artboard (customFoods appended -- #91 follow-on, CLAUDE.md's "every
- * device-local table needs export" applies to it same as every other store here). Also the order
- * jobs run in regardless of selection order. */
+/** Checklist row order, per the artboard. Also the order jobs run in regardless of selection order.
+ * CLAUDE.md's "every device-local table needs export" applies to customFoods same as every other
+ * store here. */
 export const STORE_ORDER: StoreKey[] = ["log", "dishRankings", "foodRankings", "favorites", "customFoods"];
 
 export const STORE_TITLE: Record<StoreKey, string> = {
@@ -71,11 +70,10 @@ export interface ExportJob {
   format: "json" | "csv";
 }
 
-/** Ordered list of (store, format) jobs to run sequentially for a given selection + format
- * choice. BOTH expands to two jobs per selected store (json then csv) -- see the PR body for why
- * this is sequential shares rather than a zip: `expo-sharing`'s `shareAsync` takes exactly one
- * file per call and no zip library is installed, so sequential share-sheet calls is the smaller
- * honest implementation over adding a dependency. */
+/** Ordered list of (store, format) jobs to run sequentially for a given selection + format choice.
+ * BOTH expands to two jobs per selected store (json then csv): `expo-sharing`'s `shareAsync` takes
+ * exactly one file per call and no zip library is installed, so sequential share-sheet calls is the
+ * smaller honest implementation over adding a dependency. */
 export function buildExportPlan(selected: StoreKey[], format: FormatChoice): ExportJob[] {
   const formats: ("json" | "csv")[] = format === "both" ? ["json", "csv"] : [format];
   const plan: ExportJob[] = [];

@@ -5,9 +5,8 @@ import { runOnJS, useSharedValue, type SharedValue } from "react-native-reanimat
 import { dragContinuousIndex, servingsFromDrag } from "../lib/servingsStepper";
 import { colors, fs, radii, withOpacity } from "../lib/theme";
 
-/** A button's measured position in window coordinates -- what the screen-level hold-slide
- * overlay (rendered by the hall-menu screen, see [slug].tsx) anchors itself to. Measured fresh
- * on every hold, not cached, since the row this button lives in can scroll between renders. */
+/** A button's measured window position -- what the screen-level hold-slide overlay anchors to.
+ * Measured fresh on every hold, not cached, since the row can scroll between renders. */
 export interface ButtonAnchor {
   x: number;
   y: number;
@@ -17,56 +16,28 @@ export interface ButtonAnchor {
 
 interface Props {
   dishName: string;
-  /** Fast path: a plain tap (no hold) adds one serving immediately -- the existing behavior,
-   * unchanged. Suppressed if the long-press-and-drag path already activated for this touch. */
+  /** Fast path: a plain tap adds one serving immediately. Suppressed once a hold-and-drag activates. */
   onQuickAdd: () => void;
   onHoldStart: (anchor: ButtonAnchor) => void;
-  /** Fires only when the snapped count actually changes (roughly once per DRAG_STEP_PX of
-   * movement, not per touch-move frame) -- purely to update the overlay's count/label TEXT, which
-   * doesn't need per-frame smoothness the way the ladder's position does. Routed by the hall
-   * screen straight into HoldSlideHost's own small re-render scope via a ref call, never through
-   * this component's own screen-level state -- see [slug].tsx's holdSlideHostRef doc comment for
-   * why that distinction matters. */
+  /** Fires only when the snapped count changes, to update the overlay's count text -- the ladder
+   * position itself stays on shared values for per-frame smoothness without a React re-render. */
   onHoldDrag: (count: number) => void;
   onHoldEnd: () => void;
-  /** Written directly from the Pan gesture's UI-thread worklet on every touch-move -- never
-   * bridged through a JS callback. The hall screen creates these once and reads liveCount's final
-   * `.value` (a plain synchronous property read, safe from JS) at commit time in onHoldEnd; the
-   * screen-level HoldSlideOverlay reads liveIndex continuously via useAnimatedStyle to paint the
-   * live ladder position (including its cancel rung at the bottom), all without a single
-   * React re-render during the drag itself. Earlier versions of this component crossed to JS on
-   * every touch-move frame just to re-derive a value nothing then did anything with until it
-   * changed -- slow enough on a real device to visibly starve rendering. */
+  /** Written from the Pan gesture's UI-thread worklet on every touch-move, never bridged through a
+   * JS callback -- crossing to JS on every frame was slow enough to visibly starve rendering. */
   liveCount: SharedValue<number>;
   liveIndex: SharedValue<number>;
-  /** Refs to the hall screen's two GestureSectionLists (createNativeWrapper-wrapped, so their
-   * scroll is itself a native gesture with `disallowInterruption: true` -- see its own comment
-   * in [slug].tsx). Without this relationship, confirmed on-device: any vertical movement on
-   * this button gets recognized as a list scroll before LongPress's minDuration elapses --
-   * disallowInterruption means that scroll then can't be pre-empted for the rest of the touch,
-   * so LongPress never gets the chance to activate at all. blocksExternalGesture is a native-
-   * level "wait for me to fail before you may start" relationship resolved before any touch
-   * begins, which is what actually fixes it -- a reactive `scrollEnabled` toggle was tried
-   * first and confirmed too slow (it only lands after the scroll gesture has often already won
-   * the race). */
-  // RNGH's GestureRef type isn't re-exported from the package root; a plain RefObject<any> is
-  // structurally compatible with every shape it accepts (a native-wrapped component, a Gesture
-  // object, or a raw handler tag).
+  /** Refs to the hall screen's GestureSectionLists. Their scroll uses `disallowInterruption`, so
+   * once it wins a touch it can't be pre-empted -- blocksExternalGesture makes LongPress wait for
+   * scroll to fail first, resolved before the touch begins (a reactive `scrollEnabled` toggle is
+   * too slow: it lands after scroll has often already won). */
   blocksScrollRefs: RefObject<any>[];
 }
 
-/** The hall-menu "+" add button (canvas: "F: inline vertical slide"). A quick tap keeps adding
- * exactly one serving, same as before this feature existed -- holding past minDuration is the
- * deliberate, precise path for landing on a half-serving count, dragging a track that grows out
- * of this exact button. Dragging all the way down past the smallest addable count reaches
- * CANCEL_SERVINGS (0) instead of landing on a value -- one axis, no separate cancel gesture to
- * discover. The track/scrim themselves are NOT rendered here: they're a screen-level overlay in
- * [slug].tsx, anchored to this button's
- * measured position (`onHoldStart`'s anchor) -- a row-local overlay would get clipped by the
- * SectionList's own scroll bounds for any row not near the very bottom of the list, and a scrim
- * can't be reliably z-index'd above content that lives inside a separate scrolling container in
- * React Native (no cross-boundary stacking context the way CSS z-index gives you on web). This
- * component only owns gesture recognition and reports state up. */
+/** The hall-menu "+" add button. A quick tap adds one serving; holding past minDuration drags a
+ * track (rendered as a screen-level overlay in [slug].tsx, not here, so it isn't clipped by the
+ * SectionList's scroll bounds) to land on a half-serving count, or all the way down to cancel.
+ * This component only owns gesture recognition and reports state up. */
 export function HoldSlideAddButton({
   dishName,
   onQuickAdd,
@@ -78,21 +49,13 @@ export function HoldSlideAddButton({
   blocksScrollRefs,
 }: Props) {
   const viewRef = useRef<View>(null);
-  // Guards Pressable's own onPress from ALSO firing once a hold-and-drag has happened -- RN's own
-  // press-retention cancellation usually already prevents this for a real drag (the finger moves
-  // well outside the button's bounds), but a hold with little to no drag (picking the very next
-  // whole number) might stay within that retention window, so this is an explicit belt-and-braces
-  // guard rather than relying on that RN internal being close enough to the button's own size.
+  // Guards against Pressable's onPress also firing once a hold-and-drag has happened -- RN's own
+  // press-retention cancellation doesn't always catch a hold with little to no drag.
   const suppressNextPress = useRef(false);
-  // UI-thread flag the Pan gesture checks every touch-move: it only activates (and only then
-  // starts intercepting touches from the SectionList's own scroll responder) once LongPress has
-  // already fired. Before that, any touch-move on this button is left alone for the list to
-  // scroll normally -- without this gate, a bare Gesture.Pan() on a small button inside a
-  // scrollable list would compete with scrolling on every touch that starts here, not just a
-  // deliberate hold.
+  // Gates the Pan gesture: it only starts intercepting touches once LongPress has fired, so an
+  // ordinary scroll touch on this button is left alone until a deliberate hold begins.
   const longPressActive = useSharedValue(false);
-  // The snapped count last sent across the bridge for the overlay's text -- see onHoldDrag's own
-  // doc comment on why this crossing is throttled separately from the shared-value writes above.
+  // The snapped count last sent to onHoldDrag, so it only fires on an actual change.
   const lastSentCount = useSharedValue<number | null>(null);
 
   function beginHold() {
@@ -104,8 +67,6 @@ export function HoldSlideAddButton({
 
   function endHold() {
     onHoldEnd();
-    // Same touch sequence's press (if any) has already been dispatched by the time gesture-handler
-    // fires onEnd, so this is safe to clear synchronously -- no artificial delay needed.
     suppressNextPress.current = false;
   }
 
@@ -114,9 +75,7 @@ export function HoldSlideAddButton({
     .blocksExternalGesture(...blocksScrollRefs)
     .onStart(() => {
       longPressActive.value = true;
-      // startCount is always 1 here, matching [slug].tsx's own hardcoded `dragStateRef.current =
-      // { item, count: 1 }` on hold start -- this button only renders before anything's on the
-      // plate, so a fresh hold always starts from zero servings there.
+      // Always 1 -- this button only renders before anything's on the plate.
       liveCount.value = 1;
       liveIndex.value = dragContinuousIndex(1, 0);
       lastSentCount.value = null;
@@ -126,20 +85,13 @@ export function HoldSlideAddButton({
   const pan = Gesture.Pan()
     .manualActivation(true)
     .onTouchesMove((_e, manager) => {
-      // Only ACTIVATE, never fail, on a move that lands before longPressActive flips true --
-      // pr-reviewer catch: onTouchesMove has no distance threshold (that's the point of manual
-      // activation), so ordinary finger jitter during LongPress's 220ms window used to hit an
-      // eager manager.fail() here, which is a TERMINAL state (confirmed by reading gesture-
-      // handler's own state-manager source) -- Pan could never activate for the rest of that
-      // touch even once LongPress went on to fire, leaving onHoldEnd uncalled: the overlay stuck
-      // open and suppressNextPress stuck true (dead quick-tap on that row) until an unrelated
-      // re-render. Doing nothing here just leaves Pan pending -- it activates on a later move
-      // once longPressActive is true, or resolves not-successful on its own once all touches end
-      // if LongPress never fired (a plain tap) -- no premature terminal state either way.
+      // Only ACTIVATE, never fail, before longPressActive flips true -- manager.fail() here is a
+      // TERMINAL state, so ordinary finger jitter during LongPress's window would strand Pan
+      // (and onHoldEnd never fires). Leaving Pan pending lets it activate on a later move once
+      // LongPress fires, or resolve not-successful on its own for a plain tap.
       if (longPressActive.value) manager.activate();
     })
     .onUpdate((e) => {
-      // Pure UI-thread writes -- no runOnJS at all on this hot path (see the Props doc comment).
       const next = servingsFromDrag(1, e.translationY);
       liveCount.value = next;
       liveIndex.value = dragContinuousIndex(1, e.translationY);
@@ -159,15 +111,9 @@ export function HoldSlideAddButton({
       }
     });
 
-  // Not covered by an automated test: fireGestureHandler (react-native-gesture-handler/jest-utils)
-  // simulates GestureStateChangeEvent/GestureUpdateEvent transitions, but this Pan's manual
-  // activation happens inside onTouchesMove against a raw touch stream and a shared-value flag
-  // set by a separate LongPress gesture -- not a state transition fireGestureHandler drives.
-  // Mirrors the same class of limitation hit with MealTabPager's Jest reanimated mock earlier in
-  // this feature (see hallMenuTabs.ts's shouldAutoCorrectMealTab doc comment): the pure math this
-  // gesture drives (servingsFromDrag, formatServings) is fully unit-tested; the wiring itself
-  // needs on-device verification, not a misleading unit test of internals the harness can't
-  // actually exercise.
+  // Not unit-testable: this Pan's manual activation reads a raw touch stream and a shared-value
+  // flag set by a separate gesture, not a state transition fireGestureHandler can drive. The pure
+  // math (servingsFromDrag, formatServings) is unit-tested; the gesture wiring needs a device.
   const gesture = Gesture.Simultaneous(longPress, pan);
 
   return (

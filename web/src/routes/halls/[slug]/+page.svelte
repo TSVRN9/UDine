@@ -36,19 +36,17 @@
 	let loggedMessage = $state("");
 	let prefs: FoodPreferences = $state({ allergensToAvoid: [], requiredDietTags: [] });
 	let favoriteDishKeys: Set<string> = $state(new Set());
-	// #67: post-log comparison prompt. Dismissible, never modal-blocking -- logging another dish
-	// works exactly the same whether this is showing or not (no overlay, no focus trap). Pair
-	// selection itself lives in @udine/shared (pickPostLogComparisonPair) -- this page only wires
-	// it up to IndexedDB reads and the applyComparison/applyFoodComparison write-back.
+	// Post-log comparison prompt. Dismissible, never modal-blocking -- logging another dish works
+	// exactly the same whether this is showing or not. Pair selection lives in @udine/shared
+	// (pickPostLogComparisonPair); this page only wires it to IndexedDB reads and the
+	// applyComparison/applyFoodComparison write-back.
 	let comparePrompt: [LoggedDish, LoggedDish] | null = $state(null);
-	// #322: set when an IndexedDB read/write here fails (issue #193's bug class -- e.g. a blocked
-	// open from a stale pre-deploy tab). Without this, the favorite-star toggle and log-a-dish
-	// writes below just silently no-op'd on a blocked/failed open.
+	// Set when an IndexedDB read/write fails below, so the favorite-star toggle and log-a-dish
+	// writes don't just silently no-op on a blocked/failed open.
 	let dbError = $state(false);
-	// #82: the bottom-anchored toast/prompt stack's own rendered height, tracked via bind:clientHeight
-	// below (Svelte wires this to a ResizeObserver, so it stays current as the stack's content
-	// changes -- e.g. the prompt appearing/disappearing -- with no manual effect needed). Used to size
-	// the narrow-viewport spacer that reserves clearance for the last dish row's Log button.
+	// The bottom-anchored toast/prompt stack's own rendered height, tracked via bind:clientHeight
+	// below (a ResizeObserver, kept current with no manual effect needed). Sizes the narrow-viewport
+	// spacer that reserves clearance for the last dish row's Log button.
 	let stackHeight = $state(0);
 
 	const dateLabel = $derived(
@@ -57,28 +55,25 @@
 	// Recomputed client-side (not just trusted from the loader) so a future-dated deep link
 	// still gets an accurate prev/empty-state decision after hydration.
 	const isToday = $derived(data.date === todayIso());
-	// The filter-banner and "everything filtered out" copy below reads as wrong when browsing a
-	// future day and it still says "today's menu" -- neutral wording covers both cases.
+	// Neutral wording so the filter-banner/empty-state copy still reads correctly when browsing a
+	// future day (not just "today's menu").
 	const menuPossessive = $derived(isToday ? "today’s" : "this day’s");
 
 	function goToDate(dateIso: string) {
-		// keepFocus: these are keyboard-operable date-nav buttons; without it SvelteKit's default
-		// nav behavior moves focus to <body> on every click, dropping a keyboard user back to the
-		// top of the page instead of leaving them on the button they just pressed.
+		// keepFocus: without it SvelteKit moves focus to <body> on every click, dropping a keyboard
+		// user off the date-nav button they just pressed.
 		goto(`?date=${dateIso}`, { keepFocus: true });
 	}
 
-	// How many of today's dishes the user's own filters are removing. Without this the page just
-	// quietly shows fewer dishes (or an empty meal period) and looks like UMass posted nothing —
-	// the single most confusing thing the filter feature can do.
+	// How many dishes the user's own filters are removing, so the page doesn't just quietly show
+	// fewer dishes and look like UMass posted nothing.
 	const hiddenCount = $derived(data.items.filter((i) => !menuItemMatchesPreferences(i, prefs)).length);
 
-	// A same-route ?date= nav swaps `data.items` without remounting the component, so seeding must
-	// react to `data.items` itself rather than run once in onMount -- otherwise a new day's dishes
-	// never get their default `servings` entry and render blank (#76 review finding). Existence
-	// check (`in`), not `??=`: clearing the input leaves `null` behind (see logItem's own comment
-	// on this), and `??=` would read that as unset and stomp it back to 1 out from under a user
-	// who's actively clearing the field -- `in` only seeds a key that has never been set at all.
+	// A same-route ?date= nav swaps `data.items` without remounting, so seeding must react to
+	// `data.items` itself, not run once in onMount, or a new day's dishes never get a default
+	// `servings` entry. Existence check (`in`), not `??=`: clearing the input leaves `null` behind
+	// (see logItem's comment), and `??=` would stomp that back to 1 out from under a user actively
+	// clearing the field.
 	$effect(() => {
 		for (const item of data.items) if (!(item.dishName in servings)) servings[item.dishName] = 1;
 	});
@@ -93,9 +88,8 @@
 		}
 	});
 
-	// Whole body in one try/catch, not just the write -- see /'s toggleFavoriteHall for why
-	// catching only the write and still unconditionally re-reading would let a succeeding read
-	// reset dbError back to false right after this catch set it.
+	// Whole body in one try/catch, not just the write -- catching only the write and still
+	// unconditionally re-reading would let a succeeding read reset dbError right after it was set.
 	async function toggleFavoriteDish(dishName: string) {
 		const favorite: Favorite = { type: "dish", dishName };
 		const key = favoriteKey(favorite);
@@ -118,11 +112,9 @@
 		const qty = Number(servings[item.dishName]) || 1;
 		const entry: LogEntry = {
 			id: crypto.randomUUID(),
-			// Local-date-prefixed, not `.toISOString()` (UTC) -- see nowLocalIso's own doc comment
-			// (@udine/shared, shared/src/date.ts) for why: readers that bucket loggedAt by calendar
-			// day (indexedDbStorage.ts's getEntriesForDate) compare against the LOCAL day, so a UTC
-			// stamp made evening entries file under tomorrow and vanish from Today (issue #124, the
-			// same bug mobile hit as #111/PR #122).
+			// Local-date-prefixed, not `.toISOString()` (UTC): readers bucket loggedAt by the LOCAL
+			// calendar day (indexedDbStorage.ts's getEntriesForDate), so a UTC stamp filed evening
+			// entries under tomorrow and made them vanish from Today.
 			loggedAt: nowLocalIso(),
 			source: { type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid },
 			servings: qty,
@@ -137,32 +129,25 @@
 		loggedMessage = `Logged ${qty} × ${item.dishName}`;
 		setTimeout(() => (loggedMessage = ""), 2000);
 
-		// Offer a one-tap comparison against another logged dish, if a valid pair exists. Fire-and-forget
-		// relative to the toast above -- logging stays one tap regardless of whether this resolves to a
-		// pair or null. Best-effort: the log itself already succeeded above, so a failed read here just
-		// means no comparison prompt this time, not a broken log -- same "degrade, don't alarm" posture
-		// as refreshRetail() on the home dashboard, not the dbError banner.
+		// Offer a one-tap comparison against another logged dish, if a valid pair exists. Best-effort:
+		// the log itself already succeeded, so a failed read here just means no comparison prompt,
+		// not a broken log.
 		try {
 			const allEntries = await storage.getAllEntries();
 			const rankedDishes = await rankingStorage.getRankedDishes();
 			comparePrompt = pickPostLogComparisonPair(allEntries, { dishName: item.dishName, hallTid: item.hallTid }, rankedDishes);
 		} catch {
-			// no-op -- see comment above
+			// no-op -- best-effort, see comment above
 		}
 	}
 
 	// Updates both Elo tracks (RankedDish + RankedFood), same as /rank's own choose() -- see ADR 0001's
-	// Consequences clause, which requires any new code reacting to a Pairwise Comparison to touch both
-	// tracks or justify touching only one. Also syncs favorite dining halls the same way /rank's
-	// choose() does, when a session exists (#80 -- supersedes #67's stricter zero-server-calls
-	// constraint for this surface, now that #67 is closed): a signed-in user who only ever compares via
-	// this prompt was otherwise never syncing their favorite dining halls, leaving pings/friends
-	// features working off stale data until their next /rank visit. Sanctioned by CLAUDE.md's data
-	// residency table -- favorite dining halls (coarse, hall-level, not dish-level) are the one
-	// ranking-derived thing the server may see, and only for a signed-in user.
-	// #322: whole body in one try/catch -- a failed save must not clear comparePrompt and claim the
-	// comparison went through, same "don't lie about a write that didn't happen" reasoning as
-	// /rank's choose().
+	// Consequences clause, which requires any code reacting to a Pairwise Comparison to touch both
+	// tracks or justify touching only one. Also syncs favorite dining halls when a session exists,
+	// same as /rank's choose() -- per CLAUDE.md's data residency table, favorite dining halls (coarse,
+	// hall-level) are the one ranking-derived thing the server may see for a signed-in user.
+	// Whole body in one try/catch: a failed save must not clear comparePrompt and claim the
+	// comparison went through.
 	async function chooseCompare(winner: LoggedDish, loser: LoggedDish) {
 		try {
 			const rankedDishes = applyComparison(await rankingStorage.getRankedDishes(), winner, loser);
@@ -190,9 +175,8 @@
 
 <header>
 	<p class="font-mono text-xs tracking-widest text-ink-900/50 uppercase">
-		<!-- "All halls", not "Dining Halls": the nav link already carries that exact name, and the
-		     e2e specs click `getByRole("link", { name: "Dining Halls" })` while on this page — two
-		     matches would be a strict-mode violation. -->
+		<!-- "All halls", not "Dining Halls": the nav link already uses that exact name, and two
+		     matching link names on one page is a strict-mode violation for role-based e2e queries. -->
 		<a href="/" class="no-underline hover:underline">All halls</a> / {dateLabel}
 	</p>
 	<h1 class="page-title mt-1">{data.hall.name}</h1>
@@ -205,10 +189,8 @@
 	</p>
 {/if}
 
-<!-- #72: no past nav (API has no history -- prev is disabled once we're already on today) and no
-     forward cap (UMass's publish window rolls and isn't hardcoded here -- see
-     docs/apk-reverse-engineering.md's "Future dates" bullet; an out-of-window day just renders
-     the empty state below instead of disabling Next). -->
+<!-- No past nav (API has no history) and no forward cap (UMass's publish window rolls and isn't
+     hardcoded here; an out-of-window day just renders the empty state instead of disabling Next). -->
 <nav class="mt-4 flex flex-wrap items-center gap-2" aria-label="Menu date">
 	<button class="btn btn-secondary btn-sm" disabled={isToday} onclick={() => goToDate(addDaysIso(data.date, -1))}>
 		&lsaquo; Prev day
@@ -235,9 +217,8 @@
 			</p>
 			<p class="mt-4"><a href="/" class="btn btn-secondary no-underline">Try another hall</a></p>
 		{:else}
-			<!-- #72: a future day outside UMass's rolling publish window (or simply not posted yet)
-			     also comes back as `[]` -- distinct copy from the today case above, since "hasn't
-			     published yet" reads as broken for a day that was never going to have a menu today. -->
+			<!-- A future day outside UMass's publish window also comes back as `[]` -- distinct copy
+			     from the today case, since "hasn't published yet" reads as broken here. -->
 			<p class="font-display text-lg uppercase">Not posted yet</p>
 			<p class="mt-2 text-sm">Menu not posted yet &mdash; UMass publishes about two weeks ahead.</p>
 			<p class="mt-4">
@@ -246,8 +227,7 @@
 		{/if}
 	</div>
 {:else if hiddenCount === data.items.length}
-	<!-- A menu exists but the user's own filters removed all of it. Without this branch the page
-	     renders a title and nothing else, which is indistinguishable from UMass posting no menu. -->
+	<!-- A menu exists but the user's own filters removed all of it -- distinct from UMass posting no menu. -->
 	<div class="empty-state mt-6">
 		<p class="font-display text-lg uppercase">Everything is filtered out</p>
 		<p class="mt-2 text-sm">
@@ -267,38 +247,24 @@
 	onLog={logItem}
 />
 
-<!-- #82: reserves clearance below the last dish row for the bottom-anchored stack below, at narrow
-     widths only. At >=640px (Tailwind's `sm`) the stack tops out at 28rem wide against a much wider
-     list, so desktop geometry is unaffected (sm:hidden collapses this to nothing there) -- #81's
-     desktop elementFromPoint probe stays meaningful. Below that, the stack's min(92vw, 28rem) width
-     nearly fills the screen, so on a narrow viewport scrolled to the very bottom it would otherwise
-     sit on top of the last row's Log button (measured in #82's review, reproduced red-first in
-     rank-surfaces.spec.ts). stackHeight (bind:clientHeight below) tracks the stack's own rendered
-     height reactively, no manual effect required. The spacer only exists while the stack is up (its
-     height collapses to 0 with it), so a user already scrolled to the exact document bottom the
-     instant the prompt appears doesn't get the Log button moved to them -- Chrome's scroll anchoring
-     keeps their scroll position stable and they scroll roughly one stack-height further to reach it.
-     That's the sanctioned tradeoff (bottom padding equal to the stack height, per #82's decision) --
-     before this fix there was no scroll that helped at all, the row was permanently pinned under a
-     fixed-position stack. Same transient in the other direction: the toast auto-clearing at 2s
-     shrinks the spacer and the browser re-clamps scrollY -- verified self-correcting (button stays
-     reachable), so only tests that measure mid-clear need to wait the toast out.
-     ponytail: +20 below duplicates the wrapper's own `bottom-5` (1.25rem) instead of reading it from
-     one shared source -- fine while there's only one bottom-anchored offset in this file; extract a
-     CSS var if a second one with a different offset shows up. -->
+<!-- Reserves clearance below the last dish row for the bottom-anchored stack, at narrow widths only
+     (sm:hidden -- at >=640px the stack is 28rem against a much wider list, so desktop is unaffected).
+     Below that, the stack's min(92vw, 28rem) width nearly fills the screen and would otherwise sit on
+     top of the last row's Log button. stackHeight (bind:clientHeight below) tracks the stack's
+     rendered height reactively. The spacer collapses to 0 once the stack is gone, so bottom padding
+     equal to the stack height is the tradeoff: a user already at the document bottom scrolls roughly
+     one stack-height further when the prompt appears, via Chrome's scroll anchoring.
+     ponytail: +20 duplicates the wrapper's own `bottom-5` (1.25rem) instead of a shared source --
+     fine with only one bottom-anchored offset in this file; extract a CSS var if a second one appears. -->
 <div aria-hidden="true" class="sm:hidden" style="height: {stackHeight > 0 ? stackHeight + 20 : 0}px"></div>
 
 <!-- Fixed to the viewport bottom rather than inline in document flow: a menu runs to a few hundred
-     dishes, so anything rendered above the fold (including near the top, under the date nav) is
-     invisible at the moment you actually press Log -- the ceiling the #67 review caught (see
-     rank-surfaces.spec.ts's long-menu spec). Status toast and comparison prompt share one bottom-
-     anchored, flex-col-reverse stack (toast markup first, prompt second) so whichever of them is
-     showing lands at the very bottom and the other stacks above it -- they can both be visible at
-     once right after a second log, and this ordering keeps them from ever overlapping regardless of
-     either one's height, without a hardcoded pixel gap. The wrapper itself is pointer-events-none
-     (it spans the full width) so it never intercepts clicks on the page below/behind it; each child
-     re-enables pointer-events for its own bounds. Single role="status" region on this page by
-     design — the e2e specs assert on exactly one. -->
+     dishes, so anything rendered above the fold is invisible at the moment you press Log. Status
+     toast and comparison prompt share one bottom-anchored, flex-col-reverse stack (toast markup
+     first, prompt second) so whichever is showing lands at the very bottom and the other stacks
+     above it without a hardcoded pixel gap, even when both are visible at once. The wrapper is
+     pointer-events-none (spans the full width) so it never intercepts clicks behind it; each child
+     re-enables pointer-events for its own bounds. Single role="status" region on this page by design. -->
 <div bind:clientHeight={stackHeight} class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex flex-col-reverse items-center gap-2 px-4">
 	{#if loggedMessage}
 		<p
@@ -309,10 +275,7 @@
 		</p>
 	{/if}
 
-	<!-- #67: post-log comparison prompt. Dismissible, never modal-blocking -- logging another dish
-	     works exactly the same whether this is showing or not (no overlay, no focus trap).
-	     Deliberately not role="status": this page's specs assert exactly one status region, and this
-	     isn't a passive announcement, it's an interactive prompt. -->
+	<!-- Deliberately not role="status": this isn't a passive announcement, it's an interactive prompt. -->
 	{#if comparePrompt}
 		<section aria-label="Compare dishes" class="card pointer-events-auto w-[min(92vw,28rem)] px-4 py-3">
 			<div class="flex items-start justify-between gap-3">

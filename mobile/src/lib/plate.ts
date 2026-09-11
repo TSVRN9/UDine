@@ -2,11 +2,11 @@ import { useRef } from "react";
 import type { CustomFood, LogEntry, MenuItem, NutritionFacts, OffSearchResult, UsdaSearchResult } from "@udine/shared";
 import type { HistoryDish } from "./dishHistory";
 
-/** One merged search result from PlateSheet's "Search for a food" (#91, extended to 4 sources):
- * device-local dish history/the cached public.dishes catalog ("umass"), an OpenFoodFacts hit
- * ("off"), a USDA FoodData Central hit ("usda"), or a saved on-device CustomFood ("custom").
- * Tagged so a result row can badge it and so plateSearchResultToPlateEntry/plateSearchResultDetail
- * below can dispatch on it without the caller needing a 4-way if/else of its own. */
+/** One merged search result from PlateSheet's "Search for a food": device-local dish history/the
+ * cached public.dishes catalog ("umass"), an OpenFoodFacts hit ("off"), a USDA FoodData Central hit
+ * ("usda"), or a saved on-device CustomFood ("custom"). Tagged so a result row can badge it and so
+ * plateSearchResultToPlateEntry/plateSearchResultDetail below can dispatch on it without the caller
+ * needing a 4-way if/else of its own. */
 export type PlateSearchResult =
   | { kind: "umass"; dish: HistoryDish }
   | { kind: "off"; product: OffSearchResult }
@@ -14,8 +14,8 @@ export type PlateSearchResult =
   | { kind: "custom"; food: CustomFood };
 
 /**
- * One row on the in-memory plate (#91): a dish/product plus how many servings the user has
- * stepped it to. Not persisted — the plate only becomes durable log rows on LOG (see toLogEntries).
+ * One row on the in-memory plate: a dish/product plus how many servings the user has stepped it to.
+ * Not persisted — the plate only becomes durable log rows on LOG (see toLogEntries).
  */
 export interface PlateEntry {
   key: string;
@@ -23,7 +23,7 @@ export interface PlateEntry {
   nutrition: NutritionFacts;
   source: LogEntry["source"];
   count: number;
-  // #177: retail-only, carried through from MenuItem.price -- undefined for hall dishes and OFF
+  // Retail-only, carried through from MenuItem.price -- undefined for hall dishes and OFF
   // products, same optionality as its source field.
   price?: string;
 }
@@ -78,16 +78,14 @@ export function customFoodToPlateEntry(food: CustomFood, count = 1): PlateEntry 
   return { key: plateKeyFor(source), label: food.name, nutrition: food.nutrition, source, count };
 }
 
-/** Single dispatch point for "add this search result to the plate", covering all 4
- * PlateSearchResult kinds -- what NutritionLabel's onAddToPlate ultimately calls from PlateSheet,
- * replacing the old onAddOffResult/onAddHistoryDish pair of narrow callbacks (#91 follow-on: a 4th
- * source made two separate special-cased props awkward to keep extending). */
 /** Stable per-result key for a search-results list's row keys -- reuses plateSearchResultToPlateEntry
  * rather than re-deriving the same switch a second time. */
 export function plateSearchResultKey(result: PlateSearchResult): string {
   return plateSearchResultToPlateEntry(result).key;
 }
 
+/** Single dispatch point for "add this search result to the plate", covering all 4
+ * PlateSearchResult kinds -- what NutritionLabel's onAddToPlate ultimately calls from PlateSheet. */
 export function plateSearchResultToPlateEntry(result: PlateSearchResult, count = 1): PlateEntry {
   switch (result.kind) {
     case "umass":
@@ -109,7 +107,7 @@ export function plateSearchResultToPlateEntry(result: PlateSearchResult, count =
 export interface PlateSearchResultDetail {
   dishName: string;
   /** "via {source}" attribution caption -- NutritionLabel renders this under the badge pill
-   * (docs/design/SearchResultDetail.dc.html:18-25) rather than as a bare source name. */
+   * rather than as a bare source name. */
   subtitle: string;
   /** Filled source-badge pill label (PACKAGED/UMASS/USDA/CUSTOM), rendered next to the caption. */
   badge: string;
@@ -201,12 +199,11 @@ export function totalItemCount(plate: PlateEntry[]): number {
 }
 
 /**
- * #177 styling spec: "Plate bar with prices: summary line becomes `1 item · 640 cal · $11.25`".
  * null when nothing on the plate carries a price -- a hall-only plate keeps today's price-free
- * summary line exactly as it renders now, per the spec's "no price in the data -> renders exactly
- * as today." Rows without a price (mixed hall+café plate) simply don't contribute to the sum
- * rather than being excluded from it -- $0 from an unpriced row and "no total" from an all-unpriced
- * plate are different things, so `any` tracks whether at least one row actually had a price.
+ * summary line exactly as it renders now. Rows without a price (mixed hall+café plate) simply don't
+ * contribute to the sum rather than being excluded from it -- $0 from an unpriced row and "no total"
+ * from an all-unpriced plate are different things, so `any` tracks whether at least one row actually
+ * had a price.
  */
 export function totalPlatePrice(plate: PlateEntry[]): string | null {
   let total = 0;
@@ -222,10 +219,9 @@ export function totalPlatePrice(plate: PlateEntry[]): string | null {
 }
 
 /** Bottom padding a scrollable dish list needs to keep its last row reachable while the plate bar
- * floats over it (the occlusion-bug class from PR #78/#84). The bar is now always mounted (an empty
- * plate still needs a tappable entry point into OFF search, not just a spot to review staged items
- * -- see PlateBar's own doc), so this is just the bar's own measured height, unconditionally; it no
- * longer takes a "does the plate have items" flag to zero itself out against. */
+ * floats over it. The bar is now always mounted (an empty plate still needs a tappable entry point
+ * into OFF search, not just a spot to review staged items), so this is just the bar's own measured
+ * height, unconditionally. */
 export function listBottomPadding(barHeight: number): number {
   return barHeight;
 }
@@ -233,8 +229,7 @@ export function listBottomPadding(barHeight: number): number {
 /**
  * One LogEntry per plate row (not one per unit of count) — mirrors how today.tsx already displays
  * and lets you remove a logged item ("Dish × N"), and how rank.tsx dedupes its comparison pool by
- * dish key: N separate 1-serving rows for the same dish would just be N duplicates there, not N
- * independent comparison candidates.
+ * dish key: N separate 1-serving rows for the same dish would just be N duplicates there.
  */
 export function toLogEntries(plate: PlateEntry[], loggedAt: string): LogEntry[] {
   return plate.map((p, i) => ({
@@ -252,33 +247,21 @@ export interface LogStorageLike {
 
 export type LogPlateResult = { ok: true; count: number } | { ok: false; error: unknown };
 
-/**
- * #147: halls/[slug].tsx and grab-n-go/[slug].tsx had byte-for-byte identical logPlate bodies with
- * no in-flight guard -- LOG only ever disabled on an empty plate, not while a commit was already
- * running, so a second tap landing before the sequential addEntry() writes finished re-ran
- * toLogEntries (minting fresh ids) and duplicated every row; a tap landing just after completion
- * re-logged the now-empty plate ("Logged 0 items"). One shared, guarded implementation for both
- * screens instead of the guard living (or not living) in each copy separately.
- *
- * The ref is checked synchronously before the first await -- same mechanism as logs.tsx's
- * withStepGuard -- and DROPS a second call outright while the first is still in flight, rather than
- * queuing it: the correct fix for a duplicate write is exactly one write, not two serialized ones.
- */
-/** #436: two simultaneous RN Modals on Android can silently fail to present the second one --
- * confirmed on-device via PlateSheet's own "Can't find it? Create a custom food" row, which sets
- * customFoodFormOpen while PlateSheet's own Modal (sheetOpen) was still visible=true, and
- * CustomFoodForm's Modal just never appeared (no error, no visual sign). CafeSheet's identical
- * trigger works fine because CafeSheet is never itself inside a Modal, so only one Modal is ever
- * live there. Fix: CustomFoodForm always wins -- halls/[slug].tsx feeds both Modals' `visible`
- * props through this instead of their raw sheetOpen/customFoodFormOpen state, so PlateSheet's
- * Modal is forced closed the instant CustomFoodForm's should show, and reopens on its own once
- * customFoodFormOpen goes back to false (sheetOpen itself is never touched, so no separate
- * "reopen after" bookkeeping is needed). Pure so the swap is testable without rendering
- * halls/[slug].tsx (1800+ lines, no existing render-test harness). */
+/** Two simultaneous RN Modals on Android can silently fail to present the second one. Fix:
+ * CustomFoodForm always wins -- halls/[slug].tsx feeds both Modals' `visible` props through this
+ * instead of their raw sheetOpen/customFoodFormOpen state, so PlateSheet's Modal is forced closed
+ * the instant CustomFoodForm's should show, and reopens once customFoodFormOpen goes back to false. */
 export function resolvePlateAndCustomFoodVisibility(sheetOpen: boolean, customFoodFormOpen: boolean): { plateSheetVisible: boolean; customFoodFormVisible: boolean } {
   return { plateSheetVisible: sheetOpen && !customFoodFormOpen, customFoodFormVisible: customFoodFormOpen };
 }
 
+/**
+ * A second tap landing before the sequential addEntry() writes finished would re-run toLogEntries
+ * (minting fresh ids) and duplicate every row; a tap landing just after completion would re-log the
+ * now-empty plate. The ref is checked synchronously before the first await and drops a second call
+ * outright while the first is in flight, rather than queuing it -- the correct fix for a duplicate
+ * write is exactly one write, not two serialized ones.
+ */
 export function useGuardedLogPlate(storage: LogStorageLike) {
   const inFlight = useRef(false);
   return async function logPlate(plate: PlateEntry[], loggedAt: string): Promise<LogPlateResult | null> {

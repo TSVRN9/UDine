@@ -7,13 +7,13 @@ import { classifyEventTap, type EventDetailParams } from "./eventTapTarget";
 /**
  * Shared tap dispatcher for a DiningEvent card -- classifyEventTap decides the destination, this
  * does the actual navigation/open. Single source of truth for both the Social pane's EventCard and
- * the standalone /events screen (PR #129 review, non-blocking finding: they'd drifted -- one opened
- * the in-app pamphlet/pop-up browser, the other hand-rolled `Linking.openURL` with no scheme guard).
+ * the standalone /events screen (previously drifted: one opened the in-app pamphlet/pop-up browser,
+ * the other hand-rolled `Linking.openURL` with no scheme guard).
  *
- * openBrowserAsync's promise is awaited/caught, not floated -- PR #129 review finding 4: a rapid
- * double-tap on a link card makes the second call reject ("Another WebBrowser is already being
- * presented"), which a floating promise would swallow as a silent unhandled rejection. Same
- * try/catch + Alert.alert pattern used elsewhere in this app for a fire-and-forget action.
+ * openBrowserAsync's promise is awaited/caught, not floated: a rapid double-tap on a link card makes
+ * the second call reject ("Another WebBrowser is already being presented"), which a floating promise
+ * would swallow as a silent unhandled rejection. Same try/catch + Alert.alert pattern used elsewhere
+ * in this app for a fire-and-forget action.
  */
 export async function openEventTap(item: DiningEvent): Promise<void> {
   const target = classifyEventTap(item);

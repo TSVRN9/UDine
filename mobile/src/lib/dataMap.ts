@@ -1,8 +1,8 @@
 import type { LogEntry, RankedDish, RankedFood } from "@udine/shared";
 
 /**
- * Pure counts + copy for the "Your data" screen's "Stays on this phone" card (#182). Kept out of
- * the screen component so the counting logic is testable without rendering -- same split as
+ * Pure counts + copy for the "Your data" screen's "Stays on this phone" card. Kept out of the
+ * screen component so the counting logic is testable without rendering -- same split as
  * privacySettings.ts's deriveSharedStatsPayloads.
  */
 export interface DeviceDataCounts {

@@ -3,11 +3,10 @@ import type { DiningEvent, NewsletterIssue, PressRelease } from "./types.ts";
 const BASE = "https://www.umassdining.com/uapp";
 
 /**
- * #150: pdf_link/external_link render straight into `<a href=…>` (web) with no protocol check --
- * unlike featured_image, which goes through sanitizeImageUrl below. A javascript:/data: value in
- * the feed would execute in the app origin on click. Scheme allowlist, not sanitizeImageUrl's
- * hostname check -- hostname alone is bypassable by an authority-faking URL like
- * `javascript://example.com/%0aalert(1)`, which parses a normal-looking hostname.
+ * pdf_link/external_link render straight into `<a href=…>` (web) with no protocol check -- a
+ * javascript:/data: value in the feed would execute in the app origin on click. Scheme allowlist,
+ * not sanitizeImageUrl's hostname check -- hostname alone is bypassable by an authority-faking URL
+ * like `javascript://example.com/%0aalert(1)`, which parses a normal-looking hostname.
  */
 export function sanitizeLinkUrl(url: string): string {
   if (!url) return "";
@@ -38,25 +37,18 @@ export function sanitizeImageUrl(url: string): string {
 }
 
 /**
- * #178: strips a third-party feed's HTML fragment down to plain text -- the trust-boundary fix for
- * RetailLocationHours' description/address/*_menu fields (#176), which are raw HTML straight off
- * get_infov2, same as the fields sanitizeLinkUrl/sanitizeImageUrl already guard above. No DOM
- * parser: this runs in web (browser), mobile (Hermes/RN, no DOM) and shared's own node:test suite
- * alike, so it's a scan-and-strip pass over the tag grammar these feeds actually use (<p>/<br>/<a>/
- * <span>, confirmed live -- see hours.test.ts's real captures), not a general HTML5 parser. <script>/
+ * Strips a third-party feed's HTML fragment down to plain text -- the trust-boundary fix for raw
+ * HTML fields straight off get_infov2. No DOM parser: this runs in web (browser), mobile (Hermes/
+ * RN, no DOM) and shared's own node:test suite alike, so it's a scan-and-strip pass over the tag
+ * grammar these feeds actually use (<p>/<br>/<a>/<span>), not a general HTML5 parser. <script>/
  * <style> are dropped ENTIRELY, tag and body both -- everything else's tag is stripped but its text
- * content stays (that's the point), and those two are the one case where the body itself must not
- * leak as visible text. <br> and block-closing tags become a newline first so multi-line content
- * (e.g. an address, or a <br>-separated item list -- see parseRetailMenuHtml's own #178 pr-review fix)
- * doesn't collapse into one run-on line; blank lines from empty blocks are dropped.
+ * content stays. <br> and block-closing tags become a newline first so multi-line content doesn't
+ * collapse into one run-on line.
  *
- * Output contract: plain text ONLY. Entities are decoded (correctly) after tags are stripped, so a
- * source string like `&lt;script&gt;` -- someone's literal, escaped-safe text -- comes back out as
- * the real characters `<script>`. That's correct text extraction, but it means this function's
- * return value can contain characters that look like markup. NEVER pass this output to `{@html}`,
- * `dangerouslySetInnerHTML`, or a WebView's `innerHTML`/`postMessage`-into-HTML -- it is text, not a
- * sanitized-HTML string, and treating it as the latter reopens exactly the injection this function
- * exists to close off.
+ * Output contract: plain text ONLY. Entities are decoded after tags are stripped, so the return
+ * value can contain characters that look like markup (e.g. a literal `&lt;script&gt;` decodes to
+ * `<script>`). NEVER pass this output to `{@html}`, `dangerouslySetInnerHTML`, or a WebView's
+ * `innerHTML` -- it is text, not a sanitized-HTML string.
  */
 export function htmlToText(html: string | null | undefined): string {
   if (!html) return "";
@@ -78,11 +70,10 @@ export function htmlToText(html: string | null | undefined): string {
     .join("\n");
 }
 
-// #178 pr-review: exact-host or real-subdomain match only -- `endsWith(".umassdining.com")`, not a
-// bare `.includes("umassdining.com")`, which a URL like `https://umassdining.com.evil.example/x.pdf`
-// would also satisfy despite resolving to `evil.example`, not us.
-// #224: exported so the web PDF proxy route can apply the same host gate to the url it's asked to
-// fetch, instead of re-deriving its own version of this check.
+// Exact-host or real-subdomain match only -- `endsWith(".umassdining.com")`, not a bare
+// `.includes("umassdining.com")`, which a URL like `https://umassdining.com.evil.example/x.pdf`
+// would also satisfy despite resolving to `evil.example`, not us. Exported so other callers (e.g.
+// a PDF proxy route) can apply the same host gate instead of re-deriving their own version.
 export function isUmassDiningHost(url: string): boolean {
   try {
     const { hostname } = new URL(url);
@@ -110,21 +101,13 @@ export interface RetailMenuEmpty {
 export type ParsedRetailMenu = RetailMenuPdf | RetailMenuItems | RetailMenuEmpty;
 
 /**
- * #178: parses one of RetailLocationHours' breakfastMenu/lunchMenu/dinnerMenu HTML fragments (#176)
- * into a safe, structured shape -- NOT a sanitize-and-{@html} pass. #178's own instruction is that
- * parsing to text/structured nodes is the preferred trust-boundary fix here, not a fallback, so this
- * is what both clients render; the raw HTML never reaches a template. Two real shapes confirmed live
- * (hours.test.ts): a PDF link (babyBerk/Commonwealth Restaurant wrap one <a href=*.pdf> in a <p>, no
- * item list) or a plain item list. That item list itself has two real sub-shapes (pr-review finding
- * on this ticket, live-measured against Argo Tea #9605, Peet's #4311, Courtside #18): People's
- * Organic's capture is one dish per `<p>...</p>` block, but several real cafés instead pack their
- * WHOLE menu into a single block with `<br>`-separated lines (e.g. `<p>Coffee $2.00<br>Tea
- * $2.50<br>...</p>`) -- splitting on block-closing tags alone folded all of those into one giant
- * multiline "item", and the price regex below only ever matched (or missed) the LAST line of that
- * blob, so every other `$price` on the same block was swallowed into `name` and came back null.
- * Splitting each block's plain text on its own embedded newlines (htmlToText turns both `<br>` and
- * nested block-closers into "\n") before the price regex runs fixes both real shapes at once -- a
- * name-only row (no `<br>`, one line per block) is still a real, expected result, not a parsing gap.
+ * Parses one of RetailLocationHours' breakfastMenu/lunchMenu/dinnerMenu HTML fragments into a safe,
+ * structured shape -- NOT a sanitize-and-{@html} pass; the raw HTML never reaches a template. Two
+ * real shapes: a PDF link (one <a href=*.pdf> wrapped in a <p>, no item list) or a plain item list.
+ * The item list has two sub-shapes: one dish per `<p>...</p>` block, or a whole menu packed into a
+ * single block with `<br>`-separated lines. Splitting each block's plain text on its own embedded
+ * newlines (htmlToText turns both `<br>` and nested block-closers into "\n") before the price regex
+ * runs handles both shapes -- a name-only row (no `<br>`) is a real, expected result, not a gap.
  */
 export function parseRetailMenuHtml(html: string | null | undefined): ParsedRetailMenu {
   if (!html) return { kind: "empty" };
@@ -132,28 +115,18 @@ export function parseRetailMenuHtml(html: string | null | undefined): ParsedReta
   const linkMatch = /<a\b[^>]*\shref="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i.exec(html);
   if (linkMatch) {
     const href = linkMatch[1];
-    // #178 pr-review: the `.pdf` check alone is decorative -- `/\.pdf(?:[?#]|$)/` tests the raw
-    // href, so `https://evil.example/redir?to=x#.pdf` passes it, and both clients feed this straight
-    // into a PDF viewer (web: `<object data=...>`) that renders whatever Content-Type the server
-    // actually sends, `.pdf`-looking URL or not -- `type="application/pdf"` is only a hint, the
-    // response wins. Require the URL's real hostname to BE (or end in, e.g. a CDN subdomain)
-    // umassdining.com before trusting it as a pdf link at all -- the same authority check
-    // sanitizeLinkUrl's own doc comment already warns a naive host-substring/prefix check can't be
-    // trusted for.
+    // The `.pdf` check alone is decorative -- both clients feed this into a PDF viewer that renders
+    // whatever Content-Type the server actually sends, `.pdf`-looking URL or not. Require the URL's
+    // real hostname to be (or end in) umassdining.com before trusting it as a pdf link at all.
     if (/\.pdf(?:[?#]|$)/i.test(href) && isUmassDiningHost(href)) {
       const url = sanitizeLinkUrl(href);
       if (url) return { kind: "pdf", url, label: htmlToText(linkMatch[2]) || "Menu" };
     }
   }
 
-  // Café-screen QA fix: a real capture (Argo Tea's get_infov2 breakfast_menu, confirmed live) wraps
-  // a section LABEL in <strong>, not a dish -- `<p><strong>Sample Menu items:<\/strong><br
-  // \/>Black tea Hot or Iced<br \/>...</p>`. Every real item line in that same block is plain text;
-  // only the heading is bold. Stripping <strong>/<b> tags AND their content before splitting into
-  // lines (same "drop the body, not just the tag" treatment htmlToText already gives <script>/
-  // <style>, for the same "this whole span isn't real content" reason) removes the heading
-  // structurally instead of pattern-matching its specific wording, which would miss the same shape
-  // at any other café with a differently-worded label.
+  // Some captures wrap a section LABEL in <strong>, not a dish, with every real item line in that
+  // block plain text. Stripping <strong>/<b> tags AND their content before splitting into lines
+  // removes the heading structurally instead of pattern-matching its specific wording.
   const withoutHeadings = html.replace(/<(strong|b)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
 
   function extractItems(source: string) {
@@ -168,13 +141,9 @@ export function parseRetailMenuHtml(html: string | null | undefined): ParsedReta
   }
 
   const items = extractItems(withoutHeadings);
-  // Live-verified (2026-09) against every real get_infov2 location: <strong>/<b> only ever wraps a
-  // section LABEL (Argo Tea's "Sample Menu items:"), never real item lines. But that's an
-  // observation about today's data, not a guarantee -- if some other café ever bolds its ENTIRE item
-  // list instead of a label, the strip above would empty it down to nothing, and this whole café's
-  // menu would silently vanish from the app (falls through to the "info" state). If stripping headings
-  // produced nothing but the RAW html still had real item lines, prefer the unstripped result -- a
-  // menu with an un-filtered heading line in it is a much smaller problem than a menu that disappears.
+  // If a café ever bolds its entire item list instead of just a label, the strip above would empty
+  // it to nothing. Prefer the unstripped result in that case -- a menu with an un-filtered heading
+  // line is a much smaller problem than a menu that disappears.
   if (items.length === 0) {
     const unstripped = extractItems(html);
     if (unstripped.length > 0) return { kind: "items", items: unstripped };
@@ -190,7 +159,7 @@ interface PressApiItem {
   date: string;
 }
 
-/** GET /uapp/get_press — confirmed live, see docs/apk-reverse-engineering.md. */
+/** GET /uapp/get_press. */
 export async function fetchPressReleases(): Promise<PressRelease[]> {
   const res = await fetch(`${BASE}/get_press`);
   if (!res.ok) throw new Error(`get_press ${res.status}`);
@@ -207,8 +176,8 @@ interface EventsApiResponse {
     expiration_date: number; // unix seconds
     is_featured: string; // "0" | "1"
   }[];
-  // `beacons` also present in the response — intentionally ignored, see docs/apk-reverse-engineering.md
-  // (BLE check-ins are a non-goal for v1, but the events feed itself needs no beacon data).
+  // `beacons` also present in the response — intentionally ignored (BLE check-ins are a non-goal
+  // for v1).
 }
 
 export function mapEvent(e: EventsApiResponse["events"][number]): DiningEvent {
@@ -222,7 +191,7 @@ export function mapEvent(e: EventsApiResponse["events"][number]): DiningEvent {
   };
 }
 
-/** GET /uapp/get_beacons_events — confirmed live. Returns only the `events` array; beacons are dropped. */
+/** GET /uapp/get_beacons_events. Returns only the `events` array; beacons are dropped. */
 export async function fetchEvents(): Promise<DiningEvent[]> {
   const res = await fetch(`${BASE}/get_beacons_events`);
   if (!res.ok) throw new Error(`get_beacons_events ${res.status}`);
@@ -231,12 +200,10 @@ export async function fetchEvents(): Promise<DiningEvent[]> {
 }
 
 /**
- * GET /uapp/get_newsletter — confirmed live (2026-08-18). Response fields already match
- * NewsletterIssue directly, so shape passes through untouched — the only mapping is #150's
- * `link` scheme sanitization, same trust boundary as pdf_link/external_link/press url above, and
- * web renders `link` straight into `<a href=…>`. This is a list of links to externally-hosted
- * newsletter issues (mostly Mailchimp/campaign-archive) — `content` is usually empty, real
- * content lives at `link`. See CLAUDE.md/issue #33.
+ * GET /uapp/get_newsletter. Response fields already match NewsletterIssue directly, so shape
+ * passes through untouched -- the only mapping is `link` scheme sanitization, same trust boundary
+ * as pdf_link/external_link/press url above. This is a list of links to externally-hosted
+ * newsletter issues -- `content` is usually empty, real content lives at `link`.
  */
 export async function fetchNewsletter(): Promise<NewsletterIssue[]> {
   const res = await fetch(`${BASE}/get_newsletter`);

@@ -2,8 +2,8 @@ import { DINING_HALLS } from "./umassDining.ts";
 import type { LogEntry, RankedDish, RankedFood } from "./types.ts";
 
 /** Starting Elo rating for a dish/food's first comparison. Exported so other rating-derived code
- * (e.g. scores.ts's 0-10 display mapping, #89) can anchor to the same baseline instead of
- * duplicating the magic number. */
+ * (e.g. scores.ts's 0-10 display mapping) can anchor to the same baseline instead of duplicating
+ * the magic number. */
 export const DEFAULT_RATING = 1500;
 
 const MAX_K = 32;
@@ -11,11 +11,10 @@ const MIN_K = 8;
 const K_DECAY = 10;
 
 /**
- * Provisional K-factor: high (matching the old fixed 32) for a dish's first few comparisons, then
- * tapering toward a floor as comparisonCount grows so an established dish's rating stabilizes
- * instead of swinging as hard as a brand-new dish's. Exported so other Elo-update code (e.g. the
- * Favorite Food cross-hall track, see docs/adr/0001-two-elo-tracks-for-dish-ranking.md) can reuse
- * the same taper instead of duplicating it.
+ * Provisional K-factor: high for a dish's first few comparisons, then tapering toward a floor as
+ * comparisonCount grows so an established dish's rating stabilizes instead of swinging as hard as
+ * a brand-new dish's. Exported so other Elo-update code (the Favorite Food cross-hall track, see
+ * docs/adr/0001-two-elo-tracks-for-dish-ranking.md) can reuse the same taper.
  */
 export function kFactorFor(comparisonCount: number): number {
   return Math.max(MIN_K, MAX_K / (1 + Math.max(0, comparisonCount) / K_DECAY));
@@ -30,16 +29,13 @@ function findOrCreate(dishes: RankedDish[], dishName: string, hallTid: number): 
 }
 
 /**
- * Applies one pairwise comparison (winner preferred over loser) using an Elo update, the same
- * incremental rating math chess uses to turn win/loss outcomes into a total order without requiring
- * every item to be compared against every other. Beli-style ranking apps use the same idea. Returns a
- * new array — winner/loser are updated (or created, if this is either dish's first rating), everything
+ * Applies one pairwise comparison (winner preferred over loser) using an Elo update. Returns a new
+ * array — winner/loser are updated (or created, if this is either dish's first rating), everything
  * else is unchanged.
  *
  * Mirrors applyFoodComparison's guard: when winner and loser share the same (dishName, hallTid) key
  * there's nothing meaningful to compare, so the array is returned unchanged rather than duplicating
- * the dish's row. Unreachable via pickPair/pickPostLogComparisonPair today (they exclude identical
- * keys) — kept as a defensive invariant, not a currently-triggerable path (#187).
+ * the dish's row.
  */
 export function applyComparison(dishes: RankedDish[], winner: { dishName: string; hallTid: number }, loser: { dishName: string; hallTid: number }): RankedDish[] {
   if (winner.dishName === loser.dishName && winner.hallTid === loser.hallTid) return dishes;
@@ -76,11 +72,11 @@ function findOrCreateFood(foods: RankedFood[], dishName: string): RankedFood {
 }
 
 /**
- * The cross-hall "Favorite Food" Elo track — see docs/adr/0001-two-elo-tracks-for-dish-ranking.md and
- * RankedFood's doc comment. Same Elo math and kFactorFor taper as applyComparison, except when winner
- * and loser share a dishName (i.e. the underlying comparison was the same dish at two different halls):
- * there's nothing meaningful to compare when both sides of this track's key are identical, so it's
- * returned unchanged — the per-hall applyComparison call still updates RankedDish regardless.
+ * The cross-hall "Favorite Food" Elo track — see docs/adr/0001-two-elo-tracks-for-dish-ranking.md.
+ * Same Elo math and kFactorFor taper as applyComparison, except when winner and loser share a
+ * dishName (the underlying comparison was the same dish at two different halls): there's nothing
+ * meaningful to compare, so it's returned unchanged — the per-hall applyComparison call still
+ * updates RankedDish regardless.
  */
 export function applyFoodComparison(foods: RankedFood[], winner: { dishName: string }, loser: { dishName: string }): RankedFood[] {
   if (winner.dishName === loser.dishName) return foods;
@@ -130,11 +126,9 @@ export interface DiningHallRank {
  */
 export function rankDiningHalls(dishes: RankedDish[]): { ranked: DiningHallRank[]; unranked: { hallTid: number }[] } {
   // Only the 4 DINING_HALLS are ever ranked/unranked here -- a RankedDish's hallTid can be anything
-  // a screen fed it (e.g. a Grab 'N Go location's own tid, #115), but `ranked` is the one
-  // ranking-derived thing synced to the server as a "favorite dining hall" (see this function's own
-  // doc comment + CLAUDE.md's data-residency table), and every downstream consumer of that sync
-  // assumes the tid maps to one of the 4 halls. Filter here, once, rather than at every caller that
-  // builds a RankedDish[] from log/menu data.
+  // a screen fed it (e.g. a Grab 'N Go location's own tid), but `ranked` is synced to the server as
+  // a "favorite dining hall" and every downstream consumer assumes the tid maps to one of the 4
+  // halls. Filter here, once, rather than at every caller that builds a RankedDish[].
   const hallTids = new Set(DINING_HALLS.map((h) => h.tid));
   const byHall = new Map<number, number[]>();
   for (const dish of dishes) {
@@ -156,7 +150,7 @@ export function rankDiningHalls(dishes: RankedDish[]): { ranked: DiningHallRank[
   return { ranked, unranked };
 }
 
-// --- #67: rank-informed surfaces (post-log comparison prompt) ----------------------------------
+// --- rank-informed surfaces (post-log comparison prompt) ---------------------------------------
 
 /** A logged dish's identity — same (dishName, hallTid) pairing RankedDish uses, without the rating. */
 export interface LoggedDish {
@@ -169,10 +163,8 @@ function loggedDishKey(d: LoggedDish): string {
 }
 
 /**
- * Extracts the distinct umass-menu dishes a user has logged, in first-seen order — the same
- * de-duplication web/src/routes/rank/+page.svelte's `refresh()` already does inline (barcode/`off`
- * entries excluded, repeats of the same dish+hall collapsed to one), factored out here so
- * pickPostLogComparisonPair below doesn't re-derive it differently.
+ * Extracts the distinct umass-menu dishes a user has logged, in first-seen order (barcode/`off`
+ * entries excluded, repeats of the same dish+hall collapsed to one).
  */
 export function distinctLoggedDishes(entries: LogEntry[]): LoggedDish[] {
   const seen = new Set<string>();
@@ -190,16 +182,13 @@ export function distinctLoggedDishes(entries: LogEntry[]): LoggedDish[] {
 
 /**
  * Decides whether to offer a one-tap comparison prompt right after logging `justLogged`, and if so,
- * which other previously-logged dish to pair it against (#67's "when to offer, which pair" shared
- * logic). Reuses applyComparison's dish identity (dishName+hallTid) and RankedDish's
- * comparisonCount — the same signal /rank's own pair-picker (`pickLeastCompared` in
- * web/src/routes/rank/+page.svelte) prefers under-compared dishes with, instead of inventing a
- * parallel notion of "pairable."
+ * which other previously-logged dish to pair it against. Reuses applyComparison's dish identity
+ * (dishName+hallTid) and RankedDish's comparisonCount to prefer under-compared dishes, the same
+ * signal /rank's own pair-picker uses.
  *
- * Returns null when there's no valid opponent: `justLogged` is the only distinct dish logged so far.
- * Deterministic (always the least-compared opponent) rather than randomized like /rank's sampler —
- * a post-log prompt fires once per log, so there's no continuously-visible "same pair every time"
- * staleness to guard against the way /rank's picker has to.
+ * Returns null when there's no valid opponent: `justLogged` is the only distinct dish logged so
+ * far. Deterministic (always the least-compared opponent) rather than randomized like /rank's
+ * sampler — a post-log prompt fires once per log, so there's no staleness to guard against.
  */
 export function pickPostLogComparisonPair(
   entries: LogEntry[],

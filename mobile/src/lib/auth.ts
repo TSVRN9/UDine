@@ -8,7 +8,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 // Set for the duration of signInWithGoogle()'s browser round-trip. redirect.tsx reads this (via
 // isSignInInFlight) to decide whether the warm path is already handling the OAuth code, so it
-// doesn't double-exchange the single-use PKCE code on a cold start (#54).
+// doesn't double-exchange the single-use PKCE code on a cold start.
 let signInInFlight = false;
 
 export function isSignInInFlight(): boolean {
@@ -33,8 +33,8 @@ export function shouldExchangeCode(code: unknown, inFlight: boolean): code is st
  * deep-link callback for the PKCE `code` and exchange it for a session ourselves.
  *
  * Returns whether a session was actually established, so callers can tell "user cancelled the
- * Google chooser" apart from "signed in" (#278) -- true on a completed exchange, false on a
- * cancel/dismiss. Errors (a real failure, not a user choice) still throw, unchanged.
+ * Google chooser" apart from "signed in" -- true on a completed exchange, false on a cancel/dismiss.
+ * Errors (a real failure, not a user choice) still throw, unchanged.
  */
 export async function signInWithGoogle(): Promise<boolean> {
   signInInFlight = true;
@@ -65,9 +65,8 @@ export async function signInWithGoogle(): Promise<boolean> {
 
 /**
  * Exchanges an OAuth code cold-started straight into redirect.tsx (app process was killed mid
- * Custom-Tab, so no signInWithGoogle() call is in flight to consume the deep link itself — #54).
- * Caller must gate this on shouldExchangeCode to avoid re-exchanging a code the warm path already
- * consumed.
+ * Custom-Tab, so no signInWithGoogle() call is in flight to consume the deep link itself). Caller
+ * must gate this on shouldExchangeCode to avoid re-exchanging a code the warm path already consumed.
  */
 export async function exchangeCode(code: string): Promise<void> {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -79,18 +78,16 @@ export async function exchangeCode(code: string): Promise<void> {
 // for one string literal).
 const PLATFORM = "expo" as const;
 
-// Mirrors favoriteFoodAlerts.ts's STEP_TIMEOUT_MS (#45's convention: every awaited network/native
-// call gets its own timeout, so a stall becomes a labeled, catchable error instead of silently
-// never resolving). Not imported for the same reason PLATFORM isn't, above.
+// Mirrors favoriteFoodAlerts.ts's STEP_TIMEOUT_MS: every awaited network/native call gets its own
+// timeout, so a stall becomes a labeled, catchable error instead of silently never resolving. Not
+// imported for the same reason PLATFORM isn't, above.
 const SIGN_OUT_STEP_TIMEOUT_MS = 15000;
 
 /**
  * Best-effort delete of `userId`'s push_tokens row(s), scoped to `user_id` + `platform` -- the
- * same shape favoriteFoodAlerts.ts's toggle-off already uses (:124), reused here rather than
- * re-fetching the Expo token. Timeout-bounded and swallows any error/timeout: signOut proceeds
- * either way (#257 -- the user asked to leave), and without the timeout a hung request here would
- * mean auth.signOut() below is never reached at all -- see #45/favoriteFoodAlerts.ts's own
- * STEP_TIMEOUT_MS convention for why every awaited call on this path is wrapped.
+ * same shape favoriteFoodAlerts.ts's toggle-off already uses, reused here rather than re-fetching
+ * the Expo token. Timeout-bounded and swallows any error/timeout: signOut proceeds either way, and
+ * without the timeout a hung request here would mean auth.signOut() below is never reached at all.
  *
  * ponytail: unlike web's signOut() (+layout.svelte), this isn't scoped to *this device's* token --
  * it deletes every row for `userId` + "expo", i.e. every phone/tablet they've registered. That's
@@ -121,35 +118,19 @@ async function clearThisAccountsExpoTokens(userId: string): Promise<void> {
 }
 
 /**
- * #257: a shared device previously kept dispatching the signed-out user's favorited-food alerts to
- * whoever picked it up next, because push_tokens was only ever cleared by the alerts toggle-off or
- * deleteServerData -- never by signOut() itself. The delete has to happen BEFORE
- * supabase.auth.signOut(): once the session is gone, RLS no longer lets this device touch that row.
- * Both awaited steps are timeout-bounded (SIGN_OUT_STEP_TIMEOUT_MS) so a stalled network call can't
- * strand the user mid sign-out -- auth.signOut() below always runs, hang or not.
+ * Clears this account's push tokens before calling supabase.auth.signOut() -- once the session is
+ * gone, RLS no longer lets this device touch that row. Both awaited steps are timeout-bounded
+ * (SIGN_OUT_STEP_TIMEOUT_MS) so a stalled network call can't strand the user mid sign-out --
+ * auth.signOut() below always runs, hang or not.
  *
- * #264 review round 4: favoriteFoodAlerts.ts's self-heal (refresh() re-registering this device's
- * token whenever notifications_enabled is true and permission is already granted) can be mid-flight
- * -- a real Expo push-token network round trip -- when this runs. Two earlier fixes here (a
- * pre-upsert flag, then a post-upsert "compensating delete" keyed off a sign-out epoch counter)
- * both failed: the compensating delete ran *after* auth.signOut() below had already cleared the
- * session, so it 403'd (push_tokens has no anon grant, `20260818130000:39-40`) and the resurrected
- * row stayed -- reviewer-reproduced, not theoretical. Awaiting pendingSelfHeal() HERE, before this
- * function's own delete and before auth.signOut(), removes the race instead of detecting it after
- * the fact: either the self-heal finishes first (and the delete below removes whatever it wrote,
- * with the session still live) or it never started. Bounded by the same timeout as the rest of
- * this path, so a hung self-heal can't hang sign-out -- see the ceiling this leaves in
- * clearThisAccountsExpoTokens's own doc comment (a self-heal upsert whose request was already
- * in flight when the wait times out can still land afterward with its still-valid JWT; #263's
- * server-side unique-token constraint is the backstop for that sliver, not this code).
+ * Awaits pendingSelfHeal() first: favoriteFoodAlerts.ts's self-heal can be mid-flight
+ * re-registering this device's token when signOut runs, and a compensating delete after
+ * auth.signOut() would 403 once the session is gone, leaving a resurrected row. Waiting here
+ * removes the race instead of detecting it after the fact.
  *
  * Deliberately does NOT flip notifications_enabled to false -- that's the user's stored preference
- * for when they sign back in (on this device or another), not device-scoped state. Leaving it
- * alone means alerts resume automatically on their next sign-in: favoriteFoodAlerts.ts's refresh()
- * re-registers this device's token whenever notifications_enabled is true and the OS permission is
- * already granted, so the flag staying true is exactly what makes that self-heal happen with no
- * re-opt-in. See clearThisAccountsExpoTokens's own doc comment for the one case that combination
- * doesn't fully cover (a second device, until it next opens one of the two screens that self-heal).
+ * for when they sign back in, not device-scoped state. Leaving it alone means alerts resume
+ * automatically on next sign-in via favoriteFoodAlerts.ts's refresh() self-heal.
  */
 export async function signOut(): Promise<void> {
   const pending = pendingSelfHeal();
