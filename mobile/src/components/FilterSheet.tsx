@@ -3,23 +3,82 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { toggleAllergen, toggleDietTag, toggleMacroPreset } from "../lib/preferences";
 import { useDraggableSheet } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
-/** The 3 price buckets the Price section groups a feed price string into -- see priceBucketFor. */
 export type PriceBucket = "under-5" | "5-10" | "10-plus";
 
-// Order matches docs/design/FilterSheet.dc.html:78-99 (High Protein, High Fiber, Low Sodium, Under 500 Cal, Low Fat).
-export const ALL_MACRO_PRESETS: MacroPreset[] = ["high-protein", "high-fiber", "low-sodium", "under-500-cal", "low-fat"];
+export const ALL_MACRO_PRESETS: MacroPreset[] = ["high-protein", "high-fiber", "low-sodium", "under-300-cal", "low-fat"];
 
 export const MACRO_PRESET_LABELS: Record<MacroPreset, string> = {
   "high-protein": "High Protein",
   "low-sodium": "Low Sodium",
-  "under-500-cal": "Under 500 Cal",
+  "under-300-cal": "Under 300 Cal",
   "low-fat": "Low Fat",
   "high-fiber": "High Fiber",
 };
+
+// FilterSheet.dc.html:75-99: each Macros chip carries its own icon, distinct per preset, unlike
+// the plain text Stations/Price chips -- active is a maroon900 glyph on a maroon900@14% circle,
+// inactive is an ink900@60% glyph on an ink900@6% circle.
+const MACRO_CHIP_ACTIVE_CIRCLE_FILL = withOpacity(colors.maroon900, 14);
+const MACRO_CHIP_INACTIVE_CIRCLE_FILL = withOpacity(colors.ink900, 6);
+const MACRO_CHIP_INACTIVE_GLYPH_COLOR = withOpacity(colors.ink900, 60);
+
+function MacroChipGlyph({ preset, color }: { preset: MacroPreset; color: string }) {
+  switch (preset) {
+    case "high-protein":
+      return (
+        <>
+          <Rect x={4.5} y={9} width={2.4} height={4} rx={0.8} fill={color} />
+          <Rect x={13.1} y={9} width={2.4} height={4} rx={0.8} fill={color} />
+          <Rect x={6.5} y={9.5} width={7} height={3} rx={1} fill={color} />
+        </>
+      );
+    case "high-fiber":
+      return (
+        <>
+          <Path d="M10 4.5c-2.6 3-4 5.2-4 7a4 4 0 0 0 8 0c0-1.8-1.4-4-4-7z" fill="none" stroke={color} strokeWidth={1.3} />
+          <Path d="M10 8v6" stroke={color} strokeWidth={1.1} strokeLinecap="round" />
+        </>
+      );
+    case "low-sodium":
+      return <Path d="M10 4l4.5 2.6v5.2L10 14.5l-4.5-2.7V6.6z" fill="none" stroke={color} strokeWidth={1.2} />;
+    case "under-300-cal":
+      return <Path d="M10 4.5c-2.3 2.7-3.6 4.7-3.6 6.3a3.6 3.6 0 0 0 7.2 0c0-1.6-1.3-3.6-3.6-6.3z" fill="none" stroke={color} strokeWidth={1.2} />;
+    case "low-fat":
+      return (
+        <>
+          <Circle cx={10} cy={10.5} r={4} fill="none" stroke={color} strokeWidth={1.2} />
+          <Path d="M10 5v1.6" stroke={color} strokeWidth={1.2} strokeLinecap="round" />
+        </>
+      );
+    default:
+      preset satisfies never;
+      return null;
+  }
+}
+
+function MacroChipIcon({ preset, active }: { preset: MacroPreset; active: boolean }) {
+  const color = active ? colors.maroon900 : MACRO_CHIP_INACTIVE_GLYPH_COLOR;
+  return (
+    <Svg width={16} height={16} viewBox="0 0 20 20" accessible={false}>
+      <Circle cx={10} cy={10} r={10} fill={active ? MACRO_CHIP_ACTIVE_CIRCLE_FILL : MACRO_CHIP_INACTIVE_CIRCLE_FILL} />
+      <MacroChipGlyph preset={preset} color={color} />
+    </Svg>
+  );
+}
+
+// FilterSheet.dc.html:76: active Macros chips end in a drawn checkmark, not a "✓" character.
+function CheckGlyph() {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 14 14" accessible={false}>
+      <Path d="M3 7.5l2.6 2.6L11 4.5" stroke={colors.maroon900} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
 
 const PRICE_BUCKETS: PriceBucket[] = ["under-5", "5-10", "10-plus"];
 const PRICE_BUCKET_LABELS: Record<PriceBucket, string> = {
@@ -28,9 +87,7 @@ const PRICE_BUCKET_LABELS: Record<PriceBucket, string> = {
   "10-plus": "$10+",
 };
 
-/** Which of the 3 price buckets a feed price string ("$3.00") falls into -- null for anything that
- * doesn't parse (defensive; every known retail price is a well-formed "$"+number per MenuItem.price's
- * own doc comment, so this should never actually happen on real data). */
+/** Which price bucket a feed price string ("$3.00") falls into; null if it doesn't parse. */
 export function priceBucketFor(price: string): PriceBucket | null {
   const n = parseFloat(price.replace("$", ""));
   if (Number.isNaN(n)) return null;
@@ -39,17 +96,15 @@ export function priceBucketFor(price: string): PriceBucket | null {
   return "10-plus";
 }
 
-/** DISTINCT station (category) names actually present in `items`, trimmed -- the feed publishes
- * trailing whitespace on some categories (e.g. "Grab n'Go Hot ", confirmed in grabNGo.test.ts) -- and
- * sorted for a stable checklist order. Ephemeral: this is never persisted, just what's on THIS menu. */
+/** Distinct station names in `items`, trimmed (the feed publishes trailing whitespace on some
+ * category names, e.g. "Grab n'Go Hot ") and sorted for a stable checklist order. */
 export function distinctStations(items: MenuItem[]): string[] {
   return [...new Set(items.map((i) => i.category.trim()))].sort();
 }
 
-/** True if `item` passes the ephemeral station/price filters (an empty filter set means "no
- * restriction selected", same convention for both) -- exported so the screen that owns this ephemeral
- * state can filter its own item list BEFORE it reaches hallMenuSections.ts, which stays
- * allergens/diet-tags only per CLAUDE.md (macros/station/price never filter there). */
+/** True if `item` passes the station/price filters (an empty filter set means no restriction).
+ * Callers apply this themselves before hallMenuSections.ts, which only filters allergens/diet
+ * tags -- station/price never do. */
 export function itemMatchesStationAndPriceFilter(item: MenuItem, stationFilter: ReadonlySet<string>, priceFilter: ReadonlySet<PriceBucket>): boolean {
   if (stationFilter.size > 0 && !stationFilter.has(item.category.trim())) return false;
   if (priceFilter.size > 0) {
@@ -61,39 +116,27 @@ export function itemMatchesStationAndPriceFilter(item: MenuItem, stationFilter: 
 
 interface Props {
   visible: boolean;
-  /** The screen's full, UNFILTERED item list -- Avoid Allergens/Require Diet Tags/Stations Here/
-   * Price options (and the "does Price even apply" check) are all derived from this, not from an
-   * already station/price-filtered list, or picking one filter would make the others' own options
-   * disappear out from under the user. */
+  /** The screen's full, unfiltered item list -- every section's options are derived from this,
+   * not an already station/price-filtered list, so picking one filter doesn't hide the others' options. */
   items: MenuItem[];
   prefs: FoodPreferences;
   onChangePreferences: (next: FoodPreferences) => void;
-  /** Ephemeral, parent-owned, never persisted -- resets whenever the parent screen/sheet resets it
-   * (see Clear All below and the screen's own reopen handling). */
+  /** Ephemeral, parent-owned, never persisted. */
   stationFilter: ReadonlySet<string>;
   onChangeStationFilter: (next: Set<string>) => void;
   priceFilter: ReadonlySet<PriceBucket>;
   onChangePriceFilter: (next: Set<PriceBucket>) => void;
-  /** True while the caller's own station/price filtering has no visible effect on what's currently
-   * shown (e.g. halls/[slug].tsx's Grab 'N Go tab, whose sections are never station/price-filtered --
-   * see that screen's own comment on why) -- hides Stations Here/Price entirely rather than showing
-   * controls that would silently do nothing until the user switches to a different tab. #362 review
-   * (non-blocking finding 3). */
+  /** True when the caller's station/price filtering has no effect on what's shown (e.g. the
+   * Grab 'N Go tab) -- hides Stations Here/Price entirely instead of showing controls that do nothing. */
   stationsPriceDisabled?: boolean;
-  /** Count of items the screen's current filters hide, for the "N items hidden" counter in the
-   * title row (docs/design/FilterSheet.dc.html:37-40) -- computed by the parent screen, passed
-   * straight through. */
+  /** Count of items the screen's current filters hide, for the "N items hidden" counter. */
   hiddenCount: number;
   onClose: () => void;
 }
 
-/**
- * Dietary filter + macro/station/price refinement sheet (menu-filters-macros canvas). Same house
- * sheet shell as PlateSheet/HallInfoSheet/CafeSheet (transparent RN Modal, dimmed scrim, drag handle
- * via useDraggableSheet) -- deliberately not a new pattern. Presentational/controlled only: the
- * parent screen owns FoodPreferences (persisted) and the station/price selection (ephemeral, local
- * state, never saved) and passes both down.
- */
+/** Dietary filter + macro/station/price refinement sheet. Same house sheet shell as
+ * PlateSheet/HallInfoSheet/CafeSheet. Presentational/controlled only: the parent screen owns
+ * FoodPreferences and the ephemeral station/price selection and passes both down. */
 export function FilterSheet({
   visible,
   items,
@@ -108,9 +151,7 @@ export function FilterSheet({
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets();
-  // panelTravel must match styles.sheet's maxHeight (fs(640)) -- the default 400 undershoots this
-  // sheet's real rendered height, leaving the sheet visibly un-closed/un-opened at rest (bug found
-  // in on-device QA on PR #362).
+  // panelTravel must match styles.sheet's maxHeight, or the sheet visibly settles un-closed/un-opened at rest.
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
 
   const allergens = [...new Set(items.flatMap((i) => i.allergens))].sort();
@@ -141,9 +182,8 @@ export function FilterSheet({
 
   return (
     <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose}>
-      {/* RNGH's own documented caveat: a root-level GestureHandlerRootView (mobile/src/app/_layout.tsx)
-      doesn't reliably propagate into a Modal's separate native host/window, so each sheet nests its
-      own here -- same as every other house sheet. */}
+      {/* A root-level GestureHandlerRootView doesn't propagate into a Modal's own native window,
+      so each sheet nests its own -- same as every other house sheet. */}
       <GestureHandlerRootView style={styles.backdrop}>
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
           <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
@@ -228,7 +268,6 @@ export function FilterSheet({
             </View>
 
             <View style={styles.section}>
-              {/* No caption here -- the ✓-vs-"×" chip styling already distinguishes highlight from exclude (CLAUDE.md: no explanatory captions in UI). */}
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Macros</Text>
               </View>
@@ -238,16 +277,15 @@ export function FilterSheet({
                   return (
                     <Pressable
                       key={preset}
-                      style={[styles.toggleChip, active && styles.toggleChipActive]}
+                      style={[styles.toggleChip, styles.macroChip, active && styles.toggleChipActive]}
                       onPress={() => onChangePreferences(toggleMacroPreset(prefs, preset))}
                       accessibilityRole="button"
                       accessibilityLabel={`Macro ${MACRO_PRESET_LABELS[preset]}`}
                       accessibilityState={{ selected: active }}
                     >
-                      <Text style={[styles.toggleChipText, active && styles.toggleChipTextActive]}>
-                        {active ? "✓ " : ""}
-                        {MACRO_PRESET_LABELS[preset]}
-                      </Text>
+                      <MacroChipIcon preset={preset} active={active} />
+                      <Text style={[styles.toggleChipText, active && styles.toggleChipTextActive]}>{MACRO_PRESET_LABELS[preset]}</Text>
+                      {active && <CheckGlyph />}
                     </Pressable>
                   );
                 })}
@@ -337,8 +375,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing(2.5),
     paddingHorizontal: spacing(5),
     maxHeight: fs(640),
-    // docs/design/FilterSheet.dc.html:31 -- box-shadow: 0 -8px 24px rgba(36,26,20,0.25). Same
-    // shadowColor/Offset/Opacity/Radius + Android elevation pattern as HoldSlideOverlay.tsx's panel.
     shadowColor: colors.ink900,
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.25,
@@ -360,32 +396,23 @@ const styles = StyleSheet.create({
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing(2) },
 
-  // Exclusion chips (allergens/diet tags): an "×"-to-remove pill, ink-tinted outline when inactive
-  // -- these hide dishes. docs/design/FilterSheet.dc.html:50-56: inactive is a muted ink border with
-  // regular-weight maroon900 text; bold is reserved for the active (filled) state.
+  // Exclusion chips (allergens/diet tags): an "×"-to-remove pill, ink-tinted outline when inactive.
   excludeChip: { paddingVertical: spacing(2), paddingHorizontal: spacing(3.5), borderRadius: radii.pill, borderWidth: 1, borderColor: withOpacity(colors.ink900, 25) },
   excludeChipActive: { backgroundColor: colors.maroon600, borderColor: "transparent" },
   excludeChipText: { color: colors.maroon900, fontFamily: fonts.body400, fontSize: fs(13) },
   excludeChipTextActive: { color: colors.paper50, fontFamily: fonts.body600 },
-  // Diet-tag chips are exclusion-shaped ("×" pill) like excludeChip above, but gold when active --
-  // approved design distinguishes them from Avoid Allergens' maroon fill (maroon900 text for contrast
-  // against gold500, same pairing toggleChipTextActive already uses against a gold-tinted background).
+  // Diet-tag chips are exclusion-shaped like excludeChip above, but gold when active.
   dietChipActive: { backgroundColor: colors.gold500, borderColor: "transparent" },
   dietChipTextActive: { color: colors.maroon900, fontFamily: fonts.body600 },
 
-  // Toggle chips (macros/stations/price): a checkmark-style toggle, full pill (docs/design/
-  // FilterSheet.dc.html:66,88,110,123) -- these never hide anything on their own (macros badge only;
-  // stations/price filter the visible list but don't imply exclusion the way an allergen chip does),
-  // visually distinct from the excludeChip pair above. Active fill is solid gold500 (lines 65,78,
-  // 83,109,124), not a pale wash.
+  // Toggle chips (macros/stations/price) never hide anything on their own, unlike the exclude pair above.
   toggleChip: { paddingVertical: spacing(2), paddingHorizontal: spacing(3.5), borderRadius: radii.pill, borderWidth: 1, borderColor: withOpacity(colors.ink900, 25) },
   toggleChipActive: { backgroundColor: colors.gold500, borderColor: colors.gold500 },
   toggleChipText: { color: colors.maroon900, fontFamily: fonts.body600, fontSize: fs(13) },
   toggleChipTextActive: { color: colors.maroon900 },
+  macroChip: { flexDirection: "row", alignItems: "center", gap: spacing(1.5), paddingLeft: spacing(2) },
 
   footer: { flexDirection: "row", gap: spacing(3), paddingTop: spacing(3), borderTopWidth: 1, borderColor: withOpacity(colors.ink900, 12) },
-  // docs/design/FilterSheet.dc.html:132-133 -- "Clear All" is ink-toned (no maroon), "Done" is
-  // maroon900 (#3b0a0f), not maroon600.
   footerGhost: { flex: 1, height: fs(46), borderRadius: radii.md, borderWidth: 1, borderColor: withOpacity(colors.ink900, 20), alignItems: "center", justifyContent: "center" },
   footerGhostText: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, color: withOpacity(colors.ink900, 65) },
   footerPrimary: { flex: 1, height: fs(46), borderRadius: radii.md, backgroundColor: colors.maroon900, alignItems: "center", justifyContent: "center" },

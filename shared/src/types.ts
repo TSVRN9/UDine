@@ -132,26 +132,25 @@ export function menuItemMatchesPreferences(item: MenuItem, prefs: FoodPreference
 
 /** Informational macro badges (menu-filters-macros) -- unlike allergens/dietTags above, these never
  * exclude anything from a menu; they only flag which of the caller's *enabled* presets an item
- * qualifies for, for rendering a small badge next to the dish. Thresholds are FDA-grounded and fixed
- * (not user-configurable): "high" nutrient claims sit at >=20% DV-ish absolute cuts, "low"/"under" at
- * conservative absolute caps. Order returned follows `prefs.macroPresets`'s own order, not a fixed
- * canonical one -- purely informational, so there's no "correct" order to enforce. */
-export type MacroPreset = "high-protein" | "low-sodium" | "under-500-cal" | "low-fat" | "high-fiber";
+ * qualifies for, for rendering a small badge next to the dish. Order returned follows
+ * `prefs.macroPresets`'s own order, not a fixed canonical one -- purely informational, so there's
+ * no "correct" order to enforce. */
+export type MacroPreset = "high-protein" | "low-sodium" | "under-300-cal" | "low-fat" | "high-fiber";
 
+// Thresholds checked against a live pull of all 4 halls' full-day menus (356 distinct dishes,
+// 2026-09-11): "high-protein" at the FDA >=20%-DV cut (10g) already split the menu usefully
+// (18.8% pass). The others didn't -- "under-500-cal"/"low-sodium" at their old values matched
+// 99.4%/78.9% of dishes (real entrees rarely list a single component over 500 cal), and
+// "high-fiber" at the FDA >=20%-DV cut (5.6g) matched only 1.7%. Recalibrated against that same
+// data instead of by eye: under-300-cal / low-sodium(140mg, FDA's actual "low sodium" cut, not
+// the old 400) / high-fiber(2g) land at 93%/45.5%/19.7% -- each one now splits the real menu.
+// low-fat's FDA cut (3g) was already fine (42.4%) and is unchanged.
 const MACRO_PRESET_CHECKS: Record<MacroPreset, (n: NutritionFacts) => boolean> = {
-  // FDA "high"/"excellent source" claim = >=20% of the 50g protein DV, i.e. 10g -- was 20g (40%
-  // DV), which contradicted this file's own stated rationale and under-badged real high-protein
-  // dishes.
   "high-protein": (n) => n.proteinG >= 10,
-  "low-sodium": (n) => n.sodiumMg <= 400,
-  "under-500-cal": (n) => n.calories <= 500,
-  // Absolute per-serving cap (standard "low fat" labeling convention), not a calorie ratio -- a
-  // ratio both under- and over-badges: it fails a near-zero-fat, near-zero-calorie condiment
-  // (their ratio is high even though the fat content isn't) and passes a high-fat, high-calorie
-  // dish at the same ratio. This matches the "conservative absolute caps" the doc comment above
-  // already promises for "low"/"under" presets.
+  "low-sodium": (n) => n.sodiumMg <= 140,
+  "under-300-cal": (n) => n.calories <= 300,
   "low-fat": (n) => n.totalFatG <= 3,
-  "high-fiber": (n) => n.dietaryFiberG >= 5,
+  "high-fiber": (n) => n.dietaryFiberG >= 2,
 };
 
 export function menuItemMacroBadges(item: MenuItem, prefs: FoodPreferences): MacroPreset[] {

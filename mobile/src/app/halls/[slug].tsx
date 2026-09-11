@@ -218,7 +218,7 @@ function MacroBadgeGlyph({ preset }: { preset: MacroPreset }) {
           <Circle cx={10.3} cy={8.3} r={0.45} fill={MACRO_BADGE_CIRCLE_FILL} />
         </>
       );
-    case "under-500-cal":
+    case "under-300-cal":
       return (
         <>
           <Path
@@ -256,17 +256,8 @@ function MacroBadgeGlyph({ preset }: { preset: MacroPreset }) {
 }
 
 function MacroBadgeIcon({ preset }: { preset: MacroPreset }) {
-  // top: 4 -- this renders as an inline attachment inside a Text (see rowText below), which RN
-  // vertically anchors to a font-baseline-derived reference regardless of margin/padding/position
-  // set on the attachment's own outer box (measured on-device: those are silently no-ops here).
-  // What DOES work is offsetting this Svg itself, since it's a normal child within the attachment,
-  // not the attachment. 4dp was reverse-engineered from an on-device pixel measurement (badge
-  // center sat 9 screen px / ~3dp above the text's true visual center at 3x density) -- if the
-  // font, weight, or badge size ever changes, re-measure rather than trust this number blind.
-  // Measured on Android only (no iOS device in this environment) -- this value is font-metrics-
-  // derived, and iOS's text engine may anchor the attachment differently; spot-check on iOS too.
   return (
-    <Svg width={15} height={15} viewBox="0 0 20 20" style={{ position: "relative", top: 4 }} accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
+    <Svg width={15} height={15} viewBox="0 0 20 20" accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
       <Circle cx={10} cy={10} r={10} fill={MACRO_BADGE_CIRCLE_FILL} />
       <MacroBadgeGlyph preset={preset} />
     </Svg>
@@ -1056,12 +1047,8 @@ export function HallMenuScreenBody({
         <View style={styles.rowMainLine} pointerEvents="box-none">
           <FavoriteStar isFavorite={isFavorite} dishName={item.dishName} onPress={() => toggleDishFavorite(item.dishName)} />
           <View style={styles.rowMain} pointerEvents="none">
-            {/* Badges as inline Text children (not a flex row sibling) so they trail the LAST
-                wrapped line of a long name instead of dropping to their own line whenever the
-                name alone fills a line -- flexWrap wraps whole flex items, it doesn't know a
-                Text item still has trailing space on its own last line. */}
-            <Text style={styles.rowText}>
-              {item.dishName}
+            <View style={styles.rowNameLine}>
+              <Text style={styles.rowText}>{item.dishName}</Text>
               {macroBadges.length > 0 && (
                 <View style={styles.macroBadgeRow}>
                   {macroBadges.map((preset) => (
@@ -1069,7 +1056,7 @@ export function HallMenuScreenBody({
                   ))}
                 </View>
               )}
-            </Text>
+            </View>
             {/* #378 (CafeMenuMixed.dc.html:43): price folds into the same uniform-color meta
                 string as cal/protein, no separate maroon-highlighted price Text -- was two
                 differently-styled Texts (rowPrice/rowCalories) that no longer matches spec. */}
@@ -1860,12 +1847,10 @@ const styles = StyleSheet.create({
   rowInPlate: { borderColor: colors.gold500 },
   rowMainLine: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   rowMain: { flex: 1, gap: 1 },
-  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
+  rowNameLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing(2) },
+  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900, flexShrink: 1 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
-  // paddingLeft (not gap, and not a literal "  " between the name and this View) -- gap doesn't
-  // apply across an inline Text attachment boundary, so this stands in for MenuWithBadges.dc.html's
-  // 6px name-to-badge gap the same spec-anchored way every other spacing value in this file does.
-  macroBadgeRow: { flexDirection: "row", gap: spacing(1), paddingLeft: spacing(1.5) },
+  macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
   filterFab: {
     position: "absolute",
     right: 20,
