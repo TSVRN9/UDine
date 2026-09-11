@@ -7,6 +7,7 @@ import {
   GRAB_N_GO_TIDS,
   menuItemMacroBadges,
   menuItemMatchesPreferences,
+  normalizeStationName,
   parseRetailMenuHtml,
   type DiningEvent,
   type DiningHoursFeed,
@@ -1592,7 +1593,7 @@ export function HallMenuScreenBody({
           dishName={labelItem.dishName}
           // The feed's category already carries the meal period ("Breakfast Entrees") — don't
           // prefix mealPeriod again.
-          subtitle={`${hall.name} · ${labelItem.category}`}
+          subtitle={`${hall.name} · ${normalizeStationName(labelItem.category)}`}
           nutrition={labelItem.nutrition}
           allergens={labelItem.allergens}
           dietTags={labelItem.dietTags}

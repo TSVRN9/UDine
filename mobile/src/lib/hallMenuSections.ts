@@ -1,4 +1,4 @@
-import { menuItemMatchesPreferences, type FoodPreferences, type MealPeriod, type MenuItem } from "@udine/shared";
+import { menuItemMatchesPreferences, normalizeStationName, sortStationNames, type FoodPreferences, type MealPeriod, type MenuItem } from "@udine/shared";
 import { plateKeyFor } from "./plate";
 
 /** One station's worth of rows in the hall-menu SectionList -- same shape the [slug].tsx screen's
@@ -10,37 +10,29 @@ export interface MenuSection {
 }
 
 /** One real meal period's sections: `items` filtered to that period and the user's food
- * preferences, grouped by station (category) in first-seen order. Pulled verbatim out of
- * [slug].tsx's old single-tab `sections` memo (its non-Grab branch) so every mounted pane -- not
- * just the active one -- can compute its own tab's content for the swipe crossfade. */
+ * preferences, grouped by normalized station name and ordered by sortStationNames (a fixed
+ * food-journey order, not the feed's own item order) -- pulled verbatim out of [slug].tsx's old
+ * single-tab `sections` memo (its non-Grab branch) so every mounted pane -- not just the active
+ * one -- can compute its own tab's content for the swipe crossfade. */
 export function sectionsForPeriod(items: MenuItem[], period: MealPeriod, prefs: FoodPreferences): MenuSection[] {
   const filtered = items.filter((i) => i.mealPeriod === period && menuItemMatchesPreferences(i, prefs));
-  // .trim() the same way grabSections (below) and FilterSheet's distinctStations/
-  // itemMatchesStationAndPriceFilter already do -- the untrimmed scrape can hand back two entries
-  // for the same station differing only in trailing whitespace, which used to render as duplicate
-  // section headers. Only the grouping key is trimmed -- items themselves are returned as-is.
-  const categoriesInOrder: string[] = [];
-  for (const i of filtered) {
-    const category = i.category.trim();
-    if (!categoriesInOrder.includes(category)) categoriesInOrder.push(category);
-  }
-  return categoriesInOrder.map((category) => ({
+  const categories = sortStationNames([...new Set(filtered.map((i) => normalizeStationName(i.category)))]);
+  return categories.map((category) => ({
     title: category,
-    data: filtered.filter((i) => i.category.trim() === category),
+    data: filtered.filter((i) => normalizeStationName(i.category) === category),
   }));
 }
 
-/** Grab 'N Go's own sections: same filter-by-preferences step, but grouped/deduped by dish
- * identity within a trimmed category instead of by raw mealPeriod -- Grab's items come back tagged
- * with ordinary breakfast/lunch/etc. mealPeriod values with no filtering by any of them, and the
- * same dish can appear twice under two different mealPeriod values sharing one trimmed category
- * (ported from the retired grab-n-go/[slug].tsx). Pulled verbatim out of [slug].tsx's old `sections`
- * memo (its Grab branch). */
+/** Grab 'N Go's own sections: same filter-by-preferences and normalized/ordered station grouping
+ * as sectionsForPeriod, but deduped by dish identity within a station instead of by raw
+ * mealPeriod -- Grab's items come back tagged with ordinary breakfast/lunch/etc. mealPeriod values
+ * with no filtering by any of them, and the same dish can appear twice under two different
+ * mealPeriod values sharing one station (ported from the retired grab-n-go/[slug].tsx). */
 export function grabSections(grabItems: MenuItem[], prefs: FoodPreferences): MenuSection[] {
   const filtered = grabItems.filter((i) => menuItemMatchesPreferences(i, prefs));
   const byCategory = new Map<string, Map<string, MenuItem>>();
   for (const item of filtered) {
-    const title = item.category.trim();
+    const title = normalizeStationName(item.category);
     let bucket = byCategory.get(title);
     if (!bucket) {
       bucket = new Map();
@@ -49,5 +41,5 @@ export function grabSections(grabItems: MenuItem[], prefs: FoodPreferences): Men
     const key = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
     if (!bucket.has(key)) bucket.set(key, item);
   }
-  return Array.from(byCategory, ([title, bucket]) => ({ title, data: Array.from(bucket.values()) }));
+  return sortStationNames([...byCategory.keys()]).map((title) => ({ title, data: Array.from(byCategory.get(title)!.values()) }));
 }

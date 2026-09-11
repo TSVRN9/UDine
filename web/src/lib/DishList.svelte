@@ -3,6 +3,8 @@
 		favoriteKey,
 		mealPeriodLabel,
 		menuItemMatchesPreferences,
+		normalizeStationName,
+		sortStationNames,
 		type FoodPreferences,
 		type MealPeriod,
 		type MenuItem,
@@ -38,10 +40,10 @@
 		return items.filter((i) => i.mealPeriod === period && menuItemMatchesPreferences(i, prefs));
 	}
 
-	// Preserves the order categories arrive in from the feed — that's the order the dining hall
-	// itself lists them, which is more useful than alphabetical.
+	// Same normalized-name, fixed food-journey order as mobile's hallMenuSections.ts, not the
+	// feed's own (inconsistent, whitespace-noisy) item order.
 	function categoriesIn(periodItems: MenuItem[]): string[] {
-		return [...new Set(periodItems.map((i) => i.category))];
+		return sortStationNames([...new Set(periodItems.map((i) => normalizeStationName(i.category)))]);
 	}
 </script>
 
@@ -63,7 +65,7 @@
 					{category}
 				</h3>
 				<ul class="mt-2 flex flex-col gap-2">
-					{#each periodItems.filter((i) => i.category === category) as item (item.dishName + item.category)}
+					{#each periodItems.filter((i) => normalizeStationName(i.category) === category) as item (item.dishName + item.category)}
 						{@const isFavorite = favoriteDishKeys.has(favoriteKey({ type: 'dish', dishName: item.dishName }))}
 						<li class="card flex flex-wrap items-start gap-x-3 gap-y-3 px-4 py-3">
 							<!-- Glyph-only by contract: the favorites e2e spec reads this button's text to

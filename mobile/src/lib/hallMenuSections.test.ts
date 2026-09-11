@@ -54,13 +54,14 @@ const OATMEAL: MenuItem = {
 };
 
 describe("sectionsForPeriod", () => {
-  it("filters to the given meal period, grouped by station in first-seen order", () => {
+  it("filters to the given meal period, grouped by station", () => {
     expect(sectionsForPeriod([PIZZA, OATMEAL, SALAD], "lunch", NO_PREFS)).toEqual([{ title: "Entrees", data: [PIZZA, SALAD] }]);
   });
 
-  it("returns one section per distinct category, in the order first encountered", () => {
+  it("returns one section per distinct category, in sortStationNames' fixed order, not first-seen", () => {
     const soup = { ...PIZZA, dishName: "Soup", category: "Soups" };
-    expect(sectionsForPeriod([soup, PIZZA], "lunch", NO_PREFS).map((s) => s.title)).toEqual(["Soups", "Entrees"]);
+    // Soup is first in the input array, but Entrees sorts before Soups in the station order.
+    expect(sectionsForPeriod([soup, PIZZA], "lunch", NO_PREFS).map((s) => s.title)).toEqual(["Entrees", "Soups"]);
   });
 
   it("excludes items from other meal periods", () => {
@@ -111,5 +112,10 @@ describe("grabSections", () => {
 
   it("returns no sections for an empty item list", () => {
     expect(grabSections([], NO_PREFS)).toEqual([]);
+  });
+
+  it("orders its sections with sortStationNames, not first-seen order", () => {
+    const soup = { ...PIZZA, dishName: "Soup", category: "Soups" };
+    expect(grabSections([soup, PIZZA], NO_PREFS).map((s) => s.title)).toEqual(["Entrees", "Soups"]);
   });
 });
