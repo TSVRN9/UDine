@@ -17,15 +17,8 @@ import { colors, fonts, fs, radii, spacing } from "../lib/theme";
 SplashScreen.preventAutoHideAsync();
 registerNotificationHandler();
 
-/**
- * #271: there was no ErrorBoundary anywhere in the app -- no route exported one, so
- * expo-router (`getQualifiedRouteComponent`, which loads this root layout the same way it loads
- * every route) never wrapped anything in a `Try`, and an uncaught render error anywhere in the
- * app was an unrecoverable RN fatal in release. Exporting `ErrorBoundary` here gives the whole
- * app one catch-all: any screen's render error lands here instead of taking the process down.
- * This is the belt for every future shape bug, not just #271's -- it doesn't replace fixing the
- * specific crash the error came from.
- */
+// expo-router loads this root layout for every route, so exporting ErrorBoundary here catches
+// render errors app-wide instead of an unrecoverable RN fatal in release.
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   if (__DEV__) console.error(error);
   return (
@@ -52,8 +45,7 @@ const errorStyles = StyleSheet.create({
 });
 
 export default function RootLayout() {
-  // Every screen's styles name these families unconditionally, so hold the splash screen until
-  // they're registered — rendering first paints Android's fallback font, then reflows.
+  // Hold the splash screen until fonts register, or Android briefly paints its fallback font.
   const [fontsLoaded, fontError] = useFonts({
     Oswald_500Medium,
     Oswald_600SemiBold,
@@ -74,9 +66,8 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    // react-native-gesture-handler's one-time root-level requirement (its own setup docs): every
-    // GestureDetector in the tree (PaneStack, MealTabPager) needs an ancestor GestureHandlerRootView
-    // to receive touches at all -- without it, gestures silently fail to recognize on Android.
+    // react-native-gesture-handler requires a GestureHandlerRootView ancestor or gestures
+    // silently fail to recognize on Android.
     <GestureHandlerRootView style={styles.root}>
       <Stack
         screenOptions={{
@@ -84,41 +75,15 @@ export default function RootLayout() {
           headerTintColor: colors.paper50,
           headerTitleStyle: { fontFamily: fonts.display700 },
           contentStyle: { backgroundColor: colors.cream100 },
-          // iOS: the native back button's label defaults to the PREVIOUS screen's title, falling
-          // back to that screen's raw route `name` when no title is set (expo-router's vendored
-          // native-stack, getHeaderTitle in
-          // node_modules/expo-router/build/react-navigation/native-stack/views/
-          // NativeStackView.native.js). Every push into a native-header screen below
-          // (favorites/press/newsletter/event-detail) happens from `index` -- the 3-pane shell,
-          // headerShown: false, no title set -- so the back button read the literal string "index"
-          // every time (reported as "the back button sometimes says 'index'"; not actually flaky,
-          // just only visible on those specific pushes since every other screen draws its own
-          // chrome with no native back button at all). `index` also has no single truthful label
-          // (back can return to any of its 3 panes), so rather than guess one, force every
-          // native-header back button to render chevron-only -- immune to whatever the previous
-          // screen's title happens to resolve to, including any future headerShown:false route.
-          // See src/lib/routeHeaderShown.test.ts's "native-header back buttons..." describe block,
-          // a SEPARATE guard from the headerShown one described just below.
+          // iOS native back button falls back to the previous screen's raw route name when no
+          // title is set (expo-router's vendored NativeStackView). Pushes from `index`
+          // (headerShown:false, no title) would render "index" -- force chevron-only instead.
           headerBackButtonDisplayMode: "minimal",
-          // #281: default header-less. Every route draws its own chrome (back button, title,
-          // insets.top padding) unless it's one of the explicit opt-ins below -- this was the
-          // third time a route was added without a Stack.Screen entry and silently got a native
-          // header on top of its own (#151, #219, #281). A route that's merely absent from this
-          // list, or present without an explicit `headerShown`, now inherits `false` -- safe by
-          // construction, so a fourth route can't repeat the class. See
-          // src/lib/routeHeaderShown.test.ts's "every route resolves headerShown correctly"
-          // describe block, which enumerates every route file and guards this invariant.
-          //
-          // What THAT (headerShown) guard does NOT check (accepted ceiling, #283 review):
-          // headerShown resolving to false only proves no *native* header renders -- it can't
-          // prove the screen drew its OWN back affordance. That's a per-screen review
-          // responsibility, not a static-analysis one. Known exemptions (no back needed by design,
-          // not an oversight): `index` (tab-shell root).
-          //
-          // MVP cut (temporary, see archive/full-features): rank, friends, friend/[id], add-friends,
-          // add-friend-qr, qr-confirm, notifications, privacy, login, redirect are shelved along with
-          // ranking/friends/account. `export` still needs no entry -- it draws its own chrome and
-          // inherits headerShown: false, same as before.
+          // Default header-less: every route draws its own chrome unless it opts in below, so a
+          // new route can't silently pick up a native header on top of its own.
+          // MVP cut (temporary, see archive/full-features): rank, friends, friend/[id],
+          // add-friends, add-friend-qr, qr-confirm, notifications, privacy, login, redirect are
+          // shelved along with ranking/friends/account.
           headerShown: false,
         }}
       >

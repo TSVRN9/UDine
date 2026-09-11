@@ -13,8 +13,7 @@ import { SqliteLogStorage } from "../lib/sqliteStorage";
 
 const logStorage = new SqliteLogStorage();
 
-/** "YYYY-MM-DD" -> a local-midnight Date, avoiding the `new Date("YYYY-MM-DD")` UTC-parse trap
- * (see logsFormat.ts's addDaysIso comment on the same gotcha). */
+/** "YYYY-MM-DD" -> a local-midnight Date, avoiding the `new Date("YYYY-MM-DD")` UTC-parse trap. */
 function localDateFromIso(dateIso: string): Date {
   const [y, m, d] = dateIso.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -25,8 +24,8 @@ function localDateFromIso(dateIso: string): Date {
  * maroon; past/today outlines in ink-at-20%-alpha with solid maroon900 digits; future mutes both the
  * border (ink-at-10%) and the digits (ink-at-35%). */
 function WeekChip({ chip, onPress }: { chip: WeekDayChip; onPress: () => void }) {
-  // PR #140 review (issue #142): a bare ISO date ("2026-08-18") reads as digits to a screen
-  // reader. Humanized the same way the header subtitle below already does.
+  // A bare ISO date ("2026-08-18") reads as digits to a screen reader; humanized the same way the
+  // header subtitle below already does.
   const accessibleDate = localDateFromIso(chip.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   return (
     <Pressable style={styles.chipColumn} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibleDate}>
@@ -105,20 +104,18 @@ function EditEntryCard({
 }
 
 /**
- * #119: Logs & stats screen, pushed from the You pane's ALL LOGS link (#118). Everything here is
- * computed from the device-local log -- no Supabase calls, no new tables (CLAUDE.md's data
- * residency table is law). Reuses #118's groupEntriesByMeal/logItemLine (youPaneFormat.ts),
- * retailHallNames.ts's hallOrRetailName (#243 -- hallNameFor plus a café/retail fallback), and
- * shared's isoDateOf for local-day bucketing, rather than re-deriving any of them.
+ * Logs & stats screen, pushed from the You pane's ALL LOGS link. Everything here is computed
+ * from the device-local log -- no Supabase calls, no new tables (data residency). Reuses
+ * groupEntriesByMeal/logItemLine (youPaneFormat.ts), hallOrRetailName (retailHallNames.ts), and
+ * shared's isoDateOf for local-day bucketing.
  */
 export default function LogsScreen() {
   const [allEntries, setAllEntries] = useState<LogEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const [editingId, setEditingId] = useState<string | null>(null);
-  // #165: a rejected step/remove write used to propagate out of the un-awaited onPress as an
-  // unhandled promise rejection. Caught in withStepGuard below and surfaced here instead, next to
-  // the entry being edited -- extends the existing editSubtitle text rather than adding new
-  // banner infra, since only one row is ever in the edit state at a time.
+  // A rejected step/remove write used to propagate as an unhandled rejection out of the
+  // un-awaited onPress. Caught in withStepGuard below and surfaced here, next to the entry being
+  // edited.
   const [stepError, setStepError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
@@ -132,12 +129,10 @@ export default function LogsScreen() {
   }, []);
   useFocusEffect(load);
 
-  // Guards stepEntry/removeEntry against a rapid re-tap firing before the in-flight storage
-  // round-trip resolves: both handlers read `entry.servings` from the render-closure snapshot, so
-  // two overlapping calls would both compute from the same stale count and one increment would be
-  // silently lost. A single ref is enough (only one row is ever in the edit state at a time) --
-  // the second tap is dropped rather than mis-applied; the button responds normally again once
-  // the in-flight write's refresh() lands.
+  // Guards stepEntry/removeEntry against a rapid re-tap firing before the in-flight write
+  // resolves: both handlers read `entry.servings` from the render-closure snapshot, so two
+  // overlapping calls would compute from the same stale count and drop an increment. The second
+  // tap is dropped rather than mis-applied.
   const stepping = useRef(false);
 
   async function withStepGuard(fn: () => Promise<void>) {
@@ -147,7 +142,6 @@ export default function LogsScreen() {
       await fn();
       setStepError(null);
     } catch (e) {
-      // #165: surface instead of letting it vanish as an unhandled rejection out of onPress.
       setStepError(`Couldn't save: ${String(e)}`);
     } finally {
       stepping.current = false;
@@ -163,11 +157,8 @@ export default function LogsScreen() {
       const nextServings = entry.servings + delta;
       if (nextServings <= 0) {
         await logStorage.removeEntry(entry.id);
-        // #167 (PR #166 review nit): setEditingId(null) used to run before this refresh() -- if the
-        // delete write succeeded but getAllEntries() then rejected, the edit card unmounted while
-        // allEntries still held the (now actually deleted) entry, so the row kept rendering as if
-        // untouched. Ordered after a successful refresh so a rejection here leaves the edit card
-        // (and withStepGuard's error text) in place instead of an untruthfully "normal" row.
+        // Ordered after a successful refresh so a rejection here leaves the edit card (and
+        // withStepGuard's error text) in place instead of showing a stale row as if untouched.
         await refresh();
         setEditingId(null);
       } else {
@@ -180,7 +171,7 @@ export default function LogsScreen() {
   async function removeEntry(entry: LogEntry) {
     await withStepGuard(async () => {
       await logStorage.removeEntry(entry.id);
-      // #167: same reordering as stepEntry's delete branch above -- see that comment.
+      // Same reordering as stepEntry's delete branch above.
       await refresh();
       setEditingId(null);
     });
@@ -189,7 +180,7 @@ export default function LogsScreen() {
   const today = todayIso();
   const selectedEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === selectedDate);
   const mealGroups = groupEntriesByMeal(selectedEntries);
-  // Same round-per-entry-then-sum convention as every other displayed total in this app (#118) --
+  // Same round-per-entry-then-sum convention as every other displayed total in this app --
   // agrees exactly with the meal groups' own subtotals, not just approximately.
   const dayTotalCalories = mealGroups.reduce((sum, g) => sum + g.totalCalories, 0);
   const weekStrip = buildWeekStrip(allEntries, selectedDate, today);
@@ -342,7 +333,7 @@ const styles = StyleSheet.create({
 
   dayTotal: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: withOpacity(colors.ink900, 70) },
 
-  // Day log card -- meal-grouped exactly like #118's You-pane card, tap a row to edit.
+  // Day log card -- meal-grouped like the You-pane card, tap a row to edit.
   logCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2) },
   mealGroup: { gap: spacing(1.25) },
   mealHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
@@ -385,13 +376,9 @@ const styles = StyleSheet.create({
   },
   removeIcon: { fontSize: fs(14), color: colors.maroon600 },
 
-  // Last 7 Days chart -- plain flex divs, no chart library. `chartBars.height` and the per-bar
-  // `height` (computed inline below, from this same 72) are deliberately raw px, NOT fs()-scaled
-  // (PR #140 review, issue #142): theme.ts's own fs() doc comment scopes it to "fonts and
-  // lineHeights only", and chart geometry is neither -- a bar's height is a proportion of a fixed
-  // 72px plot area, not text that needs to stay legible at small widths. (chartBarWrap/chartBar's
-  // *width* uses fs(32) already, predating this PR and out of scope for #142 -- not touched here,
-  // though it's arguably the same category of "not text" and could be revisited together later.)
+  // Last 7 Days chart -- plain flex divs, no chart library. Bar heights are raw px, not
+  // fs()-scaled: fs() scopes to fonts/lineHeights, and a bar's height is a proportion of a fixed
+  // 72px plot area, not text.
   chartCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2) },
   chartBars: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 72 },
   chartBarWrap: { width: fs(32), alignItems: "center" },

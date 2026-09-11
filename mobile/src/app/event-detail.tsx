@@ -5,18 +5,13 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { eventDateLine, type EventDetailParams } from "../lib/eventTapTarget";
 
 /**
- * In-app "pamphlet" detail screen (#120 v2.1 canvas): pushed when an event card's tap target
- * classifies as in-feed content (classifyEventTap, eventTapTarget.ts) rather than an external
- * link. Banner on top, title (+ ★ if featured, matching the card's own marker), date line, then
- * the event's own pdf_link poster graphic as the body -- the real get_beacons_events feed has no
- * separate body/description text (see docs/apk-reverse-engineering.md), so the poster IS the
- * pamphlet's content. Styled with the existing v2 vocabulary: cream ground, paper card, Oswald
- * title, a short gold rule (same token pattern as index.tsx's heroGoldBar).
+ * Pushed when an event card's tap target classifies as in-feed content (classifyEventTap,
+ * eventTapTarget.ts) rather than an external link. The real get_beacons_events feed has no
+ * separate body/description text, so the event's pdf_link poster graphic is the body.
  */
 export default function EventDetailScreen() {
-  // Typed against the same EventDetailParams the sender (openEventTap.ts) builds -- a renamed or
-  // dropped key on either side is now a compile error here, not a field that quietly reads as
-  // `undefined` (PR #129 review finding 2).
+  // Typed against the same EventDetailParams the sender (openEventTap.ts) builds, so a renamed or
+  // dropped key is a compile error here instead of a silently undefined field.
   const { title, featuredImage, pamphletImage, expirationDate, isFeatured } = useLocalSearchParams<EventDetailParams>();
   const subtitle = eventDateLine(expirationDate ?? "");
 

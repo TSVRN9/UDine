@@ -22,14 +22,8 @@ import { YouPane } from "../panes/YouPane";
 
 const favoritesStorage = new SqliteFavoritesStorage();
 
-/** #375: `RetailLocationHours.address` is raw HTML (possibly multi-line, e.g. a full street
- * address) -- the row only has room for one short subtitle line, so take the first real line,
- * same trick CafeSheet already uses for its address block.
- *
- * #421/#431: a food-truck-type location's address can be a degenerate HTML blob (babyBerk's raw
- * `<p><br/>,  </p>`) that htmlToText still reduces to a non-blank line -- a lone ",". Require at
- * least one alphanumeric character (isRealAddressLine, shared with CafeSheet), not just
- * non-blank, so an orphaned separator gets skipped instead of rendered as the subtitle. */
+// address is raw HTML (possibly multi-line); take the first line with real content
+// (isRealAddressLine) so a degenerate blob (e.g. a lone ",") doesn't render as the subtitle.
 function retailSubtitle(address: string | undefined): string | null {
   return htmlToText(address).split("\n").find(isRealAddressLine)?.trim() ?? null;
 }
@@ -42,13 +36,10 @@ const RETAIL_SKELETON_ROWS = [
   { title: 148, subtitle: 90 },
 ];
 
-// #181: hero is null both while the very first fetch is genuinely pending (real skeleton) AND on
-// the dead-end case -- fetch failed with no cache to fall back to (`error` is set instead). Those
-// two null cases must render differently: `pending` distinguishes them. Without it (#181 review
-// finding 3, blocking), the skeleton fell back to unconditionally whenever hero was null, so a
-// fetch-failed-with-no-cache render showed the shimmer FOREVER underneath the error text -- the
-// opposite of "honest": the skeleton would be promising data that will never arrive. The date line
-// is known instantly either way (today's date needs no network), so it always renders regardless.
+// hero is null both while the first fetch is pending (show skeleton) and on a dead-end fetch
+// failure with no cache (`error` is set instead) -- `pending` distinguishes the two so the
+// skeleton doesn't shimmer forever under the error text. The date line needs no network, so it
+// always renders regardless.
 function HeroBlock({
   hero,
   now,
@@ -89,26 +80,15 @@ function HeroBlock({
   );
 }
 
-// The strip's visual box (padding + one 11px line) lands well under 44dp, especially once
-// theme.fs()/spacing() shrink it further on narrow screens -- touch targets deliberately don't
-// scale (theme.ts), so this hitSlop is fixed, not run through fs()/spacing(), and sized generously
-// enough to clear 44dp effective height even at the smallest supported width. It's rendered as its
-// own Pressable *after* the hall zone in the card's column, so its top hitSlop reaching back up
-// into the hall zone's area wins hit-testing there (RN resolves overlaps in child order) without
-// the two zones' Pressables needing to nest.
-//
-// `bottom` is capped below the smallest `hallList` gap (`spacing(2.5)`) across supported screen
-// widths (~8dp at 320dp) -- unlike `top`, it must NOT reach past this card's own bottom edge, or it
-// bleeds through the inter-card gap into the NEXT hall card's zone below it (bug: a fixed 12dp
-// bottom exceeded that gap on any screen narrower than ~390dp). Still a deliberate raw-px value,
-// same as `top` -- just now correctly bounded instead of run through fs()/spacing().
+// Fixed px, not run through fs()/spacing() -- touch targets don't scale. `top` can safely extend
+// into the hall zone above since RN resolves overlapping Pressables by child order and this strip
+// is later in the column. `bottom` must stay under the smallest hallList gap (spacing(2.5), ~8dp
+// at 320dp) or it bleeds into the next card's zone below.
 const GRAB_STRIP_HIT_SLOP = { top: 16, bottom: 4, left: 8, right: 8 };
 
-/** Split hall card per the #116 canvas delta: one rounded unit, two tap zones -- the hall area
- * (opens the hall menu) and a translucent Grab 'N Go strip along the bottom of the same card
- * (opens that hall's Grab 'N Go menu, #115). Giant clipped monogram + status pill live in the hall
- * zone; the strip is a darker wash over the same gradient with a hairline top divider. Closed halls
- * get the shared washed-out gradient + dimmed name (hall zone) and a further-dimmed strip. */
+// Hall card: one rounded unit, two tap zones -- hall area opens the hall menu, translucent
+// Grab 'N Go strip along the bottom opens that hall's Grab 'N Go menu. Closed halls get a dimmed
+// gradient/name and a further-dimmed strip.
 function HallCard({
   hall,
   chip,
@@ -118,8 +98,8 @@ function HallCard({
   hall: { slug: string; name: string; tid: number };
   chip: { open: boolean; text: string };
   grab: { open: boolean; text: string };
-  /** #181: hall NAME/monogram below are always known (DINING_HALLS is static); only the
-   * open/closed chip needs hoursFeed, so only it shimmers while `pending`. */
+  /** Hall name/monogram are always known (DINING_HALLS is static); only the open/closed chip
+   * needs hoursFeed, so only it shimmers while `pending`. */
   pending: boolean;
 }) {
   const gradient = chip.open ? (hallGradients[hall.slug] ?? hallGradients.worcester) : hallGradientClosed;
@@ -128,15 +108,11 @@ function HallCard({
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.6 }} style={StyleSheet.absoluteFill} />
 
       <View style={styles.hallZone}>
-        {/* #229: the pressable WRAPS the monogram/chip/name instead of sitting beside them as a
-            childless absolute-fill sibling. Android's ReactTextView ignores `pointerEvents="none"`
-            (not a ReactPointerEventsView -- see RN's TouchTargetHelper.kt), so the later-drawn
-            Texts won hit-testing and the touch bubbled to their parent, never to a sibling
-            Pressable: 6/6 device taps on the name did nothing while the one Text-free sliver
-            navigated. As an ancestor, the pressable gets the bubble whichever child Android picks.
-            The star stays a later *sibling* (wins its own patch) so the two targets never nest.
-            `.pressd` dim (#179) is PressDim's own overlay; `style` is one object, not an array,
-            because <Slot> (asChild) can't take an array style on its direct child. */}
+        {/* Pressable wraps monogram/chip/name instead of sitting beside them: Android's
+            ReactTextView ignores pointerEvents="none" (RN's TouchTargetHelper.kt), so touches on
+            the Text children bubble to their nearest Pressable ancestor, not a sibling. `style`
+            stays one object, not an array, because <Slot> (asChild) can't take an array style on
+            its direct child. */}
         <Link href={`/halls/${hall.slug}`} asChild>
           <PressDim style={styles.hallZoneTap} accessibilityRole="button">
             <Text style={[styles.hallMonogram, !chip.open && styles.hallMonogramClosed]}>{hall.name.charAt(0)}</Text>
@@ -154,11 +130,9 @@ function HallCard({
         </Link>
       </View>
 
-      {/* expo-router's <Slot> (what asChild renders) clones its direct child and can't handle an
-          array `style` prop there -- it needs one flattened object, unlike a plain RN Pressable
-          (confirmed on-device: "[expo-router]: You are passing an array of styles to a child of
-          <Slot>"). Only the pressable itself is that direct child; its own children are unaffected.
-          PressDim forwards `style` straight to its own inner Pressable, so it's a drop-in here. */}
+      {/* <Slot> (what asChild renders) clones its direct child and can't handle an array `style`
+          prop there -- needs one flattened object, unlike a plain Pressable. PressDim forwards
+          `style` straight to its own inner Pressable, so it's a drop-in here. */}
       <Link href={grabRouteFor(hall.slug) as never} asChild>
         <PressDim hitSlop={GRAB_STRIP_HIT_SLOP} style={StyleSheet.flatten([styles.grabStrip, !grab.open && styles.grabStripClosed])} accessibilityRole="button">
           <View style={styles.grabStripLeft}>
@@ -177,27 +151,22 @@ function HallCard({
   );
 }
 
-// Exported so it's independently testable (#104 review round) without pulling in EventsPane's/
-// YouPane's own network- and storage-backed siblings, which the pager mounts eagerly alongside it.
+// Exported so it's testable independently of EventsPane/YouPane, which the pager mounts eagerly
+// alongside it.
 export function HomePane() {
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // #181: offline is NOT an error state (owner decision) -- `offline` + `cachedAt` drive the small
-  // wifi-off line, not `error`. `error` is now reserved for the genuine dead-end: fetch failed AND
-  // no cache exists to fall back to, so there's nothing else to show.
+  // offline is not an error state -- offline + cachedAt drive the wifi-off line; error is
+  // reserved for a fetch failure with no cache to fall back to.
   const [offline, setOffline] = useState(false);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => new Date());
   const insets = useSafeAreaInsets();
 
-  // #243 bug B: `current` guards against a stale response winning a race -- leaving this screen
-  // and refocusing it (e.g. switching panes/tabs and back) while the first focus's fetch is still
-  // in flight fires a second, overlapping load(). Without this, a slow first fetch that later
-  // rejects (or whose own getCachedHours() fallback resolves slowly) can land AFTER the second,
-  // newer focus's fetch already succeeded -- overwriting the fresh feed with a stale cached copy
-  // and showing a false offline banner. Same "current" pattern halls/[slug].tsx's item-fetch
-  // effect already uses for the analogous date-stepper race.
+  // `current` guards against a stale response winning a race: refocusing this screen while an
+  // earlier fetch is still in flight can otherwise let it resolve after a newer one and overwrite
+  // a fresh feed with a stale cached copy.
   const load = useCallback(() => {
     let current = true;
     setNow(new Date());
@@ -213,10 +182,8 @@ export function HomePane() {
       })
       .catch((e) => {
         if (!current) return;
-        // "offline" here really means "the last fetch failed" -- a rejected fetch as the
-        // reachability signal, not a true OS-level connectivity check (no netinfo dependency in
-        // this codebase). Good enough proxy: a real network error and a genuine server outage both
-        // land here, and both get the same "render from what we've got" treatment.
+        // "offline" means "last fetch failed" -- a proxy for connectivity (no netinfo dependency
+        // here); a real network error and a server outage both get the same treatment.
         getCachedHours()
           .then((cached) => {
             if (!current) return;
@@ -238,16 +205,11 @@ export function HomePane() {
     };
   }, []);
 
-  // One useFocusEffect registration, not two: `load` returns a cleanup ("current" guard), and this
-  // repo's useFocusEffect test shims (e.g. homePaneStaleFocusRace.test.tsx) capture "the" latest
-  // registered callback by hook-call order -- a second, separate useFocusEffect call would shadow
-  // `load`'s in those shims, not run alongside it.
+  // Single registration: `load`'s own cleanup provides the "current" guard, so there's no need
+  // for a second separate useFocusEffect call.
   useFocusEffect(load);
 
-  // Home currently has no UI calling this -- the hall-card star that used to be its only trigger
-  // was removed to match the artboard. Kept (with favoriteHallKeys/favoritesStorage below) because
-  // dish ranking, per its own design, derives favorite halls into this same storage -- a future
-  // replacement entry point wires back into this, not a rebuild.
+  // No UI calls this yet; kept because dish ranking derives favorite halls into this same storage.
   async function toggleHall(hallTid: number) {
     const favorite: Favorite = { type: "location", hallTid };
     const key = favoriteKey(favorite);
@@ -262,17 +224,15 @@ export function HomePane() {
   }
 
   const hero = hoursFeed ? deriveHomeHero(hoursFeed.halls, now) : null;
-  // #181: honest skeleton -- the 4 hall names + monograms below render unconditionally from
-  // DINING_HALLS regardless of `pending` (known without the network); only each hall's OPEN/CLOSED
-  // chip (needs hoursFeed) shimmers while pending.
+  // Hall names/monograms render unconditionally from DINING_HALLS (known without network); only
+  // each hall's open/closed chip needs hoursFeed, so only it shimmers while pending.
   const pending = !hoursFeed && !error;
 
   return (
     <>
       <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
-      {/* error only reaches here on the genuine dead end -- fetch failed AND no cache exists.
-          Anything with a cache falls back to `offline` (see HeroBlock) instead, per #181's owner
-          decision that offline is not an error state. */}
+      {/* error only reaches here on a genuine dead end -- anything with a cache falls back to
+          `offline` (see HeroBlock) instead. */}
       {error && <Text style={styles.error}>Couldn&apos;t load dining hours: {error}</Text>}
       <HeroBlock hero={hero} now={now} offline={offline} cachedAt={cachedAt} pending={pending} />
 
@@ -288,12 +248,8 @@ export function HomePane() {
       <View style={styles.section}>
         <SectionHeader title="Cafés & Markets" />
         <View style={styles.retailList}>
-          {/* #177: café/market rows were display-only -- now tappable (chevron per the canvas).
-              Café-screen unification: EVERY row navigates to /cafe/[name] now, regardless of
-              locationId -- that screen is always the same unified menu screen (integrated/standing/
-              info-only, see halls/[slug].tsx's HallMenuScreenBody), so there's no reason left for a
-              locationId-less café to open a sheet inline here instead; see this PR's own body for
-              the retired cafeSheetHandoff.ts mechanism this replaces. */}
+          {/* Every row navigates to /cafe/[name] -- that's always the same unified menu screen
+              (integrated/standing/info-only, see HallMenuScreenBody in halls/[slug].tsx). */}
           {pending
             ? RETAIL_SKELETON_ROWS.map((row, i) => (
                 <View key={i} style={styles.retailRow}>
@@ -329,20 +285,15 @@ export function HomePane() {
   );
 }
 
-/**
- * The 3-pane shell (Events ← Home → You). #179 replaced the horizontal-ScrollView pager with the
- * artboard's shared-axis transition (see PaneStack) — panes are stacked, not a translating strip,
- * so there's no scroll offset/contentSize race to land on Home any more (the #f5f0d5b bug this
- * used to guard against). Landing on Home is now just PaneStack's own Animated.Values starting AT
- * HOME_PANE_INDEX (see its doc comment).
- */
+// The 3-pane shell (Events <- Home -> You). Panes are stacked via PaneStack's shared-axis
+// transition, not a translating strip, so landing on Home is just PaneStack's Animated.Values
+// starting at HOME_PANE_INDEX.
 export default function PaneShellScreen() {
   const [activeIndex, setActiveIndex] = useState(HOME_PANE_INDEX);
   const insets = useSafeAreaInsets();
 
-  // MVP cut (temporary, see archive/full-features): the first-launch push to /login (#96/#278) is
-  // shelved along with login.tsx/redirect.tsx and the rest of account -- nothing in the kept
-  // surface needs a session, so there's no first-run gate left to run.
+  // MVP cut (temporary, see archive/full-features): first-launch push to /login is shelved along
+  // with login.tsx/redirect.tsx and the rest of account -- nothing here needs a session.
 
   return (
     <PaneStack
@@ -382,8 +333,8 @@ const styles = StyleSheet.create({
   heroGoldBar: { marginTop: spacing(1.5), height: 3, width: 72, backgroundColor: colors.gold500 },
 
   hallList: { gap: spacing(2.5) },
-  // No fixed height on the outer card any more -- it's now hallZone (fixed) + grabStrip (intrinsic)
-  // stacked in a column, per #116's split-card canvas delta.
+  // hallZone (fixed height) + grabStrip (intrinsic height) stacked in a column -- no fixed height
+  // on the outer card.
   hallCard: { borderRadius: radii.md, overflow: "hidden" },
   hallZone: { position: "relative", height: fs(76) },
   hallZoneTap: { flex: 1, justifyContent: "flex-end" },
@@ -446,10 +397,8 @@ const styles = StyleSheet.create({
   section: { marginTop: spacing(5), gap: spacing(2.5) },
 
   retailList: { gap: spacing(2.5) },
-  // Was a Card (bg/border/radius) wrapping non-interactive content; #177 makes the row itself the
-  // Pressable, so those visual tokens moved here directly (Card isn't a Pressable, see its own
-  // note — nesting Pressable inside a plain View works fine, but Link's asChild needs the row
-  // itself to be the pressable element for touch/navigation to reach it).
+  // Row itself is the Pressable (Card isn't a Pressable); Link's asChild needs the row itself to
+  // be the pressable element for touch/navigation to reach it.
   retailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
