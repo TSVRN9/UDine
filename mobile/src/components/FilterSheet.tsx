@@ -1,4 +1,4 @@
-import { type FoodPreferences, type MacroPreset, type MenuItem } from "@udine/shared";
+import { normalizeStationName, sortStationNames, type FoodPreferences, type MacroPreset, type MenuItem } from "@udine/shared";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
@@ -96,17 +96,19 @@ export function priceBucketFor(price: string): PriceBucket | null {
   return "10-plus";
 }
 
-/** Distinct station names in `items`, trimmed (the feed publishes trailing whitespace on some
- * category names, e.g. "Grab n'Go Hot ") and sorted for a stable checklist order. */
+/** Distinct station names in `items`, normalized (the feed publishes inconsistent whitespace on
+ * some category names, e.g. "Grab n'Go Hot ") and ordered by sortStationNames -- the same fixed
+ * food-journey order the menu's own section list uses, not a plain alphabetical sort, so this
+ * checklist reads in the same order the stations actually appear on the menu. */
 export function distinctStations(items: MenuItem[]): string[] {
-  return [...new Set(items.map((i) => i.category.trim()))].sort();
+  return sortStationNames([...new Set(items.map((i) => normalizeStationName(i.category)))]);
 }
 
 /** True if `item` passes the station/price filters (an empty filter set means no restriction).
  * Callers apply this themselves before hallMenuSections.ts, which only filters allergens/diet
  * tags -- station/price never do. */
 export function itemMatchesStationAndPriceFilter(item: MenuItem, stationFilter: ReadonlySet<string>, priceFilter: ReadonlySet<PriceBucket>): boolean {
-  if (stationFilter.size > 0 && !stationFilter.has(item.category.trim())) return false;
+  if (stationFilter.size > 0 && !stationFilter.has(normalizeStationName(item.category))) return false;
   if (priceFilter.size > 0) {
     const bucket = item.price ? priceBucketFor(item.price) : null;
     if (bucket === null || !priceFilter.has(bucket)) return false;

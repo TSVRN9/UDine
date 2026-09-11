@@ -46,9 +46,15 @@ describe("priceBucketFor", () => {
 });
 
 describe("distinctStations", () => {
-  it("dedupes and trims category whitespace (real feed data trails a space, e.g. 'Grab n'Go Hot ')", () => {
+  it("dedupes and normalizes category whitespace (real feed data trails a space, e.g. 'Grab n'Go Hot ')", () => {
     const items = [item({ category: "Grab n'Go Hot " }), item({ category: "Grab n'Go Hot" }), item({ category: "Entrees" })];
     expect(distinctStations(items)).toEqual(["Entrees", "Grab n'Go Hot"]);
+  });
+
+  it("orders by sortStationNames' food-journey order, not alphabetically", () => {
+    // Alphabetically "Desserts" < "Entrees"; the menu's own station order puts entrees first.
+    const items = [item({ category: "Desserts" }), item({ category: "Entrees" })];
+    expect(distinctStations(items)).toEqual(["Entrees", "Desserts"]);
   });
 });
 
