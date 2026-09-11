@@ -8,8 +8,18 @@ The task itself travels inline in the dispatch prompt (see `orchestration.md`), 
 |---|---|---|---|---|
 | **XS — direct** | Copy, comments, docs, assets, config values, one-line typo-class fixes. No logic change. | `quick-fixer` only | Orchestrator eyeballs `gh pr diff`, runs the one touched lane, merges | ~1 agent |
 | **S — fast-track** | Bug fixes and small behavior changes confined to ≤3 files in one package; a11y labels; UI polish items with a clear spec (the spec is an artboard under `docs/design/` — name it in the dispatch); test-only tickets. | `quick-fixer` → `spot-checker` | spot-checker MERGE (one red reproduced, touched lane green) | ~2 light agents |
-| **M — standard** | New screens/features, anything crossing packages (`shared` + a client), sync/privacy logic, edge functions, anything touching `supabase/` (migrations, RLS, grants, hooks). | `issue-solver` → `pr-reviewer` | pr-reviewer MERGE: every touched lane, every new behavior mutation-tested, invariants listed | ~2 heavy agents |
-| **L — root-cause** | Intermittent, cross-layer, or previously mis-fixed bugs; native/build-toolchain problems. Entered only after an `issue-solver` attempt has failed — see the gate in `orchestration.md`. | `heavy-debugger` → `pr-reviewer` | As M, plus before/after repro tallies | heaviest |
+| **M — standard** | New screens/features, anything crossing packages (`shared` + a client), sync/privacy logic, edge functions, anything touching `supabase/` (migrations, RLS, grants, hooks). | `issue-solver` → [`visual-verifier`] → `pr-reviewer` | pr-reviewer MERGE: every touched lane, every new behavior mutation-tested, invariants listed | ~2 heavy agents |
+| **L — root-cause** | Intermittent, cross-layer, or previously mis-fixed bugs; native/build-toolchain problems. Entered only after an `issue-solver` attempt has failed — see the gate in `orchestration.md`. | `heavy-debugger` → [`visual-verifier`] → `pr-reviewer` | As M, plus before/after repro tallies | heaviest |
+
+`[visual-verifier]` — only when the diff changed rendered output (same test as the UI check
+below). It's project-scoped (`.claude/agents/visual-verifier.md`, not `~/.claude/agents/`):
+drives the emulator, captures every state/gesture the dispatch names, runs
+`measure-alignment.py` on anything with an explicit alignment/spacing claim, and reports numbers
+and file paths — no verdict, no code judgment. `pr-reviewer` reads its report instead of
+re-driving the emulator itself, and treats a `visual-verifier` finding it can't reconcile with
+the diff the same as any other blocking finding. On S, `spot-checker` still takes its own single
+screenshot directly (a whole extra agent hop isn't worth it at that size); XS doesn't touch
+rendered output by definition.
 
 ## Hard rules that don't relax on any track
 
@@ -36,7 +46,34 @@ The task itself travels inline in the dispatch prompt (see `orchestration.md`), 
      restates well-named code goes.
   The verdict lists each line separately (logic, values, icons/states, motion, captions/comments).
   Couldn't render → say so and ESCALATE; never MERGE on "read the code and it looks right".
-  Incident history behind this rule: `docs/decisions-log.md` → "UI verification (2026-09-10)".
+  **An unverified or inconclusive claim about the diff's own rendered behavior is itself a
+  blocking finding — never a footnote next to an unrelated verdict, and never something a later
+  verdict on a different line item quietly absorbs.** "I attempted to confirm X, the capture
+  landed on a skeleton/wrong screen, I couldn't confirm either way" is not weaker evidence than a
+  clean pass or a clean fail — it means the diff's actual behavior on that specific claim is
+  unknown, and unknown-and-shipped is exactly how e753e24's bug (badge drops to a wasted line
+  instead of trailing wrapped text — see `docs/decisions-log.md` → "Inconclusive visual
+  verification (2026-09-11)") got through a gate that had already noticed the risk. If a claim
+  can't be confirmed within the dispatch's time budget, the verdict is REWORK/ESCALATE on THAT
+  claim, full stop — re-attempt with better tooling before giving up on it:
+  - A capture landing on a loading/skeleton state or the wrong screen → use
+    `screenshot.sh --wait-for TEXT` (polls for real content instead of guessing a sleep) instead
+    of retrying the same fixed-sleep call and hoping.
+  - "Looks centered" / "looks aligned" / "looks close enough" → measure it,
+    `mobile/scripts/measure-alignment.py`, not eyeball it. Both the implementer and the first
+    reviewer pass judged e753e24's badge "well centered" from a screenshot; it was 9px off, caught
+    only once someone actually measured pixels.
+  - A layout claim (wrapping, overflow, max-content states) that depends on real data containing
+    a case that may or may not be on the menu today → `screenshot.sh --stress long-names` renders
+    a `__DEV__`-gated fixture built for exactly this, instead of hand-editing a temp string into
+    the render path (done 3 times in one session before this existed; a forgotten revert ships
+    fake data to users) or shrugging because today's menu happens not to have a long enough name.
+  For anything heavier than a single screenshot/measurement — multiple states, a gesture
+  recording, a stress-fixture pass — M/L tracks dispatch `visual-verifier` (below) instead of
+  having `pr-reviewer` drive the emulator itself; its report is numbers and file paths, not a
+  verdict, and `pr-reviewer` reads it the same way it reads a CI lane's output.
+  Incident history behind this rule: `docs/decisions-log.md` → "UI verification (2026-09-10)",
+  "Inconclusive visual verification (2026-09-11)".
 
 ## Cost levers (what changed vs. the old single loop)
 
