@@ -222,8 +222,15 @@ function MacroBadgeGlyph({ preset }: { preset: MacroPreset }) {
 }
 
 function MacroBadgeIcon({ preset }: { preset: MacroPreset }) {
+  // top: 4 -- this renders as an inline attachment inside a Text (see rowText below), which RN
+  // vertically anchors to a font-baseline-derived reference regardless of margin/padding/position
+  // set on the attachment's own outer box (measured on-device: those are silently no-ops here).
+  // What DOES work is offsetting this Svg itself, since it's a normal child within the attachment,
+  // not the attachment. 4dp was reverse-engineered from an on-device pixel measurement (badge
+  // center sat 9 screen px / ~3dp above the text's true visual center at 3x density) -- if the
+  // font, weight, or badge size ever changes, re-measure rather than trust this number blind.
   return (
-    <Svg width={15} height={15} viewBox="0 0 20 20" accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
+    <Svg width={15} height={15} viewBox="0 0 20 20" style={{ position: "relative", top: 4 }} accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
       <Circle cx={10} cy={10} r={10} fill={MACRO_BADGE_CIRCLE_FILL} />
       <MacroBadgeGlyph preset={preset} />
     </Svg>
@@ -996,16 +1003,23 @@ export function HallMenuScreenBody({ hall, initialMeal }: { hall: HallMenuSubjec
         <View style={styles.rowMainLine} pointerEvents="box-none">
           <FavoriteStar isFavorite={isFavorite} dishName={item.dishName} onPress={() => toggleDishFavorite(item.dishName)} />
           <View style={styles.rowMain} pointerEvents="none">
-            <View style={styles.rowNameLine}>
-              <Text style={styles.rowText}>{item.dishName}</Text>
+            {/* Badges as inline Text children (not a flex row sibling) so they trail the LAST
+                wrapped line of a long name instead of dropping to their own line whenever the
+                name alone fills a line -- flexWrap wraps whole flex items, it doesn't know a
+                Text item still has trailing space on its own last line. */}
+            <Text style={styles.rowText}>
+              {item.dishName}
               {macroBadges.length > 0 && (
-                <View style={styles.macroBadgeRow}>
-                  {macroBadges.map((preset) => (
-                    <MacroBadgeIcon key={preset} preset={preset} />
-                  ))}
-                </View>
+                <>
+                  {"  "}
+                  <View style={styles.macroBadgeRow}>
+                    {macroBadges.map((preset) => (
+                      <MacroBadgeIcon key={preset} preset={preset} />
+                    ))}
+                  </View>
+                </>
               )}
-            </View>
+            </Text>
             {/* #378 (CafeMenuMixed.dc.html:43): price folds into the same uniform-color meta
                 string as cal/protein, no separate maroon-highlighted price Text -- was two
                 differently-styled Texts (rowPrice/rowCalories) that no longer matches spec. */}
@@ -1796,16 +1810,7 @@ const styles = StyleSheet.create({
   rowInPlate: { borderColor: colors.gold500 },
   rowMainLine: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   rowMain: { flex: 1, gap: 1 },
-  // flexWrap -- the dish name plus up to 5 macro badges could exceed rowMain's available width
-  // with nothing to wrap it, spilling past the row into the neighboring add button instead of
-  // wrapping the badges onto a second line. alignItems: "center" matches MenuWithBadges.dc.html's
-  // name-line row -- badges are centered on the name's line-height, not baseline-aligned to it.
-  rowNameLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing(2) },
-  // flexShrink: 1 -- RN/Yoga defaults flex-item shrink to 0, so without this a long dish name
-  // renders at its single-line intrinsic width and can overflow past rowMain into the add button
-  // instead of wrapping (the same failure mode rowCalories used to guard against on this line
-  // before badges moved here -- pr-reviewer caught this missing on the Text that took over that role).
-  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900, flexShrink: 1 },
+  rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
   filterFab: {
