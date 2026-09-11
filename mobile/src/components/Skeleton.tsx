@@ -5,13 +5,9 @@ import { durations } from "../lib/motion";
 import { colors, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /**
- * Skeleton shimmer primitive (#181 canvas: exact CSS is a `background-position` sweep,
- * `rgba(36,26,20,0.09) 25% / 0.045 50% / 0.09 75%`, 1.4s linear infinite). RN has no
- * background-position, so this transcribes the same visual (a soft highlight sweeping left-to-right
- * over a flat base tone) as a `LinearGradient` overlay animated with `translateX` under
- * `useNativeDriver` instead -- same three-stop gradient, same 1.4s linear loop, different animation
- * primitive because that's what the platform has (Animated ships with react-native, no new
- * dependency; expo-linear-gradient is already a dependency, used by index.tsx's hall cards).
+ * Skeleton shimmer primitive. RN has no CSS background-position sweep, so this transcribes the
+ * same visual (a soft highlight sweeping left-to-right over a flat base tone) as a LinearGradient
+ * overlay animated with translateX under useNativeDriver instead.
  */
 function Shimmer({ width }: { width: number }) {
   const progress = useRef(new Animated.Value(0)).current;
@@ -49,10 +45,9 @@ export function SkeletonBar({ width, height, style }: { width: number; height: n
   );
 }
 
-/** 14×14 spinner (#181 canvas: track circle `rgba(36,26,20,0.25)` stroke 2, arc `#c99a2e`, 1s
- * linear spin). No react-native-svg in this codebase (established convention, see login.tsx) --
- * transcribed as the classic CSS-spinner trick instead: a circular border where one side is the
- * accent color and the rest is the muted track color, rotated. */
+/** 14×14 spinner. No react-native-svg in this codebase -- transcribed as the classic CSS-spinner
+ * trick instead: a circular border where one side is the accent color and the rest is the muted
+ * track color, rotated. */
 export function Spinner({ size = 14 }: { size?: number }) {
   const rotation = useRef(new Animated.Value(0)).current;
 
@@ -80,7 +75,7 @@ export function Spinner({ size = 14 }: { size?: number }) {
 }
 
 /** Skeleton dish card -- the real card shell (paper50 bg, hairline border, radius 6) around two
- * shimmer bars (title/meta) and an empty 44×44 round stepper outline, per #181's exact spec. */
+ * shimmer bars (title/meta) and an empty 44×44 round stepper outline. */
 export function DishCardSkeleton({ titleWidth = fs(140), metaWidth = fs(105) }: { titleWidth?: number; metaWidth?: number }) {
   return (
     <View style={styles.card}>
@@ -118,8 +113,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(3),
   },
   cardText: { gap: spacing(1.5) },
-  // 44dp touch-target shape -- deliberately NOT run through fs() (theme.ts: touch targets don't
-  // scale down on narrow screens), matching [slug].tsx's real addButton/stepper sizing exactly.
+  // 44dp touch-target shape -- deliberately not run through fs(); touch targets don't scale down
+  // on narrow screens.
   stepperOutline: { width: 44, height: 44, borderRadius: radii.pill, borderWidth: 1, borderColor: withOpacity(colors.ink900, 12) },
   stationHeader: { gap: spacing(1.5), marginBottom: spacing(1) },
   goldRule: { height: 2, backgroundColor: "rgba(201,154,46,0.5)" },

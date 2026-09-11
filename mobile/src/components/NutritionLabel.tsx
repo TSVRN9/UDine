@@ -8,13 +8,11 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 interface Props {
   visible: boolean;
   dishName: string;
-  /** Context line under the dish name per the canvas ("Hampshire · Lunch Entrées"), or -- when
-   * `badge` is set -- the "via {source}" attribution caption next to the badge pill
-   * (docs/design/SearchResultDetail.dc.html:18-25). */
+  /** Context line under the dish name (e.g. "Hampshire · Lunch Entrées"), or -- when `badge` is
+   * set -- the "via {source}" attribution caption next to the badge pill. */
   subtitle?: string;
   /** Filled source-badge pill label (e.g. "PACKAGED"/"UMASS"/"USDA"/"CUSTOM"), shown only for the
-   * PlateSheet search-result confirm step (plateSearchResultDetail in lib/plate.ts). Omitted → the
-   * base on-menu-dish header (plain subtitle line, no pill) used elsewhere is unaffected. */
+   * PlateSheet search-result confirm step. Omitted → the base on-menu-dish header is used. */
   badge?: string;
   nutrition: NutritionFacts;
   allergens: string[];
@@ -27,10 +25,9 @@ interface Props {
 }
 
 /**
- * Full-screen FDA-style nutrition label (canvas: "Nutrition label"). A RN Modal rather than a routed
- * screen — see halls/[slug].tsx's file-level note on that structural call. onRequestClose covers the
- * Android hardware back button; the header back chevron covers everyone else, since a modal with no
- * Stack header otherwise has no way back.
+ * Full-screen FDA-style nutrition label. onRequestClose covers the Android hardware back button;
+ * the header back chevron covers everyone else, since a modal with no Stack header otherwise has
+ * no way back.
  */
 export function NutritionLabel({ visible, dishName, subtitle, badge, nutrition, allergens, dietTags, ingredients, onAddToPlate, onClose }: Props) {
   const rows = buildLabelRows(nutrition);
@@ -145,11 +142,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream100 },
   header: {
     flexDirection: "row",
-    // flex-start, not center: a long dishName wraps headerText to 2+ lines (real menu items do
-    // this -- see e.g. "Bun Bo Hue (Vietnamese Beef Noodle Bowl)"), and centering against that
-    // taller block dragged the back chevron down into the wrapped second line instead of staying
-    // pinned to the title's top. flex-start keeps the chevron level with line 1 regardless of how
-    // many lines the title wraps to.
+    // flex-start, not center: a long dishName can wrap to 2+ lines, and centering against that
+    // taller block drags the back chevron down instead of keeping it level with line 1.
     alignItems: "flex-start",
     gap: spacing(3),
     paddingHorizontal: spacing(5),

@@ -3,18 +3,16 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
   /** Formatted "H:MM AM/PM"-style time of the cached copy, or null when no cache exists -- the
-   * secondary link only renders with a real time (#181 canvas: "only when a cache exists"). */
+   * secondary link only renders with a real time. */
   savedCopyTime: string | null;
   onRetry: () => void;
   onShowSavedCopy: () => void;
 }
 
 /**
- * Hall menu's "MENU DIDN'T LOAD" retry card (#181 canvas: "Hall menu - fetch failed") -- the one
- * loud state in this issue; everything else (skeleton, offline) is deliberately quiet. Centered in
- * the list area. No react-native-svg in this codebase (established convention, see login.tsx) --
- * the warning-triangle/refresh/chevron glyphs are text stand-ins, same call HallInfoSheet (#180)
- * already made for its own icon-shaped spec elements.
+ * Hall menu's "MENU DIDN'T LOAD" retry card -- the one loud state in this screen; everything else
+ * (skeleton, offline) is deliberately quiet. No react-native-svg in this codebase -- the
+ * warning-triangle/refresh/chevron glyphs are text stand-ins.
  */
 export function MenuErrorCard({ savedCopyTime, onRetry, onShowSavedCopy }: Props) {
   return (
@@ -72,10 +70,8 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: colors.gold500,
     borderRadius: radii.md,
-    // #181 review finding 4: unscaled 48, not fs(48) -- theme.ts's own doc is explicit that touch
-    // targets (44dp) deliberately don't scale down on narrow screens; fs(48) shrinks to 39dp on a
-    // 320dp device, under the invariant this same file's fullLabelLink/addButton siblings honor
-    // elsewhere in this diff.
+    // Unscaled 48, not fs(48) -- touch targets don't scale down on narrow screens; fs(48) would
+    // shrink under 44dp on a 320dp device.
     height: 48,
     paddingHorizontal: spacing(8),
     marginBottom: spacing(3.5),

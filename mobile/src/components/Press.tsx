@@ -3,11 +3,9 @@ import { Animated, Easing, Pressable, StyleSheet, type GestureResponderEvent, ty
 import { durations } from "../lib/motion";
 
 /**
- * Press-feedback rules (#179, owner round-2 decision): a full-width tap zone that's part of a
- * larger card (hall-card header zones, grab-n-go strips) dims via brightness -- NEVER scale, which
- * shrinks the strip inside its card and breaks the one-cohesive-card illusion. A free-standing
- * element (button, avatar, standalone card) scales instead. Both animate over the artboard's
- * 120ms ease (`.press` / `.pressd` in the styling spec).
+ * Press-feedback rules: a full-width tap zone that's part of a larger card dims via brightness --
+ * never scale, which shrinks the strip inside its card and breaks the one-cohesive-card illusion.
+ * A free-standing element (button, avatar, standalone card) scales instead.
  */
 function usePressAnim(restValue: number, pressedValue: number) {
   const anim = useRef(new Animated.Value(restValue)).current;
@@ -22,22 +20,15 @@ function usePressAnim(restValue: number, pressedValue: number) {
 type WrapperProps = Omit<PressableProps, "style" | "children"> & { style?: StyleProp<ViewStyle>; children: ReactNode };
 
 // A Pressable that can itself carry an Animated style (the scale transform), so there's no extra
-// wrapper node between the touchable and its children -- see Press's own doc comment for why that
-// extra node was wrong, not just superfluous.
+// wrapper node between the touchable and its children.
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /** `.press` -- scale(0.97) on press. Free-standing elements only.
  *
- * One node: `Pressable` itself carries both the caller's `style` and the scale transform, with
- * `children` direct (not wrapped). An earlier version put the transform on a separate inner
- * `Animated.View` and the caller's `style` on the outer `Pressable` -- style ended up on the right
- * node for *box* properties (width/height/padding/flex/margin), but any *arrangement* style over
- * multiple children (`flexDirection`, `gap`, `alignItems`) then governed the Pressable's one real
- * child (that inner wrapper) instead of the actual content, silently stacking what should have
- * been a row -- caught on-device: YouPane's `ALL LOGS ›` link (`allLogsLink: { flexDirection:
- * "row", ... }`) rendered as two stacked lines instead of one. Collapsing to a single node removes
- * the node the arrangement style was accidentally governing, rather than picking a level to put it
- * on -- there's no split left to get wrong. */
+ * One node: Pressable itself carries both the caller's style and the scale transform, with
+ * children direct, not wrapped. An inner Animated.View plus an outer Pressable style would put any
+ * arrangement style (flexDirection, gap, alignItems) on the Pressable's one real child instead of
+ * the actual content, silently stacking what should render as a row. */
 export function Press({ style, children, onPressIn, onPressOut, ...props }: WrapperProps) {
   const { anim, onPressIn: scaleIn, onPressOut: scaleOut } = usePressAnim(1, 0.97);
   return (

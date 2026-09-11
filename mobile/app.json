@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "UDine",
+    "name": "UDine (internal)",
     "slug": "udine",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -22,8 +22,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.udinetogether.udine",
-      "googleServicesFile": "./google-services.json",
+      "package": "com.udinetogether.udine.internal",
       "versionCode": 3
     },
     "web": {

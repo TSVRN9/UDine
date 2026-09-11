@@ -7,11 +7,9 @@ interface Props {
 }
 
 /**
- * Offline indicator line (#181 canvas: Home's date-kicker row + Social's own header row) --
- * wifi-off glyph + copy, optional right-aligned RETRY. No react-native-svg in this codebase
- * (established convention, see HallInfoSheet's #180 doc) -- the wifi-off arcs+slash are
- * approximated as a small dot + diagonal strike (a "signal off" reading, not a pixel transcription
- * of the spec's SVG path) rather than adding an svg dependency for one 12px decorative glyph.
+ * Offline indicator line -- wifi-off glyph + copy, optional right-aligned RETRY. No
+ * react-native-svg in this codebase, so the wifi-off arcs+slash are approximated as a small dot +
+ * diagonal strike rather than adding an svg dependency for one 12px decorative glyph.
  */
 export function OfflineLine({ text, onRetry }: Props) {
   return (
@@ -36,9 +34,7 @@ const styles = StyleSheet.create({
   glyphDot: { width: fs(4), height: fs(4), borderRadius: fs(2), backgroundColor: withOpacity(colors.ink900, 40) },
   glyphSlash: { position: "absolute", width: fs(14), height: 1.6, backgroundColor: withOpacity(colors.ink900, 40), transform: [{ rotate: "45deg" }] },
   text: { fontFamily: fonts.body500, fontSize: fs(11), color: withOpacity(colors.ink900, 50) },
-  // #181 review finding 4: minHeight 44 (unscaled, matching [slug].tsx's fullLabelLink -- the same
-  // "11px text link still clears the 44dp touch-target invariant" shape) instead of hitSlop 8 alone,
-  // which only reached ~30dp on a 320dp device.
+  // Unscaled minHeight 44, not hitSlop alone -- hitSlop 8 only reached ~30dp on a 320dp device.
   retryTap: { minHeight: 44, justifyContent: "center", marginLeft: spacing(1) },
   retry: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
 });

@@ -7,43 +7,28 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 interface Props {
   loc: RetailLocationHours;
   now: Date;
-  /** Set only when the waterfall's standing-menu parse (resolveCafeMenuState, cafeMenu.ts) found a
-   * PDF link rather than an item list -- babyBerk/Commonwealth's shape. Undefined for a café with
-   * no standing menu at all (Paciugo/The Hub). */
+  /** Set when the standing-menu parse found a PDF link rather than an item list (babyBerk,
+   * Commonwealth). Null for a café with no standing menu at all. */
   pdf: { url: string; label: string } | null;
-  /** Tapping the PDF row -- opens the in-app viewer (CafePdfViewer), never an external browser
-   * (owner decision, #177). */
+  /** Opens the in-app PDF viewer (CafePdfViewer), never an external browser. */
   onOpenPdf: (url: string, label: string) => void;
-  /** #376: the "Log What You Got Here" CTA (shown only when there's no menu at all -- see `pdf`
-   * above) routes into the SAME add-item/custom-food flow PlateSheet's search footer uses, not a
-   * new one -- reuses [slug].tsx's existing customFoodFormOpen/CustomFoodForm wiring. */
+  /** Routes into the same add-item/custom-food flow PlateSheet's search footer uses. */
   onOpenCustomFoodForm: (prefillName?: string) => void;
 }
 
 /**
- * Café info-only content (#177's "Cafe fallback (menu not posted)" artboard, née "Cafe detail
- * sheet") -- hours/status/description/address/payment, PLUS the PDF-menu affordance when the
- * waterfall found one. Café-screen unification (issue in this PR's own body): this used to be a
- * standalone bottom-sheet Modal, reached via its OWN code path (a tap-and-navigate-away dance
- * through cafeSheetHandoff.ts, or index.tsx opening it inline for a locationId-less café) --
- * SEPARATE from the hall-shaped menu screen a café with real ajax/standing-menu data got instead.
- * That was the exact "confusing dual system" this PR fixes: now this is plain content, mounted
- * directly inside halls/[slug].tsx's HallMenuScreenBody as ONE of that single screen's three
- * internal states (see resolveCafeMenuState, cafeMenu.ts) -- never a Modal, never a separate route.
+ * Café info-only content -- hours/status/description/address/payment, plus the PDF-menu
+ * affordance when the waterfall found one. Mounted inline inside halls/[slug].tsx's
+ * HallMenuScreenBody as one of that screen's internal states, never a separate Modal/route.
  *
- * Trust boundary unchanged from the original sheet: description/address are raw third-party HTML
- * off get_infov2 (#176), rendered via htmlToText (shared/src/content.ts), never {@html}-style raw
- * markup. The standing-menu item-list rendering this component used to own moved to
- * HallMenuScreenBody's own dish rows (matched items) plus a small unmatched-row block (see that
- * file) -- an item LIST means the waterfall resolved "standing", not "info", so this component
- * never sees one.
+ * description/address are raw third-party HTML off get_infov2, rendered via htmlToText, never
+ * {@html}-style raw markup.
  */
 export function CafeSheet({ loc, now, pdf, onOpenPdf, onOpenCustomFoodForm }: Props) {
   const status = openStatus({ hallTid: -1, breakfast: null, lunch: null, dinner: null, latenight: null, general: loc.hours }, now);
   const description = htmlToText(loc.description);
-  // #421/#431: a degenerate address blob (babyBerk's raw `<p><br/>,  </p>`) reduces via
-  // htmlToText to a non-blank line that's just punctuation -- a lone ",". filter(Boolean) let it
-  // through since Boolean(",") is true; isRealAddressLine requires actual alphanumeric content.
+  // isRealAddressLine (not filter(Boolean)) rejects lines that are just punctuation -- a
+  // degenerate address blob can htmlToText down to a lone ",".
   const addressLines = htmlToText(loc.address).split("\n").filter(isRealAddressLine);
   const mapsUrl = directionsUrl(loc.mapAddress);
   const payments = loc.acceptedPayment
@@ -55,21 +40,15 @@ export function CafeSheet({ loc, now, pdf, onOpenPdf, onOpenCustomFoodForm }: Pr
 
   return (
     <View style={styles.container}>
-      {/* #377: no internal title -- CafeSheet only ever mounts inline under HallMenuScreenBody's
-      own 22px header ([slug].tsx), which already renders the café name. A second title here
-      duplicated it on screen; the hall-name secondary text CafeSheet.dc.html:37 shows next to the
-      status pill is NOT added below -- no field anywhere (RetailLocationHours, hours.ts) derives
-      which real hall a café is near/inside, so that piece needs new data plumbing, out of scope
-      for this diff. */}
+      {/* No internal title -- HallMenuScreenBody's own header already renders the café name. */}
       <View style={styles.statusRow}>
         <View style={styles.statusPill}>
           <Text style={styles.statusPillText}>{cafeStatusPillText(status)}</Text>
         </View>
       </View>
 
-      {/* #376: info-only café's CTA into the add-item/custom-food flow (docs/design/
-      CafeMenuInfoOnly.dc.html:27-43) -- only when there's truly nothing to browse (no PDF either;
-      an existing PDF already gives a way into the menu via the menuCard below). */}
+      {/* Matches CafeMenuInfoOnly.dc.html:27-43. Only shown when there's nothing else to browse --
+      a PDF already gives a way into the menu via the menuCard below. */}
       {!pdf ? (
         <>
           <Pressable
@@ -137,8 +116,7 @@ export function CafeSheet({ loc, now, pdf, onOpenPdf, onOpenCustomFoodForm }: Pr
 }
 
 const styles = StyleSheet.create({
-  // #373: CafeSheet.dc.html's sheet panel spec, `box-shadow: 0 -8px 24px rgba(36,26,20,0.25)` --
-  // RN shadow props structured the same way HoldSlideOverlay.tsx's `pill`/`bubble` styles do.
+  // CafeSheet.dc.html panel spec: box-shadow: 0 -8px 24px rgba(36,26,20,0.25).
   container: {
     paddingHorizontal: spacing(5),
     paddingTop: spacing(3),
@@ -154,7 +132,7 @@ const styles = StyleSheet.create({
   statusPill: { backgroundColor: colors.gold500, borderRadius: radii.pill, paddingVertical: spacing(0.75), paddingHorizontal: spacing(2.25) },
   statusPillText: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 0.5, color: colors.maroon900 },
 
-  // #376: CafeMenuInfoOnly.dc.html:19-24 CTA card.
+  // CafeMenuInfoOnly.dc.html:19-24 CTA card.
   logCta: {
     flexDirection: "row",
     alignItems: "center",
@@ -170,7 +148,7 @@ const styles = StyleSheet.create({
   logCtaSubtext: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.paper50, 60) },
   logCtaChevron: { fontFamily: fonts.body600, fontSize: fs(16), fontWeight: "600", color: colors.gold500 },
 
-  // #376: CafeMenuInfoOnly.dc.html:26-33 boxed hours row, distinct from the plain status pill above.
+  // CafeMenuInfoOnly.dc.html:26-33 boxed hours row, distinct from the plain status pill above.
   hoursBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -185,9 +163,7 @@ const styles = StyleSheet.create({
   hoursBoxLeft: { flexDirection: "row", alignItems: "center", gap: spacing(2) },
   hoursBoxLabel: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon900 },
   hoursBoxRange: { fontFamily: fonts.mono, fontSize: fs(12), fontWeight: "600", color: colors.maroon900 },
-  // #416: CafeMenuInfoOnly.dc.html:39's pill is smaller/bolder than the top statusPill --
-  // padding 2px/7px vs 3px/9px, 9px/700/0.8 vs 10px/600/0.5. fontWeight "700" on top of body600
-  // matches HallInfoSheet.tsx's nowPillText convention (harmless fake-bold on Android).
+  // CafeMenuInfoOnly.dc.html:39's pill is smaller/bolder than the top statusPill.
   hoursStatusPill: { backgroundColor: colors.gold500, borderRadius: radii.pill, paddingVertical: spacing(0.5), paddingHorizontal: spacing(1.75) },
   hoursStatusPillText: { fontFamily: fonts.body600, fontWeight: "700", fontSize: fs(9), letterSpacing: 0.8, color: colors.maroon900 },
 
@@ -205,7 +181,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    minHeight: fs(44), // matches index.tsx's retailRow -- same 44px touch-target convention
+    minHeight: fs(44), // 44px touch-target convention, matches index.tsx's retailRow
     borderWidth: 1,
     borderColor: withOpacity(colors.ink900, 12),
     borderRadius: radii.md,

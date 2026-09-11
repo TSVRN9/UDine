@@ -30,20 +30,12 @@ const TOP_FOODS_LIMIT = 5;
 // in the handful is whatever order SQLite's table scan happens to return, not "most recent".
 const FAVORITES_LIMIT = 5;
 
-/** #90 nav reorg: same router.push mechanism goToAllLogs already uses for /logs. */
 function goToFavorites() {
   router.push("/favorites");
 }
 
-// logItemLine now lives in youPaneFormat.ts (imported above) -- #119's Logs & stats screen reuses
-// the exact same collapsed-row text instead of re-deriving it. Hall-name lookup is @udine/shared's
-// hallNameFor (#108, imported above too).
-
-/** #119 has shipped `app/logs.tsx`, so `/logs` is now a real route: no more `as Href` cast (needed
- * only while `experiments.typedRoutes` couldn't yet see the file) and no try/catch (review on
- * #128 found the earlier catch was a real-error suppressor, not a crash guard for an unmatched
- * route -- expo-router doesn't throw on an unmatched push anyway, it renders its own
- * `+not-found` screen). */
+// `/logs` is a real route: no `as Href` cast needed, and no try/catch -- expo-router doesn't throw
+// on an unmatched push, it renders its own +not-found screen.
 function goToAllLogs() {
   router.push("/logs");
 }
@@ -67,9 +59,8 @@ function CompletionBar({ completion, gold }: { completion: HallCompletion; gold:
   );
 }
 
-/** Bell glyph (not a star) -- per canvas.json's you-food-group-note annotation, favoriting here is
- * a notify+highlight toggle, never a rating, and a star would read as one. Path lifted from
- * YouPaneGrouped.dc.html's own bell SVG. */
+/** Bell glyph (not a star) -- favoriting here is a notify+highlight toggle, never a rating, and a
+ * star would read as one. Path from YouPaneGrouped.dc.html's bell SVG. */
 function BellIcon() {
   return (
     <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">
@@ -84,10 +75,8 @@ function BellIcon() {
   );
 }
 
-/** One favorite row: bell icon + name + a "Dish alert"/"Hall alert" caption, replacing the earlier
- * Badge(type) pill -- same disambiguation the group's hint line makes (canvas.json's
- * you-food-group-note): this is a notify+highlight toggle, not a rating, so it can't look like the
- * read-only Elo sections below it. */
+/** One favorite row: bell icon + name + a "Dish alert"/"Hall alert" caption -- this is a
+ * notify+highlight toggle, not a rating, so it can't look like the read-only Elo sections below it. */
 function FavoriteRow({ favorite }: { favorite: Favorite }) {
   return (
     <Card style={styles.favoriteRow}>
@@ -115,15 +104,13 @@ function TopFoodRow({ dishName, score, hallName: hall, tone }: { dishName: strin
 }
 
 /**
- * The You pane's internals (#92): macro stat card, today's log, HALL COMPLETION bars (#89, fed by
- * #91's menu fetch once it adopts menuFetchWithSeenTracking.ts — see that file's doc comment),
- * YOUR TOP FOODS 0-10 pills (#89), FAVORITE HALLS chips. Extracted out of app/index.tsx into its
- * own file so PaneShellScreen's diff there stays a mechanical import swap.
+ * The You pane's internals: macro stat card, today's log, HALL COMPLETION bars, YOUR TOP FOODS
+ * 0-10 pills, FAVORITE HALLS chips.
  *
- * MVP cut (temporary, see archive/full-features): the Account section (sign-in/out, Friends,
- * Your data links) is shelved along with friends/account -- Top Foods/Favorite Halls stay as
- * read-only stats even though rank.tsx (their data source) is cut too, so they freeze at whatever
- * data is already on the device. Deliberate, not an oversight.
+ * MVP cut: the Account section (sign-in/out, Friends, Your data links) is shelved along with
+ * friends/account -- Top Foods/Favorite Halls stay as read-only stats even though ranking (their
+ * data source) is cut too, so they freeze at whatever data is already on the device. Deliberate,
+ * not an oversight.
  */
 export function YouPane() {
   const [allEntries, setAllEntries] = useState<LogEntry[]>([]);
@@ -134,14 +121,13 @@ export function YouPane() {
   const insets = useSafeAreaInsets();
   const [, forceRetailNamesRerender] = useState(0);
 
-  // #243 bug A remaining gap: PaneStack keeps this pane permanently mounted alongside HomePane, so
-  // useFocusEffect(load) below (which fires on route focus, not pane visibility) is the only
-  // per-view hook this pane gets -- Today's Log's SQLite read can otherwise resolve and render a
-  // café entry as "Hall <tid>" before HomePane's own network hours fetch has taught
-  // retailHallNames.ts that tid's real name, and nothing would ever re-render to correct it.
-  // getCachedHours() (menuHoursCache.ts) is cache-only/no-network and already teaches that map on
-  // a cache hit -- hydrate from it once here (mount-only, not tied to load()/focus so it can't loop)
-  // and force one re-render once it resolves so a cold start self-corrects.
+  // PaneStack keeps this pane permanently mounted alongside HomePane, so useFocusEffect(load)
+  // below (route focus, not pane visibility) is the only per-view hook this pane gets -- Today's
+  // Log's SQLite read can otherwise resolve and render a café entry as "Hall <tid>" before
+  // HomePane's own network hours fetch has taught retailHallNames.ts that tid's real name, with
+  // nothing to ever re-render and correct it. getCachedHours() is cache-only/no-network and
+  // already teaches that map on a cache hit -- hydrate from it once (mount-only) and force one
+  // re-render once it resolves so a cold start self-corrects.
   useEffect(() => {
     getCachedHours().then(() => forceRetailNamesRerender((n) => n + 1));
   }, []);
@@ -160,10 +146,9 @@ export function YouPane() {
   const todaysEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === date);
   const totals = computeDailyTotals(date, todaysEntries);
   const mealGroups = groupEntriesByMeal(todaysEntries);
-  // Derived from the SAME rounded-per-entry sums the meal groups themselves use (not
+  // Derived from the same rounded-per-entry sums the meal groups themselves use (not
   // Math.round(totals.calories), a separately-rounded raw-float sum) so this always agrees with
-  // the meal groups' subtotals exactly, not just approximately -- see groupEntriesByMeal's doc
-  // comment on why "round the total once" and "round each entry, then sum" can otherwise differ.
+  // the meal groups' subtotals exactly, not just approximately.
   const displayedCalories = mealGroups.reduce((sum, g) => sum + g.totalCalories, 0);
   const completions = hallCompletion(seenByHall, allEntries);
   const hallRanking = rankDiningHalls(rankedDishes);
@@ -231,10 +216,9 @@ export function YouPane() {
         </Card>
       </View>
 
-      {/* "Your Food" (#90 nav reorg): Favorites, Your Top Foods, and Favorite Halls visually
-          grouped under one shared heading -- a heavier rule marks the group, each of the three
-          keeps its own lighter SectionHeader sub-header inside it (unchanged rendering for Top
-          Foods/Favorite Halls, just wrapped). */}
+      {/* "Your Food": Favorites, Your Top Foods, and Favorite Halls visually grouped under one
+          shared heading -- a heavier rule marks the group, each of the three keeps its own
+          lighter SectionHeader sub-header inside it. */}
       <View style={styles.group}>
         <View style={styles.groupHeader}>
           <View style={styles.groupRule} />
@@ -242,10 +226,8 @@ export function YouPane() {
         </View>
 
         <View style={styles.subsection}>
-          {/* accessibilityLabel is explicit, not left to the rendered "SEE ALL ›" children --
-              PR #129's explicit-labeling convention (see EventCard's own comment in
-              EventsPane.tsx), and disambiguates this from ALL LOGS' identical-looking link for
-              anything that finds a Pressable by its accessible name rather than by text content. */}
+          {/* accessibilityLabel is explicit, not left to the rendered "SEE ALL ›" children -- it
+              disambiguates this from ALL LOGS' identical-looking link. */}
           <SectionHeader
             title="Favorites"
             variant="subtle"
@@ -313,8 +295,8 @@ const styles = StyleSheet.create({
   section: { marginTop: spacing(4), gap: spacing(2.5) },
   hint: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
 
-  // "Your Food" group (#90): a heavier rule + its own title mark the group as a whole; each
-  // subsection inside keeps the normal (lighter) SectionHeader gold rule, unchanged.
+  // "Your Food" group: a heavier rule + its own title mark the group as a whole; each subsection
+  // inside keeps the normal (lighter) SectionHeader gold rule, unchanged.
   group: { marginTop: spacing(5), gap: spacing(3.5) },
   groupHeader: { gap: spacing(1.5) },
   groupRule: { borderTopWidth: 2, borderTopColor: colors.gold500 },
@@ -337,12 +319,12 @@ const styles = StyleSheet.create({
   allLogsText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
   allLogsChevron: { fontFamily: fonts.body400, fontSize: fs(12), color: colors.maroon600 },
   // SEE ALL (Favorites) is smaller than ALL LOGS -- YouPaneGrouped.dc.html:80-81 specs 10px for
-  // both the text and the chevron, distinct from ALL LOGS' 11px/12px (#419).
+  // both the text and the chevron, distinct from ALL LOGS' 11px/12px.
   seeAllText: { fontFamily: fonts.body600, fontSize: fs(10), letterSpacing: 0.5, color: colors.maroon600 },
   seeAllChevron: { fontFamily: fonts.body400, fontSize: fs(10), color: colors.maroon600 },
 
-  // Today's Log, meal-grouped (#118): one card, per-meal header + subtotal, single-line item rows,
-  // a hairline divider between meal groups.
+  // Today's Log, meal-grouped: one card, per-meal header + subtotal, single-line item rows, a
+  // hairline divider between meal groups.
   logCard: { paddingVertical: spacing(3), paddingHorizontal: spacing(3.5), gap: spacing(2) },
   mealGroup: { gap: spacing(1.25) },
   mealHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
