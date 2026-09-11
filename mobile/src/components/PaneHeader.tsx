@@ -8,59 +8,31 @@ import { PANE_COUNT, YOU_PANE_INDEX, paneMorph, paneOffsetRange } from "../lib/p
 import { durations, reanimatedPaneCurve } from "../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
-/** #90 nav reorg: same router.push mechanism YouPane.tsx's goToAllLogs already uses for /logs --
- * the export shortcut itself lives here (not in YouPane's own scroll content) because "near the
- * pane-position dots" means the fixed header bar, which never scrolls away, not a row at the top
- * of the pane's ScrollView. */
+// Same router.push mechanism YouPane's goToAllLogs uses for /logs. Lives here, not in YouPane's
+// scroll content, because "near the pane-position dots" means the fixed header bar.
 function goToExport() {
   router.push("/export");
 }
 
-/** Pane order: Events, Home, You (matches PaneStack's pane array). MVP cut (temporary, see
- * archive/full-features): was Social/Ping-a-Friend, now just Events. */
+/** Pane order: Events, Home, You (matches PaneStack's pane array). MVP cut: was Social/Ping-a-Friend. */
 const TITLES = ["EVENTS", "UDINE", "YOU"] as const;
 
-// Hoisted to a module-scope constant (computed once, on the JS thread, at import time) rather than
-// called inline as `fs(28)` inside PaneTitle's `useAnimatedStyle` body below -- same pattern
-// PaneStack.tsx/MealTabPager.tsx already use for their own pane offsets (`PANE_OFFSET = fs(36)` /
-// `fs(24)`). `fs` itself carries no `"worklet"` directive, so calling it directly from inside a
-// worklet crashes at runtime ("Tried to synchronously call a Remote Function") -- jest's mocked
-// `useAnimatedStyle` runs worklet bodies as plain synchronous JS with no UI/JS runtime split, so
-// this class of bug is invisible to the test suite and only surfaces on a real device/emulator.
+// Hoisted to a module-scope constant rather than called inline inside PaneTitle's
+// useAnimatedStyle -- fs() carries no "worklet" directive, so calling it from inside a worklet
+// crashes at runtime. Jest's mocked useAnimatedStyle runs worklet bodies as plain JS, so this bug
+// class is invisible to the test suite and only surfaces on a real device.
 const TITLE_OFFSET = fs(28);
 
-// Preserves the old 6dp-inactive / 8dp-active dot sizing ratio, now expressed as a scale factor off
-// a fixed-size box instead of an interpolated width/height (see PaneDot below).
+// Preserves the old 6dp-inactive / 8dp-active dot sizing ratio, expressed as a scale factor off a
+// fixed-size box instead of an interpolated width/height.
 const DOT_MIN_SCALE = fs(6) / fs(8);
 
-// A dot's own tap-target box is spacing(4) = 16dp at the artboard width, shrinking with it on
-// narrower screens (13dp at the 320dp breakpoint). #230 moved the vertical hitSlop from symmetric
-// (14 top, 14 bottom) to asymmetric (20 top, 8 bottom) -- top+bottom still sums to 28 either way,
-// so the *total* effective hit height is deliberately unchanged by that move: 44dp at the artboard
-// width / 41dp at 320dp (13 + 20 + 8, same 13 + 14 + 14 as before) -- this 41dp-vs-the-44dp-
-// guideline note itself predates #230 and corrects a still-earlier version of this comment that
-// overstated it, not anything #230 touched. Horizontally, the spec's own ≥16px tap-target target
-// is met only via hitSlop at the 320dp breakpoint (13 visible + 2 + 2 = 17dp effective), not by
-// the visible box alone.
-//
-// Vertical hitSlop is capped on the bottom side to keep the dot's touch-response area from
-// reaching past the header's own visible/opaque box (`styles.container`'s backdrop, #245 item 3)
-// into pane content scrolled underneath -- the header is pointerEvents="box-none", so anything
-// past a dot's own hit region falls through to whatever's beneath it, and a symmetric top+bottom
-// 14 pokes ~2-4dp past that box depending on breakpoint. Found on-device: at rest, the You pane's
-// "ALL LOGS" link sits nowhere near the header, but once scrolled far enough for it to land in
-// that few-dp band directly under the header's bottom edge, a tap there hit the dot instead (#230)
-// -- nothing above the dots is tappable (that space is the header's own paddingTop), so the slack
-// moved there instead of shrinking the total. Left/right capped at 2, comfortably under half of
-// the row's smallest on-device gap (`gap: spacing(1.5)` bottoms out at 5dp at the narrowest
-// supported breakpoint, scale ~0.82 -- see docs/agents/emulator-pool.md; reasoned from that
-// minimum, confirmed arithmetically -- DOT_HIT_SLOP.left*2 (4) < gap (5), 1dp of clearance -- not
-// itself observed on a real 320dp device), keeps adjacent dots' expanded regions from overlapping
-// at all. #179 fixed the horizontal case, #230 fixed the vertical one -- both pinned as invariants
-// in PaneHeader.test.tsx rather than today's specific numbers, so neither can silently reoccur.
-//
-// Exported so both invariants are checkable from outside this file, per #134 (test the logic, not
-// just the pixels it happens to produce today).
+// Vertical hitSlop is asymmetric (20 top / 8 bottom, same 28 total) so the dot's hit region
+// doesn't reach past the header's opaque bottom edge into pane content scrolled underneath (the
+// header is pointerEvents="box-none", so anything past a dot's hit region falls through to
+// whatever's beneath it). Left/right capped at 2 to keep adjacent dots' expanded regions from
+// overlapping. Both asymmetries are pinned as invariants in PaneHeader.test.tsx, not today's
+// specific numbers, so a future resize can't silently reintroduce either bug.
 export const DOT_HIT_SLOP = { top: 20, bottom: 8, left: 2, right: 2 };
 
 /** One crossfading title -- its own component (not an inline `.map()` callback) so
@@ -77,12 +49,9 @@ function PaneTitle({ title, index, titlePos, titleOpacityPos }: { title: string;
 }
 
 /** One pane-position dot: a fixed-size box (never itself animated -- Yoga/layout must not re-run
- * per frame) scaled down via `transform` when inactive, containing two absolutely-positioned fill
- * layers that cross-fade opacity -- the transform+opacity equivalent of the old width/height/
- * backgroundColor interpolation, now driven by `morph` (the same shared value driving the title
- * crossfade, see PaneHeader's own doc) instead of a separate JS-thread `Animated.Value`. Uses
- * `paneMorph` (paneShell.ts), not `interpolate()`, for the peak/falloff shape -- see that
- * function's own doc for why. */
+ * per frame) scaled via `transform` when inactive, with two absolutely-positioned fill layers that
+ * cross-fade opacity. Driven by `morph`, the same shared value driving the title crossfade. Uses
+ * `paneMorph` (paneShell.ts), not `interpolate()`, for the peak/falloff shape. */
 function PaneDot({ index, morph }: { index: number; morph: SharedValue<number> }) {
   const boxStyle = useAnimatedStyle(() => ({
     transform: [{ scale: paneMorph(morph.value, index, DOT_MIN_SCALE) }],
@@ -102,22 +71,16 @@ function PaneDot({ index, morph }: { index: number; morph: SharedValue<number> }
 }
 
 /**
- * Fixed header pinned above the 3-pane strip (#179): pane-position dots top-right, the active
- * screen's title crossfading through one top-left slot. Mounted once by PaneStack, outside the
- * per-pane loop -- it must never remount across pane switches (a remount would restart these
- * shared values and desync the in-flight crossfade from the pane transition it's meant to track).
- * `topInset` is the safe-area top inset; the artboard's 18px assumes no status bar.
+ * Fixed header pinned above the 3-pane strip: pane-position dots top-right, the active screen's
+ * title crossfading through one top-left slot. Mounted once by PaneStack, outside the per-pane
+ * loop -- a remount would restart these shared values and desync the crossfade from the pane
+ * transition it tracks. `topInset` is the safe-area top inset; the artboard's 18px assumes no
+ * status bar.
  *
- * #245 item 2: `titlePos`/`titleOpacityPos` are optional so PaneStack can hand down its own
- * gesture-driven shared values -- the title then tracks the drag continuously, same as the panes,
- * instead of only crossfading on commit. Omitted (as in this file's own standalone tests),
- * PaneHeader falls back to driving its own commit-only values off `activeIndex`. The dot morph
- * (PaneDot, above) shares `titleOpacityPos` -- its `[index-1, index, index+1] -> [0, 1, 0]` peak
- * shape is exactly the shape the dot needs, so no separate value is driven for it.
- *
- * #245 item 3: `styles.container` carries an opaque cream backdrop (matching the artboard, which
- * has no visually distinct header bar -- title/dots just sit on the same page background) so
- * content scrolling underneath it is actually hidden, not visible through a transparent header.
+ * `titlePos`/`titleOpacityPos` are optional so PaneStack can hand down its own gesture-driven
+ * shared values, so the title tracks the drag continuously instead of only crossfading on commit.
+ * Omitted, PaneHeader drives its own commit-only values off `activeIndex`. PaneDot shares
+ * `titleOpacityPos` since its peak/falloff shape already matches what the dot needs.
  */
 export function PaneHeader({
   activeIndex,
@@ -132,8 +95,7 @@ export function PaneHeader({
   titlePos?: SharedValue<number>;
   titleOpacityPos?: SharedValue<number>;
 }) {
-  // Initialized to activeIndex (not 0) so mount never animates from a wrong starting pane -- see
-  // PaneStack's own comment on the #f5f0d5b landing race this avoids reintroducing by a new cause.
+  // Initialized to activeIndex (not 0) so mount never animates from a wrong starting pane.
   const ownTitlePos = useSharedValue(activeIndex);
   const ownTitleOpacityPos = useSharedValue(activeIndex);
   const titlePos = sharedTitlePos ?? ownTitlePos;
@@ -167,14 +129,12 @@ export function PaneHeader({
           </Press>
         ))}
       </View>
-      {/* You pane's only settings-style action (#90): a single icon, not a new screen. Reuses
-          DOT_HIT_SLOP rather than a fresh generous symmetric one -- see that constant's own doc on
-          why its bottom side is capped (must not reach past this header's opaque box into content
-          scrolled underneath it). */}
+      {/* You pane's only settings-style action: a single icon, not a new screen. Reuses
+          DOT_HIT_SLOP rather than a fresh symmetric one -- its bottom side is capped for the same
+          reason (must not reach past this header's opaque box into content scrolled underneath). */}
       {activeIndex === YOU_PANE_INDEX && (
         <Press onPress={goToExport} hitSlop={DOT_HIT_SLOP} style={styles.exportButton} accessibilityRole="button" accessibilityLabel="Export data">
-          {/* Bordered-circle + gear glyph, per YouPaneGrouped.dc.html:24-27 -- was a bare "↓" Text
-              character with no container, unrecognizable as an icon (read as a stray line). */}
+          {/* Bordered-circle + gear glyph, per YouPaneGrouped.dc.html:24-27. */}
           <Svg width={15} height={15} viewBox="0 0 16 16" fill="none">
             <Circle cx={8} cy={8} r={2.1} stroke={colors.maroon900} strokeWidth={1.4} />
             <Path
@@ -197,8 +157,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 5,
-    // #245 item 3: opaque, matching the artboard (no separate header-bar color -- title/dots sit on
-    // the same page background) so content scrolling underneath is hidden, not visible through it.
+    // Opaque, matching the artboard, so content scrolling underneath is hidden, not visible through it.
     backgroundColor: colors.cream100,
     paddingHorizontal: spacing(5),
     // Breathing room against the pane content scrolling in underneath -- without it, content
@@ -218,9 +177,8 @@ const styles = StyleSheet.create({
     color: colors.maroon900,
   },
   dotsRow: { flexDirection: "row", gap: spacing(1.5), alignItems: "center" },
-  // marginLeft, not `gap` on a shared wrapper -- dotsRowGap() (PaneHeader.test.tsx) reads the
-  // first numeric `gap` style it finds in DFS order to pin the dots' own hit-region invariant, and
-  // a wrapper `gap` here would shadow that real value instead of adding a sibling.
+  // marginLeft, not `gap` on a shared wrapper -- a test reads the first numeric `gap` style in DFS
+  // order to pin the dots' own hit-region invariant; a wrapper `gap` here would shadow that value.
   // 30x30 bordered circle, per YouPaneGrouped.dc.html:26.
   exportButton: {
     marginLeft: spacing(2),

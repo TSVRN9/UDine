@@ -18,14 +18,10 @@ import { colors, fs } from "../lib/theme";
 
 const PANE_OFFSET = fs(36);
 
-// isHorizontalSwipe's own dominance threshold (10px) -- see this file's own doc on why the native
-// activeOffsetX/failOffsetY gate below replaces that manual JS check instead of calling it.
 const HORIZONTAL_DOMINANCE_PX = 10;
 
-/** One stacked pane -- its own component, not an inline `.map()` callback, because
- * `useAnimatedStyle` is a hook and PaneStack always renders a fixed `panes.length` (PANE_COUNT), but
- * calling a hook inside a `.map()` callback is still the wrong shape to rely on (see
- * MealTabPager.tsx's identical `MealTabPane` split, where the count genuinely does vary). */
+/** One stacked pane -- its own component, not an inline .map() callback, since useAnimatedStyle
+ * is a hook and calling it inside a .map() callback is the wrong shape to rely on. */
 function StackedPane({
   pane,
   index,
@@ -61,55 +57,28 @@ function StackedPane({
 }
 
 /**
- * The shared-axis pane shell (#179, replaces the horizontal-ScrollView pager): panes are stacked
- * (position absolute, full screen) instead of a translating strip. `d = j - activePane` drives
- * each pane's translateX/opacity via two Reanimated shared values (transform and opacity animate on
- * separate curves/durations per the artboard spec, so they're separate values, not one). z-index
- * and pointer-events are read straight off `activeIndex` (paneVisibility, in lib/paneShell.ts) --
- * NOT off the animated position -- so a still-animating-out pane never keeps eating touches meant
- * for the incoming one.
+ * The shared-axis pane shell: panes are stacked (position absolute, full screen) instead of a
+ * translating strip. `d = j - activePane` drives each pane's translateX/opacity via two Reanimated
+ * shared values (transform and opacity animate on separate curves/durations, so they're separate
+ * values). z-index and pointer-events are read straight off `activeIndex`, not the animated
+ * position, so a still-animating-out pane never keeps eating touches meant for the incoming one.
  *
- * PaneHeader is mounted here exactly once, after the panes in JSX but stacked above them via its
- * own z-index -- it must never re-render inside the per-pane loop (see PaneHeader's own doc on why
- * that would desync its Animated.Values).
+ * PaneHeader is mounted here exactly once, stacked above the panes via z-index -- it must never
+ * re-render inside the per-pane loop, which would desync its animated values.
  *
- * Both shared values start AT activeIndex, not 0: the #f5f0d5b landing race (scrollTo firing
- * before native layout caught up, stranding the shell on Social) doesn't exist in this
- * ScrollView-free architecture, but the same *symptom* -- a first-frame flash of the wrong pane --
- * would reappear from a different cause (a shared value defaulting to 0 = Social) if these weren't
- * seeded correctly.
+ * Both shared values start at activeIndex, not 0, to avoid a first-frame flash of the wrong pane.
  *
- * Swipe (#245 item 2): the commit target is still discrete (±1 pane, clamped) -- the artboard's
- * transition curves are keyed to an integer activePane flip -- but the animated position now
- * tracks the drag continuously via `paneDragPosition` (dx / SWIPE_COMMIT_PX from the pane the
- * gesture started on), settling to the committed index with the decided motion (340ms transform /
- * 260ms opacity) on release. `panePos`/`paneOpacityPos` are also handed to PaneHeader so its title
- * crossfade tracks the same drag (the dot morph stays commit-only -- it animates
- * width/height/backgroundColor with plain RN `Animated`/`useNativeDriver: false`, which can't share
- * a UI-thread-driven Reanimated value with the panes' transform/opacity).
+ * The commit target is discrete (±1 pane, clamped), but the animated position tracks the drag
+ * continuously via `paneDragPosition`, settling to the committed index on release. `panePos`/
+ * `paneOpacityPos` are also handed to PaneHeader so its title crossfade tracks the same drag (the
+ * dot morph stays commit-only -- it animates via plain RN `Animated`, which can't share a
+ * UI-thread-driven Reanimated value with the panes).
  *
- * Migrated off `PanResponder` to `react-native-gesture-handler`'s `Gesture.Pan()` driving
- * `react-native-reanimated` shared values: PanResponder's `onPanResponderMove` called
- * `panePos.setValue(...)` on every touch-move frame, a JS-thread round trip even though the
- * SETTLE animation already used `useNativeDriver: true` -- the live drag tracking itself never
- * did. Plain `react-native-gesture-handler` alone doesn't close that gap: its `Gesture.Pan()`
- * callbacks still run as ordinary JS-thread function calls unless they're worklets executed via
- * Reanimated's UI runtime, so gesture-handler-without-Reanimated only fixes the OTHER half of the
- * PanResponder problem (native gesture recognition/arbitration instead of JS-thread responder
- * negotiation) -- it doesn't get the per-frame value assignment off the JS thread. With Reanimated,
- * `onUpdate`'s callback compiles to a worklet and `panePos.value = ...` inside it runs on the UI
- * thread with no JS round trip per frame, which is what AC3 actually requires. (A legacy
- * `PanGestureHandler` component with `onGestureEvent={Animated.event(..., {useNativeDriver:
- * true})}` is also genuinely native-thread without Reanimated -- but that's the OLD gesture-handler
- * API, which exposes no such raw event prop on the new `Gesture.Pan()`/`GestureDetector` API this
- * migration is scoped to use.)
- *
- * The `Gesture.Pan()` object below is rebuilt fresh every render rather than cached in a `useRef`
- * (unlike the PanResponder it replaces) -- see MealTabPager.tsx's identical choice and its own doc
- * comment on why RNGH's own guidance is not to memoize a gesture object across renders.
- * `dragStartIndex` is the one piece of state that must survive across a single gesture's
- * begin/update/end sequence; a `useSharedValue` (readable from the worklets these callbacks compile
- * to) is the direct replacement for the old `dragStartIndex` ref.
+ * Uses react-native-gesture-handler's Gesture.Pan() driving Reanimated shared values, so drag
+ * position updates on the UI thread with no JS round trip per frame. The Gesture.Pan() object is
+ * rebuilt fresh every render -- RNGH's docs warn against memoizing/ref-caching a gesture object
+ * across renders. `dragStartIndex` is a useSharedValue since it must survive a single gesture's
+ * begin/update/end sequence, readable from the worklets these callbacks compile to.
  */
 export function PaneStack({
   panes,
@@ -133,26 +102,19 @@ export function PaneStack({
     // re-fires on a real activeIndex commit, not on every render.
   }, [activeIndex, panePos, paneOpacityPos]);
 
-  // Worklet (runs on the UI thread from the gesture callbacks below). `from` (both gesture callers
-  // below always pass the drag's actual last position; defaults to `target` only as a safe
-  // fallback) scales the duration by how much of the pane-step is actually left to animate
-  // (settleDuration) -- a release right at the SWIPE_COMMIT_PX edge has almost no visual distance
-  // left (paneDragPosition already tracked it most of the way there) and shouldn't take the same
-  // 340ms/260ms as a fast flick released early with nearly the whole step still to cover.
+  // Worklet, runs on the UI thread. `from` scales the duration by how much of the pane-step is
+  // actually left to animate -- a release near the commit edge has little visual distance left and
+  // shouldn't take the same duration as a fast flick released early.
   function settlePosition(target: number, from: number = target) {
     "worklet";
     panePos.value = withTiming(target, { duration: settleDuration(from, target, durations.pane), easing: reanimatedPaneCurve });
     paneOpacityPos.value = withTiming(target, { duration: settleDuration(from, target, durations.paneFade), easing: Easing.ease });
   }
 
-  // A settle from the previous gesture (release/cancel) can still be in flight when a new drag
-  // starts -- cancel it so onUpdate's assignment below isn't fighting a running animation. Its own
-  // named worklet (not inlined into onStart below) for the same reason settlePosition is its own
-  // function: a plain top-level `"worklet"` function calls through to the CURRENT `cancelAnimation`
-  // export, where an inline arrow passed straight to a gesture builder method gets its free
-  // variables captured into the gesture's closure at BUILD time (this render) -- fine for values,
-  // but for a function reference it bakes in whatever `cancelAnimation` was AT BUILD TIME rather
-  // than reading it fresh.
+  // Cancels any settle still in flight from the previous gesture so onUpdate's assignment below
+  // isn't fighting a running animation. Its own named worklet (not inlined) so it reads the
+  // current cancelAnimation export fresh, rather than baking it into the gesture's build-time
+  // closure the way an inline arrow would.
   function cancelInFlightSettle() {
     "worklet";
     cancelAnimation(panePos);
@@ -160,39 +122,22 @@ export function PaneStack({
   }
 
   const pan = Gesture.Pan()
-    // Native equivalent of the old `onMoveShouldSetPanResponder`'s `isHorizontalSwipe` dominance
-    // check: activates only past 10px of horizontal travel -- gesture ARBITRATION happens natively
-    // now instead of a per-move JS decision, unlike PanResponder. Deliberately NOT the exact same
-    // formula (`isHorizontalSwipe` is `|dx| > 10 && |dx| > |dy|`, a diagonal-dominance test --
-    // `activeOffsetX` alone is a plain horizontal-distance threshold, slightly narrower for a
-    // sharply diagonal drag): a `failOffsetY` counterpart was tried and dropped, since it fails the
-    // gesture permanently past 10px of vertical travel regardless of how large `dx` grows
-    // afterward, which is stricter than the old dominance check ever was. `activeOffsetX` alone
-    // already lets RNGH's own native arbitration resolve the vertical-scroll-vs-horizontal-swipe
-    // conflict (a pane's ScrollView only starts scrolling once ITS OWN threshold is crossed; this
-    // gesture doesn't activate until 10px of horizontal travel either, so a vertical scroll that
-    // never accumulates 10px of horizontal drift never contests it).
+    // Activates past 10px of horizontal travel; RNGH's native arbitration then resolves
+    // vertical-scroll-vs-horizontal-swipe conflicts on its own. A failOffsetY counterpart was
+    // tried and dropped -- it fails the gesture permanently past 10px of vertical travel
+    // regardless of how large the horizontal drag grows afterward.
     .activeOffsetX([-HORIZONTAL_DOMINANCE_PX, HORIZONTAL_DOMINANCE_PX])
-    // `onStart` (fires on transition to ACTIVE, i.e. once `activeOffsetX` is actually crossed) is
-    // the analog of `onPanResponderGrant` -- NOT `onBegin`. `onBegin` fires at BEGAN, on every
-    // touch-down, before recognition -- capturing `dragStartIndex`/cancelling the in-flight settle
-    // there would fire on every tap or vertical scroll too (anything that touches this View),
-    // and since `onEnd` "will be called only if the handler was previously in the ACTIVE state"
-    // (RNGH's own doc comment on `onEnd`), a touch that never activates would cancel a settle
-    // animation with nothing to ever restore it (no onEnd fires to call `settlePosition` back).
+    // onStart (fires once activeOffsetX is crossed), not onBegin -- onBegin fires on every
+    // touch-down before recognition, which would cancel the in-flight settle on a tap or vertical
+    // scroll too, with no onEnd ever firing to restore it (onEnd only fires from ACTIVE).
     .onStart(() => {
       dragStartIndex.value = activeIndex;
       cancelInFlightSettle();
     })
     .onUpdate((e) => {
-      // PANE_COUNT passed explicitly, not left to paneDragPosition's own `= PANE_COUNT` default --
-      // a default PARAMETER expression referencing a module-scope const is evaluated inside
-      // paneDragPosition's own worklet scope, which does NOT automatically pull in identifiers only
-      // referenced there (confirmed on-device: "Property 'PANE_COUNT' doesn't exist" thrown from the
-      // UI thread the moment this default was actually relied on). A plain identifier referenced in
-      // THIS worklet's own body (this callback) closes over correctly, same as `activeIndex`/
-      // `dragStartIndex` do -- passing it through explicitly is what makes the value reach
-      // paneDragPosition at all.
+      // PANE_COUNT passed explicitly, not left to paneDragPosition's own default parameter -- a
+      // default expression referencing a module-scope const evaluates in paneDragPosition's own
+      // worklet scope, which doesn't automatically close over identifiers only referenced there.
       const dragPos = paneDragPosition(dragStartIndex.value, e.translationX, PANE_COUNT);
       panePos.value = dragPos;
       paneOpacityPos.value = dragPos;
@@ -204,9 +149,7 @@ export function PaneStack({
         settlePosition(dragStartIndex.value, paneDragPosition(dragStartIndex.value, e.translationX, PANE_COUNT));
         return;
       }
-      // velocityX: a fast short flick commits even under SWIPE_COMMIT_PX of travel (paneIndexForSwipe's
-      // own doc) -- the biggest single source of the swipe reading as unresponsive was a quick
-      // flick doing nothing at all because it never crossed the distance threshold.
+      // velocityX lets a fast short flick commit even under the distance threshold.
       const next = paneIndexForSwipe(dragStartIndex.value, e.translationX, e.velocityX, PANE_COUNT);
       settlePosition(next, paneDragPosition(dragStartIndex.value, e.translationX, PANE_COUNT));
       if (next !== activeIndex) runOnJS(onActiveIndexChange)(next);

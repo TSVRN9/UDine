@@ -16,8 +16,7 @@ import { useDraggableSheet } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /** Per-kind badge label/fill/text -- PlateSearchResult (lib/plate.ts) is the merged-search tagged
- * union this reads off of. Filled pills (docs/design/PlateSheetResults.dc.html:49,60,71,82,93), not
- * the old outline treatment -- exact fill/text pairs per kind straight off that artboard. */
+ * union this reads off of. Filled pills per PlateSheetResults.dc.html:49,60,71,82,93. */
 const BADGE_INFO: Record<PlateSearchResult["kind"], { label: string; fill: string; color: string }> = {
   umass: { label: "UMass", fill: "rgba(59,10,15,0.08)", color: "#3b0a0f" },
   custom: { label: "Custom", fill: "rgba(201,154,46,0.16)", color: "#8a6a1a" },
@@ -25,64 +24,53 @@ const BADGE_INFO: Record<PlateSearchResult["kind"], { label: string; fill: strin
   usda: { label: "USDA", fill: "rgba(92,112,72,0.16)", color: "#4a5c3a" },
 };
 
-// Both networked search sources page at 20 results (OFF_PAGE_SIZE in shared/src/openFoodFacts.ts,
-// FDC_PAGE_SIZE in shared/src/usdaFoodData.ts) -- neither constant is exported, so the literal is
-// mirrored here for the "Load N More" button copy (docs/design/PlateSheetResults.dc.html:99).
+// Mirrors the (unexported) page size both networked search sources use, for the "Load N More"
+// button copy.
 const SEARCH_PAGE_SIZE = 20;
 
 interface Props {
   visible: boolean;
   plate: PlateEntry[];
   totals: DailyMacroTotals;
-  /** Right-of-title context per the canvas ("Hampshire · Lunch") — the caller's hall name. */
+  /** Right-of-title context (e.g. "Hampshire · Lunch") — the caller's hall name. */
   contextLabel?: string;
-  /** Backs the local-history half of the merged search (getLoggedUmassDishHistory reads this
-   * directly) -- halls/[slug].tsx already owns one SqliteLogStorage instance for logging, passed
-   * straight through rather than duplicated here. */
+  /** Backs the local-history half of the merged search. Caller passes its own LogStorage instance
+   * through rather than this sheet owning a duplicate. */
   logStorage: LogStorage;
-  /** Backs the custom-food half of the merged search (4th source, see PlateSearchResult) --
-   * halls/[slug].tsx owns one SqliteCustomFoodsStorage instance, same pass-through convention as
-   * logStorage above. */
+  /** Backs the custom-food half of the merged search, same pass-through convention as logStorage. */
   customFoodsStorage: CustomFoodsStorage;
   /** The hall (or café) currently being browsed -- history search is scoped to this hallTid only,
-   * never cross-hall (see dishHistory.ts's own doc: a re-added dish's hallTid feeds server-synced
-   * hall-completion/favorite-hall derivation, so a cross-hall dedup could misattribute credit
-   * between two halls sharing a dish name -- #344 review). A catalog-only hit is scoped to this
-   * same hallTid when staged (see runSearch below). */
+   * never cross-hall (a re-added dish's hallTid feeds server-synced hall-completion/favorite-hall
+   * derivation, so cross-hall dedup could misattribute credit between two halls sharing a dish
+   * name). A catalog-only hit is scoped to this same hallTid when staged. */
   hallTid: number;
   onStep: (key: string, delta: number) => void;
   /** Manual entry (tap the count, type an exact amount -- halves and any other decimal, not
    * just ±1 steps). Wired straight to plate.ts's setCount. */
   onSetCount: (key: string, count: number) => void;
-  /** Tapping any search result (all 4 PlateSearchResult kinds) opens the shared NutritionLabel
-   * confirm/detail step -- lifted to the caller (see halls/[slug].tsx) rather than nested inside
-   * this sheet's own <Modal>: no precedent in this codebase for a Modal mounted inside another
-   * Modal, and PlateSheet.tsx's own header note already documents the scar tissue around Modals
-   * getting their own native host. The caller renders NutritionLabel as a sibling and its own
-   * onAddToPlate is what actually adds the result to the plate (plateSearchResultToPlateEntry). */
+  /** Tapping any search result opens the shared NutritionLabel confirm/detail step -- lifted to the
+   * caller rather than nested inside this sheet's own Modal (no Modal-in-Modal precedent in this
+   * codebase). The caller renders NutritionLabel as a sibling; its onAddToPlate actually adds the
+   * result to the plate. */
   onShowResultDetail: (result: PlateSearchResult) => void;
   /** The standing "Can't find it? Create a custom food" footer row -- also lifted to the caller for
-   * the same nested-Modal reason as onShowResultDetail. Prefilled with whatever's currently typed
-   * in the search box, if anything. */
+   * the same nested-Modal reason. Prefilled with whatever's currently typed in the search box. */
   onOpenCustomFoodForm: (prefillName: string | undefined) => void;
   onLog: () => void;
   onClose: () => void;
-  /** Café-screen unification: a standing-menu row with no catalog match ("add something else"
-   * instead of a dead end) opens this sheet pre-seeded with its parsed name -- filled into the
-   * search box AND searched immediately, not just typed in for the user to press Search again.
-   * Undefined/absent for every other opener (the plain PlateBar tap), which starts on a blank box
-   * same as before. The caller is expected to clear whatever it passed the moment `onClose` fires
-   * (see halls/[slug].tsx), so reopening via the plain PlateBar tap afterward doesn't reseed. */
+  /** A standing-menu row with no catalog match opens this sheet pre-seeded with its parsed name --
+   * filled into the search box AND searched immediately. Undefined for every other opener (the
+   * plain PlateBar tap), which starts on a blank box. The caller clears this the moment `onClose`
+   * fires, so reopening via the plain PlateBar tap afterward doesn't reseed. */
   initialQuery?: string;
 }
 
 /**
- * Expanded plate sheet (canvas: "Plate expanded") — a bottom sheet over a dimmed scrim: drag
- * handle, per-item steppers, totals grid, LOG N ITEMS, and a single merged search box (local
- * device history + the cached dish catalog + OpenFoodFacts + USDA FoodData Central + saved custom
- * foods, tagged per-row). A transparent RN Modal, same structural call as NutritionLabel (see
- * halls/[slug].tsx's note): no route, no _layout.tsx change, no MenuItem serialization through
- * router params.
+ * Expanded plate sheet -- a bottom sheet over a dimmed scrim: drag handle, per-item steppers,
+ * totals grid, LOG N ITEMS, and a single merged search box (local device history + the cached dish
+ * catalog + OpenFoodFacts + USDA FoodData Central + saved custom foods, tagged per-row). A
+ * transparent RN Modal: no route, no _layout.tsx change, no MenuItem serialization through router
+ * params.
  */
 export function PlateSheet({
   visible,
@@ -107,9 +95,8 @@ export function PlateSheet({
   // (RN doesn't guarantee that ordering when the conditional swaps the child out from under it).
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
-  // "Add something else" starts idle (dashed row, no live input) until tapped -- #382, canvas:
-  // docs/design/PlateExpanded.dc.html:87-93. Auto-expanded by the initialQuery effect below since
-  // that path seeds and runs a search immediately, so there's nothing to be idle about.
+  // "Add something else" starts idle (dashed row, no live input) until tapped. Auto-expanded by
+  // the initialQuery effect below since that path seeds and runs a search immediately.
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [results, setResults] = useState<PlateSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -123,7 +110,7 @@ export function PlateSheet({
   const [usdaHasMore, setUsdaHasMore] = useState(false);
   // Branded (USDA FDC, dataType=Branded) is a second, independent parallel call alongside the
   // Foundation/SR Legacy one above -- same "usda" PlateSearchResult kind/badge, its own pagination
-  // cursor since it's its own paged endpoint call (see usdaFoodData.ts's searchBrandedFoods doc).
+  // cursor since it's its own paged endpoint call.
   const [brandedPage, setBrandedPage] = useState(1);
   const [brandedHasMore, setBrandedHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -131,10 +118,7 @@ export function PlateSheet({
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
   const scrollRef = useRef<ScrollView>(null);
   // KeyboardAvoidingView's automatic height-tracking doesn't reach content mounted inside an
-  // Android RN <Modal> -- confirmed on-device: with `behavior="height"` set, the sheet never
-  // resized or shifted at all when the keyboard opened, leaving the search input fully hidden
-  // behind it. Tracked manually instead, still via RN's own built-in Keyboard API (no new
-  // dependency) -- see the sheet's own style below for how this is applied.
+  // Android RN Modal -- tracked manually instead via RN's own Keyboard API.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -153,11 +137,9 @@ export function PlateSheet({
   useEffect(() => {
     refreshDishCatalogIfStale(supabase);
   }, []);
-  // #198: bumped on every new search and on close -- a resolving search only applies its result if
-  // this still matches the seq it captured when it started, so a slower/stale response can never
-  // overwrite a newer query's results (or repaint a sheet the user closed). Local history/catalog
-  // lookups resolve fast, but the one real network call (searchProducts) can still be slow -- the
-  // whole merged result is gated behind this seq so the OFF portion can never land stale.
+  // Bumped on every new search and on close -- a resolving search only applies its result if this
+  // still matches the seq it captured when it started, so a slower/stale response can never
+  // overwrite a newer query's results (or repaint a sheet the user closed).
   const searchSeq = useRef(0);
 
   const itemCount = totalItemCount(plate);
@@ -201,14 +183,12 @@ export function PlateSheet({
   }
 
   // Seeds the search box (and runs the search) the instant a caller opens this sheet with a
-  // pre-filled query (see initialQuery's own doc) -- keyed on `[visible, initialQuery]`, not just
-  // `initialQuery`, so re-showing the SAME seed after a close (visible false -> true again) fires
-  // again rather than being silently swallowed by React bailing out on an unchanged prop.
-  // `runSearch(initialQuery)` (not a bare `runSearch()` after `setQuery`) -- setQuery is
-  // async/batched, so a same-tick runSearch() would still close over the PREVIOUS render's `query`.
-  // `runSearch` deliberately NOT a dependency here -- it closes over `query`/`searching`/etc, all
-  // irrelevant to "did a NEW seed just arrive," and it's a fresh function identity every render, so
-  // listing it would refire this on every keystroke-driven re-render, not just a fresh seed.
+  // pre-filled query. Keyed on [visible, initialQuery], not just initialQuery, so re-showing the
+  // same seed after a close fires again instead of React bailing out on an unchanged prop.
+  // runSearch(initialQuery), not a bare runSearch() after setQuery -- setQuery is async/batched, so
+  // a same-tick runSearch() would still close over the previous render's query. runSearch itself is
+  // deliberately not a dependency -- it's a fresh identity every render, which would refire this on
+  // every keystroke.
   useEffect(() => {
     if (visible && initialQuery) {
       setQuery(initialQuery);
@@ -219,8 +199,8 @@ export function PlateSheet({
   }, [visible, initialQuery]);
 
   async function runSearch(queryOverride?: string) {
-    // #198: onSubmitEditing had no guard against a search already in flight (unlike the Search
-    // button's own `disabled` prop below) -- mashing Enter while typing fired overlapping requests.
+    // Guards against a search already in flight -- mashing Enter while typing would otherwise fire
+    // overlapping requests.
     const raw = queryOverride ?? query;
     if (!raw.trim() || searching) return;
     const q = raw.trim();
@@ -277,12 +257,10 @@ export function PlateSheet({
       // rejected OpenFoodFacts call alongside sources that all legitimately resolved empty (the
       // common case) fell through to "No matches", lying to the user about why nothing showed.
       if (merged.length === 0 && rejections.length > 0) {
-        // Generic, honest copy -- never the raw rejection (e.g. a UnknownHostException from a
-        // rate-limited source), which leaks implementation details. `results` stays null here (as
-        // before -- setting it to [] would also trigger the "No matches" hint below, which is
-        // exactly the confusing-alongside-an-error text the #351 fix above was written to avoid).
-        // The footer's gating condition (below) is what's widened instead, so the "Create a custom
-        // food" escape hatch stays available here too.
+        // Generic, honest copy -- never the raw rejection, which leaks implementation details.
+        // `results` stays null (not []) since [] would also trigger the "No matches" hint below,
+        // which reads as confusing alongside an error. The footer's gating condition is widened
+        // instead, so the "Create a custom food" escape hatch stays available here too.
         setSearchError("please try again, or create a custom food below");
         setResults(null);
         setOffHasMore(false);
@@ -304,10 +282,9 @@ export function PlateSheet({
     }
   }
 
-  /** Fetches the next page of whichever of OFF/USDA/Branded still has more (#91 follow-on
-   * pagination) and appends the new hits -- umass history/catalog and custom foods have no "next
-   * page" of their own (local, unpaginated queries), so this only ever touches the three networked
-   * sources. */
+  /** Fetches the next page of whichever of OFF/USDA/Branded still has more and appends the new
+   * hits -- umass history/catalog and custom foods are local, unpaginated queries with no "next
+   * page" of their own. */
   async function loadMore() {
     if (loadingMore || (!offHasMore && !usdaHasMore && !brandedHasMore)) return;
     const q = query.trim();
@@ -351,17 +328,14 @@ export function PlateSheet({
 
   return (
     <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose}>
-      {/* RNGH's own documented caveat: a root-level GestureHandlerRootView (mobile/src/app/_layout.tsx)
-      doesn't reliably propagate into a Modal's separate native host/window, so each sheet nests its
-      own here -- see this PR's own body for what the on-device spike confirmed. */}
+      {/* A root-level GestureHandlerRootView doesn't reliably propagate into a Modal's separate
+      native host/window, so each sheet nests its own here. */}
       <GestureHandlerRootView style={styles.backdrop}>
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
           <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
         </Animated.View>
-        {/* keyboardHeight (tracked above) pushes the sheet up by the keyboard's own height --
-        KeyboardAvoidingView doesn't reach content mounted inside an Android Modal (confirmed
-        on-device: its automatic height-tracking never engaged here at all), so this is done
-        manually instead of via that component. */}
+        {/* keyboardHeight (tracked above) pushes the sheet up by the keyboard's own height, since
+        KeyboardAvoidingView doesn't reach content mounted inside an Android Modal. */}
         <View style={{ marginBottom: keyboardHeight }}>
           <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
             <GestureDetector gesture={gesture}>
@@ -478,12 +452,10 @@ export function PlateSheet({
                           style={styles.resultInfo}
                           onPress={() => onShowResultDetail(r)}
                           accessibilityRole="button"
-                          // The badge is visual-only -- an explicit accessibilityLabel replaces the
-                          // Pressable's rendered text for assistive tech, so the source distinction
-                          // has to be spelled out here too, or a screen-reader user gets two
-                          // indistinguishable "View Pizza" actions on a name collision. "View", not
-                          // "Add" -- tapping a result now opens the confirm/detail step, not an
-                          // instant add (#91 follow-on).
+                          // The badge is visual-only, so the source distinction is spelled out here
+                          // too, or a screen-reader user gets two indistinguishable "View Pizza"
+                          // actions on a name collision. "View", not "Add" -- tapping a result opens
+                          // the confirm/detail step, not an instant add.
                           accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
                         >
                           <View style={styles.resultHeaderRow}>
@@ -504,12 +476,9 @@ export function PlateSheet({
                       {loadingMore ? "Loading…" : `Load ${SEARCH_PAGE_SIZE} More`}
                     </Button>
                   )}
-                  {/* Standing footer row (canvas: not gated strictly on an empty result) -- shown
-                  whenever a search has actually run, whether or not it found anything, since no
-                  database this sheet searches will ever have every food (a homemade recipe, a
-                  friend's cooking). Also shown on the all-rejected-with-nothing-usable error branch
-                  above (results stays null there) -- that's exactly when the user most needs this
-                  escape hatch. */}
+                  {/* Standing footer row -- shown whenever a search has actually run, whether or
+                  not it found anything, since no database this sheet searches has every food. Also
+                  shown on the all-rejected error branch, when the user most needs this escape hatch. */}
                   {(results !== null || searchError !== null) && (
                     <Pressable
                       style={styles.customFoodRow}
@@ -523,19 +492,15 @@ export function PlateSheet({
                   )}
                 </View>
               ) : (
-                // Idle state (#382, canvas: docs/design/PlateExpanded.dc.html:87-93). The artboard's
-                // hint copy is "Search or scan a barcode — for foods not on the menu", but there's no
-                // barcode-scan feature anywhere in this app (grepped) -- promising one here would be
-                // a caption for a capability that doesn't exist, so that clause is dropped.
+                // Idle state (PlateExpanded.dc.html:87-93). The artboard's hint copy mentions
+                // barcode scanning, but no such feature exists in this app, so that clause is dropped.
                 <Pressable
                   style={[styles.addSection, styles.addSectionIdle]}
                   onPress={() => setSearchExpanded(true)}
                   accessibilityRole="button"
                   accessibilityLabel="Add something else"
                 >
-                  {/* One clean SVG glyph (PlateExpanded.dc.html:87), not the two hand-positioned
-                      Views it replaces -- those read as a messy, obviously-composited icon rather
-                      than a real magnifying glass. */}
+                  {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
                   <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
                     <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
                     <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
@@ -564,22 +529,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing(2.5),
     paddingHorizontal: spacing(5),
     maxHeight: fs(640),
-    // #373 canvas: docs/design/PlateExpanded.dc.html:27 & ServingsG.dc.html:27 --
-    // box-shadow: 0 -8px 24px rgba(36,26,20,0.25). Pattern per HoldSlideOverlay.tsx (the only other
-    // shadow in this codebase): shadowColor plain + shadowOpacity separate, elevation for Android.
+    // PlateExpanded.dc.html:27 & ServingsG.dc.html:27 -- box-shadow: 0 -8px 24px rgba(36,26,20,0.25).
     shadowColor: colors.ink900,
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.25,
     shadowRadius: 24,
     elevation: 8,
   },
-  // paddingVertical bumped from a bare 0 to spacing(5) (~20dp a side): the 40x4 pill alone was far
-  // too small a real touch/drag target -- ~44dp of touchable height (handle + padding) is the usual
-  // minimum for a draggable handle.
+  // paddingVertical spacing(5), ~20dp a side -- the bare 40x4 pill alone is too small a touch/drag target.
   handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(2.5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
-  // marginBottom 14 (spacing(3.5)), matching the 14px gap PlateExpanded.dc.html:27 uses uniformly
-  // between every top-level section of the sheet (divider/totalsRow/addSection below already did).
+  // marginBottom 14 (spacing(3.5)), matching PlateExpanded.dc.html:27's uniform 14px section gap.
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: spacing(3.5) },
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   context: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
@@ -598,16 +558,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   stepperButton: { width: fs(42), height: fs(44), alignItems: "center", justifyContent: "center" },
-  // #392 canvas: docs/design/ServingsG.dc.html:56-57 -- narrower 38px +/- buttons with a 6px gap and
-  // 0/3px padding around the pill, only for the row currently in edit mode (the 42px non-editing
-  // buttons/pill are untouched).
+  // ServingsG.dc.html:56-57 -- narrower 38px +/- buttons, only for the row in edit mode.
   stepperEditing: { gap: spacing(1.5), paddingHorizontal: 3 },
   stepperButtonEditing: { width: fs(38) },
   stepperButtonText: { fontSize: fs(18), color: colors.maroon600 },
-  // minWidth 34 (was 24): fits "1.5" without the pill visibly resizing on every fractional count.
+  // minWidth 34 fits "1.5" without the pill visibly resizing on every fractional count.
   stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", minWidth: 34, textAlign: "center", color: colors.ink900 },
-  // #392 canvas: docs/design/ServingsG.dc.html:58-59 -- minWidth 46/height 32/radius 8, text
-  // 15px/#3b0a0f (was minWidth 34, no fixed height, radii.sm=2, fs(14)/ink900).
+  // ServingsG.dc.html:58-59 -- minWidth 46/height 32/radius 8, text 15px/#3b0a0f.
   stepperInput: {
     fontFamily: fonts.mono,
     fontSize: fs(15),
@@ -629,12 +586,10 @@ const styles = StyleSheet.create({
   logButton: { height: fs(52), borderRadius: radii.md },
   logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
-  // #382 canvas: docs/design/PlateExpanded.dc.html:87-93 -- asymmetric 12px/14px padding and a
-  // 44px min-height (was a uniform spacing(3.5)=14px pad, no min-height). Doubles as both the idle
-  // row's own box and the expanded search area's wrapper. Base border is the expanded state's
-  // plain solid one (docs/design/PlateSheetResults.dc.html:35); the idle-only dashed maroon
-  // border (docs/design/PlateExpanded.dc.html:87) is layered on by addSectionIdle below -- #409,
-  // it must not wrap the whole active search area.
+  // PlateExpanded.dc.html:87-93 -- asymmetric 12px/14px padding and a 44px min-height. Doubles as
+  // both the idle row's own box and the expanded search area's wrapper. Base border is the
+  // expanded state's plain solid one; the idle-only dashed maroon border is layered on by
+  // addSectionIdle below -- it must not wrap the whole active search area.
   addSection: {
     marginTop: spacing(3.5),
     borderWidth: 1,
@@ -681,28 +636,22 @@ const styles = StyleSheet.create({
   resultInfo: { flex: 1, gap: 1 },
   resultHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing(1.5) },
   // flexShrink: 1 -- without it this Text refuses to shrink below its own content width (RN/Yoga
-  // default), so a long dish/product name pushes the sibling kind badge straight off the row's
-  // right edge instead of wrapping around it. Same fix already used for a Text+fixed-sibling row
-  // elsewhere in this app: logs.tsx's mealItemName, halls/[slug].tsx's titleTap children.
+  // default), so a long dish/product name pushes the sibling kind badge off the row's right edge.
   resultLabel: { flexShrink: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
   resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
-  // #381 canvas: docs/design/PlateSheetResults.dc.html:49,60,71,82,93 -- filled pill, no border,
-  // 9px/700 sans-serif at 0.4px letterspacing, 2px/6px padding (was an outline pill, mono, fs(10)).
-  // fonts.body600 (600) is the closest loaded weight to the spec's 700 -- Libre Franklin's 700 cut
-  // isn't one of the @expo-google-fonts weights this app loads, and pairing a lighter weighted
-  // family with an explicit fontWeight fake-bolds it on Android (see theme.ts's own note).
+  // PlateSheetResults.dc.html:49,60,71,82,93 -- filled pill, no border, 9px/700 sans-serif at
+  // 0.4px letterspacing, 2px/6px padding. fonts.body600 is the closest loaded weight to the spec's
+  // 700 -- an explicit fontWeight on a lighter family fake-bolds it on Android.
   badge: {
     borderRadius: radii.pill,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   badgeText: { fontFamily: fonts.body600, fontSize: fs(9), letterSpacing: 0.4, textTransform: "uppercase" },
-  // #381 canvas: docs/design/PlateSheetResults.dc.html:99 -- Oswald/600/12px uppercase with a
-  // visible border (was Button's ghost variant: transparent border, no uppercase).
+  // PlateSheetResults.dc.html:99 -- Oswald/600/12px uppercase with a visible border.
   loadMoreButton: { alignSelf: "center", marginTop: spacing(1.5), borderWidth: 1, borderColor: withOpacity(colors.ink900, 20), borderRadius: 6 },
   loadMoreButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.8, textTransform: "uppercase", color: withOpacity(colors.ink900, 65) },
-  // #381 canvas: docs/design/PlateSheetResults.dc.html:103 -- a dashed box with a "+" icon (was a
-  // plain hairline-top row with centered text only).
+  // PlateSheetResults.dc.html:103 -- a dashed box with a "+" icon.
   customFoodRow: {
     flexDirection: "row",
     alignItems: "center",

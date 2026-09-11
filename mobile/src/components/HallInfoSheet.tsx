@@ -20,17 +20,14 @@ interface Props {
 }
 
 /**
- * Hall info bottom sheet (#180 canvas: "Hall info sheet (i)") -- address + DIRECTIONS, all serving
- * windows with the current one NOW-highlighted, Grab 'N Go hours, this hall's events. Same house
- * sheet shell as PlateSheet (drag handle, dimmed backdrop, tap-to-dismiss scrim, transparent RN
- * Modal) -- deliberately not a new pattern.
+ * Hall info bottom sheet -- address + DIRECTIONS, all serving windows with the current one
+ * NOW-highlighted, Grab 'N Go hours, this hall's events. Same sheet shell as PlateSheet (drag
+ * handle, dimmed backdrop, tap-to-dismiss scrim, transparent RN Modal).
  *
- * Events row disclosure (#180): get_beacons_events' `events` carry no hall/location field at all
- * (confirmed live 2026-08-24, curl -sL get_beacons_events -- only title/featured_image/pdf_link/
- * external_link/expiration_date/is_featured) and expiration_date is an expiry, not a start, so
- * neither half of "this hall's events" nor "this week" is derivable from the feed. `events` here is
- * therefore the SAME unfiltered list passed to every hall's sheet -- `hallName` is used only in the
- * empty-state copy, not to filter. Disclosed on #180 and in the PR body, not silently narrowed.
+ * get_beacons_events carries no hall/location field, and expiration_date is an expiry, not a
+ * start, so neither "this hall's events" nor "this week" is derivable from the feed. `events` here
+ * is therefore the same unfiltered list passed to every hall's sheet -- `hallName` is used only in
+ * the empty-state copy, not to filter.
  */
 export function HallInfoSheet({ visible, hallName, address, directionsUrl, hoursRows, grabNGoWindow, events, onClose }: Props) {
   const insets = useSafeAreaInsets();
@@ -47,9 +44,8 @@ export function HallInfoSheet({ visible, hallName, address, directionsUrl, hours
 
   return (
     <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose}>
-      {/* RNGH's own documented caveat: a root-level GestureHandlerRootView (mobile/src/app/_layout.tsx)
-      doesn't reliably propagate into a Modal's separate native host/window, so each sheet nests its
-      own here -- see this PR's own body for what the on-device spike confirmed. */}
+      {/* A root-level GestureHandlerRootView doesn't reliably propagate into a Modal's separate
+      native host/window, so each sheet nests its own here. */}
       <GestureHandlerRootView style={styles.backdrop}>
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
           <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
@@ -147,8 +143,7 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 8,
   },
-  // paddingVertical bumped from 0 to spacing(5) (~20dp a side) -- see PlateSheet.tsx's identical
-  // note: the bare 40x4 pill was far too small a real touch/drag target on its own.
+  // paddingVertical spacing(5) -- the bare 40x4 pill alone is too small a touch/drag target.
   handleRow: { alignItems: "center", paddingVertical: spacing(5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
 

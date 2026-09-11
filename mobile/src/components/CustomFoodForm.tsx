@@ -8,9 +8,7 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 interface Props {
   visible: boolean;
-  /** Prefills the name field with whatever was typed in PlateSheet's search box when the standing
-   * "Can't find it? Create a custom food" row was tapped -- see PlateSheet.tsx's own doc on that
-   * row. Undefined when opened with nothing typed. */
+  /** Prefills the name field from PlateSheet's search box; undefined when opened with nothing typed. */
   initialName?: string;
   customFoodsStorage: CustomFoodsStorage;
   onSaved: (food: CustomFood) => void;
@@ -35,13 +33,9 @@ const BLANK: CustomFoodFormInput = {
 };
 
 /**
- * Manual custom-food entry (#91 follow-on, greenfield -- no database will ever have a homemade
- * recipe or a friend's cooking). Device-local only, always: saved straight to
- * CustomFoodsStorage/custom_foods, never touches Supabase, same residency posture as
- * CustomFood's own doc comment. Core 4 macros (calories/protein/carbs/fat) required up front;
- * everything else NutritionFacts has lives behind "More nutrition fields" so a quick entry isn't
- * blocked on fiber/sugar/sodium/etc. Same RN <Modal> structural call as NutritionLabel/PlateSheet
- * (see halls/[slug].tsx's own note) -- rendered as a sibling, not nested inside PlateSheet's Modal.
+ * Manual custom-food entry. Device-local only -- saved straight to CustomFoodsStorage, never
+ * touches Supabase. Core 4 macros (calories/protein/carbs/fat) required up front; everything else
+ * lives behind "More nutrition fields" so a quick entry isn't blocked on fiber/sugar/sodium/etc.
  */
 export function CustomFoodForm({ visible, initialName, customFoodsStorage, onSaved, onClose }: Props) {
   const [fields, setFields] = useState<CustomFoodFormInput>(BLANK);
@@ -50,9 +44,7 @@ export function CustomFoodForm({ visible, initialName, customFoodsStorage, onSav
   const [saving, setSaving] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // Reseed on every open (not just mount) -- matches PlateSheet's own close-effect reset
-  // convention: a form left open across an unrelated re-render shouldn't retain a previous
-  // attempt's half-typed values, and initialName can differ each time this opens.
+  // Reseed on every open, not just mount -- initialName can differ each time this opens.
   useEffect(() => {
     if (visible) {
       setFields({ ...BLANK, name: initialName ?? "" });
@@ -68,8 +60,7 @@ export function CustomFoodForm({ visible, initialName, customFoodsStorage, onSav
   const coreMacrosFilled = hasRequiredCoreMacros(fields);
 
   async function handleSave() {
-    // Belt-and-suspenders on top of the Save button's own `disabled` below -- if it's ever
-    // wrong/stale, this still stops the save rather than silently shipping a 0-macro entry.
+    // Re-checked here in case the Save button's disabled state is ever stale.
     if (!coreMacrosFilled) {
       setError("Calories, protein, carbs, and fat are required.");
       return;
@@ -179,8 +170,7 @@ function Field({
   keyboardType?: "decimal-pad";
   multiline?: boolean;
   style?: object;
-  /** Name field only (CustomFoodForm.dc.html line 27) -- gold border + bold value text,
-   * distinguishing it from every other (non-emphasized, 20%-opacity-border) field. */
+  /** Name field only (CustomFoodForm.dc.html line 27) -- gold border + bold value text. */
   emphasized?: boolean;
 }) {
   return (
@@ -200,8 +190,7 @@ function Field({
   );
 }
 
-/** Per-serving core macro cells (2x2 grid, CustomFoodForm.dc.html lines 41-58) -- distinct from
- * Field: bordered card, small uppercase label, monospace value. */
+/** Per-serving core macro cells (2x2 grid, CustomFoodForm.dc.html lines 41-58). */
 function MacroField({
   label,
   value,

@@ -11,12 +11,10 @@ import { colors, fonts, fs, spacing, withOpacity } from "../lib/theme";
 import { classifyEventTap, eventDateLine } from "../lib/eventTapTarget";
 import { openEventTap } from "../lib/openEventTap";
 
-// "A handful" -- SEE ALL (-> /press, /newsletter) is the full list, same TOP_FOODS_LIMIT-style cap
-// YouPane.tsx uses for its own summary rows.
+// "A handful" -- SEE ALL (-> /press, /newsletter) is the full list.
 const PRESS_LIMIT = 3;
 const NEWSLETTER_LIMIT = 3;
 
-/** #90 nav reorg: same router.push mechanism YouPane.tsx's goToAllLogs already uses. */
 function goToPress() {
   router.push("/press");
 }
@@ -25,11 +23,10 @@ function goToNewsletter() {
 }
 
 /**
- * #120 v2.1: DETAILS is gone -- a trailing chevron/external-link glyph (text stand-ins, same call
- * as login.tsx's Google "G": no react-native-svg dependency for one icon) signals where the tap
- * goes instead. Banner events also drop the title row entirely (owner decision: the banner image
- * usually already carries the title art, so a text duplicate underneath was redundant) -- the
- * footer is subtitle + icon only. Banner-less notices keep title+subtitle, just lose DETAILS.
+ * A trailing chevron/external-link glyph (text stand-in, no react-native-svg dependency for one
+ * icon) signals where the tap goes. Banner events drop the title row entirely -- the banner image
+ * already carries the title art -- so the footer is subtitle + icon only. Banner-less notices keep
+ * title+subtitle.
  */
 function EventCard({ item }: { item: DiningEvent }) {
   const subtitle = eventDateLine(item.expirationDate);
@@ -37,9 +34,7 @@ function EventCard({ item }: { item: DiningEvent }) {
 
   return (
     // accessibilityLabel is explicit, not left to the (now title-less on banner cards) children --
-    // PR #129 review finding 3: dropping the banner card's title Text also silently dropped its
-    // only accessible name, so a screen reader announced just "Through Aug 27, button". Matches
-    // halls/[slug].tsx's convention of labeling every Pressable explicitly.
+    // dropping the banner card's title Text also drops its only accessible name.
     <Press onPress={() => openEventTap(item)} accessibilityRole="button" accessibilityLabel={item.title}>
       <Card style={styles.eventCard}>
         {/* No title overlay on the image -- live fetchEvents banners are full poster graphics that
@@ -67,8 +62,8 @@ function EventCard({ item }: { item: DiningEvent }) {
   );
 }
 
-/** The SectionHeader `right` slot link -- same "TITLE ›" pattern YouPane.tsx's ALL LOGS uses
- * (#118), reused here for both new sections instead of duplicating the JSX inline twice. */
+/** The SectionHeader `right` slot link -- same "TITLE ›" pattern YouPane.tsx's ALL LOGS uses,
+ * reused here for both sections instead of duplicating the JSX inline twice. */
 function SeeAllLink({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Press style={styles.seeAllLink} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
@@ -102,19 +97,15 @@ function NewsletterRow({ item }: { item: NewsletterIssue }) {
 }
 
 /**
- * Events pane -- what's left of the old Social pane (#93) once the MVP cut (temporary, see
- * archive/full-features) shelves PING A FRIEND/friends along with ranking/account. EVENTS cards
- * (shared content client) are the pane's whole content now; the friend-avatar gesture overlay,
- * sign-in prompt, and friendships query are gone with it -- see archive/full-features for that
- * code if/when friends comes back.
+ * Events pane -- what's left of the old Social pane once the MVP cut shelves PING A FRIEND/friends
+ * along with ranking/account. EVENTS cards (shared content client) are the pane's whole content
+ * now; the friend-avatar gesture overlay, sign-in prompt, and friendships query are gone with it.
  */
 export function EventsPane() {
   const [events, setEvents] = useState<DiningEvent[] | null>(null);
   const [eventsError, setEventsError] = useState<string | null>(null);
-  // #181: offline is NOT an error state (owner decision) -- driven by fetchEvents (an
-  // auth-independent network call) succeeding or failing, same reachability-proxy choice
-  // HomePane/hall-menu make elsewhere in this app (a rejected fetch as the signal, not a true
-  // OS-level connectivity check).
+  // offline is not an error state -- driven by whether fetchEvents succeeds or fails, a rejected
+  // fetch as the reachability signal rather than a true OS-level connectivity check.
   const [offline, setOffline] = useState(false);
   const [pressItems, setPressItems] = useState<PressRelease[] | null>(null);
   const [newsletterIssues, setNewsletterIssues] = useState<NewsletterIssue[] | null>(null);
@@ -137,12 +128,10 @@ export function EventsPane() {
     loadEvents();
   }, [loadEvents]);
 
-  // pr-reviewer #361 finding: a failure here still degrades to the empty-list render (no second
-  // error line -- `offline`, computed from fetchEvents above, already owns this pane's offline
-  // banner), but the empty STATE COPY below must tell "genuinely nothing published" apart from
-  // "couldn't reach the network" -- the outage that flips `offline` also fails these two fetches,
-  // so silently reusing the empty-response message would contradict the offline banner right above
-  // it (claiming UMass published nothing when the real cause is connectivity).
+  // A failure here degrades to the empty-list render (no second error line -- `offline` already
+  // owns this pane's offline banner), but the empty state copy below must tell "genuinely nothing
+  // published" apart from "couldn't reach the network", since the same outage that flips `offline`
+  // also fails these two fetches.
   useEffect(() => {
     fetchPressReleases()
       .then(setPressItems)
@@ -163,10 +152,8 @@ export function EventsPane() {
 
         <View style={styles.section}>
           <SectionHeader title="Events" />
-          {/* #181: offline is not an error state -- a fetchEvents failure now shows via the
-              OfflineLine above, not this text. Kept for a theoretical non-offline failure path,
-              but every current failure of this fetch sets `offline` too, so this is effectively
-              retired rather than deleted outright. */}
+          {/* offline is not an error state -- a fetchEvents failure shows via OfflineLine above,
+              not this text. Kept for a theoretical non-offline failure path. */}
           {eventsError && !offline && <Text style={styles.error}>Couldn&apos;t load events: {eventsError}</Text>}
           {!events && !eventsError && <Text style={styles.empty}>Loading events…</Text>}
           {events && events.length === 0 && <EmptyState title="No events" message="No events right now." />}
@@ -179,8 +166,6 @@ export function EventsPane() {
           )}
         </View>
 
-        {/* #90 nav reorg: gives /press a real in-app entry point now that QUICK_LINKS (index.tsx)
-            is gone. */}
         <View style={styles.section}>
           <SectionHeader title="Press" right={<SeeAllLink label="See all press releases" onPress={goToPress} />} />
           {pressItems === null ? (
@@ -200,7 +185,6 @@ export function EventsPane() {
           )}
         </View>
 
-        {/* #90 nav reorg: same, for /newsletter. */}
         <View style={styles.section}>
           <SectionHeader title="Newsletter" right={<SeeAllLink label="See all newsletter issues" onPress={goToNewsletter} />} />
           {newsletterIssues === null ? (
@@ -220,8 +204,7 @@ export function EventsPane() {
           )}
         </View>
 
-        {/* #181: evergreen reassurance copy, exact per the canvas spec -- not gated on `offline`,
-            it's true regardless of connectivity and the artboard shows it as a standing footer. */}
+        {/* Not gated on `offline` -- true regardless of connectivity, shown as a standing footer. */}
         <Text style={styles.footerReassurance}>Your log and plate keep working offline — they live on this phone.</Text>
       </ScrollView>
     </View>
@@ -248,17 +231,15 @@ const styles = StyleSheet.create({
   eventsList: { gap: spacing(2.5) },
   eventCard: { overflow: "hidden" },
   eventBanner: { width: "100%", aspectRatio: 1024 / 432, backgroundColor: withOpacity(colors.ink900, 8) },
-  // Matches the artboard exactly (10px 14px, not the wider 14px 14px it read as before -- owner
-  // feedback: "the space around the caption for events is huge").
+  // Matches the artboard exactly: 10px 14px.
   eventRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing(2), paddingVertical: spacing(2.5), paddingHorizontal: spacing(3.5) },
   eventInfo: { flex: 1, gap: 1 },
   eventTitle: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   eventSubtitle: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 65) },
-  // Trailing chevron (in-app pamphlet) / external-link glyph (pop-up browser) -- replaces the old
-  // DETAILS text label per #120.
+  // Trailing chevron (in-app pamphlet) / external-link glyph (pop-up browser).
   eventIcon: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.maroon600, marginLeft: spacing(1.5) },
 
-  // SEE ALL link -- same pattern as YouPane.tsx's ALL LOGS (#118), in the SectionHeader `right` slot.
+  // SEE ALL link -- same pattern as YouPane.tsx's ALL LOGS, in the SectionHeader `right` slot.
   seeAllLink: { flexDirection: "row", alignItems: "center", gap: spacing(1) },
   seeAllText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: colors.maroon600 },
   seeAllChevron: { fontFamily: fonts.body400, fontSize: fs(12), color: colors.maroon600 },

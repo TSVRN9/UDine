@@ -9,18 +9,11 @@ interface Props {
   onPress: () => void;
 }
 
-/** Dish-row favorite toggle. RN's built-in `Animated` (not Reanimated) -- Toggle.tsx's own doc
- * comment established this as the app's precedent for a simple scale/color pop on toggle. Its own
- * file (not inlined in halls/[slug].tsx's renderDishRow) for two reasons: renderDishRow is called
- * as a plain function by SectionList's `renderItem`, not mounted as its own component instance, so
- * hooks can't safely live there -- and a real component here matches how Toggle.tsx/PaneHeader.tsx/
- * Press.tsx already isolate this exact `useRef(new Animated.Value(x)).current` idiom into their own
- * files so eslint's react-hooks/refs exemption (mobile/eslint.config.js) can be scoped narrowly
- * instead of disabled for a much bigger file. */
+// Its own component (not inlined in renderDishRow) because SectionList's renderItem calls it as a
+// plain function, not a mounted component instance -- hooks can't live there.
 export function FavoriteStar({ isFavorite, dishName, onPress }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
-  // Skips the pop on this row's own first render -- only a real toggle (isFavorite changing after
-  // mount) should animate, not every star popping the instant its row scrolls into view.
+  // Skips the pop on first render -- only a real toggle after mount should animate.
   const mounted = useRef(false);
   useEffect(() => {
     if (!mounted.current) {
