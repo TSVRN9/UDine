@@ -234,6 +234,20 @@ const STEAK: MenuItem = {
   dietTags: [],
 };
 
+// deriveHallMealTabs (#442-follow-up) now hides a meal tab entirely when no item that day carries
+// its mealPeriod -- tests below that need all 4 real tabs present (not just Lunch, the sole
+// default renderScreen([PIZZA, SALAD]) period) must include one item per period, this one included.
+const LATE_SNACK: MenuItem = {
+  dishName: "Late Snack",
+  category: "Entrees",
+  mealPeriod: "latenight",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(120),
+  allergens: [],
+  dietTags: [],
+};
+
 async function renderScreen(items: MenuItem[] = [PIZZA, SALAD]) {
   mockedFetchMenu.mockResolvedValue(items);
   let root!: renderer.ReactTestRenderer;
@@ -448,7 +462,9 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
   });
 
   it("renders the Grab tab's own station-grouped items, deduped by dish identity across mealPeriod values sharing one category, distinct from the hall's own meal-tab items", async () => {
-    const root = await renderScreen([PIZZA]);
+    // All 4 real periods present (not just PIZZA's lunch) so Grab lands at the tab sequence's own
+    // end, index 4 of 4 -- see this test's own comment below on why that distance matters.
+    const root = await renderScreen([PIZZA, OATMEAL, STEAK, LATE_SNACK]);
     mockedFetchMenu.mockResolvedValueOnce([
       { ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester, mealPeriod: "lunch" },
       { ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester, mealPeriod: "breakfast" },
@@ -460,13 +476,16 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     const body = texts(root).flat().join(" ");
     expect(body).toMatch(/Grab Wrap/);
     // Grab sits at the tab sequence's own end (index 4 of 4), so Lunch (index 1) falls outside its
-    // ± 1 window and is fully unmounted, not just hidden -- this assertion (and the single-match
-    // findByType(SectionList) below) rely on that being true. A future reorder that puts Grab
-    // anywhere but last would put Lunch back in the window (mounted, hidden) and silently break
-    // both -- see activePane()'s own doc above on why a windowed-in neighbor needs scoping.
+    // ± 1 window and is fully unmounted, not just hidden. A future reorder that puts Grab anywhere
+    // but last would put Lunch back in the window (mounted, hidden) and silently break this.
     expect(body).not.toMatch(/Pizza/); // the hall's own lunch-tab item, not shown while on the Grab tab
 
-    const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
+    // Scoped to the active pane, not the whole tree: Late Night (index 3) IS within Grab's own ± 1
+    // window and, with a real item of its own (LATE_SNACK), mounts a second real SectionList
+    // alongside Grab's -- a legitimate consequence of tabs now only existing when populated
+    // (deriveHallMealTabs), not a bug. activePane() (this file's own helper, doc above) scopes past
+    // it to the one pane that's actually visible.
+    const sections = activePane(root).findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
     expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
     expect(sections[0].data).toHaveLength(1); // deduped, not two identical rows
   });
@@ -478,7 +497,7 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
   // from `grabItems` -- so selecting "Entrees" must have zero effect on Grab's own "Grab n'Go Hot"
   // section, which this pins directly.
   it("a station filter selected via FilterSheet does not silently empty the Grab 'N Go tab (its own stations aren't in that checklist)", async () => {
-    const root = await renderScreen([PIZZA]); // category "Entrees"
+    const root = await renderScreen([PIZZA, OATMEAL, STEAK, LATE_SNACK]); // PIZZA's category "Entrees"
 
     act(() => {
       root.root.findByProps({ accessibilityLabel: "Filters" }).props.onPress();
@@ -495,7 +514,9 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
       root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
     });
 
-    const sections = root.root.findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
+    // Scoped to the active pane -- see the preceding test's comment on why Late Night (also
+    // windowed in, also populated) would otherwise add a second SectionList to the tree.
+    const sections = activePane(root).findByType(SectionList).props.sections as { title: string; data: MenuItem[] }[];
     expect(sections).toEqual([{ title: "Grab n'Go Hot", data: expect.arrayContaining([expect.objectContaining({ dishName: "Grab Wrap" })]) }]);
   });
 
@@ -542,7 +563,9 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
   // meal tabs (Breakfast/Lunch/Dinner/Late) never puts Grab (the 5th, last tab) in that window, so
   // it must never fetch.
   it("never fetches Grab 'N Go while only cycling through the 4 real meal tabs (lazy fetch stays lazy under windowing)", async () => {
-    const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
+    // All 4 real periods present -- deriveHallMealTabs hides a period with no item, and this test
+    // is specifically about cycling through all 4.
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL, STEAK, LATE_SNACK]);
     const callsBefore = mockedFetchMenu.mock.calls.length;
 
     for (const label of ["Breakfast menu", "Dinner menu", "Late menu", "Lunch menu"]) {
@@ -824,6 +847,35 @@ describe("HallMenuScreen hall-info sheet wiring (#180)", () => {
     await renderScreen([PIZZA]);
     await act(async () => {});
     expect(fetchEvents).toHaveBeenCalled();
+  });
+
+  // advisor review finding (#442-follow-up): get_infov2 (hoursFeed) only ever publishes TODAY's
+  // hours (hallInfoHoursRows' own doc). A stepped-to OTHER day's menu items must not drive which
+  // hours rows show/hide or whether lunch reads "Brunch" -- that would filter/relabel today's real
+  // hours by some other day's menu shape.
+  it("keeps the sheet's full breakfast/lunch/dinner/latenight layout once the date stepper moves off today, instead of filtering by that other day's own (possibly narrower) menu", async () => {
+    (mockFetchHoursAndCache as jest.Mock).mockResolvedValueOnce({
+      halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "11:00 AM", closeTime: "2:30 PM" }, dinner: { openTime: "5:00 PM", closeTime: "8:00 PM" }, latenight: null, general: null }],
+      retail: [],
+    });
+    const root = await renderScreen([PIZZA]); // today: lunch only
+    await act(async () => {});
+
+    // Step forward -- the new date's menu only has a dinner item, which would derive a
+    // dinner-only tab set (and hide breakfast/lunch) if the sheet wrongly used it.
+    mockedFetchMenu.mockResolvedValueOnce([STEAK]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester info" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    // Breakfast (today's hours have none published -- "not served here") still shows as a row,
+    // not silently dropped because the stepped-to day's own menu has no breakfast item.
+    expect(body).toMatch(/Breakfast/);
+    expect(body).toMatch(/not served here/);
   });
 });
 
@@ -1399,6 +1451,79 @@ describe("HallMenuScreenBody as a café (#177 -- non-empty fetchMenu path, tid w
     expect(StyleSheet.flatten(underline!.props.style).backgroundColor).toBe(colors.gold500);
     const label = breakfastTab.findByType(Text);
     expect(StyleSheet.flatten(label.props.style).color).toBe(colors.maroon900);
+  });
+});
+
+describe("HallMenuScreen real-hall dynamic meal tabs (#442-follow-up)", () => {
+  it("hides a period with no item that day (Franklin-shaped: no late night) instead of showing an empty Late tab", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL, STEAK]); // breakfast/lunch/dinner, no latenight item
+    expect(root.root.findAllByProps({ accessibilityLabel: "Late menu" })).toHaveLength(0);
+    expect(texts(root).flat()).not.toContain("Late");
+  });
+
+  // advisor review finding: `items` resolving to `[]` (nothing posted for the whole day, e.g. a
+  // holiday) is a different case from a single hidden period -- deriveHallMealTabs would otherwise
+  // return [], leaving only the Grab tab with no meal tab at all to select or highlight.
+  it("falls back to the full 4-tab layout when the day's items resolve to a genuinely empty array (nothing posted, not a per-period gap)", async () => {
+    const root = await renderScreen([]);
+    for (const label of ["Breakfast menu", "Lunch menu", "Dinner menu", "Late menu"]) {
+      expect(() => root.root.findByProps({ accessibilityLabel: label })).not.toThrow();
+    }
+  });
+
+  it("re-resolves a stale selectedMeal (now hidden) to the first remaining real tab across a date step", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL, STEAK, LATE_SNACK]); // all 4 periods
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Late menu" }).props.onPress();
+    });
+    expect(activePaneTexts(root).flat().join(" ")).toMatch(/Late Snack/);
+
+    // Step to a day this hall doesn't serve late night on (Franklin-shaped).
+    mockedFetchMenu.mockResolvedValueOnce([PIZZA, SALAD, OATMEAL, STEAK]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    expect(root.root.findAllByProps({ accessibilityLabel: "Late menu" })).toHaveLength(0);
+    // Healed to the first remaining real tab (Breakfast), not stuck on the vanished selection --
+    // both the CONTENT shown (pr-reviewer finding: AnimatedTabUnderline's backgroundColor is
+    // hardcoded gold on every tab regardless of which is active, per MealTabPager's own styles, so
+    // the underline check alone can't discriminate which pane is actually active) and, for the
+    // symptom the pre-fix bug itself produced, that the right pill is the one MealTabPager marks
+    // active (indexOf-based underline positioning, not color).
+    expect(activePaneTexts(root).flat().join(" ")).toMatch(/Oatmeal/);
+    const breakfastTab = root.root.findByProps({ accessibilityLabel: "Breakfast menu" });
+    const underline = breakfastTab.findAllByType(View).at(-1);
+    expect(StyleSheet.flatten(underline!.props.style).backgroundColor).toBe(colors.gold500);
+  });
+
+  // The heal effect above must never treat "grab" as a stale MealPeriod selection -- Grab is a real
+  // hall's own 5th tab, deliberately never a member of mealTabs (see TabSelection's own doc), so a
+  // naive `mealTabs.includes(selectedMeal)` guard alone would yank the user back to mealTabs[0] on
+  // every mealTabs change while they're on the Grab tab.
+  it("never yanks the user off the Grab tab when mealTabs shrinks across a date step", async () => {
+    const root = await renderScreen([PIZZA, SALAD, OATMEAL, STEAK, LATE_SNACK]);
+    mockedFetchMenu.mockResolvedValueOnce([{ ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester }]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+    });
+
+    // Date step while on Grab refetches both the hall's own items (no late night this time) and
+    // Grab's own items, in that effect-declaration order.
+    mockedFetchMenu.mockResolvedValueOnce([PIZZA, SALAD, OATMEAL, STEAK]);
+    mockedFetchMenu.mockResolvedValueOnce([{ ...PIZZA, dishName: "Grab Wrap", category: "Grab n'Go Hot ", hallTid: GRAB_N_GO_TIDS.worcester }]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    // CONTENT check, not just the underline color (see the preceding test's comment on why
+    // AnimatedTabUnderline's color alone can't discriminate which pane is active) -- if the guard
+    // were removed, the heal effect would fire and swipe the user onto mealTabs[0] (Breakfast),
+    // replacing this Grab Wrap content with Oatmeal's.
+    expect(activePaneTexts(root).flat().join(" ")).toMatch(/Grab Wrap/);
+    const grabTab = root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" });
+    const underline = grabTab.findAllByType(View).at(-1);
+    expect(StyleSheet.flatten(underline!.props.style).backgroundColor).toBe(colors.gold500);
   });
 });
 

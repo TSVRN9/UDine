@@ -5,6 +5,7 @@ import {
   type DiningHallHours,
   type HallMealPeriod,
   type MealPeriod,
+  type MenuItem,
   type NutritionFacts,
   type RetailLocationHours,
   type TimeWindow,
@@ -19,10 +20,43 @@ import { findGrabNGoLocation } from "./grabStrip";
  * this exact defect class caused. `readonly` because it's the same array shared owns, not a copy. */
 export const MEAL_TABS: readonly HallMealPeriod[] = MEAL_PERIODS;
 
+/**
+ * A real hall's meal tabs for a given day, derived from what that day's actually-fetched items
+ * carry -- a hall almost never serves every period (Berkshire has no breakfast key at all, ever;
+ * Franklin almost never has late night), and foodpro-menu-ajax simply omits a period's key
+ * entirely when it isn't served rather than publishing it present-but-empty. Filters MEAL_PERIODS
+ * (rather than deriveCafeMealTabs' first-seen-order approach) so the fixed
+ * breakfast->lunch->dinner->latenight order the rest of the UI (tab row, hallInfoHoursRows) assumes
+ * is preserved regardless of feed encounter order.
+ */
+export function deriveHallMealTabs(items: readonly MenuItem[]): HallMealPeriod[] {
+  return MEAL_PERIODS.filter((period) => items.some((item) => item.mealPeriod === period));
+}
+
+/**
+ * Whether a hall's midday "lunch" period is actually brunch today. UMass folds breakfast dishes
+ * into the single midday period on weekends instead of publishing a separate breakfast period --
+ * confirmed live: Saturday tid=2/3's sole midday period ("lunch") carries categories including
+ * "Breakfast Entrees"/"Breakfast Pastries" alongside ordinary lunch categories. Category-content-
+ * driven, not day-of-week: Berkshire's lunch never includes a "Breakfast..." category on any day
+ * sampled (it just doesn't serve breakfast food -- that's not brunch), so a day-of-week guess would
+ * mislabel its ordinary Saturday lunch. `mealTabs` gates a hall that DOES have its own separate
+ * breakfast tab today -- that hall's lunch stays "Lunch" even if a category happened to match.
+ */
+export function isBrunchLunch(items: readonly MenuItem[], mealTabs: readonly MealPeriod[]): boolean {
+  if (mealTabs.includes("breakfast")) return false;
+  // .trim() hedge: the raw feed isn't guaranteed to hand back a trimmed category (e.g. a real
+  // capture elsewhere in this codebase carries "Grab n'Go Hot " with a trailing space).
+  return items.some((item) => item.mealPeriod === "lunch" && item.category.trim().startsWith("Breakfast"));
+}
+
 /** Tab label: same as shared's mealPeriodLabel, except this tab row is narrow enough that "Late
  * Night" gets truncated to "Late" (#117 canvas) -- an intentional per-call-site override, not a
- * fork of the title-casing logic itself, which still comes from shared. */
-export function mealTabLabel(period: MealPeriod): string {
+ * fork of the title-casing logic itself, which still comes from shared. `isBrunch` (see
+ * isBrunchLunch above) overrides "lunch" to read "Brunch" -- label-only, MealPeriod itself stays
+ * "lunch" everywhere else (filtering, section lookups, etc). */
+export function mealTabLabel(period: MealPeriod, isBrunch = false): string {
+  if (isBrunch && period === "lunch") return "Brunch";
   if (period === "latenight") return "Late";
   return mealPeriodLabel(period);
 }
@@ -31,9 +65,9 @@ export function mealTabLabel(period: MealPeriod): string {
  * Offerings" per the CafeMenuIntegrated artboard (#378), not shared's generic "All Day" --
  * mealPeriodLabel/mealTabLabel stay untouched since "All Day" is still correct for a real dining
  * hall's own all-day period elsewhere. `isRealHall` scopes the override to café rendering only. */
-export function cafeMealTabLabel(period: MealPeriod, isRealHall: boolean): string {
+export function cafeMealTabLabel(period: MealPeriod, isRealHall: boolean, isBrunch = false): string {
   if (!isRealHall && period === "allday") return "Daily Offerings";
-  return mealTabLabel(period);
+  return mealTabLabel(period, isBrunch);
 }
 
 /**
@@ -59,10 +93,11 @@ export function cafeMealTabLabel(period: MealPeriod, isRealHall: boolean): strin
  *
  * Two guards, both load-bearing:
  * - `mealTabs.includes(period)`: `currentMealPeriod` can return "latenight", which a real hall's
- *   fixed MEAL_TABS may not include. Correcting to a period absent from `mealTabs` would reproduce
- *   the same stale-selection bug the café tab-derivation guards against elsewhere: tab-0 content
- *   renders with no pill highlighted. A period the hall has no tab for (closed, or outside
- *   MEAL_TABS) means the static default should stand.
+ *   own (per-day, dynamic -- see deriveHallMealTabs) mealTabs may not include. Correcting to a
+ *   period absent from `mealTabs` would reproduce the same stale-selection bug the café
+ *   tab-derivation guards against elsewhere: tab-0 content renders with no pill highlighted. A
+ *   period the hall has no tab for (closed, or outside MEAL_TABS) means the static default should
+ *   stand.
  * - `period !== selectedMeal`: the common case is the static "lunch" default already matching the
  *   real current meal (opened during actual lunch) -- calling `setSelectedMeal` with the value it
  *   already holds is a same-value no-op React bails on, which would leave `mealTabInstantRef`
@@ -111,15 +146,24 @@ export interface HallHoursRow {
  * three "not served here" rows even though the hall is genuinely open per `general` -- so when
  * every per-meal window is null AND `general` is published, collapse to a single row showing the
  * real `general` window instead. Halls that publish any real per-meal data keep the normal rows
- * unchanged (this only fires on the all-null case). */
-export function hallInfoHoursRows(hours: DiningHallHours, now: Date): HallHoursRow[] {
+ * unchanged (this only fires on the all-null case).
+ *
+ * `mealTabs` (default MEAL_TABS, the old always-4 behavior) should be the SAME dynamic, per-day
+ * list [slug].tsx's tab row derives from that day's items (deriveHallMealTabs) -- otherwise this
+ * sheet shows a phantom "not served here" row for a period the tab row has already hidden. Rows
+ * are filtered to `mealTabs`, not just relabeled, since get_infov2's hours feed has no per-day
+ * "not served" signal of its own (unlike the item feed) to fall back on. `isBrunch` mirrors
+ * mealTabLabel's own override so the sheet and tab row never disagree about whether today's lunch
+ * is brunch. */
+export function hallInfoHoursRows(hours: DiningHallHours, now: Date, mealTabs: readonly MealPeriod[] = MEAL_TABS, isBrunch = false): HallHoursRow[] {
   if (!hours.breakfast && !hours.lunch && !hours.dinner && hours.general) {
     return [{ period: "general", label: "Hours", window: hours.general, isNow: false }];
   }
   const current = currentMealPeriod(hours, now);
-  return MEAL_TABS.map((period) => ({
+  const activeTabs = MEAL_PERIODS.filter((period) => mealTabs.includes(period));
+  return activeTabs.map((period) => ({
     period,
-    label: mealPeriodLabel(period),
+    label: isBrunch && period === "lunch" ? "Brunch" : mealPeriodLabel(period),
     window: hours[period],
     // `hours[period] !== null` too, not just `current === period`: currentMealPeriod can now match
     // via shared's standard-schedule fallback (no real per-meal data published, e.g. summer hours)
