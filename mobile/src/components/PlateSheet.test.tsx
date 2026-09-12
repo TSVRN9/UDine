@@ -4,7 +4,7 @@
 // real module to derive its shape, and the real ../lib/supabase drags in native bindings
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
+import { Text, TextInput } from "react-native";
 import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
 import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } from "../lib/plate";
@@ -672,13 +672,33 @@ describe("PlateSheet", () => {
     });
 
     // Bug report: tapping "Add something else" swapped in the search box unfocused, so the user
-    // had to tap it a second time before the keyboard appeared. Compare to the servings-edit
-    // TextInput a few hundred lines up in PlateSheet.tsx, which has the same autoFocus prop for
-    // the same "just-revealed input should be immediately usable" reason.
-    it("the search box is focused the instant it's revealed, not requiring a second tap", () => {
+    // had to tap it a second time before the keyboard appeared. On-device verification (uiautomator
+    // dump + dumpsys input_method) showed the declarative `autoFocus` prop doesn't actually request
+    // focus for a TextInput newly mounted by a re-render inside an already-open Modal -- the native
+    // EditText never gained input focus and no keyboard appeared, though a manual second tap on the
+    // same field focused it instantly. PlateSheet.tsx now calls searchInputRef.current.focus()
+    // imperatively instead (deferred one frame via requestAnimationFrame, to give Android time to
+    // finish attaching/laying out the newly-mounted view). `ref.current` on a real RN TextInput is
+    // its own class instance, not the host node createNodeMock stands in for, so this spies directly
+    // on the class method instead.
+    it("imperatively focuses the search box the instant it's revealed, not requiring a second tap", async () => {
+      const focusSpy = jest.spyOn(TextInput.prototype, "focus").mockImplementation(() => {});
       const root = renderSheet();
-      ensureSearchExpanded(root);
-      expect(searchInput(root).props.autoFocus).toBe(true);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Add something else" }).props.onPress();
+      });
+      await act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      });
+
+      // Checked by instance, not raw call count: TextInput.prototype.focus is one method shared by
+      // every TextInput instance in the process, and other tests in this file leave their own
+      // requestAnimationFrame-deferred focus() calls pending (none of these tests unmount their
+      // renderer), so they can fire during this same await and inflate a plain call count.
+      const searchInputInstance = searchInput(root).instance;
+      expect(focusSpy.mock.instances).toContain(searchInputInstance);
+      focusSpy.mockRestore();
     });
 
     // #409: addSection's dashed border (docs/design/PlateExpanded.dc.html:87) is idle-only --

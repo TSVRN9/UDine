@@ -127,6 +127,18 @@ export function PlateSheet({
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
   const scrollRef = useRef<ScrollView>(null);
+  const searchInputRef = useRef<TextInput>(null);
+  // The declarative `autoFocus` prop doesn't reliably request focus for a TextInput that's newly
+  // mounted by a re-render inside an already-open Modal (confirmed on-device: the native EditText
+  // never gained input focus and no keyboard appeared, though a manual tap on the same field
+  // focused it instantly) -- Android needs the view to actually finish attaching/laying out first.
+  // Deferring the imperative .focus() call to the next frame gives it that time.
+  useEffect(() => {
+    if (searchExpanded) {
+      const id = requestAnimationFrame(() => searchInputRef.current?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+  }, [searchExpanded]);
   // KeyboardAvoidingView's automatic height-tracking doesn't reach content mounted inside an
   // Android RN Modal -- tracked manually instead via RN's own Keyboard API.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -445,16 +457,12 @@ export function PlateSheet({
                 <View style={styles.addSection}>
                   <View style={styles.searchRow}>
                     <TextInput
+                      ref={searchInputRef}
                       style={styles.searchInput}
                       value={query}
                       onChangeText={setQuery}
                       placeholder="Search for a food"
                       placeholderTextColor={withOpacity(colors.ink900, 45)}
-                      // Tapping "Add something else" swaps this box in for the first time --
-                      // without autoFocus it renders unfocused, so the user has to tap it a
-                      // second time before the keyboard appears. Same reasoning as the
-                      // servings-edit TextInput above.
-                      autoFocus
                       onSubmitEditing={() => runSearch()}
                       // This box sits after the item list/totals/LOG button in a plain ScrollView,
                       // which doesn't reliably scroll a newly-focused input into view on its own --
