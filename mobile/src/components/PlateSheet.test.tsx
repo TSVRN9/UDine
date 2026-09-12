@@ -4,7 +4,7 @@
 // real module to derive its shape, and the real ../lib/supabase drags in native bindings
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
-import { Text } from "react-native";
+import { Text, TextInput } from "react-native";
 import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
 import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } from "../lib/plate";
@@ -671,6 +671,36 @@ describe("PlateSheet", () => {
       expect(root.root.findByProps({ placeholder: "Search for a food" })).toBeTruthy();
     });
 
+    // Bug report: tapping "Add something else" swapped in the search box unfocused, so the user
+    // had to tap it a second time before the keyboard appeared. On-device verification (uiautomator
+    // dump + dumpsys input_method) showed the declarative `autoFocus` prop doesn't actually request
+    // focus for a TextInput newly mounted by a re-render inside an already-open Modal -- the native
+    // EditText never gained input focus and no keyboard appeared, though a manual second tap on the
+    // same field focused it instantly. PlateSheet.tsx now calls searchInputRef.current.focus()
+    // imperatively instead (deferred one frame via requestAnimationFrame, to give Android time to
+    // finish attaching/laying out the newly-mounted view). `ref.current` on a real RN TextInput is
+    // its own class instance, not the host node createNodeMock stands in for, so this spies directly
+    // on the class method instead.
+    it("imperatively focuses the search box the instant it's revealed, not requiring a second tap", async () => {
+      const focusSpy = jest.spyOn(TextInput.prototype, "focus").mockImplementation(() => {});
+      const root = renderSheet();
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Add something else" }).props.onPress();
+      });
+      await act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      });
+
+      // Checked by instance, not raw call count: TextInput.prototype.focus is one method shared by
+      // every TextInput instance in the process, and other tests in this file leave their own
+      // requestAnimationFrame-deferred focus() calls pending (none of these tests unmount their
+      // renderer), so they can fire during this same await and inflate a plain call count.
+      const searchInputInstance = searchInput(root).instance;
+      expect(focusSpy.mock.instances).toContain(searchInputInstance);
+      focusSpy.mockRestore();
+    });
+
     // #409: addSection's dashed border (docs/design/PlateExpanded.dc.html:87) is idle-only --
     // once expanded it must switch to the plain solid border the artboard specifies for the
     // active search row (docs/design/PlateSheetResults.dc.html:35), not stay dashed around the
@@ -739,6 +769,76 @@ describe("PlateSheet", () => {
       const root = renderSheet();
       await runSearch(root, "chicken");
       expect(texts(root).flat().join(" ")).not.toMatch(/Load 20 More/);
+    });
+  });
+
+  // Bug report: all 6 search sources merge with zero display cap, so a single search could
+  // legitimately render 40-60+ rows at once. These assert the DISPLAY of `merged` is capped
+  // regardless of how much any one source actually returned, and that "Load More" reveals
+  // already-fetched rows before ever spending a network round-trip on an exhausted source.
+  describe("capped result display (owner: 'maybe 5 at a time')", () => {
+    function offResult(n: number) {
+      return { barcode: `off-${n}`, productName: `Off Match ${n}`, nutrition: DISH.nutrition };
+    }
+
+    it("renders only 5 of a much larger merged result set on the first search", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: Array.from({ length: 12 }, (_, i) => offResult(i)), hasMore: false });
+      const root = renderSheet();
+      await runSearch(root, "off");
+
+      const shown = texts(root)
+        .flat()
+        .filter((t) => typeof t === "string" && t.startsWith("Off Match"));
+      expect(shown).toHaveLength(5);
+      expect(texts(root).flat().join(" ")).toMatch(/Load 5 More/);
+    });
+
+    it("Load More reveals more of the already-fetched buffer without calling any search source again", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: Array.from({ length: 12 }, (_, i) => offResult(i)), hasMore: false });
+      const root = renderSheet();
+      await runSearch(root, "off");
+      expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        root.root.findByProps({ children: "Load 5 More" }).props.onPress();
+        await Promise.resolve();
+      });
+
+      const shown = texts(root)
+        .flat()
+        .filter((t) => typeof t === "string" && t.startsWith("Off Match"));
+      expect(shown).toHaveLength(10);
+      // Still just the one call from the initial search -- revealing more of an already-fetched
+      // buffer must not re-fetch anything.
+      expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
+      expect(texts(root).flat().join(" ")).toMatch(/Load 2 More/); // 2 of the 12 remain hidden
+    });
+
+    it("only hits the network for a new page once the visible buffer has caught up to what's already fetched", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: Array.from({ length: 5 }, (_, i) => offResult(i)), hasMore: true });
+      const root = renderSheet();
+      await runSearch(root, "off"); // exactly 5 fetched, all 5 visible -- buffer is caught up already
+
+      expect(texts(root).flat().join(" ")).toMatch(/Load 20 More/); // no hidden buffer -- next tap must fetch
+
+      mockedSearchProducts.mockResolvedValueOnce({ results: [offResult(100)], hasMore: false });
+      await act(async () => {
+        root.root.findByProps({ children: "Load 20 More" }).props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(mockedSearchProducts).toHaveBeenCalledWith("off", 2);
+      const shown = texts(root)
+        .flat()
+        .filter((t) => typeof t === "string" && t.startsWith("Off Match"));
+      expect(shown).toHaveLength(6); // the 5 already visible plus the one newly-fetched result
+    });
+
+    it("does not show 'No matches' when there are matches, just none visible yet beyond the cap", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: Array.from({ length: 8 }, (_, i) => offResult(i)), hasMore: false });
+      const root = renderSheet();
+      await runSearch(root, "off");
+      expect(texts(root).flat().join(" ")).not.toMatch(/No matches/);
     });
   });
 
