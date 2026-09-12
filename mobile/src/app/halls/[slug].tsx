@@ -73,6 +73,7 @@ import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, syntheticHa
 import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
 import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
+import { MacroPresetGlyph } from "../../lib/macroBadgeGlyphs";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
 import { SqliteCustomFoodsStorage } from "../../lib/customFoodsStorage";
 import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
@@ -187,78 +188,25 @@ function GrabBagIcon({ color }: { color: string }) {
   );
 }
 
-/** menu-filters-macros: a filled circular badge with a hand-drawn per-preset glyph, matching
- * docs/design/MenuWithBadges.dc.html's shipped badge icons (dumbbell/salt pile/flame/leaf/droplet,
- * all filled in gold700 against a gold500-at-22% circle). accessibilityLabel carries the full
+/** menu-filters-macros: a filled circular badge with a hand-drawn per-preset glyph (shape source:
+ * lib/macroBadgeGlyphs.tsx, shared with FilterSheet.tsx's chip icons), matching
+ * docs/design/BadgeConcepts.dc.html's shipped badge icons -- one accent color per preset instead
+ * of a single shared gold (owner bug report 2026-09-12). accessibilityLabel carries the full
  * preset name for anyone not just eyeballing the glyph. */
-const MACRO_BADGE_CIRCLE_FILL = withOpacity(colors.gold500, 22);
-
-function MacroBadgeGlyph({ preset }: { preset: MacroPreset }) {
-  switch (preset) {
-    case "high-protein":
-      return (
-        <>
-          <Rect x={3.7} y={8} width={1.3} height={4} rx={0.5} fill={colors.gold700} />
-          <Rect x={5.2} y={6.5} width={1.8} height={7} rx={0.7} fill={colors.gold700} />
-          <Rect x={7} y={9.2} width={6} height={1.6} rx={0.8} fill={colors.gold700} />
-          <Rect x={13} y={6.5} width={1.8} height={7} rx={0.7} fill={colors.gold700} />
-          <Rect x={15} y={8} width={1.3} height={4} rx={0.5} fill={colors.gold700} />
-        </>
-      );
-    case "low-sodium":
-      return (
-        <>
-          <Path
-            d="M10 5.2c.35 0 .68.18.85.48l4.6 8c.4.68-.1 1.52-.85 1.52H5.4c-.75 0-1.25-.84-.85-1.52l4.6-8c.17-.3.5-.48.85-.48z"
-            fill={colors.gold700}
-          />
-          <Circle cx={9} cy={10.5} r={0.55} fill={MACRO_BADGE_CIRCLE_FILL} />
-          <Circle cx={11.6} cy={12} r={0.5} fill={MACRO_BADGE_CIRCLE_FILL} />
-          <Circle cx={10.3} cy={8.3} r={0.45} fill={MACRO_BADGE_CIRCLE_FILL} />
-        </>
-      );
-    case "under-300-cal":
-      return (
-        <>
-          <Path
-            d="M10 3.5c-2.3 2.9-3.7 5.1-3.7 7 0 2.7 1.9 4.8 4.2 4.8s4.2-2.1 4.2-4.8c0-1.1-.3-2.1-.9-3 0 1.1-.6 1.9-1.4 1.9-.9 0-1.5-.8-1.1-1.8.6-1.5 0-2.9-1.3-4.1z"
-            fill={colors.gold700}
-          />
-          <Path
-            d="M10 9.3c-1 1.3-1.5 2.3-1.5 3.1a1.5 1.5 0 0 0 3 0c0-.5-.2-1-.5-1.5.1.5-.2.9-.7.9s-.8-.4-.6-.9c.2-.5.4-1 .3-1.6z"
-            fill={MACRO_BADGE_CIRCLE_FILL}
-          />
-        </>
-      );
-    case "high-fiber":
-      return (
-        <>
-          <Path d="M10 3.6c-2.6 3-4 5.1-4 6.8a4 4 0 0 0 8 0c0-1.7-1.4-3.8-4-6.8z" fill={colors.gold700} />
-          <Path d="M10 10.4v5.6" stroke={colors.gold700} strokeWidth={1.4} strokeLinecap="round" />
-          <Rect x={9.4} y={6.6} width={1.2} height={4.4} rx={0.6} fill={MACRO_BADGE_CIRCLE_FILL} />
-        </>
-      );
-    case "low-fat":
-      return (
-        <>
-          <Path
-            d="M10 3.8c-2.6 3.2-4.1 5.7-4.1 7.7a4.1 4.1 0 0 0 8.2 0c0-2-1.5-4.5-4.1-7.7z"
-            fill={colors.gold700}
-          />
-          <Circle cx={8.2} cy={9.6} r={1.15} fill={MACRO_BADGE_CIRCLE_FILL} />
-        </>
-      );
-    default:
-      preset satisfies never;
-      return null;
-  }
-}
+const MACRO_BADGE_COLORS: Record<MacroPreset, { glyph: string; circle: string }> = {
+  "high-protein": { glyph: colors.macroProteinAccent, circle: withOpacity(colors.macroProteinAccent, 18) },
+  "low-sodium": { glyph: colors.macroSodiumAccent, circle: withOpacity(colors.macroSodiumAccent, 18) },
+  "under-300-cal": { glyph: colors.macroCalorieAccent, circle: withOpacity(colors.macroCalorieAccent, 18) },
+  "high-fiber": { glyph: colors.macroFiberAccent, circle: withOpacity(colors.macroFiberAccent, 18) },
+  "low-fat": { glyph: colors.macroFatAccent, circle: withOpacity(colors.macroFatAccent, 20) },
+};
 
 function MacroBadgeIcon({ preset }: { preset: MacroPreset }) {
+  const { glyph, circle } = MACRO_BADGE_COLORS[preset];
   return (
     <Svg width={15} height={15} viewBox="0 0 20 20" accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
-      <Circle cx={10} cy={10} r={10} fill={MACRO_BADGE_CIRCLE_FILL} />
-      <MacroBadgeGlyph preset={preset} />
+      <Circle cx={10} cy={10} r={10} fill={circle} />
+      <MacroPresetGlyph preset={preset} color={glyph} detailColor={circle} />
     </Svg>
   );
 }

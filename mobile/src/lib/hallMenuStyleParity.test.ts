@@ -87,3 +87,38 @@ describe("macro-badge placement: flex-row sibling, not an inline Text attachment
     expect(svgBlock).not.toMatch(/top: 4/);
   });
 });
+
+describe("macro badges: one accent color per preset, not a single shared gold (owner bug report 2026-09-12)", () => {
+  it("imports the glyph shapes from the shared source instead of defining its own switch", () => {
+    expect(source).toMatch(/import \{ MacroPresetGlyph \} from "\.\.\/\.\.\/lib\/macroBadgeGlyphs";/);
+  });
+
+  it("MACRO_BADGE_COLORS assigns 5 distinct glyph colors, one per preset", () => {
+    const mapBlock = source.match(/const MACRO_BADGE_COLORS[\s\S]*?=\s*\{([\s\S]*?)\n\};/)?.[1] ?? "";
+    const glyphColors = [...mapBlock.matchAll(/glyph: (colors\.\w+)/g)].map((m) => m[1]);
+    expect(glyphColors).toHaveLength(5);
+    expect(new Set(glyphColors).size).toBe(5);
+  });
+
+  // pr-reviewer catch (PR #451): the glyph-color assertion above says nothing about the circle
+  // (tinted background) half of the fix -- a regression that recolored every glyph distinctly but
+  // left all 5 circles on one shared tint would pass every other test here. Each circle must be
+  // its own preset's accent (via withOpacity), not a shared literal.
+  it("MACRO_BADGE_COLORS gives each preset its own tinted circle background, derived from its own glyph accent", () => {
+    const mapBlock = source.match(/const MACRO_BADGE_COLORS[\s\S]*?=\s*\{([\s\S]*?)\n\};/)?.[1] ?? "";
+    const entries = [...mapBlock.matchAll(/glyph: (colors\.\w+), circle: withOpacity\((colors\.\w+), (\d+)\)/g)];
+    expect(entries).toHaveLength(5);
+    // Every circle derives from that same row's own glyph token -- not a mismatched or shared one.
+    entries.forEach(([, glyphToken, circleToken]) => expect(circleToken).toBe(glyphToken));
+    const circleCalls = entries.map(([, , circleToken, pct]) => `${circleToken}:${pct}`);
+    expect(new Set(circleCalls).size).toBe(5);
+  });
+
+  // pr-reviewer catch (PR #451): scoping this regex to MacroBadgeIcon's own function body missed
+  // that the old single-color fill actually lived one function up, in the now-deleted
+  // MacroBadgeGlyph -- this assertion was true even on unfixed code and proved nothing. Checking
+  // the whole file is what actually pins "no shared gold left in the macro-badge glyph path".
+  it("no longer fills every preset's glyph with the single shared gold700 anywhere in this file", () => {
+    expect(source).not.toMatch(/colors\.gold700/);
+  });
+});
