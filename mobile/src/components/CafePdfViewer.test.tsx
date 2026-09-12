@@ -167,6 +167,9 @@ describe("CafePdfViewer has no explanatory caption (CLAUDE.md no-captions rule)"
   it("does not render a gesture-narration/implementation-rationale hint bar", async () => {
     const root = await renderViewer();
     const text = JSON.stringify(root.toJSON());
+    // Positive assertion the viewer still renders its real content -- otherwise the two
+    // `not.toContain` checks below would pass just as well against a blank tree.
+    expect(text).toContain("Baby Berk");
     expect(text).not.toContain("Rendered in-app");
     expect(text).not.toContain("pinch to zoom");
   });

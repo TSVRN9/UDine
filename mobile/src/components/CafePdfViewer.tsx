@@ -196,9 +196,10 @@ const styles = StyleSheet.create({
   saveButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: withOpacity(colors.paper50, 85) },
 
   // 8px matches CafePdf.dc.html:32 (border-radius: 8px 8px 0 0); doesn't land on an existing radii
-  // token. marginBottom replaces the old hintBar's paddingBottom: spacing(5) as this surface's
-  // bottom breathing room now that the hint bar itself is gone -- flat, same as the hint bar was
-  // (neither consults safe-area insets).
+  // token. marginBottom (matching marginHorizontal, so the card is inset consistently on every
+  // side) replaces the old hintBar as this surface's bottom breathing room now that the hint bar
+  // itself is gone -- a flat value, same as the hint bar's own fixed paddingBottom was (neither
+  // consults safe-area insets).
   documentSurface: {
     flex: 1,
     marginHorizontal: spacing(3.5),
