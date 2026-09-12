@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { ShouldStartLoadRequest, WebViewMessageEvent } from "react-native-webview/lib/WebViewTypes";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -68,6 +69,7 @@ export function shouldAllowCafePdfNavigation(request: ShouldStartLoadRequest): b
  * new for this WebView engine.
  */
 export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const [localUri, setLocalUri] = useState<string | null>(null);
   // buildViewerHtml is async, so the finished HTML has to live in state rather than being
   // computed inline during render.
@@ -150,7 +152,7 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
           </Pressable>
         </View>
 
-        <View style={styles.documentSurface}>
+        <View style={[styles.documentSurface, { marginBottom: spacing(3.5) + insets.bottom }]}>
           {error ? (
             <View style={styles.errorBlock}>
               <Text style={styles.error}>Couldn&apos;t load menu: {error}</Text>
@@ -171,11 +173,6 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
               style={styles.webview}
             />
           )}
-        </View>
-
-        <View style={styles.hintBar}>
-          {/* Pages stack in one vertical scroll, not a swipeable pager. */}
-          <Text style={styles.hintText}>Rendered in-app · pinch to zoom · scroll for pages</Text>
         </View>
       </View>
     </Modal>
@@ -200,15 +197,26 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: withOpacity(colors.paper50, 85) },
 
-  // 8px matches CafePdf.dc.html:32 (border-radius: 8px 8px 0 0); doesn't land on an existing radii token.
-  documentSurface: { flex: 1, marginHorizontal: spacing(3.5), backgroundColor: colors.paper50, borderTopLeftRadius: 8, borderTopRightRadius: 8, overflow: "hidden" },
+  // 8px matches CafePdf.dc.html:32 (border-radius: 8px 8px 0 0); doesn't land on an existing radii
+  // token. marginBottom's base spacing(3.5) matches marginHorizontal (inset consistently on every
+  // side) and replaces the old hintBar as this surface's bottom breathing room now that the hint
+  // bar itself is gone -- + insets.bottom on top of that base, unlike the hint bar's own fixed
+  // paddingBottom, because a visual-verifier pass on PR #450 found the flat-only margin left this
+  // card's bottom edge inside the device's reserved gesture-nav-bar zone (nothing else in this
+  // component consulted safe-area insets either, but the hint bar's own much larger fixed height
+  // happened to clear that zone anyway -- removing it exposed the gap).
+  documentSurface: {
+    flex: 1,
+    marginHorizontal: spacing(3.5),
+    backgroundColor: colors.paper50,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    overflow: "hidden",
+  },
   webview: { flex: 1, backgroundColor: colors.paper50 },
   loading: { flex: 1 },
   errorBlock: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing(3), padding: spacing(4) },
   error: { color: "#b00020", fontFamily: fonts.body400, textAlign: "center" },
   retryButton: { paddingVertical: spacing(2), paddingHorizontal: spacing(5), borderRadius: radii.md, borderWidth: 1, borderColor: "#b00020" },
   retryButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: "#b00020" },
-
-  hintBar: { backgroundColor: withOpacity(colors.maroon900, 92), paddingTop: spacing(2.5), paddingHorizontal: spacing(5), paddingBottom: spacing(5), alignItems: "center" },
-  hintText: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.paper50, 60) },
 });

@@ -8,9 +8,20 @@
 // this file can inspect exactly what props it was rendered with -- the point of this test.
 import fs from "node:fs";
 import path from "node:path";
+import { StyleSheet } from "react-native";
+import type { ReactTestRendererJSON } from "react-test-renderer";
 import renderer, { act } from "react-test-renderer";
 import { CafePdfViewer, shouldAllowCafePdfNavigation } from "./CafePdfViewer";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
+import { spacing } from "../lib/theme";
+
+// CafePdfViewer reads safe-area insets; no SafeAreaProvider in this render tree (same fix as
+// CustomFoodForm.test.tsx/NutritionLabel.test.tsx). A jest.fn (not a fixed object) so the bottom-
+// inset test below can override it per-render.
+const mockUseSafeAreaInsets = jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 }));
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => mockUseSafeAreaInsets(),
+}));
 
 interface CapturedWebViewProps {
   source: { html: string };
@@ -162,6 +173,62 @@ describe("CafePdfViewer error handling (#242)", () => {
     expect(text).toContain("RETRY");
   });
 });
+
+describe("CafePdfViewer has no explanatory caption (CLAUDE.md no-captions rule)", () => {
+  it("does not render a gesture-narration/implementation-rationale hint bar", async () => {
+    const root = await renderViewer();
+    const text = JSON.stringify(root.toJSON());
+    // Positive assertion the viewer still renders its real content -- otherwise the two
+    // `not.toContain` checks below would pass just as well against a blank tree.
+    expect(text).toContain("Baby Berk");
+    expect(text).not.toContain("Rendered in-app");
+    expect(text).not.toContain("pinch to zoom");
+  });
+});
+
+// #450 review: removing the hint bar (which had its own large fixed height) exposed that this
+// screen's document card never consulted safe-area insets -- a visual-verifier pass found its
+// bottom edge landing inside the device's reserved gesture-nav-bar zone. documentSurface's
+// marginHorizontal (spacing(3.5) with no inset -- there's no left/right safe-area concern here) is
+// unique among this tree's styles, so it doubles as the anchor for finding the surface node itself.
+describe("CafePdfViewer document card respects the bottom safe-area inset (#450 review)", () => {
+  afterEach(() => {
+    mockUseSafeAreaInsets.mockReturnValue({ top: 0, right: 0, bottom: 0, left: 0 });
+  });
+
+  it("adds insets.bottom on top of its own base margin, not a flat value that ignores the device", async () => {
+    mockUseSafeAreaInsets.mockReturnValue({ top: 0, right: 0, bottom: 34, left: 0 });
+    const root = await renderViewer();
+    const surface = findByStyleValue(root.toJSON(), "marginHorizontal", spacing(3.5));
+    expect(surface).not.toBeNull();
+    const flat = StyleSheet.flatten(surface!.props.style as never) as { marginBottom?: number };
+    expect(flat.marginBottom).toBe(spacing(3.5) + 34);
+  });
+
+  it("falls back to just the base margin when there's no inset to add (e.g. no gesture nav bar)", async () => {
+    mockUseSafeAreaInsets.mockReturnValue({ top: 0, right: 0, bottom: 0, left: 0 });
+    const root = await renderViewer();
+    const surface = findByStyleValue(root.toJSON(), "marginHorizontal", spacing(3.5));
+    const flat = StyleSheet.flatten(surface!.props.style as never) as { marginBottom?: number };
+    expect(flat.marginBottom).toBe(spacing(3.5));
+  });
+});
+
+/** DFS-finds the first node whose flattened style has `key === value` -- same pattern as
+ * HoldSlideOverlay.test.tsx's own helper. */
+function findByStyleValue(node: ReactTestRendererJSON | ReactTestRendererJSON["children"] | null, key: string, value: number): ReactTestRendererJSON | null {
+  if (node == null || typeof node === "string") return null;
+  if (Array.isArray(node)) {
+    for (const n of node) {
+      const found = findByStyleValue(n as ReactTestRendererJSON, key, value);
+      if (found) return found;
+    }
+    return null;
+  }
+  const flat = (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
+  if (flat[key] === value) return node;
+  return findByStyleValue(node.children, key, value);
+}
 
 describe("shouldAllowCafePdfNavigation (#219 review, finding 3)", () => {
   it("allows the WebView's own initial about:blank load", () => {
