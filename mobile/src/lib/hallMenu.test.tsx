@@ -921,14 +921,14 @@ describe("HallMenuScreen loading/error states (#181)", () => {
     expect(body).toMatch(/add dishes once the menu loads/);
   });
 
-  it("shows the error empty-plate bar ('your plate is safe') on a fetch failure with an empty plate", async () => {
+  it("shows the normal empty-plate bar on a fetch failure with an empty plate", async () => {
     mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
     let root!: renderer.ReactTestRenderer;
     await act(async () => {
       root = renderer.create(<HallMenuScreen />);
     });
     const body = texts(root).flat().join(" ");
-    expect(body).toMatch(/your plate is safe — it lives on this phone/);
+    expect(body).toMatch(/search for something not on the menu/);
   });
 });
 

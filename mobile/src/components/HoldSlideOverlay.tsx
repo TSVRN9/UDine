@@ -52,8 +52,7 @@ interface Props {
  * which of the 5 instances is "current" is a discrete swap, not a cross-fade) -- confirmed fine
  * on-device (the ladder reads as a ruler, not a glitch), not a smooth morph between dots. Index 0
  * is CANCEL_SERVINGS (0) -- reaching it needs no special-casing here, it renders as an ordinary
- * rung; the pill's glyph/caption/color swap (below) is what actually signals "this releases as
- * cancel". */
+ * rung; the pill's glyph/color swap (below) is what actually signals "this releases as cancel". */
 function LadderTick({ k, anchorWidth, liveIndex }: { k: number; anchorWidth: number; liveIndex: SharedValue<number> }) {
   const isCurrent = k === 0;
   const size = isCurrent ? CURRENT_SIZE : TICK_SIZE;
@@ -101,15 +100,10 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
       backgroundColor: interpolateColor(cancelBlend(liveIndex.value), [0, 1], [colors.maroon600, colors.ink900]),
     };
   });
-  // The caption/bubble used to appear at full opacity, already at their final (fully-grown-track)
-  // position, the instant the overlay mounted -- only the pill itself grew underneath them. Since
-  // they're the most visually prominent, text-bearing elements, that mismatch is what actually read
-  // as "fading in and moving up": tying their entrance to the same heightProgress the pill grows
-  // with makes them arrive in sync with it instead of popping in ahead of it.
-  const entranceStyle = useAnimatedStyle(() => ({
-    opacity: heightProgress.value,
-    transform: [{ translateY: (1 - heightProgress.value) * 10 }],
-  }));
+  // The bubble used to appear at full opacity, already at its final (fully-grown-track) position,
+  // the instant the overlay mounted -- only the pill itself grew underneath it. Tying its entrance
+  // to the same heightProgress the pill grows with makes it arrive in sync with it instead of
+  // popping in ahead of it.
   const bubbleStyle = useAnimatedStyle(() => ({
     opacity: heightProgress.value,
     transform: [{ translateY: (1 - heightProgress.value) * 10 }],
@@ -119,8 +113,6 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
   const cancelOpacityStyle = useAnimatedStyle(() => ({ opacity: cancelBlend(liveIndex.value) }));
   const plusStyle = useAnimatedStyle(() => ({ opacity: 1 - cancelBlend(liveIndex.value) }));
   const cancelGlyphStyle = useAnimatedStyle(() => ({ opacity: cancelBlend(liveIndex.value) }));
-  const adjustCaptionStyle = useAnimatedStyle(() => ({ opacity: 1 - cancelBlend(liveIndex.value) }));
-  const cancelCaptionStyle = useAnimatedStyle(() => ({ opacity: cancelBlend(liveIndex.value) }));
 
   const glyphLeft = anchor.width / 2 - GLYPH_BOX / 2;
   const glyphBottom = (BUTTON_ZONE - GLYPH_BOX) / 2;
@@ -128,10 +120,6 @@ export function HoldSlideOverlay({ anchor, count, liveIndex }: Props) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={[StyleSheet.absoluteFill, styles.scrim]} />
-      <Reanimated.View style={[styles.captionWrap, { left: pillLeft + anchor.width / 2 - 80, top: pillTop - 20, width: 160 }, entranceStyle]}>
-        <Reanimated.Text numberOfLines={1} style={[styles.caption, adjustCaptionStyle]}>Slide to adjust</Reanimated.Text>
-        <Reanimated.Text numberOfLines={1} style={[styles.caption, styles.captionOverlay, cancelCaptionStyle]}>Slide down to cancel</Reanimated.Text>
-      </Reanimated.View>
       <Reanimated.View style={[styles.pill, { left: pillLeft, width: anchor.width, borderRadius: anchor.width / 2 }, pillStyle]}>
         {/* Only the ladder ticks + glyphs clip to the animating box -- plusRing (below, outside
          * this wrapper) deliberately paints OUTSIDE the pill's own bounds (see its own comment)
@@ -204,17 +192,6 @@ export const HoldSlideHost = forwardRef<HoldSlideHostHandle, { liveIndex: Shared
 
 const styles = StyleSheet.create({
   scrim: { backgroundColor: withOpacity(colors.ink900, 18) },
-  captionWrap: { position: "absolute", alignItems: "center" },
-  caption: {
-    fontFamily: fonts.display,
-    fontWeight: "600",
-    fontSize: fs(9),
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: withOpacity(colors.ink900, 50),
-    textAlign: "center",
-  },
-  captionOverlay: { position: "absolute", left: 0, right: 0 },
   // No overflow here (default "visible") -- plusRing is a direct child of `pill` and deliberately
   // paints OUTSIDE the pill's bounds (an outset ring around the thumb, see plusRing's own
   // comment); clipping `pill` itself would cut that ring off in the normal fully-grown resting

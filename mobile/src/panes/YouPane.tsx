@@ -208,7 +208,6 @@ export function YouPane() {
 
       <View style={styles.section}>
         <SectionHeader title="Hall Completion" />
-        <Text style={styles.hint}>Distinct dishes you&apos;ve logged out of everything this device has seen offered.</Text>
         <Card style={styles.completionCard}>
           {completions.map((c, i) => (
             <CompletionBar key={c.hallTid} completion={c} gold={i === 0} />
@@ -293,7 +292,6 @@ const styles = StyleSheet.create({
   paneContainer: { paddingHorizontal: spacing(5), paddingBottom: spacing(10) },
 
   section: { marginTop: spacing(4), gap: spacing(2.5) },
-  hint: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
 
   // "Your Food" group: a heavier rule + its own title mark the group as a whole; each subsection
   // inside keeps the normal (lighter) SectionHeader gold rule, unchanged.

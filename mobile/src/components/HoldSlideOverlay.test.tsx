@@ -130,8 +130,7 @@ describe("HoldSlideOverlay cancel-blend styles", () => {
 });
 
 /** DFS-finds the first node whose flattened style has `key === value` -- `minWidth: 90` is unique
- * to `styles.bubble`, `width: 160` (set inline at the JSX call site) is unique to the caption
- * wrapper. */
+ * to `styles.bubble`. */
 function findByStyleValue(node: ReactTestRendererJSON | ReactTestRendererJSON["children"] | null, key: string, value: number): ReactTestRendererJSON | null {
   if (node == null || typeof node === "string") return null;
   if (Array.isArray(node)) {
@@ -146,24 +145,20 @@ function findByStyleValue(node: ReactTestRendererJSON | ReactTestRendererJSON["c
   return findByStyleValue(node.children, key, value);
 }
 
-describe("HoldSlideOverlay bubble/caption entrance", () => {
-  // The count bubble and "Slide to adjust" caption used to sit at their FINAL position at full
-  // opacity from the first frame, with only the pill visibly growing underneath them -- since
-  // they're the most prominent, text-bearing elements, that mismatch is what read as "fading in and
-  // moving up" rather than the pill expanding. Tying their opacity/position to the same
-  // heightProgress the pill grows with means they start faded/offset, same as the pill starts small
-  // -- this jest-mocked useAnimatedStyle freezes at the pre-effect value (heightProgress === 0,
-  // same reason the mount-geometry tests above can assert height === BUTTON_ZONE at all), which is
-  // exactly the "not yet grown" state this pins.
-  it("starts the bubble and caption faded out and offset, tied to heightProgress, not already at full opacity", () => {
+describe("HoldSlideOverlay bubble entrance", () => {
+  // The count bubble used to sit at its FINAL position at full opacity from the first frame, with
+  // only the pill visibly growing underneath it -- since it's the most prominent, text-bearing
+  // element, that mismatch is what read as "fading in and moving up" rather than the pill
+  // expanding. Tying its opacity/position to the same heightProgress the pill grows with means it
+  // starts faded/offset, same as the pill starts small -- this jest-mocked useAnimatedStyle
+  // freezes at the pre-effect value (heightProgress === 0, same reason the mount-geometry tests
+  // above can assert height === BUTTON_ZONE at all), which is exactly the "not yet grown" state
+  // this pins.
+  it("starts the bubble faded out and offset, tied to heightProgress, not already at full opacity", () => {
     const json = render(ANCHOR, 1, 5);
     const bubble = findByStyleValue(json, "minWidth", 90);
-    const caption = findByStyleValue(json, "width", 160);
     expect(bubble).not.toBeNull();
-    expect(caption).not.toBeNull();
     const bubbleFlat = StyleSheet.flatten(bubble!.props.style as never) as { opacity?: number };
-    const captionFlat = StyleSheet.flatten(caption!.props.style as never) as { opacity?: number };
     expect(bubbleFlat.opacity).toBe(0);
-    expect(captionFlat.opacity).toBe(0);
   });
 });
