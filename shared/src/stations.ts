@@ -1,11 +1,15 @@
 /** Collapses a raw feed station/category name into its display form: outer whitespace trimmed,
  * internal runs of whitespace collapsed to one space (the feed has both, e.g. "Grab n'Go Hot " and
- * "Latino 1  WOR"). Does not rewrite the name otherwise -- hall-code suffixes like "WOR"/"FRK HMP"
- * are UMass's own station identifiers (shared across halls in ways that don't map to "the hall
- * you're currently on"), not scrape noise, so stripping them risks producing a wrong name rather
- * than a cleaner one. */
+ * "Latino 1  WOR"), then strips a trailing UMass internal hall-code token if present. Confirmed
+ * (2026-09-12 ground-truth pull across all 4 halls) hall-code tokens are exactly "WOR" and
+ * "FRK HMP" -- meaningless to a user already looking at that hall's own menu. Deliberately not
+ * generalized to stripping arbitrary trailing all-caps words: only these two known tokens are
+ * stripped, so a legitimate all-caps station name UMass adds later isn't silently mangled. */
 export function normalizeStationName(raw: string): string {
-  return raw.trim().replace(/\s+/g, " ");
+  return raw
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/ (WOR|FRK HMP)$/, "");
 }
 
 /** Keyword buckets for station display order, food-journey-ish: hot mains/action stations first,
