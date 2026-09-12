@@ -5,15 +5,16 @@ import { normalizeStationName, sortStationNames } from "./stations.ts";
 test("normalizeStationName trims outer whitespace and collapses internal runs to one space", () => {
   assert.equal(normalizeStationName("Grab n'Go Hot "), "Grab n'Go Hot");
   assert.equal(normalizeStationName("International "), "International");
-  assert.equal(normalizeStationName("Latino 1  WOR"), "Latino 1 WOR");
+  assert.equal(normalizeStationName("Grab n'Go Cold "), "Grab n'Go Cold");
   assert.equal(normalizeStationName("Entrees"), "Entrees");
 });
 
-test("normalizeStationName does not rewrite hall-code suffixes", () => {
-  // "Latino FRK HMP" is UMass's own shared station name across two halls -- stripping "the
-  // current hall's code" would leave the WRONG other hall's code dangling.
-  assert.equal(normalizeStationName("Latino FRK HMP"), "Latino FRK HMP");
-  assert.equal(normalizeStationName("Omelet WOR"), "Omelet WOR");
+test("normalizeStationName strips confirmed hall-code suffixes (WOR, FRK HMP)", () => {
+  // Ground truth pull (2026-09-12) confirmed these are the only two hall-code tokens in the feed.
+  assert.equal(normalizeStationName("Latino 1  WOR"), "Latino 1");
+  assert.equal(normalizeStationName("Latino 2  WOR"), "Latino 2");
+  assert.equal(normalizeStationName("Latino FRK HMP"), "Latino");
+  assert.equal(normalizeStationName("Omelet WOR"), "Omelet");
 });
 
 test("sortStationNames orders hot mains before sides before salad/soup before bread/dessert, real station names (2026-09-11 pull)", () => {
