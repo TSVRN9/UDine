@@ -28,6 +28,15 @@ export const colors = {
   // distinct from maroon600 (UMass badge)/gold500 (Custom badge)/grey (Packaged badge) per the
   // approved canvas. No existing token was close enough to reuse.
   sage600: "#6b8a5e",
+  // One accent per macro-badge preset, replacing the single shared gold700 (owner bug report
+  // 2026-09-12: "the badges still don't have colors") -- docs/design/BadgeConcepts.dc.html, "one
+  // accent color per preset ... each reaches for the macro's own real-world association". Each
+  // preset's circle background is this color at low opacity (withOpacity), not a new token.
+  macroProteinAccent: "#a6432f",
+  macroSodiumAccent: "#5b7c8c",
+  macroCalorieAccent: "#c17a35",
+  macroFatAccent: "#c9a12a",
+  macroFiberAccent: "#6b8555",
 } as const;
 
 /**
