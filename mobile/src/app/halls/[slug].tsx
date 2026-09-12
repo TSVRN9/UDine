@@ -1417,16 +1417,13 @@ export function HallMenuScreenBody({
         // Always mounted (not just while the plate has items, still loading, or errored) -- the
         // bar is the only way to open the plate sheet, and the sheet's OFF search is exactly how
         // something not on the menu (a grabbed piece of fruit, say) gets logged when nothing else
-        // is staged. "Visible-but-disabled" while loading; a reassurance sub-line on a fetch
-        // failure -- only the loading LOG button is spec'd disabled. All three are no-ops once
-        // the plate has real items: a populated plate always shows the normal bar regardless of
-        // tab/fetch state.
+        // is staged. "Visible-but-disabled" while loading -- only the loading LOG button is
+        // spec'd disabled. All three are no-ops once the plate has real items: a populated plate
+        // always shows the normal bar regardless of tab/fetch state.
         emptyState={
           currentTabLoading
             ? { subline: "add dishes once the menu loads", disabled: true }
-            : currentTabError
-              ? { subline: "your plate is safe — it lives on this phone" }
-              : { subline: "search for something not on the menu" }
+            : { subline: "search for something not on the menu" }
         }
       />
       <PlateSheet

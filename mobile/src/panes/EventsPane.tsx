@@ -204,8 +204,6 @@ export function EventsPane() {
           )}
         </View>
 
-        {/* Not gated on `offline` -- true regardless of connectivity, shown as a standing footer. */}
-        <Text style={styles.footerReassurance}>Your log and plate keep working offline — they live on this phone.</Text>
       </ScrollView>
     </View>
   );
@@ -220,14 +218,6 @@ const styles = StyleSheet.create({
   empty: { color: withOpacity(colors.ink900, 55), fontFamily: fonts.body400, fontSize: fs(13), marginTop: spacing(1) },
   error: { color: "#b00020", fontFamily: fonts.body400, fontSize: fs(13), marginTop: spacing(1) },
   offlineRow: { marginTop: spacing(2) },
-  footerReassurance: {
-    marginTop: spacing(6),
-    fontFamily: fonts.body400,
-    fontSize: fs(12),
-    color: withOpacity(colors.ink900, 45),
-    textAlign: "center",
-  },
-
   eventsList: { gap: spacing(2.5) },
   eventCard: { overflow: "hidden" },
   eventBanner: { width: "100%", aspectRatio: 1024 / 432, backgroundColor: withOpacity(colors.ink900, 8) },

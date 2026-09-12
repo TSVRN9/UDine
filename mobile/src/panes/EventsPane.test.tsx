@@ -256,24 +256,15 @@ describe("EventsPane", () => {
     expect(texts(root)).toMatch(/Fall Fest/);
   });
 
-  it("shows the evergreen footer reassurance copy regardless of online/offline state", async () => {
-    mockFetchEvents.mockResolvedValue([]);
-    const online = await renderEventsPane();
-    expect(texts(online)).toMatch(/Your log and plate keep working offline — they live on this phone\./);
-  });
-
   // #90 nav reorg: Press and Newsletter sections give /press and /newsletter a real in-app entry
-  // point now that QUICK_LINKS (index.tsx) is gone. The footer reassurance line must still be the
-  // last thing on the pane.
-  it("keeps the footer reassurance line after the new Press/Newsletter sections, not swallowed between them", async () => {
+  // point now that QUICK_LINKS (index.tsx) is gone.
+  it("renders Newsletter after Press, not swallowed between them", async () => {
     const root = await renderEventsPane();
     const body = texts(root);
     const pressIdx = body.indexOf("Press");
     const newsletterIdx = body.indexOf("Newsletter");
-    const footerIdx = body.indexOf("Your log and plate keep working offline");
     expect(pressIdx).toBeGreaterThan(-1);
     expect(newsletterIdx).toBeGreaterThan(pressIdx);
-    expect(footerIdx).toBeGreaterThan(newsletterIdx);
   });
 });
 

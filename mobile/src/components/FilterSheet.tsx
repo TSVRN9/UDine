@@ -210,7 +210,6 @@ export function FilterSheet({
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Avoid Allergens</Text>
-                <Text style={styles.sectionSubtext}>saved · every menu</Text>
               </View>
               {allergens.length === 0 ? (
                 <Text style={styles.emptyHint}>No allergen data on this menu.</Text>
@@ -241,7 +240,6 @@ export function FilterSheet({
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Require Diet Tags</Text>
-                <Text style={styles.sectionSubtext}>saved · every menu</Text>
               </View>
               {dietTags.length === 0 ? (
                 <Text style={styles.emptyHint}>No diet-tag data on this menu.</Text>
@@ -298,7 +296,6 @@ export function FilterSheet({
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Stations Here</Text>
-                  <Text style={styles.sectionSubtext}>this menu only</Text>
                 </View>
                 <View style={styles.chipRow}>
                   {stations.map((station) => {
@@ -327,7 +324,6 @@ export function FilterSheet({
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Price</Text>
-                  <Text style={styles.sectionSubtext}>this menu only</Text>
                 </View>
                 <View style={styles.chipRow}>
                   {PRICE_BUCKETS.map((bucket) => {
@@ -393,7 +389,6 @@ const styles = StyleSheet.create({
   section: { marginBottom: spacing(5) },
   sectionHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: spacing(2) },
   sectionTitle: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 1.2, textTransform: "uppercase", color: colors.maroon900 },
-  sectionSubtext: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 45) },
   emptyHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55) },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing(2) },
