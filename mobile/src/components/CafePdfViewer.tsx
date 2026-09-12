@@ -172,11 +172,6 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
             />
           )}
         </View>
-
-        <View style={styles.hintBar}>
-          {/* Pages stack in one vertical scroll, not a swipeable pager. */}
-          <Text style={styles.hintText}>Rendered in-app · pinch to zoom · scroll for pages</Text>
-        </View>
       </View>
     </Modal>
   );
@@ -200,15 +195,23 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: withOpacity(colors.paper50, 85) },
 
-  // 8px matches CafePdf.dc.html:32 (border-radius: 8px 8px 0 0); doesn't land on an existing radii token.
-  documentSurface: { flex: 1, marginHorizontal: spacing(3.5), backgroundColor: colors.paper50, borderTopLeftRadius: 8, borderTopRightRadius: 8, overflow: "hidden" },
+  // 8px matches CafePdf.dc.html:32 (border-radius: 8px 8px 0 0); doesn't land on an existing radii
+  // token. marginBottom replaces the old hintBar's paddingBottom: spacing(5) as this surface's
+  // bottom breathing room now that the hint bar itself is gone -- flat, same as the hint bar was
+  // (neither consults safe-area insets).
+  documentSurface: {
+    flex: 1,
+    marginHorizontal: spacing(3.5),
+    marginBottom: spacing(3.5),
+    backgroundColor: colors.paper50,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    overflow: "hidden",
+  },
   webview: { flex: 1, backgroundColor: colors.paper50 },
   loading: { flex: 1 },
   errorBlock: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing(3), padding: spacing(4) },
   error: { color: "#b00020", fontFamily: fonts.body400, textAlign: "center" },
   retryButton: { paddingVertical: spacing(2), paddingHorizontal: spacing(5), borderRadius: radii.md, borderWidth: 1, borderColor: "#b00020" },
   retryButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: "#b00020" },
-
-  hintBar: { backgroundColor: withOpacity(colors.maroon900, 92), paddingTop: spacing(2.5), paddingHorizontal: spacing(5), paddingBottom: spacing(5), alignItems: "center" },
-  hintText: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.paper50, 60) },
 });
