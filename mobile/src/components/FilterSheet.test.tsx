@@ -64,7 +64,7 @@ describe("Macros chips carry a per-preset icon glyph (FilterSheet.dc.html:75-99)
 // Owner bug report 2026-09-12: FilterSheet's Macros chips used to carry their own independently-
 // copied glyph paths, 3 of which had drifted from the shipped hall-menu badge shape (hexagon for
 // Low Sodium, a plain teardrop for Under 300 Cal, an apple for Low Fat). Both now render from the
-// same lib/macroBadgeGlyphs.ts source, so this asserts the chip's actual rendered geometry equals
+// same lib/macroBadgeGlyphs.tsx source, so this asserts the chip's actual rendered geometry equals
 // what that shared source produces for every preset, not just that the two happen to look similar.
 function glyphGeometry(svg: renderer.ReactTestInstance) {
   return {

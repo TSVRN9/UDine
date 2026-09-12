@@ -189,7 +189,7 @@ function GrabBagIcon({ color }: { color: string }) {
 }
 
 /** menu-filters-macros: a filled circular badge with a hand-drawn per-preset glyph (shape source:
- * lib/macroBadgeGlyphs.ts, shared with FilterSheet.tsx's chip icons), matching
+ * lib/macroBadgeGlyphs.tsx, shared with FilterSheet.tsx's chip icons), matching
  * docs/design/BadgeConcepts.dc.html's shipped badge icons -- one accent color per preset instead
  * of a single shared gold (owner bug report 2026-09-12). accessibilityLabel carries the full
  * preset name for anyone not just eyeballing the glyph. */

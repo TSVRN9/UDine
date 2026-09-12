@@ -24,7 +24,7 @@ export const MACRO_PRESET_LABELS: Record<MacroPreset, string> = {
 // FilterSheet.dc.html:75-99: each Macros chip carries its own icon, distinct per preset, unlike
 // the plain text Stations/Price chips -- active is a maroon900 glyph on a maroon900@14% circle,
 // inactive is an ink900@60% glyph on an ink900@6% circle. The glyph *shapes* themselves come from
-// lib/macroBadgeGlyphs.ts, shared with the hall-menu badge (mobile/src/app/halls/[slug].tsx) --
+// lib/macroBadgeGlyphs.tsx, shared with the hall-menu badge (mobile/src/app/halls/[slug].tsx) --
 // this file used to keep its own independently-copied path set (per this artboard's own
 // FilterSheet.dc.html:75-99 source), and it drifted: 3 of 5 shapes went stale relative to the
 // shipped badge (owner bug report 2026-09-12). One shared source means that can't happen again.
