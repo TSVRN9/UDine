@@ -43,3 +43,16 @@ export function grabSections(grabItems: MenuItem[], prefs: FoodPreferences): Men
   }
   return sortStationNames([...byCategory.keys()]).map((title) => ({ title, data: Array.from(byCategory.get(title)!.values()) }));
 }
+
+/** Moves the section titled `title` (if present) to the front of `sections`, in place. Used by
+ * [slug].tsx's dev-only stress fixture: sortStationNames places an unrecognized category
+ * alphabetically after every real station (its own doc comment), which for a synthetic "Stress
+ * Test" section means the very bottom of a long list -- the opposite of "visible without
+ * scrolling" a screenshot-based repro needs. A no-op when `title` isn't found (e.g. the fixture is
+ * off, or the user's own allergen/diet-tag filters hid it -- menuItemMatchesPreferences runs before
+ * this ever sees the list). */
+export function moveSectionToFront(sections: MenuSection[], title: string): MenuSection[] {
+  const index = sections.findIndex((s) => s.title === title);
+  if (index > 0) sections.unshift(sections.splice(index, 1)[0]);
+  return sections;
+}

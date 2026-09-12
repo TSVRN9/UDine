@@ -68,6 +68,13 @@ describe("macro-badge placement: flex-row sibling, not an inline Text attachment
   // didn't fit on the text's current line it rendered past the row's bounds instead of wrapping
   // (see docs/decisions-log.md "Inconclusive visual verification (2026-09-11)"). Reverted to the
   // flexWrap + flexShrink shape verified on-device in b457b90, which can't overflow the card.
+  //
+  // Re-verified harder 2026-09-12 (docs/decisions-log.md "Hall-menu badge overflow re-investigated,
+  // with the 5-badge fixture finally on screen") after an owner report insisted the overflow was
+  // real: live pixel measurements at the actual worst case (all 5 macro badges + a 60+ char name,
+  // narrowest pool device) still show zero overflow past the card, with the wasted-line tradeoff
+  // this describe block pins now measured (not just argued) at ~198dp of unused space beside the
+  // badge row. No hybrid inline-when-safe fix was attempted -- see that entry for why.
 
   it("renders the badge row as a flex-row sibling of the dish-name Text inside rowNameLine", () => {
     const rowNameLineBlock = source.match(/<View style=\{styles\.rowNameLine\}>([\s\S]*?)\n {12}<\/View>/)?.[1] ?? "";
