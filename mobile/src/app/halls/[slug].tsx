@@ -56,11 +56,13 @@ import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme"
 import { formatTime, retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
 import {
   cafeMealTabLabel,
+  deriveHallMealTabs,
   directionsUrl,
   formatDateStepperLabel,
   formatServingSummary,
   hallInfoGrabNGoWindow,
   hallInfoHoursRows,
+  isBrunchLunch,
   isCurrentTabLoading,
   MEAL_TABS,
   shouldAutoCorrectMealTab,
@@ -552,8 +554,20 @@ export function HallMenuScreenBody({
     return parseRetailMenuHtml(pickCafeMenuHtml(hall.retailLoc)).kind !== "items";
   }, [isRealHall, hall.retailLoc]);
 
+  // Real-hall tabs: while `items` hasn't arrived yet, fall back to the full MEAL_TABS list so the
+  // tab row/skeleton has something to render immediately (same "best guess while loading" shape as
+  // before); once items land, deriveHallMealTabs narrows to whichever periods that day's feed
+  // actually published (Berkshire has no breakfast key at all, Franklin almost never has late
+  // night -- see that function's own doc). Same MEAL_TABS fallback when items resolves to a
+  // genuinely empty array (nothing posted for the day at all, e.g. a holiday) -- deriveHallMealTabs
+  // would otherwise return [], leaving only the Grab tab and no meal tab at all to select; the old
+  // "four tabs, each showing its own empty state" UX is the correct one for that case, not zero tabs.
   const mealTabs = useMemo<readonly MealPeriod[]>(() => {
-    if (isRealHall) return MEAL_TABS;
+    if (isRealHall) {
+      if (!items) return MEAL_TABS;
+      const derived = deriveHallMealTabs(items);
+      return derived.length > 0 ? derived : MEAL_TABS;
+    }
     if (!cafeState) return [];
     if (cafeState.kind === "integrated") return deriveCafeMealTabs(cafeState.items);
     // "standing" is always exactly one synthetic "allday" tab, same as an integrated café whose
@@ -561,7 +575,11 @@ export function HallMenuScreenBody({
     // top-level render branch below replaces the tab pager entirely rather than showing an empty
     // one.
     return cafeState.kind === "standing" ? (["allday"] as const) : [];
-  }, [isRealHall, cafeState]);
+  }, [isRealHall, items, cafeState]);
+
+  // Whether today's midday period is actually brunch (see isBrunchLunch's own doc) -- real-hall
+  // only, since a café's "lunch" period (if it ever has one) isn't in scope for this feature.
+  const isBrunchToday = useMemo(() => (isRealHall && items ? isBrunchLunch(items, mealTabs) : false), [isRealHall, items, mealTabs]);
 
   // Café-screen unification: every downstream consumer that used to read `items` for
   // filtering/sections/FilterSheet purposes (a real hall's own items, unchanged) now reads THIS --
@@ -712,14 +730,19 @@ export function HallMenuScreenBody({
   // A café's initial tab can't be a static default (see selectedMeal's own comment) -- once
   // mealTabs resolves, land on whichever period comes first. A manual tab choice survives
   // stepping the date, same as a real hall's, unless the new date's derived tab set no longer
-  // contains it (a café's mealTabs is per-day, not fixed) -- then fall back to the first tab
-  // instead of silently rendering a stale tab's dishes with no tab pill highlighted.
+  // contains it (mealTabs is per-day for both a café and, now, a real hall -- see deriveHallMealTabs)
+  // -- then fall back to the first tab instead of silently rendering a stale tab's dishes with no
+  // tab pill highlighted (already covered for cafés; extended to real halls once their own mealTabs
+  // became dynamic too). `selectedMeal === "grab"` is exempted, not just left to `mealTabs.includes`
+  // -- Grab is a real hall's own 5th tab and is deliberately never a member of `mealTabs` (see
+  // TabSelection's own doc), so without this exemption every render would yank the user off Grab
+  // and back onto mealTabs[0].
   useEffect(() => {
-    if (isRealHall || mealTabs.length === 0) return;
+    if (mealTabs.length === 0 || selectedMeal === "grab") return;
     if (selectedMeal !== null && mealTabs.includes(selectedMeal as MealPeriod)) return;
     const firstTab = mealTabs[0];
     if (firstTab) setSelectedMeal(firstTab);
-  }, [isRealHall, selectedMeal, mealTabs]);
+  }, [selectedMeal, mealTabs]);
 
   // Expanded state keys on dish identity alone (hallTid + dishName, via plateKeyFor), not meal
   // period or date -- the same dish name can recur across meals/days, so without this a card
@@ -826,7 +849,13 @@ export function HallMenuScreenBody({
   // Read once per render, not on an interval: if the sheet is left open across a meal boundary
   // with no other re-render, the NOW pill goes stale until something else triggers one.
   const now = new Date();
-  const hoursRows = hallHours ? hallInfoHoursRows(hallHours, now) : [];
+  // get_infov2 (hoursFeed) only ever publishes TODAY's hours (hallInfoHoursRows' own doc) -- so the
+  // dynamic, per-day mealTabs/isBrunchToday (derived from `items`, fetched for `selectedDate`) only
+  // apply when the two dates actually agree. Stepped to a different day, the sheet falls back to
+  // the fixed MEAL_TABS/no-brunch defaults rather than filtering/relabeling today's real hours by
+  // some OTHER day's menu.
+  const isSelectedDateToday = selectedDate.toDateString() === now.toDateString();
+  const hoursRows = hallHours ? hallInfoHoursRows(hallHours, now, isSelectedDateToday ? mealTabs : MEAL_TABS, isSelectedDateToday && isBrunchToday) : [];
   const grabNGoWindow = hoursFeed ? hallInfoGrabNGoWindow(hoursFeed.retail, hall.name) : null;
   const infoDirectionsUrl = directionsUrl(hallHours?.mapAddress);
 
@@ -861,7 +890,6 @@ export function HallMenuScreenBody({
   // paint a confidently wrong "open now · until ..." over a menu that isn't today's; omitted once
   // the date stepper moves off today.
   const grabRetailHours = hoursFeed ? findGrabNGoLocation(hoursFeed.retail, hall.name) : null;
-  const isSelectedDateToday = selectedDate.toDateString() === now.toDateString();
   const grabSubtitle = grabRetailHours && isSelectedDateToday ? retailHeaderSubtitle(retailOpenStatus(grabRetailHours, now)) : "";
 
   // Whichever tab is currently selected, not always the hall's own -- the plate bar's empty-state
@@ -1114,7 +1142,7 @@ export function HallMenuScreenBody({
     if (periodSections.length === 0 && unmatchedEntries.length === 0) {
       // "for this day" matches grab-n-go/[slug].tsx's own EmptyState copy (date-agnostic by
       // construction, so it's correct whether selectedDate is today or not).
-      return <EmptyState title="No matching dishes" message={`No ${cafeMealTabLabel(period, isRealHall).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />;
+      return <EmptyState title="No matching dishes" message={`No ${cafeMealTabLabel(period, isRealHall, isBrunchToday).toLowerCase()} menu matches your filters at ${hall.name} for this day.`} />;
     }
     return (
       <GestureSectionList
@@ -1266,9 +1294,9 @@ export function HallMenuScreenBody({
                 hitSlop={12}
                 style={styles.tab}
                 accessibilityRole="button"
-                accessibilityLabel={`${cafeMealTabLabel(period, isRealHall)} menu`}
+                accessibilityLabel={`${cafeMealTabLabel(period, isRealHall, isBrunchToday)} menu`}
               >
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall)}</Text>
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall, isBrunchToday)}</Text>
                 <View style={styles.tabUnderline}>
                   {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
                       one and Grab's below) reading the same swipeable-sequence index MealTabPager
