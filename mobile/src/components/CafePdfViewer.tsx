@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { ShouldStartLoadRequest, WebViewMessageEvent } from "react-native-webview/lib/WebViewTypes";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -68,6 +69,7 @@ export function shouldAllowCafePdfNavigation(request: ShouldStartLoadRequest): b
  * new for this WebView engine.
  */
 export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const [localUri, setLocalUri] = useState<string | null>(null);
   // buildViewerHtml is async, so the finished HTML has to live in state rather than being
   // computed inline during render.
@@ -150,7 +152,7 @@ export function CafePdfViewer({ url, label, cafeName, onClose }: Props) {
           </Pressable>
         </View>
 
-        <View style={styles.documentSurface}>
+        <View style={[styles.documentSurface, { marginBottom: spacing(3.5) + insets.bottom }]}>
           {error ? (
             <View style={styles.errorBlock}>
               <Text style={styles.error}>Couldn&apos;t load menu: {error}</Text>
@@ -196,14 +198,16 @@ const styles = StyleSheet.create({
   saveButtonText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, color: withOpacity(colors.paper50, 85) },
 
   // 8px matches CafePdf.dc.html:32 (border-radius: 8px 8px 0 0); doesn't land on an existing radii
-  // token. marginBottom (matching marginHorizontal, so the card is inset consistently on every
-  // side) replaces the old hintBar as this surface's bottom breathing room now that the hint bar
-  // itself is gone -- a flat value, same as the hint bar's own fixed paddingBottom was (neither
-  // consults safe-area insets).
+  // token. marginBottom's base spacing(3.5) matches marginHorizontal (inset consistently on every
+  // side) and replaces the old hintBar as this surface's bottom breathing room now that the hint
+  // bar itself is gone -- + insets.bottom on top of that base, unlike the hint bar's own fixed
+  // paddingBottom, because a visual-verifier pass on PR #450 found the flat-only margin left this
+  // card's bottom edge inside the device's reserved gesture-nav-bar zone (nothing else in this
+  // component consulted safe-area insets either, but the hint bar's own much larger fixed height
+  // happened to clear that zone anyway -- removing it exposed the gap).
   documentSurface: {
     flex: 1,
     marginHorizontal: spacing(3.5),
-    marginBottom: spacing(3.5),
     backgroundColor: colors.paper50,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
