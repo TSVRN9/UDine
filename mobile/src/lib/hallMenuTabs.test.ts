@@ -1,6 +1,7 @@
-import type { DiningHallHours, NutritionFacts, RetailLocationHours, TimeWindow } from "@udine/shared";
+import type { DiningHallHours, MenuItem, NutritionFacts, RetailLocationHours, TimeWindow } from "@udine/shared";
 import {
   cafeMealTabLabel,
+  deriveHallMealTabs,
   directionsUrl,
   formatDateStepperLabel,
   formatServingSummary,
@@ -8,6 +9,7 @@ import {
   hallInfoGrabNGoWindow,
   hallInfoHoursRows,
   hallInfoWindowText,
+  isBrunchLunch,
   isCurrentTabLoading,
   mealTabLabel,
   shouldAutoCorrectMealTab,
@@ -23,6 +25,36 @@ function hall(overrides: Partial<DiningHallHours> = {}): DiningHallHours {
   return { hallTid: 1, breakfast: null, lunch: null, dinner: null, latenight: null, general: null, ...overrides };
 }
 
+// Real category name strings from live foodpro-menu-ajax captures (see the ticket's ground truth),
+// not placeholders: weekday Franklin lunch/dinner categories don't start with "Breakfast", but
+// Saturday's sole midday "lunch" period folds "Breakfast Entrees"/"Breakfast Pastries" in alongside
+// ordinary lunch categories.
+function menuItem(mealPeriod: MenuItem["mealPeriod"], category: string, hallTid = 2): MenuItem {
+  return {
+    dishName: "Item",
+    category,
+    mealPeriod,
+    hallTid,
+    date: "2026-09-12",
+    nutrition: {
+      servingSize: "1 serving",
+      calories: 100,
+      caloriesFromFat: 0,
+      totalFatG: 0,
+      satFatG: 0,
+      transFatG: 0,
+      cholesterolMg: 0,
+      sodiumMg: 0,
+      totalCarbG: 0,
+      dietaryFiberG: 0,
+      sugarsG: 0,
+      proteinG: 0,
+    },
+    allergens: [],
+    dietTags: [],
+  };
+}
+
 // Wed 2026-08-19, noon local time.
 const NOON = new Date(2026, 7, 19, 12, 0, 0, 0);
 
@@ -32,6 +64,16 @@ describe("mealTabLabel", () => {
     expect(mealTabLabel("lunch")).toBe("Lunch");
     expect(mealTabLabel("dinner")).toBe("Dinner");
     expect(mealTabLabel("latenight")).toBe("Late");
+  });
+
+  it("reads 'Brunch' for lunch when isBrunch is true, leaving every other period unaffected", () => {
+    expect(mealTabLabel("lunch", true)).toBe("Brunch");
+    expect(mealTabLabel("dinner", true)).toBe("Dinner");
+    expect(mealTabLabel("latenight", true)).toBe("Late");
+  });
+
+  it("defaults isBrunch to false", () => {
+    expect(mealTabLabel("lunch")).toBe("Lunch");
   });
 });
 
@@ -50,6 +92,71 @@ describe("cafeMealTabLabel", () => {
   it("leaves every other period unchanged for a café", () => {
     expect(cafeMealTabLabel("lunch", false)).toBe("Lunch");
     expect(cafeMealTabLabel("latenight", false)).toBe("Late");
+  });
+
+  it("passes isBrunch through to mealTabLabel for a real hall", () => {
+    expect(cafeMealTabLabel("lunch", true, true)).toBe("Brunch");
+    expect(cafeMealTabLabel("lunch", true, false)).toBe("Lunch");
+  });
+});
+
+describe("deriveHallMealTabs", () => {
+  // Ground truth: Berkshire (tid=4) has no breakfast key at all, any day; Franklin (tid=2) almost
+  // never has a "late night" key. A period with zero items is absent from that day's `items`
+  // entirely, not present-with-empty-content.
+  it("omits a period the day's items don't include at all, keeping canonical order for the rest", () => {
+    const items = [
+      menuItem("grabngo", "Grab", 4),
+      menuItem("lunch", "Deli", 4),
+      menuItem("dinner", "Grill", 4),
+      menuItem("latenight", "Late Bites", 4),
+    ];
+    expect(deriveHallMealTabs(items)).toEqual(["lunch", "dinner", "latenight"]);
+  });
+
+  it("includes every period that has at least one item that day", () => {
+    const items = [menuItem("breakfast", "Eggs"), menuItem("lunch", "Deli"), menuItem("dinner", "Grill"), menuItem("latenight", "Late Bites")];
+    expect(deriveHallMealTabs(items)).toEqual(["breakfast", "lunch", "dinner", "latenight"]);
+  });
+
+  it("returns an empty list for a day with no items at all", () => {
+    expect(deriveHallMealTabs([])).toEqual([]);
+  });
+
+  it("preserves breakfast->lunch->dinner->latenight order regardless of feed encounter order", () => {
+    const items = [menuItem("dinner", "Grill"), menuItem("breakfast", "Eggs")];
+    expect(deriveHallMealTabs(items)).toEqual(["breakfast", "dinner"]);
+  });
+});
+
+describe("isBrunchLunch", () => {
+  // Saturday Franklin/Hampshire: sole midday period is "lunch", its categories include
+  // "Breakfast Entrees"/"Breakfast Pastries" folded in alongside ordinary lunch categories.
+  it("is true when lunch items include a 'Breakfast...' category and there's no separate breakfast tab", () => {
+    const items = [menuItem("lunch", "Breakfast Entrees"), menuItem("lunch", "Deli"), menuItem("dinner", "Grill")];
+    const mealTabs = deriveHallMealTabs(items);
+    expect(mealTabs).toEqual(["lunch", "dinner"]);
+    expect(isBrunchLunch(items, mealTabs)).toBe(true);
+  });
+
+  it("is false when a separate breakfast tab exists that day, even if lunch also has a Breakfast-prefixed category", () => {
+    const items = [menuItem("breakfast", "Breakfast Entrees"), menuItem("lunch", "Breakfast Entrees"), menuItem("lunch", "Deli")];
+    const mealTabs = deriveHallMealTabs(items);
+    expect(mealTabs).toContain("breakfast");
+    expect(isBrunchLunch(items, mealTabs)).toBe(false);
+  });
+
+  // Berkshire ground truth: lunch NEVER includes a "Breakfast..." category, weekday or Saturday --
+  // it just doesn't serve breakfast food, that's not brunch. A day-of-week guess would mislabel it.
+  it("is false for an ordinary lunch with no Breakfast-prefixed category, even with no breakfast tab (Berkshire)", () => {
+    const items = [menuItem("lunch", "Deli", 4), menuItem("lunch", "Grill", 4), menuItem("dinner", "Grill", 4)];
+    const mealTabs = deriveHallMealTabs(items);
+    expect(mealTabs).not.toContain("breakfast");
+    expect(isBrunchLunch(items, mealTabs)).toBe(false);
+  });
+
+  it("is false when there's no lunch period at all", () => {
+    expect(isBrunchLunch([menuItem("dinner", "Grill")], ["dinner"])).toBe(false);
   });
 });
 
@@ -81,6 +188,16 @@ describe("shouldAutoCorrectMealTab", () => {
 
   it("returns true comparing against a null selection (not yet chosen)", () => {
     expect(shouldAutoCorrectMealTab("lunch", null, REAL_HALL_TABS)).toBe(true);
+  });
+
+  // #442-follow-up: mealTabs is now dynamic per hall/day (deriveHallMealTabs), not always the
+  // fixed 4 -- Berkshire has no breakfast tab, ever. currentMealPeriod resolving to "breakfast"
+  // there (e.g. hoursFeed's standard-schedule fallback) must never auto-correct into a tab the
+  // hall doesn't have, which would leave MealTabPager with no pill highlighted (this guard's own
+  // top-level doc explains why).
+  it("returns false when the resolved period is hidden from this hall's own (dynamic) mealTabs, even though it's a real MealPeriod", () => {
+    const berkshireTabs: readonly ("lunch" | "dinner" | "latenight")[] = ["lunch", "dinner", "latenight"];
+    expect(shouldAutoCorrectMealTab("breakfast", "lunch", berkshireTabs)).toBe(false);
   });
 });
 
@@ -186,6 +303,32 @@ describe("hallInfoHoursRows", () => {
     const rows = hallInfoHoursRows(hours, NOON);
     expect(rows.find((r) => r.period === "lunch")?.window).toEqual({ openTime: "11:00 AM", closeTime: "2:30 PM" });
     expect(rows.find((r) => r.period === "dinner")?.window).toBeNull();
+  });
+
+  // #442-follow-up: the sheet must hide the same periods the tab row hides (deriveHallMealTabs),
+  // not fall back to the fixed MEAL_TABS -- otherwise Berkshire shows a phantom "not served here"
+  // breakfast row the tab row has already omitted for the same day.
+  it("omits a row for a period absent from the passed-in mealTabs, instead of showing 'not served here'", () => {
+    const hours = hall({ lunch: window("11:00 AM", "2:30 PM"), dinner: window("5:00 PM", "8:00 PM"), latenight: window("9:00 PM", "11:00 PM") });
+    const berkshireTabs: readonly ("lunch" | "dinner" | "latenight")[] = ["lunch", "dinner", "latenight"];
+    const rows = hallInfoHoursRows(hours, NOON, berkshireTabs);
+    expect(rows.map((r) => r.period)).toEqual(["lunch", "dinner", "latenight"]);
+  });
+
+  it("labels lunch as 'Brunch' when isBrunch is true, leaving other rows unaffected", () => {
+    const hours = hall({ lunch: window("10:00 AM", "2:00 PM"), dinner: window("5:00 PM", "8:00 PM") });
+    const saturdayTabs: readonly ("lunch" | "dinner")[] = ["lunch", "dinner"];
+    const rows = hallInfoHoursRows(hours, NOON, saturdayTabs, true);
+    expect(rows.map((r) => r.period)).toEqual(["lunch", "dinner"]);
+    expect(rows.find((r) => r.period === "lunch")?.label).toBe("Brunch");
+    expect(rows.find((r) => r.period === "dinner")?.label).toBe("Dinner");
+  });
+
+  it("defaults mealTabs to the fixed MEAL_TABS and isBrunch to false when omitted", () => {
+    const hours = hall({ lunch: window("11:00 AM", "2:30 PM") });
+    const rows = hallInfoHoursRows(hours, NOON);
+    expect(rows.map((r) => r.period)).toEqual(["breakfast", "lunch", "dinner", "latenight"]);
+    expect(rows.find((r) => r.period === "lunch")?.label).toBe("Lunch");
   });
 });
 
