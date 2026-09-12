@@ -28,6 +28,12 @@ const BADGE_INFO: Record<PlateSearchResult["kind"], { label: string; fill: strin
 // button copy.
 const SEARCH_PAGE_SIZE = 20;
 
+// How many merged results are visible at once (owner: "maybe 5 ... until scrolling for more").
+// Caps the DISPLAY of the merged list independent of how many of the 6 search sources returned
+// hits -- loadMore() reveals more of what's already fetched in increments of this size before it
+// ever spends a network round-trip fetching another page from an exhausted source.
+const VISIBLE_RESULTS = 5;
+
 interface Props {
   visible: boolean;
   plate: PlateEntry[];
@@ -99,6 +105,10 @@ export function PlateSheet({
   // the initialQuery effect below since that path seeds and runs a search immediately.
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [results, setResults] = useState<PlateSearchResult[] | null>(null);
+  // How much of `results` is actually rendered -- reset to VISIBLE_RESULTS on every fresh search
+  // and advanced by loadMore, independent of offPage/usdaPage/brandedPage below (those track each
+  // network source's own next-page cursor; this tracks the display slice of the merged list).
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_RESULTS);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   // Pagination cursors for the networked sources (OFF/USDA/Branded) -- umass history/catalog and
@@ -152,6 +162,7 @@ export function PlateSheet({
       searchSeq.current++;
       setSearching(false);
       setResults(null);
+      setVisibleCount(VISIBLE_RESULTS);
       setSearchError(null);
       setQuery("");
       setEditingKey(null);
@@ -263,6 +274,7 @@ export function PlateSheet({
         // instead, so the "Create a custom food" escape hatch stays available here too.
         setSearchError("please try again, or create a custom food below");
         setResults(null);
+        setVisibleCount(VISIBLE_RESULTS);
         setOffHasMore(false);
         setUsdaHasMore(false);
         setBrandedHasMore(false);
@@ -271,6 +283,7 @@ export function PlateSheet({
 
       setSearchError(null);
       setResults(merged);
+      setVisibleCount(VISIBLE_RESULTS);
       setOffPage(1);
       setUsdaPage(1);
       setBrandedPage(1);
@@ -282,11 +295,17 @@ export function PlateSheet({
     }
   }
 
-  /** Fetches the next page of whichever of OFF/USDA/Branded still has more and appends the new
-   * hits -- umass history/catalog and custom foods are local, unpaginated queries with no "next
-   * page" of their own. */
+  /** "Load More" reveals more of the already-fetched `results` buffer first (no network cost) --
+   * only once the visible slice has caught up to the full merged buffer does it fetch the next
+   * page of whichever of OFF/USDA/Branded still has more. umass history/catalog and custom foods
+   * are local, unpaginated queries with no "next page" of their own. */
   async function loadMore() {
-    if (loadingMore || (!offHasMore && !usdaHasMore && !brandedHasMore)) return;
+    if (loadingMore) return;
+    if (visibleCount < (results?.length ?? 0)) {
+      setVisibleCount((v) => v + VISIBLE_RESULTS);
+      return;
+    }
+    if (!offHasMore && !usdaHasMore && !brandedHasMore) return;
     const q = query.trim();
     if (!q) return;
     const seq = searchSeq.current; // gated the same way runSearch is -- a stale response must not append onto a newer/closed search
@@ -309,6 +328,10 @@ export function PlateSheet({
         ...(branded?.results.map((food): PlateSearchResult => ({ kind: "usda", food })) ?? []),
       ];
       if (additions.length > 0) setResults((prev) => [...(prev ?? []), ...additions]);
+      // Reveal the freshly-fetched batch in the same VISIBLE_RESULTS increments as the reveal-only
+      // path above, rather than dumping the whole new page in at once -- a network page can itself
+      // be 20+ items, which is exactly the "too many at once" bug this cap exists to fix.
+      setVisibleCount((v) => v + VISIBLE_RESULTS);
       if (off) {
         setOffPage((p) => p + 1);
         setOffHasMore(off.hasMore);
@@ -427,6 +450,11 @@ export function PlateSheet({
                       onChangeText={setQuery}
                       placeholder="Search for a food"
                       placeholderTextColor={withOpacity(colors.ink900, 45)}
+                      // Tapping "Add something else" swaps this box in for the first time --
+                      // without autoFocus it renders unfocused, so the user has to tap it a
+                      // second time before the keyboard appears. Same reasoning as the
+                      // servings-edit TextInput above.
+                      autoFocus
                       onSubmitEditing={() => runSearch()}
                       // This box sits after the item list/totals/LOG button in a plain ScrollView,
                       // which doesn't reliably scroll a newly-focused input into view on its own --
@@ -442,7 +470,7 @@ export function PlateSheet({
                   {searching && <ActivityIndicator color={colors.maroon600} style={styles.searchSpinner} />}
                   {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
                   {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
-                  {results?.map((r) => {
+                  {results?.slice(0, visibleCount).map((r) => {
                     const key = plateSearchResultKey(r);
                     const detail = plateSearchResultDetail(r);
                     const badge = BADGE_INFO[r.kind];
@@ -471,11 +499,21 @@ export function PlateSheet({
                       </View>
                     );
                   })}
-                  {(offHasMore || usdaHasMore || brandedHasMore) && (
-                    <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
-                      {loadingMore ? "Loading…" : `Load ${SEARCH_PAGE_SIZE} More`}
-                    </Button>
-                  )}
+                  {(() => {
+                    const total = results?.length ?? 0;
+                    const hiddenFetched = total - visibleCount;
+                    const canFetchMore = offHasMore || usdaHasMore || brandedHasMore;
+                    if (hiddenFetched <= 0 && !canFetchMore) return null;
+                    // Revealing already-fetched results is free -- only a fetch from an exhausted
+                    // source costs a network round-trip, so the button copy says which is about to
+                    // happen.
+                    const label = loadingMore ? "Loading…" : hiddenFetched > 0 ? `Load ${Math.min(VISIBLE_RESULTS, hiddenFetched)} More` : `Load ${SEARCH_PAGE_SIZE} More`;
+                    return (
+                      <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
+                        {label}
+                      </Button>
+                    );
+                  })()}
                   {/* Standing footer row -- shown whenever a search has actually run, whether or
                   not it found anything, since no database this sheet searches has every food. Also
                   shown on the all-rejected error branch, when the user most needs this escape hatch. */}
