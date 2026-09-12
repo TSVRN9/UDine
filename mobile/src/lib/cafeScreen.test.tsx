@@ -33,6 +33,7 @@ jest.mock("../lib/favoritesStorage", () => ({
 
 jest.mock("../lib/preferences", () => ({
   getPreferences: jest.fn().mockResolvedValue({ allergensToAvoid: [], requiredDietTags: [] }),
+  getCachedPreferences: jest.fn().mockReturnValue(undefined),
 }));
 
 jest.mock("./seenDishesStorage", () => ({

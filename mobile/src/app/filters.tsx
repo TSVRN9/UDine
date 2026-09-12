@@ -4,13 +4,15 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { EmptyState } from "../components/ui";
 import { MenuErrorCard } from "../components/MenuErrorCard";
 import { colors, fonts, spacing, withOpacity } from "../lib/theme";
-import { getPreferences, setPreferences, toggleAllergen, toggleDietTag } from "../lib/preferences";
+import { getCachedPreferences, getPreferences, setPreferences, toggleAllergen, toggleDietTag } from "../lib/preferences";
 
 export default function FiltersScreen() {
   const [allergens, setAllergens] = useState<string[] | null>(null);
   const [dietTags, setDietTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
+  // Same cache-seeding as halls/[slug].tsx -- avoids painting every chip unset, then flipping to
+  // saved state a frame later once getPreferences() below resolves.
+  const [prefs, setPrefs] = useState<FoodPreferences>(() => getCachedPreferences() ?? { allergensToAvoid: [], requiredDietTags: [] });
   // Generation counter: incremented per loadMenus() call and on unmount, so a stale response from
   // an earlier call can't clobber a later one's result/error.
   const generation = useRef(0);
