@@ -25,7 +25,7 @@ import { stepDate } from "./hallMenuTabs";
 import { SqliteLogStorage } from "./sqliteStorage";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
-import { setPreferences } from "./preferences";
+import { getCachedPreferences, setPreferences } from "./preferences";
 
 jest.mock("../lib/sqliteStorage", () => ({
   SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
@@ -51,6 +51,10 @@ jest.mock("../lib/preferences", () => ({
   ...jest.requireActual("../lib/preferences"),
   getPreferences: jest.fn().mockResolvedValue({ allergensToAvoid: [], requiredDietTags: [] }),
   setPreferences: jest.fn(),
+  // Badge-pop-in fix: the screen seeds its initial prefs state from this synchronous cache.
+  // Defaults to "cold" (undefined) so every existing test here -- which never warms it -- keeps
+  // observing the same no-macroPresets initial state as before.
+  getCachedPreferences: jest.fn().mockReturnValue(undefined),
 }));
 
 jest.mock("expo-router", () => ({
@@ -135,6 +139,7 @@ jest.mock("./menuHoursCache", () => ({
 const mockedFetchMenu = fetchMenu as jest.Mock;
 const mockedRouterPush = router.push as jest.Mock;
 const mockedSetPreferences = setPreferences as jest.Mock;
+const mockedGetCachedPreferences = getCachedPreferences as jest.Mock;
 // menuFetchWithSeenTracking.ts instantiates SqliteSeenDishesStorage eagerly at module scope, but
 // only if something actually imports that wrapper -- until #107's wiring lands, the screen doesn't,
 // so the constructor never runs and `.mock.results` is empty. Read this lazily (inside the test,
@@ -1539,5 +1544,37 @@ describe("HallMenuScreen -- unknown slug", () => {
     });
     expect(root.root.findAllByProps({ accessibilityLabel: "Back" }).length).toBeGreaterThan(0);
     expect(texts(root).flat()).toContain("Unknown dining hall");
+  });
+});
+
+// Badge-pop-in bug: the screen's prefs state used to always start as a bare placeholder with no
+// macroPresets field, so a matching dish rendered with zero badges on first paint no matter what
+// the user had saved, then gained them once the async getPreferences() read resolved -- an owner-
+// reported "badges appear out of nowhere" flash. Fixed by seeding initial state from
+// getCachedPreferences() (preferences.ts's in-memory cache, warmed at app launch). Placed at the
+// end of this file, not alongside the other renderScreen() suites above -- recordSeenMock() (seen-
+// dish tracking describe) reads call counts off a module-scoped singleton never reset between
+// tests, so an earlier extra render() here would throw off its "called exactly once" assertion.
+describe("HallMenuScreen macro badges: no pop-in from a warm cache (#reported 2026-09-12)", () => {
+  const HIGH_PROTEIN_DISH: MenuItem = { ...PIZZA, dishName: "Chicken Breast", nutrition: { ...nutrition(200), proteinG: 25 } };
+
+  afterEach(() => {
+    mockedGetCachedPreferences.mockReturnValue(undefined);
+  });
+
+  it("renders a matching dish's macro badge from the very first frame when the cache is already warm", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["high-protein"] });
+
+    const root = await renderScreen([HIGH_PROTEIN_DISH]);
+
+    expect(root.root.findAllByProps({ accessibilityLabel: "High Protein" }).length).toBeGreaterThan(0);
+  });
+
+  it("without a warm cache, the same dish renders with no macro badge (documents the gap a cold cache still leaves)", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce(undefined);
+
+    const root = await renderScreen([HIGH_PROTEIN_DISH]);
+
+    expect(root.root.findAllByProps({ accessibilityLabel: "High Protein" }).length).toBe(0);
   });
 });

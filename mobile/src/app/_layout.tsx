@@ -12,6 +12,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { registerNotificationHandler } from "../lib/notificationHandler";
 import { prefetchTodaysMenus } from "../lib/menuPrefetch";
+import { getPreferences } from "../lib/preferences";
 import { colors, fonts, fs, radii, spacing } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync();
@@ -61,6 +62,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     prefetchTodaysMenus();
+    // Warms preferences.ts's in-memory cache so a hall screen mounted moments later (getCachedPreferences)
+    // can seed its macro-badge state synchronously instead of painting with none and popping them in.
+    getPreferences().catch(() => {});
   }, []);
 
   if (!fontsLoaded && !fontError) return null;

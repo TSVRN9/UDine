@@ -6,7 +6,7 @@
 // table-creation/singleton code stays in play.
 
 import type { FoodPreferences } from "@udine/shared";
-import { getPreferences, setPreferences, toggleAllergen, toggleDietTag, toggleMacroPreset } from "./preferences";
+import { getCachedPreferences, getPreferences, setPreferences, toggleAllergen, toggleDietTag, toggleMacroPreset } from "./preferences";
 
 const mockRows = new Map<string, string>();
 
@@ -22,6 +22,24 @@ jest.mock("expo-sqlite", () => ({
 
 beforeEach(() => {
   mockRows.clear();
+});
+
+// Badge-pop-in fix: halls/[slug].tsx and filters.tsx seed their initial state from
+// getCachedPreferences() instead of a bare placeholder, so a screen mounted after the cache has
+// been warmed (a fire-and-forget getPreferences() call at app launch, _layout.tsx) never renders
+// a frame with the wrong prefs first.
+describe("getCachedPreferences", () => {
+  it("reflects the value getPreferences last resolved, synchronously", async () => {
+    mockRows.set("food_preferences", JSON.stringify({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["high-protein"] }));
+    const resolved = await getPreferences();
+    expect(getCachedPreferences()).toEqual(resolved);
+  });
+
+  it("reflects a setPreferences write immediately, without needing a fresh getPreferences read", async () => {
+    const written: FoodPreferences = { allergensToAvoid: ["Milk"], requiredDietTags: [], macroPresets: ["low-sodium"] };
+    await setPreferences(written);
+    expect(getCachedPreferences()).toEqual(written);
+  });
 });
 
 describe("getPreferences macroPresets migration", () => {
