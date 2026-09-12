@@ -1,5 +1,5 @@
 import type { FoodPreferences, MenuItem } from "@udine/shared";
-import { grabSections, sectionsForPeriod } from "./hallMenuSections";
+import { grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "./hallMenuSections";
 
 const NO_PREFS: FoodPreferences = { allergensToAvoid: [], requiredDietTags: [] };
 
@@ -117,5 +117,28 @@ describe("grabSections", () => {
   it("orders its sections with sortStationNames, not first-seen order", () => {
     const soup = { ...PIZZA, dishName: "Soup", category: "Soups" };
     expect(grabSections([soup, PIZZA], NO_PREFS).map((s) => s.title)).toEqual(["Entrees", "Soups"]);
+  });
+});
+
+describe("moveSectionToFront", () => {
+  // #452: sortStationNames sorts an unrecognized category (e.g. the dev-only "Stress Test" fixture
+  // section) alphabetically AFTER every real station -- confirmed live 2026-09-12 that this left
+  // the fixture off the initial viewport, unreachable without a long scroll, across two separate
+  // investigations that both assumed (per a since-corrected stale comment in [slug].tsx) it would
+  // be prepended automatically. This is the fix: pull the named section back to the front.
+  const A: MenuSection = { title: "Grill", data: [] };
+  const B: MenuSection = { title: "Salad", data: [] };
+  const STRESS: MenuSection = { title: "Stress Test", data: [] };
+
+  it("moves a section from the back to the front", () => {
+    expect(moveSectionToFront([A, B, STRESS], "Stress Test")).toEqual([STRESS, A, B]);
+  });
+
+  it("is a no-op when the section is already first", () => {
+    expect(moveSectionToFront([STRESS, A, B], "Stress Test")).toEqual([STRESS, A, B]);
+  });
+
+  it("is a no-op when the section isn't present at all", () => {
+    expect(moveSectionToFront([A, B], "Stress Test")).toEqual([A, B]);
   });
 });

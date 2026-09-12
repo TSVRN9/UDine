@@ -529,3 +529,59 @@ new custom agent definitions aren't picked up mid-session, so this one hasn't ru
 Confirm on the next M/L UI-visible ticket that it dispatches correctly and its report is actually
 useful to the gate, not just plausible-looking; adjust the agent file if the report format turns
 out to be missing something a real review needed.
+
+## Hall-menu badge overflow re-investigated, with the 5-badge fixture finally on screen (2026-09-12)
+
+**What happened.** Owner re-reported two symptoms on the hall-menu dish row (`mobile/src/app/
+halls/[slug].tsx`) after a prior pass (the "Inconclusive visual verification" entry above) called
+the second one a deliberate tradeoff: (1) text/badges overflowing past the dish card's border, (2)
+macro badges dropping to a wasted line below a wrapped dish name even when there's visible room.
+Owner explicitly rejected the "intentional" verdict for (1) and asked for a harder look, noting it
+was hard for them to reproduce too and suggesting a fresh install.
+
+**Why the 5-badge case was never actually seen.** Both this and the prior investigation used
+`stressFixtureItem`'s `--stress long-names` fixture (all 5 macro-badge thresholds, a 60+ char name)
+expecting it to render "prepended... visible in the very first capture" per its own doc comment.
+That comment was wrong: `sectionsForPeriod` groups by category and then always sorts through
+shared's `sortStationNames` (a fixed food-journey keyword order) regardless of input array order.
+The fixture's synthetic "Stress Test" category matches no keyword, so it sorted alphabetically
+*after* every real station -- the very bottom of a long, virtualized `SectionList`, invisible to
+`uiautomator dump` without a long scroll neither investigation happened to do. This is why "5-badge
+stress fixture never got on screen" recurred across two independent sessions: it looked like a
+capture/timing problem each time, but was actually this ordering bug. Fixed by extracting
+`moveSectionToFront` (`mobile/src/lib/hallMenuSections.ts`, unit tested) and calling it from
+`[slug].tsx`'s `sectionsByPeriod` memo, `__DEV__`-gated the same as the fixture itself.
+
+**Result, with the fixture actually visible this time (`visual-verifier`, `Agent_Emulator_Narrow`,
+360dp, all 5 macro presets enabled, live `uiautomator` bounds, not eyeballed):**
+
+1. **Overflow (complaint 1): not reproduced on current `main`.** Card `[54,504]-[1026,829]`; at
+   5 badges + a 60+ char name wrapped to 3 lines, every content edge stays inside the card --
+   badge row right edge is 198dp inside the card's right edge, the plate-stepper control (the
+   actual closest element to the edge) is 12dp inside it, calorie text is 10dp above the bottom
+   edge. Also sampled 7 real (non-fixture) dish rows across Worcester and Franklin lunch/brunch
+   with 1-4 badges each -- zero overflow in any of them either. The current `flexWrap`+`flexShrink`
+   shape (reverted from the inline-attachment layout in `ca19cc2`, see the entry above) holds under
+   the worst case this repo can construct. Given the owner's own "hard to reproduce, try a fresh
+   install" framing and this project's established pattern of installed alpha/internal builds not
+   updating in place (see this file's CLAUDE.md-referenced build docs), the leading explanation for
+   what the owner is seeing on-device is a **stale installed build** predating `ca19cc2`'s revert --
+   that exact prior version (`e753e24`) had precisely this failure mode (inline attachments can't
+   shrink, so a name+badges combo that needed to shrink overflowed instead). No code change made
+   for this claim; re-open with a device/build timestamp if it recurs on a build built after this
+   entry's date.
+2. **Wasted line (complaint 2): reproduced and now measured**, not just argued from principle: the
+   badge row sits on its own line below the wrapped name with ~198dp of unused horizontal space
+   beside it. Left as the documented tradeoff `hallMenuStyleParity.test.ts` already pins -- the only
+   known fix (badges as inline `Text` attachments, `e753e24`) is exactly what caused complaint 1's
+   historical instance, because inline attachments don't participate in `flexShrink`. No safe hybrid
+   (e.g. measure-then-decide-inline) was implemented this pass; the risk of silently reintroducing
+   the overflow failure mode was judged higher than the cosmetic win, matching this ticket's own
+   explicit "leave it a documented tradeoff" allowance.
+
+**Incidental, not investigated further:** the very first app launch after `adb shell pm clear`
+crashed with `"Property 'moveSectionToFront' doesn't exist"`, recovered cleanly by tapping "Try
+again" (which then rendered correctly, all 5 badges). Consistent with `screenshot.sh`'s
+Metro-restart racing a `pm clear`-triggered cold app start onto a not-yet-fully-synced bundle, not
+a code defect -- the same emulator run worked correctly on every subsequent load with no code
+changes in between.
