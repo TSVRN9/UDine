@@ -95,7 +95,7 @@ import {
   type PlateEntry,
   type PlateSearchResult,
 } from "../../lib/plate";
-import { getPreferences, setPreferences } from "../../lib/preferences";
+import { getCachedPreferences, getPreferences, setPreferences } from "../../lib/preferences";
 import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
@@ -477,7 +477,10 @@ export function HallMenuScreenBody({
   // An unmatched standing-menu row's tap seeds this, then opens the plate sheet with it. Cleared
   // the moment the sheet closes so a later plain PlateBar tap doesn't reseed a stale query.
   const [plateSearchSeed, setPlateSearchSeed] = useState<string | null>(null);
-  const [prefs, setPrefs] = useState<FoodPreferences>({ allergensToAvoid: [], requiredDietTags: [] });
+  // Seeded from preferences.ts's in-memory cache (warmed at app launch, _layout.tsx) rather than a
+  // bare placeholder -- otherwise this screen's first paint always renders zero macro badges, then
+  // pops them in a frame later once the SQLite read below resolves.
+  const [prefs, setPrefs] = useState<FoodPreferences>(() => getCachedPreferences() ?? { allergensToAvoid: [], requiredDietTags: [] });
   const [favoriteDishKeys, setFavoriteDishKeys] = useState<Set<string>>(new Set());
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
