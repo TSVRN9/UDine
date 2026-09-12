@@ -1485,7 +1485,13 @@ describe("HallMenuScreen real-hall dynamic meal tabs (#442-follow-up)", () => {
     });
 
     expect(root.root.findAllByProps({ accessibilityLabel: "Late menu" })).toHaveLength(0);
-    // Healed to the first remaining real tab (Breakfast), not stuck on the vanished selection.
+    // Healed to the first remaining real tab (Breakfast), not stuck on the vanished selection --
+    // both the CONTENT shown (pr-reviewer finding: AnimatedTabUnderline's backgroundColor is
+    // hardcoded gold on every tab regardless of which is active, per MealTabPager's own styles, so
+    // the underline check alone can't discriminate which pane is actually active) and, for the
+    // symptom the pre-fix bug itself produced, that the right pill is the one MealTabPager marks
+    // active (indexOf-based underline positioning, not color).
+    expect(activePaneTexts(root).flat().join(" ")).toMatch(/Oatmeal/);
     const breakfastTab = root.root.findByProps({ accessibilityLabel: "Breakfast menu" });
     const underline = breakfastTab.findAllByType(View).at(-1);
     expect(StyleSheet.flatten(underline!.props.style).backgroundColor).toBe(colors.gold500);
@@ -1510,6 +1516,11 @@ describe("HallMenuScreen real-hall dynamic meal tabs (#442-follow-up)", () => {
       root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
     });
 
+    // CONTENT check, not just the underline color (see the preceding test's comment on why
+    // AnimatedTabUnderline's color alone can't discriminate which pane is active) -- if the guard
+    // were removed, the heal effect would fire and swipe the user onto mealTabs[0] (Breakfast),
+    // replacing this Grab Wrap content with Oatmeal's.
+    expect(activePaneTexts(root).flat().join(" ")).toMatch(/Grab Wrap/);
     const grabTab = root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" });
     const underline = grabTab.findAllByType(View).at(-1);
     expect(StyleSheet.flatten(underline!.props.style).backgroundColor).toBe(colors.gold500);
