@@ -105,3 +105,12 @@ test("menuItemMacroBadges returns every enabled preset a dish qualifies for", ()
   });
   assert.deepEqual(menuItemMacroBadges(dish, prefsWith(ALL_PRESETS)), ALL_PRESETS);
 });
+
+test("menuItemMacroBadges ignores a stale preset name left over from a rename instead of throwing", () => {
+  // A device that toggled "under-500-cal" on before it was renamed to "under-300-cal" (ca19cc2)
+  // keeps that string in its stored FoodPreferences forever -- getPreferences' migration only
+  // covers a macroPresets field that's missing entirely, not one whose values have gone stale.
+  const dish = item({ nutrition: { ...NUTRITION, proteinG: 25 } });
+  const prefs = prefsWith(["under-500-cal" as MacroPreset, "high-protein"]);
+  assert.deepEqual(menuItemMacroBadges(dish, prefs), ["high-protein"]);
+});

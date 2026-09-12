@@ -154,7 +154,9 @@ const MACRO_PRESET_CHECKS: Record<MacroPreset, (n: NutritionFacts) => boolean> =
 };
 
 export function menuItemMacroBadges(item: MenuItem, prefs: FoodPreferences): MacroPreset[] {
-  return (prefs.macroPresets ?? []).filter((preset) => MACRO_PRESET_CHECKS[preset](item.nutrition));
+  // A stored preset can be stale -- e.g. "under-500-cal", renamed to "under-300-cal" -- if it was
+  // toggled on before a rename and never migrated; MACRO_PRESET_CHECKS has no entry for it.
+  return (prefs.macroPresets ?? []).filter((preset) => MACRO_PRESET_CHECKS[preset]?.(item.nutrition) ?? false);
 }
 
 export type Favorite = { type: "dish"; dishName: string } | { type: "location"; hallTid: number };
