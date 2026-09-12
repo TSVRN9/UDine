@@ -87,3 +87,21 @@ describe("macro-badge placement: flex-row sibling, not an inline Text attachment
     expect(svgBlock).not.toMatch(/top: 4/);
   });
 });
+
+describe("macro badges: one accent color per preset, not a single shared gold (owner bug report 2026-09-12)", () => {
+  it("imports the glyph shapes from the shared source instead of defining its own switch", () => {
+    expect(source).toMatch(/import \{ MacroPresetGlyph \} from "\.\.\/\.\.\/lib\/macroBadgeGlyphs";/);
+  });
+
+  it("MACRO_BADGE_COLORS assigns 5 distinct glyph colors, one per preset", () => {
+    const mapBlock = source.match(/const MACRO_BADGE_COLORS[\s\S]*?=\s*\{([\s\S]*?)\n\};/)?.[1] ?? "";
+    const glyphColors = [...mapBlock.matchAll(/glyph: (colors\.\w+)/g)].map((m) => m[1]);
+    expect(glyphColors).toHaveLength(5);
+    expect(new Set(glyphColors).size).toBe(5);
+  });
+
+  it("no longer fills every preset's glyph with the single shared gold700", () => {
+    const glyphBlock = source.match(/function MacroBadgeIcon\([\s\S]*?\n\}/)?.[0] ?? "";
+    expect(glyphBlock).not.toMatch(/colors\.gold700/);
+  });
+});

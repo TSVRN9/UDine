@@ -3,7 +3,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
+import { MacroPresetGlyph } from "../lib/macroBadgeGlyphs";
 import { toggleAllergen, toggleDietTag, toggleMacroPreset } from "../lib/preferences";
 import { useDraggableSheet } from "../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -22,51 +23,21 @@ export const MACRO_PRESET_LABELS: Record<MacroPreset, string> = {
 
 // FilterSheet.dc.html:75-99: each Macros chip carries its own icon, distinct per preset, unlike
 // the plain text Stations/Price chips -- active is a maroon900 glyph on a maroon900@14% circle,
-// inactive is an ink900@60% glyph on an ink900@6% circle.
+// inactive is an ink900@60% glyph on an ink900@6% circle. The glyph *shapes* themselves come from
+// lib/macroBadgeGlyphs.ts, shared with the hall-menu badge (mobile/src/app/halls/[slug].tsx) --
+// this file used to keep its own independently-copied path set (per this artboard's own
+// FilterSheet.dc.html:75-99 source), and it drifted: 3 of 5 shapes went stale relative to the
+// shipped badge (owner bug report 2026-09-12). One shared source means that can't happen again.
 const MACRO_CHIP_ACTIVE_CIRCLE_FILL = withOpacity(colors.maroon900, 14);
 const MACRO_CHIP_INACTIVE_CIRCLE_FILL = withOpacity(colors.ink900, 6);
 const MACRO_CHIP_INACTIVE_GLYPH_COLOR = withOpacity(colors.ink900, 60);
-
-function MacroChipGlyph({ preset, color }: { preset: MacroPreset; color: string }) {
-  switch (preset) {
-    case "high-protein":
-      return (
-        <>
-          <Rect x={4.5} y={9} width={2.4} height={4} rx={0.8} fill={color} />
-          <Rect x={13.1} y={9} width={2.4} height={4} rx={0.8} fill={color} />
-          <Rect x={6.5} y={9.5} width={7} height={3} rx={1} fill={color} />
-        </>
-      );
-    case "high-fiber":
-      return (
-        <>
-          <Path d="M10 4.5c-2.6 3-4 5.2-4 7a4 4 0 0 0 8 0c0-1.8-1.4-4-4-7z" fill="none" stroke={color} strokeWidth={1.3} />
-          <Path d="M10 8v6" stroke={color} strokeWidth={1.1} strokeLinecap="round" />
-        </>
-      );
-    case "low-sodium":
-      return <Path d="M10 4l4.5 2.6v5.2L10 14.5l-4.5-2.7V6.6z" fill="none" stroke={color} strokeWidth={1.2} />;
-    case "under-300-cal":
-      return <Path d="M10 4.5c-2.3 2.7-3.6 4.7-3.6 6.3a3.6 3.6 0 0 0 7.2 0c0-1.6-1.3-3.6-3.6-6.3z" fill="none" stroke={color} strokeWidth={1.2} />;
-    case "low-fat":
-      return (
-        <>
-          <Circle cx={10} cy={10.5} r={4} fill="none" stroke={color} strokeWidth={1.2} />
-          <Path d="M10 5v1.6" stroke={color} strokeWidth={1.2} strokeLinecap="round" />
-        </>
-      );
-    default:
-      preset satisfies never;
-      return null;
-  }
-}
 
 function MacroChipIcon({ preset, active }: { preset: MacroPreset; active: boolean }) {
   const color = active ? colors.maroon900 : MACRO_CHIP_INACTIVE_GLYPH_COLOR;
   return (
     <Svg width={16} height={16} viewBox="0 0 20 20" accessible={false}>
       <Circle cx={10} cy={10} r={10} fill={active ? MACRO_CHIP_ACTIVE_CIRCLE_FILL : MACRO_CHIP_INACTIVE_CIRCLE_FILL} />
-      <MacroChipGlyph preset={preset} color={color} />
+      <MacroPresetGlyph preset={preset} color={color} detailColor={color} />
     </Svg>
   );
 }
