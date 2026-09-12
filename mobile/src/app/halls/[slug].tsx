@@ -71,7 +71,7 @@ import {
 } from "../../lib/hallMenuTabs";
 import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, syntheticHallTidForName, type CafeMenuState, type StandingMenuEntry } from "../../lib/cafeMenu";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
-import { grabSections, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
+import { grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { MacroPresetGlyph } from "../../lib/macroBadgeGlyphs";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
@@ -763,19 +763,31 @@ export function HallMenuScreenBody({
     const filtered = effectiveItems.filter((i) => itemMatchesStationAndPriceFilter(i, stationFilter, priceFilter));
     if (__DEV__ && stressFixture === "long-names" && hall.tid != null) {
       const tid = hall.tid;
-      // Prepended, not appended -- sectionsForPeriod orders sections by first-seen category, and
-      // SectionList virtualizes rows far off the initial viewport, so an appended fixture section
-      // sits unmounted below every real station until scrolled to. Prepending puts "Stress Test"
-      // first, visible in the very first screenshot.sh capture with no scroll gesture needed.
+      // Order in this array doesn't control section order -- sectionsForPeriod groups by category
+      // and then runs the result through shared's sortStationNames (a fixed food-journey keyword
+      // order), which ignores feed/array order entirely. "Stress Test" matches none of those
+      // keywords, so left alone it sorts alphabetically AFTER every real station, at the very
+      // bottom of a long list -- confirmed live 2026-09-12 (a screenshot.sh capture's uiautomator
+      // dump never found the fixture's text without a long scroll past every real section first).
+      // The actual "show up first, no scroll needed" fix is the unshift in sectionsByPeriod below;
+      // this array's order is irrelevant to display order, just left as items-then-filtered so
+      // station/price filtering above still runs over only the real feed items.
       return [...mealTabs.map((period) => stressFixtureItem(tid, period)), ...filtered];
     }
     return filtered;
   }, [effectiveItems, stationFilter, priceFilter, stressFixture, mealTabs, hall.tid]);
   const sectionsByPeriod = useMemo(() => {
     const map = new Map<MealPeriod, MenuSection[]>();
-    for (const period of mealTabs) map.set(period, sectionsForPeriod(stationPriceFilteredItems, period, prefs));
+    for (const period of mealTabs) {
+      const sections = sectionsForPeriod(stationPriceFilteredItems, period, prefs);
+      // Dev-gated the same way stationPriceFilteredItems's stress-fixture branch above is; see
+      // moveSectionToFront's own doc for why this is needed at all (sortStationNames doesn't know
+      // about the synthetic "Stress Test" category). A no-op when the section isn't present
+      // (stressFixture unset, or hidden by the user's own allergen/diet-tag filters).
+      map.set(period, __DEV__ && stressFixture === "long-names" ? moveSectionToFront(sections, "Stress Test") : sections);
+    }
     return map;
-  }, [stationPriceFilteredItems, mealTabs, prefs]);
+  }, [stationPriceFilteredItems, mealTabs, prefs, stressFixture]);
   const grabSectionsMemo = useMemo(() => (grabItems ? grabSections(grabItems, prefs) : []), [grabItems, prefs]);
   // FAB state: driven only by allergens/diet-tags currently hiding something -- macros never
   // filter, so they never drive this. Computed on the UNFILTERED item list (station/price
