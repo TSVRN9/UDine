@@ -73,10 +73,18 @@ restore_app_json() {
 }
 trap restore_app_json EXIT
 
+# Stamp the exact source into versionName (`1.0.0+<sha>[.dirty]`) so
+# `adb shell dumpsys package $INTERNAL_PACKAGE | grep versionName` answers "which commit is on
+# this phone" -- a bug fix was once reported as "no change on device" against an internal build
+# that predated the fix by hours, and nothing on the device could show that (#454 follow-up).
+GIT_STAMP="$(git rev-parse --short HEAD)$(git status --porcelain --untracked-files=no | grep -q . && echo .dirty || true)"
+echo "Building from $GIT_STAMP"
+
 node -e '
   const fs = require("fs");
   const cfg = JSON.parse(fs.readFileSync("app.json", "utf8"));
   cfg.expo.name = "'"$INTERNAL_NAME"'";
+  cfg.expo.version = cfg.expo.version + "+'"$GIT_STAMP"'";
   cfg.expo.android.package = "'"$INTERNAL_PACKAGE"'";
   delete cfg.expo.android.googleServicesFile;
   fs.writeFileSync("app.json", JSON.stringify(cfg, null, 2) + "\n");

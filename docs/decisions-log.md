@@ -585,3 +585,61 @@ again" (which then rendered correctly, all 5 badges). Consistent with `screensho
 Metro-restart racing a `pm clear`-triggered cold app start onto a not-yet-fully-synced bundle, not
 a code defect -- the same emulator run worked correctly on every subsequent load with no code
 changes in between.
+
+## Badge tuck (#454) reported as "no change on device" -- the device was running a build from before the fix (2026-09-12)
+
+**What happened.** #454 (`1a2af49`, merged 20:32 EDT) added the measure-then-tuck badge placement
+for wrapped dish names. The owner reported it changed nothing on their phone. The dispatched theory
+was a Yoga measurement mismatch: `onTextLayout` on the visible name `Text` supposedly measures the
+wrap with the badge row still an in-flow sibling, so the line metrics wouldn't match the tucked
+geometry. That theory was tested on the real layout engine and killed; the actual cause was a stale
+build.
+
+**Evidence, in the order it was gathered.**
+
+1. *The phone's build predates the fix.* `com.udinetogether.udine.internal` on the owner's phone
+   (Galaxy A53, `SM-A536U1`, Android 16, 384dp, `font_scale` 1.1) had `lastUpdateTime` 20:27:42
+   EDT -- five minutes before the squash commit. Its Hermes bundle, pulled and searched with
+   `strings`, contains none of the fix's identifiers (`macroBadgeRowTucked` 0, `shouldTuckBadges`
+   0) and not even #452's `"Stress Fixture"` (merged 13:23 EDT), while control strings from older
+   code (`rowInPlate`) are present; a fresh `expo export` of `main` has `macroBadgeRowTucked` 1,
+   `shouldTuckBadges` 1. So the build was cut from a checkout at least seven hours behind `main`.
+   The Play build (`installerPackageName=com.android.vending`, Sep 6) obviously lacks it too.
+2. *The measurement source is correct on-device.* `DishRow` was temporarily instrumented with a
+   second, absolutely-positioned invisible copy of the name `Text` (the proposed "probe") logging
+   its own `onTextLayout` alongside the visible one, plus `rowNameLine`'s `onLayout` and the flow
+   badge row's frame, on `Agent_Emulator_Narrow` (360dp). For the realistic fixture the two sources
+   reported byte-identical lines -- `[[0,0,219.6,18.7],[0,18.7,57,16]]` -- with `containerWidth`
+   229 equal to the visible `Text`'s own frame width; the extreme fixture likewise (three identical
+   lines). The decision then flipped to `tucked: true` for both fixtures and for five real menu
+   rows (Chicken Shoyu Ramen Bar, Chickpeas/Artichokes..., Moraccan Green Garbanzo..., Purple Sweet
+   Potato Tempura..., Roasted Chicken Noodle Soup...), and `rowNameLine`'s height dropped 56.7 ->
+   34.7 as the badge row left the flow. `ParagraphShadowNode::layout` (RN 0.86) does compute those
+   lines at the `Text`'s own final frame, not the container -- but in this flex-wrap row that frame
+   *is* the full container width, so the two geometries coincide. The probe was removed; shipping
+   it would double text layout on every dish row for no change in behaviour.
+3. *Both wrap cases render tucked.* `screenshot.sh halls/worcester --stress long-names` on Narrow,
+   Metro confirmed owned by this checkout: the 60+ char / 5-badge fixture tucks beside its third
+   line, the new realistic fixture ("Grilled Lemon Herb Chicken Thighs with Rice", 3 badges) tucks
+   beside "with Rice", and a single-line name with four badges that don't fit ("Baked Herbs de
+   Provence Chicken") correctly stacks. Nothing near the card edge in any of them.
+4. *The first-mount reflow #454 left unverified is real and is not cushioned.* A 20fps
+   `screenrecord` already rolling when the `udine://halls/worcester?stress=long-names` deep link
+   fired (a tab-switch recording does not exercise this -- the pager pre-mounts the neighbour pane,
+   so its badges are already tucked in the first cross-fade frame): both fixture rows paint
+   **untucked** (badges on their own line) for ~450 ms after the skeleton (frames 3.50-3.90 s),
+   then snap to tucked with the card at its final height within one 50 ms frame. `LinearTransition
+   .duration(180)` on the row did not visibly animate the height change. The same stacked-then-snap
+   repeats for ~100 ms when the hours-driven default-tab switch mounts the other pane (5.00 ->
+   5.10 s). So every cold mount of a wrapping badged row shows a visible hop, not the "rare,
+   already-cushioned" cost the code comment assumes. Left as-is here (out of this dispatch's
+   scope); the honest options are gating only the *tuck candidates* (unknowable before
+   measurement), or accepting the hop, or a layout that needs no round trip.
+
+**What changed.** No change to `DishRow`. The `--stress long-names` fixture now injects a second,
+realistic-length item so both wrap states show in one capture (pinned by
+`hallMenuStyleParity.test.ts`). `mobile/scripts/build-internal-android.sh` stamps
+`versionName` as `<version>+<short-sha>[.dirty]` so `adb shell dumpsys package
+com.udinetogether.udine.internal | grep versionName` answers "which commit is on this phone" --
+the check that would have closed this report in one command. Re-open only against a build whose
+`versionName` carries a SHA at or after this entry.

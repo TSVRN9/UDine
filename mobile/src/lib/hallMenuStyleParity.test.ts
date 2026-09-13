@@ -103,6 +103,24 @@ describe("macro-badge placement: flex-row sibling, not an inline Text attachment
   });
 });
 
+describe("--stress long-names fixture covers the realistic wrap case, not only the 60+ char extreme", () => {
+  // The owner's "badges on a wasted 3rd line" report is about ordinary ~40 char names that wrap
+  // to two lines with room to spare beside the last one -- the extreme fixture alone (3 lines, 5
+  // badges) exercises a different packing and was the only case #454 ever screenshotted. Both
+  // names must be present so screenshot.sh --stress long-names shows both states in one capture.
+  const fixtureBlock = source.match(/function stressFixtureItems\([\s\S]*?\n\}/)?.[0] ?? "";
+  const names = [...fixtureBlock.matchAll(/dishName: "([^"]+)"/g)].map((m) => m[1]);
+
+  it("ships an extreme (60+ char) and a realistic (35-45 char) fixture name", () => {
+    expect(names.some((n) => n.length >= 60)).toBe(true);
+    expect(names.some((n) => n.length >= 35 && n.length <= 45)).toBe(true);
+  });
+
+  it("injects every fixture item per meal period, not just the first", () => {
+    expect(source).toMatch(/mealTabs\.flatMap\(\(period\) => stressFixtureItems\(tid, period\)\)/);
+  });
+});
+
 describe("macro badges: one accent color per preset, not a single shared gold (owner bug report 2026-09-12)", () => {
   it("imports the glyph shapes from the shared source instead of defining its own switch", () => {
     expect(source).toMatch(/import \{ MacroPresetGlyph \} from "\.\.\/\.\.\/lib\/macroBadgeGlyphs";/);

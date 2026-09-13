@@ -155,36 +155,63 @@ const customFoodsStorage = new SqliteCustomFoodsStorage();
  * the sections memo below), so it's a sibling of MealPeriod, not a member of it. */
 type TabSelection = MealPeriod | "grab";
 
-/** Dev-only layout stress fixture (docs/agents/dev-tracks.md's UI check + mobile/scripts/
- * screenshot.sh's --stress flag) -- a synthetic dish shaped to exercise two worst-case row
- * layouts real menu data may not contain: a name long enough to wrap, and nutrition that clears
- * every macro-badge threshold at once (shared/src/types.ts's MACRO_PRESET_CHECKS). __DEV__-gated
- * and opt-in only via the `stress` route param -- never runs in production. One instance per
- * meal period, so it shows up under whichever tab a screenshot lands on. */
-function stressFixtureItem(hallTid: number, mealPeriod: MealPeriod): MenuItem {
-  return {
-    dishName: "Mediterranean Roasted Vegetables & Chickpeas Deluxe Harvest Bowl (Stress Fixture)",
+/** Dev-only layout stress fixtures (docs/agents/dev-tracks.md's UI check + mobile/scripts/
+ * screenshot.sh's --stress flag) -- synthetic dishes shaped to exercise row layouts real menu
+ * data may not contain on a given day. __DEV__-gated and opt-in only via the `stress` route param
+ * -- never runs in production. One set per meal period, so they show up under whichever tab a
+ * screenshot lands on.
+ *  - Extreme: a 60+ char name plus nutrition that clears every macro-badge threshold at once
+ *    (shared/src/types.ts's MACRO_PRESET_CHECKS) -- the max-badge-count / must-stack case.
+ *  - Realistic: a ~40 char name (the length real dishes actually wrap at) clearing three
+ *    thresholds -- the case the owner's badge-on-a-wasted-3rd-line report actually describes,
+ *    where the badges are expected to tuck beside the wrapped last line. */
+function stressFixtureItems(hallTid: number, mealPeriod: MealPeriod): MenuItem[] {
+  const base = {
     category: "Stress Test",
     mealPeriod,
     hallTid,
     date: new Date().toISOString().slice(0, 10),
-    nutrition: {
-      servingSize: "1 stress fixture",
-      calories: 200,
-      caloriesFromFat: 9,
-      totalFatG: 1,
-      satFatG: 0,
-      transFatG: 0,
-      cholesterolMg: 0,
-      sodiumMg: 100,
-      totalCarbG: 30,
-      dietaryFiberG: 8,
-      sugarsG: 2,
-      proteinG: 15,
-    },
     allergens: [],
     dietTags: [],
   };
+  return [
+    {
+      ...base,
+      dishName: "Mediterranean Roasted Vegetables & Chickpeas Deluxe Harvest Bowl (Stress Fixture)",
+      nutrition: {
+        servingSize: "1 stress fixture",
+        calories: 200,
+        caloriesFromFat: 9,
+        totalFatG: 1,
+        satFatG: 0,
+        transFatG: 0,
+        cholesterolMg: 0,
+        sodiumMg: 100,
+        totalCarbG: 30,
+        dietaryFiberG: 8,
+        sugarsG: 2,
+        proteinG: 15,
+      },
+    },
+    {
+      ...base,
+      dishName: "Grilled Lemon Herb Chicken Thighs with Rice",
+      nutrition: {
+        servingSize: "1 stress fixture",
+        calories: 280,
+        caloriesFromFat: 90,
+        totalFatG: 10,
+        satFatG: 3,
+        transFatG: 0,
+        cholesterolMg: 60,
+        sodiumMg: 420,
+        totalCarbG: 24,
+        dietaryFiberG: 3,
+        sugarsG: 1,
+        proteinG: 22,
+      },
+    },
+  ];
 }
 
 /** Bag/takeout glyph for the Grab 'N Go tab (artboard spec: "bag icon, same muted ink as the
@@ -500,7 +527,6 @@ function DishRow({
     shouldTuckBadges({ containerWidth, lastLineWidth: lastLine.width, badgeRowWidth, gap: NAME_BADGE_GAP });
 
   const badgeIcons = macroBadges.map((preset) => <MacroBadgeIcon key={preset} preset={preset} />);
-
   return (
     // Whole card is tappable and expands in place -- the (i) info button is gone, replaced by
     // this and the FULL NUTRITION LABEL link below. The expand toggle is a SIBLING absolute-fill
@@ -526,10 +552,12 @@ function DishRow({
                 on `measured` hid EVERY badged row's badges (not just wrapping ones) until
                 onLayout/onTextLayout resolved, reintroducing the exact "badges appear out of
                 nowhere" flash c551767 fixed, just universally instead of only on a cold cache. A
-                wrapping name that's about to tuck gets one LinearTransition-smoothed reposition
-                once measured (the row's Reanimated.View already has `layout={LinearTransition...}`)
-                instead -- an acceptable, rare, already-cushioned cost vs. a guaranteed one-frame
-                invisibility on every single badged dish. */}
+                wrapping name that's about to tuck instead repositions once measured. Measured on
+                a cold mount (docs/decisions-log.md, 2026-09-12 "Badge tuck (#454) reported as
+                'no change on device'"): the row paints stacked for ~450 ms, then snaps to tucked
+                in one frame -- the row's `layout={LinearTransition...}` did NOT visibly cushion
+                it. A known, visible hop on every cold mount of a wrapping badged row, still judged
+                better than a guaranteed one-frame invisibility on every single badged dish. */}
             {macroBadges.length > 0 && !tucked && <View style={styles.macroBadgeRow}>{badgeIcons}</View>}
             {macroBadges.length > 0 && tucked && lastLine && (
               <View
@@ -611,7 +639,7 @@ export function HallMenuScreenBody({
 }: {
   hall: HallMenuSubject;
   initialMeal?: TabSelection;
-  /** dev-only: selects a fixture item, see stressFixtureItem above. */
+  /** dev-only: selects a fixture set, see stressFixtureItems above. */
   stressFixture?: string;
 }) {
   const isRealHall = hall.slug !== undefined;
@@ -982,7 +1010,7 @@ export function HallMenuScreenBody({
       // The actual "show up first, no scroll needed" fix is the unshift in sectionsByPeriod below;
       // this array's order is irrelevant to display order, just left as items-then-filtered so
       // station/price filtering above still runs over only the real feed items.
-      return [...mealTabs.map((period) => stressFixtureItem(tid, period)), ...filtered];
+      return [...mealTabs.flatMap((period) => stressFixtureItems(tid, period)), ...filtered];
     }
     return filtered;
   }, [effectiveItems, stationFilter, priceFilter, stressFixture, mealTabs, hall.tid]);
