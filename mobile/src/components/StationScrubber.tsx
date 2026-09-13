@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   // child's content measurement to its nearest sized ancestor, not the box it visually escapes
   // into. Spanning the full width here (alignItems below re-pins touchArea to the right edge)
   // gives `label` a real available width to size against.
-  wrap: { position: "absolute", top: spacing(3), bottom: spacing(3), left: 0, right: 0, alignItems: "flex-end" },
+  wrap: { position: "absolute", top: spacing(10), bottom: spacing(10), left: 0, right: 0, alignItems: "flex-end" },
   touchArea: { width: TOUCH_WIDTH, height: "100%", alignItems: "center" },
   track: { width: TRACK_WIDTH, height: "100%" },
   segment: { width: TRACK_WIDTH, borderRadius: TRACK_WIDTH / 2, backgroundColor: withOpacity(colors.ink900, 15) },
