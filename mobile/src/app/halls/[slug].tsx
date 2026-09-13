@@ -1251,6 +1251,17 @@ export function HallMenuScreenBody({
         ref={mealListRef}
         sections={periodSections}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
+        // extraData: single-expand needs a row OTHER than the one just tapped (whichever was
+        // previously expanded) to re-render too -- SectionList/VirtualizedList's cell-level
+        // memoization only busts on a change to `sections`/`item` identity or `extraData` by
+        // default, not merely on `renderItem` getting a new closure (confirmed on-device: RTL's
+        // `.props.onPress()` in hallMenu.test.tsx short-circuits straight to a real re-render and
+        // never exposed this gap, but a real touch on-device left the previously-expanded row
+        // stuck showing expanded alongside the newly-tapped one -- see the #117-successor ticket
+        // that added single-expand). Independent multi-expand never hit this because tapping a row
+        // only ever needed to update that SAME row, which the tap's own state change already
+        // covers regardless of extraData.
+        extraData={expandedKey}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>
@@ -1298,6 +1309,9 @@ export function HallMenuScreenBody({
         ref={grabListRef}
         sections={grabSectionsMemo}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
+        // extraData: see the meal-tab GestureSectionList's own comment above -- same single-expand
+        // cross-row re-render requirement applies here.
+        extraData={expandedKey}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>

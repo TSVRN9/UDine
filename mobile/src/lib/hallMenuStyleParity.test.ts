@@ -137,3 +137,20 @@ describe("macro badges: one accent color per preset, not a single shared gold (o
     expect(source).not.toMatch(/colors\.gold700/);
   });
 });
+
+// On-device-only regression (found in review, invisible to jest/RTL): single-expand requires a
+// row OTHER than the one just tapped -- whichever was previously expanded -- to re-render too.
+// SectionList/VirtualizedList's cell-level rendering only busts its own memoization on a change to
+// `sections`/item identity or `extraData`; a `renderItem` closure getting a new identity (from
+// `expandedKey` in its useCallback deps) is NOT by itself enough on a real device, even though it
+// IS enough in this file's own jest suite (hallMenu.test.tsx calls `.props.onPress()` directly,
+// short-circuiting straight past whatever memoization gap exists on-device). Confirmed live on an
+// emulator: without `extraData`, tapping a second card left the first one still showing expanded
+// indefinitely, not just mid-animation. Static-analysis guard only -- this can't be asserted via a
+// mount, since react-test-renderer's SectionList never reproduced the gap in the first place.
+describe("both hall-menu GestureSectionLists pass extraData={expandedKey} (single-expand cross-row re-render)", () => {
+  it("both SectionLists key their extraData off expandedKey, not left to renderItem identity alone", () => {
+    const matches = source.match(/extraData=\{expandedKey\}/g) ?? [];
+    expect(matches.length).toBe(2);
+  });
+});
