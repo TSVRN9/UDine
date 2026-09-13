@@ -1697,7 +1697,7 @@ export function HallMenuScreenBody({
             panePos={tabPanePos}
           />
           {activeStationSections.length > 1 && (
-            <StationScrubber sections={activeStationSections} listRef={activeStationListRef} activeStationIndex={activeStationIndex} />
+            <StationScrubber sections={activeStationSections} listRef={activeStationListRef} activeStationIndex={activeStationIndex} bottomInset={barHeight} />
           )}
         </View>
       )}
