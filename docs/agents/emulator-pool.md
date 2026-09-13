@@ -23,12 +23,16 @@ second lock was added. Live-verified 2026-09-12: two concurrent `screenshot.sh` 
 Narrow (8082) and Wide (8083) both completed, both captured their own correct route, and a third,
 unrelated agent's Metro already running on 8081 was untouched throughout.
 
-**Transitional risk until every worktree has this fix:** an unpatched copy of `screenshot.sh` (an
-older worktree that hasn't picked up this change) still hardcodes port 8081 for every device and
-still `pkill -f "expo start"`s host-wide. Until all active worktrees are on the patched script, a
-patched run targeting `Agent_Emulator` (which keeps port 8081) can still collide with an unpatched
-sibling's run on any device, and an unpatched sibling can still kill a patched run's Metro on 8081
-specifically. Narrow/Wide (8082/8083) are unaffected either way.
+**Transitional risk until every worktree has this fix -- affects ALL THREE devices, not just
+8081.** An unpatched copy of `screenshot.sh` (an older worktree that hasn't picked up this change)
+still hardcodes port 8081 for every device, AND still runs `pkill -f "expo start"` with no port
+filter at all -- that pattern matches the full command line of *every* `expo start` process on the
+host, including ones on 8082/8083, not just 8081. Until every active worktree is on the patched
+script, a live unpatched sibling can still kill a patched Narrow or Wide run's Metro mid-capture,
+same as it always could; the per-device port only protects two patched scripts from each other, not
+a patched script from an unpatched one. Confirmed by reading a live sibling worktree's still-old
+`screenshot.sh` during this fix's own review (2026-09-12) -- don't assume Narrow/Wide are safe just
+because this doc says they have their own port.
 
 Base device profiles: `Agent_Emulator` = emulator default (no profile), Narrow = `Nexus 5`,
 Wide = `Nexus 7 2013`.
@@ -407,9 +411,11 @@ a fixable app bug — nothing in `mobile/src` changed.
 should absorb a one-off flaky dump; what it didn't do is tell a "tree never populated at all"
 timeout apart from a "tree populated, but this text genuinely never appeared" timeout. It now
 tracks the max `<node>` count seen across all attempts and, on timeout, adds a specific message
-when that max stayed under 15 nodes (a normally-rendered screen runs 100+) naming this known
-flakiness class instead of just the generic "screen is likely still loading or on the wrong route"
-message — still a hard failure (never silently captures a stale frame), just a more actionable one.
+when that max stayed under 15 nodes -- well below what a correctly-rendered screen measures even
+when sparse (26 nodes on an empty-state `favorites` screen, 241 on a content-heavy hall-menu one,
+both live-measured 2026-09-12) -- naming this known flakiness class instead of just the generic
+"screen is likely still loading or on the wrong route" message. Still a hard failure (never
+silently captures a stale frame), just a more actionable one.
 If you hit this again: retry the capture once before assuming the screen is actually wrong, and
 confirm by eye from the PNG either way.
 

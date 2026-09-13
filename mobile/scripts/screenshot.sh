@@ -268,7 +268,7 @@ wait_for_text() {
     waited=$((waited + 2))
   done
   if [[ $max_nodes -lt $MIN_POPULATED_NODES ]]; then
-    echo "uiautomator never exposed a populated accessibility tree on $DEVICE in ${timeout}s (max $max_nodes nodes seen, vs. a normally-rendered screen's ~100+) -- this matches known uiautomator/accessibility-service rebind flakiness (docs/agents/emulator-pool.md), not necessarily a stale or wrong screen. Retry, or capture with a fixed sleep and confirm the PNG by eye instead of trusting this timeout as proof the screen didn't load." >&2
+    echo "uiautomator never exposed a populated accessibility tree on $DEVICE in ${timeout}s (max $max_nodes nodes seen -- a correctly-rendered screen measures well above $MIN_POPULATED_NODES even when sparse, e.g. 26 on an empty-state screen, 241+ on a content-heavy one) -- this matches known uiautomator/accessibility-service rebind flakiness (docs/agents/emulator-pool.md), not necessarily a stale or wrong screen. Retry, or capture with a fixed sleep and confirm the PNG by eye instead of trusting this timeout as proof the screen didn't load." >&2
   fi
   return 1
 }
