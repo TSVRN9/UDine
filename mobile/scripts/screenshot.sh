@@ -89,14 +89,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# AVD name -> serial and lock path (docs/agents/emulator-pool.md's Devices table).
+# AVD name -> serial, lock path, and Metro port (docs/agents/emulator-pool.md's Devices table).
+# Metro is otherwise a host-wide singleton on a hardcoded port -- giving each device its own port
+# lets concurrent screenshot.sh calls on different devices run without one restarting/killing the
+# other's Metro (docs/agents/emulator-pool.md's uiautomator/Metro-singleton section).
 case "$DEVICE" in
   Agent_Emulator)
-    SERIAL="emulator-5554"; LOCK="/tmp/udine-emulator-lock" ;;
+    SERIAL="emulator-5554"; LOCK="/tmp/udine-emulator-lock"; METRO_PORT=8081 ;;
   Agent_Emulator_Narrow)
-    SERIAL="emulator-5556"; LOCK="/tmp/udine-emulator-lock-Agent_Emulator_Narrow" ;;
+    SERIAL="emulator-5556"; LOCK="/tmp/udine-emulator-lock-Agent_Emulator_Narrow"; METRO_PORT=8082 ;;
   Agent_Emulator_Wide)
-    SERIAL="emulator-5558"; LOCK="/tmp/udine-emulator-lock-Agent_Emulator_Wide" ;;
+    SERIAL="emulator-5558"; LOCK="/tmp/udine-emulator-lock-Agent_Emulator_Wide"; METRO_PORT=8083 ;;
   *)
     echo "Unknown --device $DEVICE (expected Agent_Emulator, Agent_Emulator_Narrow, or Agent_Emulator_Wide)" >&2
     exit 1
@@ -131,7 +134,14 @@ release_lock() {
     rmdir "$LOCK" 2>/dev/null || true
   fi
 }
-trap release_lock EXIT
+cleanup() { release_lock; }
+trap cleanup EXIT
+# timeout(1) sends SIGTERM on expiry, which bash does NOT route through an EXIT-only trap -- a
+# caller wrapping this script in `timeout N bash screenshot.sh ...` would otherwise leak the device
+# lock forever (docs/agents/emulator-pool.md's timeout/leak section). release_lock is idempotent
+# (guarded by LOCK_ACQUIRED, rmdir ... || true), so it's safe if both traps end up firing.
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
 
 WAITED=0
 until mkdir "$LOCK" 2>/dev/null; do
@@ -168,22 +178,21 @@ if [[ ! -f "$MOBILE_DIR/.env" ]]; then
 fi
 
 # --- 4. Restart Metro (never reuse a running one -- it can serve a stale graph) ----
-# ponytail: host-global kill -- on a host running two of these concurrently, this can kill a
-# sibling agent's in-flight capture. One Metro per host is already this pool's real constraint
-# (see docs/agents/emulator-pool.md's Gradle/RAM section), so it's not fixed here; if concurrent
-# screenshot.sh calls become common, give Metro its own per-device lock the way the emulator has.
-pkill -f "expo start" 2>/dev/null || true
-STALE_PID="$(ss -ltnp 2>/dev/null | awk '/:8081 /{print $0}' | grep -oP 'pid=\K[0-9]+' | head -1 || true)"
+# Each device gets its own fixed port (METRO_PORT above), so this only ever kills whatever is
+# bound to THIS device's port -- not a sibling agent's Metro on a different device's port. The
+# device lock held since step 1 already serializes everything below for this device, Metro
+# included, so no separate Metro lock is needed on top of it.
+STALE_PID="$(ss -ltnp 2>/dev/null | awk "/:$METRO_PORT /"'{print $0}' | grep -oP 'pid=\K[0-9]+' | head -1 || true)"
 if [[ -n "$STALE_PID" ]]; then
   kill "$STALE_PID" 2>/dev/null || true
+  sleep 1
 fi
-sleep 1
 
 (cd "$MOBILE_DIR" && JAVA_HOME="$JAVA_HOME" PATH="$PATH" \
-  nohup npx expo start --dev-client --port 8081 >"$METRO_LOG" 2>&1 &)
+  nohup npx expo start --dev-client --port "$METRO_PORT" >"$METRO_LOG" 2>&1 &)
 
 METRO_WAITED=0
-until curl -s "http://localhost:8081/status" 2>/dev/null | grep -q "packager-status:running"; do
+until curl -s "http://localhost:$METRO_PORT/status" 2>/dev/null | grep -q "packager-status:running"; do
   if [[ $METRO_WAITED -ge 90 ]]; then
     echo "Metro did not report packager-status:running within 90s -- see $METRO_LOG" >&2
     exit 1
@@ -191,7 +200,7 @@ until curl -s "http://localhost:8081/status" 2>/dev/null | grep -q "packager-sta
   sleep 3
   METRO_WAITED=$((METRO_WAITED + 3))
 done
-METRO_PID="$(ss -ltnp 2>/dev/null | awk '/:8081 /{print $0}' | grep -oP 'pid=\K[0-9]+' | head -1 || echo unknown)"
+METRO_PID="$(ss -ltnp 2>/dev/null | awk "/:$METRO_PORT /"'{print $0}' | grep -oP 'pid=\K[0-9]+' | head -1 || echo unknown)"
 
 # --- 5. Point the installed dev client at Metro -------------------------------------
 adb -s "$SERIAL" shell am force-stop "$APP_ID"
@@ -199,7 +208,7 @@ adb -s "$SERIAL" shell am force-stop "$APP_ID"
 # unlike the pool doc's LAN/bridge IP example, this works from inside any emulator
 # on this host without needing to look up a host-specific address.
 adb -s "$SERIAL" shell am start -a android.intent.action.VIEW \
-  -d "udine://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081" >/dev/null
+  -d "udine://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A$METRO_PORT" >/dev/null
 
 BUNDLE_WAITED=0
 BUNDLED=false
@@ -232,19 +241,35 @@ sleep 4
 # content has rendered (a section header, a specific dish name, a state label) -- a fixed sleep
 # can't tell a live-data fetch (e.g. umassdining.com) apart from an instant one, so it either wastes
 # time or, worse, captures the skeleton/loading state and nobody notices until a human looks.
+# Investigated 2026-09-12 (docs/agents/emulator-pool.md's "uiautomator dump sees no RN content"
+# section): live-verified on both Narrow and Wide, cold-launch (full Metro restart + dev-client
+# relaunch) included, that the accessibility tree IS populated correctly on a real hall-menu route
+# -- 241 nodes including the target text, MealTabPager.tsx's importantForAccessibility="auto" on
+# the active pane confirmed correct by its own test suite. Couldn't reproduce the doc's "6 nodes,
+# none with any text" -- not an app bug to fix here, so this only makes the poll loop diagnose that
+# class of platform flakiness (uiautomator/accessibility-service slow to bind after a fresh launch)
+# instead of reporting the same generic message as a genuinely-wrong-screen timeout.
+MIN_POPULATED_NODES=15
 wait_for_text() {
   local text="$1"
   local timeout="$2"
   local waited=0
   local dump=""
+  local nodes=0
+  local max_nodes=0
   while [[ $waited -lt $timeout ]]; do
     dump="$(adb -s "$SERIAL" shell uiautomator dump /sdcard/udine-wait-dump.xml 2>/dev/null && adb -s "$SERIAL" exec-out cat /sdcard/udine-wait-dump.xml 2>/dev/null || true)"
     if [[ "$dump" == *"$text"* ]]; then
       return 0
     fi
+    nodes="$(grep -o "<node" <<<"$dump" | wc -l)"
+    [[ $nodes -gt $max_nodes ]] && max_nodes=$nodes
     sleep 2
     waited=$((waited + 2))
   done
+  if [[ $max_nodes -lt $MIN_POPULATED_NODES ]]; then
+    echo "uiautomator never exposed a populated accessibility tree on $DEVICE in ${timeout}s (max $max_nodes nodes seen, vs. a normally-rendered screen's ~100+) -- this matches known uiautomator/accessibility-service rebind flakiness (docs/agents/emulator-pool.md), not necessarily a stale or wrong screen. Retry, or capture with a fixed sleep and confirm the PNG by eye instead of trusting this timeout as proof the screen didn't load." >&2
+  fi
   return 1
 }
 
