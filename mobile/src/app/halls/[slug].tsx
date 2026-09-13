@@ -47,7 +47,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
-import { DishCardSkeleton, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
+import { DishCardSkeleton, SkeletonBar, Spinner, StationHeaderSkeleton } from "../../components/Skeleton";
 import { EmptyState, SectionHeader } from "../../components/ui";
 import { CafePdfViewer } from "../../components/CafePdfViewer";
 import { CafeSheet } from "../../components/CafeSheet";
@@ -1565,7 +1565,15 @@ export function HallMenuScreenBody({
                 accessibilityRole="button"
                 accessibilityLabel={`${cafeMealTabLabel(period, isRealHall, isBrunchToday)} menu`}
               >
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall, isBrunchToday)}</Text>
+                {/* items === null: that day's menu hasn't arrived yet, so the guessed MEAL_TABS
+                    fallback label above (used only to pick which tabs to render at all) isn't
+                    trustworthy enough to show as real text -- shimmer instead, same primitive as
+                    the dish-list skeleton below, until items resolves (even to []). */}
+                {isRealHall && items === null ? (
+                  <SkeletonBar width={fs(48)} height={fs(12)} />
+                ) : (
+                  <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall, isBrunchToday)}</Text>
+                )}
                 <View style={styles.tabUnderline}>
                   {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
                       one and Grab's below) reading the same swipeable-sequence index MealTabPager
