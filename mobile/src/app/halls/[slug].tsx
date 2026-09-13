@@ -470,8 +470,7 @@ function DishRow({
   toggleDishFavorite,
   addToPlate,
   stepPlateItem,
-  mealListRef,
-  grabListRef,
+  activeListRef,
   holdSlideHostRef,
   dragStateRef,
   liveHoldCount,
@@ -487,8 +486,12 @@ function DishRow({
   toggleDishFavorite: (dishName: string) => void;
   addToPlate: (item: MenuItem, count?: number) => void;
   stepPlateItem: (item: MenuItem, delta: number) => void;
-  mealListRef: RefObject<any>;
-  grabListRef: RefObject<any>;
+  /** Whichever SectionList is ACTUALLY selected/touchable right now (see activeStationListRef's
+   * own doc, [slug].tsx below) -- not a fixed meal/grab pair. A dish row only ever renders inside
+   * one pane at a time, and only the active pane is ever touchable (MealTabPager's windowed
+   * neighbors are pointerEvents-disabled), so this is the only ref HoldSlideAddButton's
+   * blocksExternalGesture ever needs. */
+  activeListRef: RefObject<any>;
   holdSlideHostRef: RefObject<HoldSlideHostHandle | null>;
   dragStateRef: RefObject<{ item: MenuItem } | null>;
   liveHoldCount: SharedValue<number>;
@@ -586,7 +589,7 @@ function DishRow({
           plateEntry={plateEntry}
           item={item}
           onStep={(delta) => stepPlateItem(item, delta)}
-          blocksScrollRefs={[mealListRef, grabListRef]}
+          blocksScrollRefs={[activeListRef]}
           onQuickAdd={() => addToPlate(item)}
           onHoldStart={(anchor) => {
             dragStateRef.current = { item };
@@ -808,15 +811,29 @@ export function HallMenuScreenBody({
   const liveHoldIndex = useSharedValue(0);
   const holdSlideHostRef = useRef<HoldSlideHostHandle>(null);
   const dragStateRef = useRef<{ item: MenuItem } | null>(null);
-  // Refs to both GestureSectionLists, passed to every HoldSlideAddButton so its LongPress can
-  // blocksExternalGesture() them -- this native-level relationship (not a reactive scrollEnabled
-  // toggle) is what lets the hold-and-drag gesture win against the list's own non-interruptible
-  // scroll. Both refs are always passed; only one list is ever mounted for a given row.
-  // `any`, not ElementRef<typeof GestureSectionList>: the `as unknown as typeof SectionList` cast
-  // above erases MenuItem's generic, so a properly-typed ref doesn't line up with the erased
-  // type -- RNGH only needs *some* ref to resolve the underlying native handler tag.
-  const mealListRef = useRef<any>(null);
-  const grabListRef = useRef<any>(null);
+  // One SectionList ref PER TAB VALUE, not a single shared ref -- MealTabPager keeps up to 3 meal-
+  // period panes mounted at once (its own activeIndex ± 1 window; mealPane(period) is called once
+  // per windowed tab, each attaching its own GestureSectionList's ref below), so a single shared
+  // ref object would have whichever pane happens to mount/re-render LAST silently win `.current`,
+  // with no relation to which tab is actually selected (pr-reviewer caught this on PR #458: the
+  // station scrubber's scrollToLocation targeted an arbitrary windowed neighbor's list on every
+  // tab except the one that happened to attach last). A Map keyed by tab VALUE (not array
+  // position -- mealTabs can reorder/reshape across a date step) instead, created once and reused
+  // forever, mirrors stationViewabilityHandlers's identical fix below for the same underlying
+  // problem (RN's per-list identity requirements colliding with MealTabPager's windowed mounts).
+  // `getListRef`'s return type is `any`, not ElementRef<typeof GestureSectionList>: the
+  // `as unknown as typeof SectionList` cast above erases MenuItem's generic, so a properly-typed
+  // ref doesn't line up with the erased type -- RNGH only needs *some* ref to resolve the
+  // underlying native handler tag.
+  const listRefs = useRef(new Map<TabSelection, RefObject<any>>()).current;
+  function getListRef(tab: TabSelection): RefObject<any> {
+    let ref = listRefs.get(tab);
+    if (!ref) {
+      ref = { current: null };
+      listRefs.set(tab, ref);
+    }
+    return ref;
+  }
   const [sheetOpen, setSheetOpen] = useState(false);
   // Separate from `sheetOpen` above (the Plate sheet) -- the two are independent modals. `events`
   // is separate from `hoursFeed`'s own load because it comes from a different endpoint
@@ -1039,7 +1056,14 @@ export function HallMenuScreenBody({
     if (selectedMeal === null) return [];
     return sectionsByPeriod.get(selectedMeal) ?? [];
   }, [selectedMeal, sectionsByPeriod, grabSectionsMemo]);
-  const activeStationListRef = selectedMeal === "grab" ? grabListRef : mealListRef;
+  // getListRef(tab) always returns the SAME cached ref object for a given tab value (see its own
+  // doc above), so this identity is stable across renders unless selectedMeal itself changes --
+  // "grab" fallback for the null (café pre-load) case is inert, never actually read: StationScrubber
+  // never renders while activeStationSections is [] (its own count<=1 guard).
+  // Same lazy-ref-cache-during-render idiom as getStationViewabilityHandler below (see its own
+  // doc for why this is safe).
+  // eslint-disable-next-line react-hooks/refs
+  const activeStationListRef = getListRef(selectedMeal ?? "grab");
 
   // Which station the list is currently scrolled to -- fed by onViewableItemsChanged on whichever
   // SectionList is actually selected (wired per-pane below). Reset on every tab switch so a stale
@@ -1244,8 +1268,12 @@ export function HallMenuScreenBody({
         toggleDishFavorite={toggleDishFavorite}
         addToPlate={addToPlate}
         stepPlateItem={stepPlateItem}
-        mealListRef={mealListRef}
-        grabListRef={grabListRef}
+        // getListRef(...) called fresh here (not the pre-computed activeStationListRef variable
+        // above) so this useCallback's own dependency below is the PLAIN selectedMeal string, not
+        // a ref object -- React Compiler refuses to preserve memoization for a callback whose deps
+        // include something ref-shaped ("this dependency may be mutated later"), degrading the
+        // whole component's optimization. getListRef itself is cheap/idempotent (a Map lookup).
+        activeListRef={getListRef(selectedMeal ?? "grab")}
         holdSlideHostRef={holdSlideHostRef}
         dragStateRef={dragStateRef}
         liveHoldCount={liveHoldCount}
@@ -1253,7 +1281,20 @@ export function HallMenuScreenBody({
         setLabelItem={setLabelItem}
       />
     ),
-    [plate, expandedKey, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex],
+    // selectedMeal: getListRef(selectedMeal ?? "grab") above resolves to a DIFFERENT cached ref
+    // object once selectedMeal moves to a different tab -- omitting selectedMeal here would leave
+    // this closure (and therefore every row's blocksScrollRefs) pointing at the PREVIOUS tab's
+    // list ref after a tab switch, reintroducing a narrower version of the bug the per-tab ref map
+    // above exists to fix.
+    //
+    // getListRef deliberately NOT listed -- exhaustive-deps wants it since the callback body calls
+    // it, but its own function identity is recreated every render (it's a plain function, not
+    // itself memoized) while its OUTPUT for a given key never changes across the component's
+    // lifetime (see its own doc: one ref object per tab value, cached forever in `listRefs`).
+    // Listing it would rebuild this callback -- and therefore every mounted pane's renderItem
+    // identity -- on every unrelated re-render, exactly what this useCallback exists to prevent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plate, expandedKey, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex, selectedMeal],
   );
 
   // Grab isn't in `mealTabs` (see TabSelection's own doc) -- appended as the swipeable sequence's
@@ -1332,7 +1373,7 @@ export function HallMenuScreenBody({
     }
     return (
       <GestureSectionList
-        ref={mealListRef}
+        ref={getListRef(period)}
         sections={periodSections}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         // extraData: single-expand needs a row OTHER than the one just tapped (whichever was
@@ -1392,7 +1433,7 @@ export function HallMenuScreenBody({
     }
     return (
       <GestureSectionList
-        ref={grabListRef}
+        ref={getListRef("grab")}
         sections={grabSectionsMemo}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         // extraData: see the meal-tab GestureSectionList's own comment above -- same single-expand
