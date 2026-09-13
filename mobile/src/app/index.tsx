@@ -80,11 +80,15 @@ function HeroBlock({
   );
 }
 
-// Fixed px, not run through fs()/spacing() -- touch targets don't scale. `top` can safely extend
-// into the hall zone above since RN resolves overlapping Pressables by child order and this strip
-// is later in the column. `bottom` must stay under the smallest hallList gap (spacing(2.5), ~8dp
+// Fixed px, not run through fs()/spacing() -- touch targets don't scale. `top` extends into the
+// hall zone above since RN resolves overlapping Pressables by child order and this strip is later
+// in the column -- on-device measurement (Narrow AVD, #461) showed this reaching ~65px/~22dp above
+// the strip's own visible top edge at the old top:16, eating nearly a third of the 70dp hall zone
+// at the hall zone's expense (owner report). Lowered to keep the combined strip touch target
+// (visible content + padding + this hitSlop) at the ~44-48dp minimum without swallowing most of
+// the hall zone above it. `bottom` must stay under the smallest hallList gap (spacing(2.5), ~8dp
 // at 320dp) or it bleeds into the next card's zone below.
-const GRAB_STRIP_HIT_SLOP = { top: 16, bottom: 4, left: 8, right: 8 };
+const GRAB_STRIP_HIT_SLOP = { top: 6, bottom: 4, left: 8, right: 8 };
 
 // Hall card: one rounded unit, two tap zones -- hall area opens the hall menu, translucent
 // Grab 'N Go strip along the bottom opens that hall's Grab 'N Go menu. Closed halls get a dimmed

@@ -110,11 +110,33 @@ describe("Grab 'N Go strip hitSlop (bottom-bleed regression)", () => {
     // other pressable in this tree) rather than by index, so this doesn't silently start checking
     // the wrong node if HomePane's render order ever changes.
     const stripPressables = root.root.findAll(
-      (n) => n.props.hitSlop && n.props.hitSlop.left === 8 && n.props.hitSlop.right === 8 && n.props.hitSlop.top === 16,
+      (n) => n.props.hitSlop && n.props.hitSlop.left === 8 && n.props.hitSlop.right === 8 && n.props.hitSlop.top === 6,
     );
     expect(stripPressables.length).toBeGreaterThan(0);
     for (const node of stripPressables) {
       expect(node.props.hitSlop.bottom).toBeLessThan(8);
+    }
+  });
+});
+
+// #461: on-device measurement (Narrow AVD, 360dp/xxhdpi) showed the old top:16 reaching ~65px
+// (~22dp) above the strip's own visible top edge into the 70dp hall zone above it -- eating nearly
+// a third of the hall zone at its expense (owner report: strip felt "way overinflated" against the
+// main hall zone). Locks the rebalanced value in directly so a future bump back toward 16 fails
+// loudly here instead of only being caught by a person tapping the emulator.
+describe("Grab 'N Go strip hitSlop top (hall-zone-encroachment regression, #461)", () => {
+  it("keeps hitSlop.top small enough that the strip doesn't swallow most of the hall zone above it", async () => {
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+
+    const stripPressables = root.root.findAll(
+      (n) => n.props.hitSlop && n.props.hitSlop.left === 8 && n.props.hitSlop.right === 8,
+    );
+    expect(stripPressables.length).toBeGreaterThan(0);
+    for (const node of stripPressables) {
+      expect(node.props.hitSlop.top).toBeLessThanOrEqual(8);
     }
   });
 });
