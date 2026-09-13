@@ -13,6 +13,7 @@ import {
   type DiningHoursFeed,
   type Favorite,
   type FoodPreferences,
+  type HallMealPeriod,
   type MacroPreset,
   type MealPeriod,
   type MenuItem,
@@ -249,6 +250,16 @@ const MACRO_BADGE_SIZE = 15;
 // macroBadgeRow's own internal gap between badge icons (its style below) -- named for the same
 // reason as MACRO_BADGE_SIZE.
 const MACRO_BADGE_GAP = spacing(1);
+
+/** Meal-tab shimmer widths (MenuLoading.dc.html) -- per label, not one fixed width, so the
+ * loading tab row's proportions already read as Breakfast/Lunch/Dinner/Late before the real
+ * text lands. */
+const MEAL_TAB_SKELETON_WIDTH: Record<HallMealPeriod, number> = {
+  breakfast: fs(58),
+  lunch: fs(40),
+  dinner: fs(46),
+  latenight: fs(32),
+};
 // rowNameLine's own gap between the dish name and the badge row (its style below) -- reused as the
 // tuck decision's required slack on both sides, and as the tucked overlay's name-to-badge offset,
 // so a tucked badge sits the same distance from the text as an in-flow one does.
@@ -1570,7 +1581,7 @@ export function HallMenuScreenBody({
                     trustworthy enough to show as real text -- shimmer instead, same primitive as
                     the dish-list skeleton below, until items resolves (even to []). */}
                 {isRealHall && items === null ? (
-                  <SkeletonBar width={fs(48)} height={fs(12)} />
+                  <SkeletonBar width={MEAL_TAB_SKELETON_WIDTH[period as HallMealPeriod]} height={fs(12)} />
                 ) : (
                   <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall, isBrunchToday)}</Text>
                 )}
