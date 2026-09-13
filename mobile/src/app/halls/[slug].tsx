@@ -30,6 +30,7 @@ import {
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
   type TextLayoutEventData,
+  type ViewToken,
 } from "react-native";
 import { createNativeWrapper } from "react-native-gesture-handler";
 import Reanimated, {
@@ -61,7 +62,9 @@ import { CustomFoodForm } from "../../components/CustomFoodForm";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { PlateSheet } from "../../components/PlateSheet";
+import { StationScrubber } from "../../components/StationScrubber";
 import { durations } from "../../lib/motion";
+import { topViewableSectionIndex } from "../../lib/hallMenuScrubber";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { formatTime, retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
 import {
@@ -1027,6 +1030,57 @@ export function HallMenuScreenBody({
     return map;
   }, [stationPriceFilteredItems, mealTabs, prefs, stressFixture]);
   const grabSectionsMemo = useMemo(() => (grabItems ? grabSections(grabItems, prefs) : []), [grabItems, prefs]);
+
+  // The station scrubber's own sections/list -- always whichever tab is actually selected, not
+  // tied to a specific mounted pane the way periodSections/mealPane are (MealTabPager windows up
+  // to 3 panes at once; the scrubber tracks only the one the user is actually looking at).
+  const activeStationSections = useMemo<MenuSection[]>(() => {
+    if (selectedMeal === "grab") return grabSectionsMemo;
+    if (selectedMeal === null) return [];
+    return sectionsByPeriod.get(selectedMeal) ?? [];
+  }, [selectedMeal, sectionsByPeriod, grabSectionsMemo]);
+  const activeStationListRef = selectedMeal === "grab" ? grabListRef : mealListRef;
+
+  // Which station the list is currently scrolled to -- fed by onViewableItemsChanged on whichever
+  // SectionList is actually selected (wired per-pane below). Reset on every tab switch so a stale
+  // highlight from the previous tab doesn't linger until the new one's own first scroll event.
+  const [activeStationIndex, setActiveStationIndex] = useState(0);
+  useEffect(() => setActiveStationIndex(0), [selectedMeal]);
+
+  // A SectionList's onViewableItemsChanged identity must never change across that list's own
+  // lifetime (RN throws "Changing onViewableItemsChanged on the fly is not supported" if it does)
+  // -- but mealPane/grabPane are plain functions re-invoked on every render (they can't call hooks
+  // themselves, see mealPane's own doc on why it's a called function, not a tagged component), so
+  // a fresh closure per render is exactly what a naive inline handler would produce. One stable
+  // handler per TAB VALUE (not per array position -- mealTabs can reorder/reshape across a date
+  // step) is cached here instead, created once and reused forever; it reads which tab is actually
+  // selected AND that tab's current sections from a ref updated in the effect below (a render-time
+  // write here would risk this handler observing a value from a render that later gets discarded).
+  const scrubberLatestRef = useRef({ selectedMeal, sectionsByPeriod, grabSectionsMemo });
+  useEffect(() => {
+    scrubberLatestRef.current = { selectedMeal, sectionsByPeriod, grabSectionsMemo };
+  }, [selectedMeal, sectionsByPeriod, grabSectionsMemo]);
+  const stationViewabilityHandlers = useRef(new Map<TabSelection, (info: { viewableItems: ViewToken[] }) => void>());
+  function getStationViewabilityHandler(tab: TabSelection) {
+    let handler = stationViewabilityHandlers.current.get(tab);
+    if (!handler) {
+      handler = ({ viewableItems }) => {
+        const latest = scrubberLatestRef.current;
+        // A neighbor pane MealTabPager keeps windowed (±1) mounts and fires its own initial
+        // viewability the moment it mounts, regardless of whether it's the tab actually on
+        // screen -- ignored here rather than trusted, or switching tabs would flash the wrong
+        // station highlighted until the real active pane's own next scroll event corrects it.
+        if (latest.selectedMeal !== tab) return;
+        const sections = tab === "grab" ? latest.grabSectionsMemo : (latest.sectionsByPeriod.get(tab as MealPeriod) ?? []);
+        const idx = topViewableSectionIndex(viewableItems, sections);
+        if (idx !== null) setActiveStationIndex(idx);
+      };
+      stationViewabilityHandlers.current.set(tab, handler);
+    }
+    return handler;
+  }
+  // Stable across the screen's lifetime -- same reasoning as onViewableItemsChanged above.
+  const stationViewabilityConfig = useRef({ itemVisiblePercentThreshold: 40 }).current;
   // FAB state: driven only by allergens/diet-tags currently hiding something -- macros never
   // filter, so they never drive this. Computed on the UNFILTERED item list (station/price
   // selections must not change what the badge reports).
@@ -1303,6 +1357,8 @@ export function HallMenuScreenBody({
         // screen's own render, right below the header), not here as a ListHeaderComponent, so it
         // reads as a persistent state indicator, not scrollable content.
         ListFooterComponent={unmatchedEntries.length > 0 ? () => <UnmatchedMenuBlock entries={unmatchedEntries} onTapItem={openUnmatchedItemSearch} /> : undefined}
+        onViewableItemsChanged={getStationViewabilityHandler(period)}
+        viewabilityConfig={stationViewabilityConfig}
       />
     );
   }
@@ -1349,6 +1405,8 @@ export function HallMenuScreenBody({
           </Reanimated.View>
         )}
         renderItem={renderDishRow}
+        onViewableItemsChanged={getStationViewabilityHandler("grab")}
+        viewabilityConfig={stationViewabilityConfig}
       />
     );
   }
@@ -1526,21 +1584,38 @@ export function HallMenuScreenBody({
           </View>
         )
       ) : (
-        <MealTabPager
-          activeIndex={activeIndex}
-          onActiveIndexChange={handleActiveIndexChange}
-          panes={tabs.map((tab, i) => {
-            // Only build the pane MealTabPager will actually mount (its own activeIndex ± 1
-            // window, MealTabPager.tsx:292) -- mealPane/grabPane each construct a full
-            // SectionList element tree; building all (up to 5) on every render was slow enough to
-            // cause a menu/tab-label/underline desync on fast back-and-forth swiping, not just
-            // visible jank.
-            if (Math.abs(i - activeIndex) > 1) return null;
-            return tab === "grab" ? grabPane() : mealPane(tab);
-          })}
-          instantRef={mealTabInstantRef}
-          panePos={tabPanePos}
-        />
+        // pagerArea wraps MealTabPager instead of the pager owning this positioning itself --
+        // the scrubber is an absolute overlay INSIDE this same box (styles.pagerArea below is a
+        // plain flex:1, so it changes nothing about the pager's own layout), sized to exactly the
+        // pane content area without needing to duplicate the header/tab-row height math a
+        // sibling-position approach would've needed. Keeps MealTabPager itself untouched.
+        <View style={styles.pagerArea}>
+          <MealTabPager
+            activeIndex={activeIndex}
+            onActiveIndexChange={handleActiveIndexChange}
+            // react-hooks/refs flags this because mealPane/grabPane call
+            // getStationViewabilityHandler, which reads/lazily-fills stationViewabilityHandlers's
+            // ref map during render -- the standard "lazy ref initialization" idiom (React's own
+            // docs allow writing a ref during render for one-time setup): each handler is created
+            // at most once per tab value and its identity never changes after, so this is a stable
+            // memoized read, not a render-purity violation the plugin can't otherwise see through.
+            // eslint-disable-next-line react-hooks/refs
+            panes={tabs.map((tab, i) => {
+              // Only build the pane MealTabPager will actually mount (its own activeIndex ± 1
+              // window, MealTabPager.tsx:292) -- mealPane/grabPane each construct a full
+              // SectionList element tree; building all (up to 5) on every render was slow enough to
+              // cause a menu/tab-label/underline desync on fast back-and-forth swiping, not just
+              // visible jank.
+              if (Math.abs(i - activeIndex) > 1) return null;
+              return tab === "grab" ? grabPane() : mealPane(tab);
+            })}
+            instantRef={mealTabInstantRef}
+            panePos={tabPanePos}
+          />
+          {activeStationSections.length > 1 && (
+            <StationScrubber sections={activeStationSections} listRef={activeStationListRef} activeStationIndex={activeStationIndex} />
+          )}
+        </View>
       )}
       {logged && (
         // This banner is the one surface a LOG failure actually shows on (the plate is
@@ -1733,6 +1808,10 @@ const styles = StyleSheet.create({
   // Info-only state -- CafeSheet's content, scrollable in place of the tab pager.
   infoScroll: { flex: 1 },
   skeletonList: { paddingHorizontal: spacing(5), paddingTop: spacing(3), gap: spacing(2) },
+  // Wraps MealTabPager so the station scrubber (an absolute overlay, see its own render below)
+  // can size itself off exactly the pane content box -- flex:1 only, otherwise a no-op on the
+  // pager's own layout.
+  pagerArea: { flex: 1 },
   skeletonSpinnerRow: { flexDirection: "row", alignItems: "center", gap: spacing(2), marginTop: spacing(2), justifyContent: "center" },
   skeletonSpinnerText: { fontFamily: fonts.body500, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
 
