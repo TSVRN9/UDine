@@ -23,11 +23,11 @@ set -euo pipefail
 #   never silently captures a stale frame.
 # --stress NAME: dev-only stress-fixture query param, appended to the deep link as
 #   `?stress=NAME`. Requires the target route to read it and inject a fixture when
-#   __DEV__ (see mobile/src/app/halls/[slug].tsx's STRESS_FIXTURE for the one this
-#   repo ships: NAME=long-names adds one synthetic 60+ char dish name with all 5
-#   macro badges to every meal-period section, so a layout claim about a wrapped
-#   name / max badge count doesn't depend on live menu data happening to contain
-#   one today.
+#   __DEV__ (see mobile/src/app/halls/[slug].tsx's stressFixtureItems for the one this
+#   repo ships: NAME=long-names adds two synthetic dishes to every meal-period section
+#   -- a 60+ char name with all 5 macro badges, and a ~40 char name with 3 -- so a
+#   layout claim about a wrapped name / badge count doesn't depend on live menu data
+#   happening to contain one today.
 
 APP_ID="com.udinetogether.udine"
 JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk

@@ -362,3 +362,22 @@ Before recording any after-fix device result, **kill and restart `expo start`** 
 a new graph), relaunch the dev client, and confirm the change is actually on screen (a temporary
 marker string that `uiautomator dump` can see is the cheapest proof). This is very likely what
 #220 recorded as a "dead-Metro window" that broke `Link` navigation app-wide.
+
+## `uiautomator dump` sees no RN content on the current dev client — `--wait-for` always times out (2026-09-12)
+
+Seen live on `Agent_Emulator_Narrow` with a dev client built that evening from `main` (1a2af49):
+with the Worcester hall menu fully rendered on screen (verified by `screencap`), `uiautomator dump`
+returned a 2KB hierarchy of **6 nodes**, none with any text — so `screenshot.sh --wait-for TEXT`
+can never match and exits after 45s no matter how long the screen has been up. Two agents
+independently looped on this the same evening, each re-queuing captures and killing the other's
+Metro on every retry. Not root-caused; the one lead is `MealTabPager.tsx`'s
+`importantForAccessibility="no-hide-descendants"` on inactive panes, which should not hide the
+active one but is the only accessibility-hiding prop in `mobile/src`. Until it is fixed, capture
+with a fixed sleep (no `--wait-for`) and confirm the frame by looking at the PNG — never treat a
+`--wait-for` timeout as "the screen didn't load".
+
+Same evening, a related leak: **never wrap `screenshot.sh` in `timeout N`.** `timeout` kills bash
+with SIGTERM, and bash does not run its `EXIT` trap when killed by an untrapped signal, so the
+device lock the script took is never `rmdir`ed. One such kill left Narrow's lock held with no
+holder process for 12+ minutes while three agents queued on it; it was cleared with the
+three-signal check above. The script has its own internal timeouts on every wait.
