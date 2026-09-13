@@ -404,21 +404,16 @@ describe("formatServingSummary", () => {
   });
 });
 
-describe("toggleExpandedKey", () => {
-  it("adds a key that isn't expanded yet", () => {
-    const next = toggleExpandedKey(new Set(), "menu:1:Pizza");
-    expect(next.has("menu:1:Pizza")).toBe(true);
+describe("toggleExpandedKey (single-expand: at most one card open at a time)", () => {
+  it("opens a key when nothing is expanded", () => {
+    expect(toggleExpandedKey(null, "menu:1:Pizza")).toBe("menu:1:Pizza");
   });
 
-  it("removes a key that's already expanded", () => {
-    const next = toggleExpandedKey(new Set(["menu:1:Pizza"]), "menu:1:Pizza");
-    expect(next.has("menu:1:Pizza")).toBe(false);
+  it("closes the key that's already expanded", () => {
+    expect(toggleExpandedKey("menu:1:Pizza", "menu:1:Pizza")).toBe(null);
   });
 
-  it("does not mutate the set passed in", () => {
-    const original = new Set(["menu:1:Pizza"]);
-    toggleExpandedKey(original, "menu:1:Salad");
-    expect(original.has("menu:1:Salad")).toBe(false);
-    expect(original.size).toBe(1);
+  it("switches to a different key, closing whatever was open", () => {
+    expect(toggleExpandedKey("menu:1:Pizza", "menu:1:Salad")).toBe("menu:1:Salad");
   });
 });

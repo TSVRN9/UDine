@@ -434,7 +434,7 @@ function DishRow({
   item,
   plate,
   favoriteDishKeys,
-  expandedKeys,
+  expandedKey,
   prefs,
   toggleExpanded,
   toggleDishFavorite,
@@ -451,7 +451,7 @@ function DishRow({
   item: MenuItem;
   plate: PlateEntry[];
   favoriteDishKeys: Set<string>;
-  expandedKeys: Set<string>;
+  expandedKey: string | null;
   prefs: FoodPreferences;
   toggleExpanded: (key: string) => void;
   toggleDishFavorite: (dishName: string) => void;
@@ -468,7 +468,7 @@ function DishRow({
   const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
   const plateEntry = plate.find((p) => p.key === dishKey);
   const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
-  const expanded = expandedKeys.has(dishKey);
+  const expanded = expandedKey === dishKey;
   const macroBadges = menuItemMacroBadges(item, prefs);
 
   const [containerWidth, setContainerWidth] = useState(0);
@@ -659,7 +659,7 @@ export function HallMenuScreenBody({
   // MealTabPager snaps to it instead of visibly swiping through the tabs in between. Never set
   // for a real user swipe/tap, which goes through handleActiveIndexChange and keeps its tween.
   const mealTabInstantRef = useRef(false);
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   // A locationId-less café (hall.tid undefined) used to share a single `-1` sentinel hallTid
   // across every such café -- harmless before PlateSheet mounted for that state, wrong now (every
   // locationId-less café's logged dishes and "recent history" search would conflate into one
@@ -907,7 +907,7 @@ export function HallMenuScreenBody({
   // period or date -- the same dish name can recur across meals/days, so without this a card
   // expanded at Lunch could render pre-expanded after switching to Dinner or stepping the date.
   useEffect(() => {
-    setExpandedKeys(new Set());
+    setExpandedKey(null);
   }, [selectedMeal, selectedDate]);
 
   useEffect(() => {
@@ -1085,7 +1085,7 @@ export function HallMenuScreenBody({
   // stepPlateItem only ever call a setState updater function, never read the current state value
   // directly, so an empty dep array is correct, not just convenient.
   const toggleExpanded = useCallback((key: string) => {
-    setExpandedKeys((prev) => toggleExpandedKey(prev, key));
+    setExpandedKey((prev) => toggleExpandedKey(prev, key));
   }, []);
 
   // #198: guarded per dish key -- see useGuardedToggleFavorite's own doc comment for why a rapid
@@ -1154,7 +1154,7 @@ export function HallMenuScreenBody({
         item={item}
         plate={plate}
         favoriteDishKeys={favoriteDishKeys}
-        expandedKeys={expandedKeys}
+        expandedKey={expandedKey}
         prefs={prefs}
         toggleExpanded={toggleExpanded}
         toggleDishFavorite={toggleDishFavorite}
@@ -1169,7 +1169,7 @@ export function HallMenuScreenBody({
         setLabelItem={setLabelItem}
       />
     ),
-    [plate, expandedKeys, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex],
+    [plate, expandedKey, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex],
   );
 
   // Grab isn't in `mealTabs` (see TabSelection's own doc) -- appended as the swipeable sequence's
@@ -1253,9 +1253,9 @@ export function HallMenuScreenBody({
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeaderWrap}>
+          <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
-          </View>
+          </Reanimated.View>
         )}
         renderItem={renderDishRow}
         // The standing-menu caveat banner renders in the tab strip's fixed position above (this
@@ -1300,9 +1300,9 @@ export function HallMenuScreenBody({
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeaderWrap}>
+          <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
-          </View>
+          </Reanimated.View>
         )}
         renderItem={renderDishRow}
       />
