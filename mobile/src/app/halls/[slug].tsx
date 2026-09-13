@@ -1105,6 +1105,28 @@ export function HallMenuScreenBody({
   }
   // Stable across the screen's lifetime -- same reasoning as onViewableItemsChanged above.
   const stationViewabilityConfig = useRef({ itemVisiblePercentThreshold: 40 }).current;
+
+  // Required alongside the station scrubber's own scrollToLocation calls (mealPane/grabPane
+  // below) -- VirtualizedList's scrollToIndex THROWS an uncaught invariant ("scrollToIndex should
+  // be used in conjunction with getItemLayout or onScrollToIndexFailed...") the instant a jump
+  // targets a row that hasn't rendered/measured yet, UNLESS this prop is present (pr-reviewer's
+  // PR #458 finding: reproduced on a plain continuous drag, not a contrived case -- this screen's
+  // row heights vary too much, with wrapping names and expand state, for getItemLayout to be a
+  // viable alternative). RN does NOT do any recovery scroll on its own once this fires -- it's
+  // entirely on this handler, per VirtualizedList.scrollToIndex's own source. Best-effort nudge
+  // toward the failed target's approximate offset (RN's own documented pattern,
+  // averageItemLength * flat index) so more cells render; StationScrubber's own retry (a
+  // stale-guarded double-requestAnimationFrame re-issue of the exact target, in commitDragIndex)
+  // is what converges the rest of the way once that's happened, whether from this nudge or from
+  // the drag's own next touch-move naturally rendering more content. Not itself identity-
+  // sensitive across renders the way onViewableItemsChanged is (VirtualizedList reads this prop
+  // fresh on every scrollToIndex call, never caches it), so a plain per-render closure is fine --
+  // no Map-of-stable-handlers needed here.
+  function handleScrollToIndexFailed(tab: TabSelection) {
+    return (info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
+      getListRef(tab).current?.getListRef?.()?.scrollToOffset?.({ offset: info.averageItemLength * info.index, animated: false });
+    };
+  }
   // FAB state: driven only by allergens/diet-tags currently hiding something -- macros never
   // filter, so they never drive this. Computed on the UNFILTERED item list (station/price
   // selections must not change what the badge reports).
@@ -1400,6 +1422,7 @@ export function HallMenuScreenBody({
         ListFooterComponent={unmatchedEntries.length > 0 ? () => <UnmatchedMenuBlock entries={unmatchedEntries} onTapItem={openUnmatchedItemSearch} /> : undefined}
         onViewableItemsChanged={getStationViewabilityHandler(period)}
         viewabilityConfig={stationViewabilityConfig}
+        onScrollToIndexFailed={handleScrollToIndexFailed(period)}
       />
     );
   }
@@ -1448,6 +1471,7 @@ export function HallMenuScreenBody({
         renderItem={renderDishRow}
         onViewableItemsChanged={getStationViewabilityHandler("grab")}
         viewabilityConfig={stationViewabilityConfig}
+        onScrollToIndexFailed={handleScrollToIndexFailed("grab")}
       />
     );
   }
