@@ -40,6 +40,14 @@ function goToAllLogs() {
   router.push("/logs");
 }
 
+// #454: moved here from PaneHeader.tsx -- the export action used to be a conditionally-mounted
+// icon button in the fixed cross-pane header, which shifted the pane-position dots' on-screen
+// position every time it mounted/unmounted (i.e. whenever the user switched to/away from You).
+// Same router.push mechanism as goToAllLogs/goToFavorites above.
+function goToExport() {
+  router.push("/export");
+}
+
 /** One completion bar inside the shared card — gold fill for the top (first) hall, maroon for the
  * rest, per the You artboard. */
 function CompletionBar({ completion, gold }: { completion: HallCompletion; gold: boolean }) {
@@ -207,7 +215,15 @@ export function YouPane() {
       </View>
 
       <View style={styles.section}>
-        <SectionHeader title="Hall Completion" />
+        <SectionHeader
+          title="Hall Completion"
+          right={
+            <Press style={styles.allLogsLink} onPress={goToExport} accessibilityRole="button">
+              <Text style={styles.allLogsText}>EXPORT</Text>
+              <Text style={styles.allLogsChevron}>›</Text>
+            </Press>
+          }
+        />
         <Card style={styles.completionCard}>
           {completions.map((c, i) => (
             <CompletionBar key={c.hallTid} completion={c} gold={i === 0} />

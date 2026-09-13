@@ -1,18 +1,10 @@
 import { useEffect } from "react";
-import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
 import Reanimated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { Press } from "./Press";
-import { PANE_COUNT, YOU_PANE_INDEX, paneMorph, paneOffsetRange } from "../lib/paneShell";
+import { PANE_COUNT, paneMorph, paneOffsetRange } from "../lib/paneShell";
 import { durations, reanimatedPaneCurve } from "../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
-
-// Same router.push mechanism YouPane's goToAllLogs uses for /logs. Lives here, not in YouPane's
-// scroll content, because "near the pane-position dots" means the fixed header bar.
-function goToExport() {
-  router.push("/export");
-}
 
 /** Pane order: Events, Home, You (matches PaneStack's pane array). MVP cut: was Social/Ping-a-Friend. */
 const TITLES = ["EVENTS", "UDINE", "YOU"] as const;
@@ -129,23 +121,6 @@ export function PaneHeader({
           </Press>
         ))}
       </View>
-      {/* You pane's only settings-style action: a single icon, not a new screen. Reuses
-          DOT_HIT_SLOP rather than a fresh symmetric one -- its bottom side is capped for the same
-          reason (must not reach past this header's opaque box into content scrolled underneath). */}
-      {activeIndex === YOU_PANE_INDEX && (
-        <Press onPress={goToExport} hitSlop={DOT_HIT_SLOP} style={styles.exportButton} accessibilityRole="button" accessibilityLabel="Export data">
-          {/* Bordered-circle + gear glyph, per YouPaneGrouped.dc.html:24-27. */}
-          <Svg width={15} height={15} viewBox="0 0 16 16" fill="none">
-            <Circle cx={8} cy={8} r={2.1} stroke={colors.maroon900} strokeWidth={1.4} />
-            <Path
-              d="M8 1.6v1.6M8 12.8v1.6M14.4 8h-1.6M3.2 8H1.6M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7L3.6 3.6"
-              stroke={colors.maroon900}
-              strokeWidth={1.4}
-              strokeLinecap="round"
-            />
-          </Svg>
-        </Press>
-      )}
     </View>
   );
 }
@@ -177,19 +152,6 @@ const styles = StyleSheet.create({
     color: colors.maroon900,
   },
   dotsRow: { flexDirection: "row", gap: spacing(1.5), alignItems: "center" },
-  // marginLeft, not `gap` on a shared wrapper -- a test reads the first numeric `gap` style in DFS
-  // order to pin the dots' own hit-region invariant; a wrapper `gap` here would shadow that value.
-  // 30x30 bordered circle, per YouPaneGrouped.dc.html:26.
-  exportButton: {
-    marginLeft: spacing(2),
-    width: fs(30),
-    height: fs(30),
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.ink900, 20),
-    alignItems: "center",
-    justifyContent: "center",
-  },
   // Touch-target box, not type -- spacing() (not fs(), fonts/lineHeights only per its own doc
   // comment) is the width-proportional helper for this, same as the container's padding/gap above.
   dotTapTarget: { width: spacing(4), height: spacing(4), alignItems: "center", justifyContent: "center" },

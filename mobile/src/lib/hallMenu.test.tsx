@@ -1616,6 +1616,38 @@ describe("HallMenuScreen macro badges: no pop-in from a warm cache (#reported 20
   });
 });
 
+describe("DishRow meta line: fiber vs. protein (#reported 2026-09-12)", () => {
+  const HIGH_FIBER_DISH: MenuItem = {
+    ...PIZZA,
+    dishName: "Lentil Soup",
+    nutrition: { ...nutrition(200), proteinG: 10, dietaryFiberG: 5 },
+  };
+
+  afterEach(() => {
+    mockedGetCachedPreferences.mockReturnValue(undefined);
+  });
+
+  it("shows fiber instead of protein when the high-fiber badge is active for this dish", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["high-fiber"] });
+
+    const root = await renderScreen([HIGH_FIBER_DISH]);
+    const flat = texts(root).flat();
+
+    expect(flat).toContain("g fiber");
+    expect(flat).not.toContain("g protein");
+  });
+
+  it("keeps showing protein for the same qualifying dish when the high-fiber preset isn't toggled on", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce({ allergensToAvoid: [], requiredDietTags: [], macroPresets: [] });
+
+    const root = await renderScreen([HIGH_FIBER_DISH]);
+    const flat = texts(root).flat();
+
+    expect(flat).toContain("g protein");
+    expect(flat).not.toContain("g fiber");
+  });
+});
+
 // Badge-tuck wiring (measure-then-position, see hallMenuBadgeLayout.ts's shouldTuckBadges for the
 // pure math, unit-tested on its own there). These exercise the actual onLayout/onTextLayout wiring
 // react-test-renderer never fires on its own -- fired manually here, same idiom as the existing
