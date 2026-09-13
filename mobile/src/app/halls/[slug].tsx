@@ -551,10 +551,12 @@ function DishRow({
                 on `measured` hid EVERY badged row's badges (not just wrapping ones) until
                 onLayout/onTextLayout resolved, reintroducing the exact "badges appear out of
                 nowhere" flash c551767 fixed, just universally instead of only on a cold cache. A
-                wrapping name that's about to tuck gets one LinearTransition-smoothed reposition
-                once measured (the row's Reanimated.View already has `layout={LinearTransition...}`)
-                instead -- an acceptable, rare, already-cushioned cost vs. a guaranteed one-frame
-                invisibility on every single badged dish. */}
+                wrapping name that's about to tuck instead repositions once measured. Measured on
+                a cold mount (docs/decisions-log.md, 2026-09-12 "Badge tuck (#454) reported as
+                'no change on device'"): the row paints stacked for ~450 ms, then snaps to tucked
+                in one frame -- the row's `layout={LinearTransition...}` did NOT visibly cushion
+                it. A known, visible hop on every cold mount of a wrapping badged row, still judged
+                better than a guaranteed one-frame invisibility on every single badged dish. */}
             {macroBadges.length > 0 && !tucked && <View style={styles.macroBadgeRow}>{badgeIcons}</View>}
             {macroBadges.length > 0 && tucked && lastLine && (
               <View
