@@ -30,7 +30,21 @@ const TOUCH_WIDTH = fs(28);
  * scroll touch to out-arbitrate; it activates on touch-down (`minDistance(0)`) like a real index
  * jump should, rather than waiting out a hold.
  */
-export function StationScrubber({ sections, listRef, activeStationIndex }: { sections: MenuSection[]; listRef: RefObject<any>; activeStationIndex: number }) {
+export function StationScrubber({
+  sections,
+  listRef,
+  activeStationIndex,
+  bottomInset = 0,
+}: {
+  sections: MenuSection[];
+  listRef: RefObject<any>;
+  activeStationIndex: number;
+  /** PlateBar's own measured height (screen's `barHeight`, 0 when it isn't mounted) -- the
+   * scrubber's `wrap` sits inside pagerArea, which spans the full pane area behind the bar (the
+   * bar floats on top, see [slug].tsx's own comment on `pagerArea`), so without this the track's
+   * bottom end renders underneath the opaque "Plate is empty"/plate bar instead of clearing it. */
+  bottomInset?: number;
+}) {
   const count = sections.length;
   const [trackHeight, setTrackHeight] = useState(0);
   const trackHeightShared = useSharedValue(0);
@@ -145,7 +159,7 @@ export function StationScrubber({ sections, listRef, activeStationIndex }: { sec
   const segH = trackHeight > 0 ? segmentHeightFor(trackHeight, count, SEGMENT_GAP) : 0;
 
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: spacing(10) + bottomInset }]} pointerEvents="box-none">
       <GestureDetector gesture={pan}>
         <View style={styles.touchArea} onLayout={handleLayout} accessibilityLabel="Stations">
           <View style={styles.track} pointerEvents="none">
@@ -176,7 +190,7 @@ const styles = StyleSheet.create({
   // child's content measurement to its nearest sized ancestor, not the box it visually escapes
   // into. Spanning the full width here (alignItems below re-pins touchArea to the right edge)
   // gives `label` a real available width to size against.
-  wrap: { position: "absolute", top: spacing(10), bottom: spacing(10), left: 0, right: 0, alignItems: "flex-end" },
+  wrap: { position: "absolute", top: spacing(10), left: 0, right: 0, alignItems: "flex-end" },
   touchArea: { width: TOUCH_WIDTH, height: "100%", alignItems: "center" },
   track: { width: TRACK_WIDTH, height: "100%" },
   segment: { width: TRACK_WIDTH, borderRadius: TRACK_WIDTH / 2, backgroundColor: withOpacity(colors.ink900, 15) },
