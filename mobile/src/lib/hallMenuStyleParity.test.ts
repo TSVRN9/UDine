@@ -75,11 +75,19 @@ describe("macro-badge placement: flex-row sibling, not an inline Text attachment
   // narrowest pool device) still show zero overflow past the card, with the wasted-line tradeoff
   // this describe block pins now measured (not just argued) at ~198dp of unused space beside the
   // badge row. No hybrid inline-when-safe fix was attempted -- see that entry for why.
+  //
+  // Since then, that wasted-line tradeoff got its own fix (measure-then-position, DishRow's
+  // onLayout/onTextLayout + hallMenuBadgeLayout.ts's shouldTuckBadges): the dish row moved out of
+  // renderDishRow into its own DishRow component, so the block below matches DishRow's JSX, not
+  // the old inline-in-HallMenuScreenBody shape. The badge row still renders as a flex-row sibling
+  // of the name Text inside rowNameLine in the (still default, still safe) untucked case -- an
+  // absolutely-positioned tucked copy is ALSO a sibling inside rowNameLine, just conditionally
+  // rendered instead, so this substring match holds either way.
 
   it("renders the badge row as a flex-row sibling of the dish-name Text inside rowNameLine", () => {
-    const rowNameLineBlock = source.match(/<View style=\{styles\.rowNameLine\}>([\s\S]*?)\n {12}<\/View>/)?.[1] ?? "";
-    expect(rowNameLineBlock).toMatch(/<Text style=\{styles\.rowText\}>\{item\.dishName\}<\/Text>/);
-    expect(rowNameLineBlock).toMatch(/<View style=\{styles\.macroBadgeRow\}>/);
+    const rowNameLineBlock = source.match(/<View style=\{styles\.rowNameLine\} onLayout=\{handleNameContainerLayout\}>([\s\S]*?)\n {12}<\/View>/)?.[1] ?? "";
+    expect(rowNameLineBlock).toMatch(/<Text style=\{styles\.rowText\} onTextLayout=\{handleNameTextLayout\}>/);
+    expect(rowNameLineBlock).toMatch(/<View style=\{styles\.macroBadgeRow\}>\{badgeIcons\}<\/View>/);
   });
 
   it("rowNameLine wraps and rowText can shrink, so name + badges never overflow past the card", () => {

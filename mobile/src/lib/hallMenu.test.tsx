@@ -1570,11 +1570,124 @@ describe("HallMenuScreen macro badges: no pop-in from a warm cache (#reported 20
     expect(root.root.findAllByProps({ accessibilityLabel: "High Protein" }).length).toBeGreaterThan(0);
   });
 
+  // pr-reviewer catch on the badge-tuck diff: gating the flow badge row's visibility on
+  // `measured` (DishRow, halls/[slug].tsx) hid EVERY badged row's badges -- not just wrapping
+  // ones -- until its onLayout/onTextLayout pair resolved. react-test-renderer never fires either
+  // (nothing in this test invokes them), so under that bug this dish's badge would stay
+  // permanently opacity:0 despite being present in the tree -- the presence-only assertion above
+  // can't see that. Walks every ancestor's flattened style looking for a literal `opacity: 0`.
+  it("renders that badge fully visible, not permanently opacity:0 pending a measurement this test never fires", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["high-protein"] });
+
+    const root = await renderScreen([HIGH_PROTEIN_DISH]);
+
+    let node: renderer.ReactTestInstance | null = root.root.findByProps({ accessibilityLabel: "High Protein" });
+    const opacities: number[] = [];
+    while (node) {
+      const flat = StyleSheet.flatten(node.props?.style);
+      if (flat && typeof flat.opacity === "number") opacities.push(flat.opacity);
+      node = node.parent;
+    }
+    expect(opacities).not.toContain(0);
+  });
+
   it("without a warm cache, the same dish renders with no macro badge (documents the gap a cold cache still leaves)", async () => {
     mockedGetCachedPreferences.mockReturnValueOnce(undefined);
 
     const root = await renderScreen([HIGH_PROTEIN_DISH]);
 
     expect(root.root.findAllByProps({ accessibilityLabel: "High Protein" }).length).toBe(0);
+  });
+});
+
+// Badge-tuck wiring (measure-then-position, see hallMenuBadgeLayout.ts's shouldTuckBadges for the
+// pure math, unit-tested on its own there). These exercise the actual onLayout/onTextLayout wiring
+// react-test-renderer never fires on its own -- fired manually here, same idiom as the existing
+// `.props.onLayout({ nativeEvent: { layout: { height: 88 } } })` calls elsewhere in this file.
+describe("DishRow badge-tuck wiring (halls/[slug].tsx)", () => {
+  const WRAP_DISH: MenuItem = { ...PIZZA, dishName: "Wrap Candidate Dish", nutrition: { ...nutrition(200), proteinG: 25 } };
+
+  afterEach(() => {
+    mockedGetCachedPreferences.mockReturnValue(undefined);
+  });
+
+  function findRowNameLine(root: renderer.ReactTestRenderer, dishName: string) {
+    const nameText = root.root.findByProps({ children: dishName });
+    const rowNameLine = nameText.parent;
+    if (!rowNameLine) throw new Error("dish name Text has no parent");
+    return { nameText, rowNameLine };
+  }
+
+  function findMacroBadgeRowStyles(rowNameLine: renderer.ReactTestInstance) {
+    return rowNameLine
+      .findAll((node) => node.type === View && StyleSheet.flatten(node.props.style)?.flexDirection === "row" && "gap" in (StyleSheet.flatten(node.props.style) ?? {}))
+      .filter((node) => node !== rowNameLine)
+      .map((node) => StyleSheet.flatten(node.props.style));
+  }
+
+  it("absolutely positions the badge row over the wrapped last line's trailing space when it fits", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["high-protein"] });
+    const root = await renderScreen([WRAP_DISH]);
+    const { nameText, rowNameLine } = findRowNameLine(root, WRAP_DISH.dishName);
+
+    act(() => {
+      rowNameLine.props.onLayout({ nativeEvent: { layout: { width: 300 } } });
+      nameText.props.onTextLayout({
+        nativeEvent: {
+          lines: [
+            { x: 0, y: 0, width: 280, height: 16 },
+            { x: 0, y: 16, width: 50, height: 16 },
+          ],
+        },
+      });
+    });
+
+    const badgeRowStyles = findMacroBadgeRowStyles(rowNameLine);
+    expect(badgeRowStyles).toHaveLength(1);
+    expect(badgeRowStyles[0].position).toBe("absolute");
+    // top centers a 15px badge glyph on the 16px-tall last line -- independent of the
+    // name-to-badge gap (a spacing() value, scale-dependent, not asserted here).
+    expect(badgeRowStyles[0].top).toBeCloseTo(16.5, 5);
+    // left sits strictly after the last line's own trailing edge (x=0, width=50), whatever the
+    // exact gap is, and comfortably inside the 300px container.
+    expect(badgeRowStyles[0].left).toBeGreaterThan(50);
+    expect(badgeRowStyles[0].left).toBeLessThan(300);
+  });
+
+  it("falls back to the stacked own-line layout when the badge row doesn't fit beside the wrapped last line", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["high-protein"] });
+    const root = await renderScreen([WRAP_DISH]);
+    const { nameText, rowNameLine } = findRowNameLine(root, WRAP_DISH.dishName);
+
+    act(() => {
+      rowNameLine.props.onLayout({ nativeEvent: { layout: { width: 300 } } });
+      nameText.props.onTextLayout({
+        nativeEvent: {
+          lines: [
+            { x: 0, y: 0, width: 280, height: 16 },
+            { x: 0, y: 16, width: 290, height: 16 },
+          ],
+        },
+      });
+    });
+
+    const badgeRowStyles = findMacroBadgeRowStyles(rowNameLine);
+    expect(badgeRowStyles).toHaveLength(1);
+    expect(badgeRowStyles[0].position).not.toBe("absolute");
+  });
+
+  it("never tucks a single-line (unwrapped) name -- renders the flow badge row even once measured", async () => {
+    mockedGetCachedPreferences.mockReturnValueOnce({ allergensToAvoid: [], requiredDietTags: [], macroPresets: ["high-protein"] });
+    const root = await renderScreen([WRAP_DISH]);
+    const { nameText, rowNameLine } = findRowNameLine(root, WRAP_DISH.dishName);
+
+    act(() => {
+      rowNameLine.props.onLayout({ nativeEvent: { layout: { width: 300 } } });
+      nameText.props.onTextLayout({ nativeEvent: { lines: [{ x: 0, y: 0, width: 120, height: 16 }] } });
+    });
+
+    const badgeRowStyles = findMacroBadgeRowStyles(rowNameLine);
+    expect(badgeRowStyles).toHaveLength(1);
+    expect(badgeRowStyles[0].position).not.toBe("absolute");
   });
 });
