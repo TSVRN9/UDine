@@ -915,9 +915,11 @@ describe("HallMenuScreen loading/error states (#181)", () => {
     const pendingBody = texts(root).flat().join(" ");
     expect(pendingBody).toMatch(/Getting today's menu from UMass Dining…/);
     expect(pendingBody).not.toMatch(/Pizza/);
-    // Header + meal tabs are known without the network -- they render fully even while pending.
+    // Header is known without the network -- it renders fully even while pending. The meal tab
+    // labels are also known (the guessed MEAL_TABS fallback) but are shimmer placeholders, not
+    // real text, until items actually lands -- see the dedicated test below.
     expect(pendingBody).toMatch(/Worcester/);
-    expect(pendingBody).toMatch(/Lunch/);
+    expect(pendingBody).not.toMatch(/Lunch/);
     // #181 review finding 2: assert the skeleton bars themselves actually render, not just that
     // the dish list is absent (which an empty EmptyState would also satisfy).
     expect(root.root.findAllByProps({ testID: "skeleton-bar" }).length).toBeGreaterThan(0);
@@ -927,6 +929,30 @@ describe("HallMenuScreen loading/error states (#181)", () => {
       await Promise.resolve();
     });
     expect(texts(root).flat().join(" ")).toMatch(/Pizza/);
+  });
+
+  it("shows a shimmer placeholder for the meal tab label (not the guessed text) while items are pending, swapping to the real label once items land", async () => {
+    let resolveFetch!: (items: MenuItem[]) => void;
+    mockedFetchMenu.mockReturnValue(
+      new Promise<MenuItem[]>((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    const lunchTab = root.root.findByProps({ accessibilityLabel: "Lunch menu" });
+    expect(lunchTab.findAllByType(Text)).toHaveLength(0);
+    expect(lunchTab.findAllByProps({ testID: "skeleton-bar" }).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      resolveFetch([PIZZA]);
+      await Promise.resolve();
+    });
+    const resolvedLunchTab = root.root.findByProps({ accessibilityLabel: "Lunch menu" });
+    expect(resolvedLunchTab.findAllByProps({ testID: "skeleton-bar" })).toHaveLength(0);
+    expect(resolvedLunchTab.findAllByType(Text).map((n) => n.props.children)).toContain("Lunch");
   });
 
   it("shows the retry card on a fetch failure, with the exact spec copy, and TRY AGAIN refetches", async () => {
