@@ -63,4 +63,12 @@ export const durations = {
   loggedBannerIn: 200,
   /** halls/[slug].tsx "logged" banner exit (FadeOutDown) -- unspecced. */
   loggedBannerOut: 150,
+  /** halls/[slug].tsx station scrubber's highlight segment sliding to a new station, on normal
+   * scroll or drag-to-scrub -- unspecced (no design-canvas artboard exists for this component,
+   * see the PR body), anchored to `.tgl`/`.knob`'s 180ms "quick UI chrome" role like servingsPill
+   * above. */
+  stationHighlight: 180,
+  /** Same screen's floating station-name label appearing/dismissing on hold -- unspecced, paired
+   * in/out like favoritePop above. */
+  stationLabel: { in: 120, out: 150 },
 } as const;
