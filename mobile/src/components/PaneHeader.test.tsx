@@ -1,11 +1,9 @@
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet } from "react-native";
-import Svg from "react-native-svg";
 import * as Reanimated from "react-native-reanimated";
 import type { ReactTestRendererJSON, ReactTestRendererNode } from "react-test-renderer";
 import { DOT_HIT_SLOP, PaneHeader } from "./PaneHeader";
 import { colors, fs } from "../lib/theme";
-import { YOU_PANE_INDEX } from "../lib/paneShell";
 import { durations, reanimatedPaneCurve } from "../lib/motion";
 
 // Same module-scope-before-any-render reasoning as paneStack.test.tsx's own comment on this exact
@@ -16,13 +14,6 @@ const withTimingSpy = jest.spyOn(Reanimated, "withTiming");
 afterEach(() => {
   withTimingSpy.mockClear();
 });
-
-// The export shortcut (#90 nav reorg) is the only navigation PaneHeader itself does -- same
-// router.push mechanism YouPane.tsx's goToAllLogs uses. The jest.fn() is created *inside* the
-// factory (not closed over an outer-scope const) for the same hoisting reason YouPane.test.tsx's
-// own expo-router mock documents.
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
-const mockRouterPush = jest.requireMock("expo-router").router.push as jest.Mock;
 
 // The dot morph is now Reanimated (useAnimatedStyle/interpolate), same as the title crossfade --
 // the mocked shared values/withTiming resolve synchronously (jest.config.js's own comment on the
@@ -192,50 +183,26 @@ describe("PaneHeader title crossfade motion tokens", () => {
   });
 });
 
-describe("PaneHeader export shortcut", () => {
-  beforeEach(() => {
-    mockRouterPush.mockClear();
-  });
+// #454 fix: the export icon used to be a conditionally-mounted flex sibling of dotsRow inside
+// `container` (justifyContent: "space-between"), only rendered when activeIndex === YOU_PANE_INDEX
+// -- mounting/unmounting it shifted dotsRow's on-screen position every time the user switched to or
+// away from the You pane. The export action has since moved into YouPane's own scroll content
+// (see YouPane.test.tsx's "header export shortcut" describe), so PaneHeader now renders exactly the
+// same two children (titleSlot, dotsRow) regardless of activeIndex. This pins that: dotsRow's
+// rendered style must be identical across all 3 panes, and `container` must never grow a third
+// child that could steal space from `titleSlot`'s flexGrow again.
+describe("PaneHeader dots position stability across panes (#454)", () => {
+  it("renders the same container children and dotsRow style at every activeIndex", () => {
+    const jsons = [0, 1, 2].map((i) => renderHeader(i));
+    const childCounts = jsons.map((j) => (Array.isArray(j.children) ? j.children!.length : 0));
+    expect(childCounts).toEqual([2, 2, 2]);
 
-  it("shows the export icon only when the You pane is active", () => {
-    const you = renderHeader(YOU_PANE_INDEX);
-    expect(findByAccessibilityLabel(you, "Export data")).not.toBeNull();
-
-    const events = renderHeader(0);
-    expect(findByAccessibilityLabel(events, "Export data")).toBeNull();
-
-    const home = renderHeader(1);
-    expect(findByAccessibilityLabel(home, "Export data")).toBeNull();
-  });
-
-  it("pushes /export when tapped", () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => {
-      root = renderer.create(<PaneHeader activeIndex={YOU_PANE_INDEX} onSelectPane={() => {}} topInset={0} />);
+    const dotsRowStyles = jsons.map((j) => {
+      const dotsRowJson = j.children![1] as ReactTestRendererJSON;
+      return StyleSheet.flatten(dotsRowJson.props.style as never);
     });
-    const button = root.root.findByProps({ accessibilityLabel: "Export data" });
-    act(() => {
-      button.props.onPress();
-    });
-    expect(mockRouterPush).toHaveBeenCalledWith("/export");
-  });
-
-  // artboardStyle can't address this (YouPaneGrouped.dc.html:26's icon container has no text of
-  // its own to anchor on, per artboard.ts's own "text anchors only" doc comment) -- pinned
-  // directly against the artboard's read values instead, so a regression back to a bare glyph
-  // (no container, no border) fails a test rather than only a human eyeballing a screenshot.
-  it("renders a 30x30 bordered circle with an SVG gear glyph, not a bare text glyph (YouPaneGrouped.dc.html:24-27)", () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => {
-      root = renderer.create(<PaneHeader activeIndex={YOU_PANE_INDEX} onSelectPane={() => {}} topInset={0} />);
-    });
-    const button = root.root.findByProps({ accessibilityLabel: "Export data" });
-    const flat = StyleSheet.flatten(button.props.style as never) as { width?: number; height?: number; borderRadius?: number; borderWidth?: number };
-    expect(flat.width).toBe(fs(30));
-    expect(flat.height).toBe(fs(30));
-    expect(flat.borderRadius).toBe(999);
-    expect(flat.borderWidth).toBe(1);
-    expect(button.findAllByType(Svg).length).toBeGreaterThan(0);
+    expect(dotsRowStyles[0]).toEqual(dotsRowStyles[1]);
+    expect(dotsRowStyles[1]).toEqual(dotsRowStyles[2]);
   });
 });
 

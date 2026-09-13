@@ -495,9 +495,18 @@ describe("YouPane group styling and disambiguation copy (#390)", () => {
   });
 });
 
+// #454: the export icon used to live in the shared PaneHeader as a conditionally-mounted flex
+// sibling of the pane-position dots, which shifted the dots' on-screen position every time it
+// mounted/unmounted. Moved into the You pane's own scroll content, following the same
+// SectionHeader `right` + Press + allLogsLink-styled Text convention as goToAllLogs/goToFavorites.
 describe("YouPane header export shortcut", () => {
-  it("renders no export button of its own -- the settings/export icon lives in the shared PaneHeader (see PaneHeader.test.tsx), not in the pane's own scroll content", async () => {
+  it("renders an EXPORT link, and tapping it navigates to /export", async () => {
     const root = await renderYouPane();
-    expect(root.root.findAllByProps({ accessibilityLabel: "Export data" })).toHaveLength(0);
+    const body = texts(root);
+    expect(body).toMatch(/EXPORT/);
+
+    const exportPressable = root.root.findAll((node) => typeof node.props.onPress === "function" && textsOf(node).includes("EXPORT"))[0];
+    exportPressable.props.onPress();
+    expect(mockRouterPush).toHaveBeenCalledWith("/export");
   });
 });
