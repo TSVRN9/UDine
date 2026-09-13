@@ -470,6 +470,7 @@ function DishRow({
   const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
   const expanded = expandedKeys.has(dishKey);
   const macroBadges = menuItemMacroBadges(item, prefs);
+  const showFiber = macroBadges.includes("high-fiber");
 
   const [containerWidth, setContainerWidth] = useState(0);
   const [hasContainerWidth, setHasContainerWidth] = useState(false);
@@ -546,7 +547,8 @@ function DishRow({
               (CafeMenuMixed.dc.html:43), no separate maroon-highlighted price Text. */}
           <Text style={styles.rowCalories}>
             {item.price ? `${item.price} · ` : ""}
-            {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
+            {item.nutrition.calories} cal · {showFiber ? Math.round(item.nutrition.dietaryFiberG) : Math.round(item.nutrition.proteinG)}
+            {showFiber ? "g fiber" : "g protein"}
           </Text>
         </View>
         <PlateAddControl
