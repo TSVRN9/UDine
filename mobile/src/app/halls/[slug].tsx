@@ -20,7 +20,17 @@ import {
 } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type NativeSyntheticEvent,
+  type TextLayoutEventData,
+} from "react-native";
 import { createNativeWrapper } from "react-native-gesture-handler";
 import Reanimated, {
   FadeIn,
@@ -72,6 +82,7 @@ import {
 import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, syntheticHallTidForName, type CafeMenuState, type StandingMenuEntry } from "../../lib/cafeMenu";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
 import { grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
+import { macroBadgeRowWidth, shouldTuckBadges } from "../../lib/hallMenuBadgeLayout";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { MacroPresetGlyph } from "../../lib/macroBadgeGlyphs";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
@@ -201,10 +212,22 @@ const MACRO_BADGE_COLORS: Record<MacroPreset, { glyph: string; circle: string }>
   "low-fat": { glyph: colors.macroFatAccent, circle: withOpacity(colors.macroFatAccent, 20) },
 };
 
+// Shipped glyph size (BadgeConcepts.dc.html) -- named so the hall-menu dish row's badge-tuck
+// width math (macroBadgeRowWidth below) derives from the same value MacroBadgeIcon actually
+// renders at, instead of a second, driftable literal.
+const MACRO_BADGE_SIZE = 15;
+// macroBadgeRow's own internal gap between badge icons (its style below) -- named for the same
+// reason as MACRO_BADGE_SIZE.
+const MACRO_BADGE_GAP = spacing(1);
+// rowNameLine's own gap between the dish name and the badge row (its style below) -- reused as the
+// tuck decision's required slack on both sides, and as the tucked overlay's name-to-badge offset,
+// so a tucked badge sits the same distance from the text as an in-flow one does.
+const NAME_BADGE_GAP = spacing(2);
+
 function MacroBadgeIcon({ preset }: { preset: MacroPreset }) {
   const { glyph, circle } = MACRO_BADGE_COLORS[preset];
   return (
-    <Svg width={15} height={15} viewBox="0 0 20 20" accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
+    <Svg width={MACRO_BADGE_SIZE} height={MACRO_BADGE_SIZE} viewBox="0 0 20 20" accessible accessibilityLabel={MACRO_PRESET_LABELS[preset]}>
       <Circle cx={10} cy={10} r={10} fill={circle} />
       <MacroPresetGlyph preset={preset} color={glyph} detailColor={circle} />
     </Svg>
@@ -390,6 +413,191 @@ function PlateAddControl({
           <Text style={styles.stepperButtonText}>−</Text>
         </Pressable>
       </View>
+    </Reanimated.View>
+  );
+}
+
+/** One dish row card. Split out of HallMenuScreenBody's old renderDishRow (a plain function
+ * SectionList called, not a mounted component) into a real function component -- the badge-tuck
+ * measurement below needs its own per-row useState, which only a mounted component can hold.
+ * JSX/logic below is otherwise moved as-is from that old renderDishRow.
+ *
+ * Badge-tuck measurement: containerWidth (rowNameLine's own onLayout) and lastLine (the dish
+ * name's onTextLayout) are two SEPARATE state slots, one per callback. RN fires onLayout and
+ * onTextLayout in the same commit but their relative order isn't guaranteed, and onTextLayout does
+ * NOT re-fire just because the other callback's state update triggers a re-render -- computing the
+ * tuck decision inside either callback by reading the other's value from a closure risks
+ * permanently reading a stale/zero value. Instead each callback only ever sets its own state, and
+ * `tucked` below is recomputed fresh from both current state values on every render.
+ */
+function DishRow({
+  item,
+  plate,
+  favoriteDishKeys,
+  expandedKeys,
+  prefs,
+  toggleExpanded,
+  toggleDishFavorite,
+  addToPlate,
+  stepPlateItem,
+  mealListRef,
+  grabListRef,
+  holdSlideHostRef,
+  dragStateRef,
+  liveHoldCount,
+  liveHoldIndex,
+  setLabelItem,
+}: {
+  item: MenuItem;
+  plate: PlateEntry[];
+  favoriteDishKeys: Set<string>;
+  expandedKeys: Set<string>;
+  prefs: FoodPreferences;
+  toggleExpanded: (key: string) => void;
+  toggleDishFavorite: (dishName: string) => void;
+  addToPlate: (item: MenuItem, count?: number) => void;
+  stepPlateItem: (item: MenuItem, delta: number) => void;
+  mealListRef: RefObject<any>;
+  grabListRef: RefObject<any>;
+  holdSlideHostRef: RefObject<HoldSlideHostHandle | null>;
+  dragStateRef: RefObject<{ item: MenuItem } | null>;
+  liveHoldCount: SharedValue<number>;
+  liveHoldIndex: SharedValue<number>;
+  setLabelItem: (item: MenuItem) => void;
+}) {
+  const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
+  const plateEntry = plate.find((p) => p.key === dishKey);
+  const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
+  const expanded = expandedKeys.has(dishKey);
+  const macroBadges = menuItemMacroBadges(item, prefs);
+
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [hasContainerWidth, setHasContainerWidth] = useState(false);
+  const [lastLine, setLastLine] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [lineCount, setLineCount] = useState(1);
+  const [hasTextLayout, setHasTextLayout] = useState(false);
+
+  const handleNameContainerLayout = (e: LayoutChangeEvent) => {
+    setContainerWidth(e.nativeEvent.layout.width);
+    setHasContainerWidth(true);
+  };
+  const handleNameTextLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+    const lines = e.nativeEvent.lines;
+    setLastLine(lines.length > 0 ? lines[lines.length - 1] : null);
+    setLineCount(lines.length);
+    setHasTextLayout(true);
+  };
+
+  // Both measurements resolved -- not just one -- before ever trusting either. Fresh on every
+  // render, off current state only (see this component's own doc above for why).
+  const measured = hasContainerWidth && hasTextLayout;
+  const badgeRowWidth = macroBadges.length > 0 ? macroBadgeRowWidth(macroBadges.length, MACRO_BADGE_SIZE, MACRO_BADGE_GAP) : 0;
+  const tucked =
+    measured &&
+    lineCount > 1 &&
+    lastLine !== null &&
+    shouldTuckBadges({ containerWidth, lastLineWidth: lastLine.width, badgeRowWidth, gap: NAME_BADGE_GAP });
+
+  const badgeIcons = macroBadges.map((preset) => <MacroBadgeIcon key={preset} preset={preset} />);
+
+  return (
+    // Whole card is tappable and expands in place -- the (i) info button is gone, replaced by
+    // this and the FULL NUTRITION LABEL link below. The expand toggle is a SIBLING absolute-fill
+    // Pressable, not a parent of the star/stepper/add/label-link Pressables: a Pressable inside
+    // another Pressable double-fires/steals gestures in RN. Purely-visual children get
+    // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls through to
+    // this background Pressable instead of being silently swallowed.
+    <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={() => toggleExpanded(dishKey)}
+        accessibilityRole="button"
+        accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
+      />
+      <View style={styles.rowMainLine} pointerEvents="box-none">
+        <FavoriteStar isFavorite={isFavorite} dishName={item.dishName} onPress={() => toggleDishFavorite(item.dishName)} />
+        <View style={styles.rowMain} pointerEvents="none">
+          <View style={styles.rowNameLine} onLayout={handleNameContainerLayout}>
+            <Text style={styles.rowText} onTextLayout={handleNameTextLayout}>
+              {item.dishName}
+            </Text>
+            {/* Renders immediately, not gated on `measured` -- pr-reviewer caught that gating this
+                on `measured` hid EVERY badged row's badges (not just wrapping ones) until
+                onLayout/onTextLayout resolved, reintroducing the exact "badges appear out of
+                nowhere" flash c551767 fixed, just universally instead of only on a cold cache. A
+                wrapping name that's about to tuck gets one LinearTransition-smoothed reposition
+                once measured (the row's Reanimated.View already has `layout={LinearTransition...}`)
+                instead -- an acceptable, rare, already-cushioned cost vs. a guaranteed one-frame
+                invisibility on every single badged dish. */}
+            {macroBadges.length > 0 && !tucked && <View style={styles.macroBadgeRow}>{badgeIcons}</View>}
+            {macroBadges.length > 0 && tucked && lastLine && (
+              <View
+                style={[
+                  styles.macroBadgeRow,
+                  styles.macroBadgeRowTucked,
+                  { top: lastLine.y + (lastLine.height - MACRO_BADGE_SIZE) / 2, left: lastLine.x + lastLine.width + NAME_BADGE_GAP },
+                ]}
+              >
+                {badgeIcons}
+              </View>
+            )}
+          </View>
+          {/* Price folds into the same uniform-color meta string as cal/protein
+              (CafeMenuMixed.dc.html:43), no separate maroon-highlighted price Text. */}
+          <Text style={styles.rowCalories}>
+            {item.price ? `${item.price} · ` : ""}
+            {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
+          </Text>
+        </View>
+        <PlateAddControl
+          plateEntry={plateEntry}
+          item={item}
+          onStep={(delta) => stepPlateItem(item, delta)}
+          blocksScrollRefs={[mealListRef, grabListRef]}
+          onQuickAdd={() => addToPlate(item)}
+          onHoldStart={(anchor) => {
+            dragStateRef.current = { item };
+            holdSlideHostRef.current?.open(anchor);
+          }}
+          onHoldDrag={(count) => holdSlideHostRef.current?.updateCount(count)}
+          onHoldEnd={() => {
+            // 0 is the drag's cancel rung (CANCEL_SERVINGS), never a real add.
+            if (dragStateRef.current && liveHoldCount.value > 0) {
+              addToPlate(dragStateRef.current.item, liveHoldCount.value);
+            }
+            dragStateRef.current = null;
+            holdSlideHostRef.current?.close();
+          }}
+          liveCount={liveHoldCount}
+          liveIndex={liveHoldIndex}
+        />
+      </View>
+      {expanded && (
+        <Reanimated.View entering={FadeIn.duration(durations.rowExpandIn)} exiting={FadeOut.duration(durations.rowExpandOut)} style={styles.expandedContent} pointerEvents="box-none">
+          <View style={styles.expandedDivider} pointerEvents="none" />
+          <Text style={styles.servingSummary} pointerEvents="none">
+            {formatServingSummary(item.nutrition)}
+          </Text>
+          {item.dietTags.length > 0 && (
+            <View style={styles.dietChipRow} pointerEvents="none">
+              {item.dietTags.map((tag) => (
+                <View key={tag} style={styles.dietChip}>
+                  <Text style={styles.dietChipText}>{tag.toUpperCase()}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Pressable
+            onPress={() => setLabelItem(item)}
+            hitSlop={8}
+            style={styles.fullLabelLink}
+            accessibilityRole="button"
+            accessibilityLabel={`Full nutrition label for ${item.dishName}`}
+          >
+            <Text style={styles.fullLabelLinkText}>FULL NUTRITION LABEL ›</Text>
+          </Pressable>
+        </Reanimated.View>
+      )}
     </Reanimated.View>
   );
 }
@@ -940,98 +1148,29 @@ export function HallMenuScreenBody({
   // useCallback, not a plain function: SectionList treats a changed `renderItem` identity as a
   // reason to re-render its visible rows, so a fresh closure every render was defeating that
   // memoization on all (up to 5) mounted panes on every unrelated state change.
-  const renderDishRow = useCallback(({ item }: { item: MenuItem }) => {
-    const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
-    const plateEntry = plate.find((p) => p.key === dishKey);
-    const isFavorite = favoriteDishKeys.has(favoriteKey({ type: "dish", dishName: item.dishName }));
-    const expanded = expandedKeys.has(dishKey);
-    const macroBadges = menuItemMacroBadges(item, prefs);
-    return (
-      // Whole card is tappable and expands in place -- the (i) info button is gone, replaced by
-      // this and the FULL NUTRITION LABEL link below. The expand toggle is a SIBLING absolute-fill
-      // Pressable, not a parent of the star/stepper/add/label-link Pressables: a Pressable inside
-      // another Pressable double-fires/steals gestures in RN. Purely-visual children get
-      // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls through to
-      // this background Pressable instead of being silently swallowed.
-      <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => toggleExpanded(dishKey)}
-          accessibilityRole="button"
-          accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${item.dishName}`}
-        />
-        <View style={styles.rowMainLine} pointerEvents="box-none">
-          <FavoriteStar isFavorite={isFavorite} dishName={item.dishName} onPress={() => toggleDishFavorite(item.dishName)} />
-          <View style={styles.rowMain} pointerEvents="none">
-            <View style={styles.rowNameLine}>
-              <Text style={styles.rowText}>{item.dishName}</Text>
-              {macroBadges.length > 0 && (
-                <View style={styles.macroBadgeRow}>
-                  {macroBadges.map((preset) => (
-                    <MacroBadgeIcon key={preset} preset={preset} />
-                  ))}
-                </View>
-              )}
-            </View>
-            {/* Price folds into the same uniform-color meta string as cal/protein
-                (CafeMenuMixed.dc.html:43), no separate maroon-highlighted price Text. */}
-            <Text style={styles.rowCalories}>
-              {item.price ? `${item.price} · ` : ""}
-              {item.nutrition.calories} cal · {Math.round(item.nutrition.proteinG)}g protein
-            </Text>
-          </View>
-          <PlateAddControl
-            plateEntry={plateEntry}
-            item={item}
-            onStep={(delta) => stepPlateItem(item, delta)}
-            blocksScrollRefs={[mealListRef, grabListRef]}
-            onQuickAdd={() => addToPlate(item)}
-            onHoldStart={(anchor) => {
-              dragStateRef.current = { item };
-              holdSlideHostRef.current?.open(anchor);
-            }}
-            onHoldDrag={(count) => holdSlideHostRef.current?.updateCount(count)}
-            onHoldEnd={() => {
-              // 0 is the drag's cancel rung (CANCEL_SERVINGS), never a real add.
-              if (dragStateRef.current && liveHoldCount.value > 0) {
-                addToPlate(dragStateRef.current.item, liveHoldCount.value);
-              }
-              dragStateRef.current = null;
-              holdSlideHostRef.current?.close();
-            }}
-            liveCount={liveHoldCount}
-            liveIndex={liveHoldIndex}
-          />
-        </View>
-        {expanded && (
-          <Reanimated.View entering={FadeIn.duration(durations.rowExpandIn)} exiting={FadeOut.duration(durations.rowExpandOut)} style={styles.expandedContent} pointerEvents="box-none">
-            <View style={styles.expandedDivider} pointerEvents="none" />
-            <Text style={styles.servingSummary} pointerEvents="none">
-              {formatServingSummary(item.nutrition)}
-            </Text>
-            {item.dietTags.length > 0 && (
-              <View style={styles.dietChipRow} pointerEvents="none">
-                {item.dietTags.map((tag) => (
-                  <View key={tag} style={styles.dietChip}>
-                    <Text style={styles.dietChipText}>{tag.toUpperCase()}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-            <Pressable
-              onPress={() => setLabelItem(item)}
-              hitSlop={8}
-              style={styles.fullLabelLink}
-              accessibilityRole="button"
-              accessibilityLabel={`Full nutrition label for ${item.dishName}`}
-            >
-              <Text style={styles.fullLabelLinkText}>FULL NUTRITION LABEL ›</Text>
-            </Pressable>
-          </Reanimated.View>
-        )}
-      </Reanimated.View>
-    );
-  }, [plate, expandedKeys, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex]);
+  const renderDishRow = useCallback(
+    ({ item }: { item: MenuItem }) => (
+      <DishRow
+        item={item}
+        plate={plate}
+        favoriteDishKeys={favoriteDishKeys}
+        expandedKeys={expandedKeys}
+        prefs={prefs}
+        toggleExpanded={toggleExpanded}
+        toggleDishFavorite={toggleDishFavorite}
+        addToPlate={addToPlate}
+        stepPlateItem={stepPlateItem}
+        mealListRef={mealListRef}
+        grabListRef={grabListRef}
+        holdSlideHostRef={holdSlideHostRef}
+        dragStateRef={dragStateRef}
+        liveHoldCount={liveHoldCount}
+        liveHoldIndex={liveHoldIndex}
+        setLabelItem={setLabelItem}
+      />
+    ),
+    [plate, expandedKeys, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex],
+  );
 
   // Grab isn't in `mealTabs` (see TabSelection's own doc) -- appended as the swipeable sequence's
   // last item for a real hall only, matching the tab row's own rendering order below. `tabs`/
@@ -1733,6 +1872,10 @@ const styles = StyleSheet.create({
   rowText: { fontSize: fs(14), fontFamily: fonts.body600, color: colors.ink900, flexShrink: 1 },
   rowCalories: { fontSize: fs(12), fontFamily: fonts.mono, color: withOpacity(colors.ink900, 60) },
   macroBadgeRow: { flexDirection: "row", gap: spacing(1) },
+  // Positioned via inline top/left (DishRow, off the dish name's own last onTextLayout line) once
+  // shouldTuckBadges says it fits -- rowNameLine (its parent here) keeps RN's default `relative`
+  // position, so these coordinates are relative to it.
+  macroBadgeRowTucked: { position: "absolute" },
   filterFab: {
     position: "absolute",
     right: 20,
