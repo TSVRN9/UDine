@@ -6,11 +6,33 @@ All three share the single installed system image: `system-images;android-35;goo
 
 ## Devices
 
-| AVD name | Serial | Port | Resolution | Density | Effective dp (portrait) | v2 scale `min(1, w/390)` | Lock path |
-|---|---|---|---|---|---|---|---|
-| `Agent_Emulator` (pre-existing) | `emulator-5554` | 5554 | 320x640 | 160 (mdpi) | **320dp** x 640dp | 0.821 | `/tmp/udine-emulator-lock` |
-| `Agent_Emulator_Narrow` | `emulator-5556` | 5556 | 1080x1920 | 480 (xxhdpi) | **360dp** x 640dp | 0.923 | `/tmp/udine-emulator-lock-Agent_Emulator_Narrow` |
-| `Agent_Emulator_Wide` | `emulator-5558` | 5558 | 1200x1920 | 320 (xhdpi) | **600dp** x 960dp | 1.0 (clamped) | `/tmp/udine-emulator-lock-Agent_Emulator_Wide` |
+| AVD name | Serial | Port | Metro port | Resolution | Density | Effective dp (portrait) | v2 scale `min(1, w/390)` | Lock path |
+|---|---|---|---|---|---|---|---|---|
+| `Agent_Emulator` (pre-existing) | `emulator-5554` | 5554 | 8081 | 320x640 | 160 (mdpi) | **320dp** x 640dp | 0.821 | `/tmp/udine-emulator-lock` |
+| `Agent_Emulator_Narrow` | `emulator-5556` | 5556 | 8082 | 1080x1920 | 480 (xxhdpi) | **360dp** x 640dp | 0.923 | `/tmp/udine-emulator-lock-Agent_Emulator_Narrow` |
+| `Agent_Emulator_Wide` | `emulator-5558` | 5558 | 8083 | 1200x1920 | 320 (xhdpi) | **600dp** x 960dp | 1.0 (clamped) | `/tmp/udine-emulator-lock-Agent_Emulator_Wide` |
+
+**Metro port is per-device (fixed 2026-09-12), not a shared 8081.** `screenshot.sh` used to hardcode
+port 8081 for every device and `pkill -f "expo start"` host-wide before every run -- Metro was a
+de facto host-wide singleton even though the emulator lock was already per-device, so two
+`screenshot.sh` calls for two *different* devices would fight over port 8081 and each one's restart
+would kill the other's in-flight Metro. Each device now gets its own fixed port (table above) and
+the script only ever kills whatever is bound to *its own* port; the existing per-device lock is
+sufficient on its own to serialize the rest of the flow (Metro included) for that device, so no
+second lock was added. Live-verified 2026-09-12: two concurrent `screenshot.sh` invocations on
+Narrow (8082) and Wide (8083) both completed, both captured their own correct route, and a third,
+unrelated agent's Metro already running on 8081 was untouched throughout.
+
+**Transitional risk until every worktree has this fix -- affects ALL THREE devices, not just
+8081.** An unpatched copy of `screenshot.sh` (an older worktree that hasn't picked up this change)
+still hardcodes port 8081 for every device, AND still runs `pkill -f "expo start"` with no port
+filter at all -- that pattern matches the full command line of *every* `expo start` process on the
+host, including ones on 8082/8083, not just 8081. Until every active worktree is on the patched
+script, a live unpatched sibling can still kill a patched Narrow or Wide run's Metro mid-capture,
+same as it always could; the per-device port only protects two patched scripts from each other, not
+a patched script from an unpatched one. Confirmed by reading a live sibling worktree's still-old
+`screenshot.sh` during this fix's own review (2026-09-12) -- don't assume Narrow/Wide are safe just
+because this doc says they have their own port.
 
 Base device profiles: `Agent_Emulator` = emulator default (no profile), Narrow = `Nexus 5`,
 Wide = `Nexus 7 2013`.
@@ -404,14 +426,38 @@ with the Worcester hall menu fully rendered on screen (verified by `screencap`),
 returned a 2KB hierarchy of **6 nodes**, none with any text — so `screenshot.sh --wait-for TEXT`
 can never match and exits after 45s no matter how long the screen has been up. Two agents
 independently looped on this the same evening, each re-queuing captures and killing the other's
-Metro on every retry. Not root-caused; the one lead is `MealTabPager.tsx`'s
-`importantForAccessibility="no-hide-descendants"` on inactive panes, which should not hide the
-active one but is the only accessibility-hiding prop in `mobile/src`. Until it is fixed, capture
-with a fixed sleep (no `--wait-for`) and confirm the frame by looking at the PNG — never treat a
-`--wait-for` timeout as "the screen didn't load".
+Metro on every retry (see the Metro-singleton section above, fixed separately). The one lead at the
+time was `MealTabPager.tsx`'s `importantForAccessibility="no-hide-descendants"` on inactive panes.
 
-Same evening, a related leak: **never wrap `screenshot.sh` in `timeout N`.** `timeout` kills bash
-with SIGTERM, and bash does not run its `EXIT` trap when killed by an untrapped signal, so the
-device lock the script took is never `rmdir`ed. One such kill left Narrow's lock held with no
-holder process for 12+ minutes while three agents queued on it; it was cleared with the
-three-signal check above. The script has its own internal timeouts on every wait.
+**Investigated 2026-09-12, not an app bug.** The lead doesn't hold up: `active ? "auto" :
+"no-hide-descendants"` only hides the *inactive* panes, and `MealTabPager.test.tsx` already asserts
+exactly one pane gets `"auto"` (the active one). Live-verified on a real device instead of trusting
+that read: a fresh `uiautomator dump` against `halls/worcester` on both Narrow and Wide, each after
+a full cold Metro restart + dev-client relaunch (the same recipe `screenshot.sh` itself uses),
+returned 241 nodes including the dish names and the `WORCESTER` header text — nothing like the "6
+nodes, none with text" originally seen. `screenshot.sh --wait-for WORCESTER` against
+`halls/worcester` also succeeded end-to-end on the first try on Narrow. Could not reproduce the
+original failure after real effort, so it's treated as a platform-level flake (uiautomator's
+accessibility-service connection slow to bind to the current window after a fresh app launch), not
+a fixable app bug — nothing in `mobile/src` changed.
+
+`wait_for_text` (in `screenshot.sh`) already retries the dump every 2s for the full timeout, which
+should absorb a one-off flaky dump; what it didn't do is tell a "tree never populated at all"
+timeout apart from a "tree populated, but this text genuinely never appeared" timeout. It now
+tracks the max `<node>` count seen across all attempts and, on timeout, adds a specific message
+when that max stayed under 15 nodes -- well below what a correctly-rendered screen measures even
+when sparse (26 nodes on an empty-state `favorites` screen, 241 on a content-heavy hall-menu one,
+both live-measured 2026-09-12) -- naming this known flakiness class instead of just the generic
+"screen is likely still loading or on the wrong route" message. Still a hard failure (never
+silently captures a stale frame), just a more actionable one.
+If you hit this again: retry the capture once before assuming the screen is actually wrong, and
+confirm by eye from the PNG either way.
+
+Same evening, a related leak, **fixed 2026-09-12**: wrapping `screenshot.sh` in `timeout N` used to
+leak the device lock. `timeout` kills bash with SIGTERM, and bash does not run its `EXIT`-only trap
+when killed by an untrapped signal, so the device lock the script took was never `rmdir`ed. One such
+kill left Narrow's lock held with no holder process for 12+ minutes while three agents queued on it;
+it was cleared with the three-signal check above. The script now also traps `INT`/`TERM` (calling
+the same idempotent cleanup and exiting `128+signal`), live-verified by running `timeout 5 bash
+screenshot.sh ...` and confirming the lock directory was gone immediately after the timeout fired.
+The script still has its own internal timeouts on every wait regardless.
