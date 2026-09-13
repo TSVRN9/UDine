@@ -740,6 +740,22 @@ describe("HallMenuScreen tap-to-expand dish cards (#117 -- replaces the (i) info
     expect(texts(root).flat().join(" ")).not.toMatch(/FULL NUTRITION LABEL/);
   });
 
+  it("expanding a different card closes whichever one was already expanded -- at most one card open at a time", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Salad" }).props.onPress();
+    });
+    expect(root.root.findByProps({ accessibilityLabel: "Collapse Salad" })).toBeDefined();
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Pizza" }).props.onPress();
+    });
+    // Pizza is now the expanded one, and Salad's card collapsed back down on its own -- not two
+    // simultaneously-open cards.
+    expect(root.root.findByProps({ accessibilityLabel: "Collapse Pizza" })).toBeDefined();
+    expect(root.root.findByProps({ accessibilityLabel: "Expand Salad" })).toBeDefined();
+  });
+
   it("opens the full NutritionLabel modal (existing label screen) from the expanded card's link", async () => {
     const root = await renderScreen([PIZZA, SALAD]);
     act(() => {

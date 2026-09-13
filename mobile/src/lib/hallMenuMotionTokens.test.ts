@@ -17,6 +17,11 @@ describe("halls/[slug].tsx layout/entrance animations read motion tokens, not li
     expect(source).toMatch(/LinearTransition\.duration\(durations\.rowLayout\)/);
   });
 
+  it("both meal-tab and Grab station section headers wrap in Reanimated.View with LinearTransition.duration(durations.rowLayout), so a header slides into place instead of teleporting when a card above it resizes", () => {
+    const matches = source.match(/<Reanimated\.View layout=\{LinearTransition\.duration\(durations\.rowLayout\)\} style=\{styles\.sectionHeaderWrap\}>/g) ?? [];
+    expect(matches.length).toBe(2);
+  });
+
   it("expanded-content FadeIn/FadeOut use durations.rowExpandIn/rowExpandOut", () => {
     expect(source).toMatch(/FadeIn\.duration\(durations\.rowExpandIn\)/);
     expect(source).toMatch(/FadeOut\.duration\(durations\.rowExpandOut\)/);

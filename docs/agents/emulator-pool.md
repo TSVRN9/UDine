@@ -363,6 +363,40 @@ a new graph), relaunch the dev client, and confirm the change is actually on scr
 marker string that `uiautomator dump` can see is the cheapest proof). This is very likely what
 #220 recorded as a "dead-Metro window" that broke `Link` navigation app-wide.
 
+## The `expo-development-client/?url=...` deep link does NOT reliably switch Metro ports (found 2026-09-12)
+
+Cost three separate on-device verification passes across two agents (a real single-expand fix
+looked broken twice on-device before this was found) — a false negative, not a code bug. When
+this device's installed dev client is already bonded to a Metro instance (which on a shared,
+multi-agent host is almost always port **8081**, since that's the default every `expo start`
+reaches for first), sending `am start -d "udine://expo-development-client/?url=http://10.0.2.2:<a
+different port>"` does **not** redirect it. The app silently keeps talking to whatever it's
+already connected to and shows that bundle instead — no error, no obvious sign beyond the
+rendered content itself not matching the worktree you think you're testing (the giveaway that
+caught this: a sibling agent's in-progress scrollbar UI appearing on a screen from a worktree
+that never had that code). `pm clear com.udinetogether.udine` does **not** reset this either — it
+survived clearing all app data, so treat it as a build-time default baked into the dev client,
+not a runtime preference an agent can casually clear.
+
+**Verify which Metro you're actually bundling from before trusting anything you see:**
+1. Confirm your own `expo start` log actually printed an `Android Bundled …` line *after* your
+   navigation/tap sequence — not just "Waiting on http://localhost:<port>" the whole time. No
+   `Bundled` line at all means the device never even asked your Metro for anything.
+2. If you must run on a non-8081 port (e.g. 8081 is already held by another agent's worktree and
+   you don't want to kill it — do not kill another agent's Metro process), use the **RN dev
+   menu's "Change Bundle Location"**, not the deep link:
+   ```bash
+   adb -s emulator-5556 shell input keyevent 82   # opens the dev menu on the current screen
+   # tap "Change Bundle Location", clear the field, type e.g. 10.0.2.2:<your port>, Apply Changes
+   ```
+   Confirm the field was actually showing something else first (that's your proof the deep link
+   alone would have silently failed you), and confirm `Android Bundled` appears in your Metro log
+   right after tapping Apply.
+3. A visual tell that you're on the wrong bundle: anything on screen that isn't in your own
+   worktree's diff (another agent's in-progress feature, old copy/layout you already changed).
+   Don't rationalize it as "the emulator is just showing something stale" — go verify via the dev
+   menu instead of proceeding.
+
 ## `uiautomator dump` sees no RN content on the current dev client — `--wait-for` always times out (2026-09-12)
 
 Seen live on `Agent_Emulator_Narrow` with a dev client built that evening from `main` (1a2af49):
