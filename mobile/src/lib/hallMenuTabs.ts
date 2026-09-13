@@ -248,12 +248,10 @@ export function isCurrentTabLoading(params: {
   return selectedMeal === null; // integrated/standing: brief moment before the pick-first-tab effect lands
 }
 
-/** Toggles one dish card's expanded state. Immutable -- returns a new Set, never mutates the one
- * passed in (React state). Cards expand independently (a Set of keys, not a single "the expanded
- * one"), matching the canvas's tap-any-card-to-expand-in-place behavior. */
-export function toggleExpandedKey(expanded: ReadonlySet<string>, key: string): Set<string> {
-  const next = new Set(expanded);
-  if (next.has(key)) next.delete(key);
-  else next.add(key);
-  return next;
+/** Toggles one dish card's expanded state. At most one card is ever expanded at a time (owner
+ * request, superseding the old Set-of-keys/independent-expansion behavior): tapping the
+ * currently-expanded card's key closes it, tapping a different card's key closes whatever was
+ * open and opens the new one instead. */
+export function toggleExpandedKey(expanded: string | null, key: string): string | null {
+  return expanded === key ? null : key;
 }
