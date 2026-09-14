@@ -696,3 +696,96 @@ this evaluation (out of the scope that was asked for); flagged for a follow-up M
 touches `supabase/functions/populate-dishes`) to add explicit alerting/logging when a run upserts
 zero rows, and to check whether last night's specific outage was `umassdining.com`-side or something
 in the function/cron plumbing itself.
+
+## `populate-retail-dishes`: retail/café coverage via Web INA (2026-09-14)
+
+Follow-up to "Web INA: mirror vs. on-demand" above, implementing that entry's option 2: a new,
+separate weekly Edge Function (`supabase/functions/populate-retail-dishes`, scheduled by
+`20260914120000_schedule_populate_retail_dishes.sql`) that feeds the 24 retail/café FoodPro
+locations (Bluewall Grill, Harvest, the various Cafes, etc.) into the SAME `public.dishes` table
+`populate-dishes` already writes -- no schema change. Deliberately a sibling function, not a change
+to `populate-dishes` itself: different cadence (weekly vs. daily -- retail menus barely change week
+to week), and `populate-dishes` was mid-fix for an unrelated cron-double-invocation bug in a
+parallel task at the time this was built.
+
+**The gap this closes, confirmed live:** `mobile/src/lib/cafeMenu.ts`'s standing-menu path
+(`resolveCafeMenuState` -> `parseRetailMenuHtml` -> `matchStandingMenuItem`) looks up each retail
+dish's nutrition in the LOCAL client cache of `public.dishes`, which before this change only ever
+held the 4 halls' dishes -- a retail-exclusive item (never served at any hall) could never match, no
+matter how often the daily cron ran. Traced the full path with no code changes needed on the client
+side: `matchStandingMenuItem` calls `dishCatalog.ts`'s `searchCachedDishes` against the locally
+synced `CachedDishCatalog`; that cache is populated by `refreshDishCatalogIfStale`, which calls
+`shared/src/dishes.ts`'s `fetchDishCatalog` -- whose `select("dish_name, nutrition, allergens,
+diet_tags, updated_at")` doesn't reference `last_seen_hall_tid` at all, so a retail dish's synthetic
+negative hallTid (see below) is invisible to the client and the existing match-by-name logic picks
+up a newly-inserted retail row automatically once the client's cache next syncs.
+
+**Endpoint mechanics, confirmed/refined live 2026-09-14 (sharpens
+`docs/apk-reverse-engineering.md`'s "FoodPro Web INA" section, see that file for the updates):**
+- `longmenu.aspx` takes a `mealName` param (`Breakfast`, `Lunch`, `Dinner`, `Late Night` -- exact
+  casing, "Late Night" has a literal space). Omitting it silently defaults to one period only (NOT
+  necessarily "today's current period" -- observed inconsistent per-location default behavior) --
+  always pass it explicitly. `mealName=All` is invalid (0 results). `WeeksMenus=` has no effect on
+  scope, per a parallel research pass this session.
+- No bulk-enumeration shortcut exists for `RecNum`s (no sitemap/export endpoint; `search.aspx`
+  can't be used as a wildcard scan either -- empty query is "No Result", single-char is a 500).
+  `longmenu.aspx` per (location, meal period) is the only viable bulk-discovery path.
+- Measured live: 24 retail locations x 4 meal periods = 96 `longmenu.aspx` requests, ~45s wall time,
+  surfacing 394 unique dish names (415 unique `RecNum`s -- some names repeat across locations under
+  different per-location recipes, confirming the "RecNum is per-hall-recipe, not global" finding).
+  Of those 394, 63 collided by exact name with an existing (hall-sourced) `public.dishes` row at
+  evaluation time; the remaining ~331 were genuinely new.
+- `label.aspx`'s Nutrition Facts table markup: most fields are two adjacent `<font>` tags --
+  `<label>&nbsp;(</b>)?</font><font ...>value</font>` -- except Calories and Calories from Fat,
+  which are inline in one tag (`<b>Calories&nbsp;348</b>`). Allergens are a separate
+  `<span class="labelallergensvalue">Milk, Gluten, ...</span>` line. No diet-tag equivalent exists
+  on this page (unlike `foodpro-menu-ajax`'s `data-clean-diet-str`) -- retail dishes' `diet_tags`
+  column is always empty.
+- `longmenu.aspx` (unlike `label.aspx`) needs a session cookie primed by one prior `location.aspx`
+  GET -- confirmed live that replaying `location.aspx`'s `Set-Cookie` values verbatim as a `Cookie`
+  header (dropping each cookie's own attributes) is sufficient; a cold direct fetch 500s.
+
+**Deliberate design choices, not oversights:**
+- A skip-list (`fetchExistingDishNames`) means a `label.aspx` fetch is only ever spent on a dish
+  name not already in `public.dishes`. Since the table dedupes globally by `dish_name` and
+  `populate-dishes` runs DAILY, a retail dish whose name collides with a hall dish (common --
+  "Cheeseburger", "Cheese Pizza", both observed live) will keep losing that name back to the hall's
+  own nutrition every morning regardless of what this weekly job ever wrote, and this skip-list
+  means the weekly job won't try to re-win it either. Accepted: the gap being fixed is
+  retail-EXCLUSIVE dishes, which don't collide by construction.
+- `MAX_LABEL_FETCHES_PER_RUN = 100` bounds one invocation's `label.aspx` fetch count (and therefore
+  its wall-clock time) well under the Edge Function platform's own execution limit -- a limit
+  `timeout_milliseconds` in the scheduling migration does NOT control (that setting only bounds how
+  long `pg_net` waits for a response). Any genuinely-new dish beyond the cap is simply still absent
+  from `public.dishes`, so it's picked up by next week's run -- self-healing with no cross-invocation
+  state, converging over ~4 weekly runs for the ~331-dish initial backlog (measured above) and
+  staying near-zero afterward.
+- `last_seen_hall_tid` for a retail dish is `-locationNum` (e.g. Bluewall Grill = 14 -> -14) --
+  reusing `public.dishes.last_seen_hall_tid`'s existing plain-nullable-int-no-constraint shape
+  (`20260905120000_create_dishes_table.sql`) rather than a new column/table. Simpler than
+  `mobile/src/lib/cafeMenu.ts`'s `syntheticHallTidForName` hash (that one exists because a
+  locationId-less café has no stable id at all to negate; FoodPro's `locationNum` already is one).
+- `location.aspx`/zero-parsed-locations failures return a real error (502), unlike `populate-dishes`'
+  known "all-halls-fail degrades to a silent 200" gap (flagged, unfixed, above) -- an inability to
+  even discover what to crawl is unambiguous breakage, not a quiet "nothing new this week".
+
+**Verified against live data (2026-09-14), two different retail locations so the parser isn't
+validated against one page's quirks:** Bluewall Grill's Cheeseburger (`RecNumAndPort=060125*1`) --
+348 cal / 17.9g fat / 64.1mg cholesterol / 23.7g protein / allergens Milk, Gluten, Soy, Corn, Sesame,
+Wheat. Harvest's African Soul Rice Salad (`RecNumAndPort=184625*4`) -- 172 cal / 6.2g fat / 3.4g
+protein / 155.1mg sodium / allergens Gluten, Soy, Wheat. Neither dish name existed in `public.dishes`
+at evaluation time (confirmed via a live query), so both are genuine examples of the gap this closes.
+Both pinned as real, trimmed (not paraphrased) fixtures in
+`supabase/functions/populate-retail-dishes/parser.test.ts`.
+
+**Verification:** `deno test --node-modules-dir=none --allow-env supabase/functions` (83 tests,
+including 13 new ones, all passing; each of the 3 regex-based parsers mutation-tested by hand --
+breaking the label-pair regex and the longmenu row regex each turned the corresponding tests red,
+confirmed, then reverted). `supabase test db` (317 pgTAP tests including 4 new ones pinning the new
+cron job's schedule/header/timeout shape -- mutation-tested the same way: stripping the secret
+header, changing the schedule, and changing the timeout each independently turned the matching
+assertion red against a live local Postgres, confirmed, then `supabase db reset` restored a clean
+baseline). No new table/policy/grant was needed -- `public.dishes` already grants
+`insert, update, delete` to `service_role` from `20260905120000_create_dishes_table.sql`, which
+`populate-retail-dishes` reuses exactly as `populate-dishes` does.
+
