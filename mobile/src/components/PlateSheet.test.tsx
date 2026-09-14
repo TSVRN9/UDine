@@ -7,9 +7,11 @@ import renderer, { act } from "react-test-renderer";
 import { Text, TextInput } from "react-native";
 import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
+import { Button } from "./ui";
 import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } from "../lib/plate";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
+import { lookupDishLive } from "../lib/lookupDish";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -34,6 +36,11 @@ jest.mock("../lib/customFoodsStorage", () => ({
   searchCustomFoods: jest.fn(),
 }));
 
+jest.mock("../lib/lookupDish", () => ({
+  ...jest.requireActual("../lib/lookupDish"),
+  lookupDishLive: jest.fn(),
+}));
+
 const mockedSearchProducts = searchProducts as jest.Mock;
 const mockedSearchFoods = searchFoods as jest.Mock;
 const mockedSearchBrandedFoods = searchBrandedFoods as jest.Mock;
@@ -41,6 +48,7 @@ const mockedGetCachedDishCatalog = getCachedDishCatalog as jest.Mock;
 const mockedRefreshDishCatalogIfStale = refreshDishCatalogIfStale as jest.Mock;
 const mockedSearchCachedDishes = searchCachedDishes as jest.Mock;
 const mockedSearchCustomFoods = searchCustomFoods as jest.Mock;
+const mockedLookupDishLive = lookupDishLive as jest.Mock;
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
@@ -144,6 +152,7 @@ beforeEach(() => {
   mockedRefreshDishCatalogIfStale.mockReset().mockResolvedValue(undefined);
   mockedSearchCachedDishes.mockReset().mockReturnValue([]);
   mockedSearchCustomFoods.mockReset().mockReturnValue([]);
+  mockedLookupDishLive.mockReset();
 });
 
 describe("PlateSheet", () => {
@@ -461,7 +470,10 @@ describe("PlateSheet", () => {
       const body = texts(root).flat().join(" ");
       expect(body).toMatch(/Trail Mix/);
       expect(body).toMatch(/Packaged/);
-      expect(body).not.toMatch(/UMass/);
+      // Exact-string check (not a substring match on the whole body) -- the new "Search UMass
+      // Dining directly" fallback affordance legitimately contains the word "UMass" too, since
+      // this search found no umass-kind result; only the UMass *badge* text itself must be absent.
+      expect(texts(root).flat()).not.toContain("UMass");
 
       act(() => {
         root.root.findByProps({ accessibilityLabel: "View Trail Mix (Packaged)" }).props.onPress();
@@ -532,7 +544,9 @@ describe("PlateSheet", () => {
       await runSearch(root, "nonexistent");
       const body = texts(root).flat().join(" ");
       expect(body).toMatch(/No matches/);
-      expect(body).not.toMatch(/UMass/);
+      // Exact-string check, not substring -- "Search UMass Dining directly" legitimately appears
+      // here too (this search found no umass-kind result); only the UMass *badge* must be absent.
+      expect(texts(root).flat()).not.toContain("UMass");
       expect(body).not.toMatch(/Packaged/);
     });
 
@@ -912,6 +926,103 @@ describe("PlateSheet", () => {
       ensureSearchExpanded(root);
       expect(searchInput(root).props.value).toBe("");
       expect(mockedSearchCachedDishes).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("manual 'Search UMass Dining directly' fallback (lookup-dish)", () => {
+    // Button is wrapped through several nested layers (Press/Pressable/View), each forwarding
+    // accessibilityLabel/children via spread -- findByProps/findAllByProps match every layer that
+    // carries the searched prop, not just the outer button, so a type+prop predicate restricted to
+    // the composite Button instance itself is the only way to get an unambiguous single match.
+    function directLookupButton(root: renderer.ReactTestRenderer) {
+      return root.root.findAll((n) => n.type === Button && n.props.accessibilityLabel === "Search UMass Dining directly");
+    }
+
+    it("is hidden when the merged search already found a UMass result", async () => {
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      const root = renderSheet();
+      await runSearch(root, "ramen");
+      expect(directLookupButton(root)).toHaveLength(0);
+    });
+
+    it("appears once a search has run and found no UMass result, and never fires lookup-dish on its own", async () => {
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+      expect(directLookupButton(root)).toHaveLength(1);
+      expect(mockedLookupDishLive).not.toHaveBeenCalled();
+    });
+
+    it("tapping it merges a live hit into the results as an ordinary UMass row, staged to the CURRENTLY-BROWSED hall, not the candidate's own FoodPro location", async () => {
+      // hallTid: -14 (a retail location, per lookup-dish/index.ts's hallTidForLocationNum) is
+      // deliberately different from the browsed hall (1) below -- catches the exact regression
+      // this test is named for: staging the candidate's own hallTid would misattribute
+      // hall-completion/favorite-hall credit to a hall the user isn't browsing (or a negative
+      // retail tid) once that syncs server-side. See the Props doc comment on `hallTid` and
+      // runDirectLookup's own comment for why the catalog-search path already avoids this.
+      mockedLookupDishLive.mockResolvedValue({
+        status: "hit",
+        candidates: [{ dishName: "Bacon", location: "", hallTid: -14, nutrition: { ...DISH.nutrition, calories: 140 }, allergens: [], dietTags: [] }],
+      });
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ hallTid: 1, onShowResultDetail });
+      await runSearch(root, "Bacon");
+
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+
+      expect(mockedLookupDishLive).toHaveBeenCalledWith({}, "Bacon");
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Bacon/);
+      expect(body).toMatch(/UMass/);
+      expect(directLookupButton(root)).toHaveLength(0);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "View Bacon (UMass)" }).props.onPress();
+      });
+      const expected: PlateSearchResult = { kind: "umass", dish: { dishName: "Bacon", hallTid: 1, nutrition: { ...DISH.nutrition, calories: 140 } } };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
+    });
+
+    it("disambiguates same-named candidates from different locations by appending the location", async () => {
+      mockedLookupDishLive.mockResolvedValue({
+        status: "hit",
+        candidates: [
+          { dishName: "Bacon", location: "Worcester Dining Commons", hallTid: 1, nutrition: DISH.nutrition, allergens: [], dietTags: [] },
+          { dishName: "Bacon", location: "Franklin Dining Commons", hallTid: 2, nutrition: DISH.nutrition, allergens: [], dietTags: [] },
+        ],
+      });
+      const root = renderSheet();
+      await runSearch(root, "Bacon");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Bacon \(Worcester Dining Commons\)/);
+      expect(body).toMatch(/Bacon \(Franklin Dining Commons\)/);
+    });
+
+    it("renders an honest, plain 'no matches' state on a genuine miss, keeping the affordance for a retry", async () => {
+      mockedLookupDishLive.mockResolvedValue({ status: "miss" });
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/doesn.t have this dish either/);
+      expect(directLookupButton(root)).toHaveLength(1);
+    });
+
+    it("renders an honest, plain rate-limited state -- not a crash, not a silent no-op", async () => {
+      mockedLookupDishLive.mockResolvedValue({ status: "rate_limited" });
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/busy right now|try again/i);
     });
   });
 });
