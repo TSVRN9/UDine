@@ -231,6 +231,79 @@ See `docs/decisions-log.md` → "Web INA: mirror vs. on-demand, and the `populat
   No diet-tag equivalent (nothing matching `foodpro-menu-ajax`'s Local/Vegetarian/Sustainable-style
   tags) was found anywhere on this page.
 
+**Retail-menu-browsing research pass (2026-09-14) -- endpoint hardening for the question "could this
+tool back a retail 'browse the menu' screen, not just a nutrition catalog?" (see
+`docs/decisions-log.md`'s "RecNum storage and retail-menu-browsing architecture" entry for the
+architecture recommendation this fed into):**
+
+- **`longmenu.aspx` DOES group dishes by station/category, confirmed live.** Each response
+  interleaves `<td><div class='longmenucolmenucat'>-- CategoryName --</div></td>` marker rows among
+  the `longmenucoldispname` dish rows -- e.g. Bluewall Grill's Lunch (`locationNum=14`) grouped 28
+  dishes under 2 categories (`-- Entrees --`, `-- Add-ons --`); Bluewall Tavola's Lunch
+  (`locationNum=22`) grouped 17 dishes under 5 (`-- Pasta --`, `-- Salad --`, `-- Pizza --`,
+  `-- Brkfst Salad --`, `-- Bowls --`). Structurally the same idea as `foodpro-menu-ajax`'s
+  meal→category grouping, just a sibling marker row instead of a nested JSON key -- a retail
+  "browse this location's menu" screen built on `longmenu.aspx` *could* mirror `HallMenu`'s
+  station-grouped layout rather than needing a flat list. **Not currently parsed anywhere**:
+  `populate-retail-dishes/index.ts`'s `parseLongMenuDishes` (`supabase/functions/populate-retail-dishes/index.ts:158-168`)
+  is deliberately scoped to `longmenucoldispname` only and silently drops every `longmenucolmenucat`
+  marker -- correct for that function's nutrition-catalog-only job, but the category context is
+  gone by the time a dish reaches `public.dishes`.
+- **`location.aspx` carries no hours/type/address metadata for retail locations** -- confirmed by
+  direct inspection of a live `location.aspx` fetch (2026-09-14): every retail entry is exactly
+  `<a href='shortmenu.aspx?...&locationNum=NN&locationName=...'>DisplayName</a>`, nothing else.
+  **That metadata already exists in this codebase, from a completely different UMass source**:
+  `umassdining.com/uapp/get_infov2` (`shared/src/hours.ts`, already wired up and consumed by
+  `mobile/src/lib/cafeMenu.ts` -- see the decisions-log entry) returns, per location,
+  `location_title`, `opening_hours`/`closing_hours`, per-meal open/close times, `address`,
+  `map_address` (lat/long), `accepted_payment`, and `breakfast_menu`/`lunch_menu`/`dinner_menu` HTML
+  blobs -- plus a `location_id`. Confirmed live (2026-09-14): `get_infov2` returns 40 locations (more
+  than Web INA's 28), and **`location_id` is a completely different numbering from Web INA's
+  `locationNum`, with different display-name spellings too** -- e.g. Web INA's `locationNum=14`
+  ("Bluewall - Grill") is `get_infov2`'s `location_id=4696` ("The Grill"); Web INA's `locationNum=23`
+  ("Harvest") is `location_id=4306` ("Harvest Market"). No cross-reference between the two id/name
+  spaces exists anywhere in the codebase today -- name-matching would be the only option, and isn't
+  safe to automate given spelling drift like the two examples above.
+- **Re-verified live 2026-09-14 (~24h after the original pass):** `mealName` behavior unchanged
+  (`Breakfast`/`Lunch`/`Dinner`/`Late Night` still required exactly as documented); the
+  `location.aspx` → cookie → `longmenu.aspx` flow still needs the cookie. Across roughly 45 real
+  requests this pass (a full 28-location `location.aspx` fetch, `longmenu.aspx` for ~24 distinct
+  retail locations at `mealName=Lunch`, plus a handful of `label.aspx` fetches), **no rate limiting
+  was encountered** -- every request returned 200. Separately, queried this project's
+  (`ubogyqskqzvkcqboqbhw`) `cron.job_run_details` for the `populate-retail-dishes-weekly` job
+  (schedule `0 7 * * 0`) live via the Supabase MCP tools: it is **empty** -- the job hasn't fired for
+  real yet (created 2026-09-14, after that week's Sunday 07:00 UTC slot already passed; first real
+  run is 2026-09-20). `public.dishes` has exactly one retail-sourced row (`last_seen_hall_tid < 0`),
+  `updated_at` 2026-09-14 09:19 UTC, consistent with the "manually invoked once" test the
+  `populate-retail-dishes` decisions-log entry describes, not a cron run. **Whether rate limiting
+  appears under real weekly-cron load is still unverified** -- there's no live-cron evidence yet
+  either way; recheck after the first real run.
+- **No cheaper "what's on location X's menu right now" shortcut found**, re-confirming the
+  2026-09-14 follow-up above (`longmenu.aspx` per (location, meal period) remains the only bulk path,
+  no sitemap/export/wildcard-search shortcut). One partial mitigation worth noting: `get_infov2`
+  already reports, per location, which meal periods have real hours/menu content (null vs. populated
+  `breakfast_open_time` etc.), so a caller could skip crawling `longmenu.aspx` for a meal period a
+  location doesn't serve at all (e.g. a coffee-only café has no dinner) -- but this is only usable
+  once the `location_id`↔`locationNum` cross-reference gap above is solved, since that's what would
+  tell a Web INA crawler which `get_infov2` entry corresponds to which `locationNum`.
+- **Sharpens the existing "394 unique dish names / 415 unique `RecNum`s" finding in the
+  `populate-retail-dishes` entry above with a per-location breakdown, and confirms it's common, not
+  rare:** live-sampled `longmenu.aspx` at `mealName=Lunch` across 24 retail locations (2026-09-14)
+  surfaced 358 unique dish names, of which **17 (~4.7%) had more than one distinct `RecNum` across
+  locations**. Cross-checked against live `public.dishes` (2026-09-14, via the Supabase MCP tools):
+  **9 of those 17 turn out to already be hall dish names** (e.g. "French Fries", "Cheese Pizza",
+  "Tuna Salad" -- all `last_seen_hall_tid` 1-4) -- `fetchExistingDishNames`'s skip-list means the
+  retail crawler never attempts a `label.aspx` fetch for these at all, so they're permanently routed
+  to hall nutrition and never actually reach the retail-vs-retail conflation path described below.
+  **The remaining 8 are genuinely retail-exclusive** (not in `public.dishes` at all yet, confirmed by
+  the same query) -- e.g. "Guacamole" is `RecNum 040132` at Bluewall Deli Delish (`locationNum=20`,
+  Calories 37, Sodium 211.5mg, Serving Size "1 oz") vs. `RecNum 042123` at Roots Cafe
+  (`locationNum=45`, Calories 43, Sodium 85.1mg, same serving size) -- a genuinely different recipe
+  under the same display name, not a rounding artifact. These 8 are the ones where the conflation
+  risk described in `docs/decisions-log.md`'s "RecNum storage and retail-menu-browsing architecture"
+  entry is real and not-yet-manifested: once the crawler writes one location's version, the other's
+  is discarded permanently under the current upsert-by-name logic.
+
 ## Gaps / what we couldn't determine
 
 - **POST bodies** for the `mobileapp.umassdining.com/umassapi2/public/...` account endpoints — out of

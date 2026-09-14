@@ -1139,3 +1139,163 @@ classifier (`net.http_post` against prod flagged as a "Production Deploy" action
 "Credential Materialization"). Left for the owner or a session with that permission granted -- once
 the fix is merged and deployed, the next 08:00 UTC tick picks the catalog back up on its own, just
 without recovering the two already-lost days' rows unless someone backfills by hand.
+
+## RecNum storage and retail-menu-browsing architecture: research findings (2026-09-14)
+
+Research-only pass (no code changed) answering two questions raised while scoping further retail
+work on top of `populate-retail-dishes`: (1) should `public.dishes` store `RecNum`, and (2) how
+should "browse a retail location's actual menu" get built. Endpoint-discovery details (station
+grouping, `location.aspx` metadata gaps, live re-verification, rate-limit check) are in
+`docs/apk-reverse-engineering.md`'s "FoodPro Web INA" section, "Retail-menu-browsing research pass
+(2026-09-14)" subsection -- this entry covers the two architecture decisions.
+
+### 1. Don't add a `RecNum` column to `public.dishes` -- the shape doesn't fit, and the real gap is
+### a documentation gap, not a schema gap
+
+**The conflation risk is real, confirmed empirically, not hypothetical.** `populate-retail-dishes`
+upserts by `dish_name` (the table's only key,
+`supabase/migrations/20260905120000_create_dishes_table.sql:31`), and `discoverAllDishes`
+(`supabase/functions/populate-retail-dishes/index.ts:301-329`) keeps only the first-discovered
+`(labelPath, locationNum)` per dish name (`if (!discovered.has(dish.dishName)) discovered.set(...)`,
+line 318) -- so when two retail locations serve a same-named dish under genuinely different `RecNum`s,
+exactly one location's nutrition wins and the other's is silently discarded, permanently (the
+`fetchExistingDishNames` skip-list, lines 264-284, means a name already in `public.dishes` is never
+re-crawled by this job again). Live-sampled 2026-09-14 (see the apk-reverse-engineering.md entry for
+the full method): 17 of 358 unique retail dish names (~4.7%) had more than one distinct `RecNum`
+across locations in a single-meal-period, 24-location sample. **Cross-checked those 17 against live
+`public.dishes`** (queried via the Supabase MCP tools, project `ubogyqskqzvkcqboqbhw`) to see which
+ones the retail crawler would actually ever attempt: 9 of the 17 (including "French Fries",
+"Cheese Pizza", "Tuna Salad") turned out to already be hall dish names -- the skip-list above means
+the retail job never fetches `label.aspx` for these at all, so they never actually hit the
+conflation path; they're permanently the hall's nutrition, by design, same as the
+already-documented hall-vs-retail case below. **The remaining 8 are genuinely retail-exclusive**
+(absent from `public.dishes` entirely today) -- e.g. "Guacamole" is `RecNum 040132` at Bluewall Deli
+Delish (Calories 37, Sodium 211.5mg, 1oz serving) vs. `RecNum 042123` at Roots Cafe (Calories 43,
+Sodium 85.1mg, same serving size): a genuinely different recipe under the same name. **These 8 are
+where the risk is real, just not yet manifested** -- `public.dishes` currently holds only one
+retail-sourced row total (the crawler hasn't run for real yet, see the apk-reverse-engineering.md
+entry), so no live row is wrong today, but once a weekly run writes one of these names, the other
+location's real nutrition is discarded permanently under the current logic. The effective
+retail-vs-retail collision rate this points to is closer to 8/358 (~2.2%) than the raw 4.7%. Once it
+does land, it reaches a real user: `mobile/src/lib/cafeMenu.ts`'s `matchStandingMenuItem`
+(`cafeMenu.ts:49-67`) matches a standing-menu row by name only, no location parameter, against the
+shared `public.dishes` cache -- so a café showing one of these dishes on its standing menu can
+silently display a different location's real nutrition.
+
+**This is not a new failure mode -- it's an undocumented extension of an already-accepted one.**
+`fetchExistingDishNames`'s own doc comment (`index.ts:264-271`) already documents and accepts the
+*hall-vs-retail* version of this same collision ("a retail dish whose name happens to collide with a
+hall dish ... will have its row re-overwritten by the hall's own nutrition every morning ... That's
+acceptable"). The retail-vs-retail version this research confirms is the same tradeoff, just not
+previously called out anywhere.
+
+**Why a scalar `rec_num` column is the wrong shape, not just an inconvenient one:** `RecNum` is
+inherently a property of a **(dish_name, location)** pair, not of `dish_name` alone -- the whole
+reason the conflation above happens is that one display name can legitimately have several different,
+simultaneously-valid `RecNum`s. A single `rec_num int` column on a table keyed by `dish_name` can only
+ever hold one value per name; it would silently pick whichever location's crawl happened to write
+last, exactly as `nutrition` already does today, and would misleadingly imply a name has one stable
+recipe identity when it may not. Adding the column doesn't fix the conflation, it just gives the
+already-conflated row a spurious-looking ID.
+
+**If this is ever worth fixing:** the shape that actually fits is an additive side table, not a
+column -- e.g. `dish_recnums(dish_name text references public.dishes(dish_name), location_num int,
+rec_num text, updated_at timestamptz, primary key (dish_name, location_num))`. This leaves
+`public.dishes`' existing `dish_name`-keyed dedup convention untouched -- the same convention
+`RankedFood`/`Favorite` (`shared/src/types.ts`) and the pairwise-ranking ADR
+(`docs/adr/0001-two-elo-tracks-for-dish-ranking.md`) already depend on app-wide, not just in this one
+table -- while giving a stable per-location re-fetch key for `label.aspx` (cheaper incremental
+refresh without re-crawling `longmenu.aspx` blind) as a bonus.
+
+**Recommendation: don't build it now.** The measured effective collision rate (~2.2% of names, the
+8 genuinely retail-exclusive ones, in one single-meal sample) is real but modest, the app's entire
+ranking/favoriting/search model is already name-keyed everywhere (not just this table) so
+per-location nutrition accuracy isn't a precedent this codebase currently honors elsewhere either,
+and there's no product ask yet for location-accurate standing-menu nutrition specifically. Building
+`dish_recnums` speculatively ahead of that ask would be schema surface nobody reads yet. What IS
+worth doing cheaply: extend `fetchExistingDishNames`'s doc comment
+(`supabase/functions/populate-retail-dishes/index.ts:264-271`) -- the primary target, since it
+already documents the sibling hall-vs-retail case this extends -- to name the retail-vs-retail case
+explicitly too, so it's a known, accepted limitation instead of a silently-widening blind spot.
+(`20260905120000_create_dishes_table.sql`'s own comment is a secondary, optional target only --
+that migration is already applied, so touching it is a documentation-only diff, not something to
+do reflexively.) Revisit `dish_recnums` if/when product actually wants location-accurate nutrition
+on the standing-menu path -- that's the concrete trigger condition, not a date or a collision-rate
+threshold.
+
+### 2. Retail menu browsing: the architecture already exists, and it isn't Web INA -- don't build a
+### second one
+
+**Correction to this research task's own framing:** retail menu browsing is not missing from the
+codebase. `mobile/src/lib/cafeMenu.ts` + a real routed screen (`mobile/src/app/cafe/[name].tsx`)
+already implement it, entirely independent of Web INA, entirely device-only/anonymous-first, as a
+three-tier waterfall (`resolveCafeMenuState`, `cafeMenu.ts:86-95`):
+1. **"integrated"** -- `foodpro-menu-ajax` keyed by the retail location's own `location_id` (sourced
+   from `get_infov2`, see the apk-reverse-engineering.md entry) -- the exact same call, same response
+   shape, same full nutrition/ingredient-list/category-grouping richness a residential hall gets.
+2. **"standing"** -- `get_infov2`'s `breakfast_menu`/`lunch_menu`/`dinner_menu` HTML blob, parsed by
+   `parseRetailMenuHtml` (`shared/src/content.ts:112`), each row matched against the local
+   `public.dishes` catalog cache by name (`matchStandingMenuItem`) for nutrition.
+3. **"info"** -- hours/address/directions/PDF-link only, no items, when neither of the above yields
+   anything.
+
+**Verified live 2026-09-14 that tier 1 genuinely works for real retail locations, not just the 4
+Grab 'N Go stations:** `foodpro-menu-ajax?tid=14` (Whitmore Café's own `get_infov2` `location_id` --
+note this `14` is unrelated to Web INA's `locationNum=14`, which is Bluewall Grill; the two id spaces
+don't correspond, per the apk-reverse-engineering.md entry above) and `?tid=4696` (Bluewall Grill's
+own `location_id`) both returned full, category-grouped ("daily offerings" >
+"Breakfast Entrees", "lunch" > "Entrees"), nutrition-and-ingredient-rich JSON (96KB / 112KB) --
+strictly richer than anything Web INA's `longmenu.aspx`+`label.aspx` pair provides (no ingredient
+lists, no healthfulness/carbon rating, bare macros + allergens only). Also verified tier 2's fallback
+is real and necessary, not theoretical: `foodpro-menu-ajax?tid=9605` (Argo Tea), `?tid=9967` (UMass
+Store), `?tid=5991` (Paciugo) all return `[]` -- these genuinely have no ajax feed and rely on the
+standing-menu/info tiers.
+
+**Verified the screen actually reaches the full retail set, not a curated subset** (read
+`mobile/src/app/cafe/[name].tsx:42,46` directly): `loc` is resolved via
+`hoursFeed?.retail?.find((r) => r.name === decodedName)`, where `hoursFeed` comes straight from
+`fetchHoursAndCache()` / `fetchDiningHours()` (`shared/src/hours.ts`, the same `mapInfoV2` output
+counted at 40 locations above) -- not a hardcoded or trimmed list. `loc.locationId` (i.e.
+`get_infov2`'s `location_id`) is passed straight through as `hall.tid`
+(`{ tid: loc.locationId, name: loc.name, retailLoc: loc }`), and `mobile/src/app/halls/[slug].tsx`'s
+`HallMenuScreenBody` (the shared screen body both `/halls/[slug]` and `/cafe/[name]` render) calls
+`fetchMenuAndRecordSeen(tid, selectedDate)` with exactly that `tid` (`halls/[slug].tsx:887-897`) --
+the same `fetchMenu`/`foodpro-menu-ajax` call path a residential hall uses. So "Option A already
+exists" holds for the full 40-location `get_infov2` set this screen resolves against, not just the
+two locations spot-checked above.
+
+**So Web INA's correctly-scoped role -- already how `populate-retail-dishes` is built, this just
+makes the reasoning explicit -- is nutrition-CATALOG backfill for tier 2's dish names that have no
+`foodpro-menu-ajax` coverage at all (confirmed by `populate-retail-dishes`' own decisions-log entry
+above: "The gap this closes... a retail-exclusive item... could never match [before this]"), never a
+menu-browsing data source in its own right.** Building a second, Web-INA-backed menu-browsing path
+(this research task's "Option B") would duplicate an already-shipped, richer, already-anonymous-first
+system for no benefit, and would need its own `location.aspx`/`longmenu.aspx` proxy or client fetch
+for something `get_infov2`+`foodpro-menu-ajax` already does better.
+
+**CORS, checked for completeness (moot for this recommendation, but worth recording):** confirmed
+live 2026-09-14 that `af-foodpro1.campus.ads.umass.edu` sends no `Access-Control-Allow-Origin` header
+on any response, including an explicit `OPTIONS` preflight to `longmenu.aspx` -- same as
+`foodpro-menu-ajax` itself, already documented in-repo (`web/src/routes/api/menu/+server.ts:35-37`,
+"umassdining.com sends no Access-Control-Allow-Origin header ... confirmed via curl"). This only
+matters for a hypothetical direct **browser** fetch (`/web`, not currently in active development
+per this session's standing guidance) -- React Native's `fetch` isn't subject to CORS at all, so
+mobile could call either host directly regardless. Since the recommendation above is "don't call Web
+INA client-side for menus, period," this is background information only, not a blocker for anything.
+
+**Recommendation: keep the status quo split, don't change it.** `cafeMenu.ts`'s three-tier waterfall
+stays the only retail menu-browsing path (Option A, already built, already correct per CLAUDE.md's
+"Menu cache: Device only" row). `populate-retail-dishes`/Web INA stays a weekly, server-side,
+nutrition-catalog-only backfill (the existing "Web INA: mirror vs. on-demand" decision above,
+unchanged) feeding tier 2's name-match. No new Edge Function, no new client-side Web INA integration.
+
+**One real open question this surfaces, flagged for whoever writes a future brief in this area, not
+resolved here:** there is no `location_id` (`get_infov2`/`foodpro-menu-ajax`) ↔ `locationNum` (Web
+INA) cross-reference anywhere in the codebase -- today neither `populate-retail-dishes` nor
+`cafeMenu.ts` ever needs one, since they operate on disjoint concerns (nutrition catalog vs. menu
+display) and never need to talk to each other. But the §1 finding above (RecNum conflation) means a
+future "make standing-menu nutrition location-accurate" effort *would* need that cross-reference --
+and automatic name-matching isn't safe for it, given confirmed spelling/naming drift between the two
+sources (e.g. Web INA's "Bluewall - Grill" vs. `get_infov2`'s "The Grill"; "Harvest" vs. "Harvest
+Market"). Likely a small hand-curated mapping table if that future work happens -- not something to
+build speculatively now.
