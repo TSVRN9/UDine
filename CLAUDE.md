@@ -75,6 +75,13 @@ Hampshire=3, Berkshire=4; response is meal→category→HTML fragment, parse `da
 (low priority), OpenFoodFacts for off-menu foods. UMass numbers are source of truth on campus. Never
 scrape `mobileapp.umassdining.com/umassapi2` — that's UMass's own account system.
 
+CBORD's public Web INA nutrition-lookup tool (`af-foodpro1.campus.ads.umass.edu/foodpro.net/`,
+confirmed 2026-09-13, no auth) is a second, not-yet-integrated UMass source: it's keyed by the same
+`RecNum` printed on physical nutrition table-tents, covers ~50 retail/café locations the `tid` system
+can't reach, and carries micronutrient %DV the ajax feed's `data-*` attributes don't. Full writeup —
+endpoints, verification against real dish IDs, what it does/doesn't add — in
+`docs/apk-reverse-engineering.md`'s "CBORD Web INA" section.
+
 ## Product scope
 
 Official-app parity is the baseline; UDine adds macro tracking, Beli-style pairwise dish ranking
