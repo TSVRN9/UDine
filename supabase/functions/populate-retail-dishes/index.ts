@@ -25,17 +25,22 @@
 //      a rendered HTML table ("Calories&nbsp;348" style, not foodpro-menu-ajax's data-* attributes)
 //      -- genuinely new parsing logic below, not a reuse of populate-dishes' parseDishRows.
 //
-// Politeness + Edge Function time budget: a full crawl (measured live 2026-09-14) is 96
-// longmenu.aspx requests (24 retail locations x 4 meal periods) surfacing ~394 unique dish names,
-// of which ~331 aren't yet in public.dishes (the rest collide with hall dish names populate-dishes
-// already wrote -- see fetchExistingDishNames' doc comment for why that's an acceptable, not just
-// convenient, thing to skip). Fetching all ~331 label.aspx pages in one run, serially, risks the
-// Edge Function's own wall-clock limit (a concern this function's timeout_milliseconds in its
-// scheduling migration CANNOT raise -- that setting only bounds how long pg_net waits for a
-// response). MAX_LABEL_FETCHES_PER_RUN caps the label.aspx fetches spent per invocation; any
-// genuinely-new dish beyond the cap is simply still-not-in-public.dishes, so it's picked up by next
-// week's run instead -- self-healing without any cross-invocation state, converging over ~4 weekly
-// runs for the initial backlog and staying near-zero afterward (only genuinely new menu items).
+// Politeness + Edge Function time budget: a full crawl is 96 longmenu.aspx requests (24 retail
+// locations x 4 meal periods) surfacing ~394 unique dish names, of which ~331 aren't yet in
+// public.dishes (the rest collide with hall dish names populate-dishes already wrote -- see
+// fetchExistingDishNames' doc comment for why that's an acceptable, not just convenient, thing to
+// skip). Both crawl phases (discovery, then up to MAX_LABEL_FETCHES_PER_RUN label.aspx lookups) run
+// through the bounded pool below (CRAWL_CONCURRENCY) rather than serially -- a serial discovery
+// phase alone measured ~45s wall time live 2026-09-14, well past where populate-dishes/
+// check-favorited-foods's identical sequential-fetch shape started dying to platform Gateway
+// Timeouts at just 4 fetches (docs/decisions-log.md); see runPool's own doc comment for why a
+// bounded pool, not full fan-out, either. Edge Function wall-clock is a limit this function's
+// timeout_milliseconds in its scheduling migration CANNOT raise -- that setting only bounds how long
+// pg_net waits for a response. MAX_LABEL_FETCHES_PER_RUN caps the label.aspx fetches spent per
+// invocation regardless; any genuinely-new dish beyond the cap is simply still-not-in-public.dishes,
+// so it's picked up by next week's run instead -- self-healing without any cross-invocation state,
+// converging over ~4 weekly runs for the initial backlog and staying near-zero afterward (only
+// genuinely new menu items).
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { requireCronSecret } from "../_shared/cronAuth.ts";
 
@@ -44,12 +49,37 @@ const RESIDENTIAL_HALL_LOCATION_NUMS = new Set([1, 2, 3, 4]); // already covered
 const MEAL_PERIODS = ["Breakfast", "Lunch", "Dinner", "Late Night"];
 const MAX_LABEL_FETCHES_PER_RUN = 100;
 const REQUEST_DELAY_MS = 50; // be a polite scraper -- this is UMass IT infrastructure, not a CDN
+// Bounded worker-pool width for BOTH crawl phases (discovery's 96 longmenu.aspx requests, and up to
+// MAX_LABEL_FETCHES_PER_RUN label.aspx requests). Fixed the fully-sequential `for (...) await fetch`
+// shape that measured ~45s wall time for discovery alone -- the same shape that killed
+// populate-dishes/check-favorited-foods with platform Gateway Timeouts at just 4 sequential fetches
+// (docs/decisions-log.md). Not `Promise.all` over the full 96/100 at once either -- that's rude to
+// af-foodpro1.campus.ads.umass.edu for no benefit over a handful of concurrent lanes.
+// REQUEST_DELAY_MS is applied per lane (see runPool's own doc comment), not globally.
+const CRAWL_CONCURRENCY = 6;
 // MUST match supabase/config.toml's max_rows -- PostgREST silently caps a response at this many
 // rows, same reasoning as shared/src/dishes.ts's fetchDishCatalog PAGE_SIZE.
 const PAGE_SIZE = 1000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Runs `worker` over `items` through `concurrency` lanes, each lane pulling the next unstarted item
+ * as soon as it finishes its own -- a bounded pool, not `Promise.all(items.map(...))` (fires
+ * everything at once) and not a plain `for (...) await` loop (serializes everything through one
+ * lane, the shape this replaces in both crawl phases below).
+ */
+export async function runPool<T>(items: T[], concurrency: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  async function lane(): Promise<void> {
+    while (next < items.length) {
+      const item = items[next++];
+      await worker(item);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, lane));
 }
 
 const ENTITIES: Record<string, string> = { "&amp;": "&", "&#039;": "'", "&quot;": '"', "&lt;": "<", "&gt;": ">" };
@@ -234,6 +264,81 @@ async function fetchExistingDishNames(supabase: SupabaseClient): Promise<Set<str
   return names;
 }
 
+interface DiscoveryTask {
+  loc: RetailLocation;
+  meal: string;
+}
+
+/**
+ * Discovers every (location x meal period) longmenu.aspx page through a bounded worker pool
+ * (see runPool's own doc comment) instead of the old fully-sequential for-loop. First-seen-wins on
+ * a dish-name collision across locations/meals still holds in spirit -- only ONE label.aspx lookup
+ * is ever spent per unique name -- but which task's (labelPath, locationNum) "wins" a given name is
+ * now completion-order, not list-order, since lanes race. The only observable effect is which
+ * locationNum a colliding dish name's last_seen_hall_tid points at (it may now flip between weekly
+ * runs); `fetchDishCatalog` (shared/src/dishes.ts) doesn't even select that column client-side, so
+ * this is cosmetic, not a correctness change.
+ */
+export async function discoverAllDishes(
+  locations: RetailLocation[],
+  cookieHeader: string,
+  fetchImpl: typeof fetch = fetch,
+  concurrency = CRAWL_CONCURRENCY,
+): Promise<Map<string, { labelPath: string; locationNum: number }>> {
+  const discovered = new Map<string, { labelPath: string; locationNum: number }>();
+  const tasks: DiscoveryTask[] = [];
+  for (const loc of locations) for (const meal of MEAL_PERIODS) tasks.push({ loc, meal });
+
+  await runPool(tasks, concurrency, async ({ loc, meal }) => {
+    const url = `${BASE}longmenu.aspx?sName=%60&locationNum=${loc.locationNumRaw}&locationName=${loc.hrefLocationName}&naFlag=1&mealName=${encodeURIComponent(meal)}`;
+    try {
+      const res = await fetchImpl(url, { headers: { Cookie: cookieHeader } });
+      if (res.ok) {
+        const html = await res.text();
+        for (const dish of parseLongMenuDishes(html)) {
+          if (!discovered.has(dish.dishName)) discovered.set(dish.dishName, { labelPath: dish.labelPath, locationNum: loc.locationNum });
+        }
+      }
+    } catch (err) {
+      // One (location, meal period) outage shouldn't blank the rest of the crawl.
+      console.error(`populate-retail-dishes: longmenu.aspx failed for location ${loc.locationNumRaw} ${meal}:`, err);
+    }
+    await sleep(REQUEST_DELAY_MS);
+  });
+
+  return discovered;
+}
+
+/**
+ * Fetches label.aspx for each given (dishName, labelPath) entry through the same bounded pool as
+ * discoverAllDishes, instead of the old sequential for-loop -- up to MAX_LABEL_FETCHES_PER_RUN of
+ * these ran one at a time before this fix.
+ */
+export async function fetchAllLabels(
+  entries: [string, { labelPath: string; locationNum: number }][],
+  updatedAt: string,
+  fetchImpl: typeof fetch = fetch,
+  concurrency = CRAWL_CONCURRENCY,
+): Promise<ReturnType<typeof buildRetailUpsertRow>[]> {
+  const rows: ReturnType<typeof buildRetailUpsertRow>[] = [];
+  await runPool(entries, concurrency, async ([dishName, info]) => {
+    try {
+      const res = await fetchImpl(`${BASE}${info.labelPath}`);
+      if (res.ok) {
+        const html = await res.text();
+        const nutrition = parseLabelNutrition(html);
+        if (nutrition) {
+          rows.push(buildRetailUpsertRow(dishName, nutrition, parseLabelAllergens(html), retailLocationHallTid(info.locationNum), updatedAt));
+        }
+      }
+    } catch (err) {
+      console.error(`populate-retail-dishes: label.aspx failed for "${dishName}":`, err);
+    }
+    await sleep(REQUEST_DELAY_MS);
+  });
+  return rows;
+}
+
 Deno.serve(async (req) => {
   const denied = requireCronSecret(req);
   if (denied) return denied;
@@ -265,51 +370,18 @@ Deno.serve(async (req) => {
   const cookieHeader = cookieHeaderFromSetCookie(setCookieValues);
   const existingNames = await fetchExistingDishNames(supabase);
 
-  // First-seen-wins across (location x meal period) -- the same dish name can appear at more than
-  // one location/meal with a different per-recipe RecNum (confirmed live, "RecNum is per-hall-
-  // recipe, not global" per docs/apk-reverse-engineering.md); we only need ONE label.aspx lookup
-  // per unique name, since public.dishes dedupes by name too.
-  const discovered = new Map<string, { labelPath: string; locationNum: number }>();
-  for (const loc of locations) {
-    for (const meal of MEAL_PERIODS) {
-      const url = `${BASE}longmenu.aspx?sName=%60&locationNum=${loc.locationNumRaw}&locationName=${loc.hrefLocationName}&naFlag=1&mealName=${encodeURIComponent(meal)}`;
-      try {
-        const res = await fetch(url, { headers: { Cookie: cookieHeader } });
-        if (res.ok) {
-          const html = await res.text();
-          for (const dish of parseLongMenuDishes(html)) {
-            if (!discovered.has(dish.dishName)) discovered.set(dish.dishName, { labelPath: dish.labelPath, locationNum: loc.locationNum });
-          }
-        }
-      } catch (err) {
-        // One (location, meal period) outage shouldn't blank the rest of the crawl.
-        console.error(`populate-retail-dishes: longmenu.aspx failed for location ${loc.locationNumRaw} ${meal}:`, err);
-      }
-      await sleep(REQUEST_DELAY_MS);
-    }
-  }
+  // Only ONE label.aspx lookup is ever spent per unique dish name (see discoverAllDishes' own doc
+  // comment for why which location "wins" a same-name collision no longer matters here).
+  const discovered = await discoverAllDishes(locations, cookieHeader);
 
   const updatedAt = new Date().toISOString();
-  const rows: ReturnType<typeof buildRetailUpsertRow>[] = [];
-  let labelFetches = 0;
-  for (const [dishName, info] of discovered) {
-    if (existingNames.has(dishName)) continue;
-    if (labelFetches >= MAX_LABEL_FETCHES_PER_RUN) break; // remaining new names picked up next week
-    labelFetches++;
-    try {
-      const res = await fetch(`${BASE}${info.labelPath}`);
-      if (res.ok) {
-        const html = await res.text();
-        const nutrition = parseLabelNutrition(html);
-        if (nutrition) {
-          rows.push(buildRetailUpsertRow(dishName, nutrition, parseLabelAllergens(html), retailLocationHallTid(info.locationNum), updatedAt));
-        }
-      }
-    } catch (err) {
-      console.error(`populate-retail-dishes: label.aspx failed for "${dishName}":`, err);
-    }
-    await sleep(REQUEST_DELAY_MS);
+  const newEntries: [string, { labelPath: string; locationNum: number }][] = [];
+  for (const entry of discovered) {
+    if (existingNames.has(entry[0])) continue;
+    if (newEntries.length >= MAX_LABEL_FETCHES_PER_RUN) break; // remaining new names picked up next week
+    newEntries.push(entry);
   }
+  const rows = await fetchAllLabels(newEntries, updatedAt);
 
   if (rows.length > 0) {
     const { error } = await supabase.from("dishes").upsert(rows, { onConflict: "dish_name" });

@@ -789,3 +789,53 @@ baseline). No new table/policy/grant was needed -- `public.dishes` already grant
 `insert, update, delete` to `service_role` from `20260905120000_create_dishes_table.sql`, which
 `populate-retail-dishes` reuses exactly as `populate-dishes` does.
 
+**Follow-up: both crawl phases parallelized with a bounded pool (pr-reviewer finding on PR #468,
+2026-09-14).** Both loops above -- discovery's 96 `longmenu.aspx` requests and up to
+`MAX_LABEL_FETCHES_PER_RUN` (100) `label.aspx` requests -- were plain `for (...) { await fetch(...);
+await sleep(REQUEST_DELAY_MS) }` loops, zero concurrency, with rows written only in the single
+`upsert` at the very end of both. This is the identical shape just diagnosed on
+`fix/cron-sequential-fetch-timeout` (PR #469): `populate-dishes`/`check-favorited-foods` died to
+platform Gateway Timeout/`EDGE_FUNCTION_ERROR` kills with only 4 sequential fetches taking 9-14s
+each, and discovery's 96 fetches here were already measured (above) at ~45s -- well past that wall
+-- with 100% of a run's discovered data silently lost on a mid-flight kill (fire-and-forget
+`net.http_post` cron means `cron.job_run_details` still reports "succeeded"). Fixed with a bounded
+worker pool (`runPool`, `CRAWL_CONCURRENCY = 6` lanes) rather than the sibling fix's full
+`Promise.all` fan-out -- that sibling only ever had 4 items (one per hall); firing all 96-100
+requests at once here would be rude to `af-foodpro1.campus.ads.umass.edu` for no real benefit over a
+handful of concurrent lanes. `REQUEST_DELAY_MS` now throttles each lane's own pace instead of
+serializing the whole crawl through one lane. Both phases extracted into pure, testable functions
+(`discoverAllDishes`, `fetchAllLabels`, mirroring the sibling fix's `fetchAllHallDishes` shape) so
+the pool logic is covered without a real network call --
+`supabase/functions/populate-retail-dishes/concurrency.test.ts`, 2 new tests (a generic `runPool`
+concurrency-cap test, and a gate-based `discoverAllDishes` test proving it neither serializes nor
+exceeds its cap), both mutation-tested by hand (forcing the pool down to 1 lane turned both red --
+"pool ran fully sequential" / gate timeout -- confirmed, then reverted).
+Incremental writes (upserting as each phase completes rather than only once at the very end) were
+considered and deliberately skipped: the risk this closes is wall-clock proximity to the platform's
+kill threshold, and the pool fix already addresses that head-on, not just indirectly -- see the
+measurement below. Restructuring to partial/incremental persistence would be a materially bigger
+diff for a run that's no longer anywhere near the danger zone.
+One side effect of pooling, not a correctness change: "first-seen-wins" on a same-name collision
+across locations/meal-periods is now completion-order, not list-order, so a colliding dish name's
+`last_seen_hall_tid` (which retail location "wins" it) may flip between weekly runs where it
+previously wouldn't have. `shared/src/dishes.ts`'s `fetchDishCatalog` doesn't select
+`last_seen_hall_tid` at all, so nothing client-visible depends on it being stable.
+**Measured live 2026-09-14, same box/session, varying only `concurrency`, both orderings run to rule
+out a warm-server-state confound:** discovery (96 `longmenu.aspx` requests, 394 unique dishes
+discovered every time) took 19.4s at concurrency=1 then 4.4s at concurrency=6 on the first pass;
+running the pair in reverse order (concurrency=6 first) gave 4.7s then 18.5s -- consistent either
+way, ruling out "second call benefits from a warmed connection/cache" as the explanation. So: ~19s
+sequential vs. ~4.5s at 6 lanes, a ~4.2x speedup matching the pool width, and (today's network
+conditions -- lower than the original ~45s measurement above; day-to-day variance against a live
+external site) now well clear of the 9-14s range where the sibling functions started dying.
+**Verification:** `deno test --node-modules-dir=none --allow-env supabase/functions/populate-retail-dishes/`
+(16 tests, all passing, up from 13 -- a generic `runPool` concurrency-cap test, a gate-based
+`discoverAllDishes` test, and a `fetchAllLabels` row-count test; all three mutation-tested by hand:
+forcing the pool to 1 lane turned the first two red, dropping `fetchAllLabels`'s `rows.push` turned
+the third red, both confirmed then reverted). `grep -rn "discoverAllDishes\|fetchAllLabels\|runPool"
+--include=*.ts .` from the repo root turns up only this function's own index.ts and its new test file
+-- Deno Edge Functions are independently deployed, so nothing else could have called these anyway.
+`supabase test db` not re-run for this follow-up: `git diff --stat -- supabase/migrations
+supabase/tests` against it is empty (no SQL touched), so the 317-test baseline from the entry above
+stands unaffected.
+
