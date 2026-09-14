@@ -39,22 +39,41 @@
 // pg_net waits for a response. MAX_LABEL_FETCHES_PER_RUN caps the label.aspx fetches spent per
 // invocation regardless; any genuinely-new dish beyond the cap is simply still-not-in-public.dishes,
 // so it's picked up by next week's run instead -- self-healing without any cross-invocation state,
-// converging over ~4 weekly runs for the initial backlog and staying near-zero afterward (only
-// genuinely new menu items).
+// converging over ~7 weekly runs for the ~331-dish initial backlog at the current 50-per-run cap
+// (down from an original, since-corrected 100-per-run/~4-run estimate -- see
+// MAX_LABEL_FETCHES_PER_RUN's own doc comment and docs/decisions-log.md's "corrected timing"
+// follow-up for why the cap moved and the honest FULL-crawl (discovery + label-fetch together, not
+// discovery alone) timing that drove it) and staying near-zero afterward (only genuinely new menu
+// items).
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { requireCronSecret } from "../_shared/cronAuth.ts";
 
 const BASE = "https://af-foodpro1.campus.ads.umass.edu/foodpro.net/";
 const RESIDENTIAL_HALL_LOCATION_NUMS = new Set([1, 2, 3, 4]); // already covered by populate-dishes
 const MEAL_PERIODS = ["Breakfast", "Lunch", "Dinner", "Late Night"];
-const MAX_LABEL_FETCHES_PER_RUN = 100;
+// Lowered from 100 (see docs/decisions-log.md's 2026-09-14 "corrected timing" follow-up): honest
+// end-to-end measurement of BOTH crawl phases together (not just discovery alone) put a 100-cap run
+// at ~8.7-8.8s live -- right at the floor of the 9.1-13.8s platform-kill zone, not "well clear" of it
+// as first claimed. 50 buys ~2s of margin (~6.8s measured) at the cost of ~7 weekly runs to clear the
+// ~331-dish initial backlog instead of ~4; steady-state (near-zero new dishes/week) is unaffected
+// either way. Belt-and-suspenders alongside the batched upsert below, which is the change that
+// actually removes the "lose the whole run" consequence regardless of where the real platform
+// threshold turns out to sit.
+const MAX_LABEL_FETCHES_PER_RUN = 50;
+// Upsert every this-many newly-fetched rows during fetchAllLabels, instead of collecting all
+// MAX_LABEL_FETCHES_PER_RUN rows and upserting once at the end -- a mid-run platform kill during the
+// risky initial-backlog-clearing window now loses at most one batch's worth of discoveries, not the
+// entire run's. Small enough to bound the loss, big enough not to spam `dishes.upsert` (2-3 calls for
+// a full 50-row run).
+const UPSERT_BATCH_SIZE = 25;
 const REQUEST_DELAY_MS = 50; // be a polite scraper -- this is UMass IT infrastructure, not a CDN
 // Bounded worker-pool width for BOTH crawl phases (discovery's 96 longmenu.aspx requests, and up to
 // MAX_LABEL_FETCHES_PER_RUN label.aspx requests). Fixed the fully-sequential `for (...) await fetch`
 // shape that measured ~45s wall time for discovery alone -- the same shape that killed
 // populate-dishes/check-favorited-foods with platform Gateway Timeouts at just 4 sequential fetches
-// (docs/decisions-log.md). Not `Promise.all` over the full 96/100 at once either -- that's rude to
-// af-foodpro1.campus.ads.umass.edu for no benefit over a handful of concurrent lanes.
+// (docs/decisions-log.md). Not `Promise.all` over the full 96/MAX_LABEL_FETCHES_PER_RUN at once
+// either -- that's rude to af-foodpro1.campus.ads.umass.edu for no benefit over a handful of
+// concurrent lanes.
 // REQUEST_DELAY_MS is applied per lane (see runPool's own doc comment), not globally.
 const CRAWL_CONCURRENCY = 6;
 // MUST match supabase/config.toml's max_rows -- PostgREST silently caps a response at this many
@@ -312,30 +331,56 @@ export async function discoverAllDishes(
 /**
  * Fetches label.aspx for each given (dishName, labelPath) entry through the same bounded pool as
  * discoverAllDishes, instead of the old sequential for-loop -- up to MAX_LABEL_FETCHES_PER_RUN of
- * these ran one at a time before this fix.
+ * these ran one at a time before that fix.
+ *
+ * Calls `upsertBatch` every UPSERT_BATCH_SIZE completed rows (and once more for the remainder at the
+ * end) instead of the caller collecting every row and upserting once after this function returns --
+ * see UPSERT_BATCH_SIZE's own doc comment for why. Batch accumulation (push + length check + splice)
+ * happens with no `await` in between, so it's race-free across runPool's concurrent lanes despite
+ * looking like shared mutable state: JS's single-threaded event loop can't interleave two lanes
+ * inside that synchronous stretch. `upsertBatch` errors are NOT caught here (unlike a label.aspx
+ * fetch failure, which only loses one dish) -- they propagate out of runPool so the caller's own
+ * try/catch turns a real DB failure into an error response instead of silently limping on.
  */
 export async function fetchAllLabels(
   entries: [string, { labelPath: string; locationNum: number }][],
   updatedAt: string,
   fetchImpl: typeof fetch = fetch,
   concurrency = CRAWL_CONCURRENCY,
+  upsertBatch: (batch: ReturnType<typeof buildRetailUpsertRow>[]) => Promise<void> = async () => {},
 ): Promise<ReturnType<typeof buildRetailUpsertRow>[]> {
   const rows: ReturnType<typeof buildRetailUpsertRow>[] = [];
+  let pending: ReturnType<typeof buildRetailUpsertRow>[] = [];
+
+  const flush = async (): Promise<void> => {
+    if (pending.length === 0) return;
+    const batch = pending;
+    pending = [];
+    await upsertBatch(batch);
+  };
+
   await runPool(entries, concurrency, async ([dishName, info]) => {
+    let row: ReturnType<typeof buildRetailUpsertRow> | undefined;
     try {
       const res = await fetchImpl(`${BASE}${info.labelPath}`);
       if (res.ok) {
         const html = await res.text();
         const nutrition = parseLabelNutrition(html);
         if (nutrition) {
-          rows.push(buildRetailUpsertRow(dishName, nutrition, parseLabelAllergens(html), retailLocationHallTid(info.locationNum), updatedAt));
+          row = buildRetailUpsertRow(dishName, nutrition, parseLabelAllergens(html), retailLocationHallTid(info.locationNum), updatedAt);
         }
       }
     } catch (err) {
       console.error(`populate-retail-dishes: label.aspx failed for "${dishName}":`, err);
     }
+    if (row) {
+      rows.push(row);
+      pending.push(row);
+      if (pending.length >= UPSERT_BATCH_SIZE) await flush();
+    }
     await sleep(REQUEST_DELAY_MS);
   });
+  await flush();
   return rows;
 }
 
@@ -381,11 +426,14 @@ Deno.serve(async (req) => {
     if (newEntries.length >= MAX_LABEL_FETCHES_PER_RUN) break; // remaining new names picked up next week
     newEntries.push(entry);
   }
-  const rows = await fetchAllLabels(newEntries, updatedAt);
-
-  if (rows.length > 0) {
-    const { error } = await supabase.from("dishes").upsert(rows, { onConflict: "dish_name" });
-    if (error) return json(500, { error: error.message });
+  let rows: ReturnType<typeof buildRetailUpsertRow>[];
+  try {
+    rows = await fetchAllLabels(newEntries, updatedAt, fetch, CRAWL_CONCURRENCY, async (batch) => {
+      const { error } = await supabase.from("dishes").upsert(batch, { onConflict: "dish_name" });
+      if (error) throw error;
+    });
+  } catch (err) {
+    return json(500, { error: err instanceof Error ? err.message : String(err) });
   }
 
   return json(200, { retailLocations: locations.length, dishesDiscovered: discovered.size, newDishesUpserted: rows.length });

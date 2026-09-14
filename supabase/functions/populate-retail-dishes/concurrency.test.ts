@@ -8,6 +8,16 @@
 // (CRAWL_CONCURRENCY lanes), not full fan-out -- these tests assert both "not sequential" and
 // "never exceeds the cap", not just "all ran concurrently".
 //
+//
+// Also covers the batched-upsert follow-up (pr-reviewer's second-round finding on PR #468): the
+// pooled fix above still only measured discoverAllDishes alone as its "well clear of the danger
+// zone" evidence -- the FULL crawl (discovery + label-fetch together, the initial-backlog-clearing
+// worst case) measured live at ~8.7-8.8s, right at the floor of the observed failure zone. Fixed with
+// two changes: MAX_LABEL_FETCHES_PER_RUN lowered 100->50 for margin, and fetchAllLabels now upserts
+// every UPSERT_BATCH_SIZE rows as they complete instead of collecting all of them and upserting once
+// at the very end -- so a mid-run platform kill loses at most one batch, not the whole run's
+// discoveries. See docs/decisions-log.md's "corrected timing" follow-up for the real numbers.
+//
 // Run: deno test --node-modules-dir=none --allow-env supabase/functions/populate-retail-dishes/concurrency.test.ts
 (Deno as unknown as { serve: unknown }).serve = () => ({}) as ReturnType<typeof Deno.serve>;
 
@@ -35,6 +45,31 @@ Deno.test("fetchAllLabels fetches every entry's label.aspx and returns one row p
   if (JSON.stringify(names) !== JSON.stringify(["Dish A", "Dish B", "Dish C"])) {
     throw new Error(`unexpected dish names: ${JSON.stringify(names)}`);
   }
+});
+
+Deno.test("fetchAllLabels upserts in batches as rows complete, not once at the very end", async () => {
+  const entries: [string, { labelPath: string; locationNum: number }][] = Array.from({ length: 30 }, (_, i) => [
+    `Dish ${i}`,
+    { labelPath: `label.aspx?RecNumAndPort=${i}`, locationNum: 8 },
+  ]);
+  const fetchImpl = (async () => new Response(STUB_LABEL_HTML, { status: 200 })) as typeof fetch;
+  const batchSizes: number[] = [];
+  const upsertBatch = (batch: unknown[]) => {
+    batchSizes.push(batch.length);
+    return Promise.resolve();
+  };
+
+  const rows = await fetchAllLabels(entries, "2026-09-14T12:00:00.000Z", fetchImpl, 6, upsertBatch);
+
+  if (rows.length !== 30) throw new Error(`expected 30 rows, got ${rows.length}`);
+  // A revert to "collect everything, upsert once at the end" would produce exactly one call of 30 --
+  // this is the case that actually distinguishes batching from the old single-upsert shape.
+  if (batchSizes.length < 2) {
+    throw new Error(`expected multiple incremental upsert calls for 30 rows, got ${batchSizes.length} call(s): ${JSON.stringify(batchSizes)}`);
+  }
+  if (Math.max(...batchSizes) > 25) throw new Error(`a batch exceeded the 25-row cap: ${JSON.stringify(batchSizes)}`);
+  const total = batchSizes.reduce((a, b) => a + b, 0);
+  if (total !== 30) throw new Error(`batches summed to ${total} rows, expected 30: ${JSON.stringify(batchSizes)}`);
 });
 
 Deno.test("runPool caps in-flight work at the given concurrency without running fully sequential", async () => {
