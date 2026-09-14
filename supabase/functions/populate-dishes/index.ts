@@ -14,7 +14,7 @@
 // resolvers could reach). Don't try to eliminate it; keep it faithful to the real attribute names
 // (see shared/src/umassDining.ts ~line 219 for the canonical list) if that upstream markup ever
 // changes.
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HALL_TIDS } from "../_shared/hours.ts";
 import { requireCronSecret } from "../_shared/cronAuth.ts";
 
@@ -160,6 +160,42 @@ export async function fetchHallDishes(hallTid: number, fetchImpl: typeof fetch =
 }
 
 /**
+ * Fetches every hall's dishes concurrently instead of one at a time. Investigating the 2026-09-11
+ * staleness incident (docs/decisions-log.md) found the real, cron-authenticated invocation dying
+ * with a bare Gateway Timeout / EDGE_FUNCTION_ERROR (no application-level console.error, i.e. the
+ * runtime was killed mid-flight, not our own code throwing) on runs that took 9s+, while a healthy
+ * run finished in ~5s -- correlated with, but not conclusively identified as caused by, the 4
+ * sequential `await fetchHallDishes()` calls against umassdining.com (an external, sometimes-slow
+ * site). The specific platform limit being hit was never pinned down in `function_logs`.
+ * Parallelizing the 4 halls cuts worst-case wall time roughly 4x regardless of the exact
+ * mechanism -- less wall time is strictly better for a function that's dying slow -- and the same
+ * change was applied to check-favorited-foods/index.ts's identical sequential-per-hall loop, which
+ * showed the identical failure shape.
+ */
+export async function fetchAllHallDishes(hallTids: number[], fetchImpl: typeof fetch = fetch): Promise<Map<number, Map<string, DishRow>>> {
+  const entries = await Promise.all(hallTids.map(async (tid) => [tid, await fetchHallDishes(tid, fetchImpl)] as const));
+  return new Map(entries);
+}
+
+/**
+ * Builds the Deno.serve response given the merged upsert rows and the upsert's own result.
+ * `rows.length === 0` (every hall came back empty) is logged with a distinct message rather than
+ * flagged as an HTTP error status: it's ambiguous on its own (a real outage vs. a legitimately
+ * dish-less day -- campus closed, semester break) between this and every other event source in this
+ * project, so a hard failure status risks a false alarm on a normal quiet day. The log line closes
+ * the actual blind spot from the 2026-09-13 entry -- a *run* of consecutive zero-row days is now
+ * greppable in `function_logs`, whereas before this a total-outage day produced no signal anywhere.
+ */
+export function buildPopulateResponse(rows: ReturnType<typeof buildUpsertRows>, upsertError: string | null): Response {
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  if (rows.length === 0) {
+    console.warn("populate-dishes: 0 dishes upserted this run (every hall came back empty) -- outage or a genuinely dish-less day, check umassdining.com.");
+  }
+  if (upsertError) return json({ error: upsertError }, 500);
+  return json({ halls: HALL_TIDS.length, dishesUpserted: rows.length });
+}
+
+/**
  * Merges each hall's dish map into one dedup'd-by-name map, iterating `hallTids` in order so a
  * name collision across halls is resolved by "last hall processed wins" (acceptable per task
  * spec -- this is a reference catalog, not a per-hall menu). A hall missing from `hallDishes`
@@ -189,6 +225,23 @@ export function buildUpsertRows(merged: Map<string, DishRow>, updatedAt: string)
   }));
 }
 
+/**
+ * Upserts the merged rows, catching a thrown/rejected exception explicitly. Was previously an
+ * unguarded `await ... .upsert(...)` inline in the handler with no try/catch -- a thrown exception
+ * there (as opposed to a resolved `{error}` result, which was already handled) produced a bare 500
+ * with no log line at all, indistinguishable from a platform-level kill. Extracted to its own
+ * function so the catch path is testable with a stub client, without a real Supabase connection.
+ */
+export async function upsertDishes(supabase: Pick<SupabaseClient, "from">, rows: ReturnType<typeof buildUpsertRows>): Promise<string | null> {
+  try {
+    const { error } = await supabase.from("dishes").upsert(rows, { onConflict: "dish_name" });
+    return error?.message ?? null;
+  } catch (err) {
+    console.error("populate-dishes: dishes upsert threw:", err);
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
 Deno.serve(async (req) => {
   // Anyone holding the public anon key passes verify_jwt -- see _shared/cronAuth.ts.
   const denied = requireCronSecret(req);
@@ -196,20 +249,12 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  const hallDishes = new Map<number, Map<string, DishRow>>();
-  for (const tid of HALL_TIDS) {
-    hallDishes.set(tid, await fetchHallDishes(tid));
-  }
+  const hallDishes = await fetchAllHallDishes(HALL_TIDS);
 
   const merged = mergeHallDishes(HALL_TIDS, hallDishes);
   const rows = buildUpsertRows(merged, new Date().toISOString());
 
-  if (rows.length > 0) {
-    const { error } = await supabase.from("dishes").upsert(rows, { onConflict: "dish_name" });
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
-    }
-  }
+  const upsertError = rows.length > 0 ? await upsertDishes(supabase, rows) : null;
 
-  return new Response(JSON.stringify({ halls: HALL_TIDS.length, dishesUpserted: rows.length }), { headers: { "Content-Type": "application/json" } });
+  return buildPopulateResponse(rows, upsertError);
 });
