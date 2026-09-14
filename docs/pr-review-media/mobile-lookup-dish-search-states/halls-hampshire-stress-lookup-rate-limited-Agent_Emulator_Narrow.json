@@ -1,0 +1,10 @@
+{
+  "sha": "34c65932af509958db7c4fb7eb3dba06b039c614",
+  "branch": "mobile/lookup-dish-search-states",
+  "worktree": "/tmp/claude-1000/-home-tavern-Projects-js-UDine/a1363ea9-3d01-40c7-aad5-beb81d9e767c/scratchpad/wt-lookup-dish-states",
+  "route": "halls/hampshire",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "lookup-rate-limited",
+  "dirty": false,
+  "ts": "2026-09-14T22:39:11Z"
+}

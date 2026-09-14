@@ -1,0 +1,15 @@
+env: load .env
+env: export EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY EXPO_PUBLIC_SUPABASE_URL
+Starting project at /tmp/claude-1000/-home-tavern-Projects-js-UDine/a1363ea9-3d01-40c7-aad5-beb81d9e767c/scratchpad/wt-lookup-dish-states/mobile
+Logs: /tmp/claude-1000/-home-tavern-Projects-js-UDine/a1363ea9-3d01-40c7-aad5-beb81d9e767c/scratchpad/wt-lookup-dish-states/mobile/.expo/dev/logs/start.log
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+Waiting on http://localhost:8082
+
+An update for expo is available: 57.0.14 → ~57.0.22
+18 other packages may need updating. Run npx expo install --check for details.
+Logs for your project will appear below.
+Android Bundled 1746ms node_modules/.pnpm/expo-router@57.0.14_3befab14925e58395b9c1b7b12cdebab/node_modules/expo-router/entry.js (2213 modules)
