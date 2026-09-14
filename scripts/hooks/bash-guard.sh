@@ -4,15 +4,15 @@
 set -uo pipefail
 input="$(cat)"
 cmd="$(jq -r '.tool_input.command // ""' <<<"$input")"
-# `cwd` is the hook payload's own working-directory field -- per Claude Code's hooks reference it
-# "reflects the current working directory and updates when Claude runs cd commands", so it tracks
-# a worktree-isolated subagent's real checkout. $CLAUDE_PROJECT_DIR is NOT documented and was found
-# live (2026-09-14, PR #474/#475) to stay fixed to the top-level session's original project root
-# regardless of subagent worktree isolation -- using it here silently gated `gh pr create` against
+# `cwd` is the hook payload's own working-directory field -- Claude Code's hooks reference
+# documents it as following Claude into a worktree and through any `cd`, and says to read it
+# when a hook needs to know which directory Claude is working in. $CLAUDE_PROJECT_DIR is ALSO
+# documented -- but documented to stay pinned at session-start root even inside a worktree, which
+# is exactly the wrong invariant for this job: using it here silently gated `gh pr create` against
 # whatever branch/dirty-state the MAIN checkout happened to have open, not the branch actually
-# being created, costing two agents a wasted investigation before the mechanism was found. Resolve
-# root from `cwd` (falling back to pwd only if the payload ever lacks it); never from
-# $CLAUDE_PROJECT_DIR again.
+# being created, costing two agents a wasted investigation (2026-09-14, PR #474/#475) before the
+# mechanism was found. Resolve root from `cwd` (falling back to pwd only if the payload ever lacks
+# it); $CLAUDE_PROJECT_DIR answers a different question than this hook needs answered.
 root="$(jq -r '.cwd // empty' <<<"$input")"
 root="${root:-$(pwd)}"
 
