@@ -85,6 +85,7 @@ import {
 } from "../../lib/hallMenuTabs";
 import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, syntheticHallTidForName, type CafeMenuState, type StandingMenuEntry } from "../../lib/cafeMenu";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
+import { alwaysAvailableSections } from "../../lib/alwaysAvailableStations";
 import { grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { macroBadgeRowWidth, shouldTuckBadges } from "../../lib/hallMenuBadgeLayout";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
@@ -667,11 +668,13 @@ export function HallMenuScreenBody({
   // whether a saved copy exists (the link only renders when one does).
   const [retryToken, setRetryToken] = useState(0);
   const [cachedMenu, setCachedMenu] = useState<CachedMenu | null>(null);
-  // The local dish-catalog cache, read once for the waterfall's tier-2 standing-menu-item
-  // matching (resolveCafeMenuState) -- café only, a real hall never needs it. `catalogLoaded`
-  // (not just `catalog !== null`, which can't tell an empty cache from "hasn't read yet") gates
-  // cafeState below so the first paint already reflects what's cached instead of flipping rows
-  // from unmatched to matched a frame later.
+  // The local dish-catalog cache: café's waterfall tier-2 standing-menu-item matching
+  // (resolveCafeMenuState) reads it, and so does a real hall's always-available station tail
+  // section (alwaysAvailableSections, task 3/foodpro-menu-expansion) for its dishes' real
+  // nutrition -- the curated station list itself only carries names. `catalogLoaded` (not just
+  // `catalog !== null`, which can't tell an empty cache from "hasn't read yet") gates cafeState
+  // below so the first paint already reflects what's cached instead of flipping rows from
+  // unmatched to matched a frame later.
   const [catalog, setCatalog] = useState<CachedDishCatalog | null>(null);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   // Café info-only state's PDF affordance -- the same in-app viewer CafeSheet always opens, just
@@ -713,11 +716,11 @@ export function HallMenuScreenBody({
   // identity). syntheticHallTidForName gives each a distinct, stable per-name number instead.
   const cafeHallTid = hall.tid ?? syntheticHallTidForName(hall.name);
 
-  // The local dish-catalog cache, read once on mount -- café only (a real hall's mealTabs/
-  // sections never touch it). Fire-and-forget background refresh alongside it; refreshDishCatalogIfStale
-  // is itself a no-op unless the local copy is actually stale.
+  // The local dish-catalog cache, read once on mount for every hall/café alike -- a real hall's
+  // sectionsByPeriod below now reads it too (alwaysAvailableSections' nutrition lookup), not just
+  // a café's resolveCafeMenuState. Fire-and-forget background refresh alongside it;
+  // refreshDishCatalogIfStale is itself a no-op unless the local copy is actually stale.
   useEffect(() => {
-    if (isRealHall) return;
     let current = true;
     getCachedDishCatalog().then((c) => {
       if (current) {
@@ -729,7 +732,7 @@ export function HallMenuScreenBody({
     return () => {
       current = false;
     };
-  }, [isRealHall]);
+  }, []);
 
   // The waterfall's own decision (resolveCafeMenuState, cafeMenu.ts) -- null while still
   // unresolved (real hall, ajax fetch still in flight, or the catalog read above hasn't settled),
@@ -1057,10 +1060,14 @@ export function HallMenuScreenBody({
       // moveSectionToFront's own doc for why this is needed at all (sortStationNames doesn't know
       // about the synthetic "Stress Test" category). A no-op when the section isn't present
       // (stressFixture unset, or hidden by the user's own allergen/diet-tag filters).
-      map.set(period, __DEV__ && stressFixture === "long-names" ? moveSectionToFront(sections, "Stress Test") : sections);
+      const withStress = __DEV__ && stressFixture === "long-names" ? moveSectionToFront(sections, "Stress Test") : sections;
+      // Always-available station tail (task 3/foodpro-menu-expansion, unlisted-station-logic
+      // annotation): fixed at the very end, identically in every meal-period tab -- appended
+      // after the stress-fixture reorder above so it stays last regardless.
+      map.set(period, [...withStress, ...alwaysAvailableSections(hall.tid, catalog, prefs, period)]);
     }
     return map;
-  }, [stationPriceFilteredItems, mealTabs, prefs, stressFixture]);
+  }, [stationPriceFilteredItems, mealTabs, prefs, stressFixture, hall.tid, catalog]);
   const grabSectionsMemo = useMemo(() => (grabItems ? grabSections(grabItems, prefs) : []), [grabItems, prefs]);
 
   // The station scrubber's own sections/list -- always whichever tab is actually selected, not
