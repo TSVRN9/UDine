@@ -38,6 +38,7 @@ Also present: `ambassador.umassdining.com` (separate login-related host, purpose
 | mobileapp.umassdining.com | GET/POST | `/umassapi2/public/favorite...` | `user_token` (assumed) | Favorites CRUD — see favorites system below. |
 | mobileapp.umassdining.com | GET/POST | `/umassapi2/public/preference...` | `user_token` (assumed) | User preferences (likely dietary/allergen selections — see below). |
 | onesignal.com | POST | `/api/v1/notifications` | OneSignal REST API key | **Push notifications confirmed via OneSignal**, not raw FCM. |
+| af-foodpro1.campus.ads.umass.edu | GET/POST | `/foodpro.net/{location,shortmenu,search,label}.aspx` | none | **CONFIRMED** (2026-09-13). CBORD's public Web INA nutrition-lookup tool — see its own section below for the full writeup (this is not linked from anywhere in the official app's own strings; found via `umassdining.com/nutrition/nutrient-analysis`). |
 
 ## Existing favorites / dietary system (found as JS action-name strings, not endpoints — but tells us the client-side data model)
 
@@ -95,7 +96,13 @@ GET https://www.umassdining.com/foodpro-menu-ajax?tid=<drupal_taxonomy_term_id>&
   `data-sugars[-dv]`, `data-protein[-dv]`, `data-allergens`, `data-ingredient-list`, `data-clean-diet-str`
   (e.g. "Halal, Local, Sustainable, Plant Based, Whole Grain"), `data-healthfulness`, `data-carbon-list`,
   `data-recipe-webcode`, `data-dish-name`. The link text is the display name; `data-dish-name` is the
-  canonical name to key on.
+  canonical name to key on. **Correction (2026-09-13):** an earlier version of this note treated
+  `data-recipe-webcode` as a candidate nutrition/ID field (its name suggests one). Live samples show
+  it's actually the diet/allergen **legend string** — space-separated codes like `"H VGN H4 CR1"`
+  (Halal, Vegan, Healthfulness=4, Carbon rating=1) or `"LPR SUS VGT H3 CR2"` (Local, Sustainable,
+  Vegetarian, Healthfulness=3, Carbon rating=2) — unrelated to the numeric ID printed on physical
+  nutrition cards. See the Web INA section below for what that numeric ID actually is and where it's
+  looked up.
 - Requesting a day with no live data returns `[]` (empty array) with HTTP 200 — not an error, and not
   `{}`. **Correction (2026-08-19):** an earlier note here guessed `[]` was the "malformed request" shape
   and `{}` the "no menu" shape; live probing valid `tid`+`date` pairs outside the data window (past dates,
@@ -114,6 +121,53 @@ GET https://www.umassdining.com/foodpro-menu-ajax?tid=<drupal_taxonomy_term_id>&
   same data-attribute format. `foodpro-menu-ajax` only fires client-side when switching days via the
   date picker. Either source (initial HTML scrape or the ajax endpoint with an explicit date) works;
   the ajax endpoint is more directly usable as an API since it returns clean JSON instead of a full page.
+
+## CBORD Web INA (public nutrition-lookup tool) — CONFIRMED (2026-09-13)
+
+The small printed code on UMass Dining's physical nutrition table-tents (e.g. Blue Cheese Crumbles:
+`181086 9.1.26`; Pumpkin Seeds: `186046`) is a **FoodPro `RecNum`** (recipe/item ID), and it's directly
+usable as a public lookup key against CBORD's "Web INA" (Ingredient/Nutrition Analysis) tool, which
+`umassdining.com/nutrition/nutrient-analysis` links to:
+
+- **Base:** `https://af-foodpro1.campus.ads.umass.edu/foodpro.net/` (128.119.167.180) — a plain
+  public IIS/.NET site, no auth, no API key.
+- `location.aspx` — lists ~50+ FoodPro `locationNum`s: the same 4 residential halls as
+  `foodpro-menu-ajax`'s `tid`s (01–04, same order) **plus** retail/café spots the `tid` system doesn't
+  reach at all (Whitmore Cafe=08, Worcester Cafe=13, Bluewall Grill=14, Bluewall Deli Delish=20,
+  Courtside Cafe=21, Bluewall Tavola=22, Harvest=23, and more).
+- `shortmenu.aspx?sName=%60&locationNum=NN&locationName=...&naFlag=1` — per-location menu. Needs a
+  session cookie primed by first hitting `location.aspx` (a cold direct fetch 500s without one).
+- `search.aspx` (POST, `Action=SEARCH&strCurKeywords=<name>`) — full-text dish search across every
+  location and future date. Each hit links to
+  `label.aspx?...&RecNumAndPort=<recnum>*<portion>`.
+- `label.aspx?locationNum=NN&locationName=...&dtdate=M%2fD%2fYYYY&RecNumAndPort=<recnum>*<portion>` —
+  the actual Nutrition Facts label. **Fully stateless and public** — verified from a completely fresh
+  cookie jar, no prior request needed.
+
+**Verified directly against the two physical-card examples:** searching "Pumpkin Seeds" returns
+`RecNumAndPort=186046*1/2` (Berkshire) — matches the card's `186046` exactly, and `label.aspx` for it
+reports Calories 71 / Total Fat 4.3g / Sodium 7.1mg / Protein 2.8g, identical to the same dish's
+`data-calories`/`data-total-fat`/etc. already served by `foodpro-menu-ajax`. Searching "Blue Cheese
+Crumbles" returns `RecNumAndPort=181086*1` (Harvest) — matches the card's `181086` exactly.
+
+The `9.1.26`-shaped date suffix on the Blue Cheese Crumbles card did **not** reproduce anywhere on the
+`label.aspx` page — no date field there. That part of the ID theory is unconfirmed; it's most likely a
+print-batch/verified-date stamp specific to whatever internal report template drives the physical
+table-tent printouts, not something this public tool exposes. Don't assume it's independently
+fetchable.
+
+**What this adds over `foodpro-menu-ajax`** (which already carries full macro nutrition per dish via
+`data-*` attributes for whatever's on the visible ~2-week menu): micronutrient %DV (calcium, iron,
+potassium, vitamin D — absent from the ajax feed's attributes), coverage of the ~50 retail/café
+`locationNum`s the 4-hall `tid` system can't reach, name-based search across dates outside the ajax
+feed's rolling window, and a stable numeric recipe ID that doesn't depend on matching display-name
+strings day to day. It does **not** beat the ajax feed for a dish already on today's/this-week's menu
+at one of the 4 halls — same nutrition data, just less of it per dish.
+
+Implementation-wise this is the same HTML-attribute/table scraping style as the existing
+`foodpro-menu-ajax` parser (`shared/src/umassDining.ts`) — no new technique needed. `shortmenu.aspx`
+needs a cookie jar primed by one prior `location.aspx` GET; `search.aspx`/`label.aspx` are stateless.
+No rate limiting or auth encountered across ~15 real requests during this research pass.
 
 ## Gaps / what we couldn't determine
 
