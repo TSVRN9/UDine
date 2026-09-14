@@ -390,6 +390,9 @@ verify_jwt = true
 [functions.populate-dishes]
 verify_jwt = true
 
+[functions.populate-retail-dishes]
+verify_jwt = true
+
 # Deliberately NOT gated by x-udine-cron-secret (unlike the three above) -- this one is meant to be
 # called by real anonymous end users. verify_jwt = true just requires *a* Supabase-signed JWT,
 # which the anon/publishable key already is; the actual anti-abuse control is the Postgres-backed
