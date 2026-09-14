@@ -103,6 +103,22 @@ export async function fetchHallMenu(hallTid: number, fetchImpl: typeof fetch = f
   }
 }
 
+/**
+ * Fetches every hall's menu concurrently instead of one at a time. Investigating the 2026-09-11
+ * `populate-dishes` staleness incident (docs/decisions-log.md) found this function dying with the
+ * identical shape: a bare Gateway Timeout / EDGE_FUNCTION_ERROR (no application console.error, i.e.
+ * the runtime was killed mid-flight, not our own code throwing) on runs that took 9s+, while a
+ * healthy run finished in ~5s -- correlated with, but not conclusively identified as caused by, the
+ * 4 sequential `await fetchHallMenu()` calls against umassdining.com (an external, sometimes-slow
+ * site). The specific platform limit being hit was never pinned down in `function_logs`.
+ * Parallelizing the 4 halls cuts worst-case wall time roughly 4x regardless of the exact mechanism;
+ * same change applied to populate-dishes/index.ts's identical sequential-per-hall loop.
+ */
+export async function fetchAllHallMenus(hallTids: number[], fetchImpl: typeof fetch = fetch): Promise<Map<number, Map<string, string>>> {
+  const entries = await Promise.all(hallTids.map(async (tid) => [tid, await fetchHallMenu(tid, fetchImpl)] as const));
+  return new Map(entries);
+}
+
 const MEAL_LABELS: Record<string, string> = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", latenight: "late night" };
 
 /** get_infov2 has no latenight fields at all (see _shared/hours.ts's own doc comment), so only
@@ -160,10 +176,7 @@ Deno.serve(async (req) => {
 
   const isoDate = todayIsoDate();
 
-  const hallDishes = new Map<number, Map<string, string>>();
-  for (const tid of HALL_TIDS) {
-    hallDishes.set(tid, await fetchHallMenu(tid));
-  }
+  const hallDishes = await fetchAllHallMenus(HALL_TIDS);
   const hallHours = await fetchHallHours();
 
   const { data: userIds, error: profilesError } = await fetchEnabledUserIds(supabase);
