@@ -64,9 +64,20 @@ fi
 # --- rendered output -----------------------------------------------------------------
 # A .tsx whose diff is only comments/blank lines did not change rendered output.
 RENDERED=()
+# Buffer each diff into a variable before grepping it -- a live pipe from `git diff` straight
+# into a `grep -q` (which exits the instant it finds a match) can SIGPIPE the still-writing
+# upstream `git diff`/`grep -E` under `set -o pipefail`; observed as a genuine flaky RENDERED
+# result live 2026-09-14 (PR #476 review) -- one early run under-detected the changed-file set.
+# A here-string feeds an already-fully-buffered value, not a live subprocess, so there is nothing
+# left running upstream for a short-circuiting grep to SIGPIPE.
 for f in $(printf '%s\n' "${FILES[@]}" | grep -E '^mobile/src/.*\.tsx$|^mobile/src/lib/motion\.ts$' | grep -Ev '\.test\.tsx?$' | sort -u); do
-  if git diff "$BASE" "$HEAD_REF" -- "$f" | grep -E '^[-+][^-+]' | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then RENDERED+=("$f")
-  elif [[ -z "$PR" ]] && git diff -- "$f" | grep -E '^[-+][^-+]' | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then RENDERED+=("$f"); fi
+  base_diff="$(git diff "$BASE" "$HEAD_REF" -- "$f")"
+  if grep -E '^[-+][^-+]' <<<"$base_diff" | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then
+    RENDERED+=("$f")
+  elif [[ -z "$PR" ]]; then
+    local_diff="$(git diff -- "$f")"
+    if grep -E '^[-+][^-+]' <<<"$local_diff" | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then RENDERED+=("$f"); fi
+  fi
 done
 if [[ ${#RENDERED[@]} -gt 0 ]]; then
   echo "Rendered output changed:"; printf '  %s\n' "${RENDERED[@]}"
