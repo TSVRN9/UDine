@@ -11,6 +11,10 @@ import path from "node:path";
 
 const SOURCE_PATH = path.join(__dirname, "..", "app", "halls", "[slug].tsx");
 const source = fs.readFileSync(SOURCE_PATH, "utf8");
+// PlateAddControl (the in-plate stepper clip this file's last test pins) moved out of [slug].tsx
+// into its own file (foodpro-menu-expansion brief, task 2) -- see hallMenuStyleParity.test.ts's
+// identical PLATE_ADD_CONTROL_SOURCE_PATH for why.
+const plateAddControlSource = fs.readFileSync(path.join(__dirname, "..", "components", "PlateAddControl.tsx"), "utf8");
 
 describe("halls/[slug].tsx layout/entrance animations read motion tokens, not literals", () => {
   it("dish row LinearTransition uses durations.rowLayout", () => {
@@ -33,7 +37,7 @@ describe("halls/[slug].tsx layout/entrance animations read motion tokens, not li
   });
 
   it("the in-plate stepper clip's grow uses durations.servingsPill, not a bare 180", () => {
-    expect(source).toMatch(/widthProgress\.value = withTiming\(inPlate \? 1 : 0, \{ duration: durations\.servingsPill \}\);/);
+    expect(plateAddControlSource).toMatch(/widthProgress\.value = withTiming\(inPlate \? 1 : 0, \{ duration: durations\.servingsPill \}\);/);
   });
 
   it("imports durations from lib/motion", () => {
