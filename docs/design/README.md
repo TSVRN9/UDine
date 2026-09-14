@@ -40,7 +40,7 @@ needed. That is the default parity check for a UI diff.
 For layout and motion, render it: `mobile/scripts/screenshot.sh <route>` gives a
 PNG from the emulator pool in one command (`--record N` plus `--tap`/`--swipe`/
 `--longpress` gives an MP4 and 10fps frames); put it beside the artboard, or
-beside the canvas URL above in a browser for the 31 artboards whose `DCLogic`
+beside the canvas URL above in a browser for the 28 artboards whose `DCLogic`
 scripts (non-default states, motion) only run there. `Agent_Emulator_Narrow`
 (360dp) is the default device and the closest to the 390dp artboard; the pool's
 swangle / `--device` / stale-Metro rules are in `docs/agents/emulator-pool.md`

@@ -35,7 +35,7 @@ const SEARCH_PAGE_SIZE = 20;
 // ever spends a network round-trip fetching another page from an exhausted source.
 const VISIBLE_RESULTS = 5;
 
-// Dev-only stress fixture for runDirectLookup's "hit" branch (docs/agents/dev-tracks.md's UI check
+// Dev-only stress fixture for runDirectLookup's "hit" branch (.claude/agents/pr-reviewer.md's UI check
 // + mobile/scripts/screenshot.sh's --stress flag), mirroring halls/[slug].tsx's
 // stressFixtureItems/`?stress=` pattern. lookup-dish isn't deployed yet, so a real multi-candidate
 // hit can't be triggered over the network for a screenshot -- this fakes lookupDishLive's return

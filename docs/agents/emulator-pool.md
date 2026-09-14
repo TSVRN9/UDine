@@ -151,7 +151,7 @@ no holder process but also leaves no fresh app install, and that pair is the rel
 
 **`/tmp` is tmpfs on this host** — this document and every lock directory vanish on reboot. The
 locks disappearing is harmless (a fresh boot has no emulators running anyway); losing this doc is
-not. Worth mirroring into `docs/agents/` in the repo if the pool outlives this session.
+not.
 
 ## Targeting a specific device — required
 
@@ -419,7 +419,7 @@ not a runtime preference an agent can casually clear.
    Don't rationalize it as "the emulator is just showing something stale" — go verify via the dev
    menu instead of proceeding.
 
-## `uiautomator dump` sees no RN content on the current dev client — `--wait-for` always times out (2026-09-12)
+## `uiautomator dump` seemed to see no RN content — `--wait-for` timeouts (2026-09-12, RESOLVED: Metro contention, not an a11y gap)
 
 Seen live on `Agent_Emulator_Narrow` with a dev client built that evening from `main` (1a2af49):
 with the Worcester hall menu fully rendered on screen (verified by `screencap`), `uiautomator dump`
