@@ -209,6 +209,28 @@ research pass (2026-09-13) — be a polite scraper anyway, this is UMass IT infr
 See `docs/decisions-log.md` → "Web INA: mirror vs. on-demand, and the `populate-dishes` cron"
 (2026-09-13) for the architecture evaluation this research fed into.
 
+**Follow-up, confirmed live during implementation (2026-09-14) -- see `docs/decisions-log.md`'s
+`populate-retail-dishes` entry for the full writeup:**
+- `longmenu.aspx` takes a `mealName` query param -- exactly `Breakfast`, `Lunch`, `Dinner`, or
+  `Late Night` (literal space, exact casing). This is the meal-period selector this section's
+  "Caveat" paragraph above flagged as unisolated -- found and confirmed. Omitting it silently
+  defaults to a single period (not reliably "today's current period" -- default counts varied
+  unpredictably by location), so it must always be passed explicitly; one `longmenu.aspx` request
+  per (location, meal period) is the real unit of work, i.e. 4 requests per location per day, not 1.
+  `mealName=All` is invalid (0 results). `WeeksMenus=` was tested and has no effect on scope.
+- No bulk `RecNum` enumeration shortcut exists: no sitemap/export endpoint, and `search.aspx`
+  can't be repurposed as a wildcard scan either (an empty query returns "No Result", a single-
+  character query 500s). `longmenu.aspx` walked per (location, meal period) remains the only known
+  bulk-discovery mechanism.
+- `label.aspx`'s Nutrition Facts table markup, precisely: every field except Calories/Calories from
+  Fat is two adjacent `<font>` tags -- `<font ...>(?:<b>)?Label&nbsp;(?:</b>)?</font><font
+  ...>Value</font>` (the label tag may or may not be bold, and may carry leading `&nbsp;` padding,
+  e.g. "Sat. Fat"). Calories and Calories from Fat are inline in one tag instead:
+  `<b>Calories&nbsp;348</b>` / `Calories from Fat&nbsp;2` (no separate value tag). Allergens are a
+  distinct `<span class="labelallergensvalue">Milk, Gluten, ...</span>` line elsewhere on the page.
+  No diet-tag equivalent (nothing matching `foodpro-menu-ajax`'s Local/Vegetarian/Sustainable-style
+  tags) was found anywhere on this page.
+
 ## Gaps / what we couldn't determine
 
 - **POST bodies** for the `mobileapp.umassdining.com/umassapi2/public/...` account endpoints — out of

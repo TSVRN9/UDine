@@ -696,6 +696,212 @@ this evaluation (out of the scope that was asked for); flagged for a follow-up M
 touches `supabase/functions/populate-dishes`) to add explicit alerting/logging when a run upserts
 zero rows, and to check whether last night's specific outage was `umassdining.com`-side or something
 in the function/cron plumbing itself.
+
+## `populate-retail-dishes`: retail/café coverage via Web INA (2026-09-14)
+
+Follow-up to "Web INA: mirror vs. on-demand" above, implementing that entry's option 2: a new,
+separate weekly Edge Function (`supabase/functions/populate-retail-dishes`, scheduled by
+`20260914120000_schedule_populate_retail_dishes.sql`) that feeds the 24 retail/café FoodPro
+locations (Bluewall Grill, Harvest, the various Cafes, etc.) into the SAME `public.dishes` table
+`populate-dishes` already writes -- no schema change. Deliberately a sibling function, not a change
+to `populate-dishes` itself: different cadence (weekly vs. daily -- retail menus barely change week
+to week), and `populate-dishes` was mid-fix for an unrelated cron-double-invocation bug in a
+parallel task at the time this was built.
+
+**The gap this closes, confirmed live:** `mobile/src/lib/cafeMenu.ts`'s standing-menu path
+(`resolveCafeMenuState` -> `parseRetailMenuHtml` -> `matchStandingMenuItem`) looks up each retail
+dish's nutrition in the LOCAL client cache of `public.dishes`, which before this change only ever
+held the 4 halls' dishes -- a retail-exclusive item (never served at any hall) could never match, no
+matter how often the daily cron ran. Traced the full path with no code changes needed on the client
+side: `matchStandingMenuItem` calls `dishCatalog.ts`'s `searchCachedDishes` against the locally
+synced `CachedDishCatalog`; that cache is populated by `refreshDishCatalogIfStale`, which calls
+`shared/src/dishes.ts`'s `fetchDishCatalog` -- whose `select("dish_name, nutrition, allergens,
+diet_tags, updated_at")` doesn't reference `last_seen_hall_tid` at all, so a retail dish's synthetic
+negative hallTid (see below) is invisible to the client and the existing match-by-name logic picks
+up a newly-inserted retail row automatically once the client's cache next syncs.
+
+**Endpoint mechanics, confirmed/refined live 2026-09-14 (sharpens
+`docs/apk-reverse-engineering.md`'s "FoodPro Web INA" section, see that file for the updates):**
+- `longmenu.aspx` takes a `mealName` param (`Breakfast`, `Lunch`, `Dinner`, `Late Night` -- exact
+  casing, "Late Night" has a literal space). Omitting it silently defaults to one period only (NOT
+  necessarily "today's current period" -- observed inconsistent per-location default behavior) --
+  always pass it explicitly. `mealName=All` is invalid (0 results). `WeeksMenus=` has no effect on
+  scope, per a parallel research pass this session.
+- No bulk-enumeration shortcut exists for `RecNum`s (no sitemap/export endpoint; `search.aspx`
+  can't be used as a wildcard scan either -- empty query is "No Result", single-char is a 500).
+  `longmenu.aspx` per (location, meal period) is the only viable bulk-discovery path.
+- Measured live: 24 retail locations x 4 meal periods = 96 `longmenu.aspx` requests, ~45s wall time,
+  surfacing 394 unique dish names (415 unique `RecNum`s -- some names repeat across locations under
+  different per-location recipes, confirming the "RecNum is per-hall-recipe, not global" finding).
+  Of those 394, 63 collided by exact name with an existing (hall-sourced) `public.dishes` row at
+  evaluation time; the remaining ~331 were genuinely new.
+- `label.aspx`'s Nutrition Facts table markup: most fields are two adjacent `<font>` tags --
+  `<label>&nbsp;(</b>)?</font><font ...>value</font>` -- except Calories and Calories from Fat,
+  which are inline in one tag (`<b>Calories&nbsp;348</b>`). Allergens are a separate
+  `<span class="labelallergensvalue">Milk, Gluten, ...</span>` line. No diet-tag equivalent exists
+  on this page (unlike `foodpro-menu-ajax`'s `data-clean-diet-str`) -- retail dishes' `diet_tags`
+  column is always empty.
+- `longmenu.aspx` (unlike `label.aspx`) needs a session cookie primed by one prior `location.aspx`
+  GET -- confirmed live that replaying `location.aspx`'s `Set-Cookie` values verbatim as a `Cookie`
+  header (dropping each cookie's own attributes) is sufficient; a cold direct fetch 500s.
+
+**Deliberate design choices, not oversights:**
+- A skip-list (`fetchExistingDishNames`) means a `label.aspx` fetch is only ever spent on a dish
+  name not already in `public.dishes`. Since the table dedupes globally by `dish_name` and
+  `populate-dishes` runs DAILY, a retail dish whose name collides with a hall dish (common --
+  "Cheeseburger", "Cheese Pizza", both observed live) will keep losing that name back to the hall's
+  own nutrition every morning regardless of what this weekly job ever wrote, and this skip-list
+  means the weekly job won't try to re-win it either. Accepted: the gap being fixed is
+  retail-EXCLUSIVE dishes, which don't collide by construction.
+- `MAX_LABEL_FETCHES_PER_RUN` (originally 100, **superseded to 50 -- see the "corrected timing"
+  follow-up further down this entry**) bounds one invocation's `label.aspx` fetch count (and
+  therefore its wall-clock time) well under the Edge Function platform's own execution limit -- a
+  limit `timeout_milliseconds` in the scheduling migration does NOT control (that setting only bounds
+  how long `pg_net` waits for a response). Any genuinely-new dish beyond the cap is simply still
+  absent from `public.dishes`, so it's picked up by next week's run -- self-healing with no
+  cross-invocation state, converging over ~4 weekly runs at the original 100-per-run cap (~7 at the
+  current 50-per-run cap) for the ~331-dish initial backlog (measured above) and staying near-zero
+  afterward.
+- `last_seen_hall_tid` for a retail dish is `-locationNum` (e.g. Bluewall Grill = 14 -> -14) --
+  reusing `public.dishes.last_seen_hall_tid`'s existing plain-nullable-int-no-constraint shape
+  (`20260905120000_create_dishes_table.sql`) rather than a new column/table. Simpler than
+  `mobile/src/lib/cafeMenu.ts`'s `syntheticHallTidForName` hash (that one exists because a
+  locationId-less café has no stable id at all to negate; FoodPro's `locationNum` already is one).
+- `location.aspx`/zero-parsed-locations failures return a real error (502), unlike `populate-dishes`'
+  known "all-halls-fail degrades to a silent 200" gap (flagged, unfixed, above) -- an inability to
+  even discover what to crawl is unambiguous breakage, not a quiet "nothing new this week".
+
+**Verified against live data (2026-09-14), two different retail locations so the parser isn't
+validated against one page's quirks:** Bluewall Grill's Cheeseburger (`RecNumAndPort=060125*1`) --
+348 cal / 17.9g fat / 64.1mg cholesterol / 23.7g protein / allergens Milk, Gluten, Soy, Corn, Sesame,
+Wheat. Harvest's African Soul Rice Salad (`RecNumAndPort=184625*4`) -- 172 cal / 6.2g fat / 3.4g
+protein / 155.1mg sodium / allergens Gluten, Soy, Wheat. Neither dish name existed in `public.dishes`
+at evaluation time (confirmed via a live query), so both are genuine examples of the gap this closes.
+Both pinned as real, trimmed (not paraphrased) fixtures in
+`supabase/functions/populate-retail-dishes/parser.test.ts`.
+
+**Verification:** `deno test --node-modules-dir=none --allow-env supabase/functions` (83 tests,
+including 13 new ones, all passing; each of the 3 regex-based parsers mutation-tested by hand --
+breaking the label-pair regex and the longmenu row regex each turned the corresponding tests red,
+confirmed, then reverted). `supabase test db` (317 pgTAP tests including 4 new ones pinning the new
+cron job's schedule/header/timeout shape -- mutation-tested the same way: stripping the secret
+header, changing the schedule, and changing the timeout each independently turned the matching
+assertion red against a live local Postgres, confirmed, then `supabase db reset` restored a clean
+baseline). No new table/policy/grant was needed -- `public.dishes` already grants
+`insert, update, delete` to `service_role` from `20260905120000_create_dishes_table.sql`, which
+`populate-retail-dishes` reuses exactly as `populate-dishes` does.
+
+**Follow-up: both crawl phases parallelized with a bounded pool (pr-reviewer finding on PR #468,
+2026-09-14).** Both loops above -- discovery's 96 `longmenu.aspx` requests and up to
+`MAX_LABEL_FETCHES_PER_RUN` (100) `label.aspx` requests -- were plain `for (...) { await fetch(...);
+await sleep(REQUEST_DELAY_MS) }` loops, zero concurrency, with rows written only in the single
+`upsert` at the very end of both. This is the identical shape just diagnosed on
+`fix/cron-sequential-fetch-timeout` (PR #469): `populate-dishes`/`check-favorited-foods` died to
+platform Gateway Timeout/`EDGE_FUNCTION_ERROR` kills with only 4 sequential fetches taking 9-14s
+each, and discovery's 96 fetches here were already measured (above) at ~45s -- well past that wall
+-- with 100% of a run's discovered data silently lost on a mid-flight kill (fire-and-forget
+`net.http_post` cron means `cron.job_run_details` still reports "succeeded"). Fixed with a bounded
+worker pool (`runPool`, `CRAWL_CONCURRENCY = 6` lanes) rather than the sibling fix's full
+`Promise.all` fan-out -- that sibling only ever had 4 items (one per hall); firing all 96-100
+requests at once here would be rude to `af-foodpro1.campus.ads.umass.edu` for no real benefit over a
+handful of concurrent lanes. `REQUEST_DELAY_MS` now throttles each lane's own pace instead of
+serializing the whole crawl through one lane. Both phases extracted into pure, testable functions
+(`discoverAllDishes`, `fetchAllLabels`, mirroring the sibling fix's `fetchAllHallDishes` shape) so
+the pool logic is covered without a real network call --
+`supabase/functions/populate-retail-dishes/concurrency.test.ts`, 2 new tests (a generic `runPool`
+concurrency-cap test, and a gate-based `discoverAllDishes` test proving it neither serializes nor
+exceeds its cap), both mutation-tested by hand (forcing the pool down to 1 lane turned both red --
+"pool ran fully sequential" / gate timeout -- confirmed, then reverted).
+Incremental writes (upserting as each phase completes rather than only once at the very end) were
+considered and deliberately skipped: the risk this closes is wall-clock proximity to the platform's
+kill threshold, and the pool fix already addresses that head-on, not just indirectly -- see the
+measurement below. Restructuring to partial/incremental persistence would be a materially bigger
+diff for a run that's no longer anywhere near the danger zone.
+One side effect of pooling, not a correctness change: "first-seen-wins" on a same-name collision
+across locations/meal-periods is now completion-order, not list-order, so a colliding dish name's
+`last_seen_hall_tid` (which retail location "wins" it) may flip between weekly runs where it
+previously wouldn't have. `shared/src/dishes.ts`'s `fetchDishCatalog` doesn't select
+`last_seen_hall_tid` at all, so nothing client-visible depends on it being stable.
+**Measured live 2026-09-14, same box/session, varying only `concurrency`, both orderings run to rule
+out a warm-server-state confound:** discovery (96 `longmenu.aspx` requests, 394 unique dishes
+discovered every time) took 19.4s at concurrency=1 then 4.4s at concurrency=6 on the first pass;
+running the pair in reverse order (concurrency=6 first) gave 4.7s then 18.5s -- consistent either
+way, ruling out "second call benefits from a warmed connection/cache" as the explanation. So: ~19s
+sequential vs. ~4.5s at 6 lanes, a ~4.2x speedup matching the pool width.
+~~Originally concluded from this: "today's network conditions (lower than the original ~45s
+measurement above; day-to-day variance against a live external site) put this well clear of the
+9-14s range where the sibling functions started dying."~~ **That conclusion was wrong -- it only
+measured `discoverAllDishes` alone, half the crawl. Corrected below (2026-09-14, second review
+round).**
+
+**Correction: honest full-crawl timing, and the batched-upsert fix (pr-reviewer's second-round
+finding on PR #468, 2026-09-14).** The "well clear of the danger zone" line above generalized from
+discovery alone; a reviewer independently re-measured the FULL crawl -- `discoverAllDishes` +
+`fetchAllLabels` together, the actual initial-backlog-clearing worst case (`MAX_LABEL_FETCHES_PER_RUN`
+label.aspx fetches on top of the 96 longmenu.aspx ones) -- against the live server and got ~8.7-8.8s
+consistently: right at the floor of the platform's observed failure zone (one known-good sample at
+4.8s; all observed failures at 9.1-13.8s), not comfortably clear of it. Verdict was not a rejection of
+the pooling approach (still sound, still mutation-tested, no race condition) but blocked pending either
+a corrected timing claim or the label-cap/incremental-upsert mitigation.
+
+Re-measured live 2026-09-14 with the actual exported functions (`discoverAllDishes` +
+`fetchAllLabels`) against `af-foodpro1.campus.ads.umass.edu`, timing discovery and label-fetch
+together end to end (location.aspx priming fetch timed separately, excluded from the two crawl-phase
+numbers below):
+
+| Scenario | locationFetch | discovery | label-fetch | **total** |
+|---|---|---|---|---|
+| Old cap=100, run 1 | 630ms | 4.64s | 3.51s | **8.78s** |
+| Old cap=100, run 2 | 513ms | 4.74s | 3.42s | **8.67s** |
+| New cap=50 (candidate) | 554ms | 4.38s | 1.87s | **6.80s** |
+| cap=40 (rejected, see below) | 512ms | 4.68s | 1.48s | **6.67s** |
+| Steady-state approx. (cap=5, few new dishes/week) | 517ms | 4.42s | 0.18s | **5.12s** |
+
+This confirms the second review's number almost exactly (8.7-8.8s at the old cap=100, reproducible
+across runs) and shows the full-crawl worst case really was sitting right at the floor of the observed
+9.1-13.8s failure zone -- discovery's own ~4.4-4.7s (the number the original claim relied on) is only
+about half the actual worst-case wall time; the label-fetch phase adds another 3.4-3.5s at cap=100.
+
+Two changes made, per the reviewer's suggested mitigations, both applied (not either/or):
+1. **`MAX_LABEL_FETCHES_PER_RUN` lowered 100 -> 50.** Belt-and-suspenders, not the primary fix --
+   only reduces the odds of a mid-run kill landing in the risky window, doesn't remove the
+   consequence if one does. Measured ~6.80s, ~2s of margin below the observed failure floor. Tried
+   40 too (~6.67s) but the extra margin over 50 was marginal (~0.1s) for a real cost -- backlog
+   convergence for the ~331-dish initial backlog goes from ~4 weekly runs (at 100) to ~7 (at 50) to
+   ~9 (at 40); 50 was the better trade-off. Steady-state (near-zero new dishes/week, the long-run
+   normal case) is ~5.1s regardless of the cap, since it's dominated by discovery, not label-fetch.
+2. **Batched upsert (the fix that actually closes the "lose everything" risk).** `fetchAllLabels`
+   now calls `upsertBatch` every `UPSERT_BATCH_SIZE` (25) completed rows as they land, instead of the
+   caller collecting all ~50 rows and upserting once after the function returns. A platform kill
+   mid-run during the risky backlog-clearing window now loses at most one batch (up to 25 dishes'
+   worth of `label.aspx` fetches), not the entire run's discoveries -- this holds regardless of
+   whether the real platform timeout threshold is 9s, 14s, or something never pinned down precisely.
+   Accumulation (push + length-check + splice) happens with no `await` in between, so it's race-free
+   across `runPool`'s concurrent lanes despite the shared array -- JS's single-threaded event loop
+   can't interleave two lanes inside that synchronous stretch. An `upsertBatch` failure (a real DB
+   error, as opposed to one `label.aspx` fetch failing) is NOT swallowed -- it propagates out of
+   `runPool` so `Deno.serve`'s own try/catch still turns it into a 500, matching the old
+   all-at-once-upsert's error behavior. One behavioral difference worth flagging for whoever debugs
+   this next: the OLD code's 500 meant zero rows written (one upsert, all-or-nothing); the NEW code's
+   500 can follow one or more earlier batches that already committed successfully -- a 500 no longer
+   implies "nothing landed." That's the intended trade (partial progress on a mid-run kill is the
+   whole point of batching), not a regression; `newDishesUpserted` in the 200-path response has no
+   analogue on the error path, but nothing reads that response body anyway (cron is fire-and-forget),
+   so this isn't worth extending the error response to report a partial count -- just don't assume a
+   500 here means an empty run.
+**Verification:** `deno test --node-modules-dir=none --allow-env supabase/functions/populate-retail-dishes/`
+(17 tests, all passing, up from 16 -- a new `fetchAllLabels` test asserting the batch cadence itself:
+30 stubbed entries at batch size 25 must produce >1 upsert call, each <=25 rows, summing to 30;
+mutation-tested by hand -- disabling the batch-flush trigger collapsed it back to a single 30-row
+call, turning the assertion red ("expected multiple incremental upsert calls... got 1 call(s): [30]"),
+confirmed, then reverted). Full suite: `deno test --node-modules-dir=none --allow-env
+supabase/functions/` -- 82 tests, all passing. `grep -rn "discoverAllDishes\|fetchAllLabels\|runPool"
+--include=*.ts .` from the repo root turns up only this function's own index.ts and its test file --
+Deno Edge Functions are independently deployed, so nothing else could have called these anyway.
+`supabase test db` not re-run for this follow-up either: `git diff --stat -- supabase/migrations
+supabase/tests` against it is empty (no SQL touched), so the 317-test baseline from the entry above
+stands unaffected.
+
 ## `populate-dishes` staleness follow-up: correlated with per-hall fetch latency, not the zero-row guard (2026-09-14)
 
 Follow-up to the 2026-09-13 entry above. The zero-row-guard hypothesis in that entry turned out to be
