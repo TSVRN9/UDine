@@ -696,3 +696,147 @@ this evaluation (out of the scope that was asked for); flagged for a follow-up M
 touches `supabase/functions/populate-dishes`) to add explicit alerting/logging when a run upserts
 zero rows, and to check whether last night's specific outage was `umassdining.com`-side or something
 in the function/cron plumbing itself.
+
+## `lookup-dish`: on-demand Web INA lookup + rate limit (2026-09-14)
+
+Implements the "on-demand" half of the "Web INA: mirror vs. on-demand" decision above: a new Edge
+Function, `supabase/functions/lookup-dish`, that a mobile client calls when its merged plate search
+comes up empty on UMass results for a typed dish name. Unlike `populate-dishes`/
+`populate-retail-dishes`/`check-favorited-foods`, this function is deliberately **not** gated by
+`_shared/cronAuth.ts`'s `x-udine-cron-secret` -- it exists specifically to be called by real
+anonymous end users (CLAUDE.md: "menus, nutrition... work with zero account"). `verify_jwt = true`
+(the anon/publishable key) is the only HTTP-layer gate; the real protection is the Postgres-backed
+rate limit below.
+
+**Flow, in order:** (1) check `public.dishes` for an existing name match -- free, no FoodPro
+round-trip; (2) check a negative cache (`dish_lookup_misses`, 15-minute TTL) so a typo/garbage
+retry doesn't re-spend budget; (3) try to claim an in-flight coalescing row
+(`dish_lookup_inflight`, insert-if-absent via a PostgREST ignore-duplicates upsert, 30s TTL) so two
+near-simultaneous searches for the same name don't both hit FoodPro -- the loser polls
+`public.dishes` briefly (3 x 400ms) for the winner's write instead of independently fetching; (4)
+atomically increment + check the global hourly budget **before any outbound HTTP call** -- if
+exhausted, an honest `{status: "rate_limited"}` response, never a silent fall-through; (5) only
+then: `location.aspx` (session cookie) -> `search.aspx` (candidates, filtered to an exact
+case-insensitive name match and deduped by `RecNum` -- `search.aspx` is a substring match and the
+same recipe recurs across many result rows) -> up to 3 `label.aspx` fetches for real nutrition.
+Found dishes upsert into `public.dishes` (reusing `populate-dishes`' `DishNutrition` row shape); a
+real hall (`locationNum` 1-4) keeps its own `hallTid`, matching `populate-dishes`' own tid scheme,
+and anything else is negated (`-locationNum`) -- independently re-deriving the same convention
+`populate-retail-dishes` established for retail locations (that function's own file isn't reachable
+from a Deno Edge Function without executing its top-level `Deno.serve()`, so this is deliberate,
+verified-consistent duplication, not an import). A genuine miss (FoodPro has nothing for the exact
+name either) is negative-cached; a hit's candidates are returned to the client, capped at 3, each
+tagged with a human location name so the client can disambiguate a name served at more than one
+FoodPro location (`search.aspx` is per-hall-recipe, not a global dish ID -- see the "Web INA: mirror
+vs. on-demand" entry above; "Bacon" resolved to 6 distinct `RecNum`s across 2 halls in this
+session's own live research).
+
+**The rate-limit cap: 20/hour, global, not per-user.** New migration
+`20260914140000_lookup_dish_rate_limit.sql` adds four service-role-only tables (RLS enabled, zero
+policies, every anon/authenticated grant explicitly revoked) -- `dish_lookup_config` (a singleton
+row holding the tunable `hourly_cap`, boolean-PK-plus-check-constraint trick), `dish_lookup_rate_limit`
+(one row per UTC hour bucket, atomically bumped by a new `increment_dish_lookup_count()` SQL
+function -- a plain PostgREST upsert can't express `count = count + 1`, so this needed the function),
+`dish_lookup_misses`, and `dish_lookup_inflight`. What this actually protects is **UMass's own
+FoodPro server** (`af-foodpro1.campus.ads.umass.edu`), not Supabase's Free-tier caps (500k Edge
+Function invocations/month, 5GB egress/month, 500MB DB -- this feature's footprint against those is
+trivially small for occasional manual lookups at UMass scale). One live lookup costs up to 5 FoodPro
+requests (1 `location.aspx` + 1 `search.aspx` + up to 3 `label.aspx`), so a cap of 20/hour bounds
+this feature to at most ~100 FoodPro requests/hour -- comfortably under `populate-retail-dishes`'
+own single-run total of ~196 requests, and spread across an hour rather than fired in one burst.
+Deliberately a GLOBAL budget, not per-user or per-IP: there's no stable anonymous identity to scope
+a per-user quota against in an anonymous-first app, so a single conservative global cap is the
+right level of effort -- not a speculative per-account/per-IP scheme nothing else in this app has.
+The cap lives in a plain tunable table (`update public.dish_lookup_config set hourly_cap = <n>;`),
+not a literal buried in the function, so the owner can retune it later without a redeploy; **worth
+revisiting once this ships and real usage is observed** -- 20/hour is a reasoned starting guess
+grounded in the request-count arithmetic above, not a measured number.
+
+**A "revoke ... from public" gotcha, caught live while writing this migration's pgTAP test:** a
+bare `revoke execute on function ... from public` does NOT block `anon`/`authenticated` on a new
+function in this local/cloud setup -- they each hold their own separate, explicit EXECUTE grant on
+every new function (not merely inherited from the PUBLIC pseudo-role), so the revoke must name them
+explicitly too (`from anon, authenticated, public`), matching this project's own existing house
+style in e.g. `20260817220100_revoke_handle_new_user_execute.sql`. Confirmed live against the local
+stack: the first version of `increment_dish_lookup_count()`'s revoke (public-only) left `anon`
+still able to call it; fixed and reconfirmed denied.
+
+**Client integration (mobile only -- web has no "search for something not on the menu" flow at
+all today):** `mobile/src/lib/lookupDish.ts` (`lookupDishLive`, `labelLookupCandidate`) plus a
+manual (never automatic -- that would defeat the rate limit) "Search UMass Dining directly" row in
+`PlateSheet.tsx`'s merged search, shown only once the existing 5-source merged search has come up
+short on a UMass result. A hit merges straight into the existing results list as ordinary
+`kind: "umass"` `PlateSearchResult` rows (same badge/detail path as every other source, no new UI
+chrome); a candidate whose name collides with another candidate in the same response gets its
+location appended (`"Bacon (Worcester Dining Commons)"`) so the two stay distinguishable, including
+once logged. A miss or a rate-limited response renders a plain, honest state ("UMass Dining doesn't
+have this dish either" / "UMass Dining lookup is busy right now. Try again in a bit.") -- not a
+crash, not a silent no-op, and the affordance stays available for a retry in both cases.
+
+**Independent review before merge caught two real bugs and two smaller gaps, all fixed here (not
+left for a follow-up):**
+1. `runDirectLookup` originally staged a merged hit's plate/log entry with the *candidate's own*
+   `hallTid` (a real different hall, or a negative synthetic retail tid) instead of the
+   currently-browsed hall -- exactly the cross-hall misattribution the catalog-search path's own
+   Props doc comment already warns hall-completion/favorite-hall server sync against. Fixed to
+   always stage the browsed `hallTid`; the candidate's own hallTid is still used for the
+   `public.dishes` upsert server-side, just never reaches the client's plate/log pipeline. New
+   regression test uses a deliberately-mismatched candidate hallTid (`-14`) to catch a regression.
+2. `fetchFoodProCandidates` returning `[]` conflated two different situations: search.aspx finding
+   nothing (a real miss) vs. finding hits but every `label.aspx` fetch failing (transient). The
+   original code negative-cached both, so a flaky upstream fetch could poison the 15-minute
+   negative cache with "this dish doesn't exist" for a dish that's actually there. Fixed by having
+   `fetchFoodProCandidates` return `{candidates, searchHitCount}` and only calling `recordMiss`
+   when `searchHitCount === 0`.
+3. The follower poll window (coalescing concurrent identical lookups) was 3 x 400ms = 1.2s against
+   a leader whose own worst-case latency (cookie prime + search + up to 3 label.aspx fetches, no
+   artificial delay) is multiple seconds -- the follower would essentially always time out and
+   report `in_progress` without ever actually catching the leader's write. Widened to 10 x 500ms =
+   5s, sized to genuinely cover that latency, not just poll a token few times.
+4. `checkCatalogHit`'s `ilike` call used the raw user query as the pattern, so a query containing
+   `%`/`_` could match an unrelated dish name as a false "cache hit" before any rate-limit check.
+   Added `escapeLikePattern` so ilike is always a literal case-insensitive equality check.
+
+`claimInflight`'s core assumption (a PostgREST ignore-duplicates upsert returns the row on a fresh
+insert and an empty array on a real conflict) was previously only asserted against a stub, not
+verified against real PostgREST -- confirmed live against the local stack via two raw REST calls
+with the same `Prefer: resolution=ignore-duplicates` header supabase-js sends: first claim on a
+fresh `query_key` returned the inserted row (201, 1 row), the second returned `[]` (201, 0 rows,
+`claimed_at` unchanged) -- the leader/follower split behaves exactly as `claimInflight` assumes.
+
+**Verification:** `deno test --node-modules-dir=none --allow-env supabase/functions` (94 tests, 29
+new, all passing) covering every parser (`parseSearchHits`, `extractRecNum`/`extractLocationNum`/
+`extractLocationName`, `selectCandidateHits`'s exact-match-filter + RecNum-dedup + cap,
+`hallTidForLocationNum`, `parseLabelNutrition`/`parseLabelAllergens` against real trimmed
+`label.aspx` markup for a real "Bacon" lookup captured live this session), `fetchFoodProCandidates`'
+searchHitCount-vs-candidates distinction, and the orchestration (`checkCatalogHit` incl. its ilike
+escaping, `checkRecentMiss`, `recordMiss`, `claimInflight`, `incrementAndCheckBudget`,
+`performLookup`'s short-circuit-before-budget, never-fetch-past-budget-exhaustion, negative-cache-
+only-on-a-genuine-miss, and follower-poll-count paths) against a stubbed Postgres client --
+mutation-tested by hand (breaking the `searchcoldesc` regex, the disambiguation-sharing check, the
+negative-cache guard, the follower poll-count constant, and the ilike escaping each independently
+turned the matching assertions red, confirmed, then reverted). `supabase test db` (324 pgTAP tests
+including 11 new ones pinning the four tables' RLS/grant lockdown and the increment function's
+execute-privilege boundary, mutation-tested against a live local Postgres the same way: removing
+the table revoke line and removing the function's `anon, authenticated` names from its own revoke
+each independently turned the matching assertions red, confirmed, then reverted). `npx jest` in
+`/mobile` (986 tests, including new coverage for `lookupDish.ts`, the `PlateSheet` affordance, and
+the hallTid-staging regression, all passing) and `npx tsc --noEmit` clean.
+
+**On-device verification, real (not synthetic-input-only) this time:** ran the actual dev client
+against a locally-started Metro serving this branch's code, on the Agent_Emulator_Narrow AVD --
+opened Worcester, opened the plate sheet, typed a garbage query ("zzznonexistentdish"), confirmed
+"No matches." plus the new "Search UMass Dining directly" ghost button render below it (matching
+the artboard-adjacent styling already used for the standing "Create a custom food" row -- this is
+not a new visual layout, it reuses `PlateSheet`'s existing `searchHint`/`Button ghost` styles
+verbatim), then tapped it. `lookup-dish` isn't deployed to the live Supabase project yet (this PR
+only ships the migration/function source, per the M-track gate's "owner applies after review"
+rule), so the real `supabase.functions.invoke` call 404'd against the real project -- `lookupDishLive`
+folded that into `{status: "rate_limited"}` exactly as designed, and the sheet rendered "UMass
+Dining lookup is busy right now. Try again in a bit." -- the honest, no-crash, no-silent-no-op state
+the task spec asked for, now confirmed on a real device against real Yoga layout, not a jest mock.
+Screenshot: `plate-sheet-lookup-dish-rate-limited.png` (in this session's scratchpad, attached to
+the PR). Did not verify the "hit" (multiple location-tagged candidates) rendering on-device -- that
+needs the function actually deployed and a live FoodPro round-trip, out of reach pre-merge; the
+mobile jest suite's `PlateSheet.test.tsx` coverage (disambiguation label, merge-into-results,
+hallTid-staging) is what stands in for that until then.

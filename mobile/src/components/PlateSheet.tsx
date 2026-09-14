@@ -8,6 +8,7 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
+import { labelLookupCandidate, lookupDishLive } from "../lib/lookupDish";
 import { isEstimatedServing, plateSearchResultDetail, plateSearchResultKey, totalItemCount, type PlateEntry, type PlateSearchResult } from "../lib/plate";
 import { formatServings, parseServingsInput } from "../lib/servingsStepper";
 import { supabase } from "../lib/supabase";
@@ -124,6 +125,11 @@ export function PlateSheet({
   const [brandedPage, setBrandedPage] = useState(1);
   const [brandedHasMore, setBrandedHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // "Search UMass Dining directly" -- the manual (never automatic) fallback to lookup-dish's
+  // on-demand FoodPro Web INA lookup, shown only once a merged search comes up short on UMass
+  // results. "idle" also covers "already found something" -- once a live hit merges into
+  // `results` below, hasUmassResults flips true and the affordance simply stops rendering.
+  const [directLookup, setDirectLookup] = useState<"idle" | "loading" | "miss" | "rate_limited">("idle");
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
   const scrollRef = useRef<ScrollView>(null);
@@ -186,6 +192,7 @@ export function PlateSheet({
       setBrandedPage(1);
       setBrandedHasMore(false);
       setLoadingMore(false);
+      setDirectLookup("idle");
     }
   }, [visible]);
 
@@ -230,6 +237,7 @@ export function PlateSheet({
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
+    setDirectLookup("idle"); // a fresh search re-earns the "Search UMass Dining directly" affordance
     try {
       const [historySettled, catalogSettled, offSettled, usdaSettled, brandedSettled, customSettled] = await Promise.allSettled([
         getLoggedUmassDishHistory(logStorage, hallTid, q),
@@ -358,6 +366,38 @@ export function PlateSheet({
       }
     } finally {
       if (searchSeq.current === seq) setLoadingMore(false);
+    }
+  }
+
+  // Manual fallback only -- never fired automatically (that would spend lookup-dish's global,
+  // Free-tier-protecting rate-limit budget on every keystroke). Merges a hit straight into the
+  // existing `results` buffer as ordinary "umass" PlateSearchResult rows -- same badge/row/detail
+  // path as every other search source, no new UI chrome. Gated by the same searchSeq a closed
+  // sheet or a newer search bumps, so a slow response can't repaint a stale/closed search.
+  async function runDirectLookup() {
+    const q = query.trim();
+    if (!q || directLookup === "loading") return;
+    const seq = searchSeq.current;
+    setDirectLookup("loading");
+    const result = await lookupDishLive(supabase, q);
+    if (searchSeq.current !== seq) return;
+    if (result.status === "hit") {
+      // hallTid here is the CURRENTLY-BROWSED hall (the `hallTid` prop), not the candidate's own
+      // FoodPro locationNum -- same rule the catalog-search path above already follows and for the
+      // identical reason (see this component's own Props doc comment): hallTid feeds server-synced
+      // hall-completion/favorite-hall derivation, so a cross-hall value here (a different real hall,
+      // or a negative retail-location tid) would misattribute credit to a hall the user isn't
+      // browsing. The candidate's own hallTid is used only for the public.dishes upsert server-side
+      // (lookup-dish/index.ts), never staged into the client's plate/log pipeline.
+      const additions: PlateSearchResult[] = result.candidates.map((c) => ({
+        kind: "umass",
+        dish: { dishName: labelLookupCandidate(c, result.candidates), hallTid, nutrition: c.nutrition },
+      }));
+      setResults((prev) => [...(prev ?? []), ...additions]);
+      setVisibleCount((v) => v + additions.length);
+      setDirectLookup("idle");
+    } else {
+      setDirectLookup(result.status);
     }
   }
 
@@ -522,6 +562,27 @@ export function PlateSheet({
                       </Button>
                     );
                   })()}
+                  {/* Manual, explicit fallback to lookup-dish's on-demand FoodPro Web INA lookup --
+                  never fires on its own. Shown only once the merged search above has come up
+                  short on an actual UMass Dining result; disappears the moment one lands (a hit
+                  merges straight into the results list above as an ordinary "umass" row). */}
+                  {results !== null && !searching && !results.some((r) => r.kind === "umass") && (
+                    <View style={styles.directLookup}>
+                      {directLookup === "miss" && <Text style={styles.searchHint}>UMass Dining doesn&apos;t have this dish either.</Text>}
+                      {directLookup === "rate_limited" && <Text style={styles.searchHint}>UMass Dining lookup is busy right now. Try again in a bit.</Text>}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onPress={runDirectLookup}
+                        disabled={directLookup === "loading"}
+                        // Fixed regardless of the loading-state label change below, so a screen
+                        // reader announces a stable action name throughout.
+                        accessibilityLabel="Search UMass Dining directly"
+                      >
+                        {directLookup === "loading" ? "Searching UMass Dining…" : "Search UMass Dining directly"}
+                      </Button>
+                    </View>
+                  )}
                   {/* Standing footer row -- shown whenever a search has actually run, whether or
                   not it found anything, since no database this sheet searches has every food. Also
                   shown on the all-rejected error branch, when the user most needs this escape hatch. */}
@@ -670,6 +731,7 @@ const styles = StyleSheet.create({
   searchSpinner: { marginTop: spacing(2) },
   searchError: { fontFamily: fonts.body400, fontSize: fs(13), color: "#b00020", marginTop: spacing(2) },
   searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55), marginTop: spacing(2) },
+  directLookup: { alignItems: "center", gap: spacing(1.5), marginTop: spacing(2) },
   resultRow: {
     flexDirection: "row",
     alignItems: "center",

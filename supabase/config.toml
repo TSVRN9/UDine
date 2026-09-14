@@ -390,6 +390,14 @@ verify_jwt = true
 [functions.populate-dishes]
 verify_jwt = true
 
+# Deliberately NOT gated by x-udine-cron-secret (unlike the three above) -- this one is meant to be
+# called by real anonymous end users. verify_jwt = true just requires *a* Supabase-signed JWT,
+# which the anon/publishable key already is; the actual anti-abuse control is the Postgres-backed
+# rate limit in supabase/functions/lookup-dish/index.ts, not an auth secret. See that file's own
+# header comment.
+[functions.lookup-dish]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
