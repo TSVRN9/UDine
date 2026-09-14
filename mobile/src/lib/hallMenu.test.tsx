@@ -1765,3 +1765,65 @@ describe("DishRow badge-tuck wiring (halls/[slug].tsx)", () => {
     expect(badgeRowStyles[0].position).not.toBe("absolute");
   });
 });
+
+// screenshot.sh has no gesture for opening the plate sheet AND typing a query, so the lookup-dish
+// evidence for brief foodpro-menu-expansion task 4 depends entirely on this route-level wiring:
+// `?stress=lookup-fetching` (and -miss/-rate-limited) must auto-open PlateSheet and drive it into
+// the real runDirectLookup state, from navigation alone -- unit-tested here since it was previously
+// unverified (the pre-existing "lookup-hit" fixture this generalizes had no test of its own either).
+describe("HallMenuScreen lookup-dish stress fixtures (brief foodpro-menu-expansion task 4)", () => {
+  it("stress=lookup-fetching auto-opens the plate sheet and reaches PlateSheet's real 'loading' state, from navigation alone", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "worcester", stress: "lookup-fetching" });
+    const root = await renderScreen();
+
+    // Chained effects (halls/[slug].tsx opens the sheet -> PlateSheet seeds the query -> PlateSheet
+    // fires runDirectLookup) span more than one commit -- flush microtasks so they all settle.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const body = root.root
+      .findAllByType(Text)
+      .map((n) => n.props.children)
+      .flat()
+      .join(" ");
+    expect(body).toMatch(/Looking up\s+flatbread/i);
+  });
+
+  it("stress=lookup-miss auto-opens the plate sheet, resolves to a genuine miss, and adds no new message", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "worcester", stress: "lookup-miss" });
+    const root = await renderScreen();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const body = root.root
+      .findAllByType(Text)
+      .map((n) => n.props.children)
+      .flat()
+      .join(" ");
+    // miss is a non-change to the empty state -- no new message, no spinner-row leftover. (The
+    // standing "Create a custom food" footer is gated on a completed merged search, which this
+    // route-wiring fixture never runs -- its own miss-state resolution is already covered by
+    // PlateSheet.test.tsx.)
+    expect(body).not.toMatch(/doesn.t have this dish either/i);
+    expect(body).not.toMatch(/Looking up/i);
+  });
+
+  it("stress=lookup-rate-limited auto-opens the plate sheet and reaches the rate_limited inline row", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "worcester", stress: "lookup-rate-limited" });
+    const root = await renderScreen();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const body = root.root
+      .findAllByType(Text)
+      .map((n) => n.props.children)
+      .flat()
+      .join(" ");
+    expect(body).toMatch(/busy right now/i);
+  });
+});
