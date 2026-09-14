@@ -159,7 +159,7 @@ const customFoodsStorage = new SqliteCustomFoodsStorage();
  * the sections memo below), so it's a sibling of MealPeriod, not a member of it. */
 type TabSelection = MealPeriod | "grab";
 
-/** Dev-only layout stress fixtures (docs/agents/dev-tracks.md's UI check + mobile/scripts/
+/** Dev-only layout stress fixtures (.claude/agents/pr-reviewer.md's UI check + mobile/scripts/
  * screenshot.sh's --stress flag) -- synthetic dishes shaped to exercise row layouts real menu
  * data may not contain on a given day. __DEV__-gated and opt-in only via the `stress` route param
  * -- never runs in production. One set per meal period, so they show up under whichever tab a

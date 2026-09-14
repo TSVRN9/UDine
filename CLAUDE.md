@@ -95,7 +95,7 @@ content; then auth, ranking, export; then friends, pings, push.
 
 ## Design
 
-`docs/design/` is the spec: 49 artboards (`*.dc.html`) extracted from the Mobile v2 canvas, plus
+`docs/design/` is the spec: 45 artboards (`*.dc.html`) extracted from the Mobile v2 canvas, plus
 `canvas.json` (geometry, titles, annotations) and `README.md` (canvas URL, title→file map,
 re-extraction). The canvas is upstream — edit the design there and re-extract, never hand-edit an
 artboard. Artboards lay out at 390×844; the emulator pool's device widths derive from that.
@@ -108,7 +108,8 @@ artboard. Artboards lay out at 390×844; the emulator pool's device widths deriv
   No new duration/easing literal outside `motion.ts`.
 - **Every diff that changes rendered output ships a screenshot** from
   `mobile/scripts/screenshot.sh <route>` (`--record` + a gesture for motion) in the PR body,
-  and the gate compares it to the artboard. The full check is in `docs/agents/dev-tracks.md`.
+  and the gate compares it to the artboard. `scripts/pr-gate.sh` refuses a rendered-output PR
+  without one; the reviewer's checklist is in `.claude/agents/pr-reviewer.md`.
   Mobile's *web* target does not build; the emulator pool is the render path.
 
 **No explanatory captions in UI.** Don't ship rendered text describing what an element is or does
@@ -121,10 +122,16 @@ addressed to a reviewer goes in the PR body.
 
 ## Agents
 
-- Tracks (XS/S → `quick-fixer`→`spot-checker`; M/L → `issue-solver`/`heavy-debugger`→`pr-reviewer`;
-  anything touching `supabase/`, auth, sync, residency is M+): `docs/agents/dev-tracks.md`.
-- Orchestrating a session (triage, dispatch prompt contents, escalation gates, task log):
-  `docs/agents/orchestration.md`. Tasks arrive inline in the dispatch prompt; GitHub issues are
-  human-filed input or post-completion receipts, not agent-to-agent IPC: `docs/agents/issue-tracker.md`.
-- Task log (`docs/agents/task-log.jsonl`), labels, domain docs (`CONTEXT.md`, `docs/adr/`),
-  emulator pool: `docs/agents/`.
+- Three agents in `.claude/agents/`: `issue-solver` (implements one task from a brief, any size,
+  opens the PR), `pr-reviewer` (the one merge gate: MERGE / REWORK / ESCALATE), `heavy-debugger`
+  (cross-layer root-causing, only after an `issue-solver` attempt failed).
+- Tickets are briefs: `docs/briefs/<slug>.md` (`/brief <slug>` writes one from a finished design
+  conversation; `docs/briefs/TEMPLATE.md`). Dispatch prompts point at the brief; nothing is pasted.
+  GitHub issues are human-filed bugs only: `docs/agents/issue-tracker.md`.
+- The gate is mechanical: `scripts/pr-gate.sh` (screenshot stamped with the merged sha, no motion
+  literal outside `motion.ts`, PR template fields, lanes, owner-gated paths) runs on `gh pr create`
+  and `gh pr merge` via `.claude/settings.json` hooks. Anything under `supabase/`, auth, sync, or
+  the residency table is owner-merged.
+- Loop, escalation gates, stalls, and `scripts/agent-usage.py` (is the agent system paying for
+  itself): `docs/agents/orchestration.md`. Domain docs (`CONTEXT.md`, `docs/adr/`), emulator pool,
+  design audit: `docs/agents/`.
