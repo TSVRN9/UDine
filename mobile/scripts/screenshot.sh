@@ -346,6 +346,11 @@ if [[ -n "$RECORD_SECS" ]]; then
   adb -s "$SERIAL" shell rm /sdcard/udine-rec.mp4
 
   FRAMES_DIR="$STEM-frames"
+  # rm before mkdir: ffmpeg only overwrites frame numbers it re-produces, so a shorter/failed
+  # re-run silently left stale higher-numbered frames from a longer older run in place, with no
+  # error -- found live 2026-09-14 (PR #475's screenshot capture, confirmed via frame mtimes an
+  # hour apart).
+  rm -rf "$FRAMES_DIR"
   mkdir -p "$FRAMES_DIR"
   ffmpeg -y -i "$OUT" -vf fps=10 "$FRAMES_DIR/frame-%03d.png" >/dev/null 2>&1
 else
