@@ -112,10 +112,12 @@ MOBILE_DIR="$REPO_ROOT/mobile"
 ROUTE_SLUG="${ROUTE//\//-}"
 [[ -z "$ROUTE_SLUG" ]] && ROUTE_SLUG="home"
 [[ -n "$STRESS" ]] && ROUTE_SLUG="${ROUTE_SLUG}-stress-${STRESS}"
-TS="$(date -u +%Y%m%dT%H%M%SZ)"
-SHOT_DIR="${CLAUDE_JOB_DIR:-/tmp}/tmp/shots"
+# Default output lives in the repo, keyed by branch, so scripts/pr-gate.sh finds it and the PR
+# carries the evidence. Re-capturing the same route overwrites -- one current image per route.
+GIT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
+SHOT_DIR="$REPO_ROOT/docs/pr-review-media/${GIT_BRANCH//\//-}"
 mkdir -p "$SHOT_DIR"
-STEM="$SHOT_DIR/${ROUTE_SLUG}-${DEVICE}-${TS}"
+STEM="$SHOT_DIR/${ROUTE_SLUG}-${DEVICE}"
 if [[ -z "$OUT" ]]; then
   if [[ -n "$RECORD_SECS" ]]; then
     OUT="$STEM.mp4"
@@ -343,6 +345,16 @@ w, h = struct.unpack(">II", data[16:24])
 print(f"{w}x{h}")
 PYEOF
 }
+
+# --- 9. Provenance sidecar: which commit this image shows. scripts/pr-gate.sh refuses a PR whose
+# screenshot predates its code, or was taken over uncommitted changes (both have shipped bugs).
+DIRTY=false
+[[ -n "$(git -C "$REPO_ROOT" status --porcelain -- . ':(exclude)docs/pr-review-media' 2>/dev/null)" ]] && DIRTY=true
+jq -n --arg sha "$(git -C "$REPO_ROOT" rev-parse HEAD)" --arg branch "$GIT_BRANCH" --arg worktree "$REPO_ROOT" \
+  --arg route "$ROUTE" --arg device "$DEVICE" --arg stress "$STRESS" --argjson dirty "$DIRTY" \
+  --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  '{sha:$sha, branch:$branch, worktree:$worktree, route:$route, device:$device, stress:$stress, dirty:$dirty, ts:$ts}' \
+  > "$STEM.json"
 
 if [[ -n "$RECORD_SECS" ]]; then
   FIRST_FRAME="$(ls "$FRAMES_DIR"/frame-*.png 2>/dev/null | head -1 || true)"

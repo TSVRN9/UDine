@@ -35,8 +35,5 @@ with no artboard counterpart. No prose beyond that.
 
 ## After the reports
 
-- One `gh issue create` per screen with the findings table, label `bug`, `ready-for-agent`;
-  title `<Screen>: N drift findings vs <FILE>.dc.html (audit YYYY-MM-DD)`.
-- Route per `dev-tracks.md` (S when confined to one component; M when a state or motion is missing).
-- Log one `task-log.jsonl` line per screen audited, `agent: "design-audit"`, `ui.artboard` set,
-  `notes` = finding count.
+- One brief per screen with findings (`docs/briefs/audit-<screen>-YYYY-MM-DD.md` from
+  `docs/briefs/TEMPLATE.md`): each finding is a task line; dispatch per `orchestration.md`.

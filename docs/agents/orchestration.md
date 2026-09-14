@@ -1,90 +1,52 @@
 # Orchestration
 
-How the top-level session (the orchestrator — run it on **Sonnet**; the job is routing and context
-assembly, not deep reasoning) turns a task into dispatched agent work. Read this at the start of any
-session that will dispatch agents.
+How the top-level session turns a design or a bug into merged code. Run it on **Sonnet** — the job
+is routing, not deep reasoning. Read this at the start of any session that dispatches agents.
 
 ## Loop
 
-1. **Intake.** A task arrives from the human — inline, or as a GitHub issue number (`gh issue view <n> --comments`).
-   Agents never file issues for each other.
-2. **Triage** by blast radius per `dev-tracks.md`: XS/S → `quick-fixer` (→ `spot-checker`); M → `issue-solver`
-   (→ [`visual-verifier`] → `pr-reviewer`); L → `heavy-debugger` only through the gate below (→
-   [`visual-verifier`] → `pr-reviewer`). `visual-verifier` only when the task is UI-visible; it's
-   project-scoped (`.claude/agents/visual-verifier.md`). When in doubt, one track heavier.
-3. **Assemble context.** The dispatch prompt is the agent's whole world. Include:
-   - Task description and the acceptance criteria (per-criterion, checkable).
-   - Files involved (paths), and callers you already know about.
-   - Context excerpts: the relevant rows of `CLAUDE.md`'s residency table, the `docs/decisions-log.md` /
-     `docs/auth-status.md` section for the area, the ADR if one applies. Paste the excerpt — don't
-     make the agent go find it. Keep it to what this task needs.
-   - **Design reference — mandatory for any UI-visible task.** The artboard filename (the
-     Component column in `docs/design/README.md` maps both ways), the anchor copy strings the test
-     should read through `artboardStyle()`, the `canvas.json` annotation id if motion or a
-     non-default state is involved, and the `screenshot.sh` route (+ gesture) that shows the change.
-     A UI task dispatched without these is a triage error; fix it before dispatch.
-   - **`visual-verifier`'s dispatch, separately, names the states to capture** — not just one
-     route, but each state the diff can reach (0/0.5/max, each variant/badge kind, before/after a
-     gesture), each with a `--wait-for TEXT` real-content marker (never leave this blank for a
-     data-fetching screen — see `dev-tracks.md`'s UI check for why) and, for any alignment/spacing
-     claim, the marker color for `measure-alignment.py`. A stress-fixture state
-     (`--stress long-names`) belongs here whenever the claim is about wrapping/overflow/max-content
-     and today's live menu might not happen to contain a long-enough case.
-   - **Steer implementers, never waive the gate.** "This shouldn't need a rendered-output change"
-     is guidance; the gate still decides from the diff. Paste `dev-tracks.md`'s UI check into the
-     gate's dispatch verbatim, with this component's state list filled in.
-   - Authorization scope: worktree/branch, base branch, whether it may commit / push / open a PR /
-     merge (merge is owner-gated; see memory). Default: open a PR, don't merge.
-   - Lanes to run (from the `ci.yml` header) — name them, so the agent doesn't run the full matrix
-     "to be safe"; say explicitly when `supabase test db` is not needed.
-   - Red-first requirement: failing test first, red output pasted, then green.
-   - Issue number only if a human filed one.
-4. **Dispatch** the agent with that prompt. If the diff changed rendered output and the track is
-   M/L, dispatch `visual-verifier` next with the state list from step 3 — its report (screenshot/
-   frame paths, plain descriptions, `measure-alignment.py` numbers) goes into the gate's dispatch
-   prompt alongside the diff, so the gate reads evidence instead of re-driving the emulator
-   itself. Then the gate agent (spot-checker / pr-reviewer) with the diff location + the same
-   acceptance criteria (+ the visual-verifier report, when one exists).
-5. **Read the result.** Verdict MERGE → merge (if authorized). REQUEST-CHANGES/REWORK → route findings
-   back to the same implementing agent. BLOCK/ESCALATE → re-triage one track heavier. Budget-cap
-   report from issue-solver → see escalation. **A UI diff with no screenshot/frames is not merged
-   on any verdict**: `gh pr edit N --add-label needs-device`, leave it open, log `ui.screenshot`
-   as `none: <reason>`. Disclosure is a queue for the next device pass, not acceptance. **A
-   `visual-verifier` report with any failed/inconclusive capture is not merged on any verdict
-   either** — same rule, same reason: unknown-and-shipped is what this whole flow exists to catch.
-6. **Log** (below). Optionally, if a human-filed issue exists, `gh issue comment` a receipt and close it.
+1. **Brief.** Design iterated on the canvas (or a backend decision settled) → `/brief <slug>` writes
+   `docs/briefs/<slug>.md`: spec (artboards, annotation ids, states, routes; or tables/RPCs +
+   residency row + rationale), acceptance criteria with evidence kinds, ordered tasks. The brief is
+   the ticket. GitHub issues are for human-filed bugs only (`issue-tracker.md`).
+2. **Dispatch `issue-solver`** with a pointer, not a paste: brief path + task number, worktree,
+   branch, base branch, authorization (commit / push / open PR — default yes, never merge), and any
+   human-filed issue number. The agent reads the brief and the repo itself; pasting excerpts here
+   only bloats this session's context (it averaged 343k tokens/turn before this rule).
+   Parallelism: up to three UI tasks at once — one per emulator-pool device / Metro port
+   (`emulator-pool.md`). Stack dependent tasks (`gh pr create --base <parent-branch>`).
+3. **Gate** is mechanical: `scripts/pr-gate.sh` runs on `gh pr create` and `gh pr merge` via hooks
+   (`.claude/settings.json`) — screenshot present and stamped with the merged sha, no motion
+   literal outside `motion.ts`, PR template fields, lanes to run, owner-gated paths flagged.
+4. **Dispatch `pr-reviewer`** with the PR number and the brief path. It runs the gate, reproduces
+   reds by mutation, runs the lanes, opens the screenshots, compares to the artboard, and returns
+   MERGE / REWORK / ESCALATE. It re-renders any state it needs itself.
+5. **Act on the verdict.** MERGE → `gh pr merge N --squash --delete-branch` (the hook refuses when
+   the gate printed OWNER-GATED: anything under `supabase/`, auth, sync, residency — post the
+   verdict and leave it for the owner). REWORK → findings back to the same `issue-solver`.
+   ESCALATE → see gates below. Stacked children: merge parent first, then the child rebases.
+6. **Record.** Put the PR link on the brief's task line. Nothing else — the PR body is the record.
 
 ## Escalation gates
 
-- **Advisor (Opus, ad hoc — dispatch a `general-purpose` agent with `model: opus`, read-only):** for a
-  design/scoping question the orchestrator can't settle from the docs — conflicting invariants, an
-  ambiguous ticket whose two readings lead to different work, a residency question. Ask one
-  question, get one recommendation, then dispatch normally. Not for implementation.
-- **Second issue-solver attempt:** when the first attempt hit its budget cap or came back
-  underspecified. Re-dispatch with what was learned added to the context excerpts, or re-scope
-  (split the ticket) first. Simple implementation difficulty is this branch, not heavy-debugger.
-- **`heavy-debugger` (Fable):** only when BOTH hold:
-  1. `issue-solver` has already attempted and failed — its report is in hand. "This sounds hard" is
-     not an attempt.
-  2. The failure is genuine cross-layer complexity: native ↔ JS bridge, timing/races, intermittent
-     reproduction, build toolchain. If the failure is underspecified requirements → re-scope the
-     ticket. If it's ordinary implementation difficulty → second issue-solver attempt with more context.
-  Pass issue-solver's full report in the dispatch.
+- **Advisor** (ad hoc `general-purpose` agent, `model: opus`, read-only): one scoping question the
+  docs can't settle — conflicting invariants, a residency question. One question, one answer.
+- **Second `issue-solver` attempt:** budget cap hit or came back underspecified → re-dispatch with
+  what was learned added to the brief, or split the task. Ordinary difficulty lives here.
+- **`heavy-debugger`** (Fable): only when both hold — `issue-solver` has attempted and failed
+  (report in hand), and the failure is cross-layer (native ↔ JS, timing, intermittent, build
+  toolchain). Pass the full report.
 
-## Task log
+## Stalls
 
-After each task completes (any status), append one line to `docs/agents/task-log.jsonl`:
+A subagent that ends its turn "waiting for" a build, capture, or Monitor is dead until you
+`SendMessage` it — nothing wakes it. `issue-solver` has hooks that block `run_in_background` and
+bounce a waiting stop once with the literal foreground-poll command. If one still stalls, resume it
+with exactly: `timeout 600 bash -c 'until CHECK; do sleep 10; done'` in one foreground Bash call,
+timeout raised to 600000 ms — the literal command, not advice.
 
-```json
-{"ts":"2026-08-26T18:40:00Z","task":"hide raw Accept on qr-origin friend requests","agent":"quick-fixer","track":"S","status":"complete","files":["web/src/routes/friends/+page.svelte"],"pr":299,"issue":256,"notes":"spot-checker MERGE; red reproduced"}
-{"ts":"2026-09-10T15:00:00Z","task":"sheet slide-up duration to spec","agent":"quick-fixer","track":"S","status":"complete","files":["mobile/src/lib/sheetAnimation.ts"],"pr":450,"ui":{"artboard":"Prototype.dc.html","annotation":"prototype-note","screenshot":"/home/…/shots/halls-hampshire-…-frames/","states":["closed","open","mid-drag"]},"notes":"spot-checker MERGE; motion frames 1/12/20 match .sheet 300ms"}
-```
+## Measuring
 
-Fields: `ts`, `task`, `agent` (bare name — model goes in `notes`), `track` (XS/S/M/L only —
-escalation is `status`), `status` (`complete` | `escalated` | `failed`), `files`, optional
-`pr`/`issue`, `ui` on any rendered-output diff (`artboard`, optional `annotation`, `screenshot` =
-path or `none: <reason>`, `states` checked), `notes` (verdict, what was skipped, what's
-unverified). `echo '...' >> docs/agents/task-log.jsonl` — zero API calls. This is the audit trail;
-GitHub comments are optional receipts for humans on top.
-`jq -c 'select(.ui.screenshot? // "" | startswith("none"))' docs/agents/task-log.jsonl` lists
-what merged unrendered.
+`python3 scripts/agent-usage.py [--since YYYY-MM-DD]` — tokens by main/subagent, dispatches,
+run-duration percentiles, nudge count, tokens per merged PR. Baseline 2026-09-14: 78 M cache-read
+tokens per merged PR, 338 nudges / 738 runs, issue-solver p90 6 h.
