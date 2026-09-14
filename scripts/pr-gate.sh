@@ -25,7 +25,11 @@ else
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
   HEAD_REF="HEAD"
 fi
-BASE="$(git merge-base origin/main "$HEAD_REF")"
+# Fail closed: an unresolvable PR/branch must never fall through to "no diff" and exit 0.
+if [[ -z "$BRANCH" ]] || ! git rev-parse --verify -q "$HEAD_REF" >/dev/null; then
+  echo "FAIL  cannot resolve ${PR:+PR #$PR / }branch '$BRANCH' (fetch failed, branch deleted, or bad PR number)"; exit 1
+fi
+BASE="$(git merge-base origin/main "$HEAD_REF")" || { echo "FAIL  no merge-base with origin/main"; exit 1; }
 HEAD_SHA="$(git rev-parse "$HEAD_REF")"
 SLUG="${BRANCH//\//-}"
 
