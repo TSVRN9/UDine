@@ -9,6 +9,18 @@ export interface MenuSection {
   data: MenuItem[];
 }
 
+/** [slug].tsx's meal-period SectionList keyExtractor, pulled out so the collision it guards
+ * against is unit-testable without mounting the screen. Includes `item.date`, not just
+ * category+dishName+index: an always-available tail station (alwaysAvailableStations.ts, whose
+ * synthesized items carry `date: ""`) can share a category, dish name, AND position with a REAL
+ * same-named feed station on a day it happens to also serve that dish -- confirmed live,
+ * Hampshire's own daily feed served an identical 3-item "Pizza" station the same day this was
+ * verified. Without `date` those two rows compute the exact same key, which RN logs as a
+ * duplicate-key warning; real items' real fetch date never matches the synthesized "" sentinel. */
+export function dishRowKey(item: MenuItem, index: number): string {
+  return `${item.category}-${item.dishName}-${item.date}-${index}`;
+}
+
 /** One real meal period's sections: `items` filtered to that period and the user's food
  * preferences, grouped by normalized station name and ordered by sortStationNames (a fixed
  * food-journey order, not the feed's own item order) -- pulled verbatim out of [slug].tsx's old

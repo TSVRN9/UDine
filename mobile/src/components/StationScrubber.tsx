@@ -164,7 +164,12 @@ export function StationScrubber({
         <View style={styles.touchArea} onLayout={handleLayout} accessibilityLabel="Stations">
           <View style={styles.track} pointerEvents="none">
             {sections.map((section, i) => (
-              <View key={section.title} style={[styles.segment, { height: segH, marginBottom: i < count - 1 ? SEGMENT_GAP : 0 }]} />
+              // Keyed by position, not section.title -- an always-available tail station
+              // (alwaysAvailableStations.ts) can share a title with a same-named real feed
+              // station elsewhere in this same list (confirmed live: Hampshire's own daily feed
+              // independently served a "Pizza" station the same day this was verified), and these
+              // segments are purely positional markers anyway, so title was never a meaningful key.
+              <View key={i} style={[styles.segment, { height: segH, marginBottom: i < count - 1 ? SEGMENT_GAP : 0 }]} />
             ))}
             <Reanimated.View style={[styles.highlight, { width: TRACK_WIDTH }, highlightStyle]} />
           </View>

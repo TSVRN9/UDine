@@ -86,7 +86,7 @@ import {
 import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, syntheticHallTidForName, type CafeMenuState, type StandingMenuEntry } from "../../lib/cafeMenu";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
 import { alwaysAvailableSections } from "../../lib/alwaysAvailableStations";
-import { grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
+import { dishRowKey, grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { macroBadgeRowWidth, shouldTuckBadges } from "../../lib/hallMenuBadgeLayout";
 import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { MacroPresetGlyph } from "../../lib/macroBadgeGlyphs";
@@ -1419,7 +1419,7 @@ export function HallMenuScreenBody({
       <GestureSectionList
         ref={getListRef(period)}
         sections={periodSections}
-        keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
+        keyExtractor={dishRowKey}
         // extraData: single-expand needs a row OTHER than the one just tapped (whichever was
         // previously expanded) to re-render too -- SectionList/VirtualizedList's cell-level
         // memoization only busts on a change to `sections`/`item` identity or `extraData` by
