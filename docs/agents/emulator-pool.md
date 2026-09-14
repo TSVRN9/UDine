@@ -349,25 +349,31 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<the "publishable" (sb_publishable_...) ent
 After writing `.env`, a full `expo run:android` isn't needed again — env vars are inlined by
 Metro at bundle time, so kill any running `expo run:android`/`expo start` process and start a
 fresh `npx expo start --dev-client` (same JDK/PATH prefix), then re-point the already-installed
-dev client at it without reinstalling:
+app at it without reinstalling. **Not** with the `udine://expo-development-client/?url=...`
+intent this section used to show — that URL has no handler in this app (see the deep-link
+section below, 2026-09-14) — but by writing the `debug_http_host` preference RN reads, exactly
+what `screenshot.sh` step 5 now does:
 
 ```bash
-adb -s emulator-5556 shell am force-stop com.udinetogether.udine
-adb -s emulator-5556 shell am start -a android.intent.action.VIEW \
-  -d "udine://expo-development-client/?url=http%3A%2F%2F192.168.122.1%3A8081"
+A=com.udinetogether.udine
+adb -s emulator-5556 shell am force-stop $A
+printf '%s\n' "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>" "<map>" \
+  '    <string name="debug_http_host">10.0.2.2:8082</string>' "</map>" > /tmp/prefs.xml
+adb -s emulator-5556 push /tmp/prefs.xml /data/local/tmp/udine-prefs.xml
+adb -s emulator-5556 shell "run-as $A sh -c 'mkdir -p shared_prefs && cp /data/local/tmp/udine-prefs.xml shared_prefs/${A}_preferences.xml'"
+adb -s emulator-5556 shell am start -n $A/.MainActivity
 ```
 
-(That IP is this host's bridge address for the emulator's outbound route to the Metro server on
-the host — confirm with the URL `expo run:android` itself printed on the original install, e.g.
-`› Opening udine://expo-development-client/?url=http%3A%2F%2F<host-ip>%3A8081`, since it can differ
-per host/network setup.)
+(10.0.2.2 is the emulator's alias for the host's loopback; the port is this device's Metro port
+from the Devices table. The script merges the key into an existing prefs file rather than
+overwriting it.)
 
-**Fast iteration once installed:** the dev client understands the app's own `udine://` scheme for
-deep links, which is much quicker than tapping through the UI to reach a specific screen for a
-screenshot — `adb shell am start -a android.intent.action.VIEW -d "udine://add-friends"` (or any
-other route name from `mobile/src/app/`) jumps straight there. Force-stop + relaunch the same
-`expo-development-client/?url=...` intent above to force a fresh JS bundle fetch after editing
-source (e.g. to compare a screen before/after a JS-only change without a native rebuild).
+**Fast iteration once installed:** the app understands its own `udine://` scheme for deep links,
+which is much quicker than tapping through the UI to reach a specific screen for a screenshot —
+`adb shell am start -a android.intent.action.VIEW -d "udine://add-friends"` (or any other route
+name from `mobile/src/app/`) jumps straight there. Force-stop + `am start -n` as above to force a
+fresh JS bundle fetch after editing source (e.g. to compare a screen before/after a JS-only change
+without a native rebuild).
 
 ## Metro can serve a stale graph in a worktree — restart it before trusting an "after" tap (#229)
 
@@ -385,39 +391,79 @@ a new graph), relaunch the dev client, and confirm the change is actually on scr
 marker string that `uiautomator dump` can see is the cheapest proof). This is very likely what
 #220 recorded as a "dead-Metro window" that broke `Link` navigation app-wide.
 
-## The `expo-development-client/?url=...` deep link does NOT reliably switch Metro ports (found 2026-09-12)
+## The `expo-development-client/?url=...` deep link never switched Metro ports (found 2026-09-12, root-caused and handled by `screenshot.sh` 2026-09-14)
 
-Cost three separate on-device verification passes across two agents (a real single-expand fix
-looked broken twice on-device before this was found) — a false negative, not a code bug. When
-this device's installed dev client is already bonded to a Metro instance (which on a shared,
-multi-agent host is almost always port **8081**, since that's the default every `expo start`
-reaches for first), sending `am start -d "udine://expo-development-client/?url=http://10.0.2.2:<a
-different port>"` does **not** redirect it. The app silently keeps talking to whatever it's
-already connected to and shows that bundle instead — no error, no obvious sign beyond the
-rendered content itself not matching the worktree you think you're testing (the giveaway that
-caught this: a sibling agent's in-progress scrollbar UI appearing on a screen from a worktree
-that never had that code). `pm clear com.udinetogether.udine` does **not** reset this either — it
-survived clearing all app data, so treat it as a build-time default baked into the dev client,
-not a runtime preference an agent can casually clear.
+Cost three separate on-device verification passes across two agents on 2026-09-12 (a real
+single-expand fix looked broken twice on-device before this was found), then bit again on
+2026-09-14 (PR #473's agent, Narrow/8082). Symptom: send `am start -d
+"udine://expo-development-client/?url=http://10.0.2.2:<port>"` and the app silently bundles from
+port **8081** regardless — no error, no sign beyond the rendered content not matching the worktree
+you think you're testing (the giveaway: a sibling agent's in-progress UI on your screen).
 
-**Verify which Metro you're actually bundling from before trusting anything you see:**
-1. Confirm your own `expo start` log actually printed an `Android Bundled …` line *after* your
-   navigation/tap sequence — not just "Waiting on http://localhost:<port>" the whole time. No
-   `Bundled` line at all means the device never even asked your Metro for anything.
-2. If you must run on a non-8081 port (e.g. 8081 is already held by another agent's worktree and
-   you don't want to kill it — do not kill another agent's Metro process), use the **RN dev
-   menu's "Change Bundle Location"**, not the deep link:
-   ```bash
-   adb -s emulator-5556 shell input keyevent 82   # opens the dev menu on the current screen
-   # tap "Change Bundle Location", clear the field, type e.g. 10.0.2.2:<your port>, Apply Changes
-   ```
-   Confirm the field was actually showing something else first (that's your proof the deep link
-   alone would have silently failed you), and confirm `Android Bundled` appears in your Metro log
-   right after tapping Apply.
-3. A visual tell that you're on the wrong bundle: anything on screen that isn't in your own
-   worktree's diff (another agent's in-progress feature, old copy/layout you already changed).
-   Don't rationalize it as "the emulator is just showing something stale" — go verify via the dev
-   menu instead of proceeding.
+**Root cause (2026-09-14, from source, not inferred):** this project does not have
+`expo-dev-client` installed — Metro's own log says so on every start (`Development build: Unable
+to determine the default URI scheme for deep linking into the app. Ensure that the
+expo-dev-client package is installed.`), and no `expo-dev-launcher`/`expo-dev-menu` exists
+anywhere in `node_modules`. The installed "dev client" is a plain RN debug build with only
+`.MainActivity`, so the `expo-development-client/` URL has **no handler at all** — it just
+launches the app (expo-router lands on home). RN then resolves its Metro host in
+`react-native/ReactAndroid/.../packagerconnection/PackagerConnectionSettings.kt`, in this order:
+
+1. an in-memory override — what the dev menu's "Change Bundle Location" sets
+   (`DevSupportManagerBase.kt`: `packagerConnectionSettings.debugServerHost = host; handleReloadJS()`),
+   lost on `am force-stop`;
+2. the default SharedPreference `debug_http_host` (read-only from RN's side — nothing in RN
+   writes it any more);
+3. `AndroidInfoHelpers.getServerHost()` → `10.0.2.2:` + `react_native_dev_server_port` (8081).
+
+So there was never a "bond" to a previously-used Metro: it is always the compiled-in default
+unless (1) or (2) says otherwise, which is why `pm clear` (which deletes (2)) "didn't help" —
+after it the app is back on the same default. Live proof on Narrow: with no
+`<pkg>_preferences.xml` on the device, the app launched by a `screenshot.sh` run targeting 8082
+had six ESTABLISHED sockets to `10.0.2.2:8081` (another agent's Metro) and zero to 8082
+(`adb -s emulator-5556 shell netstat -tn | grep 10.0.2.2`); with the preference set to 8082, the
+old deep link asking for 8081 changed nothing — the fresh process connected to 8082 only.
+
+**Handled by `screenshot.sh` step 5 now:** the build is `DEBUGGABLE`, so the script writes
+`debug_http_host = 10.0.2.2:<this device's Metro port>` into the app's default SharedPreferences
+via `adb shell run-as` while the app is force-stopped (merging into an existing prefs file,
+dropping any `.bak` that `SharedPreferencesImpl` would restore over it), then `am start -n
+<pkg>/.MainActivity`. It then **requires an `Android Bundled` line in its own Metro log** before
+going on — the old "or MainActivity is resumed" shortcut was a false positive (an app serving
+another port's bundle is resumed just the same; every capture on 2026-09-14 before the fix had a
+600-byte Metro log with no `Bundled` line and still exited 0). Live-verified 2026-09-14 on Narrow:
+red run with the old script — exit 0, PNG written, 0 `Bundled` lines, sockets on 8081; five
+consecutive runs with the fix (`halls/worcester --wait-for WORCESTER` ×3, bare home, `--record 3
+--tap`) — all exit 0, `Bundled` in their own 8082 log, sockets on 8082 only, 26-41s each. The
+preference persists across force-stops, so a manual `am start` afterwards keeps using the last
+`screenshot.sh` port for that device; a reinstall or `pm clear` resets it to 8081.
+
+By hand (no script): the recipe in the "Working rebuild recipe" section above. The dev menu
+(`adb shell input keyevent 82` → "Change Bundle Location" → `10.0.2.2:<port>` → Apply Changes)
+still works too, but only for the life of that process.
+
+Pitfalls found while verifying, so nobody re-discovers them:
+
+- `uiautomator dump` on a screen that never goes idle (a looping skeleton shimmer, e.g. the hall
+  tabs while a fetch is failing) prints `ERROR: could not get idle state.`, writes **no** file,
+  and **exits 0**. `wait_for_text` used to `cat` the previous run's `/sdcard/udine-wait-dump.xml`
+  after that and match its text — one black PNG was captured that way. The script now `rm`s the
+  file before every dump. Each such failed dump also blocks ~10s, so `wait_for_text`'s budget is
+  wall-clock now, not a count of 2s sleeps.
+- A `Bundled` line is not a rendered screen. Measured on Narrow under normal load (two emulators,
+  three Metros): `Bundled` ~8s after launch, `ReactNativeJS: Running "main"` ~24s, first
+  non-black frame ~33s. The script's old fixed 4s sleep after bundling captured a 22KB all-black
+  PNG for any route without `--wait-for` (the home captures from 2026-09-14 morning are that). It
+  now waits for a populated accessibility tree (`wait_for_text ""`, same 15-node floor as the
+  section below) before navigating, warning rather than failing if that never happens.
+- `screenshot.sh` leaves a **copy of itself alive** after it finishes: the `( cd … && nohup npx
+  expo start … & )` subshell lingers in `do_wait` as Metro's parent until that Metro dies, and
+  shows up in `ps` as `bash mobile/scripts/screenshot.sh <original args>`. It holds no lock (the
+  EXIT trap already ran in the real script) — but it does look like a live holder to the
+  three-signal stale-lock check above. Check whether the lock directory exists and whether the
+  run's `.json` sidecar was written before treating it as in-flight work.
+- Wall-clock timeouts include host sleep. One verification run took 12m40s because the laptop lid
+  was closed mid-run; `timeout(1)` did not fire either. If numbers look impossible, ask.
 
 ## `uiautomator dump` seemed to see no RN content — `--wait-for` timeouts (2026-09-12, RESOLVED: Metro contention, not an a11y gap)
 
