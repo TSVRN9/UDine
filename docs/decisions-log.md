@@ -643,3 +643,56 @@ realistic-length item so both wrap states show in one capture (pinned by
 com.udinetogether.udine.internal | grep versionName` answers "which commit is on this phone" --
 the check that would have closed this report in one command. Re-open only against a build whose
 `versionName` carries a SHA at or after this entry.
+
+## Web INA: mirror vs. on-demand, and the `populate-dishes` cron (2026-09-13)
+
+Prompted by the owner asking whether UMass Dining's physical nutrition-card codes map to a public
+endpoint (they do -- see `docs/apk-reverse-engineering.md`'s "FoodPro Web INA" section for the full
+endpoint writeup), evaluated whether `public.dishes` should switch from its current daily
+`foodpro-menu-ajax`-only source to something built on Web INA, and whether the `populate-dishes` cron
+job should be removed.
+
+**The numbers.** `public.dishes` held 727 accumulated distinct dish names at evaluation time (4 halls
+only). One hall, one day (`foodpro-menu-ajax`, Worcester): 131 distinct names -- the whole day in one
+request, 4 requests total across all halls. Web INA's `search.aspx` is per-dish-name and ambiguous
+(`RecNum` is per-hall-recipe, not a global ID -- "Bacon" resolved to 6 distinct `RecNum`s across just
+2 halls). `longmenu.aspx` is the real bulk-per-location endpoint, but scoped to roughly one meal
+period per request, not a whole day: walking the full 28-location catalog (4 halls + 24 retail/café)
+would cost on the order of 4 meal periods x 28 locations ~= **112 requests/day**, plus one `label.aspx`
+fetch per newly-discovered `RecNum` -- strictly larger and more complex than today's 4-request/day
+job, for data (micronutrients, retail/café coverage) the product doesn't yet consume anywhere.
+
+**Recommendation: keep `populate-dishes` and its daily cron exactly as-is; don't replace it.**
+`foodpro-menu-ajax` is the only known source that answers "what's actually being served today" at the
+4 halls -- Web INA can only answer "look up this named dish I already know about," never "what's on
+the menu," so it can't substitute for the cron's actual discovery role at any request budget.
+
+If/when the product wants what Web INA adds:
+1. **Micronutrient %DV for the 4 halls:** extend `populate-dishes` (or a sibling function) with a
+   second best-effort pass -- for each dish already upserted this run that has no micronutrient data
+   yet, one `search.aspx` lookup (disambiguated by the dish's own `last_seen_hall_tid` -> hall name,
+   matched against the search result's `locationName`) + one `label.aspx` fetch, merging the %DV
+   fields into the same row. Cost is bounded to never-enriched dishes and shrinks as the catalog
+   matures -- add, don't replace.
+2. **Retail/café coverage (the 24 non-hall `locationNum`s):** a separate, low-frequency (e.g. weekly
+   -- retail menus are far more static than the halls') job walking `longmenu.aspx` for just those
+   locations. Whether this data is actually wanted is a product call this evaluation doesn't resolve
+   on its own.
+
+**Unplanned finding, worth its own follow-up: `populate-dishes` has been silently stale for two days.**
+Checked live during this evaluation (`ubogyqskqzvkcqboqbhw`, 2026-09-14): `public.dishes.updated_at`
+tops out at 2026-09-11 08:00:02 UTC despite the current time being 2026-09-14 03:54 UTC and
+`cron.job_run_details` showing the `populate-dishes-daily` trigger itself "succeeded" at 08:00 UTC on
+9/11, 9/12, *and* 9/13 -- i.e. the SQL-level `net.http_post` call fired correctly on all three days,
+but the actual catalog stopped updating after 9/11. `net._http_response`'s short retention window (a
+few hours) had already aged out the 9/12/9/13 response bodies by the time this was checked, so the
+exact failure couldn't be read back directly. Leading hypothesis, from reading the function's own
+code rather than confirmed logs: `fetchHallDishes` degrades every per-hall failure to an empty map
+without throwing (by design, so one hall's outage doesn't blank the other three) -- if ALL 4 halls
+fail on a given run (a transient `umassdining.com` issue, a timeout, a network blip), `rows.length`
+is 0, the `if (rows.length > 0)` guard skips the upsert entirely, and the function still returns a
+plain 200 -- a total-outage day currently produces no error signal anywhere. Not fixed as part of
+this evaluation (out of the scope that was asked for); flagged for a follow-up M-track ticket (it
+touches `supabase/functions/populate-dishes`) to add explicit alerting/logging when a run upserts
+zero rows, and to check whether last night's specific outage was `umassdining.com`-side or something
+in the function/cron plumbing itself.
