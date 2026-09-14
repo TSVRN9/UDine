@@ -204,39 +204,48 @@ until curl -s "http://localhost:$METRO_PORT/status" 2>/dev/null | grep -q "packa
 done
 METRO_PID="$(ss -ltnp 2>/dev/null | awk "/:$METRO_PORT /"'{print $0}' | grep -oP 'pid=\K[0-9]+' | head -1 || echo unknown)"
 
-# --- 5. Point the installed dev client at Metro -------------------------------------
+# --- 5. Point the installed debug build at THIS Metro --------------------------------
+# This project has no expo-dev-client (Metro itself logs "Ensure that the expo-dev-client
+# package is installed"), so the installed app is a plain RN debug build and the
+# `udine://expo-development-client/?url=...` deep link the script used to send here had no
+# handler at all -- the app launched and fetched its bundle from RN's compiled-in default,
+# 10.0.2.2:8081, whatever port this script's Metro was on (docs/agents/emulator-pool.md's
+# deep-link section; root-caused 2026-09-14). RN resolves the host in
+# PackagerConnectionSettings.kt: in-memory override (what the dev menu's "Change Bundle
+# Location" sets -- lost on force-stop), then the `debug_http_host` default SharedPreference,
+# then the 10.0.2.2:<react_native_dev_server_port> default. The preference is the only
+# durable, externally-settable one, so write it (build is debuggable => `run-as` works) while
+# the app is stopped, then launch MainActivity directly.
 adb -s "$SERIAL" shell am force-stop "$APP_ID"
-# 10.0.2.2 is the emulator's built-in alias for the host's loopback interface --
-# unlike the pool doc's LAN/bridge IP example, this works from inside any emulator
-# on this host without needing to look up a host-specific address.
-adb -s "$SERIAL" shell am start -a android.intent.action.VIEW \
-  -d "udine://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A$METRO_PORT" >/dev/null
+PREFS_FILE="shared_prefs/${APP_ID}_preferences.xml"   # run-as cwd is the app's data dir
+PREFS_XML="$(adb -s "$SERIAL" shell run-as "$APP_ID" cat "$PREFS_FILE" 2>/dev/null | tr -d '\r' || true)"
+[[ -z "$PREFS_XML" ]] && PREFS_XML=$'<?xml version=\'1.0\' encoding=\'utf-8\' standalone=\'yes\' ?>\n<map>\n</map>'
+PREFS_TMP="$(mktemp)"
+grep -v 'name="debug_http_host"' <<<"$PREFS_XML" \
+  | sed "s|</map>|    <string name=\"debug_http_host\">10.0.2.2:$METRO_PORT</string>\n</map>|" >"$PREFS_TMP"
+adb -s "$SERIAL" push "$PREFS_TMP" /data/local/tmp/udine-prefs.xml >/dev/null 2>&1
+rm -f "$PREFS_TMP"
+# SharedPreferencesImpl restores a leftover .bak over the main file on load, so drop it too.
+# (`adb shell` joins its args and the device shell re-parses them, hence the nested quoting.)
+if ! adb -s "$SERIAL" shell "run-as $APP_ID sh -c 'mkdir -p shared_prefs && rm -f $PREFS_FILE.bak && cp /data/local/tmp/udine-prefs.xml $PREFS_FILE'"; then
+  echo "Could not write debug_http_host into $APP_ID's SharedPreferences via run-as on $DEVICE (installed build not debuggable?) -- set it by hand via the dev menu's Change Bundle Location (docs/agents/emulator-pool.md)" >&2
+  exit 1
+fi
+adb -s "$SERIAL" shell am start -n "$APP_ID/.MainActivity" >/dev/null
 
+# Only a "Bundled" line in THIS run's Metro log proves the device fetched its JS from THIS
+# port. The old MainActivity-resumed shortcut was a false positive: an app serving another
+# port's bundle is resumed just the same (every 2026-09-14 capture before this fix had a
+# 600-byte Metro log with no Bundled line and 8081 sockets on the device).
 BUNDLE_WAITED=0
-BUNDLED=false
-while [[ $BUNDLE_WAITED -lt 120 ]]; do
-  if grep -qE "(Android Bundled|Bundled)" "$METRO_LOG" 2>/dev/null; then
-    BUNDLED=true
-    break
-  fi
-  TOP="$(adb -s "$SERIAL" shell dumpsys activity activities 2>/dev/null | grep topResumedActivity || true)"
-  if echo "$TOP" | grep -q "$APP_ID/.MainActivity"; then
-    BUNDLED=true
-    break
+until grep -qE "(Android Bundled|Bundled)" "$METRO_LOG" 2>/dev/null; do
+  if [[ $BUNDLE_WAITED -ge 120 ]]; then
+    echo "No Bundled line in $METRO_LOG within 120s -- the device never fetched a bundle from port $METRO_PORT. Check which port it is actually on: adb -s $SERIAL shell netstat -tn | grep 10.0.2.2" >&2
+    exit 1
   fi
   sleep 3
   BUNDLE_WAITED=$((BUNDLE_WAITED + 3))
 done
-if ! $BUNDLED; then
-  echo "Dev client never reached a bundled MainActivity within 120s -- see $METRO_LOG" >&2
-  exit 1
-fi
-# "Bundled"/MainActivity-resumed only proves Metro handed the JS bundle to the
-# app -- a cold RN boot still has to init the JS runtime and, for a real screen,
-# fetch its data (e.g. the hall menu hits umassdining.com) before anything but a
-# black frame is on screen. Give it room before navigating further.
-sleep 4
-
 # wait_for_text: polls the live UI (not a screenshot -- `uiautomator dump`'s XML, which embeds
 # every visible string as a text="..." attribute) until TEXT appears, or exits loudly on timeout.
 # Used instead of a fixed sleep wherever the caller knows a string that only appears once real
@@ -251,29 +260,45 @@ sleep 4
 # none with any text" -- not an app bug to fix here, so this only makes the poll loop diagnose that
 # class of platform flakiness (uiautomator/accessibility-service slow to bind after a fresh launch)
 # instead of reporting the same generic message as a genuinely-wrong-screen timeout.
+# An empty TEXT waits for any populated tree (>= MIN_POPULATED_NODES nodes) -- i.e. "something
+# has mounted", used right after bundling before navigating. The budget is wall-clock, not a
+# count of sleeps: one `uiautomator dump` blocks ~10s on a screen that never goes idle.
 MIN_POPULATED_NODES=15
 wait_for_text() {
   local text="$1"
   local timeout="$2"
-  local waited=0
+  local deadline=$(( $(date +%s) + timeout ))
   local dump=""
   local nodes=0
   local max_nodes=0
-  while [[ $waited -lt $timeout ]]; do
-    dump="$(adb -s "$SERIAL" shell uiautomator dump /sdcard/udine-wait-dump.xml 2>/dev/null && adb -s "$SERIAL" exec-out cat /sdcard/udine-wait-dump.xml 2>/dev/null || true)"
-    if [[ "$dump" == *"$text"* ]]; then
+  while (( $(date +%s) < deadline )); do
+    # rm first: on a screen that never goes idle (a looping skeleton shimmer) `uiautomator dump`
+    # prints "ERROR: could not get idle state.", writes nothing, and still exits 0 -- so without
+    # the rm this would cat the PREVIOUS run's dump and match its text (seen live 2026-09-14).
+    dump="$(adb -s "$SERIAL" shell "rm -f /sdcard/udine-wait-dump.xml; uiautomator dump /sdcard/udine-wait-dump.xml" 2>/dev/null >/dev/null; adb -s "$SERIAL" exec-out cat /sdcard/udine-wait-dump.xml 2>/dev/null || true)"
+    if [[ -n "$text" && "$dump" == *"$text"* ]]; then
       return 0
     fi
     nodes="$(grep -o "<node" <<<"$dump" | wc -l)"
     [[ $nodes -gt $max_nodes ]] && max_nodes=$nodes
+    if [[ -z "$text" && $nodes -ge $MIN_POPULATED_NODES ]]; then
+      return 0
+    fi
     sleep 2
-    waited=$((waited + 2))
   done
   if [[ $max_nodes -lt $MIN_POPULATED_NODES ]]; then
     echo "uiautomator never exposed a populated accessibility tree on $DEVICE in ${timeout}s (max $max_nodes nodes seen -- a correctly-rendered screen measures well above $MIN_POPULATED_NODES even when sparse, e.g. 26 on an empty-state screen, 241+ on a content-heavy one) -- this matches known uiautomator/accessibility-service rebind flakiness (docs/agents/emulator-pool.md), not necessarily a stale or wrong screen. Retry, or capture with a fixed sleep and confirm the PNG by eye instead of trusting this timeout as proof the screen didn't load." >&2
   fi
   return 1
 }
+
+# "Bundled" only proves Metro handed the JS bundle to the app. On this host the JS runtime
+# then takes 20-30s to boot and mount anything (live-measured 2026-09-14 on Narrow: black
+# frame until ~33s after launch) -- the fixed 4s sleep that used to be here captured that
+# black frame whenever no --wait-for followed. Wait for a populated tree instead.
+if ! wait_for_text "" 90; then
+  echo "WARNING: no populated accessibility tree on $DEVICE within 90s of bundling -- capturing anyway; check the PNG for a black/blank frame" >&2
+fi
 
 # --- 6. Navigate to the route --------------------------------------------------------
 if [[ -n "$ROUTE" ]]; then
