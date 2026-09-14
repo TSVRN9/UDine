@@ -38,7 +38,7 @@ Also present: `ambassador.umassdining.com` (separate login-related host, purpose
 | mobileapp.umassdining.com | GET/POST | `/umassapi2/public/favorite...` | `user_token` (assumed) | Favorites CRUD — see favorites system below. |
 | mobileapp.umassdining.com | GET/POST | `/umassapi2/public/preference...` | `user_token` (assumed) | User preferences (likely dietary/allergen selections — see below). |
 | onesignal.com | POST | `/api/v1/notifications` | OneSignal REST API key | **Push notifications confirmed via OneSignal**, not raw FCM. |
-| af-foodpro1.campus.ads.umass.edu | GET/POST | `/foodpro.net/{location,shortmenu,search,label}.aspx` | none | **CONFIRMED** (2026-09-13). CBORD's public Web INA nutrition-lookup tool — see its own section below for the full writeup (this is not linked from anywhere in the official app's own strings; found via `umassdining.com/nutrition/nutrient-analysis`). |
+| af-foodpro1.campus.ads.umass.edu | GET/POST | `/foodpro.net/{location,shortmenu,longmenu,search,label,pic}.aspx` | none | **CONFIRMED** (2026-09-13). Public "Web INA" nutrition-lookup tool (vendor: Aurora Information Systems per page SSI comments, not confirmed CBORD) — see its own section below for the full writeup (this is not linked from anywhere in the official app's own strings; found via `umassdining.com/nutrition/nutrient-analysis`). |
 
 ## Existing favorites / dietary system (found as JS action-name strings, not endpoints — but tells us the client-side data model)
 
@@ -122,27 +122,62 @@ GET https://www.umassdining.com/foodpro-menu-ajax?tid=<drupal_taxonomy_term_id>&
   date picker. Either source (initial HTML scrape or the ajax endpoint with an explicit date) works;
   the ajax endpoint is more directly usable as an API since it returns clean JSON instead of a full page.
 
-## CBORD Web INA (public nutrition-lookup tool) — CONFIRMED (2026-09-13)
+## FoodPro "Web INA" (public nutrition-lookup tool) — CONFIRMED (2026-09-13)
 
 The small printed code on UMass Dining's physical nutrition table-tents (e.g. Blue Cheese Crumbles:
 `181086 9.1.26`; Pumpkin Seeds: `186046`) is a **FoodPro `RecNum`** (recipe/item ID), and it's directly
-usable as a public lookup key against CBORD's "Web INA" (Ingredient/Nutrition Analysis) tool, which
-`umassdining.com/nutrition/nutrient-analysis` links to:
+usable as a public lookup key against a "Web INA" (Ingredient/Nutrition Analysis) tool, which
+`umassdining.com/nutrition/nutrient-analysis` links to. **Vendor correction:** an earlier pass of this
+note called this "CBORD Web INA" on the assumption that it's the same CBORD FoodPro system behind
+`foodpro-menu-ajax`; the page's own server-side-include comments actually attribute it to **Aurora
+Information Systems**, not CBORD. Treat "CBORD" as unconfirmed for this specific tool — the two may
+still share a database (same `RecNum` scheme, same UMass FoodPro deployment), but the web front-end
+itself is a different vendor's product.
 
 - **Base:** `https://af-foodpro1.campus.ads.umass.edu/foodpro.net/` (128.119.167.180) — a plain
   public IIS/.NET site, no auth, no API key.
-- `location.aspx` — lists ~50+ FoodPro `locationNum`s: the same 4 residential halls as
-  `foodpro-menu-ajax`'s `tid`s (01–04, same order) **plus** retail/café spots the `tid` system doesn't
-  reach at all (Whitmore Cafe=08, Worcester Cafe=13, Bluewall Grill=14, Bluewall Deli Delish=20,
-  Courtside Cafe=21, Bluewall Tavola=22, Harvest=23, and more).
-- `shortmenu.aspx?sName=%60&locationNum=NN&locationName=...&naFlag=1` — per-location menu. Needs a
-  session cookie primed by first hitting `location.aspx` (a cold direct fetch 500s without one).
-- `search.aspx` (POST, `Action=SEARCH&strCurKeywords=<name>`) — full-text dish search across every
-  location and future date. Each hit links to
-  `label.aspx?...&RecNumAndPort=<recnum>*<portion>`.
+- `location.aspx` — lists **28** FoodPro `locationNum`s (corrected from an earlier "~50+" estimate):
+  the same 4 residential halls as `foodpro-menu-ajax`'s `tid`s (01–04, same order) **plus 24**
+  retail/café spots the `tid` system doesn't reach at all (Whitmore Cafe=08, Worcester Cafe=13,
+  Bluewall Grill=14, Bluewall Deli Delish=20, Courtside Cafe=21, Bluewall Tavola=22, Harvest=23, and
+  others).
+- `shortmenu.aspx?sName=%60&locationNum=NN&locationName=...&naFlag=1` — per-location menu, dish names
+  only. Needs a session cookie primed by first hitting `location.aspx` (a cold direct fetch 500s
+  without one). **Does not embed `RecNum`/`label.aspx` links per dish** — verified live (Worcester,
+  today): zero `RecNumAndPort` occurrences in the response. Use `longmenu.aspx` instead when you need
+  per-dish IDs in bulk (below).
+- `longmenu.aspx?sName=%60&locationNum=NN&locationName=...&naFlag=1&WeeksMenus=...` — bulk per-location
+  menu that, unlike `shortmenu.aspx`, embeds a `label.aspx?...&RecNumAndPort=<recnum>&dtdate=...` link
+  on every dish row. Confirmed live: 31 dishes for Worcester (locationNum=01) today, each carrying its
+  own `RecNum` — this is the actual "list every dish + its ID for one location" endpoint, not
+  `shortmenu.aspx`. **Caveat:** 31 rows is well short of the same hall/day's ~131-144 total dish count
+  from `shortmenu.aspx`/`foodpro-menu-ajax`; one request appears scoped to one meal period, not the
+  whole day (the exact meal-selector param wasn't isolated). Budget roughly one `longmenu.aspx`
+  request per (location, meal period), not per (location, day).
+- `search.aspx` (POST, `Action=SEARCH&strCurKeywords=<name>`) — full-text (substring, not just exact)
+  dish search across every location and future date. Each hit links to
+  `label.aspx?...&RecNumAndPort=<recnum>*<portion>`. **`RecNum` is per-hall-recipe, not a global ID for
+  a dish name**: searching "Bacon" returns 6 distinct `RecNum`s across just Franklin and Worcester —
+  the same display name can be a different FoodPro recipe at every location that serves it. A
+  name-only search on a common dish is ambiguous; disambiguate by cross-referencing the result's own
+  `locationName` against whichever hall you already know the dish came from.
 - `label.aspx?locationNum=NN&locationName=...&dtdate=M%2fD%2fYYYY&RecNumAndPort=<recnum>*<portion>` —
   the actual Nutrition Facts label. **Fully stateless and public** — verified from a completely fresh
   cookie jar, no prior request needed.
+- `pic.aspx?PicPath=/FoodPro/Pictures/<num>.jpg&RecName=<name>&Width=&Height=&Fit=0` — dish-photo
+  popup. The embedded picture number **is** the dish's own `RecNum` (confirmed: `163019` →
+  `label.aspx` correctly returns "Whole Grain Penne"), so it's a free incidental cross-check when
+  present — but coverage is sparse (2 of 144 dish rows had a photo in the Worcester sample), not
+  viable as a primary bulk source.
+- `allergenfilter.aspx?strcurlocationnum=NN` — UI-only JS popup for filtering by allergen; returns an
+  interactive form, not data. Irrelevant to scraping.
+- `allergenfilterinc.aspx`, `date.aspx`, `fieldfilt.aspx`, `head.aspx`, `nauserdata.aspx` — **not
+  independently-fetchable endpoints.** Every occurrence found is inside an HTML comment
+  (`<!-- fieldfilt.aspx, Version 2.6.0 -->`) marking an internal ASP.NET server-side-include boundary
+  (page header, the date-picker widget, a field-filter dropdown, the allergen-filter list, and a
+  nutrition-session/user-tracking include, respectively). Nothing to call here.
+- Generic CBORD/vendor-convention guesses tried and cleanly 404'd: `default.aspx`, `welcome.aspx`,
+  `menu.aspx`, `printmenu.aspx`, `NutrientCalcSummary.aspx`.
 
 **Verified directly against the two physical-card examples:** searching "Pumpkin Seeds" returns
 `RecNumAndPort=186046*1/2` (Berkshire) — matches the card's `186046` exactly, and `label.aspx` for it
@@ -157,17 +192,22 @@ table-tent printouts, not something this public tool exposes. Don't assume it's 
 fetchable.
 
 **What this adds over `foodpro-menu-ajax`** (which already carries full macro nutrition per dish via
-`data-*` attributes for whatever's on the visible ~2-week menu): micronutrient %DV (calcium, iron,
-potassium, vitamin D — absent from the ajax feed's attributes), coverage of the ~50 retail/café
-`locationNum`s the 4-hall `tid` system can't reach, name-based search across dates outside the ajax
-feed's rolling window, and a stable numeric recipe ID that doesn't depend on matching display-name
-strings day to day. It does **not** beat the ajax feed for a dish already on today's/this-week's menu
-at one of the 4 halls — same nutrition data, just less of it per dish.
+`data-*` attributes for whatever's on the visible ~2-week menu at the 4 halls): micronutrient %DV
+(calcium, iron, potassium, vitamin D — absent from the ajax feed's attributes), coverage of the 24
+retail/café `locationNum`s the 4-hall `tid` system can't reach, name-based search across dates outside
+the ajax feed's rolling window, and a stable-per-hall numeric recipe ID that doesn't depend on
+matching display-name strings day to day. It does **not** beat the ajax feed for a dish already on
+today's/this-week's menu at one of the 4 halls — same nutrition data, just less of it per dish, and
+`RecNum` resolution for a common name needs the location-disambiguation step above.
 
 Implementation-wise this is the same HTML-attribute/table scraping style as the existing
-`foodpro-menu-ajax` parser (`shared/src/umassDining.ts`) — no new technique needed. `shortmenu.aspx`
-needs a cookie jar primed by one prior `location.aspx` GET; `search.aspx`/`label.aspx` are stateless.
-No rate limiting or auth encountered across ~15 real requests during this research pass.
+`foodpro-menu-ajax` parser (`shared/src/umassDining.ts`) — no new technique needed. `shortmenu.aspx`/
+`longmenu.aspx`/`search.aspx` need a cookie jar primed by one prior `location.aspx` GET; `label.aspx`
+is stateless. No rate limiting or auth encountered across the ~40 real requests made during this
+research pass (2026-09-13) — be a polite scraper anyway, this is UMass IT infrastructure, not a CDN.
+
+See `docs/decisions-log.md` → "Web INA: mirror vs. on-demand, and the `populate-dishes` cron"
+(2026-09-13) for the architecture evaluation this research fed into.
 
 ## Gaps / what we couldn't determine
 
