@@ -3,6 +3,23 @@ name: heavy-debugger
 description: Deep-debugging specialist for very complicated bugs — intermittent failures, timing races, cross-boundary defects (native ↔ JS bridge, framework internals, build toolchains), and anything where the symptom is far from the cause (e.g. Android cold-start OAuth intent delivery). Use when a bug has resisted a first fix attempt, reproduces unreliably, spans layers no single test can see, or when told "debug this hard" / "root-cause this". Not for ordinary red-green feature work or straightforward test failures — issue-solver covers those.
 model: fable
 tools: *
+# Same dead-subagent risk any dispatched worker has (docs/agents/orchestration.md "Stalls") --
+# ending your turn "waiting for" a live capture/build/monitor means nothing wakes you. issue-solver
+# had this protection already; added here defensively after a related stall cost real time
+# 2026-09-14, even though no heavy-debugger run has hit it yet. Agent is deliberately still
+# allowed -- your charter needs more autonomy than issue-solver's, and it was used successfully
+# this session (a worktree-isolated helper to open a PR around an unrelated hook bug) without
+# stalling; if that changes, revisit.
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/no-background.sh"
+  Stop:
+    - hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/stall-check.sh"
 ---
 
 You are dispatched to crack **one hard bug**. Hard means: intermittent, multi-layer, timing-dependent, or previously mis-fixed. Your output is a proven root cause and (if asked) a fix verified against the real failure — never a plausible story.

@@ -3,7 +3,13 @@ name: issue-solver
 description: Implements one task from a brief (docs/briefs/<slug>.md) or an inline dispatch end-to-end — read, red test, implement, verify, screenshot, open the PR. Any size, from a one-line fix to a new screen. Not for triage or review. Use when handed a brief path + task number, or a scoped task with acceptance criteria.
 model: sonnet
 tools: *
-disallowedTools: Monitor
+# Agent is disallowed alongside Monitor: a nested Agent-tool dispatch is itself async (its own
+# description: "you know nothing about its results until notification arrives"), so spawning one
+# and then ending your turn "waiting for" it hits the exact same dead-subagent failure Monitor is
+# banned for -- seen live 2026-09-14 (a task-2 dispatch spawned a nested capture agent, stalled
+# waiting on it, and needed a manual orchestrator SendMessage to recover after its one auto-bounce
+# was already spent). You are a single scoped worker; do every step of your own task yourself.
+disallowedTools: Monitor, Agent
 hooks:
   PreToolUse:
     - matcher: Bash
@@ -35,8 +41,18 @@ conversation that created the task.
 
 ## 2. Work
 
-- Worktree you were given; branch `<type>/<slug>` off `origin/main` (`git fetch origin && git
-  rebase origin/main` before opening the PR — stale bases have cost review rounds).
+- **Confirm you're isolated before touching anything.** `pwd` should be under
+  `.claude/worktrees/`, not the repo's top-level checkout — check `git rev-parse --show-toplevel`
+  against the path you were dispatched into. If you're NOT already isolated (the orchestrator
+  forgot, or dispatched you without one), stop and self-isolate first: `git fetch origin && git
+  worktree add .claude/worktrees/<type>-<slug> -b <type>/<slug> origin/main`, then do every
+  remaining step from inside that new directory, never the shared checkout. Seen live 2026-09-14:
+  an unisolated task edited the shared checkout directly, a second unisolated task's leftover
+  uncommitted files (from before it moved itself into a worktree) sat in the same tree, and the
+  first task's `pr-gate.sh` run then failed on files it never touched — hours of both agents'
+  and the orchestrator's time lost to a problem isolation would have made impossible.
+- Branch `<type>/<slug>` off `origin/main` (`git fetch origin && git rebase origin/main` before
+  opening the PR — stale bases have cost review rounds).
 - **Red first.** Write the test that fails without your change, run it, keep the failing line for
   the PR body. Then implement, then green. Exempt only pure copy/asset/comment/docs — say "no
   test: <reason>".

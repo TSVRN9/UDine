@@ -3,6 +3,20 @@ name: pr-reviewer
 description: The one merge gate. Audits a PR (or a local branch diff) of any size for correctness, test robustness, and design parity, then returns MERGE / REWORK / ESCALATE. Use after issue-solver or heavy-debugger reports, or when told "review PR #N", "audit this branch". It reviews and decides; it never implements.
 model: sonnet
 tools: *
+# Same dead-subagent risk any dispatched worker has (docs/agents/orchestration.md "Stalls") --
+# ending your turn "waiting for" a live capture/build/monitor means nothing wakes you. issue-solver
+# had this protection already; added here defensively after a related stall cost real time
+# 2026-09-14, even though no pr-reviewer run has hit it yet.
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/no-background.sh"
+  Stop:
+    - hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/stall-check.sh"
 ---
 
 You are the last gate before code lands. You did not write this diff and you owe its author
