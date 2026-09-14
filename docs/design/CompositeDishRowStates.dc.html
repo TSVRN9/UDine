@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #f3ead8; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f3ead8; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; color: #241a14; position: relative;">
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 18px 20px 6px 20px;">
+    <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; color: #3b0a0f;">Hampshire</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 20px; flex-grow: 1; overflow-y: auto;">
+
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+      <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #3b0a0f;">Noodle Bar</div>
+      <div style="height: 2px; flex-grow: 1; background: rgba(201,154,46,0.5);"></div>
+    </div>
+
+    <!-- State 1: not yet composed this session. Range = base alone .. base + 1 of every add-in
+         (260-440 cal / 10-15g protein for this dish's real composer numbers, computed, not eyeballed).
+         Icon: a bowl with toppings -- distinct from a copy/duplicate glyph and from the FAB's
+         filter-funnel icon (MenuFAB_Active.dc.html:75), reads as "build this" at a glance. -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fbf7ef; border: 1px solid rgba(36,26,20,0.12); border-radius: 6px; padding: 10px 12px;">
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+        <div style="font-weight: 600; font-size: 14px;">Teriyaki Noodle Bowl</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">260–440 cal · 10–15g protein</div>
+      </div>
+      <div style="width: 44px; height: 44px; border: 1px solid rgba(124,36,48,0.45); border-radius: 999px; display: flex; align-items: center; justify-content: center;">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M3 6h12" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round"></path>
+          <path d="M3 6c0 4.2 2.7 7 6 7s6-2.8 6-7" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round"></path>
+          <circle cx="6" cy="4.3" r="1" fill="#7c2430"></circle>
+          <circle cx="9" cy="3.6" r="1" fill="#7c2430"></circle>
+          <circle cx="12" cy="4.3" r="1" fill="#7c2430"></circle>
+        </svg>
+      </div>
+    </div>
+
+    <!-- State 2: composed and on the plate. Renders IDENTICALLY to a simple dish's in-plate
+         stepper (plain +/-1 taps, no hold-drag -- matches today's PlateAddControl: hold-drag only
+         exists in the pre-add slot). Quantity here scales the whole saved recipe as one unit. -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fbf7ef; border: 1px solid #c99a2e; border-radius: 6px; padding: 10px 12px;">
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+        <div style="font-weight: 600; font-size: 14px;">Pad Thai</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">410 cal · 16g protein</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0px; background: #7c2430; border-radius: 999px; color: #fbf7ef;">
+        <div style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">−</div>
+        <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 16px; text-align: center;">2</div>
+        <div style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">+</div>
+      </div>
+    </div>
+
+    <!-- State 3: same row, expanded (the existing tap-to-expand target every dish row already
+         has). Reuses the expanded-content slot HallMenu.dc.html already uses for nutrition detail
+         -- "Edit add-ins" sits where "FULL NUTRITION LABEL" sits today, same link styling, and
+         reopens CompositeDishComposer pre-filled with the saved selection. -->
+    <div style="display: flex; flex-direction: column; gap: 10px; background: #fbf7ef; border: 1px solid #c99a2e; border-radius: 6px; padding: 10px 12px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+          <div style="font-weight: 600; font-size: 14px;">Miso Ramen</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.6);">520 cal · 22g protein</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0px; background: #7c2430; border-radius: 999px; color: #fbf7ef;">
+          <div style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">−</div>
+          <div style="font-family: ui-monospace, Menlo, monospace; font-weight: 600; font-size: 14px; min-width: 16px; text-align: center;">1</div>
+          <div style="width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;">+</div>
+        </div>
+      </div>
+      <div style="height: 1px; background: rgba(36,26,20,0.1);"></div>
+      <div style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(36,26,20,0.7);">Soft Egg · Nori · Scallion</div>
+      <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #7c2430;">EDIT ADD-INS
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="#7c2430" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
