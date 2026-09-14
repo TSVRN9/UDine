@@ -1,5 +1,5 @@
 import type { FoodPreferences, MenuItem } from "@udine/shared";
-import { grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "./hallMenuSections";
+import { dishRowKey, grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "./hallMenuSections";
 
 const NO_PREFS: FoodPreferences = { allergensToAvoid: [], requiredDietTags: [] };
 
@@ -117,6 +117,22 @@ describe("grabSections", () => {
   it("orders its sections with sortStationNames, not first-seen order", () => {
     const soup = { ...PIZZA, dishName: "Soup", category: "Soups" };
     expect(grabSections([soup, PIZZA], NO_PREFS).map((s) => s.title)).toEqual(["Entrees", "Soups"]);
+  });
+});
+
+describe("dishRowKey", () => {
+  // Regression: confirmed live 2026-09-14 -- Hampshire's real daily feed independently served a
+  // "Pizza" station with the same 3 dishes (same category, dish names, and position) the
+  // always-available tail station (alwaysAvailableStations.ts) also renders. Both used to compute
+  // the identical key, which React Native logs as a duplicate-key warning.
+  it("gives a real feed item and a same-named always-available item distinct keys", () => {
+    const realFeedPizza: MenuItem = { ...PIZZA, category: "Pizza", dishName: "Cheese Pizza", date: "2026-09-14" };
+    const alwaysAvailablePizza: MenuItem = { ...PIZZA, category: "Pizza", dishName: "Cheese Pizza", date: "" };
+    expect(dishRowKey(realFeedPizza, 0)).not.toBe(dishRowKey(alwaysAvailablePizza, 0));
+  });
+
+  it("includes category, dish name, date, and index", () => {
+    expect(dishRowKey(PIZZA, 2)).toBe(`${PIZZA.category}-${PIZZA.dishName}-${PIZZA.date}-2`);
   });
 });
 
