@@ -403,6 +403,42 @@
       "x": 0,
       "y": 0,
       "page": "page-10"
+    },
+    {
+      "file": "CompositeDishRowStates.dc.html",
+      "x": 0,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "F4 -- Composite dish row states (new)",
+      "page": "page-3"
+    },
+    {
+      "file": "UnlistedStationPersistent.dc.html",
+      "x": 450,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "F4 -- Always-available station (new)",
+      "page": "page-3"
+    },
+    {
+      "file": "CompositeDishComposer.dc.html",
+      "x": 450,
+      "y": 960,
+      "w": 390,
+      "h": 844,
+      "title": "F4 -- Bowl composer sheet (new)",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchLookupStates.dc.html",
+      "x": 900,
+      "y": 960,
+      "w": 390,
+      "h": 844,
+      "title": "F4 -- lookup-dish states: fetching / miss / rate-limited (new)",
+      "page": "page-4"
     }
   ],
   "annotations": [
@@ -612,6 +648,30 @@
       "w": 390,
       "text": "Press and Newsletter both use the same \"few items + SEE ALL\" pattern as the You pane's Today's Log / Favorites, instead of standalone /press and /newsletter routes with no in-app entry point.",
       "page": "page-8"
+    },
+    {
+      "id": "composite-dish-logic",
+      "x": 1880,
+      "y": 700,
+      "w": 420,
+      "page": "page-3",
+      "text": "Composite dishes / toppings (new). Picked: bowl composer sheet over inline add-ins (dropped). Traced against the real gesture code (HoldSlideAddButton.tsx, servingsStepper.ts, [slug].tsx's PlateAddControl): the hold-drag-release ladder only ever renders pre-add -- once in the plate, +/- are already plain +-1 taps, fractional editing happens later via the plate sheet's tap-the-number field (ServingsG.dc.html). So composing and quantity are already separate concerns; composite dishes just route the pre-add slot differently (CompositeDishRowStates.dc.html): not-yet-composed shows a bowl-with-toppings button (not HoldSlideAddButton -- no servings count is worth pre-choosing before add-ins exist) that opens CompositeDishComposer.dc.html; composed rows reuse the in-plate stepper unchanged. Editing later reuses the row's existing tap-to-expand target (\"Edit add-ins\" where \"Full Nutrition Label\" sits today), never the stepper. Add-ins inside the composer are real FoodPro dishes, not invented strings -- each carries its own cal/protein line, expands to per-serving macros + diet tags + nutrition label link (same treatment as HallMenu's Grill Station card), and keeps its own pre-add/in-plate hold-drag control, since an individual add-in (unlike the parent dish) has a well-defined '1 unit' from the start. The row-list range shown before composing (e.g. 260-440 cal) is base-alone to base+one-of-every-add-in, computed, not eyeballed. brief: foodpro-menu-expansion"
+    },
+    {
+      "id": "unlisted-station-logic",
+      "x": 1880,
+      "y": 1500,
+      "w": 420,
+      "page": "page-3",
+      "text": "Unlisted / uncataloged stations (new) -- salad bar, yogurt bar, pizza: never on UMass's own feed at all. Picked: always-available section (UnlistedStationPersistent.dc.html) over a persistent tab (dropped). Source: a small curated catalog per hall, stored in public.dishes the same way populate-retail-dishes already stores non-tid-fed rows -- no new table, just rows that aren't sourced from the daily ajax feed and so never disappear with it. Placement: fixed at the tail of the station list, identically in every meal-period tab (not gated by date/meal, since these are realistically all-day) -- keeps the feed-driven stations, which do reorder by meal, stable at the top. Portioning: bulk/scoop items add as 1 default unit sized to the row's own stated serving (e.g. 'Mixed Greens -- 10 cal/cup' adds exactly 1 cup on first tap), then use the ordinary pre-add hold-drag ladder to scale in 0.5 steps like any other dish -- no new gesture. A hall without a given station (e.g. no pizza) simply doesn't render that block, same 'blank = doesn't exist' convention the daily feed's own stations already follow. brief: foodpro-menu-expansion"
+    },
+    {
+      "id": "lookup-dish-states-logic",
+      "x": 1880,
+      "y": 1000,
+      "w": 420,
+      "page": "page-4",
+      "text": "lookup-dish edge function states (new) -- SearchLookupStates.dc.html. Fetching: inserted as one more row in the existing merged results list (at the position a UMass-catalog match would occupy), not a blocking full-screen state -- OFF/USDA/Custom matches already found keep showing beneath it. Mirrors the edge function's own up-to-5s in-flight follower poll: the spinner row reflects 'still polling' and swaps to a real result the moment a poll returns hit, or disappears on miss. Miss: the spinner row is simply removed -- no separate 'no results' message, the sheet's existing dashed \"Can't find it? Create a custom food\" affordance (already always present) already is the miss-state resolution. Rate-limited: swapped into the same slot the fetching row occupied (nothing shifts on resolution), shown only when lookup-dish actually returns rate_limited (never predicted client-side); the retry is a manual tap, not a timed auto-retry -- silently retrying against a budget-limited endpoint would hide from the user how close they are to the next reset. Source badges (UMASS/CUSTOM/PACKAGED/USDA) are unchanged from f2-add-item-note -- DB-hit vs. live-fetch stays invisible to the user by design. brief: foodpro-menu-expansion"
     }
   ],
   "launch": {

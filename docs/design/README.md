@@ -96,6 +96,10 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | F3 -- Filter sheet, in place (new) | `FilterSheet.dc.html` | 390×844 | `components/FilterSheet.tsx`, `app/filters.tsx` |
 | F3 -- Macro badges on menu items (new) | `MenuWithBadges.dc.html` | 390×844 | `app/halls/[slug].tsx` |
 | F3 -- You pane, Your Food group (new) | `YouPaneGrouped.dc.html` | 390×844 | `panes/YouPane.tsx`, `components/ui/SectionHeader.tsx` |
+| F4 -- Composite dish row states (new) | `CompositeDishRowStates.dc.html` | 390×844 | design-only |
+| F4 -- Bowl composer sheet (new) | `CompositeDishComposer.dc.html` | 390×844 | design-only |
+| F4 -- Always-available station (new) | `UnlistedStationPersistent.dc.html` | 390×844 | design-only |
+| F4 -- lookup-dish states: fetching / miss / rate-limited (new) | `SearchLookupStates.dc.html` | 390×844 | design-only |
 | Friend profile (tap avatar) | `FriendProfile.dc.html` | 390×844 | archived (`archive/full-features`) |
 | Half servings v2 — F: inline vertical slide (grows from the + button) | `ServingsF.dc.html` | 390×844 | `components/HoldSlideOverlay.tsx`, `components/HoldSlideAddButton.tsx`, `lib/servingsStepper.ts`, `app/halls/[slug].tsx` |
 | Half servings v2 — G: type an exact amount, editing from the plate sheet | `ServingsG.dc.html` | 390×844 | `components/PlateSheet.tsx` |
