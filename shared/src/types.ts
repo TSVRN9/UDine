@@ -134,7 +134,8 @@ export function menuItemMatchesPreferences(item: MenuItem, prefs: FoodPreference
  * exclude anything from a menu; they only flag which of the caller's *enabled* presets an item
  * qualifies for, for rendering a small badge next to the dish. Order returned follows
  * `prefs.macroPresets`'s own order, not a fixed canonical one -- purely informational, so there's
- * no "correct" order to enforce. */
+ * no "correct" order to enforce -- with one exception: `high-protein` suppresses `high-fiber` when
+ * a dish qualifies for both (see `menuItemMacroBadges`). */
 export type MacroPreset = "high-protein" | "low-sodium" | "under-300-cal" | "low-fat" | "high-fiber";
 
 // Thresholds checked against a live pull of all 4 halls' full-day menus (356 distinct dishes,
@@ -145,18 +146,51 @@ export type MacroPreset = "high-protein" | "low-sodium" | "under-300-cal" | "low
 // data instead of by eye: under-300-cal / low-sodium(140mg, FDA's actual "low sodium" cut, not
 // the old 400) / high-fiber(2g) land at 93%/45.5%/19.7% -- each one now splits the real menu.
 // low-fat's FDA cut (3g) was already fine (42.4%) and is unchanged.
+//
+// high-fiber recalibrated again, 2026-09-15 (another live pull, all 4 halls' full-day menus, 361
+// distinct dishes): the flat >=2g gram cut can't tell "genuinely fiber-dense food" from "high-
+// calorie food that happens to contain some fiber" -- whole-grain-crust pizza (real captured data,
+// umassDining.test.ts's REAL_HARVEST_MARKET_PIZZA_FRAGMENT: 445-569 cal, 5-6g fiber) clears >=2g
+// on fiber-from-crust while sitting at only 0.62-1.44g fiber per 100kcal (the pull's highest pizza
+// density, Vegetable Pizza, was 1.436 -- a real but thin 4% margin below the cutoff below).
+// Replaced with a density check (fiber per 100kcal) plus an absolute gram floor, both recalibrated
+// against the same pull, not just the gram cut inherited unchanged: a 2g floor turned out to
+// exclude real fiber-dense dishes near it (BUSH's Baked Beans, 1.9g/63cal, density 3.02 -- clearly
+// fiber-dense, just short of 2g), while every trace-fiber garnish/condiment in the pull (Banana
+// Peppers 0.5g/3cal, Romaine Lettuce 0.6g/5cal, and the rest of the pull's garnish items) sits at
+// 0.1-0.6g fiber -- far enough under 1.5g that lowering the floor to 1.5g still excludes every one
+// of them while admitting BUSH's Baked Beans and similar roasted-vegetable/legume/hummus dishes
+// that were being wrongly excluded. >=1.5g/100kcal density excludes every pizza in the pull (the
+// nearest, Vegetable Pizza, at a 4% margin) and every high-calorie composite dish (wraps, burrito
+// bowls) whose fiber grams are just diluted by calories, while >=1.5g absolute keeps a near-zero-
+// calorie garnish from qualifying on density alone. Both gates together land at 18.3% pass
+// (66/361) -- still catches genuinely fiber-dense low-cal foods (beans, chana dal, roasted
+// vegetables, hummus, whole grain penne, steamed broccoli, kale).
+const MIN_FIBER_G = 1.5;
+const FIBER_DENSITY_PER_100_KCAL = 1.5;
+
 const MACRO_PRESET_CHECKS: Record<MacroPreset, (n: NutritionFacts) => boolean> = {
   "high-protein": (n) => n.proteinG >= 10,
   "low-sodium": (n) => n.sodiumMg <= 140,
   "under-300-cal": (n) => n.calories <= 300,
   "low-fat": (n) => n.totalFatG <= 3,
-  "high-fiber": (n) => n.dietaryFiberG >= 2,
+  // n.calories > 0 guards the division -- a 0-calorie item (black coffee, water) can't divide-by-
+  // zero into a false qualify.
+  "high-fiber": (n) => n.calories > 0 && n.dietaryFiberG >= MIN_FIBER_G && (n.dietaryFiberG / n.calories) * 100 >= FIBER_DENSITY_PER_100_KCAL,
 };
 
 export function menuItemMacroBadges(item: MenuItem, prefs: FoodPreferences): MacroPreset[] {
   // A stored preset can be stale -- e.g. "under-500-cal", renamed to "under-300-cal" -- if it was
   // toggled on before a rename and never migrated; MACRO_PRESET_CHECKS has no entry for it.
-  return (prefs.macroPresets ?? []).filter((preset) => MACRO_PRESET_CHECKS[preset]?.(item.nutrition) ?? false);
+  const qualifying = (prefs.macroPresets ?? []).filter((preset) => MACRO_PRESET_CHECKS[preset]?.(item.nutrition) ?? false);
+  // Protein takes priority over fiber (owner decision): whole-grain-crust dishes (pizza) routinely
+  // clear both thresholds on fiber-from-crust, not fiber-density -- showing both reads as
+  // contradictory. Only suppressed when high-protein is itself enabled AND qualifying; a user who
+  // hasn't enabled high-protein still sees high-fiber alone on the same dish.
+  if (qualifying.includes("high-protein") && qualifying.includes("high-fiber")) {
+    return qualifying.filter((preset) => preset !== "high-fiber");
+  }
+  return qualifying;
 }
 
 export type Favorite = { type: "dish"; dishName: string } | { type: "location"; hallTid: number };
