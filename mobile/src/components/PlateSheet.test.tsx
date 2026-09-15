@@ -649,6 +649,55 @@ describe("PlateSheet", () => {
       expect(body).not.toMatch(/UnknownHostException/);
       expect(body).toMatch(/Create a custom food/);
     });
+
+    // 3b: the local (history+catalog+custom) group, OFF, USDA, and Branded now each splice into
+    // `results` independently as they resolve, instead of all 6 sources being awaited together
+    // before anything renders.
+    describe("progressive source streaming", () => {
+      it("shows a local hit as soon as it resolves, without waiting for a still-pending network source", async () => {
+        let resolveOff!: (v: unknown) => void;
+        mockedSearchProducts.mockImplementation(() => new Promise((resolve) => (resolveOff = resolve)));
+        const storage = await logStorageWith([historyEntry("Falafel Wrap", 1, 350, "2026-08-01T12:00:00.000Z")]);
+        const root = renderSheet({ logStorage: storage, hallTid: 1 });
+        ensureSearchExpanded(root);
+        act(() => {
+          searchInput(root).props.onChangeText("falafel");
+        });
+        await act(async () => {
+          searchInput(root).props.onSubmitEditing();
+        });
+
+        // The local group is a device-only read -- it's resolved even though OFF is still pending.
+        expect(texts(root).flat().join(" ")).toMatch(/Falafel Wrap/);
+        // The overall search hasn't finished (OFF is still in flight) -- the "Create a custom
+        // food" footer, which reads as a post-search summary, must not have appeared yet.
+        expect(texts(root).flat()).not.toContain("Can't find it? Create a custom food");
+
+        await act(async () => {
+          resolveOff({ results: [], hasMore: false });
+          await Promise.resolve();
+        });
+        expect(texts(root).flat().join(" ")).toMatch(/Create a custom food/);
+      });
+
+      // #494 review: each group's splice does `setResults((prev) => [...(prev ?? []), ...])` --
+      // correct for accumulating ONE search's own groups, but without an explicit reset at the top
+      // of runSearch, a SECOND search in the same open sheet was appending its own splices onto
+      // whatever the FIRST search had already left in `results`, instead of replacing it.
+      it("a second search in the same open sheet replaces the first search's results, not appends to them", async () => {
+        const storage = await logStorageWith([historyEntry("Falafel Wrap", 1, 350, "2026-08-01T12:00:00.000Z")]);
+        mockedSearchCachedDishes.mockReturnValueOnce([]).mockReturnValueOnce([{ dishName: "Miso Ramen", nutrition: { ...DISH.nutrition, calories: 420 }, allergens: [], dietTags: [], updatedAt: "x" }]);
+        const root = renderSheet({ logStorage: storage, hallTid: 1 });
+
+        await runSearch(root, "falafel");
+        expect(texts(root).flat().join(" ")).toMatch(/Falafel Wrap/);
+
+        await runSearch(root, "ramen");
+        const body = texts(root).flat().join(" ");
+        expect(body).toMatch(/Miso Ramen/);
+        expect(body).not.toMatch(/Falafel Wrap/);
+      });
+    });
   });
 
   // Bug report: a long dish/product name pushed the kind badge (UMass/Custom/Packaged/USDA)
@@ -743,6 +792,44 @@ describe("PlateSheet", () => {
       const expandedFlat = StyleSheet.flatten(findAddSection().props.style);
       expect(expandedFlat.borderStyle).not.toBe("dashed");
       expect(expandedFlat.borderColor).toBe(withOpacity(colors.ink900, 20));
+    });
+
+    // 3a: expanding search now replaces the WHOLE pane body (item list/totals/LOG button included),
+    // not just the bottom addSection block -- and a back chevron collapses it again in place.
+    it("expanding search replaces the whole pane -- item list, totals, and LOG button unmount, leaving only a back button + search UI", () => {
+      const plate = [{ ...menuItemToPlateEntry(DISH), count: 2 }];
+      const root = renderSheet({ plate, totals: { date: "x", calories: 400, proteinG: 18, totalCarbG: 48, totalFatG: 16 } });
+      expect(texts(root).flat().join(" ")).toMatch(/LOG 2 ITEMS/);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Add something else" }).props.onPress();
+      });
+
+      const body = texts(root).flat().join(" ");
+      expect(body).not.toMatch(/LOG \d+ ITEMS/);
+      expect(root.root.findAllByProps({ accessibilityLabel: "Edit servings for Pizza" })).toHaveLength(0);
+      expect(root.root.findByProps({ accessibilityLabel: "Back" })).toBeTruthy();
+    });
+
+    it("tapping Back collapses to idle without resetting the query or the results already fetched", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Trail Mix", nutrition: DISH.nutrition }], hasMore: false });
+      const root = renderSheet();
+      await runSearch(root, "trail mix");
+      expect(texts(root).flat().join(" ")).toMatch(/Trail Mix/);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Back" }).props.onPress();
+      });
+      expect(root.root.findAllByProps({ placeholder: "Search for a food" })).toHaveLength(0);
+      expect(root.root.findByProps({ accessibilityLabel: "Add something else" })).toBeTruthy();
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Add something else" }).props.onPress();
+      });
+      expect(searchInput(root).props.value).toBe("trail mix");
+      expect(texts(root).flat().join(" ")).toMatch(/Trail Mix/);
+      // Reopening after Back must not refire the network search -- the buffer is preserved, not reset.
+      expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
     });
   });
 

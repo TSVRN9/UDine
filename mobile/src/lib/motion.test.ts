@@ -97,6 +97,19 @@ describe("spin matches MenuLoading.dc.html's spinner", () => {
   });
 });
 
+// SearchLookupStates.dc.html:14's spinner is a different spec from MenuLoading.dc.html's above
+// (0.9s, not 1s) -- PlateSheet's search-loading state, not the menu/café-loading one.
+describe("searchSpin matches SearchLookupStates.dc.html's spinner", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "..", "..", "docs", "design", "SearchLookupStates.dc.html"), "utf8");
+
+  it("searchSpin: 0.9s == 900ms", () => {
+    const m = /animation:\s*spin\s+([\d.]+)(m?s)\s+linear/.exec(source);
+    expect(m).not.toBeNull();
+    const ms = m![2] === "ms" ? Number(m![1]) : Number(m![1]) * 1000;
+    expect(durations.searchSpin).toBe(ms);
+  });
+});
+
 describe("the shared cubic-bezier's control points", () => {
   it.each([
     [".pane", "transform"],
