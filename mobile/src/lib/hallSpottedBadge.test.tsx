@@ -17,6 +17,10 @@ function badgeCount(root: renderer.ReactTestRenderer) {
   return root.root.findAll((n) => n.type === View && n.props.testID === "hall-spotted-badge").length;
 }
 
+function texts(root: renderer.ReactTestRenderer) {
+  return root.root.findAllByType(Text).map((n) => n.props.children);
+}
+
 jest.mock("../lib/supabase", () => ({
   supabase: {
     auth: {
@@ -56,7 +60,7 @@ jest.mock("../lib/hallSpottedCounts", () => ({
   hallSpottedCounts: () => mockHallSpottedCounts(),
 }));
 
-function hours(): DiningHoursFeed {
+function hours(retail: DiningHoursFeed["retail"] = []): DiningHoursFeed {
   return {
     halls: [
       { hallTid: 1, breakfast: null, lunch: { openTime: "11:00 AM", closeTime: "2:30 PM" }, dinner: null, latenight: null, general: null },
@@ -64,7 +68,7 @@ function hours(): DiningHoursFeed {
       { hallTid: 3, breakfast: null, lunch: null, dinner: null, latenight: null, general: null },
       { hallTid: 4, breakfast: null, lunch: null, dinner: null, latenight: null, general: null },
     ],
-    retail: [],
+    retail,
   };
 }
 
@@ -112,5 +116,23 @@ describe("hall spotted-count badge (hall-indicator-status-badge task 2)", () => 
       root = renderer.create(<HomePane />);
     });
     expect(badgeCount(root)).toBe(2);
+  });
+
+  // Brief's acceptance list, verbatim: "Retail/café rows (the 'Cafés & Markets' section) never
+  // render a badge ... evidence: test". A non-zero count map that only ever keys DINING_HALLS tids
+  // (hallSpottedCounts.ts's own contract, task 1) can't literally target a retail row -- this proves
+  // the render side too: the section really renders (Blue Wall assertion), and badgeCount is
+  // exactly 1 (Worcester's), not 2, so nothing near the retail row picked up a pill of its own.
+  it("never renders a badge on a Cafés & Markets row, even with a non-zero count map in play", async () => {
+    mockHallSpottedCounts.mockResolvedValue(new Map([[1, 2]]));
+    mockFetchHoursAndCache.mockResolvedValue(
+      hours([{ name: "Blue Wall", hours: { openTime: "7:00 AM", closeTime: "8:00 PM" }, address: "Campus Center" }]),
+    );
+    let root!: renderer.ReactTestRenderer;
+    await act(async () => {
+      root = renderer.create(<HomePane />);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Blue Wall/); // the retail section really rendered
+    expect(badgeCount(root)).toBe(1); // Worcester's only -- none on/near the retail row
   });
 });

@@ -99,7 +99,12 @@ const GRAB_STRIP_HIT_SLOP = { top: 6, bottom: 4, left: 8, right: 8 };
 function HallSpottedBadge({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <View style={styles.hallSpottedBadge} testID="hall-spotted-badge">
+    <View
+      style={styles.hallSpottedBadge}
+      testID="hall-spotted-badge"
+      accessible
+      accessibilityLabel={`${count} favorited ${count === 1 ? "dish" : "dishes"} spotted today`}
+    >
       <Svg width={10} height={10} viewBox="0 0 16 16" fill="none">
         <Path
           d="M8 2.5c-2 0-3.2 1.6-3.2 3.6v2.1L3.5 10.5h9L11.2 8.2V6.1c0-2-1.2-3.6-3.2-3.6z"
