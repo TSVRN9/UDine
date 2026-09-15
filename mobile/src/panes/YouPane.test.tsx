@@ -361,12 +361,12 @@ describe("YouPane cold-start retail-name race (#243 bug A)", () => {
 // --- #90 nav reorg: Favorites section (real SqliteFavoritesStorage data, not a stub), grouped
 // with Top Foods/Favorite Halls under one "Your Food" heading. -------------------------------
 
-describe("YouPane Favorites section", () => {
+describe("YouPane Notifications section", () => {
   it("shows the empty state when there are no favorites yet", async () => {
     const root = await renderYouPane();
     const body = texts(root);
-    expect(body).toMatch(/Favorites/);
-    expect(body).toMatch(/No favorites yet/);
+    expect(body).toMatch(/Notifications/);
+    expect(body).toMatch(/No notifications yet/);
     expect(body).not.toMatch(/Star a dish or dining hall to add one\./);
   });
 
@@ -390,10 +390,10 @@ describe("YouPane Favorites section", () => {
     const body = texts(root);
     expect(body).toMatch(/SEE ALL/);
 
-    // Two SEE-ALL-style links now exist (ALL LOGS, Favorites' SEE ALL) -- disambiguate by the
+    // Two SEE-ALL-style links now exist (ALL LOGS, Notifications' SEE ALL) -- disambiguate by the
     // explicit accessibilityLabel (PR #129's explicit-labeling convention, same as EventsPane's
     // own SeeAllLink), not a fragile "first match" index-pick over every onPress handler.
-    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all favorites" });
+    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all notifications" });
     seeAllPressable.props.onPress();
     expect(mockRouterPush).toHaveBeenCalledWith("/favorites");
   });
@@ -414,7 +414,7 @@ describe("YouPane SEE ALL sizing (#419)", () => {
     const allLogsTextStyle = flatStyle(allLogsTextNode.props.style);
     const allLogsChevronStyle = flatStyle(allLogsChevronNode.props.style);
 
-    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all favorites" });
+    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all notifications" });
     const [seeAllTextNode, seeAllChevronNode] = seeAllPressable.findAllByType(Text);
     const seeAllTextStyle = flatStyle(seeAllTextNode.props.style);
     const seeAllChevronStyle = flatStyle(seeAllChevronNode.props.style);
@@ -428,7 +428,7 @@ describe("YouPane SEE ALL sizing (#419)", () => {
 });
 
 describe("YouPane Your Food grouping", () => {
-  it("groups Favorites, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading, not just present somewhere on the pane", async () => {
+  it("groups Notifications, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading, not just present somewhere on the pane", async () => {
     const root = await renderYouPane();
 
     const heading = root.root.findAllByType(Text).find((node) => node.props.children === "Your Food")!;
@@ -440,7 +440,7 @@ describe("YouPane Your Food grouping", () => {
     let group = heading.parent!;
     while (group.parent && !textsOf(group).includes("Favorite Halls")) group = group.parent;
     const groupText = textsOf(group);
-    expect(groupText).toMatch(/Favorites/);
+    expect(groupText).toMatch(/Notifications/);
     expect(groupText).toMatch(/Your Top Foods/);
     expect(groupText).toMatch(/Favorite Halls/);
     // Content that stays OUTSIDE the group (Today's Log/ALL LOGS, Hall Completion, both rendered
