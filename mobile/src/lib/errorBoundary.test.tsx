@@ -3,6 +3,11 @@ import renderer, { act } from "react-test-renderer";
 import { Text } from "react-native";
 import { ErrorBoundary } from "../app/_layout";
 
+// backgroundTask.ts (task 3) pulls in ./supabase for its signed-out notification-match gate, which
+// pulls in @react-native-async-storage/async-storage -- unmocked, that throws immediately under jest
+// (no native module). This test only exercises the ErrorBoundary export, so a bare stub is enough.
+jest.mock("./supabase", () => ({ supabase: { auth: { getSession: jest.fn() } } }));
+
 // #271: there was no ErrorBoundary anywhere in the app -- no route exported one, so an uncaught
 // render error anywhere was an unrecoverable RN fatal in release (see _layout.tsx's own comment
 // for why exporting `ErrorBoundary` here actually gives the whole app a root boundary, not just

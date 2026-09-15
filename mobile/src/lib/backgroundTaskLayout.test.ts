@@ -10,6 +10,10 @@ jest.mock("expo-background-task", () => ({
   BackgroundTaskResult: { Success: 1, Failed: 2 },
   registerTaskAsync: jest.fn(),
 }));
+// backgroundTask.ts (task 3) pulls in ./supabase for its signed-out notification-match gate, which
+// pulls in @react-native-async-storage/async-storage -- unmocked, that throws immediately under jest
+// (no native module). This test only cares about the registration wiring, so a bare stub is enough.
+jest.mock("./supabase", () => ({ supabase: { auth: { getSession: jest.fn() } } }));
 
 const mockRegisterTaskAsync = BackgroundTask.registerTaskAsync as jest.Mock;
 
