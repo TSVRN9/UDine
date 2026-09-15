@@ -321,20 +321,25 @@ gap" locations by chance.
   pass, since the calendar didn't move between research sessions):** `foodpro-menu-ajax?tid=11150`
   reproduced PR #481's numbers exactly -- `[]` (`resp_len=2`) on 09/14 (Mon), 09/15 (Tue), 09/27
   (Sun); populated on 09/17 (Thu, 47750 bytes) and 09/21 (Mon, 87911 bytes).
-- **`get_infov2`'s hours data does not explain it, and can be ruled out with what's actually in the
-  payload, not just absence of a signal.** Terrace's own entry (`location_id=11150`, live fetch
-  2026-09-14): `opening_hours="07:00 AM"`, `closing_hours="10:00 PM"`, and the `locations` HTML blob
-  spells out `Monday-Friday 07:00 AM - 10:00 PM / Saturday-Sunday 10:00 AM - 09:00 PM` -- open every
-  day of the week, no closure notice, no `exceptions` key on the object at all (the field
+- **`get_infov2`'s hours data cannot explain it, because the endpoint structurally has no per-date
+  signal to compare in the first place** -- stronger than "we diffed two dates and they matched": a
+  live fetch of `shared/src/hours.ts:147`'s actual request (`fetch(`${BASE}/get_infov2`)`) confirmed
+  it takes no date parameter at all and returns one payload describing a single recurring weekly
+  schedule, not a per-date one. Terrace's own entry (`location_id=11150`, live fetch 2026-09-14):
+  `opening_hours="07:00 AM"`, `closing_hours="10:00 PM"`, and the `locations` HTML blob spells out
+  `Monday-Friday 07:00 AM - 10:00 PM / Saturday-Sunday 10:00 AM - 09:00 PM` -- open every day of the
+  week, no closure notice, and no `exceptions` key on the object at all (the field
   `shared/src/hours.ts`'s own doc comment names as the one live source for closure overrides -- for
-  Terrace it's simply absent, not populated-and-empty). These hours are **identical** across every
-  sampled date regardless of whether that date's ajax feed was empty or full, and Monday itself
-  appears on both sides of the split (09/14 empty, 09/21 full) -- so neither "is it closed today" nor
-  "is it a particular weekday" is the mechanism. The per-meal fields
-  (`breakfast_open_time`/`lunch_open_time`/`dinner_open_time` and their `_close_time` siblings) are
-  all `null` for Terrace, unlike the 4 halls -- `windowOrNull` (`shared/src/hours.ts`) degrades every
-  one of them to "no window," so `get_infov2` carries no meal-period-level signal for this location
-  at all, only the one whole-location `opening_hours`/`closing_hours` pair.
+  Terrace the key is **absent from the JSON entirely**, not present-and-empty; `shared/src/hours.ts`'s
+  own interface comment calls out that some live objects omit these keys rather than publishing
+  `null`, and this is that case). Since there's only one schedule for all dates, "is it closed today"
+  and "is it a particular weekday" can both be ruled out without needing to diff anything -- Monday
+  itself already appears on both sides of the observed split (09/14 empty, 09/21 full) under that same
+  single schedule. The per-meal fields (`breakfast_open_time`/`lunch_open_time`/`dinner_open_time` and
+  their `_close_time` siblings) are likewise **absent from Terrace's entry**, unlike the 4 halls --
+  `windowOrNull` (`shared/src/hours.ts`) degrades a missing key to "no window" the same way it would
+  a `null`, so `get_infov2` carries no meal-period-level signal for this location at all, only the one
+  whole-location `opening_hours`/`closing_hours` pair -- and, per the above, no per-date signal either.
 - **One unexplained anomaly, flagged but not leaned on:** Terrace's `menu`/`menu_meal` fields are the
   literal JSON boolean `false` -- unique among all 40 `get_infov2` locations (every other location is
   either a populated JSON string, matching the "integrated"/has-a-menu-board locations, or `null`,
