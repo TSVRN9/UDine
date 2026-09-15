@@ -11,4 +11,4 @@ Starting Metro Bundler
 Waiting on http://localhost:8082
 
 Logs for your project will appear below.
-Android Bundled 647ms node_modules/.pnpm/expo-router@57.0.14_3befab14925e58395b9c1b7b12cdebab/node_modules/expo-router/entry.js (1985 modules)
+Android Bundled 782ms node_modules/.pnpm/expo-router@57.0.14_3befab14925e58395b9c1b7b12cdebab/node_modules/expo-router/entry.js (2220 modules)
