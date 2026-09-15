@@ -162,6 +162,7 @@ describe("YouPane", () => {
     expect(body).toMatch(/Not enough data yet/);
     expect(body).not.toMatch(/No comparisons yet/);
     expect(body).not.toMatch(/No ranking yet/);
+    expect(body).not.toMatch(/Dish ranking is on hold for now/);
     expect(body).toMatch(/Worcester/); // hallTid 1
   });
 
@@ -366,6 +367,7 @@ describe("YouPane Favorites section", () => {
     const body = texts(root);
     expect(body).toMatch(/Favorites/);
     expect(body).toMatch(/No favorites yet/);
+    expect(body).not.toMatch(/Star a dish or dining hall to add one\./);
   });
 
   it("renders real favorites by name, dish or hall alike", async () => {
@@ -473,7 +475,9 @@ describe("YouPane group styling and disambiguation copy (#390)", () => {
     expect(body).not.toMatch(/Get notified \(and see it highlighted\) when spotted elsewhere on campus\./);
     expect(body).not.toMatch(/From your head-to-head comparisons only/);
     expect(body).not.toMatch(/Ranked by your dish comparisons at each hall/);
-    expect(body).not.toMatch(/Star a dish or dining hall to add one\./);
+    // "Star a dish or dining hall to add one." is asserted absent in "shows the empty state when
+    // there are no favorites yet" instead -- this test's favorites list is non-empty, so that
+    // EmptyState branch never renders here and the check would be vacuous.
     expect(body).not.toMatch(/Dish ranking is on hold for now/);
   });
 
