@@ -497,6 +497,127 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
   where packaged goods are the primary product), so there's nothing to curate that match against
   there either.
 
+**Terrace intermittency mechanism + wider gap-list re-test (2026-09-14, follow-up to PR #481's
+"Retail nutrition-gap enumeration" section immediately above, merged to `main`).** PR
+#481 found `location_id=11150` (Terrace, `get_infov2`'s naming) returned real `foodpro-menu-ajax`
+data on 2 of 5 sampled dates (today/+1/+3/+7/+13 from 2026-09-14) and empty (`[]`) on the other 3,
+concluding it's a real, intermittently-populated location rather than a 9th zero-source "gap"
+location alongside the 8 it enumerated (Paciugo `5991`, Argo Tea `9605`, UMass Store `9967`,
+Yum! Bakery `4666`, babyBerk `61`, babyBerk 2 `884`, Snack Overflow `9981`, The Commonwealth
+Restaurant `10709`). This pass asks two follow-up questions: what actually explains Terrace's
+on/off pattern, and could the same 5-date sample have missed a real feed at one of the 8 "confirmed
+gap" locations by chance.
+
+- **Live re-verification of the original 5 dates, same day (2026-09-14 is also "today" for this
+  pass, since the calendar didn't move between research sessions):** `foodpro-menu-ajax?tid=11150`
+  reproduced PR #481's numbers exactly -- `[]` (`resp_len=2`) on 09/14 (Mon), 09/15 (Tue), 09/27
+  (Sun); populated on 09/17 (Thu, 47750 bytes) and 09/21 (Mon, 87911 bytes).
+- **`get_infov2`'s hours data cannot explain it, because the endpoint structurally has no per-date
+  signal to compare in the first place** -- stronger than "we diffed two dates and they matched": a
+  live fetch of `shared/src/hours.ts:147`'s actual request (`fetch(`${BASE}/get_infov2`)`) confirmed
+  it takes no date parameter at all and returns one payload describing a single recurring weekly
+  schedule, not a per-date one. Terrace's own entry (`location_id=11150`, live fetch 2026-09-14):
+  `opening_hours="07:00 AM"`, `closing_hours="10:00 PM"`, and the `locations` HTML blob spells out
+  `Monday-Friday 07:00 AM - 10:00 PM / Saturday-Sunday 10:00 AM - 09:00 PM` -- open every day of the
+  week, no closure notice, and no `exceptions` key on the object at all (the field
+  `shared/src/hours.ts`'s own doc comment names as the one live source for closure overrides -- for
+  Terrace the key is **absent from the JSON entirely**, not present-and-empty; `shared/src/hours.ts`'s
+  own interface comment calls out that some live objects omit these keys rather than publishing
+  `null`, and this is that case). Since there's only one schedule for all dates, "is it closed today"
+  and "is it a particular weekday" can both be ruled out without needing to diff anything -- Monday
+  itself already appears on both sides of the observed split (09/14 empty, 09/21 full) under that same
+  single schedule. The per-meal fields (`breakfast_open_time`/`lunch_open_time`/`dinner_open_time` and
+  their `_close_time` siblings) are likewise **absent from Terrace's entry**, unlike the 4 halls --
+  `windowOrNull` (`shared/src/hours.ts`) degrades a missing key to "no window" the same way it would
+  a `null`, so `get_infov2` carries no meal-period-level signal for this location at all, only the one
+  whole-location `opening_hours`/`closing_hours` pair -- and, per the above, no per-date signal either.
+- **One unexplained anomaly, flagged but not leaned on:** Terrace's `menu`/`menu_meal` fields are the
+  literal JSON boolean `false` -- unique among all 40 `get_infov2` locations (every other location is
+  either a populated JSON string, matching the "integrated"/has-a-menu-board locations, or `null`,
+  matching everything else, gap locations included). This doesn't predict ajax availability either:
+  plenty of confirmed-integrated retail locations (Roots Café, People's Organic Coffee, all 4 Grab 'N
+  Go stations, Whitmore Café, ISB Café, Hampshire Café, Peet's, Morrill Café, The Hub, Newman Café,
+  Post & Bean Café, Carney Café) also carry `null` here despite having a real ajax feed, so `null`
+  vs. populated isn't the "has a feed" signal either -- `false` is just a one-off value worth knowing
+  about if it ever changes, not a working predictor today.
+- **A 14-day scan (2026-09-14 through 2026-09-27, i.e. day-offsets +0 through +13 -- this is the
+  original 5-date sample's superset, not an independent window: it contains all of today/+1/+3/+7/+13
+  and additionally covers every weekday exactly twice, including both weekend days) shows a
+  contiguous on/off shape, not noise:** `[]` on +0/+1 (Mon 09/14, Tue 09/15), populated on +2 through
+  +7 (Wed 09/16 through Mon 09/21, 47645-87911 bytes), `[]` again on +8 through +13 (Tue 09/22 through
+  Sun 09/27). Extended live to +14..+20 (09/28-10/04): still `[]` the entire way, i.e. 13 straight
+  empty days after the one 6-day populated window, with no second on-block observed in the 21 days
+  checked total.
+- **A same-day control against two locations with known-good feeds rules out "everything dies after a
+  few days" as the explanation for the empty tail.** Worcester hall (`tid=1`) returned a full,
+  populated response on **every one** of the same +0..+13 dates (335KB-407KB range) -- the rolling
+  ~2-week horizon PR #478 documented for the halls is alive and unrelated to Terrace's pattern. The
+  Grill (`tid=4696`, a confirmed-integrated retail location) showed its own on/off shape across the
+  same window, but a materially different, clearly weekday-driven one: populated +0-4 (Mon-Fri),
+  empty +5-6 (Sat-Sun), populated +7-11 (Mon-Fri), empty +12-13 (Sat-Sun) -- closed weekends, in
+  other words, the ordinary "this café doesn't open on weekends" case. Terrace's own empty stretch
+  (+8 through +20) spans every day of the week including multiple Mondays, so it is neither a shared
+  platform-wide cutoff nor an ordinary weekend closure; it's specific to Terrace.
+- **Two genuinely different mechanisms would produce the same snapshot, and this pass's data doesn't
+  cleanly separate them -- reported as open, not guessed:** (a) Terrace's ajax feed has its own
+  forward-publishing horizon, shorter than the halls' ~13+ days and not resuming once it ends, or (b)
+  Terrace's menu was entered as a one-off calendar-bound batch (Sep 16-21) rather than through
+  whatever rolling process feeds the halls and most retail locations. What the data so far supports:
+  the populated run is contiguous (no gaps inside it) and, once it ends, stays empty for every
+  further date checked (13 more days, no resumption) -- consistent with either explanation. **What
+  would settle it and wasn't run this pass:** probing well past the horizons already observed (e.g.
+  +21 through +35) to see whether a second on-block ever appears; if one does, (b) is confirmed and
+  (a) is ruled out. Left explicitly unresolved rather than picking one.
+- **Cross-checked Terrace against Web INA's 28 `locationNum`s, live 2026-09-14 (`location.aspx`
+  re-fetched fresh, not reused from a prior pass): Terrace has a Web INA entry, `locationNum=78`,
+  "Terrace Cafe"** -- present in the same 28-count PR #481 already established, just not named as one
+  of its illustrative examples there. Confirmed it's a live, working entry (not a stale directory
+  row like `locationNum=52`/`54` documented above): `longmenu.aspx?locationNum=78&mealName=Dinner`
+  with `dtdate=09/21/2026` returned 16 real dishes with real `RecNum`s, e.g. "Terrace Cafe Burger"
+  (`RecNum 061281`), "Terrace Club Sandwich" (`RecNum 150001`), "Lemon Pepper Chicken"
+  (`RecNum 078953`). **Caveat that would trip up anyone reusing this finding:** a `longmenu.aspx`
+  probe with the wrong `mealName` reads as "no data" even on a date that has real data -- the first
+  09/17 probe in this pass used `mealName=Lunch` and got 0 rows, which looked like a mismatch with
+  the populated ajax feed on the same date, until re-probing all 4 `mealName` values showed
+  Breakfast=4/Dinner=16 rows (Lunch and Late Night genuinely are 0 that day). **A zero-row
+  `longmenu.aspx` response only means "no data" once all 4 `mealName` values have been checked**,
+  not after just one.
+- **Web INA's own on/off window for Terrace Cafe is wider than the ajax feed's, confirmed by scanning
+  the same +0..+20 range across all 4 meal periods:** `[]`/zero-rows on +0/+1 (09/14, 09/15, matching
+  ajax's empty start exactly -- a shared near-term gap across both independent source systems, not a
+  single-source artifact), then **populated on every date from +2 through +15 (09/16 through 09/29,
+  14 straight days, no gaps)**, then zero-rows again +16 through +20 (09/30-10/04, the furthest
+  checked). This is a full 8 days wider than the ajax feed's own on-window (+2..+7, 6 days) for the
+  same location over the same stretch -- concretely, **Web INA has real Terrace Cafe menu data on
+  09/22-09/27, dates where `foodpro-menu-ajax?tid=11150` returns `[]`.** For this one location, Web
+  INA is not a redundant mirror of the ajax feed; it currently covers a real date range the ajax feed
+  doesn't. Whether this generalizes to other integrated-but-currently-empty dates for other
+  locations wasn't tested here.
+- **Re-tested all 8 "confirmed gap" locations across a wider, differently-shaped window than PR
+  #481's original 5 dates -- the full 14 consecutive dates 09/14 through 09/27 (day-offsets +0
+  through +13), which contain the original five (today/+1/+3/+7/+13) as a subset and additionally hit
+  every weekday of the week exactly twice, including both Saturday and Sunday (PR #481's own 5-date
+  sample only ever landed on Monday/Tuesday/Thursday/Sunday, never Wednesday, Friday, or Saturday).**
+  112 live `foodpro-menu-ajax` requests total (8 locations x 14 dates) against `location_id`s 5991,
+  9605, 9967, 4666, 61, 884, 9981, 10709 -- **every single one returned `[]` (`resp_len=2`).** No
+  populated date at any of the 8, on any weekday, including both weekend days. **The 8-location
+  "confirmed gap" list from PR #481 holds up; this wider, weekday-diverse re-test found zero false
+  members.** Since none of the 8 turned out intermittent, there is no new location from this task's
+  question 3 to cross-reference against Web INA's 24-locationNum set -- PR #481 already confirmed
+  live that none of the 8 has any Web INA presence either, and this pass adds no exception to that.
+- **`get_infov2`'s hours data cannot cheaply predict "will `foodpro-menu-ajax` have data today,"
+  answering this task's question 4 in the negative, directly.** Two independent lines of evidence:
+  (1) all 8 chronically-empty gap locations publish entirely ordinary-looking operating hours in
+  `get_infov2` (e.g. Paciugo `11:00 AM - 09:00 PM` Mon-Fri, UMass Store `09:00 AM - 06:00 PM` Mon-Fri
+  + weekend hours, Snack Overflow `09:00 AM - 03:00 PM` Mon-Fri) -- nothing in the hours payload
+  distinguishes a location that will never have ajax data from one that will; (2) Terrace's own hours
+  are byte-identical across both its populated and empty date ranges (confirmed above). A client
+  cannot use `get_infov2`'s hours fields to decide "skip fetching `foodpro-menu-ajax`, this location
+  is closed" -- the two data sources don't correlate, so `mobile/src/lib/cafeMenu.ts`'s tier-1
+  (`foodpro-menu-ajax`) to tier-2 (standing-menu name-match) fallthrough on an empty `[]` response
+  stays the only reliable signal; there's no cheaper pre-check available in `get_infov2` to add
+  ahead of it.
+
 ## Gaps / what we couldn't determine
 
 - **POST bodies** for the `mobileapp.umassdining.com/umassapi2/public/...` account endpoints — out of
