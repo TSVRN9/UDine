@@ -23,3 +23,18 @@ export async function claimSighting(dishName: string, hallTid: number, sightedDa
   const result = await db.runAsync("INSERT OR IGNORE INTO food_sighting_dedup (dish_name, hall_tid, sighted_date) VALUES (?, ?, ?)", dishName, hallTid, sightedDate);
   return result.changes > 0;
 }
+
+/**
+ * Per-tid sighting counts for a signed-out device (hallSpottedCounts.ts's signed-out data source).
+ * Raw `hall_tid`s as claimed -- a Grab 'N Go tid is NOT rolled into its parent hall here, that's
+ * hallSpottedCounts.ts's job (shared with the signed-in `food_sightings` path, so it isn't done
+ * twice). One GROUP BY query, not a getAllAsync + manual reduce -- SQLite already does this.
+ */
+export async function countsByHallToday(date: string): Promise<Map<number, number>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ hall_tid: number; count: number }>(
+    "SELECT hall_tid, COUNT(*) as count FROM food_sighting_dedup WHERE sighted_date = ? GROUP BY hall_tid",
+    date,
+  );
+  return new Map(rows.map((row) => [row.hall_tid, row.count]));
+}
