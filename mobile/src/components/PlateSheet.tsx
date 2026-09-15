@@ -258,7 +258,6 @@ export function PlateSheet({
     if (!visible) {
       searchSeq.current++;
       setSearching(false);
-      setResults(null);
       setVisibleCount(VISIBLE_RESULTS);
       setSearchError(null);
       setQuery("");
@@ -324,9 +323,12 @@ export function PlateSheet({
     setDirectLookup("idle"); // a fresh search re-earns the "Search UMass Dining directly" affordance
     // Reset the paging/display state a fresh search owns up front, not at the end -- each group
     // below sets its own hasMore as it resolves, so these can't wait for the slowest one either.
-    // `results` deliberately stays whatever it was (null on a first search) -- NOT eagerly reset to
-    // `[]` -- until either a group's splice actually adds rows or the finalize step below decides
-    // there's genuinely nothing, so "No matches" never flashes mid-stream.
+    // `results` is explicitly reset to `null` (not left as whatever a PRIOR search left it at --
+    // #494 review caught a regression here: a second search in the same open sheet was appending
+    // its splices onto the first search's still-there results instead of replacing them) and NOT
+    // eagerly set to `[]` -- until either a group's splice actually adds rows or the finalize step
+    // below decides there's genuinely nothing, so "No matches" never flashes mid-stream.
+    setResults(null);
     setVisibleCount(VISIBLE_RESULTS);
     setOffPage(1);
     setOffHasMore(false);

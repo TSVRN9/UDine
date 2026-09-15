@@ -679,6 +679,24 @@ describe("PlateSheet", () => {
         });
         expect(texts(root).flat().join(" ")).toMatch(/Create a custom food/);
       });
+
+      // #494 review: each group's splice does `setResults((prev) => [...(prev ?? []), ...])` --
+      // correct for accumulating ONE search's own groups, but without an explicit reset at the top
+      // of runSearch, a SECOND search in the same open sheet was appending its own splices onto
+      // whatever the FIRST search had already left in `results`, instead of replacing it.
+      it("a second search in the same open sheet replaces the first search's results, not appends to them", async () => {
+        const storage = await logStorageWith([historyEntry("Falafel Wrap", 1, 350, "2026-08-01T12:00:00.000Z")]);
+        mockedSearchCachedDishes.mockReturnValueOnce([]).mockReturnValueOnce([{ dishName: "Miso Ramen", nutrition: { ...DISH.nutrition, calories: 420 }, allergens: [], dietTags: [], updatedAt: "x" }]);
+        const root = renderSheet({ logStorage: storage, hallTid: 1 });
+
+        await runSearch(root, "falafel");
+        expect(texts(root).flat().join(" ")).toMatch(/Falafel Wrap/);
+
+        await runSearch(root, "ramen");
+        const body = texts(root).flat().join(" ");
+        expect(body).toMatch(/Miso Ramen/);
+        expect(body).not.toMatch(/Falafel Wrap/);
+      });
     });
   });
 
