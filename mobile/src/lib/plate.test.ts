@@ -212,6 +212,18 @@ describe("listBottomPadding", () => {
   it("returns 0 when the bar hasn't been measured yet", () => {
     expect(listBottomPadding(0)).toBe(0);
   });
+
+  // The filter FAB (`[slug].tsx`'s `styles.filterFab`: right:20/bottom:108/height:48) floats
+  // independently above the bar and isn't cleared by the bar's own height alone -- when a caller
+  // opts in via `clearFilterFab`, the padding must be at least tall enough to clear the FAB's own
+  // bottom+height band (108 + 48 = 156), not just the bar.
+  it("clears the filter FAB's own footprint when a short bar wouldn't", () => {
+    expect(listBottomPadding(96, true)).toBe(156);
+  });
+
+  it("keeps the bar's height when it already clears the filter FAB", () => {
+    expect(listBottomPadding(200, true)).toBe(200);
+  });
 });
 
 describe("offResultToPlateEntry", () => {

@@ -1511,7 +1511,10 @@ export function HallMenuScreenBody({
         // only ever needed to update that SAME row, which the tap's own state change already
         // covers regardless of extraData.
         extraData={expandedKey}
-        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
+        // clearFilterFab: this list always renders alongside the filter FAB (its own hide
+        // condition, below, is exactly the state where effectiveItems is [] and this list
+        // wouldn't render at all) -- reserve clearance for it, not just the plate bar.
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
@@ -1564,7 +1567,9 @@ export function HallMenuScreenBody({
         // extraData: see the meal-tab GestureSectionList's own comment above -- same single-expand
         // cross-row re-render requirement applies here.
         extraData={expandedKey}
-        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight) + (logged ? bannerHeight : 0) }}
+        // clearFilterFab: see the meal-tab GestureSectionList's own comment above -- same
+        // always-rendered-alongside-the-FAB reasoning applies here.
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
