@@ -9,8 +9,9 @@ gave them, now visible at a glance next to the hall's OPEN/CLOSED status.
 UI: `docs/design/Main.dc.html` (Home pane hall cards) — the owner-picked "status badge" direction,
 already folded into the artboard (PR #489): a small pill (bell glyph + count) stacked directly
 under each hall card's OPEN/CLOSED status pill, top-right of the card.
-Annotations: none (the exploration page and its directions note were removed once the direction
-was picked — see PR #489).
+Annotations: none (the three sketches and their directions note lived only on the live design
+canvas, never extracted into this repo — the owner picked a direction there, and only the chosen
+one was ever folded into `docs/design/Main.dc.html`, PR #489).
 States:
   - 0 matches today at a hall → no badge at all (no "0" pill) — matches the daily feed's own
     "blank = doesn't exist" convention already used elsewhere on this screen.
