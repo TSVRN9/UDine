@@ -4,6 +4,7 @@ import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
+import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineLine } from "../components/OfflineLine";
 import { SkeletonBar } from "../components/Skeleton";
@@ -15,6 +16,7 @@ import { isRealAddressLine } from "../lib/address";
 import { deriveHomeHero, formatHeroLine, formatLocationChip, offlineUpdatedLine, retailOpenStatus, type HomeHero } from "../lib/homeHero";
 import { excludeGrabNGoLocations, grabRouteFor, grabStripState } from "../lib/grabStrip";
 import { getCachedHours, fetchHoursAndCache } from "../lib/menuHoursCache";
+import { hallSpottedCounts } from "../lib/hallSpottedCounts";
 import { HOME_PANE_INDEX } from "../lib/paneShell";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
 import { EventsPane } from "../panes/EventsPane";
@@ -90,6 +92,28 @@ function HeroBlock({
 // at 320dp) or it bleeds into the next card's zone below.
 const GRAB_STRIP_HIT_SLOP = { top: 6, bottom: 4, left: 8, right: 8 };
 
+// docs/design/Main.dc.html:42 -- bell glyph + count pill, stacked directly under the OPEN/CLOSED
+// chip (top:34 vs. the chip's top:10, same right:10). Independent of `pending`/hoursFeed: its data
+// source is favorites + sightings, not the hours feed, so it never shimmers and never waits on it
+// (brief's Spec > States). Omitted entirely (not a hidden/zero pill) when spottedCount is 0.
+function HallSpottedBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <View style={styles.hallSpottedBadge} testID="hall-spotted-badge">
+      <Svg width={10} height={10} viewBox="0 0 16 16" fill="none">
+        <Path
+          d="M8 2.5c-2 0-3.2 1.6-3.2 3.6v2.1L3.5 10.5h9L11.2 8.2V6.1c0-2-1.2-3.6-3.2-3.6z"
+          stroke={colors.gold500}
+          strokeWidth={1.4}
+          strokeLinejoin="round"
+        />
+        <Path d="M6.6 12.2a1.5 1.5 0 0 0 2.8 0" stroke={colors.gold500} strokeWidth={1.4} strokeLinecap="round" />
+      </Svg>
+      <Text style={styles.hallSpottedBadgeText}>{count}</Text>
+    </View>
+  );
+}
+
 // Hall card: one rounded unit, two tap zones -- hall area opens the hall menu, translucent
 // Grab 'N Go strip along the bottom opens that hall's Grab 'N Go menu. Closed halls get a dimmed
 // gradient/name and a further-dimmed strip.
@@ -98,6 +122,7 @@ function HallCard({
   chip,
   grab,
   pending,
+  spottedCount,
 }: {
   hall: { slug: string; name: string; tid: number };
   chip: { open: boolean; text: string };
@@ -105,6 +130,8 @@ function HallCard({
   /** Hall name/monogram are always known (DINING_HALLS is static); only the open/closed chip
    * needs hoursFeed, so only it shimmers while `pending`. */
   pending: boolean;
+  /** Today's favorited-food spotted count for this hall (Grab 'N Go rolled up), 0 when none. */
+  spottedCount: number;
 }) {
   const gradient = chip.open ? (hallGradients[hall.slug] ?? hallGradients.worcester) : hallGradientClosed;
   return (
@@ -129,6 +156,7 @@ function HallCard({
                 <Text style={[styles.hallChipText, chip.open ? styles.hallChipTextOpen : styles.hallChipTextClosed]}>{chip.text}</Text>
               </View>
             ) : null}
+            <HallSpottedBadge count={spottedCount} />
             <Text style={[styles.hallCardName, !chip.open && styles.hallCardNameClosed]}>{hall.name}</Text>
           </PressDim>
         </Link>
@@ -165,6 +193,7 @@ export function HomePane() {
   const [offline, setOffline] = useState(false);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [favoriteHallKeys, setFavoriteHallKeys] = useState<Set<string>>(new Set());
+  const [spottedCounts, setSpottedCounts] = useState<Map<number, number>>(new Map());
   const [now, setNow] = useState(() => new Date());
   const insets = useSafeAreaInsets();
 
@@ -176,6 +205,9 @@ export function HomePane() {
     setNow(new Date());
     favoritesStorage.getFavorites().then((favs) => {
       if (current) setFavoriteHallKeys(new Set(favs.filter((f) => f.type === "location").map(favoriteKey)));
+    });
+    hallSpottedCounts().then((counts) => {
+      if (current) setSpottedCounts(counts);
     });
     fetchHoursAndCache()
       .then((feed) => {
@@ -245,7 +277,9 @@ export function HomePane() {
           const hallHours = hoursFeed?.halls.find((h) => h.hallTid === hall.tid);
           const chip = hallHours ? formatLocationChip(openStatus(hallHours, now)) : { open: false, text: "" };
           const grab = grabStripState(hoursFeed?.retail ?? [], hall.name, now);
-          return <HallCard key={hall.slug} hall={hall} chip={chip} grab={grab} pending={pending} />;
+          return (
+            <HallCard key={hall.slug} hall={hall} chip={chip} grab={grab} pending={pending} spottedCount={spottedCounts.get(hall.tid) ?? 0} />
+          );
         })}
       </View>
 
@@ -376,6 +410,25 @@ const styles = StyleSheet.create({
   hallChipText: { fontFamily: fonts.body600, fontSize: fs(11), letterSpacing: 0.5, textTransform: "uppercase" },
   hallChipTextOpen: { color: colors.maroon900 },
   hallChipTextClosed: { color: colors.paper50 },
+  // docs/design/Main.dc.html:42 -- top:34/right:10 (chip sits at top:10, same right), gap 4,
+  // background rgba(36,26,20,0.55) == withOpacity(ink900,55), border rgba(201,154,46,0.6) ==
+  // withOpacity(gold500,60), padding 3px 8px 3px 6px.
+  hallSpottedBadge: {
+    position: "absolute",
+    top: 34,
+    right: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: withOpacity(colors.ink900, 55),
+    borderWidth: 1,
+    borderColor: withOpacity(colors.gold500, 60),
+    borderRadius: radii.pill,
+    paddingVertical: 3,
+    paddingLeft: 6,
+    paddingRight: 8,
+  },
+  hallSpottedBadgeText: { fontFamily: fonts.body600, fontSize: fs(10), color: colors.gold500 },
 
   // Translucent band over the same card gradient (own semi-transparent black background, not a
   // second gradient) with a hairline top divider, per the canvas's split-card strip.
