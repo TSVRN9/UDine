@@ -46,6 +46,9 @@ export const durations = {
   shimmer: 1400,
   /** MenuLoading.dc.html's spinner (`animation: spin 1s linear infinite`). */
   spin: 1000,
+  /** SearchLookupStates.dc.html's spinner (`animation: spin 0.9s linear infinite`) -- PlateSheet's
+   * search loading state; a different spec from MenuLoading.dc.html's `spin` above (0.9s not 1s). */
+  searchSpin: 900,
   /** The hold-slide pill's grow-out-of-the-button, and the in-plate stepper's width grow -- no
    * `Prototype` selector of its own; anchored to `.tgl`/`.knob`'s 180ms as the closest "quick UI
    * chrome" role. */

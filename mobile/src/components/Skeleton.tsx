@@ -47,15 +47,27 @@ export function SkeletonBar({ width, height, style }: { width: number; height: n
 
 /** 14×14 spinner. No react-native-svg in this codebase -- transcribed as the classic CSS-spinner
  * trick instead: a circular border where one side is the accent color and the rest is the muted
- * track color, rotated. */
-export function Spinner({ size = 14 }: { size?: number }) {
+ * track color, rotated. `durationMs`/`trackOpacity` default to the existing gold-spinner call
+ * sites' own hardcoded values (halls/[slug].tsx's menu/café loading, matched to
+ * MenuLoading.dc.html) so every one of those keeps rendering exactly as before. */
+export function Spinner({
+  size = 14,
+  color = colors.gold500,
+  durationMs = durations.spin,
+  trackOpacity = 25,
+}: {
+  size?: number;
+  color?: string;
+  durationMs?: number;
+  trackOpacity?: number;
+}) {
   const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const loop = Animated.loop(Animated.timing(rotation, { toValue: 1, duration: durations.spin, easing: Easing.linear, useNativeDriver: true }));
+    const loop = Animated.loop(Animated.timing(rotation, { toValue: 1, duration: durationMs, easing: Easing.linear, useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
-  }, [rotation]);
+  }, [rotation, durationMs]);
 
   const rotate = rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
@@ -66,8 +78,8 @@ export function Spinner({ size = 14 }: { size?: number }) {
         height: size,
         borderRadius: size / 2,
         borderWidth: 2,
-        borderColor: withOpacity(colors.ink900, 25),
-        borderTopColor: colors.gold500,
+        borderColor: withOpacity(colors.ink900, trackOpacity),
+        borderTopColor: color,
         transform: [{ rotate }],
       }}
     />

@@ -1,14 +1,16 @@
 import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type LogStorage } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
+import { Spinner } from "./Skeleton";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
 import { labelLookupCandidate, lookupDishLive, type LookupDishCandidate } from "../lib/lookupDish";
+import { durations } from "../lib/motion";
 import { isEstimatedServing, plateSearchResultDetail, plateSearchResultKey, totalItemCount, type PlateEntry, type PlateSearchResult } from "../lib/plate";
 import { formatServings, parseServingsInput } from "../lib/servingsStepper";
 import { supabase } from "../lib/supabase";
@@ -305,7 +307,12 @@ export function PlateSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initialQuery]);
 
-  async function runSearch(queryOverride?: string) {
+  // Restructured (3b) into 4 independent groups -- local (history+catalog+custom, all local/instant
+  // reads), OFF, USDA, Branded -- each splicing straight into `results` as it resolves, instead of
+  // one Promise.allSettled gating every row on the slowest of all 6 sources. Mirrors the splice
+  // pattern runDirectLookup/loadMore below already use (`setResults((prev) => [...(prev ?? []), ...])`),
+  // gated by the same searchSeq ref they check.
+  function runSearch(queryOverride?: string) {
     // Guards against a search already in flight -- mashing Enter while typing would otherwise fire
     // overlapping requests.
     const raw = queryOverride ?? query;
@@ -315,81 +322,135 @@ export function PlateSheet({
     setSearching(true);
     setSearchError(null);
     setDirectLookup("idle"); // a fresh search re-earns the "Search UMass Dining directly" affordance
-    try {
-      const [historySettled, catalogSettled, offSettled, usdaSettled, brandedSettled, customSettled] = await Promise.allSettled([
-        getLoggedUmassDishHistory(logStorage, hallTid, q),
-        getCachedDishCatalog().then((catalog) => searchCachedDishes(catalog, q)),
-        searchProducts(q),
-        searchFoods(q),
-        searchBrandedFoods(q),
-        customFoodsStorage.getAllCustomFoods().then((foods) => searchCustomFoods(foods, q)),
-      ]);
-      if (searchSeq.current !== seq) return; // superseded by a newer search, or the sheet closed
+    // Reset the paging/display state a fresh search owns up front, not at the end -- each group
+    // below sets its own hasMore as it resolves, so these can't wait for the slowest one either.
+    // `results` deliberately stays whatever it was (null on a first search) -- NOT eagerly reset to
+    // `[]` -- until either a group's splice actually adds rows or the finalize step below decides
+    // there's genuinely nothing, so "No matches" never flashes mid-stream.
+    setVisibleCount(VISIBLE_RESULTS);
+    setOffPage(1);
+    setOffHasMore(false);
+    setUsdaPage(1);
+    setUsdaHasMore(false);
+    setBrandedPage(1);
+    setBrandedHasMore(false);
 
-      const rejections = [historySettled, catalogSettled, offSettled, usdaSettled, brandedSettled, customSettled].filter(
-        (r): r is PromiseRejectedResult => r.status === "rejected",
-      );
+    // Tracked locally (not as React state) across this one runSearch call -- reading `results`
+    // state back inside these closures would see a stale snapshot from whenever each closure was
+    // created, not the latest spliced-in value.
+    let addedAnything = false;
+    let anyRejected = false;
+    let settledGroups = 0;
+    const GROUP_COUNT = 4;
 
-      const history = historySettled.status === "fulfilled" ? historySettled.value : [];
-      const catalogHits = catalogSettled.status === "fulfilled" ? catalogSettled.value : [];
-      const off = offSettled.status === "fulfilled" ? offSettled.value : { results: [], hasMore: false };
-      const usda = usdaSettled.status === "fulfilled" ? usdaSettled.value : { results: [], hasMore: false };
-      const branded = brandedSettled.status === "fulfilled" ? brandedSettled.value : { results: [], hasMore: false };
-      const custom = customSettled.status === "fulfilled" ? customSettled.value : [];
+    function splice(additions: PlateSearchResult[]) {
+      if (searchSeq.current !== seq || additions.length === 0) return;
+      addedAnything = true;
+      setResults((prev) => [...(prev ?? []), ...additions]);
+    }
 
-      // Merge the two UMass-side sources by dishName (case-insensitive). Local history wins on a
-      // name collision -- it's already confirmed-logged at this exact hall, no network dependency.
-      // A catalog-only hit is staged as a HistoryDish scoped to the CURRENTLY-BROWSED hall so it
-      // flows through the existing historyDishToPlateEntry path unchanged.
-      const umassByName = new Map<string, HistoryDish>();
-      for (const entry of catalogHits) {
-        umassByName.set(entry.dishName.toLowerCase(), { dishName: entry.dishName, hallTid, nutrition: entry.nutrition });
-      }
-      for (const dish of history) {
-        umassByName.set(dish.dishName.toLowerCase(), dish); // history wins on collision
-      }
-
-      const merged: PlateSearchResult[] = [
-        ...[...umassByName.values()].map((dish): PlateSearchResult => ({ kind: "umass", dish })),
-        ...custom.map((food): PlateSearchResult => ({ kind: "custom", food })),
-        ...off.results.map((product): PlateSearchResult => ({ kind: "off", product })),
-        ...usda.results.map((food): PlateSearchResult => ({ kind: "usda", food })),
-        ...branded.results.map((food): PlateSearchResult => ({ kind: "usda", food })),
-      ];
-
-      // A rejection is only surfaced as a failure when it left the user with nothing: a real hit
-      // from a surviving source is still useful, and pairing it with "Search failed" text would be
-      // more confusing than helpful, so a partial failure alongside results is silently treated as
-      // a success. But an EMPTY merged result plus any rejection is NOT the same as "genuinely no
-      // matches" -- previously only an all-rejected search showed the failure text, so e.g. a
-      // rejected OpenFoodFacts call alongside sources that all legitimately resolved empty (the
-      // common case) fell through to "No matches", lying to the user about why nothing showed.
-      if (merged.length === 0 && rejections.length > 0) {
+    // Runs once all 4 groups have settled -- not per-group -- so `searching`/the "Search UMass
+    // Dining directly" affordance/the custom-food footer don't flash mid-stream.
+    function groupSettled() {
+      settledGroups++;
+      if (settledGroups < GROUP_COUNT || searchSeq.current !== seq) return;
+      setSearching(false);
+      if (addedAnything) return; // some group already spliced real rows in -- nothing left to decide
+      if (anyRejected) {
         // Generic, honest copy -- never the raw rejection, which leaks implementation details.
         // `results` stays null (not []) since [] would also trigger the "No matches" hint below,
-        // which reads as confusing alongside an error. The footer's gating condition is widened
-        // instead, so the "Create a custom food" escape hatch stays available here too.
+        // which reads as confusing alongside an error. The footer's gating condition covers this
+        // branch too, so the "Create a custom food" escape hatch stays available here.
         setSearchError("please try again, or create a custom food below");
-        setResults(null);
-        setVisibleCount(VISIBLE_RESULTS);
-        setOffHasMore(false);
-        setUsdaHasMore(false);
-        setBrandedHasMore(false);
-        return;
+      } else {
+        setResults([]); // every group legitimately resolved empty -- the real "No matches" state
       }
-
-      setSearchError(null);
-      setResults(merged);
-      setVisibleCount(VISIBLE_RESULTS);
-      setOffPage(1);
-      setUsdaPage(1);
-      setBrandedPage(1);
-      setOffHasMore(off.hasMore);
-      setUsdaHasMore(usda.hasMore);
-      setBrandedHasMore(branded.hasMore);
-    } finally {
-      if (searchSeq.current === seq) setSearching(false);
     }
+
+    // Local group: device-log history + cached dish catalog + saved custom foods. Deduped by
+    // dishName together (history wins on collision) since they're both near-instant local reads --
+    // splitting them would let a catalog hit and a history hit for the same dish land as separate
+    // rows before dedup runs. Custom foods (also local/instant) rides along rather than getting a
+    // fifth split, since there's nothing networked to stream separately.
+    (async () => {
+      try {
+        const [historySettled, catalogSettled, customSettled] = await Promise.allSettled([
+          getLoggedUmassDishHistory(logStorage, hallTid, q),
+          getCachedDishCatalog().then((catalog) => searchCachedDishes(catalog, q)),
+          customFoodsStorage.getAllCustomFoods().then((foods) => searchCustomFoods(foods, q)),
+        ]);
+        if (searchSeq.current !== seq) return;
+        if ([historySettled, catalogSettled, customSettled].some((r) => r.status === "rejected")) anyRejected = true;
+
+        const history = historySettled.status === "fulfilled" ? historySettled.value : [];
+        const catalogHits = catalogSettled.status === "fulfilled" ? catalogSettled.value : [];
+        const custom = customSettled.status === "fulfilled" ? customSettled.value : [];
+
+        // Merge the two UMass-side sources by dishName (case-insensitive). Local history wins on a
+        // name collision -- it's already confirmed-logged at this exact hall, no network
+        // dependency. A catalog-only hit is staged as a HistoryDish scoped to the
+        // CURRENTLY-BROWSED hall so it flows through the existing historyDishToPlateEntry path
+        // unchanged.
+        const umassByName = new Map<string, HistoryDish>();
+        for (const entry of catalogHits) {
+          umassByName.set(entry.dishName.toLowerCase(), { dishName: entry.dishName, hallTid, nutrition: entry.nutrition });
+        }
+        for (const dish of history) {
+          umassByName.set(dish.dishName.toLowerCase(), dish); // history wins on collision
+        }
+
+        splice([
+          ...[...umassByName.values()].map((dish): PlateSearchResult => ({ kind: "umass", dish })),
+          ...custom.map((food): PlateSearchResult => ({ kind: "custom", food })),
+        ]);
+      } catch {
+        anyRejected = true;
+      } finally {
+        groupSettled();
+      }
+    })();
+
+    // OFF group.
+    (async () => {
+      try {
+        const off = await searchProducts(q);
+        if (searchSeq.current !== seq) return;
+        splice(off.results.map((product): PlateSearchResult => ({ kind: "off", product })));
+        setOffHasMore(off.hasMore);
+      } catch {
+        anyRejected = true;
+      } finally {
+        groupSettled();
+      }
+    })();
+
+    // USDA group (Foundation/SR Legacy).
+    (async () => {
+      try {
+        const usda = await searchFoods(q);
+        if (searchSeq.current !== seq) return;
+        splice(usda.results.map((food): PlateSearchResult => ({ kind: "usda", food })));
+        setUsdaHasMore(usda.hasMore);
+      } catch {
+        anyRejected = true;
+      } finally {
+        groupSettled();
+      }
+    })();
+
+    // Branded (USDA FDC) group -- a second, independent paged endpoint call, same "usda" kind/badge.
+    (async () => {
+      try {
+        const branded = await searchBrandedFoods(q);
+        if (searchSeq.current !== seq) return;
+        splice(branded.results.map((food): PlateSearchResult => ({ kind: "usda", food })));
+        setBrandedHasMore(branded.hasMore);
+      } catch {
+        anyRejected = true;
+      } finally {
+        groupSettled();
+      }
+    })();
   }
 
   /** "Load More" reveals more of the already-fetched `results` buffer first (no network cost) --
@@ -524,77 +585,11 @@ export function PlateSheet({
             </View>
 
             <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
-              <View style={styles.itemList}>
-                {plate.map((entry) => (
-                  <View key={entry.key} style={styles.itemRow}>
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemLabel}>{entry.label}</Text>
-                      <Text style={styles.itemCalories}>
-                        {Math.round(entry.nutrition.calories)} cal each{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
-                      </Text>
-                    </View>
-                    <View style={[styles.stepper, editingKey === entry.key && styles.stepperEditing]}>
-                      <Pressable
-                        style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
-                        onPress={() => onStep(entry.key, -1)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Remove one ${entry.label}`}
-                      >
-                        <Text style={styles.stepperButtonText}>−</Text>
-                      </Pressable>
-                      {editingKey === entry.key ? (
-                        <TextInput
-                          style={styles.stepperInput}
-                          value={editingText}
-                          onChangeText={setEditingText}
-                          keyboardType="decimal-pad"
-                          autoFocus
-                          selectTextOnFocus
-                          onSubmitEditing={commitEditingCount}
-                          onBlur={commitEditingCount}
-                          accessibilityLabel={`Servings for ${entry.label}`}
-                        />
-                      ) : (
-                        <Pressable onPress={() => beginEditingCount(entry)} accessibilityRole="button" accessibilityLabel={`Edit servings for ${entry.label}`}>
-                          <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
-                        </Pressable>
-                      )}
-                      <Pressable
-                        style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
-                        onPress={() => onStep(entry.key, 1)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add one ${entry.label}`}
-                      >
-                        <Text style={styles.stepperButtonText}>+</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.totalsRow}>
-                <View style={styles.totalCell}>
-                  <Stat label="Calories" value={String(Math.round(totals.calories))} />
-                </View>
-                <View style={styles.totalCell}>
-                  <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
-                </View>
-                <View style={styles.totalCell}>
-                  <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(0)}g`} />
-                </View>
-                <View style={styles.totalCell}>
-                  <Stat label="Fat" value={`${totals.totalFatG.toFixed(0)}g`} />
-                </View>
-              </View>
-
-              <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
-                {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
-              </Button>
-
               {searchExpanded ? (
                 <View style={styles.addSection}>
+                  <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+                    <Text style={styles.backChevron}>‹</Text>
+                  </Pressable>
                   <View style={styles.searchRow}>
                     <TextInput
                       ref={searchInputRef}
@@ -604,10 +599,9 @@ export function PlateSheet({
                       placeholder="Search for a food"
                       placeholderTextColor={withOpacity(colors.ink900, 45)}
                       onSubmitEditing={() => runSearch()}
-                      // This box sits after the item list/totals/LOG button in a plain ScrollView,
-                      // which doesn't reliably scroll a newly-focused input into view on its own --
-                      // scroll it to the end (it's the last thing in the sheet) so the query stays
-                      // visible while typing.
+                      // This box is now the top of its own full-pane view (once a search has run,
+                      // results/footer rows push it below the fold) -- scroll it to the end so the
+                      // query stays visible while typing.
                       onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
                       returnKeyType="search"
                     />
@@ -615,7 +609,11 @@ export function PlateSheet({
                       Search
                     </Button>
                   </View>
-                  {searching && <ActivityIndicator color={colors.maroon600} style={styles.searchSpinner} />}
+                  {searching && (
+                    <View style={styles.searchSpinner}>
+                      <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
+                    </View>
+                  )}
                   {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
                   {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
                   {results?.slice(0, visibleCount).map((r) => {
@@ -685,8 +683,13 @@ export function PlateSheet({
                   )}
                   {/* Standing footer row -- shown whenever a search has actually run, whether or
                   not it found anything, since no database this sheet searches has every food. Also
-                  shown on the all-rejected error branch, when the user most needs this escape hatch. */}
-                  {(results !== null || searchError !== null) && (
+                  shown on the all-rejected error branch, when the user most needs this escape hatch.
+                  `!searching` is required here (not on the direct-lookup gate above, which already
+                  has its own) -- 3b's streaming means `results` can go non-null WHILE other groups
+                  are still in flight, and this footer's "no database has every food" framing reads
+                  as a post-search summary, not a live-while-typing state, so it must wait for the
+                  whole search to actually finish. */}
+                  {((results !== null && !searching) || searchError !== null) && (
                     <Pressable
                       style={styles.customFoodRow}
                       onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
@@ -699,24 +702,99 @@ export function PlateSheet({
                   )}
                 </View>
               ) : (
-                // Idle state (PlateExpanded.dc.html:87-93). The artboard's hint copy mentions
-                // barcode scanning, but no such feature exists in this app, so that clause is dropped.
-                <Pressable
-                  style={[styles.addSection, styles.addSectionIdle]}
-                  onPress={() => setSearchExpanded(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Add something else"
-                >
-                  {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
-                  <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
-                    <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
-                    <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
-                  </Svg>
-                  <View style={styles.addIdleText}>
-                    <Text style={styles.addIdleTitle}>Add something else</Text>
-                    <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
+                // Idle state: item list/totals/LOG button, then the idle "Add something else" row
+                // (PlateExpanded.dc.html:87-93). searchExpanded now gates this ENTIRE pane body
+                // (3a) -- expanding search replaces all of it with just the back button + search
+                // block above, rather than leaving this mounted underneath a swapped-in search box.
+                <>
+                  <View style={styles.itemList}>
+                    {plate.map((entry) => (
+                      <View key={entry.key} style={styles.itemRow}>
+                        <View style={styles.itemInfo}>
+                          <Text style={styles.itemLabel}>{entry.label}</Text>
+                          <Text style={styles.itemCalories}>
+                            {Math.round(entry.nutrition.calories)} cal each{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
+                          </Text>
+                        </View>
+                        <View style={[styles.stepper, editingKey === entry.key && styles.stepperEditing]}>
+                          <Pressable
+                            style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                            onPress={() => onStep(entry.key, -1)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Remove one ${entry.label}`}
+                          >
+                            <Text style={styles.stepperButtonText}>−</Text>
+                          </Pressable>
+                          {editingKey === entry.key ? (
+                            <TextInput
+                              style={styles.stepperInput}
+                              value={editingText}
+                              onChangeText={setEditingText}
+                              keyboardType="decimal-pad"
+                              autoFocus
+                              selectTextOnFocus
+                              onSubmitEditing={commitEditingCount}
+                              onBlur={commitEditingCount}
+                              accessibilityLabel={`Servings for ${entry.label}`}
+                            />
+                          ) : (
+                            <Pressable onPress={() => beginEditingCount(entry)} accessibilityRole="button" accessibilityLabel={`Edit servings for ${entry.label}`}>
+                              <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
+                            </Pressable>
+                          )}
+                          <Pressable
+                            style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                            onPress={() => onStep(entry.key, 1)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Add one ${entry.label}`}
+                          >
+                            <Text style={styles.stepperButtonText}>+</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ))}
                   </View>
-                </Pressable>
+
+                  <View style={styles.divider} />
+
+                  <View style={styles.totalsRow}>
+                    <View style={styles.totalCell}>
+                      <Stat label="Calories" value={String(Math.round(totals.calories))} />
+                    </View>
+                    <View style={styles.totalCell}>
+                      <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
+                    </View>
+                    <View style={styles.totalCell}>
+                      <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(0)}g`} />
+                    </View>
+                    <View style={styles.totalCell}>
+                      <Stat label="Fat" value={`${totals.totalFatG.toFixed(0)}g`} />
+                    </View>
+                  </View>
+
+                  <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
+                    {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
+                  </Button>
+
+                  {/* The artboard's hint copy mentions barcode scanning, but no such feature exists
+                  in this app, so that clause is dropped. */}
+                  <Pressable
+                    style={[styles.addSection, styles.addSectionIdle]}
+                    onPress={() => setSearchExpanded(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add something else"
+                  >
+                    {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
+                    <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
+                      <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
+                      <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
+                    </Svg>
+                    <View style={styles.addIdleText}>
+                      <Text style={styles.addIdleTitle}>Add something else</Text>
+                      <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
+                    </View>
+                  </Pressable>
+                </>
               )}
             </ScrollView>
           </Animated.View>
@@ -817,6 +895,10 @@ const styles = StyleSheet.create({
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
   addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
+  // Same backChevron the app's other in-sheet close buttons use (CustomFoodForm.tsx,
+  // NutritionLabel.tsx, CafePdfViewer.tsx) -- repurposed here to collapse back to idle instead of
+  // closing the whole sheet.
+  backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
   searchInput: {
     flex: 1,
