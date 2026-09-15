@@ -166,6 +166,8 @@ export type MacroPreset = "high-protein" | "low-sodium" | "under-300-cal" | "low
 // calorie garnish from qualifying on density alone. Both gates together land at 18.3% pass
 // (66/361) -- still catches genuinely fiber-dense low-cal foods (beans, chana dal, roasted
 // vegetables, hummus, whole grain penne, steamed broccoli, kale).
+// Both landed on 1.5 independently -- different units (absolute grams vs. grams per 100kcal), a
+// coincidence of this pull's data, not a shared constant.
 const MIN_FIBER_G = 1.5;
 const FIBER_DENSITY_PER_100_KCAL = 1.5;
 
@@ -174,8 +176,9 @@ const MACRO_PRESET_CHECKS: Record<MacroPreset, (n: NutritionFacts) => boolean> =
   "low-sodium": (n) => n.sodiumMg <= 140,
   "under-300-cal": (n) => n.calories <= 300,
   "low-fat": (n) => n.totalFatG <= 3,
-  // n.calories > 0 guards the division -- a 0-calorie item (black coffee, water) can't divide-by-
-  // zero into a false qualify.
+  // n.calories > 0 guards the division -- without it, any positive fiber on a 0-calorie item
+  // (black coffee, water) divides out to Infinity, which clears every density cutoff and would
+  // falsely qualify.
   "high-fiber": (n) => n.calories > 0 && n.dietaryFiberG >= MIN_FIBER_G && (n.dietaryFiberG / n.calories) * 100 >= FIBER_DENSITY_PER_100_KCAL,
 };
 
