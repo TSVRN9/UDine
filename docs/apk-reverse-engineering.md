@@ -317,7 +317,7 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
 - **Tested every one of the 36 retail `location_id`s against `foodpro-menu-ajax?tid=<id>&date=...`**
   across today + 1/3/7/13 days out (the full rolling window documented above). **28 have a real feed**
   (non-`[]` on at least one sampled date) -- including **Terrace** (`location_id=11150`), which
-  returned `[]` on 2 of the 5 sampled dates and full menus (47-88KB) on the other 3: a real,
+  returned `[]` on 3 of the 5 sampled dates and full menus (47-88KB) on the other 2: a real,
   intermittent/low-frequency "integrated" location, not a zero-feed one -- a correction to an
   assumption this research task started with (only Argo Tea/UMass Store/Paciugo were previously
   spot-checked; Terrace hadn't been). **The remaining 8 returned `[]` on every one of the 5 sampled
@@ -364,7 +364,8 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
   | 11150 | Terrace | 2 (day-0; 47750/87911 on +3/+7) | integrated (intermittent) |
 
   28 integrated + 8 gap = 36, the full retail set.
-- **Cross-referenced those 9 against Web INA's 24 retail `locationNum`s** (`location.aspx`, re-fetched
+- **Cross-referenced the 8 gap locations (Terrace excluded -- it already has a real, if intermittent,
+  `foodpro-menu-ajax` feed, confirmed above) against Web INA's 24 retail `locationNum`s** (`location.aspx`, re-fetched
   live 2026-09-14, same 24 names as already documented above) by fuzzy name match. **8 have zero
   presence in either system** -- these are the actual "standing-menu-only, genuinely zero nutrition
   source" set this research task asked to enumerate:
@@ -473,10 +474,10 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
   rest and worked reliably. Results:
   - A genuinely packaged/branded name (**"Dasani water"**, which appears on both the babyBerk PDF and
     Snack Overflow's own price list) hits real, correct products with nutrition data -- as expected.
-  - **"Teappuccino"** (Argo Tea's own branded drink name, verbatim from its standing-menu text) --
+  - **"Teappuccino"** (Argo Tea's own branded drink name, from its standing-menu text) --
     **zero hits.**
-  - **"Matcha Vanilla Latte"** (also verbatim from Argo Tea's menu) and **"Golden BBQ Chicken
-    sandwich"** (from babyBerk's PDF) each returned thousands of loosely name-matched but *wrong*
+  - **"Matcha Vanilla Latte"** (also from Argo Tea's menu) and **"Gold'n BBQ Chicken"**
+    (from babyBerk's PDF) each returned a top page of loosely name-matched but *wrong*
     packaged products -- powdered matcha-latte mixes from unrelated brands (Jade Leaf, Twinings,
     Organic Traditions), and frozen/fast-food chain sandwiches (Lean Cuisine, KFC's Tower Original) --
     none of which is the actual campus item. **This is a sharper finding than "no coverage": a naive

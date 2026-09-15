@@ -1332,9 +1332,11 @@ verdict:**
 - **Argo Tea** (formerly a real national café chain) has no usable official source at all: the parent
   company shut down its physical cafés nationally around 2020, and its official nutrition page
   (`argotea.com/pages/nutrition`) returned **HTTP 402 Payment Required** on a live fetch -- a lapsed
-  storefront, not a maintained page. Third-party aggregator mirrors of the old café menu exist but
-  have no stated provenance and can't be verified against whatever the UMass location actually serves
-  today.
+  storefront, not a maintained page. Third-party aggregator mirrors of the old café menu exist --
+  `nutritionvalue.org` even carries FDC-style branded-food entries explicitly attributed to "Argo Tea
+  Cafe, LLC" (USDA FoodData Central provenance, not an anonymous crowd entry) -- but every one is a
+  snapshot of the chain's pre-2020 national menu and can't be verified against whatever, if anything,
+  the UMass location actually served while it was still open.
 
 **The other 6 of 8 are UMass's own concepts, not franchises, so "does the vendor publish nutrition"
 doesn't even apply to them** -- confirmed via web search + UMass's own marketing copy for each (Yum!
@@ -1357,10 +1359,14 @@ confirming a rotating menu, not a static one.
 confirms the assumption and sharpens it into a real risk, not just a coverage gap.** A genuinely
 packaged product name (Dasani water, from the babyBerk PDF/Snack Overflow's price list) hits real
 products with nutrition data, as expected. But real made-to-order item names -- Argo Tea's
-"Teappuccino" and "Matcha Vanilla Latte", babyBerk's "Golden BBQ Chicken sandwich" and "Black Bean
-Burger", all pulled verbatim from this pass's own fetches -- either miss entirely or, worse, return
-thousands of superficially name-matched but factually wrong packaged products (a frozen Lean Cuisine
-sandwich, a KFC sandwich, a Sol Cuisine veggie patty, a Jade Leaf matcha powder mix). **A naive
+"Teappuccino" and "Matcha Vanilla Latte", babyBerk's "Gold'n BBQ Chicken" and "Black Bean
+Burger" (the first pulled from Argo Tea's own standing-menu text, the rest from babyBerk's PDF, this
+pass's own fetches) -- either miss entirely or, worse, return a top page of superficially
+name-matched but factually wrong packaged products (a frozen Lean Cuisine sandwich, a KFC sandwich, a
+Sol Cuisine veggie patty, a Jade Leaf matcha powder mix); the raw hit count itself isn't a useful
+signal here (OpenFoodFacts caps every non-empty query's reported count at 10000 regardless of true
+match quality, including the correct Dasani hit), so it's the *identity* of the top results, not
+their number, that shows the risk. **A naive
 name-match integration here wouldn't just fail to help, it would risk silently attaching a wrong
 product's nutrition to a real menu item** -- worth calling out explicitly since `matchStandingMenuItem`
 (`mobile/src/lib/cafeMenu.ts:49-67`) already does exactly this kind of best-effort name match against
