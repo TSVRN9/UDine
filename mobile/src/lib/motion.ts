@@ -19,6 +19,11 @@ export const reanimatedPaneCurve = ReanimatedEasing.bezier(...curves.pane);
 /** Built once, from `curves.pane`, for RN core `Animated.timing` call sites. */
 export const rnPaneCurve = RNEasing.bezier(...curves.pane);
 
+/** Every constant-speed spin (Skeleton.tsx's `Spinner`, both the gold MenuLoading spinner and
+ * PlateSheet's maroon search spinner) shares this same linear curve -- centralized here for the
+ * same reason as `rnPaneCurve` above, so a call site never spells `Easing.linear` itself. */
+export const rnSpinCurve = RNEasing.linear;
+
 export const durations = {
   /** `.pane` transform -- PaneStack/MealTabPager's pane crossfade. */
   pane: 340,

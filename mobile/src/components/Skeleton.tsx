@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View, type ViewStyle } from "react-native";
-import { durations } from "../lib/motion";
+import { durations, rnSpinCurve } from "../lib/motion";
 import { colors, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 /**
@@ -64,7 +64,7 @@ export function Spinner({
   const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const loop = Animated.loop(Animated.timing(rotation, { toValue: 1, duration: durationMs, easing: Easing.linear, useNativeDriver: true }));
+    const loop = Animated.loop(Animated.timing(rotation, { toValue: 1, duration: durationMs, easing: rnSpinCurve, useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
   }, [rotation, durationMs]);
