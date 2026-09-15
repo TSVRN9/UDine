@@ -3,8 +3,6 @@ import * as TaskManager from "expo-task-manager";
 
 import { warmMenuCache } from "./menuPrefetch";
 
-export { BackgroundTaskResult } from "expo-background-task";
-
 // One shared task, not one per feature (see docs/briefs/eager-caching-and-notifications.md's
 // Rationale) -- expo-background-task's own docs warn that multiple registered tasks share a single
 // worker and the LAST registered task's minimum interval wins, so a second task would silently

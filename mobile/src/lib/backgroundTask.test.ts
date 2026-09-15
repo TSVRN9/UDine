@@ -2,7 +2,7 @@ import { DINING_HALLS, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
 import * as TaskManager from "expo-task-manager";
 import * as BackgroundTask from "expo-background-task";
 
-import { BACKGROUND_TASK_NAME, BackgroundTaskResult, registerBackgroundTask } from "./backgroundTask";
+import { BACKGROUND_TASK_NAME, registerBackgroundTask } from "./backgroundTask";
 
 // expo-task-manager/expo-background-task are called at backgroundTask.ts's OWN module scope
 // (TaskManager.defineTask must run in the JS bundle's global scope -- see backgroundTask.ts's own
@@ -88,7 +88,7 @@ test("a run refreshes the cache for every dining hall + Grab 'N Go tid -- the sa
   for (const tid of allTids) {
     expect(mockSaveCachedMenu).toHaveBeenCalledWith(tid, expect.any(Date), itemsFor(tid));
   }
-  expect(result).toBe(BackgroundTaskResult.Success);
+  expect(result).toBe(BackgroundTask.BackgroundTaskResult.Success);
 });
 
 test("a failed fetch for one tid degrades silently -- swallowed, others still cache, task never throws", async () => {
@@ -98,7 +98,7 @@ test("a failed fetch for one tid degrades silently -- swallowed, others still ca
     return Promise.resolve(itemsFor(tid));
   });
 
-  await expect(taskExecutor()).resolves.toBe(BackgroundTaskResult.Success);
+  await expect(taskExecutor()).resolves.toBe(BackgroundTask.BackgroundTaskResult.Success);
 
   expect(mockSaveCachedMenu).toHaveBeenCalledTimes(7);
   expect(mockSaveCachedMenu).not.toHaveBeenCalledWith(failingTid, expect.any(Date), expect.anything());
@@ -107,8 +107,8 @@ test("a failed fetch for one tid degrades silently -- swallowed, others still ca
 test("registerBackgroundTask registers the defined task name with the OS's minimum interval", async () => {
   await registerBackgroundTask();
 
-  expect(mockRegisterTaskAsync).toHaveBeenCalledWith(
-    BACKGROUND_TASK_NAME,
-    expect.objectContaining({ minimumInterval: expect.any(Number) }),
-  );
+  // Pinned to the exact value (not expect.any(Number)) -- 15 is WorkManager's own floor on
+  // Android (see the brief's Rationale); a drift to something looser would silently change how
+  // often the cache actually gets a chance to warm.
+  expect(mockRegisterTaskAsync).toHaveBeenCalledWith(BACKGROUND_TASK_NAME, { minimumInterval: 15 });
 });
