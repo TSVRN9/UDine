@@ -40,10 +40,7 @@ import Reanimated, {
   FadeOutDown,
   FadeInDown,
   LinearTransition,
-  interpolateColor,
-  useAnimatedStyle,
   useSharedValue,
-  withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -55,8 +52,8 @@ import { CafeSheet } from "../../components/CafeSheet";
 import { FavoriteStar } from "../../components/FavoriteStar";
 import { FilterSheet, itemMatchesStationAndPriceFilter, MACRO_PRESET_LABELS, type PriceBucket } from "../../components/FilterSheet";
 import { HallInfoSheet } from "../../components/HallInfoSheet";
-import { HoldSlideAddButton } from "../../components/HoldSlideAddButton";
 import { HoldSlideHost, type HoldSlideHostHandle } from "../../components/HoldSlideOverlay";
+import { PlateAddControl } from "../../components/PlateAddControl";
 import { AnimatedTabUnderline, MealTabPager } from "../../components/MealTabPager";
 import { MenuErrorCard } from "../../components/MenuErrorCard";
 import { CustomFoodForm } from "../../components/CustomFoodForm";
@@ -96,6 +93,8 @@ import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/me
 import { supabase } from "../../lib/supabase";
 import {
   addOrIncrement,
+  compositeCalorieRange,
+  foldRecipeToPlateEntry,
   listBottomPadding,
   menuItemToPlateEntry,
   plateKeyFor,
@@ -108,9 +107,11 @@ import {
   totalItemCount,
   totalPlatePrice,
   useGuardedLogPlate,
+  type CompositeRecipe,
   type PlateEntry,
   type PlateSearchResult,
 } from "../../lib/plate";
+import { CompositeDishComposer } from "../../components/CompositeDishComposer";
 import { getCachedPreferences, getPreferences, setPreferences } from "../../lib/preferences";
 import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { nowLocalIso } from "../../lib/date";
@@ -216,6 +217,67 @@ function stressFixtureItems(hallTid: number, mealPeriod: MealPeriod): MenuItem[]
       },
     },
   ];
+}
+
+/**
+ * Dev-only composite-dish fixture (screenshot.sh's `--stress composite`) -- which dishes are
+ * composite and what their add-ins are has no real data source yet: no backend task in the
+ * foodpro-menu-expansion brief populates a base-dish → add-in-dish relationship anywhere (task 1
+ * seeds an unrelated always-available station catalog), so `compositeDishFor` below returns null
+ * for every real menu item until a later task sources this from public.dishes or the feed itself.
+ * This fixture exists purely so CompositeDishRowStates.dc.html/CompositeDishComposer.dc.html's
+ * states are screenshot-verifiable -- numbers match the artboards exactly (260-440 cal / 10-15g
+ * protein range; 320 cal / 14g protein for the edamame+carrot totals example).
+ */
+function compositeFixtureNutrition(calories: number, proteinG: number, totalCarbG: number, totalFatG: number): MenuItem["nutrition"] {
+  return {
+    servingSize: "1 stress fixture",
+    calories,
+    caloriesFromFat: Math.round(totalFatG * 9),
+    totalFatG,
+    satFatG: 0,
+    transFatG: 0,
+    cholesterolMg: 0,
+    sodiumMg: 50,
+    totalCarbG,
+    dietaryFiberG: 1,
+    sugarsG: 1,
+    proteinG,
+  };
+}
+
+function compositeFixtureItems(hallTid: number, mealPeriod: MealPeriod): MenuItem[] {
+  const base = { category: "Stress Test", mealPeriod, hallTid, date: new Date().toISOString().slice(0, 10), allergens: [], dietTags: [] };
+  return [
+    { ...base, dishName: "Teriyaki Noodle Bowl", nutrition: compositeFixtureNutrition(260, 10, 38, 6) },
+    { ...base, dishName: "Edamame", nutrition: compositeFixtureNutrition(45, 4, 4, 1), dietTags: ["Vegan"] },
+    { ...base, dishName: "Shredded Carrot", nutrition: compositeFixtureNutrition(15, 0, 3, 0) },
+    { ...base, dishName: "Fried Shallots", nutrition: compositeFixtureNutrition(70, 1, 6, 4) },
+    { ...base, dishName: "Sriracha Mayo", nutrition: compositeFixtureNutrition(50, 0, 1, 5) },
+  ];
+}
+
+const COMPOSITE_FIXTURE_ADD_INS: Record<string, string[]> = {
+  "Teriyaki Noodle Bowl": ["Edamame", "Shredded Carrot", "Fried Shallots", "Sriracha Mayo"],
+};
+
+/** Resolves a MenuItem to its composite base+add-ins, or null for an ordinary dish. `pool` is
+ * searched by dish name + hall (never mealPeriod -- an add-in fixture item only exists on the same
+ * period as its base, see compositeFixtureItems, but this stays a name lookup rather than assuming
+ * that). See compositeFixtureItems's own doc for why this is fixture-only, not real-data-driven,
+ * in this PR. */
+function compositeDishFor(item: MenuItem, pool: MenuItem[]): { base: MenuItem; addIns: MenuItem[] } | null {
+  // __DEV__-gated, same as every other stress fixture on this screen -- COMPOSITE_FIXTURE_ADD_INS
+  // is dev-only sample data (see its own doc), never a real association a production build should
+  // ever act on, even by the coincidence of a real feed someday serving a dish with one of these
+  // exact names.
+  if (!__DEV__) return null;
+  const addInNames = COMPOSITE_FIXTURE_ADD_INS[item.dishName];
+  if (!addInNames) return null;
+  const addIns = addInNames
+    .map((name) => pool.find((i) => i.dishName === name && i.hallTid === item.hallTid))
+    .filter((i): i is MenuItem => i !== undefined);
+  return addIns.length > 0 ? { base: item, addIns } : null;
 }
 
 /** Bag/takeout glyph for the Grab 'N Go tab (artboard spec: "bag icon, same muted ink as the
@@ -348,116 +410,6 @@ function UnmatchedMenuBlock({ entries, onTapItem }: { entries: Extract<StandingM
   );
 }
 
-// Standalone empty-plate "+" circle only (ServingsF.dc.html:69/79 -- 44x44). The in-plate
-// stepper's own plus segment is narrower (IN_PLATE_PLUS_WIDTH below) -- the artboards draw them
-// at different widths; the slot's height and pinned-right position stay shared, only the width
-// differs per state, a 4px shift on the add/remove transition.
-const PLUS_SLOT_SIZE = fs(44);
-// Literal, not fs(40) -- spec (ServingsF.dc.html:58/60/96/98) pins the in-plate stepper's +/-
-// segments at 40px each; touch targets don't scale. Distinct from PLUS_SLOT_SIZE (44px), the
-// standalone empty-plate "+" circle.
-const IN_PLATE_PLUS_WIDTH = 40;
-// Literal, not fs(40) -- spec (ServingsF.dc.html:58) pins the minus slot at 40px; touch targets
-// don't scale (see fs()'s own doc comment).
-const MINUS_SLOT_WIDTH = 40;
-const COUNT_SLOT_WIDTH = fs(34);
-// Precomputed outside the worklet below -- withOpacity isn't worklet-marked, and calling a plain
-// JS-thread function from inside useAnimatedStyle's UI-thread callback throws. Worklets can
-// close over a plain string constant fine; they just can't call out to arbitrary JS per frame.
-const MAROON_TRANSPARENT = withOpacity(colors.maroon600, 0);
-const STEPPER_FULL_WIDTH = IN_PLATE_PLUS_WIDTH + COUNT_SLOT_WIDTH + MINUS_SLOT_WIDTH;
-
-/** Filled maroon pill -- the dish row's add control. The empty-plate "+" and the in-plate
- * "− N +" stepper are the SAME persistent element, not two components swapped by a ternary. The
- * "+" slot (`flexDirection: row-reverse`, so it renders pinned to the right) never moves; growing
- * the pill just animates this wrapper's `width` from `PLUS_SLOT_SIZE` to `STEPPER_FULL_WIDTH`
- * with `overflow: hidden` clipping the rest, revealing the "−"/count from the left. The "−"/count
- * are always mounted (so there's no gap when the count drops back to 0) but only hit-testable via
- * `pointerEvents` while actually in the plate -- `overflow: hidden` in RN clips paint, not touch
- * dispatch, so an always-mounted "−" button behind a narrow clip could otherwise still be tapped
- * through it. */
-function PlateAddControl({
-  plateEntry,
-  item,
-  onStep,
-  blocksScrollRefs,
-  onQuickAdd,
-  onHoldStart,
-  onHoldDrag,
-  onHoldEnd,
-  liveCount,
-  liveIndex,
-}: {
-  plateEntry: PlateEntry | undefined;
-  item: MenuItem;
-  onStep: (delta: number) => void;
-  blocksScrollRefs: RefObject<any>[];
-  onQuickAdd: () => void;
-  onHoldStart: (anchor: { x: number; y: number; width: number; height: number }) => void;
-  onHoldDrag: (count: number) => void;
-  onHoldEnd: () => void;
-  liveCount: SharedValue<number>;
-  liveIndex: SharedValue<number>;
-}) {
-  const inPlate = !!plateEntry;
-  const widthProgress = useSharedValue(inPlate ? 1 : 0);
-  useEffect(() => {
-    widthProgress.value = withTiming(inPlate ? 1 : 0, { duration: durations.servingsPill });
-  }, [inPlate, widthProgress]);
-  const clipStyle = useAnimatedStyle(() => ({
-    width: PLUS_SLOT_SIZE + widthProgress.value * (STEPPER_FULL_WIDTH - PLUS_SLOT_SIZE),
-    // The empty-plate "+" is a ghost-outline button (maroon border/text on a see-through
-    // background) that was never designed to sit on a filled pill. Fade the fill in alongside the
-    // width, rather than always having it, or the outline paints invisible on a solid maroon
-    // background while empty.
-    backgroundColor: interpolateColor(widthProgress.value, [0, 1], [MAROON_TRANSPARENT, colors.maroon600]),
-  }));
-
-  return (
-    <Reanimated.View style={[styles.stepperClip, clipStyle]}>
-      <View style={styles.stepperRow}>
-        <View style={[styles.plusSlot, { width: inPlate ? IN_PLATE_PLUS_WIDTH : PLUS_SLOT_SIZE }]}>
-          {inPlate ? (
-            <Pressable
-              style={[styles.plusSlot, { width: IN_PLATE_PLUS_WIDTH }]}
-              onPress={() => onStep(1)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={`Add one ${item.dishName}`}
-            >
-              <Text style={styles.stepperButtonText}>+</Text>
-            </Pressable>
-          ) : (
-            <HoldSlideAddButton
-              dishName={item.dishName}
-              blocksScrollRefs={blocksScrollRefs}
-              onQuickAdd={onQuickAdd}
-              onHoldStart={onHoldStart}
-              onHoldDrag={onHoldDrag}
-              onHoldEnd={onHoldEnd}
-              liveCount={liveCount}
-              liveIndex={liveIndex}
-            />
-          )}
-        </View>
-        <Text style={[styles.stepperCount, { width: COUNT_SLOT_WIDTH }]} numberOfLines={1} pointerEvents="none">
-          {formatServings(plateEntry?.count ?? 1)}
-        </Text>
-        <Pressable
-          style={[styles.stepperButton, { width: MINUS_SLOT_WIDTH }]}
-          onPress={() => onStep(-1)}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove one ${item.dishName}`}
-          pointerEvents={inPlate ? "auto" : "none"}
-        >
-          <Text style={styles.stepperButtonText}>−</Text>
-        </Pressable>
-      </View>
-    </Reanimated.View>
-  );
-}
-
 /** One dish row card. Split out of HallMenuScreenBody's old renderDishRow (a plain function
  * SectionList called, not a mounted component) into a real function component -- the badge-tuck
  * measurement below needs its own per-row useState, which only a mounted component can hold.
@@ -487,6 +439,9 @@ function DishRow({
   liveHoldCount,
   liveHoldIndex,
   setLabelItem,
+  composite,
+  onOpenComposer,
+  onReAddRecipe,
 }: {
   item: MenuItem;
   plate: PlateEntry[];
@@ -508,6 +463,17 @@ function DishRow({
   liveHoldCount: SharedValue<number>;
   liveHoldIndex: SharedValue<number>;
   setLabelItem: (item: MenuItem) => void;
+  /** Non-null only for a composite (bowl composer) dish -- composite-dish-logic annotation. `null`
+   * for every ordinary dish, which is the overwhelming majority of rows and keeps this a no-op for
+   * them. `recipe` is this session's saved selection for THIS base dish, if any (null the first
+   * time, before ever composing). */
+  composite: { addIns: MenuItem[]; recipe: CompositeRecipe | null } | null;
+  /** Opens the composer sheet -- from the not-yet-composed row's bowl button (initialRecipe null)
+   * or the composed row's "Edit add-ins" link (initialRecipe the saved recipe). */
+  onOpenComposer: (base: MenuItem, addIns: MenuItem[], initialRecipe: CompositeRecipe | null) => void;
+  /** Tapping "+" after stepping a composed dish back to 0 -- re-adds the last-saved recipe
+   * directly, no composer round-trip. */
+  onReAddRecipe: (item: MenuItem) => void;
 }) {
   const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
   const plateEntry = plate.find((p) => p.key === dishKey);
@@ -515,6 +481,14 @@ function DishRow({
   const expanded = expandedKey === dishKey;
   const macroBadges = menuItemMacroBadges(item, prefs);
   const showFiber = macroBadges.includes("high-fiber");
+  // A composed row (composite + already on the plate) is the only state that ever reuses the
+  // expand slot for "Edit add-ins" -- a not-yet-composed composite row expands like any ordinary
+  // dish (diet tags + Full Nutrition Label), matching CompositeDishRowStates.dc.html's 3 states.
+  const composedInPlate = composite && plateEntry ? composite : null;
+  const calorieRange = composite && !plateEntry ? compositeCalorieRange(item, composite.addIns) : null;
+  // The composed total (once on the plate) lives on the PlateEntry, not the base MenuItem --
+  // item.nutrition never changes when a dish is composed, only the folded plate row does.
+  const displayNutrition = composedInPlate ? plateEntry!.nutrition : item.nutrition;
 
   const [containerWidth, setContainerWidth] = useState(0);
   const [hasContainerWidth, setHasContainerWidth] = useState(false);
@@ -589,12 +563,28 @@ function DishRow({
             )}
           </View>
           {/* Price folds into the same uniform-color meta string as cal/protein
-              (CafeMenuMixed.dc.html:43), no separate maroon-highlighted price Text. */}
-          <Text style={styles.rowCalories}>
-            {item.price ? `${item.price} · ` : ""}
-            {item.nutrition.calories} cal · {showFiber ? Math.round(item.nutrition.dietaryFiberG) : Math.round(item.nutrition.proteinG)}
-            {showFiber ? "g fiber" : "g protein"}
-          </Text>
+              (CafeMenuMixed.dc.html:43), no separate maroon-highlighted price Text. calorieRange
+              (not-yet-composed) and the composed total (plateEntry.nutrition once on the plate)
+              both replace item.nutrition -- CompositeDishRowStates.dc.html states 1/2.
+              Two full <Text> branches, not a ternary INSIDE one <Text>'s children -- a fragment
+              nested one level down changes this Text's own `children` prop shape (one Fragment
+              element instead of several flat string/number children), which hallMenu.test.tsx's
+              texts() helper (a shallow, one-level .flat()) can no longer see into. Keeping the
+              non-composite branch's JSX identical (not merely equivalent) to before this feature
+              existed is what keeps those pre-existing tests passing unmodified. */}
+          {calorieRange ? (
+            <Text style={styles.rowCalories}>
+              {item.price ? `${item.price} · ` : ""}
+              {Math.round(calorieRange.minCalories)}–{Math.round(calorieRange.maxCalories)} cal ·{" "}
+              {Math.round(calorieRange.minProteinG)}–{Math.round(calorieRange.maxProteinG)}g protein
+            </Text>
+          ) : (
+            <Text style={styles.rowCalories}>
+              {item.price ? `${item.price} · ` : ""}
+              {Math.round(displayNutrition.calories)} cal · {showFiber ? Math.round(displayNutrition.dietaryFiberG) : Math.round(displayNutrition.proteinG)}
+              {showFiber ? "g fiber" : "g protein"}
+            </Text>
+          )}
         </View>
         <PlateAddControl
           plateEntry={plateEntry}
@@ -617,32 +607,60 @@ function DishRow({
           }}
           liveCount={liveHoldCount}
           liveIndex={liveHoldIndex}
+          composite={
+            composite
+              ? {
+                  hasSavedRecipe: composite.recipe !== null,
+                  onOpenComposer: () => onOpenComposer(item, composite.addIns, null),
+                  onReAddRecipe: () => onReAddRecipe(item),
+                }
+              : undefined
+          }
         />
       </View>
       {expanded && (
         <Reanimated.View entering={FadeIn.duration(durations.rowExpandIn)} exiting={FadeOut.duration(durations.rowExpandOut)} style={styles.expandedContent} pointerEvents="box-none">
           <View style={styles.expandedDivider} pointerEvents="none" />
-          <Text style={styles.servingSummary} pointerEvents="none">
-            {formatServingSummary(item.nutrition)}
-          </Text>
-          {item.dietTags.length > 0 && (
-            <View style={styles.dietChipRow} pointerEvents="none">
-              {item.dietTags.map((tag) => (
-                <View key={tag} style={styles.dietChip}>
-                  <Text style={styles.dietChipText}>{tag.toUpperCase()}</Text>
+          {composedInPlate ? (
+            <>
+              <Text style={styles.servingSummary} pointerEvents="none">
+                {composedInPlate.recipe?.addIns.filter((a) => a.count > 0).map((a) => a.item.dishName).join(" · ") ?? ""}
+              </Text>
+              <Pressable
+                onPress={() => onOpenComposer(item, composedInPlate.addIns, composedInPlate.recipe)}
+                hitSlop={8}
+                style={styles.fullLabelLink}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit add-ins for ${item.dishName}`}
+              >
+                <Text style={styles.fullLabelLinkText}>EDIT ADD-INS ›</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.servingSummary} pointerEvents="none">
+                {formatServingSummary(item.nutrition)}
+              </Text>
+              {item.dietTags.length > 0 && (
+                <View style={styles.dietChipRow} pointerEvents="none">
+                  {item.dietTags.map((tag) => (
+                    <View key={tag} style={styles.dietChip}>
+                      <Text style={styles.dietChipText}>{tag.toUpperCase()}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
+              )}
+              <Pressable
+                onPress={() => setLabelItem(item)}
+                hitSlop={8}
+                style={styles.fullLabelLink}
+                accessibilityRole="button"
+                accessibilityLabel={`Full nutrition label for ${item.dishName}`}
+              >
+                <Text style={styles.fullLabelLinkText}>FULL NUTRITION LABEL ›</Text>
+              </Pressable>
+            </>
           )}
-          <Pressable
-            onPress={() => setLabelItem(item)}
-            hitSlop={8}
-            style={styles.fullLabelLink}
-            accessibilityRole="button"
-            accessibilityLabel={`Full nutrition label for ${item.dishName}`}
-          >
-            <Text style={styles.fullLabelLinkText}>FULL NUTRITION LABEL ›</Text>
-          </Pressable>
         </Reanimated.View>
       )}
     </Reanimated.View>
@@ -811,6 +829,42 @@ export function HallMenuScreenBody({
   const [grabError, setGrabError] = useState<string | null>(null);
 
   const [plate, setPlate] = useState<PlateEntry[]>([]);
+  // Composite dish (bowl composer) session state -- composite-dish-logic annotation. Keyed by the
+  // BASE dish's own plate key, not the composer's own lifecycle, so a saved recipe survives the
+  // base dish being stepped off the plate entirely (re-add without reopening the composer needs
+  // the recipe to still be here after the PlateEntry itself is gone). Session-only, per the
+  // brief's residency note -- never persisted, reset on remount same as `plate` itself.
+  const [compositeRecipes, setCompositeRecipes] = useState<Record<string, CompositeRecipe>>({});
+  // The composer's own data -- kept separate from `composerOpen` (below) so the sheet's own
+  // closing animation (useDraggableSheet inside CompositeDishComposer) still has a base/addIns to
+  // render while it plays out, same reason PlateSheet's own content stays mounted across its
+  // visible prop toggling rather than being unmounted the instant it's told to close.
+  const [composerTarget, setComposerTarget] = useState<{ base: MenuItem; addIns: MenuItem[]; initialRecipe: CompositeRecipe | null } | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  function openComposer(base: MenuItem, addIns: MenuItem[], initialRecipe: CompositeRecipe | null) {
+    setComposerTarget({ base, addIns, initialRecipe });
+    setComposerOpen(true);
+  }
+  function closeComposer() {
+    setComposerOpen(false);
+  }
+  // "Add to Plate" -- folds base + every selected add-in into ONE PlateEntry (foldRecipeToPlateEntry),
+  // REPLACING (never addOrIncrement -- see that function's own doc) any existing row for this base,
+  // and remembers the recipe so a later re-add/"Edit add-ins" doesn't start from scratch.
+  function commitComposerRecipe(base: MenuItem, recipe: CompositeRecipe) {
+    const key = plateKeyFor({ type: "umass-menu", dishName: base.dishName, hallTid: base.hallTid });
+    setCompositeRecipes((prev) => ({ ...prev, [key]: recipe }));
+    setPlate((prev) => [...prev.filter((p) => p.key !== key), foldRecipeToPlateEntry(base, recipe)]);
+    closeComposer();
+  }
+  // Tapping "+" on a composite dish that already has a saved recipe (not currently on the plate,
+  // e.g. stepped back to 0) -- re-adds it directly, no composer round-trip.
+  function reAddSavedRecipe(item: MenuItem) {
+    const key = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
+    const recipe = compositeRecipes[key];
+    if (!recipe) return;
+    setPlate((prev) => [...prev.filter((p) => p.key !== key), foldRecipeToPlateEntry(item, recipe)]);
+  }
   // Hold-and-drag add. The live count/ladder-position/cancel state during a drag are Reanimated
   // shared values, not React state -- HoldSlideAddButton writes them directly from its UI-thread
   // gesture worklet, and the overlay reads them the same way, so a drag never triggers a React
@@ -1047,17 +1101,25 @@ export function HallMenuScreenBody({
       // station/price filtering above still runs over only the real feed items.
       return [...mealTabs.flatMap((period) => stressFixtureItems(tid, period)), ...filtered];
     }
+    // Same "Stress Test" category as long-names above (reuses sectionsByPeriod's own
+    // moveSectionToFront branch below) -- compositeFixtureItems's own doc explains why this is
+    // fixture-only.
+    if (__DEV__ && stressFixture === "composite" && hall.tid != null) {
+      const tid = hall.tid;
+      return [...mealTabs.flatMap((period) => compositeFixtureItems(tid, period)), ...filtered];
+    }
     return filtered;
   }, [effectiveItems, stationFilter, priceFilter, stressFixture, mealTabs, hall.tid]);
   const sectionsByPeriod = useMemo(() => {
     const map = new Map<MealPeriod, MenuSection[]>();
+    const isStressFixtureTab = __DEV__ && (stressFixture === "long-names" || stressFixture === "composite");
     for (const period of mealTabs) {
       const sections = sectionsForPeriod(stationPriceFilteredItems, period, prefs);
       // Dev-gated the same way stationPriceFilteredItems's stress-fixture branch above is; see
       // moveSectionToFront's own doc for why this is needed at all (sortStationNames doesn't know
       // about the synthetic "Stress Test" category). A no-op when the section isn't present
       // (stressFixture unset, or hidden by the user's own allergen/diet-tag filters).
-      map.set(period, __DEV__ && stressFixture === "long-names" ? moveSectionToFront(sections, "Stress Test") : sections);
+      map.set(period, isStressFixtureTab ? moveSectionToFront(sections, "Stress Test") : sections);
     }
     return map;
   }, [stationPriceFilteredItems, mealTabs, prefs, stressFixture]);
@@ -1294,44 +1356,69 @@ export function HallMenuScreenBody({
   // reason to re-render its visible rows, so a fresh closure every render was defeating that
   // memoization on all (up to 5) mounted panes on every unrelated state change.
   const renderDishRow = useCallback(
-    ({ item }: { item: MenuItem }) => (
-      <DishRow
-        item={item}
-        plate={plate}
-        favoriteDishKeys={favoriteDishKeys}
-        expandedKey={expandedKey}
-        prefs={prefs}
-        toggleExpanded={toggleExpanded}
-        toggleDishFavorite={toggleDishFavorite}
-        addToPlate={addToPlate}
-        stepPlateItem={stepPlateItem}
-        // getListRef(...) called fresh here (not the pre-computed activeStationListRef variable
-        // above) so this useCallback's own dependency below is the PLAIN selectedMeal string, not
-        // a ref object -- React Compiler refuses to preserve memoization for a callback whose deps
-        // include something ref-shaped ("this dependency may be mutated later"), degrading the
-        // whole component's optimization. getListRef itself is cheap/idempotent (a Map lookup).
-        activeListRef={getListRef(selectedMeal ?? "grab")}
-        holdSlideHostRef={holdSlideHostRef}
-        dragStateRef={dragStateRef}
-        liveHoldCount={liveHoldCount}
-        liveHoldIndex={liveHoldIndex}
-        setLabelItem={setLabelItem}
-      />
-    ),
+    ({ item }: { item: MenuItem }) => {
+      // compositeDishFor is a cheap name-lookup against a small fixed map (see its own doc) --
+      // fine to call fresh per row rather than threading another memo through this callback's deps.
+      const compositeDef = compositeDishFor(item, stationPriceFilteredItems);
+      const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
+      return (
+        <DishRow
+          item={item}
+          plate={plate}
+          favoriteDishKeys={favoriteDishKeys}
+          expandedKey={expandedKey}
+          prefs={prefs}
+          toggleExpanded={toggleExpanded}
+          toggleDishFavorite={toggleDishFavorite}
+          addToPlate={addToPlate}
+          stepPlateItem={stepPlateItem}
+          // getListRef(...) called fresh here (not the pre-computed activeStationListRef variable
+          // above) so this useCallback's own dependency below is the PLAIN selectedMeal string, not
+          // a ref object -- React Compiler refuses to preserve memoization for a callback whose deps
+          // include something ref-shaped ("this dependency may be mutated later"), degrading the
+          // whole component's optimization. getListRef itself is cheap/idempotent (a Map lookup).
+          activeListRef={getListRef(selectedMeal ?? "grab")}
+          holdSlideHostRef={holdSlideHostRef}
+          dragStateRef={dragStateRef}
+          liveHoldCount={liveHoldCount}
+          liveHoldIndex={liveHoldIndex}
+          setLabelItem={setLabelItem}
+          composite={compositeDef ? { addIns: compositeDef.addIns, recipe: compositeRecipes[dishKey] ?? null } : null}
+          onOpenComposer={openComposer}
+          onReAddRecipe={reAddSavedRecipe}
+        />
+      );
+    },
     // selectedMeal: getListRef(selectedMeal ?? "grab") above resolves to a DIFFERENT cached ref
     // object once selectedMeal moves to a different tab -- omitting selectedMeal here would leave
     // this closure (and therefore every row's blocksScrollRefs) pointing at the PREVIOUS tab's
     // list ref after a tab switch, reintroducing a narrower version of the bug the per-tab ref map
     // above exists to fix.
     //
-    // getListRef deliberately NOT listed -- exhaustive-deps wants it since the callback body calls
-    // it, but its own function identity is recreated every render (it's a plain function, not
-    // itself memoized) while its OUTPUT for a given key never changes across the component's
-    // lifetime (see its own doc: one ref object per tab value, cached forever in `listRefs`).
-    // Listing it would rebuild this callback -- and therefore every mounted pane's renderItem
-    // identity -- on every unrelated re-render, exactly what this useCallback exists to prevent.
+    // getListRef/openComposer/reAddSavedRecipe deliberately NOT listed -- exhaustive-deps wants
+    // them since the callback body calls them, but getListRef's own function identity is recreated
+    // every render while its OUTPUT for a given key never changes across the component's lifetime
+    // (see its own doc: one ref object per tab value, cached forever in `listRefs`); openComposer/
+    // reAddSavedRecipe are plain (non-useCallback) functions closing only over setState updaters,
+    // same shape as addToPlate/stepPlateItem above but not itself memoized -- listing any of them
+    // would rebuild this callback (and every mounted pane's renderItem identity) on every unrelated
+    // re-render, exactly what this useCallback exists to prevent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plate, expandedKey, favoriteDishKeys, prefs, toggleExpanded, toggleDishFavorite, addToPlate, stepPlateItem, liveHoldCount, liveHoldIndex, selectedMeal],
+    [
+      plate,
+      expandedKey,
+      favoriteDishKeys,
+      prefs,
+      toggleExpanded,
+      toggleDishFavorite,
+      addToPlate,
+      stepPlateItem,
+      liveHoldCount,
+      liveHoldIndex,
+      selectedMeal,
+      stationPriceFilteredItems,
+      compositeRecipes,
+    ],
   );
 
   // Grab isn't in `mealTabs` (see TabSelection's own doc) -- appended as the swipeable sequence's
@@ -1787,6 +1874,18 @@ export function HallMenuScreenBody({
         initialQuery={plateSearchSeed ?? undefined}
         stressFixture={stressFixture}
       />
+      <CompositeDishComposer
+        // Never both visible at once, same Android dual-Modal reason as PlateSheet/CustomFoodForm
+        // above -- viewing an add-in's Full Nutrition Label hides the composer instead of stacking
+        // a second native Modal on top of it.
+        visible={composerOpen && !labelItem}
+        base={composerTarget?.base ?? null}
+        addIns={composerTarget?.addIns ?? []}
+        initialRecipe={composerTarget?.initialRecipe ?? null}
+        onClose={closeComposer}
+        onAddToPlate={commitComposerRecipe}
+        onShowFullNutritionLabel={setLabelItem}
+      />
       <FilterSheet
         visible={filterSheetOpen}
         items={effectiveItems}
@@ -2153,15 +2252,6 @@ const styles = StyleSheet.create({
   // the visible window is always [0, clipWidth] measured from the row's own left edge, without
   // this the collapsed clip showed the row-reverse row's OTHER end (the "−" button) instead of
   // the "+" slot -- pr-reviewer catch, verified against RN's actual Yoga layout output.
-  stepperClip: { overflow: "hidden", alignItems: "flex-end", borderRadius: radii.pill },
-  stepperRow: { flexDirection: "row-reverse", alignItems: "center", width: STEPPER_FULL_WIDTH },
-  // No static `width` -- it differs by state (PLUS_SLOT_SIZE vs IN_PLATE_PLUS_WIDTH, see #413),
-  // applied inline at each usage.
-  plusSlot: { height: PLUS_SLOT_SIZE, alignItems: "center", justifyContent: "center" },
-  stepperButton: { height: fs(44), alignItems: "center", justifyContent: "center" },
-  stepperButtonText: { fontSize: fs(18), color: colors.paper50 },
-  stepperCount: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600", textAlign: "center", color: colors.paper50 },
-
   loggedBanner: { backgroundColor: colors.maroon900, padding: spacing(2) },
   loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body400, fontSize: fs(13) },
 });

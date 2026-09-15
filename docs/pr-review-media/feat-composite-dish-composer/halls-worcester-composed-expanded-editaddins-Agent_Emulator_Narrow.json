@@ -1,0 +1,10 @@
+{
+  "sha": "d2992ba564c3c52c3b9d85fcb7947349182df030",
+  "branch": "feat/composite-dish-composer",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-a6cc83aec4fd42a2b",
+  "route": "halls/worcester",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "composite",
+  "dirty": false,
+  "ts": "2026-09-15T00:07:53Z"
+}

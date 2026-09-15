@@ -7,22 +7,27 @@ import path from "node:path";
 
 const SOURCE_PATH = path.join(__dirname, "..", "app", "halls", "[slug].tsx");
 const source = fs.readFileSync(SOURCE_PATH, "utf8");
+// PlateAddControl (and the IN_PLATE_PLUS_WIDTH/STEPPER_FULL_WIDTH constants #413 pins) moved out
+// of [slug].tsx into its own file (foodpro-menu-expansion brief, task 2) -- reused verbatim by
+// CompositeDishComposer's add-in rows, not just [slug].tsx's own dish rows.
+const PLATE_ADD_CONTROL_SOURCE_PATH = path.join(__dirname, "..", "components", "PlateAddControl.tsx");
+const plateAddControlSource = fs.readFileSync(PLATE_ADD_CONTROL_SOURCE_PATH, "utf8");
 
 describe("#413: in-plate stepper plus width matches ServingsF.dc.html (40px), not the standalone empty-plate circle (44px)", () => {
   it("defines a 40px in-plate plus width, distinct from the 44px standalone PLUS_SLOT_SIZE", () => {
-    const match = source.match(/const IN_PLATE_PLUS_WIDTH = (\d+);/);
+    const match = plateAddControlSource.match(/const IN_PLATE_PLUS_WIDTH = (\d+);/);
     expect(match).not.toBeNull();
     expect(Number(match?.[1])).toBe(40);
   });
 
   it("computes the fully-expanded stepper width from the 40px in-plate plus, not the 44px standalone one", () => {
-    const match = source.match(/const STEPPER_FULL_WIDTH = (\w+) \+ COUNT_SLOT_WIDTH \+ MINUS_SLOT_WIDTH;/);
+    const match = plateAddControlSource.match(/const STEPPER_FULL_WIDTH = (\w+) \+ COUNT_SLOT_WIDTH \+ MINUS_SLOT_WIDTH;/);
     expect(match).not.toBeNull();
     expect(match?.[1]).toBe("IN_PLATE_PLUS_WIDTH");
   });
 
   it("the in-plate + Pressable is sized to IN_PLATE_PLUS_WIDTH, not the shared 44px plusSlot alone", () => {
-    const plusButtonBlock = source.match(/\{inPlate \? \(\s*<Pressable[\s\S]*?onPress=\{\(\) => onStep\(1\)\}/);
+    const plusButtonBlock = plateAddControlSource.match(/\{inPlate \? \(\s*<Pressable[\s\S]*?onPress=\{\(\) => onStep\(1\)\}/);
     expect(plusButtonBlock).not.toBeNull();
     expect(plusButtonBlock?.[0]).toMatch(/IN_PLATE_PLUS_WIDTH/);
   });
