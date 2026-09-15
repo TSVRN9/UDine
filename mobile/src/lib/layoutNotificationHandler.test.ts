@@ -9,7 +9,13 @@
 const mockSetNotificationHandler = jest.fn();
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: (...args: unknown[]) => mockSetNotificationHandler(...args),
+  scheduleNotificationAsync: jest.fn(),
 }));
+// backgroundTask.ts (task 3) pulls in ./supabase for its signed-out notification-match gate, which
+// pulls in @react-native-async-storage/async-storage -- unmocked, that throws immediately under jest
+// (no native module). This test only cares about the notification-handler wiring, so a bare stub is
+// enough.
+jest.mock("./supabase", () => ({ supabase: { auth: { getSession: jest.fn() } } }));
 
 test("root layout registers a foreground notification handler on import", async () => {
   require("../app/_layout");

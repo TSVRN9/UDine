@@ -1,7 +1,9 @@
 import type { CustomFood, MenuItem, NutritionFacts, OffSearchResult, UsdaSearchResult } from "@udine/shared";
 import {
   addOrIncrement,
+  compositeCalorieRange,
   customFoodToPlateEntry,
+  foldRecipeToPlateEntry,
   historyDishToPlateEntry,
   isEstimatedServing,
   listBottomPadding,
@@ -13,6 +15,7 @@ import {
   resolvePlateAndCustomFoodVisibility,
   setCount,
   stepCount,
+  sumComposedNutrition,
   toLogEntries,
   totalItemCount,
   totalPlatePrice,
@@ -22,7 +25,7 @@ import {
 } from "./plate";
 import type { HistoryDish } from "./dishHistory";
 
-function nutrition(calories: number): NutritionFacts {
+function nutrition(calories: number, proteinG = 1): NutritionFacts {
   return {
     servingSize: "1 each",
     calories,
@@ -35,7 +38,7 @@ function nutrition(calories: number): NutritionFacts {
     totalCarbG: 1,
     dietaryFiberG: 0,
     sugarsG: 0,
-    proteinG: 1,
+    proteinG,
   };
 }
 
@@ -374,5 +377,72 @@ describe("resolvePlateAndCustomFoodVisibility", () => {
 
   it("both closed is both closed", () => {
     expect(resolvePlateAndCustomFoodVisibility(false, false)).toEqual({ plateSheetVisible: false, customFoodFormVisible: false });
+  });
+});
+
+// Composite dish (bowl composer) -- foodpro-menu-expansion brief, task 2.
+const TERIYAKI_BOWL = menuItem("Teriyaki Noodle Bowl", 1, 260 /* cal */);
+const EDAMAME = menuItem("Edamame", 1, 45);
+const CARROT = menuItem("Shredded Carrot", 1, 15);
+const SHALLOTS = menuItem("Fried Shallots", 1, 70);
+const SRIRACHA = menuItem("Sriracha Mayo", 1, 50);
+// menuItem()'s nutrition() default gives every dish 1g protein -- override where a test cares
+// about protein specifically (compositeCalorieRange's own 10-15g range assertion).
+const TERIYAKI_BOWL_P = { ...TERIYAKI_BOWL, nutrition: nutrition(260, 10) };
+const EDAMAME_P = { ...EDAMAME, nutrition: nutrition(45, 4) };
+const CARROT_P = { ...CARROT, nutrition: nutrition(15, 0) };
+const SHALLOTS_P = { ...SHALLOTS, nutrition: nutrition(70, 1) };
+const SRIRACHA_P = { ...SRIRACHA, nutrition: nutrition(50, 0) };
+
+describe("sumComposedNutrition", () => {
+  it("sums base + every add-in at its own selected count, not just its own 1 unit", () => {
+    const result = sumComposedNutrition(TERIYAKI_BOWL.nutrition, [
+      { item: EDAMAME, count: 1 },
+      { item: CARROT, count: 2 },
+    ]);
+    expect(result.calories).toBe(260 + 45 + 15 * 2);
+  });
+
+  it("recomputes from whatever's selected right now -- zero add-ins is just the base", () => {
+    expect(sumComposedNutrition(TERIYAKI_BOWL.nutrition, []).calories).toBe(260);
+  });
+
+  it("drops the source's %DV fields -- a composed dish has no single %DV to report", () => {
+    const withDv = { ...TERIYAKI_BOWL.nutrition, totalFatDv: 12 };
+    expect(sumComposedNutrition(withDv, []).totalFatDv).toBeUndefined();
+  });
+});
+
+describe("compositeCalorieRange", () => {
+  it("is base-alone at the low end and base + one of every add-in at the high end, recomputed from the live add-in list", () => {
+    const range = compositeCalorieRange(TERIYAKI_BOWL_P, [EDAMAME_P, CARROT_P, SHALLOTS_P, SRIRACHA_P]);
+    expect(range).toEqual({ minCalories: 260, maxCalories: 440, minProteinG: 10, maxProteinG: 15 });
+  });
+
+  it("shrinks the range when a dropped add-in leaves the catalog list -- not a value cached at fixture time", () => {
+    const range = compositeCalorieRange(TERIYAKI_BOWL_P, [EDAMAME_P]);
+    expect(range).toEqual({ minCalories: 260, maxCalories: 305, minProteinG: 10, maxProteinG: 14 });
+  });
+});
+
+describe("foldRecipeToPlateEntry", () => {
+  it("keys the folded entry by the BASE dish, not a synthetic composite id", () => {
+    const entry = foldRecipeToPlateEntry(TERIYAKI_BOWL, { addIns: [{ item: EDAMAME, count: 1 }] });
+    expect(entry.key).toBe(plateKeyFor({ type: "umass-menu", dishName: "Teriyaki Noodle Bowl", hallTid: 1 }));
+  });
+
+  it("sums base + every selected add-in into one per-unit nutrition snapshot", () => {
+    const entry = foldRecipeToPlateEntry(TERIYAKI_BOWL, {
+      addIns: [
+        { item: EDAMAME, count: 1 },
+        { item: CARROT, count: 1 },
+      ],
+    });
+    expect(entry.nutrition.calories).toBe(260 + 45 + 15);
+  });
+
+  it("defaults count to 1 whole recipe, but takes an explicit count for the in-plate stepper", () => {
+    expect(foldRecipeToPlateEntry(TERIYAKI_BOWL, { addIns: [] }).count).toBe(1);
+    expect(foldRecipeToPlateEntry(TERIYAKI_BOWL, { addIns: [] }, 3).count).toBe(3);
   });
 });
