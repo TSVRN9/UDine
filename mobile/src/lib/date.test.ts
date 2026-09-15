@@ -1,4 +1,4 @@
-import { nowLocalIso, todayIso } from "./date";
+import { easternTodayIso, nowLocalIso, todayIso } from "./date";
 
 // TZ is pinned to America/New_York for the whole suite via mobile/package.json's `test` script
 // (`TZ=America/New_York jest`) -- mutating `process.env.TZ` mid-test does NOT work (verified:
@@ -35,5 +35,31 @@ describe("nowLocalIso", () => {
     expect(stamped).toBe("2026-08-20T23:15:42.123");
     expect(new Date(stamped).getHours()).toBe(23);
     expect(new Date(stamped).getMinutes()).toBe(15);
+  });
+});
+
+describe("easternTodayIso", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // Can't prove this differs from device-local todayIso() from inside this suite -- TZ is pinned
+  // to America/New_York for the whole run (see the file-level comment), so the two agree here by
+  // construction. hallSpottedCounts.test.ts's mocked-divergence tests are what actually guard the
+  // "uses the Eastern one, not the device-local one" call-site behavior; this suite only checks
+  // easternTodayIso()'s own Intl.DateTimeFormat computation is correct at a real boundary instant.
+  it("resolves the Eastern calendar day at an instant already rolled to the next UTC day (EDT, UTC-4)", () => {
+    // 11:30 PM Eastern on Aug 20 == 3:30 AM UTC on Aug 21 (matches nowLocalIso's own EDT fixture above).
+    jest.useFakeTimers().setSystemTime(new Date("2026-08-21T03:30:00.000Z"));
+
+    expect(easternTodayIso()).toBe("2026-08-20");
+    expect(easternTodayIso()).toBe(todayIso());
+  });
+
+  it("resolves the Eastern calendar day under EST (UTC-5), not just EDT", () => {
+    // 11:30 PM Eastern on Jan 14 (EST) == 4:30 AM UTC on Jan 15.
+    jest.useFakeTimers().setSystemTime(new Date("2026-01-15T04:30:00.000Z"));
+
+    expect(easternTodayIso()).toBe("2026-01-14");
   });
 });
