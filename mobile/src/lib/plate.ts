@@ -305,12 +305,18 @@ export function totalPlatePrice(plate: PlateEntry[]): string | null {
   return any ? `$${total.toFixed(2)}` : null;
 }
 
+// The filter FAB ([slug].tsx's styles.filterFab: right:20/bottom:108/height:48) floats
+// independently above the plate bar, occupying its own 108-156px band -- occludes a scrolled
+// list's last row(s) if nothing reserves clearance for it too, not just for the bar beneath it.
+const FILTER_FAB_CLEARANCE = 108 + 48;
+
 /** Bottom padding a scrollable dish list needs to keep its last row reachable while the plate bar
- * floats over it. The bar is now always mounted (an empty plate still needs a tappable entry point
- * into OFF search, not just a spot to review staged items), so this is just the bar's own measured
- * height, unconditionally. */
-export function listBottomPadding(barHeight: number): number {
-  return barHeight;
+ * (and, when `clearFilterFab` is set, the filter FAB) float over it. The bar is now always mounted
+ * (an empty plate still needs a tappable entry point into OFF search, not just a spot to review
+ * staged items), so this is at minimum the bar's own measured height. `Math.max`, not addition --
+ * the FAB's band and the bar's band overlap, so adding would leave a dead gap. */
+export function listBottomPadding(barHeight: number, clearFilterFab = false): number {
+  return clearFilterFab ? Math.max(barHeight, FILTER_FAB_CLEARANCE) : barHeight;
 }
 
 /**
