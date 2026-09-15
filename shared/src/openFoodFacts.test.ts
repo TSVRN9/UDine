@@ -352,6 +352,22 @@ test("searchProducts retries once on a 503 and succeeds on the following 200", a
   assert.equal(result.results[0]?.productName, "Cheerios");
 });
 
+// 3c: a merely-slow (never 503-ing) response has no request timeout today, so it can hang a
+// search's OFF group indefinitely. fetchWithRetry503 is not exported -- this exercises it through
+// searchProducts, the same way every other test in this file does.
+test("searchProducts times out a hung (non-503) request instead of waiting forever", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const resultPromise = withFetch(
+    (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("The operation was aborted")));
+      }),
+    () => searchProducts("slow"),
+  );
+  t.mock.timers.tick(6000);
+  await assert.rejects(resultPromise);
+});
+
 test("searchProducts requests the given page and reports hasMore true when count exceeds this page's reach", async () => {
   let seenUrl: URL | undefined;
   const result = await withFetch(
