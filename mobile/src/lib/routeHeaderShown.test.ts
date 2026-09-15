@@ -28,6 +28,7 @@ function parseLayout(source: string): {
   rootHeaderShown: boolean | undefined;
   rootHeaderBackButtonDisplayMode: string | undefined;
   perRoute: Map<string, boolean | undefined>;
+  perRouteTitle: Map<string, string | undefined>;
 } {
   const screenOptionsMatch = source.match(/<Stack\s+screenOptions=\{\{([\s\S]*?)\}\}\s*>/);
   if (!screenOptionsMatch) throw new Error("Could not find <Stack screenOptions={{...}}> in _layout.tsx -- guard's parser is stale");
@@ -38,14 +39,20 @@ function parseLayout(source: string): {
   const rootHeaderBackButtonDisplayMode = backButtonDisplayModeMatch ? backButtonDisplayModeMatch[1] : undefined;
 
   const perRoute = new Map<string, boolean | undefined>();
+  // PR #488 review finding: options={{ title: "..." }} was renamed with no assertion anywhere
+  // that the rendered header title actually matches -- same regex pass as headerShown above,
+  // just pulling a second field out of the same options block.
+  const perRouteTitle = new Map<string, string | undefined>();
   const screenRegex = /<Stack\.Screen\s+name="([^"]+)"(?:\s+options=\{\{([\s\S]*?)\}\}\s*)?\/>/g;
   let m: RegExpExecArray | null;
   while ((m = screenRegex.exec(source))) {
     const [, name, optionsBlock] = m;
     const headerShownMatch = optionsBlock?.match(/headerShown:\s*(true|false)/);
     perRoute.set(name, headerShownMatch ? headerShownMatch[1] === "true" : undefined);
+    const titleMatch = optionsBlock?.match(/title:\s*"([^"]*)"/);
+    perRouteTitle.set(name, titleMatch ? titleMatch[1] : undefined);
   }
-  return { rootHeaderShown, rootHeaderBackButtonDisplayMode, perRoute };
+  return { rootHeaderShown, rootHeaderBackButtonDisplayMode, perRoute, perRouteTitle };
 }
 
 function effectiveHeaderShown(routeName: string, parsed: ReturnType<typeof parseLayout>): boolean {
@@ -86,6 +93,12 @@ describe("every route resolves headerShown correctly (guards the #151/#219/#281 
   it.each(discoverRouteNames(APP_DIR).sort())("%s resolves headerShown as intended", (routeName) => {
     const wantsNativeHeader = NATIVE_HEADER_ROUTES.has(routeName);
     expect(effectiveHeaderShown(routeName, parsed)).toBe(wantsNativeHeader);
+  });
+
+  // PR #488: the /favorites route's native header title was renamed "Favorites" -> "Notifications"
+  // with no test anywhere asserting the rendered title string itself.
+  it("favorites route's native header title is 'Notifications'", () => {
+    expect(parsed.perRouteTitle.get("favorites")).toBe("Notifications");
   });
 });
 

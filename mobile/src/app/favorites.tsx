@@ -25,7 +25,7 @@ export default function FavoritesScreen() {
       keyExtractor={(f, i) => `${f.type}-${i}`}
       ListHeaderComponent={
         <View>
-          <Text style={styles.pageTitle}>Favorites</Text>
+          <Text style={styles.pageTitle}>Notifications</Text>
           <View style={styles.rule} />
         </View>
       }
@@ -36,7 +36,7 @@ export default function FavoritesScreen() {
         </Card>
       )}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
-      ListEmptyComponent={<EmptyState title="No favorites yet" message="Star a dish or dining hall to add one." />}
+      ListEmptyComponent={<EmptyState title="No notifications yet" message="Star a dish or dining hall to add one." />}
     />
   );
 }

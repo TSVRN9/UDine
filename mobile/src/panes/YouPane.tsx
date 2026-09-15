@@ -230,7 +230,7 @@ export function YouPane() {
         </Card>
       </View>
 
-      {/* "Your Food": Favorites, Your Top Foods, and Favorite Halls visually grouped under one
+      {/* "Your Food": Notifications, Your Top Foods, and Favorite Halls visually grouped under one
           shared heading -- a heavier rule marks the group, each of the three keeps its own
           lighter SectionHeader sub-header inside it. */}
       <View style={styles.group}>
@@ -243,17 +243,17 @@ export function YouPane() {
           {/* accessibilityLabel is explicit, not left to the rendered "SEE ALL ›" children -- it
               disambiguates this from ALL LOGS' identical-looking link. */}
           <SectionHeader
-            title="Favorites"
+            title="Notifications"
             variant="subtle"
             right={
-              <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button" accessibilityLabel="See all favorites">
+              <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button" accessibilityLabel="See all notifications">
                 <Text style={styles.seeAllText}>SEE ALL</Text>
                 <Text style={styles.seeAllChevron}>›</Text>
               </Press>
             }
           />
           {favorites.length === 0 ? (
-            <EmptyState title="No favorites yet" />
+            <EmptyState title="No notifications yet" />
           ) : (
             <View style={styles.rowList}>
               {favorites.slice(0, FAVORITES_LIMIT).map((f, i) => (
