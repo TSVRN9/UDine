@@ -25,19 +25,23 @@ jest.mock("./sightingDedup", () => ({
   countsByHallToday: (...args: [string]) => mockCountsByHallToday(...args),
 }));
 
+// Deliberately distinct from each other so a test can tell which one a given call path actually
+// used -- under the real TZ=America/New_York jest pin, todayIso() and easternTodayIso() would
+// otherwise return the same value and a mix-up between them would go undetected (see
+// hallSpottedCounts.ts's own doc comment).
+jest.mock("./date", () => ({
+  todayIso: () => "2020-01-01",
+  easternTodayIso: () => "2030-12-31",
+}));
+
 const worcester = DINING_HALLS.find((h) => h.slug === "worcester")!;
 const hampshire = DINING_HALLS.find((h) => h.slug === "hampshire")!;
 const worcesterGng = GRAB_N_GO_TIDS.worcester;
 
 beforeEach(() => {
-  jest.useFakeTimers().setSystemTime(new Date(2026, 8, 15)); // 2026-09-15 local
   mockGetSession.mockReset().mockResolvedValue({ data: { session: null } });
   mockSelectResult.mockReset().mockResolvedValue({ data: [] });
   mockCountsByHallToday.mockReset().mockResolvedValue(new Map());
-});
-
-afterEach(() => {
-  jest.useRealTimers();
 });
 
 describe("signed out", () => {
@@ -45,7 +49,10 @@ describe("signed out", () => {
     mockCountsByHallToday.mockResolvedValue(new Map([[worcester.tid, 2]]));
 
     await expect(hallSpottedCounts()).resolves.toEqual(new Map([[worcester.tid, 2]]));
-    expect(mockCountsByHallToday).toHaveBeenCalledWith("2026-09-15");
+    // Device-local todayIso(), not the Eastern-pinned easternTodayIso() -- the signed-out dedup
+    // store is written with the same device-local date (sightingDedup.ts's claimSighting, via
+    // backgroundTask.ts), so reading it back with the same derivation is already self-consistent.
+    expect(mockCountsByHallToday).toHaveBeenCalledWith("2020-01-01");
   });
 
   it("rolls a Grab 'N Go tid's count into its parent hall's tid", async () => {
@@ -85,7 +92,11 @@ describe("signed in", () => {
     mockSelectResult.mockResolvedValue({ data: [{ hall_tid: hampshire.tid }] });
 
     await expect(hallSpottedCounts()).resolves.toEqual(new Map([[hampshire.tid, 1]]));
-    expect(mockSelectResult).toHaveBeenCalledWith("food_sightings", "hall_tid", "user_id", "user-1", "sighted_date", "2026-09-15");
+    // Eastern-pinned easternTodayIso(), not device-local todayIso() -- food_sightings' sighted_date
+    // is stamped by the server's own Eastern-time derivation (check-favorited-foods/index.ts's
+    // easternDateParts()), so a device outside America/New_York must filter by the same Eastern
+    // date the server wrote, not its own local calendar day.
+    expect(mockSelectResult).toHaveBeenCalledWith("food_sightings", "hall_tid", "user_id", "user-1", "sighted_date", "2030-12-31");
   });
 
   it("counts multiple rows for the same hall", async () => {
