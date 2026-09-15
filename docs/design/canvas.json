@@ -675,7 +675,8 @@
     }
   ],
   "launch": {
-    "view": "canvas"
+    "view": "canvas",
+    "page": "page-2"
   },
   "pages": [
     {
