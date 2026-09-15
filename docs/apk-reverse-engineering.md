@@ -304,6 +304,117 @@ architecture recommendation this fed into):**
   entry is real and not-yet-manifested: once the crawler writes one location's version, the other's
   is discarded permanently under the current upsert-by-name logic.
 
+**Retail nutrition-gap enumeration (2026-09-14) -- which retail locations have ZERO FoodPro
+nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually at each one. Feeds
+`docs/decisions-log.md`'s "Retail nutrition gap: enumeration and path forward" entry:**
+
+- **Full `get_infov2` enumeration, live (2026-09-14):** `curl -sL https://www.umassdining.com/uapp/get_infov2`
+  returns exactly **40 locations** -- the 4 halls plus **36 retail entries** (a bare `umassdining.com`
+  host, no `www.`, doesn't redirect the same way for this path in every environment; use the `www.`
+  host directly and `-L` to be safe, matching `shared/src/hours.ts:4`'s own `BASE`). No headers/auth
+  needed, GET only, confirming `shared/src/hours.ts:146-151`'s `fetchDiningHours` implementation
+  exactly.
+- **Tested every one of the 36 retail `location_id`s against `foodpro-menu-ajax?tid=<id>&date=...`**
+  across today + 1/3/7/13 days out (the full rolling window documented above). **27 have a real feed**
+  (non-`[]` on at least one date) -- including **Terrace** (`location_id=11150`), which returned `[]`
+  on 2 of the 5 sampled dates and full menus (47-88KB) on the other 3: a real, intermittent/
+  low-frequency "integrated" location, not a zero-feed one -- a correction to an assumption this
+  research task started with (only Argo Tea/UMass Store/Paciugo were previously spot-checked; Terrace
+  hadn't been). **Confirms 9 locations have `[]` on every sampled date**, but see next bullet.
+- **Cross-referenced those 9 against Web INA's 24 retail `locationNum`s** (`location.aspx`, re-fetched
+  live 2026-09-14, same 24 names as already documented above) by fuzzy name match. **8 have zero
+  presence in either system** -- these are the actual "standing-menu-only, genuinely zero nutrition
+  source" set this research task asked to enumerate:
+
+  | `get_infov2` name | `location_id` | Vendor type |
+  |---|---|---|
+  | Paciugo | 5991 | Real, currently-operating international gelato chain |
+  | Argo Tea | 9605 | Formerly a real national café chain; company shut down its physical cafés nationally (see below) |
+  | UMass Store | 9967 | UMass's own campus merchandise/gift store, not primarily a dining venue |
+  | Yum! Bakery | 4666 | UMass Dining's own in-house bakery brand |
+  | babyBerk | 61 | UMass Dining's own food-truck brand |
+  | babyBerk 2 | 884 | UMass Dining's own food-truck brand (second truck) |
+  | Snack Overflow | 9981 | UMass Dining's own in-house café brand (inside the CS building) |
+  | The Commonwealth Restaurant | 10709 | UMass's own student-run, reservation-based fine-dining restaurant (Isenberg hospitality program) |
+
+  (Full 36-location resp-length table and the fuzzy-match working notes are in this research pass's
+  scratch output, not reproduced here -- the 8-row table above is the actionable result.)
+- **The other 2 "extra" Web INA names this task's brief flagged for disambiguation resolve cleanly,
+  for completeness:** `locationNum=23` "Harvest" = `get_infov2`'s "Harvest Market" (`location_id=4306`,
+  already noted above); `locationNum=40` "People's Organic Cafe" = `get_infov2`'s "People's Organic
+  Coffee" (`location_id=32`) -- confirmed **integrated** (`foodpro-menu-ajax?tid=32` returned 34KB
+  live), so it's not part of the gap despite the "Cafe"/"Coffee" name drift.
+- **2 Web INA `locationNum`s don't correspond to anything in the current 40-location `get_infov2` set
+  at all: `locationNum=52` "Marcus Cafe" and `locationNum=54` "OIT Cafe".** Neither name appears
+  anywhere in a live `get_infov2` fetch (checked by substring search over the raw JSON), and both
+  return **zero dish rows on `longmenu.aspx` for all four `mealName` values** (Breakfast/Lunch/Dinner/
+  Late Night), unlike every real retail `locationNum` sampled elsewhere in this doc. Read together,
+  this looks like a stale/decommissioned pair of directory entries Web INA never pruned, not a live
+  gap location -- there's no current standing-menu content anywhere to even attempt to source
+  nutrition for. Not counted in the 8-location gap table above; flagged here so a future pass doesn't
+  waste time trying to resolve them as real locations.
+- **Paciugo (`location_id=5991`) currently has no item list at all, not just no nutrition**:
+  `get_infov2`'s entry for it carries only a `short_description_v2` -- no `breakfast_menu`/
+  `lunch_menu`/`dinner_menu` field is populated (live JSON, 2026-09-14). `pickCafeMenuHtml`
+  (`mobile/src/lib/cafeMenu.ts:139-141`) therefore returns `null`, `parseRetailMenuHtml(null)`
+  (`shared/src/content.ts:113`) returns `{ kind: "empty" }`, and `resolveCafeMenuState`
+  (`cafeMenu.ts:86-95`) falls through to `{ kind: "info", pdf: null }` -- hours/address/directions
+  only, the same as a location with literally nothing published. This is the most acute case in the
+  gap table: Paciugo shows *no menu at all* today, not a name-only standing menu waiting on a
+  nutrition match.
+- **`get_infov2`'s own data has a copy/paste bug for Yum! Bakery**: its `breakfast_menu` field is
+  `<p>Paciugo Gelato</p><p>Homemade cookies, pastries, and cakes</p>` (live JSON, 2026-09-14) --
+  Paciugo's own description text, not a real Yum! Bakery item list (the two are physically adjacent
+  concepts in the Blue Wall, consistent with a UMass CMS content mixup). `parseRetailMenuHtml` would
+  parse this into 2 name-only "items" ("Paciugo Gelato", "Homemade cookies, pastries, and cakes"),
+  neither of which is a real orderable dish name -- upstream UMass data quality, not something
+  fixable from this codebase.
+- **UMass's own public website was checked for content beyond the APIs already reverse-engineered,
+  for all 8 gap locations** (`umassdining.com/locations-menus/...` pages, live 2026-09-14): they
+  surface the *same* description/PDF-link content `get_infov2` already returns in its own fields, not
+  anything additional -- e.g. the UMass Store page has no menu/nutrition content at all (confirmed via
+  live fetch), matching its empty `get_infov2` menu fields exactly. **The one genuinely new thing this
+  turned up**: `get_infov2`'s `breakfast_menu` field for **babyBerk** (`location_id=61`) and
+  **babyBerk 2** (`884`) is itself just an `<a href=.pdf>` link (already the PDF-link case
+  `parseRetailMenuHtml` handles, `shared/src/content.ts:113-120`) to a UMass-hosted menu PDF
+  (`umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf` and the `...2
+  FA25...` sibling), and **The Commonwealth Restaurant** (`10709`) similarly links 4 PDFs (Lunch,
+  Dinner, Lite Fare, Dessert). Fetched all live 2026-09-14: **every one is item name + description +
+  price only, zero nutrition figures, zero allergen table** -- confirming the standing-menu HTML's "no
+  nutrition data at all" property holds even in UMass's own richest human-facing menu format for these
+  locations, not just the app-internal feed. The Commonwealth Restaurant's PDFs are explicitly
+  season-coded in their filenames ("Summer 26"), i.e. a rotating seasonal menu, not a stable one.
+- **Vendor-nutrition-page check for the 2 real branded chains in the gap table (2026-09-14):**
+  - **Paciugo**: official page `paciugo.com/nutrition/` is live and real, but only publishes 2 coarse
+    comparison rows (Vanilla Gelato: 150 cal/4.5g fat per 100g; Sorbet: 90 cal/0g fat per 100g) versus
+    competitor products -- not a per-flavor breakdown, and UMass's own description says flavors rotate
+    "on a daily basis" with no published rotation list anywhere. Third-party aggregators (Nutritionix,
+    MyNetDiary, SparkPeople, CarbManager) carry more granular per-flavor numbers (e.g. mint chocolate
+    chip 170 cal, pistachio 343 cal/cup) but with no stated provenance tying them to UMass's specific
+    rotation, and no way to know which flavors are even on offer on a given day without a source that
+    doesn't exist.
+  - **Argo Tea**: the company closed its café locations nationally around 2020 and pivoted to
+    bottled-tea retail under new ownership (Golden Fleece Beverages); its official site,
+    `argotea.com/pages/nutrition`, returned **HTTP 402 Payment Required** on a live fetch (2026-09-14,
+    both via WebFetch and a direct `curl`) -- consistent with a lapsed/unmaintained storefront, not a
+    live nutrition source. Third-party aggregators (MyFitnessPal, FatSecret, Nutritionix, MyFoodDiary)
+    still carry old Argo Tea café-menu nutrition data, and some item names overlap with what UMass's
+    own `get_infov2` standing-menu text still lists today (e.g. "Mate Latte" / "Teappuccino") -- the
+    UMass campus location appears to have kept running the original café-menu concept independent of
+    the parent company's current (near-defunct) state, but the only available nutrition numbers are
+    third-party mirrors of a chain that no longer maintains this data itself.
+- **OpenFoodFacts spot-check (2026-09-14):** confirmed a strong hit for a genuinely packaged/branded
+  product name -- `world.openfoodfacts.org/cgi/search.pl?search_terms=Dasani+water` returned 76
+  results with real `nutriments` data -- versus **zero hits for "Paciugo gelato"**. This matches
+  CLAUDE.md's existing framing of OpenFoodFacts as useful for barcoded packaged goods, not made-to-
+  order items: none of the 8 gap locations' actual food (burgers, teas/lattes, gelato scoops,
+  pastries, fine-dining entrees) is a packaged product OpenFoodFacts would ever carry. The one place
+  it's plausibly useful is bottled beverages/packaged snacks incidentally sold at a few of these spots
+  (Dasani water and bottled soda appear on both the babyBerk PDF and Snack Overflow's price list) --
+  but UMass doesn't publish a list of which specific packaged SKUs are stocked at UMass Store (the one
+  location where packaged goods are the primary, not incidental, product), so there's no name list to
+  match OpenFoodFacts against there either.
+
 ## Gaps / what we couldn't determine
 
 - **POST bodies** for the `mobileapp.umassdining.com/umassapi2/public/...` account endpoints — out of
