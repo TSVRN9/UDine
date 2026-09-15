@@ -1083,20 +1083,23 @@ describe("HallMenuScreen plate wiring", () => {
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
   });
 
-  it("tracks the SectionList's bottom padding to the plate bar's measured height, and keeps it once the plate empties again (the bar stays mounted, just switches to its empty-state variant)", async () => {
+  it("tracks the SectionList's bottom padding to the plate bar's measured height (floored by the filter FAB's own clearance), and keeps it once the plate empties again (the bar stays mounted, just switches to its empty-state variant)", async () => {
     const root = await renderScreen();
     addToPlate(root, "Pizza");
 
+    // 88 is a real, short measured bar height -- shorter than the filter FAB's own 108+48=156
+    // clearance band, so the floor wins here (see plate.test.ts's listBottomPadding unit tests for
+    // the boundary itself).
     act(() => {
       root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
     });
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(88);
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(156);
 
     // Step the item back down to 0 -- the row's own stepper minus button removes it, but the bar
-    // itself never unmounts, so the list's padding must hold at 88, not collapse to 0.
+    // itself never unmounts, so the list's padding must hold at 156, not collapse to 0.
     stepPlate(root, "Pizza", "Remove one");
     expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(88);
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(156);
   });
 
   it("LOG writes one addEntry call per plate row, with servings equal to that row's stepped count, and clears the plate on success (mutation b)", async () => {
@@ -1357,7 +1360,9 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
     act(() => {
       findBannerContainer(root, /Logged 1 item/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(40);
+    // Bar unmeasured (0) still floors to the filter FAB's own 108+48=156 clearance band, plus the
+    // banner's 40 on top.
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(196);
   });
 
   it("adds the banner's measured height on top of the bar's clearance when both are visible (failure path)", async () => {
@@ -1372,7 +1377,9 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
     act(() => {
       findBannerContainer(root, /Couldn't log everything/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(128);
+    // 88 is still below the filter FAB's 156 clearance floor, so the bar's clearance is 156 (not
+    // 88) plus the banner's 40 on top.
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(196);
   });
 });
 
