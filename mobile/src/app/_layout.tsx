@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { registerBackgroundTask } from "../lib/backgroundTask";
 import { registerNotificationHandler } from "../lib/notificationHandler";
 import { prefetchTodaysMenus } from "../lib/menuPrefetch";
 import { getPreferences } from "../lib/preferences";
@@ -17,6 +18,9 @@ import { colors, fonts, fs, radii, spacing } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync();
 registerNotificationHandler();
+// Fire-and-forget, same as prefetchTodaysMenus below -- registerTaskAsync is itself idempotent, and
+// a registration failure (e.g. unsupported environment) must never block app startup.
+registerBackgroundTask().catch(() => {});
 
 // expo-router loads this root layout for every route, so exporting ErrorBoundary here catches
 // render errors app-wide instead of an unrecoverable RN fatal in release.
