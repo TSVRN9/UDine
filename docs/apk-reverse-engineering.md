@@ -315,12 +315,55 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
   needed, GET only, confirming `shared/src/hours.ts:146-151`'s `fetchDiningHours` implementation
   exactly.
 - **Tested every one of the 36 retail `location_id`s against `foodpro-menu-ajax?tid=<id>&date=...`**
-  across today + 1/3/7/13 days out (the full rolling window documented above). **27 have a real feed**
-  (non-`[]` on at least one date) -- including **Terrace** (`location_id=11150`), which returned `[]`
-  on 2 of the 5 sampled dates and full menus (47-88KB) on the other 3: a real, intermittent/
-  low-frequency "integrated" location, not a zero-feed one -- a correction to an assumption this
-  research task started with (only Argo Tea/UMass Store/Paciugo were previously spot-checked; Terrace
-  hadn't been). **Confirms 9 locations have `[]` on every sampled date**, but see next bullet.
+  across today + 1/3/7/13 days out (the full rolling window documented above). **28 have a real feed**
+  (non-`[]` on at least one sampled date) -- including **Terrace** (`location_id=11150`), which
+  returned `[]` on 2 of the 5 sampled dates and full menus (47-88KB) on the other 3: a real,
+  intermittent/low-frequency "integrated" location, not a zero-feed one -- a correction to an
+  assumption this research task started with (only Argo Tea/UMass Store/Paciugo were previously
+  spot-checked; Terrace hadn't been). **The remaining 8 returned `[]` on every one of the 5 sampled
+  dates** -- see next bullet. Full per-location result, live 2026-09-14 (`resp_len` = bytes of the
+  day-0 `foodpro-menu-ajax` response; `2` means literal `[]`):
+
+  | `location_id` | Name | day-0 `resp_len` | Tier |
+  |---|---|---|---|
+  | 647 | Worcester Café | 132194 | integrated |
+  | 1724 | Roots Café | 280277 | integrated |
+  | 5991 | Paciugo | 2 | **gap** |
+  | 32 | People's Organic Coffee | 34489 | integrated |
+  | 4306 | Harvest Market | 260726 | integrated |
+  | 4661 | Tavola | 144046 | integrated |
+  | 4666 | Yum! Bakery | 2 | **gap** |
+  | 4671 | Green Fields | 163214 | integrated |
+  | 4676 | Tamales | 176932 | integrated |
+  | 4681 | Wasabi | 133904 | integrated |
+  | 4686 | Deli Delish | 44084 | integrated |
+  | 4691 | Star Ginger | 103757 | integrated |
+  | 4696 | The Grill | 112724 | integrated |
+  | 9605 | Argo Tea | 2 | **gap** |
+  | 10666 | Berkshire Grab 'N Go | 49040 | integrated |
+  | 10667 | Worcester Grab 'N Go | 38150 | integrated |
+  | 10716 | Franklin Grab 'N Go | 33369 | integrated |
+  | 10715 | Hampshire Grab 'N Go | 18686 | integrated |
+  | 14 | Whitmore Café | 96965 | integrated |
+  | 17 | Procrastination Station | 55317 | integrated |
+  | 18 | Courtside Café | 62225 | integrated |
+  | 883 | ISB Café | 43302 | integrated |
+  | 1723 | Hampshire Café | 42034 | integrated |
+  | 4311 | Peet's Coffee & Tea | 36376 | integrated |
+  | 61 | babyBerk | 2 | **gap** |
+  | 884 | babyBerk 2 | 2 | **gap** |
+  | 2061 | Morrill Café | 28167 | integrated |
+  | 9150 | The Hub | 44381 | integrated |
+  | 9980 | Newman Café | 113910 | integrated |
+  | 9981 | Snack Overflow | 2 | **gap** |
+  | 9967 | UMass Store | 2 | **gap** |
+  | 10293 | Post & Bean Café | 42064 | integrated |
+  | 10372 | Charles River Campus of UMass Amherst | 218300 | integrated |
+  | 10392 | Carney Café | 77239 | integrated |
+  | 10709 | The Commonwealth Restaurant | 2 | **gap** |
+  | 11150 | Terrace | 2 (day-0; 47750/87911 on +3/+7) | integrated (intermittent) |
+
+  28 integrated + 8 gap = 36, the full retail set.
 - **Cross-referenced those 9 against Web INA's 24 retail `locationNum`s** (`location.aspx`, re-fetched
   live 2026-09-14, same 24 names as already documented above) by fuzzy name match. **8 have zero
   presence in either system** -- these are the actual "standing-menu-only, genuinely zero nutrition
@@ -370,20 +413,39 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
   neither of which is a real orderable dish name -- upstream UMass data quality, not something
   fixable from this codebase.
 - **UMass's own public website was checked for content beyond the APIs already reverse-engineered,
-  for all 8 gap locations** (`umassdining.com/locations-menus/...` pages, live 2026-09-14): they
-  surface the *same* description/PDF-link content `get_infov2` already returns in its own fields, not
-  anything additional -- e.g. the UMass Store page has no menu/nutrition content at all (confirmed via
-  live fetch), matching its empty `get_infov2` menu fields exactly. **The one genuinely new thing this
-  turned up**: `get_infov2`'s `breakfast_menu` field for **babyBerk** (`location_id=61`) and
-  **babyBerk 2** (`884`) is itself just an `<a href=.pdf>` link (already the PDF-link case
-  `parseRetailMenuHtml` handles, `shared/src/content.ts:113-120`) to a UMass-hosted menu PDF
-  (`umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf` and the `...2
-  FA25...` sibling), and **The Commonwealth Restaurant** (`10709`) similarly links 4 PDFs (Lunch,
-  Dinner, Lite Fare, Dessert). Fetched all live 2026-09-14: **every one is item name + description +
-  price only, zero nutrition figures, zero allergen table** -- confirming the standing-menu HTML's "no
-  nutrition data at all" property holds even in UMass's own richest human-facing menu format for these
-  locations, not just the app-internal feed. The Commonwealth Restaurant's PDFs are explicitly
-  season-coded in their filenames ("Summer 26"), i.e. a rotating seasonal menu, not a stable one.
+  for all 8 gap locations -- both each location's `/locations-menus/...` landing page AND its
+  dedicated `/menu/...` page, live 2026-09-14, every fetch below is a real WebFetch/curl made this
+  pass:**
+  - **`umassdining.com/menu/<slug>` renders every one of the 8 gap locations through the exact same
+    menu-item template a real hall/integrated-café page uses -- and for all 8, every nutrition field
+    on that template is an unfilled placeholder token**, confirmed live for: Paciugo
+    (`/menu/paciugo-dining-menu` -- `#serving_size#`, `#calories#`, `#fat_cal#`, `#allergens#`,
+    `#ingredient#`, no real flavor names at all), Argo Tea (`/menu/argo-tea-menu` -- the same 18-item
+    sample list already known from `get_infov2`, but `#calories#`/`#allergens#`/`#ingredient#` still
+    literal placeholder text, never filled in), babyBerk and babyBerk 2 (`/menu/baby-berk`,
+    `/menu/baby-berk-2` -- same empty-placeholder template, PDF link present but not the nutrition
+    fields), Snack Overflow (`/menu/snack-overflow-menu` -- `#calories#`, `#fat_cal#`,
+    `#healthfulness_single#/7` all literal, unfilled), The Commonwealth Restaurant
+    (`/menu/commonwealth-menu` -- `Serving Size #serving_size#`, `Calories #calories#`, `Total Fat
+    #total_fat#`, `#allergens#` all literal), and Yum! Bakery (`/menu/um-bakery-blue-wall-menu` --
+    reports "This location is closed at this time" and shows the same unfilled-placeholder template
+    underneath). **This is strong, directly-cited confirmation that UMass's own website carries no
+    hidden nutrition source for any of these 8 -- it's driven by the identical backend template as
+    `foodpro-menu-ajax`/Web INA, just with nothing behind it for these locations, not a separate,
+    richer content system.**
+  - **UMass Store**'s `/locations-menus/campus-center/umass-store` page (fetched live) shows no
+    menu/nutrition content and no "today's menu" link at all -- only hours/address/payment info,
+    consistent with it not really being a dining venue (see vendor-type table above).
+  - **The one genuinely new (non-nutrition) content this turned up**: `get_infov2`'s `breakfast_menu`
+    field for **babyBerk**/**babyBerk 2** and **The Commonwealth Restaurant** links to a UMass-hosted
+    PDF (already the PDF-link case `parseRetailMenuHtml` handles,
+    `shared/src/content.ts:113-120`) -- babyBerk's at
+    `umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf` (and the
+    `...2 FA25...` sibling), Commonwealth's 4 PDFs (Lunch, Dinner, Lite Fare, Dessert). Fetched all
+    live 2026-09-14: **every one is item name + description + price only, zero nutrition figures,
+    zero allergen table** -- the same conclusion as the `/menu/` pages, just via a different
+    document. The Commonwealth Restaurant's PDFs are explicitly season-coded in their filenames
+    ("Summer 26"), i.e. a rotating seasonal menu, not a stable one.
 - **Vendor-nutrition-page check for the 2 real branded chains in the gap table (2026-09-14):**
   - **Paciugo**: official page `paciugo.com/nutrition/` is live and real, but only publishes 2 coarse
     comparison rows (Vanilla Gelato: 150 cal/4.5g fat per 100g; Sorbet: 90 cal/0g fat per 100g) versus
@@ -403,17 +465,36 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
     UMass campus location appears to have kept running the original café-menu concept independent of
     the parent company's current (near-defunct) state, but the only available nutrition numbers are
     third-party mirrors of a chain that no longer maintains this data itself.
-- **OpenFoodFacts spot-check (2026-09-14):** confirmed a strong hit for a genuinely packaged/branded
-  product name -- `world.openfoodfacts.org/cgi/search.pl?search_terms=Dasani+water` returned 76
-  results with real `nutriments` data -- versus **zero hits for "Paciugo gelato"**. This matches
-  CLAUDE.md's existing framing of OpenFoodFacts as useful for barcoded packaged goods, not made-to-
-  order items: none of the 8 gap locations' actual food (burgers, teas/lattes, gelato scoops,
-  pastries, fine-dining entrees) is a packaged product OpenFoodFacts would ever carry. The one place
-  it's plausibly useful is bottled beverages/packaged snacks incidentally sold at a few of these spots
-  (Dasani water and bottled soda appear on both the babyBerk PDF and Snack Overflow's price list) --
-  but UMass doesn't publish a list of which specific packaged SKUs are stocked at UMass Store (the one
-  location where packaged goods are the primary, not incidental, product), so there's no name list to
-  match OpenFoodFacts against there either.
+- **OpenFoodFacts spot-check (2026-09-14), against real item names pulled from this pass's own
+  standing-menu/PDF fetches, not hypothetical ones.** The legacy `cgi/search.pl` endpoint 503'd
+  intermittently through this session (a generic "Page temporarily unavailable" response, not a
+  per-query rate limit -- one early query against it did succeed: "Dasani water" returned 76 hits with
+  real `nutriments` data); the current `search.openfoodfacts.org/search` endpoint was used for the
+  rest and worked reliably. Results:
+  - A genuinely packaged/branded name (**"Dasani water"**, which appears on both the babyBerk PDF and
+    Snack Overflow's own price list) hits real, correct products with nutrition data -- as expected.
+  - **"Teappuccino"** (Argo Tea's own branded drink name, verbatim from its standing-menu text) --
+    **zero hits.**
+  - **"Matcha Vanilla Latte"** (also verbatim from Argo Tea's menu) and **"Golden BBQ Chicken
+    sandwich"** (from babyBerk's PDF) each returned thousands of loosely name-matched but *wrong*
+    packaged products -- powdered matcha-latte mixes from unrelated brands (Jade Leaf, Twinings,
+    Organic Traditions), and frozen/fast-food chain sandwiches (Lean Cuisine, KFC's Tower Original) --
+    none of which is the actual campus item. **This is a sharper finding than "no coverage": a naive
+    name-match against OpenFoodFacts for a made-to-order item wouldn't just miss, it would actively
+    attach a wrong product's nutrition to a real menu item** (the same conflation risk already
+    documented for cross-location `RecNum` matching above, one layer further out).
+  - **"Black Bean Burger"** (babyBerk's actual sandwich name) returned only frozen retail veggie-burger
+    patties (Sol Cuisine, Migros, generic store brands) -- again a real product, wrong product.
+
+  Net: this matches and sharpens CLAUDE.md's existing framing of OpenFoodFacts as useful for barcoded
+  packaged goods, not made-to-order items. None of the 8 gap locations' actual food (burgers,
+  teas/lattes, gelato scoops, pastries, fine-dining entrees) should be auto-matched against
+  OpenFoodFacts by name -- the risk isn't just a miss, it's a wrong nutrition value attached with
+  false confidence. The one place it's genuinely safe is an exact, deliberately-curated match against
+  a specific packaged SKU (e.g. "Dasani water" as a literal bottled product), not a fuzzy name search
+  over a made-to-order item list. UMass doesn't publish a SKU list for UMass Store (the one location
+  where packaged goods are the primary product), so there's nothing to curate that match against
+  there either.
 
 ## Gaps / what we couldn't determine
 

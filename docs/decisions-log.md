@@ -1353,13 +1353,23 @@ a link, just not as parseable line items). **None of the PDFs carry a single nut
 allergen table.** The Commonwealth Restaurant's menus are also explicitly season-coded ("Summer 26"),
 confirming a rotating menu, not a static one.
 
-**OpenFoodFacts, checked per this task's brief, confirms the assumption rather than correcting it:**
-a spot-check against a genuinely packaged product name (Dasani water) returned 76 real hits with
-nutrition data; a made-to-order item (Paciugo gelato) returned zero. None of the 8 locations' actual
-food is barcoded/packaged in a way OpenFoodFacts would carry, with one narrow exception (bottled
+**OpenFoodFacts, checked per this task's brief against real item names (not hypothetical ones), both
+confirms the assumption and sharpens it into a real risk, not just a coverage gap.** A genuinely
+packaged product name (Dasani water, from the babyBerk PDF/Snack Overflow's price list) hits real
+products with nutrition data, as expected. But real made-to-order item names -- Argo Tea's
+"Teappuccino" and "Matcha Vanilla Latte", babyBerk's "Golden BBQ Chicken sandwich" and "Black Bean
+Burger", all pulled verbatim from this pass's own fetches -- either miss entirely or, worse, return
+thousands of superficially name-matched but factually wrong packaged products (a frozen Lean Cuisine
+sandwich, a KFC sandwich, a Sol Cuisine veggie patty, a Jade Leaf matcha powder mix). **A naive
+name-match integration here wouldn't just fail to help, it would risk silently attaching a wrong
+product's nutrition to a real menu item** -- worth calling out explicitly since `matchStandingMenuItem`
+(`mobile/src/lib/cafeMenu.ts:49-67`) already does exactly this kind of best-effort name match against
+`public.dishes`, and any OpenFoodFacts integration modeled on it would inherit the same risk unless
+scoped to exact, deliberately-curated packaged-SKU matches only. None of the 8 locations' actual food
+is barcoded/packaged in a way OpenFoodFacts safely carries, with one narrow exception (bottled
 water/soda incidentally sold at babyBerk and Snack Overflow) that doesn't move the needle -- and UMass
 doesn't publish a SKU list for UMass Store, the one location where packaged goods actually are the
-product, so there's nothing to match OpenFoodFacts against there either.
+product, so there's nothing to safely match OpenFoodFacts against there either.
 
 **One nuance that changes the cost/benefit math versus this task's brief's framing:** the brief cited
 `alwaysAvailableStations.ts`/`populate-always-available-dishes` (2026-09-14, same day, see
