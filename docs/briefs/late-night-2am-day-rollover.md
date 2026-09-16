@@ -112,9 +112,22 @@ with its own residency/backend implications, not assumed here.
    published Late Night hours. — files: `shared/src/hours.ts`, `shared/src/hours.test.ts` — lanes:
    `pnpm --filter @udine/shared test && pnpm --filter @udine/shared typecheck` — blocked by: 1 —
    PR:
-4. Verify (with a new integration-style test, not just unit coverage of the pieces) that a snack
-   logged at 12:30 AM lands on the correct day's log card and daily totals end-to-end — i.e.
+4. **Scope correction from task 2's findings (not just a verify pass — a real fix is needed here):**
+   `mobile/src/lib/sqliteStorage.ts`'s `getEntriesForDate` (`LIKE '<isoDate>%'`) and
+   `mobile/src/panes/YouPane.tsx`'s today-filter (`isoDateOf(e.loggedAt) === todayIso()`) both
+   bucket a logged entry by the *raw* calendar-day prefix of its `nowLocalIso()` timestamp,
+   compared against the now-rollover-aware `todayIso()`. Entries must keep stamping raw wall-clock
+   time (`nowLocalIso()` itself is correct and out of scope) — but a snack logged at 12:30 AM is
+   stamped on the new raw calendar day while `todayIso()` at that instant still returns the prior
+   day, so a straight string-prefix/equality match against `todayIso()` makes that entry invisible
+   from "today" until the clock actually crosses the rollover hour. Fix the bucketing (likely:
+   filter/query by `effectiveTodayIso` in a way that maps a raw timestamp to its own effective day,
+   not by comparing the *timestamp's* raw prefix against `todayIso()`'s *current* value — those are
+   two different notions of "day" for the same instant), then verify end-to-end that
    `YouPane.tsx`'s today-filter and `logsFormat.ts`'s streak/week/chart builders all agree with the
-   new `todayIso()` at that hour. — files: `mobile/src/panes/YouPane.test.tsx`,
-   `mobile/src/lib/logsFormat.test.ts` — lanes: `cd mobile && TZ=America/New_York npx jest` —
-   blocked by: 2 — PR:
+   corrected bucketing at 12:30 AM. — files: `mobile/src/lib/sqliteStorage.ts`,
+   `mobile/src/lib/sqliteStorage.test.ts`, `mobile/src/panes/YouPane.tsx`,
+   `mobile/src/panes/YouPane.test.tsx`, `mobile/src/lib/logsFormat.ts` (if it independently
+   re-derives "today" anywhere rather than taking it as a parameter — check),
+   `mobile/src/lib/logsFormat.test.ts` — lanes: `cd mobile && npx tsc --noEmit && TZ=America/New_York npx jest && pnpm lint`
+   — blocked by: 2 — PR:
