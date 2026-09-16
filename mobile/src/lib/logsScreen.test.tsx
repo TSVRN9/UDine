@@ -235,8 +235,8 @@ describe("LogsScreen day log editing", () => {
     const root = await renderLogsScreen();
     expect(texts(root)).toMatch(/Avg\s*46\s*cal \/ day/);
     expect(texts(root)).toMatch(/2\s*g protein \/ day/);
-    expect(texts(root)).toMatch(/4\s*g carb \/ day/);
-    expect(texts(root)).toMatch(/1\s*g fat \/ day/);
+    expect(texts(root)).toMatch(/·\s*4\s*g carb \/ day/); // anchored on the separator so a stray "34g carb" can't match
+    expect(texts(root)).toMatch(/·\s*1\s*g fat \/ day/);
 
     act(() => {
       pressableWithLabel(root, "Edit French Toast · Hampshire").props.onPress();
@@ -249,8 +249,8 @@ describe("LogsScreen day log editing", () => {
 
     expect(texts(root)).toMatch(/Avg\s*91\s*cal \/ day/);
     expect(texts(root)).toMatch(/3\s*g protein \/ day/);
-    expect(texts(root)).toMatch(/9\s*g carb \/ day/);
-    expect(texts(root)).toMatch(/2\s*g fat \/ day/);
+    expect(texts(root)).toMatch(/·\s*9\s*g carb \/ day/);
+    expect(texts(root)).toMatch(/·\s*2\s*g fat \/ day/);
   });
 
   it("drops a rapid second tap while the first step's write is still in flight, instead of both reading the same stale servings count", async () => {
