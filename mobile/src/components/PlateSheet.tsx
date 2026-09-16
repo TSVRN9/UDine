@@ -1,8 +1,8 @@
 import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type LogStorage } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated from "react-native-reanimated";
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 import { Spinner } from "./Skeleton";
@@ -230,18 +230,15 @@ export function PlateSheet({
     }
   }, [searchExpanded]);
   // KeyboardAvoidingView's automatic height-tracking doesn't reach content mounted inside an
-  // Android RN Modal -- tracked manually instead via RN's own Keyboard API.
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSub = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  // Android RN Modal -- tracked manually instead, via Reanimated's useAnimatedKeyboard. That hook
+  // (not a Keyboard event listener feeding a plain useState) is what keeps this in sync with the
+  // keyboard's own slide: a useState snap only updates once a Keyboard event fires, which on iOS
+  // (keyboardWillShow) lands at the START of the native animation, so the sheet's margin jumped to
+  // its final value a full frame ahead of the keyboard still animating underneath it.
+  // useAnimatedKeyboard's height is a per-frame SharedValue instead, read with `.value` (not
+  // `.get()` -- the reanimated jest mock's default `height` is a bare number with no `.get()`).
+  const keyboard = useAnimatedKeyboard();
+  const keyboardStyle = useAnimatedStyle(() => ({ marginBottom: keyboard.height.value }));
   // PlateSheet stays mounted across open/close (only the Modal's `visible` prop toggles) --
   // mount-once is the right place to fire off a background catalog refresh. Fire-and-forget:
   // refreshDishCatalogIfStale already swallows its own errors, and this screen must never block on
@@ -587,9 +584,10 @@ export function PlateSheet({
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
           <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
         </Animated.View>
-        {/* keyboardHeight (tracked above) pushes the sheet up by the keyboard's own height, since
-        KeyboardAvoidingView doesn't reach content mounted inside an Android Modal. */}
-        <View style={{ marginBottom: keyboardHeight }}>
+        {/* keyboardStyle (tracked above via useAnimatedKeyboard) pushes the sheet up in lockstep
+        with the keyboard's own live height, since KeyboardAvoidingView doesn't reach content
+        mounted inside an Android Modal. */}
+        <Animated.View testID="keyboardFollowWrapper" style={keyboardStyle}>
           <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
             <GestureDetector gesture={gesture}>
               <View style={styles.handleRow}>
@@ -840,7 +838,7 @@ export function PlateSheet({
               )}
             </ScrollView>
           </Animated.View>
-        </View>
+        </Animated.View>
       </GestureHandlerRootView>
     </Modal>
   );
