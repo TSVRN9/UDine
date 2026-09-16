@@ -125,9 +125,13 @@ with its own residency/backend implications, not assumed here.
    not by comparing the *timestamp's* raw prefix against `todayIso()`'s *current* value — those are
    two different notions of "day" for the same instant), then verify end-to-end that
    `YouPane.tsx`'s today-filter and `logsFormat.ts`'s streak/week/chart builders all agree with the
-   corrected bucketing at 12:30 AM. — files: `mobile/src/lib/sqliteStorage.ts`,
+   corrected bucketing at 12:30 AM. `mobile/src/app/logs.tsx:181`'s `isoDateOf(e.loggedAt) ===
+   selectedDate` (where `selectedDate` initializes from `todayIso()`) has the identical mismatch
+   pattern (found by PR #500's reviewer) — include it in this fix, it wasn't caught by the original
+   file list. — files: `mobile/src/lib/sqliteStorage.ts`,
    `mobile/src/lib/sqliteStorage.test.ts`, `mobile/src/panes/YouPane.tsx`,
-   `mobile/src/panes/YouPane.test.tsx`, `mobile/src/lib/logsFormat.ts` (if it independently
+   `mobile/src/panes/YouPane.test.tsx`, `mobile/src/app/logs.tsx`, `mobile/src/lib/logsScreen.test.tsx`,
+   `mobile/src/lib/logsFormat.ts` (if it independently
    re-derives "today" anywhere rather than taking it as a parameter — check),
    `mobile/src/lib/logsFormat.test.ts` — lanes: `cd mobile && npx tsc --noEmit && TZ=America/New_York npx jest && pnpm lint`
    — blocked by: 2 — PR:
