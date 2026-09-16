@@ -14,7 +14,7 @@ import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } f
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { lookupDishLive } from "../lib/lookupDish";
-import { artboardEnclosingStyle, normalizeColor } from "../lib/artboard";
+import { artboardEnclosingStyle, artboardStyle, normalizeColor } from "../lib/artboard";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -1212,6 +1212,36 @@ describe("PlateSheet", () => {
       expect(rateLimitedStyle.borderRadius).toBe(rateLimitedSpec.borderRadius);
       expect(rateLimitedStyle.paddingVertical).toBe(rateLimitedSpec.paddingVertical);
       expect(rateLimitedStyle.paddingHorizontal).toBe(rateLimitedSpec.paddingHorizontal);
+      expect(rateLimitedStyle.gap).toBe(rateLimitedSpec.gap);
+    });
+
+    it("fetching label text is 13px with no line-height (line 46) and rate_limited copy is a distinct 12px/1.4-line-height treatment (line 73), not the fetching row's shared style", async () => {
+      let resolveLookup!: (v: unknown) => void;
+      mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+
+      act(() => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const fetchingTextStyle = StyleSheet.flatten(lookupStateRow(root)[0].findByType(Text).props.style);
+      const fetchingTextSpec = artboardStyle("SearchLookupStates.dc.html", "Looking up");
+      expect(fetchingTextStyle.fontSize).toBe(fetchingTextSpec.fontSize);
+      expect(fetchingTextStyle.lineHeight).toBeUndefined();
+
+      await act(async () => {
+        resolveLookup({ status: "rate_limited" });
+        await Promise.resolve();
+      });
+      const rateLimitedTextStyle = StyleSheet.flatten(lookupStateRow(root)[0].findByType(Text).props.style);
+      const rateLimitedTextSpec = artboardStyle("SearchLookupStates.dc.html", "Live lookups");
+      expect(rateLimitedTextStyle.fontSize).toBe(rateLimitedTextSpec.fontSize);
+      // artboard.ts's px() runs "line-height: 1.4" through Number() with no unit stripped, so the
+      // spec value is the bare unitless CSS ratio (1.4), not an RN absolute pixel line-height --
+      // multiply by fontSize before comparing, never assert `lineHeight: 1.4` directly.
+      expect(rateLimitedTextStyle.lineHeight).toBe(
+        Math.round((rateLimitedTextSpec.fontSize as number) * (rateLimitedTextSpec.lineHeight as number)),
+      );
     });
 
     it("rate_limited renders the artboard's static clock glyph (line 72), not the fetching spinner", async () => {

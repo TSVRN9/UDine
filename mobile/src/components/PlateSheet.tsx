@@ -651,7 +651,7 @@ export function PlateSheet({
                       {directLookup === "loading" ? (
                         <>
                           <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
-                          <Text style={styles.lookupStateText}>Looking up {query.trim()}…</Text>
+                          <Text style={styles.lookupStateTextFetching}>Looking up {query.trim()}…</Text>
                         </>
                       ) : (
                         <>
@@ -660,7 +660,7 @@ export function PlateSheet({
                             <Circle cx={8} cy={8} r={6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
                             <Path d="M8 5v3.5l2.3 1.3" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                           </Svg>
-                          <Text style={styles.lookupStateText}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
+                          <Text style={styles.lookupStateTextRateLimited}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
                         </>
                       )}
                     </View>
@@ -972,13 +972,18 @@ const styles = StyleSheet.create({
   lookupStateRowRateLimited: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing(2),
+    gap: spacing(2.5),
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
     backgroundColor: withOpacity(colors.ink900, 5),
     borderRadius: radii.md,
   },
-  lookupStateText: { flex: 1, fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 65) },
+  // Distinct text treatments per SearchLookupStates.dc.html -- fetching (line 46) is 13px with no
+  // line-height; rate_limited (line 73) is 12px with a 1.4 line-height ratio. `fs()`/`spacing()`
+  // scale by width, not by a CSS ratio, so the line-height is computed here (fontSize * 1.4),
+  // never a bare `lineHeight: 1.4` (that would render as ~1.4dp, not ~17px).
+  lookupStateTextFetching: { flex: 1, fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 65) },
+  lookupStateTextRateLimited: { flex: 1, fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(12 * 1.4), color: withOpacity(colors.ink900, 65) },
   resultRow: {
     flexDirection: "row",
     alignItems: "center",
