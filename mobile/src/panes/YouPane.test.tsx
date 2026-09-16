@@ -162,6 +162,7 @@ describe("YouPane", () => {
     expect(body).toMatch(/Not enough data yet/);
     expect(body).not.toMatch(/No comparisons yet/);
     expect(body).not.toMatch(/No ranking yet/);
+    expect(body).not.toMatch(/Dish ranking is on hold for now/);
     expect(body).toMatch(/Worcester/); // hallTid 1
   });
 
@@ -360,15 +361,16 @@ describe("YouPane cold-start retail-name race (#243 bug A)", () => {
 // --- #90 nav reorg: Favorites section (real SqliteFavoritesStorage data, not a stub), grouped
 // with Top Foods/Favorite Halls under one "Your Food" heading. -------------------------------
 
-describe("YouPane Favorites section", () => {
+describe("YouPane Notifications section", () => {
   it("shows the empty state when there are no favorites yet", async () => {
     const root = await renderYouPane();
     const body = texts(root);
-    expect(body).toMatch(/Favorites/);
-    expect(body).toMatch(/No favorites yet/);
+    expect(body).toMatch(/Notifications/);
+    expect(body).toMatch(/No notifications yet/);
+    expect(body).not.toMatch(/Star a dish or dining hall to add one\./);
   });
 
-  it("renders real favorites with the same dish/hall badge favorites.tsx uses", async () => {
+  it("renders real favorites by name, dish or hall alike", async () => {
     const favs: Favorite[] = [
       { type: "dish", dishName: "Chicken Parm" },
       { type: "location", hallTid: 1 }, // Worcester
@@ -379,8 +381,6 @@ describe("YouPane Favorites section", () => {
     const body = texts(root);
     expect(body).toMatch(/Chicken Parm/);
     expect(body).toMatch(/Worcester/);
-    expect(body).toMatch(/Dish/);
-    expect(body).toMatch(/Hall/);
   });
 
   it("renders the SEE ALL link, and tapping it navigates to /favorites", async () => {
@@ -390,10 +390,10 @@ describe("YouPane Favorites section", () => {
     const body = texts(root);
     expect(body).toMatch(/SEE ALL/);
 
-    // Two SEE-ALL-style links now exist (ALL LOGS, Favorites' SEE ALL) -- disambiguate by the
+    // Two SEE-ALL-style links now exist (ALL LOGS, Notifications' SEE ALL) -- disambiguate by the
     // explicit accessibilityLabel (PR #129's explicit-labeling convention, same as EventsPane's
     // own SeeAllLink), not a fragile "first match" index-pick over every onPress handler.
-    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all favorites" });
+    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all notifications" });
     seeAllPressable.props.onPress();
     expect(mockRouterPush).toHaveBeenCalledWith("/favorites");
   });
@@ -414,7 +414,7 @@ describe("YouPane SEE ALL sizing (#419)", () => {
     const allLogsTextStyle = flatStyle(allLogsTextNode.props.style);
     const allLogsChevronStyle = flatStyle(allLogsChevronNode.props.style);
 
-    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all favorites" });
+    const seeAllPressable = root.root.findByProps({ accessibilityLabel: "See all notifications" });
     const [seeAllTextNode, seeAllChevronNode] = seeAllPressable.findAllByType(Text);
     const seeAllTextStyle = flatStyle(seeAllTextNode.props.style);
     const seeAllChevronStyle = flatStyle(seeAllChevronNode.props.style);
@@ -428,7 +428,7 @@ describe("YouPane SEE ALL sizing (#419)", () => {
 });
 
 describe("YouPane Your Food grouping", () => {
-  it("groups Favorites, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading, not just present somewhere on the pane", async () => {
+  it("groups Notifications, Your Top Foods, and Favorite Halls under one shared 'Your Food' heading, not just present somewhere on the pane", async () => {
     const root = await renderYouPane();
 
     const heading = root.root.findAllByType(Text).find((node) => node.props.children === "Your Food")!;
@@ -440,7 +440,7 @@ describe("YouPane Your Food grouping", () => {
     let group = heading.parent!;
     while (group.parent && !textsOf(group).includes("Favorite Halls")) group = group.parent;
     const groupText = textsOf(group);
-    expect(groupText).toMatch(/Favorites/);
+    expect(groupText).toMatch(/Notifications/);
     expect(groupText).toMatch(/Your Top Foods/);
     expect(groupText).toMatch(/Favorite Halls/);
     // Content that stays OUTSIDE the group (Today's Log/ALL LOGS, Hall Completion, both rendered
@@ -468,16 +468,20 @@ describe("YouPane group styling and disambiguation copy (#390)", () => {
     expect(style.letterSpacing).toBe(spec.letterSpacing);
   });
 
-  it("renders the disambiguation hint line under each of Favorites/Your Top Foods/Favorite Halls, per canvas.json's you-food-group-note", async () => {
+  it("renders no explanatory hint line under Favorites/Your Top Foods/Favorite Halls -- the section titles and bell icon carry the meaning, no caption spells it out", async () => {
     favoritesMock.getFavorites.mockResolvedValue([{ type: "dish", dishName: "Chicken Parm" }]);
     const root = await renderYouPane();
     const body = texts(root);
-    expect(body).toMatch(/Get notified \(and see it highlighted\) when spotted elsewhere on campus\./);
-    expect(body).toMatch(/From your head-to-head comparisons only — not something you can set directly\./);
-    expect(body).toMatch(/Ranked by your dish comparisons at each hall — not editable\./);
+    expect(body).not.toMatch(/Get notified \(and see it highlighted\) when spotted elsewhere on campus\./);
+    expect(body).not.toMatch(/From your head-to-head comparisons only/);
+    expect(body).not.toMatch(/Ranked by your dish comparisons at each hall/);
+    // "Star a dish or dining hall to add one." is asserted absent in "shows the empty state when
+    // there are no favorites yet" instead -- this test's favorites list is non-empty, so that
+    // EmptyState branch never renders here and the check would be vacuous.
+    expect(body).not.toMatch(/Dish ranking is on hold for now/);
   });
 
-  it("renders favorite rows as a bell icon + name + 'Dish alert'/'Hall alert' caption, not the old Badge('Dish'/'Hall') pill", async () => {
+  it("renders favorite rows as just a bell icon + name -- no per-row caption spelling out the bell's meaning", async () => {
     const favs: Favorite[] = [
       { type: "dish", dishName: "Chicken Parm" },
       { type: "location", hallTid: 1 },
@@ -485,11 +489,11 @@ describe("YouPane group styling and disambiguation copy (#390)", () => {
     favoritesMock.getFavorites.mockResolvedValue(favs);
     const root = await renderYouPane();
     const body = texts(root);
-    expect(body).toMatch(/Dish alert/);
-    expect(body).toMatch(/Hall alert/);
-    // The old pill rendered bare "Dish"/"Hall" as their own Text node (Badge's children prop);
-    // that's gone now that the caption ("Dish alert"/"Hall alert") is the only place those words
-    // appear.
+    expect(body).toMatch(/Chicken Parm/);
+    // No caption text of any kind on the row itself -- the bell icon (asserted by the group-level
+    // disambiguation-hint test above) is the whole disambiguation, not a per-row label restating it.
+    expect(body).not.toMatch(/Dish alert/);
+    expect(body).not.toMatch(/Hall alert/);
     const bareTypeTexts = root.root.findAllByType(Text).filter((n) => n.props.children === "Dish" || n.props.children === "Hall");
     expect(bareTypeTexts).toHaveLength(0);
   });

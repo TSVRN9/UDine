@@ -64,9 +64,20 @@ fi
 # --- rendered output -----------------------------------------------------------------
 # A .tsx whose diff is only comments/blank lines did not change rendered output.
 RENDERED=()
+# Buffer each diff into a variable before grepping it -- a live pipe from `git diff` straight
+# into a `grep -q` (which exits the instant it finds a match) can SIGPIPE the still-writing
+# upstream `git diff`/`grep -E` under `set -o pipefail`; observed as a genuine flaky RENDERED
+# result live 2026-09-14 (PR #476 review) -- one early run under-detected the changed-file set.
+# A here-string feeds an already-fully-buffered value, not a live subprocess, so there is nothing
+# left running upstream for a short-circuiting grep to SIGPIPE.
 for f in $(printf '%s\n' "${FILES[@]}" | grep -E '^mobile/src/.*\.tsx$|^mobile/src/lib/motion\.ts$' | grep -Ev '\.test\.tsx?$' | sort -u); do
-  if git diff "$BASE" "$HEAD_REF" -- "$f" | grep -E '^[-+][^-+]' | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then RENDERED+=("$f")
-  elif [[ -z "$PR" ]] && git diff -- "$f" | grep -E '^[-+][^-+]' | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then RENDERED+=("$f"); fi
+  base_diff="$(git diff "$BASE" "$HEAD_REF" -- "$f")"
+  if grep -E '^[-+][^-+]' <<<"$base_diff" | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then
+    RENDERED+=("$f")
+  elif [[ -z "$PR" ]]; then
+    local_diff="$(git diff -- "$f")"
+    if grep -E '^[-+][^-+]' <<<"$local_diff" | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then RENDERED+=("$f"); fi
+  fi
 done
 if [[ ${#RENDERED[@]} -gt 0 ]]; then
   echo "Rendered output changed:"; printf '  %s\n' "${RENDERED[@]}"
@@ -77,18 +88,29 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
     fail "no screenshot: run mobile/scripts/screenshot.sh <route> (it writes docs/pr-review-media/$SLUG/) and commit the PNG + .json"
   else
     declare -A SEEN=()
+    # In PR mode ($PR set), a sidecar must be read from HEAD_REF's own git content, not the local
+    # working tree -- `gh pr merge <N>` can run from any checkout (the orchestrator's session isn't
+    # necessarily sitting on that PR's branch), and a plain `-f`/`cat` against the local filesystem
+    # silently checked whatever branch happened to be checked out there instead. Found live 2026-09-14
+    # merging PR #475 from an unrelated branch: every sidecar FAILed as "missing" even though all
+    # three existed, committed, in the PR itself. `git show`/`git cat-file` read the object store
+    # directly and don't care what's checked out locally.
+    read_sidecar() {
+      if [[ -n "$PR" ]]; then git show "$HEAD_REF:$1" 2>/dev/null; else cat "$1" 2>/dev/null; fi
+    }
     for png in "${PNGS[@]}"; do
       stem="${png%.png}"; stem="${stem%/frame-[0-9][0-9][0-9]}"; stem="${stem%-frames}"
       [[ -n "${SEEN[$stem]:-}" ]] && continue; SEEN[$stem]=1
       side="$stem.json"
-      if [[ ! -f "$side" ]]; then fail "$png: no sidecar $side (re-capture with the current screenshot.sh)"; continue; fi
-      sha="$(jq -r .sha "$side")"; dirty="$(jq -r .dirty "$side")"
+      side_content="$(read_sidecar "$side")"
+      if [[ -z "$side_content" ]]; then fail "$png: no sidecar $side (re-capture with the current screenshot.sh)"; continue; fi
+      sha="$(jq -r .sha <<<"$side_content")"; dirty="$(jq -r .dirty <<<"$side_content")"
       if [[ "$dirty" == "true" ]]; then fail "$png: captured with uncommitted changes -- commit, then re-capture"; continue; fi
       if ! git merge-base --is-ancestor "$sha" "$HEAD_REF" 2>/dev/null; then fail "$png: captured at $sha, not an ancestor of $HEAD_REF"; continue; fi
       if ! git diff --quiet "$sha" "$HEAD_REF" -- . ':(exclude)docs/pr-review-media'; then
         fail "$png: code changed since capture ($sha -> ${HEAD_SHA:0:8}) -- re-capture"
       else
-        info "$png  ok (sha ${sha:0:8}, route $(jq -r .route "$side"), device $(jq -r .device "$side"))"
+        info "$png  ok (sha ${sha:0:8}, route $(jq -r .route <<<"$side_content"), device $(jq -r .device <<<"$side_content"))"
       fi
     done
   fi

@@ -73,6 +73,93 @@ export function usdaResultToPlateEntry(result: UsdaSearchResult, count = 1): Pla
   return { key: plateKeyFor(source), label: result.productName, nutrition: result.nutrition, source, count };
 }
 
+/** One selected add-in inside a composite-dish (bowl composer) session recipe -- the add-in's own
+ * catalog MenuItem (real cal/protein, per CompositeDishComposer.dc.html's "add-ins are real
+ * FoodPro dishes, not invented strings") plus how many the user stepped it to via its own
+ * pre-add/in-plate hold-drag control. */
+export interface CompositeAddInSelection {
+  item: MenuItem;
+  count: number;
+}
+
+/** A composed dish's chosen add-ins for this app session -- lives only in memory (React state
+ * keyed by the base dish's plateKeyFor, see halls/[slug].tsx) until foldRecipeToPlateEntry turns
+ * it into one ordinary PlateEntry. Not persisted beyond the session; see the brief's residency
+ * note (foodpro-menu-expansion.md). */
+export interface CompositeRecipe {
+  addIns: CompositeAddInSelection[];
+}
+
+// Every NutritionFacts field sumComposedNutrition actually sums -- the *Dv (%DV) fields are
+// deliberately excluded, see that function's own doc.
+const SUMMED_NUTRITION_KEYS = [
+  "calories",
+  "caloriesFromFat",
+  "totalFatG",
+  "satFatG",
+  "transFatG",
+  "cholesterolMg",
+  "sodiumMg",
+  "totalCarbG",
+  "dietaryFiberG",
+  "sugarsG",
+  "proteinG",
+] as const satisfies readonly (keyof NutritionFacts)[];
+
+/**
+ * Sums a base dish's nutrition with every selected add-in's nutrition × its own selected count
+ * into one per-unit NutritionFacts snapshot -- what ONE whole composed bowl (base + chosen
+ * add-ins) contains, before PlateEntry.count scales the whole recipe up as a unit (see
+ * foldRecipeToPlateEntry). Recomputed fresh from whatever's currently selected -- callers must
+ * call this on every step, never cache a total across renders.
+ *
+ * Drops the *Dv (%DV) fields: a composed dish has no single source's own %DV to report (each
+ * ingredient carries its own, and %DV isn't additive across sources the way a raw gram amount
+ * is), so the result is `undefined` for those fields -- the same "source has no concept of %DV"
+ * case types.ts documents for OFF-sourced entries, not the "present but blank" `null` case.
+ */
+export function sumComposedNutrition(base: NutritionFacts, addIns: CompositeAddInSelection[]): NutritionFacts {
+  const result = { servingSize: "1 composed bowl" } as NutritionFacts;
+  for (const key of SUMMED_NUTRITION_KEYS) {
+    result[key] = base[key] + addIns.reduce((sum, a) => sum + a.item.nutrition[key] * a.count, 0);
+  }
+  return result;
+}
+
+/**
+ * The not-yet-composed row's preview range (CompositeDishRowStates.dc.html state 1): base alone
+ * (nothing chosen yet) at the low end, base + one of every catalog add-in at the high end.
+ * Computed from the live add-in list every call, never a static/cached number -- a hall whose
+ * add-in catalog changes (or a future dish whose add-in list is shorter) gets a different range
+ * with no separate cache to invalidate.
+ */
+export function compositeCalorieRange(
+  base: MenuItem,
+  addIns: MenuItem[],
+): { minCalories: number; maxCalories: number; minProteinG: number; maxProteinG: number } {
+  const max = sumComposedNutrition(base.nutrition, addIns.map((item) => ({ item, count: 1 })));
+  return { minCalories: base.nutrition.calories, maxCalories: max.calories, minProteinG: base.nutrition.proteinG, maxProteinG: max.proteinG };
+}
+
+/**
+ * One PlateEntry for a whole composed dish -- base + every selected add-in folded into a single
+ * per-unit nutrition snapshot (sumComposedNutrition), keyed by the BASE dish's own plate key
+ * (plateKeyFor) so composing (or later re-composing via "Edit add-ins") always lands on exactly
+ * one row, never a duplicate alongside a simple-dish entry for the same base.
+ *
+ * `count` is how many of the WHOLE recipe are on the plate -- CompositeDishRowStates.dc.html's
+ * state-2 comment: once composed, the ordinary in-plate +/-1 stepper scales the entire recipe as
+ * one unit, exactly like any other PlateEntry.count. Callers must REPLACE any existing plate row
+ * at this key (never addOrIncrement) when folding a (re-)composed recipe -- addOrIncrement merges
+ * by key and would blend the new recipe's nutrition into whatever nutrition the old row already
+ * had while only bumping the count, which is wrong for a recipe that just changed.
+ */
+export function foldRecipeToPlateEntry(base: MenuItem, recipe: CompositeRecipe, count = 1): PlateEntry {
+  const nutrition = sumComposedNutrition(base.nutrition, recipe.addIns);
+  const source: LogEntry["source"] = { type: "umass-menu", dishName: base.dishName, hallTid: base.hallTid };
+  return { key: plateKeyFor(source), label: base.dishName, nutrition, source, count, ...(base.price !== undefined ? { price: base.price } : {}) };
+}
+
 export function customFoodToPlateEntry(food: CustomFood, count = 1): PlateEntry {
   const source: LogEntry["source"] = { type: "custom", customFoodId: food.id, productName: food.name };
   return { key: plateKeyFor(source), label: food.name, nutrition: food.nutrition, source, count };
@@ -218,12 +305,18 @@ export function totalPlatePrice(plate: PlateEntry[]): string | null {
   return any ? `$${total.toFixed(2)}` : null;
 }
 
+// The filter FAB ([slug].tsx's styles.filterFab: right:20/bottom:108/height:48) floats
+// independently above the plate bar, occupying its own 108-156px band -- occludes a scrolled
+// list's last row(s) if nothing reserves clearance for it too, not just for the bar beneath it.
+const FILTER_FAB_CLEARANCE = 108 + 48;
+
 /** Bottom padding a scrollable dish list needs to keep its last row reachable while the plate bar
- * floats over it. The bar is now always mounted (an empty plate still needs a tappable entry point
- * into OFF search, not just a spot to review staged items), so this is just the bar's own measured
- * height, unconditionally. */
-export function listBottomPadding(barHeight: number): number {
-  return barHeight;
+ * (and, when `clearFilterFab` is set, the filter FAB) float over it. The bar is now always mounted
+ * (an empty plate still needs a tappable entry point into OFF search, not just a spot to review
+ * staged items), so this is at minimum the bar's own measured height. `Math.max`, not addition --
+ * the FAB's band and the bar's band overlap, so adding would leave a dead gap. */
+export function listBottomPadding(barHeight: number, clearFilterFab = false): number {
+  return clearFilterFab ? Math.max(barHeight, FILTER_FAB_CLEARANCE) : barHeight;
 }
 
 /**

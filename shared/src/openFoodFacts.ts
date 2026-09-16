@@ -40,15 +40,30 @@ function mapNutriments(n: Record<string, number>, servingSize: string): Nutritio
   };
 }
 
+const OFF_TIMEOUT_MS = 6000;
+
+/** A merely-slow (not 503-ing) OFF response has no other signal that tells it to give up, so it
+ * can otherwise hang its caller indefinitely.
+ * ponytail: AbortSignal.timeout() would be one line here, but this app's Hermes/RN runtime never
+ * gets the real one -- react-native's setUpXHR.js unconditionally polyfillGlobals
+ * AbortController/AbortSignal with the `abort-controller` npm package (predates AbortSignal.timeout
+ * entering the spec), so calling it on-device throws where Node/Jest wouldn't catch it. Manual
+ * controller+timer instead; revisit once that polyfill (or an RN upgrade) adds it. */
+function fetchWithTimeout(url: string, init: RequestInit | undefined, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 /** Retries once after a short jittered backoff if OpenFoodFacts returns 503 (transient overload),
  * shared by lookupBarcode and searchProducts.
  * ponytail: fixed single retry for transient blips, not a general backoff policy — if 503s are
  * still frequent after this, upgrade to real retries/backoff or move off the legacy search endpoint. */
 async function fetchWithRetry503(url: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(url, init);
+  const res = await fetchWithTimeout(url, init, OFF_TIMEOUT_MS);
   if (res.status !== 503) return res;
   await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 300));
-  return fetch(url, init);
+  return fetchWithTimeout(url, init, OFF_TIMEOUT_MS);
 }
 
 export async function lookupBarcode(barcode: string): Promise<OffProduct | null> {

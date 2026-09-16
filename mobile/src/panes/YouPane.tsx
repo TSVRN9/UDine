@@ -83,15 +83,14 @@ function BellIcon() {
   );
 }
 
-/** One favorite row: bell icon + name + a "Dish alert"/"Hall alert" caption -- this is a
- * notify+highlight toggle, not a rating, so it can't look like the read-only Elo sections below it. */
+/** One favorite row: bell icon + name -- the bell alone (not a star) is the notify+highlight
+ * disambiguation from the read-only Elo sections below it; no caption spelling that out in words. */
 function FavoriteRow({ favorite }: { favorite: Favorite }) {
   return (
     <Card style={styles.favoriteRow}>
       <BellIcon />
       <View style={styles.favoriteRowInfo}>
         <Text style={styles.favoriteRowText}>{favorite.type === "dish" ? favorite.dishName : hallNameFor(favorite.hallTid)}</Text>
-        <Text style={styles.favoriteRowCaption}>{favorite.type === "dish" ? "Dish alert" : "Hall alert"}</Text>
       </View>
     </Card>
   );
@@ -231,7 +230,7 @@ export function YouPane() {
         </Card>
       </View>
 
-      {/* "Your Food": Favorites, Your Top Foods, and Favorite Halls visually grouped under one
+      {/* "Your Food": Notifications, Your Top Foods, and Favorite Halls visually grouped under one
           shared heading -- a heavier rule marks the group, each of the three keeps its own
           lighter SectionHeader sub-header inside it. */}
       <View style={styles.group}>
@@ -244,18 +243,17 @@ export function YouPane() {
           {/* accessibilityLabel is explicit, not left to the rendered "SEE ALL ›" children -- it
               disambiguates this from ALL LOGS' identical-looking link. */}
           <SectionHeader
-            title="Favorites"
+            title="Notifications"
             variant="subtle"
             right={
-              <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button" accessibilityLabel="See all favorites">
+              <Press style={styles.allLogsLink} onPress={goToFavorites} accessibilityRole="button" accessibilityLabel="See all notifications">
                 <Text style={styles.seeAllText}>SEE ALL</Text>
                 <Text style={styles.seeAllChevron}>›</Text>
               </Press>
             }
           />
-          <Text style={styles.groupHint}>Get notified (and see it highlighted) when spotted elsewhere on campus.</Text>
           {favorites.length === 0 ? (
-            <EmptyState title="No favorites yet" message="Star a dish or dining hall to add one." />
+            <EmptyState title="No notifications yet" />
           ) : (
             <View style={styles.rowList}>
               {favorites.slice(0, FAVORITES_LIMIT).map((f, i) => (
@@ -267,11 +265,10 @@ export function YouPane() {
 
         <View style={styles.subsection}>
           <SectionHeader title="Your Top Foods" variant="subtle" />
-          <Text style={styles.groupHint}>From your head-to-head comparisons only — not something you can set directly.</Text>
           {rankedFoods.length === 0 ? (
-            <EmptyState title="No comparisons yet" message="Dish ranking is on hold for now — this fills in once it's back." />
+            <EmptyState title="No comparisons yet" />
           ) : topFoods.length === 0 ? (
-            <EmptyState title="Not enough data yet" message="Dish ranking is on hold for now, so this stays as-is until it's back." />
+            <EmptyState title="Not enough data yet" />
           ) : (
             <View style={styles.rowList}>
               {topFoods.map((f) => (
@@ -283,9 +280,8 @@ export function YouPane() {
 
         <View style={styles.subsection}>
           <SectionHeader title="Favorite Halls" variant="subtle" />
-          <Text style={styles.groupHint}>Ranked by your dish comparisons at each hall — not editable.</Text>
           {hallRanking.ranked.length === 0 ? (
-            <EmptyState title="No ranking yet" message="Dish ranking is on hold for now — this fills in once it's back." />
+            <EmptyState title="No ranking yet" />
           ) : (
             <View style={styles.favoriteHallsRow}>
               {hallRanking.ranked.slice(0, 3).map((h, i) => (
@@ -315,13 +311,11 @@ const styles = StyleSheet.create({
   groupHeader: { gap: spacing(1.5) },
   groupRule: { borderTopWidth: 2, borderTopColor: colors.gold500 },
   groupTitle: { fontFamily: fonts.display700, fontSize: fs(14), letterSpacing: 1.8, textTransform: "uppercase", color: colors.gold500 },
-  groupHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55), marginTop: -spacing(1) },
   subsection: { gap: spacing(2.5) },
 
   favoriteRow: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: spacing(2.5), paddingHorizontal: spacing(3.5) },
-  favoriteRowInfo: { flexShrink: 1, gap: 1 },
+  favoriteRowInfo: { flexShrink: 1 },
   favoriteRowText: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
-  favoriteRowCaption: { fontFamily: fonts.body400, fontSize: fs(10), color: withOpacity(colors.ink900, 50) },
 
   statsCard: { marginTop: spacing(3.5), padding: spacing(3.5), flexDirection: "row", gap: spacing(2.5) },
   statCell: { flex: 1 },

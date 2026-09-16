@@ -17,6 +17,7 @@ import { StyleSheet, Text, View, SectionList } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
+import { CompositeDishComposer } from "../components/CompositeDishComposer";
 import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
 import { PlateBar } from "../components/PlateBar";
 import { Button } from "../components/ui";
@@ -178,7 +179,7 @@ function activePaneTexts(root: renderer.ReactTestRenderer) {
   return activePane(root).findAllByType(Text).map((n) => n.props.children);
 }
 
-function nutrition(calories: number): MenuItem["nutrition"] {
+function nutrition(calories: number, proteinG = 1): MenuItem["nutrition"] {
   return {
     servingSize: "1 each",
     calories,
@@ -191,7 +192,7 @@ function nutrition(calories: number): MenuItem["nutrition"] {
     totalCarbG: 1,
     dietaryFiberG: 0,
     sugarsG: 0,
-    proteinG: 1,
+    proteinG,
   };
 }
 
@@ -252,6 +253,16 @@ const LATE_SNACK: MenuItem = {
   allergens: [],
   dietTags: [],
 };
+
+// Composite dish (bowl composer) fixture -- foodpro-menu-expansion brief, task 2. Names must match
+// halls/[slug].tsx's own COMPOSITE_FIXTURE_ADD_INS exactly (compositeDishFor's dev-only,
+// name-keyed lookup -- see its own doc for why there's no real association to test against yet).
+const TERIYAKI_BOWL: MenuItem = { ...PIZZA, dishName: "Teriyaki Noodle Bowl", nutrition: nutrition(260, 10) };
+const EDAMAME: MenuItem = { ...PIZZA, dishName: "Edamame", nutrition: nutrition(45, 4) };
+const CARROT: MenuItem = { ...PIZZA, dishName: "Shredded Carrot", nutrition: nutrition(15, 0) };
+const SHALLOTS: MenuItem = { ...PIZZA, dishName: "Fried Shallots", nutrition: nutrition(70, 1) };
+const SRIRACHA: MenuItem = { ...PIZZA, dishName: "Sriracha Mayo", nutrition: nutrition(50, 0) };
+const ALL_ADD_INS = [EDAMAME, CARROT, SHALLOTS, SRIRACHA];
 
 async function renderScreen(items: MenuItem[] = [PIZZA, SALAD]) {
   mockedFetchMenu.mockResolvedValue(items);
@@ -1072,20 +1083,23 @@ describe("HallMenuScreen plate wiring", () => {
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
   });
 
-  it("tracks the SectionList's bottom padding to the plate bar's measured height, and keeps it once the plate empties again (the bar stays mounted, just switches to its empty-state variant)", async () => {
+  it("tracks the SectionList's bottom padding to the plate bar's measured height (floored by the filter FAB's own clearance), and keeps it once the plate empties again (the bar stays mounted, just switches to its empty-state variant)", async () => {
     const root = await renderScreen();
     addToPlate(root, "Pizza");
 
+    // 88 is a real, short measured bar height -- shorter than the filter FAB's own 108+48=156
+    // clearance band, so the floor wins here (see plate.test.ts's listBottomPadding unit tests for
+    // the boundary itself).
     act(() => {
       root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
     });
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(88);
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(156);
 
     // Step the item back down to 0 -- the row's own stepper minus button removes it, but the bar
-    // itself never unmounts, so the list's padding must hold at 88, not collapse to 0.
+    // itself never unmounts, so the list's padding must hold at 156, not collapse to 0.
     stepPlate(root, "Pizza", "Remove one");
     expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(88);
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(156);
   });
 
   it("LOG writes one addEntry call per plate row, with servings equal to that row's stepped count, and clears the plate on success (mutation b)", async () => {
@@ -1346,7 +1360,9 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
     act(() => {
       findBannerContainer(root, /Logged 1 item/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(40);
+    // Bar unmeasured (0) still floors to the filter FAB's own 108+48=156 clearance band, plus the
+    // banner's 40 on top.
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(196);
   });
 
   it("adds the banner's measured height on top of the bar's clearance when both are visible (failure path)", async () => {
@@ -1361,7 +1377,9 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
     act(() => {
       findBannerContainer(root, /Couldn't log everything/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
-    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(128);
+    // 88 is still below the filter FAB's 156 clearance floor, so the bar's clearance is 156 (not
+    // 88) plus the banner's 40 on top.
+    expect(root.root.findByType(SectionList).props.contentContainerStyle.paddingBottom).toBe(196);
   });
 });
 
@@ -1825,5 +1843,142 @@ describe("HallMenuScreen lookup-dish stress fixtures (brief foodpro-menu-expansi
       .flat()
       .join(" ");
     expect(body).toMatch(/busy right now/i);
+  });
+});
+
+// Composite dish (bowl composer) -- foodpro-menu-expansion brief, task 2. compositeDishFor's
+// name-keyed lookup only recognizes TERIYAKI_BOWL/ALL_ADD_INS's exact dish names (see its own
+// __DEV__-gated doc comment in [slug].tsx) -- there is no real base->add-in data source yet.
+describe("Composite dish (bowl composer)", () => {
+  function findComposer(root: renderer.ReactTestRenderer) {
+    return root.root.findByType(CompositeDishComposer);
+  }
+
+  // ALL_ADD_INS items are real catalog dishes in their own right (composite-dish-logic
+  // annotation), so they're deliberately ALSO present in the hall's own menu pool for
+  // compositeDishFor to resolve them from -- meaning an add-in dish name can render TWICE once the
+  // composer is open: once as its own ordinary hall row, once as a composer add-in row. These two
+  // helpers scope the query to the composer's own subtree so tests interact with the right one.
+  function composerAdd(root: renderer.ReactTestRenderer, dishName: string) {
+    act(() => {
+      findComposer(root).findByProps({ accessibilityLabel: `Add ${dishName} to plate` }).props.onPress();
+    });
+  }
+  function composerStep(root: renderer.ReactTestRenderer, dishName: string, dir: "Add one" | "Remove one") {
+    act(() => {
+      findComposer(root).findByProps({ accessibilityLabel: `${dir} ${dishName}` }).props.onPress();
+    });
+  }
+
+  it("shows the computed base-alone -> base+every-add-in range, recomputed from the live add-in list, not a static number", async () => {
+    const full = await renderScreen([TERIYAKI_BOWL, ...ALL_ADD_INS]);
+    expect(texts(full).flat().join(" ")).toMatch(/260\s*–\s*440\s*cal\s*·\s*10\s*–\s*15\s*g\s*protein/);
+
+    // Fewer add-ins in the catalog -> a narrower range, proving this is computed fresh, not a
+    // number cached at fixture-build time.
+    const partial = await renderScreen([TERIYAKI_BOWL, EDAMAME]);
+    expect(texts(partial).flat().join(" ")).toMatch(/260\s*–\s*305\s*cal\s*·\s*10\s*–\s*14\s*g\s*protein/);
+  });
+
+  it("routes the not-yet-composed control to the composer sheet -- no hold-drag control renders on it at all", async () => {
+    const root = await renderScreen([TERIYAKI_BOWL, ...ALL_ADD_INS]);
+    // No HoldSlideAddButton for the composite dish's own row -- the annotation's "no servings
+    // count is worth pre-choosing before add-ins exist", so hold-drag never even mounts here.
+    expect(root.root.findAllByType(HoldSlideAddButton).find((b) => b.props.dishName === "Teriyaki Noodle Bowl")).toBeUndefined();
+    expect(findComposer(root).props.visible).toBe(false);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Build Teriyaki Noodle Bowl" }).props.onPress();
+    });
+
+    expect(findComposer(root).props.visible).toBe(true);
+    expect(findComposer(root).props.base?.dishName).toBe("Teriyaki Noodle Bowl");
+    expect(findComposer(root).props.addIns.map((i: MenuItem) => i.dishName).sort()).toEqual(
+      ["Edamame", "Fried Shallots", "Shredded Carrot", "Sriracha Mayo"].sort(),
+    );
+  });
+
+  it("add-in rows carry their own real cal/protein, and live totals sum base + every selection, recomputed on every step", async () => {
+    const root = await renderScreen([TERIYAKI_BOWL, ...ALL_ADD_INS]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Build Teriyaki Noodle Bowl" }).props.onPress();
+    });
+
+    const flatBeforeSelection = texts(root).flat();
+    expect(flatBeforeSelection).toContain(45); // Edamame's own calories
+    expect(flatBeforeSelection).toContain(4); // Edamame's own protein
+    // Base total, nothing selected yet.
+    expect(flatBeforeSelection).toContain("260");
+
+    composerAdd(root, "Edamame"); // quick-add -> 1 unit
+    expect(texts(root).flat()).toContain("305"); // 260 + 45
+
+    composerStep(root, "Edamame", "Add one"); // -> 2 units
+    expect(texts(root).flat()).toContain("350"); // 260 + 45*2
+  });
+
+  it('"Add to Plate" commits exactly one PlateEntry for the whole composed dish and closes the sheet', async () => {
+    const root = await renderScreen([TERIYAKI_BOWL, ...ALL_ADD_INS]);
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Build Teriyaki Noodle Bowl" }).props.onPress();
+    });
+    composerAdd(root, "Edamame");
+    composerAdd(root, "Shredded Carrot");
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Add to Plate" }).props.onPress();
+    });
+
+    expect(findComposer(root).props.visible).toBe(false);
+    // ONE composed dish, count 1 -- not base(1) + edamame(1) + carrot(1) = 3 separate rows.
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(1);
+
+    // Pixel-identity proxy (screenshot is the real evidence, see PR body): once composed and
+    // in-plate, the row falls straight through PlateAddControl's unmodified `inPlate` branch --
+    // no HoldSlideAddButton, no bowl button, just the ordinary +/- stepper.
+    expect(root.root.findAllByType(HoldSlideAddButton).find((b) => b.props.dishName === "Teriyaki Noodle Bowl")).toBeUndefined();
+    expect(root.root.findByProps({ accessibilityLabel: "Remove one Teriyaki Noodle Bowl" })).toBeDefined();
+    expect(root.root.findByProps({ accessibilityLabel: "Add one Teriyaki Noodle Bowl" })).toBeDefined();
+  });
+
+  it('expanding a composed, in-plate row shows "Edit add-ins", reopening the composer pre-filled with the saved selection', async () => {
+    const root = await renderScreen([TERIYAKI_BOWL, ...ALL_ADD_INS]);
+    act(() => root.root.findByProps({ accessibilityLabel: "Build Teriyaki Noodle Bowl" }).props.onPress());
+    composerAdd(root, "Edamame");
+    act(() => root.root.findByProps({ accessibilityLabel: "Add to Plate" }).props.onPress());
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Expand Teriyaki Noodle Bowl" }).props.onPress();
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/EDIT ADD-INS/);
+    // The composed row's own expand target replaces FULL NUTRITION LABEL, doesn't add to it.
+    expect(root.root.findAllByProps({ accessibilityLabel: "Full nutrition label for Teriyaki Noodle Bowl" })).toHaveLength(0);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Edit add-ins for Teriyaki Noodle Bowl" }).props.onPress();
+    });
+    const composer = findComposer(root);
+    expect(composer.props.visible).toBe(true);
+    expect(composer.props.initialRecipe?.addIns.map((a: { item: MenuItem }) => a.item.dishName)).toEqual(["Edamame"]);
+  });
+
+  it("re-adds the last-saved recipe directly after stepping a composed dish back to 0, without reopening the composer", async () => {
+    const root = await renderScreen([TERIYAKI_BOWL, ...ALL_ADD_INS]);
+    act(() => root.root.findByProps({ accessibilityLabel: "Build Teriyaki Noodle Bowl" }).props.onPress());
+    composerAdd(root, "Edamame");
+    act(() => root.root.findByProps({ accessibilityLabel: "Add to Plate" }).props.onPress());
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(1);
+
+    stepPlate(root, "Teriyaki Noodle Bowl", "Remove one"); // 1 -> 0, row removed
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
+    expect(findComposer(root).props.visible).toBe(false);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Add Teriyaki Noodle Bowl with your saved add-ins" }).props.onPress();
+    });
+
+    expect(root.root.findByType(PlateBar).props.itemCount).toBe(1);
+    // No composer round-trip.
+    expect(findComposer(root).props.visible).toBe(false);
   });
 });
