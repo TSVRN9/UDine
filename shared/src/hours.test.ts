@@ -313,6 +313,18 @@ test("currentMealPeriod returns closed exactly at the overnight window's close t
   assert.equal(currentMealPeriod(hall, new Date(2026, 7, 20, 1, 0)), "closed");
 });
 
+// Late Night service actually runs past midnight (late-night-2am-day-rollover brief), so the
+// standard-schedule fallback's latenight window must extend to 2 AM, not close at the stroke of
+// midnight -- a hall with no real published Late Night hours (get_infov2 never sends any) still
+// needs its "currently serving" check to agree with the new 2 AM day-rollover boundary. `general`
+// spans 9 PM-5 AM here purely so it stays open across the whole stretch under test and isolates
+// the assertion to the standard fallback's own close time, not general's.
+test("currentMealPeriod's standard-schedule fallback keeps Late Night open until 2 AM, not midnight", () => {
+  const hall = hallWith({ general: { openTime: "9:00 PM", closeTime: "5:00 AM" } });
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 20, 0, 30)), "latenight");
+  assert.equal(currentMealPeriod(hall, new Date(2026, 7, 20, 2, 30)), "closed");
+});
+
 // UMass's own reference app (confirmed live 2026-09-01 against the real APK's Full Menu tab, both
 // on a Summer Hours day and the following semester day) labels meals using a fixed clock schedule
 // whenever a hall has no real per-meal times published -- get_infov2's Summer Hours shape (a lone
