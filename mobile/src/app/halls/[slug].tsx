@@ -704,6 +704,10 @@ export function HallMenuScreenBody({
   const [prefs, setPrefs] = useState<FoodPreferences>(() => getCachedPreferences() ?? { allergensToAvoid: [], requiredDietTags: [] });
   const [favoriteDishKeys, setFavoriteDishKeys] = useState<Set<string>>(new Set());
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
+  // Whether the hours fetch below has settled at all (resolved OR rejected) -- distinct from
+  // `hoursFeed` itself being non-null, since a rejected fetch must still unblock a real hall's
+  // shimmer gate rather than leaving it stuck loading forever (see that effect's own comment).
+  const [hoursSettled, setHoursSettled] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => effectiveToday());
   // Static default rather than deriving from hoursFeed's currentMealPeriod on load -- hours
   // arrive async, and auto-jumping the tab out from under a user who already tapped one would be
@@ -1034,13 +1038,16 @@ export function HallMenuScreenBody({
     if (!hall) return;
     // Hall-info sheet's hours data, real halls only. Independent of selectedDate: hours reflect
     // what's true right now, not the date being browsed. A failure here just leaves the sheet's
-    // hours/address blank, never blocks the menu itself.
+    // hours/address blank, never blocks the menu itself -- hoursSettled (below) still flips on a
+    // rejection, same as a resolution, so a real hall's shimmer gate (which waits on hoursSettled,
+    // not on hoursFeed being non-null) can't get stuck loading forever behind a dead hours fetch.
     // fetchHoursAndCache (not shared's bare fetchDiningHours), so this screen's own hours get
     // cached too -- otherwise offline recovery (SHOW SAVED COPY) works for the menu while the
     // info sheet right beside it still shows blank hours instead of a cached copy.
     fetchHoursAndCache()
       .then(setHoursFeed)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setHoursSettled(true));
   }, [hall]);
 
   useEffect(() => {
@@ -1470,7 +1477,10 @@ export function HallMenuScreenBody({
     // `items` can stay `null` forever on a rejected ajax fetch even after `cafeState` has already
     // resolved via the fallback, so gating on `!items` for a café would skeleton-lock a
     // standing/integrated state that's already fully resolved and ready to render.
-    const stillLoading = isRealHall ? !items : !cafeState;
+    // !hoursSettled: mirrors the tab row's own gate above -- a real hall's content pane must stay
+    // in its loading state exactly as long as the tab labels above it do, or the two would resolve
+    // on different frames.
+    const stillLoading = isRealHall ? !items || !hoursSettled : !cafeState;
     if (stillLoading || selectedMeal === null) {
       // Header + meal tabs above already rendered fully (known without the network); only the
       // dish list itself is unknown, so only it shimmers. Widths vary a little so it doesn't read
@@ -1676,8 +1686,13 @@ export function HallMenuScreenBody({
                 {/* items === null: that day's menu hasn't arrived yet, so the guessed MEAL_TABS
                     fallback label above (used only to pick which tabs to render at all) isn't
                     trustworthy enough to show as real text -- shimmer instead, same primitive as
-                    the dish-list skeleton below, until items resolves (even to []). */}
-                {isRealHall && items === null ? (
+                    the dish-list skeleton below, until items resolves (even to []). !hoursSettled:
+                    `selectedMeal` starts hardcoded "lunch" until hallHours resolves and corrects
+                    it (the useLayoutEffect above) -- items resolving alone isn't enough to trust
+                    this row's content, since it renders whatever `selectedMeal` is at that instant
+                    (hall-menu-correct-meal-on-load brief: without this, a hall opened outside
+                    lunch hours flashes real "Lunch" content before snapping to the true period). */}
+                {isRealHall && (items === null || !hoursSettled) ? (
                   <SkeletonBar width={MEAL_TAB_SKELETON_WIDTH[period as HallMealPeriod]} height={fs(12)} />
                 ) : (
                   <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall, isBrunchToday)}</Text>
