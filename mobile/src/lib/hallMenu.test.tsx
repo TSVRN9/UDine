@@ -910,6 +910,30 @@ describe("HallMenuScreen hall-info sheet wiring (#180)", () => {
     expect(body).toMatch(/11:00 AM - 2:30 PM/); // lunch's own window text, next to the NOW pill
   });
 
+  // late-night-2am-day-rollover brief, task 2 REWORK: isSelectedDateToday (line ~1236) compares
+  // selectedDate against effectiveToday(now), not raw `now` -- at 12:30 AM selectedDate has already
+  // rolled back to the closing day (Aug 19), and a regression back to raw `now` (Aug 20) would make
+  // this comparison false right when it should be true, falling the sheet back to the static
+  // MEAL_TABS/no-brunch defaults instead of the closing day's real (latenight-only) mealTabs.
+  it("at 12:30 AM local, the hall-info sheet's hours rows use the closing day's real (latenight-only) mealTabs, not the static MEAL_TABS fallback", async () => {
+    jest.setSystemTime(new Date(2026, 7, 20, 0, 30, 0, 0)); // Aug 20, 12:30 AM local -- selectedDate defaults to Aug 19
+    (mockFetchHoursAndCache as jest.Mock).mockResolvedValueOnce({
+      halls: [{ hallTid: 1, breakfast: null, lunch: null, dinner: null, latenight: { openTime: "9:00 PM", closeTime: "2:00 AM" }, general: null }],
+      retail: [],
+    });
+    const root = await renderScreen([LATE_SNACK]); // Aug 19's only item is a latenight dish
+    await act(async () => {});
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Worcester info" }).props.onPress();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Late Night/);
+    expect(body).toMatch(/NOW/); // 12:30 AM falls inside the mocked 9 PM-2 AM window
+    // The static MEAL_TABS fallback would render all 4 rows (Breakfast among them, "not served
+    // here"); the closing day's real mealTabs is latenight-only, so Breakfast must not appear.
+    expect(body).not.toMatch(/Breakfast/);
+  });
+
   it("fetches this hall's events via shared's fetchEvents, not a hand-rolled call", async () => {
     await renderScreen([PIZZA]);
     await act(async () => {});
