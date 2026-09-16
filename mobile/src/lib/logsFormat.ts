@@ -1,4 +1,4 @@
-import { isoDateOf, type LogEntry } from "@udine/shared";
+import { averageDailyTotals, computeDailyTotals, isoDateOf, type LogEntry } from "@udine/shared";
 import { entryCalories, entryDishName, groupEntriesByMeal, type HallMealPeriod } from "./youPaneFormat";
 
 /** "8:40 AM" -- the Logs screen's edit-state row shows a per-entry time (e.g. "Hampshire · 8:40 AM
@@ -86,34 +86,44 @@ export interface WeekChartData {
   days: WeekChartDay[];
   avgCalories: number;
   avgProteinG: number;
+  avgCarbG: number;
+  avgFatG: number;
 }
 
-/** Last 7 Days bar-chart data. Per-day calories: round-per-entry-then-sum, the same convention
- * groupEntriesByMeal uses for meal subtotals -- keeps a day's bar/total agreeing exactly with that
- * day's own log-screen total, not just approximately. Averages are over the full 7-day window,
- * including no-log days -- "cal / day" reads as a daily rate over the week, and a user who only
- * logged 3 of the last 7 days should see that reflected as a lower average, not one inflated by
- * silently excluding the days they skipped.
+/** Last 7 Days bar-chart data. Per-day bar calories: round-per-entry-then-sum, the same convention
+ * groupEntriesByMeal uses for meal subtotals -- keeps a day's bar agreeing exactly with that day's
+ * own log-screen total, not just approximately. Unchanged by this function's averages below.
  *
- * Protein follows the same round-per-entry-then-sum convention as calories, for consistency, even
- * though there's no displayed protein subtotal elsewhere on this screen to visibly disagree with.
- * Kept uniform anyway so the file has one rounding rule, not two. */
+ * Averages cover all four macros, via @udine/shared's computeDailyTotals (one DailyMacroTotals per
+ * day, summed from RAW unrounded per-entry values -- rounding is the caller's job, not the shared
+ * helper's) and averageDailyTotals (mean across those), rounded ONCE at the end -- the same shared
+ * aggregation and rounding-once convention every other computeDailyTotals caller in the app uses
+ * (YouPane's stat cards, PlateSheet's plate totals, and this same screen's own selected-day total),
+ * rather than a bespoke inline sum of just two of the four macros. Deliberately NOT round-per-entry-
+ * then-sum like the bars above: that would mean a day's contribution to this average could disagree
+ * with what computeDailyTotals shows for that same day elsewhere on this screen (selected-day
+ * total) -- a smaller, less visible drift than disagreeing with the selected-day section would be,
+ * and only possible at all when servings isn't a whole number. Averages are over the full 7-day
+ * window, including no-log days -- "cal / day" reads as a daily rate over the week, and a user who
+ * only logged 3 of the last 7 days should see that reflected as a lower average, not one inflated by
+ * silently excluding the days they skipped. */
 export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDate: string): WeekChartData {
   const dates = lastSevenDates(todayIso);
-  const dateSet = new Set(dates);
-  const days = dates.map((date) => {
-    const dayEntries = entries.filter((e) => isoDateOf(e.loggedAt) === date);
-    const calories = dayEntries.reduce((sum, e) => sum + entryCalories(e), 0);
-    return { date, calories, isToday: date === todayIso, isSelected: date === selectedDate };
-  });
-  const totalCalories = days.reduce((sum, d) => sum + d.calories, 0);
-  const totalProtein = entries
-    .filter((e) => dateSet.has(isoDateOf(e.loggedAt)))
-    .reduce((sum, e) => sum + Math.round(e.nutrition.proteinG * e.servings), 0);
+  const perDayEntries = dates.map((date) => entries.filter((e) => isoDateOf(e.loggedAt) === date));
+  const days = dates.map((date, i) => ({
+    date,
+    calories: perDayEntries[i].reduce((sum, e) => sum + entryCalories(e), 0),
+    isToday: date === todayIso,
+    isSelected: date === selectedDate,
+  }));
+  const dailyTotals = dates.map((date, i) => computeDailyTotals(date, perDayEntries[i]));
+  const avg = averageDailyTotals(dailyTotals);
   return {
     days,
-    avgCalories: Math.round(totalCalories / days.length),
-    avgProteinG: Math.round(totalProtein / days.length),
+    avgCalories: Math.round(avg.calories),
+    avgProteinG: Math.round(avg.proteinG),
+    avgCarbG: Math.round(avg.totalCarbG),
+    avgFatG: Math.round(avg.totalFatG),
   };
 }
 

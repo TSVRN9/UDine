@@ -283,7 +283,8 @@ export default function LogsScreen() {
               ))}
             </View>
             <Text style={styles.chartCaption}>
-              Avg {weekChart.avgCalories.toLocaleString("en-US")} cal / day · {weekChart.avgProteinG}g protein / day
+              Avg {weekChart.avgCalories.toLocaleString("en-US")} cal / day · {weekChart.avgProteinG}g protein / day ·{" "}
+              {weekChart.avgCarbG}g carb / day · {weekChart.avgFatG}g fat / day
             </Text>
           </Card>
         </View>

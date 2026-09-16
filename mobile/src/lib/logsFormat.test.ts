@@ -169,13 +169,21 @@ describe("buildWeekChart", () => {
     expect(chart.days.find((d) => d.date === "2026-08-18")?.isToday).toBe(false);
   });
 
-  it("averages calories and protein over the full 7-day window, including no-log days", () => {
-    // One day logs 1400 cal / 70g protein; the other 6 days log nothing. Averaging over the whole
-    // window (not just logged days) means avgCalories = 1400/7 = 200, not 1400/1 = 1400.
-    const entries = [entry({ loggedAt: "2026-08-20T12:00:00.000", nutrition: { ...NUTRITION_FIXTURE, calories: 1400, proteinG: 70 } })];
+  it("averages all four macros over the full 7-day window, including no-log days", () => {
+    // One day logs 1400 cal / 70g protein / 140g carb / 56g fat; the other 6 days log nothing.
+    // Averaging over the whole window (not just logged days) means avgCalories = 1400/7 = 200,
+    // not 1400/1 = 1400.
+    const entries = [
+      entry({
+        loggedAt: "2026-08-20T12:00:00.000",
+        nutrition: { ...NUTRITION_FIXTURE, calories: 1400, proteinG: 70, totalCarbG: 140, totalFatG: 56 },
+      }),
+    ];
     const chart = buildWeekChart(entries, "2026-08-20", "2026-08-20");
     expect(chart.avgCalories).toBe(200);
     expect(chart.avgProteinG).toBe(10);
+    expect(chart.avgCarbG).toBe(20);
+    expect(chart.avgFatG).toBe(8);
   });
 });
 
