@@ -224,15 +224,19 @@ describe("LogsScreen day log editing", () => {
 
   it("recomputes the Last 7 Days chart average after an edit, not just the day/meal totals (issue #142)", async () => {
     // Today (Aug 20) is the only day in the trailing 7-day chart window with any entries, so its
-    // calories/protein alone drive the average. Before: 320 cal / 12g protein -> round(320/7)=46,
-    // round(12/7)=2. After stepping up to 2 servings: 640 cal / 24g protein -> round(640/7)=91,
-    // round(24/7)=3. mutant 3 from PR #140's review (deleting stepEntry's `await refresh()`) would
-    // leave the chart reading the stale 46/2 figures here, same as it broke the day/meal totals.
+    // macros alone drive the average. Before: 320 cal / 12g protein / 30g carb / 8g fat ->
+    // round(320/7)=46, round(12/7)=2, round(30/7)=4, round(8/7)=1. After stepping up to 2
+    // servings: 640 cal / 24g protein / 60g carb / 16g fat -> round(640/7)=91, round(24/7)=3,
+    // round(60/7)=9, round(16/7)=2. mutant 3 from PR #140's review (deleting stepEntry's
+    // `await refresh()`) would leave the chart reading the stale figures here, same as it broke
+    // the day/meal totals.
     const entry = logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1);
     logMock.getAllEntries.mockResolvedValue([entry]);
     const root = await renderLogsScreen();
     expect(texts(root)).toMatch(/Avg\s*46\s*cal \/ day/);
     expect(texts(root)).toMatch(/2\s*g protein \/ day/);
+    expect(texts(root)).toMatch(/4\s*g carb \/ day/);
+    expect(texts(root)).toMatch(/1\s*g fat \/ day/);
 
     act(() => {
       pressableWithLabel(root, "Edit French Toast · Hampshire").props.onPress();
@@ -245,6 +249,8 @@ describe("LogsScreen day log editing", () => {
 
     expect(texts(root)).toMatch(/Avg\s*91\s*cal \/ day/);
     expect(texts(root)).toMatch(/3\s*g protein \/ day/);
+    expect(texts(root)).toMatch(/9\s*g carb \/ day/);
+    expect(texts(root)).toMatch(/2\s*g fat \/ day/);
   });
 
   it("drops a rapid second tap while the first step's write is still in flight, instead of both reading the same stale servings count", async () => {
