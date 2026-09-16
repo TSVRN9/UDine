@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nowLocalIso, resolveMenuDate } from "./date.ts";
+import { DEFAULT_ROLLOVER_HOUR, effectiveTodayIso, nowLocalIso, resolveMenuDate } from "./date.ts";
 import { isoDateOf } from "./macros.ts";
 
 const TODAY = "2026-08-19";
@@ -71,4 +71,45 @@ test("nowLocalIso: parses back as the same local wall-clock time (no timezone su
   assert.equal(stamped, "2026-08-20T23:15:42.123");
   assert.equal(new Date(stamped).getHours(), 23);
   assert.equal(new Date(stamped).getMinutes(), 15);
+});
+
+test("effectiveTodayIso: DEFAULT_ROLLOVER_HOUR is 2 AM", () => {
+  assert.equal(DEFAULT_ROLLOVER_HOUR, 2);
+});
+
+test("effectiveTodayIso: 23:59 the night before is well before the rollover boundary -- same day it's stamped", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 20, 23, 59, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-08-20");
+});
+
+test("effectiveTodayIso: 00:01 -- just past midnight is still the day that's ending, not a new day", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 21, 0, 1, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-08-20");
+});
+
+test("effectiveTodayIso: 01:59 -- one minute before rollover is still the day that's ending", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 21, 1, 59, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-08-20");
+});
+
+test("effectiveTodayIso: 02:01 -- one minute past rollover is the new day", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 21, 2, 1, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-08-21");
+});
+
+test("effectiveTodayIso: pins the transition instant itself -- 01:59:59.999 is still the old day, 02:00:00.000 is already the new day", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 21, 1, 59, 59, 999), DEFAULT_ROLLOVER_HOUR), "2026-08-20");
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 21, 2, 0, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-08-21");
+});
+
+test("effectiveTodayIso: a rolloverHour other than the default is honored (not hardcoded to 2)", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 21, 3, 30, 0, 0), 4), "2026-08-20");
+  assert.equal(effectiveTodayIso(new Date(2026, 7, 21, 4, 30, 0, 0), 4), "2026-08-21");
+});
+
+// DST ends in the US on the first Sunday of November -- Nov 1, 2026, 2:00 AM EDT falls back to
+// 1:00 AM EST (an hour repeats; the local day is 25 hours long). Same technique as nowLocalIso's
+// neighboring DST-adjacent tests (issues #111/#124): explicit local Date components, TZ pinned to
+// America/New_York for the whole package test run (see header comment above). This proves
+// `Date.setDate(d - 1)` -- not manual 24h-offset math -- is what keeps the day-before calculation
+// correct on an irregular-length day.
+test("effectiveTodayIso: DST fall-back day (Nov 1, 2026) -- before rollover still resolves to Oct 31, after rollover resolves to Nov 1", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 10, 1, 0, 30, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-10-31");
+  assert.equal(effectiveTodayIso(new Date(2026, 10, 1, 3, 0, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-11-01");
 });
