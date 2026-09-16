@@ -1,4 +1,4 @@
-import { averageDailyTotals, computeDailyTotals, isoDateOf, type LogEntry } from "@udine/shared";
+import { averageDailyTotals, computeDailyTotals, DEFAULT_ROLLOVER_HOUR, effectiveDayOf, type LogEntry } from "@udine/shared";
 import { entryCalories, entryDishName, groupEntriesByMeal, type HallMealPeriod } from "./youPaneFormat";
 
 /** "8:40 AM" -- the Logs screen's edit-state row shows a per-entry time (e.g. "Hampshire · 8:40 AM
@@ -56,11 +56,12 @@ export interface WeekDayChip {
 }
 
 /** Week-strip chip data for the calendar week containing today (see currentWeekDates): a gold dot
- * on days with at least one entry (LOCAL day, via isoDateOf on loggedAt -- same bucketing every
- * other local-day read in this app uses, see date.ts), the caller's selected day filled, and any
- * day past `todayIso` flagged so the UI can mute it. */
+ * on days with at least one entry (bucketed by its own EFFECTIVE day, via effectiveDayOf on
+ * loggedAt -- same rollover-aware bucketing every other "today" read in this app uses, see
+ * date.ts), the caller's selected day filled, and any day past `todayIso` flagged so the UI can
+ * mute it. */
 export function buildWeekStrip(entries: LogEntry[], selectedDate: string, todayIso: string): WeekDayChip[] {
-  const loggedDates = new Set(entries.map((e) => isoDateOf(e.loggedAt)));
+  const loggedDates = new Set(entries.map((e) => effectiveDayOf(e.loggedAt, DEFAULT_ROLLOVER_HOUR)));
   return currentWeekDates(todayIso).map((date) => {
     const [y, m, d] = date.split("-").map(Number);
     const weekday = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
@@ -109,7 +110,7 @@ export interface WeekChartData {
  * silently excluding the days they skipped. */
 export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDate: string): WeekChartData {
   const dates = lastSevenDates(todayIso);
-  const perDayEntries = dates.map((date) => entries.filter((e) => isoDateOf(e.loggedAt) === date));
+  const perDayEntries = dates.map((date) => entries.filter((e) => effectiveDayOf(e.loggedAt, DEFAULT_ROLLOVER_HOUR) === date));
   const days = dates.map((date, i) => ({
     date,
     calories: perDayEntries[i].reduce((sum, e) => sum + entryCalories(e), 0),
@@ -132,7 +133,7 @@ export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDa
  * yet today doesn't zero out a streak the user already earned. Null (not 0) when there's no active
  * streak. */
 export function computeLoggingStreak(entries: LogEntry[], todayIso: string): number | null {
-  const loggedDates = new Set(entries.map((e) => isoDateOf(e.loggedAt)));
+  const loggedDates = new Set(entries.map((e) => effectiveDayOf(e.loggedAt, DEFAULT_ROLLOVER_HOUR)));
   let cursor = loggedDates.has(todayIso) ? todayIso : addDaysIso(todayIso, -1);
   let streak = 0;
   while (loggedDates.has(cursor)) {

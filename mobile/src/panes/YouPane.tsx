@@ -1,4 +1,4 @@
-import { computeDailyTotals, hallCompletion, hallNameFor, isoDateOf, rankDiningHalls, type Favorite, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
+import { computeDailyTotals, DEFAULT_ROLLOVER_HOUR, effectiveDayOf, hallCompletion, hallNameFor, rankDiningHalls, type Favorite, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
 import { router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -150,7 +150,10 @@ export function YouPane() {
   useFocusEffect(load);
 
   const date = todayIso();
-  const todaysEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === date);
+  // effectiveDayOf, not isoDateOf -- a raw-prefix match against `date` (an effective day) makes a
+  // 12:30 AM entry (raw prefix already the new calendar day) invisible from Today's Log until the
+  // clock crosses the rollover hour. See shared/src/date.ts's effectiveDayOf doc comment.
+  const todaysEntries = allEntries.filter((e) => effectiveDayOf(e.loggedAt, DEFAULT_ROLLOVER_HOUR) === date);
   const totals = computeDailyTotals(date, todaysEntries);
   const mealGroups = groupEntriesByMeal(todaysEntries);
   // Derived from the same rounded-per-entry sums the meal groups themselves use (not

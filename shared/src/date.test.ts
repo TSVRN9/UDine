@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEFAULT_ROLLOVER_HOUR, effectiveTodayIso, nowLocalIso, resolveMenuDate } from "./date.ts";
+import { DEFAULT_ROLLOVER_HOUR, effectiveDayOf, effectiveTodayIso, nowLocalIso, resolveMenuDate } from "./date.ts";
 import { isoDateOf } from "./macros.ts";
 
 const TODAY = "2026-08-19";
@@ -123,4 +123,25 @@ test("effectiveTodayIso: DST fall-back day (Nov 1, 2026) -- before rollover stil
 // calculation correct on an irregular-length day.
 test("effectiveTodayIso: DST spring-forward day (Mar 9, 2026) -- before rollover resolves to Mar 8, not two days back", () => {
   assert.equal(effectiveTodayIso(new Date(2026, 2, 9, 0, 30, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-03-08");
+});
+
+// effectiveDayOf: the read-side counterpart -- maps a RAW-stamped nowLocalIso() timestamp to its
+// own effective day, instead of comparing its raw prefix against todayIso()'s current value (two
+// different notions of "day" for the same instant -- see shared/src/date.ts's doc comment).
+test("effectiveDayOf: a 12:30 AM timestamp belongs to the day that's ending, not its own raw calendar-day prefix", () => {
+  // Raw prefix is 2026-08-21 (isoDateOf would say so), but the entry is still "yesterday" under
+  // the ~2 AM rollover.
+  assert.equal(effectiveDayOf("2026-08-21T00:30:00.000", DEFAULT_ROLLOVER_HOUR), "2026-08-20");
+});
+
+test("effectiveDayOf: a 2:30 AM timestamp belongs to its own raw calendar day -- already past rollover", () => {
+  assert.equal(effectiveDayOf("2026-08-21T02:30:00.000", DEFAULT_ROLLOVER_HOUR), "2026-08-21");
+});
+
+test("effectiveDayOf: an 11:30 PM timestamp belongs to its own raw calendar day -- well before the boundary", () => {
+  assert.equal(effectiveDayOf("2026-08-20T23:30:00.000", DEFAULT_ROLLOVER_HOUR), "2026-08-20");
+});
+
+test("effectiveDayOf: honors a rolloverHour other than the default", () => {
+  assert.equal(effectiveDayOf("2026-08-21T03:30:00.000", 4), "2026-08-20");
 });
