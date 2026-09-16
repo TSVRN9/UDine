@@ -1,9 +1,9 @@
-import { isoDateOf, type LogEntry } from "@udine/shared";
+import { computeDailyTotals, isoDateOf, type LogEntry } from "@udine/shared";
 import { router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Card, EmptyState, SectionHeader } from "../components/ui";
+import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
 import { entryCalories, entryDishName, groupEntriesByMeal, logItemLine } from "../lib/youPaneFormat";
@@ -180,9 +180,7 @@ export default function LogsScreen() {
   const today = todayIso();
   const selectedEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === selectedDate);
   const mealGroups = groupEntriesByMeal(selectedEntries);
-  // Same round-per-entry-then-sum convention as every other displayed total in this app --
-  // agrees exactly with the meal groups' own subtotals, not just approximately.
-  const dayTotalCalories = mealGroups.reduce((sum, g) => sum + g.totalCalories, 0);
+  const dayTotals = computeDailyTotals(selectedDate, selectedEntries);
   const weekStrip = buildWeekStrip(allEntries, selectedDate, today);
   const weekChart = buildWeekChart(allEntries, today, selectedDate);
   const funStats = buildFunStats(allEntries, today);
@@ -212,7 +210,7 @@ export default function LogsScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title={`${weekdayLong}'s Log`} right={<Text style={styles.dayTotal}>{dayTotalCalories} cal</Text>} />
+          <SectionHeader title={`${weekdayLong}'s Log`} right={<Text style={styles.dayTotal}>{Math.round(dayTotals.calories)} cal</Text>} />
           {selectedEntries.length === 0 ? (
             <EmptyState title="Nothing logged" message="No entries for this day." />
           ) : (
@@ -241,6 +239,19 @@ export default function LogsScreen() {
                   </View>
                 </Fragment>
               ))}
+
+              <View style={styles.mealDivider} />
+              <View style={styles.totalsRow}>
+                <View style={styles.totalCell}>
+                  <Stat label="Protein" value={`${dayTotals.proteinG.toFixed(0)}g`} />
+                </View>
+                <View style={styles.totalCell}>
+                  <Stat label="Carbs" value={`${dayTotals.totalCarbG.toFixed(0)}g`} />
+                </View>
+                <View style={styles.totalCell}>
+                  <Stat label="Fat" value={`${dayTotals.totalFatG.toFixed(0)}g`} />
+                </View>
+              </View>
             </Card>
           )}
         </View>
@@ -343,6 +354,8 @@ const styles = StyleSheet.create({
   mealItemName: { flexShrink: 1, fontFamily: fonts.body400, fontSize: fs(13), color: colors.ink900 },
   mealItemCalories: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   mealDivider: { height: 1, backgroundColor: withOpacity(colors.ink900, 8) },
+  totalsRow: { flexDirection: "row", gap: spacing(2.5) },
+  totalCell: { flex: 1 },
 
   // Edit sub-card -- gold border, stepper + standalone remove.
   editCard: {

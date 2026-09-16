@@ -431,6 +431,40 @@ describe("LogsScreen day log editing", () => {
   });
 });
 
+describe("LogsScreen day macro totals (#richer-daily-macro-stats)", () => {
+  it("shows protein/carb/fat totals for the selected day, computed via computeDailyTotals", async () => {
+    // NUTRITION: proteinG 12, totalCarbG 30, totalFatG 8 per serving.
+    logMock.getAllEntries.mockResolvedValue([logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1)]);
+    const root = await renderLogsScreen();
+    const body = texts(root);
+    expect(body).toMatch(/Protein\s*12g/);
+    expect(body).toMatch(/Carbs\s*30g/);
+    expect(body).toMatch(/Fat\s*8g/);
+  });
+
+  it("sums protein/carb/fat across multiple servings and entries, not just the first entry", async () => {
+    logMock.getAllEntries.mockResolvedValue([
+      logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 2), // 24g protein, 60g carb, 16g fat
+      logEntry("2", "Grilled Chicken", 1, "2026-08-20T18:00:00.000", 1), // +12g protein, +30g carb, +8g fat
+    ]);
+    const root = await renderLogsScreen();
+    const body = texts(root);
+    expect(body).toMatch(/Protein\s*36g/);
+    expect(body).toMatch(/Carbs\s*90g/);
+    expect(body).toMatch(/Fat\s*24g/);
+  });
+
+  it("shows no macro row for a day with zero entries -- the existing EmptyState path, not a zeroed row", async () => {
+    logMock.getAllEntries.mockResolvedValue([]);
+    const root = await renderLogsScreen();
+    const body = texts(root);
+    expect(body).toMatch(/Nothing logged/);
+    expect(body).not.toMatch(/Protein/);
+    expect(body).not.toMatch(/Carbs/);
+    expect(body).not.toMatch(/Fat/);
+  });
+});
+
 describe("LogsScreen For Fun stats", () => {
   it("shows an empty state instead of zeroed stat cards when the log is completely empty", async () => {
     logMock.getAllEntries.mockResolvedValue([]);
