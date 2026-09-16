@@ -463,6 +463,23 @@ describe("LogsScreen day macro totals (#richer-daily-macro-stats)", () => {
     expect(body).not.toMatch(/Carbs/);
     expect(body).not.toMatch(/Fat/);
   });
+
+  it("agrees exactly with the meal-group subtotals for fractional servings split across meal periods (#501 rework)", async () => {
+    // Odd base calorie count + a half-serving (SERVINGS_STEP = 0.5) makes each entry's raw
+    // calories fractional: 101 * 1.5 = 151.5, which per-entry-then-sum rounds to 152. Two such
+    // entries in different meal groups (breakfast/dinner) sum to 304 by that convention, but
+    // rounding computeDailyTotals' raw float sum once at the end gives round(303.0) = 303 --
+    // disagreeing with what the meal subtotals rendered directly beneath the header show.
+    const oddNutrition = { ...NUTRITION, calories: 101 };
+    logMock.getAllEntries.mockResolvedValue([
+      { ...logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 1.5), nutrition: oddNutrition },
+      { ...logEntry("2", "Grilled Chicken", 1, "2026-08-20T18:00:00.000", 1.5), nutrition: oddNutrition },
+    ]);
+    const root = await renderLogsScreen();
+    const body = texts(root);
+    expect(body).toMatch(/304\s*cal/);
+    expect(body).not.toMatch(/303\s*cal/);
+  });
 });
 
 describe("LogsScreen For Fun stats", () => {

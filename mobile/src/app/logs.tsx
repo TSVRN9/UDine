@@ -180,6 +180,9 @@ export default function LogsScreen() {
   const today = todayIso();
   const selectedEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === selectedDate);
   const mealGroups = groupEntriesByMeal(selectedEntries);
+  // Same round-per-entry-then-sum convention as every other displayed total in this app --
+  // agrees exactly with the meal groups' own subtotals, not just approximately.
+  const dayTotalCalories = mealGroups.reduce((sum, g) => sum + g.totalCalories, 0);
   const dayTotals = computeDailyTotals(selectedDate, selectedEntries);
   const weekStrip = buildWeekStrip(allEntries, selectedDate, today);
   const weekChart = buildWeekChart(allEntries, today, selectedDate);
@@ -210,7 +213,7 @@ export default function LogsScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title={`${weekdayLong}'s Log`} right={<Text style={styles.dayTotal}>{Math.round(dayTotals.calories)} cal</Text>} />
+          <SectionHeader title={`${weekdayLong}'s Log`} right={<Text style={styles.dayTotal}>{dayTotalCalories} cal</Text>} />
           {selectedEntries.length === 0 ? (
             <EmptyState title="Nothing logged" message="No entries for this day." />
           ) : (
