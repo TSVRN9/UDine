@@ -4,14 +4,17 @@
 // real module to derive its shape, and the real ../lib/supabase drags in native bindings
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
-import { Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
+import { Spinner } from "./Skeleton";
+import Svg from "react-native-svg";
 import { Button } from "./ui";
 import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } from "../lib/plate";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { lookupDishLive } from "../lib/lookupDish";
+import { artboardEnclosingStyle, normalizeColor } from "../lib/artboard";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -1145,8 +1148,45 @@ describe("PlateSheet", () => {
       });
     });
 
-    it("rate_limited: swaps into the exact same slot/shape the fetching row occupied -- nothing else shifts", async () => {
-      const { StyleSheet } = require("react-native");
+    it("rate_limited: swaps into the same slot the fetching row occupied, with its own gray/clock treatment, not a copy of the fetching gold/spinner styling -- nothing else shifts", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Trail Mix", nutrition: DISH.nutrition }], hasMore: false });
+      let resolveLookup!: (v: unknown) => void;
+      mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+      const root = renderSheet();
+      await runSearch(root, "trail mix");
+
+      act(() => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const fetchingRows = lookupStateRow(root);
+      expect(fetchingRows).toHaveLength(1);
+      const fetchingStyle = StyleSheet.flatten(fetchingRows[0].props.style);
+      const bodyDuringFetch = texts(root).flat().join(" ");
+      const fetchSlotPos = bodyDuringFetch.search(/Looking up\s+trail mix/i);
+      const offPosDuringFetch = bodyDuringFetch.indexOf("Trail Mix");
+
+      await act(async () => {
+        resolveLookup({ status: "rate_limited" });
+        await Promise.resolve();
+      });
+
+      const rateLimitedRows = lookupStateRow(root);
+      expect(rateLimitedRows).toHaveLength(1); // still exactly one row, not zero/two -- same slot
+      const rateLimitedStyle = StyleSheet.flatten(rateLimitedRows[0].props.style);
+      // Per SearchLookupStates.dc.html, fetching (gold pill) and rate_limited (gray pill) are
+      // deliberately NOT the same treatment -- only the slot they occupy is shared.
+      expect(rateLimitedStyle.backgroundColor).not.toEqual(fetchingStyle.backgroundColor);
+      const bodyAfterRateLimit = texts(root).flat().join(" ");
+      expect(bodyAfterRateLimit).toMatch(/maxed out for the hour/i);
+      // "nothing else shifts": the already-found OFF row is still there, still after the lookup
+      // row -- swapping fetching -> rate_limited didn't reorder or duplicate surrounding rows.
+      const rateLimitSlotPos = bodyAfterRateLimit.search(/maxed out for the hour/i);
+      const offPosAfterRateLimit = bodyAfterRateLimit.indexOf("Trail Mix");
+      expect(offPosDuringFetch).toBeGreaterThan(fetchSlotPos);
+      expect(offPosAfterRateLimit).toBeGreaterThan(rateLimitSlotPos);
+    });
+
+    it("fetching and rate_limited pills match SearchLookupStates.dc.html's distinct backgrounds/radius/padding (43/46 gold pill vs 71/73 gray pill)", async () => {
       let resolveLookup!: (v: unknown) => void;
       mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
       const root = renderSheet();
@@ -1155,19 +1195,40 @@ describe("PlateSheet", () => {
       act(() => {
         directLookupButton(root)[0].props.onPress();
       });
-      const fetchingRows = lookupStateRow(root);
-      expect(fetchingRows).toHaveLength(1);
-      const fetchingStyle = StyleSheet.flatten(fetchingRows[0].props.style);
+      const fetchingStyle = StyleSheet.flatten(lookupStateRow(root)[0].props.style);
+      const fetchingSpec = artboardEnclosingStyle("SearchLookupStates.dc.html", "Looking up", 2);
+      expect(normalizeColor(fetchingStyle.backgroundColor as string)).toBe(fetchingSpec.backgroundColor);
+      expect(fetchingStyle.borderRadius).toBe(fetchingSpec.borderRadius);
+      expect(fetchingStyle.paddingVertical).toBe(fetchingSpec.paddingVertical);
+      expect(fetchingStyle.paddingHorizontal).toBe(fetchingSpec.paddingHorizontal);
 
       await act(async () => {
         resolveLookup({ status: "rate_limited" });
         await Promise.resolve();
       });
+      const rateLimitedStyle = StyleSheet.flatten(lookupStateRow(root)[0].props.style);
+      const rateLimitedSpec = artboardEnclosingStyle("SearchLookupStates.dc.html", "Live lookups", 1);
+      expect(normalizeColor(rateLimitedStyle.backgroundColor as string)).toBe(rateLimitedSpec.backgroundColor);
+      expect(rateLimitedStyle.borderRadius).toBe(rateLimitedSpec.borderRadius);
+      expect(rateLimitedStyle.paddingVertical).toBe(rateLimitedSpec.paddingVertical);
+      expect(rateLimitedStyle.paddingHorizontal).toBe(rateLimitedSpec.paddingHorizontal);
+    });
 
-      const rateLimitedRows = lookupStateRow(root);
-      expect(rateLimitedRows).toHaveLength(1); // still exactly one row, not zero/two
-      expect(StyleSheet.flatten(rateLimitedRows[0].props.style)).toEqual(fetchingStyle); // same container shape -- no layout shift
-      expect(texts(root).flat().join(" ")).toMatch(/busy right now/i);
+    it("rate_limited renders the artboard's static clock glyph (line 72), not the fetching spinner", async () => {
+      mockedLookupDishLive.mockResolvedValue({ status: "rate_limited" });
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+        await Promise.resolve();
+      });
+
+      const row = lookupStateRow(root)[0];
+      // A clock glyph is a Circle + a bent Path (the hands) with no `spin`-style rotating
+      // container around it -- distinguishing it from the fetching row's Spinner component.
+      expect(row.findAllByType(Spinner)).toHaveLength(0);
+      expect(row.findAll((n) => n.type === Svg && n.props.testID === "lookupStateClockIcon")).toHaveLength(1);
     });
 
     it("rate_limited: retry is a manual tap only -- letting time pass never re-fires lookup-dish on its own", async () => {

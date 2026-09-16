@@ -103,6 +103,30 @@ export function artboardStyle(file: string, anchorText: string, nth = 0): Artboa
   throw new Error(`artboard ${file}: no element #${nth} with text "${anchorText}"`);
 }
 
+/**
+ * Style of the `up`-th enclosing `<div>` around the first occurrence of `anchorText` -- for a
+ * container styled around a nested icon+label (e.g. a spinner + "Looking up…" row) whose own
+ * immediate text is empty, so `artboardStyle`'s leaf-text match can't reach it (see this file's
+ * header comment). `up=0` is the label's own immediate div (same element `artboardStyle` would
+ * find); `up=1`/`up=2` climb past icon-row wrapper divs to the actual pill container. Tracks only
+ * `<div>` open/close pairs (not the icon's `<svg>`/`<circle>`/`<path>`), so it stays a few lines
+ * instead of a real HTML parser -- fine for these artboards' div-based layout.
+ */
+export function artboardEnclosingStyle(file: string, anchorText: string, up: number): ArtboardStyle {
+  const src = read(file);
+  const idx = src.indexOf(anchorText);
+  if (idx < 0) throw new Error(`artboard ${file}: no element containing text "${anchorText}"`);
+  const stack: string[] = []; // style attrs of currently-open <div>s, outermost first
+  const divTag = /<div\b([^>]*)>|<\/div>/g;
+  for (let m = divTag.exec(src); m && m.index < idx; m = divTag.exec(src)) {
+    if (m[0] === "</div>") stack.pop();
+    else stack.push(/style="([^"]*)"/.exec(m[1])?.[1] ?? "");
+  }
+  const style = stack[stack.length - 1 - up];
+  if (style === undefined) throw new Error(`artboard ${file}: no enclosing <div> #${up} around "${anchorText}"`);
+  return toRnStyle(style);
+}
+
 /** Every `transition:` / `animation:` declaration in the artboard's <style> rules, keyed by selector. */
 export function artboardTransitions(file: string): Record<string, ArtboardTransition[]> {
   const out: Record<string, ArtboardTransition[]> = {};

@@ -636,19 +636,32 @@ export function PlateSheet({
                   {/* lookup-dish's fetching/rate_limited states render as ONE inline row at the
                   exact spot a UMass-catalog match would occupy in the list below -- not a
                   blocking full-screen state, and OFF/USDA/Custom rows already found keep showing
-                  beneath it. Same container for both, only its content swaps, so resolving from
-                  fetching to rate_limited never shifts anything else in the list. miss renders no
-                  row here at all -- the standing "Create a custom food" footer further below is
-                  its resolution, brief foodpro-menu-expansion task 4. */}
+                  beneath it. Same SLOT for both (this is the only inline lookup-state indicator,
+                  and resolving fetching -> rate_limited doesn't reorder or duplicate anything
+                  around it), but each state gets its own gold-spinner vs. gray-clock treatment
+                  per SearchLookupStates.dc.html (43/46 vs 71/73) -- they're not meant to look
+                  identical. miss renders no row here at all -- the standing "Create a custom
+                  food" footer further below is its resolution, brief foodpro-menu-expansion
+                  task 4. */}
                   {(directLookup === "loading" || directLookup === "rate_limited") && (
-                    <View style={styles.lookupStateRow} testID="lookupStateRow">
+                    <View
+                      style={directLookup === "loading" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
+                      testID="lookupStateRow"
+                    >
                       {directLookup === "loading" ? (
                         <>
                           <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
                           <Text style={styles.lookupStateText}>Looking up {query.trim()}…</Text>
                         </>
                       ) : (
-                        <Text style={styles.lookupStateText}>UMass Dining lookup is busy right now. Try again in a bit.</Text>
+                        <>
+                          {/* SearchLookupStates.dc.html:72 -- a static clock, not the fetching spinner. */}
+                          <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateClockIcon">
+                            <Circle cx={8} cy={8} r={6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
+                            <Path d="M8 5v3.5l2.3 1.3" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                          </Svg>
+                          <Text style={styles.lookupStateText}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
+                        </>
                       )}
                     </View>
                   )}
@@ -943,16 +956,27 @@ const styles = StyleSheet.create({
   searchError: { fontFamily: fonts.body400, fontSize: fs(13), color: "#b00020", marginTop: spacing(2) },
   searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55), marginTop: spacing(2) },
   directLookup: { alignItems: "center", gap: spacing(1.5), marginTop: spacing(2) },
-  // lookup-dish's fetching/rate_limited states (docs/design/SearchLookupStates.dc.html) -- same
-  // row shape as an ordinary result row below it, so swapping fetching -> rate_limited causes no
-  // layout shift (brief foodpro-menu-expansion task 4).
-  lookupStateRow: {
+  // lookup-dish's fetching/rate_limited states occupy the same SLOT in the results list (brief
+  // foodpro-menu-expansion task 4) but are two distinct pills per SearchLookupStates.dc.html, not
+  // one shared style -- a gold-tinted pill while fetching (line 43) vs. a gray-tinted pill once
+  // rate-limited (line 71). Neither has the ordinary result row's bottom hairline.
+  lookupStateRowFetching: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(2),
     paddingVertical: spacing(2),
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: withOpacity(colors.ink900, 15),
+    paddingHorizontal: spacing(0.5),
+    backgroundColor: withOpacity(colors.gold500, 8),
+    borderRadius: radii.md,
+  },
+  lookupStateRowRateLimited: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
+    backgroundColor: withOpacity(colors.ink900, 5),
+    borderRadius: radii.md,
   },
   lookupStateText: { flex: 1, fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 65) },
   resultRow: {

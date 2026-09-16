@@ -1842,7 +1842,7 @@ describe("HallMenuScreen lookup-dish stress fixtures (brief foodpro-menu-expansi
       .map((n) => n.props.children)
       .flat()
       .join(" ");
-    expect(body).toMatch(/busy right now/i);
+    expect(body).toMatch(/maxed out for the hour/i);
   });
 });
 

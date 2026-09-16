@@ -1,4 +1,4 @@
-import { artboardStyle, artboardTransitions, normalizeColor } from "./artboard";
+import { artboardEnclosingStyle, artboardStyle, artboardTransitions, normalizeColor } from "./artboard";
 
 describe("artboardStyle", () => {
   it("reads the inline style of the element whose text matches the anchor", () => {
@@ -40,6 +40,30 @@ describe("artboardStyle", () => {
 
   it("throws when the anchor is not on the artboard, so a stale citation fails loudly", () => {
     expect(() => artboardStyle("Main.dc.html", "No such copy")).toThrow(/No such copy/);
+  });
+});
+
+describe("artboardEnclosingStyle", () => {
+  it("climbs past a nested icon+label wrapper to the pill div that actually carries the background (SearchLookupStates.dc.html:43/46 -- 2 divs up from the label)", () => {
+    expect(artboardEnclosingStyle("SearchLookupStates.dc.html", "Looking up", 2)).toMatchObject({
+      backgroundColor: normalizeColor("rgba(201,154,46,0.08)"),
+      borderRadius: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 2,
+    });
+  });
+
+  it("climbs one div when the icon is a direct sibling of the label, not double-wrapped (SearchLookupStates.dc.html:71/73)", () => {
+    expect(artboardEnclosingStyle("SearchLookupStates.dc.html", "Live lookups", 1)).toMatchObject({
+      backgroundColor: normalizeColor("rgba(36,26,20,0.05)"),
+      borderRadius: 6,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+    });
+  });
+
+  it("throws when the anchor isn't on the artboard", () => {
+    expect(() => artboardEnclosingStyle("SearchLookupStates.dc.html", "No such copy", 1)).toThrow(/No such copy/);
   });
 });
 
