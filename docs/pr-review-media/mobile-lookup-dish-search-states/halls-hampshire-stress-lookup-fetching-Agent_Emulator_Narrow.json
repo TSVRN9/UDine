@@ -1,10 +1,10 @@
 {
-  "sha": "2c1ed3cfa776afc62cb5a3c0be406be101b65938",
+  "sha": "cdfd254757e7183f340826b0a6de5619a7d4b05f",
   "branch": "mobile/lookup-dish-search-states",
   "worktree": "/home/tavern/Projects/js/UDine",
   "route": "halls/hampshire",
   "device": "Agent_Emulator_Narrow",
   "stress": "lookup-fetching",
   "dirty": false,
-  "ts": "2026-09-16T03:44:41Z"
+  "ts": "2026-09-16T05:19:12Z"
 }
