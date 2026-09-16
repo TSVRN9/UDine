@@ -151,6 +151,20 @@ describe("LogsScreen week strip", () => {
   });
 });
 
+// late-night-2am-day-rollover task 4: an entry logged at 12:30 AM has a raw calendar-day prefix
+// of the NEXT day, but under the ~2 AM rollover it's still "today" (mocked to 2026-08-20) -- it
+// must not be filtered out of the default-selected day's log as if it belonged to the next day.
+describe("LogsScreen late-night log bucketing", () => {
+  it("includes an entry logged at 12:30 AM (raw next-day prefix) under today's default-selected log card", async () => {
+    logMock.getAllEntries.mockResolvedValue([logEntry("1", "Midnight Snack", 2, "2026-08-21T00:30:00.000")]);
+    const root = await renderLogsScreen();
+    const body = texts(root);
+    expect(body).toMatch(/THURSDAY'S LOG/i); // today (Aug 20) is still selected by default
+    expect(body).toMatch(/Midnight Snack/);
+    expect(body).not.toMatch(/Nothing logged/);
+  });
+});
+
 describe("LogsScreen day log editing", () => {
   it("toggles a tapped row into the gold-bordered edit state (stepper + remove visible)", async () => {
     logMock.getAllEntries.mockResolvedValue([logEntry("1", "French Toast", 3, "2026-08-20T07:00:00.000", 2)]);

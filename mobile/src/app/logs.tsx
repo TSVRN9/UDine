@@ -1,4 +1,4 @@
-import { computeDailyTotals, isoDateOf, type LogEntry } from "@udine/shared";
+import { computeDailyTotals, DEFAULT_ROLLOVER_HOUR, effectiveDayOf, type LogEntry } from "@udine/shared";
 import { router, useFocusEffect } from "expo-router";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -178,7 +178,11 @@ export default function LogsScreen() {
   }
 
   const today = todayIso();
-  const selectedEntries = allEntries.filter((e) => isoDateOf(e.loggedAt) === selectedDate);
+  // effectiveDayOf, not isoDateOf -- a raw-prefix match against `selectedDate` (an effective day)
+  // makes a 12:30 AM entry (raw prefix already the new calendar day) invisible from that day's log
+  // card until the clock crosses the rollover hour. See shared/src/date.ts's effectiveDayOf doc
+  // comment; identical mismatch pattern to YouPane.tsx's today-filter (found by PR #500's reviewer).
+  const selectedEntries = allEntries.filter((e) => effectiveDayOf(e.loggedAt, DEFAULT_ROLLOVER_HOUR) === selectedDate);
   const mealGroups = groupEntriesByMeal(selectedEntries);
   // Same round-per-entry-then-sum convention as every other displayed total in this app --
   // agrees exactly with the meal groups' own subtotals, not just approximately.

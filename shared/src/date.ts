@@ -80,3 +80,17 @@ export function effectiveTodayIso(now: Date, rolloverHour: number): string {
   }
   return `${effective.getFullYear()}-${pad(effective.getMonth() + 1)}-${pad(effective.getDate())}`;
 }
+
+// The read-side counterpart to effectiveTodayIso: which effective day a RAW-stamped timestamp
+// (nowLocalIso's output) belongs to. A logged entry's raw calendar-day prefix and todayIso()'s
+// *current* value are two different notions of "day" for the same instant -- a snack stamped
+// 00:30 already has a raw prefix of the new calendar day, while todayIso() at that same moment
+// still returns the day that's ending. Comparing those two directly (the bug this fixes) makes
+// the entry invisible from "today" until the clock crosses rolloverHour. The fix is to apply the
+// same rollover rule to the timestamp itself, not to compare it against "now"'s rollover result --
+// `new Date(isoTimestamp)` parses a bare (no "Z"/offset) string as local time per ECMA-262 (same
+// convention nowLocalIso's own doc comment relies on), so this is just effectiveTodayIso fed the
+// entry's own moment instead of the current instant.
+export function effectiveDayOf(isoTimestamp: string, rolloverHour: number): string {
+  return effectiveTodayIso(new Date(isoTimestamp), rolloverHour);
+}

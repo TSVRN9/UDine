@@ -231,6 +231,19 @@ describe("YouPane today-filter", () => {
     expect(body).toMatch(/\b500\b/);
     expect(body).not.toMatch(/\b1000\b/);
   });
+
+  // late-night-2am-day-rollover task 4: an entry logged at 12:30 AM has a raw calendar-day prefix
+  // of the NEXT day, but under the ~2 AM rollover it's still "today" (mocked to 2026-08-19) --
+  // it must not be filtered out as if it belonged to a different day.
+  it("includes an entry logged at 12:30 AM (raw next-day prefix) in Today's Log, under the ~2 AM rollover", async () => {
+    logMock.getAllEntries.mockResolvedValue([logEntry("1", "Midnight Snack", 2, "2026-08-20T00:30:00.000")]);
+
+    const root = await renderYouPane();
+    const body = texts(root);
+    expect(body).toMatch(/Midnight Snack/);
+    expect(body).not.toMatch(/Nothing logged yet/);
+    expect(body).toMatch(/\b500\b/);
+  });
 });
 
 // --- #118: Today's Log grouped by mealtime, per-meal subtotals, ALL LOGS link. -----------------
