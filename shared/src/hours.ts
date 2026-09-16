@@ -1,3 +1,4 @@
+import { DEFAULT_ROLLOVER_HOUR } from "./date.ts";
 import { DINING_HALLS } from "./umassDining.ts";
 import type { DiningHallHours, DiningHoursFeed, HallMealPeriod, MealStatus, OpenStatus, RetailLocationHours, TimeWindow } from "./types.ts";
 
@@ -224,7 +225,11 @@ const STANDARD_MEAL_WINDOWS: Record<HallMealPeriod, TimeWindow> = {
   breakfast: { openTime: "7:00 AM", closeTime: "11:00 AM" },
   lunch: { openTime: "11:00 AM", closeTime: "4:30 PM" },
   dinner: { openTime: "4:30 PM", closeTime: "9:00 PM" },
-  latenight: { openTime: "9:00 PM", closeTime: "12:00 AM" },
+  // Matches the day-rollover boundary (shared/src/date.ts's effectiveTodayIso/
+  // DEFAULT_ROLLOVER_HOUR) instead of a separately hardcoded "12:00 AM" -- Late Night service
+  // keeps running past midnight, and this fallback clock is the only "is it open right now" signal
+  // this window has, so it needs to agree with the day boundary the rest of the app now uses.
+  latenight: { openTime: "9:00 PM", closeTime: `${DEFAULT_ROLLOVER_HOUR}:00 AM` },
 };
 
 /** Formats a resolved Date back into get_infov2's own "H:MM AM/PM" wire format -- the inverse of
