@@ -14,6 +14,33 @@ export function computeDailyTotals(date: string, entries: LogEntry[]): DailyMacr
   );
 }
 
+/** Averages each macro across a set of daily totals (e.g. a 7-day window). Divides by the
+ * array's own length, not a fixed window size -- callers control the window by what they pass in.
+ * Zeroes (not NaN) for an empty array. The result's `date` carries no meaning here -- it's not
+ * a single day -- callers that need a label set their own. */
+export function averageDailyTotals(totals: DailyMacroTotals[]): DailyMacroTotals {
+  const count = totals.length;
+  if (count === 0) {
+    return { date: "", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 };
+  }
+  const sum = totals.reduce(
+    (acc, t) => ({
+      calories: acc.calories + t.calories,
+      proteinG: acc.proteinG + t.proteinG,
+      totalCarbG: acc.totalCarbG + t.totalCarbG,
+      totalFatG: acc.totalFatG + t.totalFatG,
+    }),
+    { calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 },
+  );
+  return {
+    date: "",
+    calories: sum.calories / count,
+    proteinG: sum.proteinG / count,
+    totalCarbG: sum.totalCarbG / count,
+    totalFatG: sum.totalFatG / count,
+  };
+}
+
 export function isoDateOf(isoTimestamp: string): string {
   return isoTimestamp.slice(0, 10);
 }

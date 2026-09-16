@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { computeDailyTotals, isoDateOf } from "./macros.ts";
-import type { LogEntry } from "./types.ts";
+import { averageDailyTotals, computeDailyTotals, isoDateOf } from "./macros.ts";
+import type { DailyMacroTotals, LogEntry } from "./types.ts";
 
 function entry(overrides: Partial<LogEntry>): LogEntry {
   return {
@@ -43,4 +43,34 @@ test("computeDailyTotals returns zeroes for no entries", () => {
 
 test("isoDateOf truncates a full ISO timestamp to the date portion", () => {
   assert.equal(isoDateOf("2026-08-17T12:00:00.000Z"), "2026-08-17");
+});
+
+function dailyTotals(overrides: Partial<DailyMacroTotals>): DailyMacroTotals {
+  return { date: "2026-08-17", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0, ...overrides };
+}
+
+test("averageDailyTotals averages each macro across days, not sum/first/last", () => {
+  const days = [
+    dailyTotals({ date: "2026-08-15", calories: 100, proteinG: 10, totalCarbG: 20, totalFatG: 4 }),
+    dailyTotals({ date: "2026-08-16", calories: 300, proteinG: 30, totalCarbG: 40, totalFatG: 8 }),
+  ];
+  const average = averageDailyTotals(days);
+  assert.equal(average.calories, 200);
+  assert.equal(average.proteinG, 20);
+  assert.equal(average.totalCarbG, 30);
+  assert.equal(average.totalFatG, 6);
+});
+
+test("averageDailyTotals divides by the array's own length, not a fixed 7-day window", () => {
+  const days = [
+    dailyTotals({ calories: 90 }),
+    dailyTotals({ calories: 90 }),
+    dailyTotals({ calories: 90 }),
+  ];
+  assert.equal(averageDailyTotals(days).calories, 90);
+});
+
+test("averageDailyTotals returns zeroes, not NaN, for an empty array", () => {
+  const average = averageDailyTotals([]);
+  assert.deepEqual(average, { date: "", calories: 0, proteinG: 0, totalCarbG: 0, totalFatG: 0 });
 });
