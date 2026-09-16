@@ -69,6 +69,20 @@ test("caches all 4 dining hall tids and 4 Grab 'N Go tids for the given date", a
   }
 });
 
+test("with no date argument, defaults to the rollover-aware effective day, not a bare new Date() (12:30 AM still warms the prior day's cache)", async () => {
+  jest.useFakeTimers().setSystemTime(new Date(2026, 8, 9, 0, 30, 0, 0)); // Sep 9, 12:30 AM local
+  mockFetchMenu.mockImplementation((tid) => Promise.resolve(itemsFor(tid)));
+
+  prefetchTodaysMenus();
+  await flush();
+
+  expect(mockSaveCachedMenu).toHaveBeenCalledTimes(8);
+  for (const [, date] of mockSaveCachedMenu.mock.calls) {
+    expect(date.toDateString()).toBe(new Date(2026, 8, 8).toDateString());
+  }
+  jest.useRealTimers();
+});
+
 test("one tid's fetchMenu rejection doesn't stop the others or throw/reject", async () => {
   const failingTid = allTids[0];
   mockFetchMenu.mockImplementation((tid) => {

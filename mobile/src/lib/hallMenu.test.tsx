@@ -462,6 +462,41 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     expect(steppedDate.getTime()).toBe(stepDate(initialDate, 1).getTime());
   });
 
+  // late-night-2am-day-rollover brief, task 2: selectedDate's default now goes through
+  // effectiveToday() instead of a bare `new Date()`, so a menu check before the ~2 AM rollover
+  // hour still requests/shows the day that's ending (Late Night), not a brand-new day.
+  it("at 12:30 AM local, the initial menu fetch is still for the day that's ending, not the new calendar day", async () => {
+    jest.setSystemTime(new Date(2026, 7, 20, 0, 30, 0, 0)); // Aug 20, 12:30 AM local
+    await renderScreen([PIZZA, SALAD]);
+
+    const [, initialDate] = mockedFetchMenu.mock.calls.at(-1)!;
+    expect(initialDate.toDateString()).toBe(new Date(2026, 7, 19).toDateString()); // Aug 19 -- the closing day
+  });
+
+  it("at 2:30 AM local (past the rollover hour), the initial menu fetch is for the new calendar day", async () => {
+    jest.setSystemTime(new Date(2026, 7, 20, 2, 30, 0, 0)); // Aug 20, 2:30 AM local
+    await renderScreen([PIZZA, SALAD]);
+
+    const [, initialDate] = mockedFetchMenu.mock.calls.at(-1)!;
+    expect(initialDate.toDateString()).toBe(new Date(2026, 7, 20).toDateString()); // Aug 20 -- rolled over
+  });
+
+  it("date-stepper navigation from a 12:30 AM rollover-aware default steps exactly one day, landing on the real calendar day next", async () => {
+    jest.setSystemTime(new Date(2026, 7, 20, 0, 30, 0, 0)); // Aug 20, 12:30 AM local -- default resolves to Aug 19
+    const root = await renderScreen([PIZZA, SALAD]);
+    const callsBefore = mockedFetchMenu.mock.calls.length;
+    const [, initialDate] = mockedFetchMenu.mock.calls[callsBefore - 1];
+    expect(initialDate.toDateString()).toBe(new Date(2026, 7, 19).toDateString());
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    const [, steppedDate] = mockedFetchMenu.mock.calls[callsBefore];
+    expect(steppedDate.getTime()).toBe(stepDate(initialDate, 1).getTime());
+    expect(steppedDate.toDateString()).toBe(new Date(2026, 7, 20).toDateString()); // the actual calendar day
+  });
+
   it("selects the Grab 'N Go tab in place (gold underline moves to it) instead of navigating to a separate route, and fetches the hall's Grab 'N Go tid, not its regular hall tid", async () => {
     const root = await renderScreen([PIZZA]);
     mockedFetchMenu.mockResolvedValueOnce([]);

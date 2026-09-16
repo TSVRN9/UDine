@@ -1,4 +1,4 @@
-import { easternTodayIso, nowLocalIso, todayIso } from "./date";
+import { easternTodayIso, effectiveToday, nowLocalIso, todayIso } from "./date";
 
 // TZ is pinned to America/New_York for the whole suite via mobile/package.json's `test` script
 // (`TZ=America/New_York jest`) -- mutating `process.env.TZ` mid-test does NOT work (verified:
@@ -35,6 +35,51 @@ describe("nowLocalIso", () => {
     expect(stamped).toBe("2026-08-20T23:15:42.123");
     expect(new Date(stamped).getHours()).toBe(23);
     expect(new Date(stamped).getMinutes()).toBe(15);
+  });
+});
+
+describe("todayIso", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // The brief's core acceptance criterion: a menu check/snack log at 12:30 AM still resolves to
+  // the day that's ending (Late Night), not a brand-new day -- todayIso() is now routed through
+  // @udine/shared's effectiveTodayIso/DEFAULT_ROLLOVER_HOUR instead of a bare `new Date()`.
+  it("at 12:30 AM local, still resolves to the prior day (Late Night's day, not a new one)", () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 7, 21, 0, 30, 0, 0)); // Aug 21, 12:30 AM
+    expect(todayIso()).toBe("2026-08-20");
+  });
+
+  it("at 2:30 AM local, resolves to the new day (past the rollover boundary)", () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 7, 21, 2, 30, 0, 0)); // Aug 21, 2:30 AM
+    expect(todayIso()).toBe("2026-08-21");
+  });
+
+  it("at 11 AM local (nowhere near the boundary), resolves to the same calendar day as before", () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 7, 20, 11, 0, 0, 0));
+    expect(todayIso()).toBe("2026-08-20");
+  });
+});
+
+describe("effectiveToday", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("returns a Date for the prior calendar day when now is before the rollover hour", () => {
+    const result = effectiveToday(new Date(2026, 7, 21, 0, 30, 0, 0));
+    expect(result.toDateString()).toBe(new Date(2026, 7, 20).toDateString());
+  });
+
+  it("returns a Date for the same calendar day once past the rollover hour", () => {
+    const result = effectiveToday(new Date(2026, 7, 21, 2, 30, 0, 0));
+    expect(result.toDateString()).toBe(new Date(2026, 7, 21).toDateString());
+  });
+
+  it("defaults to the current instant when called with no argument", () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 7, 21, 0, 30, 0, 0));
+    expect(effectiveToday().toDateString()).toBe(new Date(2026, 7, 20).toDateString());
   });
 });
 

@@ -1,8 +1,20 @@
+import { DEFAULT_ROLLOVER_HOUR, effectiveTodayIso } from "@udine/shared";
+
+// Routed through @udine/shared's effectiveTodayIso (not a bare `new Date()`) so Late Night's
+// day boundary is ~2 AM, not midnight -- a snack logged or a menu viewed at 12:30 AM still buckets
+// under the day that's ending. Every caller (YouPane's today-filter, sqliteStorage's
+// getEntriesForDate, halls/[slug].tsx, menuPrefetch.ts) inherits this for free.
 export function todayIso(): string {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
+  return effectiveTodayIso(new Date(), DEFAULT_ROLLOVER_HOUR);
+}
+
+// Same effective day as todayIso(), as a Date instead of an ISO string -- for callers (halls/
+// [slug].tsx's selectedDate default/isSelectedDateToday check) that need Date methods like
+// toDateString() or hallMenuTabs.ts's stepDate() rather than a string.
+export function effectiveToday(now: Date = new Date()): Date {
+  const iso = effectiveTodayIso(now, DEFAULT_ROLLOVER_HOUR);
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 // Same technique as supabase/functions/check-favorited-foods/index.ts's easternDateParts()/
