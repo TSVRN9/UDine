@@ -4,14 +4,17 @@
 // real module to derive its shape, and the real ../lib/supabase drags in native bindings
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
-import { Text, TextInput } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
+import { Spinner } from "./Skeleton";
+import Svg from "react-native-svg";
 import { Button } from "./ui";
 import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } from "../lib/plate";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { lookupDishLive } from "../lib/lookupDish";
+import { artboardEnclosingStyle, artboardStyle, normalizeColor } from "../lib/artboard";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -68,6 +71,20 @@ function ensureSearchExpanded(root: renderer.ReactTestRenderer) {
 
 function searchInput(root: renderer.ReactTestRenderer) {
   return root.root.findByProps({ placeholder: "Search for a food" });
+}
+
+// Shared across the "manual fallback" and "fetching/rate_limited inline states" describes below.
+// Button is wrapped through several nested layers (Press/Pressable/View), each forwarding
+// accessibilityLabel/children via spread -- a type+prop predicate restricted to the composite
+// Button instance itself is the only way to get an unambiguous single match.
+function directLookupButton(root: renderer.ReactTestRenderer) {
+  return root.root.findAll((n) => n.type === Button && n.props.accessibilityLabel === "Search UMass Dining directly");
+}
+
+// testID alone double-matches (the composite View and its underlying host node both carry it) --
+// filtering by the composite View type from 'react-native' collapses that to the one real row.
+function lookupStateRow(root: renderer.ReactTestRenderer) {
+  return root.root.findAll((n) => n.type === View && n.props.testID === "lookupStateRow");
 }
 
 function emptyLogStorage(): LogStorage {
@@ -1017,14 +1034,6 @@ describe("PlateSheet", () => {
   });
 
   describe("manual 'Search UMass Dining directly' fallback (lookup-dish)", () => {
-    // Button is wrapped through several nested layers (Press/Pressable/View), each forwarding
-    // accessibilityLabel/children via spread -- findByProps/findAllByProps match every layer that
-    // carries the searched prop, not just the outer button, so a type+prop predicate restricted to
-    // the composite Button instance itself is the only way to get an unambiguous single match.
-    function directLookupButton(root: renderer.ReactTestRenderer) {
-      return root.root.findAll((n) => n.type === Button && n.props.accessibilityLabel === "Search UMass Dining directly");
-    }
-
     it("is hidden when the merged search already found a UMass result", async () => {
       mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
       const root = renderSheet();
@@ -1089,7 +1098,7 @@ describe("PlateSheet", () => {
       expect(body).toMatch(/Bacon \(Franklin Dining Commons\)/);
     });
 
-    it("renders an honest, plain 'no matches' state on a genuine miss, keeping the affordance for a retry", async () => {
+    it("miss: removes the spinner row and adds no new message -- the standing 'Create a custom food' row is the resolution, and the retry affordance stays", async () => {
       mockedLookupDishLive.mockResolvedValue({ status: "miss" });
       const root = renderSheet();
       await runSearch(root, "nonexistent dish");
@@ -1097,19 +1106,185 @@ describe("PlateSheet", () => {
         directLookupButton(root)[0].props.onPress();
       });
       const body = texts(root).flat().join(" ");
-      expect(body).toMatch(/doesn.t have this dish either/);
+      // brief foodpro-menu-expansion task 4: miss is a non-change to the empty state -- no new
+      // "doesn't have this dish either"-style text, the dashed Create-a-custom-food row (already
+      // always present) is the only resolution.
+      expect(body).not.toMatch(/doesn.t have this dish either/i);
+      expect(lookupStateRow(root)).toHaveLength(0);
       expect(directLookupButton(root)).toHaveLength(1);
     });
+  });
 
-    it("renders an honest, plain rate-limited state -- not a crash, not a silent no-op", async () => {
+  describe("lookup-dish fetching/rate_limited inline states (brief foodpro-menu-expansion task 4)", () => {
+    it("fetching: renders as exactly one inline row at the position a UMass match would occupy; already-found OFF rows are unaffected", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Trail Mix", nutrition: DISH.nutrition }], hasMore: false });
+      let resolveLookup!: (v: unknown) => void;
+      mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+      const root = renderSheet();
+      await runSearch(root, "trail mix");
+
+      act(() => {
+        directLookupButton(root)[0].props.onPress();
+      });
+
+      // `<Text>Looking up {query}…</Text>` renders its children as separate array entries
+      // ("Looking up ", "trail mix", "…"), not one joined string -- join the whole flattened
+      // text tree into one string (same pattern other tests in this file use) before matching,
+      // and compare string positions for the ordering claim.
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Looking up\s+trail mix/i);
+      expect(body).toMatch(/Trail Mix/);
+      const spinnerPos = body.search(/Looking up\s+trail mix/i);
+      const offPos = body.indexOf("Trail Mix");
+      expect(spinnerPos).toBeGreaterThanOrEqual(0);
+      expect(offPos).toBeGreaterThan(spinnerPos); // spinner row sits at the top slot, OFF row still shows beneath it
+      expect(lookupStateRow(root)).toHaveLength(1);
+      // exactly one fetching indicator -- the manual-tap button isn't a second one alongside it
+      expect(directLookupButton(root)).toHaveLength(0);
+
+      await act(async () => {
+        resolveLookup({ status: "miss" });
+        await Promise.resolve();
+      });
+    });
+
+    it("rate_limited: swaps into the same slot the fetching row occupied, with its own gray/clock treatment, not a copy of the fetching gold/spinner styling -- nothing else shifts", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Trail Mix", nutrition: DISH.nutrition }], hasMore: false });
+      let resolveLookup!: (v: unknown) => void;
+      mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+      const root = renderSheet();
+      await runSearch(root, "trail mix");
+
+      act(() => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const fetchingRows = lookupStateRow(root);
+      expect(fetchingRows).toHaveLength(1);
+      const fetchingStyle = StyleSheet.flatten(fetchingRows[0].props.style);
+      const bodyDuringFetch = texts(root).flat().join(" ");
+      const fetchSlotPos = bodyDuringFetch.search(/Looking up\s+trail mix/i);
+      const offPosDuringFetch = bodyDuringFetch.indexOf("Trail Mix");
+
+      await act(async () => {
+        resolveLookup({ status: "rate_limited" });
+        await Promise.resolve();
+      });
+
+      const rateLimitedRows = lookupStateRow(root);
+      expect(rateLimitedRows).toHaveLength(1); // still exactly one row, not zero/two -- same slot
+      const rateLimitedStyle = StyleSheet.flatten(rateLimitedRows[0].props.style);
+      // Per SearchLookupStates.dc.html, fetching (gold pill) and rate_limited (gray pill) are
+      // deliberately NOT the same treatment -- only the slot they occupy is shared.
+      expect(rateLimitedStyle.backgroundColor).not.toEqual(fetchingStyle.backgroundColor);
+      const bodyAfterRateLimit = texts(root).flat().join(" ");
+      expect(bodyAfterRateLimit).toMatch(/maxed out for the hour/i);
+      // "nothing else shifts": the already-found OFF row is still there, still after the lookup
+      // row -- swapping fetching -> rate_limited didn't reorder or duplicate surrounding rows.
+      const rateLimitSlotPos = bodyAfterRateLimit.search(/maxed out for the hour/i);
+      const offPosAfterRateLimit = bodyAfterRateLimit.indexOf("Trail Mix");
+      expect(offPosDuringFetch).toBeGreaterThan(fetchSlotPos);
+      expect(offPosAfterRateLimit).toBeGreaterThan(rateLimitSlotPos);
+    });
+
+    it("fetching and rate_limited pills match SearchLookupStates.dc.html's distinct backgrounds/radius/padding (43/46 gold pill vs 71/73 gray pill)", async () => {
+      let resolveLookup!: (v: unknown) => void;
+      mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+
+      act(() => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const fetchingStyle = StyleSheet.flatten(lookupStateRow(root)[0].props.style);
+      const fetchingSpec = artboardEnclosingStyle("SearchLookupStates.dc.html", "Looking up", 2);
+      expect(normalizeColor(fetchingStyle.backgroundColor as string)).toBe(fetchingSpec.backgroundColor);
+      expect(fetchingStyle.borderRadius).toBe(fetchingSpec.borderRadius);
+      expect(fetchingStyle.paddingVertical).toBe(fetchingSpec.paddingVertical);
+      expect(fetchingStyle.paddingHorizontal).toBe(fetchingSpec.paddingHorizontal);
+
+      await act(async () => {
+        resolveLookup({ status: "rate_limited" });
+        await Promise.resolve();
+      });
+      const rateLimitedStyle = StyleSheet.flatten(lookupStateRow(root)[0].props.style);
+      const rateLimitedSpec = artboardEnclosingStyle("SearchLookupStates.dc.html", "Live lookups", 1);
+      expect(normalizeColor(rateLimitedStyle.backgroundColor as string)).toBe(rateLimitedSpec.backgroundColor);
+      expect(rateLimitedStyle.borderRadius).toBe(rateLimitedSpec.borderRadius);
+      expect(rateLimitedStyle.paddingVertical).toBe(rateLimitedSpec.paddingVertical);
+      expect(rateLimitedStyle.paddingHorizontal).toBe(rateLimitedSpec.paddingHorizontal);
+      expect(rateLimitedStyle.gap).toBe(rateLimitedSpec.gap);
+    });
+
+    it("fetching label text is 13px with no line-height (line 46) and rate_limited copy is a distinct 12px/1.4-line-height treatment (line 73), not the fetching row's shared style", async () => {
+      let resolveLookup!: (v: unknown) => void;
+      mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+
+      act(() => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const fetchingTextStyle = StyleSheet.flatten(lookupStateRow(root)[0].findByType(Text).props.style);
+      const fetchingTextSpec = artboardStyle("SearchLookupStates.dc.html", "Looking up");
+      expect(fetchingTextStyle.fontSize).toBe(fetchingTextSpec.fontSize);
+      expect(fetchingTextStyle.lineHeight).toBeUndefined();
+
+      await act(async () => {
+        resolveLookup({ status: "rate_limited" });
+        await Promise.resolve();
+      });
+      const rateLimitedTextStyle = StyleSheet.flatten(lookupStateRow(root)[0].findByType(Text).props.style);
+      const rateLimitedTextSpec = artboardStyle("SearchLookupStates.dc.html", "Live lookups");
+      expect(rateLimitedTextStyle.fontSize).toBe(rateLimitedTextSpec.fontSize);
+      // artboard.ts's px() runs "line-height: 1.4" through Number() with no unit stripped, so the
+      // spec value is the bare unitless CSS ratio (1.4), not an RN absolute pixel line-height --
+      // multiply by fontSize before comparing, never assert `lineHeight: 1.4` directly.
+      expect(rateLimitedTextStyle.lineHeight).toBe(
+        Math.round((rateLimitedTextSpec.fontSize as number) * (rateLimitedTextSpec.lineHeight as number)),
+      );
+    });
+
+    it("rate_limited renders the artboard's static clock glyph (line 72), not the fetching spinner", async () => {
       mockedLookupDishLive.mockResolvedValue({ status: "rate_limited" });
       const root = renderSheet();
       await runSearch(root, "nonexistent dish");
+
       await act(async () => {
         directLookupButton(root)[0].props.onPress();
+        await Promise.resolve();
       });
-      const body = texts(root).flat().join(" ");
-      expect(body).toMatch(/busy right now|try again/i);
+
+      const row = lookupStateRow(root)[0];
+      // A clock glyph is a Circle + a bent Path (the hands) with no `spin`-style rotating
+      // container around it -- distinguishing it from the fetching row's Spinner component.
+      expect(row.findAllByType(Spinner)).toHaveLength(0);
+      expect(row.findAll((n) => n.type === Svg && n.props.testID === "lookupStateClockIcon")).toHaveLength(1);
+    });
+
+    it("rate_limited: retry is a manual tap only -- letting time pass never re-fires lookup-dish on its own", async () => {
+      jest.useFakeTimers();
+      mockedLookupDishLive.mockResolvedValue({ status: "rate_limited" });
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+        await Promise.resolve();
+      });
+      expect(mockedLookupDishLive).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        jest.advanceTimersByTime(5 * 60_000);
+      });
+      expect(mockedLookupDishLive).toHaveBeenCalledTimes(1); // no timed auto-retry
+
+      // the retry affordance is still there and still only fires on an explicit tap
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+        await Promise.resolve();
+      });
+      expect(mockedLookupDishLive).toHaveBeenCalledTimes(2);
+      jest.useRealTimers();
     });
   });
 });
