@@ -92,14 +92,21 @@ export interface WeekChartData {
 
 /** Last 7 Days bar-chart data. Per-day bar calories: round-per-entry-then-sum, the same convention
  * groupEntriesByMeal uses for meal subtotals -- keeps a day's bar agreeing exactly with that day's
- * own log-screen total, not just approximately.
+ * own log-screen total, not just approximately. Unchanged by this function's averages below.
  *
  * Averages cover all four macros, via @udine/shared's computeDailyTotals (one DailyMacroTotals per
- * day) and averageDailyTotals (mean across those) -- the same shared aggregation every other daily-
- * total display in the app uses, rather than a bespoke inline sum of just two of the four macros.
- * Averages are over the full 7-day window, including no-log days -- "cal / day" reads as a daily
- * rate over the week, and a user who only logged 3 of the last 7 days should see that reflected as
- * a lower average, not one inflated by silently excluding the days they skipped. */
+ * day, summed from RAW unrounded per-entry values -- rounding is the caller's job, not the shared
+ * helper's) and averageDailyTotals (mean across those), rounded ONCE at the end -- the same shared
+ * aggregation and rounding-once convention every other computeDailyTotals caller in the app uses
+ * (YouPane's stat cards, PlateSheet's plate totals, and this same screen's own selected-day total),
+ * rather than a bespoke inline sum of just two of the four macros. Deliberately NOT round-per-entry-
+ * then-sum like the bars above: that would mean a day's contribution to this average could disagree
+ * with what computeDailyTotals shows for that same day elsewhere on this screen (selected-day
+ * total) -- a smaller, less visible drift than disagreeing with the selected-day section would be,
+ * and only possible at all when servings isn't a whole number. Averages are over the full 7-day
+ * window, including no-log days -- "cal / day" reads as a daily rate over the week, and a user who
+ * only logged 3 of the last 7 days should see that reflected as a lower average, not one inflated by
+ * silently excluding the days they skipped. */
 export function buildWeekChart(entries: LogEntry[], todayIso: string, selectedDate: string): WeekChartData {
   const dates = lastSevenDates(todayIso);
   const perDayEntries = dates.map((date) => entries.filter((e) => isoDateOf(e.loggedAt) === date));
