@@ -1,0 +1,10 @@
+{
+  "sha": "3af539c6e86eb2d25907274616a44f7f3e8a9450",
+  "branch": "mobile/event-detail-share-button",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/mobile-event-detail-share-button",
+  "route": "event-detail?title=Test%20Event&featuredImage=&pamphletImage=https%3A%2F%2Fexample.com%2Fposter.jpg&expirationDate=&isFeatured=",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-09-16T14:24:15Z"
+}
