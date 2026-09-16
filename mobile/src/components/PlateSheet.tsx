@@ -9,7 +9,7 @@ import { Spinner } from "./Skeleton";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
-import { labelLookupCandidate, lookupDishLive, type LookupDishCandidate } from "../lib/lookupDish";
+import { labelLookupCandidate, lookupDishLive, type LookupDishCandidate, type LookupDishResult } from "../lib/lookupDish";
 import { durations } from "../lib/motion";
 import { isEstimatedServing, plateSearchResultDetail, plateSearchResultKey, totalItemCount, type PlateEntry, type PlateSearchResult } from "../lib/plate";
 import { formatServings, parseServingsInput } from "../lib/servingsStepper";
@@ -45,6 +45,11 @@ const VISIBLE_RESULTS = 5;
 // suffix onto both), and one of those pairs a long dish name with a long location name -- the
 // wrap/overflow case a reviewer would actually worry about, not a conveniently short one.
 const STRESS_LOOKUP_QUERY = "flatbread";
+// Which stress fixture names drive runDirectLookup below -- "lookup-fetching" deliberately never
+// resolves so screenshot.sh's --record has a stable window to capture the inline spinner row
+// (brief foodpro-menu-expansion task 4); "lookup-miss"/"lookup-rate-limited" fake the two other
+// server states lookup-dish can return, which otherwise can't be forced on demand from a device.
+const LOOKUP_STRESS_FIXTURES = new Set(["lookup-hit", "lookup-fetching", "lookup-miss", "lookup-rate-limited"]);
 const STRESS_LOOKUP_CANDIDATES: LookupDishCandidate[] = [
   {
     dishName: "Wood-Fired Margherita Flatbread with Burrata, Basil & Calabrian Chili Honey",
@@ -535,8 +540,18 @@ export function PlateSheet({
     setDirectLookup("loading");
     // __DEV__-only: lookup-dish isn't deployed yet, so a real multi-candidate hit can't be
     // triggered over the network -- swap in STRESS_LOOKUP_CANDIDATES instead of the real round
-    // trip. See that const's own comment above.
-    const result = __DEV__ && stressFixture === "lookup-hit" ? { status: "hit" as const, candidates: STRESS_LOOKUP_CANDIDATES } : await lookupDishLive(supabase, q);
+    // trip. See that const's own comment above. The miss/rate_limited/fetching fixtures fake the
+    // other two settled states plus a permanently-pending one for --record, same reasoning.
+    const result: LookupDishResult =
+      __DEV__ && stressFixture === "lookup-hit"
+        ? { status: "hit", candidates: STRESS_LOOKUP_CANDIDATES }
+        : __DEV__ && stressFixture === "lookup-miss"
+          ? { status: "miss" }
+          : __DEV__ && stressFixture === "lookup-rate-limited"
+            ? { status: "rate_limited" }
+            : __DEV__ && stressFixture === "lookup-fetching"
+              ? await new Promise<LookupDishResult>(() => {})
+              : await lookupDishLive(supabase, q);
     if (searchSeq.current !== seq) return;
     if (result.status === "hit") {
       const additions = candidatesToResults(result.candidates);
@@ -554,12 +569,12 @@ export function PlateSheet({
   // then fires the real button handler (still hitting the __DEV__ branch above, not a duplicate
   // code path).
   useEffect(() => {
-    if (!__DEV__ || !visible || stressFixture !== "lookup-hit") return;
+    if (!__DEV__ || !visible || !stressFixture || !LOOKUP_STRESS_FIXTURES.has(stressFixture)) return;
     setSearchExpanded(true);
     setQuery(STRESS_LOOKUP_QUERY);
   }, [visible, stressFixture]);
   useEffect(() => {
-    if (!__DEV__ || !visible || stressFixture !== "lookup-hit" || query !== STRESS_LOOKUP_QUERY) return;
+    if (!__DEV__ || !visible || !stressFixture || !LOOKUP_STRESS_FIXTURES.has(stressFixture) || query !== STRESS_LOOKUP_QUERY) return;
     void runDirectLookup();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runDirectLookup closes over query/directLookup by design (same as its button's onPress); re-running this effect on those would loop.
   }, [visible, stressFixture, query]);
@@ -618,6 +633,38 @@ export function PlateSheet({
                   )}
                   {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
                   {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
+                  {/* lookup-dish's fetching/rate_limited states render as ONE inline row at the
+                  exact spot a UMass-catalog match would occupy in the list below -- not a
+                  blocking full-screen state, and OFF/USDA/Custom rows already found keep showing
+                  beneath it. Same SLOT for both (this is the only inline lookup-state indicator,
+                  and resolving fetching -> rate_limited doesn't reorder or duplicate anything
+                  around it), but each state gets its own gold-spinner vs. gray-clock treatment
+                  per SearchLookupStates.dc.html (43/46 vs 71/73) -- they're not meant to look
+                  identical. miss renders no row here at all -- the standing "Create a custom
+                  food" footer further below is its resolution, brief foodpro-menu-expansion
+                  task 4. */}
+                  {(directLookup === "loading" || directLookup === "rate_limited") && (
+                    <View
+                      style={directLookup === "loading" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
+                      testID="lookupStateRow"
+                    >
+                      {directLookup === "loading" ? (
+                        <>
+                          <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
+                          <Text style={styles.lookupStateTextFetching}>Looking up {query.trim()}…</Text>
+                        </>
+                      ) : (
+                        <>
+                          {/* SearchLookupStates.dc.html:72 -- a static clock, not the fetching spinner. */}
+                          <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateClockIcon">
+                            <Circle cx={8} cy={8} r={6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
+                            <Path d="M8 5v3.5l2.3 1.3" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                          </Svg>
+                          <Text style={styles.lookupStateTextRateLimited}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
+                        </>
+                      )}
+                    </View>
+                  )}
                   {results?.slice(0, visibleCount).map((r) => {
                     const key = plateSearchResultKey(r);
                     const detail = plateSearchResultDetail(r);
@@ -665,21 +712,14 @@ export function PlateSheet({
                   {/* Manual, explicit fallback to lookup-dish's on-demand FoodPro Web INA lookup --
                   never fires on its own. Shown only once the merged search above has come up
                   short on an actual UMass Dining result; disappears the moment one lands (a hit
-                  merges straight into the results list above as an ordinary "umass" row). */}
-                  {results !== null && !searching && !results.some((r) => r.kind === "umass") && (
+                  merges straight into the results list above as an ordinary "umass" row). Hidden
+                  while a lookup is already in flight -- the inline row above is the only fetching
+                  indicator (exactly one, not this button too); shown again for idle/miss/
+                  rate_limited so retry always stays one manual tap away, never a timer. */}
+                  {results !== null && !searching && directLookup !== "loading" && !results.some((r) => r.kind === "umass") && (
                     <View style={styles.directLookup}>
-                      {directLookup === "miss" && <Text style={styles.searchHint}>UMass Dining doesn&apos;t have this dish either.</Text>}
-                      {directLookup === "rate_limited" && <Text style={styles.searchHint}>UMass Dining lookup is busy right now. Try again in a bit.</Text>}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onPress={runDirectLookup}
-                        disabled={directLookup === "loading"}
-                        // Fixed regardless of the loading-state label change below, so a screen
-                        // reader announces a stable action name throughout.
-                        accessibilityLabel="Search UMass Dining directly"
-                      >
-                        {directLookup === "loading" ? "Searching UMass Dining…" : "Search UMass Dining directly"}
+                      <Button variant="ghost" size="sm" onPress={runDirectLookup} accessibilityLabel="Search UMass Dining directly">
+                        Search UMass Dining directly
                       </Button>
                     </View>
                   )}
@@ -916,6 +956,34 @@ const styles = StyleSheet.create({
   searchError: { fontFamily: fonts.body400, fontSize: fs(13), color: "#b00020", marginTop: spacing(2) },
   searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55), marginTop: spacing(2) },
   directLookup: { alignItems: "center", gap: spacing(1.5), marginTop: spacing(2) },
+  // lookup-dish's fetching/rate_limited states occupy the same SLOT in the results list (brief
+  // foodpro-menu-expansion task 4) but are two distinct pills per SearchLookupStates.dc.html, not
+  // one shared style -- a gold-tinted pill while fetching (line 43) vs. a gray-tinted pill once
+  // rate-limited (line 71). Neither has the ordinary result row's bottom hairline.
+  lookupStateRowFetching: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(0.5),
+    backgroundColor: withOpacity(colors.gold500, 8),
+    borderRadius: radii.md,
+  },
+  lookupStateRowRateLimited: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2.5),
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
+    backgroundColor: withOpacity(colors.ink900, 5),
+    borderRadius: radii.md,
+  },
+  // Distinct text treatments per SearchLookupStates.dc.html -- fetching (line 46) is 13px with no
+  // line-height; rate_limited (line 73) is 12px with a 1.4 line-height ratio. `fs()`/`spacing()`
+  // scale by width, not by a CSS ratio, so the line-height is computed here (fontSize * 1.4),
+  // never a bare `lineHeight: 1.4` (that would render as ~1.4dp, not ~17px).
+  lookupStateTextFetching: { flex: 1, fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 65) },
+  lookupStateTextRateLimited: { flex: 1, fontFamily: fonts.body400, fontSize: fs(12), lineHeight: fs(12 * 1.4), color: withOpacity(colors.ink900, 65) },
   resultRow: {
     flexDirection: "row",
     alignItems: "center",
