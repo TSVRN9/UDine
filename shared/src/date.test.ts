@@ -106,10 +106,21 @@ test("effectiveTodayIso: a rolloverHour other than the default is honored (not h
 // DST ends in the US on the first Sunday of November -- Nov 1, 2026, 2:00 AM EDT falls back to
 // 1:00 AM EST (an hour repeats; the local day is 25 hours long). Same technique as nowLocalIso's
 // neighboring DST-adjacent tests (issues #111/#124): explicit local Date components, TZ pinned to
-// America/New_York for the whole package test run (see header comment above). This proves
-// `Date.setDate(d - 1)` -- not manual 24h-offset math -- is what keeps the day-before calculation
-// correct on an irregular-length day.
+// America/New_York for the whole package test run (see header comment above). Note: on this
+// particular (fall-back) day, a naive 24h-ms-subtraction implementation happens to land on the same
+// calendar day as `Date.setDate(d - 1)`, so this assertion alone doesn't distinguish them -- see the
+// spring-forward test below for that.
 test("effectiveTodayIso: DST fall-back day (Nov 1, 2026) -- before rollover still resolves to Oct 31, after rollover resolves to Nov 1", () => {
   assert.equal(effectiveTodayIso(new Date(2026, 10, 1, 0, 30, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-10-31");
   assert.equal(effectiveTodayIso(new Date(2026, 10, 1, 3, 0, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-11-01");
+});
+
+// DST starts in the US on the second Sunday of March -- Mar 8-9, 2026, 2:00 AM EST springs forward
+// to 3:00 AM EDT (an hour is skipped; the local day is 23 hours long). Unlike the fall-back day
+// above, a naive 24h-ms-subtraction implementation gets this one wrong: subtracting exactly 24h
+// from 00:30 local on the 23-hour day undershoots midnight and lands on Mar 7, not Mar 8. This
+// proves `Date.setDate(d - 1)` -- not manual 24h-offset math -- is what keeps the day-before
+// calculation correct on an irregular-length day.
+test("effectiveTodayIso: DST spring-forward day (Mar 9, 2026) -- before rollover resolves to Mar 8, not two days back", () => {
+  assert.equal(effectiveTodayIso(new Date(2026, 2, 9, 0, 30, 0, 0), DEFAULT_ROLLOVER_HOUR), "2026-03-08");
 });
