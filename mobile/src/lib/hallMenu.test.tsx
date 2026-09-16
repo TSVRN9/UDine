@@ -382,13 +382,25 @@ describe("HallMenuScreen seen-dish tracking (#107)", () => {
 });
 
 describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () => {
-  it("defaults to the Lunch tab -- lunch items show, other meal periods' items don't", async () => {
+  // hall-menu-correct-meal-on-load brief: `selectedMeal` starts hardcoded "lunch" and only
+  // corrects once hallHours resolves -- so if the tab row/content painted real content the moment
+  // `items` resolved (the old behavior this replaces), a hall opened outside lunch hours would
+  // flash real "Lunch" content before snapping to the true period. The fix stays in the loading
+  // state until BOTH items and hours have arrived, so no interim wrong-content frame is ever
+  // trustworthy enough to paint. hallHours is left pending here (never resolved) specifically so
+  // this observes the interim render, not the settled one.
+  it("stays in the loading state -- not the static Lunch default -- once items resolve but hours haven't yet", async () => {
+    let resolveHours: ((value: { halls: unknown[]; retail: unknown[] }) => void) | undefined;
+    mockFetchHoursAndCache.mockReturnValueOnce(new Promise((resolve) => { resolveHours = resolve; }));
     const root = await renderScreen([PIZZA, SALAD, OATMEAL]);
-    // Breakfast is windowed in as Lunch's left neighbor (mounted, hidden) -- scope to the active
-    // pane so its Oatmeal doesn't leak into this "other periods' items don't show" assertion.
+
     const body = activePaneTexts(root).flat().join(" ");
-    expect(body).toMatch(/Pizza/);
-    expect(body).not.toMatch(/Oatmeal/);
+    expect(body).not.toMatch(/Pizza/);
+    expect(body).toMatch(/Getting today.s menu from UMass Dining/);
+
+    // Cleanup: let the still-pending promise resolve so it doesn't leak a dangling timer/handler
+    // into a later test.
+    await act(async () => resolveHours?.({ halls: [], retail: [] }));
   });
 
   // Root-cause fix for the "always lands on Lunch" bug: once hoursFeed resolves and the hall is
