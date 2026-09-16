@@ -27,6 +27,12 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
          CREATE TABLE IF NOT EXISTS custom_foods (
            id TEXT PRIMARY KEY NOT NULL,
            food_json TEXT NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS food_sighting_dedup (
+           dish_name TEXT NOT NULL,
+           hall_tid INTEGER NOT NULL,
+           sighted_date TEXT NOT NULL,
+           PRIMARY KEY (dish_name, hall_tid, sighted_date)
          );`,
       );
       return db;

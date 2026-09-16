@@ -1299,3 +1299,205 @@ and automatic name-matching isn't safe for it, given confirmed spelling/naming d
 sources (e.g. Web INA's "Bluewall - Grill" vs. `get_infov2`'s "The Grill"; "Harvest" vs. "Harvest
 Market"). Likely a small hand-curated mapping table if that future work happens -- not something to
 build speculatively now.
+
+## Retail nutrition gap: enumeration and path forward (2026-09-14)
+
+Research-only pass (no code changed) answering a concrete product question: which retail locations
+have literally zero nutrition source today (neither `foodpro-menu-ajax` nor Web INA), what's actually
+at each one, and what -- if anything -- is worth building. Endpoint-level facts (live `get_infov2`
+enumeration, per-location `foodpro-menu-ajax` probing, Web INA cross-reference, vendor-page and
+OpenFoodFacts checks) are in `docs/apk-reverse-engineering.md`'s "Retail nutrition-gap enumeration
+(2026-09-14)" subsection -- this entry covers the recommendation.
+
+**The gap is exactly 8 locations, precisely enumerated (not "3 examples"):** Paciugo, Argo Tea, UMass
+Store, Yum! Bakery, babyBerk, babyBerk 2, Snack Overflow, The Commonwealth Restaurant. Confirmed by
+cross-referencing all 36 retail entries in a live `get_infov2` fetch against `foodpro-menu-ajax`
+(every `location_id`, across the full rolling date window) and against Web INA's 24 retail
+`locationNum`s (fuzzy name match, correcting for known drift like "Harvest" vs. "Harvest Market").
+**Terrace, which this task's brief did not previously rule in or out, turned out to be a real,
+intermittently-populated `foodpro-menu-ajax` feed (integrated tier), not a gap location** -- a
+concrete instance of the brief's own warning to verify rather than assume paying off: an earlier guess
+based on a single day's `[]` response would have wrongly added a 9th location to the gap list.
+
+**This task's own working hypothesis -- "several of these are recognizable branded chains, and a
+chain's own published nutrition is often usable" -- turns out to be true for only 2 of the 8, and both
+fail on inspection, for two different concrete reasons, not a blanket "branded chains don't work"
+verdict:**
+- **Paciugo** (real, currently-operating gelato chain) publishes an official nutrition page, but it's
+  too coarse to use (2 rows: gelato/sorbet, no per-flavor breakdown) -- and moot regardless, since
+  UMass's own `get_infov2` entry for this location doesn't even carry an item list today (no
+  `*_menu` field populated at all, confirmed live), so there's no current standing-menu content to
+  match a vendor source against in the first place. This is the single worst case in the gap set: no
+  menu shown, not just no nutrition.
+- **Argo Tea** (formerly a real national café chain) has no usable official source at all: the parent
+  company shut down its physical cafés nationally around 2020, and its official nutrition page
+  (`argotea.com/pages/nutrition`) returned **HTTP 402 Payment Required** on a live fetch -- a lapsed
+  storefront, not a maintained page. Third-party aggregator mirrors of the old café menu exist --
+  `nutritionvalue.org` even carries FDC-style branded-food entries explicitly attributed to "Argo Tea
+  Cafe, LLC" (USDA FoodData Central provenance, not an anonymous crowd entry) -- but every one is a
+  snapshot of the chain's pre-2020 national menu and can't be verified against whatever, if anything,
+  the UMass location actually served while it was still open.
+
+**The other 6 of 8 are UMass's own concepts, not franchises, so "does the vendor publish nutrition"
+doesn't even apply to them** -- confirmed via web search + UMass's own marketing copy for each (Yum!
+Bakery bakes on-site in the Blue Wall behind a glass wall; babyBerk/babyBerk 2 are UMass Dining's own
+food trucks, named for a Berkshire Commons chef; Snack Overflow is a UMass Dining café inside the CS
+building; The Commonwealth Restaurant is a student-run fine-dining restaurant operated by the Isenberg
+hospitality program; UMass Store is primarily a merchandise/gift retailer, not really a dining venue
+at all). There is no external vendor page to scrape for any of these six, by construction.
+
+**Checked UMass's own public website for a hidden nutrition source beyond the reverse-engineered
+APIs, per this task's brief -- found real content, but not nutrition.** babyBerk/babyBerk 2 and The
+Commonwealth Restaurant each link to UMass-hosted PDF menus (fetched live) with real item names,
+descriptions, and prices -- richer than the plain-text standing-menu HTML `parseRetailMenuHtml`
+already handles (the PDF-link case, `shared/src/content.ts:113-120`, already covers ingesting these as
+a link, just not as parseable line items). **None of the PDFs carry a single nutrition figure or
+allergen table.** The Commonwealth Restaurant's menus are also explicitly season-coded ("Summer 26"),
+confirming a rotating menu, not a static one.
+
+**OpenFoodFacts, checked per this task's brief against real item names (not hypothetical ones), both
+confirms the assumption and sharpens it into a real risk, not just a coverage gap.** A genuinely
+packaged product name (Dasani water, from the babyBerk PDF/Snack Overflow's price list) hits real
+products with nutrition data, as expected. But real made-to-order item names -- Argo Tea's
+"Teappuccino" and "Matcha Vanilla Latte", babyBerk's "Gold'n BBQ Chicken" and "Black Bean
+Burger" (the first pulled from Argo Tea's own standing-menu text, the rest from babyBerk's PDF, this
+pass's own fetches) -- either miss entirely or, worse, return a top page of superficially
+name-matched but factually wrong packaged products (a frozen Lean Cuisine sandwich, a KFC sandwich, a
+Sol Cuisine veggie patty, a Jade Leaf matcha powder mix); the raw hit count itself isn't a useful
+signal here (OpenFoodFacts caps every non-empty query's reported count at 10000 regardless of true
+match quality, including the correct Dasani hit), so it's the *identity* of the top results, not
+their number, that shows the risk. **A naive
+name-match integration here wouldn't just fail to help, it would risk silently attaching a wrong
+product's nutrition to a real menu item** -- worth calling out explicitly since `matchStandingMenuItem`
+(`mobile/src/lib/cafeMenu.ts:49-67`) already does exactly this kind of best-effort name match against
+`public.dishes`, and any OpenFoodFacts integration modeled on it would inherit the same risk unless
+scoped to exact, deliberately-curated packaged-SKU matches only. None of the 8 locations' actual food
+is barcoded/packaged in a way OpenFoodFacts safely carries, with one narrow exception (bottled
+water/soda incidentally sold at babyBerk and Snack Overflow) that doesn't move the needle -- and UMass
+doesn't publish a SKU list for UMass Store, the one location where packaged goods actually are the
+product, so there's nothing to safely match OpenFoodFacts against there either.
+
+**One nuance that changes the cost/benefit math versus this task's brief's framing:** the brief cited
+`alwaysAvailableStations.ts`/`populate-always-available-dishes` (2026-09-14, same day, see
+`shared/src/alwaysAvailableStations.ts`'s header) as a precedent for "a small hand-maintained seed
+where the item list is genuinely small and stable." That precedent's actual cost is lower than it
+looks: it only curates *which dish names belong to which always-available station* -- nutrition itself
+is still auto-fetched by `populate-always-available-dishes/index.ts` crawling Web INA's
+`longmenu.aspx`/`label.aspx` by name (`index.ts`'s own header, "then label.aspx for the actual
+Nutrition Facts"). **That auto-fetch mechanism requires Web INA to know the dish exists at all, and
+none of these 8 locations have any Web INA presence** (that's the entire finding above) -- so a
+same-shaped seed for any of them would mean hand-typing or hand-estimating nutrition facts per item,
+not just curating names. A materially more expensive, lower-confidence, ongoing content task, not an
+engineering one.
+
+**Recommendation, cost/complexity ordered:**
+
+1. **Do nothing for OpenFoodFacts specifically for this gap.** It's already an approved, integrated
+   source (CLAUDE.md); it just doesn't apply here beyond the narrow bottled-beverage case, which isn't
+   worth special-casing for 2-3 incidental SKUs.
+2. **Don't build a vendor-nutrition-page scraper for Paciugo or Argo Tea.** Both are disqualified on
+   the evidence above (too coarse / dead storefront), not on cost alone -- there's no stable, accurate
+   source to scrape even if the engineering cost were zero. Revisit only if UMass ever starts
+   publishing Paciugo's daily flavor rotation somewhere machine-readable, or if Argo Tea's site comes
+   back; neither is a trigger this codebase can watch for automatically, so this is a "notice if it
+   happens" item, not a scheduled recheck.
+3. **If a hand-curated seed is ever pursued for babyBerk / babyBerk 2, budget it as a content task,
+   not a code task.** The menus are small (4 burgers + ~8 sides/snacks/beverages combined across both
+   trucks) and are the two locations in this gap set students most plausibly log meals from regularly
+   (they're the closest analog to a real QSR item -- a burger, fries, a drink), but every nutrition
+   value would need to be hand-typed or hand-estimated (there is no auto-fetch path, per the nuance
+   above) and re-verified whenever the season-coded PDF changes (~2-3x/year going by the "FA25"
+   filename convention). Worth a product decision on whether that ongoing manual cost is worth it for
+   two food trucks; not something to default into building.
+4. **Accept the rest as a permanent, honest gap; the existing `matched: false` standing-menu UI
+   fallback (`mobile/src/lib/cafeMenu.ts`'s `StandingMenuEntry`) already handles it gracefully, so
+   this isn't a blocker to shipping anything, just a documented limit:**
+   - **UMass Store** -- not really a dining venue; the handful of packaged snacks it stocks aren't
+     even listed anywhere machine-readable to begin with.
+   - **Yum! Bakery** -- rotating/seasonal baked goods with no stable published list at all (and
+     `get_infov2`'s own field for it is a copy-paste bug carrying Paciugo's description text instead
+     of real item names -- an upstream UMass data-quality issue, not fixable from this codebase).
+   - **Snack Overflow** -- its item names (Cappuccino, Muffins, Cookies, etc.) are generic enough that
+     `matchStandingMenuItem`'s existing name-match against `public.dishes` (populated from the halls)
+     already does whatever's mechanically possible here; no dedicated work needed or likely to help
+     much further.
+   - **The Commonwealth Restaurant** -- a genuinely different vendor shape from the rest (reservation
+     fine dining, quarterly-rotating menu, out of step with everyday macro-tracking usage); the
+     maintenance cost of tracking a seasonal fine-dining menu is disproportionate to how often a
+     typical UDine user would actually log a meal there.
+   - **Paciugo** -- accept unless UMass starts publishing a flavor list; there is currently nothing to
+     seed or scrape against.
+   - **Argo Tea** -- accept unless the vendor's own site comes back; third-party mirrors of a
+     materially different (largely defunct) incarnation of the brand aren't a source worth building
+     against.
+
+Net: of the 8-location gap this task set out to enumerate, **0 are worth a scraper today, at most 2
+(babyBerk/babyBerk 2) are worth a hand-curated content investment and only as a deliberate product
+decision, and 6 are best accepted as a permanent, already-gracefully-handled limit.**
+
+## Terrace intermittency mechanism + retail gap-list sampling-risk re-test (2026-09-14, follow-up to PR #481)
+
+Research-only pass (no code changed), a follow-up to PR #481 (now merged to `main` -- see the
+"Retail nutrition gap: enumeration and path forward" entry immediately above). See
+`docs/apk-reverse-engineering.md`'s "FoodPro Web INA" section, "Terrace intermittency mechanism +
+wider gap-list re-test (2026-09-14, follow-up to PR #481)" subsection for the full request/response
+evidence this entry summarizes. PR #481's relevant finding: that pass sampled `foodpro-menu-ajax` for all
+36 `get_infov2` retail `location_id`s across 5 dates (today/+1/+3/+7/+13 from 2026-09-14) and found
+**8 locations with zero data on all 5 dates** (Paciugo, Argo Tea, UMass Store, Yum! Bakery, babyBerk,
+babyBerk 2, Snack Overflow, The Commonwealth Restaurant -- the "confirmed gap" list), plus one
+location, Terrace (`location_id=11150`), that was real but empty on only 3 of the 5 sampled dates --
+a 5-date sample is a narrow enough window that a genuinely-intermittent location can look like a
+zero-data one by chance, which is exactly the risk this follow-up was dispatched to chase down
+against the other 8.
+
+**The 8-location "confirmed gap" list holds up -- no correction needed.** Re-tested all 8 across a
+wider, differently-shaped window: the full 14 consecutive dates 09/14-09/27 (day-offsets +0 through
++13), a superset of PR #481's original 5 dates that additionally hits every weekday of the week
+exactly twice, including both Saturday and Sunday (the original 5-date sample never landed on
+Wednesday, Friday, or Saturday at all). 112 live requests (8 locations x 14 dates) -- **every single
+one returned `[]`.** No populated date at any of the 8, on any weekday. This directly answers the
+sampling-window-risk question the task set out to check: none of the 8 is a Terrace-like
+intermittent location that the original 5-date sample got unlucky with; they're consistently,
+robustly empty across a much wider probe.
+
+**Terrace's intermittency mechanism, chased down as far as this pass's evidence allows, left
+partially unresolved rather than guessed:**
+- **Not explained by `get_infov2` hours.** Terrace's own hours (`07:00 AM - 10:00 PM` weekdays,
+  `10:00 AM - 09:00 PM` weekends) are identical across both its populated and empty date ranges, and
+  it has no per-meal open/close times at all (all six fields `null`) -- so `get_infov2` carries no
+  signal, at any granularity, that predicts which dates have ajax data.
+- **Not a day-of-week effect.** Monday appears on both sides: 09/14 (empty) and 09/21 (populated).
+- **Not a general platform-wide cutoff.** A same-day control against Worcester hall (`tid=1`) showed
+  a fully populated response on all 14 of the same dates, and a control against The Grill (`tid=4696`,
+  a confirmed-integrated retail location) showed its own on/off pattern but a cleanly weekday-driven
+  one (closed both weekends, open every weekday) -- ruling out "everything currently in the rolling
+  window looks like this" as the explanation for Terrace's shape.
+- **What the raw shape actually is:** empty +0/+1 (09/14-09/15), populated +2 through +7 (09/16-09/21,
+  6 contiguous days), empty +8 through +20 (09/22-10/04, 13 more days checked, no second on-block
+  seen). Two candidate mechanisms fit this shape equally well from this pass's data alone -- a
+  shorter, non-resuming forward-publishing horizon for this specific location, vs. a one-off
+  calendar-bound menu-entry batch -- and this pass did not run the test that would separate them
+  (probing well past +20 for a possible second on-block). Left open rather than picked.
+- **Terrace does have a Web INA presence** (`locationNum=78`, "Terrace Cafe", one of the same 28
+  entries PR #481 already counted, just not previously named), confirmed live with real dishes and
+  `RecNum`s (e.g. "Terrace Cafe Burger", `RecNum 061281`). Its own on/off window, scanned the same
+  +0..+20 range across all 4 `mealName` values, is **wider than the ajax feed's for the same
+  location and the same stretch**: populated +2 through +15 (14 contiguous days, vs. ajax's 6), empty
+  +0/+1 (matching ajax's empty start) and +16 through +20. Concretely, Web INA has real menu data for
+  Terrace on 09/22-09/27 -- dates where `foodpro-menu-ajax?tid=11150` returns `[]`. For this one
+  location, Web INA is a genuine supplement to the ajax feed's coverage, not a redundant mirror of it
+  -- worth keeping in mind if `cafeMenu.ts`'s tier-1/tier-2 waterfall or `populate-retail-dishes` ever
+  needs better date coverage for Terrace specifically. Not something acted on in this pass (research
+  only), and not tested for whether it generalizes beyond Terrace.
+
+**Question 4 (could `get_infov2` hours cheaply predict "skip fetching `foodpro-menu-ajax`, this
+location is closed") is answered in the negative, directly, not just "unconfirmed":** all 8
+chronically-empty gap locations publish entirely ordinary-looking hours, and Terrace's hours don't
+vary between its populated and empty windows. There's no hours-derived signal to short-circuit
+`cafeMenu.ts`'s existing tier-1-to-tier-2 fallthrough with; an empty `[]` response stays the only
+signal available, ambiguous as that is between "genuinely no menu today" and "this location's feed
+just hasn't been populated yet."
+
+No `public.dishes`/`populate-retail-dishes` change recommended by this pass -- it's a research-only
+follow-up confirming PR #481's gap list and characterizing (not fully explaining) Terrace's pattern,
+not a new architecture decision.

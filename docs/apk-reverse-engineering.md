@@ -304,6 +304,320 @@ architecture recommendation this fed into):**
   entry is real and not-yet-manifested: once the crawler writes one location's version, the other's
   is discarded permanently under the current upsert-by-name logic.
 
+**Retail nutrition-gap enumeration (2026-09-14) -- which retail locations have ZERO FoodPro
+nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually at each one. Feeds
+`docs/decisions-log.md`'s "Retail nutrition gap: enumeration and path forward" entry:**
+
+- **Full `get_infov2` enumeration, live (2026-09-14):** `curl -sL https://www.umassdining.com/uapp/get_infov2`
+  returns exactly **40 locations** -- the 4 halls plus **36 retail entries** (a bare `umassdining.com`
+  host, no `www.`, doesn't redirect the same way for this path in every environment; use the `www.`
+  host directly and `-L` to be safe, matching `shared/src/hours.ts:4`'s own `BASE`). No headers/auth
+  needed, GET only, confirming `shared/src/hours.ts:146-151`'s `fetchDiningHours` implementation
+  exactly.
+- **Tested every one of the 36 retail `location_id`s against `foodpro-menu-ajax?tid=<id>&date=...`**
+  across today + 1/3/7/13 days out (the full rolling window documented above). **28 have a real feed**
+  (non-`[]` on at least one sampled date) -- including **Terrace** (`location_id=11150`), which
+  returned `[]` on 3 of the 5 sampled dates and full menus (47-88KB) on the other 2: a real,
+  intermittent/low-frequency "integrated" location, not a zero-feed one -- a correction to an
+  assumption this research task started with (only Argo Tea/UMass Store/Paciugo were previously
+  spot-checked; Terrace hadn't been). **The remaining 8 returned `[]` on every one of the 5 sampled
+  dates** -- see next bullet. Full per-location result, live 2026-09-14 (`resp_len` = bytes of the
+  day-0 `foodpro-menu-ajax` response; `2` means literal `[]`):
+
+  | `location_id` | Name | day-0 `resp_len` | Tier |
+  |---|---|---|---|
+  | 647 | Worcester Café | 132194 | integrated |
+  | 1724 | Roots Café | 280277 | integrated |
+  | 5991 | Paciugo | 2 | **gap** |
+  | 32 | People's Organic Coffee | 34489 | integrated |
+  | 4306 | Harvest Market | 260726 | integrated |
+  | 4661 | Tavola | 144046 | integrated |
+  | 4666 | Yum! Bakery | 2 | **gap** |
+  | 4671 | Green Fields | 163214 | integrated |
+  | 4676 | Tamales | 176932 | integrated |
+  | 4681 | Wasabi | 133904 | integrated |
+  | 4686 | Deli Delish | 44084 | integrated |
+  | 4691 | Star Ginger | 103757 | integrated |
+  | 4696 | The Grill | 112724 | integrated |
+  | 9605 | Argo Tea | 2 | **gap** |
+  | 10666 | Berkshire Grab 'N Go | 49040 | integrated |
+  | 10667 | Worcester Grab 'N Go | 38150 | integrated |
+  | 10716 | Franklin Grab 'N Go | 33369 | integrated |
+  | 10715 | Hampshire Grab 'N Go | 18686 | integrated |
+  | 14 | Whitmore Café | 96965 | integrated |
+  | 17 | Procrastination Station | 55317 | integrated |
+  | 18 | Courtside Café | 62225 | integrated |
+  | 883 | ISB Café | 43302 | integrated |
+  | 1723 | Hampshire Café | 42034 | integrated |
+  | 4311 | Peet's Coffee & Tea | 36376 | integrated |
+  | 61 | babyBerk | 2 | **gap** |
+  | 884 | babyBerk 2 | 2 | **gap** |
+  | 2061 | Morrill Café | 28167 | integrated |
+  | 9150 | The Hub | 44381 | integrated |
+  | 9980 | Newman Café | 113910 | integrated |
+  | 9981 | Snack Overflow | 2 | **gap** |
+  | 9967 | UMass Store | 2 | **gap** |
+  | 10293 | Post & Bean Café | 42064 | integrated |
+  | 10372 | Charles River Campus of UMass Amherst | 218300 | integrated |
+  | 10392 | Carney Café | 77239 | integrated |
+  | 10709 | The Commonwealth Restaurant | 2 | **gap** |
+  | 11150 | Terrace | 2 (day-0; 47750/87911 on +3/+7) | integrated (intermittent) |
+
+  28 integrated + 8 gap = 36, the full retail set.
+- **Cross-referenced the 8 gap locations (Terrace excluded -- it already has a real, if intermittent,
+  `foodpro-menu-ajax` feed, confirmed above) against Web INA's 24 retail `locationNum`s** (`location.aspx`, re-fetched
+  live 2026-09-14, same 24 names as already documented above) by fuzzy name match. **8 have zero
+  presence in either system** -- these are the actual "standing-menu-only, genuinely zero nutrition
+  source" set this research task asked to enumerate:
+
+  | `get_infov2` name | `location_id` | Vendor type |
+  |---|---|---|
+  | Paciugo | 5991 | Real, currently-operating international gelato chain |
+  | Argo Tea | 9605 | Formerly a real national café chain; company shut down its physical cafés nationally (see below) |
+  | UMass Store | 9967 | UMass's own campus merchandise/gift store, not primarily a dining venue |
+  | Yum! Bakery | 4666 | UMass Dining's own in-house bakery brand |
+  | babyBerk | 61 | UMass Dining's own food-truck brand |
+  | babyBerk 2 | 884 | UMass Dining's own food-truck brand (second truck) |
+  | Snack Overflow | 9981 | UMass Dining's own in-house café brand (inside the CS building) |
+  | The Commonwealth Restaurant | 10709 | UMass's own student-run, reservation-based fine-dining restaurant (Isenberg hospitality program) |
+
+  (Full 36-location resp-length table and the fuzzy-match working notes are in this research pass's
+  scratch output, not reproduced here -- the 8-row table above is the actionable result.)
+- **The other 2 "extra" Web INA names this task's brief flagged for disambiguation resolve cleanly,
+  for completeness:** `locationNum=23` "Harvest" = `get_infov2`'s "Harvest Market" (`location_id=4306`,
+  already noted above); `locationNum=40` "People's Organic Cafe" = `get_infov2`'s "People's Organic
+  Coffee" (`location_id=32`) -- confirmed **integrated** (`foodpro-menu-ajax?tid=32` returned 34KB
+  live), so it's not part of the gap despite the "Cafe"/"Coffee" name drift.
+- **2 Web INA `locationNum`s don't correspond to anything in the current 40-location `get_infov2` set
+  at all: `locationNum=52` "Marcus Cafe" and `locationNum=54` "OIT Cafe".** Neither name appears
+  anywhere in a live `get_infov2` fetch (checked by substring search over the raw JSON), and both
+  return **zero dish rows on `longmenu.aspx` for all four `mealName` values** (Breakfast/Lunch/Dinner/
+  Late Night), unlike every real retail `locationNum` sampled elsewhere in this doc. Read together,
+  this looks like a stale/decommissioned pair of directory entries Web INA never pruned, not a live
+  gap location -- there's no current standing-menu content anywhere to even attempt to source
+  nutrition for. Not counted in the 8-location gap table above; flagged here so a future pass doesn't
+  waste time trying to resolve them as real locations.
+- **Paciugo (`location_id=5991`) currently has no item list at all, not just no nutrition**:
+  `get_infov2`'s entry for it carries only a `short_description_v2` -- no `breakfast_menu`/
+  `lunch_menu`/`dinner_menu` field is populated (live JSON, 2026-09-14). `pickCafeMenuHtml`
+  (`mobile/src/lib/cafeMenu.ts:139-141`) therefore returns `null`, `parseRetailMenuHtml(null)`
+  (`shared/src/content.ts:113`) returns `{ kind: "empty" }`, and `resolveCafeMenuState`
+  (`cafeMenu.ts:86-95`) falls through to `{ kind: "info", pdf: null }` -- hours/address/directions
+  only, the same as a location with literally nothing published. This is the most acute case in the
+  gap table: Paciugo shows *no menu at all* today, not a name-only standing menu waiting on a
+  nutrition match.
+- **`get_infov2`'s own data has a copy/paste bug for Yum! Bakery**: its `breakfast_menu` field is
+  `<p>Paciugo Gelato</p><p>Homemade cookies, pastries, and cakes</p>` (live JSON, 2026-09-14) --
+  Paciugo's own description text, not a real Yum! Bakery item list (the two are physically adjacent
+  concepts in the Blue Wall, consistent with a UMass CMS content mixup). `parseRetailMenuHtml` would
+  parse this into 2 name-only "items" ("Paciugo Gelato", "Homemade cookies, pastries, and cakes"),
+  neither of which is a real orderable dish name -- upstream UMass data quality, not something
+  fixable from this codebase.
+- **UMass's own public website was checked for content beyond the APIs already reverse-engineered,
+  for all 8 gap locations -- both each location's `/locations-menus/...` landing page AND its
+  dedicated `/menu/...` page, live 2026-09-14, every fetch below is a real WebFetch/curl made this
+  pass:**
+  - **`umassdining.com/menu/<slug>` renders every one of the 8 gap locations through the exact same
+    menu-item template a real hall/integrated-café page uses -- and for all 8, every nutrition field
+    on that template is an unfilled placeholder token**, confirmed live for: Paciugo
+    (`/menu/paciugo-dining-menu` -- `#serving_size#`, `#calories#`, `#fat_cal#`, `#allergens#`,
+    `#ingredient#`, no real flavor names at all), Argo Tea (`/menu/argo-tea-menu` -- the same 18-item
+    sample list already known from `get_infov2`, but `#calories#`/`#allergens#`/`#ingredient#` still
+    literal placeholder text, never filled in), babyBerk and babyBerk 2 (`/menu/baby-berk`,
+    `/menu/baby-berk-2` -- same empty-placeholder template, PDF link present but not the nutrition
+    fields), Snack Overflow (`/menu/snack-overflow-menu` -- `#calories#`, `#fat_cal#`,
+    `#healthfulness_single#/7` all literal, unfilled), The Commonwealth Restaurant
+    (`/menu/commonwealth-menu` -- `Serving Size #serving_size#`, `Calories #calories#`, `Total Fat
+    #total_fat#`, `#allergens#` all literal), and Yum! Bakery (`/menu/um-bakery-blue-wall-menu` --
+    reports "This location is closed at this time" and shows the same unfilled-placeholder template
+    underneath). **This is strong, directly-cited confirmation that UMass's own website carries no
+    hidden nutrition source for any of these 8 -- it's driven by the identical backend template as
+    `foodpro-menu-ajax`/Web INA, just with nothing behind it for these locations, not a separate,
+    richer content system.**
+  - **UMass Store**'s `/locations-menus/campus-center/umass-store` page (fetched live) shows no
+    menu/nutrition content and no "today's menu" link at all -- only hours/address/payment info,
+    consistent with it not really being a dining venue (see vendor-type table above).
+  - **The one genuinely new (non-nutrition) content this turned up**: `get_infov2`'s `breakfast_menu`
+    field for **babyBerk**/**babyBerk 2** and **The Commonwealth Restaurant** links to a UMass-hosted
+    PDF (already the PDF-link case `parseRetailMenuHtml` handles,
+    `shared/src/content.ts:113-120`) -- babyBerk's at
+    `umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf` (and the
+    `...2 FA25...` sibling), Commonwealth's 4 PDFs (Lunch, Dinner, Lite Fare, Dessert). Fetched all
+    live 2026-09-14: **every one is item name + description + price only, zero nutrition figures,
+    zero allergen table** -- the same conclusion as the `/menu/` pages, just via a different
+    document. The Commonwealth Restaurant's PDFs are explicitly season-coded in their filenames
+    ("Summer 26"), i.e. a rotating seasonal menu, not a stable one.
+- **Vendor-nutrition-page check for the 2 real branded chains in the gap table (2026-09-14):**
+  - **Paciugo**: official page `paciugo.com/nutrition/` is live and real, but only publishes 2 coarse
+    comparison rows (Vanilla Gelato: 150 cal/4.5g fat per 100g; Sorbet: 90 cal/0g fat per 100g) versus
+    competitor products -- not a per-flavor breakdown, and UMass's own description says flavors rotate
+    "on a daily basis" with no published rotation list anywhere. Third-party aggregators (Nutritionix,
+    MyNetDiary, SparkPeople, CarbManager) carry more granular per-flavor numbers (e.g. mint chocolate
+    chip 170 cal, pistachio 343 cal/cup) but with no stated provenance tying them to UMass's specific
+    rotation, and no way to know which flavors are even on offer on a given day without a source that
+    doesn't exist.
+  - **Argo Tea**: the company closed its café locations nationally around 2020 and pivoted to
+    bottled-tea retail under new ownership (Golden Fleece Beverages); its official site,
+    `argotea.com/pages/nutrition`, returned **HTTP 402 Payment Required** on a live fetch (2026-09-14,
+    both via WebFetch and a direct `curl`) -- consistent with a lapsed/unmaintained storefront, not a
+    live nutrition source. Third-party aggregators (MyFitnessPal, FatSecret, Nutritionix, MyFoodDiary)
+    still carry old Argo Tea café-menu nutrition data, and some item names overlap with what UMass's
+    own `get_infov2` standing-menu text still lists today (e.g. "Mate Latte" / "Teappuccino") -- the
+    UMass campus location appears to have kept running the original café-menu concept independent of
+    the parent company's current (near-defunct) state, but the only available nutrition numbers are
+    third-party mirrors of a chain that no longer maintains this data itself.
+- **OpenFoodFacts spot-check (2026-09-14), against real item names pulled from this pass's own
+  standing-menu/PDF fetches, not hypothetical ones.** The legacy `cgi/search.pl` endpoint 503'd
+  intermittently through this session (a generic "Page temporarily unavailable" response, not a
+  per-query rate limit -- one early query against it did succeed: "Dasani water" returned 76 hits with
+  real `nutriments` data); the current `search.openfoodfacts.org/search` endpoint was used for the
+  rest and worked reliably. Results:
+  - A genuinely packaged/branded name (**"Dasani water"**, which appears on both the babyBerk PDF and
+    Snack Overflow's own price list) hits real, correct products with nutrition data -- as expected.
+  - **"Teappuccino"** (Argo Tea's own branded drink name, from its standing-menu text) --
+    **zero hits.**
+  - **"Matcha Vanilla Latte"** (also from Argo Tea's menu) and **"Gold'n BBQ Chicken"**
+    (from babyBerk's PDF) each returned a top page of loosely name-matched but *wrong*
+    packaged products -- powdered matcha-latte mixes from unrelated brands (Jade Leaf, Twinings,
+    Organic Traditions), and frozen/fast-food chain sandwiches (Lean Cuisine, KFC's Tower Original) --
+    none of which is the actual campus item. **This is a sharper finding than "no coverage": a naive
+    name-match against OpenFoodFacts for a made-to-order item wouldn't just miss, it would actively
+    attach a wrong product's nutrition to a real menu item** (the same conflation risk already
+    documented for cross-location `RecNum` matching above, one layer further out).
+  - **"Black Bean Burger"** (babyBerk's actual sandwich name) returned only frozen retail veggie-burger
+    patties (Sol Cuisine, Migros, generic store brands) -- again a real product, wrong product.
+
+  Net: this matches and sharpens CLAUDE.md's existing framing of OpenFoodFacts as useful for barcoded
+  packaged goods, not made-to-order items. None of the 8 gap locations' actual food (burgers,
+  teas/lattes, gelato scoops, pastries, fine-dining entrees) should be auto-matched against
+  OpenFoodFacts by name -- the risk isn't just a miss, it's a wrong nutrition value attached with
+  false confidence. The one place it's genuinely safe is an exact, deliberately-curated match against
+  a specific packaged SKU (e.g. "Dasani water" as a literal bottled product), not a fuzzy name search
+  over a made-to-order item list. UMass doesn't publish a SKU list for UMass Store (the one location
+  where packaged goods are the primary product), so there's nothing to curate that match against
+  there either.
+
+**Terrace intermittency mechanism + wider gap-list re-test (2026-09-14, follow-up to PR #481's
+"Retail nutrition-gap enumeration" section immediately above, merged to `main`).** PR
+#481 found `location_id=11150` (Terrace, `get_infov2`'s naming) returned real `foodpro-menu-ajax`
+data on 2 of 5 sampled dates (today/+1/+3/+7/+13 from 2026-09-14) and empty (`[]`) on the other 3,
+concluding it's a real, intermittently-populated location rather than a 9th zero-source "gap"
+location alongside the 8 it enumerated (Paciugo `5991`, Argo Tea `9605`, UMass Store `9967`,
+Yum! Bakery `4666`, babyBerk `61`, babyBerk 2 `884`, Snack Overflow `9981`, The Commonwealth
+Restaurant `10709`). This pass asks two follow-up questions: what actually explains Terrace's
+on/off pattern, and could the same 5-date sample have missed a real feed at one of the 8 "confirmed
+gap" locations by chance.
+
+- **Live re-verification of the original 5 dates, same day (2026-09-14 is also "today" for this
+  pass, since the calendar didn't move between research sessions):** `foodpro-menu-ajax?tid=11150`
+  reproduced PR #481's numbers exactly -- `[]` (`resp_len=2`) on 09/14 (Mon), 09/15 (Tue), 09/27
+  (Sun); populated on 09/17 (Thu, 47750 bytes) and 09/21 (Mon, 87911 bytes).
+- **`get_infov2`'s hours data cannot explain it, because the endpoint structurally has no per-date
+  signal to compare in the first place** -- stronger than "we diffed two dates and they matched": a
+  live fetch of `shared/src/hours.ts:147`'s actual request (`fetch(`${BASE}/get_infov2`)`) confirmed
+  it takes no date parameter at all and returns one payload describing a single recurring weekly
+  schedule, not a per-date one. Terrace's own entry (`location_id=11150`, live fetch 2026-09-14):
+  `opening_hours="07:00 AM"`, `closing_hours="10:00 PM"`, and the `locations` HTML blob spells out
+  `Monday-Friday 07:00 AM - 10:00 PM / Saturday-Sunday 10:00 AM - 09:00 PM` -- open every day of the
+  week, no closure notice, and no `exceptions` key on the object at all (the field
+  `shared/src/hours.ts`'s own doc comment names as the one live source for closure overrides -- for
+  Terrace the key is **absent from the JSON entirely**, not present-and-empty; `shared/src/hours.ts`'s
+  own interface comment calls out that some live objects omit these keys rather than publishing
+  `null`, and this is that case). Since there's only one schedule for all dates, "is it closed today"
+  and "is it a particular weekday" can both be ruled out without needing to diff anything -- Monday
+  itself already appears on both sides of the observed split (09/14 empty, 09/21 full) under that same
+  single schedule. The per-meal fields (`breakfast_open_time`/`lunch_open_time`/`dinner_open_time` and
+  their `_close_time` siblings) are likewise **absent from Terrace's entry**, unlike the 4 halls --
+  `windowOrNull` (`shared/src/hours.ts`) degrades a missing key to "no window" the same way it would
+  a `null`, so `get_infov2` carries no meal-period-level signal for this location at all, only the one
+  whole-location `opening_hours`/`closing_hours` pair -- and, per the above, no per-date signal either.
+- **One unexplained anomaly, flagged but not leaned on:** Terrace's `menu`/`menu_meal` fields are the
+  literal JSON boolean `false` -- unique among all 40 `get_infov2` locations (every other location is
+  either a populated JSON string, matching the "integrated"/has-a-menu-board locations, or `null`,
+  matching everything else, gap locations included). This doesn't predict ajax availability either:
+  plenty of confirmed-integrated retail locations (Roots Café, People's Organic Coffee, all 4 Grab 'N
+  Go stations, Whitmore Café, ISB Café, Hampshire Café, Peet's, Morrill Café, The Hub, Newman Café,
+  Post & Bean Café, Carney Café) also carry `null` here despite having a real ajax feed, so `null`
+  vs. populated isn't the "has a feed" signal either -- `false` is just a one-off value worth knowing
+  about if it ever changes, not a working predictor today.
+- **A 14-day scan (2026-09-14 through 2026-09-27, i.e. day-offsets +0 through +13 -- this is the
+  original 5-date sample's superset, not an independent window: it contains all of today/+1/+3/+7/+13
+  and additionally covers every weekday exactly twice, including both weekend days) shows a
+  contiguous on/off shape, not noise:** `[]` on +0/+1 (Mon 09/14, Tue 09/15), populated on +2 through
+  +7 (Wed 09/16 through Mon 09/21, 47645-87911 bytes), `[]` again on +8 through +13 (Tue 09/22 through
+  Sun 09/27). Extended live to +14..+20 (09/28-10/04): still `[]` the entire way, i.e. 13 straight
+  empty days after the one 6-day populated window, with no second on-block observed in the 21 days
+  checked total.
+- **A same-day control against two locations with known-good feeds rules out "everything dies after a
+  few days" as the explanation for the empty tail.** Worcester hall (`tid=1`) returned a full,
+  populated response on **every one** of the same +0..+13 dates (335KB-407KB range) -- the rolling
+  ~2-week horizon PR #478 documented for the halls is alive and unrelated to Terrace's pattern. The
+  Grill (`tid=4696`, a confirmed-integrated retail location) showed its own on/off shape across the
+  same window, but a materially different, clearly weekday-driven one: populated +0-4 (Mon-Fri),
+  empty +5-6 (Sat-Sun), populated +7-11 (Mon-Fri), empty +12-13 (Sat-Sun) -- closed weekends, in
+  other words, the ordinary "this café doesn't open on weekends" case. Terrace's own empty stretch
+  (+8 through +20) spans every day of the week including multiple Mondays, so it is neither a shared
+  platform-wide cutoff nor an ordinary weekend closure; it's specific to Terrace.
+- **Two genuinely different mechanisms would produce the same snapshot, and this pass's data doesn't
+  cleanly separate them -- reported as open, not guessed:** (a) Terrace's ajax feed has its own
+  forward-publishing horizon, shorter than the halls' ~13+ days and not resuming once it ends, or (b)
+  Terrace's menu was entered as a one-off calendar-bound batch (Sep 16-21) rather than through
+  whatever rolling process feeds the halls and most retail locations. What the data so far supports:
+  the populated run is contiguous (no gaps inside it) and, once it ends, stays empty for every
+  further date checked (13 more days, no resumption) -- consistent with either explanation. **What
+  would settle it and wasn't run this pass:** probing well past the horizons already observed (e.g.
+  +21 through +35) to see whether a second on-block ever appears; if one does, (b) is confirmed and
+  (a) is ruled out. Left explicitly unresolved rather than picking one.
+- **Cross-checked Terrace against Web INA's 28 `locationNum`s, live 2026-09-14 (`location.aspx`
+  re-fetched fresh, not reused from a prior pass): Terrace has a Web INA entry, `locationNum=78`,
+  "Terrace Cafe"** -- present in the same 28-count PR #481 already established, just not named as one
+  of its illustrative examples there. Confirmed it's a live, working entry (not a stale directory
+  row like `locationNum=52`/`54` documented above): `longmenu.aspx?locationNum=78&mealName=Dinner`
+  with `dtdate=09/21/2026` returned 16 real dishes with real `RecNum`s, e.g. "Terrace Cafe Burger"
+  (`RecNum 061281`), "Terrace Club Sandwich" (`RecNum 150001`), "Lemon Pepper Chicken"
+  (`RecNum 078953`). **Caveat that would trip up anyone reusing this finding:** a `longmenu.aspx`
+  probe with the wrong `mealName` reads as "no data" even on a date that has real data -- the first
+  09/17 probe in this pass used `mealName=Lunch` and got 0 rows, which looked like a mismatch with
+  the populated ajax feed on the same date, until re-probing all 4 `mealName` values showed
+  Breakfast=4/Dinner=16 rows (Lunch and Late Night genuinely are 0 that day). **A zero-row
+  `longmenu.aspx` response only means "no data" once all 4 `mealName` values have been checked**,
+  not after just one.
+- **Web INA's own on/off window for Terrace Cafe is wider than the ajax feed's, confirmed by scanning
+  the same +0..+20 range across all 4 meal periods:** `[]`/zero-rows on +0/+1 (09/14, 09/15, matching
+  ajax's empty start exactly -- a shared near-term gap across both independent source systems, not a
+  single-source artifact), then **populated on every date from +2 through +15 (09/16 through 09/29,
+  14 straight days, no gaps)**, then zero-rows again +16 through +20 (09/30-10/04, the furthest
+  checked). This is a full 8 days wider than the ajax feed's own on-window (+2..+7, 6 days) for the
+  same location over the same stretch -- concretely, **Web INA has real Terrace Cafe menu data on
+  09/22-09/27, dates where `foodpro-menu-ajax?tid=11150` returns `[]`.** For this one location, Web
+  INA is not a redundant mirror of the ajax feed; it currently covers a real date range the ajax feed
+  doesn't. Whether this generalizes to other integrated-but-currently-empty dates for other
+  locations wasn't tested here.
+- **Re-tested all 8 "confirmed gap" locations across a wider, differently-shaped window than PR
+  #481's original 5 dates -- the full 14 consecutive dates 09/14 through 09/27 (day-offsets +0
+  through +13), which contain the original five (today/+1/+3/+7/+13) as a subset and additionally hit
+  every weekday of the week exactly twice, including both Saturday and Sunday (PR #481's own 5-date
+  sample only ever landed on Monday/Tuesday/Thursday/Sunday, never Wednesday, Friday, or Saturday).**
+  112 live `foodpro-menu-ajax` requests total (8 locations x 14 dates) against `location_id`s 5991,
+  9605, 9967, 4666, 61, 884, 9981, 10709 -- **every single one returned `[]` (`resp_len=2`).** No
+  populated date at any of the 8, on any weekday, including both weekend days. **The 8-location
+  "confirmed gap" list from PR #481 holds up; this wider, weekday-diverse re-test found zero false
+  members.** Since none of the 8 turned out intermittent, there is no new location from this task's
+  question 3 to cross-reference against Web INA's 24-locationNum set -- PR #481 already confirmed
+  live that none of the 8 has any Web INA presence either, and this pass adds no exception to that.
+- **`get_infov2`'s hours data cannot cheaply predict "will `foodpro-menu-ajax` have data today,"
+  answering this task's question 4 in the negative, directly.** Two independent lines of evidence:
+  (1) all 8 chronically-empty gap locations publish entirely ordinary-looking operating hours in
+  `get_infov2` (e.g. Paciugo `11:00 AM - 09:00 PM` Mon-Fri, UMass Store `09:00 AM - 06:00 PM` Mon-Fri
+  + weekend hours, Snack Overflow `09:00 AM - 03:00 PM` Mon-Fri) -- nothing in the hours payload
+  distinguishes a location that will never have ajax data from one that will; (2) Terrace's own hours
+  are byte-identical across both its populated and empty date ranges (confirmed above). A client
+  cannot use `get_infov2`'s hours fields to decide "skip fetching `foodpro-menu-ajax`, this location
+  is closed" -- the two data sources don't correlate, so `mobile/src/lib/cafeMenu.ts`'s tier-1
+  (`foodpro-menu-ajax`) to tier-2 (standing-menu name-match) fallthrough on an empty `[]` response
+  stays the only reliable signal; there's no cheaper pre-check available in `get_infov2` to add
+  ahead of it.
+
 ## Gaps / what we couldn't determine
 
 - **POST bodies** for the `mobileapp.umassdining.com/umassapi2/public/...` account endpoints — out of
