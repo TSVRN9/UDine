@@ -22,9 +22,13 @@ export default function EventDetailScreen() {
       // Android's Share.share() silently drops the `url` field -- only `message` renders in the
       // native sheet -- so the link is embedded directly in the message text too. `url` is kept
       // for iOS's link-preview handling, but can't carry the link alone cross-platform.
+      // Text-as-icon glyph, not a literal "Share" label -- same lightweight icon-as-text
+      // convention EventsPane.tsx's EventCard already uses for its trailing chevron/external-link
+      // glyphs (no new react-native-svg dependency for one icon). accessibilityLabel carries the
+      // word for screen readers; rendering it too would be an explanatory caption.
       headerRight: () => (
         <Pressable onPress={handleShare} accessibilityRole="button" accessibilityLabel="Share" hitSlop={spacing(2)}>
-          <Text style={styles.shareLabel}>Share</Text>
+          <Text style={styles.shareIcon}>⤴</Text>
         </Pressable>
       ),
     });
@@ -62,7 +66,7 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   // Explicit color, not inherited from the Stack's headerTintColor -- that only colors the native
   // back button/title chrome, not a custom headerRight's own Text.
-  shareLabel: { fontFamily: fonts.body600, fontSize: fs(15), color: colors.paper50, marginRight: spacing(1) },
+  shareIcon: { fontFamily: fonts.body600, fontSize: fs(20), color: colors.paper50, marginRight: spacing(1) },
   screen: { flex: 1, backgroundColor: colors.cream100 },
   container: { padding: spacing(4), paddingBottom: spacing(10) },
   banner: { width: "100%", height: fs(180), borderRadius: radii.md, marginBottom: spacing(3), backgroundColor: withOpacity(colors.ink900, 8) },
