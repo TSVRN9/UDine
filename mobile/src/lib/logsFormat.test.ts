@@ -138,6 +138,18 @@ describe("buildWeekStrip", () => {
     expect(future).toEqual(["2026-08-21", "2026-08-22"]);
     expect(chips.find((c) => c.date === "2026-08-20")?.isFuture).toBe(false); // today itself, not future
   });
+
+  // late-night-2am-day-rollover task 4: a 12:30 AM entry's raw calendar-day prefix is the NEXT
+  // day, but its effective day (under the ~2 AM rollover) is the one that's ending -- the gold dot
+  // must land on the closing day's chip, not the new day's.
+  it("marks hasLogs true on the closing day (not the raw next-day prefix) for an entry logged at 12:30 AM", () => {
+    const entries = [entry({ loggedAt: "2026-08-19T00:30:00.000" })]; // raw prefix 08-19, effective day 08-18
+    const chips = buildWeekStrip(entries, "2026-08-20", "2026-08-20");
+    const chip18 = chips.find((c) => c.date === "2026-08-18")!;
+    const chip19 = chips.find((c) => c.date === "2026-08-19")!;
+    expect(chip18.hasLogs).toBe(true);
+    expect(chip19.hasLogs).toBe(false);
+  });
 });
 
 // --- buildWeekChart: Last 7 Days bar data -- calories round-per-entry-then-sum (same convention as
@@ -167,6 +179,13 @@ describe("buildWeekChart", () => {
     expect(chart.days.find((d) => d.date === "2026-08-20")?.isToday).toBe(true);
     expect(chart.days.find((d) => d.date === "2026-08-18")?.isSelected).toBe(true);
     expect(chart.days.find((d) => d.date === "2026-08-18")?.isToday).toBe(false);
+  });
+
+  it("buckets a 12:30 AM entry into the closing day (effective day), not its raw next-day prefix", () => {
+    const entries = [entry({ loggedAt: "2026-08-19T00:30:00.000", nutrition: { ...NUTRITION_FIXTURE, calories: 500 } })]; // raw prefix 08-19, effective day 08-18
+    const chart = buildWeekChart(entries, "2026-08-20", "2026-08-20");
+    expect(chart.days.find((d) => d.date === "2026-08-18")?.calories).toBe(500);
+    expect(chart.days.find((d) => d.date === "2026-08-19")?.calories).toBe(0);
   });
 
   it("averages all four macros over the full 7-day window, including no-log days", () => {
@@ -225,6 +244,17 @@ describe("computeLoggingStreak", () => {
     // would look back to the 19th, find nothing there either, and wrongly return null.
     const entries = [entry({ loggedAt: "2026-08-20T23:30:00.000" })];
     expect(computeLoggingStreak(entries, "2026-08-20")).toBe(1);
+  });
+
+  it("keeps a streak alive through a 12:30 AM entry -- its effective day is the day before its raw calendar-day prefix", () => {
+    // Raw prefixes are 08-20/08-19/08-18 -- a raw-prefix bucketing would read this as a 3-day
+    // streak ending on the 20th. Under the ~2 AM rollover, the 00:30 entry's effective day is
+    // 08-19, so the actual streak (08-19, 08-18, 08-17) is 3 days, but "today" (08-20) has no
+    // entry yet -- the same-day grace period should fall back to yesterday (08-19) and still find it.
+    const entries = ["2026-08-20T00:30:00.000", "2026-08-18T12:00:00.000", "2026-08-17T12:00:00.000"].map((loggedAt, i) =>
+      entry({ id: String(i), loggedAt }),
+    );
+    expect(computeLoggingStreak(entries, "2026-08-20")).toBe(3);
   });
 });
 

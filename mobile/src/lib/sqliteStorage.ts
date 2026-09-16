@@ -1,4 +1,4 @@
-import type { LogEntry, LogStorage } from "@udine/shared";
+import { DEFAULT_ROLLOVER_HOUR, effectiveDayOf, type LogEntry, type LogStorage } from "@udine/shared";
 import { getDb } from "./db";
 
 interface Row {
@@ -38,10 +38,17 @@ export class SqliteLogStorage implements LogStorage {
     await db.runAsync("DELETE FROM log_entries WHERE id = ?", id);
   }
 
+  // A raw `logged_at LIKE '<isoDate>%'` SQL match compares the entry's RAW calendar-day prefix
+  // against `isoDate` -- but `isoDate` is normally an *effective* day (todayIso()/effectiveTodayIso
+  // output), and a snack logged at 12:30 AM is stamped with the new raw calendar day while its
+  // effective day is still the one that's ending (see effectiveDayOf's doc comment, shared/src/
+  // date.ts). Filtering in JS via effectiveDayOf fixes that -- ponytail: this re-fetches every
+  // entry and filters in memory rather than pushing the rollover math into SQL; fine for a
+  // personal log's row count, revisit with a computed-column/date-range WHERE if this table ever
+  // gets large enough for that to matter.
   async getEntriesForDate(isoDate: string): Promise<LogEntry[]> {
-    const db = await getDb();
-    const rows = await db.getAllAsync<Row>("SELECT * FROM log_entries WHERE logged_at LIKE ? ORDER BY logged_at", `${isoDate}%`);
-    return rows.map(rowToEntry);
+    const all = await this.getAllEntries();
+    return all.filter((e) => effectiveDayOf(e.loggedAt, DEFAULT_ROLLOVER_HOUR) === isoDate);
   }
 
   async getAllEntries(): Promise<LogEntry[]> {
