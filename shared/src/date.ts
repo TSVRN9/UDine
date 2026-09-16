@@ -55,3 +55,28 @@ export function nowLocalIso(d: Date = new Date()): string {
   const timePart = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
   return `${datePart}T${timePart}`;
 }
+
+// Late Night service runs past midnight, so "today" for menu display/log-bucketing purposes
+// shouldn't flip at the stroke of midnight -- it should keep meaning the day that's ending until
+// service has actually wound down. One named constant instead of a literal `2` repeated at each
+// call site (mobile/src/lib/date.ts's todayIso(), halls/[slug].tsx's selectedDate default,
+// menuPrefetch.ts's default, shared/src/hours.ts's latenight fallback window) so moving the
+// boundary later is a one-line change, not a grep-and-replace.
+export const DEFAULT_ROLLOVER_HOUR = 2;
+
+// Returns the ISO date (YYYY-MM-DD, local calendar) that `now` counts as "today" once the day
+// boundary is pushed from midnight to `rolloverHour`: before `rolloverHour` local time, `now`
+// still belongs to the day that's ending (yesterday), matching how Late Night service, and any
+// snack logged during it, actually behaves.
+//
+// `Date.setDate(d - 1)` (not manual month/year-rollover math) is what makes this correct across a
+// month/year boundary AND across a DST transition for free -- the Date object normalizes via the
+// host's timezone database, it isn't naive 24-hour-offset arithmetic.
+export function effectiveTodayIso(now: Date, rolloverHour: number): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const effective = new Date(now);
+  if (now.getHours() < rolloverHour) {
+    effective.setDate(effective.getDate() - 1);
+  }
+  return `${effective.getFullYear()}-${pad(effective.getMonth() + 1)}-${pad(effective.getDate())}`;
+}
