@@ -114,7 +114,7 @@ import {
 import { CompositeDishComposer } from "../../components/CompositeDishComposer";
 import { getCachedPreferences, getPreferences, setPreferences } from "../../lib/preferences";
 import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
-import { nowLocalIso } from "../../lib/date";
+import { effectiveToday, nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
 
 // react-native-gesture-handler doesn't export a gesture-aware SectionList (only ScrollView/
@@ -704,7 +704,7 @@ export function HallMenuScreenBody({
   const [prefs, setPrefs] = useState<FoodPreferences>(() => getCachedPreferences() ?? { allergensToAvoid: [], requiredDietTags: [] });
   const [favoriteDishKeys, setFavoriteDishKeys] = useState<Set<string>>(new Set());
   const [hoursFeed, setHoursFeed] = useState<DiningHoursFeed | null>(null);
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => effectiveToday());
   // Static default rather than deriving from hoursFeed's currentMealPeriod on load -- hours
   // arrive async, and auto-jumping the tab out from under a user who already tapped one would be
   // worse than a fixed starting point.
@@ -1233,7 +1233,7 @@ export function HallMenuScreenBody({
   // apply when the two dates actually agree. Stepped to a different day, the sheet falls back to
   // the fixed MEAL_TABS/no-brunch defaults rather than filtering/relabeling today's real hours by
   // some OTHER day's menu.
-  const isSelectedDateToday = selectedDate.toDateString() === now.toDateString();
+  const isSelectedDateToday = selectedDate.toDateString() === effectiveToday(now).toDateString();
   const hoursRows = hallHours ? hallInfoHoursRows(hallHours, now, isSelectedDateToday ? mealTabs : MEAL_TABS, isSelectedDateToday && isBrunchToday) : [];
   const grabNGoWindow = hoursFeed ? hallInfoGrabNGoWindow(hoursFeed.retail, hall.name) : null;
   const infoDirectionsUrl = directionsUrl(hallHours?.mapAddress);
