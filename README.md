@@ -90,6 +90,39 @@ they run locally: hosted runners are intentionally disabled. `gh act` works too,
 Android native builds need JDK 17. See `CLAUDE.md` for the exact incantation and other
 machine-setup notes.
 
+## Publishing to internal testing (EAS)
+
+Builds and store submissions go through `eas-cli` (`npm install -g eas-cli && eas login`, from
+`/mobile`). Profiles live in `mobile/eas.json`; the credentials it references
+(`google-service-account.json`, `AuthKey_3CC32P33C5.p8`) are already in place and gitignored.
+
+Android, to Play Console's alpha track:
+
+```bash
+eas build -p android --profile production
+eas submit -p android --latest
+# or both in one shot:
+eas build -p android --profile production --auto-submit
+```
+
+iOS, to TestFlight:
+
+```bash
+eas build -p ios --profile production
+eas submit -p ios --latest
+```
+
+`eas submit` for iOS uploads the build to App Store Connect; it doesn't assign testers. Once the
+build finishes processing, add testers to the app's Internal Testing group in App Store Connect
+(members of the Apple team, no Beta App Review needed).
+
+`eas build:list` and `eas submit:list -p <platform> --json` show build and submission status.
+
+This is separate from `pnpm build:internal-android -- --install` (see `CLAUDE.md`), which
+side-loads a locally built, differently packaged app for testing uncommitted changes on a device
+that already has an EAS-built alpha install. Alpha builds are re-signed by Google, so neither a
+local build nor another EAS build can update one in place.
+
 ## Deliberate non-goals
 
 - BLE beacon check-ins (an official-app feature; it needs hardware we don't have).
