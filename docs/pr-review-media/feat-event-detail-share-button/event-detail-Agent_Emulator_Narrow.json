@@ -1,10 +1,10 @@
 {
-  "sha": "ef91ac53194237684544f24b03cf7328d7e2c1dd",
+  "sha": "6f4d2aeefe367582b677c3b3135c0a9d75fbb270",
   "branch": "feat/event-detail-share-button",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/feat-event-detail-share-button",
   "route": "event-detail?title=Late%20Night%20MSA%20at%20Berkshire%20DC&featuredImage=https%3A%2F%2Fumassdining.com%2Fsites%2Fdefault%2Ffiles%2Fevents%2FMSALateNight_1024x432.jpg&pamphletImage=https%3A%2F%2Fumassdining.com%2Fsites%2Fdefault%2Ffiles%2Fevents%2FMSALateNightFlyer_page-0001.jpg&expirationDate=2026-09-17T04%3A00%3A00Z&isFeatured=0",
   "device": "Agent_Emulator_Narrow",
   "stress": "",
   "dirty": false,
-  "ts": "2026-09-17T17:32:05Z"
+  "ts": "2026-09-17T17:33:56Z"
 }
