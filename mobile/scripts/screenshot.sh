@@ -10,8 +10,8 @@ set -euo pipefail
 #
 # Usage:
 #   mobile/scripts/screenshot.sh <route> [--device AVD_NAME] [--out PATH]
-#     [--record SECONDS] [--tap X Y] [--swipe X1 Y1 X2 Y2 [MS]] [--longpress X Y MS]
-#     [--wait-for TEXT] [--stress NAME]
+#     [--record SECONDS] [--record-nav] [--tap X Y] [--swipe X1 Y1 X2 Y2 [MS]]
+#     [--longpress X Y MS] [--wait-for TEXT] [--stress NAME]
 #
 # --wait-for TEXT: after navigating, poll the on-screen UI (via `uiautomator dump`)
 #   until TEXT appears, instead of trusting a fixed sleep. A live-data screen (the
@@ -28,6 +28,22 @@ set -euo pipefail
 #   -- a 60+ char name with all 5 macro badges, and a ~40 char name with 3 -- so a
 #   layout claim about a wrapped name / badge count doesn't depend on live menu data
 #   happening to contain one today.
+# --record-nav: start screenrecord BEFORE the route-navigation deep link fires, instead
+#   of after the post-navigation settle. Without it, --record's clip only ever shows the
+#   already-settled end state of navigation -- any animation that fires automatically as
+#   a side effect of the route mounting (e.g. an auto-opened modal, a keyboard raised by
+#   an autoFocus'd input) plays out entirely during the settle wait, before screenrecord
+#   is ever invoked, so the clip's first frame already shows the fully-settled state
+#   (root-caused via PR #507, where a reviewer proved frame 1 already showed a
+#   fully-raised keyboard). Requires --record; incompatible with --wait-for (different
+#   purposes -- gating a still capture on readiness vs. capturing a live transition --
+#   and combining them risks leaving a device-side recording running past a --wait-for
+#   failure exit). Since the recording budget (--record SECONDS) must now cover
+#   navigation + settle + animation time instead of N seconds of already-settled screen,
+#   size it generously -- 4-6s is a reasonable default; the script warns (does not fail)
+#   if it looks too small. Does NOT change the --record + --tap/--swipe case: that
+#   gesture still fires after the settle completes, so a --record-nav --tap capture is
+#   nav -> auto-animation -> settle -> tap -> close, all in one clip.
 
 APP_ID="com.udinetogether.udine"
 JAVA_HOME=/usr/lib/jvm/java-17-temurin-jdk
@@ -42,9 +58,10 @@ GESTURE_ARGS=()
 WAIT_FOR_TEXT=""
 WAIT_FOR_TIMEOUT=45
 STRESS=""
+RECORD_NAV=false
 
 usage() {
-  echo "Usage: $0 <route> [--device AVD_NAME] [--out PATH] [--record SECONDS] [--tap X Y] [--swipe X1 Y1 X2 Y2 [MS]] [--longpress X Y MS] [--wait-for TEXT] [--stress NAME]" >&2
+  echo "Usage: $0 <route> [--device AVD_NAME] [--out PATH] [--record SECONDS] [--record-nav] [--tap X Y] [--swipe X1 Y1 X2 Y2 [MS]] [--longpress X Y MS] [--wait-for TEXT] [--stress NAME]" >&2
   exit 1
 }
 
@@ -82,12 +99,26 @@ while [[ $# -gt 0 ]]; do
       WAIT_FOR_TEXT="$2"; shift 2 ;;
     --stress)
       STRESS="$2"; shift 2 ;;
+    --record-nav)
+      RECORD_NAV=true; shift 1 ;;
     *)
       echo "Unknown argument: $1" >&2
       usage
       ;;
   esac
 done
+
+if $RECORD_NAV && [[ -z "$RECORD_SECS" ]]; then
+  echo "--record-nav requires --record SECONDS (it only changes when screenrecord starts, so it's a no-op without --record)" >&2
+  usage
+fi
+if $RECORD_NAV && [[ -n "$WAIT_FOR_TEXT" ]]; then
+  echo "--record-nav and --wait-for are mutually exclusive -- --wait-for gates a still capture on readiness, --record-nav captures a live transition, and combining them risks leaving a device-side screenrecord running past a --wait-for failure exit" >&2
+  usage
+fi
+if $RECORD_NAV && [[ "$RECORD_SECS" -lt 3 ]]; then
+  echo "WARNING: --record-nav with --record $RECORD_SECS -- this budget must now cover navigation + settle + any auto-triggered animation, not just already-settled screen time. Consider 4-6s+ if the clip cuts off before the animation completes." >&2
+fi
 
 # AVD name -> serial, lock path, and Metro port (docs/agents/emulator-pool.md's Devices table).
 # Metro is otherwise a host-wide singleton on a hardcoded port -- giving each device its own port
@@ -300,6 +331,15 @@ if ! wait_for_text "" 90; then
   echo "WARNING: no populated accessibility tree on $DEVICE within 90s of bundling -- capturing anyway; check the PNG for a black/blank frame" >&2
 fi
 
+# start_record: backgrounds screenrecord and stashes its PID in RECORD_PID. Extracted so
+# --record-nav can call it before route navigation (to capture the deep link firing and any
+# animation the route auto-triggers on mount), while the default (--record-nav not set) path
+# still calls it after the post-navigation settle, unchanged from before this flag existed.
+start_record() {
+  adb -s "$SERIAL" shell "screenrecord --time-limit $RECORD_SECS /sdcard/udine-rec.mp4" &
+  RECORD_PID=$!
+}
+
 # --- 6. Navigate to the route --------------------------------------------------------
 if [[ -n "$ROUTE" ]]; then
   DEEP_LINK="udine://$ROUTE"
@@ -309,6 +349,10 @@ if [[ -n "$ROUTE" ]]; then
     else
       DEEP_LINK="${DEEP_LINK}?stress=$STRESS"
     fi
+  fi
+  if $RECORD_NAV; then
+    start_record
+    sleep 0.3   # let screenrecord actually start capturing before the nav intent fires
   fi
   adb -s "$SERIAL" shell am start -a android.intent.action.VIEW -d "$DEEP_LINK" >/dev/null
   if [[ -n "$WAIT_FOR_TEXT" ]]; then
@@ -335,8 +379,9 @@ fire_gesture() {
 
 # --- 7. Capture -----------------------------------------------------------------------
 if [[ -n "$RECORD_SECS" ]]; then
-  adb -s "$SERIAL" shell "screenrecord --time-limit $RECORD_SECS /sdcard/udine-rec.mp4" &
-  RECORD_PID=$!
+  if [[ -z "${RECORD_PID:-}" ]]; then
+    start_record
+  fi
   if [[ -n "$GESTURE" ]]; then
     sleep 0.3
     fire_gesture
