@@ -22,7 +22,9 @@ const LAYOUT_PATH = path.join(APP_DIR, "_layout.tsx");
 // The only routes that intentionally show the native header instead of their own chrome --
 // verified by reading each one: none of them use useSafeAreaInsets or draw a back button, they
 // rely entirely on the native header for title, back affordance, and top inset.
-const NATIVE_HEADER_ROUTES = new Set(["filters", "favorites", "event-detail", "press", "newsletter"]);
+// event-detail moved off this list -- it now draws its own in-content header (back chevron +
+// title row + share pill), same as export.tsx/NutritionLabel.tsx, per EventDetailOptionA.dc.html.
+const NATIVE_HEADER_ROUTES = new Set(["filters", "favorites", "press", "newsletter"]);
 
 function parseLayout(source: string): {
   rootHeaderShown: boolean | undefined;
@@ -108,8 +110,8 @@ describe("every route resolves headerShown correctly (guards the #151/#219/#281 
 // `getHeaderTitle(previousDescriptor.options, previousDescriptor.route.name)` -- i.e. the
 // PREVIOUS screen's own `title`/`headerTitle`, and if neither is set, the previous screen's raw
 // route NAME. `index` (the 3-pane shell) has headerShown: false and no title, so every push from
-// it into a native-header screen (favorites/press/newsletter/event-detail, all reached via
-// EventsPane.tsx/YouPane.tsx/openEventTap.ts while `index` is the current route) inherited the
+// it into a native-header screen (favorites/press/newsletter, all reached via
+// EventsPane.tsx/YouPane.tsx while `index` is the current route) inherited the
 // literal string "index" as the back button's fallback label. Not actually flaky -- deterministic
 // every time from those entry points -- but it reads as "sometimes" because most navigation (into
 // halls/[slug], cafe/[name], logs) draws its own chrome and never shows a native back button at

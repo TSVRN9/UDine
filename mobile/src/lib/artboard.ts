@@ -103,6 +103,21 @@ export function artboardStyle(file: string, anchorText: string, nth = 0): Artboa
   throw new Error(`artboard ${file}: no element #${nth} with text "${anchorText}"`);
 }
 
+/** Style of the `nth` occurrence of a bare `<tag>` in document order (0-indexed), regardless of
+ * its own text content -- the nth-tag selector this file's header comment invites for an element
+ * with no text of its own (e.g. a full-bleed banner image div) that `artboardStyle`'s text-anchor
+ * can't address. */
+export function artboardNthStyle(file: string, tag: string, nth: number): ArtboardStyle {
+  const re = new RegExp(`<${tag}\\b([^>]*)>`, "g");
+  let seen = 0;
+  for (let m = re.exec(read(file)); m; m = re.exec(read(file))) {
+    if (seen++ < nth) continue;
+    const style = /style="([^"]*)"/.exec(m[1])?.[1] ?? "";
+    return toRnStyle(style);
+  }
+  throw new Error(`artboard ${file}: no <${tag}> #${nth}`);
+}
+
 /**
  * Style of the `up`-th enclosing `<div>` around the first occurrence of `anchorText` -- for a
  * container styled around a nested icon+label (e.g. a spinner + "Looking up…" row) whose own
