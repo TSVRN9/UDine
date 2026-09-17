@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Libre+Franklin:wght@400;500;600&display=swap");
+    body { margin: 0; font-family: "Libre Franklin", system-ui, sans-serif; background: #241a14; }
+    a { color: #c99a2e; } a:hover { color: #fbf7ef; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #241a14; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; color: #241a14; position: relative;">
+
+  <div style="width: 100%; height: 280px; background: linear-gradient(120deg, #c99a2e 0%, #8a6a1a 100%); position: relative; flex-shrink: 0;">
+    <div style="position: absolute; top: 16px; left: 16px; width: 36px; height: 36px; border-radius: 999px; background: rgba(36,26,20,0.45); display: flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#fbf7ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>
+    <div style="position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 999px; background: rgba(36,26,20,0.45); display: flex; align-items: center; justify-content: center;">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1.5v8" stroke="#fbf7ef" stroke-width="1.6" stroke-linecap="round"></path>
+        <path d="M5 4.5L8 1.5l3 3" stroke="#fbf7ef" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M4 7.5v5.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V7.5" stroke="#fbf7ef" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; margin-top: -20px; background: #fbf7ef; border-radius: 16px 16px 0 0; overflow: hidden; padding: 24px 22px; display: flex; flex-direction: column; gap: 10px; position: relative;">
+    <div style="font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; color: #3b0a0f;">Local Harvest Dinner</div>
+    <div style="font-size: 13px; color: rgba(36,26,20,0.65);">Franklin · Thursday 5–8 PM</div>
+    <div style="height: 3px; width: 72px; background: #c99a2e; margin: 4px 0 6px 0;"></div>
+    <div style="flex-grow: 1; border-radius: 6px; background: rgba(36,26,20,0.06); min-height: 300px;"></div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

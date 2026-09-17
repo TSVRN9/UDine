@@ -96,15 +96,16 @@ export default function RootLayout() {
         }}
       >
         {/* index (the 3-pane shell), halls/[slug] (Grab 'N Go is its 4th tab now, not its own route
-        -- see grabRouteFor), cafe/[name], and logs draw their own canvas-style headers. */}
+        -- see grabRouteFor), cafe/[name], logs, and event-detail draw their own canvas-style
+        headers. */}
         <Stack.Screen name="index" />
         <Stack.Screen name="halls/[slug]" />
         <Stack.Screen name="cafe/[name]" />
         <Stack.Screen name="logs" />
+        <Stack.Screen name="event-detail" />
         {/* These are the only routes that want the native maroon header instead of their own chrome. */}
         <Stack.Screen name="filters" options={{ headerShown: true, title: "Dietary Filters" }} />
         <Stack.Screen name="favorites" options={{ headerShown: true, title: "Notifications" }} />
-        <Stack.Screen name="event-detail" options={{ headerShown: true, title: "Event" }} />
         <Stack.Screen name="press" options={{ headerShown: true, title: "Press" }} />
         <Stack.Screen name="newsletter" options={{ headerShown: true, title: "Newsletter" }} />
         {/* export needs no entry at all: it draws its own chrome and inherits headerShown: false. */}
