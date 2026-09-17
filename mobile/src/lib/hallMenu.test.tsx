@@ -728,7 +728,7 @@ describe("HallMenuScreen Grab 'N Go tab (merged from the retired grab-n-go/[slug
     expect(texts(root).flat().join(" ")).toMatch(/No Grab 'N Go menu/);
   });
 
-  it("shows the Grab tab's open/closed subtitle for today, and omits it once the date stepper moves off today (get_infov2 only ever publishes today's hours)", async () => {
+  it("never shows an inline open/closed subtitle on the Grab tab, for today or once the date stepper moves off today (#180 moved this to HallInfoSheet)", async () => {
     mockFetchHoursAndCache.mockResolvedValueOnce({
       halls: [],
       retail: [{ name: "Worcester Grab ‘N Go", hours: { openTime: "12:00 AM", closeTime: "11:59 PM" } }],
@@ -738,7 +738,7 @@ describe("HallMenuScreen Grab 'N Go tab (merged from the retired grab-n-go/[slug
     await act(async () => {
       root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
     });
-    expect(texts(root).flat().join(" ")).toMatch(/open now/);
+    expect(texts(root).flat().join(" ")).not.toMatch(/open now/);
 
     mockedFetchMenu.mockResolvedValueOnce([]);
     await act(async () => {
