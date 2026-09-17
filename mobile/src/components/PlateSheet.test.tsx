@@ -823,7 +823,7 @@ describe("PlateSheet", () => {
       expect(expandedFlat.borderStyle).toBeUndefined();
     });
 
-    // PlateSheetResults.dc.html:37 / SearchExpandedHeader.dc.html:41 spec a magnifying-glass icon
+    // PlateSheetResults.dc.html:37 / SearchExpandedHeader.dc.html:42 spec a magnifying-glass icon
     // inside the expanded input box (14x14, r=4.2, rgba(36,26,20,0.5) stroke, width 1.4) -- not
     // the idle row's own CTA icon (PlateExpanded.dc.html:87, 20x20/maroon600/1.6), which is a
     // different affordance and was never carried over when the row expands into the real input.

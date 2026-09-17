@@ -615,7 +615,7 @@ export function PlateSheet({
                   <View style={styles.searchRow}>
                     <View style={styles.searchInputBox}>
                       {/* Magnifying-glass glyph, PlateSheetResults.dc.html:37 /
-                      SearchExpandedHeader.dc.html:41. */}
+                      SearchExpandedHeader.dc.html:42. */}
                       <Svg width={fs(14)} height={fs(14)} viewBox="0 0 14 14" fill="none" testID="searchIcon">
                         <Circle cx={6} cy={6} r={4.2} stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} />
                         <Path d="M9.5 9.5L12.5 12.5" stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} strokeLinecap="round" />
