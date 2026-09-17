@@ -789,11 +789,13 @@ describe("PlateSheet", () => {
       focusSpy.mockRestore();
     });
 
-    // #409: addSection's dashed border (docs/design/PlateExpanded.dc.html:87) is idle-only --
-    // once expanded it must switch to the plain solid border the artboard specifies for the
-    // active search row (docs/design/PlateSheetResults.dc.html:35), not stay dashed around the
-    // whole search UI.
-    it("#409: addSection is dashed maroon while idle, and switches to a solid border once expanded", () => {
+    // #409, updated per platesheet-search-spec-conformance: addSection's dashed border
+    // (docs/design/PlateExpanded.dc.html:87) is idle-only -- addSectionIdle carries it.
+    // docs/design/PlateSheetResults.dc.html has NO border around the expanded panel at all (only
+    // around the input box itself), so the base addSection style the expanded panel uses bare
+    // must have no border of its own -- the old "switches to a solid border" behavior was a
+    // spec drift, not the artboard.
+    it("#409: addSectionIdle carries the dashed maroon border; the expanded panel (bare addSection) has none", () => {
       const { StyleSheet } = require("react-native");
       const { colors, withOpacity } = require("../lib/theme");
       const root = renderSheet();
@@ -807,6 +809,7 @@ describe("PlateSheet", () => {
         })[0];
 
       const idleFlat = StyleSheet.flatten(findAddSection().props.style);
+      expect(idleFlat.borderWidth).toBe(1);
       expect(idleFlat.borderStyle).toBe("dashed");
       expect(idleFlat.borderColor).toBe(withOpacity(colors.maroon600, 45));
 
@@ -815,8 +818,48 @@ describe("PlateSheet", () => {
       });
 
       const expandedFlat = StyleSheet.flatten(findAddSection().props.style);
-      expect(expandedFlat.borderStyle).not.toBe("dashed");
-      expect(expandedFlat.borderColor).toBe(withOpacity(colors.ink900, 20));
+      expect(expandedFlat.borderWidth).toBeUndefined();
+      expect(expandedFlat.borderColor).toBeUndefined();
+      expect(expandedFlat.borderStyle).toBeUndefined();
+    });
+
+    // platesheet-search-spec-conformance: PlateSheetResults.dc.html:37 specs a magnifying-glass
+    // icon inside the expanded input box -- the idle row's own icon (line ~828) was never carried
+    // over when the row expands into the actual search input.
+    it("shows a magnifying-glass icon in the expanded search input", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      expect(root.root.findAll((n) => n.type === Svg && n.props.testID === "searchIcon")).toHaveLength(1);
+    });
+
+    // PlateSheetResults.dc.html:40 specs a solid-fill Search button, not the outlined/transparent
+    // "secondary" variant -- "primary" (theme.ts buttonColors) is the already-existing variant
+    // that matches, same one the sheet's own LOG button uses.
+    it("renders the Search button with the solid 'primary' variant, not 'secondary'", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      const searchButtons = root.root.findAll((n) => n.type === Button && n.props.children === "Search");
+      expect(searchButtons).toHaveLength(1);
+      expect(searchButtons[0].props.variant).toBe("primary");
+    });
+
+    // SearchExpandedHeader.dc.html + CustomFoodForm.tsx's established chevron+title header
+    // convention -- the back chevron must sit in a header row with a "Search" title, not float
+    // alone outside any such row (same pattern NutritionLabel.tsx/CustomFoodForm.tsx already use).
+    it("wraps the back chevron in a header row with a 'Search' title", () => {
+      const { StyleSheet } = require("react-native");
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+
+      const backButton = root.root.findByProps({ accessibilityLabel: "Back" });
+      const header = backButton.parent!;
+      expect(header.type).toBe("View");
+      const flat = StyleSheet.flatten(header.props.style);
+      expect(flat.flexDirection).toBe("row");
+      expect(flat.alignItems).toBe("center");
+
+      const title = header.findByProps({ children: "Search" });
+      expect(title.type).toBe(Text);
     });
 
     // 3a: expanding search now replaces the WHOLE pane body (item list/totals/LOG button included),

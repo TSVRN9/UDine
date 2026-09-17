@@ -602,25 +602,37 @@ export function PlateSheet({
             <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
               {searchExpanded ? (
                 <View style={styles.addSection}>
-                  <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-                    <Text style={styles.backChevron}>‹</Text>
-                  </Pressable>
+                  <View style={styles.searchHeader}>
+                    <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+                      <Text style={styles.backChevron}>‹</Text>
+                    </Pressable>
+                    <Text style={styles.searchHeaderTitle}>Search</Text>
+                  </View>
                   <View style={styles.searchRow}>
-                    <TextInput
-                      ref={searchInputRef}
-                      style={styles.searchInput}
-                      value={query}
-                      onChangeText={setQuery}
-                      placeholder="Search for a food"
-                      placeholderTextColor={withOpacity(colors.ink900, 45)}
-                      onSubmitEditing={() => runSearch()}
-                      // This box is now the top of its own full-pane view (once a search has run,
-                      // results/footer rows push it below the fold) -- scroll it to the end so the
-                      // query stays visible while typing.
-                      onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
-                      returnKeyType="search"
-                    />
-                    <Button variant="secondary" size="sm" onPress={() => runSearch()} disabled={searching || !query.trim()}>
+                    <View style={styles.searchInputBox}>
+                      {/* Magnifying-glass glyph -- same markup as the idle row's icon
+                      (PlateExpanded.dc.html:87), carried over into the actual search input per
+                      PlateSheetResults.dc.html:37. */}
+                      <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none" testID="searchIcon">
+                        <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
+                        <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
+                      </Svg>
+                      <TextInput
+                        ref={searchInputRef}
+                        style={styles.searchInput}
+                        value={query}
+                        onChangeText={setQuery}
+                        placeholder="Search for a food"
+                        placeholderTextColor={withOpacity(colors.ink900, 45)}
+                        onSubmitEditing={() => runSearch()}
+                        // This box is now the top of its own full-pane view (once a search has run,
+                        // results/footer rows push it below the fold) -- scroll it to the end so the
+                        // query stays visible while typing.
+                        onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                        returnKeyType="search"
+                      />
+                    </View>
+                    <Button variant="primary" size="sm" onPress={() => runSearch()} disabled={searching || !query.trim()}>
                       Search
                     </Button>
                   </View>
@@ -912,13 +924,12 @@ const styles = StyleSheet.create({
   logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
   // PlateExpanded.dc.html:87-93 -- asymmetric 12px/14px padding and a 44px min-height. Doubles as
-  // both the idle row's own box and the expanded search area's wrapper. Base border is the
-  // expanded state's plain solid one; the idle-only dashed maroon border is layered on by
-  // addSectionIdle below -- it must not wrap the whole active search area.
+  // both the idle row's own box and the expanded search area's wrapper. The expanded panel has no
+  // border of its own -- PlateSheetResults.dc.html has none around the input row/results/footer,
+  // only around the input box itself (searchInputBox below) -- so the idle-only dashed maroon
+  // border lives entirely in addSectionIdle, not here.
   addSection: {
     marginTop: spacing(3.5),
-    borderWidth: 1,
-    borderColor: withOpacity(colors.ink900, 20),
     borderRadius: radii.md,
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
@@ -929,24 +940,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(3),
+    borderWidth: 1,
     borderStyle: "dashed",
     borderColor: withOpacity(colors.maroon600, 45),
   },
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
   addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
+  // SearchExpandedHeader.dc.html -- the back chevron sits in a header row with a "Search" title,
+  // the same chevron+title convention CustomFoodForm.tsx's own header already uses, instead of
+  // floating alone outside any row.
+  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(3) },
+  searchHeaderTitle: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   // Same backChevron the app's other in-sheet close buttons use (CustomFoodForm.tsx,
   // NutritionLabel.tsx, CafePdfViewer.tsx) -- repurposed here to collapse back to idle instead of
   // closing the whole sheet.
   backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
-  searchInput: {
+  // PlateSheetResults.dc.html:36 -- the border wraps the icon+input box itself, not the whole
+  // expanded panel (addSection above no longer carries one).
+  searchInputBox: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
     borderWidth: 1,
     borderColor: withOpacity(colors.ink900, 25),
     borderRadius: radii.md,
     paddingHorizontal: spacing(3),
     paddingVertical: spacing(2),
+  },
+  searchInput: {
+    flex: 1,
     fontFamily: fonts.body400,
     color: colors.ink900,
   },
