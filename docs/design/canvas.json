@@ -439,6 +439,33 @@
       "h": 844,
       "title": "F4 -- lookup-dish states: fetching / miss / rate-limited (new)",
       "page": "page-4"
+    },
+    {
+      "file": "EventDetailOptionA.dc.html",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Event detail A: reuses the app's in-content back+title header row, share as a bordered pill",
+      "page": "page-8"
+    },
+    {
+      "file": "EventDetailOptionB.dc.html",
+      "x": 930,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Event detail B: banner-integrated header, share as a floating icon directly on the image",
+      "page": "page-8"
+    },
+    {
+      "file": "EventDetailOptionC.dc.html",
+      "x": 1380,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Event detail C: dark CafePdf-style chrome, share pill twinning the existing SAVE button",
+      "page": "page-8"
     }
   ],
   "annotations": [
@@ -672,6 +699,14 @@
       "w": 420,
       "page": "page-4",
       "text": "lookup-dish edge function states (new) -- SearchLookupStates.dc.html. Fetching: inserted as one more row in the existing merged results list (at the position a UMass-catalog match would occupy), not a blocking full-screen state -- OFF/USDA/Custom matches already found keep showing beneath it. Mirrors the edge function's own up-to-5s in-flight follower poll: the spinner row reflects 'still polling' and swaps to a real result the moment a poll returns hit, or disappears on miss. Miss: the spinner row is simply removed -- no separate 'no results' message, the sheet's existing dashed \"Can't find it? Create a custom food\" affordance (already always present) already is the miss-state resolution. Rate-limited: swapped into the same slot the fetching row occupied (nothing shifts on resolution), shown only when lookup-dish actually returns rate_limited (never predicted client-side); the retry is a manual tap, not a timed auto-retry -- silently retrying against a budget-limited endpoint would hide from the user how close they are to the next reset. Source badges (UMASS/CUSTOM/PACKAGED/USDA) are unchanged from f2-add-item-note -- DB-hit vs. live-fetch stays invisible to the user by design. brief: foodpro-menu-expansion"
+    },
+    {
+      "id": "event-detail-share-options",
+      "x": 480,
+      "y": 900,
+      "w": 1290,
+      "page": "page-8",
+      "text": "Event detail screen + share button (new, owner request -- no prior artboard covered event-detail.tsx at all; it was built without a spec). Current code (event-detail.tsx) relies on the native stack header for back+title and adds a bare unicode glyph as headerRight for share -- no button chrome at all, the same kind of unstyled/inconsistent treatment the search panel's back chevron had before SearchExpandedHeader.dc.html fixed it. Three directions, all reachable without changing EventsPane.tsx's list card (openEventTap.ts still routes here unchanged):\n\nA = the app's own established in-content header convention (CustomFoodForm.tsx / NutritionLabel.dc.html / SearchExpandedHeader.dc.html: back chevron + title in a flex row) on a light ground, share as a bordered pill (Button.tsx's existing 'secondary' variant styling: transparent bg, maroon600 text/border) with icon + SHARE label. Cheapest to build -- reuses a pattern and a button variant that already exist verbatim, no new visual language.\n\nB = the banner image runs full-bleed behind a transparent header; share becomes a small floating circular icon button sitting directly on the image (translucent dark backdrop so it reads against any poster art), literally 'a share button on the event image' rather than in chrome above it. No label -- an icon-only floating button reads as secondary/ambient, which fits an action that isn't this screen's primary one. Content flows into a cream sheet with rounded top corners below, echoing CafePdf.dc.html's transition.\n\nC = twins CafePdf.dc.html's own dark-chrome header almost exactly (back chevron + stacked title/subtitle on the left, a bordered pill on the right) with SAVE swapped for SHARE and the same icon+label pill from A -- so the two pill treatments (A's light, C's dark) are the same component on different grounds, not two different button designs. Strongest visual continuity with the one other in-app 'poster-style content in a sheet' screen the app already has.\n\nAll three keep the share icon itself identical (upload/arrow-out-of-box, distinct from CafePdf's SAVE download-arrow so the two aren't confusable) -- only its container and position vary. No decision made yet. brief: none yet -- pending this decision."
     }
   ],
   "launch": {

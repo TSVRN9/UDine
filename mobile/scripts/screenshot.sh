@@ -354,7 +354,15 @@ if [[ -n "$ROUTE" ]]; then
     start_record
     sleep 0.3   # let screenrecord actually start capturing before the nav intent fires
   fi
-  adb -s "$SERIAL" shell am start -a android.intent.action.VIEW -d "$DEEP_LINK" >/dev/null
+  # Single quoted string, not separate argv words (same pattern as start_record's screenrecord
+  # call above) -- `adb shell` with multiple argv re-tokenizes them through the DEVICE's own
+  # shell, which splits an unescaped `&` as a job-control operator: every query param after the
+  # first was silently getting dropped (confirmed live: title arrived, featuredImage/
+  # pamphletImage/expirationDate/isFeatured -- everything after the first `&` -- did not) for any
+  # route with more than one `&`-joined param, e.g. event-detail's 5-param deep link. A single
+  # quoted string keeps `$DEEP_LINK`'s `&`s inside the argument adb forwards, not split by the
+  # remote shell.
+  adb -s "$SERIAL" shell "am start -a android.intent.action.VIEW -d '$DEEP_LINK'" >/dev/null
   if [[ -n "$WAIT_FOR_TEXT" ]]; then
     sleep 1  # let navigation actually start before the first dump
     if ! wait_for_text "$WAIT_FOR_TEXT" "$WAIT_FOR_TIMEOUT"; then
