@@ -89,6 +89,7 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | F1 -- Cafe menu, standing + catalog match | `CafeMenuMixed.dc.html` | 390×844 | `app/halls/[slug].tsx` |
 | F2 -- Create a custom food | `CustomFoodForm.dc.html` | 390×844 | `components/CustomFoodForm.tsx` |
 | F2 -- Result confirm step (NutritionLabel reuse) | `SearchResultDetail.dc.html` | 390×844 | `components/NutritionLabel.tsx`, `lib/plate.ts` |
+| F2 -- Search header (back chevron + title row) | `SearchExpandedHeader.dc.html` | 390×844 | `components/PlateSheet.tsx` |
 | F2 -- Search results: paginated + custom badge | `PlateSheetResults.dc.html` | 390×844 | `components/PlateSheet.tsx` |
 | F3 -- Events pane + Press/Newsletter (new) | `EventsPanePress.dc.html` | 390×844 | `panes/EventsPane.tsx`, `app/press.tsx`, `app/newsletter.tsx`, `app/event-detail.tsx` |
 | F3 -- Filter FAB, active (final) | `MenuFAB_Active.dc.html` | 390×844 | `app/halls/[slug].tsx` |
