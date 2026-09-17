@@ -5,6 +5,7 @@
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, TextInput, View } from "react-native";
+import * as Reanimated from "react-native-reanimated";
 import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
 import { Spinner } from "./Skeleton";
@@ -85,6 +86,13 @@ function directLookupButton(root: renderer.ReactTestRenderer) {
 // filtering by the composite View type from 'react-native' collapses that to the one real row.
 function lookupStateRow(root: renderer.ReactTestRenderer) {
   return root.root.findAll((n) => n.type === View && n.props.testID === "lookupStateRow");
+}
+
+// Same composite/host double-match reasoning as lookupStateRow above -- under the reanimated jest
+// mock, Animated.View literally IS the real RN View (mock.ts: `View: ViewRN`), so a bare
+// findAllByType(View) can't tell this wrapper apart from every other View in the tree either.
+function keyboardFollowWrapper(root: renderer.ReactTestRenderer) {
+  return root.root.findAll((n) => n.type === View && n.props.testID === "keyboardFollowWrapper");
 }
 
 function emptyLogStorage(): LogStorage {
@@ -1285,6 +1293,24 @@ describe("PlateSheet", () => {
       });
       expect(mockedLookupDishLive).toHaveBeenCalledTimes(2);
       jest.useRealTimers();
+    });
+  });
+
+  // #platesheet-keyboard-follow: the sheet's bottom margin must track useAnimatedKeyboard's live
+  // shared value every frame, not a discrete useState snap from a Keyboard event listener -- a
+  // state snap renders the margin at its FINAL value in one frame while the OS keyboard is still
+  // mid-slide underneath it (visible only on-device; unreproducible under Jest, which never fires
+  // a real keyboard event -- this test instead asserts the wrapper is actually WIRED to the live
+  // shared value by mocking what that value reports).
+  describe("keyboard-follow margin", () => {
+    afterEach(() => {
+      jest.restoreAllMocks(); // don't leak the mocked useAnimatedKeyboard onto every other test in this file
+    });
+
+    it("wrapper's marginBottom reflects useAnimatedKeyboard's live height, not a static 0", () => {
+      jest.spyOn(Reanimated, "useAnimatedKeyboard").mockReturnValue({ height: { value: 250 }, state: { value: 2 } } as never);
+      const root = renderSheet();
+      expect(keyboardFollowWrapper(root)[0].props.style).toMatchObject({ marginBottom: 250 });
     });
   });
 });
