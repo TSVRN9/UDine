@@ -823,13 +823,19 @@ describe("PlateSheet", () => {
       expect(expandedFlat.borderStyle).toBeUndefined();
     });
 
-    // platesheet-search-spec-conformance: PlateSheetResults.dc.html:37 specs a magnifying-glass
-    // icon inside the expanded input box -- the idle row's own icon (line ~828) was never carried
-    // over when the row expands into the actual search input.
-    it("shows a magnifying-glass icon in the expanded search input", () => {
+    // PlateSheetResults.dc.html:37 / SearchExpandedHeader.dc.html:41 spec a magnifying-glass icon
+    // inside the expanded input box (14x14, r=4.2, rgba(36,26,20,0.5) stroke, width 1.4) -- not
+    // the idle row's own CTA icon (PlateExpanded.dc.html:87, 20x20/maroon600/1.6), which is a
+    // different affordance and was never carried over when the row expands into the real input.
+    it("shows a magnifying-glass icon in the expanded search input, per the artboard's own numbers", () => {
+      const { Circle } = require("react-native-svg");
+      const { colors, withOpacity } = require("../lib/theme");
       const root = renderSheet();
       ensureSearchExpanded(root);
       expect(root.root.findAll((n) => n.type === Svg && n.props.testID === "searchIcon")).toHaveLength(1);
+      const [circle] = root.root.findAll((n) => n.type === Circle);
+      expect(circle.props.r).toBe(4.2);
+      expect(circle.props.stroke).toBe(withOpacity(colors.ink900, 50));
     });
 
     // PlateSheetResults.dc.html:40 specs a solid-fill Search button, not the outlined/transparent
@@ -843,10 +849,11 @@ describe("PlateSheet", () => {
       expect(searchButtons[0].props.variant).toBe("primary");
     });
 
-    // SearchExpandedHeader.dc.html + CustomFoodForm.tsx's established chevron+title header
+    // SearchExpandedHeader.dc.html:35-38 + CustomFoodForm.tsx's established chevron+title header
     // convention -- the back chevron must sit in a header row with a "Search" title, not float
     // alone outside any such row (same pattern NutritionLabel.tsx/CustomFoodForm.tsx already use).
-    it("wraps the back chevron in a header row with a 'Search' title", () => {
+    // Values read straight from the artboard, not copied by eye.
+    it("wraps the back chevron in a header row with a 'Search' title, matching the artboard's own row/title styling", () => {
       const { StyleSheet } = require("react-native");
       const root = renderSheet();
       ensureSearchExpanded(root);
@@ -855,11 +862,23 @@ describe("PlateSheet", () => {
       const header = backButton.parent!;
       expect(header.type).toBe("View");
       const flat = StyleSheet.flatten(header.props.style);
+      // artboardEnclosingStyle up=1: the title's own div is up=0, its parent (the flex row
+      // itself, display:flex + align-items + gap -- "display" isn't a mapped RN prop, so
+      // flexDirection isn't spec-readable, but it's CSS's own row default and what the row style
+      // sets) is up=1.
+      const rowSpec = artboardEnclosingStyle("SearchExpandedHeader.dc.html", "Search", 1);
       expect(flat.flexDirection).toBe("row");
-      expect(flat.alignItems).toBe("center");
+      expect(flat.alignItems).toBe(rowSpec.alignItems);
+      expect(flat.gap).toBe(rowSpec.gap);
 
       const title = header.findByProps({ children: "Search" });
       expect(title.type).toBe(Text);
+      const titleSpec = artboardStyle("SearchExpandedHeader.dc.html", "Search");
+      const titleFlat = StyleSheet.flatten(title.props.style);
+      expect(titleFlat.fontSize).toBe(titleSpec.fontSize);
+      expect(titleFlat.letterSpacing).toBe(titleSpec.letterSpacing);
+      expect(titleFlat.textTransform).toBe(titleSpec.textTransform);
+      expect(normalizeColor(titleFlat.color)).toBe(titleSpec.color);
     });
 
     // 3a: expanding search now replaces the WHOLE pane body (item list/totals/LOG button included),

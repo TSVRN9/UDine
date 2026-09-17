@@ -602,6 +602,10 @@ export function PlateSheet({
             <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
               {searchExpanded ? (
                 <View style={styles.addSection}>
+                  {/* SearchExpandedHeader.dc.html:35-38 -- the app's one backChevron style token
+                  (also used by CustomFoodForm.tsx/NutritionLabel.tsx), paired with a "Search"
+                  section title in a proper header row, same as those two and
+                  SearchResultDetail.dc.html:18-21 already do. */}
                   <View style={styles.searchHeader}>
                     <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
                       <Text style={styles.backChevron}>‹</Text>
@@ -610,12 +614,11 @@ export function PlateSheet({
                   </View>
                   <View style={styles.searchRow}>
                     <View style={styles.searchInputBox}>
-                      {/* Magnifying-glass glyph -- same markup as the idle row's icon
-                      (PlateExpanded.dc.html:87), carried over into the actual search input per
-                      PlateSheetResults.dc.html:37. */}
-                      <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none" testID="searchIcon">
-                        <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
-                        <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
+                      {/* Magnifying-glass glyph, PlateSheetResults.dc.html:37 /
+                      SearchExpandedHeader.dc.html:41. */}
+                      <Svg width={fs(14)} height={fs(14)} viewBox="0 0 14 14" fill="none" testID="searchIcon">
+                        <Circle cx={6} cy={6} r={4.2} stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} />
+                        <Path d="M9.5 9.5L12.5 12.5" stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} strokeLinecap="round" />
                       </Svg>
                       <TextInput
                         ref={searchInputRef}
@@ -947,11 +950,13 @@ const styles = StyleSheet.create({
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
   addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
-  // SearchExpandedHeader.dc.html -- the back chevron sits in a header row with a "Search" title,
-  // the same chevron+title convention CustomFoodForm.tsx's own header already uses, instead of
-  // floating alone outside any row.
-  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(3) },
-  searchHeaderTitle: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
+  // SearchExpandedHeader.dc.html:35-38 -- the back chevron sits in a header row with a "Search"
+  // section title, the same chevron+title convention CustomFoodForm.tsx's own header already
+  // uses, instead of floating alone outside any row. Smaller than CustomFoodForm's full top-of-
+  // screen title (13px/600 vs 20px/700) -- this one lives inside the already-compact addSection
+  // panel, not a standalone modal header.
+  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: fs(2) },
+  searchHeaderTitle: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   // Same backChevron the app's other in-sheet close buttons use (CustomFoodForm.tsx,
   // NutritionLabel.tsx, CafePdfViewer.tsx) -- repurposed here to collapse back to idle instead of
   // closing the whole sheet.
