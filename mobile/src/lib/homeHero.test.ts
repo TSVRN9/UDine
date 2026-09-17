@@ -1,5 +1,5 @@
 import type { DiningHallHours, RetailLocationHours, TimeWindow } from "@udine/shared";
-import { deriveHomeHero, formatHeroLine, formatLocationChip, retailHeaderSubtitle, retailOpenStatus } from "./homeHero";
+import { deriveHomeHero, formatHeroLine, formatLocationChip, retailOpenStatus } from "./homeHero";
 
 function window(openTime: string, closeTime: string): TimeWindow {
   return { openTime, closeTime };
@@ -229,19 +229,5 @@ describe("hallHeaderSubtitle", () => {
     const lateNightNow = new Date(2026, 7, 19, 23, 0, 0, 0);
     const h = hall({ latenight: window("10:00 PM", "1:00 AM") });
     expect(hallHeaderSubtitle(h, lateNightNow)).toBe("Late Night · being served now · until 1:00 AM");
-  });
-});
-
-describe("retailHeaderSubtitle", () => {
-  it("formats an open status lowercase, per the Grab 'N Go screen spec", () => {
-    expect(retailHeaderSubtitle({ open: true, closesAt: new Date(2026, 7, 19, 19, 0) })).toBe("open now · until 7:00 PM");
-  });
-
-  it("formats a closed status with its next open time", () => {
-    expect(retailHeaderSubtitle({ open: false, opensAt: new Date(2026, 7, 19, 7, 0) })).toBe("closed · opens 7:00 AM");
-  });
-
-  it("formats a closed status with no known open time", () => {
-    expect(retailHeaderSubtitle({ open: false, opensAt: null })).toBe("closed today");
   });
 });

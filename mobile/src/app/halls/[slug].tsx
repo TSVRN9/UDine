@@ -64,7 +64,7 @@ import { StationScrubber } from "../../components/StationScrubber";
 import { durations } from "../../lib/motion";
 import { topViewableSectionIndex } from "../../lib/hallMenuScrubber";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
-import { formatTime, retailHeaderSubtitle, retailOpenStatus } from "../../lib/homeHero";
+import { formatTime } from "../../lib/homeHero";
 import {
   cafeMealTabLabel,
   deriveHallMealTabs,
@@ -84,7 +84,6 @@ import { deriveCafeMealTabs, pickCafeMenuHtml, resolveCafeMenuState, syntheticHa
 import { getCachedDishCatalog, refreshDishCatalogIfStale, type CachedDishCatalog } from "../../lib/dishCatalog";
 import { grabSections, moveSectionToFront, sectionsForPeriod, type MenuSection } from "../../lib/hallMenuSections";
 import { macroBadgeRowWidth, shouldTuckBadges } from "../../lib/hallMenuBadgeLayout";
-import { findGrabNGoLocation } from "../../lib/grabStrip";
 import { MacroPresetGlyph } from "../../lib/macroBadgeGlyphs";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
 import { SqliteCustomFoodsStorage } from "../../lib/customFoodsStorage";
@@ -1271,13 +1270,6 @@ export function HallMenuScreenBody({
     // to bail via that ref check instead of comparing against a stale selectedMeal closure.
   }, [isRealHall, hallHours, mealTabs, selectedMeal]);
 
-  // Grab tab's own open/closed header line. Only meaningful for today -- get_infov2 (hoursFeed)
-  // never publishes anything but today's hours, so showing it against a stepped-to date would
-  // paint a confidently wrong "open now · until ..." over a menu that isn't today's; omitted once
-  // the date stepper moves off today.
-  const grabRetailHours = hoursFeed ? findGrabNGoLocation(hoursFeed.retail, hall.name) : null;
-  const grabSubtitle = grabRetailHours && isSelectedDateToday ? retailHeaderSubtitle(retailOpenStatus(grabRetailHours, now)) : "";
-
   // Whichever tab is currently selected, not always the hall's own -- the plate bar's empty-state
   // copy (below) needs to know if THIS tab's own list has loaded, not just the hall's. Error takes
   // priority over loading: a failed fetch leaves `items`/`grabItems` permanently null, so without
@@ -1654,8 +1646,6 @@ export function HallMenuScreenBody({
           </Pressable>
         </View>
       </View>
-      {selectedMeal === "grab" && grabSubtitle ? <Text style={styles.headerSubtitle}>{grabSubtitle}</Text> : null}
-
       {/* A "standing" state has no real MealPeriod to build tabs from -- deriveCafeMealTabs' own
       "allday" synthetic tab would render as a degenerate single-tab strip ("ALL DAY"), which the
       design says shouldn't exist for this state. The caveat banner takes the tab strip's exact
@@ -2079,15 +2069,6 @@ const styles = StyleSheet.create({
     fontSize: fs(11),
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: withOpacity(colors.ink900, 60),
-  },
-
-  // Grab tab's own open/closed line -- ported from the retired grab-n-go/[slug].tsx.
-  headerSubtitle: {
-    paddingHorizontal: spacing(5),
-    paddingBottom: spacing(1.5),
-    fontFamily: fonts.body400,
-    fontSize: fs(12),
     color: withOpacity(colors.ink900, 60),
   },
 
