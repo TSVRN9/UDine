@@ -1,10 +1,10 @@
 {
-  "sha": "89005d1e72aca76a6660998840eabfb15289aac0",
+  "sha": "46ccae16dd14f50fbed5baea5765469a1bb5e2de",
   "branch": "issue/platesheet-search-spec-conformance",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/issue-platesheet-search-spec-conformance",
   "route": "halls/worcester",
   "device": "Agent_Emulator_Narrow",
   "stress": "lookup-hit",
   "dirty": false,
-  "ts": "2026-09-17T15:24:50Z"
+  "ts": "2026-09-17T16:29:15Z"
 }
