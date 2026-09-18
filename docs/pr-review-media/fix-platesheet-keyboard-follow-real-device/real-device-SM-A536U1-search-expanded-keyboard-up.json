@@ -1,10 +1,10 @@
 {
-  "sha": "61da1db8607140b830c6c4148b9ece1747d696d6",
+  "sha": "f13d79b1008dd368f92b7ea3086f52dc6c274aea",
   "branch": "fix/platesheet-keyboard-follow-real-device",
   "worktree": "/home/tavern/Projects/js/UDine-kbfix",
   "route": "halls/worcester (manual: plate bar -> Add something else)",
   "device": "SM-A536U1 real device (Android 16 / One UI 8), adb screencap -- NOT screenshot.sh; sidecar hand-written",
-  "build": "com.udinetogether.udine.internal versionName=1.0.0+61da1db (built from the committed tree)",
+  "build": "com.udinetogether.udine.internal versionName=1.0.0+61da1db (built from the committed tree; f13d79b only adds a test -- app source identical, phone unplugged so not rebuilt)",
   "stress": "",
   "dirty": false,
   "ts": "2026-09-18T16:10:00Z"
