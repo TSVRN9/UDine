@@ -164,11 +164,15 @@ type TabSelection = MealPeriod | "grab";
  * data may not contain on a given day. __DEV__-gated and opt-in only via the `stress` route param
  * -- never runs in production. One set per meal period, so they show up under whichever tab a
  * screenshot lands on.
- *  - Extreme: a 60+ char name plus nutrition that clears every macro-badge threshold at once
- *    (shared/src/types.ts's MACRO_PRESET_CHECKS) -- the max-badge-count / must-stack case.
- *  - Realistic: a ~40 char name (the length real dishes actually wrap at) clearing three
- *    thresholds -- the case the owner's badge-on-a-wasted-3rd-line report actually describes,
- *    where the badges are expected to tuck beside the wrapped last line. */
+ *  - Boundary: nutrition that clears every reachable macro-badge threshold (shared/src/types.ts's
+ *    MACRO_PRESET_CHECKS) -- max reachable is 4, not 5: `menuItemMacroBadges` suppresses
+ *    `high-fiber` whenever `high-protein` also qualifies (both do here), so toggling all 5 macro
+ *    filters on this dish only ever shows 4 badges. The name's last wrapped line is calibrated
+ *    (see its own comment below) to actually cross a real tuck/untuck boundary as badge count
+ *    changes, unlike a name picked by eye -- docs/briefs/hall-menu-badge-tuck-fixture-gap.md.
+ *  - Realistic: a ~40 char name (the length real dishes actually wrap at), comfortably tucked at
+ *    every reachable badge count -- the ordinary case the owner's badge-on-a-wasted-3rd-line
+ *    report describes, not a boundary test. */
 function stressFixtureItems(hallTid: number, mealPeriod: MealPeriod): MenuItem[] {
   const base = {
     category: "Stress Test",
@@ -181,7 +185,22 @@ function stressFixtureItems(hallTid: number, mealPeriod: MealPeriod): MenuItem[]
   return [
     {
       ...base,
-      dishName: "Mediterranean Roasted Vegetables & Chickpeas Deluxe Harvest Bowl (Stress Fixture)",
+      // Last line is the single unbreakable word "HarvestMedleyDeluxeStack" -- can't share a line
+      // with anything else, so its width is fixed regardless of badge count (see DishRow's own
+      // "measurement isn't valid once the decision changes what's being measured" doc -- this
+      // fixture deliberately sidesteps that by never reflowing).
+      // Measured on-device 2026-09-17/18 (Agent_Emulator_Narrow, docs/agents/emulator-pool.md):
+      // containerWidth=229dp, lastLineWidth=172.77dp. At MACRO_BADGE_SIZE=15/MACRO_BADGE_GAP=4/
+      // NAME_BADGE_GAP=7 (this device's spacing() scale as of this measurement --
+      // hallMenuBadgeLayout.test.ts's own comment has the full derivation), shouldTuckBadges'
+      // per-count threshold (containerWidth - 2*NAME_BADGE_GAP - badgeRowWidth(n)) is 181dp at
+      // n=2 badges and 162dp at n=3 badges. 172.77 sits 8.23dp under the n=2 threshold (tucks with
+      // 2 macro filters on) and 10.77dp over the n=3 threshold (untucks with 3+ on) -- both
+      // margins an order of magnitude past known cross-platform onTextLayout rounding drift (RN
+      // #36572/#36675 is sub-1dp), so a small font-metric change can't flip which side this lands
+      // on. Toggle any 2 macro filters this dish qualifies for (e.g. high-protein + low-sodium) to
+      // see it tucked; add a 3rd (e.g. under-300-cal) to see it untuck.
+      dishName: "Mediterranean Roasted Vegetable Harvest Bowl With HarvestMedleyDeluxeStack",
       nutrition: {
         servingSize: "1 stress fixture",
         calories: 200,
