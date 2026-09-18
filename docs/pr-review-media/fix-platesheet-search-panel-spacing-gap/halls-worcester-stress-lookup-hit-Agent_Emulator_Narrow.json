@@ -1,0 +1,10 @@
+{
+  "sha": "66cbfb042f5582115cb1c792be592de782299e63",
+  "branch": "fix/platesheet-search-panel-spacing-gap",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-platesheet-search-panel-spacing-gap",
+  "route": "halls/worcester",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "lookup-hit",
+  "dirty": false,
+  "ts": "2026-09-18T22:33:28Z"
+}
