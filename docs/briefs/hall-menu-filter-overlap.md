@@ -393,19 +393,52 @@ different trigger than the one these criteria named:**
    `cd mobile && npx tsc --noEmit`, `pnpm --filter mobile test`, `pnpm --filter mobile lint`,
    `cd mobile && npx expo export --platform android --output-dir /tmp/udine-export` (all green) —
    blocked by: none — PR: #511
-4. **Root-cause the scroll-offset candidate — from the evidence already in hand, not a fresh code
-   read.** See the 2026-09-18 Status section's "leading candidate" paragraph and
-   `docs/briefs/hall-menu-filter-overlap-evidence/scroll-offset-preserved-after-station-filter.png`.
-   On real Franklin data: scroll deep, filter down to a single early station via `FilterSheet`, and
-   check where the revealed list lands — does it keep the pre-filter absolute scroll offset (this
-   pass's observation), reset to top, or land somewhere else wrong? If the offset really is
-   preserved into a much-shorter list, trace why (`GestureSectionList`/stock `SectionList` doesn't
-   reset `contentOffset` on `sections` changing size — check whether anything in this screen calls
-   `scrollToLocation`/`scrollToOffset` on a filter change today, and if not, that's likely the gap)
-   and whether it interacts with `listBottomPadding`/FAB clearance (`mobile/src/lib/plate.ts`, #493)
-   given the wrong effective list length. Fix only once the mechanism is confirmed on-device, same
-   discipline as tasks 1-3.
-   — files: `mobile/src/app/halls/[slug].tsx` (likely; confirm during root-causing) — lanes:
+4. **PARTIAL (2026-09-18, fourth pass) — mechanism confirmed, fix NOT confirmed working on-device.
+   Do not merge/reopen the pushed branch's fix as-is; needs another pass or a decision below.**
+
+   *Confirmed:* the anomaly reproduces reliably on real Franklin data (scroll deep past a station,
+   filter to that one station, list reveals at its old absolute offset, no section header visible)
+   and the root cause is real: a station/price/allergen-diet-tag filter reshapes
+   `periodSections`/`grabSectionsMemo` *in place* — `GestureSectionList` never unmounts. A date step,
+   by contrast, passes through the `stillLoading` skeleton branch first and gets a fresh mount "for
+   free," which is *why* task 3's scrubber bug couldn't reach a settled-wrong state the same way this
+   one does. Nothing today resets the still-mounted list's native scroll offset on a filter reshape.
+   **Important correction: this is not literally the reported "overlapping elements" symptom** — no
+   frame in any repro shows one element drawn over another, it's a disorienting wrong-scroll-position
+   defect. Plausible as what a user would describe that way, but record the distinction, don't let
+   this get logged as a literal confirmation of the original report.
+
+   *Not confirmed:* the attempted fix (two `useEffect`s calling `scrollToLocation({sectionIndex:0,
+   itemIndex:0}, animated:false)` keyed on `[stationFilter, priceFilter]` + an allergen/diet-tag
+   reshape key, deliberately excluding `macroPresets` since task 1 already ruled that out as a reflow
+   risk) did NOT visibly reset the scroll position across this pass's most careful on-device repro
+   attempts. A new jest test (`hallMenu.test.tsx`) is red→green, but only proves `scrollToLocation`
+   gets *called* with the right args, not that the list actually moves — same synthetic-input gap
+   flagged for PR #454 in memory. The pass's on-device harness was unreliable this round (queued/
+   delayed touch events landing several actions late, a `stress=long-names` param bleeding into
+   `useLocalSearchParams` across relaunches, `FilterSheet`'s scrollable content reporting stale
+   accessibility bounds) — a real fix could be failing, or the harness could be lying. Not
+   distinguished yet.
+
+   *New, independently confirmed, separate defect (not yet its own brief):*
+   `handleScrollToIndexFailed` (`[slug].tsx:1280`, pre-existing since #458) calls
+   `getListRef(tab).current?.getListRef?.()?.scrollToOffset?.(...)` — traced against this repo's own
+   `react-native` dependency tree, stock `SectionList` never exposes a `getListRef()` method
+   publicly, so `.getListRef?.()` is always `undefined` and this entire recovery chain has been a
+   silent no-op since it shipped. Worth its own brief regardless of what happens here, and worth
+   checking first if a fifth pass is dispatched — this pass's own `scrollToLocation` retries could be
+   hitting the same dead end if `onScrollToIndexFailed` (not a successful scroll) is what's actually
+   firing; that wasn't distinguished this pass either.
+
+   Branch pushed, not merged, no PR: `fix/hall-menu-scroll-offset` (2 commits on `origin/main`
+   `ca7cad4`). Files touched: `mobile/src/app/halls/[slug].tsx` (the two effects, unconfirmed),
+   `mobile/src/lib/hallMenu.test.tsx` (new test, real red→green but doesn't prove the fix works).
+   **Decision needed before continuing** (deliberately left open, not resolved in this pass): (a)
+   another on-device attempt with a cleaner harness (isolate from the stress-param bleed-through and
+   touch-queueing issues this pass hit), (b) fix the dead `handleScrollToIndexFailed` chain first as
+   a prerequisite, since it may be entangled, or (c) leave this as "root cause understood, fix
+   unverified" for now and not spend a fifth pass immediately.
+   — files: `mobile/src/app/halls/[slug].tsx`, `mobile/src/lib/hallMenu.test.tsx` — lanes:
    `cd mobile && npx tsc --noEmit`, `pnpm --filter mobile test`, `pnpm --filter mobile lint`,
    `cd mobile && npx expo export --platform android --output-dir /tmp/udine-export` — blocked by:
-   none — PR:
+   none — PR: none (not opened — fix unconfirmed, per this brief's own discipline)
