@@ -70,6 +70,15 @@ export function cafeMealTabLabel(period: MealPeriod, isRealHall: boolean, isBrun
   return mealTabLabel(period, isBrunch);
 }
 
+/** PlateSheet's "<Hall> · <Meal>" context label (PlateSheetResults.dc.html:32) -- echoes exactly
+ * what the active meal/Grab tab currently reads (cafeMealTabLabel), rather than a second
+ * hand-rolled label. `selectedMeal` is [slug].tsx's TabSelection (MealPeriod | "grab"); "grab"
+ * isn't a MealPeriod (see TabSelection's own doc there), so it's handled here directly. */
+export function plateSheetContextLabel(hallName: string, selectedMeal: MealPeriod | "grab", isRealHall: boolean, isBrunch = false): string {
+  const meal = selectedMeal === "grab" ? "Grab 'N Go" : cafeMealTabLabel(selectedMeal, isRealHall, isBrunch);
+  return `${hallName} · ${meal}`;
+}
+
 /**
  * Whether [slug].tsx's current-meal auto-correction effect should actually fire `setSelectedMeal`
  * for a resolved `period` -- pulled out of that effect as a pure predicate so the guard's DECISION
