@@ -1,0 +1,10 @@
+{
+  "sha": "5692a59239c6a3b7e2977c30e2cc3427012ba4b5",
+  "branch": "fix/station-filter-overlap",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-station-filter-overlap",
+  "route": "halls/franklin",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-09-18T03:22:00Z"
+}

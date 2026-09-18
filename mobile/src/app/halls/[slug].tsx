@@ -1150,10 +1150,17 @@ export function HallMenuScreenBody({
   const activeStationListRef = getListRef(selectedMeal ?? "grab");
 
   // Which station the list is currently scrolled to -- fed by onViewableItemsChanged on whichever
-  // SectionList is actually selected (wired per-pane below). Reset on every tab switch so a stale
-  // highlight from the previous tab doesn't linger until the new one's own first scroll event.
+  // SectionList is actually selected (wired per-pane below). Reset on every tab switch, AND
+  // whenever activeStationSections itself is rebuilt (station/price filter, allergen/diet-tag
+  // filter, or a date step -- all three replace this array), so a stale index left over from a
+  // longer/differently-ordered list doesn't linger. Filter changes self-correct almost immediately
+  // anyway (the still-mounted SectionList's own cell layout keeps firing onViewableItemsChanged
+  // even while a FilterSheet sits on top of it), but a date step fully unmounts/remounts the pane
+  // -- there is no further scroll or layout event to correct a stale index against a settled,
+  // unscrolled list, so it survives indefinitely (confirmed on-device 2026-09-17: still wrong 12s
+  // later, not a one-frame blip -- station-filter-overlap brief, task 3).
   const [activeStationIndex, setActiveStationIndex] = useState(0);
-  useEffect(() => setActiveStationIndex(0), [selectedMeal]);
+  useEffect(() => setActiveStationIndex(0), [selectedMeal, activeStationSections]);
 
   // A SectionList's onViewableItemsChanged identity must never change across that list's own
   // lifetime (RN throws "Changing onViewableItemsChanged on the fly is not supported" if it does)
