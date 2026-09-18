@@ -1,11 +1,11 @@
 {
-  "sha": "e90cd82f08a1f06affb8d125cf46a4c80de844bf",
+  "sha": "61da1db8607140b830c6c4148b9ece1747d696d6",
   "branch": "fix/platesheet-keyboard-follow-real-device",
   "worktree": "/home/tavern/Projects/js/UDine-kbfix",
   "route": "halls/worcester (manual: plate bar -> Add something else)",
   "device": "SM-A536U1 real device (Android 16 / One UI 8), adb screencap -- NOT screenshot.sh; sidecar hand-written",
-  "build": "com.udinetogether.udine.internal versionName=1.0.0+9f40524.dirty (built from this diff before it was committed as e90cd82; identical source)",
+  "build": "com.udinetogether.udine.internal versionName=1.0.0+61da1db (built from the committed tree)",
   "stress": "",
   "dirty": false,
-  "ts": "2026-09-18T15:19:00Z"
+  "ts": "2026-09-18T16:10:00Z"
 }

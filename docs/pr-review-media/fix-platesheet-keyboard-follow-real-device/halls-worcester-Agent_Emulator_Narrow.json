@@ -4,7 +4,7 @@
   "worktree": "/home/tavern/Projects/js/UDine-kbfix",
   "route": "halls/worcester",
   "device": "Agent_Emulator_Narrow",
-  "stress": "lookup-hit",
+  "stress": "",
   "dirty": false,
-  "ts": "2026-09-18T16:08:54Z"
+  "ts": "2026-09-18T16:09:22Z"
 }
