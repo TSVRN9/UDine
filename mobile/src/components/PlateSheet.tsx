@@ -2,7 +2,7 @@ import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorag
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
+import Animated, { FadeIn, useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 import { Spinner } from "./Skeleton";
@@ -26,10 +26,6 @@ const BADGE_INFO: Record<PlateSearchResult["kind"], { label: string; fill: strin
   off: { label: "Packaged", fill: "rgba(36,26,20,0.08)", color: "rgba(36,26,20,0.65)" },
   usda: { label: "USDA", fill: "rgba(92,112,72,0.16)", color: "#4a5c3a" },
 };
-
-// Mirrors the (unexported) page size both networked search sources use, for the "Load N More"
-// button copy.
-const SEARCH_PAGE_SIZE = 20;
 
 // How many merged results are visible at once (owner: "maybe 5 ... until scrolling for more").
 // Caps the DISPLAY of the merged list independent of how many of the 6 search sources returned
@@ -115,6 +111,48 @@ const STRESS_LOOKUP_CANDIDATES: LookupDishCandidate[] = [
     dietTags: [],
   },
 ];
+
+/** Whether a result belongs to the umass/custom "local" group decision 1
+ * (docs/briefs/plate-search-semantics.md) always sorts first, regardless of which of the 4 search
+ * groups' promises settled first -- "UMass numbers are source of truth on campus" (CLAUDE.md). */
+function isLocalGroup(result: PlateSearchResult): boolean {
+  return result.kind === "umass" || result.kind === "custom";
+}
+
+/** Match-quality tier for decision 2's within-local-group interleaving -- lower sorts first.
+ * There's no unified cross-source relevance score today (OFF/USDA rank server-side; umass
+ * catalog/history/custom are unscored substring matches), so this is the operational stand-in the
+ * brief specifies: an exact or prefix match on the displayed name outranks a plain substring
+ * match. */
+function matchQualityTier(name: string, query: string): 0 | 1 | 2 {
+  const n = name.toLowerCase();
+  const q = query.toLowerCase();
+  if (n === q) return 0;
+  if (n.startsWith(q)) return 1;
+  return 2;
+}
+
+/** Re-sorts the full merged list after every splice (the 4 search groups, loadMore, a manual
+ * direct lookup, or a live catalog-refresh splice) -- local (umass+custom) results first, ordered
+ * by matchQualityTier against the query that produced them; OFF/USDA keep their own
+ * already-ranked relative order and sort after, per decisions 1-2. The explicit index tiebreak
+ * (rather than relying on the host JS engine's sort being stable) keeps a group's own arrival
+ * order intact. */
+function sortSearchResults(results: PlateSearchResult[], query: string): PlateSearchResult[] {
+  return results
+    .map((result, index) => ({ result, index }))
+    .sort((a, b) => {
+      const localA = isLocalGroup(a.result);
+      const localB = isLocalGroup(b.result);
+      if (localA !== localB) return localA ? -1 : 1;
+      if (localA) {
+        const delta = matchQualityTier(plateSearchResultDetail(a.result).dishName, query) - matchQualityTier(plateSearchResultDetail(b.result).dishName, query);
+        if (delta !== 0) return delta;
+      }
+      return a.index - b.index;
+    })
+    .map(({ result }) => result);
+}
 
 interface Props {
   visible: boolean;
@@ -213,10 +251,15 @@ export function PlateSheet({
   const [brandedHasMore, setBrandedHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   // "Search UMass Dining directly" -- the manual (never automatic) fallback to lookup-dish's
-  // on-demand FoodPro Web INA lookup, shown only once a merged search comes up short on UMass
-  // results. "idle" also covers "already found something" -- once a live hit merges into
-  // `results` below, hasUmassResults flips true and the affordance simply stops rendering.
+  // on-demand FoodPro Web INA lookup, unconditionally available once a merged search finishes
+  // (decision 3, plate-search-semantics.md) regardless of what `results` contains.
   const [directLookup, setDirectLookup] = useState<"idle" | "loading" | "miss" | "rate_limited">("idle");
+  // Result keys a live catalog-refresh splice (decision 5) just added mid-search -- rendered with
+  // the same FadeIn entrance halls/[slug].tsx's own expanded-content reveal uses, so a newly
+  // -available row is visibly distinguished as just-arrived without any new explanatory text.
+  // Never removed from this set once added (entering only plays once, on mount, so a stale
+  // membership after that is harmless) -- reset on every fresh search / on close instead.
+  const [justArrivedKeys, setJustArrivedKeys] = useState<Set<string>>(new Set());
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
   const scrollRef = useRef<ScrollView>(null);
@@ -259,17 +302,62 @@ export function PlateSheet({
     });
     return () => sub.remove();
   }, [modalVisible, onClose]);
-  // PlateSheet stays mounted across open/close (only the Modal's `visible` prop toggles) --
-  // mount-once is the right place to fire off a background catalog refresh. Fire-and-forget:
-  // refreshDishCatalogIfStale already swallows its own errors, and this screen must never block on
-  // (or fail because of) a background sync.
-  useEffect(() => {
-    refreshDishCatalogIfStale(supabase);
-  }, []);
   // Bumped on every new search and on close -- a resolving search only applies its result if this
   // still matches the seq it captured when it started, so a slower/stale response can never
   // overwrite a newer query's results (or repaint a sheet the user closed).
   const searchSeq = useRef(0);
+  // The query a currently-running runSearch() actually started with -- lets runSearch tell "mash
+  // Enter again with the SAME query" (still a no-op) apart from "submit a genuinely different
+  // query while one's in flight" (decision 6: allowed, and supersedes via searchSeq like every
+  // other source already does).
+  const inFlightQueryRef = useRef<string | null>(null);
+  // Mirrors query/results for the catalog-refresh effect below, which resolves long after this
+  // render -- a closure captured once at mount (deps []) would otherwise see the initial empty
+  // query/null results forever. Same "stale closure" fix as halls/[slug].tsx's scrubberLatestRef.
+  const latestSearchRef = useRef({ query, results });
+  useEffect(() => {
+    latestSearchRef.current = { query, results };
+  }, [query, results]);
+  // PlateSheet stays mounted across open/close (only the Modal's `visible` prop toggles) --
+  // mount-once is the right place to fire off a background catalog refresh. Fire-and-forget:
+  // refreshDishCatalogIfStale already swallows its own errors, and this screen must never block on
+  // (or fail because of) a background sync.
+  //
+  // Decision 5 (plate-search-semantics.md): a refresh that resolves while a search is already open
+  // must actually feed it, not just sync silently in the background for the NEXT search. Once it
+  // resolves, re-read the (possibly now-updated) local catalog and re-run the same local-only
+  // search the umass/history/custom group already does, splicing in whatever's new -- gated by the
+  // same searchSeq a stale group response or a closed sheet already invalidates.
+  useEffect(() => {
+    refreshDishCatalogIfStale(supabase).then(async () => {
+      const { query: activeQuery, results: activeResults } = latestSearchRef.current;
+      const q = activeQuery.trim();
+      if (!q || activeResults === null) return; // no open search for this refresh to feed
+      const seq = searchSeq.current;
+      const catalog = await getCachedDishCatalog();
+      const hits = searchCachedDishes(catalog, q);
+      // Re-check AFTER the async re-read, against the LATEST results -- a new search or a close
+      // that happened while this was running must not repaint over it.
+      if (searchSeq.current !== seq) return;
+      const existingUmassNames = new Set<string>();
+      for (const r of latestSearchRef.current.results ?? []) {
+        if (r.kind === "umass") existingUmassNames.add(r.dish.dishName.toLowerCase());
+      }
+      const additions: PlateSearchResult[] = hits
+        .filter((entry) => !existingUmassNames.has(entry.dishName.toLowerCase()))
+        .map((entry) => ({ kind: "umass", dish: { dishName: entry.dishName, hallTid, nutrition: entry.nutrition } }));
+      if (additions.length === 0) return; // nothing the current query didn't already have
+      setJustArrivedKeys((prev) => new Set([...prev, ...additions.map((r) => plateSearchResultKey(r))]));
+      setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
+      // Reveal the new row(s) immediately rather than leaving them hidden behind Load More --
+      // buried behind an extra tap defeats the point of a visible live update.
+      setVisibleCount((v) => v + additions.length);
+    });
+    // Deliberately mount-once (see comment above), not [hallTid] -- this PlateSheet instance's
+    // hallTid prop doesn't change without a remount in practice (own route per hall), same
+    // reasoning candidatesToResults/runSearch already rely on for the same prop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const itemCount = totalItemCount(plate);
 
@@ -293,6 +381,8 @@ export function PlateSheet({
       setBrandedHasMore(false);
       setLoadingMore(false);
       setDirectLookup("idle");
+      setJustArrivedKeys(new Set());
+      inFlightQueryRef.current = null;
     }
   }, [visible]);
 
@@ -334,15 +424,22 @@ export function PlateSheet({
   // pattern runDirectLookup/loadMore below already use (`setResults((prev) => [...(prev ?? []), ...])`),
   // gated by the same searchSeq ref they check.
   function runSearch(queryOverride?: string) {
-    // Guards against a search already in flight -- mashing Enter while typing would otherwise fire
-    // overlapping requests.
     const raw = queryOverride ?? query;
-    if (!raw.trim() || searching) return;
+    if (!raw.trim()) return;
     const q = raw.trim();
+    // Resubmitting the SAME still-in-flight query is a no-op -- mashing Enter/tapping Search again
+    // while typing would otherwise fire overlapping requests for it. A genuinely DIFFERENT query
+    // while one's running is allowed through instead of blocked (decision 6,
+    // plate-search-semantics.md): it bumps searchSeq below, which already makes the old search's
+    // late splices/groupSettled no-ops the same way it already does for a closed sheet or a stale
+    // runDirectLookup response.
+    if (searching && q === inFlightQueryRef.current) return;
+    inFlightQueryRef.current = q;
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
     setDirectLookup("idle"); // a fresh search re-earns the "Search UMass Dining directly" affordance
+    setJustArrivedKeys(new Set()); // a fresh search's own rows are never "just arrived" -- only a live catalog splice into an OPEN search is
     // Reset the paging/display state a fresh search owns up front, not at the end -- each group
     // below sets its own hasMore as it resolves, so these can't wait for the slowest one either.
     // `results` is explicitly reset to `null` (not left as whatever a PRIOR search left it at --
@@ -370,7 +467,7 @@ export function PlateSheet({
     function splice(additions: PlateSearchResult[]) {
       if (searchSeq.current !== seq || additions.length === 0) return;
       addedAnything = true;
-      setResults((prev) => [...(prev ?? []), ...additions]);
+      setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
     }
 
     // Runs once all 4 groups have settled -- not per-group -- so `searching`/the "Search UMass
@@ -509,7 +606,7 @@ export function PlateSheet({
         ...(usda?.results.map((food): PlateSearchResult => ({ kind: "usda", food })) ?? []),
         ...(branded?.results.map((food): PlateSearchResult => ({ kind: "usda", food })) ?? []),
       ];
-      if (additions.length > 0) setResults((prev) => [...(prev ?? []), ...additions]);
+      if (additions.length > 0) setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
       // Reveal the freshly-fetched batch in the same VISIBLE_RESULTS increments as the reveal-only
       // path above, rather than dumping the whole new page in at once -- a network page can itself
       // be 20+ items, which is exactly the "too many at once" bug this cap exists to fix.
@@ -572,7 +669,7 @@ export function PlateSheet({
     if (searchSeq.current !== seq) return;
     if (result.status === "hit") {
       const additions = candidatesToResults(result.candidates);
-      setResults((prev) => [...(prev ?? []), ...additions]);
+      setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
       setVisibleCount((v) => v + additions.length);
       setDirectLookup("idle");
     } else {
@@ -631,7 +728,18 @@ export function PlateSheet({
                 section title in a proper header row, same as those two and
                 SearchResultDetail.dc.html:18-21 already do. */}
                 <View style={styles.searchHeader}>
-                  <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+                  <Pressable
+                    onPress={() => {
+                      setSearchExpanded(false);
+                      // The results list (and its rows' FadeIn `entering`) unmounts here and
+                      // remounts fresh on re-expand -- clear "just arrived" so a row already seen
+                      // once doesn't replay the arrival animation every time the panel reopens.
+                      setJustArrivedKeys(new Set());
+                    }}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel="Back"
+                  >
                     <Text style={styles.backChevron}>‹</Text>
                   </Pressable>
                   <Text style={styles.searchHeaderTitle}>Search</Text>
@@ -670,7 +778,10 @@ export function PlateSheet({
                     style={styles.searchButton}
                     textStyle={styles.searchButtonText}
                     onPress={() => runSearch()}
-                    disabled={searching || !query.trim()}
+                    // Only blocks resubmitting the SAME still-in-flight query -- a genuinely
+                    // different one must stay tappable so it can supersede the running search
+                    // (decision 6, plate-search-semantics.md), same guard runSearch itself applies.
+                    disabled={!query.trim() || (searching && query.trim() === inFlightQueryRef.current)}
                   >
                     Search
                   </Button>
@@ -719,7 +830,11 @@ export function PlateSheet({
                   const detail = plateSearchResultDetail(r);
                   const badge = BADGE_INFO[r.kind];
                   return (
-                    <View key={key} style={styles.resultRow}>
+                    // Decision 5: a row a live catalog-refresh just spliced into an already-open
+                    // search fades in (same entrance halls/[slug].tsx's own expanded-content
+                    // reveal uses) instead of silently re-sorting/appearing with no signal --
+                    // `entering` undefined for every other (ordinary search-hit) row is a no-op.
+                    <Animated.View key={key} style={styles.resultRow} entering={justArrivedKeys.has(key) ? FadeIn.duration(durations.rowExpandIn) : undefined}>
                       <Pressable
                         style={styles.resultInfo}
                         onPress={() => onShowResultDetail(r)}
@@ -740,7 +855,7 @@ export function PlateSheet({
                           {Math.round(detail.nutrition.calories)} cal{isEstimatedServing(detail.nutrition) ? " · est. per 100g" : ""}
                         </Text>
                       </Pressable>
-                    </View>
+                    </Animated.View>
                   );
                 })}
                 {(() => {
@@ -748,10 +863,11 @@ export function PlateSheet({
                   const hiddenFetched = total - visibleCount;
                   const canFetchMore = offHasMore || usdaHasMore || brandedHasMore;
                   if (hiddenFetched <= 0 && !canFetchMore) return null;
-                  // Revealing already-fetched results is free -- only a fetch from an exhausted
-                  // source costs a network round-trip, so the button copy says which is about to
-                  // happen.
-                  const label = loadingMore ? "Loading…" : hiddenFetched > 0 ? `Load ${Math.min(VISIBLE_RESULTS, hiddenFetched)} More` : `Load ${SEARCH_PAGE_SIZE} More`;
+                  // Decision 4 (plate-search-semantics.md): always "Load More" -- the underlying
+                  // reveal-buffered-vs-fetch-next-page split above is unchanged, but a count in the
+                  // label leaked that implementation distinction into user-facing copy (confusing
+                  // when it silently changed from "Load 5 More" to "Load 20 More" mid-session).
+                  const label = loadingMore ? "Loading…" : "Load More";
                   return (
                     <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
                       {label}
@@ -759,13 +875,15 @@ export function PlateSheet({
                   );
                 })()}
                 {/* Manual, explicit fallback to lookup-dish's on-demand FoodPro Web INA lookup --
-                never fires on its own. Shown only once the merged search above has come up
-                short on an actual UMass Dining result; disappears the moment one lands (a hit
-                merges straight into the results list above as an ordinary "umass" row). Hidden
-                while a lookup is already in flight -- the inline row above is the only fetching
-                indicator (exactly one, not this button too); shown again for idle/miss/
-                rate_limited so retry always stays one manual tap away, never a timer. */}
-                {results !== null && !searching && directLookup !== "loading" && !results.some((r) => r.kind === "umass") && (
+                never fires on its own. Unconditionally available once a search finishes (decision
+                3, plate-search-semantics.md) -- it used to hide the moment ANY umass-kind result
+                existed anywhere in `results`, even an unrelated catalog hit sharing a keyword with
+                the query and nothing to do with whether the food the user actually wants is
+                present ("I really don't see it at the bottom at times"). Hidden while a lookup is
+                already in flight -- the inline row above is the only fetching indicator (exactly
+                one, not this button too); shown again for idle/miss/rate_limited so retry always
+                stays one manual tap away, never a timer. */}
+                {results !== null && !searching && directLookup !== "loading" && (
                   <View style={styles.directLookup}>
                     <Button variant="ghost" size="sm" onPress={runDirectLookup} accessibilityLabel="Search UMass Dining directly">
                       Search UMass Dining directly

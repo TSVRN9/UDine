@@ -308,6 +308,147 @@ describe("PlateSheet", () => {
     expect(mockedRefreshDishCatalogIfStale).toHaveBeenCalledTimes(1);
   });
 
+  // Decision 5 (plate-search-semantics.md): a catalog refresh that resolves mid-search must
+  // actually feed it, not just sync silently for the NEXT search.
+  describe("live catalog refresh feeding an open search (decision 5)", () => {
+    it("splices a newly-available umass hit into the still-open, still-matching search once the background refresh resolves", async () => {
+      let resolveRefresh!: () => void;
+      mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));
+      mockedSearchCachedDishes.mockReturnValue([]); // nothing locally cached yet
+      const root = renderSheet();
+      await runSearch(root, "ramen");
+      expect(texts(root).flat().join(" ")).not.toMatch(/Miso Ramen/);
+
+      // The catalog the background refresh just synced now has a match for the SAME open query.
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: { ...DISH.nutrition, calories: 420 }, allergens: [], dietTags: [], updatedAt: "x" }]);
+      await act(async () => {
+        resolveRefresh();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(texts(root).flat().join(" ")).toMatch(/Miso Ramen/);
+    });
+
+    it("visually distinguishes the newly-spliced row as just-arrived (a FadeIn entrance), with no new explanatory text", async () => {
+      let resolveRefresh!: () => void;
+      mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));
+      mockedSearchCachedDishes.mockReturnValue([]);
+      const root = renderSheet();
+      await runSearch(root, "ramen");
+
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      await act(async () => {
+        resolveRefresh();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      // No new caption/label describing the mechanism -- just the ordinary row plus an entrance.
+      expect(texts(root).flat()).not.toContain("New");
+      expect(texts(root).flat().join(" ")).not.toMatch(/just arrived|new result|updated/i);
+      const animatedRows = root.root.findAll((n) => n.type === View && Boolean(n.props.entering));
+      expect(animatedRows).toHaveLength(1);
+    });
+
+    it("does not splice anything when no search is open (results === null)", async () => {
+      let resolveRefresh!: () => void;
+      mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      renderSheet(); // no search ever run -- results stays null
+
+      await act(async () => {
+        resolveRefresh();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      // Nothing to assert on screen (search is still collapsed) -- the real assertion is that this
+      // resolves without throwing (getCachedDishCatalog is never even called for an unopened search).
+      expect(mockedGetCachedDishCatalog).not.toHaveBeenCalled();
+    });
+
+    it("a stale refresh resolution after the sheet closes is dropped, not repainted onto the closed sheet", async () => {
+      let resolveRefresh!: () => void;
+      mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));
+      mockedSearchCachedDishes.mockReturnValue([]);
+      let root!: renderer.ReactTestRenderer;
+      act(() => {
+        root = renderer.create(
+          <PlateSheet
+            visible
+            plate={[]}
+            totals={ZERO_TOTALS}
+            logStorage={emptyLogStorage()}
+            customFoodsStorage={fakeCustomFoodsStorage()}
+            hallTid={1}
+            onStep={() => {}}
+            onSetCount={() => {}}
+            onShowResultDetail={() => {}}
+            onOpenCustomFoodForm={() => {}}
+            onLog={() => {}}
+            onClose={() => {}}
+          />,
+        );
+      });
+      await runSearch(root, "ramen");
+
+      act(() => {
+        root.update(
+          <PlateSheet
+            visible={false}
+            plate={[]}
+            totals={ZERO_TOTALS}
+            logStorage={emptyLogStorage()}
+            customFoodsStorage={fakeCustomFoodsStorage()}
+            hallTid={1}
+            onStep={() => {}}
+            onSetCount={() => {}}
+            onShowResultDetail={() => {}}
+            onOpenCustomFoodForm={() => {}}
+            onLog={() => {}}
+            onClose={() => {}}
+          />,
+        );
+      });
+
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      await act(async () => {
+        resolveRefresh();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(texts(root).flat().join(" ")).not.toMatch(/Miso Ramen/);
+    });
+
+    // The results list (and its rows' FadeIn `entering`) unmounts when the user taps Back to
+    // idle and remounts fresh on re-expand -- without clearing "just arrived" there, a row
+    // already seen once would replay its arrival animation every time the panel reopens.
+    it("does not replay the just-arrived entrance after collapsing to idle (Back) and re-expanding", async () => {
+      let resolveRefresh!: () => void;
+      mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));
+      mockedSearchCachedDishes.mockReturnValue([]);
+      const root = renderSheet();
+      await runSearch(root, "ramen");
+
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      await act(async () => {
+        resolveRefresh();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(root.root.findAll((n) => n.type === View && Boolean(n.props.entering))).toHaveLength(1);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "Back" }).props.onPress();
+      });
+      ensureSearchExpanded(root);
+
+      expect(texts(root).flat().join(" ")).toMatch(/Miso Ramen/); // still there...
+      expect(root.root.findAll((n) => n.type === View && Boolean(n.props.entering))).toHaveLength(0); // ...but not re-animated
+    });
+  });
+
   // platesheet-search-results-parity-gap task 1: the caller passes contextLabel as one already-
   // joined "<Hall> · <Meal>" string (halls/[slug].tsx via hallMenuTabs.ts's
   // plateSheetContextLabel, its own tests) -- this pins PlateSheet's own render of *whatever*
@@ -325,7 +466,10 @@ describe("PlateSheet", () => {
   // #198: onSubmitEditing had no guard against a search already in flight -- the Search BUTTON
   // already disables on `searching`, but hitting Enter/the keyboard's search key went straight to
   // runSearch regardless, so mashing Enter while typing fired overlapping searchProducts calls.
-  it("#198: a second Enter while a search is already in flight is ignored, not fired as an overlapping request", async () => {
+  // Decision 6 (plate-search-semantics.md) narrowed the fix from "block ANY new search while
+  // searching" to "block only a resubmission of the exact SAME still-in-flight query" -- a
+  // genuinely different query must now start immediately and supersede the running one instead.
+  it("#198: a second Enter with the SAME still-in-flight query is ignored, not fired as an overlapping request", async () => {
     let resolveFirst!: (v: unknown) => void;
     mockedSearchProducts.mockImplementation(() => new Promise((resolve) => (resolveFirst = resolve)));
     const root = renderSheet();
@@ -338,10 +482,7 @@ describe("PlateSheet", () => {
       searchInput(root).props.onSubmitEditing(); // search #1 starts, unresolved
     });
     act(() => {
-      searchInput(root).props.onChangeText("banana");
-    });
-    act(() => {
-      searchInput(root).props.onSubmitEditing(); // must be dropped -- #1 is still in flight
+      searchInput(root).props.onSubmitEditing(); // same query, still in flight -- must be a no-op
     });
 
     expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
@@ -351,6 +492,69 @@ describe("PlateSheet", () => {
       resolveFirst({ results: [], hasMore: false });
       await Promise.resolve();
     });
+  });
+
+  // Decision 6: the other half of #198's old guard was too broad -- it blocked ANY new search
+  // while one was in flight, not just a resubmission of the same query, so the searchSeq-based
+  // staleness discard (which correctly no-ops a superseded search's late results) was unreachable
+  // for this exact case. A genuinely different query must be allowed to start immediately.
+  it("a genuinely different query starts immediately while one's in flight, and supersedes it", async () => {
+    let resolveFirst!: (v: unknown) => void;
+    mockedSearchProducts.mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)));
+    mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "2", productName: "Banana Chips", nutrition: DISH.nutrition }], hasMore: false });
+    const root = renderSheet();
+    ensureSearchExpanded(root);
+
+    act(() => {
+      searchInput(root).props.onChangeText("a");
+    });
+    act(() => {
+      searchInput(root).props.onSubmitEditing(); // search A starts, unresolved
+    });
+    act(() => {
+      searchInput(root).props.onChangeText("banana");
+    });
+    await act(async () => {
+      searchInput(root).props.onSubmitEditing(); // a different query -- must fire immediately, not be dropped
+    });
+
+    expect(mockedSearchProducts).toHaveBeenCalledTimes(2);
+    expect(mockedSearchProducts).toHaveBeenLastCalledWith("banana");
+    expect(texts(root).flat().join(" ")).toMatch(/Banana Chips/);
+
+    // Search A's late resolution must be a no-op -- searchSeq already moved on to B.
+    await act(async () => {
+      resolveFirst({ results: [{ barcode: "1", productName: "STALE A RESULT", nutrition: DISH.nutrition }], hasMore: false });
+      await Promise.resolve();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Banana Chips/);
+    expect(body).not.toMatch(/STALE A RESULT/);
+  });
+
+  // Regression coverage for runDirectLookup's existing searchSeq-gated staleness protection
+  // (unchanged by decision 6) plus the one new case the brief calls out: a fresh merged search
+  // started while a direct lookup is still in flight must correctly supersede it too.
+  it("a fresh search started while a direct lookup is in flight supersedes it -- the late lookup result is discarded", async () => {
+    let resolveLookup!: (v: unknown) => void;
+    mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+    const root = renderSheet();
+    await runSearch(root, "nonexistent dish"); // no umass hit -- direct-lookup button available
+    await act(async () => {
+      directLookupButton(root)[0].props.onPress(); // direct lookup starts, unresolved
+    });
+
+    mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "9", productName: "Something Else", nutrition: DISH.nutrition }], hasMore: false });
+    await runSearch(root, "something else"); // a fresh search while the lookup is still in flight
+
+    await act(async () => {
+      resolveLookup({ status: "hit", candidates: [{ dishName: "Bacon", location: "", hallTid: 1, nutrition: DISH.nutrition, allergens: [], dietTags: [] }] });
+      await Promise.resolve();
+    });
+
+    const body = texts(root).flat().join(" ");
+    expect(body).toMatch(/Something Else/);
+    expect(body).not.toMatch(/Bacon/); // the stale lookup hit must not have merged in
   });
 
   // #198: a stale search left in flight when the sheet closes had nothing invalidating it -- if the
@@ -769,6 +973,77 @@ describe("PlateSheet", () => {
         expect(body).not.toMatch(/Falafel Wrap/);
       });
     });
+
+    // plate-search-semantics.md decisions 1-2: cross-source ordering is no longer whatever order
+    // the 4 parallel groups' promises happen to settle in.
+    describe("cross-source ordering (decisions 1-2)", () => {
+      // Decision 1: "UMass numbers are source of truth on campus" (CLAUDE.md) -- umass/history
+      // results always sort first, even when they're the LAST group to settle.
+      it("sorts umass/history first no matter which of the 4 search groups' promises settle first", async () => {
+        mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Off Chicken", nutrition: DISH.nutrition }], hasMore: false });
+        mockedSearchFoods.mockResolvedValue({ results: [{ fdcId: "1", productName: "Usda Chicken", nutrition: DISH.nutrition }], hasMore: false });
+        let resolveHistory!: (entries: LogEntry[]) => void;
+        const slowStorage: LogStorage = { ...new InMemoryLogStorage(), getAllEntries: () => new Promise((resolve) => (resolveHistory = resolve)) } as LogStorage;
+        const root = renderSheet({ logStorage: slowStorage, hallTid: 1 });
+        ensureSearchExpanded(root);
+        act(() => {
+          searchInput(root).props.onChangeText("chicken");
+        });
+        await act(async () => {
+          searchInput(root).props.onSubmitEditing();
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+        // OFF/USDA (already-resolved mocks) settled first -- the umass/history group is still
+        // pending on the slow storage read above.
+        expect(texts(root).flat().join(" ")).toMatch(/Off Chicken/);
+
+        await act(async () => {
+          resolveHistory([
+            { id: "h1", loggedAt: "2026-08-01T12:00:00.000Z", source: { type: "umass-menu", dishName: "Umass Chicken", hallTid: 1 }, servings: 1, nutrition: DISH.nutrition },
+          ]);
+          await Promise.resolve();
+        });
+
+        const flat = texts(root).flat();
+        const umassIdx = flat.indexOf("Umass Chicken");
+        const offIdx = flat.indexOf("Off Chicken");
+        expect(umassIdx).toBeGreaterThanOrEqual(0);
+        expect(offIdx).toBeGreaterThan(umassIdx); // umass sorted first despite settling LAST
+      });
+
+      // Decision 2: custom foods interleave with umass/history by match-quality (exact/prefix
+      // beats a plain substring match), not appended unconditionally after them. Two pairs, one in
+      // each tier, prove genuine interleaving both ways -- not "umass always first" (a tier-1
+      // custom result outranks a tier-2 umass one) and not "custom always last" either. A tier-0
+      // exact match (arriving LAST, from custom foods) proves that tier too, not just tiers 1/2.
+      it("interleaves custom foods with umass/history by match quality, in both directions", async () => {
+        mockedSearchCachedDishes.mockReturnValue([
+          { dishName: "Wrap Special", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }, // prefix match -- tier 1
+          { dishName: "Best Turkey Wrap", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }, // substring -- tier 2
+        ]);
+        mockedSearchCustomFoods.mockReturnValue([
+          { id: "c1", name: "Turkey Wrap", servingSize: "1", nutrition: DISH.nutrition }, // substring -- tier 2
+          { id: "c2", name: "Wrap Deluxe", servingSize: "1", nutrition: DISH.nutrition }, // prefix match -- tier 1
+          { id: "c3", name: "Wrap", servingSize: "1", nutrition: DISH.nutrition }, // exact match -- tier 0, despite arriving LAST
+        ]);
+        const root = renderSheet();
+        await runSearch(root, "wrap");
+
+        const flat = texts(root).flat();
+        const idx = (name: string) => flat.indexOf(name);
+        // Tier 0 (exact match) sorts first, ahead of every tier-1/tier-2 result above it.
+        expect(idx("Wrap")).toBeGreaterThanOrEqual(0);
+        expect(idx("Wrap")).toBeLessThan(idx("Wrap Special"));
+        // Both tier 1 (prefix match): umass's own arrival order (before custom's) is preserved.
+        expect(idx("Wrap Special")).toBeGreaterThanOrEqual(0);
+        expect(idx("Wrap Special")).toBeLessThan(idx("Wrap Deluxe"));
+        // Tier 1 sorts entirely before tier 2 -- the custom tier-1 hit outranks the umass tier-2 one.
+        expect(idx("Wrap Deluxe")).toBeLessThan(idx("Best Turkey Wrap"));
+        // Both tier 2 (substring): umass's own arrival order is preserved here too.
+        expect(idx("Best Turkey Wrap")).toBeLessThan(idx("Turkey Wrap"));
+      });
+    });
   });
 
   // Bug report: a long dish/product name pushed the kind badge (UMass/Custom/Packaged/USDA)
@@ -1069,14 +1344,14 @@ describe("PlateSheet", () => {
       const root = renderSheet();
       await runSearch(root, "chicken");
 
-      expect(texts(root).flat().join(" ")).toMatch(/Load 20 More/);
+      expect(texts(root).flat().join(" ")).toMatch(/Load More/);
 
       mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "2", productName: "Off Page 2", nutrition: DISH.nutrition }], hasMore: false });
       mockedSearchFoods.mockResolvedValueOnce({ results: [{ fdcId: "2", productName: "Usda Page 2", nutrition: DISH.nutrition }], hasMore: false });
       mockedSearchBrandedFoods.mockResolvedValueOnce({ results: [{ fdcId: "b2", productName: "Branded Page 2", nutrition: DISH.nutrition }], hasMore: false });
 
       await act(async () => {
-        root.root.findByProps({ children: "Load 20 More" }).props.onPress();
+        root.root.findByProps({ children: "Load More" }).props.onPress();
         await Promise.resolve();
       });
 
@@ -1091,13 +1366,13 @@ describe("PlateSheet", () => {
       expect(body).toMatch(/Branded Page 1/);
       expect(body).toMatch(/Branded Page 2/);
       // All three sources reported hasMore:false on their 2nd page -- button gone.
-      expect(body).not.toMatch(/Load 20 More/);
+      expect(body).not.toMatch(/Load More/);
     });
 
     it("does not show Load more when none of OFF/USDA/Branded has more", async () => {
       const root = renderSheet();
       await runSearch(root, "chicken");
-      expect(texts(root).flat().join(" ")).not.toMatch(/Load 20 More/);
+      expect(texts(root).flat().join(" ")).not.toMatch(/Load More/);
     });
   });
 
@@ -1119,9 +1394,12 @@ describe("PlateSheet", () => {
         .flat()
         .filter((t) => typeof t === "string" && t.startsWith("Off Match"));
       expect(shown).toHaveLength(5);
-      expect(texts(root).flat().join(" ")).toMatch(/Load 5 More/);
+      expect(texts(root).flat().join(" ")).toMatch(/Load More/);
     });
 
+    // Decision 4 (plate-search-semantics.md): the label stays the fixed "Load More" whether the
+    // next tap reveals an already-fetched row (this test) or fetches a new network page (the next
+    // test below) -- it used to leak that distinction as "Load 5 More" vs "Load 20 More".
     it("Load More reveals more of the already-fetched buffer without calling any search source again", async () => {
       mockedSearchProducts.mockResolvedValue({ results: Array.from({ length: 12 }, (_, i) => offResult(i)), hasMore: false });
       const root = renderSheet();
@@ -1129,7 +1407,7 @@ describe("PlateSheet", () => {
       expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
 
       await act(async () => {
-        root.root.findByProps({ children: "Load 5 More" }).props.onPress();
+        root.root.findByProps({ children: "Load More" }).props.onPress();
         await Promise.resolve();
       });
 
@@ -1140,7 +1418,7 @@ describe("PlateSheet", () => {
       // Still just the one call from the initial search -- revealing more of an already-fetched
       // buffer must not re-fetch anything.
       expect(mockedSearchProducts).toHaveBeenCalledTimes(1);
-      expect(texts(root).flat().join(" ")).toMatch(/Load 2 More/); // 2 of the 12 remain hidden
+      expect(texts(root).flat().join(" ")).toMatch(/Load More/); // 2 of the 12 remain hidden, same fixed label
     });
 
     it("only hits the network for a new page once the visible buffer has caught up to what's already fetched", async () => {
@@ -1148,11 +1426,11 @@ describe("PlateSheet", () => {
       const root = renderSheet();
       await runSearch(root, "off"); // exactly 5 fetched, all 5 visible -- buffer is caught up already
 
-      expect(texts(root).flat().join(" ")).toMatch(/Load 20 More/); // no hidden buffer -- next tap must fetch
+      expect(texts(root).flat().join(" ")).toMatch(/Load More/); // no hidden buffer -- next tap must fetch
 
       mockedSearchProducts.mockResolvedValueOnce({ results: [offResult(100)], hasMore: false });
       await act(async () => {
-        root.root.findByProps({ children: "Load 20 More" }).props.onPress();
+        root.root.findByProps({ children: "Load More" }).props.onPress();
         await Promise.resolve();
       });
 
@@ -1245,11 +1523,15 @@ describe("PlateSheet", () => {
   });
 
   describe("manual 'Search UMass Dining directly' fallback (lookup-dish)", () => {
-    it("is hidden when the merged search already found a UMass result", async () => {
+    // Decision 3 (plate-search-semantics.md): unconditionally available once a search finishes,
+    // never gated on result content -- it used to hide the moment ANY umass-kind result existed
+    // anywhere in `results`, even one unrelated to what the user actually typed ("I really don't
+    // see it at the bottom at times").
+    it("still renders even when the merged search already found a UMass result", async () => {
       mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
       const root = renderSheet();
       await runSearch(root, "ramen");
-      expect(directLookupButton(root)).toHaveLength(0);
+      expect(directLookupButton(root)).toHaveLength(1);
     });
 
     it("appears once a search has run and found no UMass result, and never fires lookup-dish on its own", async () => {
@@ -1257,6 +1539,22 @@ describe("PlateSheet", () => {
       await runSearch(root, "nonexistent dish");
       expect(directLookupButton(root)).toHaveLength(1);
       expect(mockedLookupDishLive).not.toHaveBeenCalled();
+    });
+
+    it("is absent before any search has run, and hidden again while a search is in flight", async () => {
+      const root = renderSheet();
+      expect(directLookupButton(root)).toHaveLength(0); // idle, no search run yet
+      ensureSearchExpanded(root);
+      act(() => {
+        searchInput(root).props.onChangeText("anything");
+      });
+      act(() => {
+        searchInput(root).props.onSubmitEditing();
+      });
+      expect(directLookupButton(root)).toHaveLength(0); // `results` reset to null and `searching` true -- neither settled yet
+      await act(async () => {
+        await Promise.resolve();
+      });
     });
 
     it("tapping it merges a live hit into the results as an ordinary UMass row, staged to the CURRENTLY-BROWSED hall, not the candidate's own FoodPro location", async () => {
@@ -1282,7 +1580,9 @@ describe("PlateSheet", () => {
       const body = texts(root).flat().join(" ");
       expect(body).toMatch(/Bacon/);
       expect(body).toMatch(/UMass/);
-      expect(directLookupButton(root)).toHaveLength(0);
+      // Decision 3: no longer gated on result content -- a fresh umass hit merging in doesn't hide
+      // the affordance anymore (only `directLookup === "loading"`/a search in flight do).
+      expect(directLookupButton(root)).toHaveLength(1);
 
       act(() => {
         root.root.findByProps({ accessibilityLabel: "View Bacon (UMass)" }).props.onPress();
