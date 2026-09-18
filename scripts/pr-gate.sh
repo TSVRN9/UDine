@@ -120,12 +120,15 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
   [[ -n "$lit" ]] && fail "duration/easing literal outside mobile/src/lib/motion.ts:"$'\n'"$lit"
 
   # parity test present for components with an artboard row
-  added="$(git diff "$BASE" "$HEAD_REF" -- '*.test.ts' '*.test.tsx' | grep -E '^\+.*artboard(Style|Transitions)\(' || true)"
+  # Matches any artboardXxx() helper in mobile/src/lib/artboard.ts (artboardStyle,
+  # artboardTransitions, artboardEnclosingStyle, artboardNthStyle, artboardPanelGap, and whatever
+  # gets added next) -- a hardcoded name list here already missed two real helpers once (#515).
+  added="$(git diff "$BASE" "$HEAD_REF" -- '*.test.ts' '*.test.tsx' | grep -E '^\+.*\bartboard[A-Za-z]*\(' || true)"
   for f in "${RENDERED[@]}"; do
     rel="${f#mobile/src/}"
     if grep -Fq "\`$rel\`" docs/design/README.md && [[ -z "$added" ]]; then
       art="$(grep -F "\`$rel\`" docs/design/README.md | head -1 | awk -F'|' '{print $3}' | tr -d ' `')"
-      warn "$f has artboard $art but the diff adds no artboardStyle()/artboardTransitions() assertion -- reviewer: state why, by line"
+      warn "$f has artboard $art but the diff adds no artboard*() assertion -- reviewer: state why, by line"
     fi
   done
 else
