@@ -1862,7 +1862,10 @@ export function HallMenuScreenBody({
         }
       />
       <PlateSheet
-        // Never both visible=true at once: Android silently drops a 2nd simultaneous native Modal.
+        // Never both visible=true at once. Originally because Android silently drops a 2nd
+        // simultaneous native Modal; PlateSheet is an in-screen overlay now (not a Modal -- see its
+        // keyboard-follow note), but the mutual exclusion is kept as-is rather than re-deciding the
+        // stacking UX in a keyboard bugfix.
         visible={resolvePlateAndCustomFoodVisibility(sheetOpen, customFoodFormOpen).plateSheetVisible}
         plate={plate}
         totals={totals}

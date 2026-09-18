@@ -4,7 +4,7 @@
 // real module to derive its shape, and the real ../lib/supabase drags in native bindings
 // unavailable outside jest-expo's native harness.
 import renderer, { act } from "react-test-renderer";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { BackHandler, Modal, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { InMemoryLogStorage, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type LogEntry, type LogStorage, type MenuItem } from "@udine/shared";
 import { PlateSheet } from "./PlateSheet";
@@ -1311,6 +1311,38 @@ describe("PlateSheet", () => {
       jest.spyOn(Reanimated, "useAnimatedKeyboard").mockReturnValue({ height: { value: 250 }, state: { value: 2 } } as never);
       const root = renderSheet();
       expect(keyboardFollowWrapper(root)[0].props.style).toMatchObject({ marginBottom: 250 });
+    });
+
+    // #platesheet-keyboard-follow-real-device: on real Android hardware the margin above stayed 0
+    // while the keyboard was up. useAnimatedKeyboard's native side registers its insets-animation
+    // callback on the Activity window's decorView, but an RN <Modal> hosts its content in its own
+    // Dialog window -- and Android delivers the IME animation only to the window that owns the
+    // focused input (dumpsys: imeInputTarget = the ty=APPLICATION dialog window, not the
+    // BASE_APPLICATION activity window). So the sheet -- and above all its search TextInput -- must
+    // live in the screen's own window, never inside a Modal. The API-35 emulator happened to hide
+    // this, which is why the margin test above alone wasn't enough.
+    it("hosts the search input in the screen's own window -- no RN Modal in the tree", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      expect(searchInput(root)).toBeTruthy();
+      expect(root.root.findAllByType(Modal)).toHaveLength(0);
+    });
+
+    // Modal's onRequestClose used to be what mapped Android's hardware back to onClose; without a
+    // Modal that has to be wired explicitly.
+    it("hardware back closes the sheet while it's open", () => {
+      const onClose = jest.fn();
+      const spy = jest.spyOn(BackHandler, "addEventListener").mockReturnValue({ remove: jest.fn() });
+      renderSheet({ onClose });
+      const handlers = spy.mock.calls.filter(([name]) => name === "hardwareBackPress").map(([, handler]) => handler as () => boolean);
+      expect(handlers.length).toBeGreaterThan(0);
+      expect(handlers[handlers.length - 1]()).toBe(true);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders nothing while closed (no Modal to hide it anymore)", () => {
+      const root = renderSheet({ visible: false });
+      expect(root.toJSON()).toBeNull();
     });
   });
 });
