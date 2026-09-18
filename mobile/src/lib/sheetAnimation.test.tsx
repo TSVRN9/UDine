@@ -75,8 +75,8 @@ describe("behindSheetA11yProps", () => {
   it("hides the background subtree from assistive tech while the sheet is open", () => {
     expect(behindSheetA11yProps(true)).toEqual({ accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" });
   });
-  it("restores normal accessibility once the sheet is closed", () => {
-    expect(behindSheetA11yProps(false)).toEqual({ accessibilityElementsHidden: false, importantForAccessibility: "auto" });
+  it("sets nothing once the sheet is closed -- the wrapper must read as a plain View, not an explicit 'auto' node", () => {
+    expect(behindSheetA11yProps(false)).toEqual({});
   });
 });
 

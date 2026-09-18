@@ -29,10 +29,10 @@ export const SHEET_FLING_VELOCITY = 500;
  * overlay does not, so the caller wraps its background content and spreads these -- the same
  * "visible-but-inert" pattern MealTabPager uses for its inactive panes. */
 export function behindSheetA11yProps(sheetOpen: boolean) {
-  return {
-    accessibilityElementsHidden: sheetOpen,
-    importantForAccessibility: sheetOpen ? ("no-hide-descendants" as const) : ("auto" as const),
-  };
+  // Nothing at all while closed (not an explicit "auto"): the wrapper must stay indistinguishable
+  // from a plain View then -- hallMenu.test.tsx's activePane() finds MealTabPager's live pane by
+  // `importantForAccessibility === "auto"`, and an explicit auto on the wrapper double-matched it.
+  return sheetOpen ? { accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" as const } : {};
 }
 
 /** Pure release decision, mirroring `paneShell.ts`'s `paneIndexForSwipe` shape (distance OR
