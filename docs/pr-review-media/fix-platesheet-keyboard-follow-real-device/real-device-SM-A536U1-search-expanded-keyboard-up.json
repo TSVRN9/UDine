@@ -1,11 +1,11 @@
 {
-  "sha": "f13d79b1008dd368f92b7ea3086f52dc6c274aea",
+  "sha": "e6445c39da6f142485d53e5bee3df307505cff1f",
   "branch": "fix/platesheet-keyboard-follow-real-device",
   "worktree": "/home/tavern/Projects/js/UDine-kbfix",
   "route": "halls/worcester (manual: plate bar -> Add something else)",
-  "device": "SM-A536U1 real device (Android 16 / One UI 8), adb screencap -- NOT screenshot.sh; sidecar hand-written",
-  "build": "com.udinetogether.udine.internal versionName=1.0.0+61da1db (built from the committed tree; phone unplugged so not rebuilt at the merge commit 6df7d3a). `git diff f13d79b 6df7d3a -- mobile/src/components/PlateSheet.tsx | grep -i \"keyboardStyle|useAnimatedKeyboard|GestureHandlerRootView|accessibilityViewIsModal|modalVisible\"` is empty -- the keyboard-follow/a11y-fencing mechanism this screenshot exists to prove is byte-identical at the merge commit. What IS different: merging in main pulled in PR #513's search-row restyle (button fill/typography, magnifying-glass icon, header row) -- this screenshot's Search button/icon/header no longer match current source pixel-for-pixel, only the keyboard-clearance behavior it's meant to demonstrate.",
+  "device": "SM-A536U1 real device (Android 16 / One UI 8), adb screencap via mcp__android -- NOT screenshot.sh; sidecar hand-written",
+  "build": "com.udinetogether.udine.internal versionName=1.0.0+e6445c3, rebuilt via build-internal-android.sh --install at the exact merge commit",
   "stress": "",
   "dirty": false,
-  "ts": "2026-09-18T16:10:00Z"
+  "ts": "2026-09-18T21:45:00Z"
 }
