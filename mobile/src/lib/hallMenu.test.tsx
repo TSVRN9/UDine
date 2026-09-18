@@ -458,6 +458,34 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     for (const pane of hiddenPanes) expect(pane.props.accessibilityElementsHidden).toBe(true);
   });
 
+  // PR #514: PlateSheet is an in-tree overlay (not an RN Modal), so nothing hides the hall screen
+  // from a screen reader while the sheet is up unless the screen fences its own background. This
+  // pins the actual call site -- the wrapper around everything up to PlateBar spreading
+  // behindSheetA11yProps(sheetOpen) -- since the helper's own unit test can't tell whether the
+  // screen still passes it the live sheetOpen (hardcoding `false` there passed every other test).
+  it("fences the whole background (down to the PlateBar) from assistive tech while the plate sheet is open, and unfences it once closed", async () => {
+    const root = await renderScreen([PIZZA, SALAD]);
+    // The fence wrapper is the View that contains the PlateBar (MealTabPager's inactive panes also
+    // carry this prop pair, but none of them contain the bar).
+    const barFence = () => root.root.findAllByType(View).filter((n) => n.props.importantForAccessibility === "no-hide-descendants" && n.findAllByType(PlateBar).length === 1);
+    expect(barFence()).toHaveLength(0);
+
+    act(() => {
+      root.root.findByType(PlateBar).props.onPress();
+    });
+    const [fence] = barFence();
+    expect(fence).toBeDefined();
+    expect(fence.props.accessibilityElementsHidden).toBe(true);
+    // The sheet itself is NOT inside the fence -- it has to stay reachable.
+    expect(fence.findAllByProps({ accessibilityLabel: "Close" })).toHaveLength(0);
+    expect(root.root.findAllByProps({ accessibilityLabel: "Close" }).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Close" }).props.onPress();
+    });
+    expect(barFence()).toHaveLength(0);
+  });
+
   it("steps the date forward by exactly one calendar day and refetches the menu for it", async () => {
     const root = await renderScreen([PIZZA, SALAD]);
     // mockedFetchMenu is a module-level mock shared across this whole file's tests, never reset --
