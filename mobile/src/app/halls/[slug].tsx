@@ -76,6 +76,7 @@ import {
   isBrunchLunch,
   isCurrentTabLoading,
   MEAL_TABS,
+  plateSheetContextLabel,
   shouldAutoCorrectMealTab,
   stepDate,
   toggleExpandedKey,
@@ -1892,7 +1893,17 @@ export function HallMenuScreenBody({
         visible={resolvePlateAndCustomFoodVisibility(sheetOpen, customFoodFormOpen).plateSheetVisible}
         plate={plate}
         totals={totals}
-        contextLabel={hall.name}
+        // Omitted (not hall.name alone) while selectedMeal is still null -- real for a café: its
+        // own initial state is null until mealTabs derives from a still-in-flight fetchMenu (a real
+        // hall's initial state is never null, see selectedMeal's own useState above), and PlateBar
+        // is always tappable even before that resolves (its own doc comment), same as the lookup-*
+        // stress fixtures that open this sheet synchronously on mount. hall.name alone is the exact
+        // "<Hall>, no meal" bug this task fixed everywhere else -- pr-reviewer follow-up on
+        // platesheet-search-results-parity-gap task 1 confirmed this window is genuinely reachable,
+        // not just untested, on the café path. contextLabel is already optional (PlateSheet skips
+        // rendering it entirely when falsy), so this briefly shows no subtitle instead of a wrong
+        // one, then fills in correctly the moment selectedMeal resolves.
+        contextLabel={selectedMeal ? plateSheetContextLabel(hall.name, selectedMeal, isRealHall, isBrunchToday) : undefined}
         logStorage={storage}
         customFoodsStorage={customFoodsStorage}
         hallTid={cafeHallTid}

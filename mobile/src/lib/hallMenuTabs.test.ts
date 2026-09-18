@@ -12,6 +12,7 @@ import {
   isBrunchLunch,
   isCurrentTabLoading,
   mealTabLabel,
+  plateSheetContextLabel,
   shouldAutoCorrectMealTab,
   stepDate,
   toggleExpandedKey,
@@ -97,6 +98,26 @@ describe("cafeMealTabLabel", () => {
   it("passes isBrunch through to mealTabLabel for a real hall", () => {
     expect(cafeMealTabLabel("lunch", true, true)).toBe("Brunch");
     expect(cafeMealTabLabel("lunch", true, false)).toBe("Lunch");
+  });
+});
+
+// platesheet-search-results-parity-gap task 1: PlateSheetResults.dc.html:32 spec's
+// "<Hall> · <Meal>" for PlateSheet's contextLabel -- halls/[slug].tsx used to pass hall.name
+// alone, dropping the meal period entirely. Echoes exactly what the active tab reads
+// (cafeMealTabLabel), not a second hand-rolled label.
+describe("plateSheetContextLabel", () => {
+  it("joins the hall name and the active meal period's label", () => {
+    expect(plateSheetContextLabel("Franklin", "lunch", true, false)).toBe("Franklin · Lunch");
+    expect(plateSheetContextLabel("Franklin", "breakfast", true, false)).toBe("Franklin · Breakfast");
+  });
+
+  it("reads 'Grab 'N Go' for the Grab tab, which isn't a MealPeriod", () => {
+    expect(plateSheetContextLabel("Worcester", "grab", true, false)).toBe("Worcester · Grab 'N Go");
+  });
+
+  it("passes isBrunch/isRealHall through to cafeMealTabLabel", () => {
+    expect(plateSheetContextLabel("Hampshire", "lunch", true, true)).toBe("Hampshire · Brunch");
+    expect(plateSheetContextLabel("Bluewall", "allday", false, false)).toBe("Bluewall · Daily Offerings");
   });
 });
 

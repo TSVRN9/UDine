@@ -120,7 +120,9 @@ interface Props {
   visible: boolean;
   plate: PlateEntry[];
   totals: DailyMacroTotals;
-  /** Right-of-title context (e.g. "Hampshire · Lunch") — the caller's hall name. */
+  /** Right-of-title context (e.g. "Hampshire · Lunch") — the caller (halls/[slug].tsx) joins its
+   * hall name with the currently-selected meal/Grab tab via hallMenuTabs.ts's
+   * plateSheetContextLabel, per PlateSheetResults.dc.html:32. */
   contextLabel?: string;
   /** Backs the local-history half of the merged search. Caller passes its own LogStorage instance
    * through rather than this sheet owning a duplicate. */
@@ -635,7 +637,19 @@ export function PlateSheet({
                         returnKeyType="search"
                       />
                     </View>
-                    <Button variant="primary" size="sm" onPress={() => runSearch()} disabled={searching || !query.trim()}>
+                    {/* PlateSheetResults.dc.html:40 / SearchExpandedHeader.dc.html:45 -- solid
+                    #3b0a0f fill with an Oswald/600/12px/uppercase label, darker than
+                    buttonColors("primary")'s default maroon600 -- same "primary variant +
+                    style/textStyle override" pattern as CustomFoodForm.tsx's Save button
+                    (saveButton/saveButtonText) for its own #3b0a0f artboard button. */}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      style={styles.searchButton}
+                      textStyle={styles.searchButtonText}
+                      onPress={() => runSearch()}
+                      disabled={searching || !query.trim()}
+                    >
                       Search
                     </Button>
                   </View>
@@ -962,6 +976,12 @@ const styles = StyleSheet.create({
   // closing the whole sheet.
   backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
+  // PlateSheetResults.dc.html:40 / SearchExpandedHeader.dc.html:45 -- #3b0a0f fill, 6px radius,
+  // darker than buttonColors("primary")'s maroon600 default. fontWeight "400" cancels Button's own
+  // base 600 weight, which would fake-bold display600's already-600 Oswald family (same reasoning
+  // as CustomFoodForm.tsx's saveButtonText).
+  searchButton: { borderRadius: radii.md, backgroundColor: colors.maroon900 },
+  searchButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.5, textTransform: "uppercase", fontWeight: "400" },
   // PlateSheetResults.dc.html:36 -- the border wraps the icon+input box itself, not the whole
   // expanded panel (addSection above no longer carries one).
   searchInputBox: {
