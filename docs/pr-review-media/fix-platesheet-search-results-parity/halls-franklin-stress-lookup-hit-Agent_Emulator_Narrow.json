@@ -1,0 +1,10 @@
+{
+  "sha": "e9dbab0fec5e0a13409d35ab271876d9be8ef595",
+  "branch": "fix/platesheet-search-results-parity",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-platesheet-search-results-parity",
+  "route": "halls/franklin",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "lookup-hit",
+  "dirty": false,
+  "ts": "2026-09-18T15:42:44Z"
+}
