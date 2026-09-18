@@ -6,7 +6,7 @@
       "y": 0,
       "w": 390,
       "h": 844,
-      "title": "\u25b6 Interactive prototype"
+      "title": "▶ Interactive prototype"
     },
     {
       "file": "Social.dc.html",
@@ -239,7 +239,7 @@
       "y": 960,
       "w": 900,
       "h": 844,
-      "title": "Data model \u2014 sync / share / delete",
+      "title": "Data model — sync / share / delete",
       "page": "page-7"
     },
     {
@@ -248,7 +248,7 @@
       "y": 1920,
       "w": 390,
       "h": 844,
-      "title": "Your data v3 \u2014 A: three sections (lead)",
+      "title": "Your data v3 — A: three sections (lead)",
       "page": "page-11"
     },
     {
@@ -257,7 +257,7 @@
       "y": 1920,
       "w": 390,
       "h": 844,
-      "title": "Your data v3 \u2014 C: server-data detail",
+      "title": "Your data v3 — C: server-data detail",
       "page": "page-11"
     },
     {
@@ -266,7 +266,7 @@
       "y": 0,
       "w": 390,
       "h": 844,
-      "title": "Half servings v2 \u2014 F: inline vertical slide (grows from the + button)",
+      "title": "Half servings v2 — F: inline vertical slide (grows from the + button)",
       "page": "page-5"
     },
     {
@@ -275,7 +275,7 @@
       "y": 0,
       "w": 390,
       "h": 844,
-      "title": "Half servings v2 \u2014 G: type an exact amount, editing from the plate sheet",
+      "title": "Half servings v2 — G: type an exact amount, editing from the plate sheet",
       "page": "page-5"
     },
     {
@@ -439,6 +439,69 @@
       "h": 844,
       "title": "F4 -- lookup-dish states: fetching / miss / rate-limited (new)",
       "page": "page-4"
+    },
+    {
+      "file": "SearchCancelOptionA.dc.html",
+      "x": 0,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "F4 -- Cancel option A: dedicated × on the fetching row",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchCancelOptionB.dc.html",
+      "x": 450,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "F4 -- Cancel option B: Search button becomes Cancel",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchCancelOptionC.dc.html",
+      "x": 900,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "F4 -- Cancel option C: whole row is the tap target (dashed border)",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchExpandedHeader.dc.html",
+      "x": 1350,
+      "y": 1920,
+      "w": 390,
+      "h": 844,
+      "title": "F2 -- Search panel back header (new, not on any prior artboard)",
+      "page": "page-4"
+    },
+    {
+      "file": "EventDetailOptionA.dc.html",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Event detail A: reuses the app's in-content back+title header row, share as a bordered pill",
+      "page": "page-8"
+    },
+    {
+      "file": "EventDetailOptionB.dc.html",
+      "x": 930,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Event detail B: banner-integrated header, share as a floating icon directly on the image",
+      "page": "page-8"
+    },
+    {
+      "file": "EventDetailOptionC.dc.html",
+      "x": 1380,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Event detail C: dark CafePdf-style chrome, share pill twinning the existing SAVE button",
+      "page": "page-8"
     }
   ],
   "annotations": [
@@ -447,7 +510,7 @@
       "x": 530,
       "y": 0,
       "w": 390,
-      "text": "INTERACTIVE PROTOTYPE - tap through the whole app. Dots switch the 3-pane strip (320ms slide). Hall card -> menu pushes in with a real skeleton load; meal tabs + date stepper live; + steppers fill the plate; plate bar slides up -> tap it for the bottom sheet -> LOG clears the plate, toasts, and bumps the You pane's totals. FULL NUTRITION LABEL is its own sheet. You pane: ALL LOGS, Your Data (all toggles animate + toast the server consequence), Export (batch select, format pill, live count). Social: Casey -> profile -> Ping (bubble -> pick a hall); + -> Add Friends -> QR (code/scan). Tweak chip 'offline' simulates the offline treatment everywhere at once. Not in the prototype: login (one-shot), OS push (system chrome), hold-to-ping gesture (tap stands in). Static artboards remain the per-screen spec.\n\nDECIDED (owner):\n- Pane transition = SHARED-AXIS: 36px drift + fade under the fixed title/dots header. Slide/parallax/crossfade workshop chips removed.\n- 'Being served now' line REMOVED from the hall menu - serving windows live only in the i sheet.\n- Hall info: the WHOLE TITLE is now the tap target (owner round 2 - the 22px circle still read as a button). A small hint sits after the name; workshop chip 'infoHint' flips it live: glyph (bare 13px i at 45% ink - lead) \u00b7 chevron (caret-down, the 'title is a menu' idiom) \u00b7 none (cleanest, least discoverable). Name + date are nowrap so the header can never wrap. Sheet unchanged: address + directions, serving windows with gold NOW, grab hours, events (get_infov2 + get_beacons_events). Static boards show the glyph lead; HallInfo's background shows it gold while the sheet is open."
+      "text": "INTERACTIVE PROTOTYPE - tap through the whole app. Dots switch the 3-pane strip (320ms slide). Hall card -> menu pushes in with a real skeleton load; meal tabs + date stepper live; + steppers fill the plate; plate bar slides up -> tap it for the bottom sheet -> LOG clears the plate, toasts, and bumps the You pane's totals. FULL NUTRITION LABEL is its own sheet. You pane: ALL LOGS, Your Data (all toggles animate + toast the server consequence), Export (batch select, format pill, live count). Social: Casey -> profile -> Ping (bubble -> pick a hall); + -> Add Friends -> QR (code/scan). Tweak chip 'offline' simulates the offline treatment everywhere at once. Not in the prototype: login (one-shot), OS push (system chrome), hold-to-ping gesture (tap stands in). Static artboards remain the per-screen spec.\n\nDECIDED (owner):\n- Pane transition = SHARED-AXIS: 36px drift + fade under the fixed title/dots header. Slide/parallax/crossfade workshop chips removed.\n- 'Being served now' line REMOVED from the hall menu - serving windows live only in the i sheet.\n- Hall info: the WHOLE TITLE is now the tap target (owner round 2 - the 22px circle still read as a button). A small hint sits after the name; workshop chip 'infoHint' flips it live: glyph (bare 13px i at 45% ink - lead) · chevron (caret-down, the 'title is a menu' idiom) · none (cleanest, least discoverable). Name + date are nowrap so the header can never wrap. Sheet unchanged: address + directions, serving windows with gold NOW, grab hours, events (get_infov2 + get_beacons_events). Static boards show the glyph lead; HallInfo's background shows it gold while the sheet is open."
     },
     {
       "id": "swipe-map",
@@ -574,7 +637,7 @@
       "x": 1880,
       "y": 1260,
       "w": 900,
-      "text": "SYNC / SHARE / DELETE WORKSHOP (owner ask, 2026-08-26). Today the Your-data screen conflates three ideas: whether a thing is COPIED to the server, whether FRIENDS can read it, and whether you can REMOVE the server copy. The data-model board (left) separates them per category, with three rules: share needs sync; delete is not the same as off (the toggle stays, a still-on sync re-uploads \u2014 copy must say so); and today a stat's server row IS its shared copy, so splitting sync from share for stats needs a per-stat visibility flag on shared_stats (schema decision before build).\n\nThree screen variants: A (lead) = three sections, SYNC above SHARE, delete-all at the bottom; SHARE rows grey out when their SYNC is off. B = one dense matrix, every row has Sync | Share | trash. C = keep Your data as an overview and push the detail to a second screen, one card per synced thing with its own delete. Pick one; the DataModel rules apply to all three. Note: owner also decided 2026-08-26 that the three stat toggles default ON (#248), so every variant here shows them on unless the user turned one off.",
+      "text": "SYNC / SHARE / DELETE WORKSHOP (owner ask, 2026-08-26). Today the Your-data screen conflates three ideas: whether a thing is COPIED to the server, whether FRIENDS can read it, and whether you can REMOVE the server copy. The data-model board (left) separates them per category, with three rules: share needs sync; delete is not the same as off (the toggle stays, a still-on sync re-uploads — copy must say so); and today a stat's server row IS its shared copy, so splitting sync from share for stats needs a per-stat visibility flag on shared_stats (schema decision before build).\n\nThree screen variants: A (lead) = three sections, SYNC above SHARE, delete-all at the bottom; SHARE rows grey out when their SYNC is off. B = one dense matrix, every row has Sync | Share | trash. C = keep Your data as an overview and push the detail to a second screen, one card per synced thing with its own delete. Pick one; the DataModel rules apply to all three. Note: owner also decided 2026-08-26 that the three stat toggles default ON (#248), so every variant here shows them on unless the user turned one off.",
       "page": "page-7"
     },
     {
@@ -582,7 +645,7 @@
       "x": 980,
       "y": 0,
       "w": 900,
-      "text": "FRACTIONAL (HALF) SERVINGS \u2014 your open question, not yet decided. Nothing in the data model needs to change for this: servings is already a plain number (LogEntry.servings, PlateEntry.count) and every stepper handler is already delta/value-generic \u2014 this is purely a stepper UI gap, not a schema change. Three directions, all reachable from where we are today:\n\nA (lead) = same two-button \u2212 / + pill everywhere; long-press either button nudges by \u00bd instead of 1, with a small hint line under the row. Zero new tap targets, but the gesture only works if the hint actually teaches it \u2014 someone who never long-presses never finds \u00bd.\n\nB = insert a middle \u00bd button into the pill (\u2212 \u00bd 1\u00bd +). Fully discoverable, no gesture to learn, but the pill gets noticeably wider \u2014 tightest fit on the dish row's compact inline stepper, where it's crowding the dish name/cal line already.\n\nC = keep A or B's compact stepper on the dish row and plate sheet (space-constrained), but swap the roomier nutrition-label footer's stepper for a row of tappable quantity chips (\u00bd \u00b7 1 \u00b7 1\u00bd \u00b7 2 \u00b7 2\u00bd \u00b7 3) \u2014 one tap lands on an exact count, no stepping through it. Only fits where there's room, so it complements A/B rather than replacing them everywhere.\n\nA and B apply to the SAME control (dish row + plate sheet); C is a different control (the nutrition label's own stepper) that either A or B still needs elsewhere. Pick a dish-row direction (A or B) and, separately, whether the label footer also gets C.",
+      "text": "FRACTIONAL (HALF) SERVINGS — your open question, not yet decided. Nothing in the data model needs to change for this: servings is already a plain number (LogEntry.servings, PlateEntry.count) and every stepper handler is already delta/value-generic — this is purely a stepper UI gap, not a schema change. Three directions, all reachable from where we are today:\n\nA (lead) = same two-button − / + pill everywhere; long-press either button nudges by ½ instead of 1, with a small hint line under the row. Zero new tap targets, but the gesture only works if the hint actually teaches it — someone who never long-presses never finds ½.\n\nB = insert a middle ½ button into the pill (− ½ 1½ +). Fully discoverable, no gesture to learn, but the pill gets noticeably wider — tightest fit on the dish row's compact inline stepper, where it's crowding the dish name/cal line already.\n\nC = keep A or B's compact stepper on the dish row and plate sheet (space-constrained), but swap the roomier nutrition-label footer's stepper for a row of tappable quantity chips (½ · 1 · 1½ · 2 · 2½ · 3) — one tap lands on an exact count, no stepping through it. Only fits where there's room, so it complements A/B rather than replacing them everywhere.\n\nA and B apply to the SAME control (dish row + plate sheet); C is a different control (the nutrition label's own stepper) that either A or B still needs elsewhere. Pick a dish-row direction (A or B) and, separately, whether the label footer also gets C.",
       "page": "page-5"
     },
     {
@@ -590,7 +653,7 @@
       "x": 980,
       "y": 420,
       "w": 900,
-      "text": "HALF SERVINGS v2 \u2014 a different idea (your ask): instead of tapping \u00b1 or a chip, HOLD the + button \u2014 the screen dims around it, a drag surface appears, and you slide to a quantity (half-steps included) and lift to commit. Same underlying data (count is already a plain number, see the v1 note) \u2014 this changes the gesture, not the model.\n\nD (vertical track) = a slim slider rail floats straight up from the held button, ticked at each \u00bd step, current value called out in a pill that tracks your thumb. Familiar (same idiom as a volume/brightness slider), one axis to aim on, but it needs real headroom above the row \u2014 cramped on a dish near the top of the list.\n\nE (radial dial) = a fan of ticks arcs up-and-left from the button instead, thumb drags along the curve. Reads as more distinctive/playful and doesn't need vertical room, but a curved path is a harder target to hit precisely than a straight line, and radial gestures are a less-established idiom here than a slider.\n\nSee F for a subtler take on the same slide idea, with no scrim.\n\nBoth keep the existing tap-to-step interaction as the fast path for whole numbers \u2014 hold is the deliberate, precise path when you want a half. Open question either way: this is a MUCH bigger interaction to build/tune (real gesture recognition, haptics, an escape-by-dragging-off affordance) than v1's A/B/C, which are closer to a small patch on the existing stepper.\n\nE's dial geometry: center is the + button (336,558); ticks sit at radius 95, 18\u00b0 apart, sweeping from straight up (0.5) to due left (3.0), coordinates computed as (cx - r\u00b7sin \u03b8, cy - r\u00b7cos \u03b8).",
+      "text": "HALF SERVINGS v2 — a different idea (your ask): instead of tapping ± or a chip, HOLD the + button — the screen dims around it, a drag surface appears, and you slide to a quantity (half-steps included) and lift to commit. Same underlying data (count is already a plain number, see the v1 note) — this changes the gesture, not the model.\n\nD (vertical track) = a slim slider rail floats straight up from the held button, ticked at each ½ step, current value called out in a pill that tracks your thumb. Familiar (same idiom as a volume/brightness slider), one axis to aim on, but it needs real headroom above the row — cramped on a dish near the top of the list.\n\nE (radial dial) = a fan of ticks arcs up-and-left from the button instead, thumb drags along the curve. Reads as more distinctive/playful and doesn't need vertical room, but a curved path is a harder target to hit precisely than a straight line, and radial gestures are a less-established idiom here than a slider.\n\nSee F for a subtler take on the same slide idea, with no scrim.\n\nBoth keep the existing tap-to-step interaction as the fast path for whole numbers — hold is the deliberate, precise path when you want a half. Open question either way: this is a MUCH bigger interaction to build/tune (real gesture recognition, haptics, an escape-by-dragging-off affordance) than v1's A/B/C, which are closer to a small patch on the existing stepper.\n\nE's dial geometry: center is the + button (336,558); ticks sit at radius 95, 18° apart, sweeping from straight up (0.5) to due left (3.0), coordinates computed as (cx - r·sin θ, cy - r·cos θ).",
       "page": "page-5"
     },
     {
@@ -598,7 +661,7 @@
       "x": 980,
       "y": 840,
       "w": 390,
-      "text": "F \u2014 your follow-up round 1: more subtle than D. No lifted duplicate row \u2014 the whole rest of the screen stays exactly as it is. The track is one continuous maroon stem that grows straight up out of the + button in place, right in the row where it already lives, with only a soft drop shadow lifting it off the content behind (it can overlap the card above, same as any native popover). Same ticks/half-step callout as D, just anchored locally instead of staged as a full-screen takeover.\n\nRound 2: the track is now the SAME 44px WIDTH as the add button it grows out of (was a slimmer 22px), and a light scrim (not a full dim) now settles over the rest of the screen while it's held.\n\nRound 3 (your latest ask): fixed the seam between the button and the track above it \u2014 it's now ONE continuous stadium-shaped pill, same 44px width, rounded full on both ends, with the + glyph sitting at the bottom where the button always was. Holding it doesn't spawn a second shape next to the button; the button IS the track, stretched upward. Trade-off unchanged from round 1: shorter reach than D's full-height rail \u2014 fine for nudging around the current value, tighter for spanning the whole 0\u20133 range in one drag.",
+      "text": "F — your follow-up round 1: more subtle than D. No lifted duplicate row — the whole rest of the screen stays exactly as it is. The track is one continuous maroon stem that grows straight up out of the + button in place, right in the row where it already lives, with only a soft drop shadow lifting it off the content behind (it can overlap the card above, same as any native popover). Same ticks/half-step callout as D, just anchored locally instead of staged as a full-screen takeover.\n\nRound 2: the track is now the SAME 44px WIDTH as the add button it grows out of (was a slimmer 22px), and a light scrim (not a full dim) now settles over the rest of the screen while it's held.\n\nRound 3 (your latest ask): fixed the seam between the button and the track above it — it's now ONE continuous stadium-shaped pill, same 44px width, rounded full on both ends, with the + glyph sitting at the bottom where the button always was. Holding it doesn't spawn a second shape next to the button; the button IS the track, stretched upward. Trade-off unchanged from round 1: shorter reach than D's full-height rail — fine for nudging around the current value, tighter for spanning the whole 0–3 range in one drag.",
       "page": "page-5"
     },
     {
@@ -606,7 +669,7 @@
       "x": 980,
       "y": 1260,
       "w": 390,
-      "text": "G \u2014 your other ask: a way to adjust to a half serving AFTER it's already on the plate, not just at the moment of adding it from the hall menu.\n\nRounds 1-3 gave the plate row the same hold-and-slide gesture as F. Round 4 (your latest call): drag read as clunky in this denser sheet, and the value bubble had too much air between the number and \"servings\" \u2014 so the plate row drops the drag entirely. Tap the count, it becomes a direct text field (gold focus border + cursor shown), type the exact amount, halves included. \u2212 and + still work for quick single-step taps; typing is for landing on an exact number in one shot. No OS keyboard drawn (same convention as the rest of this canvas \u2014 that's system chrome).\n\nF (hall menu, adding) keeps the hold-and-slide \u2014 that row has the room and it's the moment you're already committing to a dish, so the deliberate gesture fits. G (plate, editing) types instead \u2014 tighter space, and you're more likely already know the exact number you want to correct to.",
+      "text": "G — your other ask: a way to adjust to a half serving AFTER it's already on the plate, not just at the moment of adding it from the hall menu.\n\nRounds 1-3 gave the plate row the same hold-and-slide gesture as F. Round 4 (your latest call): drag read as clunky in this denser sheet, and the value bubble had too much air between the number and \"servings\" — so the plate row drops the drag entirely. Tap the count, it becomes a direct text field (gold focus border + cursor shown), type the exact amount, halves included. − and + still work for quick single-step taps; typing is for landing on an exact number in one shot. No OS keyboard drawn (same convention as the rest of this canvas — that's system chrome).\n\nF (hall menu, adding) keeps the hold-and-slide — that row has the room and it's the moment you're already committing to a dish, so the deliberate gesture fits. G (plate, editing) types instead — tighter space, and you're more likely already know the exact number you want to correct to.",
       "page": "page-5"
     },
     {
@@ -630,7 +693,7 @@
       "x": 1880,
       "y": 420,
       "w": 390,
-      "text": "The highlight badge toggle is deliberately distinct from the Allergens/Diet-Tags exclusion pills above it \u2014 icon + checkmark instead of a bare fill + \u00d7, so \"highlight\" reads differently from \"exclude\" at a glance rather than looking like the same control twice.",
+      "text": "The highlight badge toggle is deliberately distinct from the Allergens/Diet-Tags exclusion pills above it — icon + checkmark instead of a bare fill + ×, so \"highlight\" reads differently from \"exclude\" at a glance rather than looking like the same control twice.",
       "page": "page-3"
     },
     {
@@ -638,7 +701,7 @@
       "x": 1880,
       "y": 420,
       "w": 390,
-      "text": "Your Food group: Favorites, Top Foods, and Favorite Halls read as one family of personal food-relationship data instead of three disconnected flat sections \u2014 a heavier gold rule + one wrapping label marks the group, each member keeps its own lighter sub-header inside it. The settings icon is the sole account-level action (Export data); more settings can grow behind it later.\n\nFavoriting copy is deliberate: it's a notify+highlight toggle, never a rating input \u2014 the bell glyph (not a star) and the hint line under it are the disambiguation so it can't read as \"rate this dish/hall\" next to the Elo sections below, which are read-only by design (no edit affordance \u2014 the score comes only from head-to-head comparisons) and say so explicitly.",
+      "text": "Your Food group: Favorites, Top Foods, and Favorite Halls read as one family of personal food-relationship data instead of three disconnected flat sections — a heavier gold rule + one wrapping label marks the group, each member keeps its own lighter sub-header inside it. The settings icon is the sole account-level action (Export data); more settings can grow behind it later.\n\nFavoriting copy is deliberate: it's a notify+highlight toggle, never a rating input — the bell glyph (not a star) and the hint line under it are the disambiguation so it can't read as \"rate this dish/hall\" next to the Elo sections below, which are read-only by design (no edit affordance — the score comes only from head-to-head comparisons) and say so explicitly.",
       "page": "page-7"
     },
     {
@@ -672,6 +735,30 @@
       "w": 420,
       "page": "page-4",
       "text": "lookup-dish edge function states (new) -- SearchLookupStates.dc.html. Fetching: inserted as one more row in the existing merged results list (at the position a UMass-catalog match would occupy), not a blocking full-screen state -- OFF/USDA/Custom matches already found keep showing beneath it. Mirrors the edge function's own up-to-5s in-flight follower poll: the spinner row reflects 'still polling' and swaps to a real result the moment a poll returns hit, or disappears on miss. Miss: the spinner row is simply removed -- no separate 'no results' message, the sheet's existing dashed \"Can't find it? Create a custom food\" affordance (already always present) already is the miss-state resolution. Rate-limited: swapped into the same slot the fetching row occupied (nothing shifts on resolution), shown only when lookup-dish actually returns rate_limited (never predicted client-side); the retry is a manual tap, not a timed auto-retry -- silently retrying against a budget-limited endpoint would hide from the user how close they are to the next reset. Source badges (UMASS/CUSTOM/PACKAGED/USDA) are unchanged from f2-add-item-note -- DB-hit vs. live-fetch stays invisible to the user by design. brief: foodpro-menu-expansion"
+    },
+    {
+      "id": "search-cancel-options",
+      "x": 0,
+      "y": 2790,
+      "w": 1290,
+      "page": "page-4",
+      "text": "Cancellability of an in-flight lookup (new, your open question -- not yet decided). lookup-dish-states-logic's fetching row can sit for up to ~5s (the edge function's own in-flight follower-poll budget); nothing today lets the user back out of that wait early. Three options, all reachable without changing the fetching row's position in the merged results list (per lookup-dish-states-logic's own \"nothing shifts on resolution\" rule):\n\nA = a small × tap target on the right edge of the fetching row itself, next to the spinner/label. Most explicit, costs one new icon; matches the row's own existing horizontal padding so it doesn't need a taller row.\n\nB = the input row's \"Search\" button relabels to \"Cancel\" for the duration of the fetch (same slot, no new element). Cheapest to build, but ties cancellation to a control the user may have already mentally dismissed after tapping it once -- weaker discoverability once their attention has moved to the results list below.\n\nC = the fetching row itself is the tap target (dashed border, matching the existing dashed-border language already used for \"Load 20 More\"/\"Create a custom food\" tappable rows elsewhere in this file) -- no new icon, but mobile has no hover state to hint tappability, so this is the least discoverable of the three without a user already knowing the convention.\n\nLeaning A: explicit affordance, smallest behavioral surprise, and it's the only option that stays legible if a future state (e.g. a second concurrent lookup) needs the input row's button for something else. Whichever is picked, the retry semantics in lookup-dish-states-logic (manual tap only, never a timed auto-retry) should extend to cancel: canceling stops the poll outright, it doesn't queue a retry. brief: none yet -- pending this decision."
+    },
+    {
+      "id": "search-expanded-back-header",
+      "x": 1350,
+      "y": 2790,
+      "w": 390,
+      "page": "page-4",
+      "text": "The search panel's collapse-back-to-idle chevron isn't on any prior artboard -- neither PlateExpanded.dc.html nor PlateSheetResults.dc.html show the idle<->expanded transition itself, just the two end states. The implementation (PlateSheet.tsx) already reuses the app's one backChevron style token here, but drops it in alone above the search row instead of inside a proper header row -- CustomFoodForm.tsx (same token) and SearchResultDetail.dc.html both pair it with a title in a flex row (align-items: center, consistent gap/padding). SearchExpandedHeader.dc.html applies that same established convention here instead of inventing new visual language: chevron + \"Search\" as a small section title, matching the proportions of the other two in-sheet header rows. Not a new pattern, just this screen finally following the one the app already has everywhere else it needs a back affordance."
+    },
+    {
+      "id": "event-detail-share-options",
+      "x": 480,
+      "y": 900,
+      "w": 1290,
+      "page": "page-8",
+      "text": "Event detail screen + share button (new, owner request -- no prior artboard covered event-detail.tsx at all; it was built without a spec). Current code (event-detail.tsx) relies on the native stack header for back+title and adds a bare unicode glyph as headerRight for share -- no button chrome at all, the same kind of unstyled/inconsistent treatment the search panel's back chevron had before SearchExpandedHeader.dc.html fixed it. Three directions, all reachable without changing EventsPane.tsx's list card (openEventTap.ts still routes here unchanged):\n\nA = the app's own established in-content header convention (CustomFoodForm.tsx / NutritionLabel.dc.html / SearchExpandedHeader.dc.html: back chevron + title in a flex row) on a light ground, share as a bordered pill (Button.tsx's existing 'secondary' variant styling: transparent bg, maroon600 text/border) with icon + SHARE label. Cheapest to build -- reuses a pattern and a button variant that already exist verbatim, no new visual language.\n\nB = the banner image runs full-bleed behind a transparent header; share becomes a small floating circular icon button sitting directly on the image (translucent dark backdrop so it reads against any poster art), literally 'a share button on the event image' rather than in chrome above it. No label -- an icon-only floating button reads as secondary/ambient, which fits an action that isn't this screen's primary one. Content flows into a cream sheet with rounded top corners below, echoing CafePdf.dc.html's transition.\n\nC = twins CafePdf.dc.html's own dark-chrome header almost exactly (back chevron + stacked title/subtitle on the left, a bordered pill on the right) with SAVE swapped for SHARE and the same icon+label pill from A -- so the two pill treatments (A's light, C's dark) are the same component on different grounds, not two different button designs. Strongest visual continuity with the one other in-app 'poster-style content in a sheet' screen the app already has.\n\nAll three keep the share icon itself identical (upload/arrow-out-of-box, distinct from CafePdf's SAVE download-arrow so the two aren't confusable) -- only its container and position vary. No decision made yet. brief: none yet -- pending this decision."
     }
   ],
   "launch": {
