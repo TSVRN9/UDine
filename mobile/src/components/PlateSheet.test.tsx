@@ -15,7 +15,7 @@ import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } f
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { lookupDishLive } from "../lib/lookupDish";
-import { artboardEnclosingStyle, artboardStyle, normalizeColor } from "../lib/artboard";
+import { artboardEnclosingStyle, artboardPanelGap, artboardStyle, normalizeColor } from "../lib/artboard";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -93,6 +93,38 @@ function lookupStateRow(root: renderer.ReactTestRenderer) {
 // findAllByType(View) can't tell this wrapper apart from every other View in the tree either.
 function keyboardFollowWrapper(root: renderer.ReactTestRenderer) {
   return root.root.findAll((n) => n.type === View && n.props.testID === "keyboardFollowWrapper");
+}
+
+// platesheet-search-panel-spacing-gap: the panel-level "gap between two direct sibling rows" this
+// file otherwise never asserted (its "Root cause" section) -- every existing artboard-parity test
+// here checks a row's own internal styling, none checks the rhythm BETWEEN rows. RN/Yoga adds a
+// flex container's own `gap` to each child's own margin rather than collapsing them (the exact
+// mechanism the brief's bug came from), so this sums both: `a`'s trailing margin, `b`'s leading
+// margin, and, if they share a common ancestor, that ancestor's own `gap`.
+//
+// The shared-ancestor check tries the immediate parent AND the grandparent (not just one): every
+// RN host component (View, Text, …) is actually two react-test-renderer instances stacked -- the
+// forwardRef composite and the host node it renders -- so two literal JSX siblings can each be
+// "one instance too deep" relative to each other depending which of that pair a caller's node
+// happens to be. Trying both levels means callers don't have to know or count which.
+function renderedGap(a: renderer.ReactTestInstance, b: renderer.ReactTestInstance): number {
+  const { StyleSheet } = require("react-native");
+  const aFlat = StyleSheet.flatten(a.props.style) ?? {};
+  const bFlat = StyleSheet.flatten(b.props.style) ?? {};
+  let parentGap = 0;
+  for (const [pa, pb] of [
+    [a.parent, b.parent],
+    [a.parent?.parent, b.parent?.parent],
+  ]) {
+    if (pa && pa === pb) {
+      const gap = (StyleSheet.flatten(pa.props.style) ?? {}).gap;
+      if (typeof gap === "number") {
+        parentGap = gap;
+        break;
+      }
+    }
+  }
+  return (aFlat.marginBottom ?? 0) + parentGap + (bFlat.marginTop ?? 0);
 }
 
 function emptyLogStorage(): LogStorage {
@@ -814,13 +846,11 @@ describe("PlateSheet", () => {
       const { colors, withOpacity } = require("../lib/theme");
       const root = renderSheet();
 
-      // addSection is the only style in this component with a minHeight -- a stable marker
-      // regardless of which other style objects are composed alongside it.
-      const findAddSection = () =>
-        root.root.findAll((n) => {
-          const flat = StyleSheet.flatten(n.props.style);
-          return !!flat && flat.minHeight !== undefined;
-        })[0];
+      // testID="addSection" marks the same conceptual row in both states -- platesheet-search-
+      // panel-spacing-gap moved minHeight (the marker this test used to key off) to addSectionIdle
+      // only, since SearchExpandedHeader.dc.html's expanded state has no box at all, so it's no
+      // longer present once expanded.
+      const findAddSection = () => root.root.findAll((n) => n.type === View && n.props.testID === "addSection")[0];
 
       const idleFlat = StyleSheet.flatten(findAddSection().props.style);
       expect(idleFlat.borderWidth).toBe(1);
@@ -835,6 +865,52 @@ describe("PlateSheet", () => {
       expect(expandedFlat.borderWidth).toBeUndefined();
       expect(expandedFlat.borderColor).toBeUndefined();
       expect(expandedFlat.borderStyle).toBeUndefined();
+    });
+
+    // docs/briefs/platesheet-search-panel-spacing-gap.md's "Root cause" section: nothing in this
+    // file asserted the panel's own between-sibling rhythm before this, only each row's own
+    // internal styling -- the same class of gap that let #513's border bug ship first. These two
+    // cover the pair the brief's bug actually broke (double margin: header's marginBottom PLUS
+    // addSection's own marginTop stacking to 28px instead of 10px).
+    it("panel gap: 'Your Plate' row to the SEARCH header row matches SearchExpandedHeader.dc.html, not PlateExpanded's own idle-state value", () => {
+      const { View } = require("react-native");
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+
+      const header = root.root.findByProps({ children: "Your Plate" }).parent!;
+      const addSection = root.root.findAll((n) => n.type === View && n.props.testID === "addSection")[0];
+
+      expect(renderedGap(header, addSection)).toBe(artboardPanelGap("SearchExpandedHeader.dc.html"));
+    });
+
+    it("panel gap: the SEARCH header row to the search input row is the same 10px panel gap, not the addSection internal gap alone", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+
+      const searchHeader = root.root.findByProps({ accessibilityLabel: "Back" }).parent!;
+      // 3 hops: Svg -> host(searchInputBox) -> composite(searchInputBox) -> host(searchRow) -- see
+      // the itemList test below for why a View level costs two `.parent` hops, not one.
+      const searchRow = root.root.findByProps({ testID: "searchIcon" }).parent!.parent!.parent!;
+
+      expect(renderedGap(searchHeader, searchRow)).toBe(artboardPanelGap("SearchExpandedHeader.dc.html"));
+    });
+
+    // Regression guard for the idle state's own panel gap (14px, PlateExpanded.dc.html) -- proves
+    // the new headerExpanded override above only applies while searchExpanded, and that this is a
+    // genuinely different value from the expanded-state test above, not a coincidence of both
+    // artboards sharing one number.
+    it("panel gap: 'Your Plate' row to the item list matches PlateExpanded.dc.html's own idle-state gap (14px)", () => {
+      const root = renderSheet({ plate: [{ ...menuItemToPlateEntry(DISH), count: 1 }] });
+
+      const header = root.root.findByProps({ children: "Your Plate" }).parent!;
+      // 5 hops: Text -> host(itemInfo) -> composite(itemInfo) -> host(itemRow) -> composite(itemRow)
+      // -> host(itemList) -- react-test-renderer's instance tree doesn't collapse a `View`'s own
+      // composite wrapper the way JSX nesting visually suggests, so each View level climbed costs
+      // two `.parent` hops, not one.
+      const itemList = root.root.findByProps({ children: "Pizza" }).parent!.parent!.parent!.parent!.parent!;
+
+      expect(renderedGap(header, itemList)).toBe(artboardPanelGap("PlateExpanded.dc.html"));
+      expect(artboardPanelGap("PlateExpanded.dc.html")).not.toBe(artboardPanelGap("SearchExpandedHeader.dc.html"));
     });
 
     // PlateSheetResults.dc.html:37 / SearchExpandedHeader.dc.html:42 spec a magnifying-glass icon
