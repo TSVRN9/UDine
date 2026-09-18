@@ -155,6 +155,42 @@ immediately, matching the new day's actual top section) and with a new regressio
 prop stayed 1 after a date step that should have reset it to 0, per `git stash` verification during
 this pass).
 
+## Status (2026-09-18, real reproduction from the owner — the harness gap task 4 hit no longer blocks)
+
+Owner supplied three real on-device screenshots (not a synthetic capture), reproducing what reads as
+the same defect class task 4 root-caused but couldn't get a clean fix-confirmation for. Saved:
+`hall-menu-filter-overlap-evidence/vegetarian-on-hampshire-dinner-gaps-clipped-rows.png`,
+`vegetarian-on-franklin-lunch-gaps.png`, `vegetarian-off-franklin-lunch-gaps.png`. Trigger: toggling
+the **vegetarian diet-tag filter** on Hampshire/dinner and Franklin/lunch — both turning it on (first
+two images) and turning it back off (third image) reproduce it; owner reports it's intermittent, not
+every toggle.
+
+**Two distinct visual shapes across the three frames, both consistent with task 4's own root-cause
+theory** (a filter reshapes `periodSections`/`grabSectionsMemo` in place, `GestureSectionList` never
+unmounts, and nothing resets the still-mounted list's native scroll offset for the new, shorter
+shape):
+- **Large blank vertical gaps** between otherwise-normal rows (all three images) — consistent with
+  the list's own scroll-position/content-height bookkeeping disagreeing with the newly reshaped
+  section data.
+- **A row's top clipped off, showing only its nutrition line with the dish name missing** (image 1,
+  twice: the row above "Korean BBQ Chicken", and the row above "Stir Fried Vegetables w/Sesame") —
+  this is a materially more specific shape than anything the first four passes captured, and reads
+  like the viewport landing mid-cell rather than at a cell boundary, which a stale absolute scroll
+  offset applied against a reshaped (different total height) list would produce.
+
+This is the first evidence tying the reported symptom to a **diet-tag filter** specifically — task
+1's Rationale explicitly flagged "an allergen/diet-tag toggle alongside a station toggle CAN thin a
+surviving section — untested this pass" as a case a pure station toggle can't produce but a diet-tag
+toggle plausibly can, and task 4's own branch (pushed, not merged: `fix/hall-menu-scroll-offset`,
+`ca7cad4`) was built and tested only against station/price filters. **This does not by itself confirm
+task 4's pushed fix is correct or sufficient** — it wasn't written or tested against a diet-tag
+toggle — but it hands whoever picks this up next a concrete, real, repeatable-enough trigger to aim
+a device pass at, which is exactly what task 4 said it lacked ("the pass's on-device harness was
+unreliable this round... a real fix could be failing, or the harness could be lying. Not
+distinguished yet"). Recommended next step: task 5 below, dispatched as a `heavy-debugger` job (two
+prior fix attempts on this general defect class already went unconfirmed or unmerged) with this new
+evidence and trigger as the starting point, rather than another blind on-device sweep.
+
 ## Spec (current scope: the scroll-offset candidate — see 2026-09-18 Status above)
 
 UI: `FilterSheet.dc.html` (chip sheet, unchanged; not implicated — the sheet's own occlusion is why
@@ -442,3 +478,18 @@ different trigger than the one these criteria named:**
    `cd mobile && npx tsc --noEmit`, `pnpm --filter mobile test`, `pnpm --filter mobile lint`,
    `cd mobile && npx expo export --platform android --output-dir /tmp/udine-export` — blocked by:
    none — PR: none (not opened — fix unconfirmed, per this brief's own discipline)
+5. **NEW (2026-09-18) — real on-device reproduction from the owner, via the vegetarian diet-tag
+   filter.** See "Status (2026-09-18, real reproduction from the owner)" above for the full
+   evidence and reasoning. Start from `docs/briefs/hall-menu-scroll-recovery-dead-code.md` (task 4's
+   decision (b): the dead `handleScrollToIndexFailed` chain is already its own ready-to-dispatch
+   brief, independent of this one, and task 4 itself flagged it as possibly entangled with this
+   symptom) before re-attempting task 4's pushed-but-unmerged fix (`fix/hall-menu-scroll-offset`,
+   `ca7cad4`) against the new vegetarian-filter trigger specifically. Reproduce first on real hall
+   data with the vegetarian filter (Hampshire/dinner and Franklin/lunch both reproduced for the
+   owner; intermittent, not every toggle), get a clean on-device capture of the actual defect (the
+   blank-gap and clipped-row-top shapes in the evidence images), then determine whether the pushed
+   branch's fix already addresses it or needs to change. — files: `mobile/src/app/halls/[slug].tsx`,
+   `mobile/src/lib/hallMenu.test.tsx` — lanes: `cd mobile && npx tsc --noEmit`,
+   `pnpm --filter mobile test`, `pnpm --filter mobile lint`,
+   `cd mobile && npx expo export --platform android --output-dir /tmp/udine-export` — blocked by:
+   none (but see recommendation to start from the scroll-recovery brief) — PR:
