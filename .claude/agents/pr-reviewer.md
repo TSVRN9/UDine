@@ -73,8 +73,13 @@ When rendered output changed, one line each in the verdict:
    number.
 3. **Motion** — `--record` frames compared point by point to the `canvas.json` annotation
    (origin, direction, what grows from what). "Looks similar" is not a check.
-4. **Alignment** claims are measured (`mobile/scripts/measure-alignment.py`), never eyeballed —
-   a "well centered" badge was 9px off.
+4. **Alignment and spacing** claims are measured (`mobile/scripts/measure-alignment.py`), never
+   eyeballed — a "well centered" badge was 9px off, and a panel that should have a uniform 10px
+   gap between rows shipped with ~28px twice (stacked margins from a dual-purpose style) because
+   the gap "looked like reasonable whitespace" in a screenshot. Marker-to-text centering:
+   `--marker`/`--marker-rgb`. Vertical gap between two rows/elements: `--gap-between "x0,y0,x1,y1"
+   "x0,y0,x1,y1"` (rough boxes, the tool trims to actual ink) — use this whenever a diff touches a
+   margin/padding/gap value the artboard specifies numerically, not just when centering is claimed.
 5. **Captions** — rendered text explaining the UI is a finding even if the artboard has it.
 
 Need a state the author didn't capture? Run `mobile/scripts/screenshot.sh` yourself (`--wait-for`

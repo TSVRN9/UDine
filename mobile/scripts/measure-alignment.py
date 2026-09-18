@@ -1,21 +1,35 @@
 #!/usr/bin/env python3
 """Measure the pixel offset between a colored UI marker (an icon/badge circle) and the nearest
-text to its left, in a screenshot from mobile/scripts/screenshot.sh.
+text to its left, OR the vertical gap between two rows, in a screenshot from
+mobile/scripts/screenshot.sh.
 
-Why this exists: "looks centered" is not a check. This session's badge-centering bug (e753e24)
-was missed by eye twice -- once by the implementer, once by a reviewer -- and only caught once
-pixels were actually measured. This is that measurement, promoted from a one-off scratch script
-into a documented, reusable tool instead of being reinvented (or skipped) next time.
+Why this exists: "looks centered" is not a check, and neither is "looks about right" for spacing.
+This session's badge-centering bug (e753e24) was missed by eye twice -- once by the implementer,
+once by a reviewer -- and only caught once pixels were actually measured; the marker-to-text mode
+below is that measurement. The gap mode (--gap-between) exists for the same reason, one incident
+later: a ~28px gap that the artboard specs at 10px (PlateSheet's expanded search panel, #513) read
+as "some reasonable amount of whitespace" in a screenshot and passed review twice -- once by the
+implementer's own tests, once by a reviewer eyeballing the capture -- because nothing measured it.
+Promoted into this same tool instead of a one-off script, or being skipped again next time.
 
 Usage:
   measure-alignment.py SCREENSHOT.png --marker '#c99a2e' --marker-opacity 22 --marker-bg '#fbf7ef'
   measure-alignment.py SCREENSHOT.png --marker-rgb 240,227,197   # pre-composited color, if you
                                                                   # already know the exact pixel value
+  measure-alignment.py SCREENSHOT.png --gap-between 40,900,700,960 40,1000,700,1060
+                                                                  # vertical gap between two rows
 
-Finds every on-screen instance of the marker color (a tinted circle, a filled icon -- anything
-with a known, distinct solid color), then for each instance scans a window to its LEFT for dark
-text-ink pixels and reports both bounding boxes and the vertical/horizontal offset between their
-centers. Multiple marker instances (e.g. one badge per visible row) are each reported separately.
+Marker-to-text mode finds every on-screen instance of the marker color (a tinted circle, a filled
+icon -- anything with a known, distinct solid color), then for each instance scans a window to its
+LEFT for dark text-ink pixels and reports both bounding boxes and the vertical/horizontal offset
+between their centers. Multiple marker instances (e.g. one badge per visible row) are each
+reported separately.
+
+Gap mode takes two rough bounding boxes, one around each row/element, trims each down to the
+tightest box actually containing dark ("ink") pixels inside it (so the boxes don't need to be
+pixel-perfect -- crop generously, the tool finds the real content edges), and reports the vertical
+gap between the first box's bottom edge and the second box's top edge. Order the two boxes
+top-to-bottom; a negative gap means they overlap or are out of order.
 
 Options:
   --marker HEX            Base color (e.g. a badge's accent color before opacity is applied).
@@ -36,6 +50,9 @@ Options:
   --search-left N          How many px left of a marker to scan for text. Default 350.
   --search-margin N        Vertical px above/below a marker's own bounding box to include in the
                            text search band. Default 40.
+  --gap-between A B        Gap mode instead of marker-to-text: two rects "x0,y0,x1,y1", the first
+                           row then the second, top-to-bottom. Mutually exclusive with
+                           --marker/--marker-rgb. --dark-max still controls what counts as ink.
   --json                   Emit machine-readable JSON instead of the human-readable report.
 
 Exit status: 0 if at least one marker was found, 1 if none were (wrong color, wrong screenshot,
@@ -137,6 +154,25 @@ def find_text_cluster(arr, y0, y1, x_right, search_left, margin, dark_max):
     return (best[0], best[-1], int(xsel.min()), int(xsel.max()))
 
 
+def find_ink_bbox(arr, rect, dark_max):
+    """Tightest bounding box of dark ("ink") pixels within `rect` (x0,y0,x1,y1) -- trims a rough,
+    hand-picked region down to the actual glyph/row extent inside it, same ink test
+    find_text_cluster uses. Returns None if no ink pixels fall inside the rect."""
+    import numpy as np
+
+    x0, y0, x1, y1 = rect
+    band = arr[y0:y1, x0:x1]
+    dark = (
+        (band[:, :, 0].astype(int) <= dark_max[0])
+        & (band[:, :, 1].astype(int) <= dark_max[1])
+        & (band[:, :, 2].astype(int) <= dark_max[2])
+    )
+    ys, xs = np.where(dark)
+    if len(ys) == 0:
+        return None
+    return (int(ys.min()) + y0, int(ys.max()) + y0, int(xs.min()) + x0, int(xs.max()) + x0)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("screenshot")
@@ -148,15 +184,9 @@ def main():
     p.add_argument("--dark-max", default="90,80,80")
     p.add_argument("--search-left", type=int, default=350)
     p.add_argument("--search-margin", type=int, default=40)
+    p.add_argument("--gap-between", nargs=2, metavar=("RECT_A", "RECT_B"))
     p.add_argument("--json", action="store_true")
     args = p.parse_args()
-
-    if args.marker_rgb:
-        target = tuple(int(v) for v in args.marker_rgb.split(","))
-    elif args.marker:
-        target = composite(hex_to_rgb(args.marker), hex_to_rgb(args.marker_bg), args.marker_opacity)
-    else:
-        p.error("pass --marker HEX (with --marker-opacity/--marker-bg as needed) or --marker-rgb R,G,B")
 
     dark_parts = [int(v) for v in args.dark_max.split(",")]
     dark_max = dark_parts * 3 if len(dark_parts) == 1 else dark_parts
@@ -165,6 +195,36 @@ def main():
 
     im = Image.open(args.screenshot).convert("RGB")
     arr = np.array(im)
+
+    if args.gap_between:
+        if args.marker_rgb or args.marker:
+            p.error("--gap-between is mutually exclusive with --marker/--marker-rgb")
+        rect_a, rect_b = (tuple(int(v) for v in r.split(",")) for r in args.gap_between)
+        box_a = find_ink_bbox(arr, rect_a, dark_max)
+        box_b = find_ink_bbox(arr, rect_b, dark_max)
+        for name, rect, box in (("A", rect_a, box_a), ("B", rect_b, box_b)):
+            if box is None:
+                print(
+                    f"No ink pixels found in rect {name} {rect} of {args.screenshot}. Widen the "
+                    "rect, or check --dark-max matches this text's actual ink color/weight.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        gap = box_b[0] - box_a[1]  # box_b's top minus box_a's bottom
+        if args.json:
+            print(json.dumps({"box_a": list(box_a), "box_b": list(box_b), "gap": gap}, indent=2))
+        else:
+            print(f"box A ink_bbox=(y0={box_a[0]},y1={box_a[1]},x0={box_a[2]},x1={box_a[3]})")
+            print(f"box B ink_bbox=(y0={box_b[0]},y1={box_b[1]},x0={box_b[2]},x1={box_b[3]})")
+            print(f"gap (B.top - A.bottom) = {gap}px")
+        return
+
+    if args.marker_rgb:
+        target = tuple(int(v) for v in args.marker_rgb.split(","))
+    elif args.marker:
+        target = composite(hex_to_rgb(args.marker), hex_to_rgb(args.marker_bg), args.marker_opacity)
+    else:
+        p.error("pass --marker HEX (with --marker-opacity/--marker-bg as needed), --marker-rgb R,G,B, or --gap-between A B")
 
     markers = find_color_clusters(arr, target, args.marker_tol)
     if not markers:
