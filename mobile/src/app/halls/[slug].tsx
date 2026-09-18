@@ -1198,14 +1198,27 @@ export function HallMenuScreenBody({
   // exactly the control task 1's two on-device passes already ruled out as a non-issue, and
   // resetting scroll on every macro-chip toggle would be a new, unnecessary regression.
   const prefsReshapeKey = `${prefs.allergensToAvoid.slice().sort().join(",")}|${prefs.requiredDietTags.slice().sort().join(",")}`;
+  // A single scrollToLocation call right after the reshape can miss: the newly-shortened
+  // `sections` prop hasn't necessarily had its first cell measured yet at effect time (same
+  // "no getItemLayout, so a jump can under/overshoot on its first attempt" gap
+  // StationScrubber.tsx's own commitDragIndex already documents and works around, one call site up
+  // -- confirmed on-device here too, intermittently reproducing the exact bug this effect exists to
+  // fix). Re-issuing the same (always index 0,0, so idempotent -- no stale-target guard needed
+  // unlike commitDragIndex's per-drag index) jump a couple of frames later, once that render pass
+  // has measured the new first cell, converges it.
+  function scrollToTop(tab: TabSelection) {
+    const jump = () => getListRef(tab).current?.scrollToLocation?.({ sectionIndex: 0, itemIndex: 0, animated: false });
+    jump();
+    requestAnimationFrame(() => requestAnimationFrame(jump));
+  }
   useEffect(() => {
     if (selectedMeal === null || selectedMeal === "grab") return;
-    getListRef(selectedMeal).current?.scrollToLocation?.({ sectionIndex: 0, itemIndex: 0, animated: false });
+    scrollToTop(selectedMeal);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedMeal read fresh via closure, not a dependency (see doc above)
   }, [stationFilter, priceFilter]);
   useEffect(() => {
     if (selectedMeal === null) return;
-    getListRef(selectedMeal).current?.scrollToLocation?.({ sectionIndex: 0, itemIndex: 0, animated: false });
+    scrollToTop(selectedMeal);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedMeal read fresh via closure, not a dependency (see doc above)
   }, [prefsReshapeKey]);
 
