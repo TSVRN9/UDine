@@ -63,6 +63,7 @@ import { PlateSheet } from "../../components/PlateSheet";
 import { StationScrubber } from "../../components/StationScrubber";
 import { durations } from "../../lib/motion";
 import { topViewableSectionIndex } from "../../lib/hallMenuScrubber";
+import { behindSheetA11yProps } from "../../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
 import { formatTime } from "../../lib/homeHero";
 import {
@@ -1588,279 +1589,285 @@ export function HallMenuScreenBody({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing(4.5) }]}>
-        <View style={styles.headerLeft}>
-          {/* Back chevron is a SIBLING of the title-tap Pressable below, not nested inside it --
-          a Pressable inside another Pressable double-fires/steals gestures in RN. */}
-          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-            <Text style={styles.backChevron}>‹</Text>
-          </Pressable>
-          {/* Title-tap (i) hall-info sheet is real-hall only: HallInfoSheet's data model has no
-          sensible café equivalent. hallInfoHoursRows needs a DiningHallHours (breakfast/lunch/
-          dinner/latenight, each its own window); RetailLocationHours carries one single `hours:
-          TimeWindow | null` for the whole day, no per-meal breakdown to build real hoursRows
-          from. The sheet's title caption is also hardcoded "Dining Commons". Cafés get no glyph
-          and no sheet here rather than a decorative one that opens nothing real. */}
-          {isRealHall ? (
-            <Pressable
-              style={styles.titleTap}
-              onPress={() => setInfoSheetOpen(true)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={`${hall.name} info`}
-            >
+      {/* Everything up to the PlateBar is the "behind the plate sheet" layer: PlateSheet is an
+      in-tree overlay (not a Modal), so while it's open this wrapper takes the header, tabs, dish
+      steppers, and filter FAB out of TalkBack/VoiceOver's navigation scope -- otherwise a
+      screen-reader user could swipe to and activate controls hidden under the scrim. */}
+      <View style={styles.behindSheet} {...behindSheetA11yProps(sheetOpen)}>
+        <View style={[styles.header, { paddingTop: insets.top + spacing(4.5) }]}>
+          <View style={styles.headerLeft}>
+            {/* Back chevron is a SIBLING of the title-tap Pressable below, not nested inside it --
+            a Pressable inside another Pressable double-fires/steals gestures in RN. */}
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+              <Text style={styles.backChevron}>‹</Text>
+            </Pressable>
+            {/* Title-tap (i) hall-info sheet is real-hall only: HallInfoSheet's data model has no
+            sensible café equivalent. hallInfoHoursRows needs a DiningHallHours (breakfast/lunch/
+            dinner/latenight, each its own window); RetailLocationHours carries one single `hours:
+            TimeWindow | null` for the whole day, no per-meal breakdown to build real hoursRows
+            from. The sheet's title caption is also hardcoded "Dining Commons". Cafés get no glyph
+            and no sheet here rather than a decorative one that opens nothing real. */}
+            {isRealHall ? (
+              <Pressable
+                style={styles.titleTap}
+                onPress={() => setInfoSheetOpen(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`${hall.name} info`}
+              >
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                  {hall.name}
+                </Text>
+                {/* Bare 13px stroke-circle hint, not a bordered-button circle -- turns gold while
+                the sheet it opens is showing. */}
+                <View style={[styles.infoHint, infoSheetOpen && styles.infoHintOpen]}>
+                  <Text style={[styles.infoHintText, infoSheetOpen && styles.infoHintTextOpen]}>i</Text>
+                </View>
+              </Pressable>
+            ) : (
               <Text style={styles.headerTitle} numberOfLines={1}>
                 {hall.name}
               </Text>
-              {/* Bare 13px stroke-circle hint, not a bordered-button circle -- turns gold while
-              the sheet it opens is showing. */}
-              <View style={[styles.infoHint, infoSheetOpen && styles.infoHintOpen]}>
-                <Text style={[styles.infoHintText, infoSheetOpen && styles.infoHintTextOpen]}>i</Text>
-              </View>
+            )}
+          </View>
+          <View style={styles.dateStepper}>
+            <Pressable
+              onPress={() => setSelectedDate((d) => stepDate(d, -1))}
+              hitSlop={8}
+              style={styles.dateStepperButton}
+              accessibilityRole="button"
+              accessibilityLabel="Previous day"
+            >
+              <Text style={styles.dateStepperChevron}>‹</Text>
             </Pressable>
-          ) : (
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {hall.name}
-            </Text>
-          )}
-        </View>
-        <View style={styles.dateStepper}>
-          <Pressable
-            onPress={() => setSelectedDate((d) => stepDate(d, -1))}
-            hitSlop={8}
-            style={styles.dateStepperButton}
-            accessibilityRole="button"
-            accessibilityLabel="Previous day"
-          >
-            <Text style={styles.dateStepperChevron}>‹</Text>
-          </Pressable>
-          <Text style={styles.dateStepperLabel}>{formatDateStepperLabel(selectedDate)}</Text>
-          <Pressable
-            onPress={() => setSelectedDate((d) => stepDate(d, 1))}
-            hitSlop={8}
-            style={styles.dateStepperButton}
-            accessibilityRole="button"
-            accessibilityLabel="Next day"
-          >
-            <Text style={styles.dateStepperChevron}>›</Text>
-          </Pressable>
-        </View>
-      </View>
-      {/* A "standing" state has no real MealPeriod to build tabs from -- deriveCafeMealTabs' own
-      "allday" synthetic tab would render as a degenerate single-tab strip ("ALL DAY"), which the
-      design says shouldn't exist for this state. The caveat banner takes the tab strip's exact
-      place instead -- same fixed position, not scrolled away with the list. */}
-      {!isRealHall && cafeState?.kind === "standing" ? (
-        // The tab strip this replaces carried its own bottom divider (tabRow's
-        // borderBottomWidth) separating the header from what's below; same divider treatment,
-        // wrapped around the banner instead of styled onto tabRow itself.
-        <View style={styles.standingMenuBannerWrap}>
-          <View style={styles.standingMenuBanner}>
-            <NoteIcon color={withOpacity(colors.ink900, 50)} />
-            <Text style={styles.standingMenuCaveat}>Today&apos;s menu isn&apos;t posted — standing menu from umassdining.com.</Text>
+            <Text style={styles.dateStepperLabel}>{formatDateStepperLabel(selectedDate)}</Text>
+            <Pressable
+              onPress={() => setSelectedDate((d) => stepDate(d, 1))}
+              hitSlop={8}
+              style={styles.dateStepperButton}
+              accessibilityRole="button"
+              accessibilityLabel="Next day"
+            >
+              <Text style={styles.dateStepperChevron}>›</Text>
+            </Pressable>
           </View>
         </View>
-      ) : (
-        <View style={styles.tabRow}>
-          {mealTabs.map((period) => {
-            const active = period === selectedMeal;
-            return (
-              <Pressable
-                key={period}
-                onPress={() => selectMeal(period)}
-                hitSlop={12}
-                style={styles.tab}
-                accessibilityRole="button"
-                accessibilityLabel={`${cafeMealTabLabel(period, isRealHall, isBrunchToday)} menu`}
-              >
-                {/* items === null: that day's menu hasn't arrived yet, so the guessed MEAL_TABS
-                    fallback label above (used only to pick which tabs to render at all) isn't
-                    trustworthy enough to show as real text -- shimmer instead, same primitive as
-                    the dish-list skeleton below, until items resolves (even to []). !hoursSettled:
-                    `selectedMeal` starts hardcoded "lunch" until hallHours resolves and corrects
-                    it (the useLayoutEffect above) -- items resolving alone isn't enough to trust
-                    this row's content, since it renders whatever `selectedMeal` is at that instant
-                    (hall-menu-correct-meal-on-load brief: without this, a hall opened outside
-                    lunch hours flashes real "Lunch" content before snapping to the true period). */}
-                {isRealHall && (items === null || !hoursSettled) ? (
-                  <SkeletonBar width={MEAL_TAB_SKELETON_WIDTH[period as HallMealPeriod]} height={fs(12)} />
-                ) : (
-                  <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall, isBrunchToday)}</Text>
-                )}
-                <View style={styles.tabUnderline}>
-                  {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
-                      one and Grab's below) reading the same swipeable-sequence index MealTabPager
-                      itself uses, immune to `tabs` ever reordering relative to `mealTabs`. */}
-                  <AnimatedTabUnderline index={tabs.indexOf(period)} panePos={tabPanePos} />
-                </View>
-              </Pressable>
-            );
-          })}
-          <View style={styles.tabSpacer} />
-          {/* Grab 'N Go is a hall-only 5th tab (its own station, not a MealPeriod) -- cafés have
-              no slug and no such station. */}
-          {hall.slug ? (
-            <>
-              <View style={styles.tabDivider} />
-              <Pressable
-                onPress={() => selectMeal("grab")}
-                hitSlop={12}
-                style={styles.tab}
-                accessibilityRole="button"
-                accessibilityLabel={`${hall.name} Grab 'N Go menu`}
-              >
-                <View style={styles.tabIconRow}>
-                  <GrabBagIcon color={selectedMeal === "grab" ? colors.maroon900 : withOpacity(colors.ink900, 45)} />
-                  <Text style={[styles.tabText, selectedMeal === "grab" && styles.tabTextActive]}>Grab &apos;N Go</Text>
-                </View>
-                <View style={styles.tabUnderline}>
-                  <AnimatedTabUnderline index={tabs.indexOf("grab")} panePos={tabPanePos} />
-                </View>
-              </Pressable>
-            </>
-          ) : null}
-        </View>
-      )}
-
-      {!isRealHall && cafeState?.kind === "info" && hall.retailLoc ? (
-        // The waterfall found nothing loggable at all (no ajax items, no standing-menu item
-        // list -- maybe a PDF, maybe nothing) -- content only, no tab pager, mounted directly in
-        // this same screen rather than a separate Modal/route. The `hall.retailLoc` guard is
-        // defensive, not a real branch -- cafe/[name].tsx always resolves and passes it before
-        // this screen ever mounts for a café; if it's somehow absent this just falls through to
-        // the skeleton below instead of crashing on a missing prop.
-        <ScrollView style={styles.infoScroll}>
-          <CafeSheet
-            loc={hall.retailLoc}
-            now={new Date()}
-            pdf={cafeState.pdf}
-            onOpenPdf={(url, label) => setCafePdf({ url, label })}
-            onOpenCustomFoodForm={(prefillName) => {
-              setCustomFoodFormPrefill(prefillName);
-              setCustomFoodFormOpen(true);
-            }}
-          />
-        </ScrollView>
-      ) : tabs.length === 0 ? (
-        // Café pre-load: mealTabs hasn't resolved yet (real hall: never true; café: ajax fetch or
-        // the dish-catalog read still in flight) -- same honest skeleton the non-Grab branch below
-        // shows once there IS at least one tab, shown directly here without mounting a 0-pane
-        // pager.
-        //
-        // cafeSkeletonLooksLikeInfo predicts this café won't have dish rows or a filter FAB at
-        // all once it resolves -- a neutral spinner-only placeholder instead of the dish-row
-        // skeleton, rather than committing to a shape that's about to disappear.
-        cafeSkeletonLooksLikeInfo ? (
-          <View style={styles.skeletonList}>
-            <View style={styles.skeletonSpinnerRow}>
-              <Spinner size={fs(14)} />
-              <Text style={styles.skeletonSpinnerText}>Getting café info…</Text>
+        {/* A "standing" state has no real MealPeriod to build tabs from -- deriveCafeMealTabs' own
+        "allday" synthetic tab would render as a degenerate single-tab strip ("ALL DAY"), which the
+        design says shouldn't exist for this state. The caveat banner takes the tab strip's exact
+        place instead -- same fixed position, not scrolled away with the list. */}
+        {!isRealHall && cafeState?.kind === "standing" ? (
+          // The tab strip this replaces carried its own bottom divider (tabRow's
+          // borderBottomWidth) separating the header from what's below; same divider treatment,
+          // wrapped around the banner instead of styled onto tabRow itself.
+          <View style={styles.standingMenuBannerWrap}>
+            <View style={styles.standingMenuBanner}>
+              <NoteIcon color={withOpacity(colors.ink900, 50)} />
+              <Text style={styles.standingMenuCaveat}>Today&apos;s menu isn&apos;t posted — standing menu from umassdining.com.</Text>
             </View>
           </View>
         ) : (
-          <View style={styles.skeletonList}>
-            <StationHeaderSkeleton width={fs(118)} />
-            <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
-            <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
-            <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
-            <View style={styles.skeletonSpinnerRow}>
-              <Spinner size={fs(14)} />
-              <Text style={styles.skeletonSpinnerText}>Getting today&apos;s menu from UMass Dining…</Text>
-            </View>
-          </View>
-        )
-      ) : (
-        // pagerArea wraps MealTabPager instead of the pager owning this positioning itself --
-        // the scrubber is an absolute overlay INSIDE this same box (styles.pagerArea below is a
-        // plain flex:1, so it changes nothing about the pager's own layout), sized to exactly the
-        // pane content area without needing to duplicate the header/tab-row height math a
-        // sibling-position approach would've needed. Keeps MealTabPager itself untouched.
-        <View style={styles.pagerArea}>
-          <MealTabPager
-            activeIndex={activeIndex}
-            onActiveIndexChange={handleActiveIndexChange}
-            // react-hooks/refs flags this because mealPane/grabPane call
-            // getStationViewabilityHandler, which reads/lazily-fills stationViewabilityHandlers's
-            // ref map during render -- the standard "lazy ref initialization" idiom (React's own
-            // docs allow writing a ref during render for one-time setup): each handler is created
-            // at most once per tab value and its identity never changes after, so this is a stable
-            // memoized read, not a render-purity violation the plugin can't otherwise see through.
-            // eslint-disable-next-line react-hooks/refs
-            panes={tabs.map((tab, i) => {
-              // Only build the pane MealTabPager will actually mount (its own activeIndex ± 1
-              // window, MealTabPager.tsx:292) -- mealPane/grabPane each construct a full
-              // SectionList element tree; building all (up to 5) on every render was slow enough to
-              // cause a menu/tab-label/underline desync on fast back-and-forth swiping, not just
-              // visible jank.
-              if (Math.abs(i - activeIndex) > 1) return null;
-              return tab === "grab" ? grabPane() : mealPane(tab);
+          <View style={styles.tabRow}>
+            {mealTabs.map((period) => {
+              const active = period === selectedMeal;
+              return (
+                <Pressable
+                  key={period}
+                  onPress={() => selectMeal(period)}
+                  hitSlop={12}
+                  style={styles.tab}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${cafeMealTabLabel(period, isRealHall, isBrunchToday)} menu`}
+                >
+                  {/* items === null: that day's menu hasn't arrived yet, so the guessed MEAL_TABS
+                      fallback label above (used only to pick which tabs to render at all) isn't
+                      trustworthy enough to show as real text -- shimmer instead, same primitive as
+                      the dish-list skeleton below, until items resolves (even to []). !hoursSettled:
+                      `selectedMeal` starts hardcoded "lunch" until hallHours resolves and corrects
+                      it (the useLayoutEffect above) -- items resolving alone isn't enough to trust
+                      this row's content, since it renders whatever `selectedMeal` is at that instant
+                      (hall-menu-correct-meal-on-load brief: without this, a hall opened outside
+                      lunch hours flashes real "Lunch" content before snapping to the true period). */}
+                  {isRealHall && (items === null || !hoursSettled) ? (
+                    <SkeletonBar width={MEAL_TAB_SKELETON_WIDTH[period as HallMealPeriod]} height={fs(12)} />
+                  ) : (
+                    <Text style={[styles.tabText, active && styles.tabTextActive]}>{cafeMealTabLabel(period, isRealHall, isBrunchToday)}</Text>
+                  )}
+                  <View style={styles.tabUnderline}>
+                    {/* tabs.indexOf, not this map's own index -- keeps every AnimatedTabUnderline (this
+                        one and Grab's below) reading the same swipeable-sequence index MealTabPager
+                        itself uses, immune to `tabs` ever reordering relative to `mealTabs`. */}
+                    <AnimatedTabUnderline index={tabs.indexOf(period)} panePos={tabPanePos} />
+                  </View>
+                </Pressable>
+              );
             })}
-            instantRef={mealTabInstantRef}
-            panePos={tabPanePos}
-          />
-          {activeStationSections.length > 1 && (
-            <StationScrubber sections={activeStationSections} listRef={activeStationListRef} activeStationIndex={activeStationIndex} bottomInset={barHeight} />
-          )}
-        </View>
-      )}
-      {logged && (
-        // This banner is the one surface a LOG failure actually shows on (the plate is
-        // deliberately retained, not cleared, so the bar stays mounted right where an in-flow
-        // bottom banner would otherwise sit, opaque and on top of it). Anchored clear of the
-        // bar's measured height via the same listBottomPadding reuse -- 0 when there's no bar,
-        // right above it when there is. Also pads for the bottom safe-area inset itself (else its
-        // own text gets clipped by gesture nav when there's no bar to already clear that space),
-        // and reports its own measured height via onLayout so the list's paddingBottom above can
-        // add it in while it's showing.
-        <Reanimated.View
-          entering={FadeInDown.duration(durations.loggedBannerIn)}
-          exiting={FadeOutDown.duration(durations.loggedBannerOut)}
-          style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight), paddingBottom: spacing(2) + insets.bottom }]}
-          onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
-        >
-          <Text style={styles.loggedBannerText}>{logged}</Text>
-        </Reanimated.View>
-      )}
-      {/* Permanent, in-context filter FAB -- pinned above the plate bar (48x48, right:20/
-      bottom:108 per the canvas). Bare/inactive when nothing's currently hidden; dark-filled with
-      a gold hidden-count badge once allergens/diet-tags are excluding something (macros never
-      drive this). Opens FilterSheet in place, no navigation. Hidden entirely for the info-only
-      state -- effectiveItems is always [] there. Also hidden while still resolving if
-      cafeSkeletonLooksLikeInfo predicts "info", so it doesn't show only to disappear a moment
-      later. */}
-      {(cafeState ? cafeState.kind !== "info" : !cafeSkeletonLooksLikeInfo) && (
-        <Pressable
-          style={[styles.filterFab, hiddenCount > 0 && styles.filterFabActive]}
-          onPress={() => setFilterSheetOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel={hiddenCount > 0 ? `Filters, hiding ${hiddenCount} ${hiddenCount === 1 ? "dish" : "dishes"}` : "Filters"}
-        >
-          <FilterGlyphIcon color={hiddenCount > 0 ? colors.paper50 : colors.maroon900} />
-          {hiddenCount > 0 && (
-            <View style={styles.filterFabBadge}>
-              <Text style={styles.filterFabBadgeText}>{hiddenCount}</Text>
+            <View style={styles.tabSpacer} />
+            {/* Grab 'N Go is a hall-only 5th tab (its own station, not a MealPeriod) -- cafés have
+                no slug and no such station. */}
+            {hall.slug ? (
+              <>
+                <View style={styles.tabDivider} />
+                <Pressable
+                  onPress={() => selectMeal("grab")}
+                  hitSlop={12}
+                  style={styles.tab}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${hall.name} Grab 'N Go menu`}
+                >
+                  <View style={styles.tabIconRow}>
+                    <GrabBagIcon color={selectedMeal === "grab" ? colors.maroon900 : withOpacity(colors.ink900, 45)} />
+                    <Text style={[styles.tabText, selectedMeal === "grab" && styles.tabTextActive]}>Grab &apos;N Go</Text>
+                  </View>
+                  <View style={styles.tabUnderline}>
+                    <AnimatedTabUnderline index={tabs.indexOf("grab")} panePos={tabPanePos} />
+                  </View>
+                </Pressable>
+              </>
+            ) : null}
+          </View>
+        )}
+  
+        {!isRealHall && cafeState?.kind === "info" && hall.retailLoc ? (
+          // The waterfall found nothing loggable at all (no ajax items, no standing-menu item
+          // list -- maybe a PDF, maybe nothing) -- content only, no tab pager, mounted directly in
+          // this same screen rather than a separate Modal/route. The `hall.retailLoc` guard is
+          // defensive, not a real branch -- cafe/[name].tsx always resolves and passes it before
+          // this screen ever mounts for a café; if it's somehow absent this just falls through to
+          // the skeleton below instead of crashing on a missing prop.
+          <ScrollView style={styles.infoScroll}>
+            <CafeSheet
+              loc={hall.retailLoc}
+              now={new Date()}
+              pdf={cafeState.pdf}
+              onOpenPdf={(url, label) => setCafePdf({ url, label })}
+              onOpenCustomFoodForm={(prefillName) => {
+                setCustomFoodFormPrefill(prefillName);
+                setCustomFoodFormOpen(true);
+              }}
+            />
+          </ScrollView>
+        ) : tabs.length === 0 ? (
+          // Café pre-load: mealTabs hasn't resolved yet (real hall: never true; café: ajax fetch or
+          // the dish-catalog read still in flight) -- same honest skeleton the non-Grab branch below
+          // shows once there IS at least one tab, shown directly here without mounting a 0-pane
+          // pager.
+          //
+          // cafeSkeletonLooksLikeInfo predicts this café won't have dish rows or a filter FAB at
+          // all once it resolves -- a neutral spinner-only placeholder instead of the dish-row
+          // skeleton, rather than committing to a shape that's about to disappear.
+          cafeSkeletonLooksLikeInfo ? (
+            <View style={styles.skeletonList}>
+              <View style={styles.skeletonSpinnerRow}>
+                <Spinner size={fs(14)} />
+                <Text style={styles.skeletonSpinnerText}>Getting café info…</Text>
+              </View>
             </View>
-          )}
-        </Pressable>
-      )}
-      <PlateBar
-        itemCount={totalItemCount(plate)}
-        totals={totals}
-        priceTotal={priceTotal}
-        onPress={() => setSheetOpen(true)}
-        onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
-        // Always mounted (not just while the plate has items, still loading, or errored) -- the
-        // bar is the only way to open the plate sheet, and the sheet's OFF search is exactly how
-        // something not on the menu (a grabbed piece of fruit, say) gets logged when nothing else
-        // is staged. "Visible-but-disabled" while loading -- only the loading LOG button is
-        // spec'd disabled. All three are no-ops once the plate has real items: a populated plate
-        // always shows the normal bar regardless of tab/fetch state.
-        emptyState={
-          currentTabLoading
-            ? { subline: "add dishes once the menu loads", disabled: true }
-            : { subline: "search for something not on the menu" }
-        }
-      />
+          ) : (
+            <View style={styles.skeletonList}>
+              <StationHeaderSkeleton width={fs(118)} />
+              <DishCardSkeleton titleWidth={fs(150)} metaWidth={fs(100)} />
+              <DishCardSkeleton titleWidth={fs(110)} metaWidth={fs(115)} />
+              <DishCardSkeleton titleWidth={fs(170)} metaWidth={fs(95)} />
+              <View style={styles.skeletonSpinnerRow}>
+                <Spinner size={fs(14)} />
+                <Text style={styles.skeletonSpinnerText}>Getting today&apos;s menu from UMass Dining…</Text>
+              </View>
+            </View>
+          )
+        ) : (
+          // pagerArea wraps MealTabPager instead of the pager owning this positioning itself --
+          // the scrubber is an absolute overlay INSIDE this same box (styles.pagerArea below is a
+          // plain flex:1, so it changes nothing about the pager's own layout), sized to exactly the
+          // pane content area without needing to duplicate the header/tab-row height math a
+          // sibling-position approach would've needed. Keeps MealTabPager itself untouched.
+          <View style={styles.pagerArea}>
+            <MealTabPager
+              activeIndex={activeIndex}
+              onActiveIndexChange={handleActiveIndexChange}
+              // react-hooks/refs flags this because mealPane/grabPane call
+              // getStationViewabilityHandler, which reads/lazily-fills stationViewabilityHandlers's
+              // ref map during render -- the standard "lazy ref initialization" idiom (React's own
+              // docs allow writing a ref during render for one-time setup): each handler is created
+              // at most once per tab value and its identity never changes after, so this is a stable
+              // memoized read, not a render-purity violation the plugin can't otherwise see through.
+              // eslint-disable-next-line react-hooks/refs
+              panes={tabs.map((tab, i) => {
+                // Only build the pane MealTabPager will actually mount (its own activeIndex ± 1
+                // window, MealTabPager.tsx:292) -- mealPane/grabPane each construct a full
+                // SectionList element tree; building all (up to 5) on every render was slow enough to
+                // cause a menu/tab-label/underline desync on fast back-and-forth swiping, not just
+                // visible jank.
+                if (Math.abs(i - activeIndex) > 1) return null;
+                return tab === "grab" ? grabPane() : mealPane(tab);
+              })}
+              instantRef={mealTabInstantRef}
+              panePos={tabPanePos}
+            />
+            {activeStationSections.length > 1 && (
+              <StationScrubber sections={activeStationSections} listRef={activeStationListRef} activeStationIndex={activeStationIndex} bottomInset={barHeight} />
+            )}
+          </View>
+        )}
+        {logged && (
+          // This banner is the one surface a LOG failure actually shows on (the plate is
+          // deliberately retained, not cleared, so the bar stays mounted right where an in-flow
+          // bottom banner would otherwise sit, opaque and on top of it). Anchored clear of the
+          // bar's measured height via the same listBottomPadding reuse -- 0 when there's no bar,
+          // right above it when there is. Also pads for the bottom safe-area inset itself (else its
+          // own text gets clipped by gesture nav when there's no bar to already clear that space),
+          // and reports its own measured height via onLayout so the list's paddingBottom above can
+          // add it in while it's showing.
+          <Reanimated.View
+            entering={FadeInDown.duration(durations.loggedBannerIn)}
+            exiting={FadeOutDown.duration(durations.loggedBannerOut)}
+            style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight), paddingBottom: spacing(2) + insets.bottom }]}
+            onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
+          >
+            <Text style={styles.loggedBannerText}>{logged}</Text>
+          </Reanimated.View>
+        )}
+        {/* Permanent, in-context filter FAB -- pinned above the plate bar (48x48, right:20/
+        bottom:108 per the canvas). Bare/inactive when nothing's currently hidden; dark-filled with
+        a gold hidden-count badge once allergens/diet-tags are excluding something (macros never
+        drive this). Opens FilterSheet in place, no navigation. Hidden entirely for the info-only
+        state -- effectiveItems is always [] there. Also hidden while still resolving if
+        cafeSkeletonLooksLikeInfo predicts "info", so it doesn't show only to disappear a moment
+        later. */}
+        {(cafeState ? cafeState.kind !== "info" : !cafeSkeletonLooksLikeInfo) && (
+          <Pressable
+            style={[styles.filterFab, hiddenCount > 0 && styles.filterFabActive]}
+            onPress={() => setFilterSheetOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={hiddenCount > 0 ? `Filters, hiding ${hiddenCount} ${hiddenCount === 1 ? "dish" : "dishes"}` : "Filters"}
+          >
+            <FilterGlyphIcon color={hiddenCount > 0 ? colors.paper50 : colors.maroon900} />
+            {hiddenCount > 0 && (
+              <View style={styles.filterFabBadge}>
+                <Text style={styles.filterFabBadgeText}>{hiddenCount}</Text>
+              </View>
+            )}
+          </Pressable>
+        )}
+        <PlateBar
+          itemCount={totalItemCount(plate)}
+          totals={totals}
+          priceTotal={priceTotal}
+          onPress={() => setSheetOpen(true)}
+          onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
+          // Always mounted (not just while the plate has items, still loading, or errored) -- the
+          // bar is the only way to open the plate sheet, and the sheet's OFF search is exactly how
+          // something not on the menu (a grabbed piece of fruit, say) gets logged when nothing else
+          // is staged. "Visible-but-disabled" while loading -- only the loading LOG button is
+          // spec'd disabled. All three are no-ops once the plate has real items: a populated plate
+          // always shows the normal bar regardless of tab/fetch state.
+          emptyState={
+            currentTabLoading
+              ? { subline: "add dishes once the menu loads", disabled: true }
+              : { subline: "search for something not on the menu" }
+          }
+        />
+      </View>
       <PlateSheet
         // Never both visible=true at once. Originally because Android silently drops a 2nd
         // simultaneous native Modal; PlateSheet is an in-screen overlay now (not a Modal -- see its
@@ -2006,6 +2013,9 @@ export default function HallMenuScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream100 },
+  // Fills the container so the absolutely-positioned PlateBar/FAB/logged banner inside it keep
+  // their bottom/right anchoring exactly as when they were the container's direct children.
+  behindSheet: { flex: 1 },
   error: { padding: spacing(4), color: "#b00020", fontFamily: fonts.body400 },
   // Info-only state -- CafeSheet's content, scrollable in place of the tab pager.
   infoScroll: { flex: 1 },

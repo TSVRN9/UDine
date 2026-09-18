@@ -1340,6 +1340,14 @@ describe("PlateSheet", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    // iOS half of the a11y fencing a Modal used to give for free (the Android half is the caller's
+    // behindSheetA11yProps wrapper, see sheetAnimation.ts): VoiceOver confines navigation to the
+    // overlay while it's up.
+    it("marks the overlay root accessibilityViewIsModal", () => {
+      const root = renderSheet();
+      expect(root.root.findAll((n) => n.props.accessibilityViewIsModal === true).length).toBeGreaterThan(0);
+    });
+
     it("renders nothing while closed (no Modal to hide it anymore)", () => {
       const root = renderSheet({ visible: false });
       expect(root.toJSON()).toBeNull();

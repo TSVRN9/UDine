@@ -246,14 +246,17 @@ export function PlateSheet({
   const keyboard = useAnimatedKeyboard();
   const keyboardStyle = useAnimatedStyle(() => ({ marginBottom: keyboard.height.value }));
   // Modal's onRequestClose used to map Android's hardware back to onClose; wired explicitly now.
+  // Keyed on modalVisible (not `visible`) so the listener lives exactly as long as the overlay
+  // renders -- through the ~300ms close animation too, where the old Dialog would still have
+  // absorbed a back press instead of letting it pop the screen underneath.
   useEffect(() => {
-    if (!visible) return;
+    if (!modalVisible) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       onClose();
       return true;
     });
     return () => sub.remove();
-  }, [visible, onClose]);
+  }, [modalVisible, onClose]);
   // PlateSheet stays mounted across open/close (only the Modal's `visible` prop toggles) --
   // mount-once is the right place to fire off a background catalog refresh. Fire-and-forget:
   // refreshDishCatalogIfStale already swallows its own errors, and this screen must never block on
@@ -597,7 +600,10 @@ export function PlateSheet({
   if (!modalVisible) return null;
 
   return (
-    <GestureHandlerRootView style={styles.backdrop}>
+    // accessibilityViewIsModal: iOS side of the a11y fencing a Modal window used to provide
+    // (VoiceOver stays inside the overlay); Android's side is the caller's behindSheetA11yProps
+    // wrapper around its background content.
+    <GestureHandlerRootView style={styles.backdrop} accessibilityViewIsModal>
       <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
         <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>

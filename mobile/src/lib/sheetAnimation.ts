@@ -23,6 +23,18 @@ export const SHEET_DISMISS_PX = 100;
  * separate constant from `paneShell.ts`'s `SWIPE_FLING_VELOCITY` and must stay in those units. */
 export const SHEET_FLING_VELOCITY = 500;
 
+/** Accessibility props for whatever sits BEHIND an in-tree overlay sheet (PlateSheet renders inside
+ * its caller's screen, not in an RN Modal -- see its keyboard-follow note). A Modal's Dialog window
+ * took the screen behind it out of TalkBack/VoiceOver's navigation scope for free; a plain sibling
+ * overlay does not, so the caller wraps its background content and spreads these -- the same
+ * "visible-but-inert" pattern MealTabPager uses for its inactive panes. */
+export function behindSheetA11yProps(sheetOpen: boolean) {
+  return {
+    accessibilityElementsHidden: sheetOpen,
+    importantForAccessibility: sheetOpen ? ("no-hide-descendants" as const) : ("auto" as const),
+  };
+}
+
 /** Pure release decision, mirroring `paneShell.ts`'s `paneIndexForSwipe` shape (distance OR
  * velocity commits) so this hook's `onEnd` reduces to one call instead of re-deriving the OR
  * inline. `"worklet"` so it can be called directly from the UI-thread gesture callback below. */

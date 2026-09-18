@@ -4,7 +4,7 @@ import { GestureDetector } from "react-native-gesture-handler";
 import type { GestureType, GestureUpdateEvent } from "react-native-gesture-handler";
 import * as Reanimated from "react-native-reanimated";
 import TestRenderer, { act } from "react-test-renderer";
-import { SHEET_DISMISS_PX, SHEET_FLING_VELOCITY, shouldDismissSheet, useDraggableSheet } from "./sheetAnimation";
+import { behindSheetA11yProps, SHEET_DISMISS_PX, SHEET_FLING_VELOCITY, shouldDismissSheet, useDraggableSheet } from "./sheetAnimation";
 import { durations, reanimatedPaneCurve } from "./motion";
 import { settleDuration } from "./paneShell";
 
@@ -66,6 +66,19 @@ function panEvent(translationY: number, velocityY = 0): GestureUpdateEvent<never
     stylusData: undefined,
   } as unknown as GestureUpdateEvent<never>;
 }
+
+// PR #514 review: an in-tree overlay sheet (PlateSheet, no longer an RN Modal) doesn't take its
+// siblings out of the accessibility tree the way a Dialog window did -- a screen-reader user could
+// swipe to, and activate, hall-menu steppers/tabs/FAB sitting invisible behind the scrim. The
+// caller fences its background with these props, same pattern as MealTabPager's inactive panes.
+describe("behindSheetA11yProps", () => {
+  it("hides the background subtree from assistive tech while the sheet is open", () => {
+    expect(behindSheetA11yProps(true)).toEqual({ accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" });
+  });
+  it("restores normal accessibility once the sheet is closed", () => {
+    expect(behindSheetA11yProps(false)).toEqual({ accessibilityElementsHidden: false, importantForAccessibility: "auto" });
+  });
+});
 
 describe("shouldDismissSheet", () => {
   it("does not commit under both thresholds", () => {
