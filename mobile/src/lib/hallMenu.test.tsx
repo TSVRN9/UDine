@@ -20,6 +20,7 @@ import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { CompositeDishComposer } from "../components/CompositeDishComposer";
 import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
 import { PlateBar } from "../components/PlateBar";
+import { StationScrubber } from "../components/StationScrubber";
 import { Button } from "../components/ui";
 import { colors } from "./theme";
 import { stepDate } from "./hallMenuTabs";
@@ -243,6 +244,52 @@ const STEAK: MenuItem = {
 // deriveHallMealTabs (#442-follow-up) now hides a meal tab entirely when no item that day carries
 // its mealPeriod -- tests below that need all 4 real tabs present (not just Lunch, the sole
 // default renderScreen([PIZZA, SALAD]) period) must include one item per period, this one included.
+// station-filter-overlap brief, task 3: two distinct lunch stations so the scrubber (count > 1
+// guard) actually renders, and a second day's fixtures below reshape that same list.
+const GRILL_STATION_ITEM: MenuItem = {
+  dishName: "Grilled Chicken",
+  category: "Grill",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(300),
+  allergens: [],
+  dietTags: [],
+};
+
+const SALAD_STATION_ITEM: MenuItem = {
+  dishName: "Garden Salad",
+  category: "Salads",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(90),
+  allergens: [],
+  dietTags: [],
+};
+
+const NEXT_DAY_GRILL_ITEM: MenuItem = {
+  dishName: "Burger",
+  category: "Grill",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-20",
+  nutrition: nutrition(350),
+  allergens: [],
+  dietTags: [],
+};
+
+const NEXT_DAY_SOUP_ITEM: MenuItem = {
+  dishName: "Tomato Soup",
+  category: "Soups",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-20",
+  nutrition: nutrition(120),
+  allergens: [],
+  dietTags: [],
+};
+
 const LATE_SNACK: MenuItem = {
   dishName: "Late Snack",
   category: "Entrees",
@@ -507,6 +554,45 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     const [, steppedDate] = mockedFetchMenu.mock.calls[callsBefore];
     expect(steppedDate.getTime()).toBe(stepDate(initialDate, 1).getTime());
     expect(steppedDate.toDateString()).toBe(new Date(2026, 7, 20).toDateString()); // the actual calendar day
+  });
+
+  // station-filter-overlap brief, task 3: activeStationIndex (fed to StationScrubber) used to
+  // reset only on [selectedMeal] -- a date step rebuilds sectionsByPeriod (a brand-new day's own
+  // stations) without ever touching selectedMeal, so a highlight left tracking a deep station from
+  // the PREVIOUS day survived, numerically valid against the new day's shorter/different station
+  // list but pointing at the wrong one. Confirmed on-device 2026-09-17 (Franklin, real
+  // next-day fetch): the highlight rendered near the bottom of the track while the freshly loaded
+  // day's list sat at its own first section (Grill Station) -- not a one-frame blip, still wrong
+  // 12s later with no further interaction, because nothing ever re-fires viewability for a
+  // settled, unscrolled list. Fix: reset on activeStationSections too (it already changes for
+  // every station/price-filter, diet/allergen-filter, AND date-step reshape in one dependency,
+  // so this covers more than just the date-step path this test drives).
+  it("resets the station scrubber's stale index when a date step reshapes the section list, not just on a meal-tab switch", async () => {
+    const root = await renderScreen([GRILL_STATION_ITEM, SALAD_STATION_ITEM]);
+    const sectionList = activePane(root).findByType(SectionList);
+    const sections = sectionList.props.sections as { title: string; data: MenuItem[] }[];
+    expect(sections.length).toBeGreaterThan(1);
+    const lastIndex = sections.length - 1;
+
+    // Simulate the list having scrolled to its last station -- the real trigger (a drag/scroll)
+    // isn't simulable through react-test-renderer, but the scrubber only ever reads this state via
+    // onViewableItemsChanged, so calling it directly is exercising the same real wiring the
+    // component itself uses, not standing in for the mechanism under test.
+    act(() => {
+      sectionList.props.onViewableItemsChanged({
+        viewableItems: [{ item: sections[lastIndex].data[0], key: "k", index: 0, isViewable: true, section: sections[lastIndex] }],
+      });
+    });
+    expect(root.root.findByType(StationScrubber).props.activeStationIndex).toBe(lastIndex);
+
+    // Next day's own menu also has multiple stations (so the scrubber still renders, count > 1) --
+    // its topmost section is index 0, not whatever the previous day's list happened to have there.
+    mockedFetchMenu.mockResolvedValueOnce([NEXT_DAY_GRILL_ITEM, NEXT_DAY_SOUP_ITEM]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    expect(root.root.findByType(StationScrubber).props.activeStationIndex).toBe(0);
   });
 
   it("selects the Grab 'N Go tab in place (gold underline moves to it) instead of navigating to a separate route, and fetches the hall's Grab 'N Go tid, not its regular hall tid", async () => {
