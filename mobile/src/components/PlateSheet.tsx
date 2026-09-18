@@ -618,14 +618,14 @@ export function PlateSheet({
               <View style={styles.handle} />
             </View>
           </GestureDetector>
-          <View style={styles.header}>
+          <View style={[styles.header, searchExpanded && styles.headerExpanded]}>
             <Text style={styles.title}>Your Plate</Text>
             {contextLabel ? <Text style={styles.context}>{contextLabel}</Text> : null}
           </View>
 
           <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
             {searchExpanded ? (
-              <View style={styles.addSection}>
+              <View style={styles.addSection} testID="addSection">
                 {/* SearchExpandedHeader.dc.html:35-38 -- the app's one backChevron style token
                 (also used by CustomFoodForm.tsx/NutritionLabel.tsx), paired with a "Search"
                 section title in a proper header row, same as those two and
@@ -874,6 +874,7 @@ export function PlateSheet({
                   onPress={() => setSearchExpanded(true)}
                   accessibilityRole="button"
                   accessibilityLabel="Add something else"
+                  testID="addSection"
                 >
                   {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
                   <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
@@ -917,8 +918,16 @@ const styles = StyleSheet.create({
   // paddingVertical spacing(5), ~20dp a side -- the bare 40x4 pill alone is too small a touch/drag target.
   handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(2.5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
-  // marginBottom 14 (spacing(3.5)), matching PlateExpanded.dc.html:27's uniform 14px section gap.
+  // marginBottom 14 (spacing(3.5)), matching PlateExpanded.dc.html:27's uniform 14px panel gap --
+  // the idle state's own value. Every OTHER property here (flexDirection/justifyContent/
+  // alignItems) is identical on SearchExpandedHeader.dc.html:30's copy of this same row, so only
+  // the margin needs a state-aware override (headerExpanded) below.
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: spacing(3.5) },
+  // SearchExpandedHeader.dc.html:24's panel gap is 10px (spacing(2.5)), not PlateExpanded.dc.html's
+  // 14px -- a different artboard for the expanded/search state, per
+  // docs/briefs/platesheet-search-panel-spacing-gap.md. addSection no longer carries a matching
+  // marginTop (moved to addSectionIdle, see below), so this alone sets the header->addSection gap.
+  headerExpanded: { marginBottom: spacing(2.5) },
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   context: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   scroll: { flexGrow: 0 },
@@ -964,17 +973,20 @@ const styles = StyleSheet.create({
   logButton: { height: fs(52), borderRadius: radii.md },
   logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
-  // PlateExpanded.dc.html:87-93 -- asymmetric 12px/14px padding and a 44px min-height. Doubles as
-  // both the idle row's own box and the expanded search area's wrapper. The expanded panel has no
-  // border of its own -- PlateSheetResults.dc.html has none around the input row/results/footer,
-  // only around the input box itself (searchInputBox below) -- so the idle-only dashed maroon
-  // border lives entirely in addSectionIdle, not here.
+  // Shared by both the idle "Add something else" row and the expanded search block -- audited
+  // (docs/briefs/platesheet-search-panel-spacing-gap.md) against BOTH artboards it's dual-purposed
+  // for, not just the property a report happened to name:
+  //  - marginTop/borderRadius/paddingVertical/paddingHorizontal/minHeight are all idle-pill-only
+  //    (PlateExpanded.dc.html:87-93's asymmetric 12px/14px padding, 44px min-height, dashed
+  //    border) -- SearchExpandedHeader.dc.html has no wrapping box at all around its header/input
+  //    rows, so all five moved to addSectionIdle below; this shared object carries none of them.
+  //  - `gap` stays here: it's the internal rhythm among addSection's OWN children once a search
+  //    has actually run (spinner/error/results/footer rows, spec'd by PlateSheetResults.dc.html,
+  //    a separate artboard this brief doesn't cover) -- unaffected by this fix. The one pair this
+  //    brief DOES cover (searchHeader -> searchRow) needs 10px total, not this shared 4px, so
+  //    searchHeader below adds the extra 6px itself rather than bumping this shared value and
+  //    disturbing every other row spacing PlateSheetResults.dc.html already governs.
   addSection: {
-    marginTop: spacing(3.5),
-    borderRadius: radii.md,
-    paddingVertical: spacing(3),
-    paddingHorizontal: spacing(3.5),
-    minHeight: fs(44),
     gap: spacing(1),
   },
   addSectionIdle: {
@@ -984,6 +996,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: withOpacity(colors.maroon600, 45),
+    borderRadius: radii.md,
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
+    minHeight: fs(44),
+    // PlateExpanded.dc.html's own 14px panel gap, between logButton and this row -- idle-only,
+    // moved here from the shared addSection object above (SearchExpandedHeader.dc.html's expanded
+    // state supplies its own 10px via headerExpanded instead, not this).
+    marginTop: spacing(3.5),
   },
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
@@ -993,7 +1013,10 @@ const styles = StyleSheet.create({
   // uses, instead of floating alone outside any row. Smaller than CustomFoodForm's full top-of-
   // screen title (13px/600 vs 20px/700) -- this one lives inside the already-compact addSection
   // panel, not a standalone modal header.
-  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: fs(2) },
+  // marginBottom 6 (spacing(1.5)) on top of addSection's own 4px gap = 10px total to searchRow
+  // below, matching SearchExpandedHeader.dc.html:24's 10px panel gap for this pair specifically
+  // (see addSection's own comment above for why the shared gap itself stays 4px).
+  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: fs(2), marginBottom: spacing(1.5) },
   searchHeaderTitle: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   // Same backChevron the app's other in-sheet close buttons use (CustomFoodForm.tsx,
   // NutritionLabel.tsx, CafePdfViewer.tsx) -- repurposed here to collapse back to idle instead of

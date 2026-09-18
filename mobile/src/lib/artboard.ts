@@ -142,6 +142,22 @@ export function artboardEnclosingStyle(file: string, anchorText: string, up: num
   return toRnStyle(style);
 }
 
+/**
+ * The bottom-sheet panel's own `gap` -- the uniform space every `*.dc.html` sheet artboard puts
+ * between its direct rows (handle, title row, section rows, …), CSS's flex `gap` collapsing what
+ * `artboardStyle`'s leaf-text anchor and `artboardEnclosingStyle`'s div-climb can't reach: a
+ * container's own layout property when nothing written inside it is unique text. Every sheet panel
+ * shares the same `border-radius: 12px 12px 0 0` corner treatment (the bottom-sheet convention
+ * across `docs/design/*.dc.html`), so that's the anchor, not a fragile tag position.
+ */
+export function artboardPanelGap(file: string): number {
+  const m = /<div style="([^"]*border-radius:\s*12px 12px 0 0[^"]*)"/.exec(read(file));
+  if (!m) throw new Error(`artboard ${file}: no bottom-sheet panel div (border-radius: 12px 12px 0 0)`);
+  const gap = toRnStyle(m[1]).gap;
+  if (typeof gap !== "number") throw new Error(`artboard ${file}: panel div has no gap`);
+  return gap;
+}
+
 /** Every `transition:` / `animation:` declaration in the artboard's <style> rules, keyed by selector. */
 export function artboardTransitions(file: string): Record<string, ArtboardTransition[]> {
   const out: Record<string, ArtboardTransition[]> = {};
