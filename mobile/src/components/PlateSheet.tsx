@@ -1,6 +1,6 @@
 import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type LogStorage } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -160,9 +160,10 @@ interface Props {
 /**
  * Expanded plate sheet -- a bottom sheet over a dimmed scrim: drag handle, per-item steppers,
  * totals grid, LOG N ITEMS, and a single merged search box (local device history + the cached dish
- * catalog + OpenFoodFacts + USDA FoodData Central + saved custom foods, tagged per-row). A
- * transparent RN Modal: no route, no _layout.tsx change, no MenuItem serialization through router
- * params.
+ * catalog + OpenFoodFacts + USDA FoodData Central + saved custom foods, tagged per-row). An
+ * absolutely-positioned overlay inside the caller's screen (no route, no _layout.tsx change, no
+ * MenuItem serialization through router params) -- deliberately NOT an RN Modal: see the
+ * keyboard-follow note below for why the search box has to live in the screen's own window.
  */
 export function PlateSheet({
   visible,
@@ -231,16 +232,33 @@ export function PlateSheet({
       return () => cancelAnimationFrame(id);
     }
   }, [searchExpanded]);
-  // KeyboardAvoidingView's automatic height-tracking doesn't reach content mounted inside an
-  // Android RN Modal -- tracked manually instead, via Reanimated's useAnimatedKeyboard. That hook
-  // (not a Keyboard event listener feeding a plain useState) is what keeps this in sync with the
-  // keyboard's own slide: a useState snap only updates once a Keyboard event fires, which on iOS
-  // (keyboardWillShow) lands at the START of the native animation, so the sheet's margin jumped to
-  // its final value a full frame ahead of the keyboard still animating underneath it.
-  // useAnimatedKeyboard's height is a per-frame SharedValue instead, read with `.value` (not
-  // `.get()` -- the reanimated jest mock's default `height` is a bare number with no `.get()`).
+  // Keyboard-follow via Reanimated's useAnimatedKeyboard: a per-frame SharedValue in lockstep with
+  // the keyboard's own slide (a Keyboard-event-fed useState snaps to the final value a frame ahead
+  // of the still-animating keyboard). Read with `.value`, not `.get()` -- the reanimated jest
+  // mock's default `height` is a bare number with no `.get()`.
+  //
+  // This only works because the sheet is NOT hosted in an RN <Modal>. On Android a Modal is its own
+  // Dialog window, and the OS delivers the IME insets animation only to the window owning the
+  // focused input -- while useAnimatedKeyboard's native side listens on the Activity window's
+  // decorView (react-native-reanimated/android/.../keyboard/WindowsInsetsManager.kt). With the
+  // search box inside a Modal, the hook's height/state stayed 0/UNKNOWN on a real device (Galaxy
+  // A53, Android 16) and the whole search pane rendered behind the keyboard; the API-35 emulator
+  // happened not to show it (#507). Rendering the sheet as an in-screen overlay keeps the input in
+  // the window the hook observes -- that's the fix, not a second keyboard-height source.
   const keyboard = useAnimatedKeyboard();
   const keyboardStyle = useAnimatedStyle(() => ({ marginBottom: keyboard.height.value }));
+  // Modal's onRequestClose used to map Android's hardware back to onClose; wired explicitly now.
+  // Keyed on modalVisible (not `visible`) so the listener lives exactly as long as the overlay
+  // renders -- through the ~300ms close animation too, where the old Dialog would still have
+  // absorbed a back press instead of letting it pop the screen underneath.
+  useEffect(() => {
+    if (!modalVisible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [modalVisible, onClose]);
   // PlateSheet stays mounted across open/close (only the Modal's `visible` prop toggles) --
   // mount-once is the right place to fire off a background catalog refresh. Fire-and-forget:
   // refreshDishCatalogIfStale already swallows its own errors, and this screen must never block on
@@ -578,303 +596,309 @@ export function PlateSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runDirectLookup closes over query/directLookup by design (same as its button's onPress); re-running this effect on those would loop.
   }, [visible, stressFixture, query]);
 
-  return (
-    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onClose}>
-      {/* A root-level GestureHandlerRootView doesn't reliably propagate into a Modal's separate
-      native host/window, so each sheet nests its own here. */}
-      <GestureHandlerRootView style={styles.backdrop}>
-        <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
-          <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        </Animated.View>
-        {/* keyboardStyle (tracked above via useAnimatedKeyboard) pushes the sheet up in lockstep
-        with the keyboard's own live height, since KeyboardAvoidingView doesn't reach content
-        mounted inside an Android Modal. */}
-        <Animated.View testID="keyboardFollowWrapper" style={keyboardStyle}>
-          <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
-            <GestureDetector gesture={gesture}>
-              <View style={styles.handleRow}>
-                <View style={styles.handle} />
-              </View>
-            </GestureDetector>
-            <View style={styles.header}>
-              <Text style={styles.title}>Your Plate</Text>
-              {contextLabel ? <Text style={styles.context}>{contextLabel}</Text> : null}
-            </View>
+  // Stays mounted (state, in-flight searches, the keyboard subscription) while closed; only the
+  // rendered overlay goes away -- same as the Modal-visible=false it replaces. modalVisible (not
+  // `visible`) so the close animation gets its frames before the tree is dropped.
+  if (!modalVisible) return null;
 
-            <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
-              {searchExpanded ? (
-                <View style={styles.addSection}>
-                  {/* SearchExpandedHeader.dc.html:35-38 -- the app's one backChevron style token
-                  (also used by CustomFoodForm.tsx/NutritionLabel.tsx), paired with a "Search"
-                  section title in a proper header row, same as those two and
-                  SearchResultDetail.dc.html:18-21 already do. */}
-                  <View style={styles.searchHeader}>
-                    <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-                      <Text style={styles.backChevron}>‹</Text>
-                    </Pressable>
-                    <Text style={styles.searchHeaderTitle}>Search</Text>
+  return (
+    // accessibilityViewIsModal: iOS side of the a11y fencing a Modal window used to provide
+    // (VoiceOver stays inside the overlay); Android's side is the caller's behindSheetA11yProps
+    // wrapper around its background content.
+    <GestureHandlerRootView style={styles.backdrop} accessibilityViewIsModal>
+      <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
+        <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      </Animated.View>
+      {/* keyboardStyle (tracked above via useAnimatedKeyboard) pushes the sheet up in lockstep
+      with the keyboard's own live height. */}
+      <Animated.View testID="keyboardFollowWrapper" style={keyboardStyle}>
+        <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
+          <GestureDetector gesture={gesture}>
+            <View style={styles.handleRow}>
+              <View style={styles.handle} />
+            </View>
+          </GestureDetector>
+          <View style={styles.header}>
+            <Text style={styles.title}>Your Plate</Text>
+            {contextLabel ? <Text style={styles.context}>{contextLabel}</Text> : null}
+          </View>
+
+          <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
+            {searchExpanded ? (
+              <View style={styles.addSection}>
+                {/* SearchExpandedHeader.dc.html:35-38 -- the app's one backChevron style token
+                (also used by CustomFoodForm.tsx/NutritionLabel.tsx), paired with a "Search"
+                section title in a proper header row, same as those two and
+                SearchResultDetail.dc.html:18-21 already do. */}
+                <View style={styles.searchHeader}>
+                  <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+                    <Text style={styles.backChevron}>‹</Text>
+                  </Pressable>
+                  <Text style={styles.searchHeaderTitle}>Search</Text>
+                </View>
+                <View style={styles.searchRow}>
+                  <View style={styles.searchInputBox}>
+                    {/* Magnifying-glass glyph, PlateSheetResults.dc.html:37 /
+                    SearchExpandedHeader.dc.html:42. */}
+                    <Svg width={fs(14)} height={fs(14)} viewBox="0 0 14 14" fill="none" testID="searchIcon">
+                      <Circle cx={6} cy={6} r={4.2} stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} />
+                      <Path d="M9.5 9.5L12.5 12.5" stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} strokeLinecap="round" />
+                    </Svg>
+                    <TextInput
+                      ref={searchInputRef}
+                      style={styles.searchInput}
+                      value={query}
+                      onChangeText={setQuery}
+                      placeholder="Search for a food"
+                      placeholderTextColor={withOpacity(colors.ink900, 45)}
+                      onSubmitEditing={() => runSearch()}
+                      // This box is now the top of its own full-pane view (once a search has run,
+                      // results/footer rows push it below the fold) -- scroll it to the end so the
+                      // query stays visible while typing.
+                      onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                      returnKeyType="search"
+                    />
                   </View>
-                  <View style={styles.searchRow}>
-                    <View style={styles.searchInputBox}>
-                      {/* Magnifying-glass glyph, PlateSheetResults.dc.html:37 /
-                      SearchExpandedHeader.dc.html:42. */}
-                      <Svg width={fs(14)} height={fs(14)} viewBox="0 0 14 14" fill="none" testID="searchIcon">
-                        <Circle cx={6} cy={6} r={4.2} stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} />
-                        <Path d="M9.5 9.5L12.5 12.5" stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} strokeLinecap="round" />
-                      </Svg>
-                      <TextInput
-                        ref={searchInputRef}
-                        style={styles.searchInput}
-                        value={query}
-                        onChangeText={setQuery}
-                        placeholder="Search for a food"
-                        placeholderTextColor={withOpacity(colors.ink900, 45)}
-                        onSubmitEditing={() => runSearch()}
-                        // This box is now the top of its own full-pane view (once a search has run,
-                        // results/footer rows push it below the fold) -- scroll it to the end so the
-                        // query stays visible while typing.
-                        onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
-                        returnKeyType="search"
-                      />
+                  {/* PlateSheetResults.dc.html:40 / SearchExpandedHeader.dc.html:45 -- solid
+                  #3b0a0f fill with an Oswald/600/12px/uppercase label, darker than
+                  buttonColors("primary")'s default maroon600 -- same "primary variant +
+                  style/textStyle override" pattern as CustomFoodForm.tsx's Save button
+                  (saveButton/saveButtonText) for its own #3b0a0f artboard button. */}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    style={styles.searchButton}
+                    textStyle={styles.searchButtonText}
+                    onPress={() => runSearch()}
+                    disabled={searching || !query.trim()}
+                  >
+                    Search
+                  </Button>
+                </View>
+                {searching && (
+                  <View style={styles.searchSpinner}>
+                    <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
+                  </View>
+                )}
+                {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
+                {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
+                {/* lookup-dish's fetching/rate_limited states render as ONE inline row at the
+                exact spot a UMass-catalog match would occupy in the list below -- not a
+                blocking full-screen state, and OFF/USDA/Custom rows already found keep showing
+                beneath it. Same SLOT for both (this is the only inline lookup-state indicator,
+                and resolving fetching -> rate_limited doesn't reorder or duplicate anything
+                around it), but each state gets its own gold-spinner vs. gray-clock treatment
+                per SearchLookupStates.dc.html (43/46 vs 71/73) -- they're not meant to look
+                identical. miss renders no row here at all -- the standing "Create a custom
+                food" footer further below is its resolution, brief foodpro-menu-expansion
+                task 4. */}
+                {(directLookup === "loading" || directLookup === "rate_limited") && (
+                  <View
+                    style={directLookup === "loading" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
+                    testID="lookupStateRow"
+                  >
+                    {directLookup === "loading" ? (
+                      <>
+                        <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
+                        <Text style={styles.lookupStateTextFetching}>Looking up {query.trim()}…</Text>
+                      </>
+                    ) : (
+                      <>
+                        {/* SearchLookupStates.dc.html:72 -- a static clock, not the fetching spinner. */}
+                        <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateClockIcon">
+                          <Circle cx={8} cy={8} r={6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
+                          <Path d="M8 5v3.5l2.3 1.3" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                        <Text style={styles.lookupStateTextRateLimited}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
+                      </>
+                    )}
+                  </View>
+                )}
+                {results?.slice(0, visibleCount).map((r) => {
+                  const key = plateSearchResultKey(r);
+                  const detail = plateSearchResultDetail(r);
+                  const badge = BADGE_INFO[r.kind];
+                  return (
+                    <View key={key} style={styles.resultRow}>
+                      <Pressable
+                        style={styles.resultInfo}
+                        onPress={() => onShowResultDetail(r)}
+                        accessibilityRole="button"
+                        // The badge is visual-only, so the source distinction is spelled out here
+                        // too, or a screen-reader user gets two indistinguishable "View Pizza"
+                        // actions on a name collision. "View", not "Add" -- tapping a result opens
+                        // the confirm/detail step, not an instant add.
+                        accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
+                      >
+                        <View style={styles.resultHeaderRow}>
+                          <Text style={styles.resultLabel}>{detail.dishName}</Text>
+                          <View style={[styles.badge, { backgroundColor: badge.fill }]}>
+                            <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.resultCalories}>
+                          {Math.round(detail.nutrition.calories)} cal{isEstimatedServing(detail.nutrition) ? " · est. per 100g" : ""}
+                        </Text>
+                      </Pressable>
                     </View>
-                    {/* PlateSheetResults.dc.html:40 / SearchExpandedHeader.dc.html:45 -- solid
-                    #3b0a0f fill with an Oswald/600/12px/uppercase label, darker than
-                    buttonColors("primary")'s default maroon600 -- same "primary variant +
-                    style/textStyle override" pattern as CustomFoodForm.tsx's Save button
-                    (saveButton/saveButtonText) for its own #3b0a0f artboard button. */}
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      style={styles.searchButton}
-                      textStyle={styles.searchButtonText}
-                      onPress={() => runSearch()}
-                      disabled={searching || !query.trim()}
-                    >
-                      Search
+                  );
+                })}
+                {(() => {
+                  const total = results?.length ?? 0;
+                  const hiddenFetched = total - visibleCount;
+                  const canFetchMore = offHasMore || usdaHasMore || brandedHasMore;
+                  if (hiddenFetched <= 0 && !canFetchMore) return null;
+                  // Revealing already-fetched results is free -- only a fetch from an exhausted
+                  // source costs a network round-trip, so the button copy says which is about to
+                  // happen.
+                  const label = loadingMore ? "Loading…" : hiddenFetched > 0 ? `Load ${Math.min(VISIBLE_RESULTS, hiddenFetched)} More` : `Load ${SEARCH_PAGE_SIZE} More`;
+                  return (
+                    <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
+                      {label}
+                    </Button>
+                  );
+                })()}
+                {/* Manual, explicit fallback to lookup-dish's on-demand FoodPro Web INA lookup --
+                never fires on its own. Shown only once the merged search above has come up
+                short on an actual UMass Dining result; disappears the moment one lands (a hit
+                merges straight into the results list above as an ordinary "umass" row). Hidden
+                while a lookup is already in flight -- the inline row above is the only fetching
+                indicator (exactly one, not this button too); shown again for idle/miss/
+                rate_limited so retry always stays one manual tap away, never a timer. */}
+                {results !== null && !searching && directLookup !== "loading" && !results.some((r) => r.kind === "umass") && (
+                  <View style={styles.directLookup}>
+                    <Button variant="ghost" size="sm" onPress={runDirectLookup} accessibilityLabel="Search UMass Dining directly">
+                      Search UMass Dining directly
                     </Button>
                   </View>
-                  {searching && (
-                    <View style={styles.searchSpinner}>
-                      <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
-                    </View>
-                  )}
-                  {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
-                  {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
-                  {/* lookup-dish's fetching/rate_limited states render as ONE inline row at the
-                  exact spot a UMass-catalog match would occupy in the list below -- not a
-                  blocking full-screen state, and OFF/USDA/Custom rows already found keep showing
-                  beneath it. Same SLOT for both (this is the only inline lookup-state indicator,
-                  and resolving fetching -> rate_limited doesn't reorder or duplicate anything
-                  around it), but each state gets its own gold-spinner vs. gray-clock treatment
-                  per SearchLookupStates.dc.html (43/46 vs 71/73) -- they're not meant to look
-                  identical. miss renders no row here at all -- the standing "Create a custom
-                  food" footer further below is its resolution, brief foodpro-menu-expansion
-                  task 4. */}
-                  {(directLookup === "loading" || directLookup === "rate_limited") && (
-                    <View
-                      style={directLookup === "loading" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
-                      testID="lookupStateRow"
-                    >
-                      {directLookup === "loading" ? (
-                        <>
-                          <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
-                          <Text style={styles.lookupStateTextFetching}>Looking up {query.trim()}…</Text>
-                        </>
-                      ) : (
-                        <>
-                          {/* SearchLookupStates.dc.html:72 -- a static clock, not the fetching spinner. */}
-                          <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateClockIcon">
-                            <Circle cx={8} cy={8} r={6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
-                            <Path d="M8 5v3.5l2.3 1.3" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                          </Svg>
-                          <Text style={styles.lookupStateTextRateLimited}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
-                        </>
-                      )}
-                    </View>
-                  )}
-                  {results?.slice(0, visibleCount).map((r) => {
-                    const key = plateSearchResultKey(r);
-                    const detail = plateSearchResultDetail(r);
-                    const badge = BADGE_INFO[r.kind];
-                    return (
-                      <View key={key} style={styles.resultRow}>
+                )}
+                {/* Standing footer row -- shown whenever a search has actually run, whether or
+                not it found anything, since no database this sheet searches has every food. Also
+                shown on the all-rejected error branch, when the user most needs this escape hatch.
+                `!searching` is required here (not on the direct-lookup gate above, which already
+                has its own) -- 3b's streaming means `results` can go non-null WHILE other groups
+                are still in flight, and this footer's "no database has every food" framing reads
+                as a post-search summary, not a live-while-typing state, so it must wait for the
+                whole search to actually finish. */}
+                {((results !== null && !searching) || searchError !== null) && (
+                  <Pressable
+                    style={styles.customFoodRow}
+                    onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Create a custom food"
+                  >
+                    <Text style={styles.customFoodRowIcon}>+</Text>
+                    <Text style={styles.customFoodRowText}>Can&apos;t find it? Create a custom food</Text>
+                  </Pressable>
+                )}
+              </View>
+            ) : (
+              // Idle state: item list/totals/LOG button, then the idle "Add something else" row
+              // (PlateExpanded.dc.html:87-93). searchExpanded now gates this ENTIRE pane body
+              // (3a) -- expanding search replaces all of it with just the back button + search
+              // block above, rather than leaving this mounted underneath a swapped-in search box.
+              <>
+                <View style={styles.itemList}>
+                  {plate.map((entry) => (
+                    <View key={entry.key} style={styles.itemRow}>
+                      <View style={styles.itemInfo}>
+                        <Text style={styles.itemLabel}>{entry.label}</Text>
+                        <Text style={styles.itemCalories}>
+                          {Math.round(entry.nutrition.calories)} cal each{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
+                        </Text>
+                      </View>
+                      <View style={[styles.stepper, editingKey === entry.key && styles.stepperEditing]}>
                         <Pressable
-                          style={styles.resultInfo}
-                          onPress={() => onShowResultDetail(r)}
+                          style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                          onPress={() => onStep(entry.key, -1)}
                           accessibilityRole="button"
-                          // The badge is visual-only, so the source distinction is spelled out here
-                          // too, or a screen-reader user gets two indistinguishable "View Pizza"
-                          // actions on a name collision. "View", not "Add" -- tapping a result opens
-                          // the confirm/detail step, not an instant add.
-                          accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
+                          accessibilityLabel={`Remove one ${entry.label}`}
                         >
-                          <View style={styles.resultHeaderRow}>
-                            <Text style={styles.resultLabel}>{detail.dishName}</Text>
-                            <View style={[styles.badge, { backgroundColor: badge.fill }]}>
-                              <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                            </View>
-                          </View>
-                          <Text style={styles.resultCalories}>
-                            {Math.round(detail.nutrition.calories)} cal{isEstimatedServing(detail.nutrition) ? " · est. per 100g" : ""}
-                          </Text>
+                          <Text style={styles.stepperButtonText}>−</Text>
+                        </Pressable>
+                        {editingKey === entry.key ? (
+                          <TextInput
+                            style={styles.stepperInput}
+                            value={editingText}
+                            onChangeText={setEditingText}
+                            keyboardType="decimal-pad"
+                            autoFocus
+                            selectTextOnFocus
+                            onSubmitEditing={commitEditingCount}
+                            onBlur={commitEditingCount}
+                            accessibilityLabel={`Servings for ${entry.label}`}
+                          />
+                        ) : (
+                          <Pressable onPress={() => beginEditingCount(entry)} accessibilityRole="button" accessibilityLabel={`Edit servings for ${entry.label}`}>
+                            <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
+                          </Pressable>
+                        )}
+                        <Pressable
+                          style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                          onPress={() => onStep(entry.key, 1)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Add one ${entry.label}`}
+                        >
+                          <Text style={styles.stepperButtonText}>+</Text>
                         </Pressable>
                       </View>
-                    );
-                  })}
-                  {(() => {
-                    const total = results?.length ?? 0;
-                    const hiddenFetched = total - visibleCount;
-                    const canFetchMore = offHasMore || usdaHasMore || brandedHasMore;
-                    if (hiddenFetched <= 0 && !canFetchMore) return null;
-                    // Revealing already-fetched results is free -- only a fetch from an exhausted
-                    // source costs a network round-trip, so the button copy says which is about to
-                    // happen.
-                    const label = loadingMore ? "Loading…" : hiddenFetched > 0 ? `Load ${Math.min(VISIBLE_RESULTS, hiddenFetched)} More` : `Load ${SEARCH_PAGE_SIZE} More`;
-                    return (
-                      <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
-                        {label}
-                      </Button>
-                    );
-                  })()}
-                  {/* Manual, explicit fallback to lookup-dish's on-demand FoodPro Web INA lookup --
-                  never fires on its own. Shown only once the merged search above has come up
-                  short on an actual UMass Dining result; disappears the moment one lands (a hit
-                  merges straight into the results list above as an ordinary "umass" row). Hidden
-                  while a lookup is already in flight -- the inline row above is the only fetching
-                  indicator (exactly one, not this button too); shown again for idle/miss/
-                  rate_limited so retry always stays one manual tap away, never a timer. */}
-                  {results !== null && !searching && directLookup !== "loading" && !results.some((r) => r.kind === "umass") && (
-                    <View style={styles.directLookup}>
-                      <Button variant="ghost" size="sm" onPress={runDirectLookup} accessibilityLabel="Search UMass Dining directly">
-                        Search UMass Dining directly
-                      </Button>
                     </View>
-                  )}
-                  {/* Standing footer row -- shown whenever a search has actually run, whether or
-                  not it found anything, since no database this sheet searches has every food. Also
-                  shown on the all-rejected error branch, when the user most needs this escape hatch.
-                  `!searching` is required here (not on the direct-lookup gate above, which already
-                  has its own) -- 3b's streaming means `results` can go non-null WHILE other groups
-                  are still in flight, and this footer's "no database has every food" framing reads
-                  as a post-search summary, not a live-while-typing state, so it must wait for the
-                  whole search to actually finish. */}
-                  {((results !== null && !searching) || searchError !== null) && (
-                    <Pressable
-                      style={styles.customFoodRow}
-                      onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Create a custom food"
-                    >
-                      <Text style={styles.customFoodRowIcon}>+</Text>
-                      <Text style={styles.customFoodRowText}>Can&apos;t find it? Create a custom food</Text>
-                    </Pressable>
-                  )}
+                  ))}
                 </View>
-              ) : (
-                // Idle state: item list/totals/LOG button, then the idle "Add something else" row
-                // (PlateExpanded.dc.html:87-93). searchExpanded now gates this ENTIRE pane body
-                // (3a) -- expanding search replaces all of it with just the back button + search
-                // block above, rather than leaving this mounted underneath a swapped-in search box.
-                <>
-                  <View style={styles.itemList}>
-                    {plate.map((entry) => (
-                      <View key={entry.key} style={styles.itemRow}>
-                        <View style={styles.itemInfo}>
-                          <Text style={styles.itemLabel}>{entry.label}</Text>
-                          <Text style={styles.itemCalories}>
-                            {Math.round(entry.nutrition.calories)} cal each{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
-                          </Text>
-                        </View>
-                        <View style={[styles.stepper, editingKey === entry.key && styles.stepperEditing]}>
-                          <Pressable
-                            style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
-                            onPress={() => onStep(entry.key, -1)}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Remove one ${entry.label}`}
-                          >
-                            <Text style={styles.stepperButtonText}>−</Text>
-                          </Pressable>
-                          {editingKey === entry.key ? (
-                            <TextInput
-                              style={styles.stepperInput}
-                              value={editingText}
-                              onChangeText={setEditingText}
-                              keyboardType="decimal-pad"
-                              autoFocus
-                              selectTextOnFocus
-                              onSubmitEditing={commitEditingCount}
-                              onBlur={commitEditingCount}
-                              accessibilityLabel={`Servings for ${entry.label}`}
-                            />
-                          ) : (
-                            <Pressable onPress={() => beginEditingCount(entry)} accessibilityRole="button" accessibilityLabel={`Edit servings for ${entry.label}`}>
-                              <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
-                            </Pressable>
-                          )}
-                          <Pressable
-                            style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
-                            onPress={() => onStep(entry.key, 1)}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Add one ${entry.label}`}
-                          >
-                            <Text style={styles.stepperButtonText}>+</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))}
+
+                <View style={styles.divider} />
+
+                <View style={styles.totalsRow}>
+                  <View style={styles.totalCell}>
+                    <Stat label="Calories" value={String(Math.round(totals.calories))} />
                   </View>
-
-                  <View style={styles.divider} />
-
-                  <View style={styles.totalsRow}>
-                    <View style={styles.totalCell}>
-                      <Stat label="Calories" value={String(Math.round(totals.calories))} />
-                    </View>
-                    <View style={styles.totalCell}>
-                      <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
-                    </View>
-                    <View style={styles.totalCell}>
-                      <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(0)}g`} />
-                    </View>
-                    <View style={styles.totalCell}>
-                      <Stat label="Fat" value={`${totals.totalFatG.toFixed(0)}g`} />
-                    </View>
+                  <View style={styles.totalCell}>
+                    <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
                   </View>
+                  <View style={styles.totalCell}>
+                    <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(0)}g`} />
+                  </View>
+                  <View style={styles.totalCell}>
+                    <Stat label="Fat" value={`${totals.totalFatG.toFixed(0)}g`} />
+                  </View>
+                </View>
 
-                  <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
-                    {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
-                  </Button>
+                <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
+                  {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
+                </Button>
 
-                  {/* The artboard's hint copy mentions barcode scanning, but no such feature exists
-                  in this app, so that clause is dropped. */}
-                  <Pressable
-                    style={[styles.addSection, styles.addSectionIdle]}
-                    onPress={() => setSearchExpanded(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Add something else"
-                  >
-                    {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
-                    <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
-                      <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
-                      <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
-                    </Svg>
-                    <View style={styles.addIdleText}>
-                      <Text style={styles.addIdleTitle}>Add something else</Text>
-                      <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
-                    </View>
-                  </Pressable>
-                </>
-              )}
-            </ScrollView>
-          </Animated.View>
+                {/* The artboard's hint copy mentions barcode scanning, but no such feature exists
+                in this app, so that clause is dropped. */}
+                <Pressable
+                  style={[styles.addSection, styles.addSectionIdle]}
+                  onPress={() => setSearchExpanded(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add something else"
+                >
+                  {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
+                  <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
+                    <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
+                    <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
+                  </Svg>
+                  <View style={styles.addIdleText}>
+                    <Text style={styles.addIdleTitle}>Add something else</Text>
+                    <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
+                  </View>
+                </Pressable>
+              </>
+            )}
+          </ScrollView>
         </Animated.View>
-      </GestureHandlerRootView>
-    </Modal>
+      </Animated.View>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "flex-end" },
+  // Covers the whole screen from inside the caller's root View. elevation: Android draws siblings
+  // in elevation order before tree order, so without it the hall screen's filter FAB (elevation 6)
+  // would paint over the scrim; 8 matches the sheet's own elevation below.
+  backdrop: { ...StyleSheet.absoluteFill, justifyContent: "flex-end", elevation: 8 },
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: withOpacity(colors.ink900, 50) },
   sheet: {
     backgroundColor: colors.paper50,
