@@ -1234,9 +1234,16 @@ export function HallMenuScreenBody({
   // sensitive across renders the way onViewableItemsChanged is (VirtualizedList reads this prop
   // fresh on every scrollToIndex call, never caches it), so a plain per-render closure is fine --
   // no Map-of-stable-handlers needed here.
+  // getScrollResponder().scrollTo, NOT `getListRef()?.scrollToOffset()`: SectionList
+  // (Libraries/Lists/SectionList.js in this repo's own react-native) never re-exposes
+  // VirtualizedSectionList's internal getListRef() on its ref -- only scrollToLocation/
+  // recordInteraction/flashScrollIndicators/getScrollResponder/getScrollableNode/setNativeProps
+  // -- so the previous chain optional-chained itself into a silent no-op from the day it shipped
+  // (#458; hall-menu-scroll-recovery-dead-code brief). getScrollResponder() is the underlying
+  // ScrollView, whose scrollTo takes a raw content offset.
   function handleScrollToIndexFailed(tab: TabSelection) {
     return (info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
-      getListRef(tab).current?.getListRef?.()?.scrollToOffset?.({ offset: info.averageItemLength * info.index, animated: false });
+      getListRef(tab).current?.getScrollResponder?.()?.scrollTo?.({ y: info.averageItemLength * info.index, animated: false });
     };
   }
   // FAB state: driven only by allergens/diet-tags currently hiding something -- macros never

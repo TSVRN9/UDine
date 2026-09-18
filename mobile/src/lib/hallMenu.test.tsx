@@ -623,6 +623,28 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     expect(root.root.findByType(StationScrubber).props.activeStationIndex).toBe(0);
   });
 
+  // hall-menu-scroll-recovery-dead-code brief: the recovery handler used to call
+  // `ref.getListRef?.()?.scrollToOffset?.(...)`, but SectionList (this repo's own react-native
+  // dependency tree, Libraries/Lists/SectionList.js) never re-exposes VirtualizedSectionList's
+  // internal getListRef() -- its public ref API is scrollToLocation/recordInteraction/
+  // flashScrollIndicators/getScrollResponder/getScrollableNode/setNativeProps -- so that chain
+  // optional-chained itself into a silent no-op since PR #458. The ref here is the real
+  // SectionList instance (no getListRef method), so this drives the same shape the device sees.
+  it("nudges the list toward the failed scrollToIndex target's approximate offset through SectionList's real public ref API (getScrollResponder().scrollTo), not a method the ref never had", async () => {
+    const scrollTo = jest.fn();
+    const responderSpy = jest.spyOn(SectionList.prototype, "getScrollResponder").mockImplementation(() => ({ scrollTo }) as never);
+    const root = await renderScreen([GRILL_STATION_ITEM, SALAD_STATION_ITEM]);
+    const sectionList = activePane(root).findByType(SectionList);
+    expect(typeof (sectionList.instance as { getListRef?: unknown }).getListRef).toBe("undefined");
+
+    act(() => {
+      sectionList.props.onScrollToIndexFailed({ index: 7, highestMeasuredFrameIndex: 3, averageItemLength: 80 });
+    });
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: 560, animated: false });
+    responderSpy.mockRestore();
+  });
+
   it("selects the Grab 'N Go tab in place (gold underline moves to it) instead of navigating to a separate route, and fetches the hall's Grab 'N Go tid, not its regular hall tid", async () => {
     const root = await renderScreen([PIZZA]);
     mockedFetchMenu.mockResolvedValueOnce([]);
