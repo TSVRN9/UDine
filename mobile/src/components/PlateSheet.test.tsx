@@ -276,6 +276,20 @@ describe("PlateSheet", () => {
     expect(mockedRefreshDishCatalogIfStale).toHaveBeenCalledTimes(1);
   });
 
+  // platesheet-search-results-parity-gap task 1: the caller passes contextLabel as one already-
+  // joined "<Hall> · <Meal>" string (halls/[slug].tsx via hallMenuTabs.ts's
+  // plateSheetContextLabel, its own tests) -- this pins PlateSheet's own render of *whatever*
+  // string it's handed against PlateSheetResults.dc.html:32's typography, so the label doesn't
+  // silently drift out of its 12px/rgba(36,26,20,0.55) treatment independent of the join logic.
+  it("renders contextLabel with the artboard's own type/color treatment", () => {
+    const root = renderSheet({ contextLabel: "Hampshire · Lunch" });
+    const label = root.root.findByProps({ children: "Hampshire · Lunch" });
+    const flat = StyleSheet.flatten(label.props.style);
+    const spec = artboardStyle("PlateSheetResults.dc.html", "Hampshire · Lunch");
+    expect(flat.fontSize).toBe(spec.fontSize);
+    expect(normalizeColor(flat.color as string)).toBe(spec.color);
+  });
+
   // #198: onSubmitEditing had no guard against a search already in flight -- the Search BUTTON
   // already disables on `searching`, but hitting Enter/the keyboard's search key went straight to
   // runSearch regardless, so mashing Enter while typing fired overlapping searchProducts calls.
@@ -789,11 +803,13 @@ describe("PlateSheet", () => {
       focusSpy.mockRestore();
     });
 
-    // #409: addSection's dashed border (docs/design/PlateExpanded.dc.html:87) is idle-only --
-    // once expanded it must switch to the plain solid border the artboard specifies for the
-    // active search row (docs/design/PlateSheetResults.dc.html:35), not stay dashed around the
-    // whole search UI.
-    it("#409: addSection is dashed maroon while idle, and switches to a solid border once expanded", () => {
+    // #409, updated per platesheet-search-spec-conformance: addSection's dashed border
+    // (docs/design/PlateExpanded.dc.html:87) is idle-only -- addSectionIdle carries it.
+    // docs/design/PlateSheetResults.dc.html has NO border around the expanded panel at all (only
+    // around the input box itself), so the base addSection style the expanded panel uses bare
+    // must have no border of its own -- the old "switches to a solid border" behavior was a
+    // spec drift, not the artboard.
+    it("#409: addSectionIdle carries the dashed maroon border; the expanded panel (bare addSection) has none", () => {
       const { StyleSheet } = require("react-native");
       const { colors, withOpacity } = require("../lib/theme");
       const root = renderSheet();
@@ -807,6 +823,7 @@ describe("PlateSheet", () => {
         })[0];
 
       const idleFlat = StyleSheet.flatten(findAddSection().props.style);
+      expect(idleFlat.borderWidth).toBe(1);
       expect(idleFlat.borderStyle).toBe("dashed");
       expect(idleFlat.borderColor).toBe(withOpacity(colors.maroon600, 45));
 
@@ -815,8 +832,108 @@ describe("PlateSheet", () => {
       });
 
       const expandedFlat = StyleSheet.flatten(findAddSection().props.style);
-      expect(expandedFlat.borderStyle).not.toBe("dashed");
-      expect(expandedFlat.borderColor).toBe(withOpacity(colors.ink900, 20));
+      expect(expandedFlat.borderWidth).toBeUndefined();
+      expect(expandedFlat.borderColor).toBeUndefined();
+      expect(expandedFlat.borderStyle).toBeUndefined();
+    });
+
+    // PlateSheetResults.dc.html:37 / SearchExpandedHeader.dc.html:42 spec a magnifying-glass icon
+    // inside the expanded input box (14x14, r=4.2, rgba(36,26,20,0.5) stroke, width 1.4) -- not
+    // the idle row's own CTA icon (PlateExpanded.dc.html:87, 20x20/maroon600/1.6), which is a
+    // different affordance and was never carried over when the row expands into the real input.
+    it("shows a magnifying-glass icon in the expanded search input, per the artboard's own numbers", () => {
+      const { Circle } = require("react-native-svg");
+      const { colors, withOpacity } = require("../lib/theme");
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      expect(root.root.findAll((n) => n.type === Svg && n.props.testID === "searchIcon")).toHaveLength(1);
+      const [circle] = root.root.findAll((n) => n.type === Circle);
+      expect(circle.props.r).toBe(4.2);
+      expect(circle.props.stroke).toBe(withOpacity(colors.ink900, 50));
+    });
+
+    // artboardStyle can't read the <svg>'s own presentation attributes (r/stroke above) -- it's a
+    // text-anchor regex reader (artboard.ts's header comment), and the icon's tag carries no leaf
+    // text of its own. What IS artboard-readable is its enclosing input box
+    // (PlateSheetResults.dc.html:36, one <div> up from the "protein bar" placeholder sibling the
+    // icon shares a row with) -- pins the icon's own row layout (gap from the input text,
+    // vertical centering) against the same artboard the r/stroke numbers above are cited from.
+    it("the icon's enclosing input box centers it against the text with the artboard's own gap", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      const inputBox = root.root.findByProps({ testID: "searchIcon" }).parent!;
+      const flat = StyleSheet.flatten(inputBox.props.style);
+      const spec = artboardEnclosingStyle("PlateSheetResults.dc.html", "protein bar", 1);
+      expect(flat.alignItems).toBe(spec.alignItems);
+      expect(flat.gap).toBe(spec.gap);
+    });
+
+    // PlateSheetResults.dc.html:40 specs a solid-fill Search button, not the outlined/transparent
+    // "secondary" variant -- "primary" (theme.ts buttonColors) is the already-existing variant
+    // that matches, same one the sheet's own LOG button uses.
+    it("renders the Search button with the solid 'primary' variant, not 'secondary'", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      const searchButtons = root.root.findAll((n) => n.type === Button && n.props.children === "Search");
+      expect(searchButtons).toHaveLength(1);
+      expect(searchButtons[0].props.variant).toBe("primary");
+    });
+
+    // platesheet-search-results-parity-gap task 1: buttonColors("primary") alone fills with
+    // colors.maroon600 (#7c2430) -- PlateSheetResults.dc.html:40 (and SearchExpandedHeader.dc.html:45)
+    // specs the darker #3b0a0f (maroon900) with an Oswald/600/12px/uppercase/0.5-letterspacing
+    // label, same "primary variant + style/textStyle override" pattern CustomFoodForm.tsx's
+    // Save button (saveButton/saveButtonText) already uses for its own #3b0a0f artboard button.
+    // Padding/borderWidth aren't asserted here -- Button's own "sm" padding sets the touch target,
+    // not the artboard's `padding: 0 18px` (height comes from the 44px flex row it sits in there).
+    it("fills with the artboard's #3b0a0f (not buttonColors('primary')'s default maroon600) and matches its Oswald/12px/uppercase label", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      const searchButtons = root.root.findAll((n) => n.type === Button && n.props.children === "Search");
+      const spec = artboardStyle("PlateSheetResults.dc.html", "Search");
+
+      const buttonFlat = StyleSheet.flatten(searchButtons[0].props.style);
+      expect(normalizeColor(buttonFlat.backgroundColor as string)).toBe(spec.backgroundColor);
+      expect(buttonFlat.borderRadius).toBe(spec.borderRadius);
+
+      const label = searchButtons[0].findByType(Text);
+      const labelFlat = StyleSheet.flatten(label.props.style);
+      expect(labelFlat.fontSize).toBe(spec.fontSize);
+      expect(labelFlat.letterSpacing).toBe(spec.letterSpacing);
+      expect(labelFlat.textTransform).toBe(spec.textTransform);
+      expect(normalizeColor(labelFlat.color as string)).toBe(spec.color);
+    });
+
+    // SearchExpandedHeader.dc.html:35-38 + CustomFoodForm.tsx's established chevron+title header
+    // convention -- the back chevron must sit in a header row with a "Search" title, not float
+    // alone outside any such row (same pattern NutritionLabel.tsx/CustomFoodForm.tsx already use).
+    // Values read straight from the artboard, not copied by eye.
+    it("wraps the back chevron in a header row with a 'Search' title, matching the artboard's own row/title styling", () => {
+      const { StyleSheet } = require("react-native");
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+
+      const backButton = root.root.findByProps({ accessibilityLabel: "Back" });
+      const header = backButton.parent!;
+      expect(header.type).toBe("View");
+      const flat = StyleSheet.flatten(header.props.style);
+      // artboardEnclosingStyle up=1: the title's own div is up=0, its parent (the flex row
+      // itself, display:flex + align-items + gap -- "display" isn't a mapped RN prop, so
+      // flexDirection isn't spec-readable, but it's CSS's own row default and what the row style
+      // sets) is up=1.
+      const rowSpec = artboardEnclosingStyle("SearchExpandedHeader.dc.html", "Search", 1);
+      expect(flat.flexDirection).toBe("row");
+      expect(flat.alignItems).toBe(rowSpec.alignItems);
+      expect(flat.gap).toBe(rowSpec.gap);
+
+      const title = header.findByProps({ children: "Search" });
+      expect(title.type).toBe(Text);
+      const titleSpec = artboardStyle("SearchExpandedHeader.dc.html", "Search");
+      const titleFlat = StyleSheet.flatten(title.props.style);
+      expect(titleFlat.fontSize).toBe(titleSpec.fontSize);
+      expect(titleFlat.letterSpacing).toBe(titleSpec.letterSpacing);
+      expect(titleFlat.textTransform).toBe(titleSpec.textTransform);
+      expect(normalizeColor(titleFlat.color)).toBe(titleSpec.color);
     });
 
     // 3a: expanding search now replaces the WHOLE pane body (item list/totals/LOG button included),

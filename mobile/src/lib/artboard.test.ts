@@ -1,4 +1,4 @@
-import { artboardEnclosingStyle, artboardStyle, artboardTransitions, normalizeColor } from "./artboard";
+import { artboardEnclosingStyle, artboardNthStyle, artboardStyle, artboardTransitions, normalizeColor } from "./artboard";
 
 describe("artboardStyle", () => {
   it("reads the inline style of the element whose text matches the anchor", () => {
@@ -40,6 +40,19 @@ describe("artboardStyle", () => {
 
   it("throws when the anchor is not on the artboard, so a stale citation fails loudly", () => {
     expect(() => artboardStyle("Main.dc.html", "No such copy")).toThrow(/No such copy/);
+  });
+});
+
+describe("artboardNthStyle", () => {
+  it("reads the nth bare <tag> in document order, regardless of its own text content", () => {
+    // EventDetailOptionA.dc.html:33 — the banner div (7th <div>, 0-indexed 6) has no text of its
+    // own, so artboardStyle's text-anchor can't reach it; this nth-tag selector can.
+    expect(artboardNthStyle("EventDetailOptionA.dc.html", "div", 6)).toMatchObject({ height: 180 });
+    expect(artboardNthStyle("EventDetailOptionA.dc.html", "div", 6).borderRadius).toBeUndefined();
+  });
+
+  it("throws when there's no nth match", () => {
+    expect(() => artboardNthStyle("EventDetailOptionA.dc.html", "div", 999)).toThrow();
   });
 });
 
