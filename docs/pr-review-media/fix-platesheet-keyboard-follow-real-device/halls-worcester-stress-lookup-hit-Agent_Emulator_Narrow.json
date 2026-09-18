@@ -1,10 +1,10 @@
 {
-  "sha": "f13d79b1008dd368f92b7ea3086f52dc6c274aea",
+  "sha": "6df7d3aec196f123e77bf388f72caab926392a98",
   "branch": "fix/platesheet-keyboard-follow-real-device",
   "worktree": "/home/tavern/Projects/js/UDine-kbfix",
   "route": "halls/worcester",
   "device": "Agent_Emulator_Narrow",
   "stress": "lookup-hit",
   "dirty": false,
-  "ts": "2026-09-18T16:24:09Z"
+  "ts": "2026-09-18T18:44:00Z"
 }
