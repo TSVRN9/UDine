@@ -120,7 +120,9 @@ interface Props {
   visible: boolean;
   plate: PlateEntry[];
   totals: DailyMacroTotals;
-  /** Right-of-title context (e.g. "Hampshire · Lunch") — the caller's hall name. */
+  /** Right-of-title context (e.g. "Hampshire · Lunch") — the caller (halls/[slug].tsx) joins its
+   * hall name with the currently-selected meal/Grab tab via hallMenuTabs.ts's
+   * plateSheetContextLabel, per PlateSheetResults.dc.html:32. */
   contextLabel?: string;
   /** Backs the local-history half of the merged search. Caller passes its own LogStorage instance
    * through rather than this sheet owning a duplicate. */
@@ -624,25 +626,52 @@ export function PlateSheet({
           <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
             {searchExpanded ? (
               <View style={styles.addSection}>
-                <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-                  <Text style={styles.backChevron}>‹</Text>
-                </Pressable>
+                {/* SearchExpandedHeader.dc.html:35-38 -- the app's one backChevron style token
+                (also used by CustomFoodForm.tsx/NutritionLabel.tsx), paired with a "Search"
+                section title in a proper header row, same as those two and
+                SearchResultDetail.dc.html:18-21 already do. */}
+                <View style={styles.searchHeader}>
+                  <Pressable onPress={() => setSearchExpanded(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+                    <Text style={styles.backChevron}>‹</Text>
+                  </Pressable>
+                  <Text style={styles.searchHeaderTitle}>Search</Text>
+                </View>
                 <View style={styles.searchRow}>
-                  <TextInput
-                    ref={searchInputRef}
-                    style={styles.searchInput}
-                    value={query}
-                    onChangeText={setQuery}
-                    placeholder="Search for a food"
-                    placeholderTextColor={withOpacity(colors.ink900, 45)}
-                    onSubmitEditing={() => runSearch()}
-                    // This box is now the top of its own full-pane view (once a search has run,
-                    // results/footer rows push it below the fold) -- scroll it to the end so the
-                    // query stays visible while typing.
-                    onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
-                    returnKeyType="search"
-                  />
-                  <Button variant="secondary" size="sm" onPress={() => runSearch()} disabled={searching || !query.trim()}>
+                  <View style={styles.searchInputBox}>
+                    {/* Magnifying-glass glyph, PlateSheetResults.dc.html:37 /
+                    SearchExpandedHeader.dc.html:42. */}
+                    <Svg width={fs(14)} height={fs(14)} viewBox="0 0 14 14" fill="none" testID="searchIcon">
+                      <Circle cx={6} cy={6} r={4.2} stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} />
+                      <Path d="M9.5 9.5L12.5 12.5" stroke={withOpacity(colors.ink900, 50)} strokeWidth={1.4} strokeLinecap="round" />
+                    </Svg>
+                    <TextInput
+                      ref={searchInputRef}
+                      style={styles.searchInput}
+                      value={query}
+                      onChangeText={setQuery}
+                      placeholder="Search for a food"
+                      placeholderTextColor={withOpacity(colors.ink900, 45)}
+                      onSubmitEditing={() => runSearch()}
+                      // This box is now the top of its own full-pane view (once a search has run,
+                      // results/footer rows push it below the fold) -- scroll it to the end so the
+                      // query stays visible while typing.
+                      onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                      returnKeyType="search"
+                    />
+                  </View>
+                  {/* PlateSheetResults.dc.html:40 / SearchExpandedHeader.dc.html:45 -- solid
+                  #3b0a0f fill with an Oswald/600/12px/uppercase label, darker than
+                  buttonColors("primary")'s default maroon600 -- same "primary variant +
+                  style/textStyle override" pattern as CustomFoodForm.tsx's Save button
+                  (saveButton/saveButtonText) for its own #3b0a0f artboard button. */}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    style={styles.searchButton}
+                    textStyle={styles.searchButtonText}
+                    onPress={() => runSearch()}
+                    disabled={searching || !query.trim()}
+                  >
                     Search
                   </Button>
                 </View>
@@ -936,13 +965,12 @@ const styles = StyleSheet.create({
   logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
   // PlateExpanded.dc.html:87-93 -- asymmetric 12px/14px padding and a 44px min-height. Doubles as
-  // both the idle row's own box and the expanded search area's wrapper. Base border is the
-  // expanded state's plain solid one; the idle-only dashed maroon border is layered on by
-  // addSectionIdle below -- it must not wrap the whole active search area.
+  // both the idle row's own box and the expanded search area's wrapper. The expanded panel has no
+  // border of its own -- PlateSheetResults.dc.html has none around the input row/results/footer,
+  // only around the input box itself (searchInputBox below) -- so the idle-only dashed maroon
+  // border lives entirely in addSectionIdle, not here.
   addSection: {
     marginTop: spacing(3.5),
-    borderWidth: 1,
-    borderColor: withOpacity(colors.ink900, 20),
     borderRadius: radii.md,
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
@@ -953,24 +981,46 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing(3),
+    borderWidth: 1,
     borderStyle: "dashed",
     borderColor: withOpacity(colors.maroon600, 45),
   },
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
   addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
+  // SearchExpandedHeader.dc.html:35-38 -- the back chevron sits in a header row with a "Search"
+  // section title, the same chevron+title convention CustomFoodForm.tsx's own header already
+  // uses, instead of floating alone outside any row. Smaller than CustomFoodForm's full top-of-
+  // screen title (13px/600 vs 20px/700) -- this one lives inside the already-compact addSection
+  // panel, not a standalone modal header.
+  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: fs(2) },
+  searchHeaderTitle: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
   // Same backChevron the app's other in-sheet close buttons use (CustomFoodForm.tsx,
   // NutritionLabel.tsx, CafePdfViewer.tsx) -- repurposed here to collapse back to idle instead of
   // closing the whole sheet.
   backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
   searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
-  searchInput: {
+  // PlateSheetResults.dc.html:40 / SearchExpandedHeader.dc.html:45 -- #3b0a0f fill, 6px radius,
+  // darker than buttonColors("primary")'s maroon600 default. fontWeight "400" cancels Button's own
+  // base 600 weight, which would fake-bold display600's already-600 Oswald family (same reasoning
+  // as CustomFoodForm.tsx's saveButtonText).
+  searchButton: { borderRadius: radii.md, backgroundColor: colors.maroon900 },
+  searchButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.5, textTransform: "uppercase", fontWeight: "400" },
+  // PlateSheetResults.dc.html:36 -- the border wraps the icon+input box itself, not the whole
+  // expanded panel (addSection above no longer carries one).
+  searchInputBox: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(2),
     borderWidth: 1,
     borderColor: withOpacity(colors.ink900, 25),
     borderRadius: radii.md,
     paddingHorizontal: spacing(3),
     paddingVertical: spacing(2),
+  },
+  searchInput: {
+    flex: 1,
     fontFamily: fonts.body400,
     color: colors.ink900,
   },

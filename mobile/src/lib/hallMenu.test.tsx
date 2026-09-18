@@ -20,6 +20,7 @@ import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { CompositeDishComposer } from "../components/CompositeDishComposer";
 import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
 import { PlateBar } from "../components/PlateBar";
+import { StationScrubber } from "../components/StationScrubber";
 import { Button } from "../components/ui";
 import { colors } from "./theme";
 import { stepDate } from "./hallMenuTabs";
@@ -243,6 +244,52 @@ const STEAK: MenuItem = {
 // deriveHallMealTabs (#442-follow-up) now hides a meal tab entirely when no item that day carries
 // its mealPeriod -- tests below that need all 4 real tabs present (not just Lunch, the sole
 // default renderScreen([PIZZA, SALAD]) period) must include one item per period, this one included.
+// station-filter-overlap brief, task 3: two distinct lunch stations so the scrubber (count > 1
+// guard) actually renders, and a second day's fixtures below reshape that same list.
+const GRILL_STATION_ITEM: MenuItem = {
+  dishName: "Grilled Chicken",
+  category: "Grill",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(300),
+  allergens: [],
+  dietTags: [],
+};
+
+const SALAD_STATION_ITEM: MenuItem = {
+  dishName: "Garden Salad",
+  category: "Salads",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-19",
+  nutrition: nutrition(90),
+  allergens: [],
+  dietTags: [],
+};
+
+const NEXT_DAY_GRILL_ITEM: MenuItem = {
+  dishName: "Burger",
+  category: "Grill",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-20",
+  nutrition: nutrition(350),
+  allergens: [],
+  dietTags: [],
+};
+
+const NEXT_DAY_SOUP_ITEM: MenuItem = {
+  dishName: "Tomato Soup",
+  category: "Soups",
+  mealPeriod: "lunch",
+  hallTid: 1,
+  date: "2026-08-20",
+  nutrition: nutrition(120),
+  allergens: [],
+  dietTags: [],
+};
+
 const LATE_SNACK: MenuItem = {
   dishName: "Late Snack",
   category: "Entrees",
@@ -535,6 +582,45 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     const [, steppedDate] = mockedFetchMenu.mock.calls[callsBefore];
     expect(steppedDate.getTime()).toBe(stepDate(initialDate, 1).getTime());
     expect(steppedDate.toDateString()).toBe(new Date(2026, 7, 20).toDateString()); // the actual calendar day
+  });
+
+  // station-filter-overlap brief, task 3: activeStationIndex (fed to StationScrubber) used to
+  // reset only on [selectedMeal] -- a date step rebuilds sectionsByPeriod (a brand-new day's own
+  // stations) without ever touching selectedMeal, so a highlight left tracking a deep station from
+  // the PREVIOUS day survived, numerically valid against the new day's shorter/different station
+  // list but pointing at the wrong one. Confirmed on-device 2026-09-17 (Franklin, real
+  // next-day fetch): the highlight rendered near the bottom of the track while the freshly loaded
+  // day's list sat at its own first section (Grill Station) -- not a one-frame blip, still wrong
+  // 12s later with no further interaction, because nothing ever re-fires viewability for a
+  // settled, unscrolled list. Fix: reset on activeStationSections too (it already changes for
+  // every station/price-filter, diet/allergen-filter, AND date-step reshape in one dependency,
+  // so this covers more than just the date-step path this test drives).
+  it("resets the station scrubber's stale index when a date step reshapes the section list, not just on a meal-tab switch", async () => {
+    const root = await renderScreen([GRILL_STATION_ITEM, SALAD_STATION_ITEM]);
+    const sectionList = activePane(root).findByType(SectionList);
+    const sections = sectionList.props.sections as { title: string; data: MenuItem[] }[];
+    expect(sections.length).toBeGreaterThan(1);
+    const lastIndex = sections.length - 1;
+
+    // Simulate the list having scrolled to its last station -- the real trigger (a drag/scroll)
+    // isn't simulable through react-test-renderer, but the scrubber only ever reads this state via
+    // onViewableItemsChanged, so calling it directly is exercising the same real wiring the
+    // component itself uses, not standing in for the mechanism under test.
+    act(() => {
+      sectionList.props.onViewableItemsChanged({
+        viewableItems: [{ item: sections[lastIndex].data[0], key: "k", index: 0, isViewable: true, section: sections[lastIndex] }],
+      });
+    });
+    expect(root.root.findByType(StationScrubber).props.activeStationIndex).toBe(lastIndex);
+
+    // Next day's own menu also has multiple stations (so the scrubber still renders, count > 1) --
+    // its topmost section is index 0, not whatever the previous day's list happened to have there.
+    mockedFetchMenu.mockResolvedValueOnce([NEXT_DAY_GRILL_ITEM, NEXT_DAY_SOUP_ITEM]);
+    await act(async () => {
+      root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+    });
+
+    expect(root.root.findByType(StationScrubber).props.activeStationIndex).toBe(0);
   });
 
   it("selects the Grab 'N Go tab in place (gold underline moves to it) instead of navigating to a separate route, and fetches the hall's Grab 'N Go tid, not its regular hall tid", async () => {
@@ -1616,6 +1702,38 @@ describe("HallMenuScreenBody as a café (#177 -- non-empty fetchMenu path, tid w
     const label = breakfastTab.findByType(Text);
     expect(StyleSheet.flatten(label.props.style).color).toBe(colors.maroon900);
   });
+
+  // pr-reviewer follow-up on platesheet-search-results-parity-gap task 1: a café's selectedMeal
+  // starts null (unlike a real hall's static "lunch" default, see selectedMeal's own useState) and
+  // only resolves once mealTabs derives from a still-in-flight fetchMenu -- reachable because
+  // PlateBar is always tappable even before that resolves (its own doc comment), and the lookup-*
+  // stress fixtures open PlateSheet synchronously on mount, before fetchMenu's promise has even had
+  // a chance to settle. Renders with a plain (non-awaited) `act` -- not this file's `renderCafeScreen`
+  // helper, whose `await act(async ...)` would flush the mocked fetchMenu's already-resolved promise
+  // and resolve selectedMeal before this test could observe the gap.
+  it("shows no contextLabel at all for a café before its own selectedMeal resolves -- never falls back to the bare hall name mid-load", async () => {
+    mockedFetchMenu.mockResolvedValue([COFFEE]); // deliberately not awaited/flushed below
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<HallMenuScreenBody hall={{ tid: 32, name: "People's Organic Coffee" }} stressFixture="lookup-hit" />);
+    });
+
+    // PlateSheet's header row is exactly [title Text, contextLabel Text?] -- a header with only
+    // the title Text proves contextLabel was omitted (undefined), not that it rendered the wrong
+    // string; asserting "no Text saying 'People's Organic Coffee'" alone couldn't tell those apart
+    // from a screen where the string just happens to appear somewhere else entirely.
+    const title = root.root.findByProps({ children: "Your Plate" });
+    const header = title.parent!;
+    expect(header.findAllByType(Text)).toHaveLength(1);
+
+    // Flush the still-pending fetchMenu resolution inside a final act() -- left dangling past this
+    // test's own synchronous act() above, it resolves later, outside any act(), and React's uncaught-
+    // error path there calls window.dispatchEvent, which this environment doesn't have, crashing the
+    // whole test process (not just this test).
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
 });
 
 describe("HallMenuScreen real-hall dynamic meal tabs (#442-follow-up)", () => {
@@ -1905,6 +2023,23 @@ describe("HallMenuScreen lookup-dish stress fixtures (brief foodpro-menu-expansi
       .flat()
       .join(" ");
     expect(body).toMatch(/Looking up\s+flatbread/i);
+  });
+
+  // platesheet-search-results-parity-gap task 1, pr-reviewer follow-up: PlateSheet.test.tsx and
+  // hallMenuTabs.test.ts only ever hand PlateSheet/plateSheetContextLabel their inputs directly --
+  // neither exercises the actual [slug].tsx call site that wires selectedMeal into contextLabel,
+  // which is exactly the line that regressed originally (contextLabel={hall.name} alone). This
+  // reuses the same lookup-* auto-open wiring the test above already exercises, so PlateSheet is
+  // actually mounted and visible through real navigation, not a direct render.
+  it("wires the active meal into PlateSheet's contextLabel through real navigation (not just hall.name)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "worcester", stress: "lookup-hit" });
+    const root = await renderScreen();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(root.root.findByProps({ children: "Worcester · Lunch" })).toBeTruthy();
   });
 
   it("stress=lookup-miss auto-opens the plate sheet, resolves to a genuine miss, and adds no new message", async () => {
