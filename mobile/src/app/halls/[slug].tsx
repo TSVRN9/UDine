@@ -76,6 +76,7 @@ import {
   isBrunchLunch,
   isCurrentTabLoading,
   MEAL_TABS,
+  plateSheetContextLabel,
   shouldAutoCorrectMealTab,
   stepDate,
   toggleExpandedKey,
@@ -1892,7 +1893,7 @@ export function HallMenuScreenBody({
         visible={resolvePlateAndCustomFoodVisibility(sheetOpen, customFoodFormOpen).plateSheetVisible}
         plate={plate}
         totals={totals}
-        contextLabel={hall.name}
+        contextLabel={selectedMeal ? plateSheetContextLabel(hall.name, selectedMeal, isRealHall, isBrunchToday) : hall.name}
         logStorage={storage}
         customFoodsStorage={customFoodsStorage}
         hallTid={cafeHallTid}

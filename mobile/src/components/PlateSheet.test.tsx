@@ -276,6 +276,20 @@ describe("PlateSheet", () => {
     expect(mockedRefreshDishCatalogIfStale).toHaveBeenCalledTimes(1);
   });
 
+  // platesheet-search-results-parity-gap task 1: the caller passes contextLabel as one already-
+  // joined "<Hall> · <Meal>" string (halls/[slug].tsx via hallMenuTabs.ts's
+  // plateSheetContextLabel, its own tests) -- this pins PlateSheet's own render of *whatever*
+  // string it's handed against PlateSheetResults.dc.html:32's typography, so the label doesn't
+  // silently drift out of its 12px/rgba(36,26,20,0.55) treatment independent of the join logic.
+  it("renders contextLabel with the artboard's own type/color treatment", () => {
+    const root = renderSheet({ contextLabel: "Hampshire · Lunch" });
+    const label = root.root.findByProps({ children: "Hampshire · Lunch" });
+    const flat = StyleSheet.flatten(label.props.style);
+    const spec = artboardStyle("PlateSheetResults.dc.html", "Hampshire · Lunch");
+    expect(flat.fontSize).toBe(spec.fontSize);
+    expect(normalizeColor(flat.color as string)).toBe(spec.color);
+  });
+
   // #198: onSubmitEditing had no guard against a search already in flight -- the Search BUTTON
   // already disables on `searching`, but hitting Enter/the keyboard's search key went straight to
   // runSearch regardless, so mashing Enter while typing fired overlapping searchProducts calls.
@@ -838,6 +852,22 @@ describe("PlateSheet", () => {
       expect(circle.props.stroke).toBe(withOpacity(colors.ink900, 50));
     });
 
+    // artboardStyle can't read the <svg>'s own presentation attributes (r/stroke above) -- it's a
+    // text-anchor regex reader (artboard.ts's header comment), and the icon's tag carries no leaf
+    // text of its own. What IS artboard-readable is its enclosing input box
+    // (PlateSheetResults.dc.html:36, one <div> up from the "protein bar" placeholder sibling the
+    // icon shares a row with) -- pins the icon's own row layout (gap from the input text,
+    // vertical centering) against the same artboard the r/stroke numbers above are cited from.
+    it("the icon's enclosing input box centers it against the text with the artboard's own gap", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      const inputBox = root.root.findByProps({ testID: "searchIcon" }).parent!;
+      const flat = StyleSheet.flatten(inputBox.props.style);
+      const spec = artboardEnclosingStyle("PlateSheetResults.dc.html", "protein bar", 1);
+      expect(flat.alignItems).toBe(spec.alignItems);
+      expect(flat.gap).toBe(spec.gap);
+    });
+
     // PlateSheetResults.dc.html:40 specs a solid-fill Search button, not the outlined/transparent
     // "secondary" variant -- "primary" (theme.ts buttonColors) is the already-existing variant
     // that matches, same one the sheet's own LOG button uses.
@@ -847,6 +877,31 @@ describe("PlateSheet", () => {
       const searchButtons = root.root.findAll((n) => n.type === Button && n.props.children === "Search");
       expect(searchButtons).toHaveLength(1);
       expect(searchButtons[0].props.variant).toBe("primary");
+    });
+
+    // platesheet-search-results-parity-gap task 1: buttonColors("primary") alone fills with
+    // colors.maroon600 (#7c2430) -- PlateSheetResults.dc.html:40 (and SearchExpandedHeader.dc.html:45)
+    // specs the darker #3b0a0f (maroon900) with an Oswald/600/12px/uppercase/0.5-letterspacing
+    // label, same "primary variant + style/textStyle override" pattern CustomFoodForm.tsx's
+    // Save button (saveButton/saveButtonText) already uses for its own #3b0a0f artboard button.
+    // Padding/borderWidth aren't asserted here -- Button's own "sm" padding sets the touch target,
+    // not the artboard's `padding: 0 18px` (height comes from the 44px flex row it sits in there).
+    it("fills with the artboard's #3b0a0f (not buttonColors('primary')'s default maroon600) and matches its Oswald/12px/uppercase label", () => {
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+      const searchButtons = root.root.findAll((n) => n.type === Button && n.props.children === "Search");
+      const spec = artboardStyle("PlateSheetResults.dc.html", "Search");
+
+      const buttonFlat = StyleSheet.flatten(searchButtons[0].props.style);
+      expect(normalizeColor(buttonFlat.backgroundColor as string)).toBe(spec.backgroundColor);
+      expect(buttonFlat.borderRadius).toBe(spec.borderRadius);
+
+      const label = searchButtons[0].findByType(Text);
+      const labelFlat = StyleSheet.flatten(label.props.style);
+      expect(labelFlat.fontSize).toBe(spec.fontSize);
+      expect(labelFlat.letterSpacing).toBe(spec.letterSpacing);
+      expect(labelFlat.textTransform).toBe(spec.textTransform);
+      expect(normalizeColor(labelFlat.color as string)).toBe(spec.color);
     });
 
     // SearchExpandedHeader.dc.html:35-38 + CustomFoodForm.tsx's established chevron+title header
