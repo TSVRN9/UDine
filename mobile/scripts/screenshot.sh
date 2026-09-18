@@ -25,8 +25,12 @@ set -euo pipefail
 #   `?stress=NAME`. Requires the target route to read it and inject a fixture when
 #   __DEV__ (see mobile/src/app/halls/[slug].tsx's stressFixtureItems for the one this
 #   repo ships: NAME=long-names adds two synthetic dishes to every meal-period section
-#   -- a 60+ char name with all 5 macro badges, and a ~40 char name with 3 -- so a
-#   layout claim about a wrapped name / badge count doesn't depend on live menu data
+#   -- a 60+ char name whose nutrition clears every reachable macro-badge threshold
+#   (max reachable is 4, not 5 -- high-fiber is suppressed whenever high-protein also
+#   qualifies), calibrated to actually cross the badge-tuck boundary as badge count
+#   changes (not just tuck at every count -- see hall-menu-badge-tuck-fixture-gap.md),
+#   and a ~40 char name with 3 badges that stays comfortably tucked -- so a layout
+#   claim about a wrapped name / badge count doesn't depend on live menu data
 #   happening to contain one today.
 # --record-nav: start screenrecord BEFORE the route-navigation deep link fires, instead
 #   of after the post-navigation settle. Without it, --record's clip only ever shows the
