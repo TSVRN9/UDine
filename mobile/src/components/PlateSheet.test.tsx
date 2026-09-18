@@ -865,6 +865,16 @@ describe("PlateSheet", () => {
       expect(expandedFlat.borderWidth).toBeUndefined();
       expect(expandedFlat.borderColor).toBeUndefined();
       expect(expandedFlat.borderStyle).toBeUndefined();
+      // platesheet-search-panel-spacing-gap (pr-reviewer REWORK): the idle pill's padding/
+      // min-height/corner-radius are just as idle-only as its border above, and leak into the
+      // expanded state the exact same way the border used to -- SearchExpandedHeader.dc.html's
+      // panel has no wrapping box at all, so none of these belong on the bare `addSection` object.
+      // Un-enforced before this: reverting addSection's split (re-adding these four properties to
+      // the shared object) left the full suite green.
+      expect(expandedFlat.paddingVertical).toBeUndefined();
+      expect(expandedFlat.paddingHorizontal).toBeUndefined();
+      expect(expandedFlat.minHeight).toBeUndefined();
+      expect(expandedFlat.borderRadius).toBeUndefined();
     });
 
     // docs/briefs/platesheet-search-panel-spacing-gap.md's "Root cause" section: nothing in this
