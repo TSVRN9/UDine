@@ -595,6 +595,48 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     expect(root.root.findByType(StationScrubber).props.activeStationIndex).toBe(0);
   });
 
+  // hall-menu-filter-overlap brief, task 4: confirmed on-device (scrolled deep, filtered to a
+  // single early station via the real FilterSheet) that the revealed list kept its OLD absolute
+  // scroll offset instead of resetting to top -- landing mid-list into the much-shorter filtered
+  // content with no section header visible (see docs/briefs/hall-menu-filter-overlap-evidence/
+  // scroll-offset-preserved-after-station-filter.png). Root cause: unlike a date step (which goes
+  // through the stillLoading skeleton branch and so unmounts/remounts GestureSectionList "for
+  // free", resetting native scroll to 0), a station/price/allergen-diet-tag filter change reshapes
+  // periodSections in place without ever unmounting the list, so its native scroll offset survives
+  // into the new, shorter content. Fix calls `scrollToLocation` -- the same real, public
+  // SectionList method StationScrubber's own jump-to-station taps already use -- not
+  // `getListRef()?.scrollToOffset()` (handleScrollToIndexFailed's pattern one call site up): this
+  // repo's own react-native dependency tree shows SectionList never re-exposes
+  // VirtualizedSectionList's `getListRef()` as a public instance method, so that chain is always a
+  // silent no-op (see the fix's own doc in halls/[slug].tsx). Spied here at the real SectionList
+  // prototype method (not the GestureSectionList wrapper, whose ref shape isn't itself the thing
+  // under test) so this exercises the real ref chain, not a stand-in for it.
+  it("resets a meal pane's native scroll offset back to the top when a station filter reshapes its sections, but not on an unrelated macro-badge toggle", async () => {
+    const scrollSpy = jest.spyOn(SectionList.prototype, "scrollToLocation").mockImplementation(() => {});
+    const root = await renderScreen([GRILL_STATION_ITEM, SALAD_STATION_ITEM]);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Filters" }).props.onPress();
+    });
+    // Macro badges are informational only (menuItemMatchesPreferences never reads macroPresets) --
+    // task 1 of this same brief already ruled out any reflow bug from toggling one on-device, so
+    // this must not fire the reset either.
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Macro High Protein" }).props.onPress();
+    });
+    expect(scrollSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Station Grill" }).props.onPress();
+    });
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Done" }).props.onPress();
+    });
+
+    expect(scrollSpy).toHaveBeenCalledWith({ sectionIndex: 0, itemIndex: 0, animated: false });
+    scrollSpy.mockRestore();
+  });
+
   it("selects the Grab 'N Go tab in place (gold underline moves to it) instead of navigating to a separate route, and fetches the hall's Grab 'N Go tid, not its regular hall tid", async () => {
     const root = await renderScreen([PIZZA]);
     mockedFetchMenu.mockResolvedValueOnce([]);

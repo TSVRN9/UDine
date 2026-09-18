@@ -1162,6 +1162,53 @@ export function HallMenuScreenBody({
   const [activeStationIndex, setActiveStationIndex] = useState(0);
   useEffect(() => setActiveStationIndex(0), [selectedMeal, activeStationSections]);
 
+  // hall-menu-filter-overlap brief, task 4: a station/price/allergen-diet-tag filter reshapes
+  // periodSections/grabSectionsMemo WITHOUT unmounting GestureSectionList the way a date step does
+  // (that goes through the stillLoading skeleton branch first) -- so unlike a date step, nothing
+  // ever resets the list's own native scroll offset. Confirmed on-device: scrolled deep, filtered
+  // to a single early station via the real FilterSheet, and the revealed list kept its old
+  // absolute offset, landing mid-list into the much-shorter filtered content with no section
+  // header visible (docs/briefs/hall-menu-filter-overlap-evidence/
+  // scroll-offset-preserved-after-station-filter.png). Fixed with `scrollToLocation` -- the same
+  // real, working, public SectionList method StationScrubber's own jump-to-station taps already
+  // use (StationScrubber.tsx:93) -- not `getListRef()?.scrollToOffset()`, the pattern
+  // handleScrollToIndexFailed above uses: SectionList (Libraries/Lists/SectionList.js in this
+  // repo's own react-native dependency tree) never re-exposes VirtualizedSectionList's
+  // `getListRef()` as a public instance method, only `scrollToLocation`/`recordInteraction`/
+  // `flashScrollIndicators`/`getScrollResponder`/`getScrollableNode`/`setNativeProps` -- so that
+  // call's own `?.getListRef?.()` is always `undefined`, silently no-op-ing the optional chain
+  // after it. Not fixed here (out of this task's scope, and it's only a best-effort nudge on an
+  // already-rare scrollToIndex failure path) -- flagged so the next person who copies that
+  // call site doesn't inherit a dead one.
+  //
+  // A `key` that forces GestureSectionList to remount was tried first and rejected: it tears down
+  // and re-registers the native gesture handler createNativeWrapper exists to coordinate with
+  // MealTabPager's own Pan gesture (:119-126), and it crashed the jest test environment
+  // (react-native-gesture-handler's MountRegistry schedules a real setImmediate on unmount that
+  // fired past test teardown) -- a real signal that remounting this specific wrapped component on
+  // every filter toggle is the wrong tool, not just a test artifact.
+  //
+  // Two effects, not one: station/price filtering never touches Grab's own sections (see
+  // stationPriceFilteredItems's own doc), so folding all three into one dependency array would
+  // reset Grab's scroll on a station/price change that can't have reshaped it. Neither effect
+  // depends on `selectedMeal` -- only on the filter values themselves -- so switching tabs alone
+  // (no reshape) never fires either one and each tab's own scroll position stays exactly where
+  // the user left it, same as today. `prefsReshapeKey` -- not `prefs` itself -- so a macroPresets-
+  // only change (badges, never filtered by menuItemMatchesPreferences) doesn't fire this: that's
+  // exactly the control task 1's two on-device passes already ruled out as a non-issue, and
+  // resetting scroll on every macro-chip toggle would be a new, unnecessary regression.
+  const prefsReshapeKey = `${prefs.allergensToAvoid.slice().sort().join(",")}|${prefs.requiredDietTags.slice().sort().join(",")}`;
+  useEffect(() => {
+    if (selectedMeal === null || selectedMeal === "grab") return;
+    getListRef(selectedMeal).current?.scrollToLocation?.({ sectionIndex: 0, itemIndex: 0, animated: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedMeal read fresh via closure, not a dependency (see doc above)
+  }, [stationFilter, priceFilter]);
+  useEffect(() => {
+    if (selectedMeal === null) return;
+    getListRef(selectedMeal).current?.scrollToLocation?.({ sectionIndex: 0, itemIndex: 0, animated: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedMeal read fresh via closure, not a dependency (see doc above)
+  }, [prefsReshapeKey]);
+
   // A SectionList's onViewableItemsChanged identity must never change across that list's own
   // lifetime (RN throws "Changing onViewableItemsChanged on the fly is not supported" if it does)
   // -- but mealPane/grabPane are plain functions re-invoked on every render (they can't call hooks
