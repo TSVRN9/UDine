@@ -1,0 +1,10 @@
+{
+  "sha": "386bc199543a683f8ea52c84e5cf0d971d440861",
+  "branch": "fix/platesheet-close-animation-missing",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-adb97df7dc719fae8",
+  "route": "halls/franklin?stress=lookup-hit",
+  "device": "Agent_Emulator_Wide",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-09-19T00:16:42Z"
+}
