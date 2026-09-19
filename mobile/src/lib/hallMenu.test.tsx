@@ -14,6 +14,7 @@
 // HallMenuScreen below is what loads that module.
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, View, SectionList } from "react-native";
+import Reanimated from "react-native-reanimated";
 import { router, useLocalSearchParams } from "expo-router";
 import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
@@ -621,6 +622,40 @@ describe("HallMenuScreen meal tabs + date stepper + Grab 'N Go tab (#117)", () =
     });
 
     expect(root.root.findByType(StationScrubber).props.activeStationIndex).toBe(0);
+  });
+
+  // hall-menu-filter-overlap brief, task 5 (heavy-debugger pass, 2026-09-18): the owner's real
+  // vegetarian-filter screenshots (blank gaps, a section header painted over/under a card) were
+  // reproduced on-device at 13/31 toggles and root-caused to the cells' own
+  // `layout={LinearTransition...}`: a diet-tag toggle thins sections in place, so surviving
+  // headers/rows keep their React key, move, and animate -- entirely behind the opaque FilterSheet
+  // Modal -- and Reanimated's Fabric layout-animation proxy then leaves some of them at their
+  // PRE-filter frame when the 180ms animation ends while VirtualizedList is still committing the
+  // reshape's follow-up renders (0/20 with the transition removed; 9/20 with task 4's scroll-to-top
+  // instead; 1/20 when the animation was slowed to 1500ms, i.e. outliving the commit storm). The
+  // sheet is the only place a reshape can start while this screen is mounted (setPrefs has one
+  // caller; station/price filters live in the same sheet), and the transition is invisible behind
+  // it anyway, so cells pass no `layout` at all while it is open and get it back on Done.
+  it("passes no layout transition to any dish row or section header while the FilterSheet occludes the list, and restores it once the sheet closes", async () => {
+    const root = await renderScreen([GRILL_STATION_ITEM, SALAD_STATION_ITEM]);
+    const cellLayouts = () =>
+      activePane(root)
+        .findAll((n) => n.type === Reanimated.View && n.props.style !== undefined && "layout" in n.props)
+        .map((n) => n.props.layout);
+    // Both rows and both section headers wrap in an animated view carrying a `layout` prop.
+    expect(cellLayouts().length).toBeGreaterThanOrEqual(4);
+    expect(cellLayouts().every((l) => l !== undefined)).toBe(true);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Filters" }).props.onPress();
+    });
+    expect(cellLayouts().length).toBeGreaterThanOrEqual(4);
+    expect(cellLayouts().every((l) => l === undefined)).toBe(true);
+
+    act(() => {
+      root.root.findByProps({ accessibilityLabel: "Done" }).props.onPress();
+    });
+    expect(cellLayouts().every((l) => l !== undefined)).toBe(true);
   });
 
   // hall-menu-scroll-recovery-dead-code brief: the recovery handler used to call

@@ -21,9 +21,12 @@ describe("halls/[slug].tsx layout/entrance animations read motion tokens, not li
     expect(source).toMatch(/LinearTransition\.duration\(durations\.rowLayout\)/);
   });
 
-  it("both meal-tab and Grab station section headers wrap in Reanimated.View with LinearTransition.duration(durations.rowLayout), so a header slides into place instead of teleporting when a card above it resizes", () => {
-    const matches = source.match(/<Reanimated\.View layout=\{LinearTransition\.duration\(durations\.rowLayout\)\} style=\{styles\.sectionHeaderWrap\}>/g) ?? [];
+  it("both meal-tab and Grab station section headers wrap in Reanimated.View with the shared cell transition (LinearTransition.duration(durations.rowLayout) unless the FilterSheet occludes the list), so a header slides into place instead of teleporting when a card above it resizes", () => {
+    const matches = source.match(/<Reanimated\.View layout=\{cellLayoutTransition\(filterSheetOpen\)\} style=\{styles\.sectionHeaderWrap\}>/g) ?? [];
     expect(matches.length).toBe(2);
+    // The helper is the single place the token is read for rows AND headers -- hall-menu-filter-
+    // overlap brief, task 5: no cell animates a reshape behind the sheet (see hallMenu.test.tsx).
+    expect(source).toMatch(/return listOccluded \? undefined : LinearTransition\.duration\(durations\.rowLayout\);/);
   });
 
   it("expanded-content FadeIn/FadeOut use durations.rowExpandIn/rowExpandOut", () => {
