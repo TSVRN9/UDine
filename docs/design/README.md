@@ -90,7 +90,10 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | F2 -- Create a custom food | `CustomFoodForm.dc.html` | 390×844 | `components/CustomFoodForm.tsx` |
 | F2 -- Result confirm step (NutritionLabel reuse) | `SearchResultDetail.dc.html` | 390×844 | `components/NutritionLabel.tsx`, `lib/plate.ts` |
 | F2 -- Search header (back chevron + title row) | `SearchExpandedHeader.dc.html` | 390×844 | `components/PlateSheet.tsx` |
-| F2 -- Search results: paginated + custom badge | `PlateSheetResults.dc.html` | 390×844 | `components/PlateSheet.tsx` |
+| F2 -- Search results: paginated + custom badge + direct-lookup action | `PlateSheetResults.dc.html` | 390×844 | `components/PlateSheet.tsx` |
+| F2 -- Search in flight: spinner row, Search disabled, rows stream in (new) | `SearchStateInFlight.dc.html` | 390×844 | `components/PlateSheet.tsx` |
+| F2 -- Search finished, no results (new) | `SearchStateEmpty.dc.html` | 390×844 | `components/PlateSheet.tsx` |
+| F2 -- Search failed (new) | `SearchStateError.dc.html` | 390×844 | `components/PlateSheet.tsx` |
 | F3 -- Events pane + Press/Newsletter (new) | `EventsPanePress.dc.html` | 390×844 | `panes/EventsPane.tsx`, `app/press.tsx`, `app/newsletter.tsx`, `app/event-detail.tsx` |
 | F3 -- Filter FAB, active (final) | `MenuFAB_Active.dc.html` | 390×844 | `app/halls/[slug].tsx` |
 | F3 -- Filter FAB, no filters (permanent, bare icon) | `MenuFAB_Inactive.dc.html` | 390×844 | `app/halls/[slug].tsx` |

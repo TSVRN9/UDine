@@ -365,7 +365,7 @@
       "y": 0,
       "w": 390,
       "h": 844,
-      "title": "F2 -- Search results: paginated + custom badge",
+      "title": "F2 -- Search results: paginated + custom badge + direct-lookup action",
       "page": "page-4"
     },
     {
@@ -502,6 +502,33 @@
       "h": 844,
       "title": "F5 -- Event detail C: dark CafePdf-style chrome, share pill twinning the existing SAVE button",
       "page": "page-8"
+    },
+    {
+      "file": "SearchStateInFlight.dc.html",
+      "x": 0,
+      "y": 3400,
+      "w": 390,
+      "h": 844,
+      "title": "F2 -- Search in flight: spinner row, Search disabled, rows stream in (new)",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchStateEmpty.dc.html",
+      "x": 450,
+      "y": 3400,
+      "w": 390,
+      "h": 844,
+      "title": "F2 -- Search finished, no results (new)",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchStateError.dc.html",
+      "x": 900,
+      "y": 3400,
+      "w": 390,
+      "h": 844,
+      "title": "F2 -- Search failed (new)",
+      "page": "page-4"
     }
   ],
   "annotations": [
@@ -759,6 +786,14 @@
       "w": 1290,
       "page": "page-8",
       "text": "Event detail screen + share button (new, owner request -- no prior artboard covered event-detail.tsx at all; it was built without a spec). Current code (event-detail.tsx) relies on the native stack header for back+title and adds a bare unicode glyph as headerRight for share -- no button chrome at all, the same kind of unstyled/inconsistent treatment the search panel's back chevron had before SearchExpandedHeader.dc.html fixed it. Three directions, all reachable without changing EventsPane.tsx's list card (openEventTap.ts still routes here unchanged):\n\nA = the app's own established in-content header convention (CustomFoodForm.tsx / NutritionLabel.dc.html / SearchExpandedHeader.dc.html: back chevron + title in a flex row) on a light ground, share as a bordered pill (Button.tsx's existing 'secondary' variant styling: transparent bg, maroon600 text/border) with icon + SHARE label. Cheapest to build -- reuses a pattern and a button variant that already exist verbatim, no new visual language.\n\nB = the banner image runs full-bleed behind a transparent header; share becomes a small floating circular icon button sitting directly on the image (translucent dark backdrop so it reads against any poster art), literally 'a share button on the event image' rather than in chrome above it. No label -- an icon-only floating button reads as secondary/ambient, which fits an action that isn't this screen's primary one. Content flows into a cream sheet with rounded top corners below, echoing CafePdf.dc.html's transition.\n\nC = twins CafePdf.dc.html's own dark-chrome header almost exactly (back chevron + stacked title/subtitle on the left, a bordered pill on the right) with SAVE swapped for SHARE and the same icon+label pill from A -- so the two pill treatments (A's light, C's dark) are the same component on different grounds, not two different button designs. Strongest visual continuity with the one other in-app 'poster-style content in a sheet' screen the app already has.\n\nAll three keep the share icon itself identical (upload/arrow-out-of-box, distinct from CafePdf's SAVE download-arrow so the two aren't confusable) -- only its container and position vary. No decision made yet. brief: none yet -- pending this decision."
+    },
+    {
+      "id": "search-state-actions",
+      "x": 1880,
+      "y": 3400,
+      "w": 420,
+      "page": "page-4",
+      "text": "Search panel actions + non-result states (new, owner request 2026-09-19 -- PlateSheet.tsx's search pane had buttons and states with no artboard, so each agent styled them from nothing).\n\nSearch UMass Dining directly (PlateSheetResults.dc.html): the app's existing secondary button variant (Button.tsx: transparent fill, #7c2430 text, 45% #7c2430 border) at Load More's exact geometry -- full-width, 10px padding, Oswald 600 12px uppercase. Sits between Load More and the dashed Create row: neutral outline -> maroon outline -> dashed maroon, ordered by how far off the beaten path each action is. Shown after every completed search (plate-search-semantics.md decision 3), hidden while a lookup is fetching.\n\nSearchStateInFlight: the bare spinner under the input becomes the same gold-tinted row SearchLookupStates uses for its fetching state, so every 'waiting' moment looks alike. Search button dims (45%) because resubmitting the same in-flight query is a no-op; a different query re-enables it and supersedes. Rows stream in beneath as each source resolves; the footer actions stay hidden until the whole search settles.\n\nSearchStateEmpty: a one-line muted 'Nothing found for <query>' row (13px, 65% ink, same treatment as the fetching row's text) above the two action rows. Real user copy, owner-approved 2026-09-19. The Create row is still the escape hatch; there is no separate 'No matches.' element.\n\nSearchStateError: replaces the raw red 'Search failed: <error string>' (hard-coded #b00020, off-palette) with the rate-limited pill's gray treatment + an alert glyph. Copy owner-approved 2026-09-19. Create row stays as the escape hatch.\n\nAlso updated in place: PlateSheetResults now shows the back-header row (SearchExpandedHeader.dc.html) that shipped code already has, and 'Load More' replaces 'Load 20 More' (plate-search-semantics.md decision 4)."
     }
   ],
   "launch": {
