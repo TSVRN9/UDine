@@ -621,7 +621,7 @@ export function PlateSheet({
       <Animated.View testID="keyboardFollowWrapper" style={keyboardStyle}>
         <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
           <GestureDetector gesture={gesture}>
-            <View style={styles.handleRow}>
+            <View style={styles.handleRow} testID="handleRow">
               <View style={styles.handle} />
             </View>
           </GestureDetector>
@@ -923,7 +923,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   // paddingVertical spacing(5), ~20dp a side -- the bare 40x4 pill alone is too small a touch/drag target.
-  handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(2.5) },
+  // marginBottom 14 (spacing(3.5)), matching PlateExpanded.dc.html:27's uniform 14px panel gap --
+  // same idle-state value as `header` below (docs/briefs/platesheet-handle-row-gap.md); this row
+  // doesn't change between idle/expanded so, unlike `header`, it needs no expanded-state override.
+  handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(3.5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
   // marginBottom 14 (spacing(3.5)), matching PlateExpanded.dc.html:27's uniform 14px panel gap --
   // the idle state's own value. Every OTHER property here (flexDirection/justifyContent/

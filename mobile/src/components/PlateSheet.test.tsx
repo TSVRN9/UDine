@@ -877,6 +877,19 @@ describe("PlateSheet", () => {
       expect(expandedFlat.borderRadius).toBeUndefined();
     });
 
+    // docs/briefs/platesheet-handle-row-gap.md: found by pr-reviewer while reviewing #515, same
+    // class of bug (a hand-copied margin instead of the artboard's own panel gap) but on the
+    // handle-to-title row, which is above the point where idle/expanded diverge.
+    it("panel gap: drag handle row to 'Your Plate' matches PlateExpanded.dc.html's own idle-state gap (14px)", () => {
+      const { View } = require("react-native");
+      const root = renderSheet();
+
+      const handleRow = root.root.findAll((n) => n.type === View && n.props.testID === "handleRow")[0];
+      const header = root.root.findByProps({ children: "Your Plate" }).parent!;
+
+      expect(renderedGap(handleRow, header)).toBe(artboardPanelGap("PlateExpanded.dc.html"));
+    });
+
     // docs/briefs/platesheet-search-panel-spacing-gap.md's "Root cause" section: nothing in this
     // file asserted the panel's own between-sibling rhythm before this, only each row's own
     // internal styling -- the same class of gap that let #513's border bug ship first. These two
