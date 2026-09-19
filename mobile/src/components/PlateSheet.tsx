@@ -276,8 +276,15 @@ export function PlateSheet({
   // Closing invalidates whatever's in flight and resets the search box -- a stale response that
   // resolves after close must not repaint a sheet the user dismissed, and reopening should offer a
   // clean search rather than a "searching..." spinner stuck on a request nothing will ever apply.
+  // Keyed on modalVisible (not `visible`): `visible` flips false the INSTANT the user taps to
+  // close, before useDraggableSheet's close animation has played a single frame. Resetting here
+  // (which can tear down a whole screenful of search rows/icons at once) at that exact moment
+  // yanks the entire search UI out from under the still-open panel mid-tween. modalVisible only
+  // flips false once the close animation's own completion callback fires, so the content -- and
+  // whatever's mounted inside it -- stays put and stable for the full ~300ms slide, matching how
+  // the sheet always behaved before it was hosted as a Modal.
   useEffect(() => {
-    if (!visible) {
+    if (!modalVisible) {
       searchSeq.current++;
       setSearching(false);
       setVisibleCount(VISIBLE_RESULTS);
@@ -294,7 +301,7 @@ export function PlateSheet({
       setLoadingMore(false);
       setDirectLookup("idle");
     }
-  }, [visible]);
+  }, [modalVisible]);
 
   function beginEditingCount(entry: PlateEntry) {
     if (editingKey && editingKey !== entry.key) commitEditingCount();
