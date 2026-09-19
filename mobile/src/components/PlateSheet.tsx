@@ -128,7 +128,11 @@ const STRESS_CATALOG_REFRESH_DELAY_MS = 200;
 const STRESS_CATALOG_REFRESH_POLL_MS = 150;
 const STRESS_CATALOG_REFRESH_POLL_MAX_ATTEMPTS = 100; // ~15s ceiling -- never hangs forever if the auto-search somehow never settles
 const STRESS_CATALOG_REFRESH_DISH: DishCatalogEntry = {
-  dishName: "Miso Ramen Bowl",
+  // Deliberately not a plausible real UMass dish name -- a real synced local catalog collision
+  // (found live: this fixture's chosen query already has real device-side "ramen" catalog matches
+  // beyond the visible page) would silently dedup this out via the same exact-name check a real
+  // refresh uses, with nothing to show for it.
+  dishName: "Zzyzx Fixture Ramen Bowl",
   nutrition: {
     servingSize: "1 bowl",
     calories: 480,
