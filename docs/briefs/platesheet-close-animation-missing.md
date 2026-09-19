@@ -40,7 +40,28 @@ after #514 merges, since it touches the exact code #514 just changed.
 
 ## Tasks
 
-1. Root-cause why the close animation isn't playing and fix it. — files:
-   `mobile/src/components/PlateSheet.tsx`, `mobile/src/lib/sheetAnimation.ts` (and its test) —
-   lanes: `cd mobile && npx tsc --noEmit`, `pnpm --filter mobile test`, `pnpm --filter mobile lint`
-   — blocked by: PR #514 merging first (touches the same recently-changed code) — PR:
+1. **DONE (2026-09-18, PR #519, merged) — one real bug found and fixed; brief stays open, not
+   fully closed.** The brief's own `modalVisible`-unmounting hypothesis was investigated directly
+   (a controlled test with a mocked `withTiming` completion callback) and **refuted** —
+   `modalVisible` correctly stays mounted through the full close tween, unaffected by #514. The
+   actual bug: a separate `PlateSheet.tsx` effect ("closing invalidates whatever's in flight and
+   resets the search box") was keyed on `visible` (flips false the instant the user taps to close)
+   instead of `modalVisible` (only flips false once the close tween's own completion callback
+   fires) — tearing down search content mid-slide. Fixed by keying that effect on `modalVisible`.
+   Confirmed on-device (`Agent_Emulator_Wide`): a native-frame extraction of the pre-fix build
+   shows the panel mid-slide with content already wiped blank, plus a Reanimated/Fabric
+   `RetryableMountingLayerException` in logcat at the same moment; post-fix, content persists
+   through the full slide.
+
+   **Disclosed, unresolved gap (per `pr-reviewer`'s MERGE-with-condition, do not close this brief
+   over it):** the owner's original report describes the sheet on a real Galaxy A53 "just
+   vanishing" with zero motion. On the x86_64 emulator used for this pass, both pre- and post-fix
+   builds show a real partial-slide frame at native frame rate — the reproduced pre-fix bug is a
+   content flash mid-slide, not a literal zero-frame vanish. Plausible theory (unconfirmed): a
+   slower real device drops more frames under the same content-teardown contention, producing what
+   reads as a full vanish. If the owner still sees a full zero-motion vanish on the A53 after #519,
+   that is a live follow-up against this same brief, not a reopened regression — get a real-device
+   recording before assuming the fix is incomplete or root-causing further blind.
+   — files: `mobile/src/components/PlateSheet.tsx`, `mobile/src/components/PlateSheet.closeContent.test.tsx`
+   — lanes: `cd mobile && npx tsc --noEmit`, `pnpm --filter mobile test`, `pnpm --filter mobile lint`
+   — blocked by: none — PR: #519
