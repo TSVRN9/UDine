@@ -42,7 +42,9 @@ jest.mock("@udine/shared", () => ({
 }));
 jest.mock("../lib/dishCatalog", () => ({
   getCachedDishCatalog: jest.fn().mockResolvedValue([]),
-  refreshDishCatalogIfStale: jest.fn(),
+  // Must resolve: PlateSheet's mount effect chains `.then` on it since #516 (decision 5's live
+  // catalog splice) -- a bare jest.fn() returned undefined and threw before the first assertion.
+  refreshDishCatalogIfStale: jest.fn().mockResolvedValue(undefined),
   searchCachedDishes: jest.fn().mockReturnValue([]),
 }));
 jest.mock("../lib/customFoodsStorage", () => ({
