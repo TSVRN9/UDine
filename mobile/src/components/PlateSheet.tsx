@@ -1,4 +1,4 @@
-import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type LogStorage } from "@udine/shared";
+import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type DishCatalogEntry, type LogStorage } from "@udine/shared";
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -111,6 +111,42 @@ const STRESS_LOOKUP_CANDIDATES: LookupDishCandidate[] = [
     dietTags: [],
   },
 ];
+
+// Dev-only stress fixture for decision 5's live catalog-refresh splice
+// (docs/briefs/plate-search-semantics.md) -- there's no way to force a real Supabase catalog sync
+// to resolve mid-search on demand for screenshot.sh, so this fakes refreshDishCatalogIfStale's
+// timing/result the same way STRESS_LOOKUP_CANDIDATES above fakes lookupDishLive: a real (short)
+// delay long enough for --record to capture the "before" state, resolving with one new umass hit
+// for the query already searched.
+const STRESS_CATALOG_REFRESH_FIXTURE = "catalog-refresh";
+const STRESS_CATALOG_REFRESH_QUERY = "ramen";
+// Fixed delay AFTER the real merged search settles (not from mount) -- a flat mount-relative
+// timer raced ahead of a real device's actual search latency (a synced local catalog can itself
+// take a moment to scan, and OFF/USDA are real network calls), landing while results was still
+// null and silently no-op'ing the splice. See the poll loop below this fixture drives.
+const STRESS_CATALOG_REFRESH_DELAY_MS = 200;
+const STRESS_CATALOG_REFRESH_POLL_MS = 150;
+const STRESS_CATALOG_REFRESH_POLL_MAX_ATTEMPTS = 100; // ~15s ceiling -- never hangs forever if the auto-search somehow never settles
+const STRESS_CATALOG_REFRESH_DISH: DishCatalogEntry = {
+  dishName: "Miso Ramen Bowl",
+  nutrition: {
+    servingSize: "1 bowl",
+    calories: 480,
+    caloriesFromFat: 90,
+    totalFatG: 10,
+    satFatG: 2,
+    transFatG: 0,
+    cholesterolMg: 0,
+    sodiumMg: 1400,
+    totalCarbG: 68,
+    dietaryFiberG: 4,
+    sugarsG: 6,
+    proteinG: 22,
+  },
+  allergens: ["Soy", "Wheat"],
+  dietTags: ["Vegetarian"],
+  updatedAt: new Date(0).toISOString(),
+};
 
 /** Whether a result belongs to the umass/custom "local" group decision 1
  * (docs/briefs/plate-search-semantics.md) always sorts first, regardless of which of the 4 search
@@ -311,13 +347,21 @@ export function PlateSheet({
   // query while one's in flight" (decision 6: allowed, and supersedes via searchSeq like every
   // other source already does).
   const inFlightQueryRef = useRef<string | null>(null);
-  // Mirrors query/results for the catalog-refresh effect below, which resolves long after this
-  // render -- a closure captured once at mount (deps []) would otherwise see the initial empty
-  // query/null results forever. Same "stale closure" fix as halls/[slug].tsx's scrubberLatestRef.
-  const latestSearchRef = useRef({ query, results });
+  // The query the most recent runSearch() actually committed to -- set synchronously in runSearch
+  // itself (below), NOT mirrored from the live TextInput-bound `query` state. Decision 5's
+  // catalog-refresh effect needs the query the currently-DISPLAYED `results` were produced for:
+  // reading live `query` state instead was a real bug (pr-reviewer, PR #516) -- type "ramen",
+  // search, then start typing "pizza" without submitting; searchSeq never moves (no new search
+  // actually started), so the staleness guard alone doesn't catch it, and the refresh would
+  // re-match the still-displayed "ramen" results against "pizza" instead.
+  const committedQueryRef = useRef("");
+  // Mirrors `results` for the catalog-refresh effect below, which resolves long after this
+  // render -- a closure captured once at mount (deps []) would otherwise see the initial null
+  // results forever. Same "stale closure" fix as halls/[slug].tsx's scrubberLatestRef.
+  const latestResultsRef = useRef(results);
   useEffect(() => {
-    latestSearchRef.current = { query, results };
-  }, [query, results]);
+    latestResultsRef.current = results;
+  }, [results]);
   // PlateSheet stays mounted across open/close (only the Modal's `visible` prop toggles) --
   // mount-once is the right place to fire off a background catalog refresh. Fire-and-forget:
   // refreshDishCatalogIfStale already swallows its own errors, and this screen must never block on
@@ -328,36 +372,89 @@ export function PlateSheet({
   // resolves, re-read the (possibly now-updated) local catalog and re-run the same local-only
   // search the umass/history/custom group already does, splicing in whatever's new -- gated by the
   // same searchSeq a stale group response or a closed sheet already invalidates.
+  // Shared by the real refresh below and the dev-only fixture further down -- both just need to
+  // supply "the query it resolved for" and "the umass hits that query now has", gated by the same
+  // searchSeq check either path already made before calling this.
+  function applyLiveCatalogHits(q: string, hits: DishCatalogEntry[]) {
+    const existingUmassNames = new Set<string>();
+    for (const r of latestResultsRef.current ?? []) {
+      if (r.kind === "umass") existingUmassNames.add(r.dish.dishName.toLowerCase());
+    }
+    const additions: PlateSearchResult[] = hits
+      .filter((entry) => !existingUmassNames.has(entry.dishName.toLowerCase()))
+      .map((entry) => ({ kind: "umass", dish: { dishName: entry.dishName, hallTid, nutrition: entry.nutrition } }));
+    if (additions.length === 0) return; // nothing the committed query didn't already have
+    setJustArrivedKeys((prev) => new Set([...prev, ...additions.map((r) => plateSearchResultKey(r))]));
+    setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
+    // Reveal the new row(s) immediately rather than leaving them hidden behind Load More --
+    // buried behind an extra tap defeats the point of a visible live update.
+    setVisibleCount((v) => v + additions.length);
+  }
+
   useEffect(() => {
-    refreshDishCatalogIfStale(supabase).then(async () => {
-      const { query: activeQuery, results: activeResults } = latestSearchRef.current;
-      const q = activeQuery.trim();
-      if (!q || activeResults === null) return; // no open search for this refresh to feed
-      const seq = searchSeq.current;
-      const catalog = await getCachedDishCatalog();
-      const hits = searchCachedDishes(catalog, q);
-      // Re-check AFTER the async re-read, against the LATEST results -- a new search or a close
-      // that happened while this was running must not repaint over it.
-      if (searchSeq.current !== seq) return;
-      const existingUmassNames = new Set<string>();
-      for (const r of latestSearchRef.current.results ?? []) {
-        if (r.kind === "umass") existingUmassNames.add(r.dish.dishName.toLowerCase());
-      }
-      const additions: PlateSearchResult[] = hits
-        .filter((entry) => !existingUmassNames.has(entry.dishName.toLowerCase()))
-        .map((entry) => ({ kind: "umass", dish: { dishName: entry.dishName, hallTid, nutrition: entry.nutrition } }));
-      if (additions.length === 0) return; // nothing the current query didn't already have
-      setJustArrivedKeys((prev) => new Set([...prev, ...additions.map((r) => plateSearchResultKey(r))]));
-      setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
-      // Reveal the new row(s) immediately rather than leaving them hidden behind Load More --
-      // buried behind an extra tap defeats the point of a visible live update.
-      setVisibleCount((v) => v + additions.length);
-    });
+    refreshDishCatalogIfStale(supabase)
+      .then(async () => {
+        const q = committedQueryRef.current;
+        const activeResults = latestResultsRef.current;
+        if (!q || activeResults === null) return; // no open search for this refresh to feed
+        const seq = searchSeq.current;
+        const hits = searchCachedDishes(await getCachedDishCatalog(), q);
+        // Re-check AFTER the async re-read, against the LATEST results -- a new search or a close
+        // that happened while this was running must not repaint over it.
+        if (searchSeq.current !== seq) return;
+        applyLiveCatalogHits(q, hits);
+      })
+      .catch((e) => {
+        // getCachedDishCatalog/searchCachedDishes/setState calls above are new, reachable-from-a-
+        // promise-chain code that didn't exist before decision 5 -- refreshDishCatalogIfStale
+        // itself already swallows its own errors, but nothing downstream of it did, so this must
+        // never become an unhandled rejection the same way the original fire-and-forget call
+        // (which had no .then() at all) could never throw one either.
+        console.warn("live catalog-refresh splice failed", e);
+      });
     // Deliberately mount-once (see comment above), not [hallTid] -- this PlateSheet instance's
     // hallTid prop doesn't change without a remount in practice (own route per hall), same
     // reasoning candidatesToResults/runSearch already rely on for the same prop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // __DEV__-only fixture for decision 5's screenshot (see STRESS_CATALOG_REFRESH_FIXTURE's own
+  // comment above) -- deliberately its OWN effect, keyed on [stressFixture] and guarded by a ref
+  // rather than folded into the mount-once real-refresh effect above. A `[]`-dep effect only ever
+  // sees the `stressFixture` prop's value from PlateSheet's OWN first mount, which can race behind
+  // the deep link that actually attaches the `?stress=` param -- confirmed live capturing this
+  // fixture's own screenshot: the emulator's cold-launch can land on this exact route (e.g. a
+  // persisted last-viewed hall) a beat before the stress query param arrives, permanently locking
+  // a `[]`-dep effect onto "not the fixture" and silently falling through to the real (here,
+  // no-op in dev with no stale local catalog) path instead. Depending on `[stressFixture]` lets
+  // this retry once the prop actually updates; the ref stops it from restarting the poll/delay a
+  // second time if the prop happens to update again afterward.
+  const catalogRefreshFixtureStartedRef = useRef(false);
+  useEffect(() => {
+    if (!__DEV__ || stressFixture !== STRESS_CATALOG_REFRESH_FIXTURE || catalogRefreshFixtureStartedRef.current) return;
+    catalogRefreshFixtureStartedRef.current = true;
+    (async () => {
+      // Wait for the auto-driven search (below) to actually settle (results non-null) before
+      // pretending the catalog refresh resolves -- a flat mount-relative timer alone raced ahead
+      // of a real device's actual search latency (a synced local catalog can itself take a moment
+      // to scan, and OFF/USDA are real network calls), landing while results was still null and
+      // silently no-op'ing the splice.
+      for (let attempt = 0; latestResultsRef.current === null && attempt < STRESS_CATALOG_REFRESH_POLL_MAX_ATTEMPTS; attempt++) {
+        await new Promise<void>((resolve) => setTimeout(resolve, STRESS_CATALOG_REFRESH_POLL_MS));
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, STRESS_CATALOG_REFRESH_DELAY_MS));
+      const q = committedQueryRef.current;
+      if (!q || latestResultsRef.current === null) return;
+      const seq = searchSeq.current;
+      const hits = q === STRESS_CATALOG_REFRESH_QUERY ? [STRESS_CATALOG_REFRESH_DISH] : [];
+      if (searchSeq.current !== seq) return;
+      applyLiveCatalogHits(q, hits);
+    })().catch((e) => console.warn("catalog-refresh fixture failed", e));
+    // applyLiveCatalogHits is a fresh closure every render (same as runSearch/runDirectLookup
+    // elsewhere in this file); adding it here would re-fire this effect every render instead of
+    // only when stressFixture changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stressFixture]);
 
   const itemCount = totalItemCount(plate);
 
@@ -383,6 +480,7 @@ export function PlateSheet({
       setDirectLookup("idle");
       setJustArrivedKeys(new Set());
       inFlightQueryRef.current = null;
+      committedQueryRef.current = "";
     }
   }, [visible]);
 
@@ -435,6 +533,10 @@ export function PlateSheet({
     // runDirectLookup response.
     if (searching && q === inFlightQueryRef.current) return;
     inFlightQueryRef.current = q;
+    // The query `results` is now committed to -- decision 5's catalog-refresh effect reads this,
+    // not live `query` state (see its own comment): the box can keep changing after this point
+    // without it meaning anything until/unless another runSearch() call updates it.
+    committedQueryRef.current = q;
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(null);
@@ -691,6 +793,22 @@ export function PlateSheet({
     if (!__DEV__ || !visible || !stressFixture || !LOOKUP_STRESS_FIXTURES.has(stressFixture) || query !== STRESS_LOOKUP_QUERY) return;
     void runDirectLookup();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runDirectLookup closes over query/directLookup by design (same as its button's onPress); re-running this effect on those would loop.
+  }, [visible, stressFixture, query]);
+
+  // Same auto-drive pattern as the lookup-hit pair above, for decision 5's catalog-refresh
+  // fixture: pre-seed the search box, then fire runSearch() for real (still hitting the __DEV__
+  // branch in the mount effect above for the refresh's own timing/result, not a duplicate splice
+  // path) -- screenshot.sh has no gesture for typing+submitting a query, so this stands in for
+  // that keystroke + Search tap.
+  useEffect(() => {
+    if (!__DEV__ || !visible || stressFixture !== STRESS_CATALOG_REFRESH_FIXTURE) return;
+    setSearchExpanded(true);
+    setQuery(STRESS_CATALOG_REFRESH_QUERY);
+  }, [visible, stressFixture]);
+  useEffect(() => {
+    if (!__DEV__ || !visible || stressFixture !== STRESS_CATALOG_REFRESH_FIXTURE || query !== STRESS_CATALOG_REFRESH_QUERY || searching || results !== null) return;
+    runSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runSearch closes over query/searching by design (same as the Search button's onPress); re-running this effect on those would loop.
   }, [visible, stressFixture, query]);
 
   // Stays mounted (state, in-flight searches, the keyboard subscription) while closed; only the

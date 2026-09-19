@@ -349,6 +349,45 @@ describe("PlateSheet", () => {
       expect(texts(root).flat().join(" ")).not.toMatch(/just arrived|new result|updated/i);
       const animatedRows = root.root.findAll((n) => n.type === View && Boolean(n.props.entering));
       expect(animatedRows).toHaveLength(1);
+      // Specifically FadeIn (not just any truthy `entering`) -- the reanimated jest mock's
+      // `.duration()` returns the same singleton regardless of argument (BaseAnimationMock), so
+      // identity with the imported FadeIn is the tightest check this mock allows; the actual
+      // duration value (durations.rowExpandIn) is covered by motion.test.ts's own literal-source
+      // assertion, not re-verifiable here.
+      expect(animatedRows[0].props.entering).toBe(Reanimated.FadeIn);
+    });
+
+    // pr-reviewer finding on PR #516: the refresh effect used to mirror the live TextInput-bound
+    // `query` state, not the query the currently-displayed `results` were actually committed to --
+    // reachable by searching, then typing a further (unsubmitted) edit before the refresh resolves.
+    it("re-matches against the committed (submitted) query, not whatever is typed but not yet searched", async () => {
+      let resolveRefresh!: () => void;
+      mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));
+      mockedSearchCachedDishes.mockReturnValue([]);
+      const root = renderSheet();
+      await runSearch(root, "ramen");
+
+      // Typed but never submitted -- the committed/displayed search is still "ramen".
+      act(() => {
+        searchInput(root).props.onChangeText("pizza");
+      });
+
+      // The catalog now has a match for "ramen" (the committed query) but not "pizza" (never
+      // searched) -- if the effect matched against the live box instead, this would search "pizza"
+      // and find nothing, or worse, silently mis-splice/re-sort the visible "ramen" results
+      // against it.
+      mockedSearchCachedDishes.mockImplementation((_catalog, q) =>
+        q === "ramen" ? [{ dishName: "Miso Ramen", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }] : [],
+      );
+      await act(async () => {
+        resolveRefresh();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(mockedSearchCachedDishes).toHaveBeenCalledWith(null, "ramen");
+      expect(mockedSearchCachedDishes).not.toHaveBeenCalledWith(null, "pizza");
+      expect(texts(root).flat().join(" ")).toMatch(/Miso Ramen/);
     });
 
     it("does not splice anything when no search is open (results === null)", async () => {

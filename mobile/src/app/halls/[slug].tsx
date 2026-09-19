@@ -924,11 +924,11 @@ export function HallMenuScreenBody({
     return ref;
   }
   // Auto-opens under any "lookup-*" stress fixture (PlateSheet.tsx's LOOKUP_STRESS_FIXTURES --
-  // "lookup-hit"/"lookup-fetching"/"lookup-miss"/"lookup-rate-limited") -- screenshot.sh has no
-  // gesture for opening the sheet AND typing a query, so these fixtures need to reach a rendered
-  // state from navigation alone, same as this file's own stressFixtureItems needing no gesture at
-  // all.
-  const [sheetOpen, setSheetOpen] = useState(() => __DEV__ && !!stressFixture?.startsWith("lookup-"));
+  // "lookup-hit"/"lookup-fetching"/"lookup-miss"/"lookup-rate-limited") or "catalog-refresh"
+  // (decision 5, plate-search-semantics.md) -- screenshot.sh has no gesture for opening the sheet
+  // AND typing a query, so these fixtures need to reach a rendered state from navigation alone,
+  // same as this file's own stressFixtureItems needing no gesture at all.
+  const [sheetOpen, setSheetOpen] = useState(() => __DEV__ && (!!stressFixture?.startsWith("lookup-") || stressFixture === "catalog-refresh"));
   // Separate from `sheetOpen` above (the Plate sheet) -- the two are independent modals. `events`
   // is separate from `hoursFeed`'s own load because it comes from a different endpoint
   // (get_beacons_events vs get_infov2).
