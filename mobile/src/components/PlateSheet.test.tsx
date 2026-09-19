@@ -390,6 +390,44 @@ describe("PlateSheet", () => {
       expect(texts(root).flat().join(" ")).toMatch(/Miso Ramen/);
     });
 
+    // A flat `visibleCount + additions.length` bump revealed whatever ALREADY sorted into that
+    // many more slots instead of the new row itself, whenever the local group already had more
+    // matches than VISIBLE_RESULTS and the new row sorts behind them (decisions 1/2's ordering
+    // doesn't guarantee "right after the old cutoff").
+    it("reveals a live-refresh addition that sorts behind already-loaded local matches, not hidden behind Load More", async () => {
+      let resolveRefresh!: () => void;
+      mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));
+      // 6 real local matches already -- one more than VISIBLE_RESULTS (5), so the initial search
+      // already shows Load More without ever needing OFF/USDA, and all 6 are prefix matches
+      // (tier 1) that outrank a plain substring match.
+      const manyRealMatches = Array.from({ length: 6 }, (_, i) => ({
+        dishName: `Ramen Bar ${i}`,
+        nutrition: DISH.nutrition,
+        allergens: [],
+        dietTags: [],
+        updatedAt: "x",
+      }));
+      mockedSearchCachedDishes.mockReturnValue(manyRealMatches);
+      const root = renderSheet();
+      await runSearch(root, "ramen");
+      expect(texts(root).flat().join(" ")).not.toMatch(/New Ramen Arrival/);
+
+      // The refresh resolves with one more match for the same query -- a plain substring match
+      // (doesn't start with "ramen"), so it sorts BEHIND all 6 already-shown prefix matches, not
+      // into whatever slot a flat "+1" reveal would have assumed.
+      mockedSearchCachedDishes.mockReturnValue([
+        ...manyRealMatches,
+        { dishName: "New Ramen Arrival", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" },
+      ]);
+      await act(async () => {
+        resolveRefresh();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(texts(root).flat().join(" ")).toMatch(/New Ramen Arrival/);
+    });
+
     it("does not splice anything when no search is open (results === null)", async () => {
       let resolveRefresh!: () => void;
       mockedRefreshDishCatalogIfStale.mockImplementation(() => new Promise<void>((resolve) => (resolveRefresh = resolve)));

@@ -380,19 +380,28 @@ export function PlateSheet({
   // supply "the query it resolved for" and "the umass hits that query now has", gated by the same
   // searchSeq check either path already made before calling this.
   function applyLiveCatalogHits(q: string, hits: DishCatalogEntry[]) {
+    const currentResults = latestResultsRef.current ?? [];
     const existingUmassNames = new Set<string>();
-    for (const r of latestResultsRef.current ?? []) {
+    for (const r of currentResults) {
       if (r.kind === "umass") existingUmassNames.add(r.dish.dishName.toLowerCase());
     }
     const additions: PlateSearchResult[] = hits
       .filter((entry) => !existingUmassNames.has(entry.dishName.toLowerCase()))
       .map((entry) => ({ kind: "umass", dish: { dishName: entry.dishName, hallTid, nutrition: entry.nutrition } }));
     if (additions.length === 0) return; // nothing the committed query didn't already have
-    setJustArrivedKeys((prev) => new Set([...prev, ...additions.map((r) => plateSearchResultKey(r))]));
-    setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
-    // Reveal the new row(s) immediately rather than leaving them hidden behind Load More --
-    // buried behind an extra tap defeats the point of a visible live update.
-    setVisibleCount((v) => v + additions.length);
+    const merged = sortSearchResults([...currentResults, ...additions], q);
+    const additionKeys = new Set(additions.map((r) => plateSearchResultKey(r)));
+    // Where the new row(s) actually land in the re-sorted list -- decisions 1/2's ordering can
+    // place them anywhere in the umass/custom group, not necessarily right after the old visible
+    // cutoff (a query with more local matches than VISIBLE_RESULTS already sorts a freshly-spliced
+    // exact/prefix match ahead of existing substring-only ones, for example). A flat
+    // `visibleCount + additions.length` bump revealed whatever ALREADY sorted into that many more
+    // slots instead -- the new row itself could still need `Load More` if enough existing local
+    // hits outranked it, contradicting "reveal immediately."
+    const lastNewIndex = merged.reduce((max, r, i) => (additionKeys.has(plateSearchResultKey(r)) ? i : max), -1);
+    setJustArrivedKeys((prev) => new Set([...prev, ...additionKeys]));
+    setResults(merged);
+    setVisibleCount((v) => Math.max(v, lastNewIndex + 1));
   }
 
   useEffect(() => {
