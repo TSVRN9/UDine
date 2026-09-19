@@ -191,6 +191,83 @@ distinguished yet"). Recommended next step: task 5 below, dispatched as a `heavy
 prior fix attempts on this general defect class already went unconfirmed or unmerged) with this new
 evidence and trigger as the starting point, rather than another blind on-device sweep.
 
+## Status (2026-09-18, fifth pass — heavy-debugger: reproduced, root-caused, fixed, confirmed on-device)
+
+**Reproduced first, on unmodified code** (Narrow emulator, real Franklin dinner data, raw `adb`
+taps: FAB → Vegetarian chip → Done, screenshot 2s after the reveal, scored by an automatic
+blank-gap detector calibrated against clean frames — `≥90px` of uninterrupted page background
+across the card column; clean frames never exceed ~80px, a fully missing header leaves 136px):
+**13 of 31 toggles defective** across three runs (3/8, 0/3, 10/20), both directions, same shapes
+as the owner's frames — a section header missing from its slot (blank band), drawn *below* its
+own first row, or painted over the bottom of the previous section's last card (the "row with its
+top clipped off" shape: `sectionHeaderWrap` is opaque `cream100`). The settled state is stable
+(pixel-identical 10s later). Evidence: `hall-menu-filter-overlap-evidence/emulator-before-vegetarian-on-franklin-dinner-headers-displaced.png`.
+
+**Task 4's mechanism does not explain it.** A wrong scroll offset cannot move a header relative to
+its own rows, and the elimination runs confirm it (each 10 on/off pairs, one variable at a time,
+same loop, same device, fresh cold start verified against a reference header crop):
+
+| variant | defective |
+|---|---|
+| unmodified (baseline, 3 runs pooled) | 13 / 31 |
+| `layout={LinearTransition…}` removed from rows + headers | **0 / 20** |
+| task 4's `scrollToLocation(0,0)` effects (branch `fix/hall-menu-scroll-offset`), transition kept | 9 / 20 |
+| transition builder hoisted to a module constant (no per-render config re-send) | 8 / 20 |
+| `removeClippedSubviews={false}` (Android default is on), transition kept | 6 / 20 |
+| `durations.rowLayout` 180ms → 1500ms, transition kept | 1 / 20 |
+
+(The last two runs also carried task 4's effects because a `git apply --3way` had left them
+staged — the task-4-alone run above shows those effects don't change the rate, so the
+conclusions stand, but they were not single-variable in the strict sense.)
+
+**Root cause.** A diet-tag toggle thins sections *in place*: headers and rows after the removal
+point that keep their React key (section headers key on section position; rows on
+`category-dishName-index`) move and run their 180ms `LinearTransition` — entirely behind the
+opaque `FilterSheet` `Modal`. Reanimated's Fabric layout-animation proxy (`react-native-reanimated`
+4.5.1, `LayoutAnimationsProxy_Legacy`) withholds the real mount update for an animating view and
+drives it with synthetic per-frame updates; when the animation *ends while VirtualizedList is
+still committing the reshape's follow-up renders*, some cells are left at their PRE-filter frame
+(the necessary condition — the transition — is proven by 0/20 without it; the timing direction
+by 1/20 at 1500ms, where the animation outlives the commit storm; clipping, scroll offset and
+config churn are each ruled out above). The exact C++ path (the proxy skips a settled tag's
+pending final frame in `addOngoingAnimations`) is the most consistent reading but was **not**
+instrumented natively — recorded as unverified. A station toggle never showed this because it is
+all-or-nothing per section: surviving elements either keep both key and position or remount, so
+nothing animates; a date step remounts the pane. That is why four passes chasing station filters
+found only the scroll-offset anomaly.
+
+**Fix (commit `0d30e99`, `mobile/src/app/halls/[slug].tsx`):** `cellLayoutTransition(listOccluded)`
+returns `undefined` instead of the `LinearTransition` while `filterSheetOpen` — `DishRow` gets a
+`listOccluded` prop, both `renderSectionHeader` wrappers read `filterSheetOpen` directly. The sheet
+is the only place a reshape can start while the screen is mounted (`setPrefs` has one caller;
+station/price filters live in the same sheet), the transition is invisible behind it anyway, and
+the config is removed on the sheet-open commit, well before any chip tap. Not the task-4 branch
+(its fix is unrelated to this defect, see table; the scroll-offset anomaly it found is real but is
+a separate, milder wrong-position issue — leave that branch closed unless the owner wants it).
+Rejected: dropping the cell transition entirely — smaller, but it removes the explicitly-pinned
+expand/collapse slide (`hallMenuMotionTokens.test.ts`), which is unaffected by the bug (0/20
+expand/collapse cycles on the original code).
+
+**After:** 0 / 20 on Franklin dinner and 0 / 20 on Hampshire dinner (the owner's route), settled
+state pixel-identical 10s later; expand/collapse still slides (screenrecord: three distinct motion
+frames across ~170ms below the expanded card, not a single jump); 3 date-step cycles clean (one
+frame caught the loading skeleton, not a layout defect). Evidence:
+`hall-menu-filter-overlap-evidence/emulator-after-vegetarian-on-franklin-dinner-clean.png`. Not
+re-run: Franklin *lunch* (the owner's other route — same code path, same hall), an explicit
+station-filter loop with the fix (structurally cannot animate, see above), and a baseline run on
+Hampshire (the owner's own frames are that baseline). Regression tests: `hallMenu.test.tsx`
+("passes no layout transition to any dish row or section header while the FilterSheet occludes
+the list…", red before the fix at the while-open assertion) and the updated
+`hallMenuMotionTokens.test.ts` pin.
+
+Harness notes for whoever reruns this: `uiautomator dump` fails with `could not get idle state`
+on this route continuously (not just during the mount storm) — every capture here is raw
+`screencap` + pixel analysis; a dev LogBox toast ("Open debugger to view warnings", from a
+transient Metro connection warning) covers the sheet's DONE button and must be dismissed
+(neutral-grey pixel probe at the toast's X); and a `VIEW` deep link sent 7s after a cold
+`am start` is dropped during JS init — cold-start *on* the deep link and verify the header crop
+against a reference before touching anything.
+
 ## Spec (current scope: the scroll-offset candidate — see 2026-09-18 Status above)
 
 UI: `FilterSheet.dc.html` (chip sheet, unchanged; not implicated — the sheet's own occlusion is why
@@ -478,7 +555,18 @@ different trigger than the one these criteria named:**
    `cd mobile && npx tsc --noEmit`, `pnpm --filter mobile test`, `pnpm --filter mobile lint`,
    `cd mobile && npx expo export --platform android --output-dir /tmp/udine-export` — blocked by:
    none — PR: none (not opened — fix unconfirmed, per this brief's own discipline)
-5. **NEW (2026-09-18) — real on-device reproduction from the owner, via the vegetarian diet-tag
+5. **DONE (2026-09-18, fifth pass, heavy-debugger) — see the fifth-pass Status above.** Reproduced
+   at 13/31 toggles on unmodified code, root-caused to the cells' own `LinearTransition` running
+   behind the sheet (not task 4's scroll offset: 9/20 with that fix in place), fixed by passing no
+   `layout` while `filterSheetOpen`, confirmed 0/20 on Franklin dinner and 0/20 on Hampshire
+   dinner. — files: `mobile/src/app/halls/[slug].tsx`, `mobile/src/lib/hallMenu.test.tsx`,
+   `mobile/src/lib/hallMenuMotionTokens.test.ts` — lanes: `cd mobile && npx tsc --noEmit` (clean),
+   `pnpm --filter mobile test` (1126 passed), `pnpm --filter mobile lint` (0 errors, 17 pre-existing
+   warnings), `cd mobile && npx expo export --platform android --output-dir /tmp/udine-export`
+   (exported) — blocked by: none — PR: branch `fix/hall-menu-scroll-recovery-and-filter-overlap`
+   (stacked on the scroll-recovery brief's task 1 fix, commit `408f9bf`).
+   Original task text follows for the record.
+   **NEW (2026-09-18) — real on-device reproduction from the owner, via the vegetarian diet-tag
    filter.** See "Status (2026-09-18, real reproduction from the owner)" above for the full
    evidence and reasoning. Start from `docs/briefs/hall-menu-scroll-recovery-dead-code.md` (task 4's
    decision (b): the dead `handleScrollToIndexFailed` chain is already its own ready-to-dispatch

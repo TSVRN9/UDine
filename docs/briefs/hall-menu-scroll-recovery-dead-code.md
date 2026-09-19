@@ -52,7 +52,16 @@ no recovery at all, indistinguishable from "nothing happened."
 
 ## Tasks
 
-1. Replace the dead `.getListRef?.()?.scrollToOffset?.(...)` chain with a real recovery using
-   `SectionList`'s actual public ref API. — files: `mobile/src/app/halls/[slug].tsx`,
-   `mobile/src/lib/hallMenu.test.tsx` — lanes: `cd mobile && npx tsc --noEmit`,
-   `pnpm --filter mobile test`, `pnpm --filter mobile lint` — blocked by: none — PR:
+1. **DONE (2026-09-18, heavy-debugger pass, commit `408f9bf`).** Replaced the dead
+   `.getListRef?.()?.scrollToOffset?.(...)` chain with
+   `getScrollResponder?.()?.scrollTo?.({ y: averageItemLength * index, animated: false })` — the
+   underlying ScrollView, reached through the one raw-offset method `SectionList` actually exposes.
+   Red-first test (`hallMenu.test.tsx`, "nudges the list toward the failed scrollToIndex target…")
+   asserts the real `SectionList` instance has no `getListRef` and that `scrollTo` was never called
+   before the fix (0 calls) and is called with `{ y: 560, animated: false }` after. Not the cause
+   of the filter-overlap defect (see that brief's fifth-pass Status) — this was independent, as the
+   Rationale predicted. — files: `mobile/src/app/halls/[slug].tsx`,
+   `mobile/src/lib/hallMenu.test.tsx` — lanes: `cd mobile && npx tsc --noEmit` (clean),
+   `pnpm --filter mobile test` (1126 passed), `pnpm --filter mobile lint` (0 errors, 17 pre-existing
+   warnings) — blocked by: none — PR: branch `fix/hall-menu-scroll-recovery-and-filter-overlap`
+   (shared with hall-menu-filter-overlap task 5)
