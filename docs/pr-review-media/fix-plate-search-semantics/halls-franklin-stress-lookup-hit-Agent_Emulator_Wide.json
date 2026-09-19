@@ -1,0 +1,10 @@
+{
+  "sha": "a62b0c9a6821a94faba68879d88325be5dda7a0f",
+  "branch": "fix/plate-search-semantics",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-ab1853c1dd9e6dab6",
+  "route": "halls/franklin",
+  "device": "Agent_Emulator_Wide",
+  "stress": "lookup-hit",
+  "dirty": false,
+  "ts": "2026-09-19T01:52:47Z"
+}
