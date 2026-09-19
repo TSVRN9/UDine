@@ -122,6 +122,28 @@ import { SqliteLogStorage } from "../../lib/sqliteStorage";
 // FlatList wrap createNativeWrapper for you); a plain SectionList nested under MealTabPager's
 // GestureDetector doesn't participate in RNGH's native touch arbitration, so its scroll can
 // steal a touch mid-drag and cancel an in-progress pane swipe.
+/** The dish rows' and section headers' `layout` transition -- or no transition at all while the
+ * FilterSheet occludes the list. hall-menu-filter-overlap brief, task 5 (2026-09-18): the owner's
+ * "blank gaps / header drawn over a card" screenshots reproduced on-device at 13/31 vegetarian
+ * toggles and root-caused to this transition. A diet-tag toggle thins sections in place, so the
+ * surviving headers/rows keep their React key, move, and animate -- entirely behind the opaque
+ * FilterSheet Modal -- and Reanimated's Fabric layout-animation proxy then leaves some of them at
+ * their PRE-filter frame when the 180ms animation ends while VirtualizedList is still committing
+ * the reshape's follow-up renders: 0/20 with the transition removed, 9/20 with a scroll-to-top
+ * reset instead (task 4's candidate), 8/20 with the builder hoisted to a constant, 6/20 with
+ * removeClippedSubviews off, 1/20 with the animation slowed to 1500ms (outliving the commit storm).
+ * The sheet is the only place a reshape can start while this screen is mounted (setPrefs has one
+ * caller; station/price filters live in the same sheet) and the transition is invisible behind it
+ * anyway, so cells pass no `layout` at all while it is open and get it back on Done. Passing
+ * `undefined` removes the native config before the chip tap can reshape anything (the sheet opens
+ * on a separate, earlier commit); expand/collapse -- the transition's visible job -- is untouched
+ * (0/20 on-device).
+ * ponytail: if a reshape ever starts while the sheet is closed (e.g. prefs synced in from another
+ * screen while mounted), gate this on that path too, or drop the cell transition entirely. */
+function cellLayoutTransition(listOccluded: boolean) {
+  return listOccluded ? undefined : LinearTransition.duration(durations.rowLayout);
+}
+
 const GestureSectionList = createNativeWrapper(SectionList, {
   disallowInterruption: true,
   shouldCancelWhenOutside: false,
@@ -462,6 +484,7 @@ function DishRow({
   composite,
   onOpenComposer,
   onReAddRecipe,
+  listOccluded,
 }: {
   item: MenuItem;
   plate: PlateEntry[];
@@ -494,6 +517,8 @@ function DishRow({
   /** Tapping "+" after stepping a composed dish back to 0 -- re-adds the last-saved recipe
    * directly, no composer round-trip. */
   onReAddRecipe: (item: MenuItem) => void;
+  /** True while the FilterSheet covers the list -- see cellLayoutTransition. */
+  listOccluded: boolean;
 }) {
   const dishKey = plateKeyFor({ type: "umass-menu", dishName: item.dishName, hallTid: item.hallTid });
   const plateEntry = plate.find((p) => p.key === dishKey);
@@ -545,7 +570,7 @@ function DishRow({
     // another Pressable double-fires/steals gestures in RN. Purely-visual children get
     // pointerEvents="none"/"box-none" so a tap not on one of the real controls falls through to
     // this background Pressable instead of being silently swallowed.
-    <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
+    <Reanimated.View layout={cellLayoutTransition(listOccluded)} style={[styles.row, (plateEntry || expanded) && styles.rowInPlate]}>
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={() => toggleExpanded(dishKey)}
@@ -1234,9 +1259,16 @@ export function HallMenuScreenBody({
   // sensitive across renders the way onViewableItemsChanged is (VirtualizedList reads this prop
   // fresh on every scrollToIndex call, never caches it), so a plain per-render closure is fine --
   // no Map-of-stable-handlers needed here.
+  // getScrollResponder().scrollTo, NOT `getListRef()?.scrollToOffset()`: SectionList
+  // (Libraries/Lists/SectionList.js in this repo's own react-native) never re-exposes
+  // VirtualizedSectionList's internal getListRef() on its ref -- only scrollToLocation/
+  // recordInteraction/flashScrollIndicators/getScrollResponder/getScrollableNode/setNativeProps
+  // -- so the previous chain optional-chained itself into a silent no-op from the day it shipped
+  // (#458; hall-menu-scroll-recovery-dead-code brief). getScrollResponder() is the underlying
+  // ScrollView, whose scrollTo takes a raw content offset.
   function handleScrollToIndexFailed(tab: TabSelection) {
     return (info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
-      getListRef(tab).current?.getListRef?.()?.scrollToOffset?.({ offset: info.averageItemLength * info.index, animated: false });
+      getListRef(tab).current?.getScrollResponder?.()?.scrollTo?.({ y: info.averageItemLength * info.index, animated: false });
     };
   }
   // FAB state: driven only by allergens/diet-tags currently hiding something -- macros never
@@ -1414,6 +1446,7 @@ export function HallMenuScreenBody({
           composite={compositeDef ? { addIns: compositeDef.addIns, recipe: compositeRecipes[dishKey] ?? null } : null}
           onOpenComposer={openComposer}
           onReAddRecipe={reAddSavedRecipe}
+          listOccluded={filterSheetOpen}
         />
       );
     },
@@ -1437,6 +1470,7 @@ export function HallMenuScreenBody({
       expandedKey,
       favoriteDishKeys,
       prefs,
+      filterSheetOpen,
       toggleExpanded,
       toggleDishFavorite,
       addToPlate,
@@ -1547,7 +1581,7 @@ export function HallMenuScreenBody({
         // wouldn't render at all) -- reserve clearance for it, not just the plate bar.
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
-          <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>
+          <Reanimated.View layout={cellLayoutTransition(filterSheetOpen)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
           </Reanimated.View>
         )}
@@ -1602,7 +1636,7 @@ export function HallMenuScreenBody({
         // always-rendered-alongside-the-FAB reasoning applies here.
         contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
         renderSectionHeader={({ section }) => (
-          <Reanimated.View layout={LinearTransition.duration(durations.rowLayout)} style={styles.sectionHeaderWrap}>
+          <Reanimated.View layout={cellLayoutTransition(filterSheetOpen)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
           </Reanimated.View>
         )}
