@@ -621,7 +621,7 @@ export function PlateSheet({
       <Animated.View testID="keyboardFollowWrapper" style={keyboardStyle}>
         <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
           <GestureDetector gesture={gesture}>
-            <View style={styles.handleRow}>
+            <View style={[styles.handleRow, searchExpanded && styles.handleRowExpanded]} testID="handleRow">
               <View style={styles.handle} />
             </View>
           </GestureDetector>
@@ -923,7 +923,16 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   // paddingVertical spacing(5), ~20dp a side -- the bare 40x4 pill alone is too small a touch/drag target.
-  handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(2.5) },
+  // marginBottom 14 (spacing(3.5)), matching PlateExpanded.dc.html:27's uniform 14px panel gap --
+  // same idle-state value as `header` below. handleRow/header are direct siblings in BOTH artboards'
+  // panel flex column (PlateExpanded.dc.html:27 and SearchExpandedHeader.dc.html:27 alike), so this
+  // needs the same searchExpanded-gated override header gets via headerExpanded -- see
+  // handleRowExpanded below (docs/briefs/platesheet-handle-row-gap.md, corrected after an earlier
+  // version of this brief wrongly claimed this row sits "above where idle/expanded diverge").
+  handleRow: { alignItems: "center", paddingVertical: spacing(5), marginBottom: spacing(3.5) },
+  // SearchExpandedHeader.dc.html:27's panel gap is 10px (spacing(2.5)), not PlateExpanded.dc.html's
+  // 14px -- mirrors headerExpanded below exactly (same two artboards, same handle->title pair).
+  handleRowExpanded: { marginBottom: spacing(2.5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
   // marginBottom 14 (spacing(3.5)), matching PlateExpanded.dc.html:27's uniform 14px panel gap --
   // the idle state's own value. Every OTHER property here (flexDirection/justifyContent/
