@@ -131,8 +131,13 @@ const STRESS_CATALOG_REFRESH_DISH: DishCatalogEntry = {
   // Deliberately not a plausible real UMass dish name -- a real synced local catalog collision
   // (found live: this fixture's chosen query already has real device-side "ramen" catalog matches
   // beyond the visible page) would silently dedup this out via the same exact-name check a real
-  // refresh uses, with nothing to show for it.
-  dishName: "Zzyzx Fixture Ramen Bowl",
+  // refresh uses, with nothing to show for it. Deliberately STARTS WITH the query too (decision
+  // 2's match-quality ordering) -- every real local match for "ramen" on a device with an
+  // already-synced catalog is a substring-only match (e.g. "Birria Ramen"), so a prefix match here
+  // sorts to the very top of the list instead of somewhere past however many real matches already
+  // outrank a substring-tier name, which could otherwise land past VISIBLE_RESULTS and need a
+  // scroll a screenshot capture has no gesture for.
+  dishName: "Ramen Zzyzx Fixture Bowl",
   nutrition: {
     servingSize: "1 bowl",
     calories: 480,
