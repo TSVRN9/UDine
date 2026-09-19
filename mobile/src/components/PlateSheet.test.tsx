@@ -879,7 +879,11 @@ describe("PlateSheet", () => {
 
     // docs/briefs/platesheet-handle-row-gap.md: found by pr-reviewer while reviewing #515, same
     // class of bug (a hand-copied margin instead of the artboard's own panel gap) but on the
-    // handle-to-title row, which is above the point where idle/expanded diverge.
+    // handle-to-title row. handleRow/header are direct siblings in BOTH PlateExpanded.dc.html and
+    // SearchExpandedHeader.dc.html's panel flex column (an earlier version of this brief wrongly
+    // claimed this row sits "above where idle/expanded diverge" -- corrected after round-1 REWORK),
+    // so handleRow needs its own searchExpanded-gated override (handleRowExpanded) exactly like
+    // header/headerExpanded two rows below -- this test covers idle, the next one covers expanded.
     it("panel gap: drag handle row to 'Your Plate' matches PlateExpanded.dc.html's own idle-state gap (14px)", () => {
       const { View } = require("react-native");
       const root = renderSheet();
@@ -888,6 +892,21 @@ describe("PlateSheet", () => {
       const header = root.root.findByProps({ children: "Your Plate" }).parent!;
 
       expect(renderedGap(handleRow, header)).toBe(artboardPanelGap("PlateExpanded.dc.html"));
+    });
+
+    // Companion to the idle test above: proves handleRow's gap is genuinely state-aware (via
+    // handleRowExpanded), not an unconditional value that happens to still read correctly once
+    // searchExpanded -- the exact gap round-1 REWORK proved regressed to idle's 14px here.
+    it("panel gap: drag handle row to 'Your Plate' independently matches SearchExpandedHeader.dc.html's own expanded-state gap (10px)", () => {
+      const { View } = require("react-native");
+      const root = renderSheet();
+      ensureSearchExpanded(root);
+
+      const handleRow = root.root.findAll((n) => n.type === View && n.props.testID === "handleRow")[0];
+      const header = root.root.findByProps({ children: "Your Plate" }).parent!;
+
+      expect(renderedGap(handleRow, header)).toBe(artboardPanelGap("SearchExpandedHeader.dc.html"));
+      expect(artboardPanelGap("SearchExpandedHeader.dc.html")).not.toBe(artboardPanelGap("PlateExpanded.dc.html"));
     });
 
     // docs/briefs/platesheet-search-panel-spacing-gap.md's "Root cause" section: nothing in this
