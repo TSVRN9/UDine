@@ -37,8 +37,6 @@ import { createNativeWrapper } from "react-native-gesture-handler";
 import Reanimated, {
   FadeIn,
   FadeOut,
-  FadeOutDown,
-  FadeInDown,
   LinearTransition,
   useSharedValue,
   type SharedValue,
@@ -59,9 +57,10 @@ import { MenuErrorCard } from "../../components/MenuErrorCard";
 import { CustomFoodForm } from "../../components/CustomFoodForm";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
+import { Toast, type ToastKind } from "../../components/Toast";
 import { PlateSheet } from "../../components/PlateSheet";
 import { StationScrubber } from "../../components/StationScrubber";
-import { durations } from "../../lib/motion";
+import { durations, toastDwell } from "../../lib/motion";
 import { topViewableSectionIndex } from "../../lib/hallMenuScrubber";
 import { behindSheetA11yProps } from "../../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
@@ -877,7 +876,13 @@ export function HallMenuScreenBody({
   const [grabItems, setGrabItems] = useState<MenuItem[] | null>(null);
   const [grabError, setGrabError] = useState<string | null>(null);
 
-  const [plate, setPlate] = useState<PlateEntry[]>([]);
+  // Dev-only `--stress compare-toast-ok|compare-toast-fail` (screenshot.sh): mounts a toast (and,
+  // for the failure, the retained plate it would sit above) so its screenshot doesn't depend on a
+  // real log write failing.
+  const toastFixture = __DEV__ && stressFixture?.startsWith("compare-toast-") ? stressFixture : undefined;
+  const [plate, setPlate] = useState<PlateEntry[]>(() =>
+    toastFixture === "compare-toast-fail" ? stressFixtureItems(hall.tid ?? 0, "lunch").map((item, i) => menuItemToPlateEntry(item, i + 1)) : [],
+  );
   // Composite dish (bowl composer) session state -- composite-dish-logic annotation. Keyed by the
   // BASE dish's own plate key, not the composer's own lifecycle, so a saved recipe survives the
   // base dish being stepped off the plate entirely (re-add without reopening the composer needs
@@ -972,8 +977,14 @@ export function HallMenuScreenBody({
   const [customFoodFormOpen, setCustomFoodFormOpen] = useState(false);
   const [customFoodFormPrefill, setCustomFoodFormPrefill] = useState<string | undefined>(undefined);
   const [barHeight, setBarHeight] = useState(0);
-  const [logged, setLogged] = useState<string | null>(null);
-  const [bannerHeight, setBannerHeight] = useState(0);
+  const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string } | null>(() =>
+    toastFixture === "compare-toast-ok"
+      ? { kind: "success", message: "Logged 3 items", subline: "640 cal · 65g protein" }
+      : toastFixture === "compare-toast-fail"
+        ? { kind: "failure", message: "Couldn’t log 2 of 3 items" }
+        : null,
+  );
+  const [toastHeight, setToastHeight] = useState(0);
   const insets = useSafeAreaInsets();
   const guardedLogPlate = useGuardedLogPlate(storage);
   const onFavoritesUpdate = useCallback((favs: Favorite[]) => setFavoriteDishKeys(new Set(favs.filter((f) => f.type === "dish").map(favoriteKey))), []);
@@ -1113,13 +1124,19 @@ export function HallMenuScreenBody({
     }, []),
   );
 
-  // Auto-dismiss the logged banner a few seconds after it appears, or it permanently covers the
-  // last menu row until the plate is repopulated.
+  // A success toast dismisses itself, or it permanently covers the last menu row. A failure toast
+  // stays until the next log attempt replaces it, the plate is edited, or it's tapped.
   useEffect(() => {
-    if (!logged) return;
-    const timer = setTimeout(() => setLogged(null), 4000);
+    if (toast?.kind !== "success" || toastFixture) return;
+    const timer = setTimeout(() => setToast(null), toastDwell);
     return () => clearTimeout(timer);
-  }, [logged]);
+  }, [toast, toastFixture]);
+  const toastPlate = useRef(plate);
+  useEffect(() => {
+    if (toastPlate.current === plate) return;
+    toastPlate.current = plate;
+    setToast((t) => (t?.kind === "failure" ? null : t));
+  }, [plate]);
 
   // Sections are stations (the foodpro category names). For the 3 real meal tabs, that's a single
   // meal period's worth of items. Grab 'N Go has no meal-period concept of its own -- its items
@@ -1402,12 +1419,16 @@ export function HallMenuScreenBody({
       // becomes a duplicate row rather than being replaced. Acceptable for a UI feature where
       // each addEntry is one single-row insert unlikely to fail independently; upgrade to one
       // transactional bulk insert on SqliteLogStorage if this shows up in practice.
-      setLogged(`Couldn't log everything: ${String(result.error)}`);
+      setToast({ kind: "failure", message: `Couldn’t log ${formatServings(result.failed)} of ${formatServings(result.total)} ${result.total === 1 ? "item" : "items"}` });
       return;
     }
     setPlate([]);
     setSheetOpen(false);
-    setLogged(`Logged ${formatServings(result.count)} ${result.count === 1 ? "item" : "items"}`);
+    setToast({
+      kind: "success",
+      message: `Logged ${formatServings(result.count)} ${result.count === 1 ? "item" : "items"}`,
+      subline: `${Math.round(totals.calories)} cal · ${totals.proteinG.toFixed(0)}g protein`,
+    });
   }
 
   // Shared by both SectionLists below (the 3 real meal tabs and the Grab tab) -- same dish-row
@@ -1579,7 +1600,7 @@ export function HallMenuScreenBody({
         // clearFilterFab: this list always renders alongside the filter FAB (its own hide
         // condition, below, is exactly the state where effectiveItems is [] and this list
         // wouldn't render at all) -- reserve clearance for it, not just the plate bar.
-        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (toast ? toastHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={cellLayoutTransition(filterSheetOpen)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
@@ -1634,7 +1655,7 @@ export function HallMenuScreenBody({
         extraData={expandedKey}
         // clearFilterFab: see the meal-tab GestureSectionList's own comment above -- same
         // always-rendered-alongside-the-FAB reasoning applies here.
-        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (toast ? toastHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={cellLayoutTransition(filterSheetOpen)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
@@ -1870,23 +1891,19 @@ export function HallMenuScreenBody({
             )}
           </View>
         )}
-        {logged && (
-          // This banner is the one surface a LOG failure actually shows on (the plate is
-          // deliberately retained, not cleared, so the bar stays mounted right where an in-flow
-          // bottom banner would otherwise sit, opaque and on top of it). Anchored clear of the
-          // bar's measured height via the same listBottomPadding reuse -- 0 when there's no bar,
-          // right above it when there is. Also pads for the bottom safe-area inset itself (else its
-          // own text gets clipped by gesture nav when there's no bar to already clear that space),
-          // and reports its own measured height via onLayout so the list's paddingBottom above can
-          // add it in while it's showing.
-          <Reanimated.View
-            entering={FadeInDown.duration(durations.loggedBannerIn)}
-            exiting={FadeOutDown.duration(durations.loggedBannerOut)}
-            style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight), paddingBottom: spacing(2) + insets.bottom }]}
-            onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
-          >
-            <Text style={styles.loggedBannerText}>{logged}</Text>
-          </Reanimated.View>
+        {toast && (
+          // The one surface a LOG failure shows on (the plate is retained on failure, so the bar
+          // stays mounted where an in-flow banner would sit). Anchored 12 above the bar's measured
+          // height (ToastLogFailed.dc.html), and reports its own height so the lists' paddingBottom
+          // above can add it in while it's showing.
+          <Toast
+            kind={toast.kind}
+            message={toast.message}
+            subline={toast.subline}
+            bottom={listBottomPadding(barHeight) + spacing(3)}
+            onDismiss={() => setToast(null)}
+            onLayout={(e) => setToastHeight(e.nativeEvent.layout.height)}
+          />
         )}
         {/* Permanent, in-context filter FAB -- pinned above the plate bar (48x48, right:20/
         bottom:108 per the canvas). Bare/inactive when nothing's currently hidden; dark-filled with
@@ -2338,6 +2355,4 @@ const styles = StyleSheet.create({
   // the visible window is always [0, clipWidth] measured from the row's own left edge, without
   // this the collapsed clip showed the row-reverse row's OTHER end (the "−" button) instead of
   // the "+" slot -- pr-reviewer catch, verified against RN's actual Yoga layout output.
-  loggedBanner: { backgroundColor: colors.maroon900, padding: spacing(2) },
-  loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body400, fontSize: fs(13) },
 });

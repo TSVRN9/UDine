@@ -107,7 +107,7 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | Friend profile (tap avatar) | `FriendProfile.dc.html` | 390×844 | archived (`archive/full-features`) |
 | H2H -- After a pick: toast with Another | `CompareToastPicked.dc.html` | 390×844 | design-only |
 | H2H -- Compare sheet | `CompareSheet.dc.html` | 390×844 | design-only |
-| H2H -- Post-log toast: logged (success) | `ToastLogged.dc.html` | 390×844 | design-only (replaces the inline banner in `app/halls/[slug].tsx`) |
+| H2H -- Post-log toast: logged (success) | `ToastLogged.dc.html` | 390×844 | `components/Toast.tsx`, `app/halls/[slug].tsx` (replaces the inline banner) |
 | H2H -- You pane: Top Foods empty state | `YouTopFoodsEmpty.dc.html` | 390×844 | design-only |
 | H2H -- You pane: Your Top Foods with Rank more | `YouTopFoodsRankMore.dc.html` | 390×844 | design-only |
 | Half servings v2 — F: inline vertical slide (grows from the + button) | `ServingsF.dc.html` | 390×844 | `components/HoldSlideOverlay.tsx`, `components/HoldSlideAddButton.tsx`, `lib/servingsStepper.ts`, `app/halls/[slug].tsx` |
@@ -119,7 +119,7 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | Home | `Main.dc.html` | 390×844 | `app/index.tsx` |
 | Home - loading | `HomeLoading.dc.html` | 390×844 | `app/index.tsx` |
 | Home - offline (cached) | `HomeOffline.dc.html` | 390×844 | `app/index.tsx` |
-| Toast -- log failed (plate kept) | `ToastLogFailed.dc.html` | 390×844 | design-only |
+| Toast -- log failed (plate kept) | `ToastLogFailed.dc.html` | 390×844 | `components/Toast.tsx`, `app/halls/[slug].tsx` |
 | ▶ Interactive prototype | `Prototype.dc.html` | 390×844 | motion spec → `lib/motion.ts`; pane shell → `components/PaneStack.tsx`, `components/PaneHeader.tsx` |
 | Login / first launch | `Login.dc.html` | 390×844 | archived (`archive/full-features`) |
 | Logs & stats (from You) | `Logs.dc.html` | 390×844 | `app/logs.tsx` |
