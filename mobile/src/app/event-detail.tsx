@@ -1,5 +1,7 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { router, useLocalSearchParams } from "expo-router";
-import { Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import * as Sharing from "expo-sharing";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { buttonColors, colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -24,14 +26,17 @@ export default function EventDetailScreen() {
 
   async function handleShare() {
     try {
-      // Android's Share.share() silently drops the `url` field -- only `message` renders in the
-      // native sheet -- so the link is embedded directly in the message text too. `url` is kept
-      // for iOS's link-preview handling, but can't carry the link alone cross-platform.
-      await Share.share({ message: `${title}\n${pamphletImage}`, url: pamphletImage });
+      // RN's Share can't send image bytes (and Android drops `url`), so the poster goes as a file.
+      const isPng = /\.png$/i.test(pamphletImage.split(/[?#]/)[0]);
+      const dest = `${FileSystem.cacheDirectory}event-poster-${Date.now()}.${isPng ? "png" : "jpg"}`;
+      const result = await FileSystem.downloadAsync(pamphletImage, dest);
+      // downloadAsync resolves on a non-2xx response too (error page bytes, not a rejection).
+      if (result.status < 200 || result.status >= 300) return;
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(dest, isPng ? { mimeType: "image/png", UTI: "public.png" } : { mimeType: "image/jpeg", UTI: "public.jpeg" });
+      }
     } catch {
-      // A dismissed share sheet resolves (not rejects) on iOS -- this catch is only for a genuine
-      // thrown error, and it no-ops: unlike a broken link (openEventTap.ts), a cancelled/failed
-      // share isn't something the user needs an alert to go fix.
+      // A failed download or share isn't something the user needs an alert to go fix.
     }
   }
 
