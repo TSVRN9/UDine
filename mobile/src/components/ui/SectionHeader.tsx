@@ -17,10 +17,13 @@ export function SectionHeader({
   title,
   right,
   variant = "default",
+  growRule = false,
 }: {
   title: string;
   right?: ReactNode;
   variant?: "default" | "subtle";
+  /** A subtle header with a `right` accessory keeps a fixed 20px rule (Favorites); this lets the rule fill the row instead (Your Top Foods' Rank more, YouTopFoodsRankMore.dc.html). */
+  growRule?: boolean;
 }) {
   const isSubtle = variant === "subtle";
   const titleStyle = isSubtle ? styles.titleSubtle : styles.title;
@@ -29,7 +32,7 @@ export function SectionHeader({
   // 20px width per YouPaneGrouped.dc.html:78 (not flex-grow like every other header) -- so title
   // and rule are grouped together and `right` is pushed to the row's far edge with
   // justify-content instead of relying on the rule's flexGrow to consume the remaining space.
-  if (isSubtle && right) {
+  if (isSubtle && right && !growRule) {
     return (
       <View style={[styles.row, styles.rowSpaceBetween, styles.rowBaseline]}>
         <View style={styles.row}>

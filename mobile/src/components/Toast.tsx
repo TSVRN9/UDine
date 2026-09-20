@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import Reanimated, { withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
-import { durations, reanimatedEaseCurve, reanimatedPaneCurve, toastRise } from "../lib/motion";
+import { durations, reanimatedEaseCurve, reanimatedPaneCurve, toastActionDwell, toastDwell, toastRise } from "../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 
 // `.toastbox` (Prototype.dc.html): opacity on `ease`, transform on the pane bezier, both 260ms, and
@@ -29,6 +30,19 @@ const toastExiting = () => {
 };
 
 export type ToastKind = "success" | "failure";
+
+/**
+ * A success toast dismisses itself (4s, 6s with an action), or it would permanently cover the last
+ * row underneath. A failure toast stays until the caller replaces or dismisses it. `pinned` (dev
+ * fixtures) keeps it up for a screenshot.
+ */
+export function useToastDwell(toast: { kind: ToastKind; action?: unknown } | null, dismiss: (t: null) => void, pinned = false) {
+  useEffect(() => {
+    if (toast?.kind !== "success" || pinned) return;
+    const timer = setTimeout(() => dismiss(null), toast.action ? toastActionDwell : toastDwell);
+    return () => clearTimeout(timer);
+  }, [toast, dismiss, pinned]);
+}
 
 interface Props {
   kind: ToastKind;

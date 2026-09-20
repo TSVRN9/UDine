@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { LogEntry, RankedDish, RankedFood, RankingStorage, FoodRankingStorage } from "@udine/shared";
-import { comparisonSubLine, compareCard, dealPair, pickPostLogPair, plateDishes, recordComparison } from "./compare";
+import { comparisonSubLine, compareCard, compareFixture, dealPair, pickPostLogPair, plateDishes, recordComparison, resolvePick, resolveSkip } from "./compare";
 import type { PlateEntry } from "./plate";
 
 type Storage = RankingStorage & FoodRankingStorage;
@@ -119,6 +119,48 @@ describe("dealPair", () => {
       expect(names(p)).not.toEqual(["Pizza", "Soup"]);
       expect(p.every((c) => c.calories === 100)).toBe(true);
     }
+  });
+});
+
+describe("resolvePick / resolveSkip (shared by the hall menu and the You pane)", () => {
+  const logged = (dishName: string, hallTid: number): LogEntry =>
+    ({ loggedAt: "2026-09-02T12:00:00", source: { type: "umass-menu", dishName, hallTid }, servings: 1, nutrition: { calories: 100 } }) as unknown as LogEntry;
+  const two = [logged("Pizza", 1), logged("Salad", 2)];
+  const three = [...two, logged("Soup", 3)];
+  const card = (dishName: string, hallTid: number) => ({ dishName, hallTid, calories: 100 });
+
+  it("records the pick and reports the winner's sub-line; the pair just shown is never dealt again, so two dishes deal nothing", async () => {
+    const { storage } = stubStorage([], [{ dishName: "Pizza", rating: 1500, comparisonCount: 0 }]);
+    const r = await resolvePick(storage, two, card("Pizza", 1), card("Salad", 2));
+    expect(r).toMatchObject({ message: "Pizza", subline: "1 comparison", next: null });
+    expect(r!.foods.find((f) => f.dishName === "Pizza")!.rating).toBeGreaterThan(r!.foods.find((f) => f.dishName === "Salad")!.rating);
+  });
+
+  it("deals another pair when a third dish exists", async () => {
+    const r = await resolvePick(stubStorage().storage, three, card("Pizza", 1), card("Salad", 2));
+    expect(r!.next!.map((c) => c.dishName)).toContain("Soup");
+  });
+
+  it("is null (nothing recorded) while another pick is saving", async () => {
+    const { storage, saveRankedDishes } = stubStorage();
+    const [a, b] = await Promise.all([resolvePick(storage, two, card("Pizza", 1), card("Salad", 2)), resolvePick(storage, two, card("Pizza", 1), card("Salad", 2))]);
+    expect([a === null, b === null].sort()).toEqual([false, true]);
+    expect(saveRankedDishes).toHaveBeenCalledTimes(1);
+  });
+
+  it("skip deals a fresh pair with three dishes and null with two, recording nothing", async () => {
+    const { storage, saveRankedDishes, saveRankedFoods } = stubStorage();
+    expect(await resolveSkip(storage, three, [card("Pizza", 1), card("Salad", 2)])).not.toBeNull();
+    expect(await resolveSkip(storage, two, [card("Pizza", 1), card("Salad", 2)])).toBeNull();
+    expect(saveRankedDishes).not.toHaveBeenCalled();
+    expect(saveRankedFoods).not.toHaveBeenCalled();
+  });
+});
+
+describe("compareFixture", () => {
+  it("seeds French Toast and Belgian Waffle rated by default and unrated when asked", async () => {
+    expect((await compareFixture().storage.getRankedFoods()).length).toBe(2);
+    expect(await compareFixture(false).storage.getRankedFoods()).toEqual([]);
   });
 });
 

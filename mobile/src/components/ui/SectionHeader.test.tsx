@@ -80,3 +80,20 @@ describe("SectionHeader variant", () => {
     expect(defaultRow.alignItems).toBe("center");
   });
 });
+
+// YouTopFoodsRankMore.dc.html: Your Top Foods' header is title, a rule that fills the row, then the
+// accessory -- centered, unlike Favorites' fixed-20px-rule baseline row.
+it("growRule keeps a subtle header's rule filling the row with the accessory after it, centered", () => {
+  let root!: renderer.ReactTestRenderer;
+  act(() => {
+    root = renderer.create(<SectionHeader title="Your Top Foods" variant="subtle" growRule right={<Text>RANK MORE</Text>} />);
+  });
+  const [row, rule] = root.root.findAllByType(View);
+  const spec = artboardStyle("YouTopFoodsRankMore.dc.html", "Your Top Foods");
+  expect(flatStyle(row.props.style).alignItems).toBe("center");
+  expect(flatStyle(row.props.style).gap).toBe(10);
+  expect(flatStyle(rule.props.style).flexGrow).toBe(1);
+  expect(flatStyle(rule.props.style).width).toBeUndefined();
+  expect(flatStyle(root.root.findAllByType(Text)[0].props.style).fontSize).toBe(spec.fontSize);
+  expect(root.root.findAllByType(Text).map((t) => t.props.children)).toEqual(["Your Top Foods", "RANK MORE"]);
+});

@@ -59,10 +59,10 @@ import { CustomFoodForm } from "../../components/CustomFoodForm";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
 import { CompareSheet } from "../../components/CompareSheet";
-import { Toast, type ToastKind } from "../../components/Toast";
+import { Toast, useToastDwell, type ToastKind } from "../../components/Toast";
 import { PlateSheet } from "../../components/PlateSheet";
 import { StationScrubber } from "../../components/StationScrubber";
-import { durations, toastActionDwell, toastDwell } from "../../lib/motion";
+import { durations } from "../../lib/motion";
 import { topViewableSectionIndex } from "../../lib/hallMenuScrubber";
 import { behindSheetA11yProps } from "../../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
@@ -119,7 +119,7 @@ import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { effectiveToday, nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../../lib/rankingStorage";
-import { compareCard, compareFixture, comparisonSubLine, dealPair, pickPostLogPair, plateDishes, recordComparison, type CompareCard } from "../../lib/compare";
+import { compareCard, compareFixture, pickPostLogPair, plateDishes, resolvePick, resolveSkip, type CompareCard } from "../../lib/compare";
 
 // react-native-gesture-handler doesn't export a gesture-aware SectionList (only ScrollView/
 // FlatList wrap createNativeWrapper for you); a plain SectionList nested under MealTabPager's
@@ -1141,13 +1141,8 @@ export function HallMenuScreenBody({
     }, []),
   );
 
-  // A success toast dismisses itself, or it permanently covers the last menu row. A failure toast
-  // stays until the next log attempt replaces it, the plate is edited, or it's tapped.
-  useEffect(() => {
-    if (toast?.kind !== "success" || toastFixture) return;
-    const timer = setTimeout(() => setToast(null), toast.action ? toastActionDwell : toastDwell);
-    return () => clearTimeout(timer);
-  }, [toast, toastFixture]);
+  // A failure toast stays until the next log attempt replaces it, the plate is edited, or it's tapped.
+  useToastDwell(toast, setToast, !!toastFixture);
   const toastPlate = useRef(plate);
   useEffect(() => {
     if (toastPlate.current === plate) return;
@@ -1475,24 +1470,22 @@ export function HallMenuScreenBody({
     setCompareOpen(true);
   }
 
-  // A pick writes both Elo tracks on-device (recordComparison), closes the sheet and offers another
+  // A pick writes both Elo tracks on-device (resolvePick), closes the sheet and offers another
   // pair. Null means a pick is already saving (a double tap) -- dropped, nothing else happens. A
   // failed save leaves the sheet up so the tap can be retried.
   async function pickComparison(winner: CompareCard, loser: CompareCard) {
     try {
-      const saved = await recordComparison(compareStore, winner, loser);
-      if (!saved) return;
+      const r = await resolvePick(compareStore, compareEntries.current, winner, loser);
+      if (!r) return;
       setCompareOpen(false);
-      const food = saved.foods.find((f) => f.dishName === winner.dishName);
-      const next = dealPair(compareEntries.current, saved.dishes, [winner, loser]);
-      setToast({ kind: "success", message: winner.dishName, subline: food ? comparisonSubLine(food) : undefined, action: next ? { label: "Another", pair: next } : undefined });
+      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next ? { label: "Another", pair: r.next } : undefined });
     } catch {
       // the save failed: nothing was recorded and the sheet is still up for another tap
     }
   }
 
   async function skipComparison() {
-    const next = dealPair(compareEntries.current, await compareStore.getRankedDishes(), comparePair);
+    const next = await resolveSkip(compareStore, compareEntries.current, comparePair);
     // no other pair (only two dishes logged): nothing left to deal, close
     if (next) setComparePair(next);
     else setCompareOpen(false);

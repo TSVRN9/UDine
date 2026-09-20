@@ -39,6 +39,6 @@ describe("halls/[slug].tsx layout/entrance animations read motion tokens, not li
   });
 
   it("imports durations from lib/motion", () => {
-    expect(source).toMatch(/import \{ durations, toastActionDwell, toastDwell \} from "\.\.\/\.\.\/lib\/motion";/);
+    expect(source).toMatch(/import \{ durations \} from "\.\.\/\.\.\/lib\/motion";/);
   });
 });
