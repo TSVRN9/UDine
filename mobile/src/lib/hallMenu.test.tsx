@@ -2743,6 +2743,38 @@ describe("HallMenuScreen head-to-head compare", () => {
     expect(sheetTexts(root)).toContain("1 of 5");
   });
 
+  it("the sheet's count is taken when it opens: it does not tick to the next number while the sheet slides out after a pick", async () => {
+    const root = await threeDishes();
+    await openCompare(root);
+    expect(progress(root).n).toBe(1);
+    await pickFirst(root);
+    expect(sheet(root).props.visible).toBe(false);
+    expect(progress(root).n).toBe(1); // still the pair that was picked, not 2
+    await another(root);
+    expect(progress(root).n).toBe(2);
+  });
+
+  it("a FAILED Log leaves the round where it was; only a successful Log resets it", async () => {
+    const root = await threeDishes();
+    await openCompare(root);
+    await pickFirst(root); // 1 recorded
+    await another(root); // sheet open on "2 of 5"
+    expect(progress(root).n).toBe(2);
+    mockAddEntry.mockRejectedValueOnce(new Error("disk full"));
+    addToPlate(root, "Salad");
+    await openSheetAndLog(root);
+    expect(findToast(root).props.kind).toBe("failure");
+    await pickFirst(root); // 2 recorded (a reset by the failed Log would make this the 1st)
+    await another(root);
+    expect(progress(root).n).toBe(3);
+    // the plate was kept by the failed Log; logging it now succeeds and starts a fresh round
+    act(() => jest.advanceTimersByTime(10_000));
+    await openSheetAndLog(root);
+    expect(toastAction(root)?.label).toBe("Rate them");
+    await openCompare(root);
+    expect(progress(root).n).toBe(1);
+  });
+
   it("--stress compare-round-done opens on the 5th pair; a pick shows the winner with no 'Another', pinned, and never touches the device rankings", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "franklin", stress: "compare-round-done" });
     let root!: renderer.ReactTestRenderer;
