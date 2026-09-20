@@ -86,7 +86,7 @@ describe("SectionHeader variant", () => {
 it("growRule keeps a subtle header's rule filling the row with the accessory after it, centered", () => {
   let root!: renderer.ReactTestRenderer;
   act(() => {
-    root = renderer.create(<SectionHeader title="Your Top Foods" variant="subtle" growRule right={<Text>RANK MORE</Text>} />);
+    root = renderer.create(<SectionHeader title="Your Top Foods" variant="subtle" growRule right={<Text>RATE MORE</Text>} />);
   });
   const [row, rule] = root.root.findAllByType(View);
   const spec = artboardStyle("YouTopFoodsRankMore.dc.html", "Your Top Foods");
@@ -95,5 +95,5 @@ it("growRule keeps a subtle header's rule filling the row with the accessory aft
   expect(flatStyle(rule.props.style).flexGrow).toBe(1);
   expect(flatStyle(rule.props.style).width).toBeUndefined();
   expect(flatStyle(root.root.findAllByType(Text)[0].props.style).fontSize).toBe(spec.fontSize);
-  expect(root.root.findAllByType(Text).map((t) => t.props.children)).toEqual(["Your Top Foods", "RANK MORE"]);
+  expect(root.root.findAllByType(Text).map((t) => t.props.children)).toEqual(["Your Top Foods", "RATE MORE"]);
 });
