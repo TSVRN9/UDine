@@ -2595,6 +2595,25 @@ describe("HallMenuScreen head-to-head compare", () => {
     expect(findToast(root).props.subline).toBe("9.1 · 15 comparisons"); // CompareToastPicked.dc.html's sub-line
   });
 
+  it("--stress compare-toast-rate mounts the 'Rate them' toast with the sheet closed; tapping it opens the fixture pair", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "franklin", stress: "compare-toast-rate" });
+    let root!: renderer.ReactTestRenderer;
+    mockedFetchMenu.mockResolvedValue([PIZZA]);
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(sheet(root).props.visible).toBe(false);
+    expect(findToast(root).props.message).toBe("Logged 3 items");
+    expect(toastAction(root)?.label).toBe("Rate them");
+    act(() => jest.advanceTimersByTime(toastActionDwell + 1000)); // a fixture toast does not dismiss itself
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+    await act(async () => {
+      toastAction(root)!.onPress();
+    });
+    expect(pairNames(root)).toEqual(["French Toast", "Belgian Waffle"]);
+    expect(sheet(root).props.visible).toBe(true);
+  });
+
   it("nothing in the screen or the sheet syncs rankings off-device", () => {
     // (the screen already imports the supabase client for the dish-catalog refresh, so only the sync call is banned there)
     expect(fs.readFileSync(path.join(__dirname, "..", "app", "halls", "[slug].tsx"), "utf8")).not.toMatch(/syncDiningHallRanks/);
