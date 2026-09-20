@@ -751,6 +751,11 @@ describe("YouPane head-to-head artboard parity", () => {
       ],
     );
     const root = await renderYouPane();
+    const subSpec = artboardStyle(RANK_MORE, "Hampshire · 14 comparisons");
+    const sub = flatStyle(root.root.findAllByType(Text).find((t) => t.props.children === "Hampshire · 14 comparisons")!.props.style);
+    expect(sub.fontSize).toBe(subSpec.fontSize);
+    expect(c(sub.color)).toBe(subSpec.color);
+    expect(root.root.findAllByType(Text).some((t) => t.props.children === "Hampshire · 9 comparisons")).toBe(true);
     const pill = (score: string) => root.root.findAll((n) => n.type === View && textsOf(n) === score && flatStyle(n.props.style).borderRadius !== undefined)[0];
     const gold = flatStyle(pill("9.1").props.style);
     const outlined = flatStyle(pill("8.7").props.style);
