@@ -2631,6 +2631,7 @@ describe("HallMenuScreen head-to-head compare", () => {
     expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
     expect(findToast(root).props.message).toBe("French Toast");
     expect(findToast(root).props.subline).toBe("9.1 · 15 comparisons"); // CompareToastPicked.dc.html's sub-line
+    expect(toastAction(root)?.label).toBe("Another"); // the fixture logs a third dish so there is a next pair
   });
 
   it("--stress compare-toast-rate mounts the 'Rate them' toast with the sheet closed; tapping it opens the fixture pair", async () => {

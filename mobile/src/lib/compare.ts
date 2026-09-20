@@ -102,7 +102,8 @@ export function compareFixture() {
       foods = f;
     },
   };
-  const entries = [entry("French Toast", 3, 320), entry("Belgian Waffle", 4, 410)];
+  // A third dish, never shown first, so "Another" has a pair to offer (CompareToastPicked.dc.html).
+  const entries = [entry("French Toast", 3, 320), entry("Belgian Waffle", 4, 410), entry("Scrambled Eggs", 2, 180)];
   // A fixed order, not dealPair's random draw, so screenshots line up with CompareSheet.dc.html.
   const pair: [CompareCard, CompareCard] = [compareCard(entries, entries[0].source as LoggedDish), compareCard(entries, entries[1].source as LoggedDish)];
   return { entries, pair, storage };
