@@ -106,10 +106,12 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | F4 -- lookup-dish states: fetching / miss / rate-limited (new) | `SearchLookupStates.dc.html` | 390×844 | design-only |
 | Friend profile (tap avatar) | `FriendProfile.dc.html` | 390×844 | archived (`archive/full-features`) |
 | H2H -- After a pick: toast with Another | `CompareToastPicked.dc.html` | 390×844 | `components/Toast.tsx` (action), `app/halls/[slug].tsx` |
-| H2H -- Compare sheet | `CompareSheet.dc.html` | 390×844 | `components/CompareSheet.tsx`, `app/halls/[slug].tsx` |
+| H2H -- Compare sheet (with "n of 5" progress count) | `CompareSheet.dc.html` | 390×844 | `components/CompareSheet.tsx`, `app/halls/[slug].tsx` |
 | H2H -- Post-log toast: logged (success) | `ToastLogged.dc.html` | 390×844 | `components/Toast.tsx`, `app/halls/[slug].tsx` (replaces the inline banner) |
+| H2H -- Round complete: after the 5th pick, no Another | `CompareToastRoundDone.dc.html` | 390×844 | design-only |
 | H2H -- You pane: Top Foods empty state | `YouTopFoodsEmpty.dc.html` | 390×844 | `panes/YouPane.tsx`, `components/ui/SectionHeader.tsx` |
 | H2H -- You pane: Your Top Foods with Rate more | `YouTopFoodsRankMore.dc.html` | 390×844 | `panes/YouPane.tsx`, `components/ui/SectionHeader.tsx` |
+| H2H -- You pane: today's allowance used, no Rate more | `YouTopFoodsAllowanceUsed.dc.html` | 390×844 | design-only |
 | Half servings v2 — F: inline vertical slide (grows from the + button) | `ServingsF.dc.html` | 390×844 | `components/HoldSlideOverlay.tsx`, `components/HoldSlideAddButton.tsx`, `lib/servingsStepper.ts`, `app/halls/[slug].tsx` |
 | Half servings v2 — G: type an exact amount, editing from the plate sheet | `ServingsG.dc.html` | 390×844 | `components/PlateSheet.tsx` |
 | Hall info sheet (i) | `HallInfo.dc.html` | 390×844 | `components/HallInfoSheet.tsx`, `lib/hallMenuTabs.ts` |
