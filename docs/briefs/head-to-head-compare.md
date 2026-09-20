@@ -152,7 +152,7 @@ change that made stacked PRs possible is #526. Decisions that emerged in review 
 - `SectionHeader` gained `growRule` for the Top Foods header; `TopFoodDisplay` carries `comparisonCount`
   for the "Hall · N comparisons" sub-line; the sheet's handle row keeps PlateSheet's 20px touch padding.
 - Dev-only `--stress` fixtures: `compare-pair` (three logged dishes so "Another" appears),
-  `compare-toast-rate` / `-ok` / `-fail`, `compare-seed` / `-seed-empty`.
+  `compare-toast-rate` / `-ok` / `-fail`, `compare-seed` / `compare-seed-empty`.
 - The toast says "Rate them" and the You pane header says "RANK MORE" (both as drawn); pick one verb later.
 - Not built: server sync of the derived favorite halls (see Out of scope). Until that brief lands,
   comparisons never reach the server from mobile.
