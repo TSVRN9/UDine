@@ -25,6 +25,8 @@ is routing, not deep reasoning. Read this at the start of any session that dispa
    the gate printed OWNER-GATED: anything under `supabase/`, auth, sync, residency — post the
    verdict and leave it for the owner). REWORK → findings back to the same `issue-solver`.
    ESCALATE → see gates below. Stacked children: merge parent first, then the child rebases.
+   The gate diffs a PR against its own base branch (`gh pr create --base X` → `pr-gate.sh --base X`;
+   `pr-gate.sh <pr>` reads the PR's `baseRefName`), so a stacked child is judged only on its own files.
 6. **Record.** Put the PR link on the brief's task line. Nothing else — the PR body is the record.
 
 ## Escalation gates

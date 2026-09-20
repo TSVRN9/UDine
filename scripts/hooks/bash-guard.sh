@@ -24,7 +24,9 @@ if at_cmd 'gh pr merge\b'; then
   if [[ $rc -ne 0 ]]; then echo "pr-gate failed -- fix before merging:"$'\n'"$out" >&2; exit 2; fi
   if grep -q 'OWNER-GATED' <<<"$out"; then echo "OWNER-GATED: this PR touches supabase/auth/sync/residency. Post the verdict; the owner merges." >&2; exit 2; fi
 elif at_cmd 'gh pr create\b'; then
-  out="$(cd "$root" && "$root/scripts/pr-gate.sh" 2>&1)"; rc=$?
+  # Stacked PR: judge the branch against the base it will open against (--base X, --base=X, -B X, -B=X; default main).
+  base="$(grep -Eo '(--base|-B)[= ] *[^ ;&|]+' <<<"$cmd" | head -1 | sed -E "s/^(--base|-B)[= ] *//; s/^[\"']//; s/[\"']\$//" || true)"
+  out="$(cd "$root" && "$root/scripts/pr-gate.sh" ${base:+--base "$base"} 2>&1)"; rc=$?
   if [[ $rc -ne 0 ]]; then echo "pr-gate failed -- fix before opening the PR:"$'\n'"$out" >&2; exit 2; fi
 fi
 exit 0
