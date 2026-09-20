@@ -1,6 +1,6 @@
 import { computeDailyTotals, DEFAULT_ROLLOVER_HOUR, distinctLoggedDishes, effectiveDayOf, hallCompletion, hallNameFor, rankDiningHalls, type Favorite, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -148,6 +148,8 @@ export function YouPane() {
   const { stress } = useLocalSearchParams<{ stress?: string }>();
   const [fixture] = useState(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty") ? compareFixture(stress === "compare-seed") : null));
   const ranking = fixture?.storage ?? rankingStorage;
+  // Under the fixture the screenshot is one gesture (the swipe to this pane), so start scrolled to "Your Food".
+  const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(() => {
     (fixture ? Promise.resolve(fixture.entries) : logStorage.getAllEntries()).then(setAllEntries);
@@ -212,7 +214,7 @@ export function YouPane() {
 
   return (
     <View style={styles.pane}>
-    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
+    <ScrollView ref={scrollRef} style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
       <Card style={styles.statsCard}>
         <View style={styles.statCell}>
           <Stat label="Calories" value={String(displayedCalories)} />
@@ -283,7 +285,7 @@ export function YouPane() {
       {/* "Your Food": Notifications, Your Top Foods, and Favorite Halls visually grouped under one
           shared heading -- a heavier rule marks the group, each of the three keeps its own
           lighter SectionHeader sub-header inside it. */}
-      <View style={styles.group}>
+      <View style={styles.group} onLayout={fixture ? (e) => scrollRef.current?.scrollTo({ y: e.nativeEvent.layout.y, animated: false }) : undefined}>
         <View style={styles.groupHeader}>
           <View style={styles.groupRule} />
           <Text style={styles.groupTitle}>Your Food</Text>
