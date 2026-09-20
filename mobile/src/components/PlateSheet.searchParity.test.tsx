@@ -2,6 +2,8 @@
 // from the artboard's own inline style / SVG attributes via artboard.ts, never typed in by eye.
 // Anchor note: "Search" appears three times in PlateSheetResults.dc.html (back-header title #0,
 // the button #1, "Search UMass Dining directly" #2), so every "Search" anchor below passes its nth.
+import fs from "node:fs";
+import path from "node:path";
 import renderer, { act } from "react-test-renderer";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -527,6 +529,11 @@ describe("PlateSheet search pane parity (platesheet-search-visual-parity)", () =
     ])("%s seeds its state on open under __DEV__", (fixture, expected) => {
       const root = renderSheet({ stressFixture: fixture });
       expect(allText(root).join("|")).toMatch(expected);
+    });
+
+    it("every search-* fixture name is documented in screenshot.sh's header", () => {
+      const header = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "screenshot.sh"), "utf8").split("\n").slice(0, 80).join("\n");
+      for (const name of ["search-expanded", "search-inflight", "search-results", "search-results-end", "search-empty", "search-error"]) expect(header).toContain(name);
     });
 
     it("seeds nothing outside __DEV__", () => {

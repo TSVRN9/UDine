@@ -32,6 +32,14 @@ set -euo pipefail
 #   and a ~40 char name with 3 badges that stays comfortably tucked -- so a layout
 #   claim about a wrapped name / badge count doesn't depend on live menu data
 #   happening to contain one today.
+#   Search-pane states (halls/[slug].tsx auto-opens the PlateSheet, PlateSheet.tsx seeds the
+#   state straight into React state, __DEV__ only, no network, no keyboard): NAME=search-expanded
+#   (empty input), search-inflight (Search dimmed, spinner row, 2 streamed rows), search-results
+#   (6 rows: 5 shown + Load More + direct-lookup + Create), search-results-end (3 rows, no Load
+#   More), search-empty ("Nothing found for zzqx"), search-error (gray pill + Create). The
+#   lookup-hit / lookup-fetching / lookup-miss / lookup-rate-limited fixtures cover the
+#   direct-lookup states. Use --tap on the input (or --swipe on the list) after any of them to
+#   capture the keyboard-raised or scrolled variant.
 # --record-nav: start screenrecord BEFORE the route-navigation deep link fires, instead
 #   of after the post-navigation settle. Without it, --record's clip only ever shows the
 #   already-settled end state of navigation -- any animation that fires automatically as
