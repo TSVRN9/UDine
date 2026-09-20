@@ -113,6 +113,49 @@ describe("Toast failure (ToastLogFailed.dc.html)", () => {
   });
 });
 
+describe("Toast action (ToastLogged.dc.html 'Rate them', CompareToastPicked.dc.html 'Another')", () => {
+  const action = (label: string, onPress = () => {}) => ({ label, onPress });
+  const labelNode = (r: renderer.ReactTestRenderer, label: string) => r.root.findAllByType(Text).find((n) => n.props.children === label)!;
+  const actionButton = (r: renderer.ReactTestRenderer) => r.root.findAllByProps({ accessibilityRole: "button" })[0];
+
+  it.each([
+    ["ToastLogged.dc.html", "Rate them", "Logged 3 items"],
+    ["CompareToastPicked.dc.html", "Another", "French Toast"],
+  ])("%s: the action is a 44-high, 12/600 uppercase maroon label right of the text", (file, label, message) => {
+    const r = render({ kind: "success", message, subline: "x", action: action(label) });
+    const spec = artboardStyle(file, label);
+    const text = flat(labelNode(r, label).props.style);
+    expect(text.fontSize).toBe(spec.fontSize);
+    expect(text.letterSpacing).toBe(spec.letterSpacing);
+    expect(text.textTransform).toBe(spec.textTransform);
+    expect(c(text.color)).toBe(spec.color);
+    expect(text.fontFamily).toBe(familyFor(spec.fontWeight));
+    const box = flat(actionButton(r).props.style);
+    expect(box.height).toBe(spec.height);
+    expect(box.paddingHorizontal).toBe(spec.paddingHorizontal);
+    // right of the text: the body (message, sub-line) comes first, the action last
+    expect(pressable(r).findAllByType(Text).map((n) => n.props.children)).toEqual([message, "x", label]);
+  });
+
+  it("the card itself is unchanged by an action (same padding, border, minHeight)", () => {
+    expectCardMatches(render({ kind: "success", message: "Logged 3 items", subline: "x", action: action("Rate them") }), "ToastLogged.dc.html", "Logged 3 items");
+  });
+
+  it("tapping the action calls its onPress and not onDismiss", () => {
+    const onPress = jest.fn();
+    const onDismiss = jest.fn();
+    const r = render({ kind: "success", message: "x", action: action("Rate them", onPress), onDismiss });
+    act(() => actionButton(r).props.onPress());
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("no action prop renders no action label", () => {
+    const r = render({ kind: "success", message: "Logged 3 items", subline: "x" });
+    expect(r.root.findAllByType(Text).map((n) => n.props.children)).toEqual(["Logged 3 items", "x"]);
+  });
+});
+
 describe("Toast behaviour", () => {
   it("anchors at the given bottom offset", () => {
     const r = render({ kind: "failure", message: "x", bottom: 100 });

@@ -12,11 +12,13 @@
 // constructor's own `.mock.results` -- the constructor call already happened by then, since
 // halls/[slug].tsx instantiates its storage singletons at module top level, and importing
 // HallMenuScreen below is what loads that module.
+import fs from "node:fs";
+import path from "node:path";
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, View, SectionList } from "react-native";
 import Reanimated from "react-native-reanimated";
 import { router, useLocalSearchParams } from "expo-router";
-import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
+import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type LogEntry, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { CompositeDishComposer } from "../components/CompositeDishComposer";
 import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
@@ -26,13 +28,40 @@ import { StationScrubber } from "../components/StationScrubber";
 import { Button } from "../components/ui";
 import { colors } from "./theme";
 import { stepDate } from "./hallMenuTabs";
+import { toastActionDwell, toastDwell } from "./motion";
 import { SqliteLogStorage } from "./sqliteStorage";
+import { SqliteRankingStorage } from "./rankingStorage";
+import { CompareSheet } from "../components/CompareSheet";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
 import { getCachedPreferences, setPreferences } from "./preferences";
 
 jest.mock("../lib/sqliteStorage", () => ({
-  SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
+  SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn(), getAllEntries: jest.fn().mockResolvedValue([]) })),
+}));
+
+// The head-to-head compare wiring writes comparisons through SqliteRankingStorage (expo-sqlite via
+// ./db, which can't run under jest) -- a real in-memory stand-in, so recordComparison's actual Elo
+// math and single-flight guard run against it and tests can read back what was persisted.
+jest.mock("../lib/rankingStorage", () => ({
+  SqliteRankingStorage: jest.fn().mockImplementation(() => {
+    let dishes: unknown[] = [];
+    let foods: unknown[] = [];
+    return {
+      getRankedDishes: jest.fn(async () => dishes),
+      getRankedFoods: jest.fn(async () => foods),
+      saveRankedDishes: jest.fn(async (d: unknown[]) => {
+        dishes = d;
+      }),
+      saveRankedFoods: jest.fn(async (f: unknown[]) => {
+        foods = f;
+      }),
+      seed: (d: unknown[], f: unknown[]) => {
+        dishes = d;
+        foods = f;
+      },
+    };
+  }),
 }));
 
 jest.mock("../lib/favoritesStorage", () => ({
@@ -155,6 +184,14 @@ function recordSeenMock(): jest.Mock | undefined {
 // halls/[slug].tsx's `const storage = new SqliteLogStorage();` (module top level) already ran by
 // the time this line executes -- importing HallMenuScreen above is what loaded that module.
 const mockAddEntry = (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.addEntry as jest.Mock;
+const mockGetAllEntries = (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.getAllEntries as jest.Mock;
+const mockRanking = (SqliteRankingStorage as unknown as jest.Mock).mock.results[0].value as {
+  getRankedDishes: jest.Mock;
+  getRankedFoods: jest.Mock;
+  saveRankedDishes: jest.Mock;
+  saveRankedFoods: jest.Mock;
+  seed: (dishes: unknown[], foods: unknown[]) => void;
+};
 const mockFavoritesStorage = (SqliteFavoritesStorage as unknown as jest.Mock).mock.results[0].value as {
   getFavorites: jest.Mock;
   addFavorite: jest.Mock;
@@ -398,6 +435,10 @@ async function openSheetAndLog(root: renderer.ReactTestRenderer) {
 beforeEach(() => {
   jest.useFakeTimers();
   mockMenuCache.clear();
+  mockGetAllEntries.mockReset().mockResolvedValue([]);
+  mockRanking.seed([], []);
+  mockRanking.saveRankedDishes.mockClear();
+  mockRanking.saveRankedFoods.mockClear();
 });
 
 afterEach(() => {
@@ -2348,5 +2389,215 @@ describe("Composite dish (bowl composer)", () => {
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(1);
     // No composer round-trip.
     expect(findComposer(root).props.visible).toBe(false);
+  });
+});
+
+// Head-to-head compare (docs/briefs/head-to-head-compare.md task 3): "Rate them" on the logged toast
+// opens the compare sheet, a pick records through SqliteRankingStorage and shows the "Another" toast.
+describe("HallMenuScreen head-to-head compare", () => {
+  const pastEntry = (dishName: string, hallTid: number, calories: number): LogEntry =>
+    ({ id: `past-${dishName}-${hallTid}`, loggedAt: "2026-08-01T12:00:00.000", source: { type: "umass-menu", dishName, hallTid }, servings: 1, nutrition: nutrition(calories) }) as LogEntry;
+
+  // addEntry persists into what getAllEntries returns, like the real storage: a plate logged now is
+  // in the log by the time the screen goes looking for "dishes logged before this plate".
+  function storeLog(past: LogEntry[]) {
+    const stored = [...past];
+    mockAddEntry.mockReset().mockImplementation(async (e: LogEntry) => {
+      stored.push(e);
+    });
+    mockGetAllEntries.mockImplementation(async () => [...stored]);
+  }
+
+  const toastAction = (root: renderer.ReactTestRenderer) => findToast(root).props.action as { label: string; onPress: () => void } | undefined;
+  const sheet = (root: renderer.ReactTestRenderer) => root.root.findByType(CompareSheet);
+  const pairNames = (root: renderer.ReactTestRenderer) => (sheet(root).props.pair as { dishName: string }[]).map((d) => d.dishName);
+  const sheetTexts = (root: renderer.ReactTestRenderer) =>
+    sheet(root)
+      .findAllByType(Text)
+      .map((n) => n.props.children);
+  // The Pressable behind a label inside the sheet -- a real press, so CompareSheet's own guards run.
+  function sheetPress(root: renderer.ReactTestRenderer, label: string) {
+    let n = sheet(root).findAllByType(Text).find((t) => t.props.children === label)!.parent;
+    while (n && typeof n.props.onPress !== "function") n = n.parent;
+    return n!.props.onPress as () => void;
+  }
+
+  async function logAndRate(past: LogEntry[], plateDishes = ["Pizza"], items: MenuItem[] = [PIZZA, SALAD]) {
+    storeLog(past);
+    const root = await renderScreen(items);
+    for (const d of plateDishes) addToPlate(root, d);
+    await openSheetAndLog(root);
+    return root;
+  }
+  async function openCompare(root: renderer.ReactTestRenderer) {
+    await act(async () => {
+      toastAction(root)!.onPress();
+    });
+  }
+
+  it("offers 'Rate them' on the logged toast when a past dish exists, and no action when none does", async () => {
+    const withPast = await logAndRate([pastEntry("Soup", 3, 120)]);
+    expect(toastAction(withPast)?.label).toBe("Rate them");
+
+    const first = await logAndRate([]);
+    expect(findToast(first).props.kind).toBe("success");
+    expect(toastAction(first)).toBeUndefined();
+  });
+
+  it("never pairs two dishes from the same plate: a first-ever two-dish log has no action", async () => {
+    const root = await logAndRate([], ["Pizza", "Salad"]);
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("the same dish logged before is not an opponent for itself", async () => {
+    const root = await logAndRate([pastEntry("Pizza", 1, 200)], ["Pizza"]);
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("pairs the plate's least-compared dish with a past dish, never with the rest of the plate", async () => {
+    mockRanking.seed([{ dishName: "Pizza", hallTid: 1, rating: 1200, comparisonCount: 5 }], []);
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
+    await openCompare(root);
+    // Salad has 0 comparisons vs Pizza's 5, so Salad is the just-logged dish; Soup is the only past dish.
+    expect(pairNames(root)).toEqual(["Salad", "Soup"]);
+  });
+
+  it("tapping 'Rate them' opens the compare sheet with hall and calories on each card, and dismisses the toast", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    expect(sheet(root).props.visible).toBe(false);
+    await openCompare(root);
+    expect(sheet(root).props.visible).toBe(true);
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+    expect(sheetTexts(root)).toEqual(["Which did you like more?", "Pizza", "Worcester · 200 cal", "or", "Soup", "Hampshire · 120 cal", "Skip"]);
+  });
+
+  it("a plate serving of 2 is still one dish: cards show per-serving calories and one comparison is recorded", async () => {
+    storeLog([pastEntry("Soup", 3, 120)]);
+    const root = await renderScreen([PIZZA, SALAD]);
+    addToPlate(root, "Pizza");
+    stepPlate(root, "Pizza", "Add one");
+    await openSheetAndLog(root);
+    await openCompare(root);
+    expect(sheetTexts(root)).toContain("Worcester · 200 cal");
+    await act(async () => sheetPress(root, "Pizza")());
+    expect(mockRanking.saveRankedDishes.mock.calls[0][0].find((d: { dishName: string }) => d.dishName === "Pizza").comparisonCount).toBe(1);
+  });
+
+  it.each([
+    ["Pizza", "Soup"],
+    ["Soup", "Pizza"],
+  ])("picking %s over %s records that winner on both Elo tracks, closes the sheet and shows the 'Another' toast", async (winner, loser) => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    await act(async () => sheetPress(root, winner)());
+
+    expect(mockRanking.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(mockRanking.saveRankedFoods).toHaveBeenCalledTimes(1);
+    for (const saved of [mockRanking.saveRankedDishes.mock.calls[0][0], mockRanking.saveRankedFoods.mock.calls[0][0]] as { dishName: string; rating: number; comparisonCount: number }[][]) {
+      const w = saved.find((r) => r.dishName === winner)!;
+      const l = saved.find((r) => r.dishName === loser)!;
+      expect(w.comparisonCount).toBe(1);
+      expect(l.comparisonCount).toBe(1);
+      expect(w.rating).toBeGreaterThan(l.rating);
+    }
+    expect(sheet(root).props.visible).toBe(false);
+    expect(findToast(root).props.kind).toBe("success");
+    expect(findToast(root).props.message).toBe(winner);
+    expect(findToast(root).props.subline).toBe("1 comparison"); // below the score gate: count only
+    expect(toastAction(root)?.label).toBe("Another");
+  });
+
+  it("a double tap on a card records once", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    const press = sheetPress(root, "Soup");
+    await act(async () => {
+      press();
+      press();
+    });
+    expect(mockRanking.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(mockRanking.saveRankedFoods).toHaveBeenCalledTimes(1);
+    expect(mockRanking.saveRankedDishes.mock.calls[0][0].find((d: { dishName: string }) => d.dishName === "Soup").comparisonCount).toBe(1);
+  });
+
+  it("Skip records nothing and deals a different pair", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
+    await openCompare(root);
+    const shown = pairNames(root);
+    await act(async () => sheetPress(root, "Skip")());
+
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+    expect(mockRanking.saveRankedFoods).not.toHaveBeenCalled();
+    expect(sheet(root).props.visible).toBe(true);
+    // three distinct dishes are logged (Pizza, Salad, Soup), so the next pair can differ
+    const next = pairNames(root);
+    expect([...next].sort()).not.toEqual([...shown].sort());
+  });
+
+  it("'Another' reopens the sheet on a fresh pair and dismisses the toast", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
+    await openCompare(root);
+    const shown = pairNames(root);
+    await act(async () => sheetPress(root, shown[0])());
+    expect(toastAction(root)?.label).toBe("Another");
+    await act(async () => {
+      toastAction(root)!.onPress();
+    });
+    expect(sheet(root).props.visible).toBe(true);
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+    expect([...pairNames(root)].sort()).not.toEqual([...shown].sort());
+  });
+
+  it("a backdrop tap closes the sheet without recording anything", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    act(() => sheet(root).findByProps({ accessibilityLabel: "Close" }).props.onPress());
+    expect(sheet(root).props.visible).toBe(false);
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+  });
+
+  it("a toast with an action stays 6s; one without stays 4s", async () => {
+    const withAction = await logAndRate([pastEntry("Soup", 3, 120)]);
+    act(() => jest.advanceTimersByTime(toastActionDwell - 100));
+    expect(withAction.root.findAllByType(Toast)).toHaveLength(1);
+    act(() => jest.advanceTimersByTime(200));
+    expect(withAction.root.findAllByType(Toast)).toHaveLength(0);
+
+    const without = await logAndRate([]);
+    act(() => jest.advanceTimersByTime(toastDwell - 100));
+    expect(without.root.findAllByType(Toast)).toHaveLength(1);
+    act(() => jest.advanceTimersByTime(200));
+    expect(without.root.findAllByType(Toast)).toHaveLength(0);
+  });
+
+  it("a failed log offers no action even with a past dish", async () => {
+    storeLog([pastEntry("Soup", 3, 120)]);
+    mockAddEntry.mockReset().mockRejectedValue(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+    expect(findToast(root).props.kind).toBe("failure");
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("--stress compare-pair opens the sheet on first paint and picks against an in-memory store, not the device's rankings", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "franklin", stress: "compare-pair" });
+    let root!: renderer.ReactTestRenderer;
+    mockedFetchMenu.mockResolvedValue([PIZZA]);
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(sheet(root).props.visible).toBe(true);
+    expect(sheetTexts(root)).toEqual(["Which did you like more?", "French Toast", "Hampshire · 320 cal", "or", "Belgian Waffle", "Berkshire · 410 cal", "Skip"]);
+    await act(async () => sheetPress(root, "French Toast")());
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+    expect(findToast(root).props.message).toBe("French Toast");
+    expect(findToast(root).props.subline).toBe("9.1 · 15 comparisons"); // CompareToastPicked.dc.html's sub-line
+  });
+
+  it("nothing in the screen or the sheet syncs rankings off-device", () => {
+    // (the screen already imports the supabase client for the dish-catalog refresh, so only the sync call is banned there)
+    expect(fs.readFileSync(path.join(__dirname, "..", "app", "halls", "[slug].tsx"), "utf8")).not.toMatch(/syncDiningHallRanks/);
+    expect(fs.readFileSync(path.join(__dirname, "..", "components", "CompareSheet.tsx"), "utf8")).not.toMatch(/syncDiningHallRanks|supabase/);
   });
 });

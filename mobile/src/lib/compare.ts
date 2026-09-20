@@ -1,6 +1,7 @@
 import {
   applyComparison,
   applyFoodComparison,
+  distinctLoggedDishes,
   pickPostLogComparisonPair,
   scoreOutOfTen,
   type FoodRankingStorage,
@@ -10,6 +11,8 @@ import {
   type RankedFood,
   type RankingStorage,
 } from "@udine/shared";
+import type { PlateEntry } from "./plate";
+import { pickPair, type Dish } from "./pairSelection";
 
 // Module-level, not per-storage: SqliteRankingStorage is stateless and every caller shares the one
 // preferences_kv blob, so two overlapping read-modify-write cycles would clobber each other anyway.
@@ -39,6 +42,11 @@ export async function recordComparison(
   }
 }
 
+/** The plate's rankable dishes: UMass menu items only (a custom or packaged item has no dish identity), one per dish however many servings. */
+export function plateDishes(plate: PlateEntry[]): LoggedDish[] {
+  return plate.flatMap((p) => (p.source.type === "umass-menu" ? [{ dishName: p.source.dishName, hallTid: p.source.hallTid }] : []));
+}
+
 /**
  * "Rate them" pair: the plate dish with the fewest comparisons against the least-compared dish
  * logged before this plate. Null when there is no past dish to pair with.
@@ -47,6 +55,53 @@ export function pickPostLogPair(entriesBefore: LogEntry[], plate: LoggedDish[], 
   const count = (d: LoggedDish) => rankedDishes.find((r) => r.dishName === d.dishName && r.hallTid === d.hallTid)?.comparisonCount ?? 0;
   const justLogged = plate.reduce<LoggedDish | null>((least, d) => (least === null || count(d) < count(least) ? d : least), null);
   return justLogged && pickPostLogComparisonPair(entriesBefore, justLogged, rankedDishes);
+}
+
+/** What a compare card shows: the dish, and its per-serving calories from the latest time it was logged. */
+export type CompareCard = LoggedDish & { calories: number };
+
+export function compareCard(entries: LogEntry[], dish: LoggedDish): CompareCard {
+  let latest: LogEntry | undefined;
+  for (const e of entries) {
+    if (e.source.type !== "umass-menu" || e.source.dishName !== dish.dishName || e.source.hallTid !== dish.hallTid) continue;
+    if (!latest || e.loggedAt > latest.loggedAt) latest = e;
+  }
+  return { dishName: dish.dishName, hallTid: dish.hallTid, calories: Math.round(latest?.nutrition.calories ?? 0) };
+}
+
+/** A fresh pair among everything logged (the archived `pickPair`: least-compared first, never `exclude` again when 3+ dishes exist). Null with fewer than two distinct dishes. */
+export function dealPair(entries: LogEntry[], rankedDishes: RankedDish[], exclude: [Dish, Dish] | null): [CompareCard, CompareCard] | null {
+  const pair = pickPair(distinctLoggedDishes(entries), rankedDishes, exclude);
+  return pair && [compareCard(entries, pair[0]), compareCard(entries, pair[1])];
+}
+
+/**
+ * Dev-only `--stress compare-pair` (screenshot.sh): two logged dishes and an in-memory ranking store,
+ * so the sheet and the after-pick toast screenshot without seeding or touching the device's real log
+ * or rankings. French Toast is seeded at 14 comparisons so one pick lands on "N · 15 comparisons".
+ */
+export function compareFixture() {
+  const entry = (dishName: string, hallTid: number, calories: number) =>
+    ({ id: `fixture-${dishName}`, loggedAt: "2026-01-01T12:00:00.000", source: { type: "umass-menu", dishName, hallTid }, servings: 1, nutrition: { calories } }) as unknown as LogEntry;
+  let dishes: RankedDish[] = [];
+  let foods: RankedFood[] = [
+    { dishName: "French Toast", rating: 1908, comparisonCount: 14 },
+    { dishName: "Belgian Waffle", rating: 1500, comparisonCount: 14 },
+  ];
+  const storage: RankingStorage & FoodRankingStorage = {
+    getRankedDishes: async () => dishes,
+    saveRankedDishes: async (d) => {
+      dishes = d;
+    },
+    getRankedFoods: async () => foods,
+    saveRankedFoods: async (f) => {
+      foods = f;
+    },
+  };
+  const entries = [entry("French Toast", 3, 320), entry("Belgian Waffle", 4, 410)];
+  // A fixed order, not dealPair's random draw, so screenshots line up with CompareSheet.dc.html.
+  const pair: [CompareCard, CompareCard] = [compareCard(entries, entries[0].source as LoggedDish), compareCard(entries, entries[1].source as LoggedDish)];
+  return { entries, pair, storage };
 }
 
 /** "9.1 · 15 comparisons", or just "2 comparisons" while scoreOutOfTen withholds the score. */

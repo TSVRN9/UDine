@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { artboardTransitions } from "./artboard";
-import { curves, durations, reanimatedPaneCurve, reanimatedEaseCurve, rnPaneCurve, toastDwell, toastRise } from "./motion";
+import { curves, durations, reanimatedPaneCurve, reanimatedEaseCurve, rnPaneCurve, toastActionDwell, toastDwell, toastRise } from "./motion";
 
 const t = artboardTransitions("Prototype.dc.html");
 
@@ -168,6 +168,10 @@ describe("unspecced tokens keep their existing values (no Prototype.dc.html sele
 describe("toast dwell", () => {
   it("a success toast dismisses itself after 4s (the old logged banner's dwell)", () => {
     expect(toastDwell).toBe(4000);
+  });
+  it("a success toast that carries an action stays 6s, long enough to reach it (head-to-head brief default 2)", () => {
+    expect(toastActionDwell).toBe(6000);
+    expect(toastActionDwell).toBeGreaterThan(toastDwell);
   });
 });
 
