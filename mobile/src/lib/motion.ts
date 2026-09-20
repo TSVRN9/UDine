@@ -12,10 +12,14 @@ import { Easing as ReanimatedEasing } from "react-native-reanimated";
  * value passed across the boundary. */
 export const curves = {
   pane: [0.22, 0.61, 0.36, 1] as const,
+  /** CSS's keyword `ease` (the spec's bezier for it) -- `.pane`/`.fade`/`.toastbox` opacity. */
+  ease: [0.25, 0.1, 0.25, 1] as const,
 };
 
 /** Built once, from `curves.pane`, for Reanimated `withTiming` call sites. */
 export const reanimatedPaneCurve = ReanimatedEasing.bezier(...curves.pane);
+/** Built once, from `curves.ease`, for Reanimated `withTiming` call sites (Toast's opacity). */
+export const reanimatedEaseCurve = ReanimatedEasing.bezier(...curves.ease);
 /** Built once, from `curves.pane`, for RN core `Animated.timing` call sites. */
 export const rnPaneCurve = RNEasing.bezier(...curves.pane);
 
@@ -80,3 +84,6 @@ export const durations = {
 /** How long a success toast stays before dismissing itself. A failure toast has no dwell: it stays
  * until the next log attempt, a plate edit, or a tap. Unspecced (no artboard timing). */
 export const toastDwell = 4000;
+
+/** How far a toast travels while it fades in/out: `toastStyle`'s `translateY(12px)` in Prototype.dc.html. */
+export const toastRise = 12;
