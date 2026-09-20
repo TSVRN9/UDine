@@ -76,6 +76,7 @@ function toRnStyle(css: string): ArtboardStyle {
         else Object.assign(out, { paddingTop: t, paddingRight: r, paddingBottom: b, paddingLeft: l });
         break;
       }
+      case "margin-top": out.marginTop = px(value); break;
       case "padding-top": out.paddingTop = px(value); break;
       case "padding-right": out.paddingRight = px(value); break;
       case "padding-bottom": out.paddingBottom = px(value); break;
@@ -101,6 +102,20 @@ export function artboardStyle(file: string, anchorText: string, nth = 0): Artboa
     return toRnStyle(style);
   }
   throw new Error(`artboard ${file}: no element #${nth} with text "${anchorText}"`);
+}
+
+/** Attributes (plus the parsed inline `style`) of the first tag whose opening-tag text contains
+ * `anchor` -- the way in to an element with no text of its own: an `<svg>`/`<path>` (anchor on
+ * `d="M15 5l-7 7 7 7"`, `viewBox="0 0 20 20"`) or a bare divider (anchor on its style string). */
+export function artboardTag(file: string, anchor: string): { attrs: Record<string, string>; style: ArtboardStyle } {
+  const tag = /<(\w+)\b([^>]*)>/g;
+  for (let m = tag.exec(read(file)); m; m = tag.exec(read(file))) {
+    if (!m[2].includes(anchor)) continue;
+    const attrs: Record<string, string> = {};
+    for (const a of m[2].matchAll(/([\w-]+)="([^"]*)"/g)) attrs[a[1]] = a[2];
+    return { attrs, style: toRnStyle(attrs.style ?? "") };
+  }
+  throw new Error(`artboard ${file}: no tag whose attributes contain "${anchor}"`);
 }
 
 /** Style of the `nth` occurrence of a bare `<tag>` in document order (0-indexed), regardless of

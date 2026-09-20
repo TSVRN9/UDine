@@ -722,7 +722,7 @@ describe("PlateSheet", () => {
     });
     const root = renderSheet();
     await runSearch(root, "trail mix");
-    expect(texts(root).flat().join(" ")).toMatch(/est\. per 100g/);
+    expect(texts(root).flat().join(" ")).toMatch(/≈ 150 cal per 100g/);
 
     // Once it's on the plate (a row the parent passes back in via the `plate` prop), the same
     // estimate flag must still show -- this is where a real user actually sees the number they're
@@ -891,11 +891,11 @@ describe("PlateSheet", () => {
       expect(onShowResultDetail).toHaveBeenCalledWith(expected);
     });
 
-    it("shows No matches when none of the 4 sources return anything", async () => {
+    it("shows Nothing found for <query> when none of the 4 sources return anything", async () => {
       const root = renderSheet();
       await runSearch(root, "nonexistent");
       const body = texts(root).flat().join(" ");
-      expect(body).toMatch(/No matches/);
+      expect(body).toMatch(/Nothing found for/);
       // Exact-string check, not substring -- "Search UMass Dining directly" legitimately appears
       // here too (this search found no umass-kind result); only the UMass *badge* must be absent.
       expect(texts(root).flat()).not.toContain("UMass");
@@ -917,7 +917,7 @@ describe("PlateSheet", () => {
 
       const body = texts(root).flat().join(" ");
       expect(body).not.toMatch(/Trail Mix From History/);
-      expect(body).toMatch(/No matches/);
+      expect(body).toMatch(/Nothing found for/);
     });
 
     // #344 review: dedup used to be hall-agnostic -- a dish logged at a different hall than the one
@@ -931,10 +931,10 @@ describe("PlateSheet", () => {
 
       const body = texts(root).flat().join(" ");
       expect(body).not.toMatch(/Curry Bowl/);
-      expect(body).toMatch(/No matches/);
+      expect(body).toMatch(/Nothing found for/);
     });
 
-    it("shows the existing 'Search failed' text only when every source fails", async () => {
+    it("shows the search-failed pill only when every source fails", async () => {
       mockedSearchProducts.mockRejectedValue(new Error("off down"));
       mockedSearchFoods.mockRejectedValue(new Error("usda down"));
       const storage: LogStorage = new InMemoryLogStorage();
@@ -947,7 +947,7 @@ describe("PlateSheet", () => {
 
       await runSearch(root, "anything");
 
-      expect(texts(root).flat().join(" ")).toMatch(/Search failed/);
+      expect(texts(root).flat().join(" ")).toMatch(/Couldn't search right now/);
     });
 
     // pr-reviewer finding on #351: `allFailed` required ALL sources to reject before surfacing an
@@ -955,15 +955,15 @@ describe("PlateSheet", () => {
     // empty (the common case for a dish nobody's logged/cached/created yet), the merged result was
     // an empty array and the sheet rendered "No matches", telling the user their food doesn't exist
     // when the real problem is the search didn't complete.
-    it("#351 review: shows the failure text, not 'No matches', when OFF rejects and every other source resolves empty", async () => {
+    it("#351 review: shows the failure pill, not 'Nothing found for', when OFF rejects and every other source resolves empty", async () => {
       mockedSearchProducts.mockRejectedValue(new Error("network down"));
       const root = renderSheet(); // everything else resolves empty
 
       await runSearch(root, "anything");
 
       const body = texts(root).flat().join(" ");
-      expect(body).toMatch(/Search failed/);
-      expect(body).not.toMatch(/No matches/);
+      expect(body).toMatch(/Couldn't search right now/);
+      expect(body).not.toMatch(/Nothing found for/);
     });
 
     // A rejection alongside a real hit from a surviving source is NOT treated as a failure -- the
@@ -978,7 +978,7 @@ describe("PlateSheet", () => {
 
       const body = texts(root).flat().join(" ");
       expect(body).toMatch(/Falafel Wrap/);
-      expect(body).not.toMatch(/Search failed/);
+      expect(body).not.toMatch(/Couldn't search right now/);
     });
 
     // The all-rejected-with-nothing-usable branch must not strand the user: it's the exact moment
@@ -997,7 +997,7 @@ describe("PlateSheet", () => {
       await runSearch(root, "anything");
 
       const body = texts(root).flat().join(" ");
-      expect(body).toMatch(/Search failed/);
+      expect(body).toMatch(/Couldn't search right now/);
       expect(body).not.toMatch(/UnknownHostException/);
       expect(body).toMatch(/Create a custom food/);
     });
@@ -1360,7 +1360,7 @@ describe("PlateSheet", () => {
       const root = renderSheet();
       ensureSearchExpanded(root);
       const searchButtons = root.root.findAll((n) => n.type === Button && n.props.children === "Search");
-      const spec = artboardStyle("PlateSheetResults.dc.html", "Search");
+      const spec = artboardStyle("PlateSheetResults.dc.html", "Search", 1); // nth 1: #0 is the back-header title, #1 the button
 
       const buttonFlat = StyleSheet.flatten(searchButtons[0].props.style);
       expect(normalizeColor(buttonFlat.backgroundColor as string)).toBe(spec.backgroundColor);
@@ -1554,7 +1554,7 @@ describe("PlateSheet", () => {
       mockedSearchProducts.mockResolvedValue({ results: Array.from({ length: 8 }, (_, i) => offResult(i)), hasMore: false });
       const root = renderSheet();
       await runSearch(root, "off");
-      expect(texts(root).flat().join(" ")).not.toMatch(/No matches/);
+      expect(texts(root).flat().join(" ")).not.toMatch(/Nothing found for/);
     });
   });
 

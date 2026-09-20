@@ -1,4 +1,4 @@
-import { artboardEnclosingStyle, artboardNthStyle, artboardStyle, artboardTransitions, normalizeColor } from "./artboard";
+import { artboardEnclosingStyle, artboardTag, artboardNthStyle, artboardStyle, artboardTransitions, normalizeColor } from "./artboard";
 
 describe("artboardStyle", () => {
   it("reads the inline style of the element whose text matches the anchor", () => {
@@ -99,5 +99,18 @@ describe("artboardTransitions", () => {
     expect(t[".sheet"]).toEqual([{ prop: "transform", ms: 300, curve: "cubic-bezier(0.22, 0.61, 0.36, 1)" }]);
     expect(t[".press"]).toEqual([{ prop: "transform", ms: 120, curve: "ease" }]);
     expect(t[".sk"]).toEqual([{ prop: "animation", ms: 1400, curve: "linear" }]);
+  });
+});
+
+describe("artboardTag / margin-top", () => {
+  it("reads a text-less <svg>/<path>'s attributes by an attribute anchor", () => {
+    // PlateSheetResults.dc.html:36 -- the back chevron
+    const { attrs } = artboardTag("PlateSheetResults.dc.html", 'd="M15 5l-7 7 7 7"');
+    expect(attrs).toMatchObject({ stroke: "#3b0a0f", "stroke-width": "2" });
+  });
+
+  it("parses the inline style of a text-less divider and maps margin-top", () => {
+    expect(artboardTag("PlateSheetResults.dc.html", "height: 1px; background: rgba(36,26,20,0.08)").style).toMatchObject({ height: 1, backgroundColor: normalizeColor("rgba(36,26,20,0.08)") });
+    expect(artboardStyle("PlateSheetResults.dc.html", "Load More")).toMatchObject({ marginTop: 6 });
   });
 });
