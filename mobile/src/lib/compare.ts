@@ -14,6 +14,36 @@ import {
 import type { PlateEntry } from "./plate";
 import { pickPair, samePair, type Dish } from "./pairSelection";
 
+/** Recorded picks in one post-log round. Separate from DAILY_ALLOWANCE so the two can move independently. */
+export const ROUND_SIZE = 5;
+/** Recorded You-pane picks per local calendar day (state in compareAllowance.ts). */
+export const DAILY_ALLOWANCE = 5;
+
+/**
+ * Post-log round progress, in memory only. `record` takes what `recordComparison` (or `resolvePick`) returned, so a failed
+ * or refused save (null) costs nothing; Skip is simply not calling `record`. `reset` on each successful log.
+ */
+export class RoundTracker {
+  picks = 0;
+
+  record(saved: { dishes: unknown; foods: unknown } | null): void {
+    if (saved && this.picks < ROUND_SIZE) this.picks++;
+  }
+
+  reset(): void {
+    this.picks = 0;
+  }
+
+  /** 1-based "n of ROUND_SIZE" for the pair on screen. */
+  get number(): number {
+    return Math.min(this.picks + 1, ROUND_SIZE);
+  }
+
+  get done(): boolean {
+    return this.picks >= ROUND_SIZE;
+  }
+}
+
 // Module-level, not per-storage: SqliteRankingStorage is stateless and every caller shares the one
 // preferences_kv blob, so two overlapping read-modify-write cycles would clobber each other anyway.
 let inFlight = false;
