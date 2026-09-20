@@ -1,10 +1,10 @@
 {
-  "sha": "3f58ebd648377882dd5dcba49b22962ff9c568f0",
+  "sha": "1714ac91b9f72f321372b0e138930f30274717ba",
   "branch": "feat/h2h-toast",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-aacacba34d71b7a7e",
   "route": "halls/franklin",
   "device": "Agent_Emulator_Narrow",
   "stress": "compare-toast-ok",
   "dirty": false,
-  "ts": "2026-09-20T06:27:29Z"
+  "ts": "2026-09-20T17:23:57Z"
 }
