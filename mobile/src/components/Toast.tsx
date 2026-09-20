@@ -34,6 +34,8 @@ interface Props {
   kind: ToastKind;
   message: string;
   subline?: string;
+  /** Right-side text button (ToastLogged.dc.html "Rate them"); tapping it does not dismiss -- the caller decides. */
+  action?: { label: string; onPress: () => void };
   /** Distance from the container's bottom edge -- the caller clears whatever sits there (the plate bar). */
   bottom: number;
   onDismiss: () => void;
@@ -44,7 +46,7 @@ interface Props {
  * Shared toast (ToastLogged.dc.html / ToastLogFailed.dc.html). Absolutely positioned; render it
  * conditionally so the exit animation plays. Tapping anywhere on it dismisses.
  */
-export function Toast({ kind, message, subline, bottom, onDismiss, onLayout }: Props) {
+export function Toast({ kind, message, subline, action, bottom, onDismiss, onLayout }: Props) {
   const failure = kind === "failure";
   return (
     <Reanimated.View
@@ -67,6 +69,11 @@ export function Toast({ kind, message, subline, bottom, onDismiss, onLayout }: P
           <Text style={[styles.message, failure && styles.messageFailure]}>{message}</Text>
           {subline ? <Text style={styles.subline}>{subline}</Text> : null}
         </View>
+        {action ? (
+          <Pressable style={styles.action} onPress={action.onPress} accessibilityRole="button">
+            <Text style={styles.actionText}>{action.label}</Text>
+          </Pressable>
+        ) : null}
       </Pressable>
     </Reanimated.View>
   );
@@ -100,5 +107,8 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 1 },
   message: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
   messageFailure: { color: colors.paper50 },
+  // The artboard's action div: height 44, padding 0 6px, 12/600 uppercase, letter-spacing 1, maroon600.
+  action: { height: 44, paddingHorizontal: 6, justifyContent: "center" },
+  actionText: { fontFamily: fonts.body600, fontSize: fs(12), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon600 },
   subline: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
 });
