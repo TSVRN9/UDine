@@ -1,11 +1,14 @@
-import { computeDailyTotals, DEFAULT_ROLLOVER_HOUR, effectiveDayOf, hallCompletion, hallNameFor, rankDiningHalls, type Favorite, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
-import { router, useFocusEffect } from "expo-router";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { computeDailyTotals, DEFAULT_ROLLOVER_HOUR, distinctLoggedDishes, effectiveDayOf, hallCompletion, hallNameFor, rankDiningHalls, type Favorite, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
+import { CompareSheet } from "../components/CompareSheet";
 import { Press } from "../components/Press";
+import { Toast, useToastDwell, type ToastKind } from "../components/Toast";
+import { compareFixture, dealPair, resolvePick, resolveSkip, type CompareCard } from "../lib/compare";
 import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
@@ -96,15 +99,16 @@ function FavoriteRow({ favorite }: { favorite: Favorite }) {
   );
 }
 
-function TopFoodRow({ dishName, score, hallName: hall, tone }: { dishName: string; score: number; hallName: string | null; tone: "gold" | "maroon" }) {
+function TopFoodRow({ dishName, score, hallName: hall, comparisonCount, tone }: { dishName: string; score: number; hallName: string | null; comparisonCount: number; tone: "gold" | "maroon" }) {
+  const counted = `${comparisonCount} comparisons`; // a food only ranks with 3+ comparisons (scoreOutOfTen)
   return (
     <Card style={styles.topFoodRow}>
       <View style={styles.topFoodInfo}>
         <Text style={styles.topFoodName}>{dishName}</Text>
-        {hall && <Text style={styles.topFoodHall}>{hall}</Text>}
+        <Text style={styles.topFoodHall}>{hall ? `${hall} · ${counted}` : counted}</Text>
       </View>
-      <View style={[styles.scorePill, tone === "gold" ? styles.scorePillGold : styles.scorePillMaroon]}>
-        <Text style={[styles.scorePillText, tone === "gold" ? styles.scorePillTextGold : styles.scorePillTextMaroon]}>{score.toFixed(1)}</Text>
+      <View style={[styles.scorePill, tone === "gold" ? styles.scorePillGold : styles.scorePillOutlined]}>
+        <Text style={[styles.scorePillText, tone === "gold" ? styles.scorePillTextGold : styles.scorePillTextOutlined]}>{score.toFixed(1)}</Text>
       </View>
     </Card>
   );
@@ -139,15 +143,60 @@ export function YouPane() {
     getCachedHours().then(() => forceRetailNamesRerender((n) => n + 1));
   }, []);
 
+  // Dev-only `--stress compare-seed[-empty]` (screenshot.sh): logged dishes and an in-memory ranking
+  // store, so the head-to-head entry points screenshot without touching the device's real log.
+  const { stress } = useLocalSearchParams<{ stress?: string }>();
+  // useMemo, not lazy state: the deep link that carries `stress` can land after this pane first mounts.
+  const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty") ? compareFixture(stress === "compare-seed") : null), [stress]);
+  const ranking = fixture?.storage ?? rankingStorage;
+  // Under the fixture the screenshot is one gesture (the swipe to this pane), so start scrolled to "Your Food".
+  const scrollRef = useRef<ScrollView>(null);
+
   const load = useCallback(() => {
-    logStorage.getAllEntries().then(setAllEntries);
-    rankingStorage.getRankedDishes().then(setRankedDishes);
-    rankingStorage.getRankedFoods().then(setRankedFoods);
+    (fixture ? Promise.resolve(fixture.entries) : logStorage.getAllEntries()).then(setAllEntries);
+    ranking.getRankedDishes().then(setRankedDishes);
+    ranking.getRankedFoods().then(setRankedFoods);
     seenDishesStorage.getAllSeenDishNames().then(setSeenByHall);
     favoritesStorage.getFavorites().then(setFavorites);
-  }, []);
+  }, [fixture, ranking]);
 
   useFocusEffect(load);
+
+  // Head-to-head (CompareSheet.dc.html). `comparePair` outlives the close so the slide-out keeps its content.
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [comparePair, setComparePair] = useState<[CompareCard, CompareCard] | null>(null);
+  const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string; action?: { label: string; pair: [CompareCard, CompareCard] } } | null>(null);
+  useToastDwell(toast, setToast, !!fixture);
+  // Two distinct logged dishes is the least there is to pair; below that neither entry point renders.
+  const canCompare = distinctLoggedDishes(allEntries).length >= 2;
+
+  function openCompare(pair: [CompareCard, CompareCard] | null) {
+    if (!pair) return;
+    setToast(null);
+    setComparePair(pair);
+    setCompareOpen(true);
+  }
+
+  // A pick is written on-device by resolvePick; the lists take its saved result, so Top Foods and
+  // Favorite Halls update under the closing sheet. A failed save leaves the sheet up to retry.
+  async function pickComparison(winner: CompareCard, loser: CompareCard) {
+    try {
+      const r = await resolvePick(ranking, allEntries, winner, loser);
+      if (!r) return;
+      setRankedDishes(r.dishes);
+      setRankedFoods(r.foods);
+      setCompareOpen(false);
+      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next ? { label: "Another", pair: r.next } : undefined });
+    } catch {
+      // nothing was recorded
+    }
+  }
+
+  async function skipComparison() {
+    const next = await resolveSkip(ranking, allEntries, comparePair);
+    if (next) setComparePair(next);
+    else setCompareOpen(false);
+  }
 
   const date = todayIso();
   // effectiveDayOf, not isoDateOf -- a raw-prefix match against `date` (an effective day) makes a
@@ -165,7 +214,8 @@ export function YouPane() {
   const topFoods = buildTopFoods(rankedFoods, rankedDishes, allEntries, TOP_FOODS_LIMIT);
 
   return (
-    <ScrollView style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
+    <View style={styles.pane}>
+    <ScrollView ref={scrollRef} style={styles.paneScroll} contentContainerStyle={[styles.paneContainer, { paddingTop: insets.top + fs(52) + spacing(2.5) }]}>
       <Card style={styles.statsCard}>
         <View style={styles.statCell}>
           <Stat label="Calories" value={String(displayedCalories)} />
@@ -236,7 +286,7 @@ export function YouPane() {
       {/* "Your Food": Notifications, Your Top Foods, and Favorite Halls visually grouped under one
           shared heading -- a heavier rule marks the group, each of the three keeps its own
           lighter SectionHeader sub-header inside it. */}
-      <View style={styles.group}>
+      <View style={styles.group} onLayout={fixture ? (e) => scrollRef.current?.scrollTo({ y: e.nativeEvent.layout.y, animated: false }) : undefined}>
         <View style={styles.groupHeader}>
           <View style={styles.groupRule} />
           <Text style={styles.groupTitle}>Your Food</Text>
@@ -267,15 +317,39 @@ export function YouPane() {
         </View>
 
         <View style={styles.subsection}>
-          <SectionHeader title="Your Top Foods" variant="subtle" />
+          <SectionHeader
+            title="Your Top Foods"
+            variant="subtle"
+            growRule
+            right={
+              canCompare && rankedFoods.length > 0 ? (
+                <Press style={styles.allLogsLink} onPress={() => openCompare(dealPair(allEntries, rankedDishes, null))} accessibilityRole="button">
+                  <Text style={styles.seeAllText}>RANK MORE</Text>
+                  <Text style={styles.seeAllChevron}>›</Text>
+                </Press>
+              ) : undefined
+            }
+          />
           {rankedFoods.length === 0 ? (
-            <EmptyState title="No comparisons yet" />
+            canCompare ? (
+              <Press style={styles.startComparing} onPress={() => openCompare(dealPair(allEntries, rankedDishes, null))} accessibilityRole="button">
+                <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+                  <Path d="M4 7h11M12 4l3 3-3 3M16 13H5M8 10l-3 3 3 3" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <View>
+                  <Text style={styles.startComparingTitle}>Start comparing</Text>
+                  <Text style={styles.startComparingSub}>No comparisons yet</Text>
+                </View>
+              </Press>
+            ) : (
+              <EmptyState title="No comparisons yet" />
+            )
           ) : topFoods.length === 0 ? (
             <EmptyState title="Not enough data yet" />
           ) : (
             <View style={styles.rowList}>
               {topFoods.map((f) => (
-                <TopFoodRow key={f.dishName} dishName={f.dishName} score={f.score} hallName={f.hallName} tone={f.tone} />
+                <TopFoodRow key={f.dishName} dishName={f.dishName} score={f.score} hallName={f.hallName} comparisonCount={f.comparisonCount} tone={f.tone} />
               ))}
             </View>
           )}
@@ -284,7 +358,9 @@ export function YouPane() {
         <View style={styles.subsection}>
           <SectionHeader title="Favorite Halls" variant="subtle" />
           {hallRanking.ranked.length === 0 ? (
-            <EmptyState title="No ranking yet" />
+            <Card style={styles.emptyHalls}>
+              <Text style={styles.emptyHallsText}>No ranking yet</Text>
+            </Card>
           ) : (
             <View style={styles.favoriteHallsRow}>
               {hallRanking.ranked.slice(0, 3).map((h, i) => (
@@ -299,10 +375,23 @@ export function YouPane() {
       </View>
 
     </ScrollView>
+      {toast && (
+        <Toast
+          kind={toast.kind}
+          message={toast.message}
+          subline={toast.subline}
+          action={toast.action && { label: toast.action.label, onPress: () => openCompare(toast.action!.pair) }}
+          bottom={insets.bottom + spacing(4)}
+          onDismiss={() => setToast(null)}
+        />
+      )}
+      <CompareSheet visible={compareOpen} pair={comparePair} onPick={pickComparison} onSkip={skipComparison} onClose={() => setCompareOpen(false)} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  pane: { flex: 1 },
   paneScroll: { flex: 1, backgroundColor: colors.cream100 },
   paneContainer: { paddingHorizontal: spacing(5), paddingBottom: spacing(10) },
 
@@ -368,10 +457,29 @@ const styles = StyleSheet.create({
   topFoodHall: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   scorePill: { minWidth: fs(44), alignItems: "center", borderRadius: radii.pill, paddingVertical: spacing(1.25) },
   scorePillGold: { backgroundColor: colors.gold500 },
-  scorePillMaroon: { backgroundColor: colors.maroon600 },
+  // Every pill below the top score is outlined, not filled (YouTopFoodsRankMore.dc.html).
+  scorePillOutlined: { borderWidth: 1, borderColor: withOpacity(colors.ink900, 20) },
   scorePillText: { fontFamily: fonts.mono, fontSize: fs(14), fontWeight: "600" },
   scorePillTextGold: { color: colors.maroon900 },
-  scorePillTextMaroon: { color: colors.paper50 },
+  scorePillTextOutlined: { color: colors.maroon900 },
+
+  // YouTopFoodsEmpty.dc.html: the dashed maroon "Start comparing" row and the plain Favorite Halls line.
+  startComparing: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
+    minHeight: 44,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: withOpacity(colors.maroon600, 45),
+    borderRadius: radii.md,
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3.5),
+  },
+  startComparingTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
+  startComparingSub: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
+  emptyHalls: { paddingVertical: spacing(2.5), paddingHorizontal: spacing(3.5) },
+  emptyHallsText: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55) },
 
   favoriteHallsRow: { flexDirection: "row", gap: spacing(2) },
   favoriteHallCard: {

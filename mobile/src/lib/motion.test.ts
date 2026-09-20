@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { artboardTransitions } from "./artboard";
-import { curves, durations, reanimatedPaneCurve, rnPaneCurve } from "./motion";
+import { curves, durations, reanimatedPaneCurve, reanimatedEaseCurve, rnPaneCurve, toastActionDwell, toastDwell, toastRise } from "./motion";
 
 const t = artboardTransitions("Prototype.dc.html");
 
@@ -44,6 +44,9 @@ describe("durations match Prototype.dc.html's own transition/animation declarati
   });
   it("toast: .toastbox opacity", () => {
     expect(durations.toast).toBe(msFor(".toastbox", "opacity"));
+  });
+  it("toast: .toastbox transform (same 260ms as its opacity; Toast.tsx enters and exits on it)", () => {
+    expect(durations.toast).toBe(msFor(".toastbox", "transform"));
   });
   it("press: .press transform", () => {
     expect(durations.press).toBe(msFor(".press", "transform"));
@@ -115,6 +118,7 @@ describe("the shared cubic-bezier's control points", () => {
     [".pane", "transform"],
     [".sheet", "transform"],
     [".knob", "transform"],
+    [".toastbox", "transform"],
   ])("%s %s uses curves.pane's exact control points", (selector, prop) => {
     const curve = curveFor(selector, prop);
     const m = /cubic-bezier\(([^)]+)\)/.exec(curve);
@@ -140,7 +144,6 @@ describe("spec selectors with no code equivalent yet", () => {
   it.each([
     [".layer", "a generic overlay layer transition -- no such surface exists in this app"],
     [".strip", "the old horizontal-strip pager, replaced by PaneStack's shared-axis shell (#179)"],
-    [".toastbox", "no toast component exists yet -- durations.toast is ready for one"],
     [".fade", "no plain opacity-only fade surface exists yet -- durations.fade is ready for one"],
     [".tab", "MealTabPager's tab row underline is driven by shared position, not a timed color/border-color transition -- durations.tab is ready for one"],
   ])("%s: %s", (selector) => {
@@ -155,11 +158,33 @@ describe("unspecced tokens keep their existing values (no Prototype.dc.html sele
   it("favoritePop keeps its original 90/120", () => {
     expect(durations.favoritePop).toEqual({ in: 90, out: 120 });
   });
-  it("halls/[slug].tsx's row/banner layout-animation durations keep their original values", () => {
+  it("halls/[slug].tsx's row layout-animation durations keep their original values", () => {
     expect(durations.rowLayout).toBe(180);
     expect(durations.rowExpandIn).toBe(160);
     expect(durations.rowExpandOut).toBe(120);
-    expect(durations.loggedBannerIn).toBe(200);
-    expect(durations.loggedBannerOut).toBe(150);
+  });
+});
+
+describe("toast dwell", () => {
+  it("a success toast dismisses itself after 4s (the old logged banner's dwell)", () => {
+    expect(toastDwell).toBe(4000);
+  });
+  it("a success toast that carries an action stays 6s, long enough to reach it (head-to-head brief default 2)", () => {
+    expect(toastActionDwell).toBe(6000);
+    expect(toastActionDwell).toBeGreaterThan(toastDwell);
+  });
+});
+
+describe("toast easing and travel (.toastbox)", () => {
+  it("opacity is CSS `ease`, and curves.ease is that keyword's bezier", () => {
+    expect(curveFor(".toastbox", "opacity")).toBe("ease");
+    expect([...curves.ease]).toEqual([0.25, 0.1, 0.25, 1]);
+    expect(reanimatedEaseCurve).toBeDefined();
+  });
+  it("toastRise is toastStyle's translateY offset in Prototype.dc.html", () => {
+    const src = fs.readFileSync(path.join(__dirname, "..", "..", "..", "docs", "design", "Prototype.dc.html"), "utf8");
+    const m = /toastStyle:.*translateY\(' \+ \(s\.toast \? '0' : '(\d+)px'\)/.exec(src);
+    expect(m).not.toBeNull();
+    expect(toastRise).toBe(Number(m![1]));
   });
 });

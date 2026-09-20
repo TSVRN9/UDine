@@ -34,11 +34,6 @@ describe("halls/[slug].tsx layout/entrance animations read motion tokens, not li
     expect(source).toMatch(/FadeOut\.duration\(durations\.rowExpandOut\)/);
   });
 
-  it("logged banner FadeInDown/FadeOutDown use durations.loggedBannerIn/loggedBannerOut", () => {
-    expect(source).toMatch(/FadeInDown\.duration\(durations\.loggedBannerIn\)/);
-    expect(source).toMatch(/FadeOutDown\.duration\(durations\.loggedBannerOut\)/);
-  });
-
   it("the in-plate stepper clip's grow uses durations.servingsPill, not a bare 180", () => {
     expect(plateAddControlSource).toMatch(/widthProgress\.value = withTiming\(inPlate \? 1 : 0, \{ duration: durations\.servingsPill \}\);/);
   });
