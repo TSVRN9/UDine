@@ -985,17 +985,19 @@ export function HallMenuScreenBody({
   // Head-to-head compare sheet. `comparePair` outlives the close (the slide-out still needs its
   // content); `compareEntries` is the log the sheet deals from -- everything logged, this plate
   // included -- and `compareStore` is the device's ranking store, or an in-memory one under the
-  // dev-only `--stress compare-pair` fixture.
-  const compareStress = __DEV__ && stressFixture === "compare-pair";
+  // dev-only `--stress compare-pair` fixture (sheet open) or `compare-toast-rate` (the "Rate them" toast, sheet closed).
+  const compareStress = __DEV__ && (stressFixture === "compare-pair" || stressFixture === "compare-toast-rate");
   const [fixture] = useState(() => (compareStress ? compareFixture() : null));
   const compareStore = fixture?.storage ?? rankingStorage;
   const compareEntries = useRef<LogEntry[]>(fixture?.entries ?? []);
   const [comparePair, setComparePair] = useState<[CompareCard, CompareCard] | null>(fixture?.pair ?? null);
-  const [compareOpen, setCompareOpen] = useState(compareStress);
+  const [compareOpen, setCompareOpen] = useState(compareStress && stressFixture === "compare-pair");
   const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string; action?: { label: string; pair: [CompareCard, CompareCard] } } | null>(() =>
     toastFixture === "compare-toast-ok"
       ? { kind: "success", message: "Logged 3 items", subline: "640 cal · 65g protein" }
-      : toastFixture === "compare-toast-fail"
+      : toastFixture === "compare-toast-rate" && fixture
+        ? { kind: "success", message: "Logged 3 items", subline: "640 cal · 65g protein", action: { label: "Rate them", pair: fixture.pair } }
+        : toastFixture === "compare-toast-fail"
         ? { kind: "failure", message: "Couldn’t log 2 of 3 items" }
         : null,
   );
