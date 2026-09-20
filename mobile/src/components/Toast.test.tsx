@@ -128,8 +128,14 @@ describe("Toast behaviour", () => {
 
   it("enters and exits on durations.toast, opacity on curves.ease and transform on curves.pane, moving toastRise", () => {
     const src = fs.readFileSync(path.join(__dirname, "Toast.tsx"), "utf8");
-    expect(src.match(/duration: durations\.toast, easing: reanimatedEaseCurve/g)).toHaveLength(2);
-    expect(src.match(/duration: durations\.toast, easing: reanimatedPaneCurve/g)).toHaveLength(2);
+    // Anchored to each worklet's own text, so a curve is tied to its property AND direction.
+    const fn = (name: string) => src.slice(src.indexOf(`const ${name} =`), src.indexOf("};", src.indexOf(`const ${name} =`)));
+    const entering = fn("toastEntering");
+    const exiting = fn("toastExiting");
+    expect(entering).toMatch(/opacity: withTiming\(1, \{ duration: durations\.toast, easing: reanimatedEaseCurve \}\)/);
+    expect(entering).toMatch(/translateY: withTiming\(0, \{ duration: durations\.toast, easing: reanimatedPaneCurve \}\)/);
+    expect(exiting).toMatch(/opacity: withTiming\(0, \{ duration: durations\.toast, easing: reanimatedEaseCurve \}\)/);
+    expect(exiting).toMatch(/translateY: withTiming\(toastRise, \{ duration: durations\.toast, easing: reanimatedPaneCurve \}\)/);
     const outer = pressable(render({ kind: "failure", message: "x" })).parent!.props;
     expect(outer.entering().initialValues).toEqual({ opacity: 0, transform: [{ translateY: toastRise }] });
     expect(outer.exiting().initialValues).toEqual({ opacity: 1, transform: [{ translateY: 0 }] });
