@@ -91,6 +91,62 @@ describe("daily allowance", () => {
     expect(JSON.parse(raw()!).date).toBe("2026-03-05");
   });
 
+  it("overlapping picks are serialized: none is lost", async () => {
+    let raw: string | null = null;
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+    const store: AllowanceStore = {
+      read: async () => (await tick(), raw),
+      write: async (json) => {
+        await tick();
+        raw = json;
+      },
+    };
+    const now = at(2026, 9, 20);
+    const [a, b] = await Promise.all([recordDailyPick(store, now), recordDailyPick(store, now)]);
+    expect([a, b]).toEqual([1, 2]);
+    expect(JSON.parse(raw!)).toEqual({ date: "2026-09-20", count: 2 });
+  });
+
+  it("a failed write rejects to the caller, does not wedge the queue, and leaves the count uncorrupted", async () => {
+    let raw: string | null = null;
+    let fail = true;
+    const store: AllowanceStore = {
+      read: async () => raw,
+      write: async (json) => {
+        if (fail) throw new Error("disk full");
+        raw = json;
+      },
+    };
+    const now = at(2026, 9, 20);
+    const bad = recordDailyPick(store, now);
+    const next = recordDailyPick(store, now); // queued behind the failing call
+    await expect(bad).rejects.toThrow("disk full");
+    fail = false;
+    expect(await next).toBe(1);
+    expect(await recordDailyPick(store, now)).toBe(2);
+    expect(JSON.parse(raw!)).toEqual({ date: "2026-09-20", count: 2 });
+  });
+
+  it("local days follow the calendar across DST changes", async () => {
+    // Built from local-time constructors, so it holds in any TZ; under America/New_York it is the real DST case.
+    const spring = stubStore(rec("2026-03-08", 5));
+    expect(await remainingToday(spring.store, at(2026, 3, 8, 1, 59))).toBe(0);
+    expect(await remainingToday(spring.store, at(2026, 3, 8, 3, 0))).toBe(0);
+    expect(await remainingToday(spring.store, at(2026, 3, 8, 23, 59, 59, 999))).toBe(0);
+    expect(await remainingToday(spring.store, at(2026, 3, 9, 0, 0))).toBe(5);
+
+    // 2026-11-01 has a repeated 01:30 (and 25 hours): both instants are one local date, and midnight is not +24h.
+    const first = at(2026, 11, 1, 1, 30);
+    const second = new Date(first.getTime() + 3600_000);
+    const fall = stubStore();
+    await recordDailyPick(fall.store, first);
+    expect(await recordDailyPick(fall.store, second)).toBe(2);
+    expect(JSON.parse(fall.raw()!).date).toBe("2026-11-01");
+    const full = stubStore(rec("2026-11-01", 5));
+    expect(await remainingToday(full.store, at(2026, 11, 1, 23, 59, 59, 999))).toBe(0);
+    expect(await remainingToday(full.store, at(2026, 11, 2, 0, 0))).toBe(5);
+  });
+
   describe("missing, corrupt and legacy records count as zero", () => {
     const today = at(2026, 9, 20);
     const cases: [string, string | null][] = [

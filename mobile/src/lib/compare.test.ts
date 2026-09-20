@@ -239,6 +239,13 @@ describe("round tracker", () => {
     expect(t.number).toBe(2);
   });
 
+  it("record only accepts a saved-pick result or null, not a boolean", () => {
+    const t = new RoundTracker();
+    // @ts-expect-error a bare boolean is not a pick result
+    t.record(true);
+    expect(t.picks).toBe(1);
+  });
+
   it("Skip is not calling record: the count stays put", () => {
     const t = new RoundTracker();
     t.record(saved);

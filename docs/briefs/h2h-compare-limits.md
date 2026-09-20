@@ -22,7 +22,7 @@ Rules (owner, 2026-09-20):
 1. **Post-log round: 5 comparisons per logged meal** (per successful Log tap). The sheet count reads
    "n of 5". The 5th pick's toast shows the winner and score with no "Another".
 2. **You pane allowance: 5 comparisons per local calendar day**, shared by "RATE MORE" and
-   "Start comparing", stored on the device only. The sheet count reads today's picks ("3 of 5"). When
+   "Start comparing", stored on the device only. The sheet count reads today's picks made + 1 ("3 of 5" after two picks). When
    the 5th is recorded, its toast has no "Another" and both actions are hidden until the next day.
 3. The two budgets are SEPARATE: post-log rounds never draw on the daily allowance.
 4. Only RECORDED picks count. Skip records nothing and costs nothing; a failed save costs nothing.
@@ -30,7 +30,7 @@ Rules (owner, 2026-09-20):
    already returns null, so no "Another" (shipped behavior, unchanged).
 
 States a screenshot must show:
-- Sheet, post-log, "1 of 5" (first pair of a round); and a later count on the You pane path ("3 of 5").
+- Sheet, post-log, "1 of 5" (first pair of a round); and a later count on the You pane path ("3 of 5" after two picks today).
 - After-pick toast with "Another" mid-round (existing artboard); after the 5th pick, no action.
 - You pane Top Foods populated with "RATE MORE" (existing); the same pane with today's allowance used
   (no "RATE MORE"); empty state with the allowance used is NOT possible (no picks yet means nothing spent).
@@ -69,7 +69,7 @@ hard block with an explanatory message (the design shows no captions; the action
       not affected by Skip or a failed save — evidence: test
 - [ ] Post-log: the sheet shows "n of 5" (n = picks made this round + 1); the 5th pick's toast has no
       "Another"; after it "Rate them" on that log's toast is not offered again — evidence: test + screenshot
-- [ ] You pane: the sheet shows today's count; RATE MORE and Start comparing are hidden once today's
+- [ ] You pane: the sheet shows today's picks made + 1 (1-based, "1 of 5" before any pick today); RATE MORE and Start comparing are hidden once today's
       allowance is used and reappear on a new day; the 5th pick's toast has no "Another" —
       evidence: test + screenshot
 - [ ] Post-log picks never change the daily count, and You-pane picks never change a post-log round —
