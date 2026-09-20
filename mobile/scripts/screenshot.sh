@@ -51,7 +51,7 @@ set -euo pipefail
 #   You pane compare entry points (panes/YouPane.tsx, __DEV__ only): route `/` with --swipe 900 400 150 400
 #   (not from the screen edge, which is the system back gesture) reaches the You pane, which starts
 #   scrolled to "Your Food". NAME=compare-seed logs French Toast / Belgian Waffle / Scrambled Eggs and seeds them
-#   ranked (Top Foods with "RANK MORE"); NAME=compare-seed-empty logs the same three unranked (the
+#   ranked (Top Foods with "RATE MORE"); NAME=compare-seed-empty logs the same three unranked (the
 #   dashed "Start comparing" row, Favorite Halls "No ranking yet"). Both run on an in-memory ranking
 #   store: nothing on the device is read or written; --tap the entry point to open the sheet.
 # --record-nav: start screenrecord BEFORE the route-navigation deep link fires, instead

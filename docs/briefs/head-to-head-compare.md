@@ -2,7 +2,7 @@
 
 Goal: a user can rate the dishes they've eaten by picking which of two they liked more, straight
 from the moment they log a meal ("Rate them" on the logged toast) or from the You pane's Your Top
-Foods section ("Rank more" / "Start comparing"). Every pick moves both Elo tracks, so Your Top
+Foods section ("Rate more" / "Start comparing"). Every pick moves both Elo tracks, so Your Top
 Foods and Favorite Halls fill in from real comparisons. Today nothing in the app can write a
 comparison: the compare screen (`rank.tsx`) was shelved in #338 and the You pane only reads.
 Ships with a shared toast component that replaces the inline "logged" banner.
@@ -14,7 +14,7 @@ UI (canvas page "Head-to-Head & Toasts"):
 - `ToastLogFailed.dc.html` — failure toast (plate kept, plate bar visible)
 - `CompareSheet.dc.html` — the compare sheet over the hall menu
 - `CompareToastPicked.dc.html` — toast after a pick, with "Another"
-- `YouTopFoodsRankMore.dc.html` — You pane, Top Foods with the "Rank more" header action
+- `YouTopFoodsRankMore.dc.html` — You pane, Top Foods with the "Rate more" header action
 - `YouTopFoodsEmpty.dc.html` — You pane, Top Foods and Favorite Halls empty states
 
 Host surfaces they modify: `HallMenu.dc.html` (`app/halls/[slug].tsx`), `PlateExpanded.dc.html`
@@ -30,10 +30,10 @@ States a screenshot must show:
 - Compare sheet: title "Which did you like more?", two dish cards ("Hampshire · 320 cal"), "or", Skip.
 - After a pick: toast with the winner, "9.1 · 15 comparisons", "Another". Winner below the score gate
   (fewer than 3 comparisons): the sub-line is just "2 comparisons" (no score).
-- You pane Top Foods, populated: "Rank more ›" in the header; #1 row gold score pill, the rest outlined.
+- You pane Top Foods, populated: "Rate more ›" in the header; #1 row gold score pill, the rest outlined.
 - You pane Top Foods, empty (`rankedFoods.length === 0`): dashed "Start comparing" row + "No comparisons
   yet"; Favorite Halls shows "No ranking yet". With fewer than two distinct logged dishes the
-  "Start comparing" row and the "Rank more" action are not rendered (nothing to pair).
+  "Start comparing" row and the "Rate more" action are not rendered (nothing to pair).
 Routes:
 - Toasts / sheet / after-pick: `halls/franklin --stress compare-pair --wait-for "Which did you like more?"`
   (dev-only fixture, task 3: seeds two logged dishes and opens the sheet, same pattern as the
@@ -60,15 +60,15 @@ standing clutter, mocked and dropped by the owner), a per-row "compare" action o
 
 ## Defaults chosen (confirm or change)
 
-1. Verb: the toast says "Rate them" (owner) but the You pane header says "Rank more" (existing
-   Top Foods vocabulary). Left as drawn; one of them probably wants to change.
+1. Verb: one verb, "Rate" (owner, 2026-09-20): the toast says "Rate them" and the You pane header says
+   "RATE MORE". (First drawn as "Rank more"; unified after review.)
 2. Toast dwell: success with an action stays 6s, without an action 4s (today's value). Failure stays
    until the next log attempt, a plate edit, or a tap on it. New constants go in `lib/motion.ts`.
 3. Post-log opponent: `pickPostLogComparisonPair` is given only the entries logged *before* this
    plate, so the opponent is always a past dish, never another item from the same plate. The
    just-logged dish used is the one on the plate with the lowest `comparisonCount`.
 4. Score shown after a pick uses `scoreOutOfTen` (needs 3 comparisons); below that, only the count.
-5. "Another" and "Rank more" pick pairs with the archived `pickPair` (`git show
+5. "Another" and "Rate more" pick pairs with the archived `pickPair` (`git show
    archive/full-features:mobile/src/lib/pairSelection.ts`), skipping the pair just shown. With exactly
    two distinct logged dishes there is no other pair: `dealPair` returns null, the after-pick toast
    has no "Another" action, and Skip closes the sheet (found in review of #527; `pickPair` alone
@@ -102,7 +102,7 @@ standing clutter, mocked and dropped by the owner), a per-row "compare" action o
       after-pick toast with "Another" — evidence: test + screenshot
 - [x] Sheet matches `CompareSheet.dc.html` (scrim, handle, radius, card border, "or" divider, Skip);
       drag-to-dismiss and backdrop tap close it like `PlateSheet` — evidence: test + screenshot
-- [x] You pane "Rank more" and the empty-state "Start comparing" open the same sheet; both are absent
+- [x] You pane "Rate more" and the empty-state "Start comparing" open the same sheet; both are absent
       with fewer than two distinct logged dishes; after a pick the Top Foods list and Favorite Halls
       refresh without leaving the pane — evidence: test + screenshot
 - [x] Nothing in this change imports `syncDiningHallRanks` or touches `supabase/`; `CompareSheet.tsx` imports no `supabase` at all (`halls/[slug].tsx` already imported the client for the dish catalog) —
@@ -153,7 +153,7 @@ change that made stacked PRs possible is #526. Decisions that emerged in review 
   for the "Hall · N comparisons" sub-line; the sheet's handle row keeps PlateSheet's 20px touch padding.
 - Dev-only `--stress` fixtures: `compare-pair` (three logged dishes so "Another" appears),
   `compare-toast-rate` / `-ok` / `-fail`, `compare-seed` / `compare-seed-empty`.
-- The toast says "Rate them" and the You pane header says "RANK MORE" (both as drawn); pick one verb later.
+- The toast says "Rate them" and the You pane header says "RATE MORE" (one verb, owner decision after the first merge; was "RANK MORE").
 - Not built: server sync of the derived favorite halls (see Out of scope). Until that brief lands,
   comparisons never reach the server from mobile.
 - Per-task screenshots and motion clips live on the remote branches `feat/h2h-toast`,
