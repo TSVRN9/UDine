@@ -84,14 +84,16 @@ export function dealPair(entries: LogEntry[], rankedDishes: RankedDish[], exclud
  * so the sheet and the after-pick toast screenshot without seeding or touching the device's real log
  * or rankings. French Toast is seeded at 14 comparisons so one pick lands on "N · 15 comparisons".
  */
-export function compareFixture() {
+export function compareFixture(rated = true) {
   const entry = (dishName: string, hallTid: number, calories: number) =>
     ({ id: `fixture-${dishName}`, loggedAt: "2026-01-01T12:00:00.000", source: { type: "umass-menu", dishName, hallTid }, servings: 1, nutrition: { calories } }) as unknown as LogEntry;
   let dishes: RankedDish[] = [];
-  let foods: RankedFood[] = [
-    { dishName: "French Toast", rating: 1908, comparisonCount: 14 },
-    { dishName: "Belgian Waffle", rating: 1500, comparisonCount: 14 },
-  ];
+  let foods: RankedFood[] = rated
+    ? [
+        { dishName: "French Toast", rating: 1908, comparisonCount: 14 },
+        { dishName: "Belgian Waffle", rating: 1500, comparisonCount: 14 },
+      ]
+    : [];
   const storage: RankingStorage & FoodRankingStorage = {
     getRankedDishes: async () => dishes,
     saveRankedDishes: async (d) => {
@@ -107,6 +109,23 @@ export function compareFixture() {
   // A fixed order, not dealPair's random draw, so screenshots line up with CompareSheet.dc.html.
   const pair: [CompareCard, CompareCard] = [compareCard(entries, entries[0].source as LoggedDish), compareCard(entries, entries[1].source as LoggedDish)];
   return { entries, pair, storage };
+}
+
+/**
+ * What a pick leads to, for every surface that hosts the sheet: the save, the toast text (the winner
+ * and its "9.1 · 15 comparisons"), and the next pair to offer ("Another"; null when there is none).
+ * Null when another pick is still saving -- drop the tap.
+ */
+export async function resolvePick(storage: RankingStorage & FoodRankingStorage, entries: LogEntry[], winner: CompareCard, loser: CompareCard) {
+  const saved = await recordComparison(storage, winner, loser);
+  if (!saved) return null;
+  const food = saved.foods.find((f) => f.dishName === winner.dishName);
+  return { ...saved, message: winner.dishName, subline: food ? comparisonSubLine(food) : undefined, next: dealPair(entries, saved.dishes, [winner, loser]) };
+}
+
+/** Skip: the next pair to show, or null when there is nothing else to deal (the caller closes the sheet). Records nothing. */
+export async function resolveSkip(storage: RankingStorage, entries: LogEntry[], shown: [Dish, Dish] | null) {
+  return dealPair(entries, await storage.getRankedDishes(), shown);
 }
 
 /** "9.1 · 15 comparisons", or just "2 comparisons" while scoreOutOfTen withholds the score. */

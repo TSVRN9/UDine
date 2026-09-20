@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text } from "react-native";
-import { Toast } from "./Toast";
+import { Toast, useToastDwell } from "./Toast";
 import Svg, { Path } from "react-native-svg";
 import { artboardEnclosingStyle, artboardStyle, artboardTag, normalizeColor } from "../lib/artboard";
-import { toastRise } from "../lib/motion";
+import { toastActionDwell, toastDwell, toastRise } from "../lib/motion";
 import { fonts } from "../lib/theme";
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -182,5 +182,32 @@ describe("Toast behaviour", () => {
     const outer = pressable(render({ kind: "failure", message: "x" })).parent!.props;
     expect(outer.entering().initialValues).toEqual({ opacity: 0, transform: [{ translateY: toastRise }] });
     expect(outer.exiting().initialValues).toEqual({ opacity: 1, transform: [{ translateY: 0 }] });
+  });
+});
+
+describe("useToastDwell", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  function Host({ toast, dismiss, pinned }: { toast: { kind: "success" | "failure"; action?: unknown } | null; dismiss: (t: null) => void; pinned?: boolean }) {
+    useToastDwell(toast, dismiss, pinned);
+    return null;
+  }
+  const dismissedAfter = (toast: { kind: "success" | "failure"; action?: unknown }, ms: number, pinned = false) => {
+    const dismiss = jest.fn();
+    act(() => {
+      renderer.create(<Host toast={toast} dismiss={dismiss} pinned={pinned} />);
+    });
+    act(() => jest.advanceTimersByTime(ms - 1));
+    const early = dismiss.mock.calls.length;
+    act(() => jest.advanceTimersByTime(2));
+    return [early, dismiss.mock.calls.length];
+  };
+  it("dismisses a plain success at toastDwell and one with an action at toastActionDwell", () => {
+    expect(dismissedAfter({ kind: "success" }, toastDwell)).toEqual([0, 1]);
+    expect(dismissedAfter({ kind: "success", action: {} }, toastActionDwell)).toEqual([0, 1]);
+  });
+  it("never dismisses a failure or a pinned fixture toast", () => {
+    expect(dismissedAfter({ kind: "failure" }, toastActionDwell * 2)).toEqual([0, 0]);
+    expect(dismissedAfter({ kind: "success" }, toastDwell * 2, true)).toEqual([0, 0]);
   });
 });
