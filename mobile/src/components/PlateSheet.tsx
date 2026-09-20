@@ -1,5 +1,5 @@
 import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type DishCatalogEntry, type LogStorage } from "@udine/shared";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { FadeIn, useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
@@ -157,6 +157,25 @@ const STRESS_CATALOG_REFRESH_DISH: DishCatalogEntry = {
   updatedAt: new Date(0).toISOString(),
 };
 
+// Dev-only static search-pane states (docs/briefs/platesheet-search-visual-parity.md): seeded
+// straight into state on open, no network, so every artboard state -- SearchStateInFlight/Empty/
+// Error.dc.html and PlateSheetResults.dc.html's with/without Load More -- can be captured by
+// `screenshot.sh halls/franklin --stress <name>`. Names: search-expanded (empty input),
+// search-inflight, search-results (6 rows: 5 shown + Load More), search-results-end (3 rows),
+// search-empty, search-error.
+const SEARCH_STATE_FIXTURES = new Set(["search-expanded", "search-inflight", "search-results", "search-results-end", "search-empty", "search-error"]);
+const STRESS_SEARCH_QUERY = "protein bar";
+const STRESS_SEARCH_EMPTY_QUERY = "zzqx";
+const STRESS_SEARCH_NUTRITION = { ...STRESS_LOOKUP_CANDIDATES[0].nutrition, servingSize: "1 serving" };
+const STRESS_SEARCH_ROWS: PlateSearchResult[] = [
+  { kind: "umass", dish: { dishName: "Peanut Butter Protein Bites", hallTid: 1, nutrition: { ...STRESS_SEARCH_NUTRITION, calories: 210 } } },
+  { kind: "custom", food: { id: "fx-shake", name: "Dad's Protein Shake", servingSize: "1 shake", nutrition: { ...STRESS_SEARCH_NUTRITION, calories: 340 } } },
+  { kind: "off", product: { barcode: "fx-kind", productName: "Kind Bar — Dark Chocolate", nutrition: { ...STRESS_SEARCH_NUTRITION, servingSize: "per 100g", calories: 452 } } },
+  { kind: "off", product: { barcode: "fx-quest", productName: "Quest Protein Bar", nutrition: { ...STRESS_SEARCH_NUTRITION, calories: 200 } } },
+  { kind: "usda", food: { fdcId: "fx-generic", productName: "Protein Bar, Generic", nutrition: { ...STRESS_SEARCH_NUTRITION, calories: 240 } } },
+  { kind: "off", product: { barcode: "fx-clif", productName: "Clif Builders Protein Bar", nutrition: { ...STRESS_SEARCH_NUTRITION, calories: 270 } } },
+];
+
 /** Whether a result belongs to the umass/custom "local" group decision 1
  * (docs/briefs/plate-search-semantics.md) always sorts first, regardless of which of the 4 search
  * groups' promises settled first -- "UMass numbers are source of truth on campus" (CLAUDE.md). */
@@ -281,7 +300,7 @@ export function PlateSheet({
   // network source's own next-page cursor; this tracks the display slice of the merged list).
   const [visibleCount, setVisibleCount] = useState(VISIBLE_RESULTS);
   const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState(false);
   // Pagination cursors for the networked sources (OFF/USDA/Branded) -- umass history/catalog and
   // custom foods are local device queries with no meaningful "next page" of their own. Reset on
   // every fresh search (runSearch) and advanced by loadMore below.
@@ -307,7 +326,6 @@ export function PlateSheet({
   const [justArrivedKeys, setJustArrivedKeys] = useState<Set<string>>(new Set());
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(640));
-  const scrollRef = useRef<ScrollView>(null);
   const searchInputRef = useRef<TextInput>(null);
   // The declarative `autoFocus` prop doesn't reliably request focus for a TextInput that's newly
   // mounted by a re-render inside an already-open Modal (confirmed on-device: the native EditText
@@ -474,6 +492,23 @@ export function PlateSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stressFixture]);
 
+  // Static search-state fixtures (SEARCH_STATE_FIXTURES above) -- state is seeded, never searched.
+  useEffect(() => {
+    if (!__DEV__ || !visible || !stressFixture || !SEARCH_STATE_FIXTURES.has(stressFixture)) return;
+    setSearchExpanded(true);
+    if (stressFixture === "search-expanded") return;
+    const q = stressFixture === "search-empty" ? STRESS_SEARCH_EMPTY_QUERY : STRESS_SEARCH_QUERY;
+    setQuery(q);
+    committedQueryRef.current = q;
+    inFlightQueryRef.current = q;
+    if (stressFixture === "search-error") setSearchError(true);
+    else if (stressFixture === "search-empty") setResults([]);
+    else if (stressFixture === "search-inflight") {
+      setSearching(true);
+      setResults(STRESS_SEARCH_ROWS.slice(0, 2));
+    } else setResults(STRESS_SEARCH_ROWS.slice(0, stressFixture === "search-results-end" ? 3 : 6));
+  }, [visible, stressFixture]);
+
   const itemCount = totalItemCount(plate);
 
   // Closing invalidates whatever's in flight and resets the search box -- a stale response that
@@ -491,7 +526,7 @@ export function PlateSheet({
       searchSeq.current++;
       setSearching(false);
       setVisibleCount(VISIBLE_RESULTS);
-      setSearchError(null);
+      setSearchError(false);
       setQuery("");
       setEditingKey(null);
       setSearchExpanded(false);
@@ -564,7 +599,7 @@ export function PlateSheet({
     committedQueryRef.current = q;
     const seq = ++searchSeq.current;
     setSearching(true);
-    setSearchError(null);
+    setSearchError(false);
     setDirectLookup("idle"); // a fresh search re-earns the "Search UMass Dining directly" affordance
     setJustArrivedKeys(new Set()); // a fresh search's own rows are never "just arrived" -- only a live catalog splice into an OPEN search is
     // Reset the paging/display state a fresh search owns up front, not at the end -- each group
@@ -605,11 +640,11 @@ export function PlateSheet({
       setSearching(false);
       if (addedAnything) return; // some group already spliced real rows in -- nothing left to decide
       if (anyRejected) {
-        // Generic, honest copy -- never the raw rejection, which leaks implementation details.
-        // `results` stays null (not []) since [] would also trigger the "No matches" hint below,
-        // which reads as confusing alongside an error. The footer's gating condition covers this
-        // branch too, so the "Create a custom food" escape hatch stays available here.
-        setSearchError("please try again, or create a custom food below");
+        // A flag, not the raw rejection -- which leaks implementation details and is never
+        // rendered. `results` stays null (not []) since [] would also trigger the "Nothing found"
+        // row below, which reads as confusing alongside an error. The footer's gating condition
+        // covers this branch too, so the "Create a custom food" escape hatch stays available here.
+        setSearchError(true);
       } else {
         setResults([]); // every group legitimately resolved empty -- the real "No matches" state
       }
@@ -863,13 +898,11 @@ export function PlateSheet({
             {contextLabel ? <Text style={styles.context}>{contextLabel}</Text> : null}
           </View>
 
-          <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
             {searchExpanded ? (
               <View style={styles.addSection} testID="addSection">
-                {/* SearchExpandedHeader.dc.html:35-38 -- the app's one backChevron style token
-                (also used by CustomFoodForm.tsx/NutritionLabel.tsx), paired with a "Search"
-                section title in a proper header row, same as those two and
-                SearchResultDetail.dc.html:18-21 already do. */}
+                {/* PlateSheetResults.dc.html:36-39 -- the artboard's 20x20 chevron SVG in a
+                chevron + "Search" title header row. Pinned (with the input row below) above the
+                results ScrollView: only the results list scrolls, per :50's overflow-y: auto. */}
                 <View style={styles.searchHeader}>
                   <Pressable
                     onPress={() => {
@@ -883,11 +916,13 @@ export function PlateSheet({
                     accessibilityRole="button"
                     accessibilityLabel="Back"
                   >
-                    <Text style={styles.backChevron}>‹</Text>
+                    <Svg width={fs(20)} height={fs(20)} viewBox="0 0 24 24" fill="none" testID="searchBackChevron">
+                      <Path d="M15 5l-7 7 7 7" stroke={colors.maroon900} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
                   </Pressable>
                   <Text style={styles.searchHeaderTitle}>Search</Text>
                 </View>
-                <View style={styles.searchRow}>
+                <View style={styles.searchRow} testID="searchRow">
                   <View style={styles.searchInputBox}>
                     {/* Magnifying-glass glyph, PlateSheetResults.dc.html:37 /
                     SearchExpandedHeader.dc.html:42. */}
@@ -903,10 +938,6 @@ export function PlateSheet({
                       placeholder="Search for a food"
                       placeholderTextColor={withOpacity(colors.ink900, 45)}
                       onSubmitEditing={() => runSearch()}
-                      // This box is now the top of its own full-pane view (once a search has run,
-                      // results/footer rows push it below the fold) -- scroll it to the end so the
-                      // query stays visible while typing.
-                      onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
                       returnKeyType="search"
                     />
                   </View>
@@ -929,13 +960,29 @@ export function PlateSheet({
                     Search
                   </Button>
                 </View>
+                {/* SearchStateInFlight.dc.html:49-51 -- the same gold-tinted row the direct-lookup
+                fetching state uses, so every "waiting" moment looks alike. */}
                 {searching && (
-                  <View style={styles.searchSpinner}>
+                  <View style={styles.lookupStateRowFetching} testID="searchStateRow">
                     <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
+                    <Text style={styles.lookupStateTextFetching}>Searching…</Text>
                   </View>
                 )}
-                {searchError && <Text style={styles.searchError}>Search failed: {searchError}</Text>}
-                {results?.length === 0 && !searching && <Text style={styles.searchHint}>No matches.</Text>}
+                {/* SearchStateError.dc.html:44-50 -- the rate-limited pill's gray treatment plus an
+                alert glyph; the raw rejection is never rendered. */}
+                {searchError && (
+                  <View style={styles.lookupStateRowRateLimited} testID="searchErrorRow">
+                    <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="searchErrorIcon">
+                      <Circle cx={8} cy={8} r={6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
+                      <Path d="M8 4.8v3.6" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" />
+                      <Circle cx={8} cy={11} r={0.9} fill={withOpacity(colors.ink900, 40)} />
+                    </Svg>
+                    <Text style={styles.lookupStateTextRateLimited}>Couldn&apos;t search right now. Check your connection and try again.</Text>
+                  </View>
+                )}
+                {/* SearchStateEmpty.dc.html:47. The COMMITTED query, not the live input -- typing
+                a new one without submitting must not relabel the results already on screen. */}
+                {results?.length === 0 && !searching && <Text style={styles.searchHint}>{`Nothing found for ${committedQueryRef.current}`}</Text>}
                 {/* lookup-dish's fetching/rate_limited states render as ONE inline row at the
                 exact spot a UMass-catalog match would occupy in the list below -- not a
                 blocking full-screen state, and OFF/USDA/Custom rows already found keep showing
@@ -968,188 +1015,196 @@ export function PlateSheet({
                     )}
                   </View>
                 )}
-                {results?.slice(0, visibleCount).map((r) => {
-                  const key = plateSearchResultKey(r);
-                  const detail = plateSearchResultDetail(r);
-                  const badge = BADGE_INFO[r.kind];
-                  return (
-                    // Decision 5: a row a live catalog-refresh just spliced into an already-open
-                    // search fades in (same entrance halls/[slug].tsx's own expanded-content
-                    // reveal uses) instead of silently re-sorting/appearing with no signal --
-                    // `entering` undefined for every other (ordinary search-hit) row is a no-op.
-                    <Animated.View key={key} style={styles.resultRow} entering={justArrivedKeys.has(key) ? FadeIn.duration(durations.rowExpandIn) : undefined}>
-                      <Pressable
-                        style={styles.resultInfo}
-                        onPress={() => onShowResultDetail(r)}
-                        accessibilityRole="button"
-                        // The badge is visual-only, so the source distinction is spelled out here
-                        // too, or a screen-reader user gets two indistinguishable "View Pizza"
-                        // actions on a name collision. "View", not "Add" -- tapping a result opens
-                        // the confirm/detail step, not an instant add.
-                        accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
-                      >
-                        <View style={styles.resultHeaderRow}>
-                          <Text style={styles.resultLabel}>{detail.dishName}</Text>
-                          <View style={[styles.badge, { backgroundColor: badge.fill }]}>
-                            <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                          </View>
-                        </View>
-                        <Text style={styles.resultCalories}>
-                          {Math.round(detail.nutrition.calories)} cal{isEstimatedServing(detail.nutrition) ? " · est. per 100g" : ""}
-                        </Text>
-                      </Pressable>
-                    </Animated.View>
-                  );
-                })}
-                {(() => {
-                  const total = results?.length ?? 0;
-                  const hiddenFetched = total - visibleCount;
-                  const canFetchMore = offHasMore || usdaHasMore || brandedHasMore;
-                  if (hiddenFetched <= 0 && !canFetchMore) return null;
-                  // Decision 4 (plate-search-semantics.md): always "Load More" -- the underlying
-                  // reveal-buffered-vs-fetch-next-page split above is unchanged, but a count in the
-                  // label leaked that implementation distinction into user-facing copy (confusing
-                  // when it silently changed from "Load 5 More" to "Load 20 More" mid-session).
-                  const label = loadingMore ? "Loading…" : "Load More";
-                  return (
-                    <Button variant="ghost" size="sm" style={styles.loadMoreButton} textStyle={styles.loadMoreButtonText} onPress={loadMore} disabled={loadingMore}>
-                      {label}
-                    </Button>
-                  );
-                })()}
-                {/* Manual, explicit fallback to lookup-dish's on-demand FoodPro Web INA lookup --
-                never fires on its own. Unconditionally available once a search finishes (decision
-                3, plate-search-semantics.md) -- it used to hide the moment ANY umass-kind result
-                existed anywhere in `results`, even an unrelated catalog hit sharing a keyword with
-                the query and nothing to do with whether the food the user actually wants is
-                present ("I really don't see it at the bottom at times"). Hidden while a lookup is
-                already in flight -- the inline row above is the only fetching indicator (exactly
-                one, not this button too); shown again for idle/miss/rate_limited so retry always
-                stays one manual tap away, never a timer. */}
-                {results !== null && !searching && directLookup !== "loading" && (
-                  <View style={styles.directLookup}>
-                    <Button variant="ghost" size="sm" onPress={runDirectLookup} accessibilityLabel="Search UMass Dining directly">
+                <ScrollView style={styles.resultsScroll} contentContainerStyle={styles.resultsContent} keyboardShouldPersistTaps="handled">
+                  {results?.slice(0, visibleCount).map((r, i) => {
+                    const key = plateSearchResultKey(r);
+                    const detail = plateSearchResultDetail(r);
+                    const badge = BADGE_INFO[r.kind];
+                    const estimated = isEstimatedServing(detail.nutrition);
+                    // PlateSheetResults.dc.html:52-98 -- a 1px divider sits BETWEEN rows, never after
+                    // the last. Decision 5: a row a live catalog-refresh just spliced into an
+                    // already-open search fades in (same entrance halls/[slug].tsx's own
+                    // expanded-content reveal uses) instead of silently re-sorting/appearing with no
+                    // signal -- `entering` undefined for every other (ordinary search-hit) row is a no-op.
+                    return (
+                      <Fragment key={key}>
+                        {i > 0 && <View style={styles.resultDivider} testID="resultDivider" />}
+                        <Animated.View testID="resultRow" style={styles.resultRow} entering={justArrivedKeys.has(key) ? FadeIn.duration(durations.rowExpandIn) : undefined}>
+                          <Pressable
+                            style={styles.resultInfo}
+                            onPress={() => onShowResultDetail(r)}
+                            accessibilityRole="button"
+                            // The badge is visual-only, so the source distinction is spelled out here
+                            // too, or a screen-reader user gets two indistinguishable "View Pizza"
+                            // actions on a name collision. "View", not "Add" -- tapping a result opens
+                            // the confirm/detail step, not an instant add.
+                            accessibilityLabel={`View ${detail.dishName} (${badge.label})`}
+                          >
+                            <View style={styles.resultHeaderRow}>
+                              <Text style={styles.resultLabel}>{detail.dishName}</Text>
+                              <View style={[styles.badge, { backgroundColor: badge.fill }]}>
+                                <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.resultCalories}>
+                              {`${estimated ? "≈ " : ""}${Math.round(detail.nutrition.calories)} cal${estimated ? " per 100g" : ""}`}
+                            </Text>
+                          </Pressable>
+                        </Animated.View>
+                      </Fragment>
+                    );
+                  })}
+                  {(() => {
+                    const total = results?.length ?? 0;
+                    const hiddenFetched = total - visibleCount;
+                    const canFetchMore = offHasMore || usdaHasMore || brandedHasMore;
+                    if (hiddenFetched <= 0 && !canFetchMore) return null;
+                    // Decision 4 (plate-search-semantics.md): always "Load More" -- the underlying
+                    // reveal-buffered-vs-fetch-next-page split above is unchanged, but a count in the
+                    // label leaked that implementation distinction into user-facing copy (confusing
+                    // when it silently changed from "Load 5 More" to "Load 20 More" mid-session).
+                    const label = loadingMore ? "Loading…" : "Load More";
+                    return (
+                      <Button variant="ghost" size="sm" style={[styles.actionButton, styles.loadMoreButton]} textStyle={[styles.actionButtonText, styles.loadMoreButtonText]} onPress={loadMore} disabled={loadingMore}>
+                        {label}
+                      </Button>
+                    );
+                  })()}
+                  {/* Manual, explicit fallback to lookup-dish's on-demand FoodPro Web INA lookup --
+                  never fires on its own. Unconditionally available once a search finishes (decision
+                  3, plate-search-semantics.md) -- it used to hide the moment ANY umass-kind result
+                  existed anywhere in `results`, even an unrelated catalog hit sharing a keyword with
+                  the query and nothing to do with whether the food the user actually wants is
+                  present ("I really don't see it at the bottom at times"). Hidden while a lookup is
+                  already in flight -- the inline row above is the only fetching indicator (exactly
+                  one, not this button too); shown again for idle/miss/rate_limited so retry always
+                  stays one manual tap away, never a timer. */}
+                  {results !== null && !searching && directLookup !== "loading" && (
+                    <Button variant="secondary" size="sm" style={styles.actionButton} textStyle={styles.actionButtonText} onPress={runDirectLookup} accessibilityLabel="Search UMass Dining directly">
                       Search UMass Dining directly
                     </Button>
-                  </View>
-                )}
-                {/* Standing footer row -- shown whenever a search has actually run, whether or
-                not it found anything, since no database this sheet searches has every food. Also
-                shown on the all-rejected error branch, when the user most needs this escape hatch.
-                `!searching` is required here (not on the direct-lookup gate above, which already
-                has its own) -- 3b's streaming means `results` can go non-null WHILE other groups
-                are still in flight, and this footer's "no database has every food" framing reads
-                as a post-search summary, not a live-while-typing state, so it must wait for the
-                whole search to actually finish. */}
-                {((results !== null && !searching) || searchError !== null) && (
-                  <Pressable
-                    style={styles.customFoodRow}
-                    onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Create a custom food"
-                  >
-                    <Text style={styles.customFoodRowIcon}>+</Text>
-                    <Text style={styles.customFoodRowText}>Can&apos;t find it? Create a custom food</Text>
-                  </Pressable>
-                )}
+                  )}
+                  {/* Standing footer row -- shown whenever a search has actually run, whether or
+                  not it found anything, since no database this sheet searches has every food. Also
+                  shown on the all-rejected error branch, when the user most needs this escape hatch.
+                  `!searching` is required here (not on the direct-lookup gate above, which already
+                  has its own) -- 3b's streaming means `results` can go non-null WHILE other groups
+                  are still in flight, and this footer's "no database has every food" framing reads
+                  as a post-search summary, not a live-while-typing state, so it must wait for the
+                  whole search to actually finish. */}
+                  {((results !== null && !searching) || searchError) && (
+                    <Pressable
+                      style={styles.customFoodRow}
+                      onPress={() => onOpenCustomFoodForm(query.trim() || undefined)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Create a custom food"
+                    >
+                      <Svg width={fs(18)} height={fs(18)} viewBox="0 0 20 20" fill="none" testID="customFoodPlusIcon">
+                        <Path d="M10 4v12M4 10h12" stroke={colors.maroon600} strokeWidth={1.7} strokeLinecap="round" />
+                      </Svg>
+                      <Text style={styles.customFoodRowText}>Can&apos;t find it? Create a custom food</Text>
+                    </Pressable>
+                  )}
+                </ScrollView>
               </View>
             ) : (
-              // Idle state: item list/totals/LOG button, then the idle "Add something else" row
-              // (PlateExpanded.dc.html:87-93). searchExpanded now gates this ENTIRE pane body
-              // (3a) -- expanding search replaces all of it with just the back button + search
-              // block above, rather than leaving this mounted underneath a swapped-in search box.
-              <>
-                <View style={styles.itemList}>
-                  {plate.map((entry) => (
-                    <View key={entry.key} style={styles.itemRow}>
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemLabel}>{entry.label}</Text>
-                        <Text style={styles.itemCalories}>
-                          {Math.round(entry.nutrition.calories)} cal each{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
-                        </Text>
-                      </View>
-                      <View style={[styles.stepper, editingKey === entry.key && styles.stepperEditing]}>
-                        <Pressable
-                          style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
-                          onPress={() => onStep(entry.key, -1)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Remove one ${entry.label}`}
-                        >
-                          <Text style={styles.stepperButtonText}>−</Text>
-                        </Pressable>
-                        {editingKey === entry.key ? (
-                          <TextInput
-                            style={styles.stepperInput}
-                            value={editingText}
-                            onChangeText={setEditingText}
-                            keyboardType="decimal-pad"
-                            autoFocus
-                            selectTextOnFocus
-                            onSubmitEditing={commitEditingCount}
-                            onBlur={commitEditingCount}
-                            accessibilityLabel={`Servings for ${entry.label}`}
-                          />
-                        ) : (
-                          <Pressable onPress={() => beginEditingCount(entry)} accessibilityRole="button" accessibilityLabel={`Edit servings for ${entry.label}`}>
-                            <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
+              <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+                {/* Idle state: item list/totals/LOG button, then the idle "Add something else" row
+                (PlateExpanded.dc.html:87-93). searchExpanded now gates this ENTIRE pane body
+                (3a) -- expanding search replaces all of it with just the back button + search
+                block above, rather than leaving this mounted underneath a swapped-in search box. */}
+                <>
+                  <View style={styles.itemList}>
+                    {plate.map((entry) => (
+                      <View key={entry.key} style={styles.itemRow}>
+                        <View style={styles.itemInfo}>
+                          <Text style={styles.itemLabel}>{entry.label}</Text>
+                          <Text style={styles.itemCalories}>
+                            {Math.round(entry.nutrition.calories)} cal each{isEstimatedServing(entry.nutrition) ? " · est. per 100g" : ""}
+                          </Text>
+                        </View>
+                        <View style={[styles.stepper, editingKey === entry.key && styles.stepperEditing]}>
+                          <Pressable
+                            style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                            onPress={() => onStep(entry.key, -1)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Remove one ${entry.label}`}
+                          >
+                            <Text style={styles.stepperButtonText}>−</Text>
                           </Pressable>
-                        )}
-                        <Pressable
-                          style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
-                          onPress={() => onStep(entry.key, 1)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Add one ${entry.label}`}
-                        >
-                          <Text style={styles.stepperButtonText}>+</Text>
-                        </Pressable>
+                          {editingKey === entry.key ? (
+                            <TextInput
+                              style={styles.stepperInput}
+                              value={editingText}
+                              onChangeText={setEditingText}
+                              keyboardType="decimal-pad"
+                              autoFocus
+                              selectTextOnFocus
+                              onSubmitEditing={commitEditingCount}
+                              onBlur={commitEditingCount}
+                              accessibilityLabel={`Servings for ${entry.label}`}
+                            />
+                          ) : (
+                            <Pressable onPress={() => beginEditingCount(entry)} accessibilityRole="button" accessibilityLabel={`Edit servings for ${entry.label}`}>
+                              <Text style={styles.stepperCount}>{formatServings(entry.count)}</Text>
+                            </Pressable>
+                          )}
+                          <Pressable
+                            style={[styles.stepperButton, editingKey === entry.key && styles.stepperButtonEditing]}
+                            onPress={() => onStep(entry.key, 1)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Add one ${entry.label}`}
+                          >
+                            <Text style={styles.stepperButtonText}>+</Text>
+                          </Pressable>
+                        </View>
                       </View>
+                    ))}
+                  </View>
+
+                  <View style={styles.divider} />
+
+                  <View style={styles.totalsRow}>
+                    <View style={styles.totalCell}>
+                      <Stat label="Calories" value={String(Math.round(totals.calories))} />
                     </View>
-                  ))}
-                </View>
+                    <View style={styles.totalCell}>
+                      <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
+                    </View>
+                    <View style={styles.totalCell}>
+                      <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(0)}g`} />
+                    </View>
+                    <View style={styles.totalCell}>
+                      <Stat label="Fat" value={`${totals.totalFatG.toFixed(0)}g`} />
+                    </View>
+                  </View>
 
-                <View style={styles.divider} />
+                  <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
+                    {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
+                  </Button>
 
-                <View style={styles.totalsRow}>
-                  <View style={styles.totalCell}>
-                    <Stat label="Calories" value={String(Math.round(totals.calories))} />
-                  </View>
-                  <View style={styles.totalCell}>
-                    <Stat label="Protein" value={`${totals.proteinG.toFixed(0)}g`} />
-                  </View>
-                  <View style={styles.totalCell}>
-                    <Stat label="Carbs" value={`${totals.totalCarbG.toFixed(0)}g`} />
-                  </View>
-                  <View style={styles.totalCell}>
-                    <Stat label="Fat" value={`${totals.totalFatG.toFixed(0)}g`} />
-                  </View>
-                </View>
-
-                <Button variant="primary" style={styles.logButton} textStyle={styles.logButtonText} onPress={onLog} disabled={plate.length === 0}>
-                  {`LOG ${formatServings(itemCount)} ${itemCount === 1 ? "ITEM" : "ITEMS"}`}
-                </Button>
-
-                {/* The artboard's hint copy mentions barcode scanning, but no such feature exists
-                in this app, so that clause is dropped. */}
-                <Pressable
-                  style={[styles.addSection, styles.addSectionIdle]}
-                  onPress={() => setSearchExpanded(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Add something else"
-                  testID="addSection"
-                >
-                  {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
-                  <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
-                    <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
-                    <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
-                  </Svg>
-                  <View style={styles.addIdleText}>
-                    <Text style={styles.addIdleTitle}>Add something else</Text>
-                    <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
-                  </View>
-                </Pressable>
-              </>
+                  {/* The artboard's hint copy mentions barcode scanning, but no such feature exists
+                  in this app, so that clause is dropped. */}
+                  <Pressable
+                    style={[styles.addSection, styles.addSectionIdle]}
+                    onPress={() => setSearchExpanded(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add something else"
+                    testID="addSection"
+                  >
+                    {/* Magnifying-glass glyph per PlateExpanded.dc.html:87. */}
+                    <Svg width={fs(20)} height={fs(20)} viewBox="0 0 20 20" fill="none">
+                      <Circle cx={9} cy={9} r={5.5} stroke={colors.maroon600} strokeWidth={1.6} />
+                      <Path d="M13.5 13.5L17 17" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" />
+                    </Svg>
+                    <View style={styles.addIdleText}>
+                      <Text style={styles.addIdleTitle}>Add something else</Text>
+                      <Text style={styles.addIdleHint}>Search for foods not on the menu.</Text>
+                    </View>
+                  </Pressable>
+                </>
+              </ScrollView>
             )}
-          </ScrollView>
         </Animated.View>
       </Animated.View>
     </GestureHandlerRootView>
@@ -1243,21 +1298,15 @@ const styles = StyleSheet.create({
   logButton: { height: fs(52), borderRadius: radii.md },
   logButtonText: { fontFamily: fonts.display600, fontSize: fs(16), letterSpacing: 1, textTransform: "uppercase" },
 
-  // Shared by both the idle "Add something else" row and the expanded search block -- audited
-  // (docs/briefs/platesheet-search-panel-spacing-gap.md) against BOTH artboards it's dual-purposed
-  // for, not just the property a report happened to name:
-  //  - marginTop/borderRadius/paddingVertical/paddingHorizontal/minHeight are all idle-pill-only
-  //    (PlateExpanded.dc.html:87-93's asymmetric 12px/14px padding, 44px min-height, dashed
-  //    border) -- SearchExpandedHeader.dc.html has no wrapping box at all around its header/input
-  //    rows, so all five moved to addSectionIdle below; this shared object carries none of them.
-  //  - `gap` stays here: it's the internal rhythm among addSection's OWN children once a search
-  //    has actually run (spinner/error/results/footer rows, spec'd by PlateSheetResults.dc.html,
-  //    a separate artboard this brief doesn't cover) -- unaffected by this fix. The one pair this
-  //    brief DOES cover (searchHeader -> searchRow) needs 10px total, not this shared 4px, so
-  //    searchHeader below adds the extra 6px itself rather than bumping this shared value and
-  //    disturbing every other row spacing PlateSheetResults.dc.html already governs.
+  // Shared by the idle "Add something else" row (which overrides gap via addSectionIdle) and the
+  // expanded search pane, whose panel gap is SearchExpandedHeader.dc.html:24's 10px between its
+  // rows (back header, input row, status row, results list). flexShrink: 1 lets the pane -- and
+  // the results ScrollView inside it -- give up height to the sheet's maxHeight while the header
+  // and input stay pinned. The idle-only box (dashed border, padding, min-height, radius) lives on
+  // addSectionIdle; the expanded pane has no wrapping box.
   addSection: {
-    gap: spacing(1),
+    gap: spacing(2.5),
+    flexShrink: 1,
   },
   addSectionIdle: {
     flexDirection: "row",
@@ -1278,26 +1327,18 @@ const styles = StyleSheet.create({
   addIdleText: { flexShrink: 1, gap: 0 },
   addIdleTitle: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
   addIdleHint: { fontFamily: fonts.body400, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
-  // SearchExpandedHeader.dc.html:35-38 -- the back chevron sits in a header row with a "Search"
-  // section title, the same chevron+title convention CustomFoodForm.tsx's own header already
-  // uses, instead of floating alone outside any row. Smaller than CustomFoodForm's full top-of-
-  // screen title (13px/600 vs 20px/700) -- this one lives inside the already-compact addSection
-  // panel, not a standalone modal header.
-  // marginBottom 6 (spacing(1.5)) on top of addSection's own 4px gap = 10px total to searchRow
-  // below, matching SearchExpandedHeader.dc.html:24's 10px panel gap for this pair specifically
-  // (see addSection's own comment above for why the shared gap itself stays 4px).
-  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: fs(2), marginBottom: spacing(1.5) },
+  // PlateSheetResults.dc.html:36 -- chevron SVG + "Search" title: gap 10, padding 2px 0, centered.
+  searchHeader: { flexDirection: "row", alignItems: "center", gap: spacing(2.5), paddingVertical: fs(2) },
   searchHeaderTitle: { fontFamily: fonts.display600, fontSize: fs(13), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
-  // Same backChevron the app's other in-sheet close buttons use (CustomFoodForm.tsx,
-  // NutritionLabel.tsx, CafePdfViewer.tsx) -- repurposed here to collapse back to idle instead of
-  // closing the whole sheet.
-  backChevron: { fontFamily: fonts.body400, fontSize: fs(32), lineHeight: fs(34), color: colors.maroon900, marginTop: -4 },
-  searchRow: { flexDirection: "row", gap: spacing(2), alignItems: "center" },
+  // PlateSheetResults.dc.html:41 -- gap 10, children stretch (CSS default), so the Search button
+  // fills the input box's height.
+  searchRow: { flexDirection: "row", gap: spacing(2.5), alignItems: "stretch" },
   // PlateSheetResults.dc.html:40 / SearchExpandedHeader.dc.html:45 -- #3b0a0f fill, 6px radius,
   // darker than buttonColors("primary")'s maroon600 default. fontWeight "400" cancels Button's own
   // base 600 weight, which would fake-bold display600's already-600 Oswald family (same reasoning
   // as CustomFoodForm.tsx's saveButtonText).
-  searchButton: { borderRadius: radii.md, backgroundColor: colors.maroon900 },
+  // padding 0 18px (PlateSheetResults.dc.html:45) -- height comes from the stretched row, not padding.
+  searchButton: { borderRadius: radii.md, backgroundColor: colors.maroon900, paddingVertical: 0, paddingHorizontal: spacing(4.5) },
   searchButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.5, textTransform: "uppercase", fontWeight: "400" },
   // PlateSheetResults.dc.html:36 -- the border wraps the icon+input box itself, not the whole
   // expanded panel (addSection above no longer carries one).
@@ -1307,20 +1348,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing(2),
     borderWidth: 1,
-    borderColor: withOpacity(colors.ink900, 25),
+    borderColor: withOpacity(colors.ink900, 20),
     borderRadius: radii.md,
     paddingHorizontal: spacing(3),
-    paddingVertical: spacing(2),
+    paddingVertical: spacing(2.5),
   },
   searchInput: {
     flex: 1,
     fontFamily: fonts.body400,
-    color: colors.ink900,
+    fontSize: fs(13),
+    color: colors.maroon900,
   },
-  searchSpinner: { marginTop: spacing(2) },
-  searchError: { fontFamily: fonts.body400, fontSize: fs(13), color: "#b00020", marginTop: spacing(2) },
-  searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 55), marginTop: spacing(2) },
-  directLookup: { alignItems: "center", gap: spacing(1.5), marginTop: spacing(2) },
+  // SearchStateEmpty.dc.html:47 -- 13px, ink @65%, padding 8px 2px.
+  searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 65), paddingVertical: spacing(2), paddingHorizontal: spacing(0.5) },
+  // PlateSheetResults.dc.html:50 -- only the results list scrolls; its rows/actions sit in a gap-6 column.
+  resultsScroll: { flexGrow: 0 },
+  resultsContent: { gap: spacing(1.5) },
   // lookup-dish's fetching/rate_limited states occupy the same SLOT in the results list (brief
   // foodpro-menu-expansion task 4) but are two distinct pills per SearchLookupStates.dc.html, not
   // one shared style -- a gold-tinted pill while fetching (line 43) vs. a gray-tinted pill once
@@ -1353,17 +1396,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing(2),
+    gap: spacing(2.5),
     paddingVertical: spacing(2),
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: withOpacity(colors.ink900, 15),
+    paddingHorizontal: spacing(0.5),
   },
-  resultInfo: { flex: 1, gap: 1 },
+  // PlateSheetResults.dc.html:53 -- 1px rgba(36,26,20,0.08) rule between rows.
+  resultDivider: { height: 1, backgroundColor: withOpacity(colors.ink900, 8) },
+  resultInfo: { flex: 1, gap: 2 },
   resultHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing(1.5) },
   // flexShrink: 1 -- without it this Text refuses to shrink below its own content width (RN/Yoga
   // default), so a long dish/product name pushes the sibling kind badge off the row's right edge.
-  resultLabel: { flexShrink: 1, fontFamily: fonts.body400, fontSize: fs(14), color: colors.ink900 },
-  resultCalories: { fontFamily: fonts.mono, fontSize: fs(13), color: withOpacity(colors.ink900, 60) },
+  resultLabel: { flexShrink: 1, fontFamily: fonts.body600, fontSize: fs(13), color: colors.ink900 },
+  resultCalories: { fontFamily: fonts.mono, fontSize: fs(11), color: withOpacity(colors.ink900, 55) },
   // PlateSheetResults.dc.html:49,60,71,82,93 -- filled pill, no border, 9px/700 sans-serif at
   // 0.4px letterspacing, 2px/6px padding. fonts.body600 is the closest loaded weight to the spec's
   // 700 -- an explicit fontWeight on a lighter family fake-bolds it on Android.
@@ -1373,9 +1417,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   badgeText: { fontFamily: fonts.body600, fontSize: fs(9), letterSpacing: 0.4, textTransform: "uppercase" },
-  // PlateSheetResults.dc.html:99 -- Oswald/600/12px uppercase with a visible border.
-  loadMoreButton: { alignSelf: "center", marginTop: spacing(1.5), borderWidth: 1, borderColor: withOpacity(colors.ink900, 20), borderRadius: 6 },
-  loadMoreButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.8, textTransform: "uppercase", color: withOpacity(colors.ink900, 65) },
+  // PlateSheetResults.dc.html:104/106 -- Load More and "Search UMass Dining directly" share one
+  // full-width block geometry (radius 6, padding 10, marginTop 6, Oswald 600 12px/0.8 uppercase);
+  // colors come from the variant (secondary = maroon) or, for Load More, the two overrides below.
+  // fontWeight "400" cancels Button's base 600 so Oswald's 600 family isn't fake-bolded.
+  actionButton: { borderRadius: radii.md, paddingVertical: spacing(2.5), paddingHorizontal: spacing(2.5), marginTop: spacing(1.5) },
+  actionButtonText: { fontFamily: fonts.display600, fontSize: fs(12), letterSpacing: 0.8, textTransform: "uppercase", fontWeight: "400" },
+  loadMoreButton: { borderColor: withOpacity(colors.ink900, 20) },
+  loadMoreButtonText: { color: withOpacity(colors.ink900, 65) },
   // PlateSheetResults.dc.html:103 -- a dashed box with a "+" icon.
   customFoodRow: {
     flexDirection: "row",
@@ -1389,6 +1438,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(3),
     paddingHorizontal: spacing(3.5),
   },
-  customFoodRowIcon: { fontSize: fs(16), fontWeight: "700", color: colors.maroon600 },
   customFoodRowText: { flex: 1, fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
 });
