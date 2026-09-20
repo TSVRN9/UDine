@@ -1493,7 +1493,9 @@ export function HallMenuScreenBody({
 
   async function skipComparison() {
     const next = dealPair(compareEntries.current, await compareStore.getRankedDishes(), comparePair);
+    // no other pair (only two dishes logged): nothing left to deal, close
     if (next) setComparePair(next);
+    else setCompareOpen(false);
   }
 
   // Shared by both SectionLists below (the 3 real meal tabs and the Grab tab) -- same dish-row

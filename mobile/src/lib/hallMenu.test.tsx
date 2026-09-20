@@ -2487,7 +2487,7 @@ describe("HallMenuScreen head-to-head compare", () => {
     ["Pizza", "Soup"],
     ["Soup", "Pizza"],
   ])("picking %s over %s records that winner on both Elo tracks, closes the sheet and shows the 'Another' toast", async (winner, loser) => {
-    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]); // three logged dishes, so there is another pair to offer
     await openCompare(root);
     await act(async () => sheetPress(root, winner)());
 
@@ -2520,32 +2520,70 @@ describe("HallMenuScreen head-to-head compare", () => {
     expect(mockRanking.saveRankedDishes.mock.calls[0][0].find((d: { dishName: string }) => d.dishName === "Soup").comparisonCount).toBe(1);
   });
 
-  it("Skip records nothing and deals a different pair", async () => {
+  // pickPair draws by index into the logged dishes (first-seen order: Soup, Pizza, Salad), three
+  // Math.random() samples per candidate slot. Scripting them makes the FIRST candidate the pair
+  // just shown, so a re-deal that forgets to exclude it is caught deterministically; the second
+  // candidate is Salad vs Pizza.
+  const idx = (i: number) => (i + 0.5) / 3;
+  const SHOWN_THEN_FRESH = [1, 1, 1, 0, 0, 0, 2, 2, 2, 1, 1, 1].map(idx); // (Pizza, Soup), then (Salad, Pizza)
+  async function scripted(seq: number[], fn: () => Promise<void>) {
+    const queue = [...seq];
+    let n = 0;
+    const spy = jest.spyOn(Math, "random").mockImplementation(() => queue.shift() ?? [0.1, 0.9][n++ % 2]);
+    try {
+      await fn();
+    } finally {
+      spy.mockRestore();
+    }
+  }
+  const sorted = (root: renderer.ReactTestRenderer) => [...pairNames(root)].sort();
+
+  it("Skip records nothing and never re-deals the pair on screen (three dishes)", async () => {
     const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
     await openCompare(root);
-    const shown = pairNames(root);
-    await act(async () => sheetPress(root, "Skip")());
+    expect(sorted(root)).toEqual(["Pizza", "Soup"]);
+    await scripted(SHOWN_THEN_FRESH, async () => {
+      await act(async () => sheetPress(root, "Skip")());
+    });
 
     expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
     expect(mockRanking.saveRankedFoods).not.toHaveBeenCalled();
     expect(sheet(root).props.visible).toBe(true);
-    // three distinct dishes are logged (Pizza, Salad, Soup), so the next pair can differ
-    const next = pairNames(root);
-    expect([...next].sort()).not.toEqual([...shown].sort());
+    expect(sorted(root)).toEqual(["Pizza", "Salad"]);
   });
 
-  it("'Another' reopens the sheet on a fresh pair and dismisses the toast", async () => {
+  it("'Another' reopens the sheet on a pair other than the one just picked, and dismisses the toast (three dishes)", async () => {
     const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
     await openCompare(root);
-    const shown = pairNames(root);
-    await act(async () => sheetPress(root, shown[0])());
+    expect(sorted(root)).toEqual(["Pizza", "Soup"]);
+    await scripted(SHOWN_THEN_FRESH, async () => {
+      await act(async () => sheetPress(root, "Pizza")());
+    });
     expect(toastAction(root)?.label).toBe("Another");
     await act(async () => {
       toastAction(root)!.onPress();
     });
     expect(sheet(root).props.visible).toBe(true);
     expect(root.root.findAllByType(Toast)).toHaveLength(0);
-    expect([...pairNames(root)].sort()).not.toEqual([...shown].sort());
+    expect(sorted(root)).toEqual(["Pizza", "Salad"]);
+  });
+
+  it("with only two logged dishes a pick's toast has no 'Another' (there is no other pair)", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    await act(async () => sheetPress(root, "Pizza")());
+    expect(findToast(root).props.message).toBe("Pizza");
+    expect(mockRanking.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("with only two logged dishes Skip closes the sheet and records nothing", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    await act(async () => sheetPress(root, "Skip")());
+    expect(sheet(root).props.visible).toBe(false);
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+    expect(mockRanking.saveRankedFoods).not.toHaveBeenCalled();
   });
 
   it("a backdrop tap closes the sheet without recording anything", async () => {
