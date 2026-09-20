@@ -58,6 +58,8 @@ set -euo pipefail
 #   store: nothing on the device is read or written; --tap the entry point to open the sheet.
 #   NAME=compare-seed-used is compare-seed with today's daily allowance already spent (an in-memory
 #   allowance, the device's is untouched): Top Foods populated, no "RATE MORE".
+#   NAME=compare-seed-count spends two of today's picks (in-memory) and opens the sheet by itself on "3 of 5",
+#   with no gesture (route `/`, no swipe: the sheet is a modal over whichever pane is showing).
 # --record-nav: start screenrecord BEFORE the route-navigation deep link fires, instead
 #   of after the post-navigation settle. Without it, --record's clip only ever shows the
 #   already-settled end state of navigation -- any animation that fires automatically as

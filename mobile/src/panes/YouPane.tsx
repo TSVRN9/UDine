@@ -144,13 +144,15 @@ export function YouPane() {
     getCachedHours().then(() => forceRetailNamesRerender((n) => n + 1));
   }, []);
 
-  // Dev-only `--stress compare-seed[-empty|-used]` (screenshot.sh): logged dishes, an in-memory ranking store and an
-  // in-memory allowance (`-used`: today's already spent), so the head-to-head entry points screenshot without touching
-  // the device's real log, rankings or allowance.
+  // Dev-only `--stress compare-seed[-empty|-used|-count]` (screenshot.sh): logged dishes, an in-memory ranking store and an
+  // in-memory allowance (`-used`: today's already spent; `-count`: two spent, and the sheet opens by itself on "3 of 5"), so the
+  // head-to-head entry points screenshot without touching the device's real log, rankings or allowance.
   const { stress } = useLocalSearchParams<{ stress?: string }>();
   // useMemo, not lazy state: the deep link that carries `stress` can land after this pane first mounts.
-  const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty" || stress === "compare-seed-used") ? compareFixture(stress !== "compare-seed-empty") : null), [stress]);
-  const allowance = useMemo(() => (fixture ? memoryAllowanceStore(__DEV__ && stress === "compare-seed-used" ? DAILY_ALLOWANCE : 0) : sqliteAllowanceStore), [fixture, stress]);
+  const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty" || stress === "compare-seed-used" || stress === "compare-seed-count") ? compareFixture(stress !== "compare-seed-empty") : null), [stress]);
+  const usedFixture = __DEV__ && stress === "compare-seed-used";
+  const countFixture = __DEV__ && stress === "compare-seed-count";
+  const allowance = useMemo(() => (fixture ? memoryAllowanceStore(usedFixture ? DAILY_ALLOWANCE : countFixture ? 2 : 0) : sqliteAllowanceStore), [fixture, usedFixture, countFixture]);
   const ranking = fixture?.storage ?? rankingStorage;
   // Under the fixture the screenshot is one gesture (the swipe to this pane), so start scrolled to "Your Food".
   const scrollRef = useRef<ScrollView>(null);
@@ -194,10 +196,24 @@ export function YouPane() {
     setCompareOpen(true);
   }
 
+  // Dev-only `--stress compare-seed-count`: open the sheet once the log and today's count have loaded.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dev fixture only, runs once
+    if (countFixture && !comparePair && canCompare && picks !== null) openCompare(dealPair(allEntries, rankedDishes, null));
+  });
+
   // A pick is written on-device by resolvePick; the lists take its saved result, so Top Foods and
   // Favorite Halls update under the closing sheet. A failed save leaves the sheet up to retry.
   async function pickComparison(winner: CompareCard, loser: CompareCard) {
     try {
+      // Re-checked at pick time, not trusted from `picks`: that is null until its first read (counted as available) and stale
+      // across midnight, so the sheet can be open on a spent day. Nothing is saved past the cap.
+      const already = await picksToday(allowance, new Date());
+      if (already >= DAILY_ALLOWANCE) {
+        setPicks(already);
+        setCompareOpen(false);
+        return;
+      }
       const r = await resolvePick(ranking, allEntries, winner, loser);
       if (!r) return;
       setRankedDishes(r.dishes);

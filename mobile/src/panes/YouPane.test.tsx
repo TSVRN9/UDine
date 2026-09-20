@@ -965,6 +965,113 @@ describe("YouPane compare allowance", () => {
     expect(countText(second)).toEqual({ n: 4, of: 5 });
   });
 
+  // The limit bypass the reviewer reproduced: `picks` is null until its first read (counted as available), so the sheet can be
+  // open on a spent day; the cap must hold when the card is tapped, not only when the entry points render.
+  it("a spent day whose allowance read is still pending: the sheet opens in the window, and a pick after the read lands saves nothing and closes it", async () => {
+    await seed(5);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const original = sqliteAllowanceStore.read;
+    const spy = jest.spyOn(sqliteAllowanceStore, "read").mockImplementation(async () => {
+      await gate;
+      return original();
+    });
+    try {
+      const root = await renderYouPane();
+      expect(hasRankMore(root)).toBe(true); // null counts as available
+      await tap(root, "RATE MORE");
+      expect(sheetProps(root).visible).toBe(true);
+      release();
+      await flush();
+      expect(hasRankMore(root)).toBe(false); // the read landed: hidden, but the sheet is still open
+      expect(sheetProps(root).visible).toBe(true);
+      await pickFirst(root);
+      expect(rankingMock.saveRankedDishes).not.toHaveBeenCalled();
+      expect(rankingMock.saveRankedFoods).not.toHaveBeenCalled();
+      expect(sheetProps(root).visible).toBe(false);
+      expect(hasRankMore(root)).toBe(false);
+      expect(toasts(root)).toHaveLength(0);
+      expect(await stored()).toEqual({ date: "2026-09-20", count: 5 });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("the same across midnight: opened on a day with room, tapped on a day whose 5 are already used", async () => {
+    const root = await renderYouPane();
+    await tap(root, "RATE MORE");
+    expect(countText(root)).toEqual({ n: 1, of: 5 });
+    await seed(5, "2026-09-21");
+    jest.setSystemTime(new Date(2026, 8, 21, 0, 5, 0)); // no re-render in between: only the pick-time check can know
+    await pickFirst(root);
+    expect(rankingMock.saveRankedDishes).not.toHaveBeenCalled();
+    expect(sheetProps(root).visible).toBe(false);
+    expect(hasRankMore(root)).toBe(false);
+    expect(await stored()).toEqual({ date: "2026-09-21", count: 5 });
+  });
+
+  it("the sheet's count is taken when it opens: it does not tick to the next number while the sheet slides out after a pick", async () => {
+    await seed(2);
+    const root = await renderYouPane();
+    await tap(root, "RATE MORE");
+    expect(countText(root).n).toBe(3);
+    await pickFirst(root);
+    expect(await stored()).toEqual({ date: "2026-09-20", count: 3 });
+    expect(sheetProps(root).visible).toBe(false);
+    expect(countText(root).n).toBe(3); // still the pair that was picked, not 4
+    await another(root);
+    expect(countText(root).n).toBe(4);
+  });
+
+  it("a failed allowance write costs nothing: the pick is saved, the winner's toast shows (with 'Another' under the cap) and the sheet closes", async () => {
+    await seed(3);
+    const spy = jest.spyOn(sqliteAllowanceStore, "write").mockRejectedValue(new Error("disk full"));
+    try {
+      const root = await renderYouPane();
+      await tap(root, "RATE MORE");
+      await pickFirst(root);
+      expect(rankingMock.saveRankedDishes).toHaveBeenCalledTimes(1);
+      expect(sheetProps(root).visible).toBe(false);
+      expect(toasts(root)).toHaveLength(1);
+      expect(toasts(root)[0].props.action.label).toBe("Another");
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(await stored()).toEqual({ date: "2026-09-20", count: 3 }); // not counted
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("a double tap on a card records one comparison and one allowance pick", async () => {
+    const root = await renderYouPane();
+    await tap(root, "RATE MORE");
+    expect(countText(root).n).toBe(1);
+    const press = root.root.findAll((n) => typeof n.props.onPress === "function" && textsOf(n).includes(shownNames(root)[0]))[0].props.onPress as () => void;
+    await act(async () => {
+      press();
+      press();
+    });
+    await flush();
+    expect(rankingMock.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(rankingMock.saveRankedFoods).toHaveBeenCalledTimes(1);
+    expect(await stored()).toEqual({ date: "2026-09-20", count: 1 });
+    await another(root);
+    expect(countText(root).n).toBe(2);
+  });
+
+  it("--stress compare-seed-count opens the sheet by itself on '3 of 5' over its own in-memory allowance", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed-count" });
+    try {
+      const root = await renderYouPane();
+      expect(sheetProps(root).visible).toBe(true);
+      expect(countText(root)).toEqual({ n: 3, of: 5 });
+      expect(texts(root)).toContain("3 of 5");
+      expect(getDb).not.toHaveBeenCalled();
+      expect(await sqliteAllowanceStore.read()).toBeFalsy();
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
+  });
+
   it("--stress compare-seed-used: the fixture's own in-memory allowance is spent, so no RATE MORE, and the device store is never read", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed-used" });
     try {
