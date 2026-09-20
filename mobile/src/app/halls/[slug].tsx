@@ -14,6 +14,7 @@ import {
   type Favorite,
   type FoodPreferences,
   type HallMealPeriod,
+  type LogEntry,
   type MacroPreset,
   type MealPeriod,
   type MenuItem,
@@ -57,10 +58,11 @@ import { MenuErrorCard } from "../../components/MenuErrorCard";
 import { CustomFoodForm } from "../../components/CustomFoodForm";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
+import { CompareSheet } from "../../components/CompareSheet";
 import { Toast, type ToastKind } from "../../components/Toast";
 import { PlateSheet } from "../../components/PlateSheet";
 import { StationScrubber } from "../../components/StationScrubber";
-import { durations, toastDwell } from "../../lib/motion";
+import { durations, toastActionDwell, toastDwell } from "../../lib/motion";
 import { topViewableSectionIndex } from "../../lib/hallMenuScrubber";
 import { behindSheetA11yProps } from "../../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
@@ -116,6 +118,8 @@ import { getCachedPreferences, getPreferences, setPreferences } from "../../lib/
 import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { effectiveToday, nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
+import { SqliteRankingStorage } from "../../lib/rankingStorage";
+import { compareCard, compareFixture, comparisonSubLine, dealPair, pickPostLogPair, plateDishes, recordComparison, type CompareCard } from "../../lib/compare";
 
 // react-native-gesture-handler doesn't export a gesture-aware SectionList (only ScrollView/
 // FlatList wrap createNativeWrapper for you); a plain SectionList nested under MealTabPager's
@@ -167,6 +171,7 @@ export interface HallMenuSubject {
 }
 
 const storage = new SqliteLogStorage();
+const rankingStorage = new SqliteRankingStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
 const customFoodsStorage = new SqliteCustomFoodsStorage();
 
@@ -977,7 +982,17 @@ export function HallMenuScreenBody({
   const [customFoodFormOpen, setCustomFoodFormOpen] = useState(false);
   const [customFoodFormPrefill, setCustomFoodFormPrefill] = useState<string | undefined>(undefined);
   const [barHeight, setBarHeight] = useState(0);
-  const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string } | null>(() =>
+  // Head-to-head compare sheet. `comparePair` outlives the close (the slide-out still needs its
+  // content); `compareEntries` is the log the sheet deals from -- everything logged, this plate
+  // included -- and `compareStore` is the device's ranking store, or an in-memory one under the
+  // dev-only `--stress compare-pair` fixture.
+  const compareStress = __DEV__ && stressFixture === "compare-pair";
+  const [fixture] = useState(() => (compareStress ? compareFixture() : null));
+  const compareStore = fixture?.storage ?? rankingStorage;
+  const compareEntries = useRef<LogEntry[]>(fixture?.entries ?? []);
+  const [comparePair, setComparePair] = useState<[CompareCard, CompareCard] | null>(fixture?.pair ?? null);
+  const [compareOpen, setCompareOpen] = useState(compareStress);
+  const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string; action?: { label: string; pair: [CompareCard, CompareCard] } } | null>(() =>
     toastFixture === "compare-toast-ok"
       ? { kind: "success", message: "Logged 3 items", subline: "640 cal · 65g protein" }
       : toastFixture === "compare-toast-fail"
@@ -1128,7 +1143,7 @@ export function HallMenuScreenBody({
   // stays until the next log attempt replaces it, the plate is edited, or it's tapped.
   useEffect(() => {
     if (toast?.kind !== "success" || toastFixture) return;
-    const timer = setTimeout(() => setToast(null), toastDwell);
+    const timer = setTimeout(() => setToast(null), toast.action ? toastActionDwell : toastDwell);
     return () => clearTimeout(timer);
   }, [toast, toastFixture]);
   const toastPlate = useRef(plate);
@@ -1409,7 +1424,9 @@ export function HallMenuScreenBody({
     // addEntry() writes finish, instead of duplicating every row with fresh ids. Also drops a tap
     // landing on an already-emptied plate. Local-date-prefixed loggedAt, not `.toISOString()`
     // (UTC) -- see nowLocalIso's own comment (evening logs otherwise file under tomorrow's date).
-    const result = await guardedLogPlate(plate, nowLocalIso());
+    const loggedAt = nowLocalIso();
+    const plateAtLog = plate;
+    const result = await guardedLogPlate(plate, loggedAt);
     if (!result) return;
     if (!result.ok) {
       // ponytail: no transaction wrapping the write loop, so a failure partway through leaves
@@ -1424,11 +1441,57 @@ export function HallMenuScreenBody({
     }
     setPlate([]);
     setSheetOpen(false);
+    // "Rate them" pairs a dish from this plate with a dish logged BEFORE it -- this plate's own rows
+    // are told apart by their shared loggedAt. Any read failure just means no action: the log itself
+    // already succeeded.
+    let action: { label: string; pair: [CompareCard, CompareCard] } | undefined;
+    try {
+      const all = await storage.getAllEntries();
+      const pair = pickPostLogPair(
+        all.filter((e) => e.loggedAt !== loggedAt),
+        plateDishes(plateAtLog),
+        await rankingStorage.getRankedDishes(),
+      );
+      if (pair) {
+        compareEntries.current = all;
+        action = { label: "Rate them", pair: [compareCard(all, pair[0]), compareCard(all, pair[1])] };
+      }
+    } catch {
+      // no eligible opponent is the same outcome: the toast just has no action
+    }
     setToast({
       kind: "success",
       message: `Logged ${formatServings(result.count)} ${result.count === 1 ? "item" : "items"}`,
       subline: `${Math.round(totals.calories)} cal · ${totals.proteinG.toFixed(0)}g protein`,
+      action,
     });
+  }
+
+  function openCompare(pair: [CompareCard, CompareCard]) {
+    setToast(null);
+    setComparePair(pair);
+    setCompareOpen(true);
+  }
+
+  // A pick writes both Elo tracks on-device (recordComparison), closes the sheet and offers another
+  // pair. Null means a pick is already saving (a double tap) -- dropped, nothing else happens. A
+  // failed save leaves the sheet up so the tap can be retried.
+  async function pickComparison(winner: CompareCard, loser: CompareCard) {
+    try {
+      const saved = await recordComparison(compareStore, winner, loser);
+      if (!saved) return;
+      setCompareOpen(false);
+      const food = saved.foods.find((f) => f.dishName === winner.dishName);
+      const next = dealPair(compareEntries.current, saved.dishes, [winner, loser]);
+      setToast({ kind: "success", message: winner.dishName, subline: food ? comparisonSubLine(food) : undefined, action: next ? { label: "Another", pair: next } : undefined });
+    } catch {
+      // the save failed: nothing was recorded and the sheet is still up for another tap
+    }
+  }
+
+  async function skipComparison() {
+    const next = dealPair(compareEntries.current, await compareStore.getRankedDishes(), comparePair);
+    if (next) setComparePair(next);
   }
 
   // Shared by both SectionLists below (the 3 real meal tabs and the Grab tab) -- same dish-row
@@ -1900,6 +1963,7 @@ export function HallMenuScreenBody({
             kind={toast.kind}
             message={toast.message}
             subline={toast.subline}
+            action={toast.action && { label: toast.action.label, onPress: () => openCompare(toast.action!.pair) }}
             bottom={listBottomPadding(barHeight) + spacing(3)}
             onDismiss={() => setToast(null)}
             onLayout={(e) => setToastHeight(e.nativeEvent.layout.height)}
@@ -1983,6 +2047,7 @@ export function HallMenuScreenBody({
         initialQuery={plateSearchSeed ?? undefined}
         stressFixture={stressFixture}
       />
+      <CompareSheet visible={compareOpen} pair={comparePair} onPick={pickComparison} onSkip={skipComparison} onClose={() => setCompareOpen(false)} />
       <CompositeDishComposer
         // Never both visible at once, same Android dual-Modal reason as PlateSheet/CustomFoodForm
         // above -- viewing an add-in's Full Nutrition Label hides the composer instead of stacking

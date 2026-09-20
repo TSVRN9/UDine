@@ -85,5 +85,9 @@ export const durations = {
  * until the next log attempt, a plate edit, or a tap. Unspecced (no artboard timing). */
 export const toastDwell = 4000;
 
+/** Same, for a success toast that carries an action ("Rate them", "Another"): long enough to read
+ * the sub-line and reach the action. Unspecced (head-to-head brief default 2). */
+export const toastActionDwell = 6000;
+
 /** How far a toast travels while it fades in/out: `toastStyle`'s `translateY(12px)` in Prototype.dc.html. */
 export const toastRise = 12;
