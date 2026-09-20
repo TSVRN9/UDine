@@ -352,7 +352,7 @@ export function PlateSheet({
   // happened not to show it (#507). Rendering the sheet as an in-screen overlay keeps the input in
   // the window the hook observes -- that's the fix, not a second keyboard-height source.
   const keyboard = useAnimatedKeyboard();
-  const keyboardStyle = useAnimatedStyle(() => ({ marginBottom: keyboard.height.value }));
+  const keyboardStyle = useAnimatedStyle(() => ({ marginBottom: keyboard.height.value, flexShrink: 1 }));
   // Modal's onRequestClose used to map Android's hardware back to onClose; wired explicitly now.
   // Keyed on modalVisible (not `visible`) so the listener lives exactly as long as the overlay
   // renders -- through the ~300ms close animation too, where the old Dialog would still have
@@ -885,7 +885,8 @@ export function PlateSheet({
         <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
       {/* keyboardStyle (tracked above via useAnimatedKeyboard) pushes the sheet up in lockstep
-      with the keyboard's own live height. */}
+      with the keyboard's own live height; flexShrink lets wrapper and sheet give up height to what the
+      keyboard leaves, so the pinned header + input stay on screen and only the results scroll. */}
       <Animated.View testID="keyboardFollowWrapper" style={keyboardStyle}>
         <Animated.View style={[styles.sheet, panelStyle, { paddingBottom: spacing(6) + insets.bottom }]}>
           <GestureDetector gesture={gesture}>
@@ -1224,6 +1225,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing(2.5),
     paddingHorizontal: spacing(5),
     maxHeight: fs(640),
+    flexShrink: 1,
     // PlateExpanded.dc.html:27 & ServingsG.dc.html:27 -- box-shadow: 0 -8px 24px rgba(36,26,20,0.25).
     shadowColor: colors.ink900,
     shadowOffset: { width: 0, height: -8 },

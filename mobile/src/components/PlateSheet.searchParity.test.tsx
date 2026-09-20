@@ -375,6 +375,17 @@ describe("PlateSheet search pane parity (platesheet-search-visual-parity)", () =
       expect(insideScrollView(buttonWithLabel(root, "Load More"))).toBe(true);
     });
 
+    // Yoga's real shrink is what the emulator screenshots verify; this pins the chain that lets the
+    // keyboard-follow wrapper and sheet give up height so the pinned header + input stay on screen.
+    it("the keyboard-follow wrapper and sheet may shrink, so the pinned header stays visible above the keyboard", () => {
+      const root = renderSheet();
+      expand(root);
+      const wrapper = byTestId(root, "keyboardFollowWrapper")[0];
+      expect(flat(wrapper).flexShrink).toBe(1);
+      const sheet = wrapper.findAll((n) => n.props.style && flat(n).maxHeight !== undefined)[0];
+      expect(flat(sheet).flexShrink).toBe(1);
+    });
+
     it("focusing the input never scrolls anything (the scrollToEnd hack is gone)", () => {
       const spy = jest.spyOn(ScrollView.prototype as unknown as { scrollToEnd: () => void }, "scrollToEnd").mockImplementation(() => {});
       const root = renderSheet();
