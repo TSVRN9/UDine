@@ -69,7 +69,10 @@ standing clutter, mocked and dropped by the owner), a per-row "compare" action o
    just-logged dish used is the one on the plate with the lowest `comparisonCount`.
 4. Score shown after a pick uses `scoreOutOfTen` (needs 3 comparisons); below that, only the count.
 5. "Another" and "Rank more" pick pairs with the archived `pickPair` (`git show
-   archive/full-features:mobile/src/lib/pairSelection.ts`), skipping the pair just shown.
+   archive/full-features:mobile/src/lib/pairSelection.ts`), skipping the pair just shown. With exactly
+   two distinct logged dishes there is no other pair: `dealPair` returns null, the after-pick toast
+   has no "Another" action, and Skip closes the sheet (found in review of #527; `pickPair` alone
+   re-deals the same pair forever at two dishes).
 
 ## Out of scope
 
@@ -80,33 +83,33 @@ standing clutter, mocked and dropped by the owner), a per-row "compare" action o
 
 ## Acceptance
 
-- [ ] Logging shows the shared toast: "Logged N items" text unchanged (existing `hallMenu.test.tsx`
+- [x] Logging shows the shared toast: "Logged N items" text unchanged (existing `hallMenu.test.tsx`
       assertions stay green), gold-bordered card, action on the right when an opponent exists — evidence: test + screenshot
-- [ ] Toast styles match `ToastLogged.dc.html` / `ToastLogFailed.dc.html` (fill, border, radius, badge,
+- [x] Toast styles match `ToastLogged.dc.html` / `ToastLogFailed.dc.html` (fill, border, radius, badge,
       shadow, type) read via `artboardStyle()` — evidence: test
-- [ ] A failed log shows the failure toast, keeps the plate, and the toast clears the plate bar —
+- [x] A failed log shows the failure toast, keeps the plate, and the toast clears the plate bar —
       evidence: test + screenshot
-- [ ] Toast enter/exit uses `durations.toast`, all new dwell times live in `lib/motion.ts`, and
+- [x] Toast enter/exit uses `durations.toast`, all new dwell times live in `lib/motion.ts`, and
       `scripts/pr-gate.sh` finds no duration/easing literal outside it — evidence: test (`motion.test.ts`) + gate
-- [ ] The inline logged banner and its `bannerHeight` list-padding path are gone or reused by the
+- [x] The inline logged banner and its `bannerHeight` list-padding path are gone or reused by the
       toast, with the list still never hidden behind it — evidence: test + screenshot
-- [ ] "Rate them" opens the compare sheet on (just-logged dish, least-compared past dish); with no
+- [x] "Rate them" opens the compare sheet on (just-logged dish, least-compared past dish); with no
       past dish the toast has no action — evidence: test
-- [ ] Picking a card calls `applyComparison` and `applyFoodComparison`, persists both through
+- [x] Picking a card calls `applyComparison` and `applyFoodComparison`, persists both through
       `SqliteRankingStorage`, and a second tap before the first finishes is dropped (no double count) —
       evidence: test (red first: a stub storage asserting one write per pick)
-- [ ] Skip records nothing and deals the next pair; the sheet closes cleanly and shows the
+- [x] Skip records nothing and deals the next pair (or closes the sheet when there is none); a pick closes the sheet cleanly and shows the
       after-pick toast with "Another" — evidence: test + screenshot
-- [ ] Sheet matches `CompareSheet.dc.html` (scrim, handle, radius, card border, "or" divider, Skip);
+- [x] Sheet matches `CompareSheet.dc.html` (scrim, handle, radius, card border, "or" divider, Skip);
       drag-to-dismiss and backdrop tap close it like `PlateSheet` — evidence: test + screenshot
-- [ ] You pane "Rank more" and the empty-state "Start comparing" open the same sheet; both are absent
+- [x] You pane "Rank more" and the empty-state "Start comparing" open the same sheet; both are absent
       with fewer than two distinct logged dishes; after a pick the Top Foods list and Favorite Halls
       refresh without leaving the pane — evidence: test + screenshot
-- [ ] Nothing in this change imports `syncDiningHallRanks`, `@supabase/*`, or touches `supabase/` —
+- [x] Nothing in this change imports `syncDiningHallRanks` or touches `supabase/`; `CompareSheet.tsx` imports no `supabase` at all (`halls/[slug].tsx` already imported the client for the dish catalog) —
       evidence: test (grep-style assertion in the compare module's test) + review
-- [ ] New comparisons appear in the existing JSON/CSV export with no export change — evidence: test
+- [x] New comparisons appear in the existing JSON/CSV export with no export change — evidence: test
       (extend `exportShare.test.ts`)
-- [ ] No explanatory captions were added to any screen; the only added copy is the strings in the
+- [x] No explanatory captions were added to any screen; the only added copy is the strings in the
       artboards — evidence: review (`pr-reviewer.md` caption scan)
 
 ## Tasks
@@ -119,21 +122,40 @@ Each task that lands a component updates the Component column of its artboards' 
    constants), `mobile/src/app/halls/[slug].tsx` (`logged` string state → toast state with kind,
    message, sub-line, optional action), `mobile/src/lib/hallMenu.test.tsx`. No action yet.
    Screenshots: `ToastLogged`, `ToastLogFailed` — lanes: mobile test, `tsc`, lint, `expo export` (touches
-   `src/app/`) — blocked by: none — PR:
+   `src/app/`) — blocked by: none — PR: #525
 2. Compare core (no UI) — files: `mobile/src/lib/pairSelection.ts` + test (restored from
    `archive/full-features`), new `mobile/src/lib/compare.ts` + test: `recordComparison(storage, winner,
    loser)` (both Elo tracks, both saves, single-flight guard), post-log pair helper over
    `pickPostLogComparisonPair`, score/count label helper over `scoreOutOfTen`. Red test first — lanes:
-   mobile test, `tsc`, lint — blocked by: none — PR:
+   mobile test, `tsc`, lint — blocked by: none — PR: #524 (task 5 folded in: one test in `exportShare.test.ts`)
 3. Compare sheet + post-log wiring — files: `mobile/src/components/CompareSheet.tsx` (+ test, built on
    `useDraggableSheet`), `mobile/src/app/halls/[slug].tsx` ("Rate them" action, entries-before-this-plate,
    sheet open/close, after-pick toast with "Another"), dev-only `--stress compare-pair` /
    `compare-toast-ok` / `compare-toast-fail` fixtures (+ `screenshot.sh` header note). Screenshots:
    `CompareSheet`, `CompareToastPicked`, the no-action toast — lanes: mobile test, `tsc`, lint,
-   `expo export` — blocked by: 1, 2 — PR:
+   `expo export` — blocked by: 1, 2 — PR: #527
 4. You pane entry points — files: `mobile/src/panes/YouPane.tsx` (+ `YouPane.test.tsx`),
    `mobile/src/components/ui/SectionHeader.tsx` only if the right-side action needs it, dev-only
    `--stress compare-seed`. Reuses `CompareSheet` and `pickPair`. Screenshots: `YouTopFoodsRankMore`,
-   `YouTopFoodsEmpty` — lanes: mobile test, `tsc`, lint, `expo export` — blocked by: 2, 3 — PR:
+   `YouTopFoodsEmpty` — lanes: mobile test, `tsc`, lint, `expo export` — blocked by: 2, 3 — PR: #528
 5. Export coverage check — files: `mobile/src/lib/exportShare.test.ts` (the existing ranking-export test) only — lanes:
-   mobile test — blocked by: 2 — PR: (fold into 2 if the test is a one-line extension)
+   mobile test — blocked by: 2 — PR: folded into #524
+
+## Shipped notes
+
+Landed as #523 (aggregate) on 2026-09-20; the four task PRs are #524, #525, #527, #528, and the gate
+change that made stacked PRs possible is #526. Decisions that emerged in review and are not above:
+- The toast's easing is per property (`curves.ease` on opacity, the pane bezier on transform) with a
+  12px `toastRise`, matching `.toastbox` in `Prototype.dc.html`; `toastDwell` 4s, `toastActionDwell` 6s.
+- `resolvePick` / `resolveSkip` (lib/compare.ts) and `useToastDwell` (Toast.tsx) are shared by the hall
+  menu and the You pane; the single-flight guard in `recordComparison` is one module-level flag.
+- `SectionHeader` gained `growRule` for the Top Foods header; `TopFoodDisplay` carries `comparisonCount`
+  for the "Hall · N comparisons" sub-line; the sheet's handle row keeps PlateSheet's 20px touch padding.
+- Dev-only `--stress` fixtures: `compare-pair` (three logged dishes so "Another" appears),
+  `compare-toast-rate` / `-ok` / `-fail`, `compare-seed` / `-seed-empty`.
+- The toast says "Rate them" and the You pane header says "RANK MORE" (both as drawn); pick one verb later.
+- Not built: server sync of the derived favorite halls (see Out of scope). Until that brief lands,
+  comparisons never reach the server from mobile.
+- Per-task screenshots and motion clips live on the remote branches `feat/h2h-toast`,
+  `feat/h2h-compare-sheet`, `feat/h2h-you-pane` (main carries only the integration set in
+  `docs/pr-review-media/docs-head-to-head-brief/`).

@@ -10,6 +10,7 @@ jest.spyOn(Reanimated, "withTiming").mockImplementation(((toValue: number, confi
   return toValue as unknown as ReturnType<typeof Reanimated.withTiming>;
 }) as typeof Reanimated.withTiming);
 
+/* eslint-disable import/first -- withTiming must be spied before these imports load */
 import fs from "node:fs";
 import path from "node:path";
 import renderer, { act } from "react-test-renderer";
@@ -21,6 +22,7 @@ import { artboardPanelGap, artboardEnclosingStyle, artboardStyle, artboardTag, n
 import { durations, reanimatedPaneCurve } from "../lib/motion";
 import { SHEET_DISMISS_PX } from "../lib/sheetAnimation";
 import { fonts, spacing } from "../lib/theme";
+/* eslint-enable import/first */
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),

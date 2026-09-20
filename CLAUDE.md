@@ -54,7 +54,7 @@ explicitly exports it or opts a truncated summary in.
 | Consumption log, macro history, daily totals | **Device only** (SQLite mobile / IndexedDB web) |
 | Menu cache | **Device only**, fetched straight from UMass Dining — keeps the anonymous path DB-free |
 | Dish ranking: raw pairwise comparisons AND per-dish order | **Device only, always** — a per-dish order reconstructs the log |
-| Favorite dining halls (location IDs, derived on-device) | Server if signed in — coarse enough for pings. Mobile has a device-local sync toggle for this; **web has no equivalent toggle yet and always syncs when signed in** (#311, tracked, not yet fixed) |
+| Favorite dining halls (location IDs, derived on-device) | Server if signed in — coarse enough for pings. On `main`, mobile does not sync it at all: `syncDiningHallRanks` has no caller and its device toggle (`isHallSyncEnabled`) lives only on `archive/full-features`, so mobile's head-to-head picks derive Favorite Halls on-device only until owner-gated sync returns; **web has no equivalent toggle yet and always syncs when signed in** (#311, tracked, not yet fixed) |
 | Shared stats (#94: hall completion counts, top-5 foods, hall rank order) | Server, opt-in per stat, **default ON for accounts created on/after 2026-08-26** (#248 Part C — supersedes epic #87's 2026-08-19 "default off" decision; new-accounts-only, never backfilled onto existing rows), friends-only. Un-opted stat is SQL NULL, never written ("privacy by presence", check-constrained). Opting out deletes it immediately. Never raw comparisons, counts, timestamps, or the log. Payload cut defined in `mobile/src/lib/privacySettings.ts` |
 | Favorited foods (spotted-elsewhere alerts) | Server only if signed in + notifications on. `profiles.notifications_enabled` defaults **true** for accounts created on/after 2026-08-26 (#248 Part B, a column default — not backfilled onto existing rows); the device only actually registers a push token once OS permission is granted, and the server-side RPC itself now refuses to register a token at all when the flag is off (#277) |
 | Friends, pings, profile, auth identity | Server |
@@ -95,7 +95,7 @@ content; then auth, ranking, export; then friends, pings, push.
 
 ## Design
 
-`docs/design/` is the spec: 45 artboards (`*.dc.html`) extracted from the Mobile v2 canvas, plus
+`docs/design/` is the spec: 65 artboards (`*.dc.html`) extracted from the Mobile v2 canvas, plus
 `canvas.json` (geometry, titles, annotations) and `README.md` (canvas URL, title→file map,
 re-extraction). The canvas is upstream — edit the design there and re-extract, never hand-edit an
 artboard. Artboards lay out at 390×844; the emulator pool's device widths derive from that.
