@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Mechanical PR gate. Prints a checklist for the reviewer and exits 1 on any FAIL.
 #
-#   scripts/pr-gate.sh            # current branch vs origin/main
-#   scripts/pr-gate.sh <pr>       # that PR's head (also checks the PR body template)
+#   scripts/pr-gate.sh                  # current branch vs origin/main
+#   scripts/pr-gate.sh --base <branch>  # current branch vs origin/<branch> (a stacked PR-to-be)
+#   scripts/pr-gate.sh <pr>             # that PR's head vs the PR's own base branch (also checks the PR body template)
 #
 # Every rule here used to be prose in docs/agents/dev-tracks.md that a dispatch prompt
 # could waive. Now it can't: hooks run this before `gh pr create` and `gh pr merge`.
@@ -10,26 +11,38 @@ set -uo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
-PR="${1:-}"
+PR=""; BASE_BRANCH="main"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --base) BASE_BRANCH="${2:-}"; shift; shift || true ;;
+    --base=*) BASE_BRANCH="${1#--base=}"; shift ;;
+    *) PR="$1"; shift ;;
+  esac
+done
 FAIL=0
 fail() { echo "FAIL  $*"; FAIL=1; }
 warn() { echo "WARN  $*"; }
 info() { echo "info  $*"; }
 
-git fetch -q origin main 2>/dev/null || true
 if [[ -n "$PR" ]]; then
+  # A PR is judged against its OWN base (a stacked child's base is its parent branch, not main).
   BRANCH="$(gh pr view "$PR" --json headRefName --jq .headRefName)"
+  BASE_BRANCH="$(gh pr view "$PR" --json baseRefName --jq .baseRefName)"
   git fetch -q origin "$BRANCH" 2>/dev/null || true
   HEAD_REF="origin/$BRANCH"
 else
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
   HEAD_REF="HEAD"
 fi
+[[ -n "$BASE_BRANCH" ]] && { git fetch -q origin "$BASE_BRANCH" 2>/dev/null || true; }
 # Fail closed: an unresolvable PR/branch must never fall through to "no diff" and exit 0.
 if [[ -z "$BRANCH" ]] || ! git rev-parse --verify -q "$HEAD_REF" >/dev/null; then
   echo "FAIL  cannot resolve ${PR:+PR #$PR / }branch '$BRANCH' (fetch failed, branch deleted, or bad PR number)"; exit 1
 fi
-BASE="$(git merge-base origin/main "$HEAD_REF")" || { echo "FAIL  no merge-base with origin/main"; exit 1; }
+if [[ -z "$BASE_BRANCH" ]] || ! git rev-parse --verify -q "origin/$BASE_BRANCH" >/dev/null; then
+  echo "FAIL  cannot resolve base branch 'origin/$BASE_BRANCH' (fetch failed, branch deleted, or empty --base)"; exit 1
+fi
+BASE="$(git merge-base "origin/$BASE_BRANCH" "$HEAD_REF")" || { echo "FAIL  no merge-base with origin/$BASE_BRANCH"; exit 1; }
 HEAD_SHA="$(git rev-parse "$HEAD_REF")"
 SLUG="${BRANCH//\//-}"
 
@@ -37,9 +50,9 @@ mapfile -t FILES < <(git diff --name-only "$BASE" "$HEAD_REF")
 if [[ -n "$PR" ]]; then :; else
   mapfile -t -O "${#FILES[@]}" FILES < <(git status --porcelain | awk '{print $2}')
 fi
-[[ ${#FILES[@]} -eq 0 ]] && { echo "no diff vs origin/main"; exit 0; }
+[[ ${#FILES[@]} -eq 0 ]] && { echo "no diff vs origin/$BASE_BRANCH"; exit 0; }
 STAT="$(git diff --shortstat "$BASE" "$HEAD_REF")"
-info "branch $BRANCH  head ${HEAD_SHA:0:8}  $STAT"
+info "branch $BRANCH  base origin/$BASE_BRANCH  head ${HEAD_SHA:0:8}  $STAT"
 
 touched() { printf '%s\n' "${FILES[@]}" | grep -Eq "$1"; }
 
