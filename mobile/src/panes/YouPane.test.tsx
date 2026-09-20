@@ -711,6 +711,23 @@ describe("YouPane head-to-head entry points", () => {
     }
   });
 
+  it("--stress applies when the deep link lands after the pane mounted", async () => {
+    const root = await renderYouPane();
+    expect(hasRankMore(root)).toBe(false);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed" });
+    try {
+      await act(async () => {
+        root.update(<YouPane />);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(hasRankMore(root)).toBe(true);
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
+  });
+
   it("writes nothing off-device: no supabase or hall-rank sync anywhere in the pane", () => {
     const src = fs.readFileSync(path.join(__dirname, "YouPane.tsx"), "utf8");
     expect(src).not.toMatch(/syncDiningHallRanks|supabase/);
