@@ -194,6 +194,7 @@ describe("PlateSheet search pane parity (platesheet-search-visual-parity)", () =
     const input = flat(searchInput(root));
     expect(input.fontSize).toBe(spec.fontSize);
     expect(color(input.color)).toBe(spec.color);
+    expect(input.padding).toBe(0); // native TextInput padding must not stack on the box's 10/12
   });
 
   it("#4 input row: gap 10 and children stretch (CSS default -- the artboard declares no align-items)", () => {

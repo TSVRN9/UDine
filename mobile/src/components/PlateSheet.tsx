@@ -333,11 +333,13 @@ export function PlateSheet({
   // focused it instantly) -- Android needs the view to actually finish attaching/laying out first.
   // Deferring the imperative .focus() call to the next frame gives it that time.
   useEffect(() => {
-    if (searchExpanded) {
+    // A dev search-state fixture seeds its query programmatically; a raised keyboard would cover the
+    // state being captured (and is the IME interaction stress-fixture-auto-open-self-dismiss.md suspects).
+    if (searchExpanded && !(__DEV__ && stressFixture?.startsWith("search-"))) {
       const id = requestAnimationFrame(() => searchInputRef.current?.focus());
       return () => cancelAnimationFrame(id);
     }
-  }, [searchExpanded]);
+  }, [searchExpanded, stressFixture]);
   // Keyboard-follow via Reanimated's useAnimatedKeyboard: a per-frame SharedValue in lockstep with
   // the keyboard's own slide (a Keyboard-event-fed useState snaps to the final value a frame ahead
   // of the still-animating keyboard). Read with `.value`, not `.get()` -- the reanimated jest
@@ -1360,6 +1362,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body400,
     fontSize: fs(13),
     color: colors.maroon900,
+    // The artboard's input text is a bare div inside the padded box -- the native TextInput's own
+    // default padding would stack on the box's 10/12 (measured: 57dp tall vs the artboard's ~35).
+    padding: 0,
   },
   // SearchStateEmpty.dc.html:47 -- 13px, ink @65%, padding 8px 2px.
   searchHint: { fontFamily: fonts.body400, fontSize: fs(13), color: withOpacity(colors.ink900, 65), paddingVertical: spacing(2), paddingHorizontal: spacing(0.5) },
