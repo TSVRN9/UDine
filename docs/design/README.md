@@ -105,8 +105,8 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | F4 -- Always-available station (new) | `UnlistedStationPersistent.dc.html` | 390×844 | design-only |
 | F4 -- lookup-dish states: fetching / miss / rate-limited (new) | `SearchLookupStates.dc.html` | 390×844 | design-only |
 | Friend profile (tap avatar) | `FriendProfile.dc.html` | 390×844 | archived (`archive/full-features`) |
-| H2H -- After a pick: toast with Another | `CompareToastPicked.dc.html` | 390×844 | design-only |
-| H2H -- Compare sheet | `CompareSheet.dc.html` | 390×844 | design-only |
+| H2H -- After a pick: toast with Another | `CompareToastPicked.dc.html` | 390×844 | `components/Toast.tsx` (action), `app/halls/[slug].tsx` |
+| H2H -- Compare sheet | `CompareSheet.dc.html` | 390×844 | `components/CompareSheet.tsx`, `app/halls/[slug].tsx` |
 | H2H -- Post-log toast: logged (success) | `ToastLogged.dc.html` | 390×844 | `components/Toast.tsx`, `app/halls/[slug].tsx` (replaces the inline banner) |
 | H2H -- You pane: Top Foods empty state | `YouTopFoodsEmpty.dc.html` | 390×844 | design-only |
 | H2H -- You pane: Your Top Foods with Rank more | `YouTopFoodsRankMore.dc.html` | 390×844 | design-only |

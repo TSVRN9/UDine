@@ -43,6 +43,11 @@ set -euo pipefail
 #   Toast states (halls/[slug].tsx, __DEV__ only): NAME=compare-toast-ok mounts the success toast
 #   ("Logged 3 items" + sub-line, no auto-dismiss); NAME=compare-toast-fail seeds a 2-dish plate
 #   and mounts the failure toast above its bar.
+#   Compare sheet (halls/[slug].tsx, __DEV__ only): NAME=compare-pair opens the sheet on French Toast
+#   vs Belgian Waffle over an in-memory ranking store (nothing on the device is read or written);
+#   --tap a card to capture the after-pick toast ("9.1 · 15 comparisons" + Another). NAME=compare-toast-rate
+#   mounts the "Logged 3 items" toast with its "Rate them" action over the same in-memory pair (no
+#   auto-dismiss); --tap the action to open the sheet.
 # --record-nav: start screenrecord BEFORE the route-navigation deep link fires, instead
 #   of after the post-navigation settle. Without it, --record's clip only ever shows the
 #   already-settled end state of navigation -- any animation that fires automatically as
