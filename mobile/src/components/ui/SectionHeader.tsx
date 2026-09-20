@@ -22,7 +22,7 @@ export function SectionHeader({
   title: string;
   right?: ReactNode;
   variant?: "default" | "subtle";
-  /** A subtle header with a `right` accessory keeps a fixed 20px rule (Favorites); this lets the rule fill the row instead (Your Top Foods' Rank more, YouTopFoodsRankMore.dc.html). */
+  /** A subtle header with a `right` accessory keeps a fixed 20px rule (Favorites); this lets the rule fill the row instead (Your Top Foods' Rate more, YouTopFoodsRankMore.dc.html). */
   growRule?: boolean;
 }) {
   const isSubtle = variant === "subtle";

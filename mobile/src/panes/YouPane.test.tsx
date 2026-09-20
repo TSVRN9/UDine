@@ -574,7 +574,7 @@ async function tap(root: renderer.ReactTestRenderer, text: string) {
 }
 const sheetProps = (root: renderer.ReactTestRenderer) => root.root.findByType(CompareSheet).props;
 const shownNames = (root: renderer.ReactTestRenderer) => (sheetProps(root).pair as { dishName: string }[]).map((c) => c.dishName).sort();
-const hasRankMore = (root: renderer.ReactTestRenderer) => /RANK MORE/.test(texts(root));
+const hasRankMore = (root: renderer.ReactTestRenderer) => /RATE MORE/.test(texts(root));
 const toasts = (root: renderer.ReactTestRenderer) => root.root.findAllByType(Toast);
 
 describe("YouPane head-to-head entry points", () => {
@@ -582,7 +582,7 @@ describe("YouPane head-to-head entry points", () => {
     statefulRanking();
   });
 
-  it("with fewer than two distinct logged dishes: no Rank more, no Start comparing, no sheet", async () => {
+  it("with fewer than two distinct logged dishes: no Rate more, no Start comparing, no sheet", async () => {
     logMock.getAllEntries.mockResolvedValue([frenchToast(), frenchToast()]); // one dish, logged twice
     statefulRanking([], [atTwo("French Toast")]);
     const oneDish = await renderYouPane();
@@ -598,7 +598,7 @@ describe("YouPane head-to-head entry points", () => {
     expect(hasRankMore(noDish)).toBe(false);
   });
 
-  it("two dishes, no comparisons: 'Start comparing' + 'No comparisons yet' (no Rank more); tapping opens the sheet on those two dishes", async () => {
+  it("two dishes, no comparisons: 'Start comparing' + 'No comparisons yet' (no Rate more); tapping opens the sheet on those two dishes", async () => {
     logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle()]);
     const root = await renderYouPane();
     expect(texts(root)).toMatch(/Start comparing/);
@@ -612,13 +612,13 @@ describe("YouPane head-to-head entry points", () => {
     expect(shownNames(root)).toEqual(["Belgian Waffle", "French Toast"]);
   });
 
-  it("two dishes, some comparisons: 'RANK MORE' replaces Start comparing and opens the same sheet", async () => {
+  it("two dishes, some comparisons: 'RATE MORE' replaces Start comparing and opens the same sheet", async () => {
     logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle()]);
     statefulRanking([], [atTwo("French Toast"), atTwo("Belgian Waffle")]);
     const root = await renderYouPane();
     expect(hasRankMore(root)).toBe(true);
     expect(texts(root)).not.toMatch(/Start comparing/);
-    await tap(root, "RANK MORE");
+    await tap(root, "RATE MORE");
     expect(sheetProps(root).visible).toBe(true);
     expect(shownNames(root)).toEqual(["Belgian Waffle", "French Toast"]);
   });
@@ -633,7 +633,7 @@ describe("YouPane head-to-head entry points", () => {
     expect(texts(root)).toMatch(/Not enough data yet/);
     expect(texts(root)).toMatch(/No ranking yet/);
 
-    await tap(root, "RANK MORE");
+    await tap(root, "RATE MORE");
     await tap(root, won); // the card, not the Top Foods row: only the sheet's Pressable carries onPress + the name
 
     for (const track of [state.dishes, state.foods]) {
@@ -703,7 +703,7 @@ describe("YouPane head-to-head entry points", () => {
       expect(hasRankMore(root)).toBe(ranked);
       expect(/Start comparing/.test(texts(root))).toBe(!ranked);
       expect(texts(root)).toMatch(ranked ? /9\.1/ : /No comparisons yet/);
-      await tap(root, ranked ? "RANK MORE" : "Start comparing");
+      await tap(root, ranked ? "RATE MORE" : "Start comparing");
       await tap(root, sheetProps(root).pair[0].dishName);
       expect(toasts(root)).toHaveLength(1);
       expect(logMock.getAllEntries).not.toHaveBeenCalled();
@@ -775,7 +775,7 @@ describe("YouPane head-to-head entry points", () => {
     });
   });
 
-  it("the Top Foods header lets its rule grow to the Rank more action, on a centered row (YouTopFoodsRankMore.dc.html), not Favorites' fixed rule", async () => {
+  it("the Top Foods header lets its rule grow to the Rate more action, on a centered row (YouTopFoodsRankMore.dc.html), not Favorites' fixed rule", async () => {
     logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle()]);
     statefulRanking([], [atTwo("French Toast")]);
     const root = await renderYouPane();
@@ -802,13 +802,13 @@ describe("YouPane head-to-head artboard parity", () => {
   const GOLD_PILL = "background: #c99a2e; color: #3b0a0f; border-radius: 999px";
   const OUTLINED_PILL = "border: 1px solid rgba(36,26,20,0.2); color: #3b0a0f; border-radius: 999px";
 
-  it("Rank more is SEE ALL's 10px/600 maroon action with a 10px chevron, per the artboard", async () => {
+  it("Rate more is SEE ALL's 10px/600 maroon action with a 10px chevron, per the artboard", async () => {
     logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle()]);
     statefulRanking([], [atTwo("French Toast")]);
     const root = await renderYouPane();
-    const press = root.root.findAll((n) => typeof n.props.onPress === "function" && textsOf(n).includes("RANK MORE"))[0];
+    const press = root.root.findAll((n) => typeof n.props.onPress === "function" && textsOf(n).includes("RATE MORE"))[0];
     const [label, chevron] = press.findAllByType(Text);
-    const spec = artboardStyle(RANK_MORE, "RANK MORE");
+    const spec = artboardStyle(RANK_MORE, "RATE MORE");
     const s = flatStyle(label.props.style);
     expect(s.fontSize).toBe(spec.fontSize);
     expect(s.letterSpacing).toBe(spec.letterSpacing);

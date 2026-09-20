@@ -324,7 +324,7 @@ export function YouPane() {
             right={
               canCompare && rankedFoods.length > 0 ? (
                 <Press style={styles.allLogsLink} onPress={() => openCompare(dealPair(allEntries, rankedDishes, null))} accessibilityRole="button">
-                  <Text style={styles.seeAllText}>RANK MORE</Text>
+                  <Text style={styles.seeAllText}>RATE MORE</Text>
                   <Text style={styles.seeAllChevron}>›</Text>
                 </Press>
               ) : undefined
