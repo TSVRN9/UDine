@@ -210,4 +210,20 @@ describe("useToastDwell", () => {
     expect(dismissedAfter({ kind: "failure" }, toastActionDwell * 2)).toEqual([0, 0]);
     expect(dismissedAfter({ kind: "success" }, toastDwell * 2, true)).toEqual([0, 0]);
   });
+  it("cancels the pending dismissal when the host unmounts", () => {
+    const dismiss = jest.fn();
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<Host toast={{ kind: "success" }} dismiss={dismiss} />);
+    });
+    act(() => root.unmount());
+    act(() => jest.advanceTimersByTime(toastActionDwell * 2));
+    expect(dismiss).not.toHaveBeenCalled();
+  });
+  it("takes its dwell from lib/motion.ts: no numeric literal in the hook's timer", () => {
+    const src = fs.readFileSync(path.join(__dirname, "Toast.tsx"), "utf8");
+    const body = src.slice(src.indexOf("export function useToastDwell"), src.indexOf("interface Props"));
+    expect(body).toMatch(/setTimeout\(\(\) => dismiss\(null\), toast\.action \? toastActionDwell : toastDwell\)/);
+    expect(body).not.toMatch(/setTimeout\([^;]*\d/);
+  });
 });

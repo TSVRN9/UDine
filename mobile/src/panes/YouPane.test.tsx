@@ -18,6 +18,8 @@ import { YouPane } from "./YouPane";
 import { colors, fonts } from "../lib/theme";
 import { CompareSheet } from "../components/CompareSheet";
 import { Toast } from "../components/Toast";
+import { SectionHeader } from "../components/ui";
+import { toastActionDwell, toastDwell } from "../lib/motion";
 import { artboardEnclosingStyle, artboardStyle, artboardTag, normalizeColor } from "../lib/artboard";
 import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
@@ -73,7 +75,8 @@ jest.mock("react-native-safe-area-context", () => ({
 // factories above other top-level statements); the test grabs the exact same fn reference back via
 // `import { router } from "expo-router"` below, post-mock.
 jest.mock("expo-router", () => ({
-  useFocusEffect: (callback: () => void) => callback(),
+  // Like the real hook: runs when the callback identity changes (mount, or a new `load`), not on every render.
+  useFocusEffect: (callback: () => void) => require("react").useEffect(callback, [callback]),
   useLocalSearchParams: jest.fn(() => ({})),
   router: { push: jest.fn() },
 }));
@@ -726,6 +729,63 @@ describe("YouPane head-to-head entry points", () => {
     } finally {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
     }
+  });
+
+  describe("after-pick toast dwell", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+    const pickFirst = async (root: renderer.ReactTestRenderer, entry: string) => {
+      await tap(root, entry);
+      await tap(root, shownNames(root)[0]);
+    };
+    const advance = (ms: number) => act(() => jest.advanceTimersByTime(ms));
+
+    it("a toast with 'Another' dismisses itself at toastActionDwell, one without at toastDwell", async () => {
+      logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle(), soup()]);
+      const withAction = await renderYouPane();
+      await pickFirst(withAction, "Start comparing");
+      expect(toasts(withAction)[0].props.action).toBeDefined();
+      advance(toastActionDwell - 1);
+      expect(toasts(withAction)).toHaveLength(1);
+      advance(2);
+      expect(toasts(withAction)).toHaveLength(0);
+
+      logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle()]);
+      statefulRanking();
+      const plain = await renderYouPane();
+      await pickFirst(plain, "Start comparing");
+      expect(toasts(plain)[0].props.action).toBeUndefined();
+      advance(toastDwell - 1);
+      expect(toasts(plain)).toHaveLength(1);
+      advance(2);
+      expect(toasts(plain)).toHaveLength(0);
+    });
+
+    it("a fixture toast is pinned: it outlasts every dwell", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed-empty" });
+      try {
+        const root = await renderYouPane();
+        await pickFirst(root, "Start comparing");
+        expect(toasts(root)).toHaveLength(1);
+        advance(toastActionDwell * 2);
+        expect(toasts(root)).toHaveLength(1);
+      } finally {
+        (useLocalSearchParams as jest.Mock).mockReturnValue({});
+      }
+    });
+  });
+
+  it("the Top Foods header lets its rule grow to the Rank more action, on a centered row (YouTopFoodsRankMore.dc.html), not Favorites' fixed rule", async () => {
+    logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle()]);
+    statefulRanking([], [atTwo("French Toast")]);
+    const root = await renderYouPane();
+    const header = root.root.findAllByType(SectionHeader).find((h) => h.props.title === "Your Top Foods")!;
+    const [row, rule] = header.findAllByType(View);
+    const rowSpec = artboardEnclosingStyle("YouTopFoodsRankMore.dc.html", "Your Top Foods", 1);
+    expect(flatStyle(row.props.style).alignItems).toBe(rowSpec.alignItems);
+    expect(flatStyle(rule.props.style).flexGrow).toBe(1);
+    expect(flatStyle(rule.props.style).width).toBeUndefined();
+    expect(artboardTag("YouTopFoodsRankMore.dc.html", "height: 1px; flex-grow: 1").attrs.style).toMatch(/flex-grow:\s*1/);
   });
 
   it("writes nothing off-device: no supabase or hall-rank sync anywhere in the pane", () => {

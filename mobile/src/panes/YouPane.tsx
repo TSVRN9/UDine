@@ -100,7 +100,7 @@ function FavoriteRow({ favorite }: { favorite: Favorite }) {
 }
 
 function TopFoodRow({ dishName, score, hallName: hall, comparisonCount, tone }: { dishName: string; score: number; hallName: string | null; comparisonCount: number; tone: "gold" | "maroon" }) {
-  const counted = `${comparisonCount} comparison${comparisonCount === 1 ? "" : "s"}`;
+  const counted = `${comparisonCount} comparisons`; // a food only ranks with 3+ comparisons (scoreOutOfTen)
   return (
     <Card style={styles.topFoodRow}>
       <View style={styles.topFoodInfo}>
