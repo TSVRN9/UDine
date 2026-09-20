@@ -20,13 +20,13 @@ export const ROUND_SIZE = 5;
 export const DAILY_ALLOWANCE = 5;
 
 /**
- * Post-log round progress, in memory only. `record` takes what `recordComparison` returned, so a failed
+ * Post-log round progress, in memory only. `record` takes what `recordComparison` (or `resolvePick`) returned, so a failed
  * or refused save (null) costs nothing; Skip is simply not calling `record`. `reset` on each successful log.
  */
 export class RoundTracker {
   picks = 0;
 
-  record(saved: unknown): void {
+  record(saved: { dishes: unknown; foods: unknown } | null): void {
     if (saved && this.picks < ROUND_SIZE) this.picks++;
   }
 

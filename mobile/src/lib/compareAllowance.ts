@@ -48,10 +48,18 @@ export async function remainingToday(store: AllowanceStore, now: Date): Promise<
   return DAILY_ALLOWANCE - (await picksToday(store, now));
 }
 
-/** Records one You-pane pick and returns today's count. At the cap it writes nothing and returns the cap. */
-export async function recordDailyPick(store: AllowanceStore, now: Date): Promise<number> {
-  const count = await picksToday(store, now);
-  if (count >= DAILY_ALLOWANCE) return count;
-  await store.write(JSON.stringify({ date: localDate(now), count: count + 1 }));
-  return count + 1;
+// Every call chains on the last: read-modify-write is not atomic, so overlapping picks would lose an increment.
+// A rejected call is swallowed on the queue only (its caller still sees it), so it never wedges later calls.
+let queue: Promise<unknown> = Promise.resolve();
+
+/** Records one You-pane pick and returns today's count. At the cap it writes nothing and returns the cap. A failed write rejects. */
+export function recordDailyPick(store: AllowanceStore, now: Date): Promise<number> {
+  const run = queue.then(async () => {
+    const count = await picksToday(store, now);
+    if (count >= DAILY_ALLOWANCE) return count;
+    await store.write(JSON.stringify({ date: localDate(now), count: count + 1 }));
+    return count + 1;
+  });
+  queue = run.catch(() => {});
+  return run;
 }
