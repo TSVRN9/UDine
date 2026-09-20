@@ -150,7 +150,7 @@ export function YouPane() {
   const { stress } = useLocalSearchParams<{ stress?: string }>();
   // useMemo, not lazy state: the deep link that carries `stress` can land after this pane first mounts.
   const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty" || stress === "compare-seed-used") ? compareFixture(stress !== "compare-seed-empty") : null), [stress]);
-  const allowance = useMemo(() => (fixture ? memoryAllowanceStore(stress === "compare-seed-used" ? DAILY_ALLOWANCE : 0) : sqliteAllowanceStore), [fixture, stress]);
+  const allowance = useMemo(() => (fixture ? memoryAllowanceStore(__DEV__ && stress === "compare-seed-used" ? DAILY_ALLOWANCE : 0) : sqliteAllowanceStore), [fixture, stress]);
   const ranking = fixture?.storage ?? rankingStorage;
   // Under the fixture the screenshot is one gesture (the swipe to this pane), so start scrolled to "Your Food".
   const scrollRef = useRef<ScrollView>(null);
