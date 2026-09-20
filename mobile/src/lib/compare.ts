@@ -30,6 +30,7 @@ export async function recordComparison(
   try {
     const dishes = applyComparison(await storage.getRankedDishes(), winner, loser);
     const foods = applyFoodComparison(await storage.getRankedFoods(), winner, loser);
+    // ponytail: two separate preferences_kv writes, so a throw on the second leaves the tracks diverged; upgrade to one transaction if storage grows a batch save.
     await storage.saveRankedDishes(dishes);
     await storage.saveRankedFoods(foods);
     return { dishes, foods };
