@@ -338,7 +338,8 @@ export interface LogStorageLike {
   addEntry(entry: LogEntry): Promise<void>;
 }
 
-export type LogPlateResult = { ok: true; count: number } | { ok: false; error: unknown };
+/** `failed`/`total` are item counts (servings, like `count`) -- what didn't commit vs the whole plate. */
+export type LogPlateResult = { ok: true; count: number } | { ok: false; error: unknown; failed: number; total: number };
 
 /** Two simultaneous RN Modals on Android can silently fail to present the second one. Fix:
  * CustomFoodForm always wins -- halls/[slug].tsx feeds both Modals' `visible` props through this
@@ -362,12 +363,15 @@ export function useGuardedLogPlate(storage: LogStorageLike) {
     inFlight.current = true;
     try {
       const entries = toLogEntries(plate, loggedAt);
+      let committed = 0;
       try {
         for (const entry of entries) {
           await storage.addEntry(entry);
+          committed += entry.servings;
         }
       } catch (e) {
-        return { ok: false, error: e };
+        const total = totalItemCount(plate);
+        return { ok: false, error: e, failed: total - committed, total };
       }
       return { ok: true, count: totalItemCount(plate) };
     } finally {

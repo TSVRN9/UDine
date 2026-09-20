@@ -40,6 +40,9 @@ set -euo pipefail
 #   lookup-hit / lookup-fetching / lookup-miss / lookup-rate-limited fixtures cover the
 #   direct-lookup states. Use --tap on the input (or --swipe on the list) after any of them to
 #   capture the keyboard-raised or scrolled variant.
+#   Toast states (halls/[slug].tsx, __DEV__ only): NAME=compare-toast-ok mounts the success toast
+#   ("Logged 3 items" + sub-line, no auto-dismiss); NAME=compare-toast-fail seeds a 2-dish plate
+#   and mounts the failure toast above its bar.
 # --record-nav: start screenrecord BEFORE the route-navigation deep link fires, instead
 #   of after the post-navigation settle. Without it, --record's clip only ever shows the
 #   already-settled end state of navigation -- any animation that fires automatically as
