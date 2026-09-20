@@ -2468,7 +2468,7 @@ describe("HallMenuScreen head-to-head compare", () => {
     await openCompare(root);
     expect(sheet(root).props.visible).toBe(true);
     expect(root.root.findAllByType(Toast)).toHaveLength(0);
-    expect(sheetTexts(root)).toEqual(["Which did you like more?", "Pizza", "Worcester · 200 cal", "or", "Soup", "Hampshire · 120 cal", "Skip"]);
+    expect(sheetTexts(root)).toEqual(["Which did you like more?", "1 of 5", "Pizza", "Worcester · 200 cal", "or", "Soup", "Hampshire · 120 cal", "Skip"]);
   });
 
   it("a plate serving of 2 is still one dish: cards show per-serving calories and one comparison is recorded", async () => {
@@ -2626,7 +2626,7 @@ describe("HallMenuScreen head-to-head compare", () => {
       root = renderer.create(<HallMenuScreen />);
     });
     expect(sheet(root).props.visible).toBe(true);
-    expect(sheetTexts(root)).toEqual(["Which did you like more?", "French Toast", "Hampshire · 320 cal", "or", "Belgian Waffle", "Berkshire · 410 cal", "Skip"]);
+    expect(sheetTexts(root)).toEqual(["Which did you like more?", "1 of 5", "French Toast", "Hampshire · 320 cal", "or", "Belgian Waffle", "Berkshire · 410 cal", "Skip"]);
     await act(async () => sheetPress(root, "French Toast")());
     expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
     expect(findToast(root).props.message).toBe("French Toast");
@@ -2651,6 +2651,118 @@ describe("HallMenuScreen head-to-head compare", () => {
     });
     expect(pairNames(root)).toEqual(["French Toast", "Belgian Waffle"]);
     expect(sheet(root).props.visible).toBe(true);
+  });
+
+  // --- Compare limits (docs/briefs/h2h-compare-limits.md): 5 recorded picks per logged meal -----------------
+  // Three logged dishes (Soup before, Pizza + Salad on the plate) so every pick has a next pair to offer:
+  // the only thing that can withhold "Another" here is the round being complete.
+  const threeDishes = () => logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
+  async function pickFirst(root: renderer.ReactTestRenderer) {
+    const [first] = pairNames(root);
+    await act(async () => sheetPress(root, first)());
+  }
+  async function another(root: renderer.ReactTestRenderer) {
+    await act(async () => {
+      toastAction(root)!.onPress();
+    });
+  }
+  const progress = (root: renderer.ReactTestRenderer) => sheet(root).props.progress;
+
+  it("the sheet counts this round's recorded picks + 1 ('1 of 5' first), and the 5th pick's toast has no 'Another'", async () => {
+    const root = await threeDishes();
+    await openCompare(root);
+    for (let picks = 0; picks < 5; picks++) {
+      expect(progress(root)).toEqual({ n: picks + 1, of: 5 });
+      expect(sheetTexts(root)).toContain(`${picks + 1} of 5`);
+      await pickFirst(root);
+      if (picks < 4) {
+        expect(toastAction(root)?.label).toBe("Another"); // picks 1-4
+        await another(root);
+      }
+    }
+    expect(mockRanking.saveRankedDishes).toHaveBeenCalledTimes(5);
+    expect(findToast(root).props.kind).toBe("success");
+    expect(findToast(root).props.subline).toBeDefined(); // the winner and score are still shown (CompareToastRoundDone.dc.html)
+    expect(toastAction(root)).toBeUndefined(); // the 5th: round complete
+    expect(sheet(root).props.visible).toBe(false);
+  });
+
+  it("the shared toast dwell still applies: the 4th pick's toast (Another) stays 6s, the 5th (none) dismisses at 4s", async () => {
+    const root = await threeDishes();
+    await openCompare(root);
+    for (let picks = 0; picks < 3; picks++) {
+      await pickFirst(root);
+      await another(root);
+    }
+    await pickFirst(root); // the 4th
+    act(() => jest.advanceTimersByTime(toastDwell + 100));
+    expect(root.root.findAllByType(Toast)).toHaveLength(1); // still up past 4s: it carries an action
+    await another(root);
+    await pickFirst(root); // the 5th
+    act(() => jest.advanceTimersByTime(toastDwell - 100));
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+    act(() => jest.advanceTimersByTime(200));
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+  });
+
+  it("Skip and a failed save cost nothing: the count holds and 4 recorded picks later there is still an 'Another'", async () => {
+    const root = await threeDishes();
+    await openCompare(root);
+    await act(async () => sheetPress(root, "Skip")());
+    expect(progress(root).n).toBe(1);
+    mockRanking.saveRankedDishes.mockRejectedValueOnce(new Error("disk full"));
+    await pickFirst(root);
+    expect(sheet(root).props.visible).toBe(true); // retryable
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+    expect(progress(root).n).toBe(1);
+    for (let picks = 0; picks < 4; picks++) {
+      expect(progress(root).n).toBe(picks + 1);
+      await pickFirst(root);
+      expect(toastAction(root)?.label).toBe("Another"); // 4th included: neither the skip nor the failed save was counted
+      if (picks < 3) await another(root);
+      if (picks < 3) await act(async () => sheetPress(root, "Skip")()); // skips between picks don't advance either
+    }
+    await another(root);
+    await pickFirst(root);
+    expect(toastAction(root)).toBeUndefined(); // the 5th recorded pick ends it
+  });
+
+  it("a new successful Log starts a fresh round: '1 of 5' again after picks on the previous log", async () => {
+    const root = await threeDishes();
+    await openCompare(root);
+    for (let picks = 0; picks < 3; picks++) {
+      await pickFirst(root);
+      if (picks < 2) await another(root);
+    }
+    act(() => jest.advanceTimersByTime(10_000)); // a later log has its own loggedAt and the toast is gone
+    addToPlate(root, "Salad");
+    await openSheetAndLog(root);
+    expect(toastAction(root)?.label).toBe("Rate them");
+    await openCompare(root);
+    expect(progress(root)).toEqual({ n: 1, of: 5 });
+    expect(sheetTexts(root)).toContain("1 of 5");
+  });
+
+  it("--stress compare-round-done opens on the 5th pair; a pick shows the winner with no 'Another', pinned, and never touches the device rankings", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "franklin", stress: "compare-round-done" });
+    let root!: renderer.ReactTestRenderer;
+    mockedFetchMenu.mockResolvedValue([PIZZA]);
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(sheet(root).props.visible).toBe(true);
+    expect(progress(root)).toEqual({ n: 5, of: 5 });
+    expect(sheetTexts(root)).toContain("5 of 5");
+    await act(async () => sheetPress(root, "French Toast")());
+    expect(findToast(root).props.message).toBe("French Toast");
+    expect(toastAction(root)).toBeUndefined(); // a third dish is logged, so it is the round that ends it
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+    act(() => jest.advanceTimersByTime(toastActionDwell + 1000));
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+  });
+
+  it("post-log picks never spend the You pane's daily allowance: the screen has no allowance code at all", () => {
+    expect(fs.readFileSync(path.join(__dirname, "..", "app", "halls", "[slug].tsx"), "utf8")).not.toMatch(/recordDailyPick|compareAllowance|sqliteAllowanceStore|picksToday/);
   });
 
   it("nothing in the screen or the sheet syncs rankings off-device", () => {

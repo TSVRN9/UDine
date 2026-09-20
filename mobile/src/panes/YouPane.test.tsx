@@ -25,6 +25,8 @@ import { SqliteLogStorage } from "../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../lib/rankingStorage";
 import { SqliteSeenDishesStorage } from "../lib/seenDishesStorage";
 import { SqliteFavoritesStorage } from "../lib/favoritesStorage";
+import { sqliteAllowanceStore } from "../lib/compareAllowance"; // the in-memory one, see the mock above
+import { getDb } from "../lib/db";
 import { getCachedHours } from "../lib/menuHoursCache";
 import { __resetRetailNamesForTest, recordRetailNames } from "../lib/retailHallNames";
 
@@ -57,6 +59,15 @@ jest.mock("../lib/favoritesStorage", () => {
 });
 
 jest.mock("../lib/date", () => ({ todayIso: () => "2026-08-19" }));
+
+// The compare allowance (docs/briefs/h2h-compare-limits.md): the REAL picksToday/recordDailyPick logic over an
+// in-memory store standing in for the device's preferences_kv row (sqlite can't run under jest). getDb is a
+// jest.fn so a test can prove the fixtures never reached the device store.
+jest.mock("../lib/db", () => ({ getDb: jest.fn() }));
+jest.mock("../lib/compareAllowance", () => {
+  const actual = jest.requireActual("../lib/compareAllowance");
+  return { ...actual, sqliteAllowanceStore: actual.memoryAllowanceStore() };
+});
 
 // #243 bug A remaining gap: getCachedHours is cache-only/no-network (menuHoursCache.ts) -- mocked
 // here so the race test below controls exactly when it resolves relative to YouPane's render,
@@ -110,10 +121,17 @@ async function renderYouPane() {
   });
   // Flush the storage promises + resulting re-render (useFocusEffect fires synchronously above,
   // but the storage .then() callbacks still resolve on a microtask).
-  await act(async () => {
-    await Promise.resolve();
-  });
+  // (a few ticks: the allowance read is a chain of awaits, and its setState must land inside act.)
+  await flush();
   return root;
+}
+
+async function flush() {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
 }
 
 // Two dishes at the same hall (>= ranking.ts's MIN_RATED_DISHES_PER_HALL) so rankDiningHalls ranks it.
@@ -141,7 +159,14 @@ function logEntry(id: string, dishName: string, hallTid: number, loggedAt: strin
   return { id, loggedAt, source: { type: "umass-menu", dishName, hallTid }, servings: 1, nutrition: NUTRITION };
 }
 
+// File-wide fake timers: a success toast schedules its own dismissal, and a real timer left running past a test's
+// end fires into a torn-down tree ("window.dispatchEvent is not a function", exit 1). Same reason as hallMenu.test.tsx.
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 beforeEach(() => {
+  jest.useFakeTimers();
   logMock.getAllEntries.mockReset().mockResolvedValue([]);
   logMock.removeEntry.mockReset().mockResolvedValue(undefined);
   rankingMock.getRankedDishes.mockResolvedValue([]);
@@ -151,6 +176,8 @@ beforeEach(() => {
   mockRouterPush.mockReset();
   mockGetCachedHours.mockReset().mockResolvedValue(null);
   __resetRetailNamesForTest();
+  (getDb as jest.Mock).mockClear();
+  return sqliteAllowanceStore.write(""); // an empty allowance: no comparisons spent today
 });
 
 describe("YouPane", () => {
@@ -568,9 +595,7 @@ async function tap(root: renderer.ReactTestRenderer, text: string) {
   await act(async () => {
     node.props.onPress();
   });
-  await act(async () => {
-    await Promise.resolve();
-  });
+  await flush();
 }
 const sheetProps = (root: renderer.ReactTestRenderer) => root.root.findByType(CompareSheet).props;
 const shownNames = (root: renderer.ReactTestRenderer) => (sheetProps(root).pair as { dishName: string }[]).map((c) => c.dishName).sort();
@@ -709,6 +734,9 @@ describe("YouPane head-to-head entry points", () => {
       expect(logMock.getAllEntries).not.toHaveBeenCalled();
       expect(rankingMock.saveRankedDishes).not.toHaveBeenCalled();
       expect(rankingMock.saveRankedFoods).not.toHaveBeenCalled();
+      // nor the device's allowance: the pick was counted on the fixture's own in-memory store
+      expect(await sqliteAllowanceStore.read()).toBeFalsy();
+      expect(getDb).not.toHaveBeenCalled();
     } finally {
       (useLocalSearchParams as jest.Mock).mockReturnValue({});
     }
@@ -738,16 +766,19 @@ describe("YouPane head-to-head entry points", () => {
       await tap(root, entry);
       await tap(root, shownNames(root)[0]);
     };
-    const advance = (ms: number) => act(() => jest.advanceTimersByTime(ms));
+    const advance = async (ms: number) => {
+      act(() => jest.advanceTimersByTime(ms));
+      await flush(); // the dismissal re-renders the pane, which re-reads the allowance
+    };
 
     it("a toast with 'Another' dismisses itself at toastActionDwell, one without at toastDwell", async () => {
       logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle(), soup()]);
       const withAction = await renderYouPane();
       await pickFirst(withAction, "Start comparing");
       expect(toasts(withAction)[0].props.action).toBeDefined();
-      advance(toastActionDwell - 1);
+      await advance(toastActionDwell - 1);
       expect(toasts(withAction)).toHaveLength(1);
-      advance(2);
+      await advance(2);
       expect(toasts(withAction)).toHaveLength(0);
 
       logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle()]);
@@ -755,9 +786,9 @@ describe("YouPane head-to-head entry points", () => {
       const plain = await renderYouPane();
       await pickFirst(plain, "Start comparing");
       expect(toasts(plain)[0].props.action).toBeUndefined();
-      advance(toastDwell - 1);
+      await advance(toastDwell - 1);
       expect(toasts(plain)).toHaveLength(1);
-      advance(2);
+      await advance(2);
       expect(toasts(plain)).toHaveLength(0);
     });
 
@@ -767,7 +798,7 @@ describe("YouPane head-to-head entry points", () => {
         const root = await renderYouPane();
         await pickFirst(root, "Start comparing");
         expect(toasts(root)).toHaveLength(1);
-        advance(toastActionDwell * 2);
+        await advance(toastActionDwell * 2);
         expect(toasts(root)).toHaveLength(1);
       } finally {
         (useLocalSearchParams as jest.Mock).mockReturnValue({});
@@ -791,6 +822,197 @@ describe("YouPane head-to-head entry points", () => {
   it("writes nothing off-device: no supabase or hall-rank sync anywhere in the pane", () => {
     const src = fs.readFileSync(path.join(__dirname, "YouPane.tsx"), "utf8");
     expect(src).not.toMatch(/syncDiningHallRanks|supabase/);
+  });
+});
+
+// --- Compare limits (docs/briefs/h2h-compare-limits.md): 5 You-pane comparisons per local day -----------------
+// The clock is jest's fake system time, so "today" is fixed and a new day is one setSystemTime away.
+describe("YouPane compare allowance", () => {
+  const TODAY = new Date(2026, 8, 20, 12, 0, 0);
+  const seed = (count: number, date = "2026-09-20") => sqliteAllowanceStore.write(JSON.stringify({ date, count }));
+  const stored = async () => JSON.parse((await sqliteAllowanceStore.read()) || "null");
+  const countText = (root: renderer.ReactTestRenderer) => sheetProps(root).progress;
+  const advance = async (ms: number) => {
+    act(() => jest.advanceTimersByTime(ms));
+    await flush(); // the re-render a dismissed toast causes re-reads the allowance
+  };
+  const pickFirst = async (root: renderer.ReactTestRenderer) => tap(root, shownNames(root)[0]);
+  const another = async (root: renderer.ReactTestRenderer) => {
+    await act(async () => {
+      toasts(root)[0].props.action.onPress();
+    });
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: TODAY });
+    // three logged dishes, ranked: every pick has a next pair, so only the allowance can withhold "Another"
+    logMock.getAllEntries.mockResolvedValue([frenchToast(), waffle(), soup()]);
+    statefulRanking([], [atTwo("French Toast"), atTwo("Belgian Waffle"), atTwo("Soup")]);
+  });
+  afterEach(() => jest.useRealTimers());
+
+  it.each([
+    [0, true],
+    [4, true],
+    [5, false],
+  ])("with %i used today, RATE MORE is shown: %s", async (used, shown) => {
+    await seed(used);
+    expect(hasRankMore(await renderYouPane())).toBe(shown);
+  });
+
+  it.each([
+    [4, true],
+    [5, false],
+  ])("with %i used today and nothing ranked yet, Start comparing is shown: %s", async (used, shown) => {
+    statefulRanking();
+    await seed(used);
+    const root = await renderYouPane();
+    expect(/Start comparing/.test(texts(root))).toBe(shown);
+    expect(texts(root)).toMatch(/No comparisons yet/);
+  });
+
+  it("yesterday's used allowance doesn't count: a new day shows RATE MORE again, without a restart, and the sheet says '1 of 5'", async () => {
+    await seed(5);
+    const root = await renderYouPane();
+    expect(hasRankMore(root)).toBe(false);
+    jest.setSystemTime(new Date(2026, 8, 21, 0, 5, 0)); // just past local midnight, the pane still mounted
+    await act(async () => {
+      root.update(<YouPane />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(hasRankMore(root)).toBe(true);
+    await tap(root, "RATE MORE");
+    expect(countText(root)).toEqual({ n: 1, of: 5 });
+    await pickFirst(root);
+    expect(await stored()).toEqual({ date: "2026-09-21", count: 1 });
+  });
+
+  it.each([0, 2, 4])("after %i picks today the sheet reads picks + 1 of 5", async (used) => {
+    await seed(used);
+    const root = await renderYouPane();
+    await tap(root, "RATE MORE");
+    expect(countText(root)).toEqual({ n: used + 1, of: 5 });
+    expect(texts(root)).toContain(`${used + 1} of 5`);
+  });
+
+  it("each recorded pick counts once on the device's record; Skip and a failed save count nothing", async () => {
+    const root = await renderYouPane();
+    await tap(root, "RATE MORE");
+    await tap(root, "Skip");
+    expect(await stored()).toBeNull();
+    expect(countText(root).n).toBe(1);
+    rankingMock.saveRankedDishes.mockRejectedValueOnce(new Error("disk full"));
+    await pickFirst(root);
+    expect(sheetProps(root).visible).toBe(true); // retryable, nothing spent
+    expect(await stored()).toBeNull();
+    await pickFirst(root);
+    expect(await stored()).toEqual({ date: "2026-09-20", count: 1 });
+    await another(root);
+    expect(countText(root)).toEqual({ n: 2, of: 5 });
+  });
+
+  it("the 4th pick offers 'Another' and the 5th does not: the toast has no action, RATE MORE goes away without leaving the pane", async () => {
+    await seed(3);
+    const root = await renderYouPane();
+    await tap(root, "RATE MORE");
+    await pickFirst(root); // the 4th
+    expect(await stored()).toEqual({ date: "2026-09-20", count: 4 });
+    expect(toasts(root)[0].props.action.label).toBe("Another");
+    expect(hasRankMore(root)).toBe(true);
+    await another(root);
+    expect(countText(root)).toEqual({ n: 5, of: 5 });
+    await pickFirst(root); // the 5th
+    expect(await stored()).toEqual({ date: "2026-09-20", count: 5 });
+    expect(toasts(root)).toHaveLength(1);
+    expect(toasts(root)[0].props.action).toBeUndefined();
+    expect(toasts(root)[0].props.subline).toBeDefined();
+    expect(sheetProps(root).visible).toBe(false);
+    expect(hasRankMore(root)).toBe(false); // same root: refreshed in place
+    expect(texts(root)).toMatch(/Your Top Foods/);
+  });
+
+  it("the shared dwell holds: the 4th toast (Another) outlasts 4s, the 5th (no action) dismisses at 4s", async () => {
+    await seed(3);
+    const root = await renderYouPane();
+    await tap(root, "RATE MORE");
+    await pickFirst(root);
+    await advance(toastDwell + 100);
+    expect(toasts(root)).toHaveLength(1);
+    await advance(toastActionDwell - toastDwell);
+    expect(toasts(root)).toHaveLength(0);
+
+    const last = await renderYouPane(); // the 4th was recorded above; the pane reads it back
+    await tap(last, "RATE MORE");
+    await pickFirst(last);
+    await advance(toastDwell - 100);
+    expect(toasts(last)).toHaveLength(1);
+    await advance(200);
+    expect(toasts(last)).toHaveLength(0);
+  });
+
+  it("the two budgets are separate: this pane holds no post-log round, and the allowance persists across a remount", async () => {
+    const src = fs.readFileSync(path.join(__dirname, "YouPane.tsx"), "utf8");
+    expect(src).not.toMatch(/RoundTracker|ROUND_SIZE/);
+    await seed(2);
+    const first = await renderYouPane();
+    await tap(first, "RATE MORE");
+    await pickFirst(first);
+    act(() => first.unmount());
+    const second = await renderYouPane();
+    await tap(second, "RATE MORE");
+    expect(countText(second)).toEqual({ n: 4, of: 5 });
+  });
+
+  it("--stress compare-seed-used: the fixture's own in-memory allowance is spent, so no RATE MORE, and the device store is never read", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed-used" });
+    try {
+      const root = await renderYouPane();
+      expect(hasRankMore(root)).toBe(false);
+      expect(texts(root)).toMatch(/9\.1/); // Top Foods itself is populated
+      expect(getDb).not.toHaveBeenCalled();
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
+  });
+
+  it("--stress compare-seed starts with the full allowance on its own store: '1 of 5', not the device's spent one", async () => {
+    await seed(5); // the device's record says used up; the fixture must not see it
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed" });
+    try {
+      const root = await renderYouPane();
+      expect(hasRankMore(root)).toBe(true);
+      await tap(root, "RATE MORE");
+      expect(countText(root)).toEqual({ n: 1, of: 5 });
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
+  });
+});
+
+describe("YouPane allowance used (YouTopFoodsAllowanceUsed.dc.html)", () => {
+  const USED = "YouTopFoodsAllowanceUsed.dc.html";
+
+  it("Top Foods is the populated pane minus the RATE MORE action: none in the artboard, none rendered, the rule still grows across the row", async () => {
+    expect(() => artboardStyle(USED, "RATE MORE")).toThrow();
+    expect(() => artboardStyle(USED, "Start comparing")).toThrow();
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed-used" });
+    try {
+      const root = await renderYouPane();
+      expect(hasRankMore(root)).toBe(false);
+      const header = root.root.findAllByType(SectionHeader).find((h) => h.props.title === "Your Top Foods")!;
+      expect(header.props.right).toBeUndefined();
+      const [row, rule] = header.findAllByType(View);
+      expect(flatStyle(row.props.style).alignItems).toBe(artboardEnclosingStyle(USED, "Your Top Foods", 1).alignItems);
+      expect(flatStyle(rule.props.style).flexGrow).toBe(1);
+      expect(artboardEnclosingStyle(USED, "Your Top Foods", 1).alignItems).toBe("center");
+      expect(artboardTag(USED, "height: 1px; flex-grow: 1").attrs.style).toMatch(/flex-grow:\s*1/);
+      // the rows below are unchanged: the same gold #1 pill as YouTopFoodsRankMore.dc.html
+      expect(texts(root)).toMatch(/9\.1/);
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
   });
 });
 
