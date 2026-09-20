@@ -12,7 +12,7 @@ import {
   type RankingStorage,
 } from "@udine/shared";
 import type { PlateEntry } from "./plate";
-import { pickPair, type Dish } from "./pairSelection";
+import { pickPair, samePair, type Dish } from "./pairSelection";
 
 // Module-level, not per-storage: SqliteRankingStorage is stateless and every caller shares the one
 // preferences_kv blob, so two overlapping read-modify-write cycles would clobber each other anyway.
@@ -69,10 +69,14 @@ export function compareCard(entries: LogEntry[], dish: LoggedDish): CompareCard 
   return { dishName: dish.dishName, hallTid: dish.hallTid, calories: Math.round(latest?.nutrition.calories ?? 0) };
 }
 
-/** A fresh pair among everything logged (the archived `pickPair`: least-compared first, never `exclude` again when 3+ dishes exist). Null with fewer than two distinct dishes. */
+/**
+ * A fresh pair among everything logged (the archived `pickPair`: least-compared first). Null with fewer than two distinct dishes, or
+ * when the only pair there is is `exclude` -- `pickPair` itself only avoids the excluded pair with 3+ dishes and would re-deal it forever with two.
+ */
 export function dealPair(entries: LogEntry[], rankedDishes: RankedDish[], exclude: [Dish, Dish] | null): [CompareCard, CompareCard] | null {
   const pair = pickPair(distinctLoggedDishes(entries), rankedDishes, exclude);
-  return pair && [compareCard(entries, pair[0]), compareCard(entries, pair[1])];
+  if (!pair || (exclude && samePair(pair, exclude))) return null;
+  return [compareCard(entries, pair[0]), compareCard(entries, pair[1])];
 }
 
 /**
