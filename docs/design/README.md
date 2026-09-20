@@ -17,7 +17,7 @@ The canvas uses the editor's own **pages** feature (`content.pages: [{id, name}]
 field on each artboard/annotation naming which page it's on — omitted entirely for the first page).
 Open the canvas URL above and use the page switcher (top left, "N pages") to jump between them:
 Prototype, Home & Pane Shell, Hall Menu & Ordering, Plate & Search, Half Servings, Cafe, You /
-Profile & Data, Events & Press, Badge Concepts, Badge Glyph Workshop, Archived / Cut Features. Each
+Profile & Data, Events & Press, Badge Concepts, Badge Glyph Workshop, Head-to-Head & Toasts, Archived / Cut Features. Each
 page is its own tidy grid (artboards in reading order, that page's own annotations in a column to
 the right — annotations are free-height text with no predictable render size, so give them their
 own lane rather than squeezing them above the grid). `extract.py` flattens every page's artboards
@@ -105,6 +105,11 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | F4 -- Always-available station (new) | `UnlistedStationPersistent.dc.html` | 390×844 | design-only |
 | F4 -- lookup-dish states: fetching / miss / rate-limited (new) | `SearchLookupStates.dc.html` | 390×844 | design-only |
 | Friend profile (tap avatar) | `FriendProfile.dc.html` | 390×844 | archived (`archive/full-features`) |
+| H2H -- After a pick: toast with Another | `CompareToastPicked.dc.html` | 390×844 | design-only |
+| H2H -- Compare sheet | `CompareSheet.dc.html` | 390×844 | design-only |
+| H2H -- Post-log toast: logged (success) | `ToastLogged.dc.html` | 390×844 | design-only (replaces the inline banner in `app/halls/[slug].tsx`) |
+| H2H -- You pane: Top Foods empty state | `YouTopFoodsEmpty.dc.html` | 390×844 | design-only |
+| H2H -- You pane: Your Top Foods with Rank more | `YouTopFoodsRankMore.dc.html` | 390×844 | design-only |
 | Half servings v2 — F: inline vertical slide (grows from the + button) | `ServingsF.dc.html` | 390×844 | `components/HoldSlideOverlay.tsx`, `components/HoldSlideAddButton.tsx`, `lib/servingsStepper.ts`, `app/halls/[slug].tsx` |
 | Half servings v2 — G: type an exact amount, editing from the plate sheet | `ServingsG.dc.html` | 390×844 | `components/PlateSheet.tsx` |
 | Hall info sheet (i) | `HallInfo.dc.html` | 390×844 | `components/HallInfoSheet.tsx`, `lib/hallMenuTabs.ts` |
@@ -114,6 +119,7 @@ start from; keep it current when a new screen lands. Blank = not built yet or de
 | Home | `Main.dc.html` | 390×844 | `app/index.tsx` |
 | Home - loading | `HomeLoading.dc.html` | 390×844 | `app/index.tsx` |
 | Home - offline (cached) | `HomeOffline.dc.html` | 390×844 | `app/index.tsx` |
+| Toast -- log failed (plate kept) | `ToastLogFailed.dc.html` | 390×844 | design-only |
 | ▶ Interactive prototype | `Prototype.dc.html` | 390×844 | motion spec → `lib/motion.ts`; pane shell → `components/PaneStack.tsx`, `components/PaneHeader.tsx` |
 | Login / first launch | `Login.dc.html` | 390×844 | archived (`archive/full-features`) |
 | Logs & stats (from You) | `Logs.dc.html` | 390×844 | `app/logs.tsx` |
