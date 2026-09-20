@@ -5,6 +5,8 @@
 import renderer, { act } from "react-test-renderer";
 import { Alert, Image, Share, Text } from "react-native";
 import * as expoRouter from "expo-router";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import EventDetailScreen from "../app/event-detail";
 import { artboardEnclosingStyle, artboardNthStyle, artboardStyle, normalizeColor } from "./artboard";
 import { buttonColors, colors } from "./theme";
@@ -21,6 +23,12 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+jest.mock("expo-file-system/legacy", () => ({ cacheDirectory: "file:///cache/", downloadAsync: jest.fn() }));
+jest.mock("expo-sharing", () => ({ isAvailableAsync: jest.fn(), shareAsync: jest.fn() }));
+
+const mockedDownload = FileSystem.downloadAsync as jest.Mock;
+const mockedIsAvailable = Sharing.isAvailableAsync as jest.Mock;
+const mockedShareAsync = Sharing.shareAsync as jest.Mock;
 const mockedUseLocalSearchParams = expoRouter.useLocalSearchParams as jest.Mock;
 const mockedRouterBack = expoRouter.router.back as jest.Mock;
 
@@ -184,6 +192,9 @@ describe("EventDetailScreen header (EventDetailOptionA.dc.html)", () => {
 describe("EventDetailScreen share pill", () => {
   beforeEach(() => {
     mockedRouterBack.mockClear();
+    mockedDownload.mockReset().mockImplementation(async (_url: string, dest: string) => ({ uri: dest, status: 200 }));
+    mockedIsAvailable.mockReset().mockResolvedValue(true);
+    mockedShareAsync.mockReset().mockResolvedValue(undefined);
     jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" } as never);
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     mockedUseLocalSearchParams.mockReturnValue({
@@ -199,7 +210,7 @@ describe("EventDetailScreen share pill", () => {
     jest.restoreAllMocks();
   });
 
-  it("tapping it calls Share.share with the title and poster URL as plain text (Android needs the link IN the message, not just the url field)", async () => {
+  async function tapShare() {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(<EventDetailScreen />);
@@ -208,22 +219,44 @@ describe("EventDetailScreen share pill", () => {
     await act(async () => {
       pill.props.onPress();
     });
-    expect(Share.share).toHaveBeenCalledWith({
-      message: "Sustainability Big Impact\nhttps://example.com/poster.jpg",
-      url: "https://example.com/poster.jpg",
-    });
+  }
+
+  it("downloads the poster to the cache dir and shares only that file, as an image", async () => {
+    await tapShare();
+    expect(mockedDownload).toHaveBeenCalledWith("https://example.com/poster.jpg", expect.stringMatching(/^file:\/\/\/cache\/.+\.jpg$/));
+    const dest = mockedDownload.mock.calls[0][1];
+    expect(mockedShareAsync).toHaveBeenCalledWith(dest, { mimeType: "image/jpeg", UTI: "public.jpeg" });
+    expect(Share.share).not.toHaveBeenCalled();
   });
 
-  it("swallows a dismissed/failed share silently instead of alerting", async () => {
-    (Share.share as jest.Mock).mockRejectedValue(new Error("share failed"));
-    let root!: renderer.ReactTestRenderer;
-    act(() => {
-      root = renderer.create(<EventDetailScreen />);
-    });
-    const pill = root.root.findByProps({ accessibilityLabel: "Share" });
-    await act(async () => {
-      pill.props.onPress();
-    });
+  it("derives the image type from the URL extension, ignoring a query string", async () => {
+    mockedUseLocalSearchParams.mockReturnValue({ title: "T", pamphletImage: "https://example.com/poster.PNG?v=2", expirationDate: "" });
+    await tapShare();
+    expect(mockedShareAsync).toHaveBeenCalledWith(expect.stringMatching(/\.png$/), { mimeType: "image/png", UTI: "public.png" });
+  });
+
+  it("does not share the error page when the download resolves non-2xx", async () => {
+    mockedDownload.mockResolvedValue({ uri: "file:///cache/x.jpg", status: 404 });
+    await tapShare();
+    expect(mockedDownload).toHaveBeenCalled();
+    expect(mockedShareAsync).not.toHaveBeenCalled();
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
+  it("skips sharing when sharing is unavailable", async () => {
+    mockedIsAvailable.mockResolvedValue(false);
+    await tapShare();
+    expect(mockedDownload).toHaveBeenCalled();
+    expect(mockedShareAsync).not.toHaveBeenCalled();
+  });
+
+  it("swallows a thrown download or share error silently instead of alerting", async () => {
+    mockedDownload.mockRejectedValueOnce(new Error("offline"));
+    await tapShare();
+    expect(mockedShareAsync).not.toHaveBeenCalled();
+    mockedShareAsync.mockRejectedValueOnce(new Error("share failed"));
+    await tapShare();
+    expect(mockedShareAsync).toHaveBeenCalledTimes(1);
     expect(Alert.alert).not.toHaveBeenCalled();
   });
 });
