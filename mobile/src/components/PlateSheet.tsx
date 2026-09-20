@@ -335,7 +335,7 @@ export function PlateSheet({
   useEffect(() => {
     // A dev search-state fixture seeds its query programmatically; a raised keyboard would cover the
     // state being captured (and is the IME interaction stress-fixture-auto-open-self-dismiss.md suspects).
-    if (searchExpanded && !(__DEV__ && stressFixture?.startsWith("search-"))) {
+    if (searchExpanded && !(__DEV__ && (stressFixture?.startsWith("search-") || stressFixture?.startsWith("lookup-")))) {
       const id = requestAnimationFrame(() => searchInputRef.current?.focus());
       return () => cancelAnimationFrame(id);
     }
