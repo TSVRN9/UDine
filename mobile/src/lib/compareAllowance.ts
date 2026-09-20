@@ -48,6 +48,17 @@ export async function remainingToday(store: AllowanceStore, now: Date): Promise<
   return DAILY_ALLOWANCE - (await picksToday(store, now));
 }
 
+/** Dev-only `--stress compare-seed*` fixtures: an in-memory store already holding `count` picks for `now`'s date, so nothing on the device is read or written. */
+export function memoryAllowanceStore(count = 0, now = new Date()): AllowanceStore {
+  let json: string | null = count > 0 ? JSON.stringify({ date: localDate(now), count }) : null;
+  return {
+    read: async () => json,
+    write: async (next) => {
+      json = next;
+    },
+  };
+}
+
 // Every call chains on the last: read-modify-write is not atomic, so overlapping picks would lose an increment.
 // A rejected call is swallowed on the queue only (its caller still sees it), so it never wedges later calls.
 let queue: Promise<unknown> = Promise.resolve();

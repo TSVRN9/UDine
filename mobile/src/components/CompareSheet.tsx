@@ -11,6 +11,8 @@ interface Props {
   visible: boolean;
   /** Kept by the caller through the close animation, so the sheet never blanks mid-slide. */
   pair: [CompareCard, CompareCard] | null;
+  /** "n of 5": how far along the caller's round (or day's allowance) this pair is. */
+  progress: { n: number; of: number };
   onPick: (winner: CompareCard, loser: CompareCard) => void;
   onSkip: () => void;
   onClose: () => void;
@@ -21,7 +23,7 @@ interface Props {
  * HallInfoSheet/FilterSheet (transparent RN Modal, drag handle, tap-to-dismiss scrim) and the same
  * PlateExpanded.dc.html look. Picking, skipping and what follows are the caller's: this only reports.
  */
-export function CompareSheet({ visible, pair, onPick, onSkip, onClose }: Props) {
+export function CompareSheet({ visible, pair, progress, onPick, onSkip, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { gesture, backdropStyle, panelStyle, modalVisible } = useDraggableSheet(visible, onClose, fs(400));
   if (!pair) return null;
@@ -51,7 +53,10 @@ export function CompareSheet({ visible, pair, onPick, onSkip, onClose }: Props) 
               <View testID="compareHandle" style={styles.handle} />
             </View>
           </GestureDetector>
-          <Text style={styles.title}>Which did you like more?</Text>
+          <View style={styles.header}>
+            <Text style={styles.title}>Which did you like more?</Text>
+            <Text style={styles.count}>{`${progress.n} of ${progress.of}`}</Text>
+          </View>
           <View style={styles.cards}>
             {card(a, b)}
             <View style={styles.divider}>
@@ -92,7 +97,10 @@ const styles = StyleSheet.create({
   // The panel gap above supplies the artboard's 14px to the title.
   handleRow: { alignItems: "center", paddingVertical: spacing(5) },
   handle: { width: fs(40), height: 4, borderRadius: radii.pill, backgroundColor: withOpacity(colors.ink900, 20) },
+  // CompareSheet.dc.html: the title and the count share one baseline row, count at the right (PlateSheet's header idiom).
+  header: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   title: { fontFamily: fonts.display700, fontSize: fs(20), letterSpacing: 1, textTransform: "uppercase", color: colors.maroon900 },
+  count: { fontFamily: fonts.body400, fontSize: fs(12), color: withOpacity(colors.ink900, 55) },
   cards: { gap: spacing(2) },
   card: {
     minHeight: 68,

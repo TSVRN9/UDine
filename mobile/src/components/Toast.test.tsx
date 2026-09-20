@@ -150,6 +150,16 @@ describe("Toast action (ToastLogged.dc.html 'Rate them', CompareToastPicked.dc.h
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
+  it("CompareToastRoundDone.dc.html: the round's last toast is the same card with the winner and score and no action", () => {
+    const file = "CompareToastRoundDone.dc.html";
+    const r = render({ kind: "success", message: "French Toast", subline: "9.1 · 15 comparisons" });
+    expectCardMatches(r, file, "9.1 · 15 comparisons"); // anchored on the sub-line: "French Toast" also names a menu row behind the scrim
+    expect(r.root.findAllByType(Text).map((n) => n.props.children)).toEqual(["French Toast", "9.1 · 15 comparisons"]);
+    expect(() => artboardStyle(file, "Another")).toThrow(); // the artboard has no action, so neither does the toast
+    expect(() => artboardStyle(file, "Rate them")).toThrow();
+    expect(actionButton(r)).toBeUndefined();
+  });
+
   it("no action prop renders no action label", () => {
     const r = render({ kind: "success", message: "Logged 3 items", subline: "x" });
     expect(r.root.findAllByType(Text).map((n) => n.props.children)).toEqual(["Logged 3 items", "x"]);

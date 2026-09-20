@@ -1,7 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { DAILY_ALLOWANCE } from "./compare";
-import { picksToday, recordDailyPick, remainingToday, type AllowanceStore } from "./compareAllowance";
+import { getDb } from "./db";
+import { memoryAllowanceStore, picksToday, recordDailyPick, remainingToday, type AllowanceStore } from "./compareAllowance";
 
 jest.mock("./db", () => ({ getDb: jest.fn() }));
 
@@ -185,6 +186,23 @@ describe("daily allowance", () => {
       const store: AllowanceStore = { read: async () => Promise.reject(new Error("db")), write: async () => {} };
       expect(await remainingToday(store, today)).toBe(DAILY_ALLOWANCE);
     });
+  });
+});
+
+describe("memoryAllowanceStore (dev fixtures)", () => {
+  const now = at(2026, 9, 20);
+  it("starts empty, or already holding `count` picks for that local date", async () => {
+    expect(await picksToday(memoryAllowanceStore(0, now), now)).toBe(0);
+    expect(await picksToday(memoryAllowanceStore(DAILY_ALLOWANCE, now), now)).toBe(DAILY_ALLOWANCE);
+    expect(await remainingToday(memoryAllowanceStore(DAILY_ALLOWANCE, now), now)).toBe(0);
+    expect(await picksToday(memoryAllowanceStore(DAILY_ALLOWANCE, now), at(2026, 9, 21))).toBe(0); // next day
+  });
+
+  it("is a real read/write store: recordDailyPick counts on it, and it never touches the sqlite store", async () => {
+    const store = memoryAllowanceStore(0, now);
+    expect(await recordDailyPick(store, now)).toBe(1);
+    expect(await picksToday(store, now)).toBe(1);
+    expect(getDb).not.toHaveBeenCalled();
   });
 });
 

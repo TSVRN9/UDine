@@ -35,7 +35,7 @@ const waffle = { dishName: "Belgian Waffle", hallTid: 4, calories: 410 };
 
 type Props = React.ComponentProps<typeof CompareSheet>;
 function props(over: Partial<Props> = {}): Props {
-  return { visible: true, pair: [toast, waffle], onPick: jest.fn(), onSkip: jest.fn(), onClose: jest.fn(), ...over };
+  return { visible: true, pair: [toast, waffle], progress: { n: 1, of: 5 }, onPick: jest.fn(), onSkip: jest.fn(), onClose: jest.fn(), ...over };
 }
 function render(over: Partial<Props> = {}) {
   const p = props(over);
@@ -67,7 +67,7 @@ describe("CompareSheet content (CompareSheet.dc.html)", () => {
   it("shows the title, both dishes as 'Hall · N cal', the 'or' divider and Skip", () => {
     const { root } = render();
     const all = root.root.findAllByType(Text).map((n) => n.props.children);
-    expect(all).toEqual(["Which did you like more?", "French Toast", "Hampshire · 320 cal", "or", "Belgian Waffle", "Berkshire · 410 cal", "Skip"]);
+    expect(all).toEqual(["Which did you like more?", "1 of 5", "French Toast", "Hampshire · 320 cal", "or", "Belgian Waffle", "Berkshire · 410 cal", "Skip"]);
   });
 
   it("renders nothing without a pair", () => {
@@ -126,6 +126,36 @@ describe("CompareSheet artboard parity", () => {
     expect(s.fontFamily).toBe(fonts.display700); // font-weight 700 on Oswald
   });
 
+  it("count: '1 of 5', 12px 55% ink on the right of a baseline title row (PlateExpanded's title-row idiom)", () => {
+    const { root } = render();
+    const spec = artboardStyle(FILE, "1 of 5");
+    const s = textStyle(root, "1 of 5");
+    expect(spec.fontSize).toBe(12);
+    expect(s.fontSize).toBe(spec.fontSize);
+    expect(c(s.color)).toBe(spec.color);
+    expect(c(s.color)).toBe("rgba(36,26,20,0.55)");
+    expect(s.fontFamily).toBe(familyFor(spec.fontWeight ?? 400)); // no font-weight on the artboard div: body 400
+    // the row the title and the count share
+    const row = artboardEnclosingStyle(FILE, "1 of 5", 1);
+    expect(artboardEnclosingStyle(FILE, "Which did you like more?", 1)).toEqual(row); // same row
+    // flex-direction / justify-content have no artboardStyle mapping: read the row's raw declaration (display: flex = a row)
+    const raw = artboardTag(FILE, "display: flex; align-items: baseline").attrs.style;
+    expect(raw).toMatch(/justify-content:\s*space-between/);
+    const rn = flat(textNode(root, "1 of 5").parent!.props.style);
+    expect(textNode(root, "Which did you like more?").parent).toBe(textNode(root, "1 of 5").parent);
+    expect(rn.flexDirection).toBe("row");
+    expect(rn.alignItems).toBe(row.alignItems);
+    expect(rn.alignItems).toBe("baseline");
+    expect(rn.justifyContent).toBe("space-between");
+  });
+
+  it("the count text is the progress prop, 'n of of'", () => {
+    const { root } = render({ progress: { n: 4, of: 5 } });
+    expect(textNode(root, "4 of 5")).toBeTruthy();
+    const other = render({ progress: { n: 3, of: 7 } });
+    expect(textNode(other.root, "3 of 7")).toBeTruthy();
+  });
+
   it("each card: fill, hairline border, radius, padding, min-height", () => {
     const { root } = render();
     const spec = artboardEnclosingStyle(FILE, "Hampshire · 320 cal", 1);
@@ -165,7 +195,7 @@ describe("CompareSheet artboard parity", () => {
   it("'or' divider: rule colour and label type", () => {
     const { root } = render();
     const rule = artboardTag(FILE, "height: 1px; flex-grow: 1").style;
-    const or = artboardTag(FILE, "color: rgba(36,26,20,0.55)").style;
+    const or = artboardTag(FILE, "font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(36,26,20,0.55)").style;
     const label = textStyle(root, "or");
     expect(label.fontSize).toBe(or.fontSize);
     expect(label.letterSpacing).toBe(or.letterSpacing);
