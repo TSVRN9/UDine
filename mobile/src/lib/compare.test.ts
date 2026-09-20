@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { LogEntry, RankedDish, RankedFood, RankingStorage, FoodRankingStorage } from "@udine/shared";
-import { comparisonSubLine, compareCard, compareFixture, dealPair, pickPostLogPair, plateDishes, recordComparison, resolvePick, resolveSkip } from "./compare";
+import { DAILY_ALLOWANCE, ROUND_SIZE, RoundTracker, comparisonSubLine, compareCard, compareFixture, dealPair, pickPostLogPair, plateDishes, recordComparison, resolvePick, resolveSkip } from "./compare";
 import type { PlateEntry } from "./plate";
 
 type Storage = RankingStorage & FoodRankingStorage;
@@ -189,6 +189,100 @@ describe("comparisonSubLine", () => {
   it("shows only the count below the gate", () => {
     expect(comparisonSubLine(food(2))).toBe("2 comparisons");
     expect(comparisonSubLine(food(1))).toBe("1 comparison");
+  });
+});
+
+describe("round tracker", () => {
+  const saved = { dishes: [], foods: [] };
+  const salad = { dishName: "Salad", hallTid: 2 };
+
+  it("ROUND_SIZE and DAILY_ALLOWANCE are both 5", () => {
+    expect(ROUND_SIZE).toBe(5);
+    expect(DAILY_ALLOWANCE).toBe(5);
+  });
+
+  it("starts at 1 of 5, not done", () => {
+    const t = new RoundTracker();
+    expect(t.picks).toBe(0);
+    expect(t.number).toBe(1);
+    expect(t.done).toBe(false);
+  });
+
+  it("the 4th recorded pick leaves the round open, the 5th completes it", () => {
+    const t = new RoundTracker();
+    for (let i = 1; i <= 4; i++) {
+      t.record(saved);
+      expect(t.picks).toBe(i);
+      expect(t.number).toBe(i + 1);
+      expect(t.done).toBe(false);
+    }
+    t.record(saved);
+    expect(t.picks).toBe(5);
+    expect(t.done).toBe(true);
+    expect(t.number).toBe(ROUND_SIZE);
+  });
+
+  it("never counts past ROUND_SIZE", () => {
+    const t = new RoundTracker();
+    for (let i = 0; i < 9; i++) t.record(saved);
+    expect(t.picks).toBe(ROUND_SIZE);
+    expect(t.number).toBe(ROUND_SIZE);
+    expect(t.done).toBe(true);
+  });
+
+  it("a failed save (recordComparison null) costs nothing", () => {
+    const t = new RoundTracker();
+    t.record(saved);
+    t.record(null);
+    t.record(null);
+    expect(t.picks).toBe(1);
+    expect(t.number).toBe(2);
+  });
+
+  it("record only accepts a saved-pick result or null, not a boolean", () => {
+    const t = new RoundTracker();
+    // @ts-expect-error a bare boolean is not a pick result
+    t.record(true);
+    expect(t.picks).toBe(1);
+  });
+
+  it("Skip is not calling record: the count stays put", () => {
+    const t = new RoundTracker();
+    t.record(saved);
+    expect(t.picks).toBe(1);
+    expect(t.done).toBe(false);
+  });
+
+  it("reset (a new successful log) starts a fresh round", () => {
+    const t = new RoundTracker();
+    for (let i = 0; i < ROUND_SIZE; i++) t.record(saved);
+    t.reset();
+    expect(t.picks).toBe(0);
+    expect(t.number).toBe(1);
+    expect(t.done).toBe(false);
+  });
+
+  it("follows real recordComparison results: a save counts, an in-flight refusal does not", async () => {
+    const { storage } = stubStorage();
+    const t = new RoundTracker();
+    t.record(await recordComparison(storage, pizza, salad));
+    expect(t.picks).toBe(1);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const slow: Storage = { ...storage, getRankedDishes: async () => (await gate, []) };
+    const first = recordComparison(slow, pizza, salad);
+    t.record(await recordComparison(storage, pizza, salad)); // refused while `first` is saving: null
+    expect(t.picks).toBe(1);
+    release();
+    t.record(await first);
+    expect(t.picks).toBe(2);
+  });
+
+  it("two trackers are independent (round vs You-pane path)", () => {
+    const a = new RoundTracker();
+    const b = new RoundTracker();
+    a.record(saved);
+    expect(b.picks).toBe(0);
   });
 });
 
