@@ -529,6 +529,60 @@
       "h": 844,
       "title": "F2 -- Search failed (new)",
       "page": "page-4"
+    },
+    {
+      "file": "ToastLogged.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "H2H -- Post-log toast: logged (success)",
+      "page": "page-12"
+    },
+    {
+      "file": "CompareSheet.dc.html",
+      "x": 450,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "H2H -- Compare sheet",
+      "page": "page-12"
+    },
+    {
+      "file": "CompareToastPicked.dc.html",
+      "x": 900,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "H2H -- After a pick: toast with Another",
+      "page": "page-12"
+    },
+    {
+      "file": "ToastLogFailed.dc.html",
+      "x": 0,
+      "y": 960,
+      "w": 390,
+      "h": 844,
+      "title": "Toast -- log failed (plate kept)",
+      "page": "page-12"
+    },
+    {
+      "file": "YouTopFoodsRankMore.dc.html",
+      "x": 450,
+      "y": 960,
+      "w": 390,
+      "h": 844,
+      "title": "H2H -- You pane: Your Top Foods with Rank more",
+      "page": "page-12"
+    },
+    {
+      "file": "YouTopFoodsEmpty.dc.html",
+      "x": 900,
+      "y": 960,
+      "w": 390,
+      "h": 844,
+      "title": "H2H -- You pane: Top Foods empty state",
+      "page": "page-12"
     }
   ],
   "annotations": [
@@ -794,6 +848,14 @@
       "w": 420,
       "page": "page-4",
       "text": "Search panel actions + non-result states (new, owner request 2026-09-19 -- PlateSheet.tsx's search pane had buttons and states with no artboard, so each agent styled them from nothing).\n\nSearch UMass Dining directly (PlateSheetResults.dc.html): the app's existing secondary button variant (Button.tsx: transparent fill, #7c2430 text, 45% #7c2430 border) at Load More's exact geometry -- full-width, 10px padding, Oswald 600 12px uppercase. Sits between Load More and the dashed Create row: neutral outline -> maroon outline -> dashed maroon, ordered by how far off the beaten path each action is. Shown after every completed search (plate-search-semantics.md decision 3), hidden while a lookup is fetching.\n\nSearchStateInFlight: the bare spinner under the input becomes the same gold-tinted row SearchLookupStates uses for its fetching state, so every 'waiting' moment looks alike. Search button dims (45%) because resubmitting the same in-flight query is a no-op; a different query re-enables it and supersedes. Rows stream in beneath as each source resolves; the footer actions stay hidden until the whole search settles.\n\nSearchStateEmpty: a one-line muted 'Nothing found for <query>' row (13px, 65% ink, same treatment as the fetching row's text) above the two action rows. Real user copy, owner-approved 2026-09-19. The Create row is still the escape hatch; there is no separate 'No matches.' element.\n\nSearchStateError: replaces the raw red 'Search failed: <error string>' (hard-coded #b00020, off-palette) with the rate-limited pill's gray treatment + an alert glyph. Copy owner-approved 2026-09-19. Create row stays as the escape hatch.\n\nAlso updated in place: PlateSheetResults now shows the back-header row (SearchExpandedHeader.dc.html) that shipped code already has, and 'Load More' replaces 'Load 20 More' (plate-search-semantics.md decision 4)."
+    },
+    {
+      "id": "h2h-note",
+      "x": 1380,
+      "y": 0,
+      "w": 390,
+      "text": "HEAD-TO-HEAD ENTRY POINTS (owner picked these two, 2026-09-20). Comparisons stay device-only (residency table); pairs are drawn only from dishes the user has logged.\n\nTOAST (new shared component; replaces the inline maroon 'logged' banner in halls/[slug].tsx, which also carried failures with no visual difference). Card: paper fill, 1px gold border, gold check badge, maroon action at the right. Failure: maroon600 fill, paper '!' badge, no action; the plate is kept, so it sits above the plate bar and stays until dismissed. Motion = durations.toast (260ms opacity + transform, Prototype .toastbox). An action toast must outlast today's 4s banner / the prototype's 1.9s.\n\nPOST-LOG: 'Rate them' opens the compare sheet on the just-logged dish vs one the user has logged before (pickPostLogComparisonPair). No eligible pair = no action on the toast. A pick closes the sheet and toasts the new score with 'Another' (opens the next pair).\n\nCOMPARE SHEET: PlateExpanded's sheet (scrim, handle, 12px radius). Tap a card to pick; Skip dismisses without recording.\n\nYOU PANE: 'Rank more' in the Your Top Foods header opens the same sheet. Empty state: 'Start comparing' replaces the caption; needs at least two logged dishes to have a pair. Score pill: gold for #1, outlined for the rest (extrapolated; the earlier artboard showed one row).\n\nOPEN: toast says 'Rate them', the header says 'Rank more'; pick one verb. The You pane's top-right export button was removed from YouPaneGrouped (owner: unclear what it was); export still needs a visible route.",
+      "page": "page-12"
     }
   ],
   "launch": {
@@ -840,6 +902,10 @@
     {
       "id": "page-10",
       "name": "Badge Glyph Workshop"
+    },
+    {
+      "id": "page-12",
+      "name": "Head-to-Head & Toasts"
     },
     {
       "id": "page-11",

@@ -9,7 +9,7 @@
 // closed over an outer-scope mock var would capture it before it's initialized (see
 // YouPane.test.tsx's own comment on this exact hazard). A second `new SqliteLogStorage()` etc.
 // below grabs the same jest.fn() references the factory closed over.
-import type { LogEntry, RankedDish } from "@udine/shared";
+import { applyComparison, applyFoodComparison, type LogEntry, type RankedDish } from "@udine/shared";
 import * as FileSystem from "expo-file-system/legacy";
 import { SqliteCustomFoodsStorage } from "./customFoodsStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
@@ -105,6 +105,18 @@ describe("exportRankedDishes", () => {
     const [path, content] = mockWriteAsStringAsync.mock.calls[0];
     expect(path).toMatch(/udine-ranked-dishes\.csv$/);
     expect(content).toBe('dishName,hallTid,rating,comparisonCount\n"A","1","1500","3"\n"B","1","1600","3"');
+  });
+});
+
+describe("exports of a fresh comparison", () => {
+  it("carry a pick's both Elo tracks with no export change", async () => {
+    const [win, lose] = [{ dishName: "Pizza", hallTid: 1 }, { dishName: "Salad", hallTid: 2 }];
+    rankingMock.getRankedDishes.mockResolvedValue(applyComparison([], win, lose));
+    rankingMock.getRankedFoods.mockResolvedValue(applyFoodComparison([], win, lose));
+    await exportRankedDishes("json");
+    await exportRankedFoods("json");
+    expect(mockWriteAsStringAsync.mock.calls[0][1]).toMatch(/"dishName": "Pizza"[^}]*"comparisonCount": 1/);
+    expect(mockWriteAsStringAsync.mock.calls[1][1]).toMatch(/"dishName": "Salad"[^}]*"comparisonCount": 1/);
   });
 });
 

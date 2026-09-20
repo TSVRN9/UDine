@@ -12,26 +12,56 @@
 // constructor's own `.mock.results` -- the constructor call already happened by then, since
 // halls/[slug].tsx instantiates its storage singletons at module top level, and importing
 // HallMenuScreen below is what loads that module.
+import fs from "node:fs";
+import path from "node:path";
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text, View, SectionList } from "react-native";
 import Reanimated from "react-native-reanimated";
 import { router, useLocalSearchParams } from "expo-router";
-import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type MenuItem } from "@udine/shared";
+import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type LogEntry, type MenuItem } from "@udine/shared";
 import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { CompositeDishComposer } from "../components/CompositeDishComposer";
 import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
 import { PlateBar } from "../components/PlateBar";
+import { Toast } from "../components/Toast";
 import { StationScrubber } from "../components/StationScrubber";
 import { Button } from "../components/ui";
 import { colors } from "./theme";
 import { stepDate } from "./hallMenuTabs";
+import { toastActionDwell, toastDwell } from "./motion";
 import { SqliteLogStorage } from "./sqliteStorage";
+import { SqliteRankingStorage } from "./rankingStorage";
+import { CompareSheet } from "../components/CompareSheet";
 import { SqliteSeenDishesStorage } from "./seenDishesStorage";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
 import { getCachedPreferences, setPreferences } from "./preferences";
 
 jest.mock("../lib/sqliteStorage", () => ({
-  SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn() })),
+  SqliteLogStorage: jest.fn().mockImplementation(() => ({ addEntry: jest.fn(), getAllEntries: jest.fn().mockResolvedValue([]) })),
+}));
+
+// The head-to-head compare wiring writes comparisons through SqliteRankingStorage (expo-sqlite via
+// ./db, which can't run under jest) -- a real in-memory stand-in, so recordComparison's actual Elo
+// math and single-flight guard run against it and tests can read back what was persisted.
+jest.mock("../lib/rankingStorage", () => ({
+  SqliteRankingStorage: jest.fn().mockImplementation(() => {
+    let dishes: unknown[] = [];
+    let foods: unknown[] = [];
+    return {
+      getRankedDishes: jest.fn(async () => dishes),
+      getRankedFoods: jest.fn(async () => foods),
+      saveRankedDishes: jest.fn(async (d: unknown[]) => {
+        dishes = d;
+      }),
+      saveRankedFoods: jest.fn(async (f: unknown[]) => {
+        foods = f;
+      }),
+      seed: (d: unknown[], f: unknown[]) => {
+        dishes = d;
+        foods = f;
+      },
+    };
+  }),
 }));
 
 jest.mock("../lib/favoritesStorage", () => ({
@@ -154,6 +184,14 @@ function recordSeenMock(): jest.Mock | undefined {
 // halls/[slug].tsx's `const storage = new SqliteLogStorage();` (module top level) already ran by
 // the time this line executes -- importing HallMenuScreen above is what loaded that module.
 const mockAddEntry = (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.addEntry as jest.Mock;
+const mockGetAllEntries = (SqliteLogStorage as unknown as jest.Mock).mock.results[0].value.getAllEntries as jest.Mock;
+const mockRanking = (SqliteRankingStorage as unknown as jest.Mock).mock.results[0].value as {
+  getRankedDishes: jest.Mock;
+  getRankedFoods: jest.Mock;
+  saveRankedDishes: jest.Mock;
+  saveRankedFoods: jest.Mock;
+  seed: (dishes: unknown[], foods: unknown[]) => void;
+};
 const mockFavoritesStorage = (SqliteFavoritesStorage as unknown as jest.Mock).mock.results[0].value as {
   getFavorites: jest.Mock;
   addFavorite: jest.Mock;
@@ -361,9 +399,8 @@ function starPressable(root: renderer.ReactTestRenderer, dishName: string) {
   return matches[0];
 }
 
-function findBannerContainer(root: renderer.ReactTestRenderer, matching: RegExp) {
-  const bannerText = root.root.findAllByType(Text).find((n) => typeof n.props.children === "string" && matching.test(n.props.children));
-  return bannerText?.parent ?? null;
+function findToast(root: renderer.ReactTestRenderer) {
+  return root.root.findByType(Toast);
 }
 
 // #117 review, finding 1: total vertical touch area a Pressable's hitSlop prop adds on top of its
@@ -393,11 +430,15 @@ async function openSheetAndLog(root: renderer.ReactTestRenderer) {
 // File-wide, not just the banner-lifecycle describe below: logPlate's success AND failure paths
 // both now schedule a real setTimeout (the banner auto-dismiss), and none of these tests ever
 // unmount their renderer -- a real timer would otherwise fire ~4s after a test finishes, well
-// past teardown, calling setLogged on a destroyed tree and crashing the whole run with
+// past teardown, calling setToast on a destroyed tree and crashing the whole run with
 // "window.dispatchEvent is not a function" instead of just failing the one test.
 beforeEach(() => {
   jest.useFakeTimers();
   mockMenuCache.clear();
+  mockGetAllEntries.mockReset().mockResolvedValue([]);
+  mockRanking.seed([], []);
+  mockRanking.saveRankedDishes.mockClear();
+  mockRanking.saveRankedFoods.mockClear();
 });
 
 afterEach(() => {
@@ -1364,6 +1405,8 @@ describe("HallMenuScreen plate wiring", () => {
     // Plate cleared -> bar switches to its empty-state variant (still mounted).
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     expect(texts(root).flat().join(" ")).toMatch(/Logged 3 items/);
+    // Sub-line is the plate's own totals, captured before the plate cleared (Pizza x2 + Salad).
+    expect(texts(root).flat().join(" ")).toMatch(/480 cal · 3g protein/);
   });
 
   it("logs an evening entry under today's LOCAL calendar day, not the UTC-rolled-over day (issue #111)", async () => {
@@ -1400,7 +1443,7 @@ describe("HallMenuScreen plate wiring", () => {
 
     // The failure banner text is actually present...
     const body = texts(root).flat().join(" ");
-    expect(body).toMatch(/Couldn't log everything/);
+    expect(body).toMatch(/Couldn’t log 1 of 2 items/);
 
     // ...and not occluded by the (still-mounted, opaque, bottom-anchored) plate bar: the banner
     // must be positioned clear of the bar's measured height, not sitting underneath it at the
@@ -1408,9 +1451,33 @@ describe("HallMenuScreen plate wiring", () => {
     act(() => {
       root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
     });
-    const bannerContainer = findBannerContainer(root, /Couldn't log everything/);
-    const bottomOffset = bannerContainer?.props.style?.find?.((s: { bottom?: number }) => typeof s?.bottom === "number")?.bottom ?? bannerContainer?.props.style?.bottom;
-    expect(bottomOffset).toBe(88);
+    // Toast sits 12 (artboard's bar-to-toast gap, ToastLogFailed.dc.html 94 - 82) above the bar.
+    expect(findToast(root).props.bottom).toBe(100);
+  });
+
+  // failed/total are servings, not rows: a row stepped to 2 counts as 2 items on both sides.
+  it("counts a multi-serving row's servings in the failure toast (first row commits, second row of 2 fails)", async () => {
+    mockAddEntry.mockReset().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Salad"); // 1 serving, commits
+    addToPlate(root, "Pizza");
+    stepPlate(root, "Pizza", "Add one"); // 2 servings, rejects
+
+    await openSheetAndLog(root);
+
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn’t log 2 of 3 items/);
+  });
+
+  it("counts a multi-serving row's servings when it commits before the failure (row of 2 commits, next row fails)", async () => {
+    mockAddEntry.mockReset().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    stepPlate(root, "Pizza", "Add one"); // 2 servings, commits
+    addToPlate(root, "Salad"); // 1 serving, rejects
+
+    await openSheetAndLog(root);
+
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn’t log 1 of 3 items/);
   });
 
   // #162: useGuardedLogPlate's `inFlight` ref releases in `finally`, so it releases even when
@@ -1427,7 +1494,7 @@ describe("HallMenuScreen plate wiring", () => {
 
     // First tap surfaced the failure per this screen's convention (same banner as the case above)
     // and left the plate/sheet in place -- setSheetOpen(false) only runs on the {ok:true} path.
-    expect(texts(root).flat().join(" ")).toMatch(/Couldn't log everything/);
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn’t log 1 of 1 item\b/);
     expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
 
     const buttonAgain = root.root.findAllByType(Button).find((n) => typeof n.props.children === "string" && /^LOG \d+ ITEMS?$/.test(n.props.children));
@@ -1568,7 +1635,7 @@ describe("HallMenuScreen favorite-star double-tap guard (#198)", () => {
   });
 });
 
-describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner never dismisses, occludes last row)", () => {
+describe("HallMenuScreen logged-toast lifecycle (device-pass finding: banner never dismisses, occludes last row)", () => {
   beforeEach(() => {
     mockAddEntry.mockReset().mockResolvedValue(undefined);
   });
@@ -1593,6 +1660,57 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
     expect(texts(root).flat().join(" ")).not.toMatch(/Logged 1 item/);
   });
 
+  it("a success toast is the success kind; a failure toast is the failure kind", async () => {
+    const ok = await renderScreen();
+    addToPlate(ok, "Pizza");
+    await openSheetAndLog(ok);
+    expect(findToast(ok).props.kind).toBe("success");
+
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const bad = await renderScreen();
+    addToPlate(bad, "Pizza");
+    await openSheetAndLog(bad);
+    expect(findToast(bad).props.kind).toBe("failure");
+    expect(findToast(bad).props.subline).toBeUndefined();
+  });
+
+  it("a failure toast does not auto-dismiss", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+  });
+
+  it("tapping a failure toast dismisses it", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+
+    act(() => {
+      findToast(root).props.onDismiss();
+    });
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+  });
+
+  it("editing the plate dismisses a failure toast", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+
+    act(() => {
+      root.root.findAllByProps({ accessibilityLabel: "Add one Pizza" })[0].props.onPress();
+    });
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+  });
+
   it("keeps the list's bottom padding banner-aware while the banner alone is visible (bar never measured, plate just cleared)", async () => {
     const root = await renderScreen();
     addToPlate(root, "Pizza");
@@ -1600,7 +1718,7 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
 
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     act(() => {
-      findBannerContainer(root, /Logged 1 item/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
+      findToast(root).props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
     // Bar unmeasured (0) still floors to the filter FAB's own 108+48=156 clearance band, plus the
     // banner's 40 on top.
@@ -1617,7 +1735,7 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
       root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
     });
     act(() => {
-      findBannerContainer(root, /Couldn't log everything/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
+      findToast(root).props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
     // 88 is still below the filter FAB's 156 clearance floor, so the bar's clearance is 156 (not
     // 88) plus the banner's 40 on top.
@@ -2271,5 +2389,273 @@ describe("Composite dish (bowl composer)", () => {
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(1);
     // No composer round-trip.
     expect(findComposer(root).props.visible).toBe(false);
+  });
+});
+
+// Head-to-head compare (docs/briefs/head-to-head-compare.md task 3): "Rate them" on the logged toast
+// opens the compare sheet, a pick records through SqliteRankingStorage and shows the "Another" toast.
+describe("HallMenuScreen head-to-head compare", () => {
+  const pastEntry = (dishName: string, hallTid: number, calories: number): LogEntry =>
+    ({ id: `past-${dishName}-${hallTid}`, loggedAt: "2026-08-01T12:00:00.000", source: { type: "umass-menu", dishName, hallTid }, servings: 1, nutrition: nutrition(calories) }) as LogEntry;
+
+  // addEntry persists into what getAllEntries returns, like the real storage: a plate logged now is
+  // in the log by the time the screen goes looking for "dishes logged before this plate".
+  function storeLog(past: LogEntry[]) {
+    const stored = [...past];
+    mockAddEntry.mockReset().mockImplementation(async (e: LogEntry) => {
+      stored.push(e);
+    });
+    mockGetAllEntries.mockImplementation(async () => [...stored]);
+  }
+
+  const toastAction = (root: renderer.ReactTestRenderer) => findToast(root).props.action as { label: string; onPress: () => void } | undefined;
+  const sheet = (root: renderer.ReactTestRenderer) => root.root.findByType(CompareSheet);
+  const pairNames = (root: renderer.ReactTestRenderer) => (sheet(root).props.pair as { dishName: string }[]).map((d) => d.dishName);
+  const sheetTexts = (root: renderer.ReactTestRenderer) =>
+    sheet(root)
+      .findAllByType(Text)
+      .map((n) => n.props.children);
+  // The Pressable behind a label inside the sheet -- a real press, so CompareSheet's own guards run.
+  function sheetPress(root: renderer.ReactTestRenderer, label: string) {
+    let n = sheet(root).findAllByType(Text).find((t) => t.props.children === label)!.parent;
+    while (n && typeof n.props.onPress !== "function") n = n.parent;
+    return n!.props.onPress as () => void;
+  }
+
+  async function logAndRate(past: LogEntry[], plateDishes = ["Pizza"], items: MenuItem[] = [PIZZA, SALAD]) {
+    storeLog(past);
+    const root = await renderScreen(items);
+    for (const d of plateDishes) addToPlate(root, d);
+    await openSheetAndLog(root);
+    return root;
+  }
+  async function openCompare(root: renderer.ReactTestRenderer) {
+    await act(async () => {
+      toastAction(root)!.onPress();
+    });
+  }
+
+  it("offers 'Rate them' on the logged toast when a past dish exists, and no action when none does", async () => {
+    const withPast = await logAndRate([pastEntry("Soup", 3, 120)]);
+    expect(toastAction(withPast)?.label).toBe("Rate them");
+
+    const first = await logAndRate([]);
+    expect(findToast(first).props.kind).toBe("success");
+    expect(toastAction(first)).toBeUndefined();
+  });
+
+  it("never pairs two dishes from the same plate: a first-ever two-dish log has no action", async () => {
+    const root = await logAndRate([], ["Pizza", "Salad"]);
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("the same dish logged before is not an opponent for itself", async () => {
+    const root = await logAndRate([pastEntry("Pizza", 1, 200)], ["Pizza"]);
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("pairs the plate's least-compared dish with a past dish, never with the rest of the plate", async () => {
+    mockRanking.seed([{ dishName: "Pizza", hallTid: 1, rating: 1200, comparisonCount: 5 }], []);
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
+    await openCompare(root);
+    // Salad has 0 comparisons vs Pizza's 5, so Salad is the just-logged dish; Soup is the only past dish.
+    expect(pairNames(root)).toEqual(["Salad", "Soup"]);
+  });
+
+  it("tapping 'Rate them' opens the compare sheet with hall and calories on each card, and dismisses the toast", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    expect(sheet(root).props.visible).toBe(false);
+    await openCompare(root);
+    expect(sheet(root).props.visible).toBe(true);
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+    expect(sheetTexts(root)).toEqual(["Which did you like more?", "Pizza", "Worcester · 200 cal", "or", "Soup", "Hampshire · 120 cal", "Skip"]);
+  });
+
+  it("a plate serving of 2 is still one dish: cards show per-serving calories and one comparison is recorded", async () => {
+    storeLog([pastEntry("Soup", 3, 120)]);
+    const root = await renderScreen([PIZZA, SALAD]);
+    addToPlate(root, "Pizza");
+    stepPlate(root, "Pizza", "Add one");
+    await openSheetAndLog(root);
+    await openCompare(root);
+    expect(sheetTexts(root)).toContain("Worcester · 200 cal");
+    await act(async () => sheetPress(root, "Pizza")());
+    expect(mockRanking.saveRankedDishes.mock.calls[0][0].find((d: { dishName: string }) => d.dishName === "Pizza").comparisonCount).toBe(1);
+  });
+
+  it.each([
+    ["Pizza", "Soup"],
+    ["Soup", "Pizza"],
+  ])("picking %s over %s records that winner on both Elo tracks, closes the sheet and shows the 'Another' toast", async (winner, loser) => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]); // three logged dishes, so there is another pair to offer
+    await openCompare(root);
+    await act(async () => sheetPress(root, winner)());
+
+    expect(mockRanking.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(mockRanking.saveRankedFoods).toHaveBeenCalledTimes(1);
+    for (const saved of [mockRanking.saveRankedDishes.mock.calls[0][0], mockRanking.saveRankedFoods.mock.calls[0][0]] as { dishName: string; rating: number; comparisonCount: number }[][]) {
+      const w = saved.find((r) => r.dishName === winner)!;
+      const l = saved.find((r) => r.dishName === loser)!;
+      expect(w.comparisonCount).toBe(1);
+      expect(l.comparisonCount).toBe(1);
+      expect(w.rating).toBeGreaterThan(l.rating);
+    }
+    expect(sheet(root).props.visible).toBe(false);
+    expect(findToast(root).props.kind).toBe("success");
+    expect(findToast(root).props.message).toBe(winner);
+    expect(findToast(root).props.subline).toBe("1 comparison"); // below the score gate: count only
+    expect(toastAction(root)?.label).toBe("Another");
+  });
+
+  it("a double tap on a card records once", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    const press = sheetPress(root, "Soup");
+    await act(async () => {
+      press();
+      press();
+    });
+    expect(mockRanking.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(mockRanking.saveRankedFoods).toHaveBeenCalledTimes(1);
+    expect(mockRanking.saveRankedDishes.mock.calls[0][0].find((d: { dishName: string }) => d.dishName === "Soup").comparisonCount).toBe(1);
+  });
+
+  // pickPair draws by index into the logged dishes (first-seen order: Soup, Pizza, Salad), three
+  // Math.random() samples per candidate slot. Scripting them makes the FIRST candidate the pair
+  // just shown, so a re-deal that forgets to exclude it is caught deterministically; the second
+  // candidate is Salad vs Pizza.
+  const idx = (i: number) => (i + 0.5) / 3;
+  const SHOWN_THEN_FRESH = [1, 1, 1, 0, 0, 0, 2, 2, 2, 1, 1, 1].map(idx); // (Pizza, Soup), then (Salad, Pizza)
+  async function scripted(seq: number[], fn: () => Promise<void>) {
+    const queue = [...seq];
+    let n = 0;
+    const spy = jest.spyOn(Math, "random").mockImplementation(() => queue.shift() ?? [0.1, 0.9][n++ % 2]);
+    try {
+      await fn();
+    } finally {
+      spy.mockRestore();
+    }
+  }
+  const sorted = (root: renderer.ReactTestRenderer) => [...pairNames(root)].sort();
+
+  it("Skip records nothing and never re-deals the pair on screen (three dishes)", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
+    await openCompare(root);
+    expect(sorted(root)).toEqual(["Pizza", "Soup"]);
+    await scripted(SHOWN_THEN_FRESH, async () => {
+      await act(async () => sheetPress(root, "Skip")());
+    });
+
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+    expect(mockRanking.saveRankedFoods).not.toHaveBeenCalled();
+    expect(sheet(root).props.visible).toBe(true);
+    expect(sorted(root)).toEqual(["Pizza", "Salad"]);
+  });
+
+  it("'Another' reopens the sheet on a pair other than the one just picked, and dismisses the toast (three dishes)", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)], ["Pizza", "Salad"]);
+    await openCompare(root);
+    expect(sorted(root)).toEqual(["Pizza", "Soup"]);
+    await scripted(SHOWN_THEN_FRESH, async () => {
+      await act(async () => sheetPress(root, "Pizza")());
+    });
+    expect(toastAction(root)?.label).toBe("Another");
+    await act(async () => {
+      toastAction(root)!.onPress();
+    });
+    expect(sheet(root).props.visible).toBe(true);
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+    expect(sorted(root)).toEqual(["Pizza", "Salad"]);
+  });
+
+  it("with only two logged dishes a pick's toast has no 'Another' (there is no other pair)", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    await act(async () => sheetPress(root, "Pizza")());
+    expect(findToast(root).props.message).toBe("Pizza");
+    expect(mockRanking.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("with only two logged dishes Skip closes the sheet and records nothing", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    await act(async () => sheetPress(root, "Skip")());
+    expect(sheet(root).props.visible).toBe(false);
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+    expect(mockRanking.saveRankedFoods).not.toHaveBeenCalled();
+  });
+
+  it("a backdrop tap closes the sheet without recording anything", async () => {
+    const root = await logAndRate([pastEntry("Soup", 3, 120)]);
+    await openCompare(root);
+    act(() => sheet(root).findByProps({ accessibilityLabel: "Close" }).props.onPress());
+    expect(sheet(root).props.visible).toBe(false);
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+  });
+
+  it("a toast with an action stays 6s; one without stays 4s", async () => {
+    const withAction = await logAndRate([pastEntry("Soup", 3, 120)]);
+    act(() => jest.advanceTimersByTime(toastActionDwell - 100));
+    expect(withAction.root.findAllByType(Toast)).toHaveLength(1);
+    act(() => jest.advanceTimersByTime(200));
+    expect(withAction.root.findAllByType(Toast)).toHaveLength(0);
+
+    const without = await logAndRate([]);
+    act(() => jest.advanceTimersByTime(toastDwell - 100));
+    expect(without.root.findAllByType(Toast)).toHaveLength(1);
+    act(() => jest.advanceTimersByTime(200));
+    expect(without.root.findAllByType(Toast)).toHaveLength(0);
+  });
+
+  it("a failed log offers no action even with a past dish", async () => {
+    storeLog([pastEntry("Soup", 3, 120)]);
+    mockAddEntry.mockReset().mockRejectedValue(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+    expect(findToast(root).props.kind).toBe("failure");
+    expect(toastAction(root)).toBeUndefined();
+  });
+
+  it("--stress compare-pair opens the sheet on first paint and picks against an in-memory store, not the device's rankings", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "franklin", stress: "compare-pair" });
+    let root!: renderer.ReactTestRenderer;
+    mockedFetchMenu.mockResolvedValue([PIZZA]);
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(sheet(root).props.visible).toBe(true);
+    expect(sheetTexts(root)).toEqual(["Which did you like more?", "French Toast", "Hampshire · 320 cal", "or", "Belgian Waffle", "Berkshire · 410 cal", "Skip"]);
+    await act(async () => sheetPress(root, "French Toast")());
+    expect(mockRanking.saveRankedDishes).not.toHaveBeenCalled();
+    expect(findToast(root).props.message).toBe("French Toast");
+    expect(findToast(root).props.subline).toBe("9.1 · 15 comparisons"); // CompareToastPicked.dc.html's sub-line
+    expect(toastAction(root)?.label).toBe("Another"); // the fixture logs a third dish so there is a next pair
+  });
+
+  it("--stress compare-toast-rate mounts the 'Rate them' toast with the sheet closed; tapping it opens the fixture pair", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ slug: "franklin", stress: "compare-toast-rate" });
+    let root!: renderer.ReactTestRenderer;
+    mockedFetchMenu.mockResolvedValue([PIZZA]);
+    await act(async () => {
+      root = renderer.create(<HallMenuScreen />);
+    });
+    expect(sheet(root).props.visible).toBe(false);
+    expect(findToast(root).props.message).toBe("Logged 3 items");
+    expect(toastAction(root)?.label).toBe("Rate them");
+    act(() => jest.advanceTimersByTime(toastActionDwell + 1000)); // a fixture toast does not dismiss itself
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+    await act(async () => {
+      toastAction(root)!.onPress();
+    });
+    expect(pairNames(root)).toEqual(["French Toast", "Belgian Waffle"]);
+    expect(sheet(root).props.visible).toBe(true);
+  });
+
+  it("nothing in the screen or the sheet syncs rankings off-device", () => {
+    // (the screen already imports the supabase client for the dish-catalog refresh, so only the sync call is banned there)
+    expect(fs.readFileSync(path.join(__dirname, "..", "app", "halls", "[slug].tsx"), "utf8")).not.toMatch(/syncDiningHallRanks/);
+    expect(fs.readFileSync(path.join(__dirname, "..", "components", "CompareSheet.tsx"), "utf8")).not.toMatch(/syncDiningHallRanks|supabase/);
   });
 });

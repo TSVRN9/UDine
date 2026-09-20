@@ -14,6 +14,7 @@ import {
   type Favorite,
   type FoodPreferences,
   type HallMealPeriod,
+  type LogEntry,
   type MacroPreset,
   type MealPeriod,
   type MenuItem,
@@ -37,8 +38,6 @@ import { createNativeWrapper } from "react-native-gesture-handler";
 import Reanimated, {
   FadeIn,
   FadeOut,
-  FadeOutDown,
-  FadeInDown,
   LinearTransition,
   useSharedValue,
   type SharedValue,
@@ -59,6 +58,8 @@ import { MenuErrorCard } from "../../components/MenuErrorCard";
 import { CustomFoodForm } from "../../components/CustomFoodForm";
 import { NutritionLabel } from "../../components/NutritionLabel";
 import { PlateBar } from "../../components/PlateBar";
+import { CompareSheet } from "../../components/CompareSheet";
+import { Toast, useToastDwell, type ToastKind } from "../../components/Toast";
 import { PlateSheet } from "../../components/PlateSheet";
 import { StationScrubber } from "../../components/StationScrubber";
 import { durations } from "../../lib/motion";
@@ -117,6 +118,8 @@ import { getCachedPreferences, getPreferences, setPreferences } from "../../lib/
 import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { effectiveToday, nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
+import { SqliteRankingStorage } from "../../lib/rankingStorage";
+import { compareCard, compareFixture, pickPostLogPair, plateDishes, resolvePick, resolveSkip, type CompareCard } from "../../lib/compare";
 
 // react-native-gesture-handler doesn't export a gesture-aware SectionList (only ScrollView/
 // FlatList wrap createNativeWrapper for you); a plain SectionList nested under MealTabPager's
@@ -168,6 +171,7 @@ export interface HallMenuSubject {
 }
 
 const storage = new SqliteLogStorage();
+const rankingStorage = new SqliteRankingStorage();
 const favoritesStorage = new SqliteFavoritesStorage();
 const customFoodsStorage = new SqliteCustomFoodsStorage();
 
@@ -877,7 +881,13 @@ export function HallMenuScreenBody({
   const [grabItems, setGrabItems] = useState<MenuItem[] | null>(null);
   const [grabError, setGrabError] = useState<string | null>(null);
 
-  const [plate, setPlate] = useState<PlateEntry[]>([]);
+  // Dev-only `--stress compare-toast-ok|compare-toast-fail` (screenshot.sh): mounts a toast (and,
+  // for the failure, the retained plate it would sit above) so its screenshot doesn't depend on a
+  // real log write failing.
+  const toastFixture = __DEV__ && stressFixture?.startsWith("compare-toast-") ? stressFixture : undefined;
+  const [plate, setPlate] = useState<PlateEntry[]>(() =>
+    toastFixture === "compare-toast-fail" ? stressFixtureItems(hall.tid ?? 0, "lunch").map((item, i) => menuItemToPlateEntry(item, i + 1)) : [],
+  );
   // Composite dish (bowl composer) session state -- composite-dish-logic annotation. Keyed by the
   // BASE dish's own plate key, not the composer's own lifecycle, so a saved recipe survives the
   // base dish being stepped off the plate entirely (re-add without reopening the composer needs
@@ -972,8 +982,26 @@ export function HallMenuScreenBody({
   const [customFoodFormOpen, setCustomFoodFormOpen] = useState(false);
   const [customFoodFormPrefill, setCustomFoodFormPrefill] = useState<string | undefined>(undefined);
   const [barHeight, setBarHeight] = useState(0);
-  const [logged, setLogged] = useState<string | null>(null);
-  const [bannerHeight, setBannerHeight] = useState(0);
+  // Head-to-head compare sheet. `comparePair` outlives the close (the slide-out still needs its
+  // content); `compareEntries` is the log the sheet deals from -- everything logged, this plate
+  // included -- and `compareStore` is the device's ranking store, or an in-memory one under the
+  // dev-only `--stress compare-pair` fixture (sheet open) or `compare-toast-rate` (the "Rate them" toast, sheet closed).
+  const compareStress = __DEV__ && (stressFixture === "compare-pair" || stressFixture === "compare-toast-rate");
+  const [fixture] = useState(() => (compareStress ? compareFixture() : null));
+  const compareStore = fixture?.storage ?? rankingStorage;
+  const compareEntries = useRef<LogEntry[]>(fixture?.entries ?? []);
+  const [comparePair, setComparePair] = useState<[CompareCard, CompareCard] | null>(fixture?.pair ?? null);
+  const [compareOpen, setCompareOpen] = useState(compareStress && stressFixture === "compare-pair");
+  const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string; action?: { label: string; pair: [CompareCard, CompareCard] } } | null>(() =>
+    toastFixture === "compare-toast-ok"
+      ? { kind: "success", message: "Logged 3 items", subline: "640 cal · 65g protein" }
+      : toastFixture === "compare-toast-rate" && fixture
+        ? { kind: "success", message: "Logged 3 items", subline: "640 cal · 65g protein", action: { label: "Rate them", pair: fixture.pair } }
+        : toastFixture === "compare-toast-fail"
+        ? { kind: "failure", message: "Couldn’t log 2 of 3 items" }
+        : null,
+  );
+  const [toastHeight, setToastHeight] = useState(0);
   const insets = useSafeAreaInsets();
   const guardedLogPlate = useGuardedLogPlate(storage);
   const onFavoritesUpdate = useCallback((favs: Favorite[]) => setFavoriteDishKeys(new Set(favs.filter((f) => f.type === "dish").map(favoriteKey))), []);
@@ -1113,13 +1141,14 @@ export function HallMenuScreenBody({
     }, []),
   );
 
-  // Auto-dismiss the logged banner a few seconds after it appears, or it permanently covers the
-  // last menu row until the plate is repopulated.
+  // A failure toast stays until the next log attempt replaces it, the plate is edited, or it's tapped.
+  useToastDwell(toast, setToast, !!toastFixture);
+  const toastPlate = useRef(plate);
   useEffect(() => {
-    if (!logged) return;
-    const timer = setTimeout(() => setLogged(null), 4000);
-    return () => clearTimeout(timer);
-  }, [logged]);
+    if (toastPlate.current === plate) return;
+    toastPlate.current = plate;
+    setToast((t) => (t?.kind === "failure" ? null : t));
+  }, [plate]);
 
   // Sections are stations (the foodpro category names). For the 3 real meal tabs, that's a single
   // meal period's worth of items. Grab 'N Go has no meal-period concept of its own -- its items
@@ -1392,7 +1421,9 @@ export function HallMenuScreenBody({
     // addEntry() writes finish, instead of duplicating every row with fresh ids. Also drops a tap
     // landing on an already-emptied plate. Local-date-prefixed loggedAt, not `.toISOString()`
     // (UTC) -- see nowLocalIso's own comment (evening logs otherwise file under tomorrow's date).
-    const result = await guardedLogPlate(plate, nowLocalIso());
+    const loggedAt = nowLocalIso();
+    const plateAtLog = plate;
+    const result = await guardedLogPlate(plate, loggedAt);
     if (!result) return;
     if (!result.ok) {
       // ponytail: no transaction wrapping the write loop, so a failure partway through leaves
@@ -1402,12 +1433,62 @@ export function HallMenuScreenBody({
       // becomes a duplicate row rather than being replaced. Acceptable for a UI feature where
       // each addEntry is one single-row insert unlikely to fail independently; upgrade to one
       // transactional bulk insert on SqliteLogStorage if this shows up in practice.
-      setLogged(`Couldn't log everything: ${String(result.error)}`);
+      setToast({ kind: "failure", message: `Couldn’t log ${formatServings(result.failed)} of ${formatServings(result.total)} ${result.total === 1 ? "item" : "items"}` });
       return;
     }
     setPlate([]);
     setSheetOpen(false);
-    setLogged(`Logged ${formatServings(result.count)} ${result.count === 1 ? "item" : "items"}`);
+    // "Rate them" pairs a dish from this plate with a dish logged BEFORE it -- this plate's own rows
+    // are told apart by their shared loggedAt. Any read failure just means no action: the log itself
+    // already succeeded.
+    let action: { label: string; pair: [CompareCard, CompareCard] } | undefined;
+    try {
+      const all = await storage.getAllEntries();
+      const pair = pickPostLogPair(
+        all.filter((e) => e.loggedAt !== loggedAt),
+        plateDishes(plateAtLog),
+        await rankingStorage.getRankedDishes(),
+      );
+      if (pair) {
+        compareEntries.current = all;
+        action = { label: "Rate them", pair: [compareCard(all, pair[0]), compareCard(all, pair[1])] };
+      }
+    } catch {
+      // no eligible opponent is the same outcome: the toast just has no action
+    }
+    setToast({
+      kind: "success",
+      message: `Logged ${formatServings(result.count)} ${result.count === 1 ? "item" : "items"}`,
+      subline: `${Math.round(totals.calories)} cal · ${totals.proteinG.toFixed(0)}g protein`,
+      action,
+    });
+  }
+
+  function openCompare(pair: [CompareCard, CompareCard]) {
+    setToast(null);
+    setComparePair(pair);
+    setCompareOpen(true);
+  }
+
+  // A pick writes both Elo tracks on-device (resolvePick), closes the sheet and offers another
+  // pair. Null means a pick is already saving (a double tap) -- dropped, nothing else happens. A
+  // failed save leaves the sheet up so the tap can be retried.
+  async function pickComparison(winner: CompareCard, loser: CompareCard) {
+    try {
+      const r = await resolvePick(compareStore, compareEntries.current, winner, loser);
+      if (!r) return;
+      setCompareOpen(false);
+      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next ? { label: "Another", pair: r.next } : undefined });
+    } catch {
+      // the save failed: nothing was recorded and the sheet is still up for another tap
+    }
+  }
+
+  async function skipComparison() {
+    const next = await resolveSkip(compareStore, compareEntries.current, comparePair);
+    // no other pair (only two dishes logged): nothing left to deal, close
+    if (next) setComparePair(next);
+    else setCompareOpen(false);
   }
 
   // Shared by both SectionLists below (the 3 real meal tabs and the Grab tab) -- same dish-row
@@ -1579,7 +1660,7 @@ export function HallMenuScreenBody({
         // clearFilterFab: this list always renders alongside the filter FAB (its own hide
         // condition, below, is exactly the state where effectiveItems is [] and this list
         // wouldn't render at all) -- reserve clearance for it, not just the plate bar.
-        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (toast ? toastHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={cellLayoutTransition(filterSheetOpen)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
@@ -1634,7 +1715,7 @@ export function HallMenuScreenBody({
         extraData={expandedKey}
         // clearFilterFab: see the meal-tab GestureSectionList's own comment above -- same
         // always-rendered-alongside-the-FAB reasoning applies here.
-        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (logged ? bannerHeight : 0) }}
+        contentContainerStyle={{ paddingBottom: listBottomPadding(barHeight, true) + (toast ? toastHeight : 0) }}
         renderSectionHeader={({ section }) => (
           <Reanimated.View layout={cellLayoutTransition(filterSheetOpen)} style={styles.sectionHeaderWrap}>
             <SectionHeader title={section.title} />
@@ -1870,23 +1951,20 @@ export function HallMenuScreenBody({
             )}
           </View>
         )}
-        {logged && (
-          // This banner is the one surface a LOG failure actually shows on (the plate is
-          // deliberately retained, not cleared, so the bar stays mounted right where an in-flow
-          // bottom banner would otherwise sit, opaque and on top of it). Anchored clear of the
-          // bar's measured height via the same listBottomPadding reuse -- 0 when there's no bar,
-          // right above it when there is. Also pads for the bottom safe-area inset itself (else its
-          // own text gets clipped by gesture nav when there's no bar to already clear that space),
-          // and reports its own measured height via onLayout so the list's paddingBottom above can
-          // add it in while it's showing.
-          <Reanimated.View
-            entering={FadeInDown.duration(durations.loggedBannerIn)}
-            exiting={FadeOutDown.duration(durations.loggedBannerOut)}
-            style={[styles.loggedBanner, { position: "absolute", left: 0, right: 0, bottom: listBottomPadding(barHeight), paddingBottom: spacing(2) + insets.bottom }]}
-            onLayout={(e) => setBannerHeight(e.nativeEvent.layout.height)}
-          >
-            <Text style={styles.loggedBannerText}>{logged}</Text>
-          </Reanimated.View>
+        {toast && (
+          // The one surface a LOG failure shows on (the plate is retained on failure, so the bar
+          // stays mounted where an in-flow banner would sit). Anchored 12 above the bar's measured
+          // height (ToastLogFailed.dc.html), and reports its own height so the lists' paddingBottom
+          // above can add it in while it's showing.
+          <Toast
+            kind={toast.kind}
+            message={toast.message}
+            subline={toast.subline}
+            action={toast.action && { label: toast.action.label, onPress: () => openCompare(toast.action!.pair) }}
+            bottom={listBottomPadding(barHeight) + spacing(3)}
+            onDismiss={() => setToast(null)}
+            onLayout={(e) => setToastHeight(e.nativeEvent.layout.height)}
+          />
         )}
         {/* Permanent, in-context filter FAB -- pinned above the plate bar (48x48, right:20/
         bottom:108 per the canvas). Bare/inactive when nothing's currently hidden; dark-filled with
@@ -1966,6 +2044,7 @@ export function HallMenuScreenBody({
         initialQuery={plateSearchSeed ?? undefined}
         stressFixture={stressFixture}
       />
+      <CompareSheet visible={compareOpen} pair={comparePair} onPick={pickComparison} onSkip={skipComparison} onClose={() => setCompareOpen(false)} />
       <CompositeDishComposer
         // Never both visible at once, same Android dual-Modal reason as PlateSheet/CustomFoodForm
         // above -- viewing an add-in's Full Nutrition Label hides the composer instead of stacking
@@ -2338,6 +2417,4 @@ const styles = StyleSheet.create({
   // the visible window is always [0, clipWidth] measured from the row's own left edge, without
   // this the collapsed clip showed the row-reverse row's OTHER end (the "−" button) instead of
   // the "+" slot -- pr-reviewer catch, verified against RN's actual Yoga layout output.
-  loggedBanner: { backgroundColor: colors.maroon900, padding: spacing(2) },
-  loggedBannerText: { color: colors.paper50, textAlign: "center", fontFamily: fonts.body400, fontSize: fs(13) },
 });
