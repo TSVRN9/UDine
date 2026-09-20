@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { artboardTransitions } from "./artboard";
-import { curves, durations, reanimatedPaneCurve, rnPaneCurve, toastDwell } from "./motion";
+import { curves, durations, reanimatedPaneCurve, reanimatedEaseCurve, rnPaneCurve, toastDwell, toastRise } from "./motion";
 
 const t = artboardTransitions("Prototype.dc.html");
 
@@ -118,6 +118,7 @@ describe("the shared cubic-bezier's control points", () => {
     [".pane", "transform"],
     [".sheet", "transform"],
     [".knob", "transform"],
+    [".toastbox", "transform"],
   ])("%s %s uses curves.pane's exact control points", (selector, prop) => {
     const curve = curveFor(selector, prop);
     const m = /cubic-bezier\(([^)]+)\)/.exec(curve);
@@ -167,5 +168,19 @@ describe("unspecced tokens keep their existing values (no Prototype.dc.html sele
 describe("toast dwell", () => {
   it("a success toast dismisses itself after 4s (the old logged banner's dwell)", () => {
     expect(toastDwell).toBe(4000);
+  });
+});
+
+describe("toast easing and travel (.toastbox)", () => {
+  it("opacity is CSS `ease`, and curves.ease is that keyword's bezier", () => {
+    expect(curveFor(".toastbox", "opacity")).toBe("ease");
+    expect([...curves.ease]).toEqual([0.25, 0.1, 0.25, 1]);
+    expect(reanimatedEaseCurve).toBeDefined();
+  });
+  it("toastRise is toastStyle's translateY offset in Prototype.dc.html", () => {
+    const src = fs.readFileSync(path.join(__dirname, "..", "..", "..", "docs", "design", "Prototype.dc.html"), "utf8");
+    const m = /toastStyle:.*translateY\(' \+ \(s\.toast \? '0' : '(\d+)px'\)/.exec(src);
+    expect(m).not.toBeNull();
+    expect(toastRise).toBe(Number(m![1]));
   });
 });

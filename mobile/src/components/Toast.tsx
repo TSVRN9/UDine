@@ -1,8 +1,32 @@
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
-import Reanimated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
+import Reanimated, { withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
-import { durations } from "../lib/motion";
+import { durations, reanimatedEaseCurve, reanimatedPaneCurve, toastRise } from "../lib/motion";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
+
+// `.toastbox` (Prototype.dc.html): opacity on `ease`, transform on the pane bezier, both 260ms, and
+// the same in both directions. Reanimated's preset animations take one easing for every property,
+// so these are custom layout animations with a curve per property.
+const toastEntering = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 0, transform: [{ translateY: toastRise }] },
+    animations: {
+      opacity: withTiming(1, { duration: durations.toast, easing: reanimatedEaseCurve }),
+      transform: [{ translateY: withTiming(0, { duration: durations.toast, easing: reanimatedPaneCurve }) }],
+    },
+  };
+};
+const toastExiting = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 1, transform: [{ translateY: 0 }] },
+    animations: {
+      opacity: withTiming(0, { duration: durations.toast, easing: reanimatedEaseCurve }),
+      transform: [{ translateY: withTiming(toastRise, { duration: durations.toast, easing: reanimatedPaneCurve }) }],
+    },
+  };
+};
 
 export type ToastKind = "success" | "failure";
 
@@ -24,8 +48,8 @@ export function Toast({ kind, message, subline, bottom, onDismiss, onLayout }: P
   const failure = kind === "failure";
   return (
     <Reanimated.View
-      entering={FadeInDown.duration(durations.toast)}
-      exiting={FadeOutDown.duration(durations.toast)}
+      entering={toastEntering}
+      exiting={toastExiting}
       style={{ position: "absolute", left: spacing(4), right: spacing(4), bottom, zIndex: 40 }}
       onLayout={onLayout}
     >

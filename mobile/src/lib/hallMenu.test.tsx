@@ -393,7 +393,7 @@ async function openSheetAndLog(root: renderer.ReactTestRenderer) {
 // File-wide, not just the banner-lifecycle describe below: logPlate's success AND failure paths
 // both now schedule a real setTimeout (the banner auto-dismiss), and none of these tests ever
 // unmount their renderer -- a real timer would otherwise fire ~4s after a test finishes, well
-// past teardown, calling setLogged on a destroyed tree and crashing the whole run with
+// past teardown, calling setToast on a destroyed tree and crashing the whole run with
 // "window.dispatchEvent is not a function" instead of just failing the one test.
 beforeEach(() => {
   jest.useFakeTimers();
@@ -1412,6 +1412,31 @@ describe("HallMenuScreen plate wiring", () => {
     });
     // Toast sits 12 (artboard's bar-to-toast gap, ToastLogFailed.dc.html 94 - 82) above the bar.
     expect(findToast(root).props.bottom).toBe(100);
+  });
+
+  // failed/total are servings, not rows: a row stepped to 2 counts as 2 items on both sides.
+  it("counts a multi-serving row's servings in the failure toast (first row commits, second row of 2 fails)", async () => {
+    mockAddEntry.mockReset().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Salad"); // 1 serving, commits
+    addToPlate(root, "Pizza");
+    stepPlate(root, "Pizza", "Add one"); // 2 servings, rejects
+
+    await openSheetAndLog(root);
+
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn’t log 2 of 3 items/);
+  });
+
+  it("counts a multi-serving row's servings when it commits before the failure (row of 2 commits, next row fails)", async () => {
+    mockAddEntry.mockReset().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    stepPlate(root, "Pizza", "Add one"); // 2 servings, commits
+    addToPlate(root, "Salad"); // 1 serving, rejects
+
+    await openSheetAndLog(root);
+
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn’t log 1 of 3 items/);
   });
 
   // #162: useGuardedLogPlate's `inFlight` ref releases in `finally`, so it releases even when

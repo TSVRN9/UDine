@@ -3,7 +3,10 @@ import path from "node:path";
 import renderer, { act } from "react-test-renderer";
 import { StyleSheet, Text } from "react-native";
 import { Toast } from "./Toast";
-import { artboardEnclosingStyle, artboardStyle, normalizeColor } from "../lib/artboard";
+import Svg, { Path } from "react-native-svg";
+import { artboardEnclosingStyle, artboardStyle, artboardTag, normalizeColor } from "../lib/artboard";
+import { toastRise } from "../lib/motion";
+import { fonts } from "../lib/theme";
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -21,6 +24,8 @@ const pressable = (root: renderer.ReactTestRenderer) => root.root.findAllByProps
 const flat = (s: unknown) => StyleSheet.flatten(s as never) as Record<string, unknown>;
 const card = (root: renderer.ReactTestRenderer) => flat(pressable(root).props.style);
 const textStyle = (root: renderer.ReactTestRenderer, children: string) => flat(root.root.findAllByType(Text).find((n) => n.props.children === children)!.props.style);
+// theme.ts maps 400/500/600 to a LibreFranklin family each; there is no 700.
+const familyFor = (weight: unknown) => ({ "400": fonts.body400, "500": fonts.body500, "600": fonts.body600 })[String(weight)];
 const c = (v: unknown) => normalizeColor(String(v));
 
 // The artboard's toast card is two divs above the message text (text -> column -> card).
@@ -55,6 +60,22 @@ describe("Toast success (ToastLogged.dc.html)", () => {
     expect(textStyle(r, "Logged 3 items").fontSize).toBe(title.fontSize);
     expect(textStyle(r, "640 cal · 65g protein").fontSize).toBe(sub.fontSize);
     expect(c(textStyle(r, "640 cal · 65g protein").color)).toBe(sub.color);
+    // font-weight 600 -> the LibreFranklin 600 family (a fake-bold on a 400 family is the trap)
+    expect(title.fontWeight).toBe("600");
+    expect(textStyle(r, "Logged 3 items").fontFamily).toBe(familyFor(title.fontWeight));
+    expect(c(textStyle(r, "Logged 3 items").color)).toBe(artboardEnclosingStyle("ToastLogged.dc.html", "Logged 3 items", 2).color);
+  });
+
+  it("gold check badge: fill and check stroke match the artboard", () => {
+    const badge = artboardTag("ToastLogged.dc.html", "width: 22px; height: 22px");
+    const check = artboardTag("ToastLogged.dc.html", 'd="M2.5 6.2l2.4 2.4L9.5 3.8"');
+    const r = root();
+    const rendered = flat(r.root.findByType(Svg).parent!.props.style);
+    expect(rendered.width).toBe(badge.style.width);
+    expect(rendered.height).toBe(badge.style.height);
+    expect(c(rendered.backgroundColor)).toBe(badge.style.backgroundColor);
+    expect(c(r.root.findByType(Path).props.stroke)).toBe(normalizeColor(check.attrs.stroke));
+    expect(Number(r.root.findByType(Path).props.strokeWidth)).toBe(Number(check.attrs["stroke-width"]));
   });
 });
 
@@ -70,6 +91,7 @@ describe("Toast failure (ToastLogFailed.dc.html)", () => {
     const r = root();
     const spec = artboardEnclosingStyle("ToastLogFailed.dc.html", message, 2);
     expect(c(textStyle(r, message).color)).toBe(spec.color);
+    expect(textStyle(r, message).fontFamily).toBe(familyFor(artboardStyle("ToastLogFailed.dc.html", message).fontWeight));
     expect(textStyle(r, message).fontSize).toBe(artboardStyle("ToastLogFailed.dc.html", message).fontSize);
     expect(r.root.findAllByType(Text).map((n) => n.props.children)).toEqual(["!", message]);
   });
@@ -81,6 +103,13 @@ describe("Toast failure (ToastLogFailed.dc.html)", () => {
     expect(badge.width).toBe(spec.width);
     expect(badge.height).toBe(spec.height);
     expect(c(badge.backgroundColor)).toBe(spec.backgroundColor);
+    // The badge div carries the "!" glyph's own type: 13px, #7c2430, weight 700.
+    const glyph = flat(bang.props.style);
+    expect(glyph.fontSize).toBe(spec.fontSize);
+    expect(c(glyph.color)).toBe(spec.color);
+    // Weight 700 cannot be mapped: theme.ts has no body700 family, so the heaviest one, 600, stands in.
+    expect(spec.fontWeight).toBe("700");
+    expect(glyph.fontFamily).toBe(fonts.body600);
   });
 });
 
@@ -97,9 +126,12 @@ describe("Toast behaviour", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it("enters and exits on durations.toast, not a literal", () => {
+  it("enters and exits on durations.toast, opacity on curves.ease and transform on curves.pane, moving toastRise", () => {
     const src = fs.readFileSync(path.join(__dirname, "Toast.tsx"), "utf8");
-    expect(src).toMatch(/FadeInDown\.duration\(durations\.toast\)/);
-    expect(src).toMatch(/FadeOutDown\.duration\(durations\.toast\)/);
+    expect(src.match(/duration: durations\.toast, easing: reanimatedEaseCurve/g)).toHaveLength(2);
+    expect(src.match(/duration: durations\.toast, easing: reanimatedPaneCurve/g)).toHaveLength(2);
+    const outer = pressable(render({ kind: "failure", message: "x" })).parent!.props;
+    expect(outer.entering().initialValues).toEqual({ opacity: 0, transform: [{ translateY: toastRise }] });
+    expect(outer.exiting().initialValues).toEqual({ opacity: 1, transform: [{ translateY: 0 }] });
   });
 });
