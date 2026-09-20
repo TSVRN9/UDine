@@ -49,6 +49,7 @@ export interface TopFoodDisplay {
   dishName: string;
   score: number;
   hallName: string | null;
+  comparisonCount: number;
   tone: "gold" | "maroon";
 }
 
@@ -72,7 +73,7 @@ export function buildTopFoods(rankedFoods: RankedFood[], rankedDishes: RankedDis
     const score = scores.get(f.dishName)!;
     const hallTid = deriveTopFoodHall(f.dishName, rankedDishes, logEntries);
     const hallName = hallNameForOrNull(hallTid);
-    return { dishName: f.dishName, score, hallName, tone: pillTone(score, maxScore) };
+    return { dishName: f.dishName, score, hallName, comparisonCount: f.comparisonCount, tone: pillTone(score, maxScore) };
   });
 }
 
