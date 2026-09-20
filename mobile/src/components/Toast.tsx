@@ -1,0 +1,80 @@
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import Reanimated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
+import Svg, { Path } from "react-native-svg";
+import { durations } from "../lib/motion";
+import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
+
+export type ToastKind = "success" | "failure";
+
+interface Props {
+  kind: ToastKind;
+  message: string;
+  subline?: string;
+  /** Distance from the container's bottom edge -- the caller clears whatever sits there (the plate bar). */
+  bottom: number;
+  onDismiss: () => void;
+  onLayout?: (e: LayoutChangeEvent) => void;
+}
+
+/**
+ * Shared toast (ToastLogged.dc.html / ToastLogFailed.dc.html). Absolutely positioned; render it
+ * conditionally so the exit animation plays. Tapping anywhere on it dismisses.
+ */
+export function Toast({ kind, message, subline, bottom, onDismiss, onLayout }: Props) {
+  const failure = kind === "failure";
+  return (
+    <Reanimated.View
+      entering={FadeInDown.duration(durations.toast)}
+      exiting={FadeOutDown.duration(durations.toast)}
+      style={{ position: "absolute", left: spacing(4), right: spacing(4), bottom, zIndex: 40 }}
+      onLayout={onLayout}
+    >
+      <Pressable style={[styles.card, failure ? styles.cardFailure : styles.cardSuccess]} onPress={onDismiss} accessibilityRole="alert">
+        <View style={[styles.badge, failure ? styles.badgeFailure : styles.badgeSuccess]}>
+          {failure ? (
+            <Text style={styles.bang}>!</Text>
+          ) : (
+            <Svg width={12} height={12} viewBox="0 0 12 12" fill="none">
+              <Path d="M2.5 6.2l2.4 2.4L9.5 3.8" stroke={colors.maroon900} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          )}
+        </View>
+        <View style={styles.body}>
+          <Text style={[styles.message, failure && styles.messageFailure]}>{message}</Text>
+          {subline ? <Text style={styles.subline}>{subline}</Text> : null}
+        </View>
+      </Pressable>
+    </Reanimated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing(3),
+    minHeight: 60,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingTop: spacing(2),
+    paddingBottom: spacing(2),
+    paddingRight: spacing(2),
+    paddingLeft: spacing(3.5),
+    // box-shadow: 0 8px 24px rgba(36,26,20,0.25)
+    shadowColor: colors.ink900,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  cardSuccess: { backgroundColor: colors.paper50, borderColor: colors.gold500 },
+  cardFailure: { backgroundColor: colors.maroon600, borderColor: colors.maroon600 },
+  badge: { width: 22, height: 22, borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
+  badgeSuccess: { backgroundColor: colors.gold500 },
+  badgeFailure: { backgroundColor: colors.paper50 },
+  bang: { fontFamily: fonts.body600, fontSize: fs(13), color: colors.maroon600 },
+  body: { flex: 1, gap: 1 },
+  message: { fontFamily: fonts.body600, fontSize: fs(14), color: colors.ink900 },
+  messageFailure: { color: colors.paper50 },
+  subline: { fontFamily: fonts.mono, fontSize: fs(12), color: withOpacity(colors.ink900, 60) },
+});

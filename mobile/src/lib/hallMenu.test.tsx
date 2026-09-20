@@ -21,6 +21,7 @@ import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
 import { CompositeDishComposer } from "../components/CompositeDishComposer";
 import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
 import { PlateBar } from "../components/PlateBar";
+import { Toast } from "../components/Toast";
 import { StationScrubber } from "../components/StationScrubber";
 import { Button } from "../components/ui";
 import { colors } from "./theme";
@@ -361,9 +362,8 @@ function starPressable(root: renderer.ReactTestRenderer, dishName: string) {
   return matches[0];
 }
 
-function findBannerContainer(root: renderer.ReactTestRenderer, matching: RegExp) {
-  const bannerText = root.root.findAllByType(Text).find((n) => typeof n.props.children === "string" && matching.test(n.props.children));
-  return bannerText?.parent ?? null;
+function findToast(root: renderer.ReactTestRenderer) {
+  return root.root.findByType(Toast);
 }
 
 // #117 review, finding 1: total vertical touch area a Pressable's hitSlop prop adds on top of its
@@ -1364,6 +1364,8 @@ describe("HallMenuScreen plate wiring", () => {
     // Plate cleared -> bar switches to its empty-state variant (still mounted).
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     expect(texts(root).flat().join(" ")).toMatch(/Logged 3 items/);
+    // Sub-line is the plate's own totals, captured before the plate cleared (Pizza x2 + Salad).
+    expect(texts(root).flat().join(" ")).toMatch(/480 cal · 3g protein/);
   });
 
   it("logs an evening entry under today's LOCAL calendar day, not the UTC-rolled-over day (issue #111)", async () => {
@@ -1400,7 +1402,7 @@ describe("HallMenuScreen plate wiring", () => {
 
     // The failure banner text is actually present...
     const body = texts(root).flat().join(" ");
-    expect(body).toMatch(/Couldn't log everything/);
+    expect(body).toMatch(/Couldn’t log 1 of 2 items/);
 
     // ...and not occluded by the (still-mounted, opaque, bottom-anchored) plate bar: the banner
     // must be positioned clear of the bar's measured height, not sitting underneath it at the
@@ -1408,9 +1410,8 @@ describe("HallMenuScreen plate wiring", () => {
     act(() => {
       root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
     });
-    const bannerContainer = findBannerContainer(root, /Couldn't log everything/);
-    const bottomOffset = bannerContainer?.props.style?.find?.((s: { bottom?: number }) => typeof s?.bottom === "number")?.bottom ?? bannerContainer?.props.style?.bottom;
-    expect(bottomOffset).toBe(88);
+    // Toast sits 12 (artboard's bar-to-toast gap, ToastLogFailed.dc.html 94 - 82) above the bar.
+    expect(findToast(root).props.bottom).toBe(100);
   });
 
   // #162: useGuardedLogPlate's `inFlight` ref releases in `finally`, so it releases even when
@@ -1427,7 +1428,7 @@ describe("HallMenuScreen plate wiring", () => {
 
     // First tap surfaced the failure per this screen's convention (same banner as the case above)
     // and left the plate/sheet in place -- setSheetOpen(false) only runs on the {ok:true} path.
-    expect(texts(root).flat().join(" ")).toMatch(/Couldn't log everything/);
+    expect(texts(root).flat().join(" ")).toMatch(/Couldn’t log 1 of 1 item\b/);
     expect(root.root.findAllByType(PlateBar)).toHaveLength(1);
 
     const buttonAgain = root.root.findAllByType(Button).find((n) => typeof n.props.children === "string" && /^LOG \d+ ITEMS?$/.test(n.props.children));
@@ -1568,7 +1569,7 @@ describe("HallMenuScreen favorite-star double-tap guard (#198)", () => {
   });
 });
 
-describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner never dismisses, occludes last row)", () => {
+describe("HallMenuScreen logged-toast lifecycle (device-pass finding: banner never dismisses, occludes last row)", () => {
   beforeEach(() => {
     mockAddEntry.mockReset().mockResolvedValue(undefined);
   });
@@ -1593,6 +1594,57 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
     expect(texts(root).flat().join(" ")).not.toMatch(/Logged 1 item/);
   });
 
+  it("a success toast is the success kind; a failure toast is the failure kind", async () => {
+    const ok = await renderScreen();
+    addToPlate(ok, "Pizza");
+    await openSheetAndLog(ok);
+    expect(findToast(ok).props.kind).toBe("success");
+
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const bad = await renderScreen();
+    addToPlate(bad, "Pizza");
+    await openSheetAndLog(bad);
+    expect(findToast(bad).props.kind).toBe("failure");
+    expect(findToast(bad).props.subline).toBeUndefined();
+  });
+
+  it("a failure toast does not auto-dismiss", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+  });
+
+  it("tapping a failure toast dismisses it", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+
+    act(() => {
+      findToast(root).props.onDismiss();
+    });
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+  });
+
+  it("editing the plate dismisses a failure toast", async () => {
+    mockAddEntry.mockReset().mockRejectedValueOnce(new Error("disk full"));
+    const root = await renderScreen();
+    addToPlate(root, "Pizza");
+    await openSheetAndLog(root);
+    expect(root.root.findAllByType(Toast)).toHaveLength(1);
+
+    act(() => {
+      root.root.findAllByProps({ accessibilityLabel: "Add one Pizza" })[0].props.onPress();
+    });
+    expect(root.root.findAllByType(Toast)).toHaveLength(0);
+  });
+
   it("keeps the list's bottom padding banner-aware while the banner alone is visible (bar never measured, plate just cleared)", async () => {
     const root = await renderScreen();
     addToPlate(root, "Pizza");
@@ -1600,7 +1652,7 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
 
     expect(root.root.findByType(PlateBar).props.itemCount).toBe(0);
     act(() => {
-      findBannerContainer(root, /Logged 1 item/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
+      findToast(root).props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
     // Bar unmeasured (0) still floors to the filter FAB's own 108+48=156 clearance band, plus the
     // banner's 40 on top.
@@ -1617,7 +1669,7 @@ describe("HallMenuScreen logged-banner lifecycle (device-pass finding: banner ne
       root.root.findByType(PlateBar).props.onLayout({ nativeEvent: { layout: { height: 88 } } });
     });
     act(() => {
-      findBannerContainer(root, /Couldn't log everything/)?.props.onLayout({ nativeEvent: { layout: { height: 40 } } });
+      findToast(root).props.onLayout({ nativeEvent: { layout: { height: 40 } } });
     });
     // 88 is still below the filter FAB's 156 clearance floor, so the bar's clearance is 156 (not
     // 88) plus the banner's 40 on top.

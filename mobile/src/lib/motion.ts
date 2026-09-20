@@ -45,7 +45,7 @@ export const durations = {
   tab: 200,
   /** `.fade` -- plain opacity fade. No call site yet. */
   fade: 240,
-  /** `.toastbox` -- toast opacity+transform. No call site yet (no toast component exists). */
+  /** `.toastbox` -- toast opacity+transform (components/Toast.tsx enter and exit). */
   toast: 260,
   /** `.sk` shimmer sweep (Skeleton.tsx). */
   shimmer: 1400,
@@ -67,10 +67,6 @@ export const durations = {
   rowExpandIn: 160,
   /** halls/[slug].tsx expanded-content dismissal (FadeOut) -- unspecced. */
   rowExpandOut: 120,
-  /** halls/[slug].tsx "logged" banner entrance (FadeInDown) -- unspecced. */
-  loggedBannerIn: 200,
-  /** halls/[slug].tsx "logged" banner exit (FadeOutDown) -- unspecced. */
-  loggedBannerOut: 150,
   /** halls/[slug].tsx station scrubber's highlight segment sliding to a new station, on normal
    * scroll or drag-to-scrub -- unspecced (no design-canvas artboard exists for this component,
    * see the PR body), anchored to `.tgl`/`.knob`'s 180ms "quick UI chrome" role like servingsPill
@@ -80,3 +76,7 @@ export const durations = {
    * in/out like favoritePop above. */
   stationLabel: { in: 120, out: 150 },
 } as const;
+
+/** How long a success toast stays before dismissing itself. A failure toast has no dwell: it stays
+ * until the next log attempt, a plate edit, or a tap. Unspecced (no artboard timing). */
+export const toastDwell = 4000;
