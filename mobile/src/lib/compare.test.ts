@@ -30,8 +30,13 @@ describe("recordComparison", () => {
     const result = await recordComparison(storage, pizza, salad);
     expect(saveRankedDishes).toHaveBeenCalledTimes(1);
     expect(saveRankedFoods).toHaveBeenCalledTimes(1);
-    expect(result?.foods.find((f) => f.dishName === "Pizza")).toMatchObject({ comparisonCount: 1 });
-    expect(result?.dishes.find((d) => d.dishName === "Salad")).toMatchObject({ comparisonCount: 1 });
+    for (const track of [result!.dishes, result!.foods]) {
+      const w = track.find((r) => r.dishName === "Pizza")!;
+      const l = track.find((r) => r.dishName === "Salad")!;
+      expect(w.comparisonCount).toBe(1);
+      expect(l.comparisonCount).toBe(1);
+      expect(w.rating).toBeGreaterThan(l.rating);
+    }
   });
 
   it("drops a second call made before the first finishes (no double count)", async () => {
