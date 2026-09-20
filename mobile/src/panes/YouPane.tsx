@@ -1,6 +1,6 @@
 import { computeDailyTotals, DEFAULT_ROLLOVER_HOUR, distinctLoggedDishes, effectiveDayOf, hallCompletion, hallNameFor, rankDiningHalls, type Favorite, type HallCompletion, type LogEntry, type RankedDish, type RankedFood } from "@udine/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -146,7 +146,8 @@ export function YouPane() {
   // Dev-only `--stress compare-seed[-empty]` (screenshot.sh): logged dishes and an in-memory ranking
   // store, so the head-to-head entry points screenshot without touching the device's real log.
   const { stress } = useLocalSearchParams<{ stress?: string }>();
-  const [fixture] = useState(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty") ? compareFixture(stress === "compare-seed") : null));
+  // useMemo, not lazy state: the deep link that carries `stress` can land after this pane first mounts.
+  const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty") ? compareFixture(stress === "compare-seed") : null), [stress]);
   const ranking = fixture?.storage ?? rankingStorage;
   // Under the fixture the screenshot is one gesture (the swipe to this pane), so start scrolled to "Your Food".
   const scrollRef = useRef<ScrollView>(null);
