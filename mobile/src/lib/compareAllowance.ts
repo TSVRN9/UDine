@@ -61,16 +61,38 @@ export function memoryAllowanceStore(count = 0, now = new Date()): AllowanceStor
 
 // Every call chains on the last: read-modify-write is not atomic, so overlapping picks would lose an increment.
 // A rejected call is swallowed on the queue only (its caller still sees it), so it never wedges later calls.
+// ponytail: a section that never settles blocks every later one; add a timeout only if a store can actually hang.
 let queue: Promise<unknown> = Promise.resolve();
+function enqueue<T>(section: () => Promise<T>): Promise<T> {
+  const run = queue.then(section);
+  queue = run.catch(() => {});
+  return run;
+}
+
+const bump = (store: AllowanceStore, now: Date, count: number) => store.write(JSON.stringify({ date: localDate(now), count }));
 
 /** Records one You-pane pick and returns today's count. At the cap it writes nothing and returns the cap. A failed write rejects. */
 export function recordDailyPick(store: AllowanceStore, now: Date): Promise<number> {
-  const run = queue.then(async () => {
+  return enqueue(async () => {
     const count = await picksToday(store, now);
     if (count >= DAILY_ALLOWANCE) return count;
-    await store.write(JSON.stringify({ date: localDate(now), count: count + 1 }));
+    await bump(store, now, count + 1);
     return count + 1;
   });
-  queue = run.catch(() => {});
-  return run;
+}
+
+/**
+ * The You pane's pick as ONE critical section: the cap check, the ranking save (`save`, null when refused) and the count.
+ * Two flows can never both pass the check. At the cap `save` is not called. A null or throwing `save` counts nothing
+ * (a throw rejects to the caller). Fail-open: if only the count write fails the pick stays saved and `used` is the unbumped count.
+ */
+export function withDailyPick<T>(store: AllowanceStore, now: Date, save: () => Promise<T | null>): Promise<{ capped: true } | { capped: false; result: T | null; used: number }> {
+  return enqueue(async () => {
+    const count = await picksToday(store, now);
+    if (count >= DAILY_ALLOWANCE) return { capped: true as const };
+    const result = await save();
+    if (result === null) return { capped: false as const, result, used: count };
+    const used = await bump(store, now, count + 1).then(() => count + 1, () => count);
+    return { capped: false as const, result, used };
+  });
 }
