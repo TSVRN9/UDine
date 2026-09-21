@@ -9,7 +9,7 @@ import { CompareSheet } from "../components/CompareSheet";
 import { Press } from "../components/Press";
 import { Toast, useToastDwell, type ToastKind } from "../components/Toast";
 import { compareFixture, DAILY_ALLOWANCE, dealPair, resolvePick, resolveSkip, type CompareCard } from "../lib/compare";
-import { memoryAllowanceStore, picksToday, recordDailyPick, sqliteAllowanceStore } from "../lib/compareAllowance";
+import { memoryAllowanceStore, sqliteAllowanceStore, withDailyPick } from "../lib/compareAllowance";
 import { useAllowanceRefresh } from "../lib/useAllowanceRefresh";
 import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
@@ -203,29 +203,34 @@ export function YouPane() {
 
   // A pick is written on-device by resolvePick; the lists take its saved result, so Top Foods and
   // Favorite Halls update under the closing sheet. A failed save leaves the sheet up to retry.
+  // One pick at a time per pane: the sheet closes only once the whole step is done, so a second tap on it would otherwise
+  // queue behind the first and save again.
+  const picking = useRef(false);
   async function pickComparison(winner: CompareCard, loser: CompareCard) {
+    if (picking.current) return;
+    picking.current = true;
     try {
-      // Re-checked at pick time, not trusted from `picks`: that is null until its first read (counted as available) and stale
-      // across midnight, so the sheet can be open on a spent day. Nothing is saved past the cap.
-      const already = await picksToday(allowance, new Date());
-      if (already >= DAILY_ALLOWANCE) {
-        setPicks(already);
+      // Checked at pick time, not trusted from `picks`: that is null until its first read (counted as available) and stale
+      // across midnight, so the sheet can be open on a spent day. Check, save and count are one serialized step; a failed
+      // allowance write costs the user nothing (the pick is saved, just not counted).
+      const step = await withDailyPick(allowance, new Date(), () => resolvePick(ranking, allEntries, winner, loser));
+      if (step.capped) {
+        setPicks(DAILY_ALLOWANCE);
         setCompareOpen(false);
         return;
       }
-      const r = await resolvePick(ranking, allEntries, winner, loser);
+      const r = step.result;
       if (!r) return;
       setRankedDishes(r.dishes);
       setRankedFoods(r.foods);
-      // closed before the allowance write, so a second tap can't land on the still-open sheet and count twice
       setCompareOpen(false);
-      // A failed allowance write costs the user nothing: the pick is already saved, so it is simply not counted.
-      const used = await recordDailyPick(allowance, new Date()).catch(() => picks ?? 0);
-      setPicks(used);
+      setPicks(step.used);
       // today's last pick: winner and score, no "Another" (CompareToastRoundDone.dc.html)
-      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next && used < DAILY_ALLOWANCE ? { label: "Another", pair: r.next } : undefined });
+      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next && step.used < DAILY_ALLOWANCE ? { label: "Another", pair: r.next } : undefined });
     } catch {
       // nothing was recorded
+    } finally {
+      picking.current = false;
     }
   }
 

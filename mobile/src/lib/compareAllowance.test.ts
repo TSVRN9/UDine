@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { DAILY_ALLOWANCE } from "./compare";
 import { getDb } from "./db";
-import { memoryAllowanceStore, picksToday, recordDailyPick, remainingToday, type AllowanceStore } from "./compareAllowance";
+import { memoryAllowanceStore, picksToday, recordDailyPick, remainingToday, withDailyPick, type AllowanceStore } from "./compareAllowance";
 
 jest.mock("./db", () => ({ getDb: jest.fn() }));
 
@@ -126,6 +126,126 @@ describe("daily allowance", () => {
     expect(await next).toBe(1);
     expect(await recordDailyPick(store, now)).toBe(2);
     expect(JSON.parse(raw!)).toEqual({ date: "2026-09-20", count: 2 });
+  });
+
+  describe("withDailyPick: check + save + count as one serialized step", () => {
+    const now = at(2026, 9, 20);
+    const ticks = async (n: number) => {
+      for (let i = 0; i < n; i++) await Promise.resolve();
+    };
+    // Every store call and every save takes a few microtask ticks, so the offsets below land flow 2 in every gap of flow 1.
+    function slowStore(initial: string | null) {
+      let raw = initial;
+      const store: AllowanceStore = {
+        read: async () => (await ticks(2), raw),
+        write: async (json) => {
+          await ticks(2);
+          raw = json;
+        },
+      };
+      return { store, raw: () => (raw ? JSON.parse(raw).count : 0) };
+    }
+    const offsets = Array.from({ length: 21 }, (_, i) => i);
+
+    it.each(offsets)("two flows started %i ticks apart at 4 of 5: exactly one save, count ends at 5", async (offset) => {
+      const { store, raw } = slowStore(rec("2026-09-20", 4));
+      const save = jest.fn(async () => (await ticks(3), "saved"));
+      const first = withDailyPick(store, now, save);
+      await ticks(offset);
+      const second = withDailyPick(store, now, save);
+      const [a, b] = await Promise.all([first, second]);
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(a).toEqual({ capped: false, result: "saved", used: 5 });
+      expect(b).toEqual({ capped: true });
+      expect(raw()).toBe(5);
+    });
+
+    it.each(offsets)("two flows started %i ticks apart at 5 of 5: neither saves", async (offset) => {
+      const { store, raw } = slowStore(rec("2026-09-20", 5));
+      const save = jest.fn(async () => "saved");
+      const first = withDailyPick(store, now, save);
+      await ticks(offset);
+      expect(await Promise.all([first, withDailyPick(store, now, save)])).toEqual([{ capped: true }, { capped: true }]);
+      expect(save).not.toHaveBeenCalled();
+      expect(raw()).toBe(5);
+    });
+
+    it("counts one per saved pick from empty, and the cap check comes before save", async () => {
+      const { store, raw } = stubStore();
+      const order: string[] = [];
+      const save = jest.fn(async () => (order.push("save"), "r"));
+      for (let i = 1; i <= DAILY_ALLOWANCE; i++) expect(await withDailyPick(store, now, save)).toEqual({ capped: false, result: "r", used: i });
+      expect(JSON.parse(raw()!)).toEqual({ date: "2026-09-20", count: 5 });
+      expect(await withDailyPick(store, now, save)).toEqual({ capped: true });
+      expect(save).toHaveBeenCalledTimes(5);
+    });
+
+    it("the count is written only after save succeeds", async () => {
+      const { store, write } = stubStore();
+      let writesDuringSave = -1;
+      await withDailyPick(store, now, async () => {
+        writesDuringSave = write.mock.calls.length;
+        return "r";
+      });
+      expect(writesDuringSave).toBe(0);
+      expect(write).toHaveBeenCalledTimes(1);
+    });
+
+    it("a null save counts nothing and the next flow still runs", async () => {
+      const { store, write, raw } = stubStore(rec("2026-09-20", 2));
+      expect(await withDailyPick(store, now, async () => null)).toEqual({ capped: false, result: null, used: 2 });
+      expect(write).not.toHaveBeenCalled();
+      expect(await withDailyPick(store, now, async () => "r")).toEqual({ capped: false, result: "r", used: 3 });
+      expect(JSON.parse(raw()!).count).toBe(3);
+    });
+
+    it("a throwing save rejects to its caller, counts nothing, and does not wedge a flow queued behind it", async () => {
+      const { store, raw } = stubStore(rec("2026-09-20", 2));
+      const bad = withDailyPick(store, now, async () => {
+        throw new Error("disk full");
+      });
+      const next = withDailyPick(store, now, async () => "r");
+      await expect(bad).rejects.toThrow("disk full");
+      expect(await next).toEqual({ capped: false, result: "r", used: 3 });
+      expect(JSON.parse(raw()!).count).toBe(3);
+    });
+
+    it("a rejecting count write leaves the pick saved and uncounted (fail-open)", async () => {
+      const raw = rec("2026-09-20", 3);
+      const store: AllowanceStore = { read: async () => raw, write: async () => Promise.reject(new Error("disk full")) };
+      const save = jest.fn(async () => "r");
+      expect(await withDailyPick(store, now, save)).toEqual({ capped: false, result: "r", used: 3 });
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(await withDailyPick(store, now, save)).toEqual({ capped: false, result: "r", used: 3 }); // and does not wedge
+    });
+
+    it("a rejecting read is zero, as picksToday treats it: the pick saves and counts 1", async () => {
+      let raw: string | null = null;
+      const store: AllowanceStore = { read: async () => Promise.reject(new Error("db")), write: async (json) => void (raw = json) };
+      expect(await withDailyPick(store, now, async () => "r")).toEqual({ capped: false, result: "r", used: 1 });
+      expect(JSON.parse(raw!)).toEqual({ date: "2026-09-20", count: 1 });
+    });
+
+    it("shares the queue with recordDailyPick without deadlocking, in start order", async () => {
+      const { store, raw } = slowStore(null);
+      const [a, b, c] = await Promise.all([withDailyPick(store, now, async () => "r"), recordDailyPick(store, now), withDailyPick(store, now, async () => "r")]);
+      expect([a, b, c]).toEqual([{ capped: false, result: "r", used: 1 }, 2, { capped: false, result: "r", used: 3 }]);
+      expect(raw()).toBe(3);
+    });
+
+    it("a save that never settles blocks every later flow (the queue's documented ceiling)", async () => {
+      // Released at the end so the module-level queue is free for the rest of the file.
+      const { store } = stubStore();
+      let release!: (v: string) => void;
+      const stuck = withDailyPick(store, now, () => new Promise<string>((r) => (release = r)));
+      const behind = jest.fn(async () => "r");
+      const later = withDailyPick(store, now, behind);
+      await ticks(50);
+      expect(behind).not.toHaveBeenCalled();
+      release("r");
+      await Promise.all([stuck, later]);
+      expect(behind).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("local days follow the calendar across DST changes", async () => {

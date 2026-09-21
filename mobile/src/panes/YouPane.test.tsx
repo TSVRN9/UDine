@@ -910,10 +910,10 @@ describe("YouPane compare allowance", () => {
       await tap(root, "RATE MORE");
       expect(readSpy).toHaveBeenCalledTimes(1);
       await pickFirst(root);
-      expect(readSpy).toHaveBeenCalledTimes(3); // pickComparison's re-check + recordDailyPick's read
+      expect(readSpy).toHaveBeenCalledTimes(2); // the one serialized step's read (check + save + count share it)
       await advance(toastActionDwell + 100); // the toast dismisses itself: a re-render
       expect(toasts(root)).toHaveLength(0);
-      expect(readSpy).toHaveBeenCalledTimes(3);
+      expect(readSpy).toHaveBeenCalledTimes(2);
     });
 
     it("background then foreground across midnight: RATE MORE is back on return, with no other action", async () => {
@@ -1105,6 +1105,42 @@ describe("YouPane compare allowance", () => {
     expect(await stored()).toEqual({ date: "2026-09-20", count: 1 });
     await another(root);
     expect(countText(root).n).toBe(2);
+  });
+
+  // Two mounted panes stand for two pick flows the pane's own double-tap guard cannot see; the shared queue must keep them to the cap.
+  const pressOf = (root: renderer.ReactTestRenderer) => root.root.findAll((n) => typeof n.props.onPress === "function" && textsOf(n).includes(shownNames(root)[0]))[0].props.onPress as () => void;
+  const interleave = async (a: renderer.ReactTestRenderer, b: renderer.ReactTestRenderer, offset: number) => {
+    const [pressA, pressB] = [pressOf(a), pressOf(b)];
+    await act(async () => {
+      pressA();
+      for (let i = 0; i < offset; i++) await Promise.resolve();
+      pressB();
+    });
+    await flush();
+  };
+  const offsets = Array.from({ length: 21 }, (_, i) => i);
+
+  it.each(offsets)("two pick flows started %i microtask ticks apart at 4 of 5 save one comparison and end at 5", async (offset) => {
+    await seed(4);
+    const a = await renderYouPane();
+    const b = await renderYouPane();
+    await tap(a, "RATE MORE");
+    await tap(b, "RATE MORE");
+    await interleave(a, b, offset);
+    expect(rankingMock.saveRankedDishes).toHaveBeenCalledTimes(1);
+    expect(await stored()).toEqual({ date: "2026-09-20", count: 5 });
+  });
+
+  it.each(offsets)("two pick flows started %i ticks apart at 5 of 5 save nothing", async (offset) => {
+    await seed(4); // the entry points are hidden at 5: open both sheets at 4, then let the day fill up underneath them
+    const a = await renderYouPane();
+    const b = await renderYouPane();
+    await tap(a, "RATE MORE");
+    await tap(b, "RATE MORE");
+    await seed(5);
+    await interleave(a, b, offset);
+    expect(rankingMock.saveRankedDishes).not.toHaveBeenCalled();
+    expect(await stored()).toEqual({ date: "2026-09-20", count: 5 });
   });
 
   it("--stress compare-seed-count opens the sheet by itself on '3 of 5' over its own in-memory allowance", async () => {
