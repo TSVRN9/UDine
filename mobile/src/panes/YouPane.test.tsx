@@ -910,10 +910,10 @@ describe("YouPane compare allowance", () => {
       await tap(root, "RATE MORE");
       expect(readSpy).toHaveBeenCalledTimes(1);
       await pickFirst(root);
-      expect(readSpy).toHaveBeenCalledTimes(3); // pickComparison's re-check + recordDailyPick's read
+      expect(readSpy).toHaveBeenCalledTimes(2); // the one serialized step's read (check + save + count share it)
       await advance(toastActionDwell + 100); // the toast dismisses itself: a re-render
       expect(toasts(root)).toHaveLength(0);
-      expect(readSpy).toHaveBeenCalledTimes(3);
+      expect(readSpy).toHaveBeenCalledTimes(2);
     });
 
     it("background then foreground across midnight: RATE MORE is back on return, with no other action", async () => {
