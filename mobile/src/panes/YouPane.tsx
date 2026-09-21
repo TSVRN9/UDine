@@ -28,6 +28,8 @@ const favoritesStorage = new SqliteFavoritesStorage();
 // YOUR TOP FOODS row cap — keeps the pane's chip-row density in line with the canvas rather than
 // rendering every food that ever cleared the scoring gate.
 const TOP_FOODS_LIMIT = 5;
+// `--stress compare-seed-count`: picks already spent today, so the sheet opens on "3 of 5".
+const FIXTURE_PICKS = 2;
 
 // FAVORITES row cap, same "handful" convention as TOP_FOODS_LIMIT -- SEE ALL (-> /favorites) is
 // the full list. getFavorites() has no ORDER BY (favoritesStorage.ts), so which favorites show up
@@ -152,7 +154,7 @@ export function YouPane() {
   const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty" || stress === "compare-seed-used" || stress === "compare-seed-count") ? compareFixture(stress !== "compare-seed-empty") : null), [stress]);
   const usedFixture = __DEV__ && stress === "compare-seed-used";
   const countFixture = __DEV__ && stress === "compare-seed-count";
-  const allowance = useMemo(() => (fixture ? memoryAllowanceStore(usedFixture ? DAILY_ALLOWANCE : countFixture ? 2 : 0) : sqliteAllowanceStore), [fixture, usedFixture, countFixture]);
+  const allowance = useMemo(() => (fixture ? memoryAllowanceStore(usedFixture ? DAILY_ALLOWANCE : countFixture ? FIXTURE_PICKS : 0) : sqliteAllowanceStore), [fixture, usedFixture, countFixture]);
   const ranking = fixture?.storage ?? rankingStorage;
   // Under the fixture the screenshot is one gesture (the swipe to this pane), so start scrolled to "Your Food".
   const scrollRef = useRef<ScrollView>(null);
@@ -196,10 +198,12 @@ export function YouPane() {
     setCompareOpen(true);
   }
 
-  // Dev-only `--stress compare-seed-count`: open the sheet once the log and today's count have loaded.
+  // Dev-only `--stress compare-seed-count`: open the sheet once the FIXTURE's log and count have loaded (the deep link can land
+  // after first mount, while `allEntries` / `picks` still hold the device's: `allEntries === fixture.entries` and the fixture's own
+  // count are what say the load is the fixture's).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- dev fixture only, runs once
-    if (countFixture && !comparePair && canCompare && picks !== null) openCompare(dealPair(allEntries, rankedDishes, null));
+    if (countFixture && fixture && allEntries === fixture.entries && picks === FIXTURE_PICKS && !comparePair && canCompare) openCompare(dealPair(allEntries, rankedDishes, null));
   });
 
   // A pick is written on-device by resolvePick; the lists take its saved result, so Top Foods and
