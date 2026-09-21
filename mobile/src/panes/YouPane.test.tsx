@@ -1072,6 +1072,24 @@ describe("YouPane compare allowance", () => {
     }
   });
 
+  it("--stress compare-seed-count landing after the pane mounted opens on the FIXTURE's pair and '3 of 5', not the device's dishes and count", async () => {
+    logMock.getAllEntries.mockResolvedValue([logEntry("d1", "Device Dish A", 1, LOGGED_AT), logEntry("d2", "Device Dish B", 1, LOGGED_AT)]);
+    const root = await renderYouPane();
+    expect(sheetProps(root).visible).toBe(false);
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed-count" });
+    try {
+      await act(async () => {
+        root.update(<YouPane />);
+      });
+      await flush();
+      expect(sheetProps(root).visible).toBe(true);
+      expect(shownNames(root).some((n) => n.startsWith("Device Dish"))).toBe(false);
+      expect(countText(root)).toEqual({ n: 3, of: 5 });
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
+  });
+
   it("--stress compare-seed-used: the fixture's own in-memory allowance is spent, so no RATE MORE, and the device store is never read", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ stress: "compare-seed-used" });
     try {
