@@ -119,7 +119,7 @@ import { formatServings, MIN_DRAG_SERVINGS } from "../../lib/servingsStepper";
 import { effectiveToday, nowLocalIso } from "../../lib/date";
 import { SqliteLogStorage } from "../../lib/sqliteStorage";
 import { SqliteRankingStorage } from "../../lib/rankingStorage";
-import { compareCard, compareFixture, pickPostLogPair, plateDishes, resolvePick, resolveSkip, type CompareCard } from "../../lib/compare";
+import { compareCard, compareFixture, pickPostLogPair, plateDishes, resolvePick, resolveSkip, RoundTracker, ROUND_SIZE, type CompareCard } from "../../lib/compare";
 
 // react-native-gesture-handler doesn't export a gesture-aware SectionList (only ScrollView/
 // FlatList wrap createNativeWrapper for you); a plain SectionList nested under MealTabPager's
@@ -985,13 +985,23 @@ export function HallMenuScreenBody({
   // Head-to-head compare sheet. `comparePair` outlives the close (the slide-out still needs its
   // content); `compareEntries` is the log the sheet deals from -- everything logged, this plate
   // included -- and `compareStore` is the device's ranking store, or an in-memory one under the
-  // dev-only `--stress compare-pair` fixture (sheet open) or `compare-toast-rate` (the "Rate them" toast, sheet closed).
-  const compareStress = __DEV__ && (stressFixture === "compare-pair" || stressFixture === "compare-toast-rate");
+  // dev-only `--stress compare-pair` fixture (sheet open), `compare-round-done` (sheet open on the 5th pair of a round) or
+  // `compare-toast-rate` (the "Rate them" toast, sheet closed).
+  const compareStress = __DEV__ && (stressFixture === "compare-pair" || stressFixture === "compare-round-done" || stressFixture === "compare-toast-rate");
   const [fixture] = useState(() => (compareStress ? compareFixture() : null));
+  // One post-log round per screen, in memory only: 5 recorded picks per successful Log (Skip and a failed save record nothing).
+  // The You pane's daily allowance is a separate budget (panes/YouPane.tsx); nothing here touches it.
+  const [round] = useState(() => {
+    const r = new RoundTracker();
+    if (__DEV__ && stressFixture === "compare-round-done") for (let i = 0; i < ROUND_SIZE - 1; i++) r.record({ dishes: [], foods: [] });
+    return r;
+  });
+  // The sheet's "n of 5", taken when it opens so it doesn't tick to the next number during the slide-out.
+  const [compareN, setCompareN] = useState(round.number);
   const compareStore = fixture?.storage ?? rankingStorage;
   const compareEntries = useRef<LogEntry[]>(fixture?.entries ?? []);
   const [comparePair, setComparePair] = useState<[CompareCard, CompareCard] | null>(fixture?.pair ?? null);
-  const [compareOpen, setCompareOpen] = useState(compareStress && stressFixture === "compare-pair");
+  const [compareOpen, setCompareOpen] = useState(compareStress && (stressFixture === "compare-pair" || stressFixture === "compare-round-done"));
   const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string; action?: { label: string; pair: [CompareCard, CompareCard] } } | null>(() =>
     toastFixture === "compare-toast-ok"
       ? { kind: "success", message: "Logged 3 items", subline: "640 cal · 65g protein" }
@@ -1142,7 +1152,7 @@ export function HallMenuScreenBody({
   );
 
   // A failure toast stays until the next log attempt replaces it, the plate is edited, or it's tapped.
-  useToastDwell(toast, setToast, !!toastFixture);
+  useToastDwell(toast, setToast, !!toastFixture || (__DEV__ && stressFixture === "compare-round-done"));
   const toastPlate = useRef(plate);
   useEffect(() => {
     if (toastPlate.current === plate) return;
@@ -1438,6 +1448,7 @@ export function HallMenuScreenBody({
     }
     setPlate([]);
     setSheetOpen(false);
+    round.reset();
     // "Rate them" pairs a dish from this plate with a dish logged BEFORE it -- this plate's own rows
     // are told apart by their shared loggedAt. Any read failure just means no action: the log itself
     // already succeeded.
@@ -1467,6 +1478,7 @@ export function HallMenuScreenBody({
   function openCompare(pair: [CompareCard, CompareCard]) {
     setToast(null);
     setComparePair(pair);
+    setCompareN(round.number);
     setCompareOpen(true);
   }
 
@@ -1477,8 +1489,10 @@ export function HallMenuScreenBody({
     try {
       const r = await resolvePick(compareStore, compareEntries.current, winner, loser);
       if (!r) return;
+      round.record(r);
       setCompareOpen(false);
-      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next ? { label: "Another", pair: r.next } : undefined });
+      // the round's last pick: winner and score, no "Another" (CompareToastRoundDone.dc.html)
+      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next && !round.done ? { label: "Another", pair: r.next } : undefined });
     } catch {
       // the save failed: nothing was recorded and the sheet is still up for another tap
     }
@@ -2044,7 +2058,7 @@ export function HallMenuScreenBody({
         initialQuery={plateSearchSeed ?? undefined}
         stressFixture={stressFixture}
       />
-      <CompareSheet visible={compareOpen} pair={comparePair} onPick={pickComparison} onSkip={skipComparison} onClose={() => setCompareOpen(false)} />
+      <CompareSheet visible={compareOpen} pair={comparePair} progress={{ n: compareN, of: ROUND_SIZE }} onPick={pickComparison} onSkip={skipComparison} onClose={() => setCompareOpen(false)} />
       <CompositeDishComposer
         // Never both visible at once, same Android dual-Modal reason as PlateSheet/CustomFoodForm
         // above -- viewing an add-in's Full Nutrition Label hides the composer instead of stacking

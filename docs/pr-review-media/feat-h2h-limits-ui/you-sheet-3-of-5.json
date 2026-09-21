@@ -1,0 +1,10 @@
+{
+  "sha": "d9513dc8ec9f2213e04ca3e88cedf9ec9e5b259e",
+  "branch": "feat/h2h-limits-ui",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-a399781a8f77c8725",
+  "route": "/",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "compare-seed-count",
+  "dirty": false,
+  "ts": "2026-09-21T00:02:34Z"
+}

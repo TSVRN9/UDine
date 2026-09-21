@@ -1,0 +1,16 @@
+env: load .env
+env: export EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY EXPO_PUBLIC_SUPABASE_URL
+
+Development build: Unable to determine the default URI scheme for deep linking into the app. Ensure that the expo-dev-client package is installed.
+Starting project at /home/tavern/Projects/js/UDine/.claude/worktrees/agent-a399781a8f77c8725/mobile
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+Waiting on http://localhost:8082
+
+An update for expo is available: 57.0.14 → ~57.0.24
+21 other packages may need updating. Run npx expo install --check for details.
+Logs for your project will appear below.
+Android Bundled 868ms node_modules/.pnpm/expo-router@57.0.14_3a7725a6760fcdcbd4f7eec3e3a34698/node_modules/expo-router/entry.js (2234 modules)
