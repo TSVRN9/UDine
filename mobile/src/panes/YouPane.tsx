@@ -9,7 +9,8 @@ import { CompareSheet } from "../components/CompareSheet";
 import { Press } from "../components/Press";
 import { Toast, useToastDwell, type ToastKind } from "../components/Toast";
 import { compareFixture, DAILY_ALLOWANCE, dealPair, resolvePick, resolveSkip, type CompareCard } from "../lib/compare";
-import { memoryAllowanceStore, picksToday, sqliteAllowanceStore, withDailyPick } from "../lib/compareAllowance";
+import { memoryAllowanceStore, sqliteAllowanceStore, withDailyPick } from "../lib/compareAllowance";
+import { useAllowanceRefresh } from "../lib/useAllowanceRefresh";
 import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
@@ -174,16 +175,10 @@ export function YouPane() {
   const [comparePair, setComparePair] = useState<[CompareCard, CompareCard] | null>(null);
   const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string; action?: { label: string; pair: [CompareCard, CompareCard] } } | null>(null);
   useToastDwell(toast, setToast, !!fixture);
-  // Comparisons made today (device-local, compareAllowance.ts); null until first read. Read on every render, not just on
-  // focus: this pane stays mounted across midnight, and an unchanged value bails out without another render.
+  // Comparisons made today (device-local, compareAllowance.ts); null until first read. Refreshed on mount, on foreground and at
+  // local midnight (useAllowanceRefresh; this pane stays mounted across all three) and set after a pick, never on a re-render.
   const [picks, setPicks] = useState<number | null>(null);
-  useEffect(() => {
-    let live = true;
-    picksToday(allowance, new Date()).then((n) => live && setPicks(n));
-    return () => {
-      live = false;
-    };
-  });
+  useAllowanceRefresh(allowance, setPicks);
   const allowanceUsed = picks !== null && picks >= DAILY_ALLOWANCE;
   // The sheet's "n of 5", taken when it opens so it doesn't tick to the next number during the slide-out.
   const [compareN, setCompareN] = useState(1);
