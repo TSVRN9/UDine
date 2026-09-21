@@ -8,7 +8,8 @@ import Svg, { Path } from "react-native-svg";
 import { CompareSheet } from "../components/CompareSheet";
 import { Press } from "../components/Press";
 import { Toast, useToastDwell, type ToastKind } from "../components/Toast";
-import { compareFixture, dealPair, resolvePick, resolveSkip, type CompareCard } from "../lib/compare";
+import { compareFixture, DAILY_ALLOWANCE, dealPair, resolvePick, resolveSkip, type CompareCard } from "../lib/compare";
+import { memoryAllowanceStore, picksToday, recordDailyPick, sqliteAllowanceStore } from "../lib/compareAllowance";
 import { Card, EmptyState, SectionHeader, Stat } from "../components/ui";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../lib/theme";
 import { todayIso } from "../lib/date";
@@ -27,6 +28,8 @@ const favoritesStorage = new SqliteFavoritesStorage();
 // YOUR TOP FOODS row cap — keeps the pane's chip-row density in line with the canvas rather than
 // rendering every food that ever cleared the scoring gate.
 const TOP_FOODS_LIMIT = 5;
+// `--stress compare-seed-count`: picks already spent today, so the sheet opens on "3 of 5".
+const FIXTURE_PICKS = 2;
 
 // FAVORITES row cap, same "handful" convention as TOP_FOODS_LIMIT -- SEE ALL (-> /favorites) is
 // the full list. getFavorites() has no ORDER BY (favoritesStorage.ts), so which favorites show up
@@ -143,11 +146,15 @@ export function YouPane() {
     getCachedHours().then(() => forceRetailNamesRerender((n) => n + 1));
   }, []);
 
-  // Dev-only `--stress compare-seed[-empty]` (screenshot.sh): logged dishes and an in-memory ranking
-  // store, so the head-to-head entry points screenshot without touching the device's real log.
+  // Dev-only `--stress compare-seed[-empty|-used|-count]` (screenshot.sh): logged dishes, an in-memory ranking store and an
+  // in-memory allowance (`-used`: today's already spent; `-count`: two spent, and the sheet opens by itself on "3 of 5"), so the
+  // head-to-head entry points screenshot without touching the device's real log, rankings or allowance.
   const { stress } = useLocalSearchParams<{ stress?: string }>();
   // useMemo, not lazy state: the deep link that carries `stress` can land after this pane first mounts.
-  const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty") ? compareFixture(stress === "compare-seed") : null), [stress]);
+  const fixture = useMemo(() => (__DEV__ && (stress === "compare-seed" || stress === "compare-seed-empty" || stress === "compare-seed-used" || stress === "compare-seed-count") ? compareFixture(stress !== "compare-seed-empty") : null), [stress]);
+  const usedFixture = __DEV__ && stress === "compare-seed-used";
+  const countFixture = __DEV__ && stress === "compare-seed-count";
+  const allowance = useMemo(() => (fixture ? memoryAllowanceStore(usedFixture ? DAILY_ALLOWANCE : countFixture ? FIXTURE_PICKS : 0) : sqliteAllowanceStore), [fixture, usedFixture, countFixture]);
   const ranking = fixture?.storage ?? rankingStorage;
   // Under the fixture the screenshot is one gesture (the swipe to this pane), so start scrolled to "Your Food".
   const scrollRef = useRef<ScrollView>(null);
@@ -167,26 +174,61 @@ export function YouPane() {
   const [comparePair, setComparePair] = useState<[CompareCard, CompareCard] | null>(null);
   const [toast, setToast] = useState<{ kind: ToastKind; message: string; subline?: string; action?: { label: string; pair: [CompareCard, CompareCard] } } | null>(null);
   useToastDwell(toast, setToast, !!fixture);
-  // Two distinct logged dishes is the least there is to pair; below that neither entry point renders.
-  const canCompare = distinctLoggedDishes(allEntries).length >= 2;
+  // Comparisons made today (device-local, compareAllowance.ts); null until first read. Read on every render, not just on
+  // focus: this pane stays mounted across midnight, and an unchanged value bails out without another render.
+  const [picks, setPicks] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    picksToday(allowance, new Date()).then((n) => live && setPicks(n));
+    return () => {
+      live = false;
+    };
+  });
+  const allowanceUsed = picks !== null && picks >= DAILY_ALLOWANCE;
+  // The sheet's "n of 5", taken when it opens so it doesn't tick to the next number during the slide-out.
+  const [compareN, setCompareN] = useState(1);
+  // Two distinct logged dishes is the least there is to pair, and today's allowance must have room; below that neither entry point renders.
+  const canCompare = distinctLoggedDishes(allEntries).length >= 2 && !allowanceUsed;
 
   function openCompare(pair: [CompareCard, CompareCard] | null) {
-    if (!pair) return;
+    if (!pair || allowanceUsed) return;
     setToast(null);
     setComparePair(pair);
+    setCompareN((picks ?? 0) + 1);
     setCompareOpen(true);
   }
+
+  // Dev-only `--stress compare-seed-count`: open the sheet once the FIXTURE's log and count have loaded (the deep link can land
+  // after first mount, while `allEntries` / `picks` still hold the device's: `allEntries === fixture.entries` and the fixture's own
+  // count are what say the load is the fixture's).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dev fixture only, runs once
+    if (countFixture && fixture && allEntries === fixture.entries && picks === FIXTURE_PICKS && !comparePair && canCompare) openCompare(dealPair(allEntries, rankedDishes, null));
+  });
 
   // A pick is written on-device by resolvePick; the lists take its saved result, so Top Foods and
   // Favorite Halls update under the closing sheet. A failed save leaves the sheet up to retry.
   async function pickComparison(winner: CompareCard, loser: CompareCard) {
     try {
+      // Re-checked at pick time, not trusted from `picks`: that is null until its first read (counted as available) and stale
+      // across midnight, so the sheet can be open on a spent day. Nothing is saved past the cap.
+      const already = await picksToday(allowance, new Date());
+      if (already >= DAILY_ALLOWANCE) {
+        setPicks(already);
+        setCompareOpen(false);
+        return;
+      }
       const r = await resolvePick(ranking, allEntries, winner, loser);
       if (!r) return;
       setRankedDishes(r.dishes);
       setRankedFoods(r.foods);
+      // closed before the allowance write, so a second tap can't land on the still-open sheet and count twice
       setCompareOpen(false);
-      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next ? { label: "Another", pair: r.next } : undefined });
+      // A failed allowance write costs the user nothing: the pick is already saved, so it is simply not counted.
+      const used = await recordDailyPick(allowance, new Date()).catch(() => picks ?? 0);
+      setPicks(used);
+      // today's last pick: winner and score, no "Another" (CompareToastRoundDone.dc.html)
+      setToast({ kind: "success", message: r.message, subline: r.subline, action: r.next && used < DAILY_ALLOWANCE ? { label: "Another", pair: r.next } : undefined });
     } catch {
       // nothing was recorded
     }
@@ -385,7 +427,7 @@ export function YouPane() {
           onDismiss={() => setToast(null)}
         />
       )}
-      <CompareSheet visible={compareOpen} pair={comparePair} onPick={pickComparison} onSkip={skipComparison} onClose={() => setCompareOpen(false)} />
+      <CompareSheet visible={compareOpen} pair={comparePair} progress={{ n: compareN, of: DAILY_ALLOWANCE }} onPick={pickComparison} onSkip={skipComparison} onClose={() => setCompareOpen(false)} />
     </View>
   );
 }

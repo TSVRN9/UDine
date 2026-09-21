@@ -59,28 +59,34 @@ hard block with an explanatory message (the design shows no captions; the action
    pane renders; a pick recorded after midnight starts a new day at "1 of 5".
 3. The round size and the allowance are both 5 but are two constants (`ROUND_SIZE`, `DAILY_ALLOWANCE`)
    in `lib/compare.ts`, so they can move independently.
+4. The You pane re-checks the allowance at pick time (before anything is saved), not only when its entry points
+   render: the sheet can be open on a spent day (state not yet read, or midnight passed), and nothing may be
+   recorded past the cap. A capped pick closes the sheet and saves nothing.
+5. The pane's allowance state is null until its first read and counts as available meanwhile (the alternative would
+   flash RATE MORE away on every normal day); the pick-time re-check above is what keeps that window from
+   bypassing the limit.
 
 ## Acceptance
 
-- [ ] `remainingToday(store, now)` / `recordDailyPick(store, now)` (names indicative) read and write the
+- [x] `remainingToday(store, now)` / `recordDailyPick(store, now)` (names indicative) read and write the
       `{date, count}` record in `preferences_kv`; a new local date resets the count; the count never
       exceeds `DAILY_ALLOWANCE` — evidence: test (injected clock, stub store; red first)
-- [ ] A round tracker counts recorded picks toward `ROUND_SIZE`, resets on a new successful log, and is
+- [x] A round tracker counts recorded picks toward `ROUND_SIZE`, resets on a new successful log, and is
       not affected by Skip or a failed save — evidence: test
-- [ ] Post-log: the sheet shows "n of 5" (n = picks made this round + 1); the 5th pick's toast has no
+- [x] Post-log: the sheet shows "n of 5" (n = picks made this round + 1); the 5th pick's toast has no
       "Another"; after it "Rate them" on that log's toast is not offered again — evidence: test + screenshot
-- [ ] You pane: the sheet shows today's picks made + 1 (1-based, "1 of 5" before any pick today); RATE MORE and Start comparing are hidden once today's
+- [x] You pane: the sheet shows today's picks made + 1 (1-based, "1 of 5" before any pick today); RATE MORE and Start comparing are hidden once today's
       allowance is used and reappear on a new day; the 5th pick's toast has no "Another" —
       evidence: test + screenshot
-- [ ] Post-log picks never change the daily count, and You-pane picks never change a post-log round —
+- [x] Post-log picks never change the daily count, and You-pane picks never change a post-log round —
       evidence: test
-- [ ] Sheet count, the round-done toast and the allowance-used pane match `CompareSheet.dc.html`,
+- [x] Sheet count, the round-done toast and the allowance-used pane match `CompareSheet.dc.html`,
       `CompareToastRoundDone.dc.html`, `YouTopFoodsAllowanceUsed.dc.html` (read via `artboardStyle()` and
       friends, not by eye); the existing sheet/toast/pane parity tests still pass against the updated
       artboards — evidence: test + screenshot
-- [ ] No Supabase call, no `syncDiningHallRanks`, the daily record is not exported or synced — evidence: test
+- [x] No Supabase call, no `syncDiningHallRanks`, the daily record is not exported or synced — evidence: test
       (grep-style, as in `compare.test.ts`) + review
-- [ ] No explanatory text was added anywhere: the only new UI copy is the "n of 5" count —
+- [x] No explanatory text was added anywhere: the only new UI copy is the "n of 5" count —
       evidence: review (`pr-reviewer.md` caption scan)
 
 ## Tasks
@@ -88,10 +94,10 @@ hard block with an explanatory message (the design shows no captions; the action
 1. Round + allowance logic (no UI) — files: `mobile/src/lib/compare.ts` (`ROUND_SIZE`, `DAILY_ALLOWANCE`,
    pure helpers) + a small `mobile/src/lib/compareAllowance.ts` over the existing `preferences_kv` store
    (follow `rankingStorage.ts`) + tests; no `src/app` or component change; this PR also adds this brief —
-   lanes: mobile `tsc`, jest, lint — blocked by: none — PR:
+   lanes: mobile `tsc`, jest, lint — blocked by: none — PR: #532
 2. UI wiring + artboard update — files: `mobile/src/components/CompareSheet.tsx` (count),
    `mobile/src/app/halls/[slug].tsx` (per-log round), `mobile/src/panes/YouPane.tsx` (allowance),
    `mobile/src/lib/compare.ts` fixtures, `docs/design/*` re-extracted from canvas v59 (CompareSheet, the two
    new artboards, `canvas.json`) and their README rows, parity tests updated for the changed sheet artboard;
    dev-only `--stress compare-round-done` / `compare-seed-used` — lanes: mobile `tsc`, jest, lint,
-   `expo export` — blocked by: 1 — PR:
+   `expo export` — blocked by: 1 — PR: #533
