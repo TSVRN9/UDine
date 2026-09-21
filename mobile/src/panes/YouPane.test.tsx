@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import renderer, { act } from "react-test-renderer";
-import { Text, View } from "react-native";
+import { AppState, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import type { Favorite, LogEntry, RankedDish, RankedFood } from "@udine/shared";
 import { YouPane } from "./YouPane";
@@ -875,18 +875,67 @@ describe("YouPane compare allowance", () => {
     await seed(5);
     const root = await renderYouPane();
     expect(hasRankMore(root)).toBe(false);
-    jest.setSystemTime(new Date(2026, 8, 21, 0, 5, 0)); // just past local midnight, the pane still mounted
-    await act(async () => {
-      root.update(<YouPane />);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await advance(12 * 3_600_000 + 5 * 60_000); // through local midnight to 12:05 am, the pane still mounted and nothing touched
     expect(hasRankMore(root)).toBe(true);
     await tap(root, "RATE MORE");
     expect(countText(root)).toEqual({ n: 1, of: 5 });
     await pickFirst(root);
     expect(await stored()).toEqual({ date: "2026-09-21", count: 1 });
+  });
+
+  // The allowance is read on mount, on foreground, at local midnight and after a pick: never because something re-rendered.
+  describe("refresh triggers", () => {
+    let readSpy: jest.SpyInstance;
+    let onAppState: ((state: string) => void) | undefined;
+    const remove = jest.fn();
+    beforeEach(() => {
+      readSpy = jest.spyOn(sqliteAllowanceStore, "read");
+      onAppState = undefined;
+      remove.mockClear();
+      jest.spyOn(AppState, "addEventListener").mockImplementation(((_type: string, h: (state: string) => void) => {
+        onAppState = h;
+        return { remove };
+      }) as never);
+    });
+    afterEach(() => {
+      readSpy.mockRestore();
+      jest.restoreAllMocks();
+    });
+
+    it("mount reads once; unrelated re-renders (props, sheet open, toast dismissal) read nothing; a pick reads for its own check and count only", async () => {
+      const root = await renderYouPane();
+      expect(readSpy).toHaveBeenCalledTimes(1);
+      await act(async () => root.update(<YouPane />));
+      await flush();
+      await tap(root, "RATE MORE");
+      expect(readSpy).toHaveBeenCalledTimes(1);
+      await pickFirst(root);
+      expect(readSpy).toHaveBeenCalledTimes(3); // pickComparison's re-check + recordDailyPick's read
+      await advance(toastActionDwell + 100); // the toast dismisses itself: a re-render
+      expect(toasts(root)).toHaveLength(0);
+      expect(readSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("background then foreground across midnight: RATE MORE is back on return, with no other action", async () => {
+      await seed(5);
+      const root = await renderYouPane();
+      expect(hasRankMore(root)).toBe(false);
+      jest.setSystemTime(new Date(2026, 8, 21, 7, 0, 0)); // the timer slept through midnight
+      await act(async () => onAppState!("background"));
+      await flush();
+      expect(hasRankMore(root)).toBe(false);
+      await act(async () => onAppState!("active"));
+      await flush();
+      expect(hasRankMore(root)).toBe(true);
+    });
+
+    it("unmount removes the AppState subscription and the midnight timeout", async () => {
+      const root = await renderYouPane();
+      act(() => root.unmount());
+      expect(remove).toHaveBeenCalledTimes(1);
+      await advance(72 * 3_600_000); // three midnights: a live timeout would read
+      expect(readSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   it.each([0, 2, 4])("after %i picks today the sheet reads picks + 1 of 5", async (used) => {
