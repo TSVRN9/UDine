@@ -63,23 +63,62 @@ Deno.test("extractRecNum/extractLocationNum/extractLocationName read the label.a
   if (extractLocationName(path) !== "Bluewall - Grill") throw new Error(`expected "Bluewall - Grill", got "${extractLocationName(path)}"`);
 });
 
-Deno.test("selectCandidateHits: exact-name filter drops substring matches like 'Canadian Bacon' for a 'Bacon' query", () => {
+Deno.test("selectCandidateHits: token-AND matching now includes a substring hit like 'Canadian Bacon' for a 'Bacon' query, but sorted after the exact matches", () => {
   const hits = parseSearchHits(SEARCH_FRAGMENT);
   const selected = selectCandidateHits(hits, "Bacon");
-  if (selected.some((h) => h.dishName !== "Bacon")) throw new Error(`a non-exact match leaked through: ${JSON.stringify(selected)}`);
+  // Fixture order: Bacon(181767), Canadian Bacon(081010), Bacon(181767 dup), Bacon(151207).
+  // Exact matches sort first (both distinct-RecNum "Bacon" hits), then the substring match
+  // backfills the remaining slot under the default cap of 3.
+  const names = selected.map((h) => h.dishName);
+  if (names.join(",") !== "Bacon,Bacon,Canadian Bacon") throw new Error(`expected exact matches before the substring match, got: ${JSON.stringify(names)}`);
+});
+
+Deno.test("selectCandidateHits: with `max` capped below the exact-match count, a substring match never displaces an exact one", () => {
+  const hits = parseSearchHits(SEARCH_FRAGMENT);
+  const selected = selectCandidateHits(hits, "Bacon", 1);
+  if (selected.length !== 1 || selected[0].dishName !== "Bacon") throw new Error(`expected 1 exact "Bacon" hit, got ${JSON.stringify(selected)}`);
 });
 
 Deno.test("selectCandidateHits: dedupes by RecNum (the same recipe recurs across many search-result dates)", () => {
   const hits = parseSearchHits(SEARCH_FRAGMENT);
   const selected = selectCandidateHits(hits, "Bacon");
-  // 3 "Bacon" rows in the fixture, but 2 have the same RecNum (181767) -- only 2 distinct recipes.
-  if (selected.length !== 2) throw new Error(`expected 2 distinct-RecNum candidates, got ${selected.length}: ${JSON.stringify(selected)}`);
+  // 3 "Bacon" rows share 2 distinct RecNums, plus "Canadian Bacon" (081010) now qualifies too
+  // under token-AND matching -- 3 distinct recipes, capped at the default max of 3.
+  if (selected.length !== 3) throw new Error(`expected 3 distinct-RecNum candidates, got ${selected.length}: ${JSON.stringify(selected)}`);
 });
 
 Deno.test("selectCandidateHits: caps at `max`", () => {
   const hits = parseSearchHits(SEARCH_FRAGMENT);
-  const selected = selectCandidateHits(hits, "Bacon", 1);
-  if (selected.length !== 1) throw new Error(`expected 1 (capped), got ${selected.length}`);
+  const selected = selectCandidateHits(hits, "Bacon", 2);
+  if (selected.length !== 2) throw new Error(`expected 2 (capped), got ${selected.length}`);
+});
+
+// Synthetic (see file header) but shaped exactly like a real search.aspx "White"-keyword result --
+// FoodPro's search.aspx is a phrase-substring search: verified live 2026-09-25, "White Pizza" gets
+// 0 hits while "White" returns "White Cheese Pizza". This is why lookup-dish sends search.aspx the
+// longest query token and does the real "every word must appear" filtering locally.
+const WHITE_PIZZA_SEARCH_FRAGMENT = `
+<div class='searchcoldesc'><a href='label.aspx?locationNum=01&locationName=Worcester+Dining+Commons&dtdate=9%2f20%2f2026&RecNumAndPort=200001*1' target=_top>White Cheese Pizza</a></div>
+<div class='searchcoldesc'><a href='label.aspx?locationNum=02&locationName=Franklin+Dining+Commons&dtdate=9%2f20%2f2026&RecNumAndPort=200002*1' target=_top>White Kidney Beans</a></div>
+`;
+
+Deno.test("selectCandidateHits: 'White Pizza' selects 'White Cheese Pizza' and not 'White Kidney Beans'", () => {
+  const hits = parseSearchHits(WHITE_PIZZA_SEARCH_FRAGMENT);
+  const selected = selectCandidateHits(hits, "White Pizza");
+  const names = selected.map((h) => h.dishName);
+  if (names.join(",") !== "White Cheese Pizza") throw new Error(`expected only "White Cheese Pizza", got ${JSON.stringify(names)}`);
+});
+
+Deno.test("selectCandidateHits: query tokenizing collapses punctuation/whitespace, order-independent ('pizza, white' matches 'White Cheese Pizza')", () => {
+  const hits = parseSearchHits(WHITE_PIZZA_SEARCH_FRAGMENT);
+  const selected = selectCandidateHits(hits, "pizza,   white");
+  if (selected.length !== 1 || selected[0].dishName !== "White Cheese Pizza") throw new Error(`unexpected: ${JSON.stringify(selected)}`);
+});
+
+Deno.test("selectCandidateHits: a punctuation-only query (no tokens) selects nothing, rather than matching everything", () => {
+  const hits = parseSearchHits(WHITE_PIZZA_SEARCH_FRAGMENT);
+  const selected = selectCandidateHits(hits, "%%%");
+  if (selected.length !== 0) throw new Error(`expected no hits for an empty token list, got ${JSON.stringify(selected)}`);
 });
 
 Deno.test("hallTidForLocationNum: a real hall (1-4) keeps its own tid; anything else is negated", () => {
@@ -330,10 +369,28 @@ Deno.test("fetchFoodProCandidates: returns real parsed candidates alongside the 
     "label.aspx": () => new Response(BACON_LABEL, { status: 200 }),
   });
   const result = await fetchFoodProCandidates("Bacon", fetchImpl);
-  // SEARCH_FRAGMENT has 3 "Bacon" rows but only 2 distinct RecNums (181767 x2, 151207) --
-  // selectCandidateHits' own dedup test above already pins this count.
-  if (result.searchHitCount !== 2) throw new Error(`expected searchHitCount 2, got ${result.searchHitCount}`);
-  if (result.candidates.length !== 2) throw new Error(`expected 2 parsed candidates, got ${result.candidates.length}`);
+  // SEARCH_FRAGMENT has 3 "Bacon" rows (2 distinct RecNums) plus "Canadian Bacon" (081010), which
+  // now qualifies too under token-AND matching -- 3 distinct recipes, capped at the default max
+  // of 3. selectCandidateHits' own dedup test above already pins this count.
+  if (result.searchHitCount !== 3) throw new Error(`expected searchHitCount 3, got ${result.searchHitCount}`);
+  if (result.candidates.length !== 3) throw new Error(`expected 3 parsed candidates, got ${result.candidates.length}`);
+});
+
+Deno.test("fetchFoodProCandidates: posts the longest query token as strCurKeywords, not the whole phrase", async () => {
+  let capturedBody: string | undefined;
+  const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
+    const u = url.toString();
+    if (u.includes("location.aspx")) return locationResponse();
+    if (u.includes("search.aspx")) {
+      capturedBody = init?.body as string;
+      return new Response("No Result", { status: 200 });
+    }
+    throw new Error(`unexpected fetch: ${u}`);
+  }) as typeof fetch;
+  // "cheese" (6 letters) is the longest token and is neither the first nor the last word --
+  // pins that the whole phrase is tokenized and reduced, not just "send word 1" or "send the tail".
+  await fetchFoodProCandidates("Pizza White Cheese", fetchImpl);
+  if (capturedBody !== "Action=SEARCH&strCurKeywords=cheese") throw new Error(`expected the longest token "cheese" in the search body, got: ${capturedBody}`);
 });
 
 Deno.test("fetchFoodProCandidates: searchHitCount is 0 when search.aspx itself found nothing (a genuine miss)", async () => {
@@ -353,7 +410,7 @@ Deno.test("fetchFoodProCandidates: searchHitCount stays > 0 even when every labe
     "label.aspx": () => new Response("upstream error", { status: 500 }),
   });
   const result = await fetchFoodProCandidates("Bacon", fetchImpl);
-  if (result.searchHitCount !== 2) throw new Error(`expected searchHitCount 2 (search still found them), got ${result.searchHitCount}`);
+  if (result.searchHitCount !== 3) throw new Error(`expected searchHitCount 3 (search still found them), got ${result.searchHitCount}`);
   if (result.candidates.length !== 0) throw new Error("expected 0 usable candidates -- every label.aspx fetch failed");
 });
 

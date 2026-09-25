@@ -62,11 +62,34 @@ function num(s: string | undefined): number {
   return match ? Number.parseFloat(match[0]) : 0;
 }
 
-/** Cache/dedup key: trimmed, whitespace-collapsed, lowercased -- distinct from the string actually
- * sent to search.aspx (which keeps the user's original casing/spacing; FoodPro's search is a
- * case-insensitive substring match regardless). */
+/** Cache/dedup key: trimmed, whitespace-collapsed, lowercased -- distinct from what's actually sent
+ * to search.aspx (only the longest token now, see fetchFoodProCandidates). Query-key normalization
+ * is intentionally NOT changed to the token-based normalizeForMatch below: it only gates a 15-
+ * minute negative cache, so a stale miss recorded under the old exact-match semantics ages out on
+ * its own shortly after this deploys -- not worth widening the key format for. */
 export function normalizeQueryKey(raw: string): string {
   return raw.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** Lowercases and turns every run of non-alphanumeric characters into a single space -- the shared
+ * normalization both selectCandidateHits and the search-token picker build on. Deliberately
+ * duplicated from @udine/shared's matchesQuery (task 2 of this brief): Deno can't import
+ * @udine/shared (see WebInaNutrition's own comment below for the same constraint elsewhere in this
+ * file) -- keep the two normalization rules in sync by hand if either changes. */
+function normalizeForMatch(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+}
+
+function tokensForMatch(s: string): string[] {
+  return normalizeForMatch(s).trim().split(/\s+/).filter(Boolean);
+}
+
+/** Token-AND match: every token of `query` must be a substring of `name`, both normalized the same
+ * way. FoodPro's search.aspx only narrows the candidate set (see fetchFoodProCandidates) -- this is
+ * the real "does this dish actually match what the user typed" filter. */
+function matchesQueryTokens(name: string, query: string): boolean {
+  const normalizedName = normalizeForMatch(name);
+  return tokensForMatch(query).every((token) => normalizedName.includes(token));
 }
 
 /** Same shape as populate-dishes/populate-retail-dishes' own DishNutrition/RetailDishNutrition --
@@ -139,18 +162,23 @@ export function extractLocationName(labelPath: string): string {
   return decodeEntities(m[1].replace(/\+/g, " ")).trim();
 }
 
-/** `search.aspx` is a substring match (searching "Bacon" also returns "Bacon Jalapeno
- * Quesadilla", "Canadian Bacon", etc. -- confirmed live), which is too loose for "the user typed
- * this exact dish name" -- filters to an exact case-insensitive match, then dedupes by RecNum
- * (the same recipe recurs across many dates in search.aspx's results -- confirmed live, one real
- * search returned the same RecNum 5+ times), keeping first-seen order, capped to
- * MAX_CANDIDATES_PER_REQUEST. */
+/** `search.aspx` is a phrase-substring search (searching "Bacon" also returns "Bacon Jalapeno
+ * Quesadilla", "Canadian Bacon", etc. -- confirmed live; "White Pizza" itself gets 0 hits there,
+ * confirmed live 2026-09-25, hence fetchFoodProCandidates sending it only the longest token) --
+ * filters to hits where every token of `query` is a substring of the dish name (token-AND,
+ * matchesQueryTokens above), sorts exact (post-normalization) matches first, then dedupes by
+ * RecNum (the same recipe recurs across many dates in search.aspx's results -- confirmed live, one
+ * real search returned the same RecNum 5+ times), capped to MAX_CANDIDATES_PER_REQUEST. A query
+ * that normalizes to no tokens at all (e.g. punctuation-only) matches nothing, not everything. */
 export function selectCandidateHits(hits: SearchHit[], query: string, max: number = MAX_CANDIDATES_PER_REQUEST): SearchHit[] {
-  const target = query.trim().toLowerCase();
-  const exact = hits.filter((h) => h.dishName.toLowerCase() === target);
+  const normalizedQuery = normalizeForMatch(query).trim();
+  if (!normalizedQuery) return [];
+  const matching = hits.filter((h) => matchesQueryTokens(h.dishName, query));
+  const isExact = (h: SearchHit) => normalizeForMatch(h.dishName).trim() === normalizedQuery;
+  const ordered = [...matching].sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
   const seenRecNums = new Set<string>();
   const deduped: SearchHit[] = [];
-  for (const hit of exact) {
+  for (const hit of ordered) {
     const recNum = extractRecNum(hit.labelPath);
     const dedupeKey = recNum ?? hit.labelPath;
     if (seenRecNums.has(dedupeKey)) continue;
@@ -227,33 +255,43 @@ export function buildDishUpsertRow(candidate: LookupCandidate, updatedAt: string
 }
 
 /** fetchFoodProCandidates' result: `candidates` is what actually got usable nutrition parsed,
- * `searchHitCount` is how many exact-name matches search.aspx itself returned BEFORE any
- * label.aspx fetch was attempted. The two can diverge (search found N candidates, but every
- * label.aspx fetch 404'd/timed out/failed to parse) -- the caller needs that distinction to avoid
- * negative-caching a transient label.aspx outage as "this dish doesn't exist" (see performLookup). */
+ * `searchHitCount` is how many hits selectCandidateHits kept (its own token-AND filter + RecNum
+ * dedupe + cap) BEFORE any label.aspx fetch was attempted. The two can diverge (search found N
+ * candidates, but every label.aspx fetch 404'd/timed out/failed to parse) -- the caller needs
+ * that distinction to avoid negative-caching a transient label.aspx outage as "this dish doesn't
+ * exist" (see performLookup). */
 export interface FoodProLookup {
   candidates: LookupCandidate[];
   searchHitCount: number;
 }
 
-/** The live FoodPro round-trip: location.aspx (session cookie) -> search.aspx (candidates) ->
- * up to MAX_CANDIDATES_PER_REQUEST label.aspx fetches (real nutrition). An empty `candidates`
- * with `searchHitCount === 0` is "FoodPro has nothing matching this exact name" -- a genuine miss,
- * safe to negative-cache. An empty `candidates` with `searchHitCount > 0` means search.aspx found
- * the dish but every label.aspx fetch for it failed -- a transient failure, NOT a miss; the
- * caller must not negative-cache this. Throws only on a genuine transport failure (location.aspx/
- * search.aspx unreachable), which the caller lets surface as a 502 rather than silently recording
- * a false negative-cache miss for what might just be a transient network blip. */
+/** The live FoodPro round-trip: location.aspx (session cookie) -> search.aspx (candidates, keyed
+ * on only the longest token of `query` -- search.aspx is a phrase-substring search, so a
+ * multi-word query itself can get 0 hits there, confirmed live 2026-09-25 for "White Pizza") ->
+ * up to MAX_CANDIDATES_PER_REQUEST label.aspx fetches (real nutrition). selectCandidateHits then
+ * does the real "every word of the full query matches" filtering locally. An empty `candidates`
+ * with `searchHitCount === 0` is "nothing locally matched" -- a genuine miss, safe to
+ * negative-cache. An empty `candidates` with `searchHitCount > 0` means hits matched but every
+ * label.aspx fetch for them failed -- a transient failure, NOT a miss; the caller must not
+ * negative-cache this. Throws only on a genuine transport failure (location.aspx/search.aspx
+ * unreachable), which the caller lets surface as a 502 rather than silently recording a false
+ * negative-cache miss for what might just be a transient network blip. */
 export async function fetchFoodProCandidates(query: string, fetchImpl: typeof fetch = fetch): Promise<FoodProLookup> {
   const locationRes = await fetchImpl(`${BASE}location.aspx`);
   if (!locationRes.ok) throw new Error(`location.aspx returned ${locationRes.status}`);
   const cookieHeader = cookieHeaderFromSetCookie(locationRes.headers.getSetCookie?.() ?? []);
   await locationRes.body?.cancel?.();
 
+  // search.aspx is a phrase-substring search, not a token-AND search -- sending it the whole
+  // multi-word query can return 0 hits for a real dish (confirmed live: "White Pizza"). Sending
+  // the single longest token is the narrowest substring guaranteed to still be a substring of any
+  // dish name that would pass selectCandidateHits' own token-AND filter below.
+  const tokens = tokensForMatch(query);
+  const searchToken = tokens.reduce((longest, t) => (t.length > longest.length ? t : longest), tokens[0] ?? query.trim());
   const searchRes = await fetchImpl(`${BASE}search.aspx`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: cookieHeader },
-    body: `Action=SEARCH&strCurKeywords=${encodeURIComponent(query)}`,
+    body: `Action=SEARCH&strCurKeywords=${encodeURIComponent(searchToken)}`,
   });
   if (!searchRes.ok) throw new Error(`search.aspx returned ${searchRes.status}`);
   const searchHtml = await searchRes.text();
