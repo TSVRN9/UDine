@@ -26,10 +26,12 @@ States:
   - Lookup found N new: "Found N new food(s)".
   - Lookup found nothing new, or a miss: "No new foods found".
   - Lookup offline: "Couldn't search right now. Check your connection and try again."
+  - Lookup rate-limited: the existing "Live lookups are maxed out for the hour…" copy and clock glyph,
+    unchanged and still distinct from offline.
 Routes:
 - A: `halls/worcester` after one online launch, then `adb shell cmd connectivity airplane-mode enable`
   and a cold start. Also step the date forward.
-- B: the existing `--stress lookup-hit` / `lookup-miss` / `lookup-fetching` fixtures, listed in
+- B: the existing `--stress lookup-hit` / `lookup-miss` / `lookup-fetching` / `lookup-rate-limited` fixtures, listed in
   `mobile/scripts/screenshot.sh`'s header. Add a `lookup-offline` fixture the same way.
 
 Backend: `supabase/functions/lookup-dish` (task 3 only; owner-merged, then
@@ -52,7 +54,8 @@ Rationale:
   0 hits, "White" returns "White Cheese Pizza". So lookup-dish sends it the longest query token and filters
   locally with the same token rule.
 - "White Cheese Pizza" is absent from the ajax feed for 09/18-10/01 at all 4 halls. That is why
-  `public.dishes`, which only `populate-dishes` fills from the ajax feed, doesn't have it. Task 3 is what
+  `public.dishes` doesn't have it: `populate-dishes` fills it from the ajax feed, and `lookup-dish` upserts
+  only exact-name hits today. Task 3 is what
   fixes the owner's example; task 2's cached-menu source does not.
 
 Current code (main at `a001ea1`):
@@ -109,7 +112,7 @@ Task 1 (A):
   - It covers today + 2 days × `menuCacheTids()`.
   - It skips a copy that is final, or not final but under about 6h old.
   - It also warms the hours.
-- [ ] `backgroundTask.ts` reads with `effectiveToday()`. — evidence: test or diff
+- [ ] `backgroundTask.ts` reads with `effectiveToday()`. — evidence: test
 - [ ] On-device: after airplane mode and a cold start, `halls/worcester` renders today's and tomorrow's menu from the cache. — evidence: screenshot
 Task 2 (B):
 - [ ] `matchesQuery(name, query)` in `@udine/shared`, exported. It lowercases, turns non-alphanumerics
@@ -129,6 +132,7 @@ Task 2 (B):
   - "Found N new food(s)", where N = candidates not already in `results` (case-insensitive).
   - "No new foods found".
   - Offline.
+  - Rate-limited keeps its existing copy and glyph, distinct from offline.
 - [ ] `lookupDishLive` returns `rate_limited` only for a body with `status: "rate_limited"`. Everything
   else that isn't a hit or a miss becomes `offline`. — evidence: test
 Task 3 (C):
