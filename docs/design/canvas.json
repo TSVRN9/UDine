@@ -601,6 +601,33 @@
       "h": 844,
       "title": "H2H -- You pane: today's allowance used, no Rate more",
       "page": "page-12"
+    },
+    {
+      "file": "SearchLookupFound.dc.html",
+      "x": 0,
+      "y": 4360,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Direct lookup settled: found N new foods (new)",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchLookupNone.dc.html",
+      "x": 450,
+      "y": 4360,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Direct lookup settled: no new foods (new)",
+      "page": "page-4"
+    },
+    {
+      "file": "SearchLookupOffline.dc.html",
+      "x": 900,
+      "y": 4360,
+      "w": 390,
+      "h": 844,
+      "title": "F5 -- Direct lookup offline (new)",
+      "page": "page-4"
     }
   ],
   "annotations": [
@@ -833,7 +860,7 @@
       "y": 1000,
       "w": 420,
       "page": "page-4",
-      "text": "lookup-dish edge function states (new) -- SearchLookupStates.dc.html. Fetching: inserted as one more row in the existing merged results list (at the position a UMass-catalog match would occupy), not a blocking full-screen state -- OFF/USDA/Custom matches already found keep showing beneath it. Mirrors the edge function's own up-to-5s in-flight follower poll: the spinner row reflects 'still polling' and swaps to a real result the moment a poll returns hit, or disappears on miss. Miss: the spinner row is simply removed -- no separate 'no results' message, the sheet's existing dashed \"Can't find it? Create a custom food\" affordance (already always present) already is the miss-state resolution. Rate-limited: swapped into the same slot the fetching row occupied (nothing shifts on resolution), shown only when lookup-dish actually returns rate_limited (never predicted client-side); the retry is a manual tap, not a timed auto-retry -- silently retrying against a budget-limited endpoint would hide from the user how close they are to the next reset. Source badges (UMASS/CUSTOM/PACKAGED/USDA) are unchanged from f2-add-item-note -- DB-hit vs. live-fetch stays invisible to the user by design. brief: foodpro-menu-expansion"
+      "text": "lookup-dish edge function states (new) -- SearchLookupStates.dc.html. Fetching: inserted as one more row in the existing merged results list (at the position a UMass-catalog match would occupy), not a blocking full-screen state -- OFF/USDA/Custom matches already found keep showing beneath it. Mirrors the edge function's own up-to-5s in-flight follower poll: the spinner row reflects 'still polling' and swaps to a real result the moment a poll returns hit, or disappears on miss. Miss: the spinner row is simply removed -- no separate 'no results' message, the sheet's existing dashed \"Can't find it? Create a custom food\" affordance (already always present) already is the miss-state resolution. Rate-limited: swapped into the same slot the fetching row occupied (nothing shifts on resolution), shown only when lookup-dish actually returns rate_limited (never predicted client-side); the retry is a manual tap, not a timed auto-retry -- silently retrying against a budget-limited endpoint would hide from the user how close they are to the next reset. Source badges (UMASS/CUSTOM/PACKAGED/USDA) are unchanged from f2-add-item-note -- DB-hit vs. live-fetch stays invisible to the user by design. brief: foodpro-menu-expansion\n\nSUPERSEDED 2026-09-25 for miss: a miss now renders 'No new foods found' -- see lookup-settled-states."
     },
     {
       "id": "search-cancel-options",
@@ -882,6 +909,22 @@
       "w": 390,
       "text": "COMPARE LIMITS (owner, 2026-09-20): comparisons are capped so the loop has a natural end.\n\nPOST-LOG ROUND: 5 comparisons per logged meal (per Log tap). The sheet shows 'n of 5' in PlateExpanded's title-row idiom (baseline row, 12px 55% ink on the right). After the 5th pick the toast shows the winner and score with NO 'Another' (CompareToastRoundDone.dc.html). Skip records nothing and does not use up a comparison.\n\nYOU PANE: 'RATE MORE' and 'Start comparing' share a SEPARATE allowance of 5 comparisons per local calendar day, tracked on the device only (date + count, never sent anywhere). The sheet count is today's picks made + 1 ('3 of 5' after two picks). Once the 5 are used, both actions are hidden until tomorrow (YouTopFoodsAllowanceUsed.dc.html); nothing explains it on screen.\n\nPost-log rounds do not draw on the daily allowance.",
       "page": "page-12"
+    },
+    {
+      "id": "lookup-settled-states",
+      "x": 1880,
+      "y": 4360,
+      "w": 420,
+      "page": "page-4",
+      "text": "Direct-lookup settled states (new, owner request 2026-09-25; brief offline-menus-and-search). These replace SearchLookupStates' 'miss = row simply removed' rule: once 'Search UMass Dining directly' finishes, the fetching row's slot always resolves to one of four rows, and stays until the next search.\n\nFound N new foods (SearchLookupFound): the fetching row's gold tint, spinner swapped for a static check. N counts only candidates not already in the results list (case-insensitive name match), so a lookup that just re-finds a catalog row reads as none. New UMASS rows merge into the list in normal sort order.\n\nNo new foods (SearchLookupNone): the rate-limited pill's gray treatment with a search-minus glyph. Covers both a server miss and a hit whose candidates were all already listed.\n\nOffline (SearchLookupOffline): a transport failure or a non-2xx from lookup-dish. Same gray pill, alert glyph, and copy as SearchStateError. Previously these were mislabeled as rate-limited.\n\nRate-limited (SearchLookupStates, unchanged): only when lookup-dish actually returns status rate_limited (HTTP 200 body).\n\nThe fetching row's 'Looking up <query>…' label shows the query as submitted when the lookup started, never the live input -- typing a new query mid-lookup must not relabel it.\n\nSearch matching is now word-by-word: every query word must appear in the name, any order ('white pizza' finds 'White Cheese Pizza')."
+    },
+    {
+      "id": "menu-offline-first",
+      "x": 1880,
+      "y": 2100,
+      "w": 420,
+      "page": "page-3",
+      "text": "Offline-first menus (owner request 2026-09-25; brief offline-menus-and-search). A hall opens straight onto its saved copy when one exists (today + 2 days are prefetched), so there is no skeleton wait in a dead zone and no 'Show saved copy' step. MenuError is therefore only reachable with no saved copy for that date, which is why its SHOW SAVED COPY link was removed. It appears after about 8s of no response; a late response still replaces it."
     }
   ],
   "launch": {
