@@ -72,6 +72,17 @@ describe("getLoggedUmassDishHistory", () => {
     expect(results.map((r) => r.dishName)).toEqual(["Chicken Parm"]);
   });
 
+  // offline-menus-and-search: token-AND matching (matchesQuery, @udine/shared) -- word order and
+  // inserted words don't matter.
+  it("matches multi-word queries across word order and inserted words", async () => {
+    const storage = fakeStorage([
+      { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "White Cheese Pizza", hallTid: 1 }, servings: 1, nutrition: nutrition(200) },
+      { id: "2", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "White Kidney Beans", hallTid: 1 }, servings: 1, nutrition: nutrition(150) },
+    ]);
+    expect((await getLoggedUmassDishHistory(storage, 1, "white pizza")).map((d) => d.dishName)).toEqual(["White Cheese Pizza"]);
+    expect((await getLoggedUmassDishHistory(storage, 1, "pizza, white")).map((d) => d.dishName)).toEqual(["White Cheese Pizza"]);
+  });
+
   it("carries hallTid and nutrition through so a result can be turned into a plate entry", async () => {
     const storage = fakeStorage([
       { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Pizza", hallTid: 3 }, servings: 1, nutrition: nutrition(200) },

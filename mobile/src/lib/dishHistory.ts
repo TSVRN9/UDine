@@ -1,4 +1,4 @@
-import type { LogStorage, NutritionFacts } from "@udine/shared";
+import { matchesQuery, type LogStorage, type NutritionFacts } from "@udine/shared";
 
 /**
  * One previously-logged UMass dining hall dish, enough to stage it back onto the plate --
@@ -35,7 +35,6 @@ export async function getLoggedUmassDishHistory(storage: LogStorage, hallTid: nu
   // push the hallTid + dishName LIKE filter and a MAX(logged_at)-per-dishName dedup down into SQL
   // instead.
   const entries = await storage.getAllEntries();
-  const q = query.trim().toLowerCase();
 
   const mostRecentByDish = new Map<string, { loggedAt: string; dish: HistoryDish }>();
   for (const entry of entries) {
@@ -46,5 +45,5 @@ export async function getLoggedUmassDishHistory(storage: LogStorage, hallTid: nu
     mostRecentByDish.set(dishName, { loggedAt: entry.loggedAt, dish: { dishName, hallTid, nutrition: entry.nutrition } });
   }
 
-  return [...mostRecentByDish.values()].map((v) => v.dish).filter((dish) => dish.dishName.toLowerCase().includes(q));
+  return [...mostRecentByDish.values()].map((v) => v.dish).filter((dish) => matchesQuery(dish.dishName, query));
 }

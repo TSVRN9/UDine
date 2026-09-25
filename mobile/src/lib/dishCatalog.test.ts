@@ -127,4 +127,12 @@ describe("searchCachedDishes", () => {
   it("returns an empty array when nothing matches", () => {
     expect(searchCachedDishes(catalog, "sushi")).toEqual([]);
   });
+
+  // offline-menus-and-search: token-AND matching (matchesQuery, @udine/shared) -- word order and
+  // inserted words don't matter, e.g. "white pizza" finds "White Cheese Pizza".
+  it("matches multi-word queries across word order and inserted words", () => {
+    const withPizza: CachedDishCatalog = { entries: [entry("White Cheese Pizza"), entry("White Kidney Beans")], lastSyncedAt: "x" };
+    expect(searchCachedDishes(withPizza, "white pizza").map((e) => e.dishName)).toEqual(["White Cheese Pizza"]);
+    expect(searchCachedDishes(withPizza, "pizza, white").map((e) => e.dishName)).toEqual(["White Cheese Pizza"]);
+  });
 });
