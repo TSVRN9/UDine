@@ -55,18 +55,24 @@ describe("lookupDishLive", () => {
     expect(result).toEqual({ status: "rate_limited" });
   });
 
-  it("folds a supabase-js invoke error into rate_limited -- the same honest 'not now' as a real budget-exhausted response", async () => {
+  it("folds a supabase-js invoke error into offline -- rate_limited is reserved for the server's own honest budget-exhausted body", async () => {
     const supabase = stubSupabase(async () => ({ data: null, error: new Error("network down") }));
     const result = await lookupDishLive(supabase, "Bacon");
-    expect(result).toEqual({ status: "rate_limited" });
+    expect(result).toEqual({ status: "offline" });
   });
 
-  it("folds a thrown exception (e.g. offline) into rate_limited, never lets it escape uncaught", async () => {
+  it("folds a thrown exception (e.g. offline) into offline, never lets it escape uncaught", async () => {
     const supabase = stubSupabase(async () => {
       throw new Error("offline");
     });
     const result = await lookupDishLive(supabase, "Bacon");
-    expect(result).toEqual({ status: "rate_limited" });
+    expect(result).toEqual({ status: "offline" });
+  });
+
+  it("folds an unexpected/malformed body shape into offline, not rate_limited", async () => {
+    const supabase = stubSupabase(async () => ({ data: { status: "something-new-and-unhandled" }, error: null }));
+    const result = await lookupDishLive(supabase, "Bacon");
+    expect(result).toEqual({ status: "offline" });
   });
 });
 

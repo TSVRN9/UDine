@@ -87,4 +87,12 @@ describe("searchCustomFoods", () => {
   it("returns nothing when nothing matches", () => {
     expect(searchCustomFoods(foods, "pizza")).toEqual([]);
   });
+
+  // offline-menus-and-search: token-AND matching (matchesQuery, @udine/shared) -- word order and
+  // inserted words don't matter.
+  it("matches multi-word queries across word order and inserted words", () => {
+    const pizzaFoods = [food({ id: "a", name: "White Cheese Pizza" }), food({ id: "b", name: "White Kidney Beans" })];
+    expect(searchCustomFoods(pizzaFoods, "white pizza").map((f) => f.id)).toEqual(["a"]);
+    expect(searchCustomFoods(pizzaFoods, "pizza, white").map((f) => f.id)).toEqual(["a"]);
+  });
 });

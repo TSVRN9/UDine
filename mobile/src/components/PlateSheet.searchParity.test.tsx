@@ -36,6 +36,9 @@ jest.mock("../lib/lookupDish", () => ({
   ...jest.requireActual("../lib/lookupDish"),
   lookupDishLive: jest.fn(),
 }));
+// menuHoursCache.ts imports expo-sqlite (via ./db) at module load time -- unavailable under jest,
+// same reason dishCatalog.ts/customFoodsStorage.ts are mocked above rather than required for real.
+jest.mock("../lib/menuHoursCache", () => ({ getCachedMenu: jest.fn().mockResolvedValue(null) }));
 
 const mockedSearchProducts = searchProducts as jest.Mock;
 const mockedSearchFoods = searchFoods as jest.Mock;
@@ -534,6 +537,22 @@ describe("PlateSheet search pane parity (platesheet-search-visual-parity)", () =
     it("every search-* fixture name is documented in screenshot.sh's header", () => {
       const header = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "screenshot.sh"), "utf8").split("\n").slice(0, 80).join("\n");
       for (const name of ["search-expanded", "search-inflight", "search-results", "search-results-end", "search-empty", "search-error"]) expect(header).toContain(name);
+    });
+
+    // offline-menus-and-search: the new lookup-offline fixture, added next to the existing
+    // lookup-* ones (mockedLookupDishLive isn't relevant here -- these fixtures fake the result in
+    // __DEV__ without ever calling it).
+    it("every lookup-* fixture name is documented in screenshot.sh's header", () => {
+      const header = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "screenshot.sh"), "utf8").split("\n").slice(0, 80).join("\n");
+      for (const name of ["lookup-hit", "lookup-fetching", "lookup-miss", "lookup-rate-limited", "lookup-offline"]) expect(header).toContain(name);
+    });
+
+    it("lookup-offline seeds the offline state on open under __DEV__", async () => {
+      const root = renderSheet({ stressFixture: "lookup-offline" });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(allText(root).join("|")).toMatch(/Couldn't search right now/);
     });
 
     it("seeds nothing outside __DEV__", () => {
