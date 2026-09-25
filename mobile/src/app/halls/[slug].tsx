@@ -66,7 +66,6 @@ import { durations } from "../../lib/motion";
 import { topViewableSectionIndex } from "../../lib/hallMenuScrubber";
 import { behindSheetA11yProps } from "../../lib/sheetAnimation";
 import { colors, fonts, fs, radii, spacing, withOpacity } from "../../lib/theme";
-import { formatTime } from "../../lib/homeHero";
 import {
   cafeMealTabLabel,
   deriveHallMealTabs,
@@ -90,8 +89,8 @@ import { macroBadgeRowWidth, shouldTuckBadges } from "../../lib/hallMenuBadgeLay
 import { MacroPresetGlyph } from "../../lib/macroBadgeGlyphs";
 import { SqliteFavoritesStorage, useGuardedToggleFavorite } from "../../lib/favoritesStorage";
 import { SqliteCustomFoodsStorage } from "../../lib/customFoodsStorage";
-import { fetchMenuAndRecordSeen } from "../../lib/menuFetchWithSeenTracking";
-import { fetchHoursAndCache, getCachedMenu, type CachedMenu } from "../../lib/menuHoursCache";
+import { loadMenuCacheFirst } from "../../lib/menuFetchWithSeenTracking";
+import { fetchHoursAndCache, getCachedHours } from "../../lib/menuHoursCache";
 import { supabase } from "../../lib/supabase";
 import {
   addOrIncrement,
@@ -151,6 +150,15 @@ const GestureSectionList = createNativeWrapper(SectionList, {
   disallowInterruption: true,
   shouldCancelWhenOutside: false,
 }) as unknown as typeof SectionList;
+
+// offline-menus-and-search brief, task 1 (Rationale: "a stalled connection never fails"). Neither
+// value abandons its own fetch (no withTimeout) -- both just cap how long this screen's OWN loading
+// UI waits before showing something, while the underlying fetch keeps running and can still land a
+// late success/failure that replaces whatever this timer already put on screen.
+// Exported (not a local const) so hallMenu.test.tsx pins the exact wait instead of a repeated
+// literal -- same reasoning as motion.ts's durations for the reviewer's mutation check.
+export const MENU_NO_CACHE_WAIT_MS = 8000;
+export const HOURS_WAIT_MS = 3000;
 
 /** A hall-menu-screen subject: a real DINING_HALLS entry (`slug` present -- gets Grab 'N Go +
  * the fixed 4-tab MEAL_TABS + the "being served now" subtitle) or a café (`slug` absent, meal
@@ -729,11 +737,10 @@ export function HallMenuScreenBody({
   const isRealHall = hall.slug !== undefined;
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Retry card + "SHOW SAVED COPY" wiring: retryToken is bumped by TRY AGAIN to re-run the fetch
-  // effect below; cachedMenu is looked up whenever the fetch fails, so the retry card knows
-  // whether a saved copy exists (the link only renders when one does).
+  // Retry card wiring: bumped by TRY AGAIN to re-run the fetch effect below. No separate cached-
+  // copy state any more -- loadMenuCacheFirst delivers a cached copy straight into `items` (see
+  // that effect), so the retry card only ever shows once there's truly nothing to render.
   const [retryToken, setRetryToken] = useState(0);
-  const [cachedMenu, setCachedMenu] = useState<CachedMenu | null>(null);
   // The local dish-catalog cache, read once for the waterfall's tier-2 standing-menu-item
   // matching (resolveCafeMenuState) -- café only, a real hall never needs it. `catalogLoaded`
   // (not just `catalog !== null`, which can't tell an empty cache from "hasn't read yet") gates
@@ -1023,9 +1030,14 @@ export function HallMenuScreenBody({
     // for a date the user already stepped away from can land after the current one and overwrite
     // it.
     let current = true;
+    // Set once a cached or fresh copy has actually been delivered -- gates the no-cache wait
+    // timer below (a delivered copy means there's nothing left for it to surface early) without
+    // gating a LATE result: loadMenuCacheFirst's own onItems callback below always applies what
+    // it's given, even after the timer already showed the error card (brief: "the no-cache wait
+    // only surfaces the error card early; a late success still lands").
+    let delivered = false;
     setItems(null);
     setError(null);
-    setCachedMenu(null);
     const tid = hall.tid;
     if (tid === undefined) {
       // No locationId at all -- there's no tid to ever probe fetchMenu with, straight to the
@@ -1036,23 +1048,27 @@ export function HallMenuScreenBody({
         current = false;
       };
     }
-    fetchMenuAndRecordSeen(tid, selectedDate)
-      .then((result) => {
-        if (current) setItems(result);
-      })
-      .catch((e) => {
-        if (!current) return;
-        setError(String(e));
-        // Only looked up on failure, not eagerly on every load -- the retry card is the only
-        // place this matters, and it doesn't exist until there's an error to show it in.
-        getCachedMenu(tid, selectedDate)
-          .then((cached) => {
-            if (current) setCachedMenu(cached);
-          })
-          .catch(() => {});
-      });
+    // No withTimeout here (brief's Rationale: "a stalled connection never fails" -- a per-fetch
+    // timeout would abandon a slow-but-eventually-successful fetch). This timer only decides how
+    // long THIS SCREEN waits with nothing to show before putting the retry card up; it never
+    // touches the underlying loadMenuCacheFirst promise, which keeps running either way.
+    const noCacheTimer = setTimeout(() => {
+      if (current && !delivered) setError("no-cache-timeout");
+    }, MENU_NO_CACHE_WAIT_MS);
+    loadMenuCacheFirst(tid, selectedDate, (result) => {
+      if (!current) return;
+      delivered = true;
+      clearTimeout(noCacheTimer);
+      setItems(result);
+      setError(null);
+    }).catch((e) => {
+      if (!current || delivered) return; // a cache copy already rendered -- see loadMenuCacheFirst's own doc
+      clearTimeout(noCacheTimer);
+      setError(String(e));
+    });
     return () => {
       current = false;
+      clearTimeout(noCacheTimer);
     };
     // retryToken: not read inside the effect body, only bumped by TRY AGAIN to re-run this exact
     // fetch without duplicating its logic in a second function.
@@ -1063,13 +1079,14 @@ export function HallMenuScreenBody({
     let current = true;
     setGrabItems(null);
     setGrabError(null);
-    fetchMenuAndRecordSeen(GRAB_N_GO_TIDS[hall.slug], selectedDate)
-      .then((result) => {
-        if (current) setGrabItems(result);
-      })
-      .catch((e) => {
-        if (current) setGrabError(String(e));
-      });
+    loadMenuCacheFirst(GRAB_N_GO_TIDS[hall.slug], selectedDate, (result) => {
+      if (current) {
+        setGrabItems(result);
+        setGrabError(null);
+      }
+    }).catch((e) => {
+      if (current) setGrabError(String(e));
+    });
     return () => {
       current = false;
     };
@@ -1085,12 +1102,6 @@ export function HallMenuScreenBody({
 
   function retryMenuFetch() {
     setRetryToken((t) => t + 1);
-  }
-
-  function showSavedCopy() {
-    if (!cachedMenu) return;
-    setItems(cachedMenu.items);
-    setError(null);
   }
 
   // A café's initial tab can't be a static default (see selectedMeal's own comment) -- once
@@ -1121,16 +1132,46 @@ export function HallMenuScreenBody({
     if (!hall) return;
     // Hall-info sheet's hours data, real halls only. Independent of selectedDate: hours reflect
     // what's true right now, not the date being browsed. A failure here just leaves the sheet's
-    // hours/address blank, never blocks the menu itself -- hoursSettled (below) still flips on a
-    // rejection, same as a resolution, so a real hall's shimmer gate (which waits on hoursSettled,
-    // not on hoursFeed being non-null) can't get stuck loading forever behind a dead hours fetch.
+    // hours/address blank, never blocks the menu itself -- hoursSettled (below) still flips even
+    // without a resolution, so a real hall's shimmer gate (which waits on hoursSettled, not on
+    // hoursFeed being non-null) can't get stuck loading forever behind a dead hours fetch.
     // fetchHoursAndCache (not shared's bare fetchDiningHours), so this screen's own hours get
-    // cached too -- otherwise offline recovery (SHOW SAVED COPY) works for the menu while the
-    // info sheet right beside it still shows blank hours instead of a cached copy.
+    // cached too -- otherwise offline recovery works for the menu cache while the info sheet
+    // right beside it still shows blank hours instead of a cached copy.
+    let current = true;
+    let liveSettled = false;
+    getCachedHours()
+      .then((cached) => {
+        if (!current || liveSettled || !cached) return;
+        // Owner's model, hours half (brief's Rationale): only a copy fetched TODAY is trustworthy
+        // enough to show without waiting for the live fetch -- yesterday's hours can easily be
+        // wrong for today (different weekday, break/holiday schedule).
+        if (effectiveToday(new Date(cached.fetchedAt)).getTime() === effectiveToday().getTime()) {
+          setHoursFeed(cached.feed);
+          setHoursSettled(true);
+        }
+      })
+      .catch(() => {});
+    // No withTimeout (same reasoning as the menu effect above) -- this timer only caps how long
+    // the shimmer gate waits with no cached-today copy to show meanwhile; the live fetch below
+    // keeps running and still applies a late result once it lands.
+    const hoursTimer = setTimeout(() => {
+      if (current) setHoursSettled(true);
+    }, HOURS_WAIT_MS);
     fetchHoursAndCache()
-      .then(setHoursFeed)
+      .then((feed) => {
+        if (current) setHoursFeed(feed);
+      })
       .catch(() => {})
-      .finally(() => setHoursSettled(true));
+      .finally(() => {
+        liveSettled = true;
+        clearTimeout(hoursTimer);
+        if (current) setHoursSettled(true);
+      });
+    return () => {
+      current = false;
+      clearTimeout(hoursTimer);
+    };
   }, [hall]);
 
   useEffect(() => {
@@ -1618,7 +1659,10 @@ export function HallMenuScreenBody({
     // through to the standing/info tiers) rather than surfaced as a retry card; a real hall has no
     // such fallback, so its own error is still terminal here.
     if (isRealHall && error) {
-      return <MenuErrorCard savedCopyTime={cachedMenu ? formatTime(new Date(cachedMenu.fetchedAt)) : null} onRetry={retryMenuFetch} onShowSavedCopy={showSavedCopy} />;
+      // savedCopyTime is always null now -- a saved copy renders automatically (loadMenuCacheFirst,
+      // above), so the retry card only ever shows once there's truly nothing cached to fall back
+      // to. MenuErrorCard itself is unchanged; onShowSavedCopy just never fires without a time.
+      return <MenuErrorCard savedCopyTime={null} onRetry={retryMenuFetch} onShowSavedCopy={() => {}} />;
     }
     // A real hall's own `items` is the loading signal (mealTabs/tabs are the fixed MEAL_TABS
     // constant for a real hall, so this pane can be reached before the fetch even settles) --

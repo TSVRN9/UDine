@@ -3,6 +3,7 @@ import * as TaskManager from "expo-task-manager";
 import * as Notifications from "expo-notifications";
 import { hallNameFor, matchFavoritedDishes } from "@udine/shared";
 
+import { effectiveToday } from "./date";
 import { menuCacheTids, warmMenuCache } from "./menuPrefetch";
 import { getCachedMenu } from "./menuHoursCache";
 import { SqliteFavoritesStorage } from "./favoritesStorage";
@@ -58,7 +59,7 @@ async function notifySignedOutFavoriteMatches(): Promise<void> {
     const { data } = await supabase.auth.getSession();
     if (data.session) return;
 
-    const date = new Date();
+    const date = effectiveToday();
     const cached = await Promise.all(menuCacheTids().map((tid) => getCachedMenu(tid, date)));
     const items = cached.flatMap((entry) => entry?.items ?? []);
 

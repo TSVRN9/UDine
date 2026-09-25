@@ -1,6 +1,6 @@
 import type { DiningHoursFeed, MenuItem } from "@udine/shared";
 
-import { fetchHoursAndCache, getCachedHours, getCachedMenu, saveCachedHours, saveCachedMenu } from "./menuHoursCache";
+import { fetchHoursAndCache, getCachedHours, getCachedMenu, isMenuCacheFinal, saveCachedHours, saveCachedMenu } from "./menuHoursCache";
 import { __resetRetailNamesForTest, hallOrRetailName } from "./retailHallNames";
 
 // Same fake expo-sqlite technique as seenDishesStorage.test.ts -- a single preferences_kv row set
@@ -94,6 +94,44 @@ describe("menu cache", () => {
     expect((await getCachedMenu(1, new Date(2026, 7, 19)))?.items[0].dishName).toBe("Worcester Dish");
     expect((await getCachedMenu(3, new Date(2026, 7, 19)))?.items[0].dishName).toBe("Hampshire Dish");
     expect((await getCachedMenu(3, new Date(2026, 7, 20)))?.items[0].dishName).toBe("Hampshire Tomorrow");
+  });
+
+  // Owner's model (brief's Rationale): a day's menu doesn't change once that day has started, so a
+  // copy fetched on/after that day's local start is final and never re-fetched. saveCachedMenu must
+  // never clobber it with a later empty result (a transient scrape glitch, not a real "no items"
+  // answer) -- the acceptance line right below covers that half; this is the read-side guard.
+  it("never overwrites a non-empty cached row with an empty save", async () => {
+    await saveCachedMenu(1, new Date(2026, 7, 19), [item("Chicken")]);
+    await saveCachedMenu(1, new Date(2026, 7, 19), []);
+    expect((await getCachedMenu(1, new Date(2026, 7, 19)))?.items).toEqual([item("Chicken")]);
+  });
+
+  it("still writes an empty save when no non-empty row exists yet", async () => {
+    await saveCachedMenu(1, new Date(2026, 7, 19), []);
+    expect((await getCachedMenu(1, new Date(2026, 7, 19)))?.items).toEqual([]);
+  });
+
+  it("an empty save after an empty save still writes (both empty, nothing to protect)", async () => {
+    await saveCachedMenu(1, new Date(2026, 7, 19), []);
+    await saveCachedMenu(1, new Date(2026, 7, 19), []);
+    expect(await getCachedMenu(1, new Date(2026, 7, 19))).not.toBeNull();
+  });
+});
+
+describe("isMenuCacheFinal", () => {
+  const date = new Date(2026, 7, 19); // local Aug 19
+
+  it("is final when fetchedAt is on/after the local start of the date and items exist", () => {
+    expect(isMenuCacheFinal({ items: [item("Chicken")], fetchedAt: new Date(2026, 7, 19, 0, 0, 0).toISOString() }, date)).toBe(true);
+    expect(isMenuCacheFinal({ items: [item("Chicken")], fetchedAt: new Date(2026, 7, 19, 23, 59).toISOString() }, date)).toBe(true);
+  });
+
+  it("is not final when fetchedAt is before the local start of the date, even with items", () => {
+    expect(isMenuCacheFinal({ items: [item("Chicken")], fetchedAt: new Date(2026, 7, 18, 23, 59).toISOString() }, date)).toBe(false);
+  });
+
+  it("is never final with an empty items array, no matter when it was fetched", () => {
+    expect(isMenuCacheFinal({ items: [], fetchedAt: new Date(2026, 7, 19, 12, 0).toISOString() }, date)).toBe(false);
   });
 });
 
