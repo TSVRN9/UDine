@@ -95,4 +95,11 @@ describe("searchCustomFoods", () => {
     expect(searchCustomFoods(pizzaFoods, "white pizza").map((f) => f.id)).toEqual(["a"]);
     expect(searchCustomFoods(pizzaFoods, "pizza, white").map((f) => f.id)).toEqual(["a"]);
   });
+
+  // offline-menus-and-search REWORK: "!!!" isn't caught by the `!q` empty-string guard above (it's
+  // non-empty after trim), so this exercises matchesQuery's own zero-tokens-matches-nothing rule --
+  // matchesQuery's old vacuous-true-on-zero-tokens behavior would have returned every food.
+  it("a punctuation-only query (zero tokens after normalizing) matches nothing", () => {
+    expect(searchCustomFoods(foods, "!!!")).toEqual([]);
+  });
 });

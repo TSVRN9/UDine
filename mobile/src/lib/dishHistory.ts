@@ -45,5 +45,12 @@ export async function getLoggedUmassDishHistory(storage: LogStorage, hallTid: nu
     mostRecentByDish.set(dishName, { loggedAt: entry.loggedAt, dish: { dishName, hallTid, nutrition: entry.nutrition } });
   }
 
-  return [...mostRecentByDish.values()].map((v) => v.dish).filter((dish) => matchesQuery(dish.dishName, query));
+  const dishes = [...mostRecentByDish.values()].map((v) => v.dish);
+  // A blank query lists everything at this hall -- this file's own explicit decision (its only
+  // caller, PlateSheet.tsx's runSearch, already guards `!raw.trim()` before ever calling in, so
+  // this path exists for direct callers/tests, not the live search box), not inherited from
+  // matchesQuery's own semantics: matchesQuery("", ...) matches NOTHING now (a punctuation-only
+  // query like "!!!" falls through to it below and correctly matches nothing too).
+  if (!query.trim()) return dishes;
+  return dishes.filter((dish) => matchesQuery(dish.dishName, query));
 }

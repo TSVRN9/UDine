@@ -135,4 +135,11 @@ describe("searchCachedDishes", () => {
     expect(searchCachedDishes(withPizza, "white pizza").map((e) => e.dishName)).toEqual(["White Cheese Pizza"]);
     expect(searchCachedDishes(withPizza, "pizza, white").map((e) => e.dishName)).toEqual(["White Cheese Pizza"]);
   });
+
+  // offline-menus-and-search REWORK: "!!!" isn't caught by the `!q` empty-string guard above (it's
+  // non-empty after trim), so this exercises matchesQuery's own zero-tokens-matches-nothing rule --
+  // matchesQuery's old vacuous-true-on-zero-tokens behavior would have returned the whole catalog.
+  it("a punctuation-only query (zero tokens after normalizing) matches nothing", () => {
+    expect(searchCachedDishes(catalog, "!!!")).toEqual([]);
+  });
 });

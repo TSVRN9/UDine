@@ -917,6 +917,15 @@ export function PlateSheet({
     // runs a real runSearch() (it fakes lookupDishLive's result directly), so nothing else would
     // ever set this.
     committedQueryRef.current = STRESS_LOOKUP_QUERY;
+    // Seeds a completed search (one already-found OFF row, reusing the search-state fixtures' own
+    // data) so the found/none/offline/rate_limited screenshot fixtures show the same footer
+    // affordances (Search UMass Dining directly / Create a custom food) and surrounding result row
+    // the artboards do, not a still-null `results` (real usage never fires runDirectLookup before
+    // some search has already settled -- the button itself is gated on `results !== null`).
+    // runDirectLookup only ever APPENDS onto `results`, so this doesn't change the found branch's
+    // own dedup/sort behavior, just makes `results !== null` true from the start instead of only
+    // after a hit resolves.
+    setResults(STRESS_SEARCH_ROWS.slice(0, 1));
   }, [visible, stressFixture]);
   useEffect(() => {
     if (!__DEV__ || !visible || !stressFixture || !LOOKUP_STRESS_FIXTURES.has(stressFixture) || query !== STRESS_LOOKUP_QUERY) return;

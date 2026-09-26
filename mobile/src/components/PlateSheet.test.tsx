@@ -953,6 +953,23 @@ describe("PlateSheet", () => {
       expect(body).not.toMatch(/Packaged/);
     });
 
+    // offline-menus-and-search REWORK: a query that normalizes to zero tokens (punctuation-only,
+    // e.g. "!!!") must not dump every cached-menu entry into results -- matchesQuery's old
+    // vacuous-true-on-zero-tokens behavior did exactly that. `searchCachedTodaysMenus` (PlateSheet.
+    // tsx's own cached-menu source) calls the REAL matchesQuery, unlike searchCachedDishes/
+    // searchCustomFoods above, which are mocked here and can't exercise this -- see their own
+    // unit tests (dishCatalog.test.ts, customFoodsStorage.test.ts) for that coverage.
+    it("a punctuation-only query matches nothing in the cached-menu source, not everything", async () => {
+      mockedGetCachedMenu.mockResolvedValue({ items: [{ ...DISH, dishName: "Salad" }], fetchedAt: "2026-09-25T12:00:00.000Z" });
+
+      const root = renderSheet();
+      await runSearch(root, "!!!");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Nothing found for/);
+      expect(body).not.toMatch(/Salad/);
+    });
+
     it("never surfaces an OFF-sourced past log entry from local history", async () => {
       const storage: LogStorage = new InMemoryLogStorage();
       await storage.addEntry({

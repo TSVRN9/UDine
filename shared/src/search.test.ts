@@ -25,7 +25,12 @@ test("a plain substring (single token) still matches, same as the old behavior",
   assert.equal(matchesQuery("Grandma's Lasagna", "pizza"), false);
 });
 
-test("a blank query matches everything (vacuous truth over zero tokens)", () => {
-  assert.equal(matchesQuery("Anything", ""), true);
-  assert.equal(matchesQuery("Anything", "   "), true);
+test("a blank query matches nothing, not everything", () => {
+  assert.equal(matchesQuery("Anything", ""), false);
+  assert.equal(matchesQuery("Anything", "   "), false);
+});
+
+test("a punctuation-only query (zero tokens after normalizing) matches nothing", () => {
+  assert.equal(matchesQuery("Anything", "!!!"), false);
+  assert.equal(matchesQuery("Anything", "???"), false);
 });

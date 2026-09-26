@@ -11,11 +11,13 @@
  * Rejected: fuzzy/edit-distance matching -- more code, and it gives surprising hits (see
  * docs/briefs/offline-menus-and-search.md's Rationale).
  *
- * A blank/whitespace-only query normalizes to zero tokens, and `[].every(...)` is vacuously true --
- * matchesQuery(anything, "") is `true`. That's deliberate, not an oversight: it makes "no query
- * typed yet" mean "don't filter" for a caller that doesn't special-case emptiness itself (see
- * dishHistory.ts), while a caller that wants "nothing" for an empty query (dishCatalog.ts,
- * customFoodsStorage.ts) already guards for that before ever calling in.
+ * A blank OR punctuation-only query ("", "   ", "!!!") normalizes to zero tokens, and matches
+ * NOTHING -- explicitly, not `[].every(...)`'s vacuous true. A caller that wants "list everything"
+ * for an empty query (dishHistory.ts, when nothing's been typed yet) makes that its own explicit
+ * decision rather than inheriting it from this function (see that file's own comment); every other
+ * caller here (dishCatalog.ts, customFoodsStorage.ts, PlateSheet.tsx's cached-menu source) already
+ * treats a punctuation-only or blank query as "no matches", the same way lookup-dish/index.ts's
+ * `selectCandidateHits` does server-side ("punctuation-only matches nothing").
  */
 function normalize(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -23,6 +25,7 @@ function normalize(s: string): string {
 
 export function matchesQuery(name: string, query: string): boolean {
   const tokens = normalize(query).split(" ").filter(Boolean);
+  if (tokens.length === 0) return false;
   const normalizedName = normalize(name);
   return tokens.every((token) => normalizedName.includes(token));
 }
