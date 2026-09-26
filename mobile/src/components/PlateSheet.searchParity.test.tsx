@@ -13,6 +13,7 @@ import { Spinner } from "./Skeleton";
 import { Button } from "./ui";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
+import { lookupDishLive } from "../lib/lookupDish";
 import { artboardEnclosingStyle, artboardStyle, artboardTag, normalizeColor } from "../lib/artboard";
 import { colors, fonts, withOpacity } from "../lib/theme";
 
@@ -47,11 +48,15 @@ const mockedGetCachedDishCatalog = getCachedDishCatalog as jest.Mock;
 const mockedRefreshDishCatalogIfStale = refreshDishCatalogIfStale as jest.Mock;
 const mockedSearchCachedDishes = searchCachedDishes as jest.Mock;
 const mockedSearchCustomFoods = searchCustomFoods as jest.Mock;
+const mockedLookupDishLive = lookupDishLive as jest.Mock;
 
 const PSR = "PlateSheetResults.dc.html";
 const IN_FLIGHT = "SearchStateInFlight.dc.html";
 const EMPTY = "SearchStateEmpty.dc.html";
 const ERROR = "SearchStateError.dc.html";
+const LOOKUP_FOUND = "SearchLookupFound.dc.html";
+const LOOKUP_NONE = "SearchLookupNone.dc.html";
+const LOOKUP_OFFLINE = "SearchLookupOffline.dc.html";
 
 const NUTRITION = {
   servingSize: "1 serving",
@@ -150,6 +155,7 @@ beforeEach(() => {
   mockedRefreshDishCatalogIfStale.mockReset().mockResolvedValue(undefined);
   mockedSearchCachedDishes.mockReset().mockReturnValue([]);
   mockedSearchCustomFoods.mockReset().mockReturnValue([]);
+  mockedLookupDishLive.mockReset();
 });
 
 describe("PlateSheet search pane parity (platesheet-search-visual-parity)", () => {
@@ -521,6 +527,135 @@ describe("PlateSheet search pane parity (platesheet-search-visual-parity)", () =
       expect(root.root.findAllByProps({ accessibilityLabel: "Create a custom food" }).length).toBeGreaterThan(0);
       expect(directLookupButton(root)).toBeUndefined();
       expect(buttonWithLabel(root, "Load More")).toBeUndefined();
+    });
+  });
+
+  // offline-menus-and-search / canvas.json's "lookup-settled-states" annotation: once "Search
+  // UMass Dining directly" settles, its row always resolves to one of found/none/rate_limited/
+  // offline -- these three (found/none/offline) are new since #539's re-extract.
+  describe("direct-lookup settled states (SearchLookupFound/None/Offline.dc.html)", () => {
+    async function settleLookup(result: unknown, query = "white pizza") {
+      mockedLookupDishLive.mockResolvedValue(result);
+      const root = renderSheet();
+      await runSearch(root, query);
+      await act(async () => {
+        directLookupButton(root).props.onPress();
+      });
+      return root;
+    }
+
+    it("found: gold pill (same treatment as the fetching row), a static check glyph, and the artboard's exact singular copy", async () => {
+      const root = await settleLookup({
+        status: "hit",
+        candidates: [{ dishName: "White Cheese Pizza", location: "", hallTid: 1, nutrition: NUTRITION, allergens: [], dietTags: [] }],
+      });
+
+      const rows = byTestId(root, "lookupStateRow");
+      expect(rows).toHaveLength(1);
+      const pillSpec = artboardEnclosingStyle(LOOKUP_FOUND, "Found 1 new food", 1);
+      const s = flat(rows[0]);
+      expect(color(s.backgroundColor)).toBe(pillSpec.backgroundColor); // gold tint, not the gray rate_limited pill
+      expect(s.borderRadius).toBe(pillSpec.borderRadius);
+      expect(s.gap).toBe(pillSpec.gap);
+      expect(s.paddingVertical).toBe(pillSpec.paddingVertical);
+      expect(s.paddingHorizontal).toBe(pillSpec.paddingHorizontal);
+      // Same gold background as the fetching row (loading state), per the annotation.
+      const fetchingPillSpec = artboardEnclosingStyle(IN_FLIGHT, "Searching…", 2);
+      expect(color(s.backgroundColor)).toBe(fetchingPillSpec.backgroundColor);
+
+      const textSpec = artboardStyle(LOOKUP_FOUND, "Found 1 new food");
+      const t = flat(textNode(root, "Found 1 new food"));
+      expect(t.fontSize).toBe(textSpec.fontSize);
+      expect(color(t.color)).toBe(textSpec.color);
+
+      const glyph = svgById(root, "lookupStateFoundIcon");
+      expect(glyph.findAllByType(Spinner)).toHaveLength(0); // static check, not the fetching spinner
+      const glyphSpec = artboardTag(LOOKUP_FOUND, 'viewBox="0 0 16 16"').attrs;
+      expect(glyph.props.width).toBe(Number(glyphSpec.width));
+      expect(glyph.props.height).toBe(Number(glyphSpec.height));
+      const pathSpec = artboardTag(LOOKUP_FOUND, 'd="M5.3 8.2l1.9 1.9 3.6-3.9"').attrs;
+      const path = glyph.findAllByType(Path)[0];
+      expect(path.props.d).toBe(pathSpec.d);
+      expect(color(path.props.stroke)).toBe(color(pathSpec.stroke));
+    });
+
+    it("found: pluralizes to 'foods' for N > 1, never the literal 'food(s)'", async () => {
+      const root = await settleLookup({
+        status: "hit",
+        candidates: [
+          { dishName: "White Cheese Pizza", location: "", hallTid: 1, nutrition: NUTRITION, allergens: [], dietTags: [] },
+          { dishName: "White Pizza, Frozen", location: "", hallTid: 1, nutrition: NUTRITION, allergens: [], dietTags: [] },
+        ],
+      });
+      expect(allText(root).join("|")).toMatch(/Found 2 new foods/);
+      expect(allText(root).join("|")).not.toMatch(/food\(s\)/);
+    });
+
+    it("none: gray pill (same treatment as rate_limited/offline), a search-minus glyph, and the artboard's exact copy -- covers a genuine miss", async () => {
+      const root = await settleLookup({ status: "miss" });
+
+      const rows = byTestId(root, "lookupStateRow");
+      const pillSpec = artboardEnclosingStyle(LOOKUP_NONE, "No new foods found", 1);
+      const s = flat(rows[0]);
+      expect(color(s.backgroundColor)).toBe(pillSpec.backgroundColor);
+      expect(s.borderRadius).toBe(pillSpec.borderRadius);
+      expect(s.gap).toBe(pillSpec.gap);
+      expect(s.paddingVertical).toBe(pillSpec.paddingVertical);
+      expect(s.paddingHorizontal).toBe(pillSpec.paddingHorizontal);
+
+      const textSpec = artboardStyle(LOOKUP_NONE, "No new foods found");
+      const t = flat(textNode(root, "No new foods found"));
+      expect(t.fontSize).toBe(textSpec.fontSize);
+      expect(t.lineHeight).toBe(Math.round((textSpec.fontSize as number) * (textSpec.lineHeight as number)));
+      expect(color(t.color)).toBe(textSpec.color);
+
+      const glyph = svgById(root, "lookupStateNoneIcon");
+      const glyphSpec = artboardTag(LOOKUP_NONE, 'viewBox="0 0 16 16"').attrs;
+      expect(glyph.props.width).toBe(Number(glyphSpec.width));
+      expect(glyph.props.height).toBe(Number(glyphSpec.height));
+      expect(glyph.findAllByType(Circle).length).toBeGreaterThan(0);
+      expect(glyph.findAllByType(Path).length).toBe(2); // the diagonal handle + the "not found" dash
+    });
+
+    it("none: a hit whose candidates are all already in results also renders 'No new foods found'", async () => {
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "White Cheese Pizza", nutrition: NUTRITION, allergens: [], dietTags: [], updatedAt: "x" }]);
+      const root = await settleLookup({
+        status: "hit",
+        candidates: [{ dishName: "white cheese pizza", location: "", hallTid: 1, nutrition: NUTRITION, allergens: [], dietTags: [] }],
+      });
+      expect(allText(root).join("|")).toMatch(/No new foods found/);
+    });
+
+    it("offline: the exact gray pill/alert-glyph/copy the general search-error row uses, distinct from rate_limited", async () => {
+      const root = await settleLookup({ status: "offline" });
+
+      const rows = byTestId(root, "lookupStateRow");
+      const pillSpec = artboardEnclosingStyle(LOOKUP_OFFLINE, "Couldn't search right now", 1);
+      const s = flat(rows[0]);
+      expect(color(s.backgroundColor)).toBe(pillSpec.backgroundColor);
+      expect(s.paddingVertical).toBe(pillSpec.paddingVertical);
+      expect(s.paddingHorizontal).toBe(pillSpec.paddingHorizontal);
+
+      const copy = "Couldn't search right now. Check your connection and try again.";
+      expect(textNode(root, copy)).toBeTruthy();
+      const glyph = svgById(root, "lookupStateOfflineIcon");
+      expect(glyph.findAllByType(Circle).length).toBeGreaterThan(0);
+      // Same glyph/copy as SearchStateError's row, per the annotation ("previously these were
+      // mislabeled as rate-limited").
+      expect(svgById(root, "lookupStateClockIcon")).toBeUndefined();
+    });
+
+    // canvas.json's "lookup-settled-states" annotation: "Rate-limited (SearchLookupStates,
+    // unchanged): only when lookup-dish actually returns status rate_limited." Distinct from all
+    // three new rows above -- own clock glyph/copy, none of the new found/none/offline glyphs.
+    it("rate_limited stays unchanged: its own clock glyph and 'maxed out' copy, none of the new found/none/offline glyphs", async () => {
+      const root = await settleLookup({ status: "rate_limited" });
+
+      expect(allText(root).join("|")).toMatch(/maxed out for the hour/i);
+      expect(svgById(root, "lookupStateClockIcon")).toBeTruthy();
+      expect(svgById(root, "lookupStateFoundIcon")).toBeUndefined();
+      expect(svgById(root, "lookupStateNoneIcon")).toBeUndefined();
+      expect(svgById(root, "lookupStateOfflineIcon")).toBeUndefined();
     });
   });
 
