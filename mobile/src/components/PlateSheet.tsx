@@ -1057,23 +1057,36 @@ export function PlateSheet({
                 UMass-catalog match would occupy in the list below -- not a blocking full-screen
                 state, and OFF/USDA/Custom rows already found keep showing beneath it. Same SLOT
                 for every state (this is the only inline lookup-state indicator, and one state
-                swapping for another doesn't reorder or duplicate anything around it). `loading`
-                keeps its own gold-spinner treatment (SearchLookupStates.dc.html 43/46);
-                `rate_limited` keeps its own gray-clock one (71/73). `found`/`none`/`offline` have
-                no artboard yet (docs/briefs/offline-menus-and-search.md -- flagged for the canvas)
-                so they reuse the gray rate_limited row style; `offline` also reuses the exact
-                "Couldn't search right now…" copy/glyph the general search-error row already uses
+                swapping for another doesn't reorder or duplicate anything around it), per
+                canvas.json's "lookup-settled-states" annotation. `loading` and `found` share the
+                gold-tinted treatment (SearchLookupStates.dc.html 43/46, SearchLookupFound.dc.html)
+                -- `found`'s spinner swaps for a static check, same slot, nothing else shifts.
+                `rate_limited`/`none`/`offline` share the gray one (SearchLookupStates.dc.html
+                71/73, SearchLookupNone/Offline.dc.html) -- `none` covers both a genuine miss and a
+                hit whose candidates were all already listed, with its own search-minus glyph;
+                `offline` (a transport failure or non-2xx, never predicted client-side) reuses the
+                exact alert glyph/copy the general search-error row already uses
                 (SearchStateError.dc.html) -- both mean the identical "something broke on the way
                 there," so they read alike. */}
                 {directLookup.status !== "idle" && (
                   <View
-                    style={directLookup.status === "loading" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
+                    style={directLookup.status === "loading" || directLookup.status === "found" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
                     testID="lookupStateRow"
                   >
                     {directLookup.status === "loading" && (
                       <>
                         <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
                         <Text style={styles.lookupStateTextFetching}>Looking up {committedQueryRef.current}…</Text>
+                      </>
+                    )}
+                    {directLookup.status === "found" && (
+                      <>
+                        {/* SearchLookupFound.dc.html:48 -- a static check, not the fetching spinner. */}
+                        <Svg width={fs(14)} height={fs(14)} viewBox="0 0 16 16" fill="none" testID="lookupStateFoundIcon">
+                          <Circle cx={8} cy={8} r={6} stroke={colors.maroon600} strokeWidth={1.6} />
+                          <Path d="M5.3 8.2l1.9 1.9 3.6-3.9" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                        <Text style={styles.lookupStateTextFetching}>{`Found ${directLookup.count} new food${directLookup.count === 1 ? "" : "s"}`}</Text>
                       </>
                     )}
                     {directLookup.status === "rate_limited" && (
@@ -1086,6 +1099,17 @@ export function PlateSheet({
                         <Text style={styles.lookupStateTextRateLimited}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
                       </>
                     )}
+                    {directLookup.status === "none" && (
+                      <>
+                        {/* SearchLookupNone.dc.html:48 -- a magnifying glass with a "not found" dash, distinct from the clock/alert glyphs. */}
+                        <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateNoneIcon">
+                          <Circle cx={7} cy={7} r={4.6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
+                          <Path d="M10.5 10.5L13.5 13.5" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" />
+                          <Path d="M5 7h4" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" />
+                        </Svg>
+                        <Text style={styles.lookupStateTextRateLimited}>No new foods found</Text>
+                      </>
+                    )}
                     {directLookup.status === "offline" && (
                       <>
                         <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateOfflineIcon">
@@ -1096,8 +1120,6 @@ export function PlateSheet({
                         <Text style={styles.lookupStateTextRateLimited}>Couldn&apos;t search right now. Check your connection and try again.</Text>
                       </>
                     )}
-                    {directLookup.status === "found" && <Text style={styles.lookupStateTextRateLimited}>{`Found ${directLookup.count} new food(s)`}</Text>}
-                    {directLookup.status === "none" && <Text style={styles.lookupStateTextRateLimited}>No new foods found</Text>}
                   </View>
                 )}
                 <ScrollView style={styles.resultsScroll} contentContainerStyle={styles.resultsContent} keyboardShouldPersistTaps="handled">

@@ -1825,7 +1825,7 @@ describe("PlateSheet", () => {
       expect(body).not.toMatch(/Found/);
     });
 
-    it("a hit with at least one net-new candidate renders 'Found N new food(s)', counting only the candidates not already in results", async () => {
+    it("a hit with exactly one net-new candidate renders 'Found 1 new food' (singular, per SearchLookupFound.dc.html), counting only candidates not already in results", async () => {
       mockedSearchCachedDishes.mockReturnValue([{ dishName: "Bacon", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
       mockedLookupDishLive.mockResolvedValue({
         status: "hit",
@@ -1840,7 +1840,24 @@ describe("PlateSheet", () => {
         directLookupButton(root)[0].props.onPress();
       });
       const body = texts(root).flat().join(" ");
-      expect(body).toMatch(/Found 1 new food\(s\)/);
+      expect(body).toMatch(/Found 1 new food\b/);
+      expect(body).not.toMatch(/Found 1 new foods/);
+    });
+
+    it("two or more net-new candidates render the plural 'Found N new foods'", async () => {
+      mockedLookupDishLive.mockResolvedValue({
+        status: "hit",
+        candidates: [
+          { dishName: "Bacon", location: "", hallTid: -14, nutrition: DISH.nutrition, allergens: [], dietTags: [] },
+          { dishName: "Canadian Bacon", location: "", hallTid: -14, nutrition: DISH.nutrition, allergens: [], dietTags: [] },
+        ],
+      });
+      const root = renderSheet();
+      await runSearch(root, "Bacon");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Found 2 new foods\b/);
     });
 
     it("offline: renders the same 'Couldn't search right now…' copy the general search-error row uses", async () => {
