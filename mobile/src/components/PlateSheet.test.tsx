@@ -1554,6 +1554,28 @@ describe("PlateSheet", () => {
       await runSearch(root, "chicken");
       expect(texts(root).flat().join(" ")).not.toMatch(/Load More/);
     });
+
+    // offline-menus-and-search: loadMore fetches the next page for the COMMITTED query, not
+    // whatever's typed after submitting but before the next Search tap.
+    it("fetches the next page for the COMMITTED query, not text typed afterward without resubmitting", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Off Page 1", nutrition: DISH.nutrition }], hasMore: true });
+      const root = renderSheet();
+      await runSearch(root, "chicken");
+      expect(texts(root).flat().join(" ")).toMatch(/Load More/);
+
+      // Types a different query into the box WITHOUT tapping Search again.
+      act(() => {
+        searchInput(root).props.onChangeText("pizza");
+      });
+
+      mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "2", productName: "Off Page 2", nutrition: DISH.nutrition }], hasMore: false });
+      await act(async () => {
+        root.root.findByProps({ children: "Load More" }).props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(mockedSearchProducts).toHaveBeenCalledWith("chicken", 2); // not "pizza"
+    });
   });
 
   // Bug report: all 6 search sources merge with zero display cap, so a single search could
