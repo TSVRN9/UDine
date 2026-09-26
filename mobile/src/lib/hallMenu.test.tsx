@@ -1392,6 +1392,77 @@ describe("HallMenuScreen loading/error states (#181)", () => {
       expect(body).toMatch(/Salad/);
       expect(body).not.toMatch(/Failed to load Grab/);
     });
+
+    // pr-reviewer finding on #540: the no-cache timer is armed per-effect-run (one per date), and
+    // its own cleanup clears it -- but only a mutation test proves the cleanup actually runs before
+    // the timer would otherwise fire. Without BOTH the cleanup's `clearTimeout` AND the callback's
+    // own `current` guard, a date the user has already stepped away from could still fire its stale
+    // timer and stomp the new date's already-rendered cache with the retry card.
+    it("stepping to a cached date before the no-cache timer fires cancels it -- the abandoned date's stale timer must not stomp the new date's cached render", async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      mockMenuCache.set(`1|${tomorrow.toDateString()}`, { items: [SALAD], fetchedAt: new Date(2020, 0, 1).toISOString() });
+      mockedFetchMenu.mockReturnValue(new Promise<MenuItem[]>(() => {})); // today: no cache, hung fetch
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(<HallMenuScreen />);
+      });
+
+      // Step away from today (no cache, hung fetch, no-cache timer armed) BEFORE
+      // MENU_NO_CACHE_WAIT_MS elapses -- this unmounts today's effect and its cleanup should
+      // clear its timer.
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Salad/); // tomorrow's cache delivered immediately
+
+      // Advance past when today's now-abandoned timer would have fired. If it wasn't actually
+      // cleared (or its callback lost the `current` guard), it fires `setError` on the SAME
+      // component instance and clobbers tomorrow's already-rendered cache with the retry card.
+      await act(async () => {
+        jest.advanceTimersByTime(MENU_NO_CACHE_WAIT_MS + 1);
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Salad/);
+      expect(body).not.toMatch(/Menu didn't load/);
+    });
+
+    it("delays the Grab pane's error state until MENU_NO_CACHE_WAIT_MS when there's no cache and its own fetch hangs, then a late success clears it", async () => {
+      const root = await renderScreen([PIZZA]);
+      let resolveGrabFetch!: (items: MenuItem[]) => void;
+      mockedFetchMenu.mockImplementation((tid: number) =>
+        tid === GRAB_N_GO_TIDS.worcester
+          ? new Promise<MenuItem[]>((resolve) => {
+              resolveGrabFetch = resolve;
+            })
+          : Promise.resolve([PIZZA]),
+      );
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+      });
+
+      // Just under the wait: still the Grab skeleton, no error text yet.
+      await act(async () => {
+        jest.advanceTimersByTime(MENU_NO_CACHE_WAIT_MS - 1);
+      });
+      expect(texts(root).flat().join(" ")).not.toMatch(/Failed to load Grab/);
+
+      // Crossing the wait: Grab's existing error state surfaces (no new copy -- reuses the same
+      // "Failed to load Grab 'N Go menu: …" text this pane already renders on a real rejection).
+      await act(async () => {
+        jest.advanceTimersByTime(2);
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Failed to load Grab/);
+
+      // A late success (no withTimeout abandoning the fetch) still lands and clears it.
+      await act(async () => {
+        resolveGrabFetch([SALAD]);
+        await Promise.resolve();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).not.toMatch(/Failed to load Grab/);
+      expect(body).toMatch(/Salad/);
+    });
   });
 
   describe("offline-first hours cache", () => {

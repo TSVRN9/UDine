@@ -1077,18 +1077,30 @@ export function HallMenuScreenBody({
   useEffect(() => {
     if (!hall.slug || selectedMeal !== "grab") return;
     let current = true;
+    // Same no-cache-wait pattern as the main hall effect above (see its own comment): with no
+    // cache and a hung fetch, Grab's own loading skeleton would otherwise never resolve -- the
+    // exact dead-zone failure the owner reported. `delivered` gates the timer only, never a late
+    // result; no `withTimeout`, the underlying fetch keeps running either way.
+    let delivered = false;
     setGrabItems(null);
     setGrabError(null);
+    const noCacheTimer = setTimeout(() => {
+      if (current && !delivered) setGrabError("no-cache-timeout");
+    }, MENU_NO_CACHE_WAIT_MS);
     loadMenuCacheFirst(GRAB_N_GO_TIDS[hall.slug], selectedDate, (result) => {
-      if (current) {
-        setGrabItems(result);
-        setGrabError(null);
-      }
+      if (!current) return;
+      delivered = true;
+      clearTimeout(noCacheTimer);
+      setGrabItems(result);
+      setGrabError(null);
     }).catch((e) => {
-      if (current) setGrabError(String(e));
+      if (!current || delivered) return; // a cache copy already rendered
+      clearTimeout(noCacheTimer);
+      setGrabError(String(e));
     });
     return () => {
       current = false;
+      clearTimeout(noCacheTimer);
     };
   }, [hall, selectedDate, selectedMeal]);
 

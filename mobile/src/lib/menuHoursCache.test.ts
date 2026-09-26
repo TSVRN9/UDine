@@ -121,8 +121,11 @@ describe("menu cache", () => {
 describe("isMenuCacheFinal", () => {
   const date = new Date(2026, 7, 19); // local Aug 19
 
-  it("is final when fetchedAt is on/after the local start of the date and items exist", () => {
+  it("is final when fetchedAt is exactly the local start of the date and items exist", () => {
     expect(isMenuCacheFinal({ items: [item("Chicken")], fetchedAt: new Date(2026, 7, 19, 0, 0, 0).toISOString() }, date)).toBe(true);
+  });
+
+  it("is final when fetchedAt is later the same day and items exist", () => {
     expect(isMenuCacheFinal({ items: [item("Chicken")], fetchedAt: new Date(2026, 7, 19, 23, 59).toISOString() }, date)).toBe(true);
   });
 
