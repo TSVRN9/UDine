@@ -50,6 +50,11 @@ jest.mock("../lib/dishCatalog", () => ({
 jest.mock("../lib/customFoodsStorage", () => ({
   searchCustomFoods: jest.fn().mockReturnValue([]),
 }));
+// menuHoursCache.ts imports expo-sqlite (via ./db) at module load time -- unavailable under jest,
+// same reason dishCatalog.ts/customFoodsStorage.ts are mocked above rather than required for real.
+jest.mock("../lib/menuHoursCache", () => ({
+  getCachedMenu: jest.fn().mockResolvedValue(null),
+}));
 
 function emptyLogStorage(): LogStorage {
   return new InMemoryLogStorage();

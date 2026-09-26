@@ -37,9 +37,12 @@ set -euo pipefail
 #   (empty input), search-inflight (Search dimmed, spinner row, 2 streamed rows), search-results
 #   (6 rows: 5 shown + Load More + direct-lookup + Create), search-results-end (3 rows, no Load
 #   More), search-empty ("Nothing found for zzqx"), search-error (gray pill + Create). The
-#   lookup-hit / lookup-fetching / lookup-miss / lookup-rate-limited fixtures cover the
-#   direct-lookup states. Use --tap on the input (or --swipe on the list) after any of them to
-#   capture the keyboard-raised or scrolled variant.
+#   lookup-hit / lookup-fetching / lookup-miss / lookup-rate-limited / lookup-offline fixtures
+#   cover the direct-lookup states -- lookup-hit renders the "Found N new food(s)" row (all of
+#   STRESS_LOOKUP_CANDIDATES are new against an empty merged search), lookup-miss/lookup-offline
+#   render "No new foods found" / "Couldn't search right now…" respectively. Use --tap on the
+#   input (or --swipe on the list) after any of them to capture the keyboard-raised or scrolled
+#   variant.
 #   Toast states (halls/[slug].tsx, __DEV__ only): NAME=compare-toast-ok mounts the success toast
 #   ("Logged 3 items" + sub-line, no auto-dismiss); NAME=compare-toast-fail seeds a 2-dish plate
 #   and mounts the failure toast above its bar.

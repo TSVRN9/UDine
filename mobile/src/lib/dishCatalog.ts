@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { fetchDishCatalog, type DishCatalogEntry } from "@udine/shared";
+import { fetchDishCatalog, matchesQuery, type DishCatalogEntry } from "@udine/shared";
 import { getDb } from "./db";
 
 /**
@@ -61,9 +61,11 @@ export async function refreshDishCatalogIfStale(supabase: SupabaseClient, maxAge
   }
 }
 
-/** Case-insensitive substring match on dishName -- synchronous/local, no network, instant. */
+/** Token-AND match (matchesQuery, @udine/shared) on dishName -- synchronous/local, no network,
+ * instant. Empty query is guarded here (not left to matchesQuery's own vacuous-true-on-empty
+ * semantics) -- an un-typed search box must show no catalog rows, not the whole catalog. */
 export function searchCachedDishes(catalog: CachedDishCatalog | null, query: string): DishCatalogEntry[] {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q || !catalog) return [];
-  return catalog.entries.filter((e) => e.dishName.toLowerCase().includes(q));
+  return catalog.entries.filter((e) => matchesQuery(e.dishName, q));
 }

@@ -63,6 +63,17 @@ describe("getLoggedUmassDishHistory", () => {
     expect(results[0].nutrition.calories).toBe(200);
   });
 
+  // offline-menus-and-search REWORK: a blank query is this file's own explicit "list everything"
+  // decision (above), but a punctuation-only query is a real (if garbage) query -- it must match
+  // nothing, not fall through to "list everything" the way matchesQuery's old vacuous-true-on-
+  // zero-tokens behavior would have.
+  it("a punctuation-only query matches nothing, unlike a genuinely blank one", async () => {
+    const storage = fakeStorage([
+      { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Pizza", hallTid: 1 }, servings: 1, nutrition: nutrition(200) },
+    ]);
+    expect(await getLoggedUmassDishHistory(storage, 1, "!!!")).toHaveLength(0);
+  });
+
   it("filters by case-insensitive substring match against dish name", async () => {
     const storage = fakeStorage([
       { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "Chicken Parm", hallTid: 1 }, servings: 1, nutrition: nutrition(200) },
@@ -70,6 +81,17 @@ describe("getLoggedUmassDishHistory", () => {
     ]);
     const results = await getLoggedUmassDishHistory(storage, 1, "CHICK");
     expect(results.map((r) => r.dishName)).toEqual(["Chicken Parm"]);
+  });
+
+  // offline-menus-and-search: token-AND matching (matchesQuery, @udine/shared) -- word order and
+  // inserted words don't matter.
+  it("matches multi-word queries across word order and inserted words", async () => {
+    const storage = fakeStorage([
+      { id: "1", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "White Cheese Pizza", hallTid: 1 }, servings: 1, nutrition: nutrition(200) },
+      { id: "2", loggedAt: "2026-08-01T00:00:00.000Z", source: { type: "umass-menu", dishName: "White Kidney Beans", hallTid: 1 }, servings: 1, nutrition: nutrition(150) },
+    ]);
+    expect((await getLoggedUmassDishHistory(storage, 1, "white pizza")).map((d) => d.dishName)).toEqual(["White Cheese Pizza"]);
+    expect((await getLoggedUmassDishHistory(storage, 1, "pizza, white")).map((d) => d.dishName)).toEqual(["White Cheese Pizza"]);
   });
 
   it("carries hallTid and nutrition through so a result can be turned into a plate entry", async () => {

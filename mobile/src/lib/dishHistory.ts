@@ -1,4 +1,4 @@
-import type { LogStorage, NutritionFacts } from "@udine/shared";
+import { matchesQuery, type LogStorage, type NutritionFacts } from "@udine/shared";
 
 /**
  * One previously-logged UMass dining hall dish, enough to stage it back onto the plate --
@@ -35,7 +35,6 @@ export async function getLoggedUmassDishHistory(storage: LogStorage, hallTid: nu
   // push the hallTid + dishName LIKE filter and a MAX(logged_at)-per-dishName dedup down into SQL
   // instead.
   const entries = await storage.getAllEntries();
-  const q = query.trim().toLowerCase();
 
   const mostRecentByDish = new Map<string, { loggedAt: string; dish: HistoryDish }>();
   for (const entry of entries) {
@@ -46,5 +45,12 @@ export async function getLoggedUmassDishHistory(storage: LogStorage, hallTid: nu
     mostRecentByDish.set(dishName, { loggedAt: entry.loggedAt, dish: { dishName, hallTid, nutrition: entry.nutrition } });
   }
 
-  return [...mostRecentByDish.values()].map((v) => v.dish).filter((dish) => dish.dishName.toLowerCase().includes(q));
+  const dishes = [...mostRecentByDish.values()].map((v) => v.dish);
+  // A blank query lists everything at this hall -- this file's own explicit decision (its only
+  // caller, PlateSheet.tsx's runSearch, already guards `!raw.trim()` before ever calling in, so
+  // this path exists for direct callers/tests, not the live search box), not inherited from
+  // matchesQuery's own semantics: matchesQuery("", ...) matches NOTHING now (a punctuation-only
+  // query like "!!!" falls through to it below and correctly matches nothing too).
+  if (!query.trim()) return dishes;
+  return dishes.filter((dish) => matchesQuery(dish.dishName, query));
 }

@@ -16,3 +16,4 @@ export * from "./latestWins.ts";
 export * from "./stations.ts";
 export * from "./alwaysAvailableStations.ts";
 export * from "./favoriteMatch.ts";
+export * from "./search.ts";
