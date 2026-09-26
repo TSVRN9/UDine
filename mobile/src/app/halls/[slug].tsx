@@ -1756,7 +1756,12 @@ export function HallMenuScreenBody({
   // Same "call it, don't tag it" reasoning as mealPane above.
   function grabPane() {
     if (grabError) {
-      return <Text style={styles.error}>Failed to load Grab &apos;N Go menu: {grabError}</Text>;
+      // pr-reviewer finding on #540 round 2: grabError's own contents are never rendered -- a real
+      // rejection is a raw platform exception string (java.net.UnknownHostException, etc.), and the
+      // no-cache-wait timer's own sentinel ("no-cache-timeout") isn't end-user copy either. One
+      // fixed line covers both paths, mirroring the owner-approved search-error copy
+      // (PlateSheet.tsx's lookup-offline row / SearchStateError.dc.html).
+      return <Text style={styles.error}>Couldn&apos;t load the Grab &apos;N Go menu. Check your connection and try again.</Text>;
     }
     if (!grabItems) {
       return (
