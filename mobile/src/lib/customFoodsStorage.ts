@@ -1,4 +1,4 @@
-import type { CustomFood, CustomFoodsStorage } from "@udine/shared";
+import { matchesQuery, type CustomFood, type CustomFoodsStorage } from "@udine/shared";
 import { getDb } from "./db";
 
 /** SQLite-backed CustomFoodsStorage -- device-only, always, see CLAUDE.md data residency table
@@ -22,10 +22,10 @@ export class SqliteCustomFoodsStorage implements CustomFoodsStorage {
   }
 }
 
-/** Case-insensitive substring match on name -- same spirit/shape as dishCatalog.ts's
+/** Token-AND match (matchesQuery, @udine/shared) on name -- same spirit/shape as dishCatalog.ts's
  * searchCachedDishes, the 4th source PlateSheet's merged search filters this way. */
 export function searchCustomFoods(foods: CustomFood[], query: string): CustomFood[] {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return [];
-  return foods.filter((f) => f.name.toLowerCase().includes(q));
+  return foods.filter((f) => matchesQuery(f.name, q));
 }

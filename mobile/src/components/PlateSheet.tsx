@@ -1,4 +1,4 @@
-import { searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type DishCatalogEntry, type LogStorage } from "@udine/shared";
+import { matchesQuery, searchBrandedFoods, searchFoods, searchProducts, type CustomFoodsStorage, type DailyMacroTotals, type DishCatalogEntry, type LogStorage } from "@udine/shared";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -7,9 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 import { Spinner } from "./Skeleton";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
+import { effectiveToday } from "../lib/date";
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { getLoggedUmassDishHistory, type HistoryDish } from "../lib/dishHistory";
 import { labelLookupCandidate, lookupDishLive, type LookupDishCandidate, type LookupDishResult } from "../lib/lookupDish";
+import { getCachedMenu } from "../lib/menuHoursCache";
+import { menuCacheTids } from "../lib/menuPrefetch";
 import { durations } from "../lib/motion";
 import { isEstimatedServing, plateSearchResultDetail, plateSearchResultKey, totalItemCount, type PlateEntry, type PlateSearchResult } from "../lib/plate";
 import { formatServings, parseServingsInput } from "../lib/servingsStepper";
@@ -45,7 +48,7 @@ const STRESS_LOOKUP_QUERY = "flatbread";
 // resolves so screenshot.sh's --record has a stable window to capture the inline spinner row
 // (brief foodpro-menu-expansion task 4); "lookup-miss"/"lookup-rate-limited" fake the two other
 // server states lookup-dish can return, which otherwise can't be forced on demand from a device.
-const LOOKUP_STRESS_FIXTURES = new Set(["lookup-hit", "lookup-fetching", "lookup-miss", "lookup-rate-limited"]);
+const LOOKUP_STRESS_FIXTURES = new Set(["lookup-hit", "lookup-fetching", "lookup-miss", "lookup-rate-limited", "lookup-offline"]);
 const STRESS_LOOKUP_CANDIDATES: LookupDishCandidate[] = [
   {
     dishName: "Wood-Fired Margherita Flatbread with Burrata, Basil & Calabrian Chili Honey",
@@ -185,15 +188,18 @@ function isLocalGroup(result: PlateSearchResult): boolean {
 
 /** Match-quality tier for decision 2's within-local-group interleaving -- lower sorts first.
  * There's no unified cross-source relevance score today (OFF/USDA rank server-side; umass
- * catalog/history/custom are unscored substring matches), so this is the operational stand-in the
- * brief specifies: an exact or prefix match on the displayed name outranks a plain substring
- * match. */
-function matchQualityTier(name: string, query: string): 0 | 1 | 2 {
+ * catalog/history/custom/cached-menu are unscored matchesQuery hits), so this is the operational
+ * stand-in the brief specifies: an exact or prefix match on the displayed name outranks a plain
+ * substring match, which in turn outranks a token-AND match that isn't a literal substring at all
+ * (offline-menus-and-search's tier 3 -- e.g. "white pizza" against "White Cheese Pizza", where
+ * neither "white pizza" nor "pizza white" appears verbatim). */
+function matchQualityTier(name: string, query: string): 0 | 1 | 2 | 3 {
   const n = name.toLowerCase();
   const q = query.toLowerCase();
   if (n === q) return 0;
   if (n.startsWith(q)) return 1;
-  return 2;
+  if (n.includes(q)) return 2;
+  return 3;
 }
 
 /** Re-sorts the full merged list after every splice (the 4 search groups, loadMore, a manual
@@ -216,6 +222,20 @@ function sortSearchResults(results: PlateSearchResult[], query: string): PlateSe
       return a.index - b.index;
     })
     .map(({ result }) => result);
+}
+
+// Today's on-device menu cache (menuHoursCache.ts's offline-first cache, task 1) is itself a local
+// search source now -- a dish that's on today's menu but hasn't synced to public.dishes yet (or
+// was never logged before at this hall) still needs to be findable with zero network round trip.
+// Reads across EVERY cached hall/Grab-N-Go tid (menuCacheTids()), not just the browsed one -- same
+// hall-agnostic-read-staged-to-the-browsed-hall treatment the catalog source already gets below,
+// and exactly the case docs/briefs/offline-menus-and-search.md's Rationale names ("White Cheese
+// Pizza" is absent from the ajax feed some days, so public.dishes never gets it either). Matched
+// with the same matchesQuery token-AND rule as every other local source, never a plain substring.
+async function searchCachedTodaysMenus(query: string) {
+  const today = effectiveToday();
+  const caches = await Promise.all(menuCacheTids().map((tid) => getCachedMenu(tid, today)));
+  return caches.flatMap((cache) => cache?.items ?? []).filter((item) => matchesQuery(item.dishName, query));
 }
 
 interface Props {
@@ -316,8 +336,15 @@ export function PlateSheet({
   const [loadingMore, setLoadingMore] = useState(false);
   // "Search UMass Dining directly" -- the manual (never automatic) fallback to lookup-dish's
   // on-demand FoodPro Web INA lookup, unconditionally available once a merged search finishes
-  // (decision 3, plate-search-semantics.md) regardless of what `results` contains.
-  const [directLookup, setDirectLookup] = useState<"idle" | "loading" | "miss" | "rate_limited">("idle");
+  // (decision 3, plate-search-semantics.md) regardless of what `results` contains. `found` carries
+  // how many of the hit's candidates were actually NEW (not already in `results`, case-insensitive
+  // dishName) -- decisions doc: "the count goes on the direct-lookup row only, shown when the
+  // lookup settles." A hit with zero net-new candidates and a genuine miss both render the same
+  // `none` row ("No new foods found") -- from the user's point of view, both mean the direct lookup
+  // found nothing they didn't already have on screen.
+  const [directLookup, setDirectLookup] = useState<
+    { status: "idle" } | { status: "loading" } | { status: "found"; count: number } | { status: "none" } | { status: "rate_limited" } | { status: "offline" }
+  >({ status: "idle" });
   // Result keys a live catalog-refresh splice (decision 5) just added mid-search -- rendered with
   // the same FadeIn entrance halls/[slug].tsx's own expanded-content reveal uses, so a newly
   // -available row is visibly distinguished as just-arrived without any new explanatory text.
@@ -384,6 +411,16 @@ export function PlateSheet({
   // actually started), so the staleness guard alone doesn't catch it, and the refresh would
   // re-match the still-displayed "ramen" results against "pizza" instead.
   const committedQueryRef = useRef("");
+  // Which `initialQuery` value has already been seeded for the CURRENT open -- guards the
+  // initialQuery effect further below against re-seeding every time `visible` flips back true with
+  // the same prop value still in place, not just a genuinely new open. `visible` flips false (and
+  // back true) while the custom-food form is open (lib/plate.ts:348) WITHOUT this sheet actually
+  // closing (modalVisible stays true -- the close tween never completes because `visible` flips
+  // true again before it does) -- so without this guard, closing that form re-ran the seed effect
+  // and stomped whatever the user had typed or found in the meantime back to the original seed.
+  // Reset to undefined on a REAL close (the modalVisible effect below) so reopening later with the
+  // same initialQuery value seeds again.
+  const seededInitialQueryRef = useRef<string | undefined>(undefined);
   // Mirrors `results` for the catalog-refresh effect below, which resolves long after this
   // render -- a closure captured once at mount (deps []) would otherwise see the initial null
   // results forever. Same "stale closure" fix as halls/[slug].tsx's scrubberLatestRef.
@@ -539,10 +576,11 @@ export function PlateSheet({
       setBrandedPage(1);
       setBrandedHasMore(false);
       setLoadingMore(false);
-      setDirectLookup("idle");
+      setDirectLookup({ status: "idle" });
       setJustArrivedKeys(new Set());
       inFlightQueryRef.current = null;
       committedQueryRef.current = "";
+      seededInitialQueryRef.current = undefined;
     }
   }, [modalVisible]);
 
@@ -563,14 +601,13 @@ export function PlateSheet({
   }
 
   // Seeds the search box (and runs the search) the instant a caller opens this sheet with a
-  // pre-filled query. Keyed on [visible, initialQuery], not just initialQuery, so re-showing the
-  // same seed after a close fires again instead of React bailing out on an unchanged prop.
-  // runSearch(initialQuery), not a bare runSearch() after setQuery -- setQuery is async/batched, so
-  // a same-tick runSearch() would still close over the previous render's query. runSearch itself is
-  // deliberately not a dependency -- it's a fresh identity every render, which would refire this on
-  // every keystroke.
+  // pre-filled query, once per open. runSearch(initialQuery), not a bare runSearch() after
+  // setQuery -- setQuery is async/batched, so a same-tick runSearch() would still close over the
+  // previous render's query. runSearch itself is deliberately not a dependency -- it's a fresh
+  // identity every render, which would refire this on every keystroke.
   useEffect(() => {
-    if (visible && initialQuery) {
+    if (visible && initialQuery && seededInitialQueryRef.current !== initialQuery) {
+      seededInitialQueryRef.current = initialQuery;
       setQuery(initialQuery);
       setSearchExpanded(true);
       runSearch(initialQuery);
@@ -602,7 +639,7 @@ export function PlateSheet({
     const seq = ++searchSeq.current;
     setSearching(true);
     setSearchError(false);
-    setDirectLookup("idle"); // a fresh search re-earns the "Search UMass Dining directly" affordance
+    setDirectLookup({ status: "idle" }); // a fresh search re-earns the "Search UMass Dining directly" affordance
     setJustArrivedKeys(new Set()); // a fresh search's own rows are never "just arrived" -- only a live catalog splice into an OPEN search is
     // Reset the paging/display state a fresh search owns up front, not at the end -- each group
     // below sets its own hasMore as it resolves, so these can't wait for the slowest one either.
@@ -652,33 +689,39 @@ export function PlateSheet({
       }
     }
 
-    // Local group: device-log history + cached dish catalog + saved custom foods. Deduped by
-    // dishName together (history wins on collision) since they're both near-instant local reads --
-    // splitting them would let a catalog hit and a history hit for the same dish land as separate
-    // rows before dedup runs. Custom foods (also local/instant) rides along rather than getting a
-    // fifth split, since there's nothing networked to stream separately.
+    // Local group: device-log history + cached dish catalog + today's cached menus + saved custom
+    // foods. Deduped by dishName together (history wins on collision) since they're all
+    // near-instant local reads -- splitting them would let a catalog/cached-menu hit and a history
+    // hit for the same dish land as separate rows before dedup runs. Custom foods (also
+    // local/instant) rides along rather than getting a fifth split, since there's nothing
+    // networked to stream separately.
     (async () => {
       try {
-        const [historySettled, catalogSettled, customSettled] = await Promise.allSettled([
+        const [historySettled, catalogSettled, customSettled, cachedMenuSettled] = await Promise.allSettled([
           getLoggedUmassDishHistory(logStorage, hallTid, q),
           getCachedDishCatalog().then((catalog) => searchCachedDishes(catalog, q)),
           customFoodsStorage.getAllCustomFoods().then((foods) => searchCustomFoods(foods, q)),
+          searchCachedTodaysMenus(q),
         ]);
         if (searchSeq.current !== seq) return;
-        if ([historySettled, catalogSettled, customSettled].some((r) => r.status === "rejected")) anyRejected = true;
+        if ([historySettled, catalogSettled, customSettled, cachedMenuSettled].some((r) => r.status === "rejected")) anyRejected = true;
 
         const history = historySettled.status === "fulfilled" ? historySettled.value : [];
         const catalogHits = catalogSettled.status === "fulfilled" ? catalogSettled.value : [];
         const custom = customSettled.status === "fulfilled" ? customSettled.value : [];
+        const cachedMenuHits = cachedMenuSettled.status === "fulfilled" ? cachedMenuSettled.value : [];
 
-        // Merge the two UMass-side sources by dishName (case-insensitive). Local history wins on a
+        // Merge the UMass-side sources by dishName (case-insensitive). Local history wins on a
         // name collision -- it's already confirmed-logged at this exact hall, no network
-        // dependency. A catalog-only hit is staged as a HistoryDish scoped to the
-        // CURRENTLY-BROWSED hall so it flows through the existing historyDishToPlateEntry path
+        // dependency. A catalog-only or cached-menu-only hit is staged as a HistoryDish scoped to
+        // the CURRENTLY-BROWSED hall so it flows through the existing historyDishToPlateEntry path
         // unchanged.
         const umassByName = new Map<string, HistoryDish>();
         for (const entry of catalogHits) {
           umassByName.set(entry.dishName.toLowerCase(), { dishName: entry.dishName, hallTid, nutrition: entry.nutrition });
+        }
+        for (const item of cachedMenuHits) {
+          umassByName.set(item.dishName.toLowerCase(), { dishName: item.dishName, hallTid, nutrition: item.nutrition });
         }
         for (const dish of history) {
           umassByName.set(dish.dishName.toLowerCase(), dish); // history wins on collision
@@ -749,7 +792,10 @@ export function PlateSheet({
       return;
     }
     if (!offHasMore && !usdaHasMore && !brandedHasMore) return;
-    const q = query.trim();
+    // The COMMITTED query (see committedQueryRef's own comment), not live `query` state -- typing
+    // ahead after submitting a search, without hitting Search again, must not fetch the next page
+    // for whatever's now sitting in the box instead of what `results` actually holds.
+    const q = committedQueryRef.current;
     if (!q) return;
     const seq = searchSeq.current; // gated the same way runSearch is -- a stale response must not append onto a newer/closed search
     setLoadingMore(true);
@@ -812,14 +858,18 @@ export function PlateSheet({
   // path as every other search source, no new UI chrome. Gated by the same searchSeq a closed
   // sheet or a newer search bumps, so a slow response can't repaint a stale/closed search.
   async function runDirectLookup() {
-    const q = query.trim();
-    if (!q || directLookup === "loading") return;
+    // The COMMITTED query (see committedQueryRef's own comment), not live `query` state -- and,
+    // because runDirectLookup itself never calls runSearch, committedQueryRef stays fixed for the
+    // WHOLE lookup, so it doubles as "the query captured when the lookup started" for the loading
+    // label below: typing ahead while this is in flight changes `query` but never this.
+    const q = committedQueryRef.current;
+    if (!q || directLookup.status === "loading") return;
     const seq = searchSeq.current;
-    setDirectLookup("loading");
+    setDirectLookup({ status: "loading" });
     // __DEV__-only: lookup-dish isn't deployed yet, so a real multi-candidate hit can't be
     // triggered over the network -- swap in STRESS_LOOKUP_CANDIDATES instead of the real round
-    // trip. See that const's own comment above. The miss/rate_limited/fetching fixtures fake the
-    // other two settled states plus a permanently-pending one for --record, same reasoning.
+    // trip. See that const's own comment above. The miss/rate_limited/offline/fetching fixtures
+    // fake the other settled states plus a permanently-pending one for --record, same reasoning.
     const result: LookupDishResult =
       __DEV__ && stressFixture === "lookup-hit"
         ? { status: "hit", candidates: STRESS_LOOKUP_CANDIDATES }
@@ -827,17 +877,30 @@ export function PlateSheet({
           ? { status: "miss" }
           : __DEV__ && stressFixture === "lookup-rate-limited"
             ? { status: "rate_limited" }
-            : __DEV__ && stressFixture === "lookup-fetching"
-              ? await new Promise<LookupDishResult>(() => {})
-              : await lookupDishLive(supabase, q);
+            : __DEV__ && stressFixture === "lookup-offline"
+              ? { status: "offline" }
+              : __DEV__ && stressFixture === "lookup-fetching"
+                ? await new Promise<LookupDishResult>(() => {})
+                : await lookupDishLive(supabase, q);
     if (searchSeq.current !== seq) return;
     if (result.status === "hit") {
-      const additions = candidatesToResults(result.candidates);
+      // "Found N new food(s)" counts only candidates NOT already sitting in `results`
+      // (case-insensitive dishName) -- a hit that only re-confirms what the merged search already
+      // found is indistinguishable from a miss to the user (decisions doc).
+      const existingNames = new Set((latestResultsRef.current ?? []).map((r) => plateSearchResultDetail(r).dishName.toLowerCase()));
+      const newCandidates = result.candidates.filter((c) => !existingNames.has(c.dishName.toLowerCase()));
+      if (newCandidates.length === 0) {
+        setDirectLookup({ status: "none" });
+        return;
+      }
+      const additions = candidatesToResults(newCandidates);
       setResults((prev) => sortSearchResults([...(prev ?? []), ...additions], q));
       setVisibleCount((v) => v + additions.length);
-      setDirectLookup("idle");
+      setDirectLookup({ status: "found", count: newCandidates.length });
+    } else if (result.status === "miss") {
+      setDirectLookup({ status: "none" });
     } else {
-      setDirectLookup(result.status);
+      setDirectLookup({ status: result.status }); // rate_limited | offline
     }
   }
 
@@ -850,6 +913,10 @@ export function PlateSheet({
     if (!__DEV__ || !visible || !stressFixture || !LOOKUP_STRESS_FIXTURES.has(stressFixture)) return;
     setSearchExpanded(true);
     setQuery(STRESS_LOOKUP_QUERY);
+    // runDirectLookup now reads the COMMITTED query, not live `query` state -- this fixture never
+    // runs a real runSearch() (it fakes lookupDishLive's result directly), so nothing else would
+    // ever set this.
+    committedQueryRef.current = STRESS_LOOKUP_QUERY;
   }, [visible, stressFixture]);
   useEffect(() => {
     if (!__DEV__ || !visible || !stressFixture || !LOOKUP_STRESS_FIXTURES.has(stressFixture) || query !== STRESS_LOOKUP_QUERY) return;
@@ -986,27 +1053,43 @@ export function PlateSheet({
                 {/* SearchStateEmpty.dc.html:47. The COMMITTED query, not the live input -- typing
                 a new one without submitting must not relabel the results already on screen. */}
                 {results?.length === 0 && !searching && <Text style={styles.searchHint}>{`Nothing found for ${committedQueryRef.current}`}</Text>}
-                {/* lookup-dish's fetching/rate_limited states render as ONE inline row at the
-                exact spot a UMass-catalog match would occupy in the list below -- not a
-                blocking full-screen state, and OFF/USDA/Custom rows already found keep showing
-                beneath it. Same SLOT for both (this is the only inline lookup-state indicator,
-                and resolving fetching -> rate_limited doesn't reorder or duplicate anything
-                around it), but each state gets its own gold-spinner vs. gray-clock treatment
-                per SearchLookupStates.dc.html (43/46 vs 71/73) -- they're not meant to look
-                identical. miss renders no row here at all -- the standing "Create a custom
-                food" footer further below is its resolution, brief foodpro-menu-expansion
-                task 4. */}
-                {(directLookup === "loading" || directLookup === "rate_limited") && (
+                {/* lookup-dish's settled states render as ONE inline row at the exact spot a
+                UMass-catalog match would occupy in the list below -- not a blocking full-screen
+                state, and OFF/USDA/Custom rows already found keep showing beneath it. Same SLOT
+                for every state (this is the only inline lookup-state indicator, and one state
+                swapping for another doesn't reorder or duplicate anything around it), per
+                canvas.json's "lookup-settled-states" annotation. `loading` and `found` share the
+                gold-tinted treatment (SearchLookupStates.dc.html 43/46, SearchLookupFound.dc.html)
+                -- `found`'s spinner swaps for a static check, same slot, nothing else shifts.
+                `rate_limited`/`none`/`offline` share the gray one (SearchLookupStates.dc.html
+                71/73, SearchLookupNone/Offline.dc.html) -- `none` covers both a genuine miss and a
+                hit whose candidates were all already listed, with its own search-minus glyph;
+                `offline` (a transport failure or non-2xx, never predicted client-side) reuses the
+                exact alert glyph/copy the general search-error row already uses
+                (SearchStateError.dc.html) -- both mean the identical "something broke on the way
+                there," so they read alike. */}
+                {directLookup.status !== "idle" && (
                   <View
-                    style={directLookup === "loading" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
+                    style={directLookup.status === "loading" || directLookup.status === "found" ? styles.lookupStateRowFetching : styles.lookupStateRowRateLimited}
                     testID="lookupStateRow"
                   >
-                    {directLookup === "loading" ? (
+                    {directLookup.status === "loading" && (
                       <>
                         <Spinner size={fs(14)} color={colors.maroon600} durationMs={durations.searchSpin} trackOpacity={20} />
-                        <Text style={styles.lookupStateTextFetching}>Looking up {query.trim()}…</Text>
+                        <Text style={styles.lookupStateTextFetching}>Looking up {committedQueryRef.current}…</Text>
                       </>
-                    ) : (
+                    )}
+                    {directLookup.status === "found" && (
+                      <>
+                        {/* SearchLookupFound.dc.html:48 -- a static check, not the fetching spinner. */}
+                        <Svg width={fs(14)} height={fs(14)} viewBox="0 0 16 16" fill="none" testID="lookupStateFoundIcon">
+                          <Circle cx={8} cy={8} r={6} stroke={colors.maroon600} strokeWidth={1.6} />
+                          <Path d="M5.3 8.2l1.9 1.9 3.6-3.9" stroke={colors.maroon600} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                        <Text style={styles.lookupStateTextFetching}>{`Found ${directLookup.count} new food${directLookup.count === 1 ? "" : "s"}`}</Text>
+                      </>
+                    )}
+                    {directLookup.status === "rate_limited" && (
                       <>
                         {/* SearchLookupStates.dc.html:72 -- a static clock, not the fetching spinner. */}
                         <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateClockIcon">
@@ -1014,6 +1097,27 @@ export function PlateSheet({
                           <Path d="M8 5v3.5l2.3 1.3" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                         </Svg>
                         <Text style={styles.lookupStateTextRateLimited}>Live lookups are maxed out for the hour. Try again shortly, or search what&apos;s already on the menu.</Text>
+                      </>
+                    )}
+                    {directLookup.status === "none" && (
+                      <>
+                        {/* SearchLookupNone.dc.html:48 -- a magnifying glass with a "not found" dash, distinct from the clock/alert glyphs. */}
+                        <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateNoneIcon">
+                          <Circle cx={7} cy={7} r={4.6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
+                          <Path d="M10.5 10.5L13.5 13.5" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" />
+                          <Path d="M5 7h4" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" />
+                        </Svg>
+                        <Text style={styles.lookupStateTextRateLimited}>No new foods found</Text>
+                      </>
+                    )}
+                    {directLookup.status === "offline" && (
+                      <>
+                        <Svg width={fs(16)} height={fs(16)} viewBox="0 0 16 16" fill="none" testID="lookupStateOfflineIcon">
+                          <Circle cx={8} cy={8} r={6} stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} />
+                          <Path d="M8 4.8v3.6" stroke={withOpacity(colors.ink900, 40)} strokeWidth={1.5} strokeLinecap="round" />
+                          <Circle cx={8} cy={11} r={0.9} fill={withOpacity(colors.ink900, 40)} />
+                        </Svg>
+                        <Text style={styles.lookupStateTextRateLimited}>Couldn&apos;t search right now. Check your connection and try again.</Text>
                       </>
                     )}
                   </View>
@@ -1082,7 +1186,7 @@ export function PlateSheet({
                   already in flight -- the inline row above is the only fetching indicator (exactly
                   one, not this button too); shown again for idle/miss/rate_limited so retry always
                   stays one manual tap away, never a timer. */}
-                  {results !== null && !searching && directLookup !== "loading" && (
+                  {results !== null && !searching && directLookup.status !== "loading" && (
                     <Button variant="secondary" size="sm" style={styles.actionButton} textStyle={styles.actionButtonText} onPress={runDirectLookup} accessibilityLabel="Search UMass Dining directly">
                       Search UMass Dining directly
                     </Button>

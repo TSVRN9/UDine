@@ -15,6 +15,7 @@ import { menuItemToPlateEntry, offResultToPlateEntry, type PlateSearchResult } f
 import { getCachedDishCatalog, refreshDishCatalogIfStale, searchCachedDishes } from "../lib/dishCatalog";
 import { searchCustomFoods } from "../lib/customFoodsStorage";
 import { lookupDishLive } from "../lib/lookupDish";
+import { getCachedMenu } from "../lib/menuHoursCache";
 import { artboardEnclosingStyle, artboardPanelGap, artboardStyle, normalizeColor } from "../lib/artboard";
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -45,6 +46,15 @@ jest.mock("../lib/lookupDish", () => ({
   lookupDishLive: jest.fn(),
 }));
 
+// menuHoursCache.ts imports expo-sqlite (via ./db) at module load time -- unavailable under jest,
+// same reason dishCatalog.ts/customFoodsStorage.ts are mocked above rather than required for
+// real. menuPrefetch.ts's menuCacheTids() (real implementation, not mocked -- it's a pure list of
+// static tids) transitively imports saveCachedMenu from this same module path, so this one mock
+// covers both.
+jest.mock("../lib/menuHoursCache", () => ({
+  getCachedMenu: jest.fn(),
+}));
+
 const mockedSearchProducts = searchProducts as jest.Mock;
 const mockedSearchFoods = searchFoods as jest.Mock;
 const mockedSearchBrandedFoods = searchBrandedFoods as jest.Mock;
@@ -53,6 +63,7 @@ const mockedRefreshDishCatalogIfStale = refreshDishCatalogIfStale as jest.Mock;
 const mockedSearchCachedDishes = searchCachedDishes as jest.Mock;
 const mockedSearchCustomFoods = searchCustomFoods as jest.Mock;
 const mockedLookupDishLive = lookupDishLive as jest.Mock;
+const mockedGetCachedMenu = getCachedMenu as jest.Mock;
 
 function texts(root: renderer.ReactTestRenderer) {
   return root.root.findAllByType(Text).map((n) => n.props.children);
@@ -210,6 +221,7 @@ beforeEach(() => {
   mockedSearchCachedDishes.mockReset().mockReturnValue([]);
   mockedSearchCustomFoods.mockReset().mockReturnValue([]);
   mockedLookupDishLive.mockReset();
+  mockedGetCachedMenu.mockReset().mockResolvedValue(null);
 });
 
 describe("PlateSheet", () => {
@@ -796,6 +808,45 @@ describe("PlateSheet", () => {
       expect(onShowResultDetail).toHaveBeenCalledWith(expected);
     });
 
+    // offline-menus-and-search: today's on-device menu cache (menuHoursCache.ts's getCachedMenu,
+    // read across every menuCacheTids() tid) is itself a local search source now -- a dish on
+    // today's menu but not yet synced to public.dishes (or never logged before at this hall) is
+    // still findable with zero network round trip.
+    it("surfaces a dish that only matches today's cached menu, tagged UMass, staged to the CURRENTLY-BROWSED hall, not the menu's own hallTid", async () => {
+      mockedGetCachedMenu.mockImplementation(async (tid: number) =>
+        tid === 2 ? { items: [{ ...DISH, dishName: "Grilled Salmon", hallTid: 2, nutrition: { ...DISH.nutrition, calories: 380 } }], fetchedAt: "2026-09-25T12:00:00.000Z" } : null,
+      );
+      const onShowResultDetail = jest.fn();
+      const root = renderSheet({ hallTid: 4, onShowResultDetail }); // browsing hall 4; the cached hit is on hall 2's menu
+
+      await runSearch(root, "salmon");
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Grilled Salmon/);
+      expect(body).toMatch(/UMass/);
+
+      act(() => {
+        root.root.findByProps({ accessibilityLabel: "View Grilled Salmon (UMass)" }).props.onPress();
+      });
+      const expected: PlateSearchResult = { kind: "umass", dish: { dishName: "Grilled Salmon", hallTid: 4, nutrition: { ...DISH.nutrition, calories: 380 } } };
+      expect(onShowResultDetail).toHaveBeenCalledWith(expected);
+    });
+
+    it("merges a cached-menu hit with a same-named catalog hit into a single row (dedup by dishName, case-insensitive)", async () => {
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Miso Ramen", nutrition: { ...DISH.nutrition, calories: 420 }, allergens: [], dietTags: [], updatedAt: "x" }]);
+      mockedGetCachedMenu.mockImplementation(async (tid: number) =>
+        tid === 1 ? { items: [{ ...DISH, dishName: "miso ramen", hallTid: 1, nutrition: { ...DISH.nutrition, calories: 450 } }], fetchedAt: "2026-09-25T12:00:00.000Z" } : null,
+      );
+      const root = renderSheet({ hallTid: 1 });
+
+      await runSearch(root, "ramen");
+
+      const ramenRows = texts(root)
+        .flat()
+        .filter((t) => typeof t === "string" && /ramen/i.test(t));
+      expect(ramenRows).toHaveLength(1); // one row, not two
+    });
+
     it("when a dish matches both local history and the cached catalog, renders only one row, tagged UMass, using history's nutrition", async () => {
       const storage = await logStorageWith([historyEntry("Pizza", 1, 210, "2026-08-01T12:00:00.000Z")]);
       mockedSearchCachedDishes.mockReturnValue([{ dishName: "Pizza", nutrition: { ...DISH.nutrition, calories: 999 }, allergens: [], dietTags: [], updatedAt: "x" }]);
@@ -1119,6 +1170,26 @@ describe("PlateSheet", () => {
         expect(idx("Wrap Deluxe")).toBeLessThan(idx("Best Turkey Wrap"));
         // Both tier 2 (substring): umass's own arrival order is preserved here too.
         expect(idx("Best Turkey Wrap")).toBeLessThan(idx("Turkey Wrap"));
+      });
+
+      // offline-menus-and-search: matchQualityTier's new tier 3 -- matchesQuery's token-AND rule
+      // (now what searchCachedDishes etc. actually use) surfaces hits that are neither an exact/
+      // prefix/substring match on the raw query, so they need a tier below tier 2, not to be
+      // conflated with it.
+      it("sorts a tier-3 match (matchesQuery's token-AND hit, not a literal substring) after tier 0/1/2, not interleaved with them", async () => {
+        mockedSearchCachedDishes.mockReturnValue([
+          { dishName: "White Cheese Pizza", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }, // tier 3: all tokens present, not a literal substring of "white pizza"
+          { dishName: "Best White Pizza Ever", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }, // tier 2: literal substring
+          { dishName: "White Pizza", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }, // tier 0: exact
+        ]);
+        const root = renderSheet();
+        await runSearch(root, "white pizza");
+
+        const flat = texts(root).flat();
+        const idx = (name: string) => flat.indexOf(name);
+        expect(idx("White Pizza")).toBeGreaterThanOrEqual(0);
+        expect(idx("White Pizza")).toBeLessThan(idx("Best White Pizza Ever")); // tier 0 before tier 2
+        expect(idx("Best White Pizza Ever")).toBeLessThan(idx("White Cheese Pizza")); // tier 2 before tier 3
       });
     });
   });
@@ -1483,6 +1554,28 @@ describe("PlateSheet", () => {
       await runSearch(root, "chicken");
       expect(texts(root).flat().join(" ")).not.toMatch(/Load More/);
     });
+
+    // offline-menus-and-search: loadMore fetches the next page for the COMMITTED query, not
+    // whatever's typed after submitting but before the next Search tap.
+    it("fetches the next page for the COMMITTED query, not text typed afterward without resubmitting", async () => {
+      mockedSearchProducts.mockResolvedValue({ results: [{ barcode: "1", productName: "Off Page 1", nutrition: DISH.nutrition }], hasMore: true });
+      const root = renderSheet();
+      await runSearch(root, "chicken");
+      expect(texts(root).flat().join(" ")).toMatch(/Load More/);
+
+      // Types a different query into the box WITHOUT tapping Search again.
+      act(() => {
+        searchInput(root).props.onChangeText("pizza");
+      });
+
+      mockedSearchProducts.mockResolvedValueOnce({ results: [{ barcode: "2", productName: "Off Page 2", nutrition: DISH.nutrition }], hasMore: false });
+      await act(async () => {
+        root.root.findByProps({ children: "Load More" }).props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(mockedSearchProducts).toHaveBeenCalledWith("chicken", 2); // not "pizza"
+    });
   });
 
   // Bug report: all 6 search sources merge with zero display cap, so a single search could
@@ -1718,7 +1811,7 @@ describe("PlateSheet", () => {
       expect(body).toMatch(/Bacon \(Franklin Dining Commons\)/);
     });
 
-    it("miss: removes the spinner row and adds no new message -- the standing 'Create a custom food' row is the resolution, and the retry affordance stays", async () => {
+    it("miss: renders the 'No new foods found' row, keeps the Create-a-custom-food row as the escape hatch, and the retry affordance stays", async () => {
       mockedLookupDishLive.mockResolvedValue({ status: "miss" });
       const root = renderSheet();
       await runSearch(root, "nonexistent dish");
@@ -1726,12 +1819,100 @@ describe("PlateSheet", () => {
         directLookupButton(root)[0].props.onPress();
       });
       const body = texts(root).flat().join(" ");
-      // brief foodpro-menu-expansion task 4: miss is a non-change to the empty state -- no new
-      // "doesn't have this dish either"-style text, the dashed Create-a-custom-food row (already
-      // always present) is the only resolution.
+      // Decision 3 (offline-menus-and-search.md), superseding the earlier "a miss renders no row"
+      // rule: a miss now renders a row, same slot as fetching/rate_limited/offline.
       expect(body).not.toMatch(/doesn.t have this dish either/i);
-      expect(lookupStateRow(root)).toHaveLength(0);
+      expect(lookupStateRow(root)).toHaveLength(1);
+      expect(body).toMatch(/No new foods found/);
+      expect(root.root.findAllByProps({ accessibilityLabel: "Create a custom food" }).length).toBeGreaterThan(0);
       expect(directLookupButton(root)).toHaveLength(1);
+    });
+
+    // offline-menus-and-search decision 3: a hit whose candidates are ALL already in `results`
+    // (case-insensitive dishName) reads the same as a miss to the user -- nothing new to show for
+    // the manual lookup they just ran.
+    it("a hit with zero net-new candidates (every name already in results) renders 'No new foods found', not 'Found 0 new food(s)'", async () => {
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Bacon", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      mockedLookupDishLive.mockResolvedValue({
+        status: "hit",
+        candidates: [{ dishName: "bacon", location: "", hallTid: -14, nutrition: DISH.nutrition, allergens: [], dietTags: [] }], // case-insensitive dupe of the row already found
+      });
+      const root = renderSheet();
+      await runSearch(root, "Bacon");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/No new foods found/);
+      expect(body).not.toMatch(/Found/);
+    });
+
+    it("a hit with exactly one net-new candidate renders 'Found 1 new food' (singular, per SearchLookupFound.dc.html), counting only candidates not already in results", async () => {
+      mockedSearchCachedDishes.mockReturnValue([{ dishName: "Bacon", nutrition: DISH.nutrition, allergens: [], dietTags: [], updatedAt: "x" }]);
+      mockedLookupDishLive.mockResolvedValue({
+        status: "hit",
+        candidates: [
+          { dishName: "Bacon", location: "", hallTid: -14, nutrition: DISH.nutrition, allergens: [], dietTags: [] }, // already found -- not counted
+          { dishName: "Canadian Bacon", location: "", hallTid: -14, nutrition: DISH.nutrition, allergens: [], dietTags: [] }, // new
+        ],
+      });
+      const root = renderSheet();
+      await runSearch(root, "Bacon");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Found 1 new food\b/);
+      expect(body).not.toMatch(/Found 1 new foods/);
+    });
+
+    it("two or more net-new candidates render the plural 'Found N new foods'", async () => {
+      mockedLookupDishLive.mockResolvedValue({
+        status: "hit",
+        candidates: [
+          { dishName: "Bacon", location: "", hallTid: -14, nutrition: DISH.nutrition, allergens: [], dietTags: [] },
+          { dishName: "Canadian Bacon", location: "", hallTid: -14, nutrition: DISH.nutrition, allergens: [], dietTags: [] },
+        ],
+      });
+      const root = renderSheet();
+      await runSearch(root, "Bacon");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Found 2 new foods\b/);
+    });
+
+    it("offline: renders the same 'Couldn't search right now…' copy the general search-error row uses", async () => {
+      mockedLookupDishLive.mockResolvedValue({ status: "offline" });
+      const root = renderSheet();
+      await runSearch(root, "nonexistent dish");
+      await act(async () => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Couldn't search right now\. Check your connection and try again\./);
+    });
+
+    it("direct lookup and Load More use the COMMITTED query, not whatever's typed after submitting -- and the loading label doesn't change while the user keeps typing", async () => {
+      let resolveLookup!: (v: unknown) => void;
+      mockedLookupDishLive.mockImplementation(() => new Promise((resolve) => (resolveLookup = resolve)));
+      const root = renderSheet();
+      await runSearch(root, "trail mix");
+
+      act(() => {
+        directLookupButton(root)[0].props.onPress();
+      });
+      // Typing ahead WHILE the lookup is in flight must not change the loading label.
+      act(() => {
+        searchInput(root).props.onChangeText("something else entirely");
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Looking up\s+trail mix/i);
+
+      await act(async () => {
+        resolveLookup({ status: "miss" });
+        await Promise.resolve();
+      });
+      expect(mockedLookupDishLive).toHaveBeenCalledWith({}, "trail mix"); // not "something else entirely"
     });
   });
 

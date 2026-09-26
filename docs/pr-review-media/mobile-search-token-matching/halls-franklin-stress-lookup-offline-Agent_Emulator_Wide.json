@@ -1,0 +1,10 @@
+{
+  "sha": "0502e6b3c4e0dc248d0d96d1255c024322519422",
+  "branch": "mobile/search-token-matching",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-a36111a65a28d3b5d",
+  "route": "halls/franklin",
+  "device": "Agent_Emulator_Wide",
+  "stress": "lookup-offline",
+  "dirty": false,
+  "ts": "2026-09-26T15:18:18Z"
+}
