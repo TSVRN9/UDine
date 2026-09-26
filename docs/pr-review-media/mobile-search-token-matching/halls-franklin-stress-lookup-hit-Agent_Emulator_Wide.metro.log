@@ -13,4 +13,4 @@ Waiting on http://localhost:8083
 An update for expo is available: 57.0.14 → ~57.0.25
 21 other packages may need updating. Run npx expo install --check for details.
 Logs for your project will appear below.
-Android Bundled 2672ms node_modules/.pnpm/expo-router@57.0.14_3a7725a6760fcdcbd4f7eec3e3a34698/node_modules/expo-router/entry.js (2237 modules)
+Android Bundled 5283ms node_modules/.pnpm/expo-router@57.0.14_3a7725a6760fcdcbd4f7eec3e3a34698/node_modules/expo-router/entry.js (2237 modules)
