@@ -19,7 +19,7 @@ import { StyleSheet, Text, View, SectionList } from "react-native";
 import Reanimated from "react-native-reanimated";
 import { router, useLocalSearchParams } from "expo-router";
 import { fetchEvents, fetchMenu, GRAB_N_GO_TIDS, type LogEntry, type MenuItem } from "@udine/shared";
-import HallMenuScreen, { HallMenuScreenBody } from "../app/halls/[slug]";
+import HallMenuScreen, { HallMenuScreenBody, HOURS_WAIT_MS, MENU_NO_CACHE_WAIT_MS } from "../app/halls/[slug]";
 import { CompositeDishComposer } from "../components/CompositeDishComposer";
 import { HoldSlideAddButton } from "../components/HoldSlideAddButton";
 import { PlateBar } from "../components/PlateBar";
@@ -161,12 +161,24 @@ const mockMenuCache = new Map<string, { items: MenuItem[]; fetchedAt: string }>(
 // reasoning as the old @udine/shared fetchDiningHours mock below it replaces for this purpose;
 // individual tests override via (fetchHoursAndCache as jest.Mock).mockResolvedValueOnce(...).
 const mockFetchHoursAndCache = jest.fn().mockResolvedValue({ halls: [], retail: [] });
+// getCachedHours: no cached hours by default -- individual tests override via
+// mockGetCachedHours.mockResolvedValueOnce(...) to exercise the "today's cached hours render
+// immediately" path. isMenuCacheFinal stays the REAL (pure) implementation via requireActual, so a
+// test's cache fixture is judged by the actual finality rule, not a stand-in for it -- same
+// reasoning as menuFetchWithSeenTracking.test.ts/menuPrefetch.test.ts's own mocks of this module.
+const mockGetCachedHours = jest.fn<Promise<{ feed: { halls: unknown[]; retail: unknown[] }; fetchedAt: string } | null>, []>().mockResolvedValue(null);
 jest.mock("./menuHoursCache", () => ({
+  ...jest.requireActual("./menuHoursCache"),
   saveCachedMenu: jest.fn(async (hallTid: number, date: Date, items: MenuItem[]) => {
+    if (items.length === 0) {
+      const existing = mockMenuCache.get(`${hallTid}|${date.toDateString()}`);
+      if (existing && existing.items.length > 0) return;
+    }
     mockMenuCache.set(`${hallTid}|${date.toDateString()}`, { items, fetchedAt: new Date("2026-08-19T12:00:00.000Z").toISOString() });
   }),
   getCachedMenu: jest.fn(async (hallTid: number, date: Date) => mockMenuCache.get(`${hallTid}|${date.toDateString()}`) ?? null),
   fetchHoursAndCache: () => mockFetchHoursAndCache(),
+  getCachedHours: () => mockGetCachedHours(),
 }));
 
 const mockedFetchMenu = fetchMenu as jest.Mock;
@@ -217,6 +229,30 @@ function activePane(root: renderer.ReactTestRenderer) {
 
 function activePaneTexts(root: renderer.ReactTestRenderer) {
   return activePane(root).findAllByType(Text).map((n) => n.props.children);
+}
+
+// pr-reviewer finding on #540 round 2: grabError's raw contents (a bare Error's message, or the
+// "no-cache-timeout" sentinel from the no-cache wait timer) must never reach the screen -- a real
+// rejection there is a raw java.net.UnknownHostException/etc string, not end-user copy. One fixed
+// line covers both the fetch-failure and no-cache-timeout paths in grabPane(); tests assert the
+// full rendered string against this constant (not a substring/regex), so a stray sentinel or
+// exception string leaking back in fails loudly instead of slipping past a loose `toMatch`.
+const GRAB_ERROR_TEXT = "Couldn't load the Grab 'N Go menu. Check your connection and try again.";
+
+function grabErrorNodeText(root: renderer.ReactTestRenderer): string | undefined {
+  // Scoped to the active (windowed) pane, not the whole tree -- the tab row's own "Grab 'N Go"
+  // label also contains "Grab" and sits outside the windowed pane, so an unscoped search finds it
+  // first instead of the pane's own error text.
+  const node = activePane(root)
+    .findAllByType(Text)
+    .find((n) => {
+      const flat = Array.isArray(n.props.children) ? n.props.children.join("") : n.props.children;
+      // "Getting today's Grab 'N Go menu from UMass Dining…" (the loading skeleton's own text)
+      // also contains "Grab" -- excluded explicitly so this only ever matches an actual error line.
+      return typeof flat === "string" && flat.includes("Grab") && !flat.startsWith("Getting");
+    });
+  if (!node) return undefined;
+  return Array.isArray(node.props.children) ? node.props.children.join("") : node.props.children;
 }
 
 function nutrition(calories: number, proteinG = 1): MenuItem["nutrition"] {
@@ -435,6 +471,7 @@ async function openSheetAndLog(root: renderer.ReactTestRenderer) {
 beforeEach(() => {
   jest.useFakeTimers();
   mockMenuCache.clear();
+  mockGetCachedHours.mockReset().mockResolvedValue(null);
   mockGetAllEntries.mockReset().mockResolvedValue([]);
   mockRanking.seed([], []);
   mockRanking.saveRankedDishes.mockClear();
@@ -920,14 +957,15 @@ describe("HallMenuScreen Grab 'N Go tab (merged from the retired grab-n-go/[slug
     expect(body).not.toMatch(/Stale Grab Item/);
   });
 
-  it("shows the Grab tab's own error text on a fetch failure, not the hall-menu MenuErrorCard", async () => {
+  it("shows one fixed error line on a fetch failure, never the raw rejection message, and not the hall-menu MenuErrorCard", async () => {
     const root = await renderScreen([PIZZA]);
     mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
     await act(async () => {
       root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
     });
+    expect(grabErrorNodeText(root)).toBe(GRAB_ERROR_TEXT);
     const body = texts(root).flat().join(" ");
-    expect(body).toMatch(/Failed to load Grab 'N Go menu:.*network down/);
+    expect(body).not.toMatch(/network down/);
     expect(body).not.toMatch(/Menu didn't load/); // the hall-menu screen's own MenuErrorCard copy
   });
 
@@ -1271,16 +1309,10 @@ describe("HallMenuScreen loading/error states (#181)", () => {
     expect(retriedBody).toMatch(/Pizza/);
   });
 
-  it("hides the SHOW SAVED COPY link on a fetch failure when no cache exists for this hall+date", async () => {
-    mockedFetchMenu.mockRejectedValueOnce(new Error("network down"));
-    let root!: renderer.ReactTestRenderer;
-    await act(async () => {
-      root = renderer.create(<HallMenuScreen />);
-    });
-    expect(texts(root).flat().join(" ")).not.toMatch(/SHOW SAVED COPY/);
-  });
-
-  it("SHOW SAVED COPY loads the cached menu on tap, when a cache exists for this hall+date", async () => {
+  // offline-menus-and-search brief, task 1: the SHOW SAVED COPY link/tap flow is gone entirely --
+  // a cached copy now renders automatically (see the "offline-first cache" describe block below),
+  // so the retry card never has a saved copy left to offer once it's actually showing.
+  it("never shows the SHOW SAVED COPY link, even when a cache exists for this hall+date", async () => {
     const today = new Date();
     mockMenuCache.set(`1|${today.toDateString()}`, { items: [SALAD], fetchedAt: new Date("2026-08-19T12:00:00.000Z").toISOString() });
     mockedFetchMenu.mockRejectedValue(new Error("network down"));
@@ -1288,19 +1320,253 @@ describe("HallMenuScreen loading/error states (#181)", () => {
     await act(async () => {
       root = renderer.create(<HallMenuScreen />);
     });
-    const errorBody = texts(root).flat().join(" ");
-    expect(errorBody).toMatch(/SHOW SAVED COPY FROM/);
-    expect(errorBody).not.toMatch(/Salad/); // not shown yet -- still on the retry card
+    expect(texts(root).flat().join(" ")).not.toMatch(/SHOW SAVED COPY/);
+  });
 
+  it("delays the retry card until MENU_NO_CACHE_WAIT_MS when there's no cache and the fetch hangs, then a late success clears it", async () => {
+    let resolveFetch!: (items: MenuItem[]) => void;
+    mockedFetchMenu.mockReturnValue(new Promise<MenuItem[]>((resolve) => { resolveFetch = resolve; }));
+    let root!: renderer.ReactTestRenderer;
     await act(async () => {
-      // fetchedAt is fixed at "2026-08-19T12:00:00.000Z" -- 8:00 AM Eastern (this suite runs under
-      // TZ=America/New_York), matching formatTime's output for that instant. Scoped to the active
-      // pane for the same reason as the "Try again" tap above -- every windowed pane renders it.
-      activePane(root).findByProps({ accessibilityLabel: "Show saved copy from 8:00 AM" }).props.onPress();
+      root = renderer.create(<HallMenuScreen />);
     });
-    const savedBody = texts(root).flat().join(" ");
-    expect(savedBody).toMatch(/Salad/);
-    expect(savedBody).not.toMatch(/Menu didn't load/);
+
+    // Just under the wait: still the skeleton, no error card yet.
+    await act(async () => {
+      jest.advanceTimersByTime(MENU_NO_CACHE_WAIT_MS - 1);
+    });
+    expect(texts(root).flat().join(" ")).not.toMatch(/Menu didn't load/);
+
+    // Crossing the wait: the error card surfaces even though the fetch is still hung.
+    await act(async () => {
+      jest.advanceTimersByTime(2);
+    });
+    expect(texts(root).flat().join(" ")).toMatch(/Menu didn't load/);
+
+    // A late success (no withTimeout abandoning the fetch) still lands and clears the card.
+    await act(async () => {
+      resolveFetch([PIZZA]);
+      await Promise.resolve();
+    });
+    const body = texts(root).flat().join(" ");
+    expect(body).not.toMatch(/Menu didn't load/);
+    expect(body).toMatch(/Pizza/);
+  });
+
+  describe("offline-first menu cache (offline-menus-and-search brief, task 1)", () => {
+    it("renders a cached copy immediately with no skeleton and no error card, while the network fetch is hung", async () => {
+      const today = new Date();
+      mockMenuCache.set(`1|${today.toDateString()}`, { items: [SALAD], fetchedAt: new Date(2020, 0, 1).toISOString() }); // long-ago fetch, not final
+      mockedFetchMenu.mockReturnValue(new Promise<MenuItem[]>(() => {})); // never resolves
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(<HallMenuScreen />);
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Salad/);
+      expect(body).not.toMatch(/Menu didn't load/);
+      // Scoped to the active (Lunch) pane -- the windowed Grab neighbor still shows its own
+      // perpetual skeleton until its tab is actually selected (pre-existing, unrelated behavior:
+      // its own fetch effect never runs for an unselected tab).
+      expect(activePane(root).findAllByProps({ testID: "skeleton-bar" })).toHaveLength(0);
+    });
+
+    it("skips the network entirely when the cached copy is final (fetched on/after today's local start)", async () => {
+      const today = new Date();
+      mockMenuCache.set(`1|${today.toDateString()}`, { items: [SALAD], fetchedAt: new Date().toISOString() }); // fetched just now -- final for today
+      const callsBefore = mockedFetchMenu.mock.calls.length;
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(<HallMenuScreen />);
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Salad/);
+      expect(mockedFetchMenu.mock.calls.length).toBe(callsBefore);
+    });
+
+    it("renders tomorrow's cached menu after stepping the date, even with the network hung", async () => {
+      mockedFetchMenu.mockResolvedValueOnce([PIZZA]); // today's own load, so the stepper has something to step from
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(<HallMenuScreen />);
+      });
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      mockMenuCache.set(`1|${tomorrow.toDateString()}`, { items: [STEAK], fetchedAt: new Date(2020, 0, 1).toISOString() });
+      mockedFetchMenu.mockReturnValue(new Promise<MenuItem[]>(() => {})); // hung from here on
+
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+      });
+
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Steak/);
+      expect(body).not.toMatch(/Menu didn't load/);
+    });
+
+    it("Grab pane also renders a cached copy immediately while its network fetch is hung", async () => {
+      const today = new Date();
+      mockMenuCache.set(`${GRAB_N_GO_TIDS.worcester}|${today.toDateString()}`, { items: [SALAD], fetchedAt: new Date(2020, 0, 1).toISOString() });
+      // renderScreen sets its own blanket mockResolvedValue -- override AFTER mounting, or its
+      // default would clobber the Grab-specific hung promise before the tab tap even happens.
+      const root = await renderScreen([PIZZA]);
+      mockedFetchMenu.mockImplementation((tid: number) => (tid === GRAB_N_GO_TIDS.worcester ? new Promise<MenuItem[]>(() => {}) : Promise.resolve([PIZZA])));
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Salad/);
+      expect(grabErrorNodeText(root)).toBeUndefined();
+    });
+
+    // pr-reviewer finding on #540: the no-cache timer is armed per-effect-run (one per date), and
+    // its own cleanup clears it -- but only a mutation test proves the cleanup actually runs before
+    // the timer would otherwise fire. Without BOTH the cleanup's `clearTimeout` AND the callback's
+    // own `current` guard, a date the user has already stepped away from could still fire its stale
+    // timer and stomp the new date's already-rendered cache with the retry card.
+    it("stepping to a cached date before the no-cache timer fires cancels it -- the abandoned date's stale timer must not stomp the new date's cached render", async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      mockMenuCache.set(`1|${tomorrow.toDateString()}`, { items: [SALAD], fetchedAt: new Date(2020, 0, 1).toISOString() });
+      mockedFetchMenu.mockReturnValue(new Promise<MenuItem[]>(() => {})); // today: no cache, hung fetch
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(<HallMenuScreen />);
+      });
+
+      // Step away from today (no cache, hung fetch, no-cache timer armed) BEFORE
+      // MENU_NO_CACHE_WAIT_MS elapses -- this unmounts today's effect and its cleanup should
+      // clear its timer.
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Salad/); // tomorrow's cache delivered immediately
+
+      // Advance past when today's now-abandoned timer would have fired. If it wasn't actually
+      // cleared (or its callback lost the `current` guard), it fires `setError` on the SAME
+      // component instance and clobbers tomorrow's already-rendered cache with the retry card.
+      await act(async () => {
+        jest.advanceTimersByTime(MENU_NO_CACHE_WAIT_MS + 1);
+      });
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Salad/);
+      expect(body).not.toMatch(/Menu didn't load/);
+    });
+
+    it("delays the Grab pane's error state until MENU_NO_CACHE_WAIT_MS when there's no cache and its own fetch hangs, then a late success clears it", async () => {
+      const root = await renderScreen([PIZZA]);
+      let resolveGrabFetch!: (items: MenuItem[]) => void;
+      mockedFetchMenu.mockImplementation((tid: number) =>
+        tid === GRAB_N_GO_TIDS.worcester
+          ? new Promise<MenuItem[]>((resolve) => {
+              resolveGrabFetch = resolve;
+            })
+          : Promise.resolve([PIZZA]),
+      );
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+      });
+
+      // Just under the wait: still the Grab skeleton, no error text yet.
+      await act(async () => {
+        jest.advanceTimersByTime(MENU_NO_CACHE_WAIT_MS - 1);
+      });
+      expect(grabErrorNodeText(root)).toBeUndefined();
+
+      // Crossing the wait: Grab's fixed error line surfaces (no new copy -- the same one line the
+      // fetch-failure path uses, never the "no-cache-timeout" sentinel itself).
+      await act(async () => {
+        jest.advanceTimersByTime(2);
+      });
+      expect(grabErrorNodeText(root)).toBe(GRAB_ERROR_TEXT);
+
+      // A late success (no withTimeout abandoning the fetch) still lands and clears it.
+      await act(async () => {
+        resolveGrabFetch([SALAD]);
+        await Promise.resolve();
+      });
+      expect(grabErrorNodeText(root)).toBeUndefined();
+      expect(texts(root).flat().join(" ")).toMatch(/Salad/);
+    });
+
+    // pr-reviewer finding on #540 round 2: Grab's own no-cache timer needs the identical
+    // stale-timer-race coverage as the main hall's (see the test above it mirrors). Red only
+    // against the double mutant that drops BOTH the Grab timer callback's `current` guard AND
+    // cleanup's `clearTimeout` together.
+    it("stepping to a cached date before Grab's own no-cache timer fires cancels it -- the abandoned date's stale timer must not stomp the new date's cached render", async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      mockMenuCache.set(`${GRAB_N_GO_TIDS.worcester}|${tomorrow.toDateString()}`, { items: [SALAD], fetchedAt: new Date(2020, 0, 1).toISOString() });
+      const root = await renderScreen([PIZZA]);
+      // Today's Grab: no cache, hung fetch -- arms Grab's own no-cache timer. Non-Grab tids (the
+      // main hall's own concurrent effect) still resolve normally.
+      mockedFetchMenu.mockImplementation((tid: number) => (tid === GRAB_N_GO_TIDS.worcester ? new Promise<MenuItem[]>(() => {}) : Promise.resolve([PIZZA])));
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Worcester Grab 'N Go menu" }).props.onPress();
+      });
+
+      // Step away from today's Grab (no cache, hung fetch, timer armed) BEFORE
+      // MENU_NO_CACHE_WAIT_MS elapses -- unmounts today's Grab effect; its cleanup should clear
+      // its own timer.
+      await act(async () => {
+        root.root.findByProps({ accessibilityLabel: "Next day" }).props.onPress();
+      });
+      expect(texts(root).flat().join(" ")).toMatch(/Salad/); // tomorrow's Grab cache delivered immediately
+
+      // Advance past when today's now-abandoned Grab timer would have fired. If it wasn't
+      // actually cleared (or lost its `current` guard), it fires `setGrabError` on the SAME
+      // component instance and clobbers tomorrow's already-rendered Grab cache with the error line.
+      await act(async () => {
+        jest.advanceTimersByTime(MENU_NO_CACHE_WAIT_MS + 1);
+      });
+      expect(grabErrorNodeText(root)).toBeUndefined();
+      expect(texts(root).flat().join(" ")).toMatch(/Salad/);
+    });
+  });
+
+  describe("offline-first hours cache", () => {
+    it("uses today's cached hours immediately, without waiting for HOURS_WAIT_MS or the live fetch", async () => {
+      mockedFetchMenu.mockResolvedValue([PIZZA]);
+      const today = new Date();
+      mockGetCachedHours.mockResolvedValueOnce({
+        feed: {
+          halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "11:00 AM", closeTime: "2:30 PM" }, dinner: { openTime: "5:00 PM", closeTime: "8:00 PM" }, latenight: null, general: null }],
+          retail: [],
+        },
+        fetchedAt: today.toISOString(),
+      });
+      mockFetchHoursAndCache.mockReturnValueOnce(new Promise(() => {})); // live hours hung
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(<HallMenuScreen />);
+      });
+      // hoursSettled flips immediately (today's cache applied), so the shimmer-gated content
+      // renders without advancing any timer.
+      const body = texts(root).flat().join(" ");
+      expect(body).toMatch(/Lunch/);
+    });
+
+    it("does not apply yesterday's cached hours -- stays in the loading state until HOURS_WAIT_MS elapses", async () => {
+      mockedFetchMenu.mockResolvedValue([PIZZA]);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      mockGetCachedHours.mockResolvedValueOnce({
+        feed: { halls: [{ hallTid: 1, breakfast: null, lunch: { openTime: "11:00 AM", closeTime: "2:30 PM" }, dinner: null, latenight: null, general: null }], retail: [] },
+        fetchedAt: yesterday.toISOString(),
+      });
+      mockFetchHoursAndCache.mockReturnValueOnce(new Promise(() => {})); // live hours hung
+      let root!: renderer.ReactTestRenderer;
+      await act(async () => {
+        root = renderer.create(<HallMenuScreen />);
+      });
+      expect(texts(root).flat().join(" ")).not.toMatch(/Lunch/);
+
+      await act(async () => {
+        jest.advanceTimersByTime(HOURS_WAIT_MS + 1);
+      });
+      // hoursSettled flips on the timer even though the live fetch is still hung and yesterday's
+      // cache was never applied.
+      expect(texts(root).flat().join(" ")).toMatch(/Lunch/);
+    });
   });
 
   it("shows the loading empty-plate bar (disabled LOG, 'add dishes once the menu loads') while pending and the plate is empty", async () => {

@@ -28,9 +28,14 @@ jest.mock("@udine/shared", () => ({
 
 const mockSaveCachedMenu = jest.fn<Promise<void>, [number, Date, MenuItem[]]>();
 const mockGetCachedMenu = jest.fn<Promise<{ items: MenuItem[]; fetchedAt: string } | null>, [number, Date]>();
+const mockFetchHoursAndCache = jest.fn<Promise<unknown>, []>();
+// isMenuCacheFinal is the real (pure) implementation via requireActual, same as
+// menuPrefetch.test.ts -- warmMenuCache's own skip rule runs for real here too.
 jest.mock("./menuHoursCache", () => ({
+  ...jest.requireActual("./menuHoursCache"),
   saveCachedMenu: (...args: [number, Date, MenuItem[]]) => mockSaveCachedMenu(...args),
   getCachedMenu: (...args: [number, Date]) => mockGetCachedMenu(...args),
+  fetchHoursAndCache: () => mockFetchHoursAndCache(),
 }));
 
 // Task 3 (signed-out favorited-dish notification match) dependencies -- each mocked at its own
@@ -99,6 +104,7 @@ beforeEach(() => {
   mockRegisterTaskAsync.mockReset().mockResolvedValue(undefined);
   // Signed-out by default (task 3's own path) -- individual signed-in tests override this.
   mockGetCachedMenu.mockReset().mockResolvedValue(null);
+  mockFetchHoursAndCache.mockReset().mockResolvedValue(undefined);
   mockGetSession.mockReset().mockResolvedValue({ data: { session: null } });
   mockGetFavorites.mockReset().mockResolvedValue([]);
   mockClaimSighting.mockReset().mockResolvedValue(true);
@@ -110,13 +116,13 @@ test("defines exactly one background task naming this module's task name", () =>
   expect(typeof taskExecutor).toBe("function");
 });
 
-test("a run refreshes the cache for every dining hall + Grab 'N Go tid -- the same scope prefetchTodaysMenus covers", async () => {
+test("a run refreshes the cache for every dining hall + Grab 'N Go tid, today + the next 2 days -- the same scope prefetchTodaysMenus covers", async () => {
   expect(allTids).toHaveLength(8);
   mockFetchMenu.mockImplementation((tid) => Promise.resolve(itemsFor(tid)));
 
   const result = await taskExecutor();
 
-  expect(mockSaveCachedMenu).toHaveBeenCalledTimes(8);
+  expect(mockSaveCachedMenu).toHaveBeenCalledTimes(24); // 8 tids x 3 days
   for (const tid of allTids) {
     expect(mockSaveCachedMenu).toHaveBeenCalledWith(tid, expect.any(Date), itemsFor(tid));
   }
@@ -132,7 +138,7 @@ test("a failed fetch for one tid degrades silently -- swallowed, others still ca
 
   await expect(taskExecutor()).resolves.toBe(BackgroundTask.BackgroundTaskResult.Success);
 
-  expect(mockSaveCachedMenu).toHaveBeenCalledTimes(7);
+  expect(mockSaveCachedMenu).toHaveBeenCalledTimes(21); // 24 - failingTid's 3 days
   expect(mockSaveCachedMenu).not.toHaveBeenCalledWith(failingTid, expect.any(Date), expect.anything());
 });
 
@@ -216,7 +222,7 @@ describe("signed-out favorited-dish notification match", () => {
     await taskExecutor();
 
     // Task 2's job, unchanged.
-    expect(mockSaveCachedMenu).toHaveBeenCalledTimes(8);
+    expect(mockSaveCachedMenu).toHaveBeenCalledTimes(24);
     // Task 3's job, gated off for a signed-in user (see the brief's Rationale -- server push already
     // covers them via check-favorited-foods).
     expect(mockGetFavorites).not.toHaveBeenCalled();
@@ -229,5 +235,25 @@ describe("signed-out favorited-dish notification match", () => {
     mockGetFavorites.mockRejectedValue(new Error("sqlite hiccup"));
 
     await expect(taskExecutor()).resolves.toBe(BackgroundTask.BackgroundTaskResult.Success);
+  });
+
+  // Acceptance: backgroundTask.ts reads the signed-out match cache with effectiveToday(), not a
+  // bare `new Date()` -- same rollover-aware day boundary as menuPrefetch.ts's own date default
+  // (DEFAULT_ROLLOVER_HOUR = 2 AM). At 12:30 AM local, "today" is still the day that's ending.
+  test("reads the signed-out match cache with effectiveToday(), not a bare new Date() -- 12:30 AM still checks yesterday's cache key", async () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 8, 9, 0, 30, 0, 0)); // Sep 9, 12:30 AM local
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetCachedMenu.mockImplementation((tid, date) =>
+      tid === DINING_HALLS[2].tid && date.toDateString() === new Date(2026, 8, 8).toDateString()
+        ? Promise.resolve({ items: [menuItem("Chicken Parm", tid)], fetchedAt: "x" })
+        : Promise.resolve(null),
+    );
+    mockGetFavorites.mockResolvedValue([{ type: "dish", dishName: "Chicken Parm" }]);
+    mockClaimSighting.mockResolvedValue(true);
+
+    await taskExecutor();
+
+    expect(mockClaimSighting).toHaveBeenCalledWith("Chicken Parm", DINING_HALLS[2].tid, "2026-09-08");
+    jest.useRealTimers();
   });
 });
