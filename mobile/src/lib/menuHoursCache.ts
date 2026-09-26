@@ -73,12 +73,32 @@ async function writeVersioned<T>(key: string, data: T): Promise<void> {
   await db.runAsync("INSERT OR REPLACE INTO preferences_kv (key, value_json) VALUES (?, ?)", key, JSON.stringify(payload));
 }
 
+// Never lets an empty fetch result (a transient scrape glitch, not a real "no items posted"
+// answer -- see the brief's Rationale) clobber a non-empty cached copy: the owner's model treats a
+// day's menu as append-only once it has content, so a later `[]` is always the glitch, never news.
+// An empty save still writes when nothing non-empty exists yet -- that's the legitimate "checked,
+// nothing's posted" case, not a glitch.
 export async function saveCachedMenu(hallTid: number, date: Date, items: MenuItem[]): Promise<void> {
+  if (items.length === 0) {
+    const existing = await getCachedMenu(hallTid, date);
+    if (existing && existing.items.length > 0) return;
+  }
   await writeVersioned<CachedMenu>(menuCacheKey(hallTid, date), { items, fetchedAt: new Date().toISOString() });
 }
 
 export async function getCachedMenu(hallTid: number, date: Date): Promise<CachedMenu | null> {
   return readVersioned<CachedMenu>(menuCacheKey(hallTid, date));
+}
+
+// True iff `cached` needs no further fetch for `date` -- the owner's "a day's menu doesn't change
+// once that day has started" model (brief's Rationale): a copy fetched on/after `date`'s own local
+// midnight is final, and an empty copy is never final regardless of when it was fetched (an empty
+// row is either the glitch saveCachedMenu already guards against, or a same-day recheck that
+// should still get a chance to find real items).
+export function isMenuCacheFinal(cached: CachedMenu, date: Date): boolean {
+  if (cached.items.length === 0) return false;
+  const localStartOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  return new Date(cached.fetchedAt).getTime() >= localStartOfDate;
 }
 
 export async function saveCachedHours(feed: DiningHoursFeed): Promise<void> {
