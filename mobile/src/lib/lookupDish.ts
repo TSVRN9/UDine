@@ -20,25 +20,31 @@ export interface LookupDishCandidate {
   dietTags: string[];
 }
 
-export type LookupDishResult = { status: "hit"; candidates: LookupDishCandidate[] } | { status: "miss" } | { status: "rate_limited" };
+export type LookupDishResult =
+  | { status: "hit"; candidates: LookupDishCandidate[] }
+  | { status: "miss" }
+  | { status: "rate_limited" }
+  | { status: "offline" };
 
 /**
- * Calls lookup-dish and normalizes its response. A transport failure (network drop, a non-2xx the
- * Edge Function itself didn't produce, an unexpected body shape) is folded into the same
- * "rate_limited" result the server's own honest budget-exhausted response uses -- from the user's
- * point of view both mean the identical "not available right now, try again later," and
- * PlateSheet only needs one plain, honest state to render for that, not a second one to
- * distinguish "the server said no" from "something broke on the way there."
+ * Calls lookup-dish and normalizes its response. `rate_limited` is reserved for the server's own
+ * HONEST budget-exhausted body (`{ status: "rate_limited" }`, HTTP 200 -- lookup-dish/index.ts's
+ * `performLookup`); everything else that isn't a hit or a miss -- a transport failure, a non-2xx
+ * the function itself didn't produce (400/405/502), an unexpected body shape -- folds into
+ * `offline` instead. Distinguishing the two matters now that PlateSheet renders different copy for
+ * each (docs/briefs/offline-menus-and-search.md): "the server said no for now" vs. "something broke
+ * on the way there" are no longer the same user-facing message.
  */
 export async function lookupDishLive(supabase: SupabaseClient, query: string): Promise<LookupDishResult> {
   try {
     const { data, error } = await supabase.functions.invoke("lookup-dish", { body: { query } });
-    if (error || !data) return { status: "rate_limited" };
+    if (error || !data) return { status: "offline" };
     if (data.status === "hit" && Array.isArray(data.candidates)) return { status: "hit", candidates: data.candidates };
     if (data.status === "miss") return { status: "miss" };
-    return { status: "rate_limited" };
+    if (data.status === "rate_limited") return { status: "rate_limited" };
+    return { status: "offline" };
   } catch {
-    return { status: "rate_limited" };
+    return { status: "offline" };
   }
 }
 
