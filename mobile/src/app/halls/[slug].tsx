@@ -1713,6 +1713,8 @@ export function HallMenuScreenBody({
     }
     return (
       <GestureSectionList
+        stickySectionHeadersEnabled={false}
+        removeClippedSubviews={true}
         ref={getListRef(period)}
         sections={periodSections}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}
@@ -1782,6 +1784,8 @@ export function HallMenuScreenBody({
     }
     return (
       <GestureSectionList
+        stickySectionHeadersEnabled={false}
+        removeClippedSubviews={true}
         ref={getListRef("grab")}
         sections={grabSectionsMemo}
         keyExtractor={(item, index) => `${item.category}-${item.dishName}-${index}`}

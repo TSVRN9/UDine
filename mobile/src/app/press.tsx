@@ -17,6 +17,7 @@ export default function PressScreen() {
 
   return (
     <FlatList
+      removeClippedSubviews={true}
       style={styles.screen}
       contentContainerStyle={styles.container}
       data={items}

@@ -19,6 +19,7 @@ export default function FavoritesScreen() {
 
   return (
     <FlatList
+      removeClippedSubviews={true}
       style={styles.screen}
       contentContainerStyle={styles.container}
       data={favorites}
