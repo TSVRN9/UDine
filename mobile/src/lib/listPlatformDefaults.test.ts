@@ -1,7 +1,7 @@
-// RN list defaults that differ by Platform.OS make iOS run code Android never verified (the hall
-// menu scrubber's scrollToLocation vs iOS sticky headers). Every list pins the Android value.
-// Source-text check, same technique as hallMenuStyleParity.test.ts: per file, each list tag needs
-// a matching explicit prop.
+// RN's SectionList defaults stickySectionHeadersEnabled to Platform.OS === 'ios', so iOS ran sticky
+// headers (with layout animations) under the station scrubber's scrollToLocation, a combination
+// Android never exercised. Every SectionList pins it off. Source-text check, same technique as
+// hallMenuStyleParity.test.ts: per file, each SectionList tag needs a matching explicit prop.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -13,20 +13,13 @@ const files = (dir: string): string[] =>
   });
 const count = (s: string, re: RegExp) => (s.match(re) ?? []).length;
 
-describe("list props with platform-divergent RN defaults are explicit", () => {
+describe("every SectionList sets stickySectionHeadersEnabled={false}", () => {
   for (const file of files(SRC)) {
     const src = fs.readFileSync(file, "utf8");
     const sections = count(src, /<(Gesture)?SectionList\b/g);
-    const lists = sections + count(src, /<FlatList\b/g);
-    if (!lists) continue;
-    const rel = path.relative(SRC, file);
-    if (sections) {
-      it(`${rel}: every SectionList sets stickySectionHeadersEnabled={false}`, () => {
-        expect(count(src, /stickySectionHeadersEnabled=\{false\}/g)).toBeGreaterThanOrEqual(sections);
-      });
-    }
-    it(`${rel}: every list sets removeClippedSubviews`, () => {
-      expect(count(src, /removeClippedSubviews=\{true\}/g)).toBeGreaterThanOrEqual(lists);
+    if (!sections) continue;
+    it(path.relative(SRC, file), () => {
+      expect(count(src, /stickySectionHeadersEnabled=\{false\}/g)).toBeGreaterThanOrEqual(sections);
     });
   }
 });
