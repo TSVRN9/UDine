@@ -1,10 +1,10 @@
 {
-  "sha": "5396bffd95bf3d35554ce3de24aea93ca99a72b8",
+  "sha": "9fa5577714d89fe035c84016e3b1f716dc77a021",
   "branch": "fix/ios-scrubber-sticky-headers",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-a992555ceb7697d27",
   "route": "halls/franklin",
   "device": "Agent_Emulator_Narrow",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-09T00:20:27Z"
+  "ts": "2026-10-09T00:27:47Z"
 }
