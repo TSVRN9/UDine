@@ -181,7 +181,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .thumb{flex:none;width:64px;height:34px;border-radius:5px;overflow:hidden;background:var(--hair)}
 .lrow .lt{display:flex;align-items:center;gap:12px;min-width:0}
 .prow2 .lt{display:flex;align-items:center;gap:12px;min-width:0}
-.phero{margin:0 -20px;aspect-ratio:640/341;background:var(--dm)}
+.phero{margin:-8px -20px 0;aspect-ratio:640/341;background:var(--dm)}   /* flush under the bar: no chalk line between bar and photo */
 .pbar .pinb{margin-left:auto}
 .pinb svg{fill:none}
 .pinb[aria-pressed=true] svg{fill:var(--gold);stroke:var(--gold)}
@@ -834,7 +834,7 @@ function renderMenuList(){
    reversed, and can be scrubbed by the finger. One progress p drives every element (p 0 = the source, 1 = the screen).
    - The container window grows from the source's rect to the full screen; inside it the chalk surface is opaque.
    - The hall photo is the shared element (band sources): the screen's layer is offset so the photo stays where the
-     band showed it, and its duotone develops into colour. Row sources anchor the layer to the container's top (fit to width).
+     band showed it, and its duotone develops into colour. From a row (no shared photo) the hall lies still under the window.
    - Outgoing content (the band's letter and text, or the row) fades out over p 0-.3; everything incoming (header text,
      back button, meal tabs, station row, list) fades in over .3-1 in its final layout. Nothing travels out of an edge.
    - Halls stays put under a scrim. y: menu scroll; the collapse c = y / (HH - CH) uses the same function. */
@@ -861,7 +861,7 @@ function paint(p,y){
   E.mts.style.opacity=fin*fade; E.mbz.style.opacity=fin*fade; E.mhist.style.opacity=fin*fade;
   E.mctl.style.transform=`translate3d(0,${ty}px,0)`; E.mctl.style.opacity=fin; E.mctl.style.clipPath = open ? `inset(${Math.max(0,WT-ty)}px 0 0 0)` : 'none';
   E.mtabs.style.transform=`translate3d(0,${hy}px,0)`; E.mswitch.style.transform=E.mtabs.style.transform;
-  E.mtabs.style.opacity=E.mswitch.style.opacity=fin;
+  for(const x of [...E.mtabs.children, ...E.mswitch.children]) x.style.opacity=fin;   // the meal and station rows are ground: opaque, their labels fade
   E.mtabs.style.clipPath = open ? `inset(0 0 ${clamp(HH+TABS_H+hy-WB,0,TABS_H)}px 0)` : 'none';
   E.mswitch.style.clipPath = open ? `inset(0 0 ${clamp(HH+TABS_H+SW_H+hy-WB,0,SW_H)}px 0)` : 'none';
   E.mdim.style.opacity = MO.scrim*p;   // Halls (or Search) stays put and dims as one unit
@@ -877,7 +877,7 @@ function measureXF(src){
   E.mghost.innerHTML=''; E.mghost.className='';
   if(!src) return;
   const r=src.getBoundingClientRect(), band=src.classList.contains('band'), T=r.top-fr.top, off=band?Math.round(OFF[S.hall]*HH):0;
-  XF={T, BH:r.height, off, y0:T-off, band};
+  XF={T, BH:r.height, off, y0:band?T-off:0, band};   // a band: the screen hangs from its photo; a row: the hall lies still under the window
   // the outgoing content, drawn inside the container where the source showed it
   // a whole copy of the card, at the card's place: at p 0 the screen is exactly the card, whatever the screen's scroll
   if(band){ E.mghost.className='gband'; for(const s of src.querySelectorAll(':scope > .win, :scope > .lgrad, :scope > .let, :scope > .bt')) E.mghost.appendChild(s.cloneNode(true)); }
@@ -907,6 +907,16 @@ function openHall(h, instant, src, opt={}){
   if(instant){ XP=1; paint(1,0); after(); return; }
   XP=0; runXF(0,1,XD,after);
 }
+// one hall for another (a hall tag on a dish opened inside a hall menu): halls are peers, so they swap in place with the
+// tabs' overlapped fade through. The old screen stays drawn on top and fades out over the new one, which settles from .97.
+// Back from the new hall returns it to its own band.
+function swapHall(h, opt){
+  const old=$('#menu'), y=$('#mscroll').scrollTop, gh=old.cloneNode(true);
+  gh.classList.add('menughost'); gh.setAttribute('aria-hidden','true'); gh.style.pointerEvents='none';
+  old.after(gh); gh.querySelector('#mscroll').scrollTop=y;   // later in the document: getElementById still finds the live screen
+  openHall(h, true, undefined, {...opt, dish:null}); if(opt.dish) toDish(opt.dish, true);
+  A(old,[{transform:`scale(${MO.fadeThrough.scale})`},{transform:'none'}],'fadeThrough');
+  done(A(gh,[{opacity:1},{opacity:0}],'fadeThrough')).then(()=>gh.remove()); }
 function hideHall(){ cancelAnimationFrame(xfRaf); xfOn=false; $('#menu').classList.add('hide'); if(S.hallSrc) S.hallSrc.style.visibility=''; S.hallSrc=null; S.hall=null; XP=1; resetHalls(); }
 function resetHalls(){ $$('.band').forEach(b=>b.style.visibility=''); }
 function closeHall(){
@@ -968,7 +978,7 @@ function openIdx(){
   const cur=curStation(), h=S.hall, meal=S.mmeal, MM=menuOf(S.mday)[h][meal], pre=S.mday?'t.':'';
   $('#isbody').innerHTML = `<div><div class="sh1"><h2 style="font-size:28px">${HN[h]} ${mealWord(meal)}${S.mday?', tomorrow':''}</h2></div><div id="stidx" role="listbox">${$$('#mlist .sth').map(s=>{ const st=MM[s.dataset.st], n=$$(`#mlist .row[data-id^="${pre}${h}.${meal}.${s.dataset.st}."]`).length;
     return `<button role="option" data-jump="${s.dataset.st}" class="${s.dataset.st===cur?'cur':''}" aria-selected="${s.dataset.st===cur}"><span>${esc(st[0])}</span><span class="c">${n}</span></button>`; }).join('')}</div></div>`;
-  $('#isbody').scrollTop=0; isheet.src=null; isheet.to('mid'); $('.swbtn').setAttribute('aria-expanded','true'); buzz(5);
+  $('#isbody').scrollTop=0; isheet.to('mid'); $('.swbtn').setAttribute('aria-expanded','true'); buzz(5);
 }
 function closeIdx(){ if(isheet.state!=='closed' && $('#isbody #stidx')) isheet.to('closed'); }
 function scrollToY(sc, y, then){
@@ -984,8 +994,10 @@ function jump(si){
   buzz(5);
 }
 // a serving opened from "where and when": the hall shows that day and meal, scrolled so the dish sits under the header
-function toDish(id){ const row=$(`#mlist .row[data-id="${id}"]`); if(!row) return; $$('#mlist .row.here').forEach(r=>r.classList.remove('here')); row.classList.add('here');
-  const sc=$('#mscroll'); scrollToY(sc, Math.min(row.offsetTop-PIN()-8, sc.scrollHeight-sc.clientHeight), ()=>updSwitch()); }
+function toDish(id, instant){ const row=$(`#mlist .row[data-id="${id}"]`); if(!row) return; $$('#mlist .row.here').forEach(r=>r.classList.remove('here')); row.classList.add('here');
+  const sc=$('#mscroll'), y=Math.min(row.offsetTop-PIN()-8, sc.scrollHeight-sc.clientHeight);
+  if(instant){ sc.scrollTop=y; paint(1,sc.scrollTop); updSwitch(true); return; }   // a swapped-in hall arrives already at the dish
+  scrollToY(sc, y, ()=>updSwitch()); }
 function placeUL(anim){ const ul=$('#mtabs .ul'), b=$('#mtabs button[aria-selected=true]'); if(!ul||!b) return;
   if(!anim) ul.style.transition='none'; ul.style.transform=`translateX(${b.offsetLeft+8}px) scaleX(${b.offsetWidth-16})`; if(!anim){ void ul.offsetWidth; ul.style.transition=''; } }
 
@@ -1128,43 +1140,50 @@ function renderYou(){
     <section class="sec">${[['favs','Favorites',S.fav.size? S.fav.size+' dishes':'None yet'],['diet','Dietary preferences',dietOn()?dietWords():'Everything'],['rank','Which was better?',rankPool().length+' dishes logged'],['export','Export my data',S.log.length+(S.log.length===1?' meal':' meals')]]
       .map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section><div class="pad-b"></div>`;
 }
-/* pages (café, area, event, You): the same container transform as the hall. The tapped row's rect grows to the full
-   screen; the page's content rides the container's top edge (fit to width) and fades in over .3-1; the row's content
-   fades out over 0-.3; the screen behind stays put under the 32% scrim. Back is the same frames reversed, and the
-   finger can scrub it (swipe from the left edge, or drag down from the top). */
+/* pages (dish, café, area, event, You): the same container transform as the hall. The tapped row's rect grows to the full
+   screen over a page that lies still (contPrep); the screen behind stays put under the 32% scrim. Back is the same frames
+   reversed, and the finger can scrub it (swipe from the left edge, or drag down from the top). */
 const relRect = el => { const f=frame.getBoundingClientRect(), r=el.getBoundingClientRect(); return {x:r.left-f.left, y:r.top-f.top, w:r.width, h:r.height}; };
 const W0 = () => frame.clientWidth;
 function ghostOf(src){ const r=relRect(src), g=src.cloneNode(true); g.removeAttribute('id'); g.classList.add('trav'); g.classList.remove('down'); g.setAttribute('aria-hidden','true');
-  Object.assign(g.style,{left:r.x+'px',top:r.y+'px',width:r.w+'px',height:r.h+'px',visibility:'visible',zIndex:60}); return g; }
+  Object.assign(g.style,{left:r.x+'px',top:r.y+'px',width:r.w+'px',height:r.h+'px',margin:0,visibility:'visible',zIndex:60}); return g; }   // inline margin: a card's own margin (.pcard, .custom) must not offset its copy
 function tween(from, to, dur, step, fin){ const t0=performance.now(); let id;
   const f=t=>{ const k=dur>0?clamp((t-t0)/dur):1; step(from+(to-from)*EMPH(k)); if(k<1) id=requestAnimationFrame(f); else fin&&fin(); };
   f(t0); return ()=>cancelAnimationFrame(id); }
+/* One rule for every page (round 6): only the container's edges and the shared picture move; everything else fades where it is.
+   - The window grows from the source's rect to the screen. The page's grounds (its bar, an event's band, a café's photo
+     slot) are part of the container: opaque in every frame they're drawn; only what sits on them fades (.3-1).
+   - A picture shared by source and page travels: an event banner in its felt frame, or a café thumbnail, moves and resizes
+     on its own over a page that lies still. A pinned café is a band like a hall's: its photo already has the page's width,
+     so the page hangs from it as one layer and the window into that photo grows, as a hall band does.
+   - The source's content leaves as a copy that fades over 0-.3 where it was, or on the picture it was drawn on. */
 function contPrep(el){ const src=el._src; if(RM||!src||!src.isConnected) return false;
-  contDone(el); el._c={r:relRect(src), g:ghostOf(src)}; frame.appendChild(el._c.g); src.style.visibility='hidden';
-  // the shared element moves and resizes from the card to the page: an event's banner in its felt frame (the frame is part of
-  // the object, identical on card and page), or a location photo from a card / thumbnail to the page header
+  contDone(el); el._c={r:relRect(src), g:ghostOf(src), ty0:0}; frame.appendChild(el._c.g); src.style.visibility='hidden';
   const sp=src.querySelector('.evpatch'), dp=el.querySelector('.evpatch'), ev=!!(sp&&dp&&dp.firstChild);
   const si=ev?sp:src.querySelector('.ph-img'), di=ev?dp:el.querySelector('.phero .ph-img');
-  if(si && di){ const a=relRect(si), b=relRect(di), rad=e=>parseFloat(getComputedStyle(ev?e:e.parentElement).borderTopLeftRadius)||0;
-    const sh=di.cloneNode(true); sh.classList.add('trav'); sh.setAttribute('aria-hidden','true');
-    Object.assign(sh.style,{position:'absolute',objectFit:'cover',zIndex:+el.style.zIndex+1}); frame.appendChild(sh);
-    di.style.visibility='hidden';
-    // the ghost keeps only the card's chrome (caption, gradient, text); its copy of the shared element and its ground go,
-    // so nothing of the card washes over the travelling banner / photo
-    const gs=el._c.g.querySelector(ev?'.evpatch':'.ph-img'); (gs.closest('.thumb')||gs).style.visibility='hidden'; el._c.g.style.background='transparent';
-    el._c.sh={el:sh,a,b,rad:rad(si),radB:rad(di),di}; }
-  // an event page lies still under the growing container: its maroon surface (bar + band) is the card's ground, opaque
-  // from the first frame, and covers the rest of the container until it fades to the page's chalk; the bar's controls and
-  // the date fade in where they end up, the buttons are uncovered where they end up. Nothing rides the container's edge.
-  if(ev){ const band=el.querySelector('.evband'), bb=relRect(band);
-    el._c.ev={band, bot:bb.y+bb.h, fade:[...el.querySelectorAll('.pbar > *, .evband .pstat')]}; }
+  const grounds=[...el.querySelectorAll('.pbar, .evband, .phero')];
+  el._c.fade=[...el.querySelectorAll('.pbar > *, .pbody > *, .evband > *, .phero > *')].filter(x=>!grounds.includes(x) && x!==di);   // the shared picture never fades
+  if(si && di){ const a=relRect(si), b=relRect(di), gs=el._c.g.querySelector(ev?'.evpatch':'.ph-img');
+    (gs.closest('.thumb')||gs).style.visibility='hidden'; el._c.g.style.background='transparent';   // nothing of the card washes over the picture
+    if(!ev && Math.abs(a.w-b.w)<1 && si.naturalWidth && di.naturalWidth){   // (an undecoded image travels instead)
+      // a band: the page hangs from its own photo, offset so the photo's pixels sit where the band showed them
+      const crop=(img,r)=>{ const s=Math.max(r.w/img.naturalWidth, r.h/img.naturalHeight), op=getComputedStyle(img).objectPosition.split(' ')[1];
+        return (img.naturalHeight*s-r.h)*(parseFloat(op)/100); };
+      el._c.ty0=(a.y-crop(si,a))-(b.y-crop(di,b)); el._c.band=true; }
+    else { const rad=e=>parseFloat(getComputedStyle(ev?e:e.parentElement).borderTopLeftRadius)||0, slot=ev?di:di.closest('.phero');
+      const sh=di.cloneNode(true); sh.classList.add('trav'); sh.setAttribute('aria-hidden','true');
+      Object.assign(sh.style,{position:'absolute',objectFit:'cover',zIndex:+el.style.zIndex+1}); frame.appendChild(sh);
+      slot.style.visibility='hidden';   // the whole slot: the picture never lands on an empty maroon pad
+      el._c.sh={el:sh,a,b,rad:rad(si),radB:rad(di),di:slot}; } }
+  // an event card's ground is maroon: the page's maroon band stretches over the rest of the container and fades to chalk
+  if(ev){ const band=el.querySelector('.evband'), bb=relRect(band); el._c.ev={band, bot:bb.y+bb.h}; }
   return true; }
 function contPaint(el, p){ const c=el._c, q=1-p, r=c.r, open=q>1e-4, fin=clamp((p-.3)/.7); el._p=p;
   el.style.clipPath = open ? `inset(${r.y*q}px ${(W0()-r.x-r.w)*q}px ${(H-r.y-r.h)*q}px ${r.x*q}px)` : 'none';
-  if(c.ev){ for(const x of c.ev.fade) x.style.opacity = open ? fin : '';
-    c.ev.band.style.setProperty('--ext', open ? Math.max(0,H-(H-r.y-r.h)*q-c.ev.bot)+'px' : '0px'); c.ev.band.style.setProperty('--exto', 1-fin); }
-  else for(const ch of el.children){ ch.style.opacity = open ? fin : ''; ch.style.transform = open ? `translateY(${r.y*q}px)` : ''; }
-  c.g.style.opacity = 1-clamp(p/.3); c.g.style.transform = `translateY(${-r.y*p}px)`;
+  for(const x of c.fade) x.style.opacity = open ? fin : '';
+  if(c.band) for(const ch of el.children) ch.style.transform = open ? `translateY(${c.ty0*q}px)` : '';
+  if(c.ev){ c.ev.band.style.setProperty('--ext', open ? Math.max(0,H-(H-r.y-r.h)*q-c.ev.bot)+'px' : '0px'); c.ev.band.style.setProperty('--exto', 1-fin); }
+  c.g.style.opacity = 1-clamp(p/.3); c.g.style.transform = c.band ? `translateY(${-c.ty0*p}px)` : '';   // a band's text stays on its photo
   if(c.sh){ const {a,b}=c.sh, L=(u,v)=>u+(v-u)*p, x=L(a.x,b.x), y=L(a.y,b.y), w=L(a.w,b.w), h=L(a.h,b.h);
     Object.assign(c.sh.el.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px',borderRadius:(c.sh.rad*q+c.sh.radB*p)+'px'});
     if(c.ev) c.g.style.transform = `translate(${x-a.x}px,${y+h-a.y-a.h}px)`; }   // an event's caption stays under its banner while it fades
@@ -1176,6 +1195,7 @@ function openPage(p, extra, src){
   const [title, body]=pageContent(p, extra);
   el.innerHTML=`<div class="pbar"><button class="icon" data-act="pageback" aria-label="Back">${IC.back}</button><span class="o">${esc(title)}</span>${p==='place'?pinBtn(extra):''}</div><div class="pbody">${body}</div><div class="pad-b"></div>`;
   const dim=document.createElement('div'); dim.className='pdim';
+  $('#q').blur();   // a page covers the search field: the keyboard never stays up over it
   frame.insertBefore(dim, $('#pscrim')); frame.insertBefore(el, $('#pscrim')); dim.style.zIndex=29+2*pages.length; el.style.zIndex=30+2*pages.length; pages.push(el);
   el._src=src; el._dim=dim;
   if(p==='cafes' && extra!=null && extra!==''){ const t=el.querySelector(`[data-area="${extra}"]`); if(t) el.scrollTop=Math.max(0,t.offsetTop-ST-52); }
@@ -1185,10 +1205,11 @@ function openPage(p, extra, src){
 }
 function rerenderPage(){ const el=pages.at(-1); if(!el) return; const y=el.scrollTop; const [t,b]=pageContent(el.dataset.p, el.dataset.x); el.querySelector('.pbar .o').textContent=t; const pb=el.querySelector('.pbody'); pb.innerHTML=b; el.scrollTop=y; A(pb,[{opacity:.4},{opacity:1}],'settle'); }
 function closeAllPages(){ pages.forEach(e=>{ e._anim&&e._anim(); contDone(e); e._dim&&e._dim.remove(); e._src&&(e._src.style.visibility=''); e.remove(); }); pages=[]; }
-function pageGone(el){ contDone(el); el._dim.remove(); el.remove(); if(el._src) el._src.style.visibility=''; if(S.tab==='you'&&!pages.length) renderYou(); }
-function closePage(from){ const el=pages.pop(); if(!el) return; el.removeAttribute('data-p'); el.style.pointerEvents='none'; el._anim&&el._anim();
-  if(from==null && !contPrep(el)){ done(A(el,[{opacity:1},{opacity:0}],'settle')).then(()=>pageGone(el)); return; }
-  const p0=from??1; tween(p0,0,MO.contBack.d*p0,x=>contPaint(el,x),()=>pageGone(el)); }
+function pageGone(el, then){ contDone(el); el._dim.remove(); el.remove(); if(el._src) el._src.style.visibility=''; if(S.tab==='you'&&!pages.length) renderYou(); then&&then(); }
+// then: what follows once the page is back in its row (the row's + becoming its stepper, the row growing into a hall)
+function closePage(from, then){ const el=pages.pop(); if(!el) return; el.removeAttribute('data-p'); el.style.pointerEvents='none'; el._anim&&el._anim();
+  if(from==null && !contPrep(el)){ done(A(el,[{opacity:1},{opacity:0}],'settle')).then(()=>pageGone(el,then)); return; }
+  const p0=from??1; tween(p0,0,MO.contBack.d*p0,x=>contPaint(el,x),()=>pageGone(el,then)); }
 // interactive back for the top page: left-edge swipe, or drag down while it's scrolled to the top
 (()=>{ let g=null;
   document.addEventListener('touchstart',e=>{ g=null; const el=pages.at(-1); if(!el||RM||el._anim||!el.contains(e.target)||!el._src||!el._src.isConnected||activeSheet) return;
@@ -1221,6 +1242,17 @@ function pageContent(p, x){
       <p class="kv" style="margin:4px 0">${esc(v[2])}</p><p class="kv" style="margin:4px 0 12px">${esc(v[5])}</p><p style="line-height:1.5;margin:0">${esc(v[6])}</p>
       <h3 class="h3">Menu</h3>${v[7].length? v[7].map(n=>`<div class="lrow"><div class="a" style="font-weight:500">${esc(n)}</div><button class="add" data-act="custom" data-name="${esc(n)}" aria-label="Add ${esc(n)}">${IC.plus}</button></div>`).join('')
         : `<p class="kv">${esc(v[0])} doesn't list its menu in the app.</p><button class="btn" data-act="custom" data-name="">Add a custom food</button>`}`]; }
+  if(p==='dish'){ const d=DISH[x], N=nutObj(d.nut);
+    return ['', `<div class="dish"><div class="sh1"><h2 style="font-size:28px">${esc(d.n)}</h2></div>
+    <p class="kv" style="margin:0">${esc(d.srv)}</p>
+    ${marksHTML(d)?`<div class="mks">${marksHTML(d)}</div>`:''}
+    ${d.alg?`<div class="alg"><b>Contains</b>${esc(d.alg)}</div>`:''}
+    ${d.day?'':`<div class="stack" style="margin-top:16px"><button class="btn" data-act="dadd" data-id="${d.id}">Add to plate</button></div>`}
+    ${whereHTML(d.k)}
+  ${labelHTML(N, d.cal, d.srv)}
+    ${gradesHTML(d.hf, d.cr)}
+    ${d.ing?`<h3 class="h3" style="font-size:20px">Ingredients</h3><div class="ing" id="ing"><p>${esc(d.ing)}</p></div>${d.ing.length>180?`<button class="tbtn" data-act="ing" aria-expanded="false" style="padding:0">Show all</button>`:''}`:''}
+    <div class="stack"><button class="btn line" data-act="fav" data-k="${esc(d.k)}">${S.fav.has(d.k)?'★ Favorited':'☆ Add to favorites'}</button></div></div>`]; }
   if(p==='event'){ const e=P.events[x];
     return [e[0], `<div class="evband">${e[3]?`<span class="evpatch"><img class="ph-img" alt="" src="${EVIMG[e[3]]}"></span>`:''}${evWhen(e)?`<p class="pstat"><b>${evWhen(e)}</b></p>`:''}</div>
       <div class="stack">${e[2].map(([l,u],k)=>`<a class="btn${k?' line':''}" style="text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>`]; }
@@ -1255,45 +1287,18 @@ function spring(from,to,v0,set,done,k=SPRING.sheet.k,z=SPRING.sheet.z){
 }
 const rubber=(x,d)=>(1-1/(x*.55/d+1))*d;
 function Sheet(el, body, detentsFn, scrim){
-  const sh={el,y:H*1.1,stop:()=>{},state:'closed',onClose:null,src:null};
+  const sh={el,y:H*1.1,stop:()=>{},state:'closed',onClose:null};
   const D=()=>({closed:H, ...detentsFn()});
   sh.set=y=>{ sh.y=y; el.style.transform=`translate3d(0,${y}px,0)`; const d=D(); scrim.style.opacity=clamp((d.closed-y)/Math.max(1,d.closed-d.mid))*.5; };
-  const closed=()=>{ el.style.visibility='hidden'; if(activeSheet===sh) activeSheet=null; if(sh.src){ sh.src.style.visibility=''; sh.src=null; } sh.onClose&&sh.onClose(); };
+  const closed=()=>{ el.style.visibility='hidden'; if(activeSheet===sh) activeSheet=null; sh.onClose&&sh.onClose(); };
   sh.to=(name,v=0)=>{ sh.stop(); el.getAnimations().forEach(a=>a.cancel()); const d=D(); const target=typeof name==='number'?name:d[name]; sh.state=name;
     scrim.style.pointerEvents = name==='closed'?'none':'auto';
     if(name!=='closed') { el.style.visibility='visible'; activeSheet=sh; }
     sh.stop=spring(sh.y,target,v,sh.set,()=>{ if(name==='closed') closed(); });
     if(name!=='closed') buzz(4); };
-  // container transform (dish detail): the sheet starts as the row's rect; its top edge rises to the detent, its bottom drops to the
-  // screen edge, the corners round. The row's content fades out over 0-.3, the detail's fades in over .3-1, already laid out.
-  sh.grow=(src,name)=>{ sh.stop(); const d=D(), target=d[name];
-    if(RM||!src||!src.isConnected){ if(sh.state==='closed') sh.set(d.closed); sh.to(name); return; }
-    const r=relRect(src); sh.src=src; sh.state=name; activeSheet=sh; el.style.visibility='visible'; scrim.style.pointerEvents='auto';
-    sh.set(target); const so=scrim.style.opacity, o={duration:MO.cont.d,easing:MO.cont.e};
-    const g=ghostOf(src); g.style.zIndex=getComputedStyle(el).zIndex*1+1; frame.appendChild(g); src.style.visibility='hidden';
-    el.animate([{transform:`translate3d(0,${r.y}px,0)`,clipPath:`inset(0px ${W0()-r.x-r.w}px ${H-r.h}px ${r.x}px round 0px)`},{transform:`translate3d(0,${target}px,0)`,clipPath:'inset(0px 0px 0px 0px round 16px 16px 0px 0px)'}],o);
-    body.animate([{opacity:0},{opacity:0,offset:.3},{opacity:1}],o);
-    scrim.animate([{opacity:0},{opacity:so}],o);
-    g.animate([{opacity:1},{opacity:0,offset:.3},{opacity:0}],o).finished.catch(()=>{}).then(()=>g.remove());
-    buzz(4); };
-  // the reverse (same frames, return duration): back into the row it came from (or down, if that row is gone)
-  sh.shrink=then=>{ const src=sh.src; then=then||(()=>{});
-    if(sh.state==='closed'){ then(); return; }
-    if(RM||!src||!src.isConnected){ sh.to('closed'); then(); return; }
-    sh.stop(); const r=relRect(src), y=sh.y; sh.state='closed'; scrim.style.pointerEvents='none';
-    const o={duration:MO.contBack.d,easing:MO.contBack.e,fill:'forwards'}, so=+scrim.style.opacity;
-    const g=ghostOf(src); g.style.zIndex=getComputedStyle(el).zIndex*1+1; frame.appendChild(g);
-    const a=el.animate([{transform:`translate3d(0,${y}px,0)`,clipPath:'inset(0px 0px 0px 0px round 16px 16px 0px 0px)'},{transform:`translate3d(0,${r.y}px,0)`,clipPath:`inset(0px ${W0()-r.x-r.w}px ${H-r.h}px ${r.x}px round 0px)`}],o);
-    body.animate([{opacity:1},{opacity:0,offset:.7},{opacity:0}],o);
-    scrim.animate([{opacity:so},{opacity:0}],o);
-    g.animate([{opacity:0},{opacity:0,offset:.7},{opacity:1}],o);
-    setTimeout(then, MO.contBack.d*.6);   // what follows (the plate updating, a hall opening) starts as the sheet lands on its row
-    done(a).then(()=>{ g.remove(); sh.y=H*1.1; el.style.transform=`translate3d(0,${sh.y}px,0)`; scrim.style.opacity=0;
-      [el,body,scrim].forEach(x=>x.getAnimations().forEach(z=>z.cancel())); closed(); }); };
   sh.release=(vy)=>{ const d=D(); const proj=sh.y+vy*.18; let best='closed',bd=1e9;
     for(const k of ['top','mid','closed']){ const dd=Math.abs(d[k]-proj); if(dd<bd){bd=dd;best=k;} }
     if(best==='mid' && d.mid<=d.top+4) best = proj>d.top+80?'closed':'top';
-    if(best==='closed' && sh.src && sh.src.isConnected){ sh.shrink(); return; }   // dragged away: it returns to its row
     sh.to(best, vy); };
   sh.drag=y=>{ const d=D(); sh.set(y<d.top ? d.top-rubber(d.top-y,H) : Math.min(y,d.closed)); };
   el.style.visibility='hidden';
@@ -1329,7 +1334,7 @@ function plateOpen(){   // the bar becomes the sheet's top edge, pixel for pixel
 }
 psheet.onClose=()=>{ const bar=$('#bar'); if(bar.classList.contains('insheet')){ bar.classList.remove('insheet'); frame.insertBefore(bar,$('.tbar')); } renderBar(); };
 $('#pscrim').addEventListener('click',()=>psheet.to('closed'));
-$('#scrim').addEventListener('click',()=>isheet.shrink());
+$('#scrim').addEventListener('click',()=>isheet.to('closed'));
 isheet.onClose=()=>{ const b=$('.swbtn'); if(b) b.setAttribute('aria-expanded','false'); };
 
 function renderPSheet(){
@@ -1344,20 +1349,9 @@ function renderPSheet(){
     <button class="custom" data-act="more">${IC.plus.replace('<svg','<svg width="20" height="20" stroke="currentColor" stroke-width="2.4" fill="none"')}Add something else</button>
     <div class="twob"><button class="tbtn" data-act="fulllabel">Full label</button><button class="tbtn" data-act="clear">Clear plate</button></div></div>`;
 }
-function openDish(d, src){
-  const N=nutObj(d.nut);
-  $('#isbody').innerHTML = `<div class="dish"><div class="sh1"><h2 style="font-size:28px">${esc(d.n)}</h2></div>
-    <p class="kv" style="margin:0">${esc(d.srv)}</p>
-    ${marksHTML(d)?`<div class="mks">${marksHTML(d)}</div>`:''}
-    ${d.alg?`<div class="alg"><b>Contains</b>${esc(d.alg)}</div>`:''}
-    ${d.day?'':`<div class="stack" style="margin-top:16px"><button class="btn" data-act="dadd" data-id="${d.id}">Add to plate</button></div>`}
-    ${whereHTML(d.k)}
-  ${labelHTML(N, d.cal, d.srv)}
-    ${gradesHTML(d.hf, d.cr)}
-    ${d.ing?`<h3 class="h3" style="font-size:20px">Ingredients</h3><div class="ing" id="ing"><p>${esc(d.ing)}</p></div>${d.ing.length>180?`<button class="tbtn" data-act="ing" aria-expanded="false" style="padding:0">Show all</button>`:''}`:''}
-    <div class="stack"><button class="btn line" data-act="fav" data-k="${esc(d.k)}">${S.fav.has(d.k)?'★ Favorited':'☆ Add to favorites'}</button></div></div>`;
-  $('#isbody').scrollTop=0; isheet.grow(src,'mid');
-}
+// a dish row opens its page like any other row (round 6: it was a bottom sheet, which can't grow out of a row that sits
+// above the sheet's top without unrolling downward, and whose drag-down flew up into a Search row)
+function openDish(d, src){ openPage('dish', d.id, src); }
 function openPlateLabel(src){
   const pl=S.plates[S.front]; if(!pl) return; const hall=(plateHalls(pl)||[])[0], sum=Object.fromEntries(NK.map(k=>[k,k.endsWith('Dv')?null:0]));
   let cal=0; for(const it of pl.items){ const m=macroOf(it,hall); cal+=m.cal*it.qty;
@@ -1365,7 +1359,7 @@ function openPlateLabel(src){
     const N=nutObj(m.nut); for(const k of NK) if(!k.endsWith('Dv') && N[k]!=null) sum[k]+=N[k]*it.qty; }
   $('#isbody').innerHTML=`<div class="dish"><div class="sh1"><h2 style="font-size:28px">Your plate</h2><span>${esc(plateLabel(pl))}</span></div>
     <p class="kv" style="margin:0">${pl.items.map(it=>`${it.qty!==1?fq(it.qty)+' × ':''}${esc(it.n)}`).join(', ')}</p>${labelHTML(sum, cal, '')}</div>`;
-  $('#isbody').scrollTop=0; isheet.grow(src,'top');
+  $('#isbody').scrollTop=0; isheet.to('top');
 }
 function openCustom(name, src){
   $('#isbody').innerHTML = `<div><div class="sh1"><h2 style="font-size:28px">Custom food</h2></div>
@@ -1374,14 +1368,13 @@ function openCustom(name, src){
     <div><label for="ccb">Carbs (g)</label><input id="ccb" inputmode="decimal"></div><div><label for="cf">Fat (g)</label><input id="cf" inputmode="decimal"></div></div>
     <button class="btn" style="margin-top:18px">Add to plate</button></form></div>`;
   $(name?'#cc':'#cn').focus({preventScroll:true}); // synchronous, or iOS won't raise the keyboard
-  isheet.grow(src,'top');
+  isheet.to('top');
 }
 document.addEventListener('submit',e=>{ if(e.target.id!=='cform') return; e.preventDefault();
   const num=s=>+($(s).value.replace(',','.'))||0; const n=$('#cn').value.trim(); if(!n) return;
   const cal=num('#cc'); document.activeElement.blur();
-  // the form shrinks back into the button it came from; the plate bar updates in place
-  isheet.shrink(()=>{
-    addDish(S.smeal||'lunch','custom:'+norm(n)+':'+Date.now(),{},n,{cal,p:num('#cp'),c:num('#ccb'),f:num('#cf')}); }); });
+  // the form goes back down; the plate bar updates in place
+  isheet.to('closed'); addDish(S.smeal||'lunch','custom:'+norm(n)+':'+Date.now(),{},n,{cal,p:num('#cp'),c:num('#ccb'),f:num('#cf')}); });
 
 /* ---------- plate bar ---------- */
 let barMode='plate', barT;
@@ -1509,10 +1502,11 @@ document.addEventListener('click',e=>{
   else if(act==='back') closeHall();
   else if(act==='closeidx') closeIdx();
   else if(act==='stations') (isheet.state!=='closed' && $('#isbody #stidx') ? closeIdx() : openIdx());
-  else if(act==='srv'){ const d=DISH[a.dataset.id], src=isheet.src;
+  else if(act==='srv'){ const d=DISH[a.dataset.id], src=pages.at(-1)?._src;
     // the detail returns to its row, then that same row grows into the hall at that day and meal (a hall-menu row can't host it: the band does)
     const from = src && src.isConnected && !src.closest('#menu') ? src : undefined;
-    isheet.shrink(()=>openHall(d.h, false, from, {day:d.day, meal:d.meal, dish:d.id})); }
+    const o={day:d.day, meal:d.meal, dish:d.id};
+    closePage(null, ()=> !from && S.hall ? swapHall(d.h, o) : openHall(d.h, false, from, o)); }
   else if(act==='pin'){ const n=a.dataset.name, on=S.pins.includes(n); S.pins = on ? S.pins.filter(x=>x!==n) : [...S.pins, n]; save(); renderPins();
     a.setAttribute('aria-pressed',!on); a.setAttribute('aria-label',on?'Pin to Halls':'Unpin from Halls'); buzz(on?4:8); }
   else if(act==='fulllabel') openPlateLabel(a);
@@ -1532,14 +1526,14 @@ document.addEventListener('click',e=>{
   else if(act==='more'){ psheet.to('closed'); goSearch(null, S.plates[S.front]?.meal||'lunch'); }
   else if(act==='clear'){ S.plates.splice(S.front,1); S.front=0; psheet.to('closed'); refresh(); }
   else if(act==='dietoff'){ S.diet={veg:false,plant:false,halal:false}; save(); renderMenuList(); A($('#mlist'),[{opacity:.4},{opacity:1}],'settle'); }
-  else if(act==='dadd'){ const d=DISH[a.dataset.id], g=BYK[d.meal][d.k], src=isheet.src;
+  else if(act==='dadd'){ const d=DISH[a.dataset.id], g=BYK[d.meal][d.k], src=pages.at(-1)?._src;
     // the detail shrinks back into its row; the row's + becomes its stepper and the bar updates in place
-    isheet.shrink(()=>addDish(d.meal,d.k, src&&src.dataset.k?g.refs:{[d.h]:d}, d.n)); }
+    closePage(null, ()=>addDish(d.meal,d.k, src&&src.dataset.k?g.refs:{[d.h]:d}, d.n)); }
   else if(act==='fav'){ const k=a.dataset.k; S.fav.has(k)?S.fav.delete(k):S.fav.add(k); save(); a.textContent=S.fav.has(k)?'★ Favorited':'☆ Add to favorites'; buzz(6);
-    const sid=isheet.src&&(isheet.src.dataset.id||isheet.src.dataset.k);
+    const pg=pages.at(-1), sid=pg&&pg._src&&(pg._src.dataset.id||pg._src.dataset.k);
     if(S.tab==='halls'&&S.hall){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } else if(S.tab==='search') renderSearch();
-    // the list re-rendered under the sheet: the sheet now belongs to the new row (hidden, as its source was)
-    const nr=sid&&$$('.row').find(r=>(r.dataset.id||r.dataset.k)===sid); if(nr){ nr.style.visibility='hidden'; isheet.src=nr; } }
+    // the list re-rendered under the page: the page now belongs to the new row (hidden, as its source was)
+    const nr=sid&&$$('.row').find(r=>(r.dataset.id||r.dataset.k)===sid); if(nr){ nr.style.visibility='hidden'; pg._src=nr; } }
   else if(act==='exp') exportData(a.dataset.fmt);
 });
 function selectQ(){ const q=$('#q'); q.focus({preventScroll:true}); q.select(); try{ q.setSelectionRange(0,q.value.length); }catch(e){} }

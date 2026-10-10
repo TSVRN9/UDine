@@ -80,3 +80,26 @@ The **30% / 70% fade split** is the coordinator's specification. MDC's own defau
 - the carousel's double end gutter.
 
 Motion is unchanged: chips and lines arrive with the detail (container transform), and nothing new moves.
+
+## Motion vocabulary (round 6; supersedes the table above where they differ)
+
+The audit is in `AUDIT-transitions.md`. Which convention applies depends on what the student touched.
+
+| Object touched | Convention | Where |
+|---|---|---|
+| A card or row that names an object | **Container transform into a full-screen page**. Back, drag down and edge swipe play it in reverse. | Hall band, Search hall row, pinned café, café row, area row, event card, event note, You row, **dish row (Search, later, hall menu)** |
+| A control that asks for something | **Bottom sheet** from the bottom edge. The control stays put under the scrim. | Plate bar (the sheet's handle), station switcher, Full label, Add custom food |
+| Peers | **Fade through** (tabs, overlapped), **shared axis X** (meals) | Halls / Search / You, the meal tabs, and one hall for another (a hall tag on a dish opened inside a hall) |
+| A value | **In place** | `+`/stepper, Log/Undo, chips, search results, ingredients, collapse |
+
+**Inside every container transform:**
+- **Only two things move:** the window's edges, from the source's rect to the screen, and a picture that both ends share.
+- **A shared picture travels in one of two ways.**
+  - If it changes scale (an event banner in its frame, a café thumbnail), it moves on its own over a page that lies still.
+  - If it's a full-width band (hall band, pinned café), it already has the page photo's width. The window into it grows, and the screen hangs from it.
+- **What's drawn on the picture goes with it:** the band's name and letter, the pin's text, the event's caption.
+- **Everything else fades where it is.** The source's content fades out over 0–.3; the page's content fades in over .3–1, at its final place.
+- **Grounds are opaque.** Bars, the event band, the photo slot and the meal and station rows are opaque in every frame they're drawn; only what sits on them fades. A travelling picture never lands on an empty slot.
+- **Unchanged:** tokens (`cont` 500 / `contBack` 400, emphasized) and the 32% scrim. Reduced motion is a 120 ms crossfade.
+
+A dish's detail is therefore a page, not a sheet. A bottom sheet can't grow out of a row that sits above the sheet's top: in Search it unrolled downward, and a drag down sent it up into the row.

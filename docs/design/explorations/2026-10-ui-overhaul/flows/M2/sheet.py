@@ -70,6 +70,6 @@ if __name__ == '__main__':
         name = sys.argv[2]
         step = float(sys.argv[3]) if len(sys.argv) > 3 else 33.3
         crop = [int(x) for x in sys.argv[4].split(',')] if len(sys.argv) > 4 else None
-        vs = [v for v in ('M1', 'M2r1', 'M2r2', 'M2r3', 'M2r4', 'M2r5', 'M2') if os.path.exists(os.path.join(D, 'build', 'rec', v, name, 'times.json'))]
-        lab = {'M2r1': 'M2 r1', 'M2r2': 'M2 r2', 'M2r3': 'M2 r3', 'M2r4': 'M2 r4', 'M2r5': 'M2 r5 (before 5b)', 'M2': 'M2 now'}
+        vs = [v for v in ('M1', 'M2r1', 'M2r2', 'M2r3', 'M2r4', 'M2r5', 'M2r5b', 'M2') if os.path.exists(os.path.join(D, 'build', 'rec', v, name, 'times.json'))]
+        lab = {'M2r1': 'M2 r1', 'M2r2': 'M2 r2', 'M2r3': 'M2 r3', 'M2r4': 'M2 r4', 'M2r5': 'M2 r5 (before 5b)', 'M2r5b': 'M2 r5b (before r6)', 'M2': 'M2 now'}
         stack([row(pick(v, name, step, crop), lab.get(v, v)) for v in vs]).save(os.path.join(D, f'compare-{name}.png'))

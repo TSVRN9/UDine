@@ -252,8 +252,10 @@ Under reduced motion, every movement becomes a 120 ms crossfade (the hall and pa
 | Halls ⇄ Search ⇄ You | **fade through**: out by 35%, in from 35% scaling .92 → 1; a hall screen fades with the tab that owns it | fadeThrough | light (4) |
 | Meal tab | **shared axis X**: both lists slide 30 px in the tab's direction with the fade through; the underline moves | sharedX / settle | light (4) |
 | Station row → list | **bottom sheet** rises; a pick closes it and scrolls there | spring / scroll | light (5) |
-| Dish row → detail | **container transform** into the sheet (the corners round); scrim tap or drag down returns it to the row | cont / contBack | tick |
-| Café, area, event, You row, pinned café → page | **container transform**; back, edge swipe or drag down returns it to the row | cont / contBack | light (3) |
+| Dish row → detail | round 6: **container transform** into a full-screen page, like every row → page; back, edge swipe or drag down returns it to the row | cont / contBack | tick |
+| Full label, Add custom food | round 6: **bottom sheet** from the bottom edge (a control, not an object: nothing grows out of the button) | spring | tick on detent |
+| Hall tag on a dish opened inside a hall | round 6: the page returns to its row, then the two halls swap in place by the tabs' **overlapped fade through**; the new hall arrives at the dish | contBack / fadeThrough | light (6) |
+| Café, area, event, You row, pinned café → page | **container transform** (round 6: only the window's edges and a shared picture move; grounds opaque; content fades in place; CONCEPT "Motion vocabulary"); back, edge swipe or drag down returns it to the row | cont / contBack | light (3) |
 | Plate bar → plate sheet | **bottom sheet** whose handle is the bar (Music's mini-player → player) | spring | tick on detent |
 | `+`, stepper `+` / `−` | in place: `+` widens into the stepper; the bar's numbers change | settle / exit | light (8), rigid (14) on remove |
 | Plate bar, first add | rises from behind the tab bar | cont | – |
@@ -589,3 +591,104 @@ Card and page use the same `.evpatch` (3 px felt edge, stitch inset 4 px, radius
 - Place and pin opens still have the old content model: content rides the container's edge while the photo lerps separately, and the chalk shows below the photo early. That is the same class of problem as events, but the owner didn't flag it, so I left it alone.
 - The event page can also be opened from the chalk note row inside a hall menu. That source has no banner, so it uses the generic model: the now-maroon bar fades as a whole while riding the container's edge. It's the translucent-bar symptom through a second door.
 - The test also runs `?events=1` (one card, 370 px wide against the page's 350 px patch, flush with the right edge).
+
+## Round 6: transition audit
+
+Owner: "Opening nutrition information from the search doesn't make sense in its transition, I'd like you to audit the rest of the transitions in M2."
+
+All 23 transitions, with their reverses, were recorded before and after the changes, and each one has a verdict in `AUDIT-transitions.md`. The rules that came out of it are in `CONCEPT.md`, under "Motion vocabulary (round 6)".
+
+### Why Search → nutrition didn't make sense
+The dish detail was a bottom sheet that opened by container transform from its row.
+- **The two models disagree for Search rows.** A Search row sits at y≈175, above the sheet's top at 118. So the "rising" sheet unrolled *downward* from under the lens chips, like a dropdown.
+- **The grab handle sat on the row from frame 1.**
+- **A drag-down dismiss flew *up* into the row.** Dragging the detail down and releasing sent it back up past the finger (`searchdetaildrag`, r5b row).
+- **The keyboard stayed up.** The search field kept focus, so on a phone the keyboard would stay over the label.
+- **Hall menu rows hid the problem.** They sit low, so there the sheet happened to rise.
+
+### What changed
+- **Dish detail is a page** (`pageContent('dish')`). It opens like every other row → page, from Search, "Later today" and hall menu rows alike.
+  - Back, drag down and edge swipe return it to its row.
+  - Add to plate and the hall tags close the page into its row, then make their change (`closePage(from, then)`).
+  - Opening any page blurs the search field.
+  - **Layout change:** no mid detent, no grab handle, no rounded top. The page has the page bar (Back only), and the dish name stays as its large title.
+- **Full label and Add custom food are plain bottom sheets.**
+  - Neither source is an object: one is a text button, the other a form button.
+  - Submitting the custom food form closes the sheet, and the bar updates.
+  - `Sheet.grow` / `shrink` and the sheet's `src` are gone.
+- **One page container transform** (`contPrep` / `contPaint`) replaces the event-only special case.
+  - Only the window's edges and a shared picture move. Grounds (`.pbar`, `.evband`, `.phero`) are opaque; everything on them, and the page body, fades in .3–1 where it ends up.
+  - Thumbnails travel over a still page, and their whole slot is hidden until they land.
+  - A pinned café uses the hall-band model. The page hangs from its own photo, offset by the two crops so the pixels line up, and the band's text stays on that photo while it fades.
+  - The source's copy fades where it was, unless it's drawn on the shared picture. Event cards keep the 5b ground stretch.
+- **A hall tag on a dish opened inside a hall menu swaps the halls in place** (`swapHall`). The page returns to its row, then the old hall fades out over the new one with the tabs' overlapped fade through, and the new hall arrives already at the dish. Before, the menu vanished in one frame, the Halls rack showed, and the other hall grew out of its band.
+- **`ghostOf` sets `margin:0` inline.** `.pcard` (1 px) and `.custom` (20 / 8 px) had offset their copies.
+- **Hall from a Search row** (`measureXF`): the hall lies still under the growing window (`y0 = 0`), where before it rode the window's edge.
+- **Meal-tab and station rows are opaque ground** in every hall open; only their labels fade (`paint`).
+- **Layout change:** `.phero` sits flush under the bar (`margin-top:-8px`). The 8 px chalk line slid through the photo during the open.
+
+### Tests (`test.js`, "Round 6")
+**What is sampled.** Every rAF frame of open and back, on eight sources:
+- dish from Search;
+- dish from a hall menu;
+- later dish;
+- pinned café;
+- place from Search;
+- event note;
+- area row;
+- You row.
+
+Drag down and edge swipe are also sampled on the Search dish.
+
+**What is asserted:**
+- it opens a page that fills the screen;
+- every window edge stays between the source and the screen, and moves one way only (a drag down can never send it up);
+- the page bar is opaque whenever it's drawn;
+- content fades in at its final y (for the pinned café: at a fixed offset from its photo);
+- a travelling picture never lands on an empty slot;
+- the outgoing copy starts exactly on its source;
+- nothing is left travelling at rest;
+- the source is back.
+
+Also asserted:
+- The pinned café and the Search place are also dragged down and edge-swiped.
+- The shared picture is sampled:
+  - the thumbnail's travelling copy moves one way and keeps its aspect;
+  - the pin's photo is the page's own (nothing travels), it moves one way, and frame 1 draws its pixels exactly where the band drew them.
+- A hall opened from a Search row keeps its meal tabs and list still while they fade in.
+- A hall tag on a dish opened inside a hall never uncovers the Halls rack.
+
+**Red before the fix** (each scenario isolated in a try/catch run, `src.html` at round 5b):
+- `dish from Search: opens a page (not a sheet)`, the same for the hall-menu and later dishes. With that check skipped, the sheet drag fails `dish from Search (sheet), drag down: window y 174.8 stays between 118.2 and 171.0 (frame 6)`, which is the fly-up.
+- `pinned café: the outgoing copy starts exactly on its source (0.0,590.6,… vs 0.0,589.6,…)`.
+- `place from Search` / `event note in a hall` / `area row` / `You row`, open: `the page bar is opaque whenever it is drawn (frame 2: 0)`.
+- `hall from a row: the meal tabs fade in where they end up (frame 6: 450.4 vs 306.0)`.
+- `hall to hall: the Halls rack never shows through (frame 29)`.
+- The shared-picture checks are guards. Round 5b fails those scenarios on the earlier checks above, and its pin used a travelling copy, so they couldn't be isolated.
+
+**Now:**
+- `node test.js` gives 38635 checks (11230 before).
+- `RM=1 node test.js` gives 173 checks. Reduced motion keeps the 120 ms crossfade, and the samplers run only with motion on.
+
+### Files
+- **New `rec.js` interactions:**
+  - `searchdetail`, `searchdetailclose`, `searchdetaildrag`, `laterdetail`, `detailclose`;
+  - `evnote`, `evnoteclose`, `pinclose`, `placeclose`, `areaopen`, `areaclose`, `youopen`;
+  - `platelabel`, `custom`, `sheetclose`, `stationclose`, `hallresultclose`, `servinghall`.
+- **Tooling:**
+  - `strips.sh` knows the new interactions.
+  - `sheet.py compare` adds an "M2 r5b (before r6)" row from `build/rec/M2r5b/`. Those are re-recordings of the round-5b build; `ingredients`, `qty`, `remove`, `add2`, `busy`, `events` and `dragcancel` there are older.
+- **Regenerated `compare-*.png`:**
+  - Dish detail: searchdetail, searchdetailclose, searchdetaildrag, laterdetail, detail, detailclose, detailadd, serving, servinghall, ingredients.
+  - Pages: evnote, evnoteclose, pinopen, pinclose, placeopen, placeclose, cafe, areaopen, areaclose, youopen.
+  - Halls: hallresult, hallresultclose, open, close, dragback, edgeswipe, edgecollapsed, closecollapsed.
+  - Sheets: custom, platelabel.
+  - Events: eventopen, eventclose, eventdrag, eventpeek, eventpeekclose.
+- **`AUDIT-transitions.md`:** the inventory, conventions, frame evidence and verdicts.
+
+### Open
+- **Drag-down on a page from a Search row.** The page scrubs toward its row, so the window's bottom rises while the finger goes down, as on event pages since 5b. iOS's zoom dismiss also lets the card follow the finger.
+- **Tabs.** The overlapped fade (owner, round 3) double-exposes the two headers for about 100 ms. Dropping the 0.97 scale would register them.
+- **Serving.** The hall opens at its top, then scrolls to the dish: two motions.
+- **Dish page bar.** It has Back only, and the dish name is the page's large title.
+- **Pinned-café offset.** It reads the images' natural sizes. If an image isn't decoded yet (other engines), the open falls back to the travelling-picture model rather than breaking.
