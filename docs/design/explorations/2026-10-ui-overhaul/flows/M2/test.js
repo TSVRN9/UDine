@@ -1,7 +1,9 @@
 // Benchmark driver: Worcester lunch, Beef Brisket Noodle Bowl x1 + Golden BBQ Chicken Thigh x2 -> Log.
 // Real touch input through CDP (Chromium's touch pipeline, touch-action arbitration), not synthetic events.
 const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
-const assert = require('assert');
+// every assert call is counted, so the report can say how many checks ran
+let NCHK = 0; const assert0 = require('assert');
+const assert = new Proxy(assert0, { apply: (t, th, a) => { NCHK++; return t(...a); }, get: (t, k) => typeof t[k] === 'function' ? (...a) => { NCHK++; return t[k](...a); } : t[k] });
 const URL = 'file://' + __dirname + '/index.html';
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome', args: ['--disable-features=OverscrollHistoryNavigation'] });   // a left-edge swipe must not navigate the test page back
@@ -35,6 +37,45 @@ const URL = 'file://' + __dirname + '/index.html';
   const mRow = n => page.locator('#mlist .row', { has: page.locator('.n', { hasText: new RegExp('^' + n) }) });
   const visible = async loc => { const b = await loc.boundingBox(); const bar = await page.locator('#bar').boundingBox(); return b && b.y > 120 && b.y + b.height < Math.min(bar.y, 844 - 90); };
   const results = [];
+
+  // Round 5: the rack has one seam colour. Every seam between the Halls header, the hall bands and the pinned cafés is
+  // deep maroon (the stack's own container), never the chalk of #halls behind it. Checked at three widths, at rest, after a
+  // hall opens and closes, after a pin opens and closes, and after a tab round trip. Plus: the event row's end gutter
+  // equals its start gutter.
+  for (const w of [360, 390, 430]) {
+    const c2 = await browser.newContext({ viewport: { width: w, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3, reducedMotion: process.env.RM ? 'reduce' : 'no-preference' });
+    const p2 = await c2.newPage(); await p2.goto(URL + '?pins=2'); await p2.waitForTimeout(400);
+    const seams = async when => {
+      // a pixel check, not a hit test: Blink's hit testing and its painted seams disagree by a fraction of a pixel
+      const sm = await p2.evaluate(() => { const els = [...document.querySelectorAll('#halls .hhead, #halls .band, #halls .pcard')], out = [];
+        for (let i = 1; i < els.length; i++) { const a = els[i - 1].getBoundingClientRect(), b = els[i].getBoundingClientRect(); out.push([els[i - 1].className + '/' + els[i].className, a.bottom, b.top]); } return out; });
+      const buf = await p2.screenshot();
+      const bad = JSON.parse(require('child_process').execSync(`python3 -c "
+import sys,io,json
+from PIL import Image
+im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); W,H=im.size; out=[]
+for name,a,b in json.loads(sys.argv[1]):
+  if b-a>1.01: out.append('%s: %.2fpx apart'%(name,b-a))
+  for x in (10*3, W-20*3):
+    for y in range(int(a*3)-1, min(H, int(b*3)+2)):
+      if min(im.getpixel((x,y)))>200: out.append('%s: ground showing at y %d'%(name,y)); break
+print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
+      assert.deepEqual(bad, [], `${w}px, ${when}: seams in the rack show the ground: ${bad.join("; ")}`);
+    };
+    await seams('at rest');
+    await p2.locator('.band[data-h=W]').tap(); await p2.waitForTimeout(900); await p2.locator('#mctl [data-act=back]').tap(); await p2.waitForTimeout(900);
+    await seams('after a hall closes');
+    await p2.locator('#pins .pcard').first().tap(); await p2.waitForTimeout(800); await p2.locator('[data-act=pageback]').tap(); await p2.waitForTimeout(800);
+    await seams('after a pin closes');
+    await p2.locator('.tbar button[data-tab=search]').tap(); await p2.waitForTimeout(500);
+    const gut = await p2.evaluate(async () => { document.querySelector('#q').blur(); const c = document.querySelector('#evc'); c.scrollLeft = c.scrollWidth; await new Promise(r => setTimeout(r, 400));
+      const cr = c.getBoundingClientRect(), cards = c.querySelectorAll('.evcard'), last = cards[cards.length - 1].getBoundingClientRect(); c.scrollLeft = 0; await new Promise(r => setTimeout(r, 300));
+      return [Math.round(cards[0].getBoundingClientRect().left - cr.left), Math.round(cr.right - last.right)]; });
+    assert.equal(gut[1], gut[0], `${w}px: the last event card's end gutter (${gut[1]}) matches the first card's start gutter (${gut[0]})`);
+    await p2.locator('.tbar button[data-tab=halls]').tap(); await p2.waitForTimeout(500);
+    await seams('after Search -> Halls');
+    await c2.close();
+  }
 
   // A. Search tab, brisket first (plate {W,B} -> {W}), keyboard stays up between picks
   await page.goto(URL); await page.waitForTimeout(400); taps = 0; scrolls = 0;
@@ -267,26 +308,49 @@ const URL = 'file://' + __dirname + '/index.html';
   }
   assert.equal(await page.evaluate(() => [...document.querySelectorAll('#halls .band, #halls > .sec')].filter(e => e.style.transform).length), 0, 'Halls content back in place');
 
-  // where and when: Green Chile Posole is at every hall today and at Hampshire lunch tomorrow
+  // Round 5: where can I get this, now or next. A pure answer from the clock (minutes after midnight), checked at four times,
+  // then the rendered block: served now; now plus later at another hall; later today only; tomorrow only; and the hall tags.
+  const say = (n, t) => page.evaluate(([n, t]) => whereAnswer(norm(n), t).map((g, i, A) => whenText(g, A[i - 1]) + ' ' + g.hs.join('')).join(' | '), [n, t]);
   await page.goto(URL); await page.waitForTimeout(300);
-  await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('posole'); await page.waitForTimeout(300);
-  // round 4: the row carries four hall letters, the halls serving it now filled
-  assert.equal(await sRow('Green Chile Posole').locator('.tags').getAttribute('aria-label'), 'Served now at Worcester, Franklin, Hampshire and Berkshire');
-  assert.equal(await sRow('Green Chile Posole').locator('.tags .ht.on').count(), 4);
-  assert.equal(await sRow('Green Chile Posole').locator('.ww').count(), 0, 'no text list under the row');
-  await sRow('Green Chile Posole').locator('.n').tap(); await page.waitForTimeout(700);
-  // detail: the halls x meals grid; today shows lunch as now (gold) at all four, dinner at all four
-  assert.equal(await page.locator('#isheet .agrid .c.now').count(), 4, 'served now at four halls');
-  assert.equal(await page.locator('#isheet .agrid button[aria-label="Served at Worcester, dinner, today"]').count(), 1);
-  await page.locator('#isheet [data-act=aday][data-day="1"]').tap(); await page.waitForTimeout(300);
-  assert.equal(await page.locator('#isheet .agrid button.c').count(), 1, 'tomorrow: one serving');
-  const tmr = page.locator('#isheet .agrid button[aria-label="Served at Hampshire, lunch, tomorrow"]');
-  assert.equal(await tmr.count(), 1, "tomorrow's Hampshire lunch cell");
-  await tmr.tap(); await page.waitForTimeout(1600);
-  assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal, document.querySelector('#mts').textContent].join()), 'H,1,lunch,Tomorrow, Friday', 'opens Hampshire, tomorrow, lunch');
-  const here = await page.locator('#mlist .row.here').boundingBox();
+  assert.equal(await say('Green Chile Posole', 760), 'Lunch now, until 3:30 PM WFHB', '12:40: posole at every hall now');
+  assert.equal(await say('Green Chile Posole', 945), 'Dinner from 4:30 PM WFHB', '3:45, between meals: next is dinner');
+  assert.equal(await say('Green Chile Posole', 1290), 'Tomorrow, lunch from 11 AM H', '9:30 PM: tomorrow');
+  assert.equal(await say('Black Bean Burger', 760), 'Lunch now, until 3:30 PM WFB | Dinner from 4:30 PM H', 'now, then later at another hall');
+  assert.equal(await say('Black Bean Burger', 1430), 'Late night now, until midnight W', '11:50 PM: late night');
+  assert.equal(await say('Chewy M&M Bar', 760), "Grab 'N Go now, until 4 PM F | Until 8 PM WB", 'two closing times for the same meal');
+  assert.equal(await say('Beef Brisket Noodle Bowl', 945), '', 'nothing left: no answer');
+  const where = async n => { await page.goto(URL); await page.waitForTimeout(300);
+    await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type(n.toLowerCase()); await page.waitForTimeout(300);
+    await page.locator('#sres .row', { has: page.locator('.n', { hasText: new RegExp('^' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }) }).first().locator('.n').tap(); await page.waitForTimeout(700);
+    return page.evaluate(() => [...document.querySelectorAll('#isheet .where .wl')].map(l => l.querySelector('.wt').textContent + ': ' + [...l.querySelectorAll('.hchip')].map(c => c.textContent).join(', '))); };
+  assert.deepEqual(await where('Beef Brisket Noodle Bowl'), ['Lunch now, until 3:30 PM: WWorcester, BBerkshire'], 'served now');
+  assert.deepEqual(await where('Black Bean Burger'), ['Lunch now, until 3:30 PM: WWorcester, FFranklin, BBerkshire', 'Dinner from 4:30 PM: HHampshire'], 'now, and later at another hall');
+  assert.deepEqual(await where('Korean BBQ Chicken'), ['Dinner from 4:30 PM: BBerkshire'], 'later today only');
+  assert.deepEqual(await where('Chinese Twist Cruller'), ['Tomorrow, breakfast from 7 AM: WWorcester, FFranklin'], 'tomorrow only');
+  assert.equal(await page.locator('#isheet .agrid, #isheet .adays').count(), 0, 'no grid, no day switch');
+  for (const c of await page.locator('#isheet .hchip').all()) { const bb = await c.boundingBox(); assert(bb.height >= 44 && bb.width >= 44, 'hall tag is a 44px target'); }
+  // search rows: under "Lunch now" only the halls serving it; later rows say when in words
+  await page.goto(URL); await page.waitForTimeout(300);
+  await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('bbq'); await page.waitForTimeout(300);
+  assert.equal(await sRow('Golden BBQ Chicken Thigh').locator('.tags').getAttribute('aria-label'), 'Served now at Worcester');
+  assert.equal(await sRow('Golden BBQ Chicken Thigh').locator('.tags .ht').count(), 1, 'only the hall serving it, no empty letters');
+  assert.equal(await sRow('Korean BBQ Chicken').locator('.m').innerText().then(t => t.replace(/\s+/g, ' ').trim()), '342 cal 7.2g protein Dinner B');
+  assert.equal(await sRow('Korean BBQ Chicken').locator('.tags').getAttribute('aria-label'), 'Dinner at Berkshire');
+  // a tag opens that hall at that meal and day, scrolled to the dish
+  await sRow('Korean BBQ Chicken').locator('.n').tap(); await page.waitForTimeout(700);
+  await page.locator('#isheet .hchip', { hasText: 'Berkshire' }).tap(); await page.waitForTimeout(1600);
+  assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal].join()), 'B,0,dinner', 'opens Berkshire, today, dinner');
+  let here = await page.locator('#mlist .row.here').boundingBox();
   assert(here && here.y > 150 && here.y < 260, 'scrolled to the dish under the header: ' + (here && here.y));
-  assert.match(await page.locator('#mlist .row.here .n').textContent(), /Green Chile Posole/);
+  assert.match(await page.locator('#mlist .row.here .n').textContent(), /Korean BBQ Chicken/);
+  await page.goto(URL); await page.waitForTimeout(300);
+  await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('cruller'); await page.waitForTimeout(300);
+  await sRow('Chinese Twist Cruller').locator('.n').tap(); await page.waitForTimeout(700);
+  await page.locator('#isheet .hchip', { hasText: 'Franklin' }).tap(); await page.waitForTimeout(1600);
+  assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal, document.querySelector('#mts').textContent].join()), 'F,1,breakfast,Tomorrow, Friday', 'opens Franklin, tomorrow, breakfast');
+  here = await page.locator('#mlist .row.here').boundingBox();
+  assert(here && here.y > 150 && here.y < 260, 'scrolled to the dish under the header: ' + (here && here.y));
+  assert.match(await page.locator('#mlist .row.here .n').textContent(), /Chinese Twist Cruller/);
   assert.equal(await page.locator('#mlist .row.here .add').count(), 0, "tomorrow's dishes carry no + (today's plate only)");
 
   // round 3: no tab switch shows bare ground. Sample frames mid-switch; the share of near-white pixels never exceeds
@@ -326,6 +390,6 @@ d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: 
   await page.evaluate(() => localStorage.removeItem('udine-m2'));
 
   assert.deepEqual(errs, [], 'no page errors');
-  console.log(results.join('\n')); console.log('all checks passed');
+  console.log(results.join('\n')); console.log(`all ${NCHK} checks passed`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

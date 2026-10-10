@@ -1,5 +1,5 @@
-// AA for pinned-café photo cards: pin all 27, hide the text, and report the worst contrast of white text against the
-// brightest background pixel under each text line's box (name 22px Oswald 600 (under 24px, so 4.5:1 too)).
+// AA for pinned-café strips (round 5: 84 px, maroon gradient): pin all 27, hide the text, and report the worst contrast of white text against the
+// brightest background pixel under each text box (boxes hug the text). Name is Oswald 24/600 = large text (3:1); status 14 px (4.5:1).
 const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome' });
@@ -26,6 +26,6 @@ print(max(.2126*f(r)+.7152*f(g)+.0722*f(b) for r,g,b in im.get_flattened_data())
       out.push([bx.name, k, cr.toFixed(2)]); worst = Math.min(worst, cr);
     }
   }
-  out.sort((a, b) => a[2] - b[2]); console.log(out.slice(0, 5).map(x => x.join(' ')).join('\n')); console.log('worst', worst.toFixed(2));
+  out.sort((a, b) => a[2] - b[2]); console.log(out.slice(0, 5).map(x => x.join(' ')).join('\n')); for (const k of ['name', 'status']) console.log('worst ' + k, out.find(x => x[1] === k).join(' '));
   await b.close();
 })();

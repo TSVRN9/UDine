@@ -35,7 +35,7 @@ const I = [
   { name: 'edgeswipe', q: 'state=menu', act: async (p, mark, touch) => { const pts = []; for (let i = 0; i <= 16; i++) pts.push([4 + i * 19, 500]); await touch(pts, 25 * K); }, dur: 1500 },
   { name: 'hallresult', q: 'state=search', setup: async p => { await p.keyboard.type('worcester'); await p.waitForTimeout(300 * K); }, act: p => p.locator('#sres .prow2[data-act=hall]').first().tap(), dur: 800 },
   { name: 'placeopen', q: 'state=search', setup: async p => { await p.keyboard.type('wasabi'); await p.waitForTimeout(300 * K); }, act: p => p.locator('#sres .prow2[data-p=place]').first().tap(), dur: 700 },
-  { name: 'serving', q: 'state=search', setup: async p => { await p.keyboard.type('posole'); await p.waitForTimeout(300 * K); await sRow(p, 'Green Chile Posole').locator('.n').tap(); }, act: async (p, mark) => { await p.locator('#isheet [data-act=aday][data-day="1"]').tap(); await mark(400); await p.locator('#isheet .agrid button[aria-label="Served at Hampshire, lunch, tomorrow"]').tap(); }, dur: 2200 },
+  { name: 'serving', q: 'state=search', setup: async p => { await p.keyboard.type('korean bbq'); await p.waitForTimeout(300 * K); await sRow(p, 'Korean BBQ Chicken').locator('.n').tap(); }, act: p => p.locator('#isheet .hchip', { hasText: 'Berkshire' }).tap(), dur: 1800 },
   { name: 'pinopen', q: 'pins=2', act: p => p.locator('#pins .pcard').first().tap(), dur: 700 },
   { name: 'detail', q: 'state=menu', act: p => mRow(p, 'Green Chile Posole').locator('.n').tap(), dur: 900 },
   { name: 'detailadd', q: 'state=menu', setup: p => mRow(p, 'Green Chile Posole').locator('.n').tap(), act: p => p.locator('#isheet [data-act=dadd]').tap(), dur: 1100 },

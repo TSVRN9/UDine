@@ -45,3 +45,38 @@ The **30% / 70% fade split** is the coordinator's specification. MDC's own defau
   - Pinned cafés stack under the hall bands as full-bleed strips half a band tall. Each uses UMass Dining's own location photo with a neutral grade, live status, and no varsity letter.
   - They open by container transform with the photo continuous into the café page header.
 - **Events** (round 4). A row of banner cards in the felt-and-stitch frame sits in Search's idle state. A card opens by container transform with the banner continuous. With no pins, Halls is unchanged. Pins live on the device. The full café browser stays under Cafés & markets.
+
+## Round 5: one rack, one voice
+
+**Halls is a rack of photo bands that answers "where can I eat, now".**
+- **One band, two sizes.**
+  - A hall band is full scale: 112 px, maroon duotone, chenille letter, Oswald 32 name, 15 px status.
+  - A pinned café is the same band at three-quarter scale: 84 px, Oswald 24, 14 px status.
+  - The café has its own photo in full colour under the halls' deep-maroon left gradient, and no letter, because it isn't a varsity hall.
+- **One seam.** Every band, header included, is separated by 1 px of deep maroon, never chalk. The rack reads as one object from "Lunch" down.
+- **Below the rack**, the chalk list browses everything else.
+
+**Where you can get a dish is said the way the header says the meal.**
+- The header leads with "Lunch", so time is the app's first axis. Every *where* answer is a meal, a clock time and the hall's own name.
+- It is the band's sentence turned around. The band says "Worcester, open until midnight"; a dish says "Lunch now, until 4 PM" over the halls serving it.
+- Halls appear by their chenille letter in felt, on a deep-maroon tag with the name. That is the same pairing as the band, at button size. Tapping one is the existing move: the detail returns to its row, and the row grows into that hall at that meal, scrolled to the dish.
+- **The order of answers:**
+  1. now;
+  2. otherwise the next serving today ("Dinner from 4:30 PM");
+  3. otherwise tomorrow ("Tomorrow, lunch from 11 AM");
+  4. otherwise a plain "Not on the menu again today or tomorrow".
+- At most two lines of answer: the first one, plus a later serving only when it's at a hall the first line doesn't already name.
+- **Search rows say the same thing in short.**
+  - Under "Lunch now", only the halls serving it, as filled letters.
+  - Under "Later today and tomorrow", the meal in words ("Dinner", "Tomorrow lunch") before the letters.
+  - Empty outlined letters are gone: a row says where, never where not.
+
+**Cut by this idea:**
+- the halls × meals grid and its Today / Tomorrow switch;
+- gold-as-"now" cells;
+- the outlined empty letters;
+- the café strips' neutral grade and half height;
+- the chalk seams;
+- the carousel's double end gutter.
+
+Motion is unchanged: chips and lines arrive with the detail (container transform), and nothing new moves.

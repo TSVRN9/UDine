@@ -1,5 +1,7 @@
 # M2: Hall-first plus search, varsity identity, one motion model
 
+**M2 round 5** is at the end of this file ("Round 5"), with `CRITIQUE-r5.md` and the round 5 concept in `CONCEPT.md`. It supersedes the round 4 "where and when" grid described below.
+
 **M2 round 4.** Three owner notes.
 - **Events are cards again.**
   - Search's idle state shows a row of M1's event cards: the event's own banner in the white felt edge with gold stitching, then the title and a gold date. Native scroll-snap shows a peek of the next card.
@@ -424,3 +426,113 @@ Under reduced motion, every movement becomes a 120 ms crossfade (the hall and pa
   - `shot-search.png` (idle hub), `shot-typed.png`, `shot-cafes.png`;
   - `shot-plate.png`, `shot-label.png` (Golden BBQ detail), `shot-platelabel.png`.
 - `build.py` also embeds `locations-2026-10-08.json` (27 cafés, hall and Grab 'N Go hours) and `events-2026-10-08.json`, merged and sorted as described in (c).
+
+## Round 5
+
+Owner: "There's strange gaps between cards sometimes, and I think the retail strips are too short. Also the food finder is not really helpful, maybe just some info about where it's currently/next served would make sense." Then: "avoid just checking off boxes, and think more about the cohesive character and UX."
+
+I read the app as a student would first (`CRITIQUE-r5.md`), then wrote one concept (`CONCEPT.md`, "Round 5: one rack, one voice").
+- **Halls** is one rack of photo bands. Cafés are the hall band at three-quarter scale, with one maroon seam throughout.
+- **"Where can I get this"** is said the way the header says the meal: a meal, a clock time and the hall.
+
+### The gaps (two, both reproduced, both red before the fix)
+1. **Chalk seams in the rack.**
+   - Between the Halls header and Worcester, and between the last hall band and the first pinned café, the 1 px separator was chalk, not maroon.
+   - Cause: margin collapse. The first child's `margin-top:1px` collapsed out of `#bands` and `#pins`, which had no border, padding or BFC, so the separator showed `#halls`' chalk ground.
+   - It was the same at every width (360, 375, 390, 412, 430) and DPR (2, 3). It wasn't sub-pixel.
+   - It looked like "sometimes" because the mid-screen seam only exists once a café is pinned, and the top one is a thin light line against maroon.
+   - Fix: `display:flow-root` on both containers. Band and strip y positions are unchanged (Worcester still starts at 137.59 px).
+2. **The event row's end gutter.**
+   - At the end of the carousel, the last card sat 40 px from the right edge against a 20 px start gutter: 20 px padding, plus the 12 px gap, plus an 8 px `::after` spacer.
+   - Fix: no end padding; gap plus spacer = 20 px. One event drops the spacer and is 100% − 20 px wide.
+- **Ruled out, by the same test:**
+  - the band layout after a hall opens and closes;
+  - after a pin opens and closes;
+  - after Search → Halls;
+  - a margin that only applies when some sections are present (the collapse *was* the "only with pins" case).
+- **Test** (`test.js`, first block):
+  - At 360, 390 and 430 px, DPR 3, with 2 pins, it samples the screenshot along every seam in the rack (header/band, band/band, band/strip, strip/strip). It fails on any near-white pixel.
+  - It runs at rest, after a hall closes, after a pin closes, and after a tab round trip.
+  - It also checks that the last event card's end gutter equals the first card's start gutter.
+  - Red: `360px, at rest: seams in the rack show the ground: hhead/band: ground showing at y 411; band/pcard: ground showing at y 1767`, and `end gutter (40) matches … start gutter (20)`.
+  - A hit test (`elementFromPoint`) does *not* catch this: Blink hit-tests the band across the seam that it paints as chalk. Hence the pixel check.
+
+### Pinned café strips: 84 px
+- They are the hall band at three-quarter scale:
+  - 84 px (band 112);
+  - name in Oswald 24 (32);
+  - status 14 px (15);
+  - the same 20 px inset;
+  - top-anchored text (14 px, against the band's 16).
+- I picked it from `shot-pins.png` at 2 and 5 pins:
+  - at 84 px the photo reads as a place (Wasabi's counter, Peet's tables);
+  - two strips are still clearly below four bands;
+  - five strips plus the bands take 1.4 screens, which is fine for a scrolled list.
+- 76 px looked like a slightly taller round 4. 88 px started to compete with the halls.
+- **Material.**
+  - The neutral grey-brown grade is gone. Strips use the halls' deep-maroon left gradient over the café's own photo in full colour (`.86` → `.76` at 50% → `.3` at 76% → 0 at 92%). The photos are not altered.
+  - Halls keep the duotone and the chenille letter.
+  - The seam is the same 1 px of maroon.
+- **Contrast** (`node contrast-pins.js`, all 27 pinned, text hidden, brightest pixel under each text box, which now hugs its text):
+  - worst name 4.87:1 (People's Organic Coffee; 24 px / 600 is large text, so the bar is 3:1);
+  - worst status 9.38:1.
+  - A lighter gradient I tried first dropped People's to 3.47:1, so I kept the stronger one.
+
+### Where it's served now / next (replaces the grid)
+- **The rules.** `wherePlan(k, now)` is pure in the clock.
+  - Every serving of the dish is grouped by state and window: *now* (the window contains the clock), *later today*, or *tomorrow*.
+  - Past servings are dropped.
+  - Groups are ordered now (soonest closing first), then later (soonest opening first), then tomorrow.
+  - `whereAnswer` shows the first group, plus at most one more today that names a hall the first doesn't.
+- **Copy, in the header's terms:**
+  - "Lunch now, until 3:30 PM";
+  - "Dinner from 4:30 PM";
+  - "Tomorrow, breakfast from 7 AM";
+  - a second line for the same meal and state gives only its own time ("Grab 'N Go now, until 4 PM", then "Until 8 PM");
+  - nothing left: "Not on the menu again today or tomorrow".
+- **Halls** are felt-letter tags on deep maroon with the hall's name, 44 px tall: the band's letter-plus-name pairing at button size.
+  - A tag returns the detail to its row, and the row grows into that hall at that meal and day, scrolled to and tinting the dish. That's the round 4 behaviour, kept.
+  - There is no grid, no switch, no legend and no gold-means-now.
+- **Checked clocks** (`test.js`):
+
+  | Dish | Clock | Answer |
+  |---|---|---|
+  | Posole | 12:40 | Lunch now, until 3:30 PM, at all four halls |
+  | Posole | 3:45 PM, between meals | Dinner from 4:30 PM |
+  | Posole | 9:30 PM | Tomorrow, lunch from 11 AM, Hampshire |
+  | Black Bean Burger | 12:40 | Lunch now at W, F and B, then Dinner from 4:30 PM at H |
+  | Black Bean Burger | 11:50 PM | Late night now, until midnight, Worcester |
+  | Brisket | 3:45 PM | no answer |
+
+  The app's own clock stays at 12:40, so the benchmark and the "Lunch" header don't move.
+- **Search rows.**
+  - Under "Lunch now", a row shows only the halls serving it, as filled letters (Golden BBQ: one W).
+  - The four-box W F H B with outlined empties is cut. It was a small grid on every row, answering "where not".
+  - Rows under "Later today and tomorrow" say when in words, then the letters: "Dinner B", "Tomorrow breakfast W F".
+  - I kept letters rather than names because they're the bands' own chenille letters, so a student already reads W as Worcester, and they keep the row to one line. Screen readers hear "Served now at Worcester" and "Dinner at Berkshire".
+- **Removed:** `availHTML`, `availBlock`, `upcoming`, `servings`, `MRANK`, the `aday` handler, the `.avail`, `.adays` and `.agrid` CSS, the grid's aria labels, and the grid assertions. `rec.js`'s `serving` interaction now taps the Berkshire tag on Korean BBQ Chicken.
+
+### What I cut or changed beyond the three notes, and why
+- **The outlined empty hall letters on search rows.** Same failure as the grid: they make the row answer "where not".
+- **The café strips' neutral grade.** It made pinned cafés look like they came from another app. They now share the halls' maroon gradient.
+- **The idea that each control gets its own material.** The where tags reuse the felt letter and the maroon band rather than adding a third chip style next to lens chips and buttons.
+- **Kept, though I questioned it.**
+  - The "Cafés & markets" chalk list under the rack. It's the browse path for 27 places, and the rack is "where I go".
+  - The events cards: the owner asked for them in round 4, and they're already in the felt-and-stitch material.
+- **Not changed:** motion. The tags arrive with the detail (container transform), and nothing new moves.
+
+### Unsure / open questions
+- **Meal times are not in the data.** The feed has each hall's open and close and Grab 'N Go's hours, never meal periods.
+  - I used one campus schedule clipped to each hall's real hours: breakfast 7–11, lunch 11–3:30, dinner 4:30–9, late night 9 to close. That gives a real between-meals gap.
+  - F4's per-hall table (lunch ending 3, 3:30 or 4) is unsourced and contradicts the real hours (it ends Franklin's dinner at 7, but Franklin closes at 9). Its per-hall lunch ends also split one meal into three lines ("until 3 PM" / "until 3:30" / "until 4") over numbers nobody has verified.
+  - The raw `get_infov2` capture (`local/photos/raw/infov2.json`, its "HOURS OF OPERATION" HTML) has no meal periods either.
+  - **The owner should confirm the real meal periods** (umassdining.com location pages, or FoodPro). If they differ by hall, the line format already handles it ("Lunch now, until 3 PM", then "Until 4 PM").
+- **Friday is assumed to keep Thursday's hours.**
+- **"Add to plate" on a later-today dish** (Korean BBQ Chicken, dinner) still adds it to a dinner plate, as before. Whether a plate for a later meal makes sense is a planner question.
+- **Search's letters versus names.** If the owner prefers words on rows too ("Worcester" rather than W), the row needs a second line for dishes at three or four halls.
+
+### Files (round 5)
+- `CRITIQUE-r5.md`; `CONCEPT.md` (Round 5).
+- `shots5.js` makes `shot-pins.png` (0, 2, 5, 5 scrolled), `shot-dish.png` (served now; now plus later elsewhere; later today; tomorrow only) and `shot-search.png` ("bbq", "posole", "cruller").
+- `compare-pins.png`, `compare-pinopen.png` and `compare-serving.png` now include an "M2 r4" row (`build/rec/M2r4/`) above "M2 now".
+- Round 4's shots are kept as `build/r4-shot-*.png`.
