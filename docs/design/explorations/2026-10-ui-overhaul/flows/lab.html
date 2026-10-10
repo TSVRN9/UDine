@@ -1,0 +1,87 @@
+<title>UDine Flow Lab</title>
+<style>
+/* Layout: one column of four flow cards, each a premise, benchmark comparison and open link. */
+:root {
+  --bg: #f4f4f6; --surface: #ffffff; --fg: #1c1b20; --muted: #5d5b66; --line: rgba(28,27,32,0.12);
+  --accent: #881c1c; --accent-ink: #ffffff; --win: #1f6b45;
+  --font: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141317; --surface: #1f1e23; --fg: #f1f0f4; --muted: #a9a6b3; --line: rgba(241,240,244,0.14);
+  --accent: #e0726f; --accent-ink: #1a0b0b; --win: #6fcf9b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141317; --surface: #1f1e23; --fg: #f1f0f4; --muted: #a9a6b3; --line: rgba(241,240,244,0.14);
+  --accent: #e0726f; --accent-ink: #1a0b0b; --win: #6fcf9b; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); padding-inline: 16px; padding-block: 32px 48px; }
+main { max-width: 720px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); font-size: 16px; line-height: 1.5; margin: 6px 0 0; max-width: 60ch; }
+.task { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; font-size: 15px; line-height: 1.45; }
+.task b { font-weight: 600; }
+article { background: var(--surface); border-radius: 20px; padding: 20px; display: grid; gap: 12px; border: 1px solid var(--line); }
+.head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.tag { font-weight: 700; color: var(--accent); font-size: 15px; font-variant-numeric: tabular-nums; }
+h2 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+p { margin: 0; font-size: 15px; line-height: 1.5; max-width: 62ch; }
+.bench { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.bench dt { color: var(--muted); }
+.bench dd { margin: 0; min-width: 0; }
+.good { color: var(--win); font-weight: 600; }
+ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+a.open { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 16px; text-decoration: none; }
+a.open:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+footer { color: var(--muted); font-size: 13px; line-height: 1.5; }
+</style>
+<main>
+  <header>
+    <h1>UDine Flow Lab</h1>
+    <p class="lede">Four alternative flows for the same app, built as touch prototypes on real UMass menus for Thursday, Oct 8. Open each on your phone and judge the feel.</p>
+  </header>
+
+  <div class="task"><b>Benchmark:</b> at Worcester lunch, log Beef Brisket Noodle Bowl ×1 and Golden BBQ Chicken Thigh ×2. The current app takes about 5 taps plus scrolling past roughly 20 dishes.</div>
+
+  <article>
+    <div class="head"><span class="tag">M2</span><h2>M1, rebuilt on App Store and Material motion</h2></div>
+    <p>Same flow as M1. Cards open as a container transform: the tapped card becomes the screen, its content fades out early and the new screen fades in already in place. Back is the same motion reversed, and you can drag it down or swipe from the edge. Tabs fade through; meal tabs slide on a shared axis. Pin cafés from their page to keep them on Halls. Search finds every hall and café, and each dish shows where and when it's served today and tomorrow.</p>
+    <dl class="bench"><dt>Benchmark</dt><dd>Unchanged: 5 taps via Search</dd><dt>Compare</dt><dd>M1, M2 round 1, M2 round 2 top to bottom: <a href="compare-open.png">open a hall</a>, <a href="compare-close.png">close</a>, <a href="compare-dragback.png">drag back</a>, <a href="compare-detail.png">dish detail</a>, <a href="compare-tabs.png">tabs</a>, <a href="compare-serving.png">where and when</a>, <a href="compare-pinopen.png">pinned café</a></dd></dl>
+    <a class="open" href="m2.html">Open M2</a>
+  </article>
+
+  <article>
+    <div class="head"><span class="tag">M1</span><h2>Hall-first, search-forward, varsity</h2></div>
+    <p>The merged flow from your feedback. Halls, Search and You tabs. Each hall band carries its real photo under the chenille letter; opening a hall develops the photo into the menu header, which collapses into a maroon bar as you scroll. Search covers every hall with lenses, keeps the keyboard up between picks, and adds straight to the plate. The station header opens a station list. Plate totals read like a Nutrition Facts panel. Later rounds added real hours, 27 cafés grouped by area, a busy meter, events in the Search tab, full Nutrition Facts with ingredients and grades, a station switcher, and feedback on every interaction.</p>
+    <dl class="bench"><dt>Benchmark</dt><dd><span class="good">5 taps, no scrolling</span> via Search; 5 taps plus about two flicks via the hall</dd><dt>Watch for</dt><dd>The photo transition, whether the station list beats scrolling, and Log staying visible above the keyboard on iPhone. Busy values are simulated for lunch. Photos are UMass Dining's, shown unmodified as in the official app.</dd></dl>
+    <a class="open" href="m1.html">Open M1</a>
+  </article>
+
+  <article>
+    <div class="head"><span class="tag">F1</span><h2>Dish-first, right now</h2></div>
+    <p>Opens on everything being served this meal across all four halls, grouped by kind of food. Halls are a filter instead of the entry point. The plate's hall is whichever hall serves everything on it, so you never pick a hall up front. A dish from another hall starts a second plate you can swipe to compare.</p>
+    <dl class="bench"><dt>Benchmark</dt><dd><span class="good">4 taps, no scrolling</span></dd><dt>Watch for</dt><dd>The list regathers around your hall after the first add; ranking decides what's visible.</dd></dl>
+    <a class="open" href="f1.html">Open F1</a>
+  </article>
+
+  <article>
+    <div class="head"><span class="tag">F2</span><h2>Habits and after-the-meal logging</h2></div>
+    <p>Home is you today: totals so far, past plates that are being served again ("Same as Tuesday"), and your usuals with one-tap add. "What did you have at Worcester lunch?" opens a fast checklist sheet that ends in a single Log. Undo replaces every confirmation.</p>
+    <dl class="bench"><dt>Benchmark</dt><dd><span class="good">1 tap</span> with history, 2 via usuals; about 5 on first run</dd><dt>Watch for</dt><dd>The win needs history. Check the first-run state and dragging the sheet down from inside the scrolled list.</dd></dl>
+    <a class="open" href="f2.html">Open F2</a>
+  </article>
+
+  <article>
+    <div class="head"><span class="tag">F3</span><h2>Goal-driven plate builder</h2></div>
+    <p>Set this meal's target on a tick ruler (defaults to what's left today) and get three real plates from open halls. Swipe a dish row to cycle alternatives; totals refit live. Hand-picked dishes stay locked, and "Fill to 850 cal" completes a plate around them.</p>
+    <dl class="bench"><dt>Benchmark</dt><dd>5 taps plus one flick, about the same as today; the planner stays out of the way</dd><dt>Watch for</dt><dd>Plates are arithmetically right but sometimes odd pairings.</dd></dl>
+    <a class="open" href="f3.html">Open F3</a>
+  </article>
+
+  <article>
+    <div class="head"><span class="tag">F4</span><h2>One surface, a physical tray</h2></div>
+    <p>No push navigation in the core loop. Swipe between halls as pages, scrub meals on a time ruler, and jump stations with a thumb-height rail that replaces the right-edge scrubber. A maroon tray is always docked: tap to add, or long-press to lift a dish and throw it in. Pull the tray up to review and log.</p>
+    <dl class="bench"><dt>Benchmark</dt><dd>5 taps and 2 drags, no menu scrolling</dd><dt>Watch for</dt><dd>Four horizontal controls on one screen; long jumps on the rail need a flick. Text from the rail bleeds over the dish list.</dd></dl>
+    <a class="open" href="f4.html">Open F4</a>
+  </article>
+
+  <footer>Prototypes run in the browser, so momentum and haptics are approximations of a native build. Vibration works only on Android. Nothing you tap here is saved.</footer>
+</main>

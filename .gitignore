@@ -30,3 +30,6 @@ supabase/.temp/
 !.claude/skills/
 !.claude/settings.json
 .scratch/
+
+# UMass-owned photos and anything embedding them (see docs/design/explorations/2026-10-ui-overhaul/README.md)
+docs/design/explorations/**/local/
