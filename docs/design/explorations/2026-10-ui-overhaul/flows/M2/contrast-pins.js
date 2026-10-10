@@ -1,5 +1,5 @@
 // AA for pinned-café photo cards: pin all 27, hide the text, and report the worst contrast of white text against the
-// brightest background pixel under each text line's box (name: large text 3:1 applies only >=24px, so both lines use 4.5:1).
+// brightest background pixel under each text line's box (name 22px Oswald 600 (under 24px, so 4.5:1 too)).
 const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome' });
@@ -12,7 +12,7 @@ const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/
   for (let i = 0; i < N; i++) {
     const bx = await p.evaluate(i => { const c = document.querySelectorAll('#pins .pcard')[i]; c.scrollIntoView({ block: 'center' }); const n = c.querySelector('.pn'), s = c.querySelector('.ps');
       const r = e => { const q = e.getBoundingClientRect(); return [q.left, q.top, q.width, q.height]; }; return { name: n.textContent, n: r(n), s: r(s), off: s.classList.contains('off') }; }, i);
-    for (const [k, rr, alpha] of [['name', bx.n, 1], ['status', bx.s, bx.off ? .85 : 1]]) {
+    for (const [k, rr, alpha] of [['name', bx.n, 1], ['status', bx.s, 1]]) {
       const buf = await p.screenshot({ clip: { x: rr[0], y: rr[1], width: Math.max(1, rr[2]), height: Math.max(1, rr[3]) } });
       const { execSync } = require('child_process');
       const L = +execSync(`python3 -c "

@@ -1,5 +1,26 @@
 # M2: Hall-first plus search, varsity identity, one motion model
 
+**M2 round 4.** Three owner notes.
+- **Events are cards again.**
+  - Search's idle state shows a row of M1's event cards: the event's own banner in the white felt edge with gold stitching, then the title and a gold date. Native scroll-snap shows a peek of the next card.
+  - Opening a card is the container transform, with the banner as the shared element (it moves and resizes into the event page's framed banner), as the hall photo does.
+  - 0 events: the band is absent. 1 event: one full-width card (`?events=1`).
+  - The quiet in-menu note stays a row on chalk.
+- **Pinned cafés are full-bleed strips under the hall bands** (`compare-pins.png`: round 3's grid against round 4's strips, 0, 2 and 5 pins).
+  - Each strip is 56 px, half a hall band, with no letter.
+  - It uses the café's own photo in full colour with a neutral dark grade, not the halls' maroon duotone.
+  - Name in Oswald 20 with live status under it, kept in the left 70%.
+  - `node contrast-pins.js` measures all 27; worst 6.05:1.
+  - Opening one is the container transform with the photo continuous into the café page header.
+- **Where and when is a grid, not a list.**
+  - **Search rows** carry four hall letters, W F H B, with the halls serving it now filled. Screen readers hear "Served now at Worcester, Franklin, Hampshire and Berkshire".
+  - **"Later today and tomorrow" rows** carry the meal they're next served at ("Dinner", "Tomorrow") and the same four letters for that serving.
+  - The letters replace the plate-halls highlight. Plate compatibility is still shown by the outlined `+`.
+  - **Dish detail** has a Today / Tomorrow switch and a grid: hall letters down the side, the meals served that day across the top.
+    - Cells: maroon = served, gold = served now (gold means now everywhere, as on the busy lamp board), pale = served earlier today, blank = not served.
+    - Each served cell is a 44 px button labelled "Served at Hampshire, lunch, tomorrow". Tapping it returns the detail to its row and opens that hall at that meal and day, scrolled to the dish.
+  - There is no legend: the axes carry the real hall letters and meal names.
+
 **M2 round 3.** Two owner notes.
 - **"The white flash between panes is a little too much."** The Halls / Search / You switch no longer dips to the ground.
   - Every pane is opaque.

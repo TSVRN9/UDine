@@ -177,6 +177,9 @@ const URL = 'file://' + __dirname + '/index.html';
   await page.locator('[data-act=pageback]').tap(); await page.waitForTimeout(350);
   await page.locator('#q').fill('x'); await page.waitForTimeout(350);
   assert(await page.locator('#sdisc').isHidden(), 'typing leaves the idle hub');
+  assert.equal(await page.evaluate(() => document.querySelectorAll('img.trav').length), 0, 'event banner: no shared layer left at rest');
+  await page.goto(URL + '?events=1&state=search'); await page.waitForTimeout(300);
+  assert.equal(await page.locator('#evc.one .evcard').count(), 1, 'one event: one full-width card');
   await page.goto(URL + '?events=0&state=search'); await page.waitForTimeout(300);
   assert(await page.locator('#sdisc').isHidden(), 'no events -> no carousel, no empty state');
   // contextual: the all-DCs event shows as a quiet note inside each hall menu this week
@@ -267,12 +270,18 @@ const URL = 'file://' + __dirname + '/index.html';
   // where and when: Green Chile Posole is at every hall today and at Hampshire lunch tomorrow
   await page.goto(URL); await page.waitForTimeout(300);
   await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('posole'); await page.waitForTimeout(300);
-  const ww = await sRow('Green Chile Posole').locator('.ww').textContent();
-  assert.match(ww, /Tomorrow: Hampshire lunch/, 'row lists tomorrow: ' + ww);
+  // round 4: the row carries four hall letters, the halls serving it now filled
+  assert.equal(await sRow('Green Chile Posole').locator('.tags').getAttribute('aria-label'), 'Served now at Worcester, Franklin, Hampshire and Berkshire');
+  assert.equal(await sRow('Green Chile Posole').locator('.tags .ht.on').count(), 4);
+  assert.equal(await sRow('Green Chile Posole').locator('.ww').count(), 0, 'no text list under the row');
   await sRow('Green Chile Posole').locator('.n').tap(); await page.waitForTimeout(700);
-  const tmr = page.locator('#isheet .srv', { hasText: 'Tomorrow, lunch' });
-  assert.equal(await tmr.count(), 1, 'detail lists the tomorrow serving');
-  assert.match(await tmr.textContent(), /Hampshire/);
+  // detail: the halls x meals grid; today shows lunch as now (gold) at all four, dinner at all four
+  assert.equal(await page.locator('#isheet .agrid .c.now').count(), 4, 'served now at four halls');
+  assert.equal(await page.locator('#isheet .agrid button[aria-label="Served at Worcester, dinner, today"]').count(), 1);
+  await page.locator('#isheet [data-act=aday][data-day="1"]').tap(); await page.waitForTimeout(300);
+  assert.equal(await page.locator('#isheet .agrid button.c').count(), 1, 'tomorrow: one serving');
+  const tmr = page.locator('#isheet .agrid button[aria-label="Served at Hampshire, lunch, tomorrow"]');
+  assert.equal(await tmr.count(), 1, "tomorrow's Hampshire lunch cell");
   await tmr.tap(); await page.waitForTimeout(1600);
   assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal, document.querySelector('#mts').textContent].join()), 'H,1,lunch,Tomorrow, Friday', 'opens Hampshire, tomorrow, lunch');
   const here = await page.locator('#mlist .row.here').boundingBox();

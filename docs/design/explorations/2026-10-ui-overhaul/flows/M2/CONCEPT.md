@@ -36,5 +36,12 @@ The **30% / 70% fade split** is the coordinator's specification. MDC's own defau
 
 - **Hall-header search button removed.** Search lives in the Search tab only.
 - **Places are first-class in Search.** Every hall, Grab 'N Go and café that matches by name, building, area or menu item is shown, with live status. A row grows into its hall or café.
-- **Where and when.** A dish row shows its upcoming servings, today then tomorrow ("Franklin lunch and dinner, Hampshire lunch / Tomorrow: Hampshire lunch"). Its detail lists each serving. A serving returns the detail to its row, and the row grows into that hall at that day and meal, scrolled to the dish. Dishes not served now appear under "Later today and tomorrow".
-- **Pinned cafés** (round 3). The café page has a pin in its top bar. Pinned cafés are a 2-up grid of UMass Dining's own location photo cards at the top of Cafés & markets, with live status and no varsity letter. They open by container transform with the photo continuous into the café page header. With no pins, Halls is unchanged. Pins live on the device. The full café browser stays under Cafés & markets.
+- **Where and when** (round 4).
+  - A dish row carries W F H B with the halls serving it now filled.
+  - Its detail has a Today / Tomorrow grid of halls against meals: maroon is served, gold is now. A filled cell returns the detail to its row, and the row grows into that hall at that meal and day, scrolled to the dish.
+  - Dishes not served now appear under "Later today and tomorrow".
+- **Pinned cafés** (round 4).
+  - The café page has a pin in its top bar.
+  - Pinned cafés stack under the hall bands as full-bleed strips half a band tall. Each uses UMass Dining's own location photo with a neutral grade, live status, and no varsity letter.
+  - They open by container transform with the photo continuous into the café page header.
+- **Events** (round 4). A row of banner cards in the felt-and-stitch frame sits in Search's idle state. A card opens by container transform with the banner continuous. With no pins, Halls is unchanged. Pins live on the device. The full café browser stays under Cafés & markets.

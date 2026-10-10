@@ -89,19 +89,29 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .hhead h1{font:600 52px/1.05 Oswald,sans-serif;margin:2px 0 0}
 #mdim{position:absolute;inset:0;background:rgb(36,10,14);opacity:0;pointer-events:none}
 /* events: a fixture list. One row type, on the maroon band in Search and on chalk inside a hall menu */
-.sdisc{background:var(--dm);padding:4px 0 8px}
-.sdisc h2{font:600 22px/1.2 Oswald,sans-serif;color:#fff;margin:0;padding:10px 20px 2px}
-.evcard{display:flex;align-items:baseline;gap:12px;width:100%;min-height:52px;padding:14px 20px;text-align:left;color:#fff;position:relative}
-.evcard+.evcard::before{content:"";position:absolute;left:20px;right:0;top:0;height:1px;background:rgba(255,255,255,.14)}
-.evtt{flex:1;min-width:0;font-size:17px;font-weight:600;line-height:1.3}
-.evtag{flex:none;color:var(--gold);font:600 17px/1.3 Oswald,sans-serif;font-variant-numeric:tabular-nums}
+/* events (round 4: cards again): the event's own banner in a felt edge and gold stitching, title and date under it.
+   A row of cards with native scroll-snap and a peek of the next one, on the maroon band. */
+.sdisc{background:var(--dm);padding:4px 0 16px;overflow:hidden}
+.sdisc h2{font:600 22px/1.2 Oswald,sans-serif;color:#fff;margin:0;padding:10px 20px 0}
+.evc{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 20px;padding:12px 20px 4px;margin:0;scrollbar-width:none;overscroll-behavior-x:contain}
+.evc::-webkit-scrollbar{display:none}
+.evc::after{content:"";flex:0 0 8px}
+.evc .evcard{flex:0 0 280px;scroll-snap-align:start;display:block;text-align:left;color:#fff}
+.evc.one .evcard{flex-basis:100%}
+.evcap{display:flex;align-items:baseline;gap:10px;margin-top:10px}
+.evtt{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.92)}
+.evtag{flex:none;color:var(--gold);font:600 15px/1.3 Oswald,sans-serif;font-variant-numeric:tabular-nums}
+.evcard.down .evpatch{opacity:.85}
+/* the in-menu note is still a quiet row on chalk */
+.evrow{display:flex;align-items:baseline;gap:12px;width:100%;min-height:52px;padding:14px 20px;text-align:left;position:relative}
+.evrow .evtt{white-space:normal;color:var(--dm)}
 .evnote{color:var(--dm);border-bottom:1px solid var(--hair)}
-.evnote .evtt{font-size:15px}.evnote .evtag{color:var(--vm);font-size:16px}
+.evnote .evtag{color:var(--vm);font-size:16px}
 .evnote.down{background:rgba(36,23,26,.06)}
 /* event page: the flyer, framed as a stitched patch on the maroon band */
 .evband{background:var(--dm);margin:0 -20px;padding:14px 20px 20px}
-.evpatch{position:relative;display:block;border-radius:6px;overflow:hidden;background:var(--vm);box-shadow:0 0 0 3px #fff}
-.evpatch img{display:block;width:100%;height:auto}
+.evpatch{position:relative;display:block;aspect-ratio:1024/432;border-radius:6px;overflow:hidden;background:var(--vm);box-shadow:0 0 0 3px #fff}
+.evpatch img{display:block;width:100%;height:100%;object-fit:cover}
 .evpatch::after{content:"";position:absolute;inset:4px;border-radius:3px;border:1.5px dashed rgba(201,154,46,.95);pointer-events:none}
 .field svg{width:20px;height:20px;stroke:var(--vm);fill:none;stroke-width:2.2;stroke-linecap:round;flex:none}
 .band{display:block;position:relative;width:100%;height:112px;overflow:hidden;background:var(--vm);margin-top:1px;text-align:left;color:#fff;touch-action:manipulation}
@@ -149,17 +159,19 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 /* pinned cafés on Halls: the band stack continues in deep maroon, one row per café, a stitched patch for its initial */
 /* pinned cafés: UMass Dining's own location photos as cards, a 2-up grid inside Cafés & markets.
    Secondary to the four full-bleed hall bands: inset, rounded, half width, no varsity letter. */
-#pins{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:6px 0 10px}
+/* pinned cafés (round 4): full-bleed strips in the hall-band family, stacked under the bands. Half a band tall (56 vs 112),
+   the café's own photo in full colour with a neutral dark grade for AA (the halls get the maroon duotone), no letter. */
 #pins:empty{display:none}
-.pcard{position:relative;display:block;width:100%;aspect-ratio:640/341;border-radius:10px;overflow:hidden;background:var(--dm);text-align:left;color:#fff}
+.pcard{position:relative;display:block;width:100%;height:56px;margin-top:1px;overflow:hidden;background:#2b2627;text-align:left;color:#fff}
 .pcard img,.thumb img,.phero img{display:block;width:100%;height:100%;object-fit:cover}
-.pcard .pg{position:absolute;inset:0;background:linear-gradient(rgba(36,10,14,0) 24%,rgba(36,10,14,.74) 52%,rgba(36,10,14,.9) 76%)}
-.pcard .pt{position:absolute;left:10px;right:10px;bottom:8px}
-.pcard .pn{display:block;font:600 17px/1.15 Oswald,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pcard .ps{display:block;font-size:13px;font-weight:600;margin-top:2px;color:#fff}
-.pcard .ps.off{font-weight:500;color:rgba(255,255,255,.85)}
-.pcard .press{border-radius:inherit}
+.pcard img{object-position:50% 45%}
+.pcard .pg{position:absolute;inset:0;background:linear-gradient(90deg,rgba(24,20,21,.88) 0,rgba(24,20,21,.8) 64%,rgba(24,20,21,.25) 88%,rgba(24,20,21,0))}
+.pcard .pt{position:absolute;left:20px;right:30%;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.pcard .pn{font:600 20px/1 Oswald,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .ps{font-size:13px;line-height:1.2;color:#fff}
+.pcard .press{border-radius:0}
 .pcard.down .press{opacity:1;transition-duration:var(--d-press)}
+#pins{background:var(--dm)}
 .thumb{flex:none;width:64px;height:34px;border-radius:5px;overflow:hidden;background:var(--hair)}
 .lrow .lt{display:flex;align-items:center;gap:12px;min-width:0}
 .prow2 .lt{display:flex;align-items:center;gap:12px;min-width:0}
@@ -168,9 +180,22 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .pinb svg{fill:none}
 .pinb[aria-pressed=true] svg{fill:var(--gold);stroke:var(--gold)}
 /* where and when a dish is served (Search rows), and its servings (detail) */
-.ww{font-size:13px;color:var(--slate);margin-top:3px;line-height:1.35}
-.ww span{display:block}
-.srv .r{display:flex;align-items:center;gap:6px}
+.row .tags .ht{width:18px;height:18px;font-size:12px}
+/* where and when (round 4): a grid, halls (their letters) against meals, one day at a time. Filled maroon = served;
+   gold = served now (gold means "now" everywhere, as on the busy lamp board); a pale fill = served earlier today. */
+.avail{margin-top:18px}
+.adays{display:flex;gap:4px;margin-bottom:10px}
+.adays button{height:44px;padding:0 16px;border-radius:8px;font-weight:600;font-size:15px;color:var(--vm);box-shadow:inset 0 0 0 1.5px rgba(136,28,28,.5)}
+.adays button[aria-pressed=true]{background:var(--vm);color:#fff;box-shadow:none}
+.agrid{display:grid;grid-template-columns:30px repeat(var(--n),1fr);gap:4px;align-items:center}
+.agrid .mh{font-size:12px;font-weight:600;color:var(--slate);text-align:center;line-height:1.15;padding-bottom:2px;align-self:end}
+.agrid .hl{width:26px;height:26px;font-size:16px}
+.agrid .c{height:44px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--hair)}
+.agrid .c.on{background:var(--vm);box-shadow:none}
+.agrid .c.now{background:var(--gold);box-shadow:inset 0 0 0 2px var(--dm)}
+.agrid .c.past{background:rgba(136,28,28,.2);box-shadow:none}
+.agrid button.c.down{opacity:.75}
+.lnext{font-size:13px;color:var(--slate);margin-right:2px}
 #mscroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior-y:contain}
 #mspace{height:calc(var(--hh) + 96px)}
 #mlist{background:var(--chalk);min-height:100%}
@@ -401,9 +426,9 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
         <h1>Lunch</h1>
       </header>
       <div id="bands"></div>
+      <div id="pins"></div>
       <section class="sec">
         <h2>Cafés &amp; markets</h2>
-        <div id="pins"></div>
         <div id="areas"></div>
       </section>
       <div class="pad-b"></div>
@@ -592,12 +617,6 @@ const upcoming = d => d.day===1 || (d.meal==='grab' ? NOW < P.grab[d.h][1] : MRA
 function servings(k){ const s=new Set(); return (SERV[k]||[]).filter(upcoming).sort((a,b)=>a.day-b.day || MRANK[a.meal]-MRANK[b.meal] || HALLS.indexOf(a.h)-HALLS.indexOf(b.h))
   .filter(d=>{ const key=d.day+d.h+d.meal; if(s.has(key)) return false; s.add(key); return true; }); }
 const mealWord = m => m==='grab' ? "Grab 'N Go" : ML[m].toLowerCase();
-// "Worcester lunch and dinner, Berkshire dinner": halls in order of their next serving, meals in day order
-function whereText(list){ const by=new Map(); for(const d of list){ if(!by.has(d.h)) by.set(d.h,[]); const a=by.get(d.h); if(!a.includes(d.meal)) a.push(d.meal); }
-  return [...by].map(([h,ms])=>`${HN[h]} ${ms.map(mealWord).reduce((a,m,i,arr)=>i===0?m:a+(i===arr.length-1?' and ':', ')+m,'')}`).join(', '); }
-function whereWhen(k){ const s=servings(k), t=s.filter(d=>!d.day), m=s.filter(d=>d.day);
-  return [t.length?whereText(t):'', m.length?'Tomorrow: '+whereText(m):''].filter(Boolean); }
-const whenLabel = d => d.day ? `Tomorrow, ${mealWord(d.meal)}` : d.meal==='lunch' ? 'Lunch, now' : ML[d.meal];
 const byName = (h,meal,n) => BYK[meal][norm(n)].refs[h];
 
 /* ---------- state ---------- */
@@ -740,7 +759,7 @@ const pinIdx = n => P.places.findIndex(x=>x[0]===n);
 const photo = (key, cls='') => RIMG[key] ? `<img class="ph-img${cls}" alt="" src="${RIMG[key]}" draggable="false">` : '';
 const thumb = key => RIMG[key] ? `<span class="thumb" aria-hidden="true">${photo(key)}</span>` : '';
 function renderPins(){ $('#pins').innerHTML = S.pins.map(n=>{ const i=pinIdx(n), x=P.places[i], o=isOpen([x[3],x[4]]);
-  return `<button class="pcard" data-act="page" data-p="place" data-c="${i}" aria-label="${esc(x[0])}, ${status([x[3],x[4]])}">${photo(x[0])}<span class="pg"></span><span class="press"></span><span class="pt"><span class="pn">${esc(x[0])}</span><span class="ps${o?'':' off'}">${status([x[3],x[4]])}</span></span></button>`; }).join(''); }
+  return `<button class="pcard" data-act="page" data-p="place" data-c="${i}" aria-label="${esc(x[0])}, ${status([x[3],x[4]])}">${photo(x[0])}<span class="pg"></span><span class="press"></span><span class="pt"><span class="pn">${esc(x[0])}</span><span class="ps">${status([x[3],x[4]])}</span></span></button>`; }).join(''); }
 const pinBtn = i => { const n=P.places[i][0], on=S.pins.includes(n); return `<button class="icon pinb" data-act="pin" data-name="${esc(n)}" aria-pressed="${on}" aria-label="${on?'Unpin from Halls':'Pin to Halls'}">${IC.pin}</button>`; };
 function renderAreas(){
   $('#areas').innerHTML = [0,1,2,3].map(a=>{ const ps=P.places.filter(x=>x[1]===a), open=ps.filter(x=>isOpen([x[3],x[4]])).length;
@@ -749,8 +768,10 @@ function renderAreas(){
 const EVIMG = {ipd:'__IMG_EV_ipd__', oct:'__IMG_EV_oct__', pg:'__IMG_EV_pg__', sust:'__IMG_EV_sust__'};
 let EVENTS = P.events;   // build.py already dropped expired ones and merged "<X> Hours" into "<X>"
 // one row type for events: title, date in Oswald. On maroon in Search's idle state, on chalk inside a hall menu.
-const evRow = (e,i,cls='') => `<button class="evcard${cls}" data-act="page" data-p="event" data-c="${i}"><span class="evtt">${esc(e[0])}</span>${evWhen(e)?`<span class="evtag">${evWhen(e)}</span>`:''}</button>`;
-function renderEvents(){ $('#sdisc').dataset.n=EVENTS.length; $('#evc').innerHTML = EVENTS.map((e,i)=>evRow(e,i)).join(''); }
+const evRow = (e,i,cls='') => `<button class="evrow${cls}" data-act="page" data-p="event" data-c="${i}"><span class="evtt">${esc(e[0])}</span>${evWhen(e)?`<span class="evtag">${evWhen(e)}</span>`:''}</button>`;
+const evCard = (e,i) => `<button class="evcard" data-act="page" data-p="event" data-c="${i}" aria-label="${esc(e[0])}${evWhen(e)?', '+evWhen(e):''}"><span class="evpatch">${e[3]?`<img class="ph-img" alt="" src="${EVIMG[e[3]]}" draggable="false">`:''}</span><span class="evcap"><span class="evtt">${esc(e[0])}</span>${evWhen(e)?`<span class="evtag">${evWhen(e)}</span>`:''}</span></button>`;
+function renderEvents(){ const c=$('#evc'); $('#sdisc').dataset.n=EVENTS.length; c.classList.toggle('one',EVENTS.length===1); c.innerHTML = EVENTS.map(evCard).join(''); }
+$('#evc').addEventListener('scrollend',()=>buzz(4));   // a tick when a card settles
 // Only an expiry is published. Within a week it reads as the day itself ("Mon, Oct 12"); within two months as a run
 // ("Through Oct 31"); anything later is an ongoing promo and gets no date.
 const evSoon = (e,h) => e[4].includes(h) && (e[1]*1000-Date.UTC(2026,9,8))/864e5 <= 7;   // contextual: this week, at this hall
@@ -995,16 +1016,30 @@ function laterHits(){ const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.
   const out=[]; for(const k in SERV){ if(BYK[S.smeal]&&BYK[S.smeal][k]) continue; if(!toks.every(t=>k.split(' ').some(w=>w.startsWith(t))||k.includes(t))) continue;
     const s=servings(k); if(s.length) out.push(s[0]); }
   return out.sort((a,b)=>a.day-b.day||MRANK[a.meal]-MRANK[b.meal]||a.n.localeCompare(b.n)).slice(0,8); }
-const wwHTML = k => { const w=whereWhen(k); return w.length?`<div class="ww">${w.map(l=>`<span>${esc(l)}</span>`).join('')}</div>`:''; };
+// W F H B, the halls in the list filled: scans in a glance, never crowds the row
+const hallGlyph = (hs, when) => `<span class="tags" role="img" aria-label="${hs.length?`Served ${when} at ${hs.map(h=>HN[h]).reduce((a,n,i,l)=>i?a+(i===l.length-1?' and ':', ')+n:n,'')}`:`Not served ${when}`}">${HALLS.map(h=>`<i class="ht${hs.includes(h)?' on':''}" aria-hidden="true">${h}</i>`).join('')}</span>`;
+// the full grid for a dish's detail: halls x meals for one day; every served cell opens that hall at that meal and day
+function availHTML(k, day){
+  const all=SERV[k]||[], meals=MEALS.map(m=>m[0]).filter(m=>all.some(d=>d.day===day&&d.meal===m) || ['lunch','dinner'].includes(m));
+  const cell=(h,m)=>{ const d=all.find(x=>x.day===day&&x.h===h&&x.meal===m); if(!d) return `<span class="c" aria-hidden="true"></span>`;
+    const now=!day&&m==='lunch', past=!upcoming(d), w=day?'tomorrow':'today';
+    return `<button class="c ${now?'now':past?'past':'on'}" data-act="srv" data-id="${d.id}" aria-label="Served at ${HN[h]}, ${mealWord(m)}, ${w}${now?', now':''}"></button>`; };
+  return `<div class="agrid" style="--n:${meals.length}" role="group" aria-label="${day?'Tomorrow':'Today'}"><span></span>${meals.map(m=>`<span class="mh" aria-hidden="true">${m==='grab'?"Grab 'N Go":ML[m]}</span>`).join('')}
+    ${HALLS.map(h=>`<i class="ht on hl" aria-hidden="true">${h}</i>${meals.map(m=>cell(h,m)).join('')}`).join('')}</div>`; }
+function availBlock(k){ const t=(SERV[k]||[]).some(d=>!d.day&&upcoming(d)), m=(SERV[k]||[]).some(d=>d.day), day=t||!m?0:1;
+  if(!(SERV[k]||[]).length) return '';
+  return `<div class="avail" data-k="${esc(k)}"><div class="adays" role="group">${['Today','Tomorrow'].map((l,i)=>`<button data-act="aday" data-day="${i}" aria-pressed="${i===day}">${l}</button>`).join('')}</div><div class="agw">${availHTML(k,day)}</div></div>`; }
 function renderSearch(){
   $('#q').placeholder = S.scope? `Search ${HN[S.scope]} ${ML[S.smeal].toLowerCase()}` : `Search ${ML[S.smeal].toLowerCase()} at every hall`;
   $('#qclear').classList.toggle('hide',!S.q);
   const r=results(), pl=S.plates[S.front], ph=pl&&pl.meal===S.smeal?plateHalls(pl):null, pl2=placeHits(), lt=laterHits();
   let html = pl2.length ? `<div class="sgrp" data-key="g-places">Places</div>${pl2.join('')}` : '';
   if(r.length && (pl2.length||lt.length||(!S.q&&!S.lenses.size))) html+=`<div class="sgrp" data-key="g-now">${ML[S.smeal]} now</div>`;
-  html += r.map(({g,d})=>{ const f=findItem(S.smeal,g.k); const tags=HALLS.filter(h=>g.refs[h]).map(h=>`<i class="ht${ph&&ph.includes(h)?' on':''}" aria-label="${HN[h]}">${h}</i>`).join('');
-    return `<div class="row" data-k="${esc(g.k)}" data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${meta(d)}<span class="tags">${tags}</span></div>${wwHTML(g.k)}</div>${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,Object.keys(g.refs)))}</div>`; }).join('');
-  if(lt.length) html += `<div class="sgrp" data-key="g-later">Later today and tomorrow</div>` + lt.map(d=>`<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(d.n, dietMark(d))}</div><div class="m">${meta(d)}</div>${wwHTML(d.k)}</div></div>`).join('');
+  html += r.map(({g,d})=>{ const f=findItem(S.smeal,g.k);
+    return `<div class="row" data-k="${esc(g.k)}" data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${meta(d)}${hallGlyph(HALLS.filter(h=>g.refs[h]), 'now')}</div></div>${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,Object.keys(g.refs)))}</div>`; }).join('');
+  // not served now: the same four letters, filled for the halls at its next serving, after the meal it's next served at
+  if(lt.length) html += `<div class="sgrp" data-key="g-later">Later today and tomorrow</div>` + lt.map(d=>{ const nx=servings(d.k).filter(s=>s.day===d.day&&s.meal===d.meal).map(s=>s.h);
+    return `<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(d.n, dietMark(d))}</div><div class="m">${meta(d)}<span class="gap"></span><span class="lnext">${d.day?'Tomorrow':ML[d.meal]}</span>${hallGlyph(nx, d.day?'tomorrow, '+mealWord(d.meal):mealWord(d.meal))}</div></div></div>`; }).join('');
   if(!r.length && !pl2.length && !lt.length){
     html = S.q ? `<p class="empty">Nothing called “${esc(S.q)}” is on ${S.scope?HN[S.scope]+"'s ":''}any menu today or tomorrow.</p><button class="custom solid" data-act="custom">${IC.plus.replace('<svg','<svg width="20" height="20" stroke="currentColor" stroke-width="2.4" fill="none"')}Add “${esc(S.q)}” as a custom food</button>`
       : S.lenses.has('fav') ? `<p class="empty">Star a dish from its details and it shows up here whenever it's served.</p>` : `<p class="empty">No dishes match these filters at ${ML[S.smeal].toLowerCase()}.</p>`;
@@ -1089,18 +1124,18 @@ function tween(from, to, dur, step, fin){ const t0=performance.now(); let id;
 function contPrep(el){ const src=el._src; if(RM||!src||!src.isConnected) return false;
   contDone(el); el._c={r:relRect(src), g:ghostOf(src)}; frame.appendChild(el._c.g); src.style.visibility='hidden';
   // the location photo is the shared element (like a hall's photo): it moves and resizes from the card / thumbnail to the page header
-  const si=src.querySelector('.ph-img'), di=el.querySelector('.phero .ph-img');
+  const si=src.querySelector('.ph-img'), di=el.querySelector('.phero .ph-img, .evpatch .ph-img');
   if(si && di){ const a=relRect(si), b=relRect(di), sh=document.createElement('img'); sh.src=di.src; sh.alt=''; sh.className='trav';
-    const rad=parseFloat(getComputedStyle(si.parentElement).borderTopLeftRadius)||0;
+    const rad=parseFloat(getComputedStyle(si.parentElement).borderTopLeftRadius)||0, radB=parseFloat(getComputedStyle(di.parentElement).borderTopLeftRadius)||0;
     Object.assign(sh.style,{objectFit:'cover',zIndex:+el.style.zIndex+1}); frame.appendChild(sh);
     di.style.visibility='hidden'; const gi=el._c.g.querySelector('.ph-img'); if(gi) gi.style.visibility='hidden';
-    el._c.sh={el:sh,a,b,rad,di}; }
+    el._c.sh={el:sh,a,b,rad,radB,di}; }
   return true; }
 function contPaint(el, p){ const c=el._c, q=1-p, r=c.r, open=q>1e-4, fin=clamp((p-.3)/.7); el._p=p;
   el.style.clipPath = open ? `inset(${r.y*q}px ${(W0()-r.x-r.w)*q}px ${(H-r.y-r.h)*q}px ${r.x*q}px)` : 'none';
   for(const ch of el.children){ ch.style.opacity = open ? fin : ''; ch.style.transform = open ? `translateY(${r.y*q}px)` : ''; }
   c.g.style.opacity = 1-clamp(p/.3); c.g.style.transform = `translateY(${-r.y*p}px)`;
-  if(c.sh){ const {a,b}=c.sh, L=(u,v)=>u+(v-u)*p; Object.assign(c.sh.el.style,{left:L(a.x,b.x)+'px',top:L(a.y,b.y)+'px',width:L(a.w,b.w)+'px',height:L(a.h,b.h)+'px',borderRadius:c.sh.rad*q+'px'}); }
+  if(c.sh){ const {a,b}=c.sh, L=(u,v)=>u+(v-u)*p; Object.assign(c.sh.el.style,{left:L(a.x,b.x)+'px',top:L(a.y,b.y)+'px',width:L(a.w,b.w)+'px',height:L(a.h,b.h)+'px',borderRadius:(c.sh.rad*q+c.sh.radB*p)+'px'}); }
   el._dim.style.opacity = MO.scrim*p; }
 function contDone(el){ if(el._c){ el._c.g.remove(); if(el._c.sh){ el._c.sh.el.remove(); el._c.sh.di.style.visibility=''; } el._c=null; } }
 let pages=[];
@@ -1155,7 +1190,7 @@ function pageContent(p, x){
       <h3 class="h3">Menu</h3>${v[7].length? v[7].map(n=>`<div class="lrow"><div class="a" style="font-weight:500">${esc(n)}</div><button class="add" data-act="custom" data-name="${esc(n)}" aria-label="Add ${esc(n)}">${IC.plus}</button></div>`).join('')
         : `<p class="kv">${esc(v[0])} doesn't list its menu in the app.</p><button class="btn" data-act="custom" data-name="">Add a custom food</button>`}`]; }
   if(p==='event'){ const e=P.events[x];
-    return [e[0], `${e[3]?`<div class="evband"><span class="evpatch"><img alt="" src="${EVIMG[e[3]]}"></span></div>`:''}${evWhen(e)?`<p class="pstat"><b>${evWhen(e)}</b></p>`:''}
+    return [e[0], `${e[3]?`<div class="evband"><span class="evpatch"><img class="ph-img" alt="" src="${EVIMG[e[3]]}"></span></div>`:''}${evWhen(e)?`<p class="pstat"><b>${evWhen(e)}</b></p>`:''}
       <div class="stack">${e[2].map(([l,u],k)=>`<a class="btn${k?' line':''}" style="text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>`]; }
   if(p==='favs'){ const f=[...S.fav]; return ['Favorites', f.length? f.map(k=>{ const g=BYK.lunch[k]||Object.values(BYK).map(b=>b[k]).find(Boolean); const s=servedNow(k);
       return `<div class="lrow"><div><div class="a">${esc(g?g.n:k)}</div><div class="b">${s.length?'At lunch now at '+hallLabel(s):'Not on lunch today'}</div></div></div>`; }).join('')
@@ -1278,9 +1313,7 @@ function renderPSheet(){
     <div class="twob"><button class="tbtn" data-act="fulllabel">Full label</button><button class="tbtn" data-act="clear">Clear plate</button></div></div>`;
 }
 function openDish(d, src){
-  const N=nutObj(d.nut), sv=servings(d.k);
-  // where and when: every upcoming serving across halls, meals and days, next first; each opens that hall at that meal and day
-  const srvs = sv.length ? `<h3 class="h3" style="font-size:20px">Served</h3>${sv.map(s=>`<button class="lrow srv" data-act="srv" data-id="${s.id}"><div class="a">${HN[s.h]}</div><span class="r">${whenLabel(s)}${IC.rchev}</span></button>`).join('')}` : '';
+  const N=nutObj(d.nut), srvs=availBlock(d.k);   // where and when: the halls x meals grid
   $('#isbody').innerHTML = `<div class="dish"><div class="sh1"><h2 style="font-size:28px">${esc(d.n)}</h2></div>
     <p class="kv" style="margin:0">${esc(d.srv)}</p>
     ${marksHTML(d)?`<div class="mks">${marksHTML(d)}</div>`:''}
@@ -1444,6 +1477,8 @@ document.addEventListener('click',e=>{
   else if(act==='back') closeHall();
   else if(act==='closeidx') closeIdx();
   else if(act==='stations') (isheet.state!=='closed' && $('#isbody #stidx') ? closeIdx() : openIdx());
+  else if(act==='aday'){ const box=a.closest('.avail'), day=+a.dataset.day; box.querySelectorAll('.adays button').forEach(b=>b.setAttribute('aria-pressed',b===a));
+    const w=box.querySelector('.agw'); w.innerHTML=availHTML(box.dataset.k, day); A(w,[{opacity:0},{opacity:1}],'settle'); buzz(4); }
   else if(act==='srv'){ const d=DISH[a.dataset.id], src=isheet.src;
     // the detail returns to its row, then that same row grows into the hall at that day and meal (a hall-menu row can't host it: the band does)
     const from = src && src.isConnected && !src.closest('#menu') ? src : undefined;
