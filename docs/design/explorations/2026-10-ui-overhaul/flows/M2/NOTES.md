@@ -536,3 +536,56 @@ I read the app as a student would first (`CRITIQUE-r5.md`), then wrote one conce
 - `shots5.js` makes `shot-pins.png` (0, 2, 5, 5 scrolled), `shot-dish.png` (served now; now plus later elsewhere; later today; tomorrow only) and `shot-search.png` ("bbq", "posole", "cruller").
 - `compare-pins.png`, `compare-pinopen.png` and `compare-serving.png` now include an "M2 r4" row (`build/rec/M2r4/`) above "M2 now".
 - Round 4's shots are kept as `build/r4-shot-*.png`.
+
+## Round 5b: event transition
+
+Owner: "fix the transition for events, elements don't move correctly."
+
+### Cause (all in `contPrep` / `contPaint`, the shared page container transform)
+- **The wash.** The ghost (a clone of the card, z 60) hid only its `<img>`. The clone's `.evpatch` (maroon ground, white edge, gold stitch) stayed painted *over* the travelling image (z 31) until p .3.
+- **Frame vanishing then reappearing.** The shared element was a bare `<img>`. The frame existed only in the ghost, which faded out, and in the page's patch, which faded in with the page. So the banner went bare and was then re-framed at another place.
+- **Caption vanishing.** The container was the page's chalk surface from frame 1. The card's white title sat on chalk, so it disappeared.
+- **Content drift.** Every page child was translated by `r.y·(1−p)` (riding the container's top edge), while the banner lerped on its own path. Two motions read as two objects.
+- **Translucent bar.** `.pbar` faded as a whole, its background included.
+
+### Decision: the frame is part of the object
+Card and page use the same `.evpatch` (3 px felt edge, stitch inset 4 px, radius 6). The travelling element is a clone of it, with width and height lerped rather than scaled, so the edge and stitch stay exactly as drawn on both ends. It never fades or swaps.
+
+### What changed
+- **Event page layout.** The bar, the framed banner and the date are one deep-maroon surface: the card's own ground, grown.
+  - The bar is `--dm` on event pages (`.page:has(.evband)`).
+  - The date moved into the band in gold Oswald, under the banner where the card's gold date sits.
+  - The 8 px chalk line between bar and band is gone.
+  - The buttons sit below on chalk.
+- **Motion** (event cards only; tokens unchanged: `cont`/`contBack`, emphasized, 0–.3 out / .3–1 in).
+  - The page lies still under the growing clip window.
+  - Its maroon surface is opaque from the first frame. While the container is open it is stretched over the rest of the window (`.evband::after`, `--ext`) and fades to chalk over .3–1 (`--exto`). That is the container-colour crossfade of Material's container transform, so no chalk sliver slides out from under the card.
+  - The bar's controls and the date fade in at their final positions, and the buttons are uncovered there.
+  - The card's caption is chrome: it fades over 0–.3 while following the banner's bottom edge.
+  - Close, drag-down and edge swipe run the same frames reversed.
+- **Shared fix (all page opens).** The ghost hides its copy of the shared element (and a thumbnail's `.thumb` box) and drops its own ground. This removes the same wash from pin and place opens; they are otherwise untouched.
+- **Removed:** `.evcard.down .evpatch{opacity:.85}`. Press feedback no longer alters the banner; the card's state layer remains.
+
+### Test (`test.js`, "Round 5b")
+- **What it samples.** Every rAF frame of open, back, drag-down and edge swipe, on three cards: the first, the peeking card (half off the right), and a card scrolled half off the left.
+- **What it asserts:**
+  - exactly one banner painted, inside a fully opaque frame, with no other patch over it;
+  - each of x, y, w and h stays between the card rect and the page rect and moves one way only;
+  - the aspect stays constant;
+  - the date and buttons never move while visible;
+  - the page bar is opaque whenever drawn;
+  - the card is back and visible at its exact x.
+- **Red before the fix** (each check isolated by neutralising the earlier ones):
+  - `first card, open: the banner travels inside its felt frame (frame 1)`;
+  - `the page bar is opaque whenever it is drawn (frame 1: 0)`;
+  - `page content 0 fades in at its final place (frame 8: y 421.8, final 281.7, opacity 0.10)`.
+- **Now:** `node test.js` gives 11230 checks; `RM=1 node test.js` gives 173 checks (reduced motion keeps the crossfade).
+
+### Files
+- **New `rec.js` interactions:** `eventclose`, `eventdrag`, `eventpeek`, `eventpeekclose`.
+- **Compares:** `compare-eventopen.png`, `compare-eventclose.png`, `compare-eventdrag.png`, `compare-eventpeek.png` and `compare-eventpeekclose.png`. Each has an "M2 r5 (before 5b)" row (`build/rec/M2r5/`) above "M2 now". `compare-pinopen.png` and `compare-placeopen.png` are re-recorded.
+
+### Open
+- Place and pin opens still have the old content model: content rides the container's edge while the photo lerps separately, and the chalk shows below the photo early. That is the same class of problem as events, but the owner didn't flag it, so I left it alone.
+- The event page can also be opened from the chalk note row inside a hall menu. That source has no banner, so it uses the generic model: the now-maroon bar fades as a whole while riding the container's edge. It's the translucent-bar symptom through a second door.
+- The test also runs `?events=1` (one card, 370 px wide against the page's 350 px patch, flush with the right edge).

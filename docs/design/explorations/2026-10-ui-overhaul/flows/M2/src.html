@@ -102,15 +102,21 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .evcap{display:flex;align-items:baseline;gap:10px;margin-top:10px}
 .evtt{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.92)}
 .evtag{flex:none;color:var(--gold);font:600 15px/1.3 Oswald,sans-serif;font-variant-numeric:tabular-nums}
-.evcard.down .evpatch{opacity:.85}
 /* the in-menu note is still a quiet row on chalk */
 .evrow{display:flex;align-items:baseline;gap:12px;width:100%;min-height:52px;padding:14px 20px;text-align:left;position:relative}
 .evrow .evtt{white-space:normal;color:var(--dm)}
 .evnote{color:var(--dm);border-bottom:1px solid var(--hair)}
 .evnote .evtag{color:var(--vm);font-size:16px}
 .evnote.down{background:rgba(36,23,26,.06)}
-/* event page: the flyer, framed as a stitched patch on the maroon band */
-.evband{background:var(--dm);margin:0 -20px;padding:14px 20px 20px}
+/* event page: the card, grown. The bar, the framed banner and the date sit on one deep-maroon surface (the card's own ground),
+   so the open is one object: the surface is the container, the banner travels in its frame, the rest fades in where it ends up.
+   While it opens, --ext stretches that surface over the rest of the container and fades it (--exto) to the page's chalk:
+   the container's colour turns from the card's to the page's, as in Material's container transform (contPaint). */
+.evband{position:relative;z-index:1;background:var(--dm);margin:-8px -20px 0;padding:14px 20px 18px}
+.evband::after{content:"";position:absolute;left:0;right:0;top:100%;height:var(--ext,0);opacity:var(--exto,1);background:var(--dm)}
+.evband .pstat{padding:12px 0 0}
+.evband .pstat b{color:var(--gold)}
+.page:has(.evband) .pbar{background:var(--dm)}
 .evpatch{position:relative;display:block;aspect-ratio:1024/432;border-radius:6px;overflow:hidden;background:var(--vm);box-shadow:0 0 0 3px #fff}
 .evpatch img{display:block;width:100%;height:100%;object-fit:cover}
 .evpatch::after{content:"";position:absolute;inset:4px;border-radius:3px;border:1.5px dashed rgba(201,154,46,.95);pointer-events:none}
@@ -1135,21 +1141,35 @@ function tween(from, to, dur, step, fin){ const t0=performance.now(); let id;
   f(t0); return ()=>cancelAnimationFrame(id); }
 function contPrep(el){ const src=el._src; if(RM||!src||!src.isConnected) return false;
   contDone(el); el._c={r:relRect(src), g:ghostOf(src)}; frame.appendChild(el._c.g); src.style.visibility='hidden';
-  // the location photo is the shared element (like a hall's photo): it moves and resizes from the card / thumbnail to the page header
-  const si=src.querySelector('.ph-img'), di=el.querySelector('.phero .ph-img, .evpatch .ph-img');
-  if(si && di){ const a=relRect(si), b=relRect(di), sh=document.createElement('img'); sh.src=di.src; sh.alt=''; sh.className='trav';
-    const rad=parseFloat(getComputedStyle(si.parentElement).borderTopLeftRadius)||0, radB=parseFloat(getComputedStyle(di.parentElement).borderTopLeftRadius)||0;
-    Object.assign(sh.style,{objectFit:'cover',zIndex:+el.style.zIndex+1}); frame.appendChild(sh);
-    di.style.visibility='hidden'; const gi=el._c.g.querySelector('.ph-img'); if(gi) gi.style.visibility='hidden';
-    el._c.sh={el:sh,a,b,rad,radB,di}; }
+  // the shared element moves and resizes from the card to the page: an event's banner in its felt frame (the frame is part of
+  // the object, identical on card and page), or a location photo from a card / thumbnail to the page header
+  const sp=src.querySelector('.evpatch'), dp=el.querySelector('.evpatch'), ev=!!(sp&&dp&&dp.firstChild);
+  const si=ev?sp:src.querySelector('.ph-img'), di=ev?dp:el.querySelector('.phero .ph-img');
+  if(si && di){ const a=relRect(si), b=relRect(di), rad=e=>parseFloat(getComputedStyle(ev?e:e.parentElement).borderTopLeftRadius)||0;
+    const sh=di.cloneNode(true); sh.classList.add('trav'); sh.setAttribute('aria-hidden','true');
+    Object.assign(sh.style,{position:'absolute',objectFit:'cover',zIndex:+el.style.zIndex+1}); frame.appendChild(sh);
+    di.style.visibility='hidden';
+    // the ghost keeps only the card's chrome (caption, gradient, text); its copy of the shared element and its ground go,
+    // so nothing of the card washes over the travelling banner / photo
+    const gs=el._c.g.querySelector(ev?'.evpatch':'.ph-img'); (gs.closest('.thumb')||gs).style.visibility='hidden'; el._c.g.style.background='transparent';
+    el._c.sh={el:sh,a,b,rad:rad(si),radB:rad(di),di}; }
+  // an event page lies still under the growing container: its maroon surface (bar + band) is the card's ground, opaque
+  // from the first frame, and covers the rest of the container until it fades to the page's chalk; the bar's controls and
+  // the date fade in where they end up, the buttons are uncovered where they end up. Nothing rides the container's edge.
+  if(ev){ const band=el.querySelector('.evband'), bb=relRect(band);
+    el._c.ev={band, bot:bb.y+bb.h, fade:[...el.querySelectorAll('.pbar > *, .evband .pstat')]}; }
   return true; }
 function contPaint(el, p){ const c=el._c, q=1-p, r=c.r, open=q>1e-4, fin=clamp((p-.3)/.7); el._p=p;
   el.style.clipPath = open ? `inset(${r.y*q}px ${(W0()-r.x-r.w)*q}px ${(H-r.y-r.h)*q}px ${r.x*q}px)` : 'none';
-  for(const ch of el.children){ ch.style.opacity = open ? fin : ''; ch.style.transform = open ? `translateY(${r.y*q}px)` : ''; }
+  if(c.ev){ for(const x of c.ev.fade) x.style.opacity = open ? fin : '';
+    c.ev.band.style.setProperty('--ext', open ? Math.max(0,H-(H-r.y-r.h)*q-c.ev.bot)+'px' : '0px'); c.ev.band.style.setProperty('--exto', 1-fin); }
+  else for(const ch of el.children){ ch.style.opacity = open ? fin : ''; ch.style.transform = open ? `translateY(${r.y*q}px)` : ''; }
   c.g.style.opacity = 1-clamp(p/.3); c.g.style.transform = `translateY(${-r.y*p}px)`;
-  if(c.sh){ const {a,b}=c.sh, L=(u,v)=>u+(v-u)*p; Object.assign(c.sh.el.style,{left:L(a.x,b.x)+'px',top:L(a.y,b.y)+'px',width:L(a.w,b.w)+'px',height:L(a.h,b.h)+'px',borderRadius:(c.sh.rad*q+c.sh.radB*p)+'px'}); }
+  if(c.sh){ const {a,b}=c.sh, L=(u,v)=>u+(v-u)*p, x=L(a.x,b.x), y=L(a.y,b.y), w=L(a.w,b.w), h=L(a.h,b.h);
+    Object.assign(c.sh.el.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px',borderRadius:(c.sh.rad*q+c.sh.radB*p)+'px'});
+    if(c.ev) c.g.style.transform = `translate(${x-a.x}px,${y+h-a.y-a.h}px)`; }   // an event's caption stays under its banner while it fades
   el._dim.style.opacity = MO.scrim*p; }
-function contDone(el){ if(el._c){ el._c.g.remove(); if(el._c.sh){ el._c.sh.el.remove(); el._c.sh.di.style.visibility=''; } el._c=null; } }
+function contDone(el){ if(el._c){ el._c.g.remove(); if(el._c.sh){ el._c.sh.el.remove(); el._c.sh.di.style.visibility=''; } if(el._c.ev){ el._c.ev.band.style.removeProperty('--ext'); el._c.ev.band.style.removeProperty('--exto'); } el._c=null; } }
 let pages=[];
 function openPage(p, extra, src){
   const el=document.createElement('div'); el.className='page'; el.dataset.p=p; el.dataset.x=extra??'';
@@ -1202,7 +1222,7 @@ function pageContent(p, x){
       <h3 class="h3">Menu</h3>${v[7].length? v[7].map(n=>`<div class="lrow"><div class="a" style="font-weight:500">${esc(n)}</div><button class="add" data-act="custom" data-name="${esc(n)}" aria-label="Add ${esc(n)}">${IC.plus}</button></div>`).join('')
         : `<p class="kv">${esc(v[0])} doesn't list its menu in the app.</p><button class="btn" data-act="custom" data-name="">Add a custom food</button>`}`]; }
   if(p==='event'){ const e=P.events[x];
-    return [e[0], `${e[3]?`<div class="evband"><span class="evpatch"><img class="ph-img" alt="" src="${EVIMG[e[3]]}"></span></div>`:''}${evWhen(e)?`<p class="pstat"><b>${evWhen(e)}</b></p>`:''}
+    return [e[0], `<div class="evband">${e[3]?`<span class="evpatch"><img class="ph-img" alt="" src="${EVIMG[e[3]]}"></span>`:''}${evWhen(e)?`<p class="pstat"><b>${evWhen(e)}</b></p>`:''}</div>
       <div class="stack">${e[2].map(([l,u],k)=>`<a class="btn${k?' line':''}" style="text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>`]; }
   if(p==='favs'){ const f=[...S.fav]; return ['Favorites', f.length? f.map(k=>{ const g=BYK.lunch[k]||Object.values(BYK).map(b=>b[k]).find(Boolean); const s=servedNow(k);
       return `<div class="lrow"><div><div class="a">${esc(g?g.n:k)}</div><div class="b">${s.length?'At lunch now at '+hallLabel(s):'Not on lunch today'}</div></div></div>`; }).join('')

@@ -370,6 +370,66 @@ d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: 
     }
   }
 
+  // Round 5b: an event card opens as one object. Every frame of open, close (back), drag-down and edge swipe is sampled:
+  // exactly one framed banner is painted (no bare image, no second frame washing over it), its rect moves monotonically
+  // between the card's and the page's with a constant aspect, the page's date and buttons never move while they fade in,
+  // and the page bar is opaque whenever it is drawn. Run on the first card, the peeking card, and a card scrolled half off the left.
+  if (!process.env.RM) {
+    const sampler = () => page.evaluate(() => { window.__ev = []; const vis = el => { let o = 1; for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const s = getComputedStyle(e); if (s.display === 'none') return 0; o *= +s.opacity; } return getComputedStyle(el).visibility === 'visible' ? o : 0; };
+      const R = el => { const f = frame.getBoundingClientRect(), r = el.getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; };
+      const hit = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
+      const f = () => { const src = window.__evsrc, url = src.querySelector('img').src, pg = document.querySelector('.page');
+        const imgs = [...document.querySelectorAll('#frame img')].filter(i => i.src === url && vis(i) > .01 && !(i.closest('#evc') && i.closest('.evcard') !== src));
+        const s = { imgs: imgs.length, page: !!pg };
+        if (imgs.length === 1) { const im = imgs[0], fr = im.closest('.evpatch'); s.r = R(fr || im); s.framed = !!fr && vis(fr) > .99;
+          s.patches = [...document.querySelectorAll('#frame .evpatch')].filter(p => !p.closest('#evc') && vis(p) > .01 && hit(R(p), s.r)).length + (src.style.visibility === 'hidden' ? 0 : 1); }
+        if (pg) { s.c = [...pg.querySelectorAll('.pstat, .stack')].map(e => [R(e)[1], vis(e)]); s.bar = vis(pg.querySelector('.pbar')); }
+        __ev.push(s); if (__ev.length < 400 && !window.__evstop) requestAnimationFrame(f); };
+      window.__evstop = 0; requestAnimationFrame(f); });
+    const collect = () => page.evaluate(() => { window.__evstop = 1; return window.__ev; });
+    const monotone = (ss, a, b, label) => {
+      const rs = ss.filter(s => s.r).map(s => s.r);
+      assert(rs.length > 8, `${label}: the banner was sampled through the transition (${rs.length} frames)`);
+      for (let k = 0; k < 4; k++) {
+        const lo = Math.min(a[k], b[k]) - 1, hi = Math.max(a[k], b[k]) + 1, dir = Math.sign(b[k] - a[k]);
+        rs.forEach((r, i) => { assert(r[k] >= lo && r[k] <= hi, `${label}: banner ${'xywh'[k]} ${r[k].toFixed(1)} stays between card ${a[k].toFixed(1)} and page ${b[k].toFixed(1)} (frame ${i})`);
+          if (i) assert((r[k] - rs[i - 1][k]) * dir >= -.6, `${label}: banner ${'xywh'[k]} moves one way (frame ${i}: ${rs[i - 1][k].toFixed(1)} -> ${r[k].toFixed(1)})`); });
+      }
+      rs.forEach((r, i) => assert(Math.abs(r[2] / r[3] - a[2] / a[3]) < .02, `${label}: banner keeps its aspect (frame ${i}: ${(r[2] / r[3]).toFixed(3)})`));
+      ss.forEach((s, i) => { assert.equal(s.imgs, 1, `${label}: one banner painted, never two or none (frame ${i})`);
+        assert(s.framed, `${label}: the banner travels inside its felt frame (frame ${i})`);
+        assert.equal(s.patches, 1, `${label}: nothing else framed is drawn over the travelling banner (frame ${i})`); });
+    };
+    const fixed = (ss, fin, label) => ss.forEach((s, i) => { if (!s.c) return; s.c.forEach(([y, o], j) => { if (o > .01) assert(Math.abs(y - fin[j]) < .6, `${label}: page content ${j} fades in at its final place (frame ${i}: y ${y.toFixed(1)}, final ${fin[j].toFixed(1)}, opacity ${o.toFixed(2)})`); });
+      assert(s.bar === undefined || s.bar > .99, `${label}: the page bar is opaque whenever it is drawn (frame ${i}: ${s.bar})`); });
+    for (const [label, pick, q] of [['first card', 0, ''], ['peeking card', 1, ''], ['card scrolled half off the left', 2, ''], ['the only card', 0, '&events=1']]) {
+      await page.goto(URL + '?state=search' + q); await page.waitForTimeout(400); await page.evaluate(() => document.querySelector('#q').blur());
+      if (pick === 2) { await page.evaluate(() => { const c = document.querySelector('#evc'); c.scrollLeft = c.scrollWidth; }); await page.waitForTimeout(500); }
+      const cardR = await page.evaluate(i => { const c = document.querySelectorAll('#evc .evcard')[i]; window.__evsrc = c; const f = frame.getBoundingClientRect(), r = c.querySelector('.evpatch').getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; }, pick);
+      if (pick) assert(cardR[0] < 0 || cardR[0] + cardR[2] > 390, `${label}: the card really is partly off-screen (${cardR.map(Math.round)})`);
+      const tx = Math.min(380, Math.max(10, cardR[0] + cardR[2] / 2)), ty = cardR[1] + cardR[3] / 2;
+      await sampler(); await page.touchscreen.tap(tx, ty); await page.waitForTimeout(800);
+      const open = await collect();
+      const pageR = await page.evaluate(() => { const f = frame.getBoundingClientRect(), r = document.querySelector('.page .evpatch').getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; });
+      const fin = await page.evaluate(() => [...document.querySelectorAll('.page .pstat, .page .stack')].map(e => e.getBoundingClientRect().top - frame.getBoundingClientRect().top));
+      monotone(open, cardR, pageR, label + ', open'); fixed(open, fin, label + ', open');
+      assert.equal(await page.evaluate(() => document.querySelectorAll('.trav').length), 0, `${label}: nothing travelling left at rest`);
+      // back, then drag down (from the page) and an edge swipe: each the same frames reversed, into the same card
+      for (const how of ['back', 'drag down', 'edge swipe']) {
+        if (how !== 'back') { await page.touchscreen.tap(tx, ty); await page.waitForTimeout(800); }
+        await sampler();
+        if (how === 'back') await page.locator('[data-act=pageback]').tap();
+        else if (how === 'drag down') await touch(line([200, 500], [200, 800], 12), 30);
+        else await touch(line([4, 500], [330, 505], 12), 30);
+        await page.waitForTimeout(700); const ss = await collect();
+        monotone(ss.filter(s => s.page), pageR, cardR, `${label}, ${how}`); fixed(ss, fin, `${label}, ${how}`);
+        assert.equal(await page.locator('.page').count(), 0, `${label}, ${how}: the page closed`);
+        const back = await page.evaluate(() => { const c = window.__evsrc, f = frame.getBoundingClientRect(), r = c.querySelector('.evpatch').getBoundingClientRect(); return [getComputedStyle(c).visibility, r.left - f.left]; });
+        assert.deepEqual(back, ['visible', cardR[0]], `${label}, ${how}: the card is back where it was`);
+      }
+    }
+  }
+
   // pins: device-local, survive a reload, open with the container transform, unpin from the same control
   await page.goto(URL); await page.evaluate(() => localStorage.removeItem('udine-m2')); await page.reload(); await page.waitForTimeout(300);
   assert.equal(await page.locator('#pins .pcard').count(), 0, 'no pins: Halls is the four bands');
