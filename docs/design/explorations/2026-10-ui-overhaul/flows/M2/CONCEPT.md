@@ -10,7 +10,7 @@ apps don't do that. M2 now uses only the motion of the owner's references, **App
 |---|---|---|
 | A card opens a screen: hall band → hall, Search row → hall, dish row → detail, café / area / event / You row → page, pin → café | **Container transform** (M3) / **zoom** (iOS) | The tapped card's rect grows to the destination's. The hall photo is the shared element and stays continuous. The card's own content fades out over the first 30%. The destination's content (header, meal tabs, station row, list) fades in over the last 70%, **already in its final layout**, riding the container's top edge. Nothing slides out of an edge. The screen behind stays put under a 32% scrim. |
 | Back / close | **The same frames reversed**, and **interactive** | Drag down from the top, or swipe in from the left edge: the screen shrinks toward its card under the finger. Release past the commit point (or flick) to finish; otherwise it springs back. A dragged-away dish detail returns to its row. |
-| Halls ⇄ Search ⇄ You | **Fade through** | The old tab is gone by 35%; the new one fades in from 35% while scaling up from 92%. No slide. A hall screen fades with the tab that owns it. |
+| Halls ⇄ Search ⇄ You | **Fade through, overlapped** (round 3) | The old tab stays drawn; the new one fades in over it in 250 ms, settling from 97% scale. Nothing dips to the white ground. No slide. A hall screen fades with the tab that owns it. |
 | Breakfast ⇄ Lunch ⇄ Dinner | **Shared axis X** | Both lists slide 30 px in the direction of the tab, with the same fade through, and the gold underline moves. |
 | Plate, station list | **Bottom sheet** | It rises from the bottom, drags between detents, and rubber-bands. The plate bar is the plate sheet's handle, like Music's mini-player. |
 | `+`, quantity, Log, Undo | **In place** | `+` widens into the stepper. The bar's numbers just change. The Log receipt is a snackbar with Undo in the bar's place. The "+62 travels" toss is cut: neither reference has it, and it read as decoration. |
@@ -22,7 +22,7 @@ apps don't do that. M2 now uses only the motion of the owner's references, **App
 |---|---|
 | `cont` | 500 ms (`motionDurationLong2`), M3 **emphasized** easing (the two-segment path, not a cubic-bezier) |
 | `contBack` | 400 ms (`motionDurationMedium4`), same easing, the same frames reversed |
-| `fadeThrough` | 450 ms (`motionDurationLong1`), emphasized, threshold 0.35, start scale 0.92 |
+| `fadeThrough` | round 3: 250 ms (`motionDurationMedium1`), standard decelerate, overlapped (no 0.35 dip), start scale 0.97 |
 | `sharedX` | 450 ms, emphasized, 30 dp, fade through at 0.35 |
 | `settle` | 200 ms, M3 standard `cubic-bezier(.2,0,0,1)` |
 | `exit` | 150 ms, emphasized accelerate `cubic-bezier(.3,0,.8,.2)` |
@@ -37,4 +37,4 @@ The **30% / 70% fade split** is the coordinator's specification. MDC's own defau
 - **Hall-header search button removed.** Search lives in the Search tab only.
 - **Places are first-class in Search.** Every hall, Grab 'N Go and café that matches by name, building, area or menu item is shown, with live status. A row grows into its hall or café.
 - **Where and when.** A dish row shows its upcoming servings, today then tomorrow ("Franklin lunch and dinner, Hampshire lunch / Tomorrow: Hampshire lunch"). Its detail lists each serving. A serving returns the detail to its row, and the row grows into that hall at that day and meal, scrolled to the dish. Dishes not served now appear under "Later today and tomorrow".
-- **Pinned cafés.** The café page has a pin in its top bar. Pinned cafés sit right under the four hall bands, as maroon rows with a stitched-patch initial and live status, and open by container transform. With no pins, Halls is unchanged. Pins live on the device. The full café browser stays under Cafés & markets.
+- **Pinned cafés** (round 3). The café page has a pin in its top bar. Pinned cafés are a 2-up grid of UMass Dining's own location photo cards at the top of Cafés & markets, with live status and no varsity letter. They open by container transform with the photo continuous into the café page header. With no pins, Halls is unchanged. Pins live on the device. The full café browser stays under Cafés & markets.

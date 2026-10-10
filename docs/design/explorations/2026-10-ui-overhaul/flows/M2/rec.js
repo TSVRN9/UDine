@@ -36,7 +36,7 @@ const I = [
   { name: 'hallresult', q: 'state=search', setup: async p => { await p.keyboard.type('worcester'); await p.waitForTimeout(300 * K); }, act: p => p.locator('#sres .prow2[data-act=hall]').first().tap(), dur: 800 },
   { name: 'placeopen', q: 'state=search', setup: async p => { await p.keyboard.type('wasabi'); await p.waitForTimeout(300 * K); }, act: p => p.locator('#sres .prow2[data-p=place]').first().tap(), dur: 700 },
   { name: 'serving', q: 'state=search', setup: async p => { await p.keyboard.type('posole'); await p.waitForTimeout(300 * K); await sRow(p, 'Green Chile Posole').locator('.n').tap(); }, act: p => p.locator('#isheet .srv', { hasText: 'Tomorrow' }).first().tap(), dur: 1800 },
-  { name: 'pinopen', q: 'pins=2', act: p => p.locator('#pins .pin').first().tap(), dur: 700 },
+  { name: 'pinopen', q: 'pins=2', act: p => p.locator('#pins .pcard').first().tap(), dur: 700 },
   { name: 'detail', q: 'state=menu', act: p => mRow(p, 'Green Chile Posole').locator('.n').tap(), dur: 900 },
   { name: 'detailadd', q: 'state=menu', setup: p => mRow(p, 'Green Chile Posole').locator('.n').tap(), act: p => p.locator('#isheet [data-act=dadd]').tap(), dur: 1100 },
   { name: 'ingredients', q: 'state=label', setup: p => p.evaluate(() => { const b = document.querySelector('#isbody'); b.scrollTop = b.scrollHeight; }), act: p => p.locator('#isheet [data-act=ing]').tap(), dur: 600 },

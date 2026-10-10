@@ -280,21 +280,40 @@ const URL = 'file://' + __dirname + '/index.html';
   assert.match(await page.locator('#mlist .row.here .n').textContent(), /Green Chile Posole/);
   assert.equal(await page.locator('#mlist .row.here .add').count(), 0, "tomorrow's dishes carry no + (today's plate only)");
 
+  // round 3: no tab switch shows bare ground. Sample frames mid-switch; the share of near-white pixels never exceeds
+  // what the two panes show at rest by more than a little.
+  if (!process.env.RM) {
+    await page.goto(URL); await page.waitForTimeout(400);
+    const white = async () => { const buf = await page.screenshot(); return +require('child_process').execSync(`python3 -c "
+import sys,io
+from PIL import Image
+im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('L').resize((97,211))
+d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: buf }).toString(); };
+    for (const [from, to] of [['halls', 'you'], ['you', 'search'], ['search', 'halls']]) {
+      const w0 = await white(); await page.locator(`.tbar button[data-tab=${to}]`).tap(); let mx = 0;
+      for (let i = 0; i < 6; i++) mx = Math.max(mx, await white());
+      await page.waitForTimeout(400); const w1 = await white();
+      assert(mx <= Math.max(w0, w1) + .08, `${from} -> ${to}: a frame is ${(mx * 100).toFixed(0)}% white (rest ${(w0 * 100).toFixed(0)}% / ${(w1 * 100).toFixed(0)}%)`);
+    }
+  }
+
   // pins: device-local, survive a reload, open with the container transform, unpin from the same control
   await page.goto(URL); await page.evaluate(() => localStorage.removeItem('udine-m2')); await page.reload(); await page.waitForTimeout(300);
-  assert.equal(await page.locator('#pins .pin').count(), 0, 'no pins: Halls is the four bands');
+  assert.equal(await page.locator('#pins .pcard').count(), 0, 'no pins: Halls is the four bands');
   await page.locator('#areas .lrow').first().tap(); await page.waitForTimeout(700);
   await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Wasabi' }).tap(); await page.waitForTimeout(700);
   await page.locator('.page[data-p=place] [data-act=pin]').tap(); await page.waitForTimeout(200);
   assert.equal(await page.locator('.page[data-p=place] [data-act=pin]').getAttribute('aria-pressed'), 'true');
   await page.reload(); await page.waitForTimeout(400);
-  assert.equal(await page.locator('#pins .pin').count(), 1, 'pin persists across a reload');
-  assert.match(await page.locator('#pins .pin').textContent(), /Wasabi.*Open until 9 PM/, 'pinned row has live status');
-  await page.locator('#pins .pin').tap(); await page.waitForTimeout(700);
+  assert.equal(await page.locator('#pins .pcard').count(), 1, 'pin persists across a reload');
+  assert.match(await page.locator('#pins .pcard').textContent(), /Wasabi.*Open until 9 PM/, 'pinned row has live status');
+  await page.locator('#pins .pcard').tap(); await page.waitForTimeout(700);
   assert.equal(await page.locator('.page[data-p=place] .pbar .o').textContent(), 'Wasabi', 'a pin opens its café');
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('.page[data-p=place] .phero img')].length), 1, 'the café page is headed by its photo');
+  assert.equal(await page.evaluate(() => document.querySelectorAll('img.trav').length), 0, 'the shared photo layer is gone at rest');
   await page.locator('.page[data-p=place] [data-act=pin]').tap(); await page.waitForTimeout(200);
   await page.reload(); await page.waitForTimeout(400);
-  assert.equal(await page.locator('#pins .pin').count(), 0, 'unpin persists');
+  assert.equal(await page.locator('#pins .pcard').count(), 0, 'unpin persists');
   await page.evaluate(() => localStorage.removeItem('udine-m2'));
 
   assert.deepEqual(errs, [], 'no page errors');

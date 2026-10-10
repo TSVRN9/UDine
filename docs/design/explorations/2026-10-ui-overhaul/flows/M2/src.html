@@ -33,6 +33,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 #probe{position:absolute;visibility:hidden;height:var(--st);width:var(--sb)}
 .hide{display:none!important}
 .tab{position:absolute;inset:0}
+#halls,#search,#you{background:var(--chalk)}   /* every pane is opaque: a crossfade never shows what's under it */
 .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .pad-b{height:calc(150px + var(--sb))}
 
@@ -146,15 +147,23 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .row.here{background:rgba(136,28,28,.07)}
 .tday{color:rgba(255,255,255,.9);font-size:.62em}
 /* pinned cafés on Halls: the band stack continues in deep maroon, one row per café, a stitched patch for its initial */
-#pins{background:var(--dm)}
-.pin{display:flex;align-items:center;gap:14px;width:100%;min-height:68px;padding:10px 20px;text-align:left;color:#fff;border-top:1px solid rgba(255,255,255,.12)}
-.pin .pmono{position:relative;flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:6px;background:var(--gold);color:var(--dm);font:700 22px/1 Oswald,sans-serif}
-.pin .pmono::after{content:"";position:absolute;inset:3px;border-radius:4px;border:1.5px dashed rgba(59,10,15,.75)}
-.pin .pt{flex:1;min-width:0}
-.pin .pn{display:block;font:600 21px/1.15 Oswald,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pin .pb{display:block;font-size:13px;color:rgba(255,255,255,.78);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pin .ps{flex:none;font-size:15px;font-weight:600;color:var(--gold);text-align:right}
-.pin .ps.off{color:rgba(255,255,255,.75);font-weight:500}
+/* pinned cafés: UMass Dining's own location photos as cards, a 2-up grid inside Cafés & markets.
+   Secondary to the four full-bleed hall bands: inset, rounded, half width, no varsity letter. */
+#pins{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:6px 0 10px}
+#pins:empty{display:none}
+.pcard{position:relative;display:block;width:100%;aspect-ratio:640/341;border-radius:10px;overflow:hidden;background:var(--dm);text-align:left;color:#fff}
+.pcard img,.thumb img,.phero img{display:block;width:100%;height:100%;object-fit:cover}
+.pcard .pg{position:absolute;inset:0;background:linear-gradient(rgba(36,10,14,0) 24%,rgba(36,10,14,.74) 52%,rgba(36,10,14,.9) 76%)}
+.pcard .pt{position:absolute;left:10px;right:10px;bottom:8px}
+.pcard .pn{display:block;font:600 17px/1.15 Oswald,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .ps{display:block;font-size:13px;font-weight:600;margin-top:2px;color:#fff}
+.pcard .ps.off{font-weight:500;color:rgba(255,255,255,.85)}
+.pcard .press{border-radius:inherit}
+.pcard.down .press{opacity:1;transition-duration:var(--d-press)}
+.thumb{flex:none;width:64px;height:34px;border-radius:5px;overflow:hidden;background:var(--hair)}
+.lrow .lt{display:flex;align-items:center;gap:12px;min-width:0}
+.prow2 .lt{display:flex;align-items:center;gap:12px;min-width:0}
+.phero{margin:0 -20px;aspect-ratio:640/341;background:var(--dm)}
 .pbar .pinb{margin-left:auto}
 .pinb svg{fill:none}
 .pinb[aria-pressed=true] svg{fill:var(--gold);stroke:var(--gold)}
@@ -392,9 +401,9 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
         <h1>Lunch</h1>
       </header>
       <div id="bands"></div>
-      <div id="pins"></div>
       <section class="sec">
         <h2>Cafés &amp; markets</h2>
+        <div id="pins"></div>
         <div id="areas"></div>
       </section>
       <div class="pad-b"></div>
@@ -471,7 +480,8 @@ const MT = __MENU2__;                          // tomorrow, Friday Oct 9
 const menuOf = day => day ? MT : M;            // every hall-menu read goes through this
 const HALLS = ['W','F','H','B'];
 const HN = {W:'Worcester',F:'Franklin',H:'Hampshire',B:'Berkshire'};
-const P = __PLACES__;                         // real hours, payment, descriptions, menus (uapp/get_infov2), events (get_beacons_events)
+const P = __PLACES__;
+const RIMG = __RIMG__;                         // UMass Dining's own location-card photos, by place name (and grab:W etc.)                         // real hours, payment, descriptions, menus (uapp/get_infov2), events (get_beacons_events)
 const NOW = 12*60+40;                          // Thursday 12:40 PM
 const fmtT = m => m>=1439?'midnight': m===720?'noon' : `${(Math.floor(m/60)+11)%12+1}${m%60?':'+String(m%60).padStart(2,'0'):''} ${m<720?'AM':'PM'}`;
 const span = (o,c) => `${fmtT(o)} to ${fmtT(c)}`;
@@ -533,7 +543,7 @@ const MO = {
   settle:     {d:200, e:'cubic-bezier(.2,0,0,1)'},   // M3 standard easing, short4: in-place changes (underline, + -> stepper, chips, FLIP, receipt)
   cont:       {d:500, e:EMPH_CSS},                   // container transform, enter: motionDurationLong2, emphasized
   contBack:   {d:400, e:EMPH_CSS},                   // container transform, return: motionDurationMedium4 (same frames, reversed)
-  fadeThrough:{d:450, e:EMPH_CSS, at:.35, scale:.92},// MaterialFadeThrough: long1, emphasized, out by 35%, in from 35% scaling up from .92
+  fadeThrough:{d:250, e:'cubic-bezier(0,0,0,1)', scale:.97, z:8},   // tabs, round 3: medium1, standard decelerate, an overlapped fade (no dip to the ground)
   sharedX:    {d:450, e:EMPH_CSS, at:.35, dist:30},  // MaterialSharedAxis X: long1, emphasized, 30dp slide + the same fade through
   scroll:     {d:500, e:EMPH_CSS},                   // programmatic scroll to a station or a dish
   exit:       {d:150, e:'cubic-bezier(.3,0,.8,.2)'}, // M3 emphasized accelerate, short3: things that leave (a stepper collapsing, a chip removed)
@@ -727,8 +737,10 @@ function renderHalls(){
 }
 // pinned cafés: rows under the four bands, live status, opened with the same container transform as any row
 const pinIdx = n => P.places.findIndex(x=>x[0]===n);
+const photo = (key, cls='') => RIMG[key] ? `<img class="ph-img${cls}" alt="" src="${RIMG[key]}" draggable="false">` : '';
+const thumb = key => RIMG[key] ? `<span class="thumb" aria-hidden="true">${photo(key)}</span>` : '';
 function renderPins(){ $('#pins').innerHTML = S.pins.map(n=>{ const i=pinIdx(n), x=P.places[i], o=isOpen([x[3],x[4]]);
-  return `<button class="pin" data-act="page" data-p="place" data-c="${i}"><span class="pmono" aria-hidden="true">${esc(x[0].replace(/^The /,'')[0])}</span><span class="pt"><span class="pn">${esc(x[0])}</span><span class="pb">${esc(x[2])}</span></span><span class="ps${o?'':' off'}">${status([x[3],x[4]])}</span></button>`; }).join(''); }
+  return `<button class="pcard" data-act="page" data-p="place" data-c="${i}" aria-label="${esc(x[0])}, ${status([x[3],x[4]])}">${photo(x[0])}<span class="pg"></span><span class="press"></span><span class="pt"><span class="pn">${esc(x[0])}</span><span class="ps${o?'':' off'}">${status([x[3],x[4]])}</span></span></button>`; }).join(''); }
 const pinBtn = i => { const n=P.places[i][0], on=S.pins.includes(n); return `<button class="icon pinb" data-act="pin" data-name="${esc(n)}" aria-pressed="${on}" aria-label="${on?'Unpin from Halls':'Pin to Halls'}">${IC.pin}</button>`; };
 function renderAreas(){
   $('#areas').innerHTML = [0,1,2,3].map(a=>{ const ps=P.places.filter(x=>x[1]===a), open=ps.filter(x=>isOpen([x[3],x[4]])).length;
@@ -895,7 +907,7 @@ function sharedAxisX(dir, render){
   gh.animate([{transform:'none'},{transform:`translateX(${-dir*X.dist}px)`}],{duration:X.d,easing:X.e,fill:'forwards'});
   gh.animate([{opacity:1},{opacity:0,offset:X.at},{opacity:0}],{duration:X.d,easing:'linear',fill:'forwards'}).finished.catch(()=>{}).then(()=>gh.remove());
   old.animate([{transform:`translateX(${dir*X.dist}px)`},{transform:'none'}],{duration:X.d,easing:X.e});
-  old.animate([{opacity:0},{opacity:0,offset:X.at},{opacity:1}],{duration:X.d,easing:'linear'});
+  old.animate([{opacity:0},{opacity:1,offset:.6},{opacity:1}],{duration:X.d,easing:'linear'});   // round 3: overlaps the outgoing fade, so the list never empties to bare ground
 }
 function syncFront(h){ const i=S.plates.findIndex(pl=>pl.meal===S.mmeal && (plateHalls(pl)||[h]).includes(h)); if(i>=0 && i!==S.front){ S.front=i; renderBar(); } }
 
@@ -972,10 +984,10 @@ function placeHits(){
   for(const h of HALLS){ const w=norm(HN[h]+' dining commons hall').split(' ');
     if(hit(w)) out.push(`<button class="prow2" data-act="hall" data-h="${h}"><div><div class="a">${HN[h]}</div><div class="b">Dining commons</div></div><span class="r">${HOURS[h]}</span></button>`);
     if(hit(norm(HN[h]+" grab n go grab and go").split(' '))){ const g=P.grab[h];
-      out.push(`<button class="prow2" data-act="hall" data-h="${h}" data-meal="grab"><div><div class="a">${HN[h]} Grab 'N Go</div><div class="b">${HN[h]}</div></div><span class="r${isOpen(g)?'':' off'}">${status(g)}</span></button>`); } }
+      out.push(`<button class="prow2" data-act="hall" data-h="${h}" data-meal="grab"><div class="lt">${thumb('grab:'+h)}<div><div class="a">${HN[h]} Grab 'N Go</div><div class="b">${HN[h]}</div></div></div><span class="r${isOpen(g)?'':' off'}">${status(g)}</span></button>`); } }
   P.places.forEach((x,i)=>{ const words=norm(x[0]+' '+x[2]+' '+P.areas[x[1]]).split(' '); const item=!hit(words) && x[7].find(n=>hit(norm(n).split(' ')));
     if(hit(words)||item){ const o=isOpen([x[3],x[4]]);
-      out.push(`<button class="prow2" data-act="page" data-p="place" data-c="${i}"><div><div class="a">${esc(x[0])}</div><div class="b">${esc(item||x[2])}</div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`); } });
+      out.push(`<button class="prow2" data-act="page" data-p="place" data-c="${i}"><div class="lt">${thumb(x[0])}<div><div class="a">${esc(x[0])}</div><div class="b">${esc(item||x[2])}</div></div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`); } });
   return out;   // places are first-class: every match, not a sample
 }
 // dishes that match but aren't served at this meal now: later today or tomorrow. They open their detail (where and when).
@@ -1024,8 +1036,10 @@ $('#qclear').addEventListener('click',()=>{ $('#q').value=''; S.q=''; renderSear
 for(const t of ['pointerdown','mousedown']) $('#search').addEventListener(t,e=>{ if(document.activeElement===$('#q') && e.target.closest('#sres,#lenses') && !e.target.closest('[data-act=custom]')) e.preventDefault(); });
 
 /* ---------- tabs & pages ---------- */
-// top-level tabs: Material fade through. The outgoing tab (and a hall screen it owns) fades out by 35%; the incoming one
-// fades in from 35% while scaling up from .92. No slides. Re-tapping the tab that owns an open hall closes the hall.
+// top-level tabs: a fade through with no dip to the ground (owner, round 3: "the white flash between panes is too much").
+// The outgoing tab stays drawn underneath; the incoming one fades in over it while settling from a .97 scale. The maroon
+// header region and the tab bar are never uncovered, so no frame shows bare chalk. No slides.
+// Re-tapping the tab that owns an open hall closes the hall.
 function setTab(t){
   if(S.tab===t && S.hall && S.hallTab===t){ closeHall(); return; }
   const prev=S.tab, changed=prev!==t; S.tab=t; closeAllPages();
@@ -1039,11 +1053,11 @@ function setTab(t){
   if(changed){ buzz(4); const F=MO.fadeThrough;
     if(RM) layers(t).forEach(el=>A(el,[{opacity:0},{opacity:1}],'settle'));
     else {
-      layers(prev).forEach(el=>{ el.classList.remove('hide'); el.style.pointerEvents='none';
-        el.animate([{opacity:1},{opacity:0,offset:F.at},{opacity:0}],{duration:F.d,easing:'linear',fill:'forwards'}).finished
-          .then(()=>{ if(S.tab!==prev){ el.classList.add('hide'); el.getAnimations().forEach(a=>a.cancel()); el.style.pointerEvents=''; } }).catch(()=>{}); });
-      layers(t).forEach(el=>{ el.animate([{opacity:0},{opacity:0,offset:F.at},{opacity:1}],{duration:F.d,easing:'linear'});
-        el.animate([{transform:`scale(${F.scale})`},{transform:'none'}],{duration:F.d,easing:F.e}); }); } }
+      const out=layers(prev); out.forEach(el=>{ el.classList.remove('hide'); el.style.pointerEvents='none'; });
+      layers(t).forEach((el,i)=>{ el.style.zIndex=String(F.z+i);
+        el.animate([{opacity:0},{opacity:1}],{duration:F.d,easing:F.e});
+        const a=el.animate([{transform:`scale(${F.scale})`},{transform:'none'}],{duration:F.d,easing:F.e});
+        if(i===0) a.finished.then(()=>{ if(S.tab===t) out.forEach(o=>{ o.classList.add('hide'); o.style.pointerEvents=''; }); }).catch(()=>{}).finally(()=>{ layers(t).forEach(x=>x.style.zIndex=''); }); }); } }
   if(t!=='search') $('#q').blur();
   if(t==='search'){ renderLenses(); renderSearch(); }
   if(t==='you') renderYou();
@@ -1073,13 +1087,22 @@ function tween(from, to, dur, step, fin){ const t0=performance.now(); let id;
   const f=t=>{ const k=dur>0?clamp((t-t0)/dur):1; step(from+(to-from)*EMPH(k)); if(k<1) id=requestAnimationFrame(f); else fin&&fin(); };
   f(t0); return ()=>cancelAnimationFrame(id); }
 function contPrep(el){ const src=el._src; if(RM||!src||!src.isConnected) return false;
-  if(el._c) el._c.g.remove(); el._c={r:relRect(src), g:ghostOf(src)}; frame.appendChild(el._c.g); src.style.visibility='hidden'; return true; }
+  contDone(el); el._c={r:relRect(src), g:ghostOf(src)}; frame.appendChild(el._c.g); src.style.visibility='hidden';
+  // the location photo is the shared element (like a hall's photo): it moves and resizes from the card / thumbnail to the page header
+  const si=src.querySelector('.ph-img'), di=el.querySelector('.phero .ph-img');
+  if(si && di){ const a=relRect(si), b=relRect(di), sh=document.createElement('img'); sh.src=di.src; sh.alt=''; sh.className='trav';
+    const rad=parseFloat(getComputedStyle(si.parentElement).borderTopLeftRadius)||0;
+    Object.assign(sh.style,{objectFit:'cover',zIndex:+el.style.zIndex+1}); frame.appendChild(sh);
+    di.style.visibility='hidden'; const gi=el._c.g.querySelector('.ph-img'); if(gi) gi.style.visibility='hidden';
+    el._c.sh={el:sh,a,b,rad,di}; }
+  return true; }
 function contPaint(el, p){ const c=el._c, q=1-p, r=c.r, open=q>1e-4, fin=clamp((p-.3)/.7); el._p=p;
   el.style.clipPath = open ? `inset(${r.y*q}px ${(W0()-r.x-r.w)*q}px ${(H-r.y-r.h)*q}px ${r.x*q}px)` : 'none';
   for(const ch of el.children){ ch.style.opacity = open ? fin : ''; ch.style.transform = open ? `translateY(${r.y*q}px)` : ''; }
   c.g.style.opacity = 1-clamp(p/.3); c.g.style.transform = `translateY(${-r.y*p}px)`;
+  if(c.sh){ const {a,b}=c.sh, L=(u,v)=>u+(v-u)*p; Object.assign(c.sh.el.style,{left:L(a.x,b.x)+'px',top:L(a.y,b.y)+'px',width:L(a.w,b.w)+'px',height:L(a.h,b.h)+'px',borderRadius:c.sh.rad*q+'px'}); }
   el._dim.style.opacity = MO.scrim*p; }
-function contDone(el){ if(el._c){ el._c.g.remove(); el._c=null; } }
+function contDone(el){ if(el._c){ el._c.g.remove(); if(el._c.sh){ el._c.sh.el.remove(); el._c.sh.di.style.visibility=''; } el._c=null; } }
 let pages=[];
 function openPage(p, extra, src){
   const el=document.createElement('div'); el.className='page'; el.dataset.p=p; el.dataset.x=extra??'';
@@ -1119,7 +1142,7 @@ function closePage(from){ const el=pages.pop(); if(!el) return; el.removeAttribu
   document.addEventListener('touchend',end,true); document.addEventListener('touchcancel',end,true);
 })();
 function placeRow(i){ const x=P.places[i], o=isOpen([x[3],x[4]]);
-  return `<button class="lrow" data-act="page" data-p="place" data-c="${i}"><div><div class="a">${esc(x[0])}</div><div class="b">${esc(x[2])}</div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`; }
+  return `<button class="lrow" data-act="page" data-p="place" data-c="${i}"><div class="lt">${thumb(x[0])}<div><div class="a">${esc(x[0])}</div><div class="b">${esc(x[2])}</div></div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`; }
 function servedNow(k){ const g=BYK.lunch[k]; return g? HALLS.filter(h=>g.refs[h]) : []; }
 function rankPool(){ const s=new Map(); for(const m of S.log) for(const i of m.items) s.set(norm(i.n),i.n); return [...s.entries()]; }
 function pageContent(p, x){
@@ -1127,7 +1150,7 @@ function pageContent(p, x){
     return ['Cafés & markets', `<div class="chips1"><button class="chip" data-act="opennow" aria-pressed="${S.openNow}">Open now</button></div>`
       + areaOrder().map(a=>{ const r=by(a); return `<h2 class="ahd" data-area="${a}">${esc(P.areas[a])}</h2>${r.length? r.map(([,i])=>placeRow(i)).join('') : '<p class="kv">Nothing open here right now.</p>'}`; }).join('')]; }
   if(p==='place'){ const v=P.places[x], o=isOpen([v[3],v[4]]);
-    return [v[0], `<div class="pstat"><b class="${o?'':'off'}">${status([v[3],v[4]])}</b><span>${span(v[3],v[4])}</span></div>
+    return [v[0], `${RIMG[v[0]]?`<div class="phero">${photo(v[0])}</div>`:''}<div class="pstat"><b class="${o?'':'off'}">${status([v[3],v[4]])}</b><span>${span(v[3],v[4])}</span></div>
       <p class="kv" style="margin:4px 0">${esc(v[2])}</p><p class="kv" style="margin:4px 0 12px">${esc(v[5])}</p><p style="line-height:1.5;margin:0">${esc(v[6])}</p>
       <h3 class="h3">Menu</h3>${v[7].length? v[7].map(n=>`<div class="lrow"><div class="a" style="font-weight:500">${esc(n)}</div><button class="add" data-act="custom" data-name="${esc(n)}" aria-label="Add ${esc(n)}">${IC.plus}</button></div>`).join('')
         : `<p class="kv">${esc(v[0])} doesn't list its menu in the app.</p><button class="btn" data-act="custom" data-name="">Add a custom food</button>`}`]; }
