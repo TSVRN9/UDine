@@ -149,8 +149,8 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
       const gaps = await page.evaluate(() => { const q = s => document.querySelector('#isheet ' + s).getBoundingClientRect(), seq = ['.dn', '.dsv', '.mks', '.dal', '.dadd', '.where', '.facts.label:not(.grades)', '.grades', '.ingh'];
         return seq.slice(1).map((s, i) => [seq[i] + ' > ' + s, Math.round(q(s).top - q(seq[i]).bottom)]); });
       assert.deepEqual(gaps.map(g => g[1]), [4, 8, 8, 16, 24, 24, 12, 24], 'gaps: ' + JSON.stringify(gaps)); });
-    await scen('dish sheet: "Show all" exactly when the ingredients are cut, and every dish rests showing name, Add, where and Calories', async () => {
-      await go('state=menu');
+    for (const on of [false, true]) await scen('dish sheet: "Show all" exactly when the ingredients are cut, and every dish rests showing name, Add, where and Calories' + (on ? ' (scores on)' : ''), async () => {
+      await go('state=menu', on && (() => page.evaluate(() => { if (typeof scoreMode === 'undefined') throw new Error('no scores'); S.show.hf = S.show.cr = true; scoreMode(); })));
       const bad = await page.evaluate(() => { const out = []; let n = 0, top = 0; const ids = Object.keys(DISH).filter(id => DISH[id].ing).filter((_, i) => i % 7 === 0);
         for (const id of ids) { const d = DISH[id]; DS = { d, refs: { [d.h]: d } }; renderDish(); n++; const ing = document.querySelector('#ing'), more = document.querySelector('#isheet [data-act=ing]'), cut = ing.scrollHeight > ing.clientHeight + 1;
           if (cut !== !!more) out.push(d.n + ': cut ' + cut + ', Show all ' + !!more);
@@ -211,7 +211,127 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
       await touch(line([200, 420], [200, 760], 12), 30); await page.waitForTimeout(600);
       assert.equal(await page.evaluate(() => [document.querySelector('#menu').classList.contains('hide'), getComputedStyle(__pb).visibility].join()), 'true,visible', 'a drag down returns it into its band'); });
   };
-  if (process.env.RED) { await round7(); console.log(results.join('\n')); await browser.close(); return; }
+
+  // Round 8: marks and scores. Plant based and vegetarian are two silhouettes; healthfulness and carbon grade are opt-in
+  // readings on dish rows (You tab, device-local); the ratings panel has only rules that separate ratings.
+  // RED=8 runs only this block, each scenario caught (SRC=build/r8/before/index.html shows which fail on round 7).
+  const round8 = async () => {
+    const scen = async (name, fn) => { if (!process.env.RED) return fn(); try { await fn(); results.push('green  ' + name); } catch (e) { results.push('RED    ' + name + ': ' + e.message.split('\n')[0].slice(0, 240)); } };
+    const go = async (q, setup) => { await page.goto(URL + (q ? '?' + q : '')); await page.waitForTimeout(500); if (setup) await setup(); };
+    const clear = () => page.evaluate(() => localStorage.removeItem('udine-m2'));
+    // every rendered row agrees with its dish: a reading exactly when shown and the data exists, with the right value
+    const rowsAgree = (sel, hf, cr) => page.evaluate(([sel, hf, cr]) => [...document.querySelectorAll(sel)].map(r => {
+      const d = r.dataset.id ? DISH[r.dataset.id] : rep(BYK[S.smeal][r.dataset.k]), h = r.querySelector('.m .hs'), c = r.querySelector('.m .cs'), bad = [];
+      if (!!h !== (hf && d.hf != null)) bad.push('hs ' + !!h + ' hf ' + d.hf);
+      if (!!c !== (cr && d.cr != null)) bad.push('cs ' + !!c + ' cr ' + d.cr);
+      if (h && (h.textContent.trim() !== String(d.hf) || h.querySelectorAll('.hb i.on').length !== d.hf || h.querySelectorAll('.hb i').length !== 7)) bad.push('hs value ' + h.textContent + ' vs ' + d.hf);
+      if (c && (c.textContent.trim() !== d.cr || !c.querySelector('svg'))) bad.push('cs value ' + c.textContent + ' vs ' + d.cr);
+      return bad.length ? d.n + ': ' + bad.join(', ') : null; }).filter(Boolean).concat(document.querySelectorAll(sel).length ? [] : ['no rows for ' + sel]), [sel, hf, cr]);
+    await scen('scores: off by default; the You toggles persist and update rows in a hall and in Search', async () => {
+      await go('state=menu'); await clear(); await go('state=menu');
+      assert.deepEqual(await rowsAgree('#mlist .row', false, false), [], 'default: no readings on hall rows');
+      assert.equal(await page.locator('.hs, .cs').count(), 0, 'default: no reading anywhere');
+      await page.locator('.tbar [data-tab=you]').tap(); await page.waitForTimeout(500);
+      for (const k of ['hf', 'cr']) assert.equal(await page.locator(`#you [data-show=${k}]`).getAttribute('aria-checked'), 'false', k + ' starts off');
+      await page.locator('#you [data-show=hf]').tap(); await page.waitForTimeout(300);
+      assert.equal(await page.locator('#you [data-show=hf]').getAttribute('aria-checked'), 'true', 'healthfulness turns on');
+      await page.locator('.tbar [data-tab=halls]').tap(); await page.waitForTimeout(500);
+      assert.deepEqual(await rowsAgree('#mlist .row', true, false), [], 'health only: hall rows');
+      await page.locator('.tbar [data-tab=search]').tap(); await page.waitForTimeout(500);
+      assert.deepEqual(await rowsAgree('#sres .row', true, false), [], 'health only: Search rows');
+      await page.reload(); await page.waitForTimeout(500);
+      await page.locator('.tbar [data-tab=you]').tap(); await page.waitForTimeout(500);
+      assert.equal(await page.locator('#you [data-show=hf]').getAttribute('aria-checked'), 'true', 'healthfulness persists across a reload');
+      await page.locator('#you [data-show=cr]').tap(); await page.locator('#you [data-show=hf]').tap(); await page.waitForTimeout(300);
+      await go('state=menu');
+      assert.deepEqual(await rowsAgree('#mlist .row', false, true), [], 'carbon only, after a reload: hall rows');
+      await go('state=search', async () => { await page.keyboard.type('wings'); await page.waitForTimeout(400); });
+      assert.deepEqual(await rowsAgree('#sres .row', false, true), [], 'carbon only: Search rows, now and later');
+      await page.evaluate(() => { S.show.hf = true; save(); });
+      await go('state=menu'); assert.deepEqual(await rowsAgree('#mlist .row', true, true), [], 'both: hall rows');
+      await page.locator('#mlist .row .n').first().tap(); await page.waitForTimeout(900);
+      assert.equal(await page.locator('#isheet .mks .hs').count() + await page.locator('#isheet .mks .cs').count() >= 1, true, 'both: the sheet patch row carries the readings');
+      await clear(); await go('state=menu');
+      assert.equal(await page.locator('.hs, .cs').count(), 0, 'cleared: rows are calm again'); });
+    await scen('scores: missing data draws nothing (no placeholder); a 0 is a score, not missing', async () => {
+      await go('state=menu', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; scoreMode(); }); });
+      const r = await page.evaluate(() => { const rows = [...document.querySelectorAll('#mlist .row')], a = DISH[rows[0].dataset.id], b = DISH[rows[1].dataset.id];
+        const was = [a.hf, b.cr]; a.hf = null; b.cr = null; renderMenuList(); const ra = document.querySelector(`#mlist .row[data-id="${a.id}"]`), rb = document.querySelector(`#mlist .row[data-id="${b.id}"]`);
+        const out = { aHs: !!ra.querySelector('.hs'), aCs: !!ra.querySelector('.cs') === (a.cr != null), bCs: !!rb.querySelector('.cs'), bHs: !!rb.querySelector('.hs') === (b.hf != null),
+          aText: ra.querySelector('.m').innerText, bText: rb.querySelector('.m').innerText };
+        a.hf = null; a.cr = null; renderMenuList(); out.none = document.querySelector(`#mlist .row[data-id="${a.id}"] .m`).innerHTML.includes(' sc"');
+        DS = { d: a, refs: { [a.h]: a } }; renderDish(); out.sheet = !!document.querySelector('#isheet .mks-s, #isheet .grades');
+        a.hf = was[0]; a.cr = DISH[a.id].cr; b.cr = was[1]; return out; });
+      assert.deepEqual([r.aHs, r.aCs, r.bCs, r.bHs, r.none, r.sheet], [false, true, false, true, false, false], 'missing: ' + JSON.stringify(r));
+      assert(!/[–—?]|n\/a/i.test(r.aText + r.bText), 'no placeholder text: ' + r.aText + ' | ' + r.bText);
+      const real = await page.evaluate(() => { const d = Object.values(DISH).find(d => d.cr == null && d.hf != null); DS = { d, refs: { [d.h]: d } }; renderDish();
+        return [document.querySelectorAll('#isheet .mks .cs').length, document.querySelectorAll('#isheet .mks .hs').length, document.querySelectorAll('#isheet .grades .crs').length, document.querySelectorAll('#isheet .grades .gr').length]; });
+      assert.deepEqual(real, [0, 1, 0, 1], 'a real dish with no carbon grade: no footprint, no scale, one rating');
+      const zero = await page.evaluate(() => { const d = Object.values(DISH).find(d => d.hf === 0); DS = { d, refs: { [d.h]: d } }; renderDish(); const h = document.querySelector('#isheet .mks .hs'); return h && [h.textContent.trim(), h.querySelectorAll('.on').length]; });
+      assert.deepEqual(zero, ['0', 0], 'healthfulness 0 shows as 0'); });
+    await scen('ratings panel: every rule separates two ratings; no rule ends a section that is not there', async () => {
+      await go('state=menu');
+      const bad = await page.evaluate(() => { const out = []; const base = Object.values(DISH).find(d => d.hf != null && d.cr != null);
+        for (const [hf, cr] of [[base.hf, base.cr], [base.hf, null], [null, base.cr]]) { const d = { ...base, hf, cr }; DS = { d, refs: { [d.h]: d } }; renderDish();
+          const g = document.querySelector('#isheet .grades'), kids = [...g.children], px = (e, s) => parseFloat(getComputedStyle(e)['border' + s + 'Width']) || 0;
+          const tag = `[${hf},${cr}] `;
+          if (g.classList.contains('label')) out.push(tag + 'the panel borrows the label class (and its section rules)');
+          for (const e of g.querySelectorAll('*')) for (const s of ['Top', 'Bottom']) { const w = px(e, s); if (w > 1) out.push(tag + `a ${w}px ${s.toLowerCase()} rule on ${e.className || e.tagName}`); }
+          const ratings = kids.length, rules = kids.filter((e, i) => px(e, 'Top') > 0 && i > 0).length + kids.filter((e, i) => px(e, 'Bottom') > 0 && i < kids.length - 1).length;
+          if (rules !== ratings - 1) out.push(tag + `${rules} rules between ${ratings} ratings`);
+          if (px(kids.at(-1), 'Bottom') || px(kids[0], 'Top')) out.push(tag + 'a rule at the panel edge');
+          for (const k of kids) for (const e of k.querySelectorAll('*')) if (px(e, 'Bottom') || px(e, 'Top')) out.push(tag + 'a rule inside one rating: ' + (e.className || e.tagName)); }
+        return out; });
+      assert.deepEqual(bad, [], 'ratings panel rules'); });
+    await scen('plant based and vegetarian: different silhouettes on rows, patches and chips', async () => {
+      await go('state=menu');
+      const r = await page.evaluate(() => { const ds = el => el ? [...el.querySelectorAll('path,circle')].map(p => p.getAttribute('d') || 'c' + p.getAttribute('cx')).sort().join('|') : null;
+        const row = l => ds(document.querySelector(`#mlist .tg[aria-label="${l}"]`));
+        const patch = bit => { const d = Object.values(DISH).find(d => !d.day && (d.d & 3) === bit); DS = { d, refs: { [d.h]: d } }; renderDish(); return ds(document.querySelector('#isheet .mk')); };
+        const out = { rowP: row('Plant based'), rowV: row('Vegetarian'), patP: patch(2) || patch(3), patV: patch(1) };
+        renderLenses(); out.chipP = ds(document.querySelector('[data-lens=plant]')); out.chipV = ds(document.querySelector('[data-lens=veg]')); return out; });
+      for (const k in r) assert(r[k], 'rendered: ' + k);
+      for (const [p, v] of [['rowP', 'rowV'], ['patP', 'patV'], ['chipP', 'chipV']]) { const P = r[p].split('|'), V = r[v].split('|');
+        assert.deepEqual(P.filter(x => V.includes(x)), [], `${p} and ${v} share no shape`); }
+      // silhouette, not fill: each mark is filled solid and rasterised; the two shapes must overlap less than 60% (IoU).
+      // Round 7's filled and outlined leaf score 1.0 here.
+      const iou = await page.evaluate(async () => { const mask = async l => { const svg = document.querySelector(`#mlist .tg[aria-label="${l}"] svg`).cloneNode(true);
+          svg.querySelectorAll('path,circle').forEach(e => { e.setAttribute('fill', '#000'); e.setAttribute('stroke', '#000'); });
+          svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); svg.setAttribute('width', 64); svg.setAttribute('height', 64);
+          const img = new Image(); img.src = 'data:image/svg+xml,' + encodeURIComponent(svg.outerHTML); await img.decode();
+          const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 64, 64);
+          return [...x.getImageData(0, 0, 64, 64).data].filter((_, i) => i % 4 === 3).map(a => a > 128); };
+        const P = await mask('Plant based'), V = await mask('Vegetarian'); let i = 0, u = 0; P.forEach((p, k) => { i += p && V[k]; u += p || V[k]; }); return i / u; });
+      assert(iou < .6, `plant and veg silhouettes overlap ${iou.toFixed(2)} (IoU)`); if (process.env.RED) results.push(`       (plant/veg silhouette IoU ${iou.toFixed(2)})`);
+      assert.equal(new Set([r.rowP, r.patP, r.chipP]).size, 1, 'plant based is one mark everywhere');
+      assert.equal(new Set([r.rowV, r.patV, r.chipV]).size, 1, 'vegetarian is one mark everywhere'); });
+    await scen('every badge on: meta groups wrap whole and flush, at 360 and 390, longest names included', async () => {
+      for (const w of [360, 390]) { await page.setViewportSize({ width: w, height: 844 });
+        const check = sel => page.evaluate(sel => { const out = []; for (const m of document.querySelectorAll(sel)) { const M = m.getBoundingClientRect(), gs = [...m.querySelectorAll(':scope > .mg')];
+            if (!gs.length || [...m.childNodes].some(n => n.nodeType === 1 ? !n.classList.contains('mg') : n.textContent.trim())) out.push('loose content: ' + m.innerText);
+            let lineTop = null; for (const g of gs) { const r = g.getBoundingClientRect(), lines = new Set([...g.getClientRects()].map(x => Math.round(x.top)));
+              if (r.height > 26) out.push(`group split over lines (${Math.round(r.height)}px): ${g.innerText}`);
+              if (r.right > M.right + .5) out.push('overflows: ' + g.innerText);
+              const newLine = lineTop == null || r.top > lineTop + 8; if (newLine && Math.abs(r.left - M.left) > .5) out.push(`wrapped line starts ${Math.round(r.left - M.left)}px in: ${g.innerText}`);
+              if (newLine) lineTop = r.top; } }
+          return out; }, sel);
+        await go('state=menu', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; scoreMode(); }); });
+        for (const h of ['W', 'F', 'H', 'B']) { await page.evaluate(h => { openHall(h, true); renderMenuList(); }, h); assert.deepEqual(await check('#mlist .row .m'), [], `${w}px, hall ${h}`); }
+        await go('state=search', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; scoreMode(); }); });
+        for (const q of ['', 'rigatoni', 'ramen', 'penne w', 'wings', 'posole']) { await page.evaluate(q => { S.q = q; renderSearch(); }, q); assert.deepEqual(await check('#sres .row .m'), [], `${w}px, Search "${q}"`); }
+        // a Search row keeps its shape whatever the toggles: the hall letters live under the +, never in the meta line
+        const shape = await page.evaluate(() => { const out = []; for (const q of ['', 'rigatoni', 'posole', 'sweet potato', 'chicken']) { S.q = q; const hs = {};
+            for (const on of [false, true]) { S.show.hf = S.show.cr = on; scoreMode(); renderSearch();
+              for (const r of document.querySelectorAll('#sres .row:not(.later)')) { if (!r.querySelector('.lane > .tags') || r.querySelector('.m .tags')) out.push('letters not under the +: ' + r.dataset.k);
+                const h = Math.round(r.getBoundingClientRect().height), m = r.querySelector('.m'), lines = new Set([...m.children].map(c => Math.round(c.getBoundingClientRect().top))).size;
+                if (!on) hs[r.dataset.k] = h; else if (lines === 1 && h !== hs[r.dataset.k]) out.push(`${r.dataset.k}: ${hs[r.dataset.k]}px off, ${h}px on`); } } }
+          S.show.hf = S.show.cr = true; scoreMode(); return out; });
+        assert.deepEqual(shape, [], `${w}px: Search rows keep their shape with the scores on`);
+        const long = await page.evaluate(() => { S.q = 'cheese rigatoni'; renderSearch(); const r = document.querySelector('#sres .row'); return [r.querySelector('.n').textContent, !!r.querySelector('.hs'), !!r.querySelector('.cs'), !!r.querySelector('.tg')]; });
+        assert.deepEqual(long, ['Cheese Rigatoni w/Plant Based Nasoya Bolognese Sauce', true, true, true], 'the longest name carries every badge'); }
+      await page.setViewportSize({ width: 390, height: 844 }); });
+  };
+  if (process.env.RED) { await (process.env.RED === '8' ? round8 : round7)(); console.log(results.join('\n')); await browser.close(); return; }
 
   // Round 5: the rack has one seam colour. Every seam between the Halls header, the hall bands and the pinned cafés is
   // deep maroon (the stack's own container), never the chalk of #halls behind it. Checked at three widths, at rest, after a
@@ -546,6 +666,7 @@ d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: 
   }
 
   await round7();
+  await round8();
 
   // pins: device-local, survive a reload, open with the container transform, unpin from the same control
   await page.goto(URL); await page.evaluate(() => localStorage.removeItem('udine-m2')); await page.reload(); await page.waitForTimeout(300);

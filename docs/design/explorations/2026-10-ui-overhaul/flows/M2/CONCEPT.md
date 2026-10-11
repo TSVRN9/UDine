@@ -128,3 +128,19 @@ Which convention applies depends on what the student touched and where they're g
   - The easing is new because no existing one fits a full-width slide. Measured on a 390 px push, emphasized crawls for 50 ms and then whips 250 px in 67 ms (3.7 px/ms), which reads as a jump.
   - The replacement is Ionic's published iOS page-transition curve. It moves from the first frame, with no crawl.
 - **Reduced motion:** a push and a sheet each crossfade in place (120 ms). Sheet → hall is one crossfade, not two in sequence.
+
+## Marks and scores (round 8)
+
+- **Four badge families on a dish row.** Each is told apart by material and silhouette:
+  - Diet: a gold felt patch with a pictogram. Plant based is a sprout, vegetarian a single leaf.
+  - Halls: chenille letters, a maroon square with a gold letter, always last.
+  - Healthfulness: an Oswald figure plus the ratings panel's seven bars.
+  - Carbon grade: a footprint plus an Oswald letter. It is never in a square.
+- **Scores are opt-in** (You, "Show on dishes"), device-local, and off by default. They appear on hall and Search rows and in
+  the sheet's patch row. The ratings panel always shows.
+- **Missing data draws nothing.**
+- **The meta line is groups** (numbers | scores) that wrap whole, with a 12 px rhythm.
+- **Search's hall letters sit under the +**, so a row has the same shape with the toggles on or off.
+- **The ratings panel is its own box.** One 1 px rule between its ratings, and no thick bar.
+
+Details and reasoning: NOTES "Round 8".

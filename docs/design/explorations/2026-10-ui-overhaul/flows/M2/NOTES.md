@@ -832,3 +832,153 @@ Critique of the round-6 screens: `CRITIQUE-r7.md`. New vocabulary: `CONCEPT.md`,
 4. **Filter chips** (Open now, and Search's lenses: one family). Selected is now tonal (tint, maroon outline, dark text) with a check, not a filled maroon button.
 
 Both test modes pass.
+
+
+## Round 8: marks and scores
+
+The owner's feedback:
+1. A thick bar sits in the ratings panel and marks nothing.
+2. Plant based and vegetarian look too similar.
+3. A new opt-in feature: healthfulness and carbon grade on dish rows.
+
+Critique of round 7: `CRITIQUE-r8.md`.
+
+### Design note
+**Four badge families. Each is told apart by material and silhouette, never by colour alone.**
+
+| Family | Says | Material | Silhouette |
+|---|---|---|---|
+| Diet mark | what it is | gold felt patch, maroon stitch (as before) | a 20 px square with a pictogram, never a letter |
+| Hall letters | where | the chenille letter: deep-maroon square, gold Oswald letter (as before) | small filled squares, always last on the line |
+| Healthfulness | a score, 0 to 7, higher is healthier | the label's ink: an Oswald figure plus the ratings panel's seven bars, maroon on a pale track | figure + a 7-bar meter, no container |
+| Carbon grade | a letter, A to E per kg of food, lower is better | the label's ink: a maroon footprint plus an Oswald letter | footprint + letter, no container |
+
+- **Why the scores have no box.** The meta line is already the row's little label: Oswald figures with their units
+  ("273 cal", "23.1g protein"). A score is one more figure, and its unit is drawn instead of written: the bars, or the
+  footprint.
+  - Boxed versions (`build/r8/mock/v1`, `v2`, `v6`) read as form fields.
+  - A circled letter (`v4`) was a generic pill.
+- **Why a carbon "B" can't be Berkshire.** It is never in a square. It always follows a footprint. It is ink on chalk, not
+  gold on maroon. And it sits before the where group, never in it.
+- **Colour doesn't encode the value.** A traffic-light ramp would bring a green/red palette into a maroon-and-gold app
+  and fail colour-blind readers. The value is the figure. The meter and the scale position repeat it.
+  - Contrast: the figures are ink on chalk (15:1), and the bars and footprint are #881c1c on chalk (8.9:1, over the 3:1
+    needed for graphics).
+  - The empty bars are a pale track. They are deliberately under 3:1, because they carry no value.
+- **The meta line is now groups:** numbers | scores | where.
+  - A group wraps whole, and a wrapped line starts flush under the name.
+  - **Scores off:** round 7's spacing exactly. A pixel diff of the off rows against round 7 differs only at the diet glyphs.
+  - **Scores on (`#frame.sc-on`):**
+    - One 12 px rhythm. That keeps both scores on one line in 95% of hall rows at 360 px (`build/r8/wrapstat.js`: 205 of
+      216 rows; at round 7's 16 px, 35 of 216).
+    - (Superseded in pass 6: Search's hall letters moved under the +.)
+- **The ratings panel is honestly a separate panel.**
+  - It is its own box (no `.label` class).
+  - One 1 px rule between the two ratings, none after the last, none inside a rating (a carbon grade and its band line are
+    one item).
+  - The selected grade is framed in a 2 px maroon rule, the label's line, and is never filled.
+  - The footprint leads "Carbon grade" (renamed from "Carbon rating"). Healthfulness reads "3 of 7" before its bars, so the
+    row's "3▮▮▮" is that number in short.
+- **Plant based is a sprout (stem, two leaves); vegetarian is a single filled leaf.**
+  - They are two silhouettes; filled-solid they overlap with an IoU of 0.46 (round 7: 0.90).
+  - `GL` is shared, so rows, patches and chips all change together.
+  - The Low carbon chip's egg is now the footprint, so one carbon mark is used everywhere.
+- **The toggles live on You, under "Show on dishes":** "Healthfulness" and "Carbon grade".
+  - They reuse the Dietary preferences checkbox rows, and their fill uses the existing settle transition.
+  - They are device-local, in `udine-m2` next to the pins (`S.show`). Both default off.
+  - They act on hall rows, Search rows (now and later) and the sheet's patch row. The ratings panel always shows.
+  - The showing list re-draws at once (`relist`, shared with the favourite star). Lists on other tabs re-draw when their
+    tab returns.
+  - Café menus carry names only (no scores in the feed), so nothing shows there.
+
+### Review passes (crops in `build/r8/p1`, `p1b`, `p2`, `final`; dpr 2)
+**Pass 1: 4 flaws.**
+1. At 360 px, Search rows split the scores: health on line 1, carbon and halls on line 2, indented 6 px (`mock/v5-search-360`).
+   Fixed: nowrap groups, wrapped by `column-gap` so a new line starts flush.
+2. The footprint at 13 px slate was a blob. It is now 14 px maroon, the score family's colour.
+3. On You, the last toggle drew a rule under itself where the list ends: the same mistake as the panel's bar. It was removed.
+4. The panel's selected grade was the hall-letter fill. It is now a 2 px frame.
+
+**Pass 2: 3 flaws.**
+1. With both scores on at 360 px, 181 of 216 hall rows wrapped onto a second meta line. Fixed: a 12 px rhythm and 2 px bars,
+   so 11 of 216 wrap.
+2. The footprint I added to the "Carbon grade" toggle pushed its text 26 px right of "Healthfulness", making a ragged left
+   edge. Removed. The chip and the panel teach the footprint.
+3. A wrapped hall-letter line sat 2 px under line 1. The row gap is now 4 px.
+
+**Pass 3: 1 flaw.**
+1. With both scores on at 390 px, adjacent Search rows had different shapes: "F H" wrapped on one and "H" stayed on line 1 on
+   the next. Fixed: with a score on, where always takes its own line.
+
+**Pass 4: 4 flaws** (coordinator review).
+1. The 12 px rhythm had changed rows with the toggles off (cal → protein 16 → 12; hall letters 10 → 12; "Dinner" 16 → 12).
+   It is now scoped to `#frame.sc-on`. Diffed against `build/r8/before/*.png`: only the diet glyphs differ.
+2. A sheet with scores and no diet patch indented the scores 4 px. The margin is gone (`final/sheet-nodiet-crop.png`).
+3. With carbon only on, ungraded dishes kept their hall letters on line 1 between rows that wrapped them. The rule now keys
+   off the toggle (`sc-on`), not the row's own scores.
+4. The round-7 rest-height check (name, Add, where, Calories at rest; fewer than 5% need full height) now also runs with both
+   scores on, since a dish with no diet mark gains a patch row.
+
+**Pass 5: clean.** Checked:
+- `shot-r8-rows.png` and `shot-r8-rows-360.png` (4 combinations × hall and Search);
+- `shot-r8-sheet.png` (at rest; panel; no carbon grade);
+- `shot-r8-marks.png`, `shot-r8-you.png`;
+- `build/r8/final/long-*` (Cheese Rigatoni…, Kumamoto ramen, Penne…, posole across four halls, later rows) and `miss-*`
+  (wings with no grade).
+
+**Pass 6: 2 flaws** (coordinator review).
+1. With a score on, Search's hall letters dropped to a third line of one or two squares, so a row's shape depended on a
+   display preference. They now live in the control lane, under the + (and under the stepper, which stays the same size).
+   - The meta line holds only the dish's own numbers and scores.
+   - Rows are identical with the toggles on or off.
+   - The lane is 66 px tall, so adding a dish never changes a row's height.
+   - Later rows have no +, so their "Dinner B" stays in the meta line.
+2. At 1× the footprint's four toes merged into a smudge (an acorn). It now has three toes spaced at least 1 px apart and
+   draws at 15 px (`build/r8/fp1x-zoom.png`).
+
+### Tests (`test.js`, `round8`)
+- **Toggles.**
+  - Off by default.
+  - A real tap on You turns healthfulness on.
+  - Hall and Search rows match each dish exactly: a reading exactly when shown and the data exists, the right figure, 7 bars
+    with `hf` lit, the right letter.
+  - The setting survives a reload.
+  - Carbon only covers now and later rows.
+  - With both on, the sheet's patch row carries the readings.
+  - Cleared, no reading is left anywhere.
+- **Missing data.**
+  - A row with `hf` or `cr` nulled draws no reading and no placeholder text.
+  - With both missing, the sheet has no score row and no panel.
+  - A real dish with no grade has no footprint and no scale, and one rating.
+  - `hf` 0 shows "0" with no bars lit.
+- **Ratings panel**, for both, health only and carbon only:
+  - not `.label`;
+  - no rule thicker than 1 px;
+  - rules = ratings − 1;
+  - no rule at its edges or inside a rating.
+- **Plant and veg.**
+  - No shared path on rows, patches or chips.
+  - Each is one mark everywhere.
+  - Rasterised solid, their IoU is under 0.6.
+- **Wrapping, at 360 and 390 px, both on.**
+  - Every hall (lunch) and Search ("", rigatoni, ramen, penne w, wings, posole): no loose content, no group split over two
+    lines, nothing overflows, every wrapped line flush.
+  - The longest name carries every badge.
+- **Red.** `RED=8 SRC=$PWD/build/r8/before/index.html node test.js`: all five are RED on round 7. The plant/veg test fails
+  on IoU 0.90 (its path check alone passed there, which is why the IoU check exists). With the current build all are green.
+- **Shape:** at 360 and 390 px, Search's hall letters sit under the +, never in the meta line, and a row's height is the
+  same with the scores on as off whenever its meta line fits.
+- **Now:** `node test.js` gives 4,898 checks and `RM=1 node test.js` gives 3,209, all green (after pass 6).
+
+### Open (for the owner)
+- **0 or unscored?** 73 of 661 dishes have healthfulness 0. That includes cookies and danish, which is plausible. But 4 of the
+  12 dishes with no carbon grade are also 0 (Tortellini, BBQ and Buffalo wings, Southern mac & cheese), which looks like
+  "not scored". I show 0 as a score. If the feed's 0 means unscored, it should be dropped like a missing value.
+- **Healthfulness is never missing** in the Oct 8 and 9 feeds. The missing case is tested by nulling a dish.
+- **A bar meter already means "busy"** on the hall bands (gold on the photo). The health meter is maroon, carries a figure,
+  and only appears on dishes, so I kept it.
+- **A Search row shows one hall's scores.** 6 of 110 multi-hall dishes are scored differently by hall (Beef Brisket Noodle
+  Bowl: W 4/D, B 4/C). The row reads the hall it stands for (`rep`), which is the one its sheet opens, so row and sheet
+  agree. Another hall's sheet can differ.
+- **The scores have no container.** The brief says "badges". Boxed versions read as form fields at row size (`mock/v1`,
+  `v2`, `v6`), so each score is a figure with its drawn unit, like "273 cal".

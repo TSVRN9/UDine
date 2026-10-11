@@ -248,7 +248,30 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 /* the control lane is always as wide as the stepper, so + -> stepper never re-wraps the name */
 .row>.add{margin-left:66px}
 .row .n{font-weight:600;line-height:1.25}
-.row .m{font-size:13px;color:var(--slate);margin-top:3px;display:flex;align-items:baseline;gap:4px;flex-wrap:wrap}
+.row .m{font-size:13px;color:var(--slate);margin-top:3px;display:flex;align-items:baseline;gap:4px 10px;flex-wrap:wrap}
+.row.later .m{column-gap:16px}
+/* meta groups (round 8): numbers | scores | where. Each group wraps whole; a wrapped line starts flush under the name.
+   Scores off: round 7's spacing exactly (cal 16 protein, 10 to the hall letters, 16 to "Dinner").
+   Scores on (#frame.sc-on): one 12 px rhythm, so both scores keep one line at 360 px in 19 rows of 20. */
+.mg{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
+.mg .tags{margin-left:0}
+.sc-on .row .m{column-gap:12px}
+.sc-on .row .m .gap{width:4px}
+/* Search, now: the halls serving it sit under its +, in the control lane, so the meta line holds only the dish's own numbers
+   and a row has the same shape with the scores on or off. (Later rows have no +: their "Dinner B" stays in the meta line.) */
+.lane{flex:none;width:114px;min-height:66px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end}   /* fits + or stepper over the letters: adding never changes the row's height */
+.lane>.add.ghost{margin:2px}
+.lane .tags{margin:0 14px 0 0}
+.mg .lnext+.tags{margin-left:6px}
+/* scores: an Oswald figure with its scale beside it. Healthfulness: seven bars (the ratings panel's), carbon: footprint + letter */
+.sc{gap:12px}
+.hs,.cs{display:inline-flex;align-items:baseline;font:500 15px Oswald,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.hs{gap:3px}
+.hb{display:inline-flex;gap:1px;align-self:baseline}
+.hb i{width:2px;height:11px;background:rgba(136,28,28,.2)}
+.hb i.on{background:var(--vm)}
+.cs{gap:1px}
+.cs .gl{width:15px;height:15px;color:var(--vm);vertical-align:0;align-self:baseline}
 .row .m b{font:500 15px Oswald,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
 .row .m .gap{width:8px}
 .star{color:var(--vm);font-size:13px;margin-left:4px}
@@ -346,6 +369,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .pbar .o{font:600 22px Oswald,sans-serif;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px}
 .pbody{padding:8px 20px 20px}
 .check{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:56px;border-bottom:1px solid var(--hair);text-align:left;font-weight:600}
+.sec .check:last-child{border-bottom:0}
 .check i{width:26px;height:26px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--slate);display:grid;place-items:center}
 .check[aria-checked=true] i{background:var(--vm);box-shadow:none}
 .check[aria-checked=true] i::after{content:"";width:12px;height:7px;border:solid #fff;border-width:0 0 2.5px 2.5px;transform:translateY(-2px) rotate(-45deg)}
@@ -401,16 +425,24 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .label .lr.thin{font-size:13px;font-weight:700}
 .label .lr.last{border-bottom:7px solid var(--dm)}
 .label .lf{font-size:12px;color:var(--ink);padding:6px 0 2px;line-height:1.35}
-/* ratings: a second panel in the label's own rule system */
-.grades .lr{align-items:center;min-height:40px}
-.grades .lr.sub{min-height:0;padding-top:0;font-size:13px;font-weight:400;color:var(--ink)}
+/* ratings (round 8): its own panel next to the label, with its own rules: one 1 px rule between ratings, none after the
+   last. No thick bar: a thick bar ends a label section, and this panel has none. */
+.grades{padding:0 12px}
+.gr{padding:10px 0;font-size:15px}
+.gr+.gr{border-top:1px solid var(--dm)}
+.gr,.gt{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.gr:has(.gt){display:block}
+.gr b{font-weight:700}
+.gt b{display:inline-flex;align-items:center;gap:6px}
+.gt .gl{width:16px;height:16px;color:var(--vm)}
+.gs{margin:6px 0 0;font-size:13px;color:var(--ink)}
 .hbars{display:inline-flex;gap:3px;align-items:center}
 .hbars i{width:9px;height:14px;border-radius:1px;background:rgba(136,28,28,.16)}
 .hbars i.on{background:var(--vm)}
-.hbars b{font:600 16px Oswald,sans-serif;margin-left:8px;color:var(--dm)}
-.crs{display:inline-flex;gap:3px}
-.crs i{width:24px;height:24px;border-radius:4px;display:grid;place-items:center;font:600 14px/1 Oswald,sans-serif;font-style:normal;color:var(--slate);box-shadow:inset 0 0 0 1px rgba(110,98,102,.45)}
-.crs i.on{background:var(--dm);color:var(--gold);box-shadow:none}
+.hbars b{font:600 16px Oswald,sans-serif;margin-right:8px;color:var(--dm)}
+.crs{display:inline-flex;gap:3px;align-items:center}
+.crs i{width:24px;height:24px;display:grid;place-items:center;font:500 14px/1 Oswald,sans-serif;font-style:normal;color:var(--slate)}
+.crs i.on{width:30px;height:30px;color:var(--dm);font-weight:600;font-size:17px;box-shadow:inset 0 0 0 2px var(--dm)}   /* framed like the label, never the hall letters' maroon fill */
 /* dish sheet (round 7). One spacing scale: 4 within a line group, 8 between the parts of a group, 16 before the action,
    24 between groups (identity, action, where, label, ingredients) */
 .dish .dhd{display:flex;align-items:flex-start;gap:8px;position:sticky;top:0;z-index:2;background:var(--chalk);margin:0 -20px -4px;padding:0 20px 4px;box-shadow:0 -4px 0 var(--chalk);transition:box-shadow var(--d-settle) var(--e-settle)}   /* the name stays over the label as it scrolls */
@@ -421,6 +453,10 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .favb[aria-pressed=true] svg{fill:var(--gold);stroke:var(--gold)}
 .dish .dsv{margin:4px 0 0;font-size:15px;color:var(--slate)}
 .dish .mks{margin-top:8px}
+.mks-s{display:inline-flex;align-items:center;gap:16px;height:30px}
+.mks-s .hs,.mks-s .cs{font-size:18px;font-weight:600;color:var(--dm)}
+.mks-s .hb i{width:3.5px;height:14px}
+.mks-s .cs .gl{width:17px;height:17px}
 .dish .dal{margin:8px 0 0;font-size:15px;line-height:1.4;color:var(--ink)}
 .dish .dal b{font-weight:700;color:var(--dm);margin-right:4px}
 .dish .dadd{margin-top:16px}
@@ -693,14 +729,14 @@ const byName = (h,meal,n) => BYK[meal][norm(n)].refs[h];
 const S = {
   tab:'halls', hall:null, mmeal:'lunch',
   smeal:'lunch', scope:null, lenses:new Set(), q:'',
-  plates:[], front:0, lastHall:null, openNow:true, fav:new Set(), diet:{veg:false,plant:false,halal:false}, wins:{},
+  plates:[], front:0, lastHall:null, openNow:true, fav:new Set(), diet:{veg:false,plant:false,halal:false}, wins:{}, show:{hf:false,cr:false},
   log:[{meal:'breakfast',hall:'W',time:'8:42 AM',items:['Hard Boiled Egg','Make Your Own Waffles','Red Potato Home Fries'].map(n=>{const d=byName('W','breakfast',n);return{n,qty:1,cal:d.cal,p:d.p,c:d.c,f:d.f};})}],
   lastLog:null,
 };
 // device-local only: favorites, diet and pinned cafés (by name, in the order pinned)
 S.pins=[];
-try{ const sv=JSON.parse(localStorage.getItem('udine-m2')||'null'); if(sv){ S.fav=new Set(sv.fav||[]); Object.assign(S.diet,sv.diet||{}); S.pins=(sv.pins||[]).filter(n=>P.places.some(x=>x[0]===n)); } }catch(e){}
-const save = ()=>{ try{ localStorage.setItem('udine-m2',JSON.stringify({fav:[...S.fav],diet:S.diet,pins:S.pins})); }catch(e){} };
+try{ const sv=JSON.parse(localStorage.getItem('udine-m2')||'null'); if(sv){ S.fav=new Set(sv.fav||[]); Object.assign(S.diet,sv.diet||{}); Object.assign(S.show,sv.show||{}); S.pins=(sv.pins||[]).filter(n=>P.places.some(x=>x[0]===n)); } }catch(e){}
+const save = ()=>{ try{ localStorage.setItem('udine-m2',JSON.stringify({fav:[...S.fav],diet:S.diet,pins:S.pins,show:S.show})); }catch(e){} };
 
 /* ---------- plate model: a plate belongs to the halls that serve everything on it ---------- */
 const itemHalls = it => it.custom ? null : Object.keys(it.refs);
@@ -770,28 +806,38 @@ const IC = {
 };
 function ctl(q, ghost){ return q ? `<div class="step" data-q="${q}"><button class="dec" aria-label="Less">${IC.minus}</button><span class="q">${fq(q)}</span><button class="inc" aria-label="More">${IC.plus}</button></div>`
   : `<button class="add${ghost?' ghost':''}" aria-label="Add">${IC.plus}</button>`; }
-const meta = d => `<b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${f1(d.p)}g</b> protein`;
-// Mark set. Glyphs are drawn, never emoji. Leaf = plant based (filled) / vegetarian (outline): the only marks shown inline on rows.
+// The meta line is groups that wrap whole: the numbers, then the scores (opt-in, You tab), then where. A wrapped line starts flush.
+const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${f1(d.p)}g</b> protein</span>${scoresHTML(d)}`;
+// Mark set. Glyphs are drawn, never emoji. Round 8: plant based is a sprout (stem, two leaves), vegetarian a single leaf:
+// two silhouettes, not one leaf filled or outlined. Those two are the only marks shown inline on rows.
 const GL = {
-  plant:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13C3 6 7 3 13.5 2.5 13.5 9 10 13 3 13Z" fill="currentColor"/><path d="M3 13 9 7" stroke="#fff" stroke-width="1.2" fill="none"/></svg>',
-  veg:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13C3 6 7 3 13.5 2.5 13.5 9 10 13 3 13Z M3 13 9 7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  plant:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 15.2V8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M7.6 9.6C7.6 5.6 5.4 3.4 1 3.4 1 7.6 3.4 9.6 7.6 9.6Z M8.4 8.2C8.4 4.2 10.8 1.4 15 1.4 15 5.6 12.6 8.2 8.4 8.2Z" fill="currentColor"/></svg>',
+  veg:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13C3 6 7 3 13.5 2.5 13.5 9 10 13 3 13Z" fill="currentColor"/><path d="M3 13 9 7" stroke="#fff" stroke-width="1.2" fill="none"/></svg>',
   halal:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 5v6M10.5 5v6M5.5 8h5" stroke="currentColor" stroke-width="1.5"/></svg>',
   local:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5S3 9.6 3 6.5a5 5 0 0 1 10 0c0 3.1-5 8-5 8Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.5" r="1.6" fill="currentColor"/></svg>',
   sus:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.5h-2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
-  carbon:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2c2.4 0 3.6 2.6 3.6 5.6S10.4 14 8 14 4.4 10.6 4.4 7.6 5.6 2 8 2Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  // a footprint (three toes, spaced to stay apart at 1x): the carbon grade's mark wherever it appears (row reading, sheet, ratings panel, the Low carbon lens)
+  carbon:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.6 9C4.6 7.2 6.4 6.3 8.4 6.3s3.6 1 3.4 3.2c-.2 1.8-1.1 2.6-1.3 4-.2 1.3-1 2.2-2.2 2.2-1.3 0-2-.9-2.2-2.2-.2-1.5-1.5-2.3-1.5-3.5Z" fill="currentColor"/><circle cx="11.2" cy="3.3" r="1.6" fill="currentColor"/><circle cx="7.8" cy="2.6" r="1.25" fill="currentColor"/><circle cx="4.9" cy="3.6" r="1.05" fill="currentColor"/></svg>',
 };
 // the last word and its marks never part: a patch never sits alone on a line
 const nameHTML = (n, marks) => { if(!marks) return esc(n); const i=n.lastIndexOf(' '); return `${esc(n.slice(0,i+1))}<span class="nw">${esc(n.slice(i+1))}${marks}</span>`; };
 const dietMark = d => d.d&2 ? `<i class="tg" role="img" aria-label="Plant based">${GL.plant}</i>` : d.d&1 ? `<i class="tg" role="img" aria-label="Vegetarian">${GL.veg}</i>` : '';
 function marksHTML(d){ return [d.d&2&&['plant','Plant based'], d.d&1&&!(d.d&2)&&['veg','Vegetarian'], d.d&4&&['halal','Halal'], d.d&8&&['local','Local'], d.d&16&&['sus','Sustainable']]
   .filter(Boolean).map(([g,l])=>`<span class="mk">${GL[g]}${l}</span>`).join(''); }
+// Scores (round 8): an Oswald figure with its scale drawn beside it, in the label's ink and maroon. Healthfulness is the
+// panel's seven bars; carbon is the footprint and its letter. Missing data draws nothing. Shown only when opted in (S.show).
+const hfHTML = hf => hf==null ? '' : `<span class="hs" role="img" aria-label="Healthfulness ${hf} of 7">${hf}<span class="hb" aria-hidden="true">${[0,1,2,3,4,5,6].map(i=>`<i${i<hf?' class="on"':''}></i>`).join('')}</span></span>`;
+const crHTML = cr => cr==null ? '' : `<span class="cs" role="img" aria-label="Carbon grade ${cr}">${GL.carbon}${cr}</span>`;
+const scoreMode = () => frame.classList.toggle('sc-on', S.show.hf||S.show.cr);
+const scoresHTML = (d, cls='mg') => { const x=(S.show.hf?hfHTML(d.hf):'')+(S.show.cr?crHTML(d.cr):''); return x ? `<span class="${cls} sc">${x}</span>` : ''; };
 // UMass Dining's Climate-Conscious Dining bands (My Emissions LCA), per kg of food. The feed carries only the letter.
 // Per kg, not per serving: never summed or averaged across a plate.
 const CRB = {A:'Very low: under 1.75',B:'Low: 1.75 to 3',C:'Medium: 3 to 4.25',D:'High: 4.25 to 5.5',E:'Very high: over 5.5'};
+// The ratings panel is its own panel beside the label, not a piece of it: one rule between ratings, none after the last.
 function gradesHTML(hf, cr){
-  const h = hf==null ? '' : `<div class="lr${cr==null?' last':''}"><b>Healthfulness</b><span class="hbars" role="img" aria-label="${hf} of 7">${[0,1,2,3,4,5,6].map(i=>`<i class="${i<hf?'on':''}"></i>`).join('')}<b>${hf} of 7</b></span></div>`;
-  const c = cr==null ? '' : `<div class="lr"><b>Carbon rating</b><span class="crs" role="img" aria-label="${cr}, on a scale from A to E">${'ABCDE'.split('').map(x=>`<i class="${x===cr?'on':''}">${x}</i>`).join('')}</span></div><div class="lr sub last"><span>${CRB[cr]} kg CO₂e per kg of food</span></div>`;
-  return h||c ? `<div class="facts label grades">${h}${c}</div>` : '';
+  const h = hf==null ? '' : `<div class="gr"><b>Healthfulness</b><span class="hbars" role="img" aria-label="${hf} of 7"><b>${hf} of 7</b>${[0,1,2,3,4,5,6].map(i=>`<i class="${i<hf?'on':''}"></i>`).join('')}</span></div>`;
+  const c = cr==null ? '' : `<div class="gr"><div class="gt"><b>${GL.carbon}Carbon grade</b><span class="crs" role="img" aria-label="${cr}, on a scale from A to E">${'ABCDE'.split('').map(x=>`<i class="${x===cr?'on':''}">${x}</i>`).join('')}</span></div><p class="gs">${CRB[cr]} kg CO₂e per kg of food</p></div>`;
+  return h||c ? `<div class="facts grades">${h}${c}</div>` : '';
 }
 // FDA-style label. %DV: the menu's own value when published; otherwise computed from FDA daily values (sat fat 20 g, cholesterol 300 mg).
 const NK = ['ff','fat','fatDv','sat','satDv','trans','chol','sod','sodDv','carb','carbDv','fib','fibDv','sug','pro','proDv'];
@@ -872,6 +918,8 @@ function renderMenu(){
   requestAnimationFrame(()=>placeUL(false));
   renderMenuList();
 }
+// re-draw the showing list in place (scroll kept). Lists on other tabs re-draw when their tab returns (setTab).
+function relist(){ if(menuShowing() && S.cafe==null){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } if(S.tab==='search') renderSearch(); }
 function renderMenuList(){
   if(S.cafe!=null){ $('#mlist').innerHTML=cafeBody(S.cafe)+'<div class="pad-b"></div>'; return; }
   const h=S.hall, meal=S.mmeal, day=S.mday, pre=day?'t.':''; let html='';
@@ -1152,10 +1200,10 @@ function renderSearch(){
   let html = pl2.length ? `<div class="sgrp" data-key="g-places">Places</div>${pl2.join('')}` : '';
   if(r.length && (pl2.length||lt.length||(!S.q&&!S.lenses.size))) html+=`<div class="sgrp" data-key="g-now">${ML[S.smeal]} now</div>`;
   html += r.map(({g,d})=>{ const f=findItem(S.smeal,g.k);
-    return `<div class="row" data-k="${esc(g.k)}" data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${meta(d)}${hallGlyph(HALLS.filter(h=>g.refs[h]), 'Served now')}</div></div>${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,Object.keys(g.refs)))}</div>`; }).join('');
+    return `<div class="row" data-k="${esc(g.k)}" data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${meta(d)}</div></div><div class="lane">${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,Object.keys(g.refs)))}${hallGlyph(HALLS.filter(h=>g.refs[h]), 'Served now')}</div></div>`; }).join('');
   // not served now: when it's next served, in words, then the halls serving it then
   if(lt.length) html += `<div class="sgrp" data-key="g-later">Later today and tomorrow</div>` + lt.map(({g,d})=>{ const said=g.day?'Tomorrow '+mealWord(g.meal):MEALN(g.meal);
-    return `<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(d.n, dietMark(d))}</div><div class="m">${meta(d)}<span class="gap"></span><span class="lnext" aria-hidden="true">${said}</span>${hallGlyph(g.hs, said)}</div></div></div>`; }).join('');
+    return `<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(d.n, dietMark(d))}</div><div class="m">${meta(d)}<span class="mg w"><span class="lnext" aria-hidden="true">${said}</span>${hallGlyph(g.hs, said)}</span></div></div></div>`; }).join('');
   if(!r.length && !pl2.length && !lt.length){
     html = S.q ? `<p class="empty">Nothing called “${esc(S.q)}” is on ${S.scope?HN[S.scope]+"'s ":''}any menu today or tomorrow.</p><button class="custom solid" data-act="custom">${IC.plus.replace('<svg','<svg width="20" height="20" stroke="currentColor" stroke-width="2.4" fill="none"')}Add “${esc(S.q)}” as a custom food</button>`
       : S.lenses.has('fav') ? `<p class="empty">Star a dish from its details and it shows up here whenever it's served.</p>` : `<p class="empty">No dishes match these filters at ${ML[S.smeal].toLowerCase()}.</p>`;
@@ -1224,7 +1272,8 @@ function renderYou(){
     <div class="sec" style="padding-top:20px">${factsHTML(t)}</div>
     <section class="sec"><h2>Meals</h2>${meals}</section>
     <section class="sec">${[['favs','Favorites',S.fav.size? S.fav.size+' dishes':'None yet'],['diet','Dietary preferences',dietOn()?dietWords():'Everything'],['rank','Which was better?',rankPool().length+' dishes logged'],['export','Export my data',S.log.length+(S.log.length===1?' meal':' meals')]]
-      .map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section><div class="pad-b"></div>`;
+      .map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section>
+    <section class="sec"><h2>Show on dishes</h2>${[['hf','Healthfulness'],['cr','Carbon grade']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.show[k]}" data-show="${k}">${l}<i></i></button>`).join('')}</section><div class="pad-b"></div>`;
 }
 /* ---------- push (round 7): iOS navigation for everything that isn't a band on Halls ----------
    The new screen slides in from the right edge over the old one, which shifts left by MO.push.shift of the width and dims
@@ -1414,7 +1463,7 @@ let DS=null;
 function openDish(d, src, refs){
   DS={d, refs: refs || (src && src.dataset.k && BYK[d.meal] && BYK[d.meal][d.k] ? BYK[d.meal][d.k].refs : {[d.h]:d})};
   $('#q').blur(); renderDish(); $('#isbody').scrollTop=0; IS.mid=dishMid(); isheet.to('mid'); }
-function renderDish(){ const d=DS.d, N=nutObj(d.nut), on=!d.day && findItem(d.meal,d.k), mk=marksHTML(d);
+function renderDish(){ const d=DS.d, N=nutObj(d.nut), on=!d.day && findItem(d.meal,d.k), mk=marksHTML(d)+scoresHTML(d,'mks-s');
   $('#isbody').innerHTML=`<div class="dish"><div class="dhd"><h2 class="dn">${esc(d.n)}</h2><button class="icon favb" data-act="fav" data-k="${esc(d.k)}" aria-pressed="${S.fav.has(d.k)}" aria-label="Favorite">${IC.star}</button></div>
     ${d.srv?`<p class="dsv">${esc(d.srv)}</p>`:''}${mk?`<div class="mks">${mk}</div>`:''}${d.alg?`<p class="dal"><b>Contains</b>${esc(d.alg)}</p>`:''}
     ${d.day?'':`<button class="btn dadd" data-act="dadd">${on?'Add another':'Add to plate'}</button>`}
@@ -1511,7 +1560,7 @@ function rowState(row){
   if(row.dataset.id){ const d=DISH[row.dataset.id], f=findItem(d.meal,d.k,d.h); return [f?f.it.qty:0, !f && wouldSplit(d.meal,[d.h])]; }
   const g=BYK[S.smeal][row.dataset.k], f=findItem(S.smeal,g.k); return [f?f.it.qty:0, !f && wouldSplit(S.smeal,Object.keys(g.refs))]; }
 function setCtl(row, q, ghost){
-  const st=row.querySelector('.step'), ad=row.querySelector(':scope > .add'), old=st?+st.dataset.q:0;
+  const st=row.querySelector('.step'), ad=row.querySelector('.add'), old=st?+st.dataset.q:0;
   if(q===old){ if(ad) ad.classList.toggle('ghost',!!ghost); return; }
   const make=h=>{ const t=document.createElement('div'); t.innerHTML=h; return t.firstElementChild; };
   if(old && q){ st.dataset.q=q; st.querySelector('.q').textContent=fq(q); return; }
@@ -1552,6 +1601,7 @@ document.addEventListener('click',e=>{
   const jb=t.closest('[data-jump]'); if(jb){ jump(jb.dataset.jump); return; }
   const lens=t.closest('[data-lens]'); if(lens){ const k=lens.dataset.lens; S.lenses.has(k)?S.lenses.delete(k):S.lenses.add(k); buzz(4); lens.setAttribute('aria-pressed',S.lenses.has(k)); renderSearch(); return; }
   const pt=t.closest('[data-plate]'); if(pt){ S.front=+pt.dataset.plate; renderPSheet(); A($('#psbody > div'),[{opacity:.3},{opacity:1}],'settle'); renderBar(); refreshLists(); buzz(4); return; }
+  const sw=t.closest('[data-show]'); if(sw){ const k=sw.dataset.show; S.show[k]=!S.show[k]; sw.setAttribute('aria-checked',S.show[k]); buzz(4); save(); scoreMode(); relist(); return; }
   const dk=t.closest('[data-diet]'); if(dk){ S.diet[dk.dataset.diet]=!S.diet[dk.dataset.diet]; dk.setAttribute('aria-checked',S.diet[dk.dataset.diet]); buzz(4); save(); return; }
   const wn=t.closest('[data-win]'); if(wn){ S.wins[wn.dataset.key]=wn.dataset.win; buzz(6); rerenderPage(); return; }
   // rows: + tosses the dish's calories into the plate, − takes them back out, the row itself grows into its detail
@@ -1609,7 +1659,7 @@ document.addEventListener('click',e=>{
     isheet.away(()=>addDish(d.meal,d.k,refs,d.n)); }
   else if(act==='fav'){ const k=a.dataset.k; S.fav.has(k)?S.fav.delete(k):S.fav.add(k); save(); a.setAttribute('aria-pressed',S.fav.has(k)); buzz(6);
     // the lists under the sheet show the star where they are
-    if(menuShowing() && S.cafe==null){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } if(S.tab==='search') renderSearch(); }
+    relist(); }
   else if(act==='exp') exportData(a.dataset.fmt);
 });
 function selectQ(){ const q=$('#q'); q.focus({preventScroll:true}); q.select(); try{ q.setSelectionRange(0,q.value.length); }catch(e){} }
@@ -1619,7 +1669,7 @@ if(window.visualViewport){ const vv=visualViewport, kbf=()=>{ const kb=Math.max(
 $('#psheet').addEventListener('click',()=>{},true);
 
 /* ---------- boot ---------- */
-renderHalls(); renderBar(); renderEvents(); setIdle(); $('.tbar .ind').style.transform='translateX(0)';
+scoreMode(); renderHalls(); renderBar(); renderEvents(); setIdle(); $('.tbar .ind').style.transform='translateX(0)';
 const qs=new URLSearchParams(location.search), state=qs.get('state');
 const W=(n)=>byName('W','lunch',n);
 function bench(){ addDish('lunch',W('Beef Brisket Noodle Bowl').k,BYK.lunch[W('Beef Brisket Noodle Bowl').k].refs,'Beef Brisket Noodle Bowl'); const g=BYK.lunch[W('Golden BBQ Chicken Thigh').k]; addDish('lunch',g.k,g.refs,g.n); addDish('lunch',g.k,g.refs,g.n); }
