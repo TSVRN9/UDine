@@ -971,7 +971,7 @@ Critique of round 7: `CRITIQUE-r8.md`.
 - **Now:** `node test.js` gives 4,898 checks and `RM=1 node test.js` gives 3,209, all green (after pass 6).
 
 ### Open (for the owner)
-- **0 or unscored?** 73 of 661 dishes have healthfulness 0. That includes cookies and danish, which is plausible. But 4 of the
+- **0 or unscored? Settled in round 8b** (the legend's H code decides). Kept for history: 73 of 661 dishes have healthfulness 0. That includes cookies and danish, which is plausible. But 4 of the
   12 dishes with no carbon grade are also 0 (Tortellini, BBQ and Buffalo wings, Southern mac & cheese), which looks like
   "not scored". I show 0 as a score. If the feed's 0 means unscored, it should be dropped like a missing value.
 - **Healthfulness is never missing** in the Oct 8 and 9 feeds. The missing case is tested by nulling a dish.
@@ -982,3 +982,62 @@ Critique of round 7: `CRITIQUE-r8.md`.
   agree. Another hall's sheet can differ.
 - **The scores have no container.** The brief says "badges". Boxed versions read as form fields at row size (`mock/v1`,
   `v2`, `v6`), so each score is a figure with its drawn unit, like "273 cal".
+
+
+## Round 8b: scores as tiles in the official app's family
+
+The owner overruled the unboxed readings: "I'd prefer the badges, as that's what the official app used. If it's not
+scored, don't show anything." Only the scores change. The diet patches, the sprout and leaf, the toggles, the hall letters
+under the + and the panel's rules all stay.
+
+### Data
+- **Scored means the legend code.**
+  - `build.py` now takes healthfulness from `H0`..`H7` in `recipe-webcode`, not from `data-healthfulness`.
+  - 16 Oct 8 dishes (11 on Oct 9) carry a healthfulness number but no H code: Beef Nachos, Hard Boiled Egg, Homemade Spicy
+    Hummus and others. They are unscored and draw nothing.
+  - 72 dishes have `H0`: a real 0, which is shown (including Tortellini, the wings and mac & cheese).
+- **Carbon** always matches its `CR1`..`CR5` code. The 12 dishes with no letter draw nothing.
+
+### Design
+- **Tiles.** A portrait rounded tile (24×30; 18×22.5 on rows), a white pictogram, and the value knocked into it in ink. They
+  are drawn as our own SVG; UMass's PNGs are not embedded.
+- **Carbon:** UMass's colours (A #0d6d3a, B #9bcb3b, C #dbe11d, D #bcbdc0, E #818285) and a footprint holding the letter.
+- **Healthfulness:** the official app has none, so it is a heart holding the number on a blue ramp, 0 pale (#cfe0f2) to 7
+  deep (#0f4a8a). Ordered like carbon's ramp, but blue never meets carbon's green, lime or grey.
+- **Not a hall letter.** Hall letters are maroon squares with gold letters. A tile is taller than wide, green, grey or blue,
+  and carries a pictogram.
+- **Contrast.**
+  - The figure is always ink on the white pictogram: the darkest shade of the tile's hue, 6.4:1 to 13.2:1, which is AA.
+  - White on UMass's light tiles fails (B 1.9, C 1.4, D 1.9, E 3.8), so no white text is used.
+  - Tiles under 3:1 on chalk (B, C, D, health 0 to 3) get a 1 px edge in their ink.
+- **What survives at each size.**
+  - Row: the tile alone (UMass's "CARBON RATING" caption is about 3 px there).
+  - Sheet patch row: the tile at 24×30.
+  - Ratings panel: the whole scale. Each step is its figure over a 4 px strip of its colour, and the dish's step is the
+    full tile, so the panel is where the colours are explained.
+  - The panel's title is "Carbon rating" (the official term). The You toggle is renamed to match.
+- **The round-8 12 px "scores on" rhythm is deleted.** Both tiles take 42 px, so with round 7's spacing every hall row keeps
+  one meta line at 360 px (`wrapstat.js`: 0 of 216 wrap).
+
+### Review passes (`build/r8/final`, 2× and 1× crops at 360 and 390 px, all four toggle states)
+**Pass 1: 3 flaws.**
+1. At 1×, the row tile's letter was about 8 px and "A" closed up. The toes are now smaller, the sole is wider, the figure is
+   14 units, and the row tile grew from 17 to 18 px.
+2. The 22.5 px tile grew the 21.6 px meta line by 0.5 px. That changed the height of Search rows with long names between
+   toggle states (caught by the shape test). The group now has −1 px block margins.
+3. The 12 px rhythm and its `sc-on` class were dead weight with tiles this narrow. Removed.
+
+**Pass 2: clean.** Checked:
+- `shot-r8-rows.png`, `shot-r8-rows-360.png`, `shot-r8-sheet.png`, `shot-r8b-tiles.png`;
+- 1× Search rows at 360 px (`final/rows-1x-360-zoom.png`).
+
+### Tests
+- **Rows match their dish:** the tile's figure and its fill colour (`HFC` / `CRC`).
+- **An H0 dish** shows a "0" tile.
+- **An unscored dish** (no H code; at least 10 exist in the feed) has no health tile on its row, its sheet or its panel.
+- **The panel's selected step** is the tile (`.hscale i.on` = 3 for Golden BBQ).
+- **Now:** `node test.js` gives 4,894 checks and `RM=1 node test.js` gives 3,120, all green.
+
+### Open
+- **The heart and the blue ramp are my choice**, since there is no official health icon. At row size the heart's point is
+  narrow, so the figure sits in its upper half.

@@ -251,12 +251,9 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .row .m{font-size:13px;color:var(--slate);margin-top:3px;display:flex;align-items:baseline;gap:4px 10px;flex-wrap:wrap}
 .row.later .m{column-gap:16px}
 /* meta groups (round 8): numbers | scores | where. Each group wraps whole; a wrapped line starts flush under the name.
-   Scores off: round 7's spacing exactly (cal 16 protein, 10 to the hall letters, 16 to "Dinner").
-   Scores on (#frame.sc-on): one 12 px rhythm, so both scores keep one line at 360 px in 19 rows of 20. */
+   Round 7's spacing exactly; the score tiles (42 px for both) fit after it on one line, even at 360 px. */
 .mg{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
 .mg .tags{margin-left:0}
-.sc-on .row .m{column-gap:12px}
-.sc-on .row .m .gap{width:4px}
 /* Search, now: the halls serving it sit under its +, in the control lane, so the meta line holds only the dish's own numbers
    and a row has the same shape with the scores on or off. (Later rows have no +: their "Dinner B" stays in the meta line.) */
 .lane{flex:none;width:114px;min-height:66px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end}   /* fits + or stepper over the letters: adding never changes the row's height */
@@ -264,14 +261,12 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .lane .tags{margin:0 14px 0 0}
 .mg .lnext+.tags{margin-left:6px}
 /* scores: an Oswald figure with its scale beside it. Healthfulness: seven bars (the ratings panel's), carbon: footprint + letter */
-.sc{gap:12px}
-.hs,.cs{display:inline-flex;align-items:baseline;font:500 15px Oswald,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
-.hs{gap:3px}
-.hb{display:inline-flex;gap:1px;align-self:baseline}
-.hb i{width:2px;height:11px;background:rgba(136,28,28,.2)}
-.hb i.on{background:var(--vm)}
-.cs{gap:1px}
-.cs .gl{width:15px;height:15px;color:var(--vm);vertical-align:0;align-self:baseline}
+/* score tiles (round 8b): portrait, rounded, never square, never maroon: unlike a hall letter in shape and colour */
+.tile{display:block;width:18px;height:22.5px;flex:none}
+.tile text{font:600 14px Oswald,sans-serif}
+.sc{align-self:center;gap:6px}
+.row .m .sc{margin-block:-1px}   /* a 22.5 px tile rides in the 21.6 px meta line without growing it */
+.hs,.cs{display:inline-flex}
 .row .m b{font:500 15px Oswald,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
 .row .m .gap{width:8px}
 .star{color:var(--vm);font-size:13px;margin-left:4px}
@@ -434,15 +429,14 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .gr:has(.gt){display:block}
 .gr b{font-weight:700}
 .gt b{display:inline-flex;align-items:center;gap:6px}
-.gt .gl{width:16px;height:16px;color:var(--vm)}
 .gs{margin:6px 0 0;font-size:13px;color:var(--ink)}
-.hbars{display:inline-flex;gap:3px;align-items:center}
-.hbars i{width:9px;height:14px;border-radius:1px;background:rgba(136,28,28,.16)}
-.hbars i.on{background:var(--vm)}
-.hbars b{font:600 16px Oswald,sans-serif;margin-right:8px;color:var(--dm)}
-.crs{display:inline-flex;gap:3px;align-items:center}
-.crs i{width:24px;height:24px;display:grid;place-items:center;font:500 14px/1 Oswald,sans-serif;font-style:normal;color:var(--slate)}
-.crs i.on{width:30px;height:30px;color:var(--dm);font-weight:600;font-size:17px;box-shadow:inset 0 0 0 2px var(--dm)}   /* framed like the label, never the hall letters' maroon fill */
+.sscale{display:inline-flex;gap:3px;align-items:flex-end}
+.sscale i{width:17px;padding-bottom:7px;position:relative;text-align:center;font:500 14px/1 Oswald,sans-serif;font-style:normal;color:var(--slate)}
+.sscale i::after{content:"";position:absolute;left:1px;right:1px;bottom:0;height:4px;border-radius:2px;background:var(--c)}   /* the scale's colours, under its figures */
+.hscale i{width:14px}
+.sscale i.on{width:auto;padding:0 2px}
+.sscale i.on::after{display:none}
+.sscale .tile{width:26px;height:32.5px}
 /* dish sheet (round 7). One spacing scale: 4 within a line group, 8 between the parts of a group, 16 before the action,
    24 between groups (identity, action, where, label, ingredients) */
 .dish .dhd{display:flex;align-items:flex-start;gap:8px;position:sticky;top:0;z-index:2;background:var(--chalk);margin:0 -20px -4px;padding:0 20px 4px;box-shadow:0 -4px 0 var(--chalk);transition:box-shadow var(--d-settle) var(--e-settle)}   /* the name stays over the label as it scrolls */
@@ -453,10 +447,8 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .favb[aria-pressed=true] svg{fill:var(--gold);stroke:var(--gold)}
 .dish .dsv{margin:4px 0 0;font-size:15px;color:var(--slate)}
 .dish .mks{margin-top:8px}
-.mks-s{display:inline-flex;align-items:center;gap:16px;height:30px}
-.mks-s .hs,.mks-s .cs{font-size:18px;font-weight:600;color:var(--dm)}
-.mks-s .hb i{width:3.5px;height:14px}
-.mks-s .cs .gl{width:17px;height:17px}
+.mks-s{display:inline-flex;align-items:center;gap:8px;height:30px}
+.mks-s .tile{width:24px;height:30px}
 .dish .dal{margin:8px 0 0;font-size:15px;line-height:1.4;color:var(--ink)}
 .dish .dal b{font-weight:700;color:var(--dm);margin-right:4px}
 .dish .dadd{margin-top:16px}
@@ -824,19 +816,30 @@ const nameHTML = (n, marks) => { if(!marks) return esc(n); const i=n.lastIndexOf
 const dietMark = d => d.d&2 ? `<i class="tg" role="img" aria-label="Plant based">${GL.plant}</i>` : d.d&1 ? `<i class="tg" role="img" aria-label="Vegetarian">${GL.veg}</i>` : '';
 function marksHTML(d){ return [d.d&2&&['plant','Plant based'], d.d&1&&!(d.d&2)&&['veg','Vegetarian'], d.d&4&&['halal','Halal'], d.d&8&&['local','Local'], d.d&16&&['sus','Sustainable']]
   .filter(Boolean).map(([g,l])=>`<span class="mk">${GL[g]}${l}</span>`).join(''); }
-// Scores (round 8): an Oswald figure with its scale drawn beside it, in the label's ink and maroon. Healthfulness is the
-// panel's seven bars; carbon is the footprint and its letter. Missing data draws nothing. Shown only when opted in (S.show).
-const hfHTML = hf => hf==null ? '' : `<span class="hs" role="img" aria-label="Healthfulness ${hf} of 7">${hf}<span class="hb" aria-hidden="true">${[0,1,2,3,4,5,6].map(i=>`<i${i<hf?' class="on"':''}></i>`).join('')}</span></span>`;
-const crHTML = cr => cr==null ? '' : `<span class="cs" role="img" aria-label="Carbon grade ${cr}">${GL.carbon}${cr}</span>`;
-const scoreMode = () => frame.classList.toggle('sc-on', S.show.hf||S.show.cr);
+// Scores (round 8b): tiles in the official app's family: a portrait rounded tile, a white pictogram, the value knocked into it.
+// Carbon: UMass's own A-E colours and footprint. Healthfulness (the app has no icon): a heart on a blue ramp, 0 pale to 7
+// deep, so it never meets carbon's green-to-grey. The value is always ink on white (>= 6.4:1); a light tile (under 3:1 on
+// chalk) gets a 1 px edge in its ink. Unscored draws nothing. Shown only when opted in (S.show).
+const CRC = {A:['#0d6d3a','#0d6d3a'], B:['#9bcb3b','#3d5c0a'], C:['#dbe11d','#4f5208'], D:['#bcbdc0','#45464a'], E:['#818285','#2f3033']};   // [tile, ink]
+const HFC = ['#cfe0f2','#b4cbe3','#98b5d4','#7da0c5','#618ab7','#4675a8','#2a5f99','#0f4a8a'], HFI = '#0f3a66';
+const CREDGE = {B:1,C:1,D:1}, HFEDGE = v => v<4;
+const FOOT = '<circle cx="15.6" cy="4.3" r="2"/><circle cx="11.3" cy="3.4" r="1.5"/><circle cx="7.6" cy="4.4" r="1.25"/><path d="M4.2 12.4C4.2 8.9 7.6 7.4 12 7.4s7.8 1.5 7.8 5c0 3-1.4 4.6-1.4 8 0 4.4-2.6 7.4-6.4 7.4s-6.4-3-6.4-7.4c0-3.4-1.8-5-1.8-8Z"/>';
+const HEART = '<path d="M12 27.6C5.9 23.2 1.8 19.4 1.8 12.9 1.8 8.7 4.7 5.6 8.4 5.6c1.6 0 2.9.7 3.6 2 .7-1.3 2-2 3.6-2 3.7 0 6.6 3.1 6.6 7.3 0 6.5-4.1 10.3-10.2 14.7Z"/>';
+function tileSVG(kind, v){ const [bg,ink] = kind==='cr' ? CRC[v] : [HFC[v],HFI], edge = kind==='cr' ? CREDGE[v] : HFEDGE(v);
+  return `<svg class="tile" viewBox="0 0 24 30" aria-hidden="true"><rect x=".5" y=".5" width="23" height="29" rx="4.5" fill="${bg}"${edge?` stroke="${ink}" stroke-opacity=".55"`:''}/>`
+    + `<g fill="#fff">${kind==='cr'?FOOT:HEART}</g><text x="12" y="${kind==='cr'?22.9:20.6}" text-anchor="middle" fill="${ink}">${v}</text></svg>`; }
+const hfHTML = hf => hf==null ? '' : `<span class="hs" role="img" aria-label="Healthfulness ${hf} of 7">${tileSVG('hf',hf)}</span>`;
+const crHTML = cr => cr==null ? '' : `<span class="cs" role="img" aria-label="Carbon rating ${cr}">${tileSVG('cr',cr)}</span>`;
 const scoresHTML = (d, cls='mg') => { const x=(S.show.hf?hfHTML(d.hf):'')+(S.show.cr?crHTML(d.cr):''); return x ? `<span class="${cls} sc">${x}</span>` : ''; };
 // UMass Dining's Climate-Conscious Dining bands (My Emissions LCA), per kg of food. The feed carries only the letter.
 // Per kg, not per serving: never summed or averaged across a plate.
 const CRB = {A:'Very low: under 1.75',B:'Low: 1.75 to 3',C:'Medium: 3 to 4.25',D:'High: 4.25 to 5.5',E:'Very high: over 5.5'};
 // The ratings panel is its own panel beside the label, not a piece of it: one rule between ratings, none after the last.
+// Each rating is its whole scale: every step a figure over its colour, the dish's step the full tile.
+const scaleHTML = (kind, v, steps) => steps.map(x=>x===v ? `<i class="on">${tileSVG(kind,x)}</i>` : `<i style="--c:${kind==='cr'?CRC[x][0]:HFC[x]}">${x}</i>`).join('');
 function gradesHTML(hf, cr){
-  const h = hf==null ? '' : `<div class="gr"><b>Healthfulness</b><span class="hbars" role="img" aria-label="${hf} of 7"><b>${hf} of 7</b>${[0,1,2,3,4,5,6].map(i=>`<i class="${i<hf?'on':''}"></i>`).join('')}</span></div>`;
-  const c = cr==null ? '' : `<div class="gr"><div class="gt"><b>${GL.carbon}Carbon grade</b><span class="crs" role="img" aria-label="${cr}, on a scale from A to E">${'ABCDE'.split('').map(x=>`<i class="${x===cr?'on':''}">${x}</i>`).join('')}</span></div><p class="gs">${CRB[cr]} kg CO₂e per kg of food</p></div>`;
+  const h = hf==null ? '' : `<div class="gr"><b>Healthfulness</b><span class="sscale hscale" role="img" aria-label="${hf} of 7">${scaleHTML('hf',hf,[0,1,2,3,4,5,6,7])}</span></div>`;
+  const c = cr==null ? '' : `<div class="gr"><div class="gt"><b>Carbon rating</b><span class="sscale crs" role="img" aria-label="${cr}, on a scale from A to E">${scaleHTML('cr',cr,['A','B','C','D','E'])}</span></div><p class="gs">${CRB[cr]} kg CO₂e per kg of food</p></div>`;
   return h||c ? `<div class="facts grades">${h}${c}</div>` : '';
 }
 // FDA-style label. %DV: the menu's own value when published; otherwise computed from FDA daily values (sat fat 20 g, cholesterol 300 mg).
@@ -1273,7 +1276,7 @@ function renderYou(){
     <section class="sec"><h2>Meals</h2>${meals}</section>
     <section class="sec">${[['favs','Favorites',S.fav.size? S.fav.size+' dishes':'None yet'],['diet','Dietary preferences',dietOn()?dietWords():'Everything'],['rank','Which was better?',rankPool().length+' dishes logged'],['export','Export my data',S.log.length+(S.log.length===1?' meal':' meals')]]
       .map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section>
-    <section class="sec"><h2>Show on dishes</h2>${[['hf','Healthfulness'],['cr','Carbon grade']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.show[k]}" data-show="${k}">${l}<i></i></button>`).join('')}</section><div class="pad-b"></div>`;
+    <section class="sec"><h2>Show on dishes</h2>${[['hf','Healthfulness'],['cr','Carbon rating']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.show[k]}" data-show="${k}">${l}<i></i></button>`).join('')}</section><div class="pad-b"></div>`;
 }
 /* ---------- push (round 7): iOS navigation for everything that isn't a band on Halls ----------
    The new screen slides in from the right edge over the old one, which shifts left by MO.push.shift of the width and dims
@@ -1601,7 +1604,7 @@ document.addEventListener('click',e=>{
   const jb=t.closest('[data-jump]'); if(jb){ jump(jb.dataset.jump); return; }
   const lens=t.closest('[data-lens]'); if(lens){ const k=lens.dataset.lens; S.lenses.has(k)?S.lenses.delete(k):S.lenses.add(k); buzz(4); lens.setAttribute('aria-pressed',S.lenses.has(k)); renderSearch(); return; }
   const pt=t.closest('[data-plate]'); if(pt){ S.front=+pt.dataset.plate; renderPSheet(); A($('#psbody > div'),[{opacity:.3},{opacity:1}],'settle'); renderBar(); refreshLists(); buzz(4); return; }
-  const sw=t.closest('[data-show]'); if(sw){ const k=sw.dataset.show; S.show[k]=!S.show[k]; sw.setAttribute('aria-checked',S.show[k]); buzz(4); save(); scoreMode(); relist(); return; }
+  const sw=t.closest('[data-show]'); if(sw){ const k=sw.dataset.show; S.show[k]=!S.show[k]; sw.setAttribute('aria-checked',S.show[k]); buzz(4); save(); relist(); return; }
   const dk=t.closest('[data-diet]'); if(dk){ S.diet[dk.dataset.diet]=!S.diet[dk.dataset.diet]; dk.setAttribute('aria-checked',S.diet[dk.dataset.diet]); buzz(4); save(); return; }
   const wn=t.closest('[data-win]'); if(wn){ S.wins[wn.dataset.key]=wn.dataset.win; buzz(6); rerenderPage(); return; }
   // rows: + tosses the dish's calories into the plate, − takes them back out, the row itself grows into its detail
@@ -1669,7 +1672,7 @@ if(window.visualViewport){ const vv=visualViewport, kbf=()=>{ const kb=Math.max(
 $('#psheet').addEventListener('click',()=>{},true);
 
 /* ---------- boot ---------- */
-scoreMode(); renderHalls(); renderBar(); renderEvents(); setIdle(); $('.tbar .ind').style.transform='translateX(0)';
+renderHalls(); renderBar(); renderEvents(); setIdle(); $('.tbar .ind').style.transform='translateX(0)';
 const qs=new URLSearchParams(location.search), state=qs.get('state');
 const W=(n)=>byName('W','lunch',n);
 function bench(){ addDish('lunch',W('Beef Brisket Noodle Bowl').k,BYK.lunch[W('Beef Brisket Noodle Bowl').k].refs,'Beef Brisket Noodle Bowl'); const g=BYK.lunch[W('Golden BBQ Chicken Thigh').k]; addDish('lunch',g.k,g.refs,g.n); addDish('lunch',g.k,g.refs,g.n); }

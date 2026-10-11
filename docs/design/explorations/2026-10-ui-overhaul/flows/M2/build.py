@@ -42,11 +42,14 @@ NUT = ['calories-from-fat', 'total-fat', 'total-fat-dv', 'sat-fat', 'sat-fat-dv'
 
 def dish(x):
     n = [dv(x[k]) if k.endswith('-dv') else num(x[k]) for k in NUT]
-    hf = x.get('healthfulness', '')
+    # scored = the legend code H0..H7 in recipe-webcode (as umassdining.com draws its badges); data-healthfulness alone is
+    # not trusted: 16 Oct 8 dishes carry a value with no H code (unscored). H0 is a real 0. Carbon: the letter, which
+    # always matches its CR1..CR5 code.
+    hc = [int(c[1]) for c in x['recipe-webcode'].split() if re.fullmatch(r'H[0-7]', c)]
     return [x['dish-name'].strip(), round(num(x['calories']) or 0), round(num(x['protein']) or 0, 1), round(num(x['total-carb']) or 0, 1),
             round(num(x['total-fat']) or 0, 1), diet(x['clean-diet-str'], x['recipe-webcode']), x['serving-size'].strip().lower(),
             n, re.sub(r'\s+', ' ', x['ingredient-list']).strip(), re.sub(r'\s*,\s*', ', ', x['allergens']).strip(' ,'),
-            int(hf) // 10 if hf.isdigit() else None, x['carbon-list'] if x['carbon-list'] in 'ABCDE' and x['carbon-list'] else None]
+            hc[0] if hc else None, x['carbon-list'] if x['carbon-list'] in 'ABCDE' and x['carbon-list'] else None]
 
 
 def compact(menu):

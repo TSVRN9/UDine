@@ -150,7 +150,7 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
         return seq.slice(1).map((s, i) => [seq[i] + ' > ' + s, Math.round(q(s).top - q(seq[i]).bottom)]); });
       assert.deepEqual(gaps.map(g => g[1]), [4, 8, 8, 16, 24, 24, 12, 24], 'gaps: ' + JSON.stringify(gaps)); });
     for (const on of [false, true]) await scen('dish sheet: "Show all" exactly when the ingredients are cut, and every dish rests showing name, Add, where and Calories' + (on ? ' (scores on)' : ''), async () => {
-      await go('state=menu', on && (() => page.evaluate(() => { if (typeof scoreMode === 'undefined') throw new Error('no scores'); S.show.hf = S.show.cr = true; scoreMode(); })));
+      await go('state=menu', on && (() => page.evaluate(() => { if (typeof tileSVG === 'undefined') throw new Error('no scores'); S.show.hf = S.show.cr = true; })));
       const bad = await page.evaluate(() => { const out = []; let n = 0, top = 0; const ids = Object.keys(DISH).filter(id => DISH[id].ing).filter((_, i) => i % 7 === 0);
         for (const id of ids) { const d = DISH[id]; DS = { d, refs: { [d.h]: d } }; renderDish(); n++; const ing = document.querySelector('#ing'), more = document.querySelector('#isheet [data-act=ing]'), cut = ing.scrollHeight > ing.clientHeight + 1;
           if (cut !== !!more) out.push(d.n + ': cut ' + cut + ', Show all ' + !!more);
@@ -224,8 +224,8 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
       const d = r.dataset.id ? DISH[r.dataset.id] : rep(BYK[S.smeal][r.dataset.k]), h = r.querySelector('.m .hs'), c = r.querySelector('.m .cs'), bad = [];
       if (!!h !== (hf && d.hf != null)) bad.push('hs ' + !!h + ' hf ' + d.hf);
       if (!!c !== (cr && d.cr != null)) bad.push('cs ' + !!c + ' cr ' + d.cr);
-      if (h && (h.textContent.trim() !== String(d.hf) || h.querySelectorAll('.hb i.on').length !== d.hf || h.querySelectorAll('.hb i').length !== 7)) bad.push('hs value ' + h.textContent + ' vs ' + d.hf);
-      if (c && (c.textContent.trim() !== d.cr || !c.querySelector('svg'))) bad.push('cs value ' + c.textContent + ' vs ' + d.cr);
+      if (h && (h.textContent.trim() !== String(d.hf) || h.querySelector('rect').getAttribute('fill') !== HFC[d.hf])) bad.push('hs value ' + h.textContent + ' vs ' + d.hf);
+      if (c && (c.textContent.trim() !== d.cr || c.querySelector('rect').getAttribute('fill') !== CRC[d.cr][0])) bad.push('cs value ' + c.textContent + ' vs ' + d.cr);
       return bad.length ? d.n + ': ' + bad.join(', ') : null; }).filter(Boolean).concat(document.querySelectorAll(sel).length ? [] : ['no rows for ' + sel]), [sel, hf, cr]);
     await scen('scores: off by default; the You toggles persist and update rows in a hall and in Search', async () => {
       await go('state=menu'); await clear(); await go('state=menu');
@@ -254,7 +254,7 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
       await clear(); await go('state=menu');
       assert.equal(await page.locator('.hs, .cs').count(), 0, 'cleared: rows are calm again'); });
     await scen('scores: missing data draws nothing (no placeholder); a 0 is a score, not missing', async () => {
-      await go('state=menu', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; scoreMode(); }); });
+      await go('state=menu', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; }); });
       const r = await page.evaluate(() => { const rows = [...document.querySelectorAll('#mlist .row')], a = DISH[rows[0].dataset.id], b = DISH[rows[1].dataset.id];
         const was = [a.hf, b.cr]; a.hf = null; b.cr = null; renderMenuList(); const ra = document.querySelector(`#mlist .row[data-id="${a.id}"]`), rb = document.querySelector(`#mlist .row[data-id="${b.id}"]`);
         const out = { aHs: !!ra.querySelector('.hs'), aCs: !!ra.querySelector('.cs') === (a.cr != null), bCs: !!rb.querySelector('.cs'), bHs: !!rb.querySelector('.hs') === (b.hf != null),
@@ -267,8 +267,15 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
       const real = await page.evaluate(() => { const d = Object.values(DISH).find(d => d.cr == null && d.hf != null); DS = { d, refs: { [d.h]: d } }; renderDish();
         return [document.querySelectorAll('#isheet .mks .cs').length, document.querySelectorAll('#isheet .mks .hs').length, document.querySelectorAll('#isheet .grades .crs').length, document.querySelectorAll('#isheet .grades .gr').length]; });
       assert.deepEqual(real, [0, 1, 0, 1], 'a real dish with no carbon grade: no footprint, no scale, one rating');
-      const zero = await page.evaluate(() => { const d = Object.values(DISH).find(d => d.hf === 0); DS = { d, refs: { [d.h]: d } }; renderDish(); const h = document.querySelector('#isheet .mks .hs'); return h && [h.textContent.trim(), h.querySelectorAll('.on').length]; });
-      assert.deepEqual(zero, ['0', 0], 'healthfulness 0 shows as 0'); });
+      const zero = await page.evaluate(() => { const d = Object.values(DISH).find(d => d.hf === 0); DS = { d, refs: { [d.h]: d } }; renderDish(); const h = document.querySelector('#isheet .mks .hs'); return h && h.textContent.trim(); });
+      assert.equal(zero, '0', 'healthfulness 0 (an H0 code) shows a 0 tile');
+      // unscored for healthfulness (no H0..H7 in the feed's legend codes, though data-healthfulness carries a number): no tile, no scale
+      const uns = await page.evaluate(() => { const ds = Object.values(DISH).filter(d => d.hf == null); const d = ds.find(d => !d.day && d.meal === 'lunch') || ds[0];
+        DS = { d, refs: { [d.h]: d } }; renderDish(); const out = [ds.length, d.n, document.querySelectorAll('#isheet .hs, #isheet .hscale').length];
+        if (!d.day) { S.hall = d.h; S.mmeal = d.meal; openHall(d.h, true); renderMenuList(); const r = document.querySelector(`#mlist .row[data-id="${d.id}"]`); out.push(r ? r.querySelectorAll('.hs').length : 'no row'); }
+        return out; });
+      assert(uns[0] >= 10, 'the feed has unscored dishes (' + uns[0] + ')');
+      assert.deepEqual(uns.slice(2), [0, 0], 'an unscored dish (' + uns[1] + ') shows no health tile on its row, its sheet or its panel'); });
     await scen('ratings panel: every rule separates two ratings; no rule ends a section that is not there', async () => {
       await go('state=menu');
       const bad = await page.evaluate(() => { const out = []; const base = Object.values(DISH).find(d => d.hf != null && d.cr != null);
@@ -315,17 +322,17 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
               const newLine = lineTop == null || r.top > lineTop + 8; if (newLine && Math.abs(r.left - M.left) > .5) out.push(`wrapped line starts ${Math.round(r.left - M.left)}px in: ${g.innerText}`);
               if (newLine) lineTop = r.top; } }
           return out; }, sel);
-        await go('state=menu', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; scoreMode(); }); });
+        await go('state=menu', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; }); });
         for (const h of ['W', 'F', 'H', 'B']) { await page.evaluate(h => { openHall(h, true); renderMenuList(); }, h); assert.deepEqual(await check('#mlist .row .m'), [], `${w}px, hall ${h}`); }
-        await go('state=search', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; scoreMode(); }); });
+        await go('state=search', async () => { await page.evaluate(() => { S.show.hf = S.show.cr = true; }); });
         for (const q of ['', 'rigatoni', 'ramen', 'penne w', 'wings', 'posole']) { await page.evaluate(q => { S.q = q; renderSearch(); }, q); assert.deepEqual(await check('#sres .row .m'), [], `${w}px, Search "${q}"`); }
         // a Search row keeps its shape whatever the toggles: the hall letters live under the +, never in the meta line
         const shape = await page.evaluate(() => { const out = []; for (const q of ['', 'rigatoni', 'posole', 'sweet potato', 'chicken']) { S.q = q; const hs = {};
-            for (const on of [false, true]) { S.show.hf = S.show.cr = on; scoreMode(); renderSearch();
+            for (const on of [false, true]) { S.show.hf = S.show.cr = on; renderSearch();
               for (const r of document.querySelectorAll('#sres .row:not(.later)')) { if (!r.querySelector('.lane > .tags') || r.querySelector('.m .tags')) out.push('letters not under the +: ' + r.dataset.k);
                 const h = Math.round(r.getBoundingClientRect().height), m = r.querySelector('.m'), lines = new Set([...m.children].map(c => Math.round(c.getBoundingClientRect().top))).size;
                 if (!on) hs[r.dataset.k] = h; else if (lines === 1 && h !== hs[r.dataset.k]) out.push(`${r.dataset.k}: ${hs[r.dataset.k]}px off, ${h}px on`); } } }
-          S.show.hf = S.show.cr = true; scoreMode(); return out; });
+          S.show.hf = S.show.cr = true; return out; });
         assert.deepEqual(shape, [], `${w}px: Search rows keep their shape with the scores on`);
         const long = await page.evaluate(() => { S.q = 'cheese rigatoni'; renderSearch(); const r = document.querySelector('#sres .row'); return [r.querySelector('.n').textContent, !!r.querySelector('.hs'), !!r.querySelector('.cs'), !!r.querySelector('.tg')]; });
         assert.deepEqual(long, ['Cheese Rigatoni w/Plant Based Nasoya Bolognese Sauce', true, true, true], 'the longest name carries every badge'); }
@@ -545,7 +552,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   const sod = lab.locator('.lr.sod');
   assert.match(await sod.textContent(), /Sodium 685\.5mg/); assert.equal((await sod.locator('.dv').textContent()).trim(), '30%');
   assert.match(await page.locator('#isheet .dal').textContent(), /Corn/, 'allergens shown');
-  assert.equal(await page.locator('#isheet .crs i.on').textContent(), 'C'); assert.equal(await page.locator('#isheet .hbars i.on').count(), 3);
+  assert.equal(await page.locator('#isheet .crs i.on').textContent(), 'C'); assert.equal(await page.locator('#isheet .hscale i.on').textContent(), '3');
   const ing = page.locator('#ing'); const h0 = (await ing.boundingBox()).height;
   await page.locator('#isheet [data-act=ing]').tap(); await page.waitForTimeout(400);
   const h1 = (await ing.boundingBox()).height;

@@ -134,8 +134,9 @@ Which convention applies depends on what the student touched and where they're g
 - **Four badge families on a dish row.** Each is told apart by material and silhouette:
   - Diet: a gold felt patch with a pictogram. Plant based is a sprout, vegetarian a single leaf.
   - Halls: chenille letters, a maroon square with a gold letter, always last.
-  - Healthfulness: an Oswald figure plus the ratings panel's seven bars.
-  - Carbon grade: a footprint plus an Oswald letter. It is never in a square.
+  - Healthfulness and carbon (round 8b): tiles in the official app's family, a portrait rounded tile with a white pictogram
+    and the value in ink. Carbon uses UMass's A–E colours and footprint; healthfulness a heart on a blue 0–7 ramp. Scored
+    means the feed's H0–H7 / CR code.
 - **Scores are opt-in** (You, "Show on dishes"), device-local, and off by default. They appear on hall and Search rows and in
   the sheet's patch row. The ratings panel always shows.
 - **Missing data draws nothing.**
