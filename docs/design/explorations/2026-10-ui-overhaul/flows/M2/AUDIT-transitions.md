@@ -1,5 +1,10 @@
 # M2 transition audit (round 6)
 
+> **Round 7 overrules part of this.** The owner set the navigation model: the expanding card is now only for hall bands
+> and pinned cafés. Rows 1–5, 7–10 and 12 (dish, café row, event, area, You, Search hall; row 6, the pinned café, stays a container transform) are now a **push**, or for a dish a
+> **sheet**. Row 5b (hall → hall) is a push with a real back. The new vocabulary is in `CONCEPT.md`, "Motion vocabulary
+> (round 7)"; the review log is in `NOTES.md`, "Round 7".
+
 Owner: "Opening nutrition information from the search doesn't make sense in its transition, I'd like you to audit the
 rest of the transitions in M2."
 

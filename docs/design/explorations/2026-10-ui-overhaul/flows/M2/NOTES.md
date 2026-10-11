@@ -692,3 +692,143 @@ Also asserted:
 - **Serving.** The hall opens at its top, then scrolls to the dish: two motions.
 - **Dish page bar.** It has Back only, and the dish name is the page's large title.
 - **Pinned-café offset.** It reads the images' natural sizes. If an image isn't decoded yet (other engines), the open falls back to the travelling-picture model rather than breaking.
+
+## Round 7: navigation model, dish sheet, cafés as halls
+
+The owner's decisions:
+- The expanding card is only for hall bands and pinned cafés.
+- Everything else is a push, iOS style.
+- The dish detail is a sheet.
+- Cafés are the halls' family.
+
+Critique of the round-6 screens: `CRITIQUE-r7.md`. New vocabulary: `CONCEPT.md`, "Motion vocabulary (round 7)".
+
+### What changed
+- **Push (`navPush` / `navPop`, the `NAV` stack, entries scoped to their tab).**
+  - Events (from Search and from a hall's note), Search results (halls, Grab 'N Go, cafés), café rows, area rows, You rows, and a dish's "where it's served" all push.
+  - The covered layer shifts −30% and dims 10%. The tab bar and the plate bar stay put.
+  - The edge swipe tracks the finger 1:1. A release past half the width, or a flick, pops; otherwise it springs back. Pushed screens have no drag-down.
+  - The page container transform (`contPrep` / `contPaint` / `ghostOf`), the event-banner travel and the `--ext` band stretch are deleted.
+- **Hall over hall.** The hall screen is a singleton, so the outgoing hall is a frozen copy (`snapMenu`): a closed shadow root that adopts the page stylesheet. Back restores the live screen to that hall at its scroll and removes the copy. `swapHall` is deleted.
+- **The dish sheet (`openDish` / `renderDish` / `dishMid` in `#isheet`).**
+  - Rest height is measured per dish (`dishMid`) and ends on the label's Calories rule. Dragging or scrolling up gives full height.
+  - Grabber, drag-follow and backdrop tap come from `Sheet`.
+  - The name is sticky and edged once something scrolls under it.
+  - The star is an icon (gold fill when on, like the pin).
+  - Contains is a plain line. The spacing scale is 4 / 8 / 16 / 24, plus 12 between the label and its ratings.
+  - "Show all" appears only when the ingredients are actually cut (measured).
+  - Plate rows open the sheet too. From a dish already on the plate the button reads "Add another".
+- **Sheet "where".** The sheet goes down (`Sheet.away`). When it is half-way out, the hall is pushed, already at the dish. From the plate, both sheets go. In the same hall and day it only goes away and brings the dish up.
+- **Cafés.**
+  - Pinned bands are `.band.pin`: the hall band's markup, grade and seam at 84 px. Each is a window into its page's header photo (`OFFC`).
+  - A café opens in the hall screen (`#menu.cafe`) with the same header, grade, name, collapse into the maroon bar and pin in the bar. The body is description, Where / Payment, then Menu.
+  - From its band it is the halls' container transform. From a row it is pushed.
+  - A long name is set smaller to fit one line (`fitName`). The compact bar always shows it at 22 px (`NS`).
+- **Tokens.** `MO.push` adds the easing `cubic-bezier(.32,.72,0,1)` and the geometry `shift .3`, `dim .1`, `commit .5`. Durations stay `cont` / `contBack`. The reason is in `CONCEPT.md`.
+- **Reduced motion.** `Sheet.fade` crossfades `#isheet` in and out where it rests, where before the spring popped it. A push crossfades.
+
+### Review passes (each from screenshots, `build/r7/p1`, `p2`, `final`, and frame strips, `build/rec/strip-M2-*.png`)
+
+**Pass 1: 7 flaws.**
+1. Café list thumbnails rendered as zoomed corners. The `.thumb img` rule had been deleted with the old pinned-card CSS.
+2. At full height the item sheet's last 32 px sat below the frame (height 100%, translated by its top). That clipped the end of every sheet, Full label and custom food included. `#isheet` is now as tall as its top detent leaves room for.
+3. The rest height cut through the "Fat cal." line, leaving half a line of text at the bottom edge. It now ends 6 px under the Calories rule.
+4. The push whipped. Emphasized crawled for 50 ms, then ran 250 px in 67 ms. Measured per frame, which led to the new `push.e`.
+5. The star button was taller than the name, so name → serving measured 14 px, not 4. Its negative margins now keep it inside the name's line.
+6. Sheets opened from 110% (84 px below the frame), so the first frames were spent off screen. The CSS 110% and the JS `H*1.1` also disagreed (893 → 928). Closed now rests on the bottom edge.
+7. The frozen hall copy was reachable by locators (two back buttons). Its shadow root is now closed.
+
+**Pass 2: 4 flaws.**
+1. Reduced motion, sheet → hall: the sheet faded, bare Search showed for about 40 ms, then the hall faded in. The `away` hook was set after `to('closed')`. It is now set before, and both crossfades are one.
+2. Scrolled to the label, the sheet no longer said which dish it was. The name is now sticky.
+3. Pinned café open and close: the band's copy lost its photo (`--img` lived on the band element, not on the copy). That drew a flat pink band over the first 30% of the open and the last 30% of the close (`compare-pinclose.png`). The copy now gets the variable.
+4. Band copies, of halls and pins, stayed at the band while the page photo moved, which doubled the photo over 0–.3. The copy now rides on the header photo (`paint`, `gy`).
+
+**Pass 3: 1 flaw.**
+1. Under the sticky name, scrolled content was sliced with no edge ("93" cut in half). A hairline appears once the sheet is scrolled.
+
+**Pass 4: 1 flaw**, found by the tests failing about one run in eight, not by eye.
+1. A screen opened before the webfonts loaded (a state restore) measured its name's drop into the bar on fallback metrics, so the collapsed name sat 4 px low. The name is now measured again on `document.fonts.ready`.
+
+**Pass 5: 2 flaws.** This pass covered the owner's `rv.js` set (`build/r7/rv/`) and the strips not yet viewed.
+1. The sheet expanded only on a touch drag up. Wheel, trackpad or keyboard scrolling at rest scrolled its content under the name at half height (the owner's `dish-mid`). Now any scroll at rest takes it to full height. Tested with a wheel.
+2. Above the sticky name, 1–2 px slivers of the label's side rules showed. Chalk now covers them.
+
+**Pass 6: clean.**
+- **At rest:** `shot-r7-dish.png`, `shot-r7-cafe.png`, `shot-r7-event.png` and the seven `rv.js` shots.
+- **M2-now strips viewed frame by frame, after their last change:**
+  - hall and pin: `pinopen`, `pinclose`, `open`;
+  - push: `cafe`, `cafeback`, `evnote`, `eventopen` (20 ms steps), `pushedge`, `halledge`;
+  - sheet → hall: `serving`, `servinghall`, `servinghallback`, `servingsame`;
+  - sheet: `searchdetail`, `searchdetaildrag`, `searchdetailup`, `detaildrag`, `detailadd`, `platedetail`, `ingredients`;
+  - reduced motion: `serving`.
+- **Recorded but not viewed one by one:** `close`, `pindrag`, `placeopen`, `hallresult`, `eventclose`, `evnoteclose`, `pushedgecancel`, `searchdetailclose`, `detailclose`, `platedetailclose`, `areaopen`, `youopen`. Each reuses a path viewed above (same push, same sheet dismiss), and the push and sheet tests sample every frame of each.
+
+### Tests (`test.js`, `round7`)
+- **Deleted:** the 5b event-banner block and the r6 page container-transform samplers.
+- **Push, every rAF frame**, for the event card, event note, Search café, Search hall, area row, You row, and two levels (Cafés & markets → café → back → back). It asserts that:
+  - the screen enters by the right edge and moves one way;
+  - it never moves vertically;
+  - the covered layer shifts −0.3·W·p and dims 0.1·p;
+  - the tab bar never moves;
+  - the covered layer is restored at rest;
+  - nothing is left after back;
+  - a drag down doesn't dismiss.
+  - **Edge swipe:** the page is under the finger (±1.5 px), pops past half and returns short of it.
+- **Sheet**, from Search, a hall menu and the plate. It asserts that (including: a wheel scroll at rest takes it to full height):
+  - it is never a page;
+  - the source row and the list scroll don't move in any frame;
+  - it rises from the bottom edge, and its top only rises until it rests (at most 6 px of spring overshoot);
+  - at rest the name, Add, the last hall and Calories are visible;
+  - a drag tracks the finger and a long one dismisses;
+  - a backdrop tap dismisses;
+  - dragged up, it reaches the top;
+  - from the plate, the plate is still open and active afterwards.
+- **Spacing scale:** the measured gaps are `[4,8,8,16,24,24,12,24]`.
+- **Ingredients and rest height**, over one dish in seven (every dish with ingredients): "Show all" appears exactly when the text is cut; name, Add, where and Calories fit at rest; fewer than 5% of dishes need the full height.
+- **Sheet → hall:**
+  - From Search, the hall starts only once the sheet is half-way out, and the scroll doesn't change while it slides in (it arrives at the dish).
+  - Same hall: no navigation.
+  - Hall over hall: a frozen copy under it; back restores the original scroll, leaves nothing over, and the band return still works.
+- **Cafés:**
+  - A pinned band has the hall band's children, grade filter and blend, at 84 px.
+  - A collapsed café name ends in the bar where a hall's does, at the same size, over solid maroon.
+  - A pinned café opens with the page photo exactly where the band drew it on frame 1. It is not a push, and a drag down returns it into its band.
+- **Red:** `RED=1 SRC=build/r6/index.html node test.js` runs only `round7`, each scenario caught. Against round 6, every scenario is RED. The dish sheets fail with `it is a sheet, not a page (frame 5)`, and the pushes with `a pushed screen was sampled (0 frames)`. Against the current build, all are green.
+- **Now:** `node test.js` gives 4,788–5,035 checks and `RM=1 node test.js` gives 2,941–3,173 (the counts vary because sampled frames are counted). After the last change, 3 alternating runs of each mode are all green.
+
+### Strips (`compare-<name>.png`: "M2 r6 (before r7)", "M2 now" and, where recorded, "M2 now, reduced motion")
+- **Hall:** `open`, `close`.
+- **Pinned café:** `pinopen`, `pinclose`, `pindrag`.
+- **Café row push and back:** `cafe`, `cafeback`, `placeopen`.
+- **Events:** `eventopen`, `eventclose` (Search) and `evnote`, `evnoteclose` (hall note).
+- **Edge swipe mid-way:** `pushedge` (held at 210 px, released, pops), `pushedgecancel` (held at 130 px, returns), `halledge` (a pushed hall).
+- **Dish sheet:**
+  - from Search: `searchdetail`, `searchdetaildrag`, `searchdetailclose` (backdrop), `searchdetailup`;
+  - from a hall: `detail`, `detaildrag`, `detailclose`, `detailadd`;
+  - from the plate: `platedetail`, `platedetailclose`.
+- **Sheet → hall:** `serving` (Search → Berkshire), `servinghall` and `servinghallback` (Worcester → Franklin → back), `servingsame`.
+- **Other:** `hallresult`, `areaopen`, `youopen`, `ingredients`.
+- **Reduced motion:** rows in `compare-searchdetail`, `searchdetailclose`, `serving`, `eventopen`, `eventclose`, `pinopen`, `cafe`.
+- **Tooling:** `rec.js` takes `RM=1` (written to `build/rec/M2rm/`). `build/rec/M2r6/` holds the round-6 recordings. `build/r7/rv7.js` takes the review shots.
+
+### Open (for the owner)
+- **The hall screen is one screen.**
+  - Opening a hall or café from Search drops a hall left open on Halls (as before).
+  - Switching tabs drops a café pushed over Cafés & markets, with its list.
+- **The sheet's backdrop** keeps the existing 50% maroon-black. That is darker than iOS's dim.
+- **Sheet → hall overlaps.** The hall starts when the sheet is half-way out, so the sheet's last frames slide down over the incoming hall's lower edge. Waiting for the sheet to finish would read as a pause.
+- **Café list rows are unchanged.** Ungraded thumbnails (like a page at rest) and a status column that wraps long names.
+- **Event page** keeps its deep-maroon band, because the felt frame needs maroon ground.
+
+### Coordinator review (after pass 6)
+1. **Scrolled sheet.** The sticky name now gets a soft shadow as well as the hairline once something scrolls under it. At rest nothing sits under it.
+2. **Event page.**
+   - The stitch runs in a 7 px felt border around the banner, never over the artwork.
+   - The whole page is the card's maroon ground. The actions sit in it: "See the menu" in gold (the plate bar's Log style), "Holiday hours" outlined in white.
+   - The group sits at the optical centre of the space the bars leave.
+   - With a banner, the bar carries no title (the banner says it, and is its alt text).
+3. **Café header.** The pin is white like the back chevron (filled = pinned), and both carry a drop shadow so they read on any photo. Retail menus carry names only (checked the data: no price or calories), so the rows are 48 px.
+4. **Filter chips** (Open now, and Search's lenses: one family). Selected is now tonal (tint, maroon outline, dark text) with a check, not a filled maroon button.
+
+Both test modes pass.

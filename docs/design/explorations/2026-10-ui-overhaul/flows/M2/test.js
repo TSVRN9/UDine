@@ -4,7 +4,7 @@ const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/
 // every assert call is counted, so the report can say how many checks ran
 let NCHK = 0; const assert0 = require('assert');
 const assert = new Proxy(assert0, { apply: (t, th, a) => { NCHK++; return t(...a); }, get: (t, k) => typeof t[k] === 'function' ? (...a) => { NCHK++; return t[k](...a); } : t[k] });
-const URL = 'file://' + __dirname + '/index.html';
+const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC: test an older build (RED=1)
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome', args: ['--disable-features=OverscrollHistoryNavigation'] });   // a left-edge swipe must not navigate the test page back
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, reducedMotion: process.env.RM ? 'reduce' : 'no-preference' });
@@ -37,6 +37,181 @@ const URL = 'file://' + __dirname + '/index.html';
   const mRow = n => page.locator('#mlist .row', { has: page.locator('.n', { hasText: new RegExp('^' + n) }) });
   const visible = async loc => { const b = await loc.boundingBox(); const bar = await page.locator('#bar').boundingBox(); return b && b.y > 120 && b.y + b.height < Math.min(bar.y, 844 - 90); };
   const results = [];
+  // Round 7: the navigation model. Expanding card only for hall bands and pinned cafés; push (iOS) for everything else;
+  // the dish detail is a sheet over the list it came from. Every rAF frame of each transition is sampled.
+  // RED=1 runs only this block, each scenario caught, against SRC=<an older build> to show which ones fail there.
+  const round7 = async () => {
+    const RMm = !!process.env.RM, W = 390, H = 844, TOL = .75;
+    const scen = async (name, fn) => { if (!process.env.RED) return fn(); try { await fn(); results.push('green  ' + name); } catch (e) { results.push('RED    ' + name + ': ' + e.message.split('\n')[0].slice(0, 240)); } };
+    const go = async (q, setup) => { await page.goto(URL + (q ? '?' + q : '')); await page.waitForTimeout(500); if (setup) await setup(); };
+    const T = (type, [x, y]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+    // ---- push ----
+    // samples the screen being pushed (the next entry on the stack) or, for a back, the one leaving (__pn) while it is on the stack
+    const pushProbe = () => page.evaluate(() => { window.__p = []; window.__pstop = 0; const k0 = typeof NAV !== 'undefined' ? NAV.length : 0;
+      const f = () => { const n = window.__pn || (typeof NAV !== 'undefined' && NAV[k0]), F = frame.getBoundingClientRect(), s = {};
+        if (n && NAV.includes(n) && n.el.isConnected && getComputedStyle(n.el).display !== 'none') { const r = n.el.getBoundingClientRect(); s.x = r.left - F.left; s.y = r.top - F.top; s.u = n.under.map(u => u.getBoundingClientRect().left - F.left); s.dim = +getComputedStyle(n.dim).opacity; s.op = +getComputedStyle(n.el).opacity; }
+        s.pages = document.querySelectorAll('.page').length; s.tb = document.querySelector('.tbar').getBoundingClientRect().top - F.top;
+        __p.push(s); if (__p.length < 600 && !__pstop) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    const pushCollect = () => page.evaluate(() => { window.__pstop = 1; window.__pn = null; return window.__p; });
+    const pushed = (ss, label, dir) => { const xs = ss.filter(s => s.x != null);
+      assert(xs.length > (RMm ? 2 : 8), `${label}: a pushed screen was sampled (${xs.length} frames)`);
+      ss.forEach((s, i) => assert(Math.abs(s.tb - ss[0].tb) < .5, `${label}: the tab bar never moves (frame ${i})`));
+      xs.forEach((s, i) => assert(Math.abs(s.y) < .5, `${label}: the screen never moves vertically (frame ${i}: y ${s.y})`));
+      if (RMm) { xs.forEach((s, i) => assert(Math.abs(s.x) < .5, `${label}: reduced motion: no slide, a crossfade (frame ${i}: x ${s.x})`)); return; }
+      xs.forEach((s, i) => { assert(s.x > -.5 && s.x < W + .5, `${label}: x ${s.x.toFixed(1)} stays on the screen's width (frame ${i})`);
+        if (i) assert((s.x - xs[i - 1].x) * (dir === 'in' ? -1 : 1) >= -.6, `${label}: moves one way (frame ${i}: ${xs[i - 1].x.toFixed(1)} -> ${s.x.toFixed(1)})`);
+        if (s.x > .5 && s.x < W - .5) { const p = 1 - s.x / W;
+          s.u.forEach(u => assert(Math.abs(u + .3 * W * p) < 1, `${label}: the screen under it shifts left with it (frame ${i}: ${u.toFixed(1)} vs ${(-.3 * W * p).toFixed(1)})`));
+          assert(Math.abs(s.dim - .1 * p) < .012, `${label}: the screen under it dims slightly (frame ${i}: ${s.dim.toFixed(3)} vs ${(.1 * p).toFixed(3)})`); } });
+      if (dir === 'in') { assert(xs[0].x > W * .8, `${label}: it enters from the right edge (first frame x ${xs[0].x.toFixed(1)})`); assert(Math.abs(xs.at(-1).x) < .5, `${label}: at rest it covers the screen`); }
+      else assert(xs.at(-1).x > W * .8, `${label}: it leaves by the right edge (last frame x ${xs.at(-1).x.toFixed(1)})`); };
+    const atRest = async label => assert.equal(await page.evaluate(() => NAV.flatMap(n => n.under).filter(u => getComputedStyle(u).transform !== 'none').length + document.querySelectorAll('.pushing').length), 0, `${label}: the covered screen is restored at rest`);
+    const back = () => page.evaluate(() => { const n = NAV.at(-1); window.__pn = n; (n.el.querySelector('[data-act=pageback]') || document.querySelector('#mctl [data-act=back]')).click(); });
+    const sources = [
+      ['event card in Search', 'state=search', () => page.evaluate(() => document.querySelector('#q').blur()), '#evc .evcard'],
+      ['event note in a hall', 'state=menu', null, '#mlist .evnote'],
+      ['café result in Search', 'state=search', async () => { await page.keyboard.type('wasabi'); await page.waitForTimeout(300); }, '#sres .prow2:not([data-act=hall])'],
+      ['hall result in Search', 'state=search', async () => { await page.keyboard.type('worcester'); await page.waitForTimeout(300); }, '#sres .prow2[data-act=hall]'],
+      ['area row', '', null, '#areas .lrow'],
+      ['You row', 'state=you', null, '#you .lrow'],
+    ];
+    for (const [label, q, setup, sel] of sources) await scen('push: ' + label, async () => {
+      await go(q, setup); await pushProbe(); await page.locator(sel).first().tap(); await page.waitForTimeout(900);
+      pushed(await pushCollect(), label + ', open', 'in'); await atRest(label);
+      assert.equal(await page.evaluate(() => document.activeElement.id), '', `${label}: the keyboard never stays up over it`);
+      if (!RMm) { await touch(line([200, 330], [200, 700], 12), 30);   // no drag-down on a pushed screen
+        assert.equal(await page.evaluate(() => [NAV.length, Math.round(NAV.at(-1).el.getBoundingClientRect().left)].join()), '1,0', `${label}: a drag down doesn't dismiss a pushed screen`); }
+      await pushProbe(); await back(); await page.waitForTimeout(800); pushed(await pushCollect(), label + ', back', 'out');
+      assert.equal(await page.evaluate(() => [NAV.length, document.querySelectorAll('.page, .pdim').length, document.querySelector('#tab-' + S.tab).style.transform].join()), '0,0,', `${label}, back: nothing left over`); });
+    await scen('push: two levels, Cafés & markets -> café -> back -> back', async () => {
+      await go(''); await page.locator('#areas .lrow').first().tap(); await page.waitForTimeout(800);
+      await pushProbe(); await page.locator('.page .lrow', { hasText: 'Wasabi' }).tap(); await page.waitForTimeout(900);
+      pushed(await pushCollect(), 'café over the list, open', 'in');
+      assert.equal(await page.evaluate(() => [NAV.length, NAV[1].el.id, NAV[1].under[0] === NAV[0].el, S.cafe != null].join()), '2,menu,true,true', 'the café is pushed over the list page');
+      await pushProbe(); await back(); await page.waitForTimeout(800); pushed(await pushCollect(), 'café over the list, back', 'out');
+      assert.equal(await page.evaluate(() => [NAV.length, NAV[0].el.dataset.p, document.querySelector('#menu').classList.contains('hide')].join()), '1,cafes,true', 'back shows the list');
+      await back(); await page.waitForTimeout(800); assert.equal(await page.evaluate(() => NAV.length), 0, 'back again shows Halls'); });
+    if (!RMm) await scen('push: the edge swipe follows the finger 1:1, past half it pops, short of half it returns', async () => {
+      for (const [to, pops] of [[210, true], [130, false]]) {
+        await go('state=search', () => page.evaluate(() => document.querySelector('#q').blur())); await page.locator('#evc .evcard').first().tap(); await page.waitForTimeout(900);
+        await T('touchStart', [4, 500]); const seen = [];
+        for (let x = 24; x <= to; x += 20) { await T('touchMove', [x, 500]); await page.waitForTimeout(40); seen.push([x - 4, await page.evaluate(() => NAV.at(-1).el.getBoundingClientRect().left - frame.getBoundingClientRect().left)]); }
+        seen.forEach(([dx, px]) => assert(Math.abs(px - dx) < 1.5, `edge swipe: the page is under the finger (dx ${dx}, page x ${px.toFixed(1)})`));
+        await page.waitForTimeout(300); await T('touchEnd', [to, 500]); await page.waitForTimeout(900);
+        assert.equal(await page.evaluate(() => NAV.length), pops ? 0 : 1, `edge swipe released at ${to}: ${pops ? 'pops' : 'returns'}`);
+        if (!pops) assert.equal(await page.evaluate(() => Math.round(NAV.at(-1).el.getBoundingClientRect().left - frame.getBoundingClientRect().left)), 0, 'returned to rest'); } });
+    // ---- the dish sheet ----
+    const sheetProbe = sel => page.evaluate(sel => { window.__s = []; window.__sstop = 0; const row = document.querySelector(sel), sc = row.closest('#search, #mscroll, #psbody');
+      const f = () => { const F = frame.getBoundingClientRect(), sh = document.querySelector('#isheet'), r = row.getBoundingClientRect();
+        __s.push({ y: sh.getBoundingClientRect().top - F.top, vis: getComputedStyle(sh).visibility === 'visible', op: +getComputedStyle(sh).opacity, row: r.top - F.top, sc: sc.scrollTop, pages: document.querySelectorAll('.page').length });
+        if (__s.length < 600 && !__sstop) requestAnimationFrame(f); }; requestAnimationFrame(f); }, sel);
+    const sheetCollect = () => page.evaluate(() => { window.__sstop = 1; return window.__s; });
+    const sheetSources = [
+      ['Search', 'state=search', async () => { await page.keyboard.type('posole'); await page.waitForTimeout(300); }, '#sres .row:has(.n)'],
+      ['a hall menu', 'state=menu', null, '#mlist .row[data-id="W.lunch.1.0"]'],
+      ['the plate', 'state=plate', null, '#psheet .prow'],
+    ];
+    for (const [label, q, setup, sel] of sheetSources) await scen('dish sheet from ' + label, async () => {
+      await go(q, setup); await sheetProbe(sel); await page.locator(sel).first().locator('.n').tap(); await page.waitForTimeout(1100);
+      const ss = await sheetCollect(), vs = ss.filter(s => s.vis);
+      ss.forEach((s, i) => assert.equal(s.pages, 0, `${label}: it is a sheet, not a page (frame ${i})`));
+      assert(vs.length > (RMm ? 2 : 8), `${label}: a sheet was sampled (${vs.length} frames)`); const rest = vs.at(-1).y;
+      ss.forEach((s, i) => {
+        assert(Math.abs(s.row - ss[0].row) < .5 && s.sc === ss[0].sc, `${label}: the list under it stays where it was (frame ${i}: row ${s.row.toFixed(1)} vs ${ss[0].row.toFixed(1)}, scroll ${s.sc} vs ${ss[0].sc})`); });
+      if (RMm) vs.forEach((s, i) => assert(Math.abs(s.y - rest) < .5, `${label}: reduced motion: it crossfades where it rests (frame ${i})`));
+      else { assert(vs[0].y > H * .85, `${label}: it rises from the bottom edge (first frame top ${vs[0].y.toFixed(1)})`); let up = true;
+        vs.forEach((s, i) => { if (i && up) assert(s.y <= vs[i - 1].y + .6, `${label}: its top only rises until it rests (frame ${i}: ${vs[i - 1].y.toFixed(1)} -> ${s.y.toFixed(1)})`); if (s.y <= rest + 1) up = false;
+          assert(s.y >= rest - 6, `${label}: it never overshoots its rest by more than a spring's 6 px (frame ${i}: ${s.y.toFixed(1)} vs ${rest.toFixed(1)})`); }); }
+      // at rest it shows the name, Add (today), where it's served and the top of the label without scrolling
+      const vis = await page.evaluate(() => { const F = frame.getBoundingClientRect(), b = F.top + F.height, t = document.querySelector('#isheet').getBoundingClientRect().top;
+        return ['.dn', '.dadd', '.where .hchip:last-of-type', '.label .cal'].map(s => { const e = document.querySelector('#isheet ' + s); if (!e) return s + ' missing'; const r = e.getBoundingClientRect(); return r.top >= t && r.bottom <= b + .5 ? 'ok' : s + ' cut at ' + Math.round(r.bottom - F.top); }); });
+      assert.deepEqual(vis, ['ok', 'ok', 'ok', 'ok'], `${label}: at rest it shows the name, Add, where and the label's Calories`);
+      assert(rest > 200, `${label}: it rests part-way up, over the list (top at ${rest.toFixed(0)})`);
+      if (!RMm) { // a drag down follows the finger, and a long one puts it away
+        const y0 = rest + 80; await T('touchStart', [200, y0]); const seen = [];
+        for (let k = 1; k <= 12; k++) { await T('touchMove', [200, y0 + k * 25]); await page.waitForTimeout(40); seen.push([k * 25, await page.evaluate(() => document.querySelector('#isheet').getBoundingClientRect().top - frame.getBoundingClientRect().top)]); }
+        seen.forEach(([dy, y]) => assert(Math.abs(y - (rest + dy)) < 1.5, `${label}: the drag follows the finger (dy ${dy}: top ${y.toFixed(1)} vs ${(rest + dy).toFixed(1)})`));
+        await T('touchEnd', [200, y0 + 300]); await page.waitForTimeout(900);
+        assert.equal(await page.evaluate(() => isheet.state), 'closed', `${label}: a long drag down puts it away`);
+        await page.locator(sel).first().locator('.n').tap(); await page.waitForTimeout(900); }
+      await page.touchscreen.tap(200, 40); await page.waitForTimeout(900);
+      assert.equal(await page.evaluate(() => [isheet.state, getComputedStyle(document.querySelector('#isheet')).visibility].join()), 'closed,hidden', `${label}: a tap on the dimmed backdrop puts it away`);
+      if (label === 'the plate') assert.equal(await page.evaluate(() => [psheet.state !== 'closed', activeSheet === psheet].join()), 'true,true', 'the plate is still open under it, and active again');
+      if (!RMm) { await page.locator(sel).first().locator('.n').tap(); await page.waitForTimeout(900);
+        await touch(line([200, rest + 200], [200, rest - 150], 10), 30); await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => isheet.state), 'top', `${label}: dragged up, it goes to full height`); }
+      if (await page.evaluate(() => isheet.state) !== 'closed') { await page.touchscreen.tap(200, 20); await page.waitForTimeout(900); }
+      await page.locator(sel).first().locator('.n').tap(); await page.waitForTimeout(900);
+      await page.mouse.move(200, 700); await page.mouse.wheel(0, 300); await page.waitForTimeout(900);
+      assert.equal(await page.evaluate(() => isheet.state), 'top', `${label}: scrolled at rest (wheel), it goes to full height`); });
+    await scen('dish sheet: one spacing scale, and the label never touches "where"', async () => {
+      await go('state=search', async () => { await page.keyboard.type('golden bbq'); await page.waitForTimeout(300); }); await page.locator('#sres .row .n').first().tap(); await page.waitForTimeout(900);
+      const gaps = await page.evaluate(() => { const q = s => document.querySelector('#isheet ' + s).getBoundingClientRect(), seq = ['.dn', '.dsv', '.mks', '.dal', '.dadd', '.where', '.facts.label:not(.grades)', '.grades', '.ingh'];
+        return seq.slice(1).map((s, i) => [seq[i] + ' > ' + s, Math.round(q(s).top - q(seq[i]).bottom)]); });
+      assert.deepEqual(gaps.map(g => g[1]), [4, 8, 8, 16, 24, 24, 12, 24], 'gaps: ' + JSON.stringify(gaps)); });
+    await scen('dish sheet: "Show all" exactly when the ingredients are cut, and every dish rests showing name, Add, where and Calories', async () => {
+      await go('state=menu');
+      const bad = await page.evaluate(() => { const out = []; let n = 0, top = 0; const ids = Object.keys(DISH).filter(id => DISH[id].ing).filter((_, i) => i % 7 === 0);
+        for (const id of ids) { const d = DISH[id]; DS = { d, refs: { [d.h]: d } }; renderDish(); n++; const ing = document.querySelector('#ing'), more = document.querySelector('#isheet [data-act=ing]'), cut = ing.scrollHeight > ing.clientHeight + 1;
+          if (cut !== !!more) out.push(d.n + ': cut ' + cut + ', Show all ' + !!more);
+          const mid = dishMid(); if (mid <= ST + 8) { top++; continue; }
+          const b = document.querySelector('#isbody'), t0 = b.getBoundingClientRect().top;
+          for (const s of ['.dn', '.dadd', '.where .hchip', '.label .cal']) { const e = b.querySelector(s); if (e && mid + GRAB_H + e.getBoundingClientRect().bottom - t0 > H + .5) out.push(d.n + ': ' + s + ' below the rest height'); } }
+        return { out, n, top }; });
+      assert.deepEqual(bad.out, [], `of ${bad.n} dishes`); assert(bad.top < bad.n * .05, `few dishes need the full height at rest (${bad.top} of ${bad.n})`); });
+    // ---- the sheet's "where": a navigation ----
+    await scen('sheet -> another hall from Search: the sheet goes, then the hall is pushed, already at the dish', async () => {
+      await go('state=search', async () => { await page.keyboard.type('korean bbq'); await page.waitForTimeout(300); });
+      await sRow('Korean BBQ Chicken').locator('.n').tap(); await page.waitForTimeout(900);
+      const rest = await page.evaluate(() => document.querySelector('#isheet').getBoundingClientRect().top - frame.getBoundingClientRect().top);
+      await page.evaluate(() => { window.__h = []; window.__hstop = 0; const f = () => { const F = frame.getBoundingClientRect(), m = document.querySelector('#menu'), on = !m.classList.contains('hide');
+        __h.push({ sy: document.querySelector('#isheet').getBoundingClientRect().top - F.top, mx: on ? m.getBoundingClientRect().left - F.left : null, sc: on ? document.querySelector('#mscroll').scrollTop : null }); if (!__hstop) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+      await page.locator('#isheet .hchip', { hasText: 'Berkshire' }).tap(); await page.waitForTimeout(1400);
+      const hs = await page.evaluate(() => { __hstop = 1; return __h; }), on = hs.filter(h => h.mx != null);
+      assert(on.length > (RMm ? 2 : 8), 'the hall was sampled arriving');
+      if (!RMm) assert(on[0].sy >= rest + (H - rest) * .5 - 1, `the hall starts once the sheet is half-way out (sheet top ${on[0].sy.toFixed(0)}, rest ${rest.toFixed(0)})`);
+      on.forEach((h, i) => assert.equal(h.sc, on[0].sc, `it arrives already at the dish: no scroll while it slides in (frame ${i})`));
+      assert.equal(await page.evaluate(() => [S.hall, S.mmeal, NAV.at(-1).el.id, isheet.state].join()), 'B,dinner,menu,closed', 'Berkshire dinner, pushed, the sheet gone');
+      const here = await page.locator('#mlist .row.here').boundingBox(); assert(here && here.y > 150 && here.y < 260, 'the dish sits under the header: ' + (here && here.y)); });
+    await scen('sheet -> the hall it was opened in: it only goes away and brings the dish up', async () => {
+      await go('state=menu'); await mRow('Roasted Red Pepper').locator('.n').tap(); await page.waitForTimeout(900);
+      await page.locator('#isheet .hchip', { hasText: 'Worcester' }).tap(); await page.waitForTimeout(1400);
+      assert.equal(await page.evaluate(() => [S.hall, NAV.length, isheet.state, document.querySelectorAll('.menughost').length].join()), 'W,0,closed,0', 'no navigation');
+      const here = await page.locator('#mlist .row.here').boundingBox(); assert(here && here.y > 150 && here.y < 300, 'the dish is brought up: ' + (here && here.y)); });
+    await scen('sheet -> another hall from inside a hall: pushed over the first, and back returns to it where it was', async () => {
+      await go('state=menu'); await page.evaluate(() => { const s = document.querySelector('#mscroll'); s.scrollTop = 200; }); await page.waitForTimeout(300);
+      const y0 = await page.evaluate(() => document.querySelector('#mscroll').scrollTop);
+      await mRow('Green Chile Posole').locator('.n').tap(); await page.waitForTimeout(900);
+      await pushProbe(); await page.locator('#isheet .hchip', { hasText: 'Franklin' }).tap(); await page.waitForTimeout(1400);
+      pushed(await pushCollect(), 'Franklin over Worcester, open', 'in');
+      assert.equal(await page.evaluate(() => [S.hall, NAV.length, document.querySelectorAll('.menughost').length, NAV[0].under[0].className].join()), 'F,1,1,menughost', 'Franklin is pushed over a frozen Worcester');
+      await pushProbe(); await back(); await page.waitForTimeout(900); pushed(await pushCollect(), 'Franklin over Worcester, back', 'out');
+      assert.equal(await page.evaluate(() => [S.hall, NAV.length, document.querySelectorAll('.menughost').length, document.querySelector('#mscroll').scrollTop].join()), `W,0,0,${y0}`, 'back: Worcester where it was, nothing left over');
+      if (!RMm) { await page.locator('#mctl [data-act=back]').tap(); await page.waitForTimeout(1200); assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.band[data-h=W]')).visibility), 'visible', 'and back from Worcester still returns into its band'); } });
+    // ---- cafés: the halls' family ----
+    await scen('pinned cafés are hall bands at three-quarter scale, in the halls\' grade', async () => {
+      await go('pins=2'); const s = await page.evaluate(() => { const pin = document.querySelector('#pins .band'), hall = document.querySelector('.band[data-h=W]'), kids = b => [...b.children].map(c => c.className.baseVal ?? c.className).filter(c => c !== 'let').join(' ');
+        return [kids(pin), kids(hall), pin.offsetHeight, getComputedStyle(pin.querySelector('.ph')).filter, getComputedStyle(pin.querySelector('.t')).mixBlendMode]; });
+      assert.deepEqual(s, ['win lgrad press bt', 'win lgrad press bt', 84, 'grayscale(1) contrast(1.12)', 'multiply'], 'pinned band structure'); });
+    await scen('a café page is the hall page: photo header, name over it, collapsing into the maroon bar like a hall', async () => {
+      const bar = async () => page.evaluate(() => { const F = frame.getBoundingClientRect(), n = document.querySelector('#mtn').getBoundingClientRect(); return [Math.round(n.bottom - F.top), Math.round(n.height), +getComputedStyle(document.querySelector('#msolid')).opacity]; });
+      await go('state=menu'); await page.evaluate(() => { document.querySelector('#mscroll').scrollTop = 600; }); await page.waitForTimeout(300); const hb = await bar();
+      await go('state=place'); assert.equal(await page.evaluate(() => [document.querySelector('#menu').classList.contains('cafe'), document.querySelector('#mtn').textContent, getComputedStyle(document.querySelector('#mhead')).display].join()), 'true,Wasabi,block', 'café in the hall screen');
+      await page.evaluate(() => { document.querySelector('#mscroll').scrollTop = 600; }); await page.waitForTimeout(300);
+      const cb = await bar(); assert.equal(cb[0], hb[0], 'the name ends in the bar where a hall\'s does'); assert(Math.abs(cb[1] - hb[1]) <= 1, `at the same size (${cb[1]} vs ${hb[1]})`); assert.equal(cb[2], 1, 'over the same solid maroon bar'); });
+    if (!RMm) await scen('a pinned café opens as the halls do: its band is a window into the page photo, continuous from the first frame', async () => {
+      await go('pins=2'); await page.evaluate(() => { document.querySelector('#halls').scrollTop = 9999; }); await page.waitForTimeout(300);
+      const win = await page.evaluate(() => { const b = document.querySelector('#pins .band'), F = frame.getBoundingClientRect(); window.__pb = b; return b.querySelector('.win').getBoundingClientRect().top - F.top; });
+      await page.evaluate(() => { window.__c = []; window.__cstop = 0; const f = () => { if (!document.querySelector('#menu').classList.contains('hide')) __c.push(document.querySelector('#mph').getBoundingClientRect().top - frame.getBoundingClientRect().top); if (!__cstop) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+      await page.locator('#pins .band').first().tap(); await page.waitForTimeout(900);
+      const ys = await page.evaluate(() => { __cstop = 1; return __c; });
+      assert(ys.length > 8, 'sampled'); assert(Math.abs(ys[0] - win) < TOL, `frame 1: the page photo sits exactly where the band showed it (${ys[0].toFixed(1)} vs ${win.toFixed(1)})`);
+      ys.forEach((y, i) => { if (i) assert(y <= ys[i - 1] + .6, `the photo moves one way (frame ${i})`); });
+      assert.equal(await page.evaluate(() => [S.hallSrc === __pb, getComputedStyle(__pb).visibility, NAV.length].join()), 'true,hidden,0', 'the band is the screen: not a push');
+      await touch(line([200, 420], [200, 760], 12), 30); await page.waitForTimeout(600);
+      assert.equal(await page.evaluate(() => [document.querySelector('#menu').classList.contains('hide'), getComputedStyle(__pb).visibility].join()), 'true,visible', 'a drag down returns it into its band'); });
+  };
+  if (process.env.RED) { await round7(); console.log(results.join('\n')); await browser.close(); return; }
 
   // Round 5: the rack has one seam colour. Every seam between the Halls header, the hall bands and the pinned cafés is
   // deep maroon (the stack's own container), never the chalk of #halls behind it. Checked at three widths, at rest, after a
@@ -47,7 +222,7 @@ const URL = 'file://' + __dirname + '/index.html';
     const p2 = await c2.newPage(); await p2.goto(URL + '?pins=2'); await p2.waitForTimeout(400);
     const seams = async when => {
       // a pixel check, not a hit test: Blink's hit testing and its painted seams disagree by a fraction of a pixel
-      const sm = await p2.evaluate(() => { const els = [...document.querySelectorAll('#halls .hhead, #halls .band, #halls .pcard')], out = [];
+      const sm = await p2.evaluate(() => { const els = [...document.querySelectorAll('#halls .hhead, #halls .band')], out = [];
         for (let i = 1; i < els.length; i++) { const a = els[i - 1].getBoundingClientRect(), b = els[i].getBoundingClientRect(); out.push([els[i - 1].className + '/' + els[i].className, a.bottom, b.top]); } return out; });
       const buf = await p2.screenshot();
       const bad = JSON.parse(require('child_process').execSync(`python3 -c "
@@ -65,7 +240,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
     await seams('at rest');
     await p2.locator('.band[data-h=W]').tap(); await p2.waitForTimeout(900); await p2.locator('#mctl [data-act=back]').tap(); await p2.waitForTimeout(900);
     await seams('after a hall closes');
-    await p2.locator('#pins .pcard').first().tap(); await p2.waitForTimeout(800); await p2.locator('[data-act=pageback]').tap(); await p2.waitForTimeout(800);
+    await p2.locator('#pins .band').first().tap(); await p2.waitForTimeout(800); await p2.locator('#mctl [data-act=back]').tap(); await p2.waitForTimeout(800);
     await seams('after a pin closes');
     await p2.locator('.tbar button[data-tab=search]').tap(); await p2.waitForTimeout(500);
     const gut = await p2.evaluate(async () => { document.querySelector('#q').blur(); const c = document.querySelector('#evc'); c.scrollLeft = c.scrollWidth; await new Promise(r => setTimeout(r, 400));
@@ -195,9 +370,9 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   await page.locator('[data-act=opennow]').tap(); await page.waitForTimeout(150);
   assert.equal(await page.locator('[data-act=opennow]').getAttribute('aria-pressed'), 'false'); assert(await page.locator('.page[data-p=cafes] .lrow').count() >= openRows, 'Open now off never hides places'); assert.equal(openRows, 27, 'all 27 cafés are open at 12:40');
   await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Wasabi' }).tap(); await page.waitForTimeout(450);
-  assert(await page.locator('.page[data-p=place]').isVisible(), 'café detail');
-  assert.match(await page.locator('.page[data-p=place] .pstat').textContent(), /Open until 9 PM/);
-  await page.locator('.page[data-p=place] .lrow', { hasText: 'California Roll' }).locator('.add').tap(); await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => [S.cafe != null, document.querySelector('#menu').classList.contains('cafe')].join()), 'true,true', 'café detail (the hall screen, café mode)');
+  assert.match(await page.locator('#mts').textContent(), /Open until 9 PM/);
+  await page.locator('#mlist .lrow', { hasText: 'California Roll' }).locator('.add').tap(); await page.waitForTimeout(400);
   assert.equal(await page.locator('#cn').inputValue(), 'California Roll', 'café menu item -> custom food, name prefilled');
   await page.goto(URL); await page.waitForTimeout(300);
   // Round 4: events live in Search's idle state (4 cards, IPD + its Hours merged), snap, open the event page
@@ -214,7 +389,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   assert(await page.locator('#sdisc').isHidden(), 'a lens leaves the idle hub');
   await page.locator('[data-lens=protein]').tap(); await page.waitForTimeout(400);
   await page.locator('#evc .evcard').first().tap(); await page.waitForTimeout(650);
-  assert.deepEqual(await page.locator('.page[data-p=event] a.btn').allTextContents(), ['See the menu', 'Holiday hours'], 'merged hours entry becomes a second link');
+  assert.deepEqual(await page.locator('.page[data-p=event] a.evbtn').allTextContents(), ['See the menu', 'Holiday hours'], 'merged hours entry becomes a second link');
   await page.locator('[data-act=pageback]').tap(); await page.waitForTimeout(350);
   await page.locator('#q').fill('x'); await page.waitForTimeout(350);
   assert(await page.locator('#sdisc').isHidden(), 'typing leaves the idle hub');
@@ -243,21 +418,21 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   // Round 4: dish detail with the full label, ingredients expand, search results open it too, plate Full label
   await page.goto(URL + '?state=menu'); await page.waitForTimeout(400);
   await mRow('Golden BBQ Chicken Thigh').locator('.n').tap(); await page.waitForTimeout(600);
-  const lab = page.locator('.page[data-p=dish] .label:not(.grades)');
+  const lab = page.locator('#isheet .label:not(.grades)');
   assert(await lab.isVisible(), 'detail view opens with a label');
   for (const n of ['Total Fat', 'Saturated Fat', 'Trans Fat', 'Cholesterol', 'Sodium', 'Total Carbohydrate', 'Dietary Fiber', 'Total Sugars', 'Protein'])
     assert.equal(await lab.locator('.lr', { hasText: n }).count() >= 1, true, 'label row ' + n);
   const sod = lab.locator('.lr.sod');
   assert.match(await sod.textContent(), /Sodium 685\.5mg/); assert.equal((await sod.locator('.dv').textContent()).trim(), '30%');
-  assert.match(await page.locator('.page[data-p=dish] .alg').textContent(), /Corn/, 'allergens shown');
-  assert.equal(await page.locator('.page[data-p=dish] .crs i.on').textContent(), 'C'); assert.equal(await page.locator('.page[data-p=dish] .hbars i.on').count(), 3);
+  assert.match(await page.locator('#isheet .dal').textContent(), /Corn/, 'allergens shown');
+  assert.equal(await page.locator('#isheet .crs i.on').textContent(), 'C'); assert.equal(await page.locator('#isheet .hbars i.on').count(), 3);
   const ing = page.locator('#ing'); const h0 = (await ing.boundingBox()).height;
-  await page.locator('.page[data-p=dish] [data-act=ing]').tap(); await page.waitForTimeout(400);
+  await page.locator('#isheet [data-act=ing]').tap(); await page.waitForTimeout(400);
   const h1 = (await ing.boundingBox()).height;
   assert(h1 > h0 * 2, `ingredients expand ${h0} -> ${h1}`);
   await page.goto(URL + '?state=typed'); await page.waitForTimeout(400);
   await sRow('Golden BBQ Chicken Thigh').locator('.n').tap(); await page.waitForTimeout(600);
-  assert(await page.locator('.page[data-p=dish] .label:not(.grades)').isVisible(), 'search result opens the same detail view');
+  assert(await page.locator('#isheet .label:not(.grades)').isVisible(), 'search result opens the same detail view');
   await page.goto(URL + '?state=plate'); await page.waitForTimeout(600);
   await page.locator('#psheet [data-act=fulllabel]').tap(); await page.waitForTimeout(600);
   assert.equal((await page.locator('#isheet .label:not(.grades) .cal b').textContent()).trim(), '404', 'plate Full label sums the plate');
@@ -267,14 +442,14 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   assert(await page.locator('#sres .prow2', { hasText: "People's Organic Coffee" }).count() === 1, 'search finds cafés');
   // M2 r2: places are first-class results; a café result grows into its page
   await page.locator('#q').fill('wasabi'); await page.waitForTimeout(150);
-  await page.locator('#sres .prow2[data-p=place]').first().tap(); await page.waitForTimeout(700);
-  assert.equal(await page.locator('.page[data-p=place] .pbar .o').textContent(), 'Wasabi', 'a place result opens its page');
-  await page.locator('[data-act=pageback]').tap(); await page.waitForTimeout(600);
-  // a hall result: the row grows into the hall over Search (the hall belongs to the Search tab), and shrinks back into it
+  await page.locator('#sres [data-act=cafe]').first().tap(); await page.waitForTimeout(700);
+  assert.equal(await page.locator('#mtn').textContent(), 'Wasabi', 'a place result opens its page');
+  await page.locator('#mctl [data-act=back]').tap(); await page.waitForTimeout(600);
+  // a hall result: the hall is pushed over Search (the hall belongs to the Search tab), and popped back
   await page.locator('#q').fill('worcester'); await page.waitForTimeout(150);
   await page.locator('#sres .prow2[data-act=hall]').first().tap(); await page.waitForTimeout(900);
   assert(await page.locator('#menu').isVisible(), 'hall result opens the hall');
-  assert.equal(await page.evaluate(() => [S.tab, S.hallTab, matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(S.hallSrc).visibility].join()), 'search,search,' + (process.env.RM ? 'true' : 'hidden'), 'opened over Search, from the row');
+  assert.equal(await page.evaluate(() => [S.tab, S.hallTab, S.hallSrc, NAV.at(-1).el.id].join()), 'search,search,,menu', 'pushed over Search');
   assert.equal(await page.evaluate(() => document.querySelector('#mhead').style.clipPath), 'none');
   await page.evaluate(() => { document.querySelector('#mscroll').scrollTop = 400; }); await page.waitForTimeout(200);
   await page.locator('#mctl [data-act=back]').tap(); await page.waitForTimeout(1200);
@@ -322,13 +497,13 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   const where = async n => { await page.goto(URL); await page.waitForTimeout(300);
     await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type(n.toLowerCase()); await page.waitForTimeout(300);
     await page.locator('#sres .row', { has: page.locator('.n', { hasText: new RegExp('^' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }) }).first().locator('.n').tap(); await page.waitForTimeout(700);
-    return page.evaluate(() => [...document.querySelectorAll('.page[data-p=dish] .where .wl')].map(l => l.querySelector('.wt').textContent + ': ' + [...l.querySelectorAll('.hchip')].map(c => c.textContent).join(', '))); };
+    return page.evaluate(() => [...document.querySelectorAll('#isheet .where .wl')].map(l => l.querySelector('.wt').textContent + ': ' + [...l.querySelectorAll('.hchip')].map(c => c.textContent).join(', '))); };
   assert.deepEqual(await where('Beef Brisket Noodle Bowl'), ['Lunch now, until 3:30 PM: WWorcester, BBerkshire'], 'served now');
   assert.deepEqual(await where('Black Bean Burger'), ['Lunch now, until 3:30 PM: WWorcester, FFranklin, BBerkshire', 'Dinner from 4:30 PM: HHampshire'], 'now, and later at another hall');
   assert.deepEqual(await where('Korean BBQ Chicken'), ['Dinner from 4:30 PM: BBerkshire'], 'later today only');
   assert.deepEqual(await where('Chinese Twist Cruller'), ['Tomorrow, breakfast from 7 AM: WWorcester, FFranklin'], 'tomorrow only');
-  assert.equal(await page.locator('.page[data-p=dish] .agrid, .page[data-p=dish] .adays').count(), 0, 'no grid, no day switch');
-  for (const c of await page.locator('.page[data-p=dish] .hchip').all()) { const bb = await c.boundingBox(); assert(bb.height >= 44 && bb.width >= 44, 'hall tag is a 44px target'); }
+  assert.equal(await page.locator('#isheet .agrid, #isheet .adays').count(), 0, 'no grid, no day switch');
+  for (const c of await page.locator('#isheet .hchip').all()) { const bb = await c.boundingBox(); assert(bb.height >= 44 && bb.width >= 44, 'hall tag is a 44px target'); }
   // search rows: under "Lunch now" only the halls serving it; later rows say when in words
   await page.goto(URL); await page.waitForTimeout(300);
   await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('bbq'); await page.waitForTimeout(300);
@@ -338,7 +513,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   assert.equal(await sRow('Korean BBQ Chicken').locator('.tags').getAttribute('aria-label'), 'Dinner at Berkshire');
   // a tag opens that hall at that meal and day, scrolled to the dish
   await sRow('Korean BBQ Chicken').locator('.n').tap(); await page.waitForTimeout(700);
-  await page.locator('.page[data-p=dish] .hchip', { hasText: 'Berkshire' }).tap(); await page.waitForTimeout(1600);
+  await page.locator('#isheet .hchip', { hasText: 'Berkshire' }).tap(); await page.waitForTimeout(1600);
   assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal].join()), 'B,0,dinner', 'opens Berkshire, today, dinner');
   let here = await page.locator('#mlist .row.here').boundingBox();
   assert(here && here.y > 150 && here.y < 260, 'scrolled to the dish under the header: ' + (here && here.y));
@@ -346,7 +521,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   await page.goto(URL); await page.waitForTimeout(300);
   await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('cruller'); await page.waitForTimeout(300);
   await sRow('Chinese Twist Cruller').locator('.n').tap(); await page.waitForTimeout(700);
-  await page.locator('.page[data-p=dish] .hchip', { hasText: 'Franklin' }).tap(); await page.waitForTimeout(1600);
+  await page.locator('#isheet .hchip', { hasText: 'Franklin' }).tap(); await page.waitForTimeout(1600);
   assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal, document.querySelector('#mts').textContent].join()), 'F,1,breakfast,Tomorrow, Friday', 'opens Franklin, tomorrow, breakfast');
   here = await page.locator('#mlist .row.here').boundingBox();
   assert(here && here.y > 150 && here.y < 260, 'scrolled to the dish under the header: ' + (here && here.y));
@@ -370,188 +545,24 @@ d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: 
     }
   }
 
-  // Round 5b: an event card opens as one object. Every frame of open, close (back), drag-down and edge swipe is sampled:
-  // exactly one framed banner is painted (no bare image, no second frame washing over it), its rect moves monotonically
-  // between the card's and the page's with a constant aspect, the page's date and buttons never move while they fade in,
-  // and the page bar is opaque whenever it is drawn. Run on the first card, the peeking card, and a card scrolled half off the left.
-  if (!process.env.RM) {
-    const sampler = () => page.evaluate(() => { window.__ev = []; const vis = el => { let o = 1; for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const s = getComputedStyle(e); if (s.display === 'none') return 0; o *= +s.opacity; } return getComputedStyle(el).visibility === 'visible' ? o : 0; };
-      const R = el => { const f = frame.getBoundingClientRect(), r = el.getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; };
-      const hit = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
-      const f = () => { const src = window.__evsrc, url = src.querySelector('img').src, pg = document.querySelector('.page');
-        const imgs = [...document.querySelectorAll('#frame img')].filter(i => i.src === url && vis(i) > .01 && !(i.closest('#evc') && i.closest('.evcard') !== src));
-        const s = { imgs: imgs.length, page: !!pg };
-        if (imgs.length === 1) { const im = imgs[0], fr = im.closest('.evpatch'); s.r = R(fr || im); s.framed = !!fr && vis(fr) > .99;
-          s.patches = [...document.querySelectorAll('#frame .evpatch')].filter(p => !p.closest('#evc') && vis(p) > .01 && hit(R(p), s.r)).length + (src.style.visibility === 'hidden' ? 0 : 1); }
-        if (pg) { s.c = [...pg.querySelectorAll('.pstat, .stack')].map(e => [R(e)[1], vis(e)]); s.bar = vis(pg.querySelector('.pbar')); }
-        __ev.push(s); if (__ev.length < 400 && !window.__evstop) requestAnimationFrame(f); };
-      window.__evstop = 0; requestAnimationFrame(f); });
-    const collect = () => page.evaluate(() => { window.__evstop = 1; return window.__ev; });
-    const monotone = (ss, a, b, label) => {
-      const rs = ss.filter(s => s.r).map(s => s.r);
-      assert(rs.length > 8, `${label}: the banner was sampled through the transition (${rs.length} frames)`);
-      for (let k = 0; k < 4; k++) {
-        const lo = Math.min(a[k], b[k]) - 1, hi = Math.max(a[k], b[k]) + 1, dir = Math.sign(b[k] - a[k]);
-        rs.forEach((r, i) => { assert(r[k] >= lo && r[k] <= hi, `${label}: banner ${'xywh'[k]} ${r[k].toFixed(1)} stays between card ${a[k].toFixed(1)} and page ${b[k].toFixed(1)} (frame ${i})`);
-          if (i) assert((r[k] - rs[i - 1][k]) * dir >= -.6, `${label}: banner ${'xywh'[k]} moves one way (frame ${i}: ${rs[i - 1][k].toFixed(1)} -> ${r[k].toFixed(1)})`); });
-      }
-      rs.forEach((r, i) => assert(Math.abs(r[2] / r[3] - a[2] / a[3]) < .02, `${label}: banner keeps its aspect (frame ${i}: ${(r[2] / r[3]).toFixed(3)})`));
-      ss.forEach((s, i) => { assert.equal(s.imgs, 1, `${label}: one banner painted, never two or none (frame ${i})`);
-        assert(s.framed, `${label}: the banner travels inside its felt frame (frame ${i})`);
-        assert.equal(s.patches, 1, `${label}: nothing else framed is drawn over the travelling banner (frame ${i})`); });
-    };
-    const fixed = (ss, fin, label) => ss.forEach((s, i) => { if (!s.c) return; s.c.forEach(([y, o], j) => { if (o > .01) assert(Math.abs(y - fin[j]) < .6, `${label}: page content ${j} fades in at its final place (frame ${i}: y ${y.toFixed(1)}, final ${fin[j].toFixed(1)}, opacity ${o.toFixed(2)})`); });
-      assert(s.bar === undefined || s.bar > .99, `${label}: the page bar is opaque whenever it is drawn (frame ${i}: ${s.bar})`); });
-    for (const [label, pick, q] of [['first card', 0, ''], ['peeking card', 1, ''], ['card scrolled half off the left', 2, ''], ['the only card', 0, '&events=1']]) {
-      await page.goto(URL + '?state=search' + q); await page.waitForTimeout(400); await page.evaluate(() => document.querySelector('#q').blur());
-      if (pick === 2) { await page.evaluate(() => { const c = document.querySelector('#evc'); c.scrollLeft = c.scrollWidth; }); await page.waitForTimeout(500); }
-      const cardR = await page.evaluate(i => { const c = document.querySelectorAll('#evc .evcard')[i]; window.__evsrc = c; const f = frame.getBoundingClientRect(), r = c.querySelector('.evpatch').getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; }, pick);
-      if (pick) assert(cardR[0] < 0 || cardR[0] + cardR[2] > 390, `${label}: the card really is partly off-screen (${cardR.map(Math.round)})`);
-      const tx = Math.min(380, Math.max(10, cardR[0] + cardR[2] / 2)), ty = cardR[1] + cardR[3] / 2;
-      await sampler(); await page.touchscreen.tap(tx, ty); await page.waitForTimeout(800);
-      const open = await collect();
-      const pageR = await page.evaluate(() => { const f = frame.getBoundingClientRect(), r = document.querySelector('.page .evpatch').getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; });
-      const fin = await page.evaluate(() => [...document.querySelectorAll('.page .pstat, .page .stack')].map(e => e.getBoundingClientRect().top - frame.getBoundingClientRect().top));
-      monotone(open, cardR, pageR, label + ', open'); fixed(open, fin, label + ', open');
-      assert.equal(await page.evaluate(() => document.querySelectorAll('.trav').length), 0, `${label}: nothing travelling left at rest`);
-      // back, then drag down (from the page) and an edge swipe: each the same frames reversed, into the same card
-      for (const how of ['back', 'drag down', 'edge swipe']) {
-        if (how !== 'back') { await page.touchscreen.tap(tx, ty); await page.waitForTimeout(800); }
-        await sampler();
-        if (how === 'back') await page.locator('[data-act=pageback]').tap();
-        else if (how === 'drag down') await touch(line([200, 500], [200, 800], 12), 30);
-        else await touch(line([4, 500], [330, 505], 12), 30);
-        await page.waitForTimeout(700); const ss = await collect();
-        monotone(ss.filter(s => s.page), pageR, cardR, `${label}, ${how}`); fixed(ss, fin, `${label}, ${how}`);
-        assert.equal(await page.locator('.page').count(), 0, `${label}, ${how}: the page closed`);
-        const back = await page.evaluate(() => { const c = window.__evsrc, f = frame.getBoundingClientRect(), r = c.querySelector('.evpatch').getBoundingClientRect(); return [getComputedStyle(c).visibility, r.left - f.left]; });
-        assert.deepEqual(back, ['visible', cardR[0]], `${label}, ${how}: the card is back where it was`);
-      }
-    }
-  }
-
-  // Round 6: one container transform for every row or card that opens a page, the dish detail included. Every rAF frame of
-  // open, back, drag down and edge swipe is sampled. The detail surface's window moves one way between the source's rect and
-  // the full screen (a drag down never sends it up); the page bar is opaque whenever it is drawn; incoming content fades in
-  // where it ends up (or, for a pinned café, stays fixed to the photo it hangs from); the outgoing copy starts exactly on its
-  // source; a travelling photo never lands on an empty maroon slot. Plus: a hall opened from a Search row lies still too.
-  if (!process.env.RM) {
-    const probe = () => page.evaluate(() => { window.__r6 = []; window.__r6stop = 0;
-      const vis = el => { let o = 1; for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const s = getComputedStyle(e); if (s.display === 'none' || s.visibility === 'hidden') return 0; o *= +s.opacity; } return o; };
-      const fr = () => frame.getBoundingClientRect(), R = el => { const f = fr(), r = el.getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; };
-      const inset = (el, base) => { const c = getComputedStyle(el).clipPath; if (!c || c === 'none') return base; const v = c.match(/inset\(([^)]*)\)/)[1].replace(/round.*/, '').trim().split(/\s+/).map(parseFloat);
-        const [t, r, b, l] = [v[0], v[1] ?? v[0], v[2] ?? v[0], v[3] ?? v[1] ?? v[0]]; return [base[0] + l, base[1] + t, base[2] - l - r, base[3] - t - b]; };
-      const f = () => { const pg = [...document.querySelectorAll('.page')].at(-1), sh = document.querySelector('#isheet'), s = {};
-        if (pg) { s.win = inset(pg, R(pg)); s.kind = 'page'; }
-        else if (sh && getComputedStyle(sh).visibility === 'visible') { s.win = inset(sh, R(sh)); s.kind = 'sheet'; }
-        const root = pg || (s.kind === 'sheet' && sh.querySelector('#isbody'));
-        if (root) { s.c = [...root.querySelectorAll('.pbar > *, .pbody > *:not(.evband):not(.phero), .evband > *:not(.evpatch), #isbody > div > *')].map(e => [R(e)[1], vis(e)]);
-          const ph = root.querySelector('.phero img'); if (ph) s.ph = R(ph)[1]; }
-        if (pg) { const b = pg.querySelector('.pbar'), br = R(b), w = s.win; s.bar = (br[1] < w[1] + w[3] && br[1] + br[3] > w[1]) ? +getComputedStyle(b).opacity * vis(pg) : null;
-          if (document.querySelector('img.trav')) s.slot = pg.querySelector('.phero') ? vis(pg.querySelector('.phero')) : 0; }
-        const g = document.querySelector('.trav:not(img)'); if (g) s.g = R(g);
-        const t = document.querySelector('img.trav'); if (t) s.sh = R(t);
-        __r6.push(s); if (__r6.length < 500 && !__r6stop) requestAnimationFrame(f); };
-      requestAnimationFrame(f); });
-    const collect = () => page.evaluate(() => { window.__r6stop = 1; return window.__r6; });
-    const FULL = [0, 0, 390, 844];
-    const oneWay = (ss, a, b, label) => { const ws = ss.filter(s => s.win).map(s => s.win);
-      assert(ws.length > 8, `${label}: the detail surface was sampled through the transition (${ws.length} frames)`);
-      for (let k = 0; k < 4; k++) { const lo = Math.min(a[k], b[k]) - 1, hi = Math.max(a[k], b[k]) + 1, dir = Math.sign(b[k] - a[k]);
-        ws.forEach((w, i) => { assert(w[k] >= lo && w[k] <= hi, `${label}: window ${'xywh'[k]} ${w[k].toFixed(1)} stays between ${a[k].toFixed(1)} and ${b[k].toFixed(1)} (frame ${i})`);
-          if (i) assert((w[k] - ws[i - 1][k]) * dir >= -.6, `${label}: window ${'xywh'[k]} moves one way (frame ${i}: ${ws[i - 1][k].toFixed(1)} -> ${w[k].toFixed(1)})`); }); } };
-    const still = (ss, fin, finPh, label) => ss.forEach((s, i) => { if (!s.c) return;
-      s.c.forEach(([y, o], j) => { if (o > .01 && fin[j] != null) { const d = finPh != null && s.ph != null ? (y - s.ph) - (fin[j] - finPh) : y - fin[j];
-        assert(Math.abs(d) < .6, `${label}: content ${j} fades in where it ends up${finPh != null ? ' (on its photo)' : ''} (frame ${i}: off by ${d.toFixed(1)}, opacity ${o.toFixed(2)})`); } });
-      assert(s.bar == null || s.bar > .99, `${label}: the page bar is opaque whenever it is drawn (frame ${i}: ${s.bar && s.bar.toFixed(2)})`);
-      assert(s.slot == null || s.slot === 0, `${label}: the travelling photo never lands on an empty slot (frame ${i})`); });
-    const r6 = [
-      ['dish from Search', 'state=search', async () => { await page.keyboard.type('posole'); await page.waitForTimeout(300); }, '#sres .row:has(.n)', 'still', true],
-      ['dish from a hall menu', 'state=menu', null, '#mlist .row[data-id="W.lunch.1.0"]', 'still', false],
-      ['later dish from Search', 'state=search', async () => { await page.keyboard.type('korean bbq'); await page.waitForTimeout(300); }, '#sres .row.later', 'still', false],
-      ['pinned café', 'pins=2', null, '#pins .pcard', 'photo', true],
-      ['place from Search', 'state=search', async () => { await page.keyboard.type('wasabi'); await page.waitForTimeout(300); }, '#sres .prow2[data-p=place]', 'still', true],
-      ['event note in a hall', 'state=menu', null, '#mlist .evnote', 'still', false],
-      ['area row', '', null, '#areas .lrow', 'still', false],
-      ['You row', 'state=you', null, '#you .lrow', 'still', false],
-    ];
-    for (const [label, q, setup, sel, mode, gestures] of r6) {
-      await page.goto(URL + (q ? '?' + q : '')); await page.waitForTimeout(500); if (setup) await setup();
-      const src = await page.evaluate(sel => { const e = document.querySelector(sel); window.__r6src = e; e.scrollIntoView({ block: 'nearest' }); const f = frame.getBoundingClientRect(), r = e.getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; }, sel);
-      const tapAt = async () => { const t = await page.evaluate(() => { const e = __r6src, n = e.querySelector('.n') || e, f = frame.getBoundingClientRect(), r = n.getBoundingClientRect(); return [r.left - f.left + Math.min(20, r.width / 2), r.top - f.top + r.height / 2]; }); await page.touchscreen.tap(t[0], t[1]); };
-      // the source's picture: its rect, and where its image's top row of pixels is drawn (object-fit cover, object-position y)
-      const pic = await page.evaluate(() => { const i = __r6src.querySelector('img'); if (!i) return null; const f = frame.getBoundingClientRect(), r = i.getBoundingClientRect(), s = Math.max(r.width / i.naturalWidth, r.height / i.naturalHeight);
-        return { r: [r.left - f.left, r.top - f.top, r.width, r.height], pix: r.top - f.top - (i.naturalHeight * s - r.height) * parseFloat(getComputedStyle(i).objectPosition.split(' ')[1]) / 100 }; });
-      await probe(); await tapAt(); await page.waitForTimeout(800); const open = await collect();
-      const fin = await page.evaluate(() => { const pg = [...document.querySelectorAll('.page')].at(-1); if (!pg) return null; const f = frame.getBoundingClientRect(), top = e => e.getBoundingClientRect().top - f.top;
-        const ph = pg.querySelector('.phero img'); return { c: [...pg.querySelectorAll('.pbar > *, .pbody > *:not(.evband):not(.phero), .evband > *:not(.evpatch)')].map(top), ph: ph ? top(ph) : null }; });
-      assert(fin, `${label}: opens a page (not a sheet)`);
-      assert.deepEqual(open.at(-1).win.map(Math.round), FULL, `${label}: the page fills the screen at rest`);
-      assert(open[0].g || open.find(s => s.g), `${label}: the source's content leaves as a copy of it`);
-      const g0 = open.find(s => s.g).g; assert(g0.every((v, k) => Math.abs(v - src[k]) < .6), `${label}: the outgoing copy starts exactly on its source (${g0.map(v => v.toFixed(1))} vs ${src.map(v => v.toFixed(1))})`);
-      oneWay(open, src, FULL, label + ', open'); still(open, fin.c, mode === 'photo' ? fin.ph : null, label + ', open');
-      const pageR = await page.evaluate(() => { const i = [...document.querySelectorAll('.page')].at(-1).querySelector('.phero img'); if (!i) return null; const f = frame.getBoundingClientRect(), r = i.getBoundingClientRect(); return [r.left - f.left, r.top - f.top, r.width, r.height]; });
-      const picture = (ss, a, b, lbl) => { const rs = ss.filter(s => s.sh).map(s => s.sh);
-        if (mode === 'photo') { const ps = ss.filter(s => s.ph != null).map(s => s.ph); assert.equal(rs.length, 0, `${lbl}: the band's photo is the page's own, nothing travels`);
-          ps.forEach((y, i) => { if (i) assert((y - ps[i - 1]) * Math.sign(b[1] - a[1]) >= -.6, `${lbl}: the photo moves one way (frame ${i}: ${ps[i - 1].toFixed(1)} -> ${y.toFixed(1)})`); });
-          return ps; }
-        if (!a) return; assert(rs.length > 8, `${lbl}: the picture travels (${rs.length} frames)`);
-        for (let k = 0; k < 4; k++) rs.forEach((r, i) => { assert(r[k] >= Math.min(a[k], b[k]) - 1 && r[k] <= Math.max(a[k], b[k]) + 1, `${lbl}: picture ${'xywh'[k]} between its two ends (frame ${i})`);
-          if (i) assert((r[k] - rs[i - 1][k]) * Math.sign(b[k] - a[k]) >= -.6, `${lbl}: picture ${'xywh'[k]} moves one way (frame ${i})`); });
-        rs.forEach((r, i) => assert(Math.abs(r[2] / r[3] - a[2] / a[3]) < .03, `${lbl}: the picture keeps its aspect (frame ${i})`)); };
-      if (pic) { const ps = picture(open, pic.r, pageR, label + ', open');
-        if (mode === 'photo') assert(Math.abs(ps[0] - pic.pix) < .6, `${label}, open: frame 1 draws the photo's pixels exactly where the band drew them (top row at ${ps[0].toFixed(1)} vs ${pic.pix.toFixed(1)})`); }
-      assert.equal(await page.evaluate(() => document.querySelectorAll('.trav').length), 0, `${label}: nothing travelling left at rest`);
-      for (const how of gestures ? ['back', 'drag down', 'edge swipe'] : ['back']) {
-        if (how !== 'back') { await tapAt(); await page.waitForTimeout(800); }
-        await probe();
-        if (how === 'back') await page.locator('.page [data-act=pageback]').last().tap();
-        else if (how === 'drag down') await touch(line([200, 420], [200, 760], 12), 30);
-        else await touch(line([4, 500], [330, 505], 12), 30);
-        await page.waitForTimeout(700); const ss = (await collect()).filter(s => s.win);
-        oneWay(ss, FULL, src, `${label}, ${how}`); still(ss, fin.c, mode === 'photo' ? fin.ph : null, `${label}, ${how}`);
-        if (pic) picture(ss, pageR, pic.r, `${label}, ${how}`);
-        assert.equal(await page.locator('.page').count(), 0, `${label}, ${how}: the page closed`);
-        assert.equal(await page.evaluate(sel => getComputedStyle(__r6src.isConnected ? __r6src : document.querySelector(sel)).visibility, sel), 'visible', `${label}, ${how}: the source is back`);   // You re-renders its rows
-      }
-    }
-    // a hall tag on a dish opened inside a hall menu: one hall is swapped for its peer in place; Halls never shows through
-    await page.goto(URL + '?state=menu'); await page.waitForTimeout(400);
-    await mRow('Green Chile Posole').locator('.n').tap(); await page.waitForTimeout(800);
-    await page.evaluate(() => { window.__sw = []; window.__swstop = 0; const f = () => { const m = document.querySelector('#menu'), covered = !m.classList.contains('hide') && document.querySelector('#mcont').style.clipPath === 'none' || !!document.querySelector('.menughost'); __sw.push(covered ? 'menu' : 'halls'); if (!__swstop) requestAnimationFrame(f); }; requestAnimationFrame(f); });
-    await page.locator('.page .hchip', { hasText: 'Franklin' }).tap(); await page.waitForTimeout(1500);
-    const sw = await page.evaluate(() => { __swstop = 1; return __sw; });
-    assert(sw.length > 20, 'hall to hall: sampled'); assert.equal(sw.indexOf('halls'), -1, `hall to hall: the Halls rack never shows through (frame ${sw.indexOf('halls')})`);
-    assert.equal(await page.evaluate(() => S.hall + document.querySelectorAll('#frame > [aria-hidden=true].menughost').length), 'F0', 'hall to hall: Franklin is open, nothing left over');
-    // a hall from a Search row: the row's window grows over a hall that lies still
-    await page.goto(URL + '?state=search'); await page.waitForTimeout(400); await page.keyboard.type('worcester'); await page.waitForTimeout(300);
-    await page.evaluate(() => { window.__h = []; window.__hstop = 0; const f = () => { const t = document.querySelector('#mtabs'), l = document.querySelector('#mlist .sth');
-      if (!document.querySelector('#menu').classList.contains('hide')) __h.push([t.getBoundingClientRect().top, +getComputedStyle(t).opacity, l.getBoundingClientRect().top, +getComputedStyle(document.querySelector('#mscroll')).opacity]);
-      if (!__hstop) requestAnimationFrame(f); }; requestAnimationFrame(f); });
-    await page.locator('#sres .prow2[data-act=hall]').first().tap(); await page.waitForTimeout(900);
-    const hs = await page.evaluate(() => { __hstop = 1; return __h; }), hf = hs.at(-1);
-    assert(hs.length > 8, 'hall from a row: sampled');
-    hs.forEach((h, i) => { if (h[1] > .01) assert(Math.abs(h[0] - hf[0]) < .6, `hall from a row: the meal tabs fade in where they end up (frame ${i}: ${h[0].toFixed(1)} vs ${hf[0].toFixed(1)})`);
-      if (h[3] > .01) assert(Math.abs(h[2] - hf[2]) < .6, `hall from a row: the list fades in where it ends up (frame ${i}: ${h[2].toFixed(1)} vs ${hf[2].toFixed(1)})`); });
-  }
+  await round7();
 
   // pins: device-local, survive a reload, open with the container transform, unpin from the same control
   await page.goto(URL); await page.evaluate(() => localStorage.removeItem('udine-m2')); await page.reload(); await page.waitForTimeout(300);
-  assert.equal(await page.locator('#pins .pcard').count(), 0, 'no pins: Halls is the four bands');
+  assert.equal(await page.locator('#pins .band').count(), 0, 'no pins: Halls is the four bands');
   await page.locator('#areas .lrow').first().tap(); await page.waitForTimeout(700);
   await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Wasabi' }).tap(); await page.waitForTimeout(700);
-  await page.locator('.page[data-p=place] [data-act=pin]').tap(); await page.waitForTimeout(200);
-  assert.equal(await page.locator('.page[data-p=place] [data-act=pin]').getAttribute('aria-pressed'), 'true');
+  await page.locator('#mctl [data-act=pin]').tap(); await page.waitForTimeout(200);
+  assert.equal(await page.locator('#mctl [data-act=pin]').getAttribute('aria-pressed'), 'true');
   await page.reload(); await page.waitForTimeout(400);
-  assert.equal(await page.locator('#pins .pcard').count(), 1, 'pin persists across a reload');
-  assert.match(await page.locator('#pins .pcard').textContent(), /Wasabi.*Open until 9 PM/, 'pinned row has live status');
-  await page.locator('#pins .pcard').tap(); await page.waitForTimeout(700);
-  assert.equal(await page.locator('.page[data-p=place] .pbar .o').textContent(), 'Wasabi', 'a pin opens its café');
-  assert.equal(await page.evaluate(() => [...document.querySelectorAll('.page[data-p=place] .phero img')].length), 1, 'the café page is headed by its photo');
-  assert.equal(await page.evaluate(() => document.querySelectorAll('img.trav').length), 0, 'the shared photo layer is gone at rest');
-  await page.locator('.page[data-p=place] [data-act=pin]').tap(); await page.waitForTimeout(200);
+  assert.equal(await page.locator('#pins .band').count(), 1, 'pin persists across a reload');
+  assert.match(await page.locator('#pins .band').textContent(), /Wasabi\s*Open until 9 PM/, 'pinned row has live status');
+  await page.locator('#pins .band').tap(); await page.waitForTimeout(700);
+  assert.equal(await page.locator('#mtn').textContent(), 'Wasabi', 'a pin opens its café');
+  assert.equal(await page.evaluate(() => document.querySelector('#mph').className), 'ph ph-C', 'the café page is headed by its photo');
+  await page.locator('#mctl [data-act=pin]').tap(); await page.waitForTimeout(200);
   await page.reload(); await page.waitForTimeout(400);
-  assert.equal(await page.locator('#pins .pcard').count(), 0, 'unpin persists');
+  assert.equal(await page.locator('#pins .band').count(), 0, 'unpin persists');
   await page.evaluate(() => localStorage.removeItem('udine-m2'));
 
   assert.deepEqual(errs, [], 'no page errors');

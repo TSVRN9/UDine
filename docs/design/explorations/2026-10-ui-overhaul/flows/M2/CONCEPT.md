@@ -81,25 +81,50 @@ The **30% / 70% fade split** is the coordinator's specification. MDC's own defau
 
 Motion is unchanged: chips and lines arrive with the detail (container transform), and nothing new moves.
 
-## Motion vocabulary (round 6; supersedes the table above where they differ)
+## Motion vocabulary (round 7, the owner's decision; supersedes round 6 and the tables above where they differ)
 
-The audit is in `AUDIT-transitions.md`. Which convention applies depends on what the student touched.
+Which convention applies depends on what the student touched and where they're going.
 
-| Object touched | Convention | Where |
+| Touched | Convention | Where |
 |---|---|---|
-| A card or row that names an object | **Container transform into a full-screen page**. Back, drag down and edge swipe play it in reverse. | Hall band, Search hall row, pinned café, café row, area row, event card, event note, You row, **dish row (Search, later, hall menu)** |
-| A control that asks for something | **Bottom sheet** from the bottom edge. The control stays put under the scrim. | Plate bar (the sheet's handle), station switcher, Full label, Add custom food |
-| Peers | **Fade through** (tabs, overlapped), **shared axis X** (meals) | Halls / Search / You, the meal tabs, and one hall for another (a hall tag on a dish opened inside a hall) |
-| A value | **In place** | `+`/stepper, Log/Undo, chips, search results, ingredients, collapse |
+| A photo band on Halls | **Expanding card** (container transform): the band grows into its location page. Back, drag down and edge swipe play it in reverse. | The four hall bands, and pinned café bands. Nothing else. |
+| Anything else that goes somewhere | **Push** (iOS navigation). The new screen slides in from the right edge. The old one shifts left by 30% and dims to 10%. Back, or an edge swipe that tracks the finger 1:1, reverses it. There is no drag-down. | Event cards (Search), the event note in a hall, Search results (halls, Grab 'N Go, cafés), café rows in Cafés & markets, the area rows under it, You rows, a dish's "where it's served" |
+| A dish | **Sheet**. It rises from the bottom edge over the list, which stays where it was. It has a grabber, a drag that follows the finger, and a tap on the dimmed backdrop to dismiss. | Search rows (now and later), hall menu rows, plate rows |
+| A control that asks for something | **Sheet** (unchanged) | Plate bar, station switcher, Full label, Add custom food |
+| Peers | **Fade through** (tabs), **shared axis X** (meals) | Halls / Search / You, the meal tabs |
+| A value | **In place** | `+`/stepper, Log/Undo, chips, ingredients, collapse |
 
-**Inside every container transform:**
-- **Only two things move:** the window's edges, from the source's rect to the screen, and a picture that both ends share.
-- **A shared picture travels in one of two ways.**
-  - If it changes scale (an event banner in its frame, a café thumbnail), it moves on its own over a page that lies still.
-  - If it's a full-width band (hall band, pinned café), it already has the page photo's width. The window into it grows, and the screen hangs from it.
-- **What's drawn on the picture goes with it:** the band's name and letter, the pin's text, the event's caption.
-- **Everything else fades where it is.** The source's content fades out over 0–.3; the page's content fades in over .3–1, at its final place.
-- **Grounds are opaque.** Bars, the event band, the photo slot and the meal and station rows are opaque in every frame they're drawn; only what sits on them fades. A travelling picture never lands on an empty slot.
-- **Unchanged:** tokens (`cont` 500 / `contBack` 400, emphasized) and the 32% scrim. Reduced motion is a 120 ms crossfade.
+**Expanding card.** The band is a window into its page's header photo, offset so the pixels line up.
+- The window grows to the screen and the page hangs from the photo.
+- The duotone develops into colour.
+- The band's text rides on the photo and fades over 0–.3. The page's content fades in over .3–1, where it ends up.
+- A pinned café now works exactly like a hall, because it is the same object at ¾ scale: same grade, same header, same collapse.
 
-A dish's detail is therefore a page, not a sheet. A bottom sheet can't grow out of a row that sits above the sheet's top: in Search it unrolled downward, and a drag down sent it up into the row.
+**Push.**
+- Timed by `cont` (in, 500 ms) and `contBack` (out, 400 ms). The easing is the one new token (`MO.push.e`, below). Shift, dim and commit are its geometry.
+- The tab bar and the plate bar never move.
+- The incoming screen casts a soft left-edge shadow only while it moves.
+- An edge swipe released past half the width, or flicked, pops. Otherwise the screen springs back.
+- Each pushed screen covers exactly one layer: the tab, the hall screen, a page, or a frozen copy of the hall screen when one hall is pushed over another.
+
+**The dish sheet.**
+- **It rests at a height chosen per dish.** The rest shows the name, the favourite star, the serving and marks, Contains, Add to plate, where it's served, and the label through its Calories rule. Scrolling or dragging up takes it to full height, and the name stays pinned at the top.
+- **Where it's served is a navigation.**
+  - The sheet goes down. Once it's half-way out, the hall is pushed in, already scrolled to the dish (one motion, not a slide and then a scroll).
+  - From the plate, both sheets go.
+  - Inside the same hall and day, nothing is pushed: the sheet goes away and the list brings the dish up, switching the meal tab first if it needs to.
+- **Add to plate.** The sheet goes down. The row's `+` becomes the stepper and the bar updates, in view.
+
+**Spacing scale in the sheet:**
+- 4 inside a line group (name → serving);
+- 8 between the parts of a group (serving → marks → Contains, a "where" heading → its halls);
+- 16 before the action;
+- 24 between groups (Add → where → label → ingredients);
+- 12 between the label and its ratings panel.
+
+**Tokens.**
+- `cont`/`contBack`, the 32% scrim, sheets' spring k 300 ζ .84 and `dragBack` are unchanged.
+- New: `push: {e: cubic-bezier(.32,.72,0,1), shift:.3, dim:.1, commit:.5}`.
+  - The easing is new because no existing one fits a full-width slide. Measured on a 390 px push, emphasized crawls for 50 ms and then whips 250 px in 67 ms (3.7 px/ms), which reads as a jump.
+  - The replacement is Ionic's published iOS page-transition curve. It moves from the first frame, with no crawl.
+- **Reduced motion:** a push and a sheet each crossfade in place (120 ms). Sheet → hall is one crossfade, not two in sequence.
