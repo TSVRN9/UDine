@@ -106,8 +106,8 @@ Rationale:
   - FlashList or LegendList for the menu;
   - the station switcher on the UI thread (no `runOnJS` per frame);
   - `expo-haptics` as NOTES specifies.
-- A kit in `mobile/src/components/ui/`: Sheet, ListRow, Band, Badge, ScoreBadge, Chip, Stepper,
-  Header.
+- A kit in `mobile/src/bakeoff/ui/`, kept apart from the shipped `components/ui/` until the verdict:
+  Sheet, ListRow, Band, Badge, ScoreBadge, Chip, Stepper, Header.
 - M2 tokens in `theme.ts` and `motion.ts`.
 - A lint rule bans raw colour, size and duration literals outside `ui/`, `theme.ts` and `motion.ts`.
 - Reuses `@udine/shared` and the pure helpers in `mobile/src/lib`.
