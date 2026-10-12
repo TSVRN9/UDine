@@ -800,6 +800,19 @@ the round-9 states. Compare screenshots with M2's.
     animation in RN starts at mount on the UI thread, never from an effect.**
   - Cold first add on the AVD: the stepper is visible the frame after the tap and the bar's first motion is about
     0.3 s after it, against M2's 136 ms. Measure on a phone in Task 9.
+- **RN, Task 8 (1 REWORK round, MERGE-equivalent at 7c8966b):**
+  - The orchestrator's frames caught both blocking defects. Try again's failure text ghosted over the arriving rows,
+    because the curtain faded out over rows drawn at full opacity. And only 4 of 32 bundled café photos were wired:
+    the builder recorded "ISB has no photo" as a departure without checking the asset folder. The reviewer added the
+    missing pin as a departure.
+  - The builder's first fix (a veil mounted on arrival) flashed rows for a frame and then blanked them for 7. They
+    kept the existing chalk layer and let it leave instead. **Lesson: in RN, an overlay that leaves is cheaper and
+    steadier than one mounted to hide an arrival.**
+  - Process: the review gate counts a plan-doc commit as code, so media had to be re-shot on a clean tree after a
+    docs-only commit.
+- **Flutter, Task 10 (0 REWORK, MERGE-equivalent at 80e291e):** the logic port passed the shared vectors on the
+  first run. The reviewer's mutation found halal filtering untested in both stacks; a test is added in Flutter
+  Task 11 and RN Task 9.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
