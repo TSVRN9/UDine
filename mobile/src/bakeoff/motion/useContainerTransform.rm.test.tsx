@@ -8,14 +8,18 @@ let mockReduced = true;
 const mockTimings: { to: number; token: { d: number } }[] = [];
 jest.mock("../ui/motion", () => ({
   timed: (to: number, token: { d: number }, cb?: (f: boolean) => void) => { mockTimings.push({ to, token }); cb?.(true); return to; },
-  useMotion: () => ({ reduced: mockReduced, slide: !mockReduced, pick: (t: unknown) => t }),
+  useMotion: () => ({ reduced: mockReduced }),
 }));
 
+// the reanimated mock makes a fresh shared value on every render, so `t()` is the first render's handle (its `open` and its `progress` belong
+// together) and `latest()` the last (the drag-back it has armed, or not, once the machine has moved)
 function mount() {
-  let t!: ReturnType<typeof useContainerTransform>;
-  const P = () => { t = useContainerTransform(800, { get: () => 0, set: () => {} } as never); return null; };
+  let first: ReturnType<typeof useContainerTransform> | undefined, last: ReturnType<typeof useContainerTransform> | undefined;
+  const P = () => { const t = useContainerTransform(800, { get: () => 0, set: () => {} } as never); first ??= t; last = t; return null; };
   act(() => { renderer.create(<P />); });
-  return () => t;
+  const t = () => first!;
+  t.latest = () => last!;
+  return t;
 }
 const band = { top: 300, height: 112, off: 40 };
 
@@ -42,7 +46,7 @@ describe("the container transform with mockReduced motion", () => {
     mockReduced = true;
     const t = mount();
     act(() => { t().show(band); });
-    expect((t().dragBack as unknown as { config: { enabled: boolean } }).config.enabled).toBe(false);
+    expect((t.latest().dragBack as unknown as { config: { enabled: boolean } }).config.enabled).toBe(false);
   });
   it("with motion on it grows over the container's 500 ms and the drag-back is armed", () => {
     mockReduced = false;
@@ -51,6 +55,6 @@ describe("the container transform with mockReduced motion", () => {
     act(() => { t().ready(); });
     expect(mockTimings[0].token.d).toBe(500);
     act(() => { t().show(band); });
-    expect((t().dragBack as unknown as { config: { enabled: boolean } }).config.enabled).toBe(true);
+    expect((t.latest().dragBack as unknown as { config: { enabled: boolean } }).config.enabled).toBe(true);
   });
 });

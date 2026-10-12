@@ -47,8 +47,8 @@ function PlusLane({ animate, ghost, name, onAdd }: { animate: boolean; ghost: bo
     <Animated.View entering={animate ? (reduced ? fadeIn : plusIn) : undefined}>
       <Press accessibilityRole="button" accessibilityLabel={`Add ${name}`} onPress={onAdd}
         style={ghost
-          ? { width: m2.size.tap, height: m2.size.tap, margin: 2, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.ghost, alignItems: "center", justifyContent: "center" }
-          : { width: 48, height: 48, borderRadius: m2.radius.button, alignItems: "center", justifyContent: "center" }}>
+          ? { width: m2.size.tap, height: m2.size.tap, margin: m2.space.ghostMargin, borderRadius: m2.radius.button, borderWidth: m2.size.keyline, borderColor: m2.color.ghost, alignItems: "center", justifyContent: "center" }
+          : { width: m2.size.add, height: m2.size.add, borderRadius: m2.radius.button, alignItems: "center", justifyContent: "center" }}>
         <Plus />
       </Press>
     </Animated.View>

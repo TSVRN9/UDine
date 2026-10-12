@@ -13,10 +13,10 @@ const STATUS_SLOP = { top: slop, bottom: slop, right: m2.space.action };
 export function TitleParts({ l }: { l: Labels }) {
   return (
     <>
-      <View style={{ minHeight: m2.type.status.line, marginTop: 7 }}>
+      <View style={{ minHeight: m2.type.status.line, marginTop: m2.space.bandStatusTop }}>
         {l.status ? (
           <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
-            hitSlop={STATUS_SLOP} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            hitSlop={STATUS_SLOP} style={{ flexDirection: "row", alignItems: "center", gap: m2.space.mtsGap }}>
             <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
             {l.onStatus ? <DownChevron size={m2.size.chevronStatus} stroke={m2.color.onDmQuiet} width={m2.size.chevronStroke} /> : null}
           </Press>

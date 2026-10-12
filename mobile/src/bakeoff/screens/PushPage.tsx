@@ -75,13 +75,13 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
   return (
     <GestureDetector gesture={swipe as ReturnType<typeof Gesture.Pan>}>
       <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: ground ?? m2.color.chalk }, slide, cast, crossfade]}>
-        <View style={{ height: top + 52, paddingTop: top, paddingHorizontal: m2.space.line, flexDirection: "row", alignItems: "center", backgroundColor: ground ?? m2.color.vm }}>
+        <View style={{ height: top + m2.size.bar, paddingTop: top, paddingHorizontal: m2.space.line, flexDirection: "row", alignItems: "center", backgroundColor: ground ?? m2.color.vm }}>
           <BackButton onPress={() => leave(p.get())} />
           {title ? <Text v="section" color={m2.color.white} numberOfLines={1} accessibilityRole="header" style={{ flex: 1, paddingRight: m2.space.action }}>{title}</Text> : null}
         </View>
         <ScrollView contentContainerStyle={poster
-          ? { flexGrow: 1, justifyContent: "center", paddingHorizontal: m2.space.gutter, paddingBottom: 56 }
-          : { paddingHorizontal: m2.space.gutter, paddingTop: m2.space.part, paddingBottom: 120 }}>{children}</ScrollView>
+          ? { flexGrow: 1, justifyContent: "center", paddingHorizontal: m2.space.gutter, paddingBottom: m2.size.posterFoot }
+          : { paddingHorizontal: m2.space.gutter, paddingTop: m2.space.part, paddingBottom: m2.size.listFoot }}>{children}</ScrollView>
       </Animated.View>
     </GestureDetector>
   );

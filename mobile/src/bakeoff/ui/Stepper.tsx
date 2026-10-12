@@ -14,7 +14,7 @@ export function Stepper({ label, onDec, onInc }: { label: string; onDec: () => v
   return (
     <View style={{ flexDirection: "row", alignItems: "center", height: m2.size.tap, borderRadius: m2.radius.button, backgroundColor: m2.color.tint }}>
       <Press accessibilityRole="button" accessibilityLabel="Decrease" onPress={onDec} style={btn}><Glyph d="M5 12h14" /></Press>
-      <Text v="stepper" color={m2.color.dm} style={{ minWidth: 26, textAlign: "center" }}>{label}</Text>
+      <Text v="stepper" color={m2.color.dm} style={{ minWidth: m2.size.stepQ, textAlign: "center" }}>{label}</Text>
       <Press accessibilityRole="button" accessibilityLabel="Increase" onPress={onInc} style={btn}><Glyph d="M12 5v14M5 12h14" /></Press>
     </View>
   );

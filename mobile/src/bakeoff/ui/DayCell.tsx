@@ -7,7 +7,7 @@ import { Text } from "./Text";
 export function DayCell({ d }: { d: NonNullable<Labels["day"]> }) {
   return (
     <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={d.accessibilityLabel} onPress={d.onPress}
-      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space.action, paddingRight: m2.space.gutter, borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
+      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space.dayGap, paddingLeft: m2.space.action, paddingRight: m2.space.gutter, borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
       <Text v="day" color={m2.color.gold}>{d.label}</Text>
       <DownChevron />
     </Press>

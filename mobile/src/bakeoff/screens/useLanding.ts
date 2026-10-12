@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { m2Motion } from "../../lib/motion";
 import type { Item } from "../logic/menuView";
 import type { ServeTarget } from "../logic/dishSheet";
 import type { PagerHandle } from "./MealPager";
+
+const L = m2Motion.landing;
 
 /**
  * Bringing a dish up (M2 `toDish`): a where-served button, or a pushed hall, names a dish; once the list has it (revealed first if the preferences hide
@@ -31,17 +34,17 @@ export function useLanding({ at, items, warm, showAll, setShowAll, pager, refres
         if (!alive.current) return;   // the screen is gone: the loop ends with it, it never reaches a list that no longer exists
         const l = pager.current?.list();
         const lay = l?.getLayout(i);
-        if (!l || !lay) { if (++k > 40) done(); else setTimeout(go, 40); return; }
-        const off = Math.max(0, lay.y + l.getFirstItemOffset() - pin - 8);
+        if (!l || !lay) { if (++k > L.tries) done(); else setTimeout(go, L.poll); return; }
+        const off = Math.max(0, lay.y + l.getFirstItemOffset() - pin - L.above);
         // stable: the row is drawn and its layout has not moved over two passes (a pass that comes before the list has drawn
         // around the new offset computes the same estimate again, so one equal pass is not enough)
         const { startIndex, endIndex } = l.computeVisibleIndices();
         const drawn = i >= startIndex && i <= endIndex;
         same = Math.abs(off - last) < 1 && drawn ? same + 1 : 0;
-        if (same >= 2 || ++k > 40) { done(); return; }
+        if (same >= L.stable || ++k > L.tries) { done(); return; }
         last = off;
         l.scrollToOffset({ offset: off, animated: false });
-        setTimeout(go, 40);
+        setTimeout(go, L.poll);
       };
       go();
       setGoto(null);

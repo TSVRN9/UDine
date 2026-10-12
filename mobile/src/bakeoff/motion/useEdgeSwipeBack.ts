@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { Gesture } from "react-native-gesture-handler";
 import { useSharedValue, type SharedValue } from "react-native-reanimated";
+import { m2 } from "../../lib/theme";
 
-/** M2's `edge`: a touch that starts within this many dp of the left edge may swipe in. */
-export const EDGE = 24;
+/** M2's `edge` (`m2.edge.swipe`): a touch that starts within this many dp of the left edge may swipe in. */
+export const EDGE = m2.edge.swipe;
 
 /**
  * Interactive back (App Store zoom): drag down, or swipe in from the left edge. One manually activated pan decides

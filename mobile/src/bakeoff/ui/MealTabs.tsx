@@ -29,12 +29,12 @@ export function MealTabs({ meals }: { meals: NonNullable<Labels["meals"]> }) {
         return (
           <Press key={m.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => meals.onSelect(m.key)}
             onLayout={(e) => { tabs.current[m.key] = { x: e.nativeEvent.layout.x, w: e.nativeEvent.layout.width }; if (on) place(m.key, false); }}
-            style={{ flexGrow: 1, flexShrink: 1, height: m2.size.tabs, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" }}>
+            style={{ flexGrow: 1, flexShrink: 1, height: m2.size.tabs, paddingHorizontal: m2.space.mealTabPad, alignItems: "center", justifyContent: "center" }}>
             <Text v="mealTab" color={on ? m2.color.white : m2.color.onDm} style={{ fontFamily: on ? m2.font.bodySb : m2.font.bodyMd }} numberOfLines={1}>{m.label}</Text>
           </Press>
         );
       })}
-      {meals.items.length ? <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, bottom: 0, height: 3, width: 1, backgroundColor: m2.color.gold, transformOrigin: "0% 0%" }, underline]} /> : null}
+      {meals.items.length ? <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, bottom: 0, height: m2.size.indicator, width: 1, backgroundColor: m2.color.gold, transformOrigin: "0% 0%" }, underline]} /> : null}
     </View>
   );
 }

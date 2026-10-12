@@ -6,7 +6,7 @@ import { useSheetMotion } from "./Sheet";
 // M2 `RM` sheets (src.html:1836): a sheet takes the 120 ms crossfade. gorhom has no fade in place, so its slide runs on
 // a 120 ms linear timing instead of the spring.
 let mockReduced = false;
-jest.mock("./motion", () => ({ useMotion: () => ({ reduced: mockReduced, slide: !mockReduced, pick: (t: unknown) => t }) }));
+jest.mock("./motion", () => ({ useMotion: () => ({ reduced: mockReduced }) }));
 jest.mock("@gorhom/bottom-sheet", () => ({
   useBottomSheetSpringConfigs: (c: object) => ({ spring: c }),
   useBottomSheetTimingConfigs: (c: object) => ({ timing: c }),

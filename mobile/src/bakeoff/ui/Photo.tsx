@@ -26,7 +26,7 @@ export function Photo({ source, width, height, pos = 0.5, duo, style }: {
         <View style={[fill, { filter: [{ grayscale: 1 }, { contrast: 1.12 }] }]}>
           <Image source={source} style={img} />
         </View>
-        <View style={[fill, { backgroundColor: "#c4434b", mixBlendMode: "multiply" }]} />
+        <View style={[fill, { backgroundColor: m2.color.duoTint, mixBlendMode: "multiply" }]} />
         <View style={[fill, { backgroundColor: m2.color.dm, mixBlendMode: "screen" }]} />
       </Animated.View>
     </View>

@@ -22,7 +22,7 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
   const photo = EVENT_PHOTO[e.title];
   return (
     <PushPage onPop={onPop} progress={progress} ground={m2.color.dm} poster>
-      <View style={{ paddingTop: m2.space.eventTop, paddingBottom: m2.space.cafeBodyTop }}>
+      <View style={{ paddingTop: m2.space.eventTop, paddingBottom: m2.space.eventBottom }}>
         {photo ? (
           // the white ring is outside the patch (M2 `box-shadow: 0 0 0 3px`), so it takes no room
           <View accessibilityLabel={e.title} accessible style={{ marginHorizontal: -m2.size.ring, padding: m2.size.ring, borderRadius: m2.radius.card + m2.size.ring, backgroundColor: m2.color.white }}>

@@ -10,7 +10,7 @@ import { Text } from "./Text";
 export function HallChip({ name, letter, onPress }: { name: string; letter?: string; onPress: () => void }) {
   return (
     <Press accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
-      style={{ height: 44, paddingLeft: letter ? 8 : 16, paddingRight: 16, borderRadius: m2.radius.button, backgroundColor: m2.color.dm, flexDirection: "row", alignItems: "center", gap: 10 }}>
+      style={{ height: m2.size.tap, paddingLeft: letter ? m2.space.part : m2.space.action, paddingRight: m2.space.action, borderRadius: m2.radius.button, backgroundColor: m2.color.dm, flexDirection: "row", alignItems: "center", gap: m2.space.chipGap }}>
       {letter ? (
         <Felt kind="patch" style={{ width: m2.size.letterPatch, height: m2.size.letterPatch, alignItems: "center", justifyContent: "center" }}>
           <Text v="letter" color={m2.color.dm}>{letter}</Text>

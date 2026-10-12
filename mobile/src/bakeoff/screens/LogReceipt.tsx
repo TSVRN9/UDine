@@ -13,9 +13,9 @@ export function LogReceipt({ last }: { last: Receipt }) {
     <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space.panel }}>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text v="meta" color={m2.color.onDm} numberOfLines={1}>{`Logged ${entry.place ? placeName(entry.place) + " " : ""}${MEAL_LABEL[entry.meal].toLowerCase()}`}</Text>
-        <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 2 }}>
+        <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: m2.space.barL2Top }}>
           <Text v="meta" color={m2.color.onDm}>{"Today "}</Text>
-          <Text v="barNum" color={m2.color.white} style={{ marginRight: 2 }}>{fc(today)}</Text>
+          <Text v="barNum" color={m2.color.white} style={{ marginRight: m2.space.barNumGap }}>{fc(today)}</Text>
           <Text v="meta" color={m2.color.onDm}>cal</Text>
         </View>
       </View>

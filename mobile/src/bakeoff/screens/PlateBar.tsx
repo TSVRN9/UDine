@@ -25,10 +25,10 @@ function PlateLine({ plate, onLog, onOpen }: { plate: Plate; onLog: () => void; 
     <>
       <Press feedback="tint" accessibilityRole="button" accessibilityLabel="Open the plate" onPress={onOpen} style={{ flex: 1, minWidth: 0, justifyContent: "center", height: BAR }}>
         <Text v="meta" color={m2.color.onDm} numberOfLines={1}>{`${plateLabel(plate)}, ${nItems(t.n)}`}</Text>
-        <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 2 }}>
-          <Text v="barNum" color={m2.color.white} style={{ marginRight: 2 }}>{fc(t.cal)}</Text>
+        <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: m2.space.barL2Top }}>
+          <Text v="barNum" color={m2.color.white} style={{ marginRight: m2.space.barNumGap }}>{fc(t.cal)}</Text>
           <Text v="meta" color={m2.color.onDm} style={{ marginRight: m2.space.panel }}>cal</Text>
-          <Text v="barNum" color={m2.color.white} style={{ marginRight: 2 }}>{`${f1(t.p)}g`}</Text>
+          <Text v="barNum" color={m2.color.white} style={{ marginRight: m2.space.barNumGap }}>{`${f1(t.p)}g`}</Text>
           <Text v="meta" color={m2.color.onDm}>protein</Text>
         </View>
       </Press>
@@ -41,7 +41,7 @@ function PlateLine({ plate, onLog, onOpen }: { plate: Plate; onLog: () => void; 
 function Choose({ halls, onPick, onBack }: { halls: PlaceKey[]; onPick: (h: PlaceKey) => void; onBack: () => void }) {
   return (
     <>
-      <Press feedback="tint" accessibilityRole="button" onPress={onBack} style={{ minHeight: 48, justifyContent: "center", paddingRight: m2.space.panel }}>
+      <Press feedback="tint" accessibilityRole="button" onPress={onBack} style={{ minHeight: m2.size.chooseBack, justifyContent: "center", paddingRight: m2.space.panel }}>
         <Text v="meta" color={m2.color.onDm}>Log at</Text>
       </Press>
       <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: m2.space.part }}>
@@ -119,9 +119,9 @@ export function PlateBar({ sheet, animatedIndex, collapse }: { sheet: RefObject<
     <View style={{ height: BAR, backgroundColor: m2.color.dm }}>
       {count > 1 && mode === "plate" ? (
         <>
-          <View pointerEvents="none" style={{ position: "absolute", left: 10, right: 10, top: -5, height: 5, backgroundColor: m2.color.felt, borderTopLeftRadius: 3, borderTopRightRadius: 3 }} />
-          <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 5, flexDirection: "row", justifyContent: "center", gap: 5 }}>
-            {Array.from({ length: count }, (_, i) => <View key={i} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: i === front ? m2.color.gold : m2.color.dotOff }} />)}
+          <View pointerEvents="none" style={{ position: "absolute", left: m2.space.peekInset, right: m2.space.peekInset, top: -m2.size.peek, height: m2.size.peek, backgroundColor: m2.color.felt, borderTopLeftRadius: m2.radius.dot, borderTopRightRadius: m2.radius.dot }} />
+          <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: m2.space.dotsTop, flexDirection: "row", justifyContent: "center", gap: m2.space.dotsGap }}>
+            {Array.from({ length: count }, (_, i) => <View key={i} style={{ width: m2.size.dot, height: m2.size.dot, borderRadius: m2.radius.dot, backgroundColor: i === front ? m2.color.gold : m2.color.dotOff }} />)}
           </View>
         </>
       ) : null}

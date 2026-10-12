@@ -1,6 +1,6 @@
 import { useRef, type RefObject } from "react";
 import { View, useWindowDimensions } from "react-native";
-import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
 import { Band, BusyRow, Button, HallLetter, Photo, Text } from "../ui";
@@ -36,9 +36,6 @@ export function HallsList({ hidden, onOpen }: {
   const net = useNet(), hk = hoursKnown(net), lk = liveKnown(net), hkArrive = useArrival(hk), lkArrive = useArrival(lk);
   const now = new Date(fx.clock);
   const HH = headerHeight(top);
-  const y = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { y.value = e.contentOffset.y; });
-  const bar = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, (y.value - 40) / 24)) }));
   const refs = useRef<Record<string, RefObject<View | null>>>({});
   const refOf = (k: string) => (refs.current[k] ??= { current: null });
 
@@ -67,7 +64,7 @@ export function HallsList({ hidden, onOpen }: {
 
   return (
     <View style={{ flex: 1, backgroundColor: m2.color.chalk }}>
-      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView showsVerticalScrollIndicator={false}>
         <ScreenHeader brand="UDine" date={date} title={MEAL_LABEL[clockMeal(now)]}>
           {net.mode === "offline" || net.mode === "fail" ? (
             <View accessibilityLiveRegion="polite" style={{ position: "absolute", right: m2.space.gutter, top: top + m2.space.netTop, alignItems: "flex-end" }}>
@@ -80,7 +77,7 @@ export function HallsList({ hidden, onOpen }: {
         </ScreenHeader>
         <View style={{ backgroundColor: m2.color.dm }}>{places.slice(0, 4).map(cell)}</View>
         <View style={{ backgroundColor: m2.color.dm }}>{places.slice(4).map(cell)}</View>
-        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter, paddingBottom: 120 }}>
+        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter, paddingBottom: m2.size.listFoot }}>
           <Text v="section" color={m2.color.dm} style={{ marginBottom: m2.space.line }}>Cafés & markets</Text>
           {fx.areas.slice(0, newton ? 5 : 4).map((a, i, all) => {
             const ps = fx.places.filter((p) => p.area === i);
@@ -92,10 +89,6 @@ export function HallsList({ hidden, onOpen }: {
           })}
         </View>
       </Animated.ScrollView>
-      <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, height: top + 44, backgroundColor: m2.color.dm, paddingTop: top, paddingHorizontal: m2.space.gutter, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, bar]}>
-        <Text v="brand" color={m2.color.gold}>UDine</Text>
-        <Text v="date" color={m2.color.onDm}>{date}</Text>
-      </Animated.View>
     </View>
   );
 }

@@ -41,7 +41,7 @@ export function TabBar({ state, navigation, bottomInset = 0 }: {
           <Press key={r.key} accessibilityRole="tab" accessibilityLabel={LABEL[r.name]}
             accessibilityState={{ selected, disabled }} disabled={disabled}
             onPress={() => { if (!selected) navigation.navigate(r.name); }}
-            style={{ flex: 1, height: m2.size.tabBar, alignItems: "center", justifyContent: "center", gap: 3, opacity: disabled ? 0.4 : 1 }}>
+            style={{ flex: 1, height: m2.size.tabBar, alignItems: "center", justifyContent: "center", gap: m2.space.tabGap, opacity: disabled ? m2.opacity.disabled : 1 }}>
             <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{ICON[r.name]}</Svg>
             <Text v="tabBar" color={color}>{LABEL[r.name]}</Text>
           </Press>

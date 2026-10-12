@@ -3,7 +3,7 @@ import { useSharedValue, type SharedValue } from "react-native-reanimated";
 import { View } from "react-native";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, useBottomSheetSpringConfigs, useBottomSheetTimingConfigs, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
-import { m2Motion } from "../../lib/motion";
+import { m2Motion, m2SheetSpring } from "../../lib/motion";
 import { useMotion } from "./motion";
 
 /**
@@ -29,8 +29,7 @@ function useOpenedAt(armed: { get: () => boolean; set: (v: boolean) => void }, r
 /** M2's sheet spring (`SPRING.sheet`) for gorhom: every sheet the finger can release uses it. With reduced motion (M2 `RM`) a sheet takes
  * the 120 ms crossfade's timing instead: gorhom has no fade in place, so it still travels, but over a tenth of a second and never on the spring. */
 export function useSheetMotion() {
-  const { k, z } = m2Motion.spring.sheet;
-  const spring = useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
+  const spring = useBottomSheetSpringConfigs(m2SheetSpring);
   const crossfade = useBottomSheetTimingConfigs({ duration: m2Motion.rmFade.d, easing: m2Motion.rmFade.e });
   return useMotion().reduced ? crossfade : spring;
 }
@@ -39,7 +38,7 @@ export const GRAB = 22;
 /** M2's `.grab`: a 22 px strip holding a 40 x 5 handle. */
 const Grab = () => (
   <View style={{ height: GRAB, alignItems: "center", justifyContent: "center" }}>
-    <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: "rgba(36,23,26,0.22)" }} />
+    <View style={{ width: m2.size.grabW, height: m2.size.grabH, borderRadius: m2.radius.dot, backgroundColor: m2.color.grab }} />
   </View>
 );
 
@@ -79,7 +78,7 @@ export const Sheet = forwardRef<BottomSheetModal, {
         armed.set(true);
         (scroll.current?.getScrollResponder?.() ?? scroll.current)?.scrollTo({ y: contentOffset, animated: false });
       }
-      if (retries.current++ < 12) setTimeout(openScrolled, 80);
+      if (retries.current++ < m2Motion.sheetRetry.max) setTimeout(openScrolled, m2Motion.sheetRetry.every);
     };
     // gorhom calls this as a hook, once per render of its scrollable, from a stable function: that is what the rule cannot see
     // eslint-disable-next-line react-hooks/rules-of-hooks

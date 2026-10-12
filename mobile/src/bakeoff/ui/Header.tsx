@@ -24,7 +24,7 @@ const clamp = (x: number) => {
 };
 
 /** The compact bar's height under the status bar (M2 CH = ST + 52). */
-export const BAR = 52;
+export const BAR = m2.size.bar;
 
 /**
  * Round 9c hall header: photo window with the name and status, then the meal row (14 px, every meal visible, never
@@ -34,8 +34,8 @@ export const BAR = 52;
  * solid maroon grows over it, the letter, status and busy fade, and the name shrinks into the bar (the caller translates
  * the whole header by the scroll; the rows below ride with it and pin under the bar).
  */
-export function Header({ title, photo, letter, height = 240, top = 0, labels, oldLabels, newStyle, oldStyle, gradStyle, contentStyle, collapse }: {
-  title: string; photo?: ReactNode; letter?: ReactNode; height?: number; top?: number;
+export function Header({ title, photo, letter, height, top = 0, labels, oldLabels, newStyle, oldStyle, gradStyle, contentStyle, collapse }: {
+  title: string; photo?: ReactNode; letter?: ReactNode; height: number; top?: number;
   /** What says the day, as it is now, and as it was before a day change (it fades out in its own layer while `labels` fades in). */
   labels: Labels; oldLabels: Labels;
   /** Animated styles for the container transform: the photo gradients, and the title and controls. */
@@ -51,29 +51,29 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
   const onBlock = (e: LayoutChangeEvent) => {
     const { y } = e.nativeEvent.layout;
     // M2 NB: where the name's bottom lands once collapsed is ST + 38 under the top of the screen
-    nb.set(top + 38 - (y + m2.type.menuName.line - R));
+    nb.set(top + m2.collapse.nameDrop - (y + m2.type.menuName.line - R));
   };
-  const solid = useAnimatedStyle(() => ({ opacity: clamp((c.get() - 0.3) / 0.55) }));
-  const letterFade = useAnimatedStyle(() => ({ opacity: 1 - clamp(c.get() / 0.55) }));
-  const parallax = useAnimatedStyle(() => ({ transform: [{ translateY: c.get() * R * 0.45 }] }));
+  const solid = useAnimatedStyle(() => ({ opacity: clamp((c.get() - m2.collapse.solidStart) / m2.collapse.solidSpan) }));
+  const letterFade = useAnimatedStyle(() => ({ opacity: 1 - clamp(c.get() / m2.collapse.letterEnd) }));
+  const parallax = useAnimatedStyle(() => ({ transform: [{ translateY: c.get() * R * m2.collapse.parallax }] }));
   const name = useAnimatedStyle(() => {
     const k = c.get();
-    return { transform: [{ translateX: 44 * k }, { translateY: nb.get() * k }, { scale: 1 - (1 - 22 / m2.type.menuName.size) * k }] };
+    return { transform: [{ translateX: m2.collapse.nameDx * k }, { translateY: nb.get() * k }, { scale: 1 - (1 - m2.collapse.nameSize / m2.type.menuName.size) * k }] };
   });
-  const fadeC = useAnimatedStyle(() => ({ opacity: 1 - clamp(c.get() / 0.3) }));
+  const fadeC = useAnimatedStyle(() => ({ opacity: 1 - clamp(c.get() / m2.collapse.fadeEnd) }));
 
   return (
     <View pointerEvents="box-none" style={{ backgroundColor: m2.color.dm }}>
       <View pointerEvents="box-none" style={{ height, backgroundColor: m2.color.vm, overflow: "hidden" }}>
         <Animated.View pointerEvents="none" style={[fill, parallax]}>{photo}</Animated.View>
         <Animated.View style={[fill, gradStyle]} pointerEvents="none">
-          <LinearGradient colors={["rgba(59,10,15,0.6)", "rgba(59,10,15,0)"]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: top + 80 }} pointerEvents="none" />
-          <LinearGradient colors={["rgba(59,10,15,0)", "rgba(59,10,15,0.5)", "rgba(59,10,15,0.93)"]} locations={[0, 0.3, 0.76]} style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 240 }} pointerEvents="none" />
+          <LinearGradient colors={[...m2.gradient.headTop.stops]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: top + m2.gradient.headTop.height }} pointerEvents="none" />
+          <LinearGradient colors={[...m2.gradient.headBottom.stops]} locations={[...m2.gradient.headBottom.locations]} style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: m2.gradient.headBottom.height }} pointerEvents="none" />
         </Animated.View>
         <Animated.View pointerEvents="none" style={[fill, { backgroundColor: m2.color.vm }, solid]} />
         <Animated.View pointerEvents="none" style={[fill, letterFade]}>{letter}</Animated.View>
         <Animated.View style={[fill, contentStyle]} pointerEvents="box-none">
-          <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space.gutter, bottom: 50 }}>
+          <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space.gutter, bottom: m2.size.nameBottom }}>
             <Animated.View style={[{ transformOrigin: "0% 100%" }, name]}><Text v="menuName" color={m2.color.white} accessibilityRole="header">{title}</Text></Animated.View>
             <Animated.View pointerEvents="box-none" style={fadeC}>
               <Layers now={<TitleParts l={labels} />} was={<TitleParts l={oldLabels} />} newStyle={newStyle} oldStyle={oldStyle} />
@@ -83,14 +83,14 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
         </Animated.View>
       </View>
       {labels.meals ? (
-        <View accessibilityRole="tablist" style={{ height: m2.size.tabs, paddingHorizontal: 4 }}>
+        <View accessibilityRole="tablist" style={{ height: m2.size.tabs, paddingHorizontal: m2.space.line }}>
           <Animated.View style={[{ flex: 1 }, contentStyle]}>
             <Layers fillParent now={<Arrive key={labels.meals.items.length ? "tabs" : "none"} on={labels.arrive?.menu}><MealTabs meals={labels.meals} /></Arrive>} was={oldLabels.meals ? <MealTabs meals={oldLabels.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
           </Animated.View>
         </View>
       ) : null}
       {labels.station || labels.day ? (
-        <View style={{ height: m2.size.tabs, flexDirection: "row", borderTopWidth: labels.meals ? 1 : 0, borderTopColor: "rgba(255,255,255,0.12)" }}>
+        <View style={{ height: m2.size.tabs, flexDirection: "row", borderTopWidth: labels.meals ? 1 : 0, borderTopColor: m2.color.swRule }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Animated.View style={[{ flex: 1 }, contentStyle]}>
               <Layers fillParent now={labels.station ? <Arrive on={labels.arrive?.menu}><StationButton s={labels.station} /></Arrive> : null} was={oldLabels.station ? <StationButton s={oldLabels.station} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
