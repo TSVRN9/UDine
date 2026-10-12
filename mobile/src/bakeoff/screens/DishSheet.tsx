@@ -144,7 +144,9 @@ function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
   };
   useAnimatedReaction(() => serving.get() && pos.get() > winH - rest / 2, (hit, was) => { if (hit && !was) runOnJS(go)(); });
 
-  useEffect(() => { ref.current?.present(); }, []);
+  // present first, draw the content a frame later: mounting it (labels, scales, SVG) blocks JS, and the rise runs on the UI thread
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => { ref.current?.present(); const id = requestAnimationFrame(() => setDrawn(true)); return () => cancelAnimationFrame(id); }, []);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { ref.current?.dismiss(); return true; });
     return () => sub.remove();
@@ -156,7 +158,7 @@ function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
   return (
     <Sheet ref={ref} maxHeight={full} snapPoints={snaps} animatedPosition={pos} sticky
       onScrollY={(y) => edge.set(y > 4 ? 1 : 0)} onDismiss={() => { go(); closeDish(); }}>
-      {content}
+      {drawn ? content : []}
     </Sheet>
   );
 }
