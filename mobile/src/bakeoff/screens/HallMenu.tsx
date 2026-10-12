@@ -210,18 +210,22 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       // FlashList places a row it has not drawn yet from its estimated heights (scrollToIndex landed stations past the dish), so the
       // offset is taken from the row's layout, and again as each pass draws more of the list: the last lands on measured rows. A
       // pushed hall does this out of sight and only then reports `onSettled`, so it arrives already at the dish (M2 `toDish(id, true)`).
-      let k = 0, last = -1;
+      let k = 0, last = -1, same = 0;
       const done = () => { refreshHeads(); setHereKey(goto); requestAnimationFrame(() => requestAnimationFrame(() => onSettled?.())); };
       const go = () => {
         const l = pager.current?.list();
         const lay = l?.getLayout(i);
-        if (!l || !lay) { if (++k > 12) done(); else setTimeout(go, 50); return; }
+        if (!l || !lay) { if (++k > 40) done(); else setTimeout(go, 40); return; }
         const off = Math.max(0, lay.y + l.getFirstItemOffset() - PIN - 8);
-        // stable (the row's layout stopped moving as the list drew around it): it is measured, and we are there
-        if (Math.abs(off - last) < 1 || ++k > 12) { done(); return; }
+        // stable: the row is drawn and its layout has not moved over two passes (a pass that comes before the list has drawn
+        // around the new offset computes the same estimate again, so one equal pass is not enough)
+        const { startIndex, endIndex } = l.computeVisibleIndices();
+        const drawn = i >= startIndex && i <= endIndex;
+        same = Math.abs(off - last) < 1 && drawn ? same + 1 : 0;
+        if (same >= 2 || ++k > 40) { done(); return; }
         last = off;
         l.scrollToOffset({ offset: off, animated: false });
-        setTimeout(go, 50);
+        setTimeout(go, 40);
       };
       go();
       setGoto(null);
