@@ -125,6 +125,7 @@ export const m2Motion = {
   press: { d: 90, e: [0.2, 0, 0, 1] as const, scale: 0.97 },
   settle: { d: 200, e: [0.2, 0, 0, 1] as const },
   cont: { d: 500 }, // container transform, enter; easing `emphasized`
+  contFade: 0.3, // outgoing content is gone by this progress, incoming starts here (src.html paint: fout/fin)
   contBack: { d: 400 }, // same frames reversed
   fadeThrough: { d: 250, e: [0, 0, 0, 1] as const, scale: 0.97, z: 8 },
   sharedX: { d: 450, at: 0.35, dist: 30 }, // easing `emphasized`

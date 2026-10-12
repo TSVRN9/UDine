@@ -3,6 +3,7 @@ export { Band } from "./Band";
 export { Chip } from "./Chip";
 export { Header } from "./Header";
 export { HallLetter } from "./HallLetter";
+export { Photo } from "./Photo";
 export { ListRow } from "./ListRow";
 export { Press } from "./Press";
 export { ScoreBadge, type Carbon } from "./ScoreBadge";

@@ -3,6 +3,12 @@ const { defineConfig } = require("eslint/config");
 const expoConfig = require("eslint-config-expo/flat");
 const globals = require("globals");
 
+const COLOUR = "Bake-off: colours come from m2.color via the kit.";
+const MOTION = "Bake-off: motion comes from m2Motion.";
+const TYPE = "Bake-off: type comes from the kit's Text.";
+const MOTION_KEYS = "duration|delay|stiffness|damping|mass";
+const TYPE_KEYS = "fontSize|lineHeight|letterSpacing";
+
 module.exports = defineConfig([
   expoConfig,
   {
@@ -121,10 +127,21 @@ module.exports = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        { selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]", message: "Bake-off: colours come from m2.color via the kit." },
-        { selector: "Literal[value=/^rgba?\\(/]", message: "Bake-off: colours come from m2.color via the kit." },
-        { selector: "Property[key.name=/^(duration|delay|stiffness|damping|mass)$/] > Literal", message: "Bake-off: motion comes from m2Motion." },
-        { selector: "Property[key.name=/^(fontSize|lineHeight|letterSpacing)$/] > Literal", message: "Bake-off: type comes from the kit's Text." },
+        { selector: "Literal[value=/^\\s*#[0-9a-fA-F]{3,8}\\s*$/]", message: COLOUR },
+        { selector: "Literal[value=/^\\s*(rgb|hsl)a?\\(/i]", message: COLOUR },
+        { selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b|(rgb|hsl)a?\\(/i]", message: COLOUR },
+        // quoted and computed keys too (`{ "fontSize": 14 }`, `{ ["duration"]: 240 }`), and negative literals
+        { selector: `Property[key.name=/^(${MOTION_KEYS})$/] > Literal.value`, message: MOTION },
+        { selector: `Property[key.value=/^(${MOTION_KEYS})$/] > Literal.value`, message: MOTION },
+        { selector: `Property[key.name=/^(${MOTION_KEYS})$/] > UnaryExpression[argument.type="Literal"].value`, message: MOTION },
+        { selector: `Property[key.value=/^(${MOTION_KEYS})$/] > UnaryExpression[argument.type="Literal"].value`, message: MOTION },
+        { selector: `Property[key.name=/^(${TYPE_KEYS})$/] > Literal.value`, message: TYPE },
+        { selector: `Property[key.value=/^(${TYPE_KEYS})$/] > Literal.value`, message: TYPE },
+        { selector: `Property[key.name=/^(${TYPE_KEYS})$/] > UnaryExpression[argument.type="Literal"].value`, message: TYPE },
+        { selector: `Property[key.value=/^(${TYPE_KEYS})$/] > UnaryExpression[argument.type="Literal"].value`, message: TYPE },
+        { selector: "CallExpression[callee.property.name=bezier] > Literal.arguments", message: MOTION },
+        { selector: "CallExpression[callee.name=bezier] > Literal.arguments", message: MOTION },
+        { selector: "CallExpression[callee.property.name=bezier] > UnaryExpression.arguments", message: MOTION },
       ],
     },
   },
