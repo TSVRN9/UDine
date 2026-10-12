@@ -1,4 +1,5 @@
-export { Badge } from "./Badge";
+export { Badge, DietBadge } from "./Badge";
+export { thud, tick } from "./haptics";
 export { Band } from "./Band";
 export { Board, BusyRow, Meter } from "./Busy";
 export { Chip } from "./Chip";

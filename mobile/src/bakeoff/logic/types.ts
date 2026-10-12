@@ -20,7 +20,7 @@ export interface Place {
   key: PlaceKey; name: string; area: number; building: string; description: string; payment: string;
   address: string | null; mapAddress: string | null;
 }
-export interface FixtureEvent { title: string; expires: number; links: [string, string][]; scope: string }
+export interface FixtureEvent { title: string; expires: number; links: [string, string][]; scope: string; /** the merged hours event's own title ("Indigenous Peoples Day Hours"), shown on the schedule */ hoursTitle: string | null }
 export interface Busy {
   level: number; label: string; pct: number; usual_pct: number; trend: string; vs_usual: "usual" | "busier" | "quieter";
   outlook: { in: number; pct: number | null }[]; calmer_at: string | null; confidence: "good" | "new";

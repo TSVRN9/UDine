@@ -101,6 +101,16 @@ const emphSeg = [
   [0, 0, 0.05, 0, 0.133333, 0.06, 0.166666, 0.4],
   [0.166666, 0.4, 0.208333, 0.82, 0.25, 1, 1, 1],
 ] as const;
+/** cubic-bezier(0, 0, 0, 1) (M3 standard decelerate, `fadeThrough.e`) in closed form: x = t^3, y = 3t^2 - 2t^3. Reanimated's own
+ * Easing.bezier overshoots on this degenerate curve (measured f = 8.3 on device). */
+export function standardDecelerate(x: number): number {
+  "worklet";
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const t = Math.cbrt(x);
+  return t * t * (3 - 2 * t);
+}
+
 export function emphasized(x: number): number {
   "worklet";
   if (x <= 0) return 0;
@@ -128,7 +138,7 @@ export const m2Motion = {
   contFade: 0.3, // outgoing content is gone by this progress, incoming starts here (src.html paint: fout/fin)
   contBack: { d: 400 }, // same frames reversed
   fadeThrough: { d: 250, e: [0, 0, 0, 1] as const, scale: 0.97, z: 8 },
-  sharedX: { d: 450, at: 0.35, dist: 30 }, // easing `emphasized`
+  sharedX: { d: 450, at: 0.35, dist: 30, inAt: 0.6 }, // easing `emphasized`; the incoming list is fully opaque at `inAt` of the time (M2: opacity keyframe offset .6)
   scroll: { d: 500 }, // easing `emphasized`
   exit: { d: 150, e: [0.3, 0, 0.8, 0.2] as const },
   scrub: { d: 200, max: 420, perPx: 0.05 },

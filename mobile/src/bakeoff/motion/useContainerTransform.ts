@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
-import { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { emphasized, m2Motion } from "../../lib/motion";
 import { incomingOpacity, outgoingOpacity, settleTarget, transition, type Event, type Machine } from "./containerMath";
 import { useEdgeSwipeBack } from "./useEdgeSwipeBack";
@@ -19,7 +19,7 @@ const clamp01 = (x: number) => {
  * band showed it, outgoing content (the band's copy) fades by `contFade`, incoming content fades in after it.
  * `height` is the overlay's height (the scene above the tab bar).
  */
-export function useContainerTransform(height: number) {
+export function useContainerTransform(height: number, scrollY?: SharedValue<number>) {
   const progress = useSharedValue(0);
   const Hs = useSharedValue(height);
   useEffect(() => { Hs.set(height); }, [Hs, height]);
@@ -56,6 +56,14 @@ export function useContainerTransform(height: number) {
     if (was === "closed") waiting.current = go;
     else go();
   }, [T, BH, Y0, progress, send, runTo]);
+  /** Dev only (screenshots): the screen already open, no motion. */
+  const show = useCallback((from: BandRect) => {
+    rect.current = from;
+    T.set(from.top); BH.set(from.height); Y0.set(from.top - from.off);
+    const next = send({ type: "open" });
+    progress.set(1);
+    send({ type: "done", run: next.run });
+  }, [T, BH, Y0, progress, send]);
   const ready = useCallback(() => { const go = waiting.current; waiting.current = null; go?.(); }, []);
 
   const close = useCallback(() => {
@@ -78,7 +86,7 @@ export function useContainerTransform(height: number) {
   }, [progress, send, runTo]);
 
   const dragBack = useEdgeSwipeBack({
-    enabled: machine.phase !== "closed",
+    enabled: machine.phase !== "closed", scrollY,
     onGrab: () => {
       "worklet";
       cancelAnimation(progress);
@@ -108,5 +116,5 @@ export function useContainerTransform(height: number) {
   const incoming = useAnimatedStyle(() => ({ opacity: incomingOpacity(progress.value) }));
   const scrim = useAnimatedStyle(() => ({ opacity: m2Motion.scrim * progress.value }));
 
-  return { phase: machine.phase, progress, rect, open, close, ready, dragBack, style: { container, layer, photo, grad, outgoing, incoming, scrim } };
+  return { phase: machine.phase, progress, rect, open, show, close, ready, dragBack, style: { container, layer, photo, grad, outgoing, incoming, scrim } };
 }

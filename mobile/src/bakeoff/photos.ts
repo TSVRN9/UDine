@@ -11,6 +11,8 @@ export const HALL_PHOTO: Record<"W" | "F" | "H" | "B", ImageSourcePropType> = {
 export const CAFE_PHOTO: Record<string, ImageSourcePropType> = {
   Wasabi: require("../../assets/bakeoff/retail/wasabi.jpg"),
   Tamales: require("../../assets/bakeoff/retail/tamales.jpg"),
+  "Harvest Market": require("../../assets/bakeoff/retail/harvest-market.jpg"),
+  "Newman Café": require("../../assets/bakeoff/retail/newman-caf.jpg"),
 };
 /** Background-position x of the photo in a hall header (src.html .ph-W/F/H/B), as a fraction. */
 export const PHOTO_POS: Record<"W" | "F" | "H" | "B", number> = { W: 0.72, F: 0.42, H: 0.6, B: 0.62 };

@@ -15,7 +15,7 @@ const atMin = (d: Date, m: number) => new Date(d.getFullYear(), d.getMonth(), d.
  * The window a place serves a meal, whatever the clock says (M2 also needs later today and tomorrow, and
  * effectiveMealWindow only answers while the place is open): probe it at the place's own opening time.
  */
-function mealWindow(fx: Fixture, place: PlaceKey, meal: MealKey, now: Date): [string, string] | null {
+export function mealWindow(fx: Fixture, place: PlaceKey, meal: MealKey, now: Date): [string, string] | null {
   const h = fx.hours[place];
   if (!isCafe(place) && meal === "grab") { const g = fx.grab[place as "W"]; return [g.openTime, g.closeTime]; }
   if (meal === "all" || meal === "grab") return h.general ? [h.general.openTime, h.general.closeTime] : null;
@@ -59,7 +59,7 @@ export function whereAnswer(fx: Fixture, dish: string, now: Date, opts: { newton
   return more ? [first, more] : [first];
 }
 
-const fmtT = (t: string) => {
+export const fmtT = (t: string) => {
   const m = toMin(t);
   if (m >= 1439) return "midnight";
   if (m === 720) return "noon";
