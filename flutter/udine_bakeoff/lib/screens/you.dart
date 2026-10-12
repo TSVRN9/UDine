@@ -42,7 +42,7 @@ class YouScreen extends StatelessWidget {
           sec([h2('Today'), Facts(cal: cal, p: p, c: c, f: f)], top: M2Layout.todayTop),
           sec([
             h2('Meals'),
-            if (store.log.isEmpty) Text('Nothing logged yet today.', style: M2Text.note.style(M2Color.slate).copyWith(fontSize: M2Text.date.size)),
+            if (store.log.isEmpty) Text('Nothing logged yet today.', style: M2Text.sched.style(M2Color.slate)),
             for (final e in store.log.reversed)
               LRow(
                 title: '${mealLabel[e.meal]}${e.place != null ? ' at ${placeName(fx, e.place!)}' : ''}', subtitle: time, chevron: false,
