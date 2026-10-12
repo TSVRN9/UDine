@@ -16,7 +16,7 @@ jest.mock("expo-router", () => ({ useLocalSearchParams: () => ({}), useGlobalSea
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 0, left: 0, right: 0 }) }));
 jest.mock("@gorhom/bottom-sheet", () => {
   const R = require("react");
-  return { BottomSheetModal: R.forwardRef(() => null), BottomSheetScrollView: () => null, BottomSheetBackdrop: () => null, BottomSheetModalProvider: ({ children }: any) => children, BottomSheetView: () => null, useBottomSheetSpringConfigs: (c: unknown) => c };
+  return { BottomSheetModal: R.forwardRef(() => null), BottomSheetScrollView: () => null, BottomSheetBackdrop: () => null, BottomSheetModalProvider: ({ children }: any) => children, BottomSheetView: () => null, useBottomSheetTimingConfigs: () => ({}), useBottomSheetSpringConfigs: (c: unknown) => c };
 });
 // the jest build of Reanimated hands back an object for an animated ref, where the device's is a function ref
 jest.mock("react-native-reanimated", () => ({ ...jest.requireActual("react-native-reanimated"), useAnimatedRef: () => () => {} }));
