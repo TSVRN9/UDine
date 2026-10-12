@@ -8,7 +8,7 @@ class _Icon extends CustomPainter {
   const _Icon(this.name, this.color);
   @override
   void paint(Canvas canvas, Size s) {
-    final p = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.8..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round;
+    final p = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = M2Layout.tabIconStroke..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round;
     final k = s.width / 24;
     canvas.scale(k);
     final path = Path();
@@ -45,30 +45,44 @@ class M2TabBar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: EdgeInsets.only(bottom: bottomInset),
         decoration: BoxDecoration(color: M2Color.white, border: Border(top: BorderSide(color: M2Color.hair))),
-        child: Row(children: [
-          for (var i = 0; i < tabs.length; i++)
-            Expanded(
-              child: Opacity(
-                opacity: disabled.contains(i) ? 0.4 : 1,
-                child: Semantics(
-                  selected: i == selected, enabled: !disabled.contains(i),
-                  child: Press(
-                    label: tabs[i].$2, scale: true,
-                    onTap: disabled.contains(i) ? null : () { if (i != selected) onSelect(i); },
-                    child: SizedBox(
-                      height: M2Size.tabBar,
-                      child: ExcludeSemantics(
-                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          CustomPaint(size: const Size(24, 24), painter: _Icon(tabs[i].$1, i == selected ? M2Color.vm : M2Color.slate)),
-                          const SizedBox(height: 3),
-                          Text(tabs[i].$2, style: M2Text.tabBar.style(i == selected ? M2Color.vm : M2Color.slate)),
-                        ]),
+        child: Stack(clipBehavior: Clip.none, children: [
+          Row(children: [
+            for (var i = 0; i < tabs.length; i++)
+              Expanded(
+                child: Opacity(
+                  opacity: disabled.contains(i) ? M2Layout.disabledTab : 1,
+                  child: Semantics(
+                    selected: i == selected, enabled: !disabled.contains(i),
+                    child: Press(
+                      label: tabs[i].$2, scale: true,
+                      onTap: disabled.contains(i) ? null : () { if (i != selected) onSelect(i); },
+                      child: SizedBox(
+                        height: M2Size.tabBar,
+                        child: ExcludeSemantics(
+                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            CustomPaint(size: const Size(M2Layout.tabIcon, M2Layout.tabIcon), painter: _Icon(tabs[i].$1, i == selected ? M2Color.vm : M2Color.slate)),
+                            const SizedBox(height: M2Layout.tabGap),
+                            Text(tabs[i].$2, style: M2Text.tabBar.style(i == selected ? M2Color.vm : M2Color.slate)),
+                          ]),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
+          ]),
+          // `.tbar .ind`: a third of the bar wide, over the hairline, sliding on `settle`
+          Positioned(
+            left: 0, right: 0, top: M2Layout.tabIndicatorTop, height: M2Layout.tabIndicatorH,
+            child: IgnorePointer(
+              child: AnimatedAlign(
+                key: const ValueKey('tab-indicator'),
+                alignment: Alignment(-1 + 2 * selected / (tabs.length - 1), 0),
+                duration: const Duration(milliseconds: M2Motion.settleD), curve: standardM2,
+                child: FractionallySizedBox(widthFactor: 1 / tabs.length, child: const ColoredBox(color: M2Color.vm, child: SizedBox.expand())),
+              ),
             ),
+          ),
         ]),
       );
 }

@@ -50,11 +50,11 @@ class HallPage extends StatelessWidget {
               // the header's grades develop with the photo
               Positioned.fill(
                 child: _fade('headerGrade', (p) => p, Stack(children: [
-                  Positioned(left: 0, right: 0, top: 0, height: top + 80, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Color.topGrade)))),
-                  Positioned(left: 0, right: 0, bottom: 0, height: 240, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Color.bottomGrade, stops: const [0, 0.3, 0.76])))),
+                  Positioned(left: 0, right: 0, top: 0, height: top + M2Layout.topGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Color.topGrade)))),
+                  Positioned(left: 0, right: 0, bottom: 0, height: M2Layout.bottomGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Color.bottomGrade, stops: M2Layout.bottomGradStops)))),
                 ])),
               ),
-              if (!compact) Positioned.fill(child: _fade('headerLetter', incomingOpacity, Stack(children: [HallLetter(letter: place, x: hallLx[place]!, top: top + 26)]))),
+              if (!compact) Positioned.fill(child: _fade('headerLetter', incomingOpacity, Stack(children: [HallLetter(letter: place, x: hallLx[place]!, top: top + M2Layout.letterTop)]))),
               // the band's copy: its grade fades with 1 - p, its text and letter with the early fade
               if (t.phase != Phase.open) ...[
                 Positioned(left: 0, right: 0, top: rect.off, height: rect.height, child: _fade('bandGrade', (p) => 1 - p, const BandGrade())),
@@ -70,10 +70,10 @@ class HallPage extends StatelessWidget {
               Positioned.fill(
                 child: _fade('title', incomingOpacity, Stack(children: [
                   Positioned(
-                    left: M2Space.s[4], bottom: 50,
+                    left: M2Space.s[4], bottom: M2Layout.titleBottom,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Semantics(header: true, child: Text(name, style: M2Text.menuName.style(M2Color.white))),
-                      Container(constraints: const BoxConstraints(minHeight: 20), margin: const EdgeInsets.only(top: 7), child: Text(status, style: M2Text.status.style(M2Color.onDmSoft))),
+                      Container(constraints: const BoxConstraints(minHeight: M2Layout.statusMin), margin: const EdgeInsets.only(top: M2Layout.statusGap), child: Text(status, style: M2Text.status.style(M2Color.onDmSoft))),
                       if (busy != null) BusyRow(lamps: busy.lamps, word: busy.word, extra: busy.extra, header: true),
                     ]),
                   ),
@@ -83,8 +83,8 @@ class HallPage extends StatelessWidget {
           ),
         ),
         Positioned(
-          left: 4, top: top, height: 52,
-          child: _fade('back', incomingOpacity, Center(child: Press(label: 'Back', scale: true, onTap: t.close, child: const SizedBox(width: 48, height: 48, child: CustomPaint(painter: _BackIcon()))))),
+          left: M2Layout.backLeft, top: top, height: M2Layout.backBar,
+          child: _fade('back', incomingOpacity, Center(child: Press(label: 'Back', scale: true, onTap: t.close, child: const SizedBox(width: M2Layout.backBtn, height: M2Layout.backBtn, child: Center(child: Chevron(back: true, color: M2Color.white, size: M2Layout.backSize)))))),
         ),
       ]),
     );
@@ -97,19 +97,4 @@ class _ReverseAnimation extends Animation<double> with AnimationWithParentMixin<
   final Animation<double> parent;
   @override
   double get value => 1 - parent.value;
-}
-
-class _BackIcon extends CustomPainter {
-  const _BackIcon();
-  @override
-  void paint(Canvas canvas, Size s) {
-    canvas.translate((s.width - 24) / 2, (s.height - 24) / 2);
-    canvas.drawPath(
-      Path()..moveTo(15, 5)..relativeLineTo(-7, 7)..relativeLineTo(7, 7),
-      Paint()..color = M2Color.white..style = PaintingStyle.stroke..strokeWidth = 2.2..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BackIcon old) => false;
 }

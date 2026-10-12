@@ -49,6 +49,7 @@ abstract final class M2Color {
   static final bottomGrade = [_c(0x3B0A0F, 0), _c(0x3B0A0F, 0.5), _c(0x3B0A0F, 0.93)];
   static const duoMultiply = Color(0xFFC4434B);
   static final lampOff = _c(0xFFFFFF, 0.22);
+  static final pressBand = _c(0x3B0A0F, 0.22); // `.press`
 }
 
 abstract final class M2Font {
@@ -147,3 +148,54 @@ abstract final class M2Motion {
   static const dragBackDist = 480.0, dragBackCommit = 0.82, dragBackFlick = 0.5; // px of drag for the whole way; commit below p .82 or a flick > .5 px/ms
   static const edge = 24.0; // M2 `edge`: a touch that starts within this many dp of the left edge may swipe in
 }
+
+/// Layout numbers, each named for the M2 rule (src.html) or the RN kit value it is copied from.
+abstract final class M2Layout {
+  // Halls (RN HallsList.tsx; M2 `#bands`, `.sec`, `.lrow`)
+  static const headerPadTop = 10.0; // UDine row sits `top + 10` under the status bar
+  static const brandRowH = 30.0;
+  static const titleGap = 2.0; // hallTitle marginTop
+  static const areasPadTop = 26.0; // `.sec` padding-top: space[3] + 10
+  static const listPadBottom = 120.0; // clears the plate bar
+  static const areaRowMin = 56.0; // `.lrow` min-height
+  static const areaMetaGap = 2.0; // `.lrow .b` margin-top
+  static const areaCount = 4; // Newton is off in this build
+  static const collapsedBar = 44.0; // the maroon bar under the status bar
+  static const collapseStart = 40.0; // scroll offset where it begins to show
+  static const collapseSpan = 24.0; // and the distance it takes
+  // the hall page header (RN Header.tsx / HallMenu.tsx)
+  static const headerH = 282.0; // headerHeight(top) = top + 282
+  static const topGradH = 80.0; // plus the status inset
+  static const bottomGradH = 240.0;
+  static const bottomGradStops = [0.0, 0.3, 0.76];
+  static const titleBottom = 50.0;
+  static const statusGap = 7.0; // `.mt .st` margin-top
+  static const statusMin = 20.0;
+  static const letterTop = 26.0; // plus the status inset
+  static const backBar = 52.0; // BAR
+  static const backBtn = 48.0; // tap + 4
+  static const backLeft = 4.0;
+  static const backStroke = 2.2;
+  // the band (M2 `.band`, `.pin`, `.bt`)
+  static const bandGradeStops = [0.0, 0.45, 0.75]; // `.lgrad`
+  static const seam = 1.0; // `.band` margin-top
+  static const textTop = 16.0; // `.bt` top; pinned: 14
+  static const textTopPin = 14.0;
+  static const statusGapBand = 7.0, statusGapPin = 6.0;
+  static const busyTopBand = 6.0, busyTopHeader = 8.0; // `.bz`
+  static const busyMaxHeader = 230.0;
+  static const busyGap = 8.0, busyRunGap = 5.0;
+  // `.meter`
+  static const lampW = 5.0, lampH = 12.0, lampGap = 2.0, lampRadius = 1.0;
+  // the chenille letter (`.let`, `.felt`, `.gold`)
+  static const letterBox = 200.0, letterFont = 210.0, letterBaseline = 0.93;
+  static const feltStroke = 12.0, stitchStroke = 1.5, stitchOn = 5.0, stitchOff = 4.0;
+  static const letterBandTop = -6.0; // `.band .let`
+  // the tab bar (`.tbar`)
+  static const tabIcon = 24.0, tabGap = 3.0, tabIconStroke = 1.8, tabIndicatorH = 3.0;
+  static const chevron = 18.0, chevronStroke = 2.2;
+  static const backSize = 24.0;
+  static const tabIndicatorTop = -1.0; // `.tbar .ind` top: over the hairline
+  static const disabledTab = 0.4;
+}
+

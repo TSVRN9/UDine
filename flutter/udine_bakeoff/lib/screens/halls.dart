@@ -15,19 +15,6 @@ const defaultPins = ['Wasabi', 'Tamales'];
 const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const _months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-class _Chevron extends CustomPainter {
-  const _Chevron();
-  @override
-  void paint(Canvas canvas, Size s) {
-    canvas.scale(s.width / 24);
-    canvas.drawPath(Path()..moveTo(9, 6)..relativeLineTo(6, 6)..relativeLineTo(-6, 6),
-        Paint()..color = M2Color.slate..style = PaintingStyle.stroke..strokeWidth = 2.2..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
-  }
-
-  @override
-  bool shouldRepaint(_Chevron old) => false;
-}
-
 /// Halls: the header, the rack of photo bands (four halls, then the pinned cafés), then the chalk list of areas. The header
 /// collapses into the maroon bar on scroll.
 class HallsList extends StatefulWidget {
@@ -93,28 +80,28 @@ class _HallsListState extends State<HallsList> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Container(
               color: M2Color.dm,
-              padding: EdgeInsets.fromLTRB(M2Space.s[4], top + 10, M2Space.s[4], M2Space.s[3]),
+              padding: EdgeInsets.fromLTRB(M2Space.s[4], top + M2Layout.headerPadTop, M2Space.s[4], M2Space.s[3]),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(height: 30, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [brand, dateText])),
-                Padding(padding: const EdgeInsets.only(top: 2), child: Semantics(header: true, child: Text(mealLabel[clockMeal(DateTime.parse(fx.clock))]!, style: M2Text.hallTitle.style(M2Color.white)))),
+                SizedBox(height: M2Layout.brandRowH, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [brand, dateText])),
+                Padding(padding: const EdgeInsets.only(top: M2Layout.titleGap), child: Semantics(header: true, child: Text(mealLabel[clockMeal(DateTime.parse(fx.clock))]!, style: M2Text.hallTitle.style(M2Color.white)))),
               ]),
             ),
             ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where((k) => !isCafe(k))) _cell(k, now)])),
             if (places.any(isCafe)) ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where(isCafe)) _cell(k, now)])),
             Padding(
-              padding: EdgeInsets.fromLTRB(M2Space.s[4], M2Space.s[3] + 10, M2Space.s[4], 120),
+              padding: EdgeInsets.fromLTRB(M2Space.s[4], M2Layout.areasPadTop, M2Space.s[4], M2Layout.listPadBottom),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Padding(padding: EdgeInsets.only(bottom: M2Space.s[0]), child: Text('Cafés & markets', style: M2Text.section.style(M2Color.dm))),
-                for (var i = 0; i < 4; i++)
+                for (var i = 0; i < M2Layout.areaCount; i++)
                   Container(
-                    constraints: const BoxConstraints(minHeight: 56),
+                    constraints: const BoxConstraints(minHeight: M2Layout.areaRowMin),
                     padding: EdgeInsets.symmetric(vertical: M2Space.s[1]),
-                    decoration: BoxDecoration(border: i < 3 ? Border(bottom: BorderSide(color: M2Color.hair)) : null),
+                    decoration: BoxDecoration(border: i < M2Layout.areaCount - 1 ? Border(bottom: BorderSide(color: M2Color.hair)) : null),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(fx.areas[i], style: M2Text.rowName.style(M2Color.ink)),
                         Padding(
-                          padding: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(top: M2Layout.areaMetaGap),
                           child: Builder(builder: (_) {
                             final ps = fx.places.where((p) => p.area == i).toList();
                             final open = ps.where((p) => isOpenNow(fx.hours[p.key]!, now)).length;
@@ -122,7 +109,7 @@ class _HallsListState extends State<HallsList> {
                           }),
                         ),
                       ])),
-                      const CustomPaint(size: Size(18, 18), painter: _Chevron()),
+                      const Chevron(),
                     ]),
                   ),
               ]),
@@ -130,11 +117,11 @@ class _HallsListState extends State<HallsList> {
           ]),
         ),
         Positioned(
-          left: 0, right: 0, top: 0, height: top + 44,
+          left: 0, right: 0, top: 0, height: top + M2Layout.collapsedBar,
           child: IgnorePointer(
             child: AnimatedBuilder(
               animation: _scroll,
-              builder: (_, c) => Opacity(opacity: (((_scroll.hasClients ? _scroll.offset : 0) - 40) / 24).clamp(0.0, 1.0), child: c),
+              builder: (_, c) => Opacity(opacity: (((_scroll.hasClients ? _scroll.offset : 0) - M2Layout.collapseStart) / M2Layout.collapseSpan).clamp(0.0, 1.0), child: c),
               child: Container(
                 color: M2Color.dm,
                 padding: EdgeInsets.fromLTRB(M2Space.s[4], top, M2Space.s[4], 0),

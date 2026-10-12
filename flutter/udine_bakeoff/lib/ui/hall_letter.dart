@@ -35,11 +35,11 @@ class _LetterPainter extends CustomPainter {
   const _LetterPainter(this.letter, this.x, this.size);
   @override
   void paint(Canvas canvas, Size _) {
-    final path = _outline(letter, 210 * (size / 200)).shift(Offset(x, size * 0.93));
+    final path = _outline(letter, M2Layout.letterFont * (size / M2Layout.letterBox)).shift(Offset(x, size * M2Layout.letterBaseline));
     canvas.drawPath(path, Paint()..color = M2Color.white);
-    canvas.drawPath(path, Paint()..color = M2Color.white..style = PaintingStyle.stroke..strokeWidth = 12..strokeJoin = StrokeJoin.round);
+    canvas.drawPath(path, Paint()..color = M2Color.white..style = PaintingStyle.stroke..strokeWidth = M2Layout.feltStroke..strokeJoin = StrokeJoin.round);
     canvas.drawPath(path, Paint()..color = M2Color.gold);
-    canvas.drawPath(_dashed(path, 5, 4), Paint()..color = M2Color.dm..style = PaintingStyle.stroke..strokeWidth = 1.5);
+    canvas.drawPath(_dashed(path, M2Layout.stitchOn, M2Layout.stitchOff), Paint()..color = M2Color.dm..style = PaintingStyle.stroke..strokeWidth = M2Layout.stitchStroke);
   }
 
   @override
@@ -52,7 +52,7 @@ class _LetterPainter extends CustomPainter {
 class HallLetter extends StatelessWidget {
   final String letter;
   final double x, top, size;
-  const HallLetter({super.key, required this.letter, required this.x, this.top = -6, this.size = 200});
+  const HallLetter({super.key, required this.letter, required this.x, this.top = M2Layout.letterBandTop, this.size = M2Layout.letterBox});
   @override
   Widget build(BuildContext context) => Positioned(
         right: 0, top: top, width: size, height: size,

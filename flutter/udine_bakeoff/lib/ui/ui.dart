@@ -2,6 +2,7 @@
 // ScoreBadge, Chip, Stepper, Sheet) arrives with the menu, dish sheet and plate in Task 12.
 export 'band.dart';
 export 'busy.dart';
+export 'chevron.dart';
 export 'hall_letter.dart';
 export 'photo.dart';
 export 'photos.dart';

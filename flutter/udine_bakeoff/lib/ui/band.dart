@@ -6,13 +6,11 @@ import 'press.dart';
 class BandGrade extends StatelessWidget {
   const BandGrade({super.key});
   @override
-  Widget build(BuildContext context) => const IgnorePointer(
+  Widget build(BuildContext context) => IgnorePointer(
         child: DecoratedBox(
           position: DecorationPosition.background,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [Color(0xD13B0A0F), Color(0x8C3B0A0F), Color(0x003B0A0F)], stops: [0, 0.45, 0.75]),
-          ),
-          child: SizedBox.expand(),
+          decoration: BoxDecoration(gradient: LinearGradient(colors: M2Color.bandGrade, stops: M2Layout.bandGradeStops)),
+          child: const SizedBox.expand(),
         ),
       );
 }
@@ -40,12 +38,12 @@ class Band extends StatelessWidget {
           if (!ghost) const Positioned.fill(child: BandGrade()),
           ?letter,
           Positioned(
-            left: M2Space.s[4], top: compact ? 14 : M2Space.s[2] + 4,
+            left: M2Space.s[4], top: compact ? M2Layout.textTopPin : M2Layout.textTop,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name, style: (compact ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
               if (status != null && status!.isNotEmpty)
                 Padding(
-                  padding: EdgeInsets.only(top: compact ? 6 : 7),
+                  padding: EdgeInsets.only(top: compact ? M2Layout.statusGapPin : M2Layout.statusGapBand),
                   child: Text(status!, style: (compact ? M2Text.statusSm : M2Text.status).style(M2Color.onDmSoft)),
                 ),
               ?busy,
@@ -56,10 +54,10 @@ class Band extends StatelessWidget {
     );
     if (ghost) return IgnorePointer(child: body);
     return Padding(
-      padding: const EdgeInsets.only(top: 1),
+      padding: const EdgeInsets.only(top: M2Layout.seam),
       child: Semantics(
         container: true, button: true, label: [name, ?status].join(', '),
-        child: Press(onTap: onTap, overlay: const Color(0x383B0A0F), child: ExcludeSemantics(child: body)),
+        child: Press(onTap: onTap, overlay: M2Color.pressBand, child: ExcludeSemantics(child: body)),
       ),
     );
   }

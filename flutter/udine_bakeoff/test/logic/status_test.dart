@@ -30,4 +30,10 @@ void main() {
       });
     }
   });
+  test('Cafés & markets counts: the fixture has 5 places in Southwest (M2 shot-pins.png predates Terrace and shows 4 of 4), all open at the clock', () {
+    final counts = [for (var a = 0; a < 4; a++) fx.places.where((p) => p.area == a).toList()];
+    expect(counts.map((c) => c.length).toList(), [12, 7, 4, 5]);
+    expect([for (final c in counts) c.where((p) => isOpenNow(fx.hours[p.key]!, now)).length].toList(), [12, 7, 4, 5]);
+    expect(fx.places.where((p) => p.area == 3).map((p) => p.name), contains('Terrace'));
+  });
 }
