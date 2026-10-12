@@ -5,13 +5,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { m2 } from "../../lib/theme";
 import { Press } from "./Press";
 import { Text } from "./Text";
-import { arriveIn } from "./arrive";
+import { useArrive } from "./arrive";
 
 /** A hall band (112) or pinned café (84, `compact`): photo slot, M2's deep-maroon left grade, name and status.
  * `letter` is a slot (see HallLetter). The press layer (M2 `.band .press`) lies over the photo, grade and letter and under the text (`zIndex`). `ghost` is the band's copy drawn over the screen it opens into: no ground, no margin, no touches. */
 export function Band({ name, status, arrive, photo, letter, compact, ghost, busy, onPress }: {
   name: string; status?: ReactNode; /** the status arrived from the network just now: it fades in where it ends up */ arrive?: boolean; photo?: ReactNode; letter?: ReactNode; compact?: boolean; ghost?: boolean; busy?: ReactNode; onPress?: () => void;
 }) {
+  const { arriveIn } = useArrive();
   return (
     <Press feedback="tint" tint="band" accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
       style={{ height: compact ? 84 : m2.size.band, overflow: "hidden", backgroundColor: ghost ? "transparent" : m2.color.vm, marginTop: ghost ? 0 : 1 }}

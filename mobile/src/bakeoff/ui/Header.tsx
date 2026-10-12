@@ -9,7 +9,7 @@ import { m2Motion } from "../../lib/motion";
 import { timed } from "./motion";
 import { Press } from "./Press";
 import { Text } from "./Text";
-import { arriveIn } from "./arrive";
+import { useArrive } from "./arrive";
 
 type AStyle = React.ComponentProps<typeof Animated.View>["style"];
 
@@ -134,8 +134,14 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
 
 /** A layout animation on its own wrapper, so it starts on the UI thread at mount and never fights the layer's opacity above it. */
 function Arrive({ on, children }: { on?: boolean; children: ReactNode }) {
+  const { arriveIn } = useArrive();
   return <Animated.View entering={on ? arriveIn : undefined} style={{ flex: 1 }}>{children}</Animated.View>;
 }
+
+// M2 `#mts` pads its line 12 above and below (and 16 to the right); a line of status text is shorter than a touch target, so the slop is what
+// brings the button to `tap` without moving the line
+const slop = Math.ceil((m2.size.tap - m2.type.status.line) / 2);
+const STATUS_SLOP = { top: slop, bottom: slop, right: m2.space.action };
 
 function TitleParts({ l }: { l: Labels }) {
   return (
@@ -143,7 +149,7 @@ function TitleParts({ l }: { l: Labels }) {
       <View style={{ minHeight: m2.type.status.line, marginTop: 7 }}>
         {l.status ? (
           <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
-            hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            hitSlop={STATUS_SLOP} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
             {l.onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
           </Press>

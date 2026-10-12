@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { m2Motion } from "../../lib/motion";
-import { timed } from "../ui/motion";
+import { timed, useMotion } from "../ui/motion";
 import { incomingOpacity, outgoingOpacity, settleTarget, transition, type Event, type Machine } from "./containerMath";
 import { useEdgeSwipeBack } from "./useEdgeSwipeBack";
 
@@ -22,6 +22,9 @@ const clamp01 = (x: number) => {
  */
 export function useContainerTransform(height: number, scrollY?: SharedValue<number>) {
   const progress = useSharedValue(0);
+  // reduced motion (M2 `RM`): nothing grows or shrinks; the screen is there at once and crossfades in and out where it is
+  const { reduced } = useMotion();
+  const fade = useSharedValue(1);
   const Hs = useSharedValue(height);
   useEffect(() => { Hs.set(height); }, [Hs, height]);
   const T = useSharedValue(0), BH = useSharedValue(0), Y0 = useSharedValue(0);
@@ -38,15 +41,26 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
 
   // Runs progress to `to` over `ms`; only the run that is still current may finish the machine.
   const runTo = useCallback((to: 0 | 1, ms: number, run: number) => {
+    if (reduced) {
+      // M2 `paint(1, 0)`, then `A(menu, opacity, 'settle')`: the way out fades first and collapses once it is gone
+      if (to) progress.set(1);
+      fade.set(timed(to, m2Motion.rmFade, (finished) => {
+        "worklet";
+        if (!to) { progress.set(0); fade.set(1); }
+        if (finished) runOnJS(send)({ type: "done", run });
+      }));
+      return;
+    }
     progress.set(timed(to, { d: ms, e: m2Motion.cont.e }, (finished) => {
       if (finished) runOnJS(send)({ type: "done", run });
     }));
-  }, [progress, send]);
+  }, [progress, fade, send, reduced]);
 
   const open = useCallback((from?: BandRect) => {
     const was = ref.current.phase;
     if (was === "closed") {
       if (!from) return;
+      if (reduced) fade.set(0);
       rect.current = from;
       T.set(from.top); BH.set(from.height); Y0.set(from.top - from.off);
     }
@@ -56,7 +70,7 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
     // a fresh overlay is still mounting: its first frame must be the band, so the clock starts at `ready`
     if (was === "closed") waiting.current = go;
     else go();
-  }, [T, BH, Y0, progress, send, runTo]);
+  }, [T, BH, Y0, progress, fade, reduced, send, runTo]);
   /** Dev only (screenshots): the screen already open, no motion. */
   const show = useCallback((from: BandRect) => {
     rect.current = from;
@@ -87,7 +101,7 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
   }, [progress, send, runTo]);
 
   const dragBack = useEdgeSwipeBack({
-    enabled: machine.phase !== "closed", scrollY,
+    enabled: machine.phase !== "closed" && !reduced, scrollY,
     onGrab: () => {
       "worklet";
       cancelAnimation(progress);
@@ -115,7 +129,8 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
   const grad = useAnimatedStyle(() => ({ opacity: progress.value }));
   const outgoing = useAnimatedStyle(() => ({ opacity: outgoingOpacity(progress.value) }));
   const incoming = useAnimatedStyle(() => ({ opacity: incomingOpacity(progress.value) }));
+  const crossfade = useAnimatedStyle(() => ({ opacity: fade.get() }));
   const scrim = useAnimatedStyle(() => ({ opacity: m2Motion.scrim * progress.value }));
 
-  return { phase: machine.phase, progress, rect, open, show, close, ready, dragBack, style: { container, layer, photo, grad, outgoing, incoming, scrim } };
+  return { phase: machine.phase, progress, rect, open, show, close, ready, dragBack, style: { container, layer, photo, grad, outgoing, incoming, scrim, crossfade } };
 }
