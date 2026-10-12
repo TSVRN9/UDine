@@ -521,6 +521,12 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 
 ### Task 7: RN plate, logging and You toggles
 
+> **As built (PR #544):**
+> - `state/store.ts` replaces `state/prefs.ts`: plates/front, prefs, `show`, `newton`, `log`, `last` (the receipt), `off` (Charles River plates set aside). Persisted to AsyncStorage (prefs, show, newton, log; not the plate in progress). `useStore(selector)`, not `useBakeoff()`; a selector must return something stable.
+> - `PlateBar` is the handle of a non-modal gorhom `BottomSheet` (`PlateSheet`, mounted in `app/bakeoff/_layout.tsx` over the tabs, in a container that ends at the tab bar). `DishSheetHost` moved to that layout so a plate row can open a dish from any tab. A where-served from the plate reaches Halls through `state/serve.ts`.
+> - Not built: Search tab (so no "Add something else"), Full label, favorites, ranking, Export, the calorie toss, the stepper's collapsing ghost, a mid detent sized to its content (mid is M2's 36% line).
+> - Dev entry: `reset=1`, `plate=place:meal:key[*qty|*h];...`, `logged=N`, `receipt=1`, `newton=1`, `psheet=mid|large`, plus the existing diet/avoid/scores (applied from the layout, on whichever tab the link opens).
+
 **Files:**
 - Create: `mobile/src/bakeoff/screens/PlateBar.tsx`, `PlateSheet.tsx`, `LogReceipt.tsx`, `mobile/src/app/bakeoff/you.tsx`
 - Create: `mobile/src/bakeoff/state/store.ts`. A tiny `useSyncExternalStore` store holding `PlateState`,

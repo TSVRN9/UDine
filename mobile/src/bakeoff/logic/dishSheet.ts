@@ -1,7 +1,7 @@
 import { shownPrice } from "./fixture";
 import type { Carbon, Dish, MealKey, Nutrition, PlaceKey } from "./types";
 
-/** Where a dish sheet was opened from, and what it needs to answer "where is it served". `plate` is Task 7's entry. */
+/** Where a dish sheet was opened from, and what it needs to answer "where is it served". `plate` is a plate row's: the sheet over the plate sheet. */
 export interface DishCtx {
   from: "hall" | "plate";
   /** the place whose serving this is: price and macros come from it (a café serving carries a price, a hall's never does) */
@@ -9,7 +9,7 @@ export interface DishCtx {
   meal: MealKey;
   /** index into the fixture's days; Add is only offered today (M2 `d.day`) */
   day: number;
-  /** Add / Add another: Task 7's store. Unset until then. */
+  /** Add / Add another: the store add, called once when the sheet is half-way out (M2 `isheet.away`). */
   onAdd?: () => void;
   /** a where-served button was tapped: prepare the destination now (the sheet is going away) */
   onServe?: (t: ServeTarget) => void;

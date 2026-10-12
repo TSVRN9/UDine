@@ -1,5 +1,5 @@
 import { loadFixture } from "./fixture";
-import { ALLERGENS, NO_PREFS, dayCell, dayFull, dayLong, defaultMeal, hits, isOneMeal, mealsOf, menuItems, menuView, rowScores, type Prefs } from "./menuView";
+import { ALLERGENS, NO_PREFS, dayCell, dayFull, dayLong, defaultMeal, hits, isOneMeal, prefSummary, mealsOf, menuItems, menuView, rowScores, type Prefs } from "./menuView";
 import type { Dish, MealKey, PlaceKey } from "./types";
 
 const fx = loadFixture();
@@ -160,5 +160,19 @@ describe("day labels are formatted once (Hermes Intl is a JNI call per use: ~10 
     expect([dayCell(fx, 2), dayFull(fx, 2), dayLong(fx, 2)]).toEqual(["Sat 10", "Saturday, October 10", "Saturday, October 10"]);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+});
+
+describe("prefSummary: the Dietary preferences row's second line (M2 prefSummary)", () => {
+  it("says Everything with no preferences", () => expect(prefSummary(NO_PREFS)).toBe("Everything"));
+  it("names the diet, then what is avoided, capitalised once", () => {
+    expect(prefSummary({ ...NO_PREFS, veg: true, avoid: ["Milk", "Tree Nuts"] })).toBe("Vegetarian, no milk or tree nuts");
+    expect(prefSummary({ ...NO_PREFS, avoid: ["Fish"] })).toBe("No fish");
+  });
+  it("plant based covers vegetarian, and halal joins it", () => {
+    expect(prefSummary({ ...NO_PREFS, veg: true, plant: true, halal: true, avoid: [] })).toBe("Plant based, halal");
+  });
+  it("counts the rest past three", () => {
+    expect(prefSummary({ ...NO_PREFS, avoid: ["Milk", "Eggs", "Fish", "Soy", "Corn"] })).toBe("No milk, eggs, fish or 2 more");
   });
 });

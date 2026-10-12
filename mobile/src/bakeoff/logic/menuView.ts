@@ -17,6 +17,12 @@ const lc = (a: string) => a.toLowerCase();
 const orList = (l: string[]) => (l.length < 2 ? l.join("") : l.length <= 3 ? `${l.slice(0, -1).join(", ")} or ${l[l.length - 1]}` : `${l.slice(0, 3).join(", ")} or ${l.length - 3} more`);
 const dietWords = (p: Prefs) => [p.plant && "plant based", p.veg && !p.plant && "vegetarian", p.halal && "halal"].filter(Boolean).join(", ");
 
+/** The Dietary preferences row's second line: the diet, then what is avoided ("Vegetarian, no milk or tree nuts"), or Everything. */
+export function prefSummary(p: Prefs): string {
+  const t = [dietWords(p), p.avoid.length ? "no " + orList(p.avoid.map(lc)) : ""].filter(Boolean).join(", ");
+  return t ? t[0].toUpperCase() + t.slice(1) : "Everything";
+}
+
 export interface MenuView {
   sections: Station[];
   /** how many dishes an avoided allergen hides (diet-hidden dishes aren't counted: the line never calls the rest safe) */

@@ -1,4 +1,4 @@
-import { MEAL_LABEL, dishKey, isCafe, placeName, placeOrder } from "./fixture";
+import { MEAL_LABEL, clockMeal, dishKey, isCafe, placeName, placeOrder } from "./fixture";
 import type { Dish, MealKey, PlaceKey } from "./types";
 
 export interface PlateItem { key: string; name: string; qty: number; refs: Partial<Record<PlaceKey, Dish>>; custom?: Pick<Dish, "cal" | "p" | "c" | "f"> }
@@ -47,7 +47,7 @@ export function stepItem(s: PlateState, plateId: number, key: string, dir: 1 | -
   return { ...s, plates, front: Math.max(0, Math.min(s.front, plates.length - 1)) };
 }
 
-const macroOf = (it: PlateItem, hall?: PlaceKey) => it.custom ?? (hall && it.refs[hall]) ?? Object.values(it.refs)[0]!;
+export const macroOf = (it: PlateItem, hall?: PlaceKey) => it.custom ?? (hall && it.refs[hall]) ?? Object.values(it.refs)[0]!;
 export function totals(p: Plate, hall?: PlaceKey) {
   hall ??= plateHalls(p)?.[0];
   const t = { cal: 0, p: 0, c: 0, f: 0, n: 0 };
@@ -63,4 +63,34 @@ function hallLabel(hs: PlaceKey[] | null): string {
 export function plateLabel(p: Plate): string {
   const hs = plateHalls(p);
   return hs ? `${hallLabel(hs)} ${MEAL_LABEL[p.meal].toLowerCase()}` : MEAL_LABEL[p.meal];
+}
+
+/** M2 `fq`: a quantity as the stepper prints it. */
+export const fq = (q: number): string => (q === 0.5 ? "½" : q % 1 ? Math.floor(q) + "½" : String(q));
+
+/** M2 `plateMeal`: a café's all-day or Grab 'N Go menu goes on the plate of the meal the clock is in ("Worcester Café lunch"). */
+export const plateMeal = (place: PlaceKey, meal: MealKey, now: Date): MealKey => (isCafe(place) && (meal === "all" || meal === "grab") ? clockMeal(now) : meal);
+
+/** M2 `findItem`: the plate item for a dish, the front plate first; a place's menu only sees plates that place can serve. */
+export function findItem(s: PlateState, meal: MealKey, key: string, place?: PlaceKey): { plate: Plate; item: PlateItem } | null {
+  for (const i of [s.front, ...s.plates.keys()]) {
+    const plate = s.plates[i];
+    if (!plate || plate.meal !== meal) continue;
+    const item = plate.items.find((x) => x.key === key);
+    if (!item) continue;
+    const ph = plateHalls(plate);
+    if (place && ph && !ph.includes(place)) continue;
+    return { plate, item };
+  }
+  return null;
+}
+
+/**
+ * What a menu row's control shows for a dish served at `place`: its quantity on the plate it would join, or, at 0, whether adding it
+ * would start a second plate (M2's ghost +). One number so a row can subscribe to it: qty, 0 for the plain +, -1 for the ghost.
+ */
+export function rowCode(s: PlateState, meal: MealKey, key: string, place: PlaceKey): number {
+  const f = findItem(s, meal, key, place);
+  if (f) return f.item.qty;
+  return s.plates.length > 0 && !s.plates.some((p) => canJoin(p, meal, [place])) ? -1 : 0;
 }

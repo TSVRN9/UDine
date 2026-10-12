@@ -1,3 +1,4 @@
+jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
 import renderer, { act } from "react-test-renderer";
 import { loadFixture } from "../logic/fixture";
 import type { Dish } from "../logic/types";
@@ -10,7 +11,7 @@ const scored = all.find((d) => d.health != null && d.carbon != null && !(d.diet 
 
 function mount(d: Dish, scores = { health: false, carbon: false }, contains: string[] = []) {
   let v!: renderer.ReactTestRenderer;
-  act(() => { v = renderer.create(<DishRow dish={d} contains={contains} scores={scores} lane={false} />); });
+  act(() => { v = renderer.create(<DishRow dish={d} contains={contains} scores={scores} lane={false} place="W" meal="lunch" />); });
   return v;
 }
 const labelled = (v: renderer.ReactTestRenderer, re: RegExp) =>
@@ -44,7 +45,7 @@ describe("DishRow (Review Focus 5)", () => {
   it("a press hands the row's dish to onOpen", () => {
     const onOpen = jest.fn();
     let v!: renderer.ReactTestRenderer;
-    act(() => { v = renderer.create(<DishRow dish={scored} contains={[]} scores={{ health: false, carbon: false }} lane={false} onOpen={onOpen} />); });
+    act(() => { v = renderer.create(<DishRow dish={scored} contains={[]} scores={{ health: false, carbon: false }} lane={false} place="W" meal="lunch" onOpen={onOpen} />); });
     act(() => { v.root.findAll((n) => typeof n.props.onPress === "function")[0].props.onPress(); });
     expect(onOpen).toHaveBeenCalledWith(scored);
   });

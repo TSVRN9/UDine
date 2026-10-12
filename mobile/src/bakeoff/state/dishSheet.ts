@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import type { DishCtx } from "../logic/dishSheet";
 import type { Dish } from "../logic/types";
 
@@ -26,3 +26,10 @@ export function closeDish() {
 export const getOpenDish = () => open;
 const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
 export const useOpenDish = () => useSyncExternalStore(subscribe, getOpenDish, getOpenDish);
+/**
+ * The host calls this once. `open` clears only when the sheet finishes leaving, so a host that unmounts while a dish is open (a screen
+ * torn down under it) would leave every later `openDish` refused; its unmount clears the flag.
+ */
+export function useClearOnUnmount() {
+  useEffect(() => closeDish, []);
+}

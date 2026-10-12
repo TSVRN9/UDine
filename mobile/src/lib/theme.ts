@@ -148,6 +148,9 @@ export const m2 = {
     pressRow: "rgba(36,23,26,0.06)",
     here: "rgba(136,28,28,0.07)",
     pressDark: "rgba(255,255,255,0.08)",
+    ghost: "rgba(136,28,28,0.45)",
+    dotOff: "rgba(255,255,255,0.35)",
+    outline: "rgba(255,255,255,0.7)",
     felt: "#5a1820",
     scrim: "rgba(36,10,14,1)",
     // [tile, ink]
@@ -214,6 +217,11 @@ export const m2 = {
     lblFoot: { size: 12, line: 16 },
     scaleNum: { size: 14, line: 14 },
     ing: { size: 15, line: 22.5 },
+    // the plate bar and the facts panel (M2 `#bar .l2 b`, `.facts .nr`, `.lrow .mc b`)
+    barNum: { size: 26, line: 26 },
+    factRow: { size: 15, line: 20 },
+    factNum: { size: 20, line: 24 },
+    mealCal: { size: 18, line: 22 },
   },
   space: [4, 8, 12, 16, 20, 24, 32] as const,
   radius: { patch: 4, thumb: 5, card: 6, button: 8, sheet: 16, pill: 999 },

@@ -15,6 +15,7 @@ import type { Labels } from "../ui/Header";
 import { BAR } from "../ui/Header";
 import { boardAt, busyView } from "../logic/busy";
 import { MEAL_LABEL, loadFixture } from "../logic/fixture";
+import { plateMeal } from "../logic/plate";
 import { HALL_LX } from "../logic/letters";
 import { dayCell, dayFull, dayIsos, defaultMeal, isOneMeal, mealsOf, menuItems, menuView, type Item } from "../logic/menuView";
 import { schedule, statusLine } from "../logic/schedule";
@@ -24,7 +25,7 @@ import { openDish } from "../state/dishSheet";
 import { halfwayOut } from "../motion/pushGate";
 import type { useContainerTransform } from "../motion/useContainerTransform";
 import { PHOTO_POS, photoOf } from "../photos";
-import { useBakeoffState } from "../state/prefs";
+import { add, useStore } from "../state/store";
 import { mark } from "../perf";
 import { DietLine } from "./DietLine";
 import { DishRow } from "./DishRow";
@@ -71,7 +72,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const { width, height: winH } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
   const now = new Date(fx.clock);
-  const { prefs, scores } = useBakeoffState();
+  const prefs = useStore((s) => s.prefs);
+  const scores = useStore((s) => s.show);
   const compact = place.startsWith("c");
   const one = isOneMeal(fx, place);
   // eslint-disable-next-line react-hooks/rules-of-hooks -- __DEV__ is a build-time constant
@@ -91,6 +93,9 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // (a hall pushed to a dish is drawn out of sight, so it draws at once: its list must exist before it can be scrolled to the dish)
   const [warm, setWarm] = useState(!!at);
   useEffect(() => { if (at) return; const id = requestAnimationFrame(() => setWarm(true)); return () => cancelAnimationFrame(id); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // false once the screen unmounts: the landing loop below polls on timers and must stop with it
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
   // the row M2 brought the dish up to stays tinted (`.row.here`) until the next dish is brought up
   const [hereKey, setHereKey] = useState<string | null>(null);
   const meals = mealsOf(fx, isos[day], place);
@@ -101,6 +106,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   if (dayWas.current !== day) { dayWas.current = day; mark("day:render"); }
   useLayoutEffect(() => { mark("day:layout"); requestAnimationFrame(() => mark("day:frame1")); }, [day]);
 
+  const rowMeal = useMemo(() => plateMeal(place, meal, new Date(fx.clock)), [place, meal]);
   const view = useMemo(() => menuView(fx, isos[day], place, meal, prefs, showAll), [day, place, meal, prefs, showAll]);
   const items = useMemo(
     () => menuItems(view, prefs, showAll, meals.length ? "" : `No menu posted for ${dayFull(fx, day)}.`),
@@ -180,7 +186,11 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       else onPush?.(to);
     };
   });
-  const onOpen = useCallback((dish: Dish) => { mark("sheet:tap"); openDish(dish, { from: "hall", ...here.current, onServe: (to) => serve.current(to), onServeGo: () => goRef.current?.() }); }, []);
+  const onOpen = useCallback((dish: Dish) => {
+    mark("sheet:tap");
+    const h = here.current, pm = plateMeal(h.place, h.meal, new Date(fx.clock));
+    openDish(dish, { from: "hall", ...h, onAdd: () => add(pm, dish.name, { [h.place]: dish }), onServe: (to) => serve.current(to), onServeGo: () => goRef.current?.() });
+  }, []);
   useEffect(() => {
     if (!goto || !warm) return;
     const i = items.findIndex((it) => it.t === "dish" && it.dish.key === goto);
@@ -189,8 +199,9 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       // offset is taken from the row's layout, and again as each pass draws more of the list: the last lands on measured rows. A
       // pushed hall does this out of sight and only then reports `onSettled`, so it arrives already at the dish (M2 `toDish(id, true)`).
       let k = 0, last = -1, same = 0;
-      const done = () => { refreshHeads(); setHereKey(goto); requestAnimationFrame(() => requestAnimationFrame(() => onSettled?.())); };
+      const done = () => { refreshHeads(); setHereKey(goto); requestAnimationFrame(() => requestAnimationFrame(() => { if (alive.current) onSettled?.(); })); };
       const go = () => {
+        if (!alive.current) return;   // the screen is gone: the loop ends with it, it never reaches a list that no longer exists
         const l = pager.current?.list();
         const lay = l?.getLayout(i);
         if (!l || !lay) { if (++k > 40) done(); else setTimeout(go, 40); return; }
@@ -303,7 +314,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={() => setShowAll((s) => !s)} />;
       case "head": return <View style={{ height: 50, paddingHorizontal: m2.space[4], paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
       case "empty": return <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
-      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} onOpen={onOpen} here={it.dish.key === hereKey} />;
+      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} place={place} meal={rowMeal} onOpen={onOpen} here={it.dish.key === hereKey} />;
     }
   };
 

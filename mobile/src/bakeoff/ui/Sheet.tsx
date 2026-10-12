@@ -25,6 +25,11 @@ function useOpenedAt(armed: { get: () => boolean; set: (v: boolean) => void }, r
   }, [base, armed]);
   return { ...base, handleOnScroll, handleOnBeginDrag };
 }
+/** M2's sheet spring (`SPRING.sheet`) for gorhom: every sheet the finger can release uses it. */
+export function useSheetSpring() {
+  const { k, z } = m2Motion.spring.sheet;
+  return useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
+}
 export const GRAB = 22;
 
 /** M2's `.grab`: a 22 px strip holding a 40 x 5 handle. */
@@ -55,7 +60,6 @@ export const Sheet = forwardRef<BottomSheetModal, {
   onChange?: (index: number) => void;
 }>(
   function Sheet({ maxHeight, onDismiss, contentOffset = 0, children, snapPoints, animatedPosition, onScrollY, sticky, onAnimate, onChange }, ref) {
-    const { k, z } = m2Motion.spring.sheet;
     const scroll = useRef<any>(null);
     // armed only for a sheet that opens scrolled: otherwise gorhom's hook sees every scroll (a plain list's first scroll is not ours)
     const armed = useSharedValue(false), laidOut = useRef(false), box = useRef({ h: 0, c: 0 });
@@ -76,7 +80,7 @@ export const Sheet = forwardRef<BottomSheetModal, {
     // gorhom calls this as a hook, once per render of its scrollable, from a stable function: that is what the rule cannot see
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hook = useCallback<ScrollEventsHandlersHookType>((r, o) => useOpenedAt(armed, r, o), [armed]);
-    const animationConfigs = useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
+    const animationConfigs = useSheetSpring();
     return (
       <BottomSheetModal ref={ref} enableDynamicSizing={!snapPoints} maxDynamicContentSize={maxHeight} snapPoints={snapPoints} animatedPosition={animatedPosition} enablePanDownToClose onDismiss={() => { laidOut.current = false; box.current = { h: 0, c: 0 }; reached.current = false; retries.current = 0; armed.set(false); onDismiss?.(); }}
         animationConfigs={animationConfigs} handleComponent={Grab} onAnimate={onAnimate} onChange={onChange}
