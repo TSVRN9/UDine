@@ -47,7 +47,8 @@ export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss
     // armed only for a sheet that opens scrolled: otherwise gorhom's hook sees every scroll (a plain list's first scroll is not ours)
     const armed = useSharedValue(false), laidOut = useRef(false), box = useRef({ h: 0, c: 0 });
     // Scroll as soon as the content is tall enough to reach the offset, and again on every later layout until a scroll event shows the
-    // offset took (the first layouts come before the sheet has its final size, and a scrollTo then can be dropped).
+    // offset took (the first layouts come before the sheet has its final size, and a scrollTo then can be dropped). Once it has,
+    // `reached` stays set, so a user scrolling away during the retries is never snapped back.
     const reached = useRef(false), retries = useRef(0);
     const openScrolled = () => {
       const { h, c } = box.current;
@@ -68,7 +69,7 @@ export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss
         animationConfigs={animationConfigs} handleComponent={Grab}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderTopLeftRadius: m2.radius.sheet, borderTopRightRadius: m2.radius.sheet }}
         backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={0} disappearsOnIndex={-1} opacity={m2Motion.scrim} pressBehavior="close" />}>
-        <BottomSheetScrollView ref={scroll} style={{ maxHeight: maxHeight - GRAB }} onScroll={(e) => { reached.current = e.nativeEvent.contentOffset.y >= contentOffset - 1; }} scrollEventsHandlersHook={hook}
+        <BottomSheetScrollView ref={scroll} style={{ maxHeight: maxHeight - GRAB }} onScroll={(e) => { if (e.nativeEvent.contentOffset.y >= contentOffset - 1) reached.current = true; }} scrollEventsHandlersHook={hook}
           onLayout={(e) => { box.current.h = e.nativeEvent.layout.height; openScrolled(); }}
           onContentSizeChange={(_w, h) => { box.current.c = h; openScrolled(); }}
           contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingBottom: m2.space[5] }}>{children}</BottomSheetScrollView>
