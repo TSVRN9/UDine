@@ -1,5 +1,6 @@
 import { act } from "react";
 import renderer from "react-test-renderer";
+import { HallHeader } from "./HallHeader";
 import { HallMenu } from "./HallMenu";
 import { getNet, startNet } from "../state/net";
 import { loadFixture } from "../logic/fixture";
@@ -122,5 +123,20 @@ describe("a café that lists no dishes", () => {
     expect(t).toContain("ISB Café doesn't list its menu in the app.");
     expect(texts(r)).not.toContain("Today");
     expect(t).not.toMatch(/custom food/i);
+  });
+});
+
+describe("the band's copy that rides the opening container", () => {
+  const count = (phase: string) => {
+    act(() => startNet("ok"));
+    const t = { style: new Proxy({}, { get: () => ({}) }), phase, rect: { current: { top: 0, height: 112, off: 0 } }, dragBack: {}, ready: () => {}, open: () => {}, close: () => {}, progress: { get: () => 1 } } as never;
+    let r!: renderer.ReactTestRenderer;
+    act(() => { r = renderer.create(<HallHeader t={t} H={800} place="W" name="Worcester" scrollY={{ get: () => 0, set: () => {} } as never} onBack={() => {}} pushed />); });
+    live.push(r);
+    return texts(r).filter((x) => x === "Worcester").length;
+  };
+  it("is drawn while the screen opens and is gone once it is open (a commit under it brought it back over the title)", () => {
+    expect(count("opening")).toBe(2);
+    expect(count("open")).toBe(1);
   });
 });
