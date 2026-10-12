@@ -73,7 +73,7 @@ to judge. Then pick the stack the whole app is rebuilt on.
 
 ---
 
-### Task 1: M2 round 9 design and behaviour vectors (built 2026-10-11, commit 1b27b11; awaiting owner approval)
+### Task 1: M2 round 9 design and behaviour vectors (owner-approved 2026-10-12 with 9b and 9c; commits 1b27b11, 457f87c, e0a39c3)
 
 Design work in the prototype, run like previous rounds: critique, then one concept, then build, then
 the orchestrator reviews frames. No app code.
@@ -147,14 +147,6 @@ git commit -m "docs(design): M2 round 9 (days, hours, allergens, states) + behav
 > **Shapes after round 9:** `vectors.json` is authoritative. Its header in `M2/vectors.js` documents place keys,
 > `day`, `"all"` meals and price. Where this task's interfaces say `HallKey` for a serving place (refs, `halls`,
 > `plateHalls`, `totals`'s hall, `Fixture.days`/`hours`), read `PlaceKey`.
->
-> **As built (PR #544; read these, not the interfaces below):**
-> - `Fixture` is flat: `{clock, areas, places, hours, grab, dishes, days, events}`. `places` is `Place[]` (key, name, area, building, address, mapAddress; area 4 = Charles River); `hours` covers every `PlaceKey` (cafés are hand-built `DiningHallHours` with `general` only); `grab` is the halls' Grab 'N Go window; `dishes` holds each distinct dish once. There is no `cafes`.
-> - `loadFixture()` is a lazy, cached `require("../fixture.json")` that expands the stored dish indices into `Dish` copies with their `station`.
-> - `dishKey` is M2's `norm()`: lower-case, apostrophes dropped, other non-alphanumeric runs collapsed to one space.
-> - `addDish(s, meal, name, refs, custom?)` takes an optional fifth `custom` argument. `WhereGroup` has `day: 0 | 1`. `whereAnswer(fx, dish, now, opts?: {newton?: boolean})`: Charles River servings count only with `newton`.
-> - `fixture.ts` also exports `servingOn`, `clockMeal`, `placeName`, `placeOrder`, `isCafe`, `shownPrice`, `HALLS`, `MEAL_LABEL`.
-> - `where.ts` calls `effectiveMealWindow` with a probe time at the place's own general opening time, because the shared function only answers while the place is open and M2 needs later-today and tomorrow windows. Revisit it if a general window ever crosses midnight, or a hall publishes a per-meal override.
 
 **Files:**
 - Create: `mobile/scripts/bakeoff-fixture.mjs`. It reads `docs/design/explorations/2026-10-ui-overhaul/flows/{menus-2026-10-08-to-22,locations-2026-10-08,locations-2026-10-11,events-2026-10-08}.json` (hours and busy from Oct 8, addresses and `map_address` from Oct 11) and writes the fixture. Place keys, allergen normalisation and the café list must match M2's `build.py`.
@@ -554,6 +546,10 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 
 ### Task 8: RN network states
 
+**Carried from Task 5 (orchestrator, 2026-10-12).** Task 5 did not build these, and Task 8 must:
+- cafés with only a standing names list, which keep it (brief, "Cafés get real dishes");
+- the Oct 12 "Indigenous Peoples Day Hours" note row atop Monday's list (M2 `compare-evnote.png`).
+
 **Files:**
 - Modify: `mobile/src/bakeoff/logic/fixture.ts`. Add `loadFixtureAsync(mode: "ok" | "slow" | "offline" | "fail")`, with the mode from `EXPO_PUBLIC_BAKEOFF_NET`. It defaults to `ok`; `slow` adds a 1500 ms delay; `offline` returns the fixture flagged `{ cached: true, asOf }`; `fail` rejects.
 - Create: the state components round 9 designs (names follow round 9's NOTES).
@@ -706,6 +702,38 @@ the round-9 states. Compare screenshots with M2's.
 - [ ] Commit `docs(decisions): hall-menu bake-off verdict`.
 
 ---
+
+**Findings so far (fill the scorecard from these):**
+- **RN, Task 4:** on Android gesture navigation, the OS takes left-edge swipes (about 24 dp), so the hall's edge swipe
+  arrives as system back with the 400 ms close and no finger tracking. RN/Expo SDK 57 exposes no predictive-back
+  progress for a custom overlay. Drag-down tracks. iOS is untested (needs the tester).
+- **RN, Task 4:** REWORK once. The busy rows and board were missing because the fixture dropped them (a Task 2 miss
+  the reviewer didn't catch); the orchestrator caught it by eye.
+- **RN, Task 2:** REWORK once (the plate-hall macro rule was untested, and departures from the plan were undocumented).
+- **RN, Task 5:** MERGE after four REWORK rounds.
+  - Round 3 introduced a regression: the schedule opened at the top again. The implementer reported having viewed
+    every frame; the reviewer flagged the frame and the orchestrator confirmed it.
+  - The final schedule opening fights gorhom's scroll lock: it caps the viewport and retries `scrollTo` up to 12 ×
+    80 ms while a wrapped gorhom scroll hook records instead of resetting. It works but is fragile, and depends on
+    gorhom internals. A Flutter `DraggableScrollableSheet` with an initial offset has no such lock; Task 12 will
+    show whether that holds.
+  - Round 4 made the opening scroll's `reached` flag sticky (5b8874d), so a user's scroll is never snapped back.
+  - Earlier rounds:
+  - Round 2 came from the orchestrator's frames: labels lagged the list, and the scroll fix had broken drag-to-dismiss.
+  - Round 3 came from the reviewer's code read, with no screenshot showing it:
+    - the descender fix's margin was overridden by callers, a layout regression;
+    - a day change interleaved with a meal change could strand the labels at opacity 0;
+    - the old-label layer was exposed to screen readers.
+  - The labels need a held copy because RN commits on JS while the fade runs on the UI thread; M2's synchronous DOM
+    swap has no such seam.
+  - Round 1's three defects were all found by the orchestrator's frame review; the reviewer confirmed them:
+  - The day change blanked the bars and list for about 400 ms while JS rendered.
+  - Android clipped Oswald descenders when line height equals size.
+  - The schedule sheet scrolled to the chosen day after presenting.
+- **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
+  The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
+  Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
+  to watch for yet.
 
 ### Task 16: M2 round 10: bowl builder, onboarding, past logs, Health sync (design; doesn't block the verdict)
 
