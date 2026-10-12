@@ -766,6 +766,14 @@ the round-9 states. Compare screenshots with M2's.
   - **A day change takes about 1.2 s**, including 0.7 s of no change after the schedule sheet leaves while about 30
     rows render under the held copy.
   - The dish open and the day change are the RN feel risks to profile before the verdict.
+- **RN, release profiling (22581e8, heavy-debugger):**
+  - **Day change.** The 0.7 s freeze was a port bug, not RN cost: the change started from gorhom's `onDismiss`, which
+    fires when the spring's energy is spent, about 0.7 s after the sheet is visually gone. It now starts at half-way
+    out, as M2 does. Intl calls also left the commit. Result: tap to settled went from 1.3 s to about 0.7 s.
+  - **Dish open.** Structural on this AVD: about 0.1 s of JS and layout, about 0.2 s of software-GL frame latency,
+    and M2's exact 0.5 s spring. The 90 ms to spring start needs a phone to confirm.
+  - **Lesson for every gorhom follow-on action:** trigger it from `animatedPosition` at half-way, never from
+    `onDismiss`.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
