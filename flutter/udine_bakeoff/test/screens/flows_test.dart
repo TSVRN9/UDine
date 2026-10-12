@@ -5,9 +5,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine_bakeoff/logic/fixture.dart';
 import 'package:udine_bakeoff/main.dart';
+import 'package:udine_bakeoff/motion/push.dart';
 import 'package:udine_bakeoff/screens/dish_row.dart';
 import 'package:udine_bakeoff/screens/dish_sheet.dart';
 import 'package:udine_bakeoff/screens/hall_menu.dart';
+import 'package:udine_bakeoff/screens/halls.dart';
 import 'package:udine_bakeoff/screens/plate_sheet.dart';
 import 'package:udine_bakeoff/shell.dart';
 import 'package:udine_bakeoff/state/store.dart';
@@ -262,6 +264,8 @@ void main() {
       expect(p, closeTo(M2Motion.pushIn.curve.transform(150 / 500), 0.04));
       final dim = t.widgetList<ColoredBox>(find.byType(ColoredBox)).where((b) => b.color.a > 0 && b.color.a < 0.12 && b.color.toARGB32() & 0xFFFFFF == 0x240A0E);
       expect(dim.single.color.a, closeTo(M2Motion.pushDim * p, 0.01));
+      final under = t.widget<Transform>(find.ancestor(of: find.byType(FadeThroughTabs), matching: find.byType(Transform)).first).transform.getTranslation().x;
+      expect(under, closeTo(-390 * M2Motion.pushShift * p, 0.5)); // the screen under it shifts 30% of the width, with the page's own progress
       expect(find.byWidgetPredicate((w) => w is DecoratedBox && w.decoration is BoxDecoration && (w.decoration as BoxDecoration).boxShadow?.length == 2), findsOneWidget);
       await t.pumpAndSettle();
       expect(find.byWidgetPredicate((w) => w is DecoratedBox && w.decoration is BoxDecoration && (w.decoration as BoxDecoration).boxShadow?.length == 2), findsNothing);
@@ -362,12 +366,15 @@ void main() {
       await t.pump();
       await t.pump(); // the sheet starts down
       final hall = menu(t);
-      var frames = 0;
+      var frames = 0, started = -1;
       while (!hallIsSwapped(hall) && frames < 120) {
         await t.pump(const Duration(milliseconds: 8));
         frames++;
+        if (started < 0 && listOpacity(t) < 1) started = frames;
       }
       expect(frames, lessThan(120));
+      // the old day is gone in 35% of fadeThrough's 250 ms (87.5), linearly: half way through, half there
+      expect((frames - started) * 8, inInclusiveRange(72, 104));
       // the list's opacity is the day fade; the new day is drawn once it reached nothing
       await t.pump(const Duration(milliseconds: 40));
       final o1 = listOpacity(t);
@@ -377,6 +384,36 @@ void main() {
       await t.pumpAndSettle();
       expect(listOpacity(t), 1);
       expect(find.text('Fri 9'), findsOneWidget); // the day cell names the new day
+    });
+  });
+
+  group('the back gesture', () {
+    testWidgets('a drag down takes the screen only while its list is at the top (M2: scrollTop <= 0); lower down it scrolls the list', (t) async {
+      await boot(t);
+      await openHall(t, 'Worcester');
+      final tab = t.state<HallsTabState>(find.byType(HallsTab));
+      await t.drag(find.text('Soups').last, const Offset(0, -300)); // scroll the list up
+      await t.pumpAndSettle();
+      final y = list(t).offset;
+      expect(y, greaterThan(200));
+      final g = await t.startGesture(const Offset(200, 600));
+      await g.moveBy(const Offset(0, 40));
+      await g.moveBy(const Offset(0, 80));
+      await t.pump();
+      expect(tab.t.phase.name, 'open'); // not grabbed
+      expect(list(t).offset, lessThan(y)); // the list scrolled back down instead
+      await g.up();
+      await t.pumpAndSettle();
+      await t.drag(find.text('Soups').last, const Offset(0, 600)); // back to the top
+      await t.pumpAndSettle();
+      expect(list(t).offset, 0);
+      final g2 = await t.startGesture(const Offset(200, 600));
+      await g2.moveBy(const Offset(0, 40));
+      await g2.moveBy(const Offset(0, 80));
+      await t.pump();
+      expect(tab.t.phase.name, 'dragging');
+      await g2.up();
+      await t.pumpAndSettle();
     });
   });
 
