@@ -699,11 +699,14 @@ the round-9 states. Compare screenshots with M2's.
 
 ---
 
-### Task 16: M2 round 10, the bowl builder (design; runs in parallel, doesn't block the verdict)
+### Task 16: M2 round 10: bowl builder, onboarding, past logs, Health sync (design; doesn't block the verdict)
 
-Design round in M2, run like Task 1 Steps 2–7:
+Design round in M2, run like Task 1 Steps 2–7, after round 9c lands (same files):
 - critique how today's `CompositeDishComposer.tsx` works;
 - write one concept for composing a bowl inside the dish sheet/plate model;
+- design the first-run onboarding, tracking off (a pure menu app), past logs with edit/delete/Undo, and the Health
+  Connect / Apple Health toggle, per the brief's owner decisions of 2026-10-12. Each is one concept with You, not a
+  bolted-on screen;
 - build it in M2;
 - the orchestrator reviews the frames;
 - the owner approves.
