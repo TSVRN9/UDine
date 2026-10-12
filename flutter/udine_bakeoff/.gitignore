@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# UMass Dining's photos: never commit. tool/bakeoff_assets.sh copies them in; the .gitkeep files keep the asset dirs declared in pubspec valid.
+/assets/bakeoff/**/*.jpg
+/assets/bakeoff/**/*.png
