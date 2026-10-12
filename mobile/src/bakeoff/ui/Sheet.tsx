@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useRef, type ReactNode } from "react";
-import { useSharedValue } from "react-native-reanimated";
+import { useSharedValue, type SharedValue } from "react-native-reanimated";
 import { View } from "react-native";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, useBottomSheetSpringConfigs, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
@@ -25,7 +25,7 @@ function useOpenedAt(armed: { get: () => boolean; set: (v: boolean) => void }, r
   }, [base, armed]);
   return { ...base, handleOnScroll, handleOnBeginDrag };
 }
-const GRAB = 22;
+export const GRAB = 22;
 
 /** M2's `.grab`: a 22 px strip holding a 40 x 5 handle. */
 const Grab = () => (
@@ -40,8 +40,18 @@ export type SheetRef = BottomSheetModal;
  * gorhom bottom sheet modal in M2's skin: chalk surface, 16 radius, scrim at M2's 32%, M2's sheet spring. It sizes to its
  * content up to `maxHeight` and scrolls past that. A modal, so it covers the tab bar as M2's sheets do.
  */
-export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss?: () => void; contentOffset?: number; children: ReactNode }>(
-  function Sheet({ maxHeight, onDismiss, contentOffset = 0, children }, ref) {
+export const Sheet = forwardRef<BottomSheetModal, {
+  maxHeight: number; onDismiss?: () => void; contentOffset?: number; children: ReactNode;
+  /** fixed detents (heights, dp) instead of sizing to the content: the dish sheet rests at one and scrolls up to the other */
+  snapPoints?: number[];
+  /** the sheet's top edge, in dp from the top of the screen (gorhom's own shared value) */
+  animatedPosition?: SharedValue<number>;
+  /** the content's scroll offset, as it changes */
+  onScrollY?: (y: number) => void;
+  /** the first child is pinned to the top of the scroll */
+  sticky?: boolean;
+}>(
+  function Sheet({ maxHeight, onDismiss, contentOffset = 0, children, snapPoints, animatedPosition, onScrollY, sticky }, ref) {
     const { k, z } = m2Motion.spring.sheet;
     const scroll = useRef<any>(null);
     // armed only for a sheet that opens scrolled: otherwise gorhom's hook sees every scroll (a plain list's first scroll is not ours)
@@ -65,11 +75,11 @@ export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss
     const hook = useCallback<ScrollEventsHandlersHookType>((r, o) => useOpenedAt(armed, r, o), [armed]);
     const animationConfigs = useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
     return (
-      <BottomSheetModal ref={ref} enableDynamicSizing maxDynamicContentSize={maxHeight} enablePanDownToClose onDismiss={() => { laidOut.current = false; box.current = { h: 0, c: 0 }; reached.current = false; retries.current = 0; armed.set(false); onDismiss?.(); }}
+      <BottomSheetModal ref={ref} enableDynamicSizing={!snapPoints} maxDynamicContentSize={maxHeight} snapPoints={snapPoints} animatedPosition={animatedPosition} enablePanDownToClose onDismiss={() => { laidOut.current = false; box.current = { h: 0, c: 0 }; reached.current = false; retries.current = 0; armed.set(false); onDismiss?.(); }}
         animationConfigs={animationConfigs} handleComponent={Grab}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderTopLeftRadius: m2.radius.sheet, borderTopRightRadius: m2.radius.sheet }}
         backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={0} disappearsOnIndex={-1} opacity={m2Motion.scrim} pressBehavior="close" />}>
-        <BottomSheetScrollView ref={scroll} style={{ maxHeight: maxHeight - GRAB }} onScroll={(e) => { if (e.nativeEvent.contentOffset.y >= contentOffset - 1) reached.current = true; }} scrollEventsHandlersHook={hook}
+        <BottomSheetScrollView ref={scroll} style={snapPoints ? undefined : { maxHeight: maxHeight - GRAB }} stickyHeaderIndices={sticky ? [0] : undefined} onScroll={(e) => { const y = e.nativeEvent.contentOffset.y; if (y >= contentOffset - 1) reached.current = true; onScrollY?.(y); }} scrollEventsHandlersHook={hook}
           onLayout={(e) => { box.current.h = e.nativeEvent.layout.height; openScrolled(); }}
           onContentSizeChange={(_w, h) => { box.current.c = h; openScrolled(); }}
           contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingBottom: m2.space[5] }}>{children}</BottomSheetScrollView>
