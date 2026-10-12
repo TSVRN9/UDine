@@ -154,7 +154,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     const target = Math.max(0, (headY.get()[si] ?? 0) - PIN);
     goToStation(reduced, y.get(), target, {
       set: (to) => pager.current?.list()?.scrollToOffset({ offset: to, animated: false }),
-      travel: (from, to) => { jump.set(from); jump.set(timed(to, m2Motion.scroll, (done) => { if (done) jump.set(-1); })); },
+      travel: (from, to) => { jump.set(from); jump.set(timed(to, m2Motion.scroll, (done) => { "worklet"; if (done) jump.set(-1); })); },
     });
     tick();
   };

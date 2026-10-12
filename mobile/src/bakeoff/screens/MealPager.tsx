@@ -114,11 +114,11 @@ export const MealPager = forwardRef<PagerHandle, {
     // not cancelled by a later data change either (Show all, prefs): the slide's end is what returns the pager to idle
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (reduced) {
-        o.set(timed(1, m2Motion.rmFade, (done) => { if (done) runOnJS(drop)(id); }));
+        o.set(timed(1, m2Motion.rmFade, (done) => { "worklet"; if (done) runOnJS(drop)(id); }));
         g.set(timed(0, m2Motion.rmFade));
         return;
       }
-      p.set(timed(1, X, (done) => { if (done) runOnJS(drop)(id); }));
+      p.set(timed(1, X, (done) => { "worklet"; if (done) runOnJS(drop)(id); }));
       o.set(timed(1, part(m2Motion.sharedXFade, X.inAt)));
       g.set(timed(0, part(m2Motion.sharedXFade, X.at)));
     }));

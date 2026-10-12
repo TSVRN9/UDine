@@ -52,6 +52,7 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
       return;
     }
     progress.set(timed(to, { d: ms, e: m2Motion.cont.e }, (finished) => {
+      "worklet";
       if (finished) runOnJS(send)({ type: "done", run });
     }));
   }, [progress, fade, send, reduced]);

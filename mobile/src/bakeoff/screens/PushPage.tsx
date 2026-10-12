@@ -47,7 +47,7 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
       fade.set(timed(0, m2Motion.rmFade, (done) => { "worklet"; p.set(1); if (done) runOnJS(onPop)(); }));
       return;
     }
-    p.set(timed(1, part(m2Motion.pushOut, 1 - from), (done) => { if (done) runOnJS(onPop)(); }));
+    p.set(timed(1, part(m2Motion.pushOut, 1 - from), (done) => { "worklet"; if (done) runOnJS(onPop)(); }));
   };
   useEffect(() => {
     if (reduced) { p.set(0); fade.set(timed(1, m2Motion.rmFade)); } else p.set(timed(0, m2Motion.pushIn));

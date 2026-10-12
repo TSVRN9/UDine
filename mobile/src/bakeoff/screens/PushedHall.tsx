@@ -29,7 +29,7 @@ export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
     if (going.get()) return;
     going.set(true);
     if (reduced) { fade.set(timed(0, m2Motion.rmFade, (done) => { "worklet"; p.set(1); if (done) runOnJS(onPop)(); })); return; }
-    p.set(timed(1, m2Motion.pushOut, (done) => { if (done) runOnJS(onPop)(); }));
+    p.set(timed(1, m2Motion.pushOut, (done) => { "worklet"; if (done) runOnJS(onPop)(); }));
   };
   // declared after the transform's own handler, so it runs first: back pops this screen rather than closing the hall below
   useEffect(() => {
