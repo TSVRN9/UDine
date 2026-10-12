@@ -1,5 +1,6 @@
 import { act } from "react";
 import renderer from "react-test-renderer";
+import type { ServeTarget } from "../logic/dishSheet";
 import type { Item } from "../logic/menuView";
 import type { Dish } from "../logic/types";
 import { useLanding } from "./useLanding";
@@ -10,7 +11,7 @@ const items: Item[] = [{ t: "head", name: "Grill", si: 0 }, { t: "dish", dish: d
 beforeEach(() => { jest.useFakeTimers(); (global as any).requestAnimationFrame = (f: () => void) => setTimeout(f, 8); (global as any).cancelAnimationFrame = (id: any) => clearTimeout(id); });
 afterEach(() => jest.useRealTimers());
 
-function mount(over: { at?: { place: "W"; day: number; meal: "lunch"; dish: string }; items?: Item[]; showAll?: boolean; warm?: boolean }) {
+function mount(over: { at?: ServeTarget; items?: Item[]; showAll?: boolean; warm?: boolean }) {
   const scrollToOffset = jest.fn();
   const list = { getLayout: () => ({ y: 300 }), getFirstItemOffset: () => 0, computeVisibleIndices: () => ({ startIndex: 0, endIndex: 5 }), scrollToOffset };
   const pager = { current: { list: () => list } } as never;
