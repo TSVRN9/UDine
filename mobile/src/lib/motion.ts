@@ -143,6 +143,7 @@ export const m2Motion = {
   exit: { d: 150, e: [0.3, 0, 0.8, 0.2] as const },
   scrub: { d: 200, max: 420, perPx: 0.05 },
   scrim: 0.32,
+  plateScrim: 0.5, // M2 `#pscrim`: rgb(36,10,14) up to .5 (the dish sheet keeps `scrim`)
   dragBack: { dist: 480, commit: 0.82, flick: 0.5 },
   push: { e: [0.32, 0.72, 0, 1] as const, shift: 0.3, dim: 0.1, commit: 0.5 }, // d = cont / contBack
   rmFade: { d: 120 },

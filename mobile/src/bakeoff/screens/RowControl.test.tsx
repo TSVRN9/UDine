@@ -1,6 +1,7 @@
 import renderer, { act } from "react-test-renderer";
 import { dishKey, loadFixture, servingOn } from "../logic/fixture";
 import type { Dish } from "../logic/types";
+import * as Reanimated from "react-native-reanimated";
 import { DishRow } from "./DishRow";
 import * as store from "../state/store";
 
@@ -69,5 +70,37 @@ describe("a dish row's control in the lane", () => {
     let v!: renderer.ReactTestRenderer;
     act(() => { v = renderer.create(<DishRow dish={dish} contains={[]} scores={{ health: false, carbon: false }} lane={false} place="W" meal="lunch" />); });
     expect(button(v, `Add ${dish.name}`)).toBeUndefined();
+  });
+  it("Log empties the row's stepper back to +, and Undo brings the stepper back", () => {
+    const { s, v } = mount(dish, "W");
+    press(button(v, `Add ${dish.name}`));
+    expect(button(v, "Increase")).toBeDefined();
+    act(() => s.log());
+    expect(button(v, "Increase")).toBeUndefined();
+    expect(button(v, `Add ${dish.name}`)).toBeDefined();
+    act(() => s.undo());
+    expect(button(v, "Increase")).toBeDefined();
+    expect(button(v, `Add ${dish.name}`)).toBeUndefined();
+  });
+  it("the arriving stepper mounts at opacity 0 and is never drawn whole first (no flicker on the first add)", () => {
+    const seen: number[] = [];
+    const real = Reanimated.useSharedValue;
+    const spy = jest.spyOn(Reanimated, "useSharedValue").mockImplementation(((v: unknown) => { if (new Error().stack?.includes("StepperLane")) seen.push(v as number); return real(v as never); }) as never);
+    const { v } = mount(dish, "W");
+    seen.length = 0;
+    press(button(v, `Add ${dish.name}`));
+    spy.mockRestore();
+    // the stepper lane that mounts for the add starts at 0; it is never made at 1 and reset after
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen).not.toContain(1);
+  });
+  it("a row that mounts already on the plate is whole at once (no arrival for a row that is only being drawn)", () => {
+    act(() => store.add("lunch", dish.name, { W: dish }));
+    const seen: number[] = [];
+    const real = Reanimated.useSharedValue;
+    const spy = jest.spyOn(Reanimated, "useSharedValue").mockImplementation(((v: unknown) => { if (new Error().stack?.includes("StepperLane")) seen.push(v as number); return real(v as never); }) as never);
+    mount(dish, "W");
+    spy.mockRestore();
+    expect(seen).toContain(1);
   });
 });

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { m2 } from "../../lib/theme";
@@ -20,36 +20,24 @@ export function stepDish(meal: MealKey, key: string, place: PlaceKey | undefined
   step(f.plate.id, key, dir);
 }
 
-/**
- * M2's row control in the 114 dp lane: + (outlined when adding would start a second plate), which becomes the stepper where it
- * stands. It subscribes to its own number, so a plate change redraws only the rows it changes. + widens leftward into the stepper; a
- * removed stepper is replaced by + fading in (M2 collapses a ghost of it too: not drawn here). `meal` is the plate's meal.
- */
-export function RowControl({ place, meal, dish }: { place: PlaceKey; meal: MealKey; dish: Dish }) {
-  const code = useStore((s) => rowCode(s.plates, meal, dish.key, place));
-  const was = useRef({ key: dish.key, code });
-  const grow = useSharedValue(1), back = useSharedValue(1);
-  // a transition is only a change of this dish's own number (a recycled row showing another dish is not one)
-  useLayoutEffect(() => {
-    const prev = was.current;
-    was.current = { key: dish.key, code };
-    if (prev.key !== dish.key || (prev.code > 0) === (code > 0)) return;
-    const to = { duration: m2Motion.settle.d, easing: m2SettleEasing };
-    if (code > 0) { grow.set(0); grow.set(withTiming(1, to)); } else { back.set(0); back.set(withTiming(1, to)); }
-  }, [code, dish.key, grow, back]);
-  const widen = useAnimatedStyle(() => ({ opacity: grow.get(), transform: [{ scaleX: m2Motion.lane.from + (1 - m2Motion.lane.from) * grow.get() }], transformOrigin: "100% 50%" }));
-  const pop = useAnimatedStyle(() => ({ opacity: back.get() }));
-  if (code > 0) {
-    return (
-      <Animated.View style={widen}>
-        <Stepper label={fq(code)} onDec={() => stepDish(meal, dish.key, place, -1)} onInc={() => stepDish(meal, dish.key, place, 1)} />
-      </Animated.View>
-    );
-  }
-  const ghost = code < 0;
+const to = { duration: m2Motion.settle.d, easing: m2SettleEasing };
+
+/** The stepper arrives where + stood: from `scaleX` lane.from and transparent when this lane is new to a dish whose number just crossed 0, whole otherwise. */
+function StepperLane({ animate, label, onDec, onInc }: { animate: boolean; label: string; onDec: () => void; onInc: () => void }) {
+  // the starting value is decided by the render that mounts the lane: the first committed frame is already the first frame of the arrival
+  const g = useSharedValue(animate ? 0 : 1);
+  useEffect(() => { if (animate) g.set(withTiming(1, to)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const widen = useAnimatedStyle(() => ({ opacity: g.get(), transform: [{ scaleX: m2Motion.lane.from + (1 - m2Motion.lane.from) * g.get() }], transformOrigin: "100% 50%" }));
+  return <Animated.View style={widen}><Stepper label={label} onDec={onDec} onInc={onInc} /></Animated.View>;
+}
+
+function PlusLane({ animate, ghost, name, onAdd }: { animate: boolean; ghost: boolean; name: string; onAdd: () => void }) {
+  const g = useSharedValue(animate ? 0 : 1);
+  useEffect(() => { if (animate) g.set(withTiming(1, to)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const pop = useAnimatedStyle(() => ({ opacity: g.get() }));
   return (
     <Animated.View style={pop}>
-      <Press accessibilityRole="button" accessibilityLabel={`Add ${dish.name}`} onPress={() => { thud(); add(meal, dish.name, { [place]: dish }); }}
+      <Press accessibilityRole="button" accessibilityLabel={`Add ${name}`} onPress={onAdd}
         style={ghost
           ? { width: m2.size.tap, height: m2.size.tap, margin: 2, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.ghost, alignItems: "center", justifyContent: "center" }
           : { width: 48, height: 48, borderRadius: m2.radius.button, alignItems: "center", justifyContent: "center" }}>
@@ -57,4 +45,25 @@ export function RowControl({ place, meal, dish }: { place: PlaceKey; meal: MealK
       </Press>
     </Animated.View>
   );
-};
+}
+
+/**
+ * M2's row control in the 114 dp lane: + (outlined when adding would start a second plate), which becomes the stepper where it
+ * stands. It subscribes to its own number, so a plate change redraws only the rows it changes. The stepper widens in from the right and
+ * a removed stepper is replaced by + fading in (M2 collapses a ghost of it too: not drawn here). `meal` is the plate's meal.
+ * Whether the lane that mounts is an arrival is worked out in the render that mounts it (a change of this dish's own number across 0,
+ * never a recycled row showing another dish), so nothing is ever drawn whole and then reset.
+ */
+export function RowControl({ place, meal, dish }: { place: PlaceKey; meal: MealKey; dish: Dish }) {
+  const code = useStore((s) => rowCode(s.plates, meal, dish.key, place));
+  const [seen, setSeen] = useState({ key: dish.key, code, animate: false });
+  let cur = seen;
+  if (seen.key !== dish.key || seen.code !== code) {
+    cur = { key: dish.key, code, animate: seen.key === dish.key && (seen.code > 0) !== (code > 0) };
+    setSeen(cur);
+  }
+  if (code > 0) {
+    return <StepperLane animate={cur.animate} label={fq(code)} onDec={() => stepDish(meal, dish.key, place, -1)} onInc={() => stepDish(meal, dish.key, place, 1)} />;
+  }
+  return <PlusLane animate={cur.animate} ghost={code < 0} name={dish.name} onAdd={() => { thud(); add(meal, dish.name, { [place]: dish }); }} />;
+}

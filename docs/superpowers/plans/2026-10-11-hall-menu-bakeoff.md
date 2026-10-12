@@ -525,6 +525,7 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 > - `state/store.ts` replaces `state/prefs.ts`: plates/front, prefs, `show`, `newton`, `log`, `last` (the receipt), `off` (Charles River plates set aside). Persisted to AsyncStorage (prefs, show, newton, log; not the plate in progress). `useStore(selector)`, not `useBakeoff()`; a selector must return something stable.
 > - `PlateBar` is the handle of a non-modal gorhom `BottomSheet` (`PlateSheet`, mounted in `app/bakeoff/_layout.tsx` over the tabs, in a container that ends at the tab bar). `DishSheetHost` moved to that layout so a plate row can open a dish from any tab. A where-served from the plate reaches Halls through `state/serve.ts`.
 > - Not built: Search tab (so no "Add something else"), Full label, favorites, ranking, Export, the calorie toss, the stepper's collapsing ghost, a mid detent sized to its content (mid is M2's 36% line).
+> - Departures: hardware back does not collapse the plate sheet (gorhom's own back handling is off). The Charles River toggle covers only the Halls cafés group and the plate set-aside; Search is a placeholder, and where-served and pinning do not follow the toggle. `index.tsx` `push()` is single-slot (a where-served from a pushed hall replaces it, and back returns to the base screen).
 > - Dev entry: `reset=1`, `plate=place:meal:key[*qty|*h];...`, `logged=N`, `receipt=1`, `newton=1`, `psheet=mid|large`, plus the existing diet/avoid/scores (applied from the layout, on whichever tab the link opens).
 
 **Files:**
