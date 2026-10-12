@@ -2,7 +2,8 @@
 // or curve is never hand-copied twice. Source of truth: Prototype.dc.html's <style> block (plus
 // MenuLoading.dc.html's spinner); motion.test.ts asserts every spec-anchored value here against it.
 import { Easing as RNEasing } from "react-native";
-import { Easing as ReanimatedEasing } from "react-native-reanimated";
+import { Easing as ReanimatedEasing, type WithTimingConfig } from "react-native-reanimated";
+import { m2Curves, m2MotionData } from "./m2.generated";
 
 /** The one cubic-bezier every eased transition in the artboard shares (`.pane`/`.knob`/`.sheet`/
  * `.strip`/`.layer`/`.toastbox`). Raw control points, not a built `Easing` object: RN's `Easing`
@@ -93,14 +94,11 @@ export const toastActionDwell = 6000;
 export const toastRise = 12;
 
 /**
- * Bake-off motion (docs/briefs/hall-menu-bakeoff.md), copied from M2 round 9c's `MO`, `SPRING` and
- * `PUSH_E` in src.html. Easings are raw bezier control points; `emphasized` is M2's two-segment path
- * (EMPH), not expressible as one bezier, so it is a function.
+ * Bake-off motion (docs/briefs/hall-menu-bakeoff.md): M2 round 9c's `MO`, `SPRING` and `PUSH_E` from src.html, generated from
+ * `design-tokens/m2.json` (`pnpm tokens`). The data carries easings as bezier control points or a name; `m2Motion` is that data with each `e`
+ * built once, here, into the function the kit's `timed` hands to Reanimated. `emphasized` is M2's two-segment path (EMPH), not one bezier.
  */
-const emphSeg = [
-  [0, 0, 0.05, 0, 0.133333, 0.06, 0.166666, 0.4],
-  [0.166666, 0.4, 0.208333, 0.82, 0.25, 1, 1, 1],
-] as const;
+const emphSeg = m2Curves.emphasized;
 /** cubic-bezier(0, 0, 0, 1) (M3 standard decelerate, `fadeThrough.e`) in closed form: x = t^3, y = 3t^2 - 2t^3. Reanimated's own
  * Easing.bezier overshoots on this degenerate curve (measured f = 8.3 on device). */
 export function standardDecelerate(x: number): number {
@@ -131,39 +129,25 @@ export function emphasized(x: number): number {
   return bez(s[1], s[3], s[5], s[7], t);
 }
 
-export const m2Motion = {
-  press: { d: 90, e: [0.2, 0, 0, 1] as const, scale: 0.97 },
-  settle: { d: 200, e: [0.2, 0, 0, 1] as const },
-  cont: { d: 500 }, // container transform, enter; easing `emphasized`
-  contFade: 0.3, // outgoing content is gone by this progress, incoming starts here (src.html paint: fout/fin)
-  contBack: { d: 400 }, // same frames reversed
-  fadeThrough: { d: 250, e: [0, 0, 0, 1] as const, scale: 0.97, z: 8 },
-  sharedX: { d: 450, at: 0.35, dist: 30, inAt: 0.6 }, // easing `emphasized`; the incoming list is fully opaque at `inAt` of the time (M2: opacity keyframe offset .6)
-  scroll: { d: 500 }, // easing `emphasized`
-  exit: { d: 150, e: [0.3, 0, 0.8, 0.2] as const },
-  scrub: { d: 200, max: 420, perPx: 0.05 },
-  scrim: 0.32,
-  plateScrim: 0.5, // M2 `#pscrim`: rgb(36,10,14) up to .5 (the dish sheet keeps `scrim`)
-  dragBack: { dist: 480, commit: 0.82, flick: 0.5 },
-  push: { e: [0.32, 0.72, 0, 1] as const, shift: 0.3, dim: 0.1, commit: 0.5 }, // d = cont / contBack
-  rmFade: { d: 120 },
-  spring: { sheet: { k: 300, z: 0.84 } },
-  // a row's + widens leftward into its lane (`scaleX` from this) and a removed stepper collapses to this (M2 `setCtl`)
-  lane: { from: 0.42, out: 0.4 },
-  // the receipt stays this long before the bar goes back to the plate (M2 `receipt`'s timer)
-  receipt: { d: 5000 },
-  // switching plates on the bar: a swipe past `commit` dp, or faster than `flick` px/ms; the new plate slides in from `shift` dp (M2 bar `pointerup`)
-  plateSwipe: { commit: 70, flick: 0.5, shift: 60, rubber: 0.25 },
-  // a pushed hall that never reports settled is let go after this long, so it cannot sit mounted and take the first back press
-  pushWatchdog: { d: 3000 },
-  // the network states (round 9): a slow fetch takes `slow`; the activity indicator shows only after `spinner.delay` and snaps in
-  // (M2 `spinIn`, 1 ms), turning once per `spinner.d`
-  net: { slow: 1500, spinner: { delay: 400, snap: 1, d: 900 } },
-} as const;
+/** What `timed` gives Reanimated's `withTiming` as its `easing`. */
+export type Curve = NonNullable<WithTimingConfig["easing"]>;
+/** A motion token that moves something: how long, and on what curve. `timed` takes nothing else. */
+export interface Timing { readonly d: number; readonly e: Curve }
 
-/** Linear, and M2's `settle` curve as Reanimated easings (the bake-off kit reads these; no easing is spelled outside this file). */
-export const m2Linear = ReanimatedEasing.linear;
-export const m2SettleEasing = ReanimatedEasing.bezier(...m2Motion.settle.e);
+const named: Record<string, Curve> = { emphasized, linear: ReanimatedEasing.linear };
+function build(e: string | readonly number[]): Curve {
+  if (typeof e === "string") return named[e];
+  const [a, b, c, d] = e;
+  // the degenerate standard decelerate has a closed form (see standardDecelerate)
+  return a === 0 && b === 0 && c === 0 && d === 1 ? standardDecelerate : ReanimatedEasing.bezier(a, b, c, d);
+}
+type Built<T> = { [K in keyof T]: T[K] extends { readonly e: unknown } ? Omit<T[K], "e"> & { readonly e: Curve } : T[K] };
 
-/** M2's `PUSH_E`: the easing a pushed screen travels on. */
-export const m2PushEasing = ReanimatedEasing.bezier(...m2Motion.push.e);
+export const m2Motion = Object.fromEntries(
+  Object.entries(m2MotionData).map(([k, v]) => [k, v && typeof v === "object" && "e" in v ? { ...v, e: build(v.e as string | readonly number[]) } : v]),
+) as Built<typeof m2MotionData>;
+
+/** Linear, and M2's `settle` and push curves as Reanimated easings. */
+export const m2Linear = named.linear;
+export const m2SettleEasing = m2Motion.settle.e;
+export const m2PushEasing = m2Motion.push.e;

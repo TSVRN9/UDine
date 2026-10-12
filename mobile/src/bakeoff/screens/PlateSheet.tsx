@@ -100,7 +100,7 @@ export function PlateSheet({ tabH }: { tabH: number }) {
         ref={ref} index={-1} snapPoints={snaps} animationConfigs={spring} handleComponent={Handle} enablePanDownToClose={false} enableDynamicSizing={false}
         onAnimate={(from, to) => { if (from >= 0 && to >= 0 && from !== to) tick(); }}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderRadius: 0 }}
-        backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={SNAPS.mid} disappearsOnIndex={SNAPS.bar} opacity={m2Motion.plateScrim} style={{ backgroundColor: m2.color.plateScrim }} pressBehavior="collapse" />}>
+        backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={SNAPS.mid} disappearsOnIndex={SNAPS.bar} opacity={m2Motion.plateScrim} style={{ backgroundColor: m2.color.scrim }} pressBehavior="collapse" />}>
         <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.line, paddingBottom: m2.space.group }}>
           {plate ? (
             <Animated.View key={plate.id} entering={FadeIn.duration(m2Motion.settle.d).easing(m2SettleEasing)}>
