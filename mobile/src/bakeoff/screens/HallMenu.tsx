@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, {
-  Easing, runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming,
+  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
@@ -9,7 +9,7 @@ import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
-import { emphasized, m2Motion, standardDecelerate } from "../../lib/motion";
+import { emphasized, m2Linear, m2Motion, standardDecelerate } from "../../lib/motion";
 import { Board, BusyRow, HallLetter, Header, Photo, Press, Text, thud, tick } from "../ui";
 import { BAR } from "../ui/Header";
 import { boardAt, busyView } from "../logic/busy";
@@ -128,7 +128,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
     }));
   }, [y, R, f, sc, FT, fade]);
   const changeDay = useCallback((i: number) => {
-    f.set(withTiming(0, { duration: FT.d * m2Motion.sharedX.at, easing: Easing.linear }, (done) => { if (done) runOnJS(swap)(i); }));
+    f.set(withTiming(0, { duration: FT.d * m2Motion.sharedX.at, easing: m2Linear }, (done) => { if (done) runOnJS(swap)(i); }));
   }, [f, swap, FT]);
   const parts = useAnimatedStyle(() => ({ opacity: f.get() }));
   const listFade = useAnimatedStyle(() => ({ opacity: f.get(), transform: [{ scale: sc.get() }], transformOrigin: `50% ${(H + PIN) / 2}px` }));

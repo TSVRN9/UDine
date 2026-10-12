@@ -1,11 +1,11 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { m2 } from "../../lib/theme";
-import { m2Motion } from "../../lib/motion";
+import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { Press } from "./Press";
 import { Text } from "./Text";
 
@@ -20,7 +20,6 @@ const clamp = (x: number) => {
   "worklet";
   return Math.min(1, Math.max(0, x));
 };
-const settle = Easing.bezier(...m2Motion.settle.e);
 
 /** The compact bar's height under the status bar (M2 CH = ST + 52). */
 export const BAR = 52;
@@ -69,8 +68,8 @@ export function Header({ title, status, onStatus, busy, board, photo, letter, he
     const t = tabs.current[key];
     if (!t) return;
     if (!animate || !ulSet.current) { ulX.set(t.x + 8); ulW.set(t.w - 16); ulSet.current = true; return; }
-    ulX.set(withTiming(t.x + 8, { duration: m2Motion.settle.d, easing: settle }));
-    ulW.set(withTiming(t.w - 16, { duration: m2Motion.settle.d, easing: settle }));
+    ulX.set(withTiming(t.x + 8, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
+    ulW.set(withTiming(t.w - 16, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
   };
   const selected = meals?.selected;
   useEffect(() => { if (selected) place(selected, true); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
