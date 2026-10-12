@@ -550,6 +550,13 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
   and `compare-undo.png`.
 - [ ] **Step 5: Commit.**
 
+> **As built (PR #544):**
+> - `state/store.ts` replaces `state/prefs.ts`: plates/front, prefs, `show`, `newton`, `log`, `last` (the receipt), `off` (Charles River plates set aside). Persisted to AsyncStorage (prefs, show, newton, log; not the plate in progress). `useStore(selector)`, not `useBakeoff()`; a selector must return something stable.
+> - `PlateBar` is the handle of a non-modal gorhom `BottomSheet` (`PlateSheet`, mounted in `app/bakeoff/_layout.tsx` over the tabs, in a container that ends at the tab bar). `DishSheetHost` moved to that layout so a plate row can open a dish from any tab. A where-served from the plate reaches Halls through `state/serve.ts`.
+> - Not built: Search tab (so no "Add something else"), Full label, favorites, ranking, Export, the calorie toss, the stepper's collapsing ghost, a mid detent sized to its content (mid is M2's 36% line).
+> - Departures: hardware back does not collapse the plate sheet (gorhom's own back handling is off). The Charles River toggle covers only the Halls cafés group and the plate set-aside; Search is a placeholder, and where-served and pinning do not follow the toggle. `index.tsx` `push()` is single-slot (a where-served from a pushed hall replaces it, and back returns to the base screen).
+> - Dev entry: `reset=1`, `plate=place:meal:key[*qty|*h];...`, `logged=N`, `receipt=1`, `newton=1`, `psheet=mid|large`, plus the existing diet/avoid/scores (applied from the layout, on whichever tab the link opens).
+
 ---
 
 **Carried from Task 6 review (2026-10-12), for Task 7 to fix where it touches them:**
@@ -774,6 +781,16 @@ the round-9 states. Compare screenshots with M2's.
     and M2's exact 0.5 s spring. The 90 ms to spring start needs a phone to confirm.
   - **Lesson for every gorhom follow-on action:** trigger it from `animatedPosition` at half-way, never from
     `onDismiss`.
+- **RN, Task 7 (3 REWORK rounds, MERGE-equivalent at 7c90f7e + tests 6f70071):**
+  - The orchestrator's frames caught 2 of the 3 round-1 defects the reviewer then confirmed: a one-frame stepper
+    flicker and the plate bar 0.4 s late on the first add, both from mounting the plate sheet lazily. The third
+    finding (header not dimmed) was wrong; the real defect was a scrim too light and the wrong hue, found by the
+    reviewer's pixel reads.
+  - Round 1's fix regressed tap feedback (0.2 s of empty lane): a fade started from `useEffect` waits behind the rest
+    of the commit's JS. Starting it as a Reanimated `entering` Keyframe on the UI thread fixed it. **Lesson: an arrival
+    animation in RN starts at mount on the UI thread, never from an effect.**
+  - Cold first add on the AVD: the stepper is visible the frame after the tap and the bar's first motion is about
+    0.3 s after it, against M2's 136 ms. Measure on a phone in Task 9.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
