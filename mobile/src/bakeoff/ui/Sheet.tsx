@@ -4,6 +4,8 @@ import { View } from "react-native";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, useBottomSheetSpringConfigs, useBottomSheetTimingConfigs, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion, m2SheetSpring } from "../../lib/motion";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { sbOf } from "./inset";
 import { useMotion } from "./motion";
 
 /**
@@ -64,6 +66,7 @@ export const Sheet = forwardRef<BottomSheetModal, {
   onChange?: (index: number) => void;
 }>(
   function Sheet({ maxHeight, onDismiss, contentOffset = 0, children, snapPoints, animatedPosition, onScrollY, sticky, onAnimate, onChange }, ref) {
+    const { bottom } = useSafeAreaInsets();
     const scroll = useRef<any>(null);
     // armed only for a sheet that opens scrolled: otherwise gorhom's hook sees every scroll (a plain list's first scroll is not ours)
     const armed = useSharedValue(false), laidOut = useRef(false), box = useRef({ h: 0, c: 0 });
@@ -93,7 +96,7 @@ export const Sheet = forwardRef<BottomSheetModal, {
         <BottomSheetScrollView ref={scroll} style={snapPoints ? undefined : { maxHeight: maxHeight - GRAB }} stickyHeaderIndices={sticky ? [0] : undefined} onScroll={(e) => { const y = e.nativeEvent.contentOffset.y; if (y >= contentOffset - 1) reached.current = true; onScrollY?.(y); }} scrollEventsHandlersHook={hook}
           onLayout={(e) => { box.current.h = e.nativeEvent.layout.height; openScrolled(); }}
           onContentSizeChange={(_w, h) => { box.current.c = h; openScrolled(); }}
-          contentContainerStyle={{ paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.group }}>{children}</BottomSheetScrollView>
+          contentContainerStyle={{ paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.group + sbOf(bottom) }}>{children}</BottomSheetScrollView>
       </BottomSheetModal>
     );
   },

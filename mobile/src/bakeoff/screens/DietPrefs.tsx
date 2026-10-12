@@ -10,7 +10,7 @@ const DIET = [["veg", "Vegetarian"], ["plant", "Plant based"], ["halal", "Halal"
 /** M2's Dietary preferences page: "Only show" (the diet marks), then "Avoid" (the Big 9, then gluten and corn, in `ALLERGENS`' order). */
 export function DietPrefs() {
   const prefs = useStore((s) => s.prefs);
-  const head = (t: string, first?: boolean) => <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: first ? m2.space.panel : m2.space.dietGroupTop, marginBottom: m2.space.line }}>{t}</Text>;
+  const head = (t: string, first?: boolean) => <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: first ? m2.space.h3Top : m2.space.dietGroupTop, marginBottom: m2.space.line }}>{t}</Text>;
   return (
     <View>
       {head("Only show", true)}
