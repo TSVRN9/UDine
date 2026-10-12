@@ -25,21 +25,21 @@ void main() {
   group('content fades', () {
     test('outgoing is gone by the early-fade fraction, incoming starts there', () {
       expect(outgoingOpacity(0), 1);
-      expect(outgoingOpacity(m2Motion.contFade), 0);
+      expect(outgoingOpacity(M2Motion.contFade), 0);
       expect(outgoingOpacity(1), 0);
       expect(incomingOpacity(0), 0);
-      expect(incomingOpacity(m2Motion.contFade), 0);
+      expect(incomingOpacity(M2Motion.contFade), 0);
       expect(incomingOpacity(1), 1);
       expect(incomingOpacity(0.65), closeTo(0.5, 1e-9));
     });
-    test('the fade split is 30 / 70, as M2 paint() has it', () => expect(m2Motion.contFade, 0.3));
+    test('the fade split is 30 / 70, as M2 paint() has it', () => expect(M2Motion.contFade, 0.3));
   });
 
   group('settleTarget (M2: close below commit or on a flick)', () {
     test('closes below the commit point', () => expect(settleTarget(0, 0.5), Settle.closed));
     test('opens at or past the commit point at rest', () => expect(settleTarget(0, 0.9), Settle.open));
     test('a flick toward closing wins past the commit point', () => expect(settleTarget(0.6, 0.95), Settle.closed));
-    test('a flick at exactly the threshold does not', () => expect(settleTarget(m2Motion.dragBackFlick, 0.95), Settle.open));
+    test('a flick at exactly the threshold does not', () => expect(settleTarget(M2Motion.dragBackFlick, 0.95), Settle.open));
     test('a flick back toward open does not close', () => expect(settleTarget(-0.6, 0.9), Settle.open));
   });
 
