@@ -16,9 +16,9 @@ export const part = (t: Timing, k: number): Timing => ({ d: t.d * k, e: t.e });
 
 /**
  * M2's reduced-motion rule (`A()`, src.html:791): a movement is dropped and what keeps its opacity becomes M2's 120 ms crossfade
- * (`rmFade`); the drag-back and the edge swipe are off. `pick` is the timing a fade should use, `slide` whether anything may travel.
+ * (`rmFade`); the drag-back and the edge swipe are off. Callers branch on `reduced`.
  */
 export function useMotion() {
   const reduced = useReducedMotion();
-  return { reduced, slide: !reduced, pick: (t: Timing): Timing => (reduced ? m2Motion.rmFade : t) };
+  return { reduced };
 }

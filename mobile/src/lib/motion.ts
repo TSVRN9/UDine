@@ -147,6 +147,9 @@ export const m2Motion = Object.fromEntries(
   Object.entries(m2MotionData).map(([k, v]) => [k, v && typeof v === "object" && "e" in v ? { ...v, e: build(v.e as string | readonly number[]) } : v]),
 ) as Built<typeof m2MotionData>;
 
+/** M2's `SPRING.sheet` (stiffness k, damping ratio z) as the stiffness / damping / mass a spring takes: c = 2 sqrt(k m) z, with m = 1. */
+export const m2SheetSpring = { stiffness: m2Motion.spring.sheet.k, damping: 2 * Math.sqrt(m2Motion.spring.sheet.k) * m2Motion.spring.sheet.z, mass: 1 } as const;
+
 /** Linear, and M2's `settle` and push curves as Reanimated easings. */
 export const m2Linear = named.linear;
 export const m2SettleEasing = m2Motion.settle.e;

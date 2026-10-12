@@ -7,6 +7,7 @@ import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { timed } from "../ui/motion";
+import { descenderRoom } from "../ui/Text";
 import { Button, GRAB, Press, ScoreBadge, ScrollEdge, Sheet, SheetMark, Text } from "../ui";
 import { estimateCalBottom, labelRows, restingSnap, sheetMarks, sheetPrice, type DishCtx, type ServeTarget } from "../logic/dishSheet";
 import type { Dish } from "../logic/types";
@@ -52,7 +53,7 @@ function Ingredients({ text }: { text: string }) {
         ) : null}
       </Animated.View>
       {truncated ? (
-        <Press accessibilityRole="button" accessibilityState={{ expanded }} onPress={toggle} style={{ height: 40, justifyContent: "center", alignSelf: "flex-start", marginTop: 2 }}>
+        <Press accessibilityRole="button" accessibilityState={{ expanded }} onPress={toggle} style={{ height: m2.size.ingmore, justifyContent: "center", alignSelf: "flex-start", marginTop: m2.space.ingmoreTop }}>
           <Text v="link" color={m2.color.vm}>{expanded ? "Show less" : "Show all"}</Text>
         </Press>
       ) : null}
@@ -68,13 +69,13 @@ function parts({ dish, ctx, answer, scores, avoid, edge, onPlate, onAdd, onServe
 }): ReactElement[] {
   const price = sheetPrice(ctx, dish), mk = sheetMarks(dish, scores);
   return [
-    <View key="name" style={{ marginHorizontal: -m2.space.gutter, paddingHorizontal: m2.space.gutter, paddingBottom: 4, marginBottom: -4, backgroundColor: m2.color.chalk }}>
+    <View key="name" style={{ marginHorizontal: -m2.space.gutter, paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.line, marginBottom: -m2.space.line, backgroundColor: m2.color.chalk }}>
       {/* first, so the name's descenders draw over the edge's fill */}
-      <ScrollEdge on={edge} room={Math.ceil(m2.type.dishName.size * 0.3)} />
-      <Text v="dishName" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: 4 }}>{dish.name}</Text>
+      <ScrollEdge on={edge} room={descenderRoom(m2.type.dishName.size)} />
+      <Text v="dishName" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: m2.space.line }}>{dish.name}</Text>
     </View>,
     price || dish.serving ? (
-      <View key="serving" style={{ flexDirection: "row", alignItems: "baseline", marginTop: 4 }}>
+      <View key="serving" style={{ flexDirection: "row", alignItems: "baseline", marginTop: m2.space.line }}>
         {price ? <Text v="price" color={m2.color.ink} style={{ marginRight: m2.space.part }}>{price}</Text> : null}
         {dish.serving ? <Text v="date" color={m2.color.slate} style={{ flexShrink: 1 }}>{dish.serving}</Text> : null}
       </View>
@@ -83,7 +84,7 @@ function parts({ dish, ctx, answer, scores, avoid, edge, onPlate, onAdd, onServe
       <View key="marks" style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: m2.space.part, marginTop: m2.space.part }}>
         {mk.marks.map((k) => <SheetMark key={k} kind={k} />)}
         {mk.health != null || mk.carbon != null ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space.part, height: 30 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space.part, height: m2.size.mark }}>
             <ScoreBadge kind="health" value={mk.health} size="sheet" />
             <ScoreBadge kind="carbon" value={mk.carbon} size="sheet" />
           </View>

@@ -261,7 +261,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
           gradStyle={t.style.grad} contentStyle={t.style.incoming} collapse={c}
         />
       </Animated.View>
-      <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top, left: 4, height: BAR, justifyContent: "center" }, t.style.incoming]}>
+      <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top, left: m2.space.line, height: BAR, justifyContent: "center" }, t.style.incoming]}>
         <BackButton onPress={onBack} />
       </Animated.View>
       {warm ? <HoursSheet ref={hoursRef} s={sched} maxHeight={winH * 0.86} animatedPosition={hoursPos} onPick={(i) => dc.pickDay(i, day, () => hoursRef.current?.dismiss())} onDismiss={onDismiss} /> : null}

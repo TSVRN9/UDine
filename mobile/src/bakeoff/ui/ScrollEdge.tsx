@@ -13,16 +13,16 @@ import { timed } from "./motion";
 export function ScrollEdge({ on, room = 0 }: { on: SharedValue<number>; room?: number }) {
   const style = useAnimatedStyle(() => ({ opacity: timed(on.get(), m2Motion.settle) }));
   return (
-    <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, right: 0, bottom: -(10 + room), height: 11 + room }, style]}>
-      <Svg width="100%" height={11 + room}>
+    <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, right: 0, bottom: -(m2.size.edgeShadow + room), height: m2.size.edgeShadow + 1 + room }, style]}>
+      <Svg width="100%" height={m2.size.edgeShadow + 1 + room}>
         <Defs>
           <LinearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="rgb(36,10,14)" stopOpacity={0.3} />
-            <Stop offset="1" stopColor="rgb(36,10,14)" stopOpacity={0} />
+            <Stop offset="0" stopColor={m2.color.scrim} stopOpacity={m2.opacity.edgeShadow} />
+            <Stop offset="1" stopColor={m2.color.scrim} stopOpacity={0} />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width="100%" height={room} fill={m2.color.chalk} />
-        <Rect x={0} y={room + 1} width="100%" height={10} fill="url(#edge)" />
+        <Rect x={0} y={room + 1} width="100%" height={m2.size.edgeShadow} fill="url(#edge)" />
         <Rect x={0} y={room} width="100%" height={1} fill={m2.color.hair} />
       </Svg>
     </Animated.View>

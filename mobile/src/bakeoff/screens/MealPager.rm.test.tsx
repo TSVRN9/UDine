@@ -9,7 +9,7 @@ const mockTimings: { to: number; d: number }[] = [];
 jest.mock("../ui/motion", () => ({
   timed: (to: number, t: { d: number }, cb?: (f: boolean) => void) => { mockTimings.push({ to, d: t.d }); cb?.(true); return to; },
   part: (t: { d: number; e: unknown }, k: number) => ({ d: t.d * k, e: t.e }),
-  useMotion: () => ({ reduced: mockReduced, slide: !mockReduced, pick: (t: unknown) => t }),
+  useMotion: () => ({ reduced: mockReduced }),
 }));
 jest.mock("@shopify/flash-list", () => {
   const R = require("react");

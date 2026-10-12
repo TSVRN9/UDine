@@ -7,7 +7,7 @@ import { Header, type Labels } from "./Header";
 const labels: Labels = { status: "Open until midnight", onStatus: () => {} };
 const mount = () => {
   let r!: renderer.ReactTestRenderer;
-  act(() => { r = renderer.create(<Header title="Worcester" labels={labels} oldLabels={labels} />); });
+  act(() => { r = renderer.create(<Header title="Worcester" height={240} labels={labels} oldLabels={labels} />); });
   return r;
 };
 const statusButtons = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.type !== "string" && String(n.props.accessibilityLabel ?? "").endsWith("hours and directions") && n.props.hitSlop);

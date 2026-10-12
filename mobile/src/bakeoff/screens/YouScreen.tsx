@@ -38,12 +38,12 @@ function Meal({ e }: { e: LogEntry }) {
         <Text v="date" color={m2.color.slate}>{TIME}</Text>
       </View>
       {e.items.map((i, k) => (
-        <View key={k} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", minHeight: 32, marginTop: 4 }}>
+        <View key={k} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", minHeight: m2.size.mealItem, marginTop: m2.space.line }}>
           <Text v="empty" color={m2.color.slate} style={{ flex: 1, paddingRight: m2.space.panel }}>{(i.qty === 1 ? "" : `${fq(i.qty)} × `) + i.name}</Text>
           <Text v="factNum" color={m2.color.ink}>{fc(i.cal * i.qty)}</Text>
         </View>
       ))}
-      <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+      <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "baseline", gap: m2.space.line, marginTop: m2.space.line }}>
         <Text v="mealCal" color={m2.color.ink}>{fc(total)}</Text>
         <Text v="mealCal" color={m2.color.ink}>cal</Text>
       </View>
@@ -68,7 +68,7 @@ export function YouScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: m2.color.chalk }}>
       <Animated.View style={[{ flex: 1 }, below]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: m2.size.listFoot }}>
         <ScreenHeader variant="you" date={DATE} title="You" />
         <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Today</H2>

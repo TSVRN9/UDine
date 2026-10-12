@@ -398,17 +398,59 @@ export const m2 = {
     stationHeadBottom: 6,
     evrow: 14,
     bandStatusTop: 7,
-    pinStatusTop: 6
+    pinStatusTop: 6,
+    scoreGap: 6,
+    tileRide: 1,
+    ingmoreTop: 2,
+    factsBottom: 6,
+    calTop: 2,
+    nrTop: 7,
+    nrBottom: 5,
+    lsPad: 6,
+    lfBottom: 2,
+    schedNameTop: 2,
+    schedGap: 6,
+    schedPayTop: 10,
+    mwsStart: 32,
+    mwsBottom: 10,
+    barL2Top: 2,
+    barNumGap: 2,
+    metaTop: 3,
+    ptab: 10,
+    peekInset: 10,
+    dotsTop: 5,
+    dotsGap: 5,
+    scaleGap: 3,
+    scaleOn: 2,
+    stepPad: 7,
+    grPad: 10,
+    gsTop: 6,
+    ghostMargin: 2,
+    lampGap: 2,
+    bzTop: 6,
+    bzRow: 5,
+    histBottom: 10,
+    dayGap: 6,
+    chipGap: 10,
+    letterRise: 6,
+    rowY: 6,
+    markNudgeX: 6,
+    markNudgeY: 2,
+    metaCol: 10,
+    mealTabPad: 6,
+    mtsGap: 5,
+    tabGap: 3,
+    dayBlock: 20
   },
   radius: {
-    patch: 4,
-    thumb: 5,
     card: 6,
     button: 8,
     sheet: 16,
     pill: 999,
     image: 2,
-    check: 6
+    check: 6,
+    dot: 3,
+    stepBar: 2
   },
   size: {
     tabBar: 56,
@@ -451,7 +493,41 @@ export const m2 = {
     chevronStroke: 2,
     evrow: 52,
     listFoot: 120,
-    pin: 84
+    pin: 84,
+    frame: 2,
+    heavy: 7,
+    calRule: 4,
+    dvMin: 30,
+    ingmore: 40,
+    listRow: 48,
+    curBar: 4,
+    mealItem: 32,
+    bar: 52,
+    posterFoot: 56,
+    peek: 5,
+    dot: 5,
+    chooseBack: 48,
+    spin: 28,
+    spinStroke: 3,
+    mstate: 160,
+    stepHealth: 14,
+    stepCarbon: 17,
+    stepBar: 4,
+    add: 48,
+    lampW: 5,
+    lampH: 12,
+    bzMax: 230,
+    letterBox: 200,
+    letterFont: 210,
+    nameBottom: 50,
+    lane: 114,
+    slotW: 26,
+    edgeShadow: 10,
+    grabW: 40,
+    grabH: 5,
+    stepQ: 26,
+    stroke: 2.2,
+    strokeBold: 2.4
   },
   opacity: {
     disabled: 0.4,
@@ -480,10 +556,7 @@ export const m2 = {
         0,
         1
       ],
-      height: {
-        statusBar: 0,
-        plus: 80
-      },
+      height: 80,
       angle: "top to bottom"
     },
     headBottom: {
@@ -550,6 +623,9 @@ export const m2 = {
       stitchWidth: 1.5,
       pad: 7
     }
+  },
+  ratio: {
+    descender: 0.3
   }
 } as const;
 export const m2MotionData = {
@@ -692,6 +768,16 @@ export const m2MotionData = {
       delay: 400,
       snap: 1
     }
+  },
+  sheetRetry: {
+    every: 80,
+    max: 12
+  },
+  landing: {
+    poll: 40,
+    tries: 40,
+    stable: 2,
+    above: 8
   }
 } as const;
 export const m2Curves = {

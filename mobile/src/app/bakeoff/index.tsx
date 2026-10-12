@@ -13,6 +13,7 @@ import { HallHeader } from "../../bakeoff/screens/HallHeader";
 import { HallsList, bandOff } from "../../bakeoff/screens/HallsList";
 import { PushedHall } from "../../bakeoff/screens/PushedHall";
 import { registerServe } from "../../bakeoff/state/serve";
+import { bandHeight } from "../../bakeoff/ui/Band";
 import { PushDim, usePush } from "../../bakeoff/ui/push";
 
 export default function Halls() {
@@ -40,7 +41,7 @@ export default function Halls() {
         scrollY.set(0);
         setPlace(key);
         // the band sits 1 dp under its wrapper's top (the seam between bands)
-        t.open({ top: y - rootY + 1, height: compact ? 84 : m2.size.band, off: bandOff(key, top) });
+        t.open({ top: y - rootY + 1, height: bandHeight(compact), off: bandOff(key, top) });
       });
     });
   };

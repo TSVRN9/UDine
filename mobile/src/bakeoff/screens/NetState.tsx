@@ -23,7 +23,7 @@ function Spinner() {
   const turn = useAnimatedStyle(() => ({ transform: [{ rotate: `${r.get() * 360}deg` }] }));
   return (
     <Animated.View entering={spinIn} accessibilityRole="progressbar" accessibilityLabel="Loading the menu"
-      style={[{ width: 28, height: 28, borderRadius: 14, borderWidth: 3, borderColor: m2.color.spinTrack, borderTopColor: m2.color.vm }, turn]} />
+      style={[{ width: m2.size.spin, height: m2.size.spin, borderRadius: m2.radius.pill, borderWidth: m2.size.spinStroke, borderColor: m2.color.spinTrack, borderTopColor: m2.color.vm }, turn]} />
   );
 }
 
@@ -42,7 +42,7 @@ export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuSt
       <View pointerEvents={copy ? "none" : "box-none"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
         <View pointerEvents="box-none" style={{ marginTop: top }}>
           {state === "loading" ? (
-            <View style={{ height: 160, alignItems: "center", justifyContent: "center" }}><Spinner /></View>
+            <View style={{ height: m2.size.mstate, alignItems: "center", justifyContent: "center" }}><Spinner /></View>
           ) : (
             <View style={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.stateTop + m2.space.paragraph, paddingBottom: m2.space.line }}>
               <Text v="empty" color={m2.color.slate}>{text}</Text>

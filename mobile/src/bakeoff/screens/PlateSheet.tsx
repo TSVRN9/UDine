@@ -26,10 +26,10 @@ function PlateRow({ plate, it, onOpen }: { plate: Plate; it: PlateItem; onOpen: 
   return (
     <Animated.View layout={exitLayout} exiting={exitOut}>
       <Press feedback="tint" accessibilityRole="button" onPress={it.custom ? undefined : () => onOpen(it)}
-        style={{ minHeight: 64, flexDirection: "row", alignItems: "center", gap: m2.space.part, borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
+        style={{ minHeight: m2.size.row, flexDirection: "row", alignItems: "center", gap: m2.space.part, borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text v="rowName" color={m2.color.ink}>{it.name}</Text>
-          <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 3 }}>
+          <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: m2.space.metaTop }}>
             <Text v="metaNum" color={m2.color.ink}>{fc(m.cal)}</Text><Text v="meta" color={m2.color.slate}>{" cal each"}</Text>
           </View>
         </View>
@@ -106,9 +106,9 @@ export function PlateSheet({ tabH }: { tabH: number }) {
                 <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: m2.space.line, marginHorizontal: -m2.space.part, marginBottom: m2.space.line }}>
                   {plates.map((p, i) => (
                     <Press key={p.id} accessibilityRole="tab" accessibilityState={{ selected: i === front }} onPress={() => { if (i !== front) { tick(); setFront(i); } }}
-                      style={{ height: m2.size.tap, paddingHorizontal: 10, justifyContent: "center" }}>
+                      style={{ height: m2.size.tap, paddingHorizontal: m2.space.ptab, justifyContent: "center" }}>
                       <Text v="link" color={i === front ? m2.color.dm : m2.color.slate}>{plateLabel(p)}</Text>
-                      {i === front ? <View style={{ position: "absolute", left: 10, right: 10, bottom: 4, height: 3, backgroundColor: m2.color.vm }} /> : null}
+                      {i === front ? <View style={{ position: "absolute", left: m2.space.ptab, right: m2.space.ptab, bottom: m2.space.line, height: m2.size.indicator, backgroundColor: m2.color.vm }} /> : null}
                     </Press>
                   ))}
                 </View>

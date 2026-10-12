@@ -24,17 +24,10 @@ describe("timed", () => {
 
 describe("useMotion", () => {
   const probe = () => { let out!: ReturnType<typeof useMotion>; const P = () => { out = useMotion(); return null; }; act(() => { renderer.create(<P />); }); return out; };
-  it("hands every timing through unchanged when motion is on", () => {
+  it("says whether the system asks for reduced motion", () => {
     (globalThis as { __rm?: boolean }).__rm = false;
-    const m = probe();
-    expect(m.reduced).toBe(false);
-    expect(m.pick(m2Motion.cont)).toBe(m2Motion.cont);
-  });
-  it("turns every timing into the 120 ms crossfade and stops movement when it is reduced", () => {
+    expect(probe().reduced).toBe(false);
     (globalThis as { __rm?: boolean }).__rm = true;
-    const m = probe();
-    expect(m.reduced).toBe(true);
-    expect(m.slide).toBe(false);
-    expect(m.pick(m2Motion.cont)).toBe(m2Motion.rmFade);
+    expect(probe().reduced).toBe(true);
   });
 });

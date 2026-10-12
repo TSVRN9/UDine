@@ -26,11 +26,11 @@ export const DishRow = memo(function DishRow({ dish, contains, scores, lane, pla
           {contains.length ? <Text v="meta" color={m2.color.vm} style={{ fontFamily: m2.font.bodySb }}>{`Contains ${contains.length < 2 ? contains.join("").toLowerCase() : contains.slice(0, -1).join(", ").toLowerCase() + " and " + contains[contains.length - 1].toLowerCase()}`}</Text> : null}
           <View style={{ flexDirection: "row", alignItems: "baseline" }}>
             <Text v="metaNum" color={m2.color.ink}>{fc(dish.cal)}</Text><Text v="meta" color={m2.color.slate}>{" cal"}</Text>
-            <View style={{ width: 16 }} />
+            <View style={{ width: m2.space.action }} />
             <Text v="metaNum" color={m2.color.ink}>{`${f1(dish.p)}g`}</Text><Text v="meta" color={m2.color.slate}>{" protein"}</Text>
           </View>
           {sc ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginVertical: -1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space.scoreGap, marginVertical: -m2.space.tileRide }}>
               <ScoreBadge kind="health" value={sc.health} size="row" />
               <ScoreBadge kind="carbon" value={sc.carbon} size="row" />
             </View>

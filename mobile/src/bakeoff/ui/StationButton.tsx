@@ -11,7 +11,7 @@ import { Text } from "./Text";
 export function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
   return (
     <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={`${s.label}, stations`} accessibilityState={{ expanded: !!s.open }} onPress={s.onPress}
-      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space.gutter }}>
+      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space.part, paddingHorizontal: m2.space.gutter }}>
       <Text v="station" color={m2.color.gold} numberOfLines={1} style={{ flexShrink: 1 }}>{s.label}</Text>
       <Flip open={!!s.open}><DownChevron /></Flip>
     </Press>
