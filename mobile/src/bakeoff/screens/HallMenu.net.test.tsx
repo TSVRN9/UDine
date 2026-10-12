@@ -104,14 +104,16 @@ describe("a menu arriving from the network (M2 arrive())", () => {
   const settle = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
   it("Try again: the failure text and the button are gone in the commit that brings the rows, and the rows fade in over chalk", async () => {
     const r = await mount("fail");
-    expect(entering(r)).toHaveLength(0);
+    const chalk = () => r.root.findAll((n) => typeof n.type === "string" && n.props.exiting != null).length;
+    expect(chalk()).toBe(1);   // the chalk under the failure leaves by fading out
     press(r, "Try again");
     await settle();   // no timer has run: this is the arrival's own commit
     const t = texts(r);
     expect(t).toContain("Lunch");
     expect(t).not.toContain("Worcester's menu didn't load.");
     expect(t).not.toContain("Try again");
-    expect(entering(r).length).toBeGreaterThan(0);
+    expect(chalk()).toBe(0);
+    expect(entering(r).length).toBeGreaterThan(0);   // the tab and station labels fade in
     await flush(400);
     expect(entering(r)).toHaveLength(0);   // and the fade is not left on for later
   });

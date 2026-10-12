@@ -28,36 +28,32 @@ function Spinner() {
 
 /**
  * What a hall's list says when it has no menu to show (M2 `.mstate`, `.mst`): loading, not saved offline, didn't load. It is chalk over the
- * list, below the pinned rows (`top` is their bottom edge), and leaves by fading out where it stands, so the rows beneath arrive as M2's
- * fade-in does. Its text sits 14 dp lower than `.mst`'s 28 (the paragraph keeps the browser's 1 em margin in M2), and the button 16 dp lower again. `copy` is the one the day change holds while the new day draws: it has no exit of its own.
+ * list, below the pinned rows (`top` is their bottom edge). The words, the button and the spinner are their own layer and are gone at
+ * once when the menu arrives; only the bare chalk beneath leaves by fading out, so the rows are drawn at once and come in from chalk as
+ * M2's `arrive()` fades `#mlist` in from 0. `copy` is the one the day change holds while the new day draws: it has no exit.
  */
 export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuState, "ok">; top: number; text: string; copy?: boolean }) {
   return (
-    <Animated.View pointerEvents={copy ? "none" : "auto"}
-      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.chalk }}>
-      <View style={{ marginTop: top }}>
-        {state === "loading" ? (
-          <View style={{ height: 160, alignItems: "center", justifyContent: "center" }}><Spinner /></View>
-        ) : (
-          <View style={{ paddingHorizontal: m2.space[4], paddingTop: 42, paddingBottom: m2.space[0] }}>
-            <Text v="empty" color={m2.color.slate}>{text}</Text>
-            {state === "fail" ? (
-              <Press accessibilityRole="button" onPress={() => { retry(); }}
-                style={{ marginTop: 28, height: 52, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
-                <Text v="action" color={m2.color.vm}>Try again</Text>
-              </Press>
-            ) : null}
-          </View>
-        )}
+    <>
+      <Animated.View exiting={copy ? undefined : arriveOut} pointerEvents="none"
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.chalk }} />
+      <View pointerEvents={copy ? "none" : "box-none"} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+        <View pointerEvents="box-none" style={{ marginTop: top }}>
+          {state === "loading" ? (
+            <View style={{ height: 160, alignItems: "center", justifyContent: "center" }}><Spinner /></View>
+          ) : (
+            <View style={{ paddingHorizontal: m2.space[4], paddingTop: 42, paddingBottom: m2.space[0] }}>
+              <Text v="empty" color={m2.color.slate}>{text}</Text>
+              {state === "fail" ? (
+                <Press accessibilityRole="button" onPress={() => { retry(); }}
+                  style={{ marginTop: 28, height: 52, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
+                  <Text v="action" color={m2.color.vm}>Try again</Text>
+                </Press>
+              ) : null}
+            </View>
+          )}
+        </View>
       </View>
-    </Animated.View>
+    </>
   );
-}
-
-/**
- * M2 `arrive()` fades the list in from 0 over the chalk. The new rows are drawn at once (the state is gone in the same commit), and
- * this chalk, mounted with them, fades out over them: a layout animation, so it starts on the UI thread with the commit.
- */
-export function ArrivalVeil() {
-  return <Animated.View entering={arriveOut} pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.chalk }} />;
 }
