@@ -68,6 +68,10 @@ Rationale:
   - Capacitor/WebView, on feel;
   - skipping the bake-off, because it's riskier to switch later;
   - building on the canvas first, which would be slower and throwaway either way.
+- **No store-track builds until the new UI is complete** (owner, 2026-10-12). Neither TestFlight nor Play beta. So the
+  RN TestFlight pass below and the iOS tester's ratings (scorecard items 1 and 4) are deferred. The verdict is judged
+  on Android for both builds, and the scorecard records that iOS wasn't seen. The internal side-by-side Android build on
+  the owner's phone is approved.
 - **Flutter is judged on Android only** (owner, 2026-10-11). EAS can't build Flutter for iOS, and the
   owner declined Codemagic and a GitHub Actions macOS runner. RN gets one TestFlight build (1 of the 15
   free monthly). The scorecard notes that Flutter's iOS behaviour wasn't seen. Flutter draws the same

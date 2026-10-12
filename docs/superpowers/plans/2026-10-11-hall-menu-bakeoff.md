@@ -617,7 +617,7 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 - [ ] **Step 2: Android on the owner's phone:**
   `EXPO_PUBLIC_BAKEOFF=1 pnpm build:internal-android -- --install` from `mobile/` (side by side with the
   Play build).
-- [ ] **Step 3: iOS:** `eas build -p ios --profile bakeoff`, then `eas submit -p ios --latest`. The
+- [ ] **Step 3: iOS (deferred, owner 2026-10-12: no TestFlight or Play beta build until the new UI is complete; the checklist is still written now):** `eas build -p ios --profile bakeoff`, then `eas submit -p ios --latest`. The
   tester runs `ios-checklist.md` and reports.
 - [ ] **Step 4: Measure dropped frames** during each recorded motion (Android perf monitor or
   `adb shell dumpsys gfxinfo com.udinetogether.udine.internal framestats`) and save the numbers for
