@@ -4,7 +4,7 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { m2Motion } from "../../lib/motion";
 import { m2 } from "../../lib/theme";
-import { part, timed } from "../ui/motion";
+import { part, timed, useMotion } from "../ui/motion";
 import { pagerStep, type PagerEvent, type Phase } from "../motion/pagerMachine";
 import { mark } from "../perf";
 
@@ -41,6 +41,8 @@ export const MealPager = forwardRef<PagerHandle, {
   curtain?: (copy: boolean) => ReactNode;
 }>(function MealPager({ data, renderItem, keyOf, typeOf, header, footer, onScroll, scrollY, animatedRef, onViewable, holdOn, curtain }, ref) {
   const list = useRef<FlashListRef<any>>(null);
+  // reduced motion (M2 `RM`): the meal swaps in place and the list crossfades, nothing slides
+  const { reduced } = useMotion();
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const run = useRef(0), dirSv = useSharedValue(1);
   const p = useSharedValue(1), o = useSharedValue(1), g = useSharedValue(0);
@@ -72,7 +74,7 @@ export const MealPager = forwardRef<PagerHandle, {
     shift: (dir, apply) => {
       if (!send("shift")) return false;
       const next = capture(dir);
-      dirSv.set(dir);
+      dirSv.set(reduced ? 0 : dir);
       // nothing moves until the new meal is drawn (see the effect): the old list stays as it is until then
       pending.current = { id: next?.id ?? ++run.current };
       setGhost(next);
@@ -92,7 +94,7 @@ export const MealPager = forwardRef<PagerHandle, {
       return true;
     },
     release: () => { send("done"); setTimeout(() => setGhost(null), m2Motion.fadeThrough.d); },
-  }), [dirSv, scrollY]); // eslint-disable-line react-hooks/exhaustive-deps -- capture and the shared values are stable
+  }), [dirSv, scrollY, reduced]); // eslint-disable-line react-hooks/exhaustive-deps -- capture and the shared values are stable
 
   useLayoutEffect(() => { if (pending.current) mark("pager:layout"); }, [data]);
   useEffect(() => {
@@ -108,14 +110,19 @@ export const MealPager = forwardRef<PagerHandle, {
     }
     // the copy of the old rows now covers the list, so the new meal can be set at its start; the list lays its rows out a
     // frame after React commits them, so both move from the second frame on
-    p.set(0); o.set(0); g.set(1);
+    p.set(reduced ? 1 : 0); o.set(0); g.set(1);
     // not cancelled by a later data change either (Show all, prefs): the slide's end is what returns the pager to idle
     requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (reduced) {
+        o.set(timed(1, m2Motion.rmFade, (done) => { if (done) runOnJS(drop)(id); }));
+        g.set(timed(0, m2Motion.rmFade));
+        return;
+      }
       p.set(timed(1, X, (done) => { if (done) runOnJS(drop)(id); }));
       o.set(timed(1, part(m2Motion.sharedXFade, X.inAt)));
       g.set(timed(0, part(m2Motion.sharedXFade, X.at)));
     }));
-  }, [data, p, o, g, drop]);
+  }, [data, p, o, g, drop]); // eslint-disable-line react-hooks/exhaustive-deps -- `reduced` is read when the change starts, not a reason to rerun it
 
   const enter = useAnimatedStyle(() => ({ opacity: o.get(), transform: [{ translateX: dirSv.get() * X.dist * (1 - p.get()) }] }));
   const leave = useAnimatedStyle(() => ({ opacity: g.get() * (holdOn ? holdOn.get() : 1), transform: [{ translateX: -dirSv.get() * X.dist * p.get() }] }));

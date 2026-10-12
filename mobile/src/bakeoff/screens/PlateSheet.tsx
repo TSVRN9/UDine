@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, type BottomSheetHandleProps } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion, m2SettleEasing } from "../../lib/motion";
-import { Press, Stepper, Text, thud, thunk, tick, useSheetSpring } from "../ui";
+import { Press, Stepper, Text, thud, thunk, tick, useSheetMotion } from "../ui";
 import { exitLayout, exitOut } from "../ui/exit";
 import type { DishCtx } from "../logic/dishSheet";
 import { fc } from "../logic/dishSheet";
@@ -51,7 +51,7 @@ export function PlateSheet({ tabH }: { tabH: number }) {
   const { top } = useSafeAreaInsets();
   const router = useRouter();
   const ref = useRef<BottomSheet>(null);
-  const spring = useSheetSpring();
+  const spring = useSheetMotion();
   const plate = useStore((s) => s.plates.plates[s.plates.front]);
   const plates = useStore((s) => s.plates.plates);
   const front = useStore((s) => s.plates.front);

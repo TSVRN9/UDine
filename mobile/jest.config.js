@@ -43,9 +43,9 @@ module.exports = {
   // react-native-reanimated ships a same-shape JS-only mock (synchronous shared values, withTiming/
   // withSpring resolving immediately, runOnJS as identity) that's REQUIRED under jest -- the real
   // package reaches for a native TurboModule that doesn't exist in this environment. Same
-  // moduleNameMapper the library's own docs recommend for any RN project's Jest config.
+  // moduleNameMapper the library's own docs recommend for any RN project's Jest config (through ./jest.reanimated.js, which adds the few hooks the mock omits).
   moduleNameMapper: {
-    "^react-native-reanimated$": "react-native-reanimated/mock",
+    "^react-native-reanimated$": "<rootDir>/jest.reanimated.js",
   },
   // react-native-reanimated's own mock still pulls in a few real (non-mocked) helpers from its own
   // index, which in turn reach into react-native-worklets' `.native.ts` files -- those touch a

@@ -1,9 +1,10 @@
 import { forwardRef, useCallback, useRef, type ReactNode } from "react";
 import { useSharedValue, type SharedValue } from "react-native-reanimated";
 import { View } from "react-native";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, useBottomSheetSpringConfigs, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, useBottomSheetSpringConfigs, useBottomSheetTimingConfigs, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
+import { useMotion } from "./motion";
 
 /**
  * gorhom pins its scrollables to the top while the sheet is still rising, and resets any scroll that happens then. The schedule
@@ -25,10 +26,13 @@ function useOpenedAt(armed: { get: () => boolean; set: (v: boolean) => void }, r
   }, [base, armed]);
   return { ...base, handleOnScroll, handleOnBeginDrag };
 }
-/** M2's sheet spring (`SPRING.sheet`) for gorhom: every sheet the finger can release uses it. */
-export function useSheetSpring() {
+/** M2's sheet spring (`SPRING.sheet`) for gorhom: every sheet the finger can release uses it. With reduced motion (M2 `RM`) a sheet takes
+ * the 120 ms crossfade's timing instead: gorhom has no fade in place, so it still travels, but over a tenth of a second and never on the spring. */
+export function useSheetMotion() {
   const { k, z } = m2Motion.spring.sheet;
-  return useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
+  const spring = useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
+  const crossfade = useBottomSheetTimingConfigs({ duration: m2Motion.rmFade.d, easing: m2Motion.rmFade.e });
+  return useMotion().reduced ? crossfade : spring;
 }
 export const GRAB = 22;
 
@@ -80,7 +84,7 @@ export const Sheet = forwardRef<BottomSheetModal, {
     // gorhom calls this as a hook, once per render of its scrollable, from a stable function: that is what the rule cannot see
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hook = useCallback<ScrollEventsHandlersHookType>((r, o) => useOpenedAt(armed, r, o), [armed]);
-    const animationConfigs = useSheetSpring();
+    const animationConfigs = useSheetMotion();
     return (
       <BottomSheetModal ref={ref} enableDynamicSizing={!snapPoints} maxDynamicContentSize={maxHeight} snapPoints={snapPoints} animatedPosition={animatedPosition} enablePanDownToClose onDismiss={() => { laidOut.current = false; box.current = { h: 0, c: 0 }; reached.current = false; retries.current = 0; armed.set(false); onDismiss?.(); }}
         animationConfigs={animationConfigs} handleComponent={Grab} onAnimate={onAnimate} onChange={onChange}

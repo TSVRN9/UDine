@@ -5,7 +5,7 @@ import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
 import { Band, BusyRow, HallLetter, Photo, Press, Text } from "../ui";
-import { arriveIn, useArrival } from "../ui/arrive";
+import { useArrival, useArrive } from "../ui/arrive";
 import { busyView } from "../logic/busy";
 import { HALLS, MEAL_LABEL, clockMeal, loadFixture } from "../logic/fixture";
 import { HALL_LX } from "../logic/letters";
@@ -31,6 +31,7 @@ export function HallsList({ hidden, onOpen }: {
 }) {
   const { width } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
+  const { arriveIn } = useArrive();
   const fx = loadFixture();
   const newton = useStore((s) => s.newton);
   // what the network has told Halls: hours (the status lines) and live busy arrive in place, or never (M2 `fillBands`)

@@ -8,7 +8,7 @@ export { Photo } from "./Photo";
 export { ListRow } from "./ListRow";
 export { Press } from "./Press";
 export { ScoreBadge, type Carbon } from "./ScoreBadge";
-export { GRAB, Sheet, useSheetSpring } from "./Sheet";
+export { GRAB, Sheet, useSheetMotion } from "./Sheet";
 export { SheetMark, type MarkKind } from "./SheetMark";
 export { HallChip } from "./HallChip";
 export { ScrollEdge } from "./ScrollEdge";

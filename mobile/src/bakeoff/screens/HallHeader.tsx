@@ -48,7 +48,7 @@ export function HallHeader({ t, H, place, name, scrollY, onBack, at, onPush, onP
     </Animated.View>
   );
   const window = (
-    <Animated.View collapsable={false} onLayout={t.ready} style={[{ position: "absolute", left: 0, right: 0, overflow: "hidden", backgroundColor: m2.color.chalk }, t.style.container]}>
+    <Animated.View collapsable={false} onLayout={t.ready} style={[{ position: "absolute", left: 0, right: 0, overflow: "hidden", backgroundColor: m2.color.chalk }, t.style.container, t.style.crossfade]}>
       <Animated.View style={[{ position: "absolute", left: 0, right: 0, top: 0, height: H }, t.style.layer]}>
         <HallMenu t={t} H={H} place={place} name={name} scrollY={scrollY} ghost={ghost} onBack={onBack} at={at} onPush={onPush} onPushGo={onPushGo} onSettled={onSettled} onEvent={onEvent} />
       </Animated.View>

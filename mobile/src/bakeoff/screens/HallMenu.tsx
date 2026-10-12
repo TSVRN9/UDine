@@ -22,13 +22,14 @@ import { eventOn, schedule, statusLine } from "../logic/schedule";
 import type { ServeTarget } from "../logic/dishSheet";
 import type { Dish, MealKey, PlaceKey } from "../logic/types";
 import { openDish } from "../state/dishSheet";
+import { dayLegs } from "../motion/dayChange";
 import { halfwayOut } from "../motion/pushGate";
 import type { useContainerTransform } from "../motion/useContainerTransform";
 import { EVENT_PHOTO, PHOTO_POS, photoOf } from "../photos";
 import { hoursKnown, liveKnown, useMenuState, useNet } from "../state/net";
 import { add, useStore } from "../state/store";
 import { useArrival } from "../ui/arrive";
-import { part, timed } from "../ui/motion";
+import { timed, useMotion } from "../ui/motion";
 import { mark } from "../perf";
 import { DietLine } from "./DietLine";
 import { DishRow } from "./DishRow";
@@ -165,7 +166,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     refreshHeads();
     const target = Math.max(0, (headY.get()[si] ?? 0) - PIN);
     jump.set(y.get());
-    jump.set(timed(target, m2Motion.scroll, (done) => { if (done) jump.set(-1); }));
+    // reduced motion (M2 `RM`, src.html:1507): the list is there, it does not travel
+    if (reduced) pager.current?.list()?.scrollToOffset({ offset: target, animated: false }); else jump.set(timed(target, m2Motion.scroll, (done) => { if (done) jump.set(-1); }));
     tick();
   };
 
@@ -173,7 +175,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // The list and the labels commit once, under the old ones (the copy of the old rows, the old labels' layer); the fade out and back
   // in is then only shared values on the UI thread.
   const f = useSharedValue(1), sc = useSharedValue(1), lo = useSharedValue(0), ln = useSharedValue(1), holdOn = useSharedValue(1);
-  const FT = m2Motion.fadeThrough, legOut = part(m2Motion.fadeThroughOut, m2Motion.sharedX.at), legIn = part(FT, 1 - m2Motion.sharedX.at);
+  const { reduced } = useMotion();
+  const { out: legOut, in: legIn, scale: landScale } = dayLegs(reduced);
   const newLabels = useAnimatedStyle(() => ({ opacity: ln.get() }));
   const oldLabelsStyle = useAnimatedStyle(() => ({ opacity: lo.get() }));
   const listFade = useAnimatedStyle(() => ({ opacity: f.get(), transform: [{ scale: sc.get() }], transformOrigin: `50% ${(H + PIN) / 2}px` }));
@@ -306,7 +309,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
         timed(0, legOut, () => {
           "worklet";
           holdOn.set(0);
-          sc.set(FT.scale);
+          sc.set(landScale);
           sc.set(timed(1, legIn));
           ln.set(timed(1, legIn));   // the labels come back in the same frame as the list
         }),

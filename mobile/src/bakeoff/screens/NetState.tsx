@@ -5,7 +5,7 @@ import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { timed } from "../ui/motion";
 import { Press, Text } from "../ui";
-import { arriveOut } from "../ui/arrive";
+import { useArrive } from "../ui/arrive";
 import type { MenuState } from "../logic/net";
 import { retry } from "../state/net";
 
@@ -34,6 +34,7 @@ function Spinner() {
  * M2's `arrive()` fades `#mlist` in from 0. `copy` is the one the day change holds while the new day draws: it has no exit.
  */
 export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuState, "ok">; top: number; text: string; copy?: boolean }) {
+  const { arriveOut } = useArrive();
   return (
     <>
       <Animated.View exiting={copy ? undefined : arriveOut} pointerEvents="none"
