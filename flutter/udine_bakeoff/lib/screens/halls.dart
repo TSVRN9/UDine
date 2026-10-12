@@ -80,7 +80,7 @@ class _HallsListState extends State<HallsList> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Container(
               color: M2Color.dm,
-              padding: EdgeInsets.fromLTRB(M2Space.s[4], top + M2Layout.headerPadTop, M2Space.s[4], M2Space.s[3]),
+              padding: EdgeInsets.fromLTRB(M2Space.gutter, top + M2Layout.headerPadTop, M2Space.gutter, M2Layout.headPadBottom),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 SizedBox(height: M2Layout.brandRowH, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [brand, dateText])),
                 Padding(padding: const EdgeInsets.only(top: M2Layout.titleGap), child: Semantics(header: true, child: Text(mealLabel[clockMeal(DateTime.parse(fx.clock))]!, style: M2Text.hallTitle.style(M2Color.white)))),
@@ -89,13 +89,13 @@ class _HallsListState extends State<HallsList> {
             ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where((k) => !isCafe(k))) _cell(k, now)])),
             if (places.any(isCafe)) ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where(isCafe)) _cell(k, now)])),
             Padding(
-              padding: EdgeInsets.fromLTRB(M2Space.s[4], M2Layout.areasPadTop, M2Space.s[4], M2Layout.listPadBottom),
+              padding: EdgeInsets.fromLTRB(M2Space.gutter, M2Space.sectionTop, M2Space.gutter, M2Layout.listPadBottom),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Padding(padding: EdgeInsets.only(bottom: M2Space.s[0]), child: Text('Cafés & markets', style: M2Text.section.style(M2Color.dm))),
+                Padding(padding: EdgeInsets.only(bottom: M2Layout.secTitleGap), child: Text('Cafés & markets', style: M2Text.section.style(M2Color.dm))),
                 for (var i = 0; i < M2Layout.areaCount; i++)
                   Container(
                     constraints: const BoxConstraints(minHeight: M2Layout.areaRowMin),
-                    padding: EdgeInsets.symmetric(vertical: M2Space.s[1]),
+                    padding: EdgeInsets.symmetric(vertical: M2Space.part),
                     decoration: BoxDecoration(border: i < M2Layout.areaCount - 1 ? Border(bottom: BorderSide(color: M2Color.hair)) : null),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -124,7 +124,7 @@ class _HallsListState extends State<HallsList> {
               builder: (_, c) => Opacity(opacity: (((_scroll.hasClients ? _scroll.offset : 0) - M2Layout.collapseStart) / M2Layout.collapseSpan).clamp(0.0, 1.0), child: c),
               child: Container(
                 color: M2Color.dm,
-                padding: EdgeInsets.fromLTRB(M2Space.s[4], top, M2Space.s[4], 0),
+                padding: EdgeInsets.fromLTRB(M2Space.gutter, top, M2Space.gutter, 0),
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center, children: [brand, dateText]),
               ),
             ),

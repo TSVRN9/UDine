@@ -51,7 +51,7 @@ class M2TabBar extends StatelessWidget {
             for (var i = 0; i < tabs.length; i++)
               Expanded(
                 child: Opacity(
-                  opacity: disabled.contains(i) ? M2Layout.disabledTab : 1,
+                  opacity: disabled.contains(i) ? M2Opacity.disabled : 1,
                   child: Semantics(
                     selected: i == selected, enabled: !disabled.contains(i),
                     child: Press(
@@ -74,12 +74,12 @@ class M2TabBar extends StatelessWidget {
           ]),
           // `.tbar .ind`: a third of the bar wide, over the hairline, sliding on `settle`
           Positioned(
-            left: 0, right: 0, top: M2Layout.tabIndicatorTop, height: M2Layout.tabIndicatorH,
+            left: 0, right: 0, top: M2Size.indicatorTop, height: M2Size.indicator,
             child: IgnorePointer(
               child: AnimatedAlign(
                 key: const ValueKey('tab-indicator'),
                 alignment: Alignment(-1 + 2 * selected / (tabs.length - 1), 0),
-                duration: const Duration(milliseconds: M2Motion.settleD), curve: standardM2,
+                duration: M2Motion.settle.duration, curve: M2Motion.settle.curve,
                 child: FractionallySizedBox(widthFactor: 1 / tabs.length, child: const ColoredBox(color: M2Color.vm, child: SizedBox.expand())),
               ),
             ),

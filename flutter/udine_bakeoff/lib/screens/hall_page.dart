@@ -50,8 +50,8 @@ class HallPage extends StatelessWidget {
               // the header's grades develop with the photo
               Positioned.fill(
                 child: _fade('headerGrade', (p) => p, Stack(children: [
-                  Positioned(left: 0, right: 0, top: 0, height: top + M2Layout.topGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Color.topGrade)))),
-                  Positioned(left: 0, right: 0, bottom: 0, height: M2Layout.bottomGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Color.bottomGrade, stops: M2Layout.bottomGradStops)))),
+                  Positioned(left: 0, right: 0, top: 0, height: top + M2Layout.topGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Gradient.headTop.colors)))),
+                  Positioned(left: 0, right: 0, bottom: 0, height: M2Layout.bottomGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: M2Gradient.headBottom.colors, stops: M2Gradient.headBottom.stops)))),
                 ])),
               ),
               if (!compact) Positioned.fill(child: _fade('headerLetter', incomingOpacity, Stack(children: [HallLetter(letter: place, x: hallLx[place]!, top: top + M2Layout.letterTop)]))),
@@ -70,7 +70,7 @@ class HallPage extends StatelessWidget {
               Positioned.fill(
                 child: _fade('title', incomingOpacity, Stack(children: [
                   Positioned(
-                    left: M2Space.s[4], bottom: M2Layout.titleBottom,
+                    left: M2Space.gutter, bottom: M2Layout.titleBottom,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Semantics(header: true, child: Text(name, style: M2Text.menuName.style(M2Color.white))),
                       Container(constraints: const BoxConstraints(minHeight: M2Layout.statusMin), margin: const EdgeInsets.only(top: M2Layout.statusGap), child: Text(status, style: M2Text.status.style(M2Color.onDmSoft))),
@@ -83,7 +83,7 @@ class HallPage extends StatelessWidget {
           ),
         ),
         Positioned(
-          left: M2Layout.backLeft, top: top, height: M2Layout.backBar,
+          left: M2Layout.backLeft, top: top, height: M2Layout.barH,
           child: _fade('back', incomingOpacity, Center(child: Press(label: 'Back', scale: true, onTap: t.close, child: const SizedBox(width: M2Layout.backBtn, height: M2Layout.backBtn, child: Center(child: Chevron(back: true, color: M2Color.white, size: M2Layout.backSize)))))),
         ),
       ]),

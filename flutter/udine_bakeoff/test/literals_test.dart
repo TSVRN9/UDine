@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 final _num = RegExp(r'(?<![\[\w.])[1-9]\d*(\.\d+)?(?![\]\w])|(?<![\[\w.])0\.\d+');
-final _computedDuration = RegExp(r'Duration\(milliseconds: (\(ms|.*M2Motion\.)');
+final _computedDuration = RegExp(r'Duration\(milliseconds: (\(ms|.*M2Motion\.|.*\.ms\b)');
 
 /// The offending lines of a source file. `strict`: screens and motion also ban type and layout literals.
 List<String> violations(String src, {required bool strict}) {
@@ -32,13 +32,14 @@ void main() {
     test('flags a raw colour in the kit', () => expect(violations("const Color(0xD13B0A0F),", strict: false), hasLength(1)));
     test('flags a raw duration but not a token or computed one', () {
       expect(violations('Duration(milliseconds: 240)', strict: false), hasLength(1));
-      expect(violations('Duration(milliseconds: M2Motion.settleD)', strict: false), isEmpty);
+      expect(violations('Duration(milliseconds: M2Motion.settle.ms)', strict: false), isEmpty);
       expect(violations('Duration(milliseconds: (ms * x).round())', strict: false), isEmpty);
+      expect(violations('Duration(milliseconds: (a.ms * x).round())', strict: false), isEmpty);
     });
     test('flags numeric sizes in screens, not token reads or list indexes', () {
       expect(violations('padding: EdgeInsets.only(top: 12),', strict: true), hasLength(1));
       expect(violations('const SizedBox(height: 7)', strict: true), hasLength(1));
-      expect(violations('EdgeInsets.fromLTRB(M2Space.s[4], M2Layout.x, M2Space.s[4], 0)', strict: true), isEmpty);
+      expect(violations('EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.x, M2Space.gutter, 0)', strict: true), isEmpty);
       expect(violations('Colors.red, Curves.ease, fontSize: 14', strict: true), hasLength(3));
     });
   });

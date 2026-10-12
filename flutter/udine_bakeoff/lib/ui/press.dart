@@ -20,15 +20,15 @@ class _PressState extends State<Press> {
 
   @override
   Widget build(BuildContext context) {
-    final d = Duration(milliseconds: _down ? M2Motion.pressD : M2Motion.settleD);
+    final d = (_down ? M2Motion.press : M2Motion.settle).duration;
     Widget c = widget.child;
     if (widget.overlay != null) {
       c = Stack(children: [
         c,
-        Positioned.fill(child: IgnorePointer(child: AnimatedOpacity(opacity: _down ? 1 : 0, duration: d, curve: standardM2, child: ColoredBox(color: widget.overlay!)))),
+        Positioned.fill(child: IgnorePointer(child: AnimatedOpacity(opacity: _down ? 1 : 0, duration: d, curve: (_down ? M2Motion.press : M2Motion.settle).curve, child: ColoredBox(color: widget.overlay!)))),
       ]);
     }
-    if (widget.scale) c = AnimatedScale(scale: _down ? M2Motion.pressScale : 1, duration: d, curve: standardM2, child: c);
+    if (widget.scale) c = AnimatedScale(scale: _down ? M2Motion.pressScale : 1, duration: d, curve: (_down ? M2Motion.press : M2Motion.settle).curve, child: c);
     return Semantics(
       button: true, label: widget.label, onTap: widget.onTap,
       child: GestureDetector(

@@ -9,7 +9,7 @@ class BandGrade extends StatelessWidget {
   Widget build(BuildContext context) => IgnorePointer(
         child: DecoratedBox(
           position: DecorationPosition.background,
-          decoration: BoxDecoration(gradient: LinearGradient(colors: M2Color.bandGrade, stops: M2Layout.bandGradeStops)),
+          decoration: BoxDecoration(gradient: LinearGradient(colors: M2Gradient.band.colors, stops: M2Gradient.band.stops)),
           child: const SizedBox.expand(),
         ),
       );
@@ -28,7 +28,7 @@ class Band extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = compact ? M2Size.bandCompact : M2Size.band;
+    final h = compact ? M2Layout.bandCompact : M2Size.band;
     final body = SizedBox(
       height: h,
       child: ClipRect(
@@ -38,7 +38,7 @@ class Band extends StatelessWidget {
           if (!ghost) const Positioned.fill(child: BandGrade()),
           ?letter,
           Positioned(
-            left: M2Space.s[4], top: compact ? M2Layout.textTopPin : M2Layout.textTop,
+            left: M2Space.gutter, top: compact ? M2Space.pinTextTop : M2Space.bandTextTop,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name, style: (compact ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
               if (status != null && status!.isNotEmpty)

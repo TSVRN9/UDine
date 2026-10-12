@@ -14,7 +14,7 @@ void main() {
     expect(M2Color.dm, const Color(0xFF3B0A0F));
     expect(M2Color.hair, const Color.fromRGBO(36, 23, 26, 0.12));
     expect(M2Color.onDm.a, closeTo(0.8, 1 / 255));
-    expect(M2Color.carbon['B'], (const Color(0xFF9BCB3B), const Color(0xFF3D5C0A)));
+    expect(M2Grade.carbon['B'], (const Color(0xFF9BCB3B), const Color(0xFF3D5C0A)));
   });
   test('type rows carry size, line and weight', () {
     final s = M2Text.bandName.style(M2Color.white);

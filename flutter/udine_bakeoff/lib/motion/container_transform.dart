@@ -37,9 +37,9 @@ class ContainerTransform extends ChangeNotifier {
 
   // Runs progress to `to` over `ms` x the distance left; only the run that is still current may finish the machine. A cancelled
   // animation's future never completes, and a stale `done` is ignored by the reducer besides.
-  void _runTo(double to, int ms, int run) {
+  void _runTo(double to, Anim a, int run) {
     progress
-        .animateTo(to, duration: Duration(milliseconds: (ms * (to - progress.value).abs()).round()), curve: emphasized)
+        .animateTo(to, duration: Duration(milliseconds: (a.ms * (to - progress.value).abs()).round()), curve: a.curve)
         .then((_) {
       if (!_disposed) _send(Event.done(run));
     });
@@ -52,12 +52,12 @@ class ContainerTransform extends ChangeNotifier {
       progress.value = 0;
     }
     final next = _send(Event.open);
-    if (next.phase == Phase.opening) _runTo(1, M2Motion.contD, next.run);
+    if (next.phase == Phase.opening) _runTo(1, M2Motion.cont, next.run);
   }
 
   void close() {
     final next = _send(Event.close);
-    if (next.phase == Phase.closing) _runTo(0, M2Motion.contBackD, next.run);
+    if (next.phase == Phase.closing) _runTo(0, M2Motion.contBack, next.run);
   }
 
   void grab() {
@@ -75,8 +75,8 @@ class ContainerTransform extends ChangeNotifier {
   void release(double dist, double v) {
     final to = settleTarget(v, _clamp01(1 - dist / M2Motion.dragBackDist));
     final next = _send(Event.release(to));
-    if (next.phase == Phase.closing) _runTo(0, M2Motion.contBackD, next.run);
-    if (next.phase == Phase.opening) _runTo(1, M2Motion.contD, next.run);
+    if (next.phase == Phase.closing) _runTo(0, M2Motion.contBack, next.run);
+    if (next.phase == Phase.opening) _runTo(1, M2Motion.cont, next.run);
   }
 
   @override
@@ -110,7 +110,7 @@ class BackSwipeRecognizer extends OneSequenceGestureRecognizer {
     startTrackingPointer(event.pointer, event.transform);
     _pointer = event.pointer;
     _from = event.position;
-    _edge = event.localPosition.dx < M2Motion.edge;
+    _edge = event.localPosition.dx < M2Edge.swipe;
     _mode = 0;
     _started = false;
     _won = false;

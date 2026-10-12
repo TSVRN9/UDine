@@ -1,0 +1,839 @@
+{
+ "$comment": "UDine M2 design tokens: the single source for the React Native (mobile/src/lib/m2.generated.ts) and Flutter (tokens.dart) bake-off stacks. Units: px = dp, ms, unitless ratios, rgba(r,g,b,a) strings. Every token path two levels deep has a `trace` entry naming the M2 rule it comes from (~/.cache/udine-scratch/flows/M2/src.html, CONCEPT.md). Generated TS: `pnpm tokens` in /mobile; mobile/src/lib/m2.generated.test.ts fails when it is stale.",
+ "version": 1,
+ "color": {
+  "dm": "#3b0a0f",
+  "vm": "#881c1c",
+  "gold": "#c99a2e",
+  "chalk": "#f8f9fb",
+  "ink": "#24171a",
+  "slate": "#6e6266",
+  "tint": "#f3e4e4",
+  "hair": "rgba(36,23,26,0.12)",
+  "white": "#ffffff",
+  "onDm": "rgba(255,255,255,0.8)",
+  "onDmSoft": "rgba(255,255,255,0.86)",
+  "divider": "rgba(255,255,255,0.14)",
+  "pressRow": "rgba(36,23,26,0.06)",
+  "here": "rgba(136,28,28,0.07)",
+  "ghost": "rgba(136,28,28,0.45)",
+  "dotOff": "rgba(255,255,255,0.35)",
+  "outline": "rgba(255,255,255,0.7)",
+  "spinTrack": "rgba(136,28,28,0.18)",
+  "stitchGold": "rgba(201,154,46,0.95)",
+  "felt": "#5a1820",
+  "scrim": "rgb(36,10,14)",
+  "pressOnDm": "rgba(255,255,255,0.08)",
+  "pressBand": "rgba(59,10,15,0.22)",
+  "grab": "rgba(36,23,26,0.22)",
+  "stitch": "rgba(59,10,15,0.75)",
+  "lampOff": "rgba(255,255,255,0.22)",
+  "boardOff": "rgba(255,255,255,0.12)",
+  "boardOn": "rgba(255,255,255,0.55)",
+  "duoTint": "#c4434b",
+  "swRule": "rgba(255,255,255,0.12)",
+  "onDmQuiet": "rgba(255,255,255,0.6)"
+ },
+ "grade": {
+  "carbon": {
+   "A": {
+    "tile": "#0d6d3a",
+    "ink": "#0d6d3a"
+   },
+   "B": {
+    "tile": "#9bcb3b",
+    "ink": "#3d5c0a"
+   },
+   "C": {
+    "tile": "#dbe11d",
+    "ink": "#4f5208"
+   },
+   "D": {
+    "tile": "#bcbdc0",
+    "ink": "#45464a"
+   },
+   "E": {
+    "tile": "#818285",
+    "ink": "#2f3033"
+   }
+  },
+  "health": {
+   "tiles": [
+    "#cfe0f2",
+    "#b4cbe3",
+    "#98b5d4",
+    "#7da0c5",
+    "#618ab7",
+    "#4675a8",
+    "#2a5f99",
+    "#0f4a8a"
+   ],
+   "ink": "#0f3a66"
+  }
+ },
+ "font": {
+  "body": {
+   "family": "Libre Franklin",
+   "weight": 400
+  },
+  "bodyMd": {
+   "family": "Libre Franklin",
+   "weight": 500
+  },
+  "bodySb": {
+   "family": "Libre Franklin",
+   "weight": 600
+  },
+  "num": {
+   "family": "Oswald",
+   "weight": 500
+  },
+  "numSb": {
+   "family": "Oswald",
+   "weight": 600
+  },
+  "numB": {
+   "family": "Oswald",
+   "weight": 700
+  }
+ },
+ "fontMetrics": {
+  "Libre Franklin": {
+   "normalLine": 1.212
+  },
+  "Oswald": {
+   "normalLine": 1.482
+  }
+ },
+ "type": {
+  "mealTab": {
+   "font": "bodyMd",
+   "size": 14,
+   "line": 17
+  },
+  "tabBar": {
+   "font": "bodySb",
+   "size": 12,
+   "line": 15
+  },
+  "brand": {
+   "font": "numSb",
+   "size": 22,
+   "line": 26,
+   "tabular": true
+  },
+  "date": {
+   "font": "body",
+   "size": 15,
+   "line": 20
+  },
+  "hallTitle": {
+   "font": "numSb",
+   "size": 52,
+   "line": 55,
+   "tabular": true
+  },
+  "bandName": {
+   "font": "numSb",
+   "size": 32,
+   "line": 32,
+   "tabular": true
+  },
+  "pinName": {
+   "font": "numSb",
+   "size": 24,
+   "line": 24,
+   "tabular": true
+  },
+  "menuName": {
+   "font": "numSb",
+   "size": 40,
+   "line": 40,
+   "tabular": true
+  },
+  "status": {
+   "font": "body",
+   "size": 15,
+   "line": "normal"
+  },
+  "statusSm": {
+   "font": "body",
+   "size": 14,
+   "line": "normal"
+  },
+  "note": {
+   "font": "body",
+   "size": 14,
+   "line": 18
+  },
+  "section": {
+   "font": "numSb",
+   "size": 22,
+   "line": 26,
+   "tabular": true
+  },
+  "station": {
+   "font": "numSb",
+   "size": 20,
+   "line": 20,
+   "tabular": true
+  },
+  "stationHead": {
+   "font": "numSb",
+   "size": 22,
+   "line": "normal",
+   "tabular": true
+  },
+  "day": {
+   "font": "numSb",
+   "size": 20,
+   "line": 20,
+   "tabular": true
+  },
+  "rowName": {
+   "font": "bodySb",
+   "size": 16,
+   "line": 20
+  },
+  "meta": {
+   "font": "body",
+   "size": 13,
+   "line": 17
+  },
+  "metaNum": {
+   "font": "num",
+   "size": 15,
+   "line": "normal",
+   "tabular": true
+  },
+  "stepper": {
+   "font": "numSb",
+   "size": 20,
+   "line": 24,
+   "tabular": true
+  },
+  "letter": {
+   "font": "numB",
+   "size": 18,
+   "line": 18,
+   "tabular": true
+  },
+  "tile": {
+   "font": "numSb",
+   "size": 14,
+   "line": 14,
+   "tabular": true
+  },
+  "button": {
+   "font": "bodySb",
+   "size": 16,
+   "line": 20
+  },
+  "link": {
+   "font": "bodySb",
+   "size": 15,
+   "line": 20
+  },
+  "empty": {
+   "font": "body",
+   "size": 16,
+   "line": 23
+  },
+  "desc": {
+   "font": "body",
+   "size": 16,
+   "line": 24
+  },
+  "sched": {
+   "font": "body",
+   "size": 15,
+   "line": 22
+  },
+  "schedHead": {
+   "font": "numSb",
+   "size": 28,
+   "line": 32,
+   "tabular": true
+  },
+  "dayRow": {
+   "font": "bodyMd",
+   "size": 17,
+   "line": 22
+  },
+  "dishName": {
+   "font": "numSb",
+   "size": 28,
+   "line": 32,
+   "tabular": true
+  },
+  "price": {
+   "font": "numSb",
+   "size": 20,
+   "line": 20,
+   "tabular": true
+  },
+  "mark": {
+   "font": "numSb",
+   "size": 16,
+   "line": 16,
+   "tabular": true
+  },
+  "sheetHead": {
+   "font": "numSb",
+   "size": 20,
+   "line": 24,
+   "tabular": true
+  },
+  "sheetHeadSm": {
+   "font": "numSb",
+   "size": 17,
+   "line": 20,
+   "tabular": true
+  },
+  "chip": {
+   "font": "numSb",
+   "size": 18,
+   "line": 18,
+   "tabular": true
+  },
+  "action": {
+   "font": "bodySb",
+   "size": 17,
+   "line": 22
+  },
+  "labelTitle": {
+   "font": "numB",
+   "size": 30,
+   "line": 33,
+   "tabular": true
+  },
+  "calNum": {
+   "font": "numB",
+   "size": 44,
+   "line": 44,
+   "tabular": true
+  },
+  "dv": {
+   "font": "numSb",
+   "size": 16,
+   "line": 20,
+   "tabular": true
+  },
+  "lbl": {
+   "font": "body",
+   "size": 15,
+   "line": 21
+  },
+  "lblLg": {
+   "font": "body",
+   "size": 18,
+   "line": 22
+  },
+  "lblThin": {
+   "font": "body",
+   "size": 13,
+   "line": 18
+  },
+  "lblFoot": {
+   "font": "body",
+   "size": 12,
+   "line": 16
+  },
+  "scaleNum": {
+   "font": "num",
+   "size": 14,
+   "line": 14,
+   "tabular": true
+  },
+  "ing": {
+   "font": "body",
+   "size": 15,
+   "line": 22.5
+  },
+  "barNum": {
+   "font": "numSb",
+   "size": 26,
+   "line": 26,
+   "tabular": true
+  },
+  "factRow": {
+   "font": "bodySb",
+   "size": 15,
+   "line": 20
+  },
+  "factNum": {
+   "font": "numSb",
+   "size": 20,
+   "line": 24,
+   "tabular": true
+  },
+  "mealCal": {
+   "font": "numSb",
+   "size": 18,
+   "line": 22,
+   "tabular": true
+  }
+ },
+ "space": {
+  "line": 4,
+  "part": 8,
+  "panel": 12,
+  "action": 16,
+  "gutter": 20,
+  "group": 24,
+  "bandTextTop": 16,
+  "pinTextTop": 14,
+  "stateTop": 28,
+  "paragraph": 16,
+  "stateGap": 16,
+  "sectionTop": 26,
+  "yheadBottom": 18,
+  "cafeBodyTop": 24,
+  "dietGroupTop": 32,
+  "eventTop": 20,
+  "eventBottom": 24,
+  "eventDate": 16,
+  "eventLinks": 16
+ },
+ "radius": {
+  "patch": 4,
+  "thumb": 5,
+  "card": 6,
+  "button": 8,
+  "sheet": 16,
+  "pill": 999
+ },
+ "size": {
+  "tabBar": 56,
+  "row": 64,
+  "tabs": 48,
+  "stationRow": 50,
+  "band": 112,
+  "tap": 44,
+  "tile": [
+   18,
+   22.5
+  ],
+  "tileSheet": [
+   24,
+   30
+  ],
+  "tileScale": [
+   26,
+   32.5
+  ],
+  "indicator": 3,
+  "indicatorTop": -1
+ },
+ "opacity": {
+  "disabled": 0.4,
+  "edgeShadow": 0.3
+ },
+ "gradient": {
+  "band": {
+   "stops": [
+    "rgba(59,10,15,0.82)",
+    "rgba(59,10,15,0.55)",
+    "rgba(59,10,15,0)"
+   ],
+   "locations": [
+    0,
+    0.45,
+    0.75
+   ],
+   "angle": "left to right"
+  },
+  "headTop": {
+   "stops": [
+    "rgba(59,10,15,0.6)",
+    "rgba(59,10,15,0)"
+   ],
+   "locations": [
+    0,
+    1
+   ],
+   "height": {
+    "statusBar": 0,
+    "plus": 80
+   },
+   "angle": "top to bottom"
+  },
+  "headBottom": {
+   "stops": [
+    "rgba(59,10,15,0)",
+    "rgba(59,10,15,0.5)",
+    "rgba(59,10,15,0.93)"
+   ],
+   "locations": [
+    0,
+    0.3,
+    0.76
+   ],
+   "height": 240,
+   "angle": "top to bottom"
+  }
+ },
+ "shadow": {
+  "push": [
+   {
+    "x": -1,
+    "y": 0,
+    "blur": 0,
+    "color": "rgba(36,10,14,0.08)"
+   },
+   {
+    "x": -10,
+    "y": 0,
+    "blur": 28,
+    "color": "rgba(36,10,14,0.16)"
+   }
+  ]
+ },
+ "edge": {
+  "swipe": 24
+ },
+ "curves": {
+  "emphasized": [
+   [
+    0,
+    0,
+    0.05,
+    0,
+    0.133333,
+    0.06,
+    0.166666,
+    0.4
+   ],
+   [
+    0.166666,
+    0.4,
+    0.208333,
+    0.82,
+    0.25,
+    1,
+    1,
+    1
+   ]
+  ]
+ },
+ "motion": {
+  "press": {
+   "d": 90,
+   "e": [
+    0.2,
+    0,
+    0,
+    1
+   ],
+   "scale": 0.97
+  },
+  "settle": {
+   "d": 200,
+   "e": [
+    0.2,
+    0,
+    0,
+    1
+   ]
+  },
+  "cont": {
+   "d": 500,
+   "e": "emphasized"
+  },
+  "contFade": 0.3,
+  "contBack": {
+   "d": 400,
+   "e": "emphasized"
+  },
+  "fadeThrough": {
+   "d": 250,
+   "e": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "scale": 0.97,
+   "z": 8
+  },
+  "fadeThroughOut": {
+   "d": 250,
+   "e": "linear"
+  },
+  "sharedX": {
+   "d": 450,
+   "e": "emphasized",
+   "at": 0.35,
+   "dist": 30,
+   "inAt": 0.6
+  },
+  "sharedXFade": {
+   "d": 450,
+   "e": "linear"
+  },
+  "scroll": {
+   "d": 500,
+   "e": "emphasized"
+  },
+  "exit": {
+   "d": 150,
+   "e": [
+    0.3,
+    0,
+    0.8,
+    0.2
+   ]
+  },
+  "scrim": 0.32,
+  "plateScrim": 0.5,
+  "dragBack": {
+   "dist": 480,
+   "commit": 0.82,
+   "flick": 0.5
+  },
+  "push": {
+   "e": [
+    0.32,
+    0.72,
+    0,
+    1
+   ],
+   "shift": 0.3,
+   "dim": 0.1,
+   "commit": 0.5
+  },
+  "pushIn": {
+   "d": 500,
+   "e": [
+    0.32,
+    0.72,
+    0,
+    1
+   ]
+  },
+  "pushOut": {
+   "d": 400,
+   "e": [
+    0.32,
+    0.72,
+    0,
+    1
+   ]
+  },
+  "rmFade": {
+   "d": 120,
+   "e": "linear"
+  },
+  "spin": {
+   "d": 900,
+   "e": "linear"
+  },
+  "spring": {
+   "sheet": {
+    "k": 300,
+    "z": 0.84
+   }
+  },
+  "lane": {
+   "from": 0.42,
+   "out": 0.4
+  },
+  "receipt": {
+   "d": 5000
+  },
+  "plateSwipe": {
+   "commit": 70,
+   "flick": 0.5,
+   "shift": 60,
+   "rubber": 0.25
+  },
+  "pushWatchdog": {
+   "d": 3000
+  },
+  "net": {
+   "slow": 1500,
+   "spinner": {
+    "delay": 400,
+    "snap": 1
+   }
+  }
+ },
+ "collapse": {
+  "parallax": 0.45,
+  "fadeEnd": 0.3,
+  "solidStart": 0.3,
+  "solidSpan": 0.55,
+  "letterEnd": 0.55,
+  "nameDx": 44,
+  "nameSize": 22,
+  "nameDrop": 38
+ },
+ "trace": {
+  "color.dm": ":root --dm",
+  "color.vm": ":root --vm",
+  "color.gold": ":root --gold",
+  "color.chalk": ":root --chalk",
+  "color.ink": ":root --ink",
+  "color.slate": ":root --slate",
+  "color.tint": ":root --tint",
+  "color.hair": ":root --hair",
+  "color.white": "#fff (.tbar, .field, .btn)",
+  "color.onDm": ".hhead .date rgba(255,255,255,.8)",
+  "color.onDmSoft": ".bt .st rgba(255,255,255,.86)",
+  "color.divider": ".dayc box-shadow inset 1px rgba(255,255,255,.14)",
+  "color.pressRow": ".row.down background rgba(36,23,26,.06)",
+  "color.here": ".row.here rgba(136,28,28,.07)",
+  "color.ghost": ".add.ghost inset 1.5px rgba(136,28,28,.45)",
+  "color.dotOff": "#bar .dots i rgba(255,255,255,.35)",
+  "color.outline": ".obtn border 1.5px rgba(255,255,255,.7)",
+  "color.spinTrack": ".spin border 3px rgba(136,28,28,.18)",
+  "color.stitchGold": ".evpatch::after dashed rgba(201,154,46,.95)",
+  "color.felt": "#bar .peek #5a1820",
+  "color.scrim": "#scrim / #pscrim rgb(36,10,14); opacity is motion.scrim / motion.plateScrim",
+  "color.pressOnDm": ".evcard.down, .swbtn.down, .dayc.down, .pin.down rgba(255,255,255,.08)",
+  "color.pressBand": ".press rgba(59,10,15,.22) over the band photo",
+  "color.grab": ".grab::before rgba(36,23,26,.22)",
+  "color.stitch": ".tg::after, .mk::after, .hchip .hl::after dashed rgba(59,10,15,.75)",
+  "color.lampOff": ".meter i rgba(255,255,255,.22)",
+  "color.boardOff": "histSVG unlit lamp rgba(255,255,255,.12)",
+  "color.boardOn": "histSVG lit lamp rgba(255,255,255,.55)",
+  "color.duoTint": ".duo .t #c4434b (multiply)",
+  "color.swRule": "#mswitch border-top rgba(255,255,255,.12)",
+  "color.onDmQuiet": "#mts .sch stroke rgba(255,255,255,.6)",
+  "grade.carbon": "CRC ramp A..E (src.html): [tile, ink]",
+  "grade.health": "HFC ramp 0..7 (src.html): tiles and the figure ink",
+  "font.body": "body 400",
+  "font.bodyMd": ".mts button 500",
+  "font.bodySb": ".row .n 600",
+  "font.num": ".row .m b Oswald 500",
+  "font.numSb": ".brand Oswald 600",
+  "font.numB": ".let text Oswald 700",
+  "fontMetrics.Libre Franklin": "hhea (ascender - descender + lineGap) / unitsPerEm of the shipped TTF: what `line-height: normal` is (typeLines test reads the TTFs)",
+  "fontMetrics.Oswald": "hhea (ascender - descender + lineGap) / unitsPerEm of the shipped TTF: what `line-height: normal` is (typeLines test reads the TTFs)",
+  "type.mealTab": ".mts button 14px/500 (selected 600)",
+  "type.tabBar": ".tbar button 12px/600",
+  "type.brand": ".brand 600 22px Oswald",
+  "type.date": ".hhead .date 15px",
+  "type.hallTitle": ".hhead h1 600 52px/1.05",
+  "type.bandName": ".bt .nm 600 32px/1",
+  "type.pinName": ".pin .bt .nm 24px",
+  "type.menuName": ".mt .nm 40px",
+  "type.status": ".bt .st 15px (no line-height)",
+  "type.statusSm": ".pin .bt .st, .bz 14px (no line-height)",
+  "type.note": ".dietnote 14px/1.35",
+  "type.section": ".sec h2 600 22px/1.2",
+  "type.station": ".swbtn .o 600 20px/1",
+  "type.stationHead": ".sth 600 22px Oswald (no line-height)",
+  "type.day": ".dayc .o 600 20px/1",
+  "type.rowName": ".row .n 600 16px/1.25",
+  "type.meta": ".row .m 13px",
+  "type.metaNum": ".row .m b 500 15px Oswald (no line-height)",
+  "type.stepper": ".step .q 600 20px Oswald",
+  "type.letter": ".hchip 600 18px/1, .hl 700 18px/1",
+  "type.tile": ".tile text 600 14px Oswald",
+  "type.button": ".btn 700 17px / .gbtn 700 16px",
+  "type.link": ".tbtn 600 15px",
+  "type.empty": ".empty 16px/1.45",
+  "type.desc": ".cbody .desc 16px/1.5",
+  "type.sched": ".scha p 15px/1.4",
+  "type.schedHead": ".sched .schn 600 28px/1.15",
+  "type.dayRow": "#days .day 500 17px",
+  "type.dishName": ".dish .dn 600 28px/1.15",
+  "type.price": ".pr 600 20px/1",
+  "type.mark": ".mk 600 16px/1",
+  "type.sheetHead": ".wt 600 20px/1.2",
+  "type.sheetHeadSm": ".wl.more .wt 600 17px/1.2",
+  "type.chip": ".hchip 600 18px/1",
+  "type.action": ".evbtn 17px",
+  "type.labelTitle": ".label .lt 700 30px/1.1",
+  "type.calNum": ".facts .cal b 700 44px/1",
+  "type.dv": ".label .lr .dv 600 16px Oswald",
+  "type.lbl": ".label .lr 15px",
+  "type.lblLg": ".facts .cal span 700 18px",
+  "type.lblThin": ".label .lr.thin 13px",
+  "type.lblFoot": ".label .lf 12px/1.35",
+  "type.scaleNum": ".sscale i 500 14px/1",
+  "type.ing": ".ing p 15px/1.5",
+  "type.barNum": "#bar .l2 b 600 26px/1",
+  "type.factRow": ".facts .nr 600 15px",
+  "type.factNum": ".facts .nr b 600 20px Oswald",
+  "type.mealCal": ".lrow .mc b 600 18px Oswald",
+  "space.line": "CONCEPT.md sheet scale: 4 within a line group",
+  "space.part": "8 between the parts of a group",
+  "space.panel": "12 label to ratings panel; .lrow gap",
+  "space.action": "16 before the action",
+  "space.gutter": "20: .sec, .bt left, .row padding-left",
+  "space.group": "24 between groups",
+  "space.bandTextTop": ".bt{top:16px}",
+  "space.pinTextTop": ".pin .bt{top:14px}",
+  "space.stateTop": ".mst{padding:28px 20px 8px}",
+  "space.paragraph": "UA p{margin:1em 0} around .mst .empty (not reset in M2)",
+  "space.stateGap": ".mst .empty{padding:0 0 16px}",
+  "space.sectionTop": "drawn 26; .sec says 22 (audit: unmapped)",
+  "space.yheadBottom": "drawn 18; .yhead padding-bottom 18",
+  "space.cafeBodyTop": "drawn 24; .cbody says 20 (audit: unmapped)",
+  "space.dietGroupTop": "drawn 32; .dh~.dh says 28 (audit: unmapped)",
+  "space.eventTop": "drawn 20; .evband padding 16 20 20 (audit: unmapped)",
+  "space.eventBottom": "drawn 24 (audit: unmapped)",
+  "space.eventDate": "drawn 16 (audit: unmapped)",
+  "space.eventLinks": "drawn 16; .evband .stack gap 12 (audit: unmapped)",
+  "radius.patch": ".tg 4",
+  "radius.thumb": ".thumb 5",
+  "radius.card": ".evpatch 6",
+  "radius.button": ".btn 8",
+  "radius.sheet": ".sheet 16",
+  "radius.pill": "full",
+  "size.tabBar": ".tbar button{height:56px}",
+  "size.row": ".row{min-height:64px}",
+  "size.tabs": "#mtabs{height:48px}",
+  "size.stationRow": ".sth{height:50px}",
+  "size.band": ".band{height:112px}",
+  "size.tap": ".tbtn, .obtn, .step{height:44px}",
+  "size.tile": ".tile 18 x 22.5",
+  "size.tileSheet": ".mks-s .tile 24 x 30",
+  "size.tileScale": ".sscale .tile 26 x 32.5",
+  "opacity.disabled": "#bfoot .gbtn[disabled]{opacity:.45}; disabled tab .4 (tbar)",
+  "opacity.edgeShadow": ".dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3",
+  "gradient.band": ".lgrad",
+  "gradient.headTop": ".tgrad (height st + 80)",
+  "gradient.headBottom": ".bgrad (height 240)",
+  "shadow.push": ".pushing box-shadow (src.html:54)",
+  "edge.swipe": "touchstart edge guard: x < 24 (src.html:1455, 1767)",
+  "curves.emphasized": "EMPH: the M3 emphasized path, two cubic segments",
+  "motion.press": "MO.press",
+  "motion.settle": "MO.settle",
+  "motion.cont": "MO.cont",
+  "motion.contFade": "paint: fout = 1 - clamp(p/.3)",
+  "motion.contBack": "MO.contBack",
+  "motion.fadeThrough": "MO.fadeThrough",
+  "motion.sharedX": "MO.sharedX",
+  "motion.scroll": "MO.scroll",
+  "motion.exit": "MO.exit (150, .3 0 .8 .2)",
+  "motion.scrim": "MO.scrim",
+  "motion.plateScrim": "#pscrim max opacity .5",
+  "motion.dragBack": "MO.dragBack",
+  "motion.push": "MO.push",
+  "motion.pushIn": "push in: MO.cont timing on MO.push.e",
+  "motion.pushOut": "push out: MO.contBack timing on MO.push.e",
+  "motion.rmFade": "MO.rmFade",
+  "motion.spin": ".spin animation 900ms linear infinite",
+  "motion.spring": "SPRING.sheet",
+  "motion.lane": "setCtl",
+  "motion.receipt": "receipt timer",
+  "motion.plateSwipe": "#bar pointerup",
+  "motion.pushWatchdog": "RN only: no M2 equivalent",
+  "motion.net": "SLOW, spinIn 1ms 400ms",
+  "collapse.parallax": "paint: phw translate d*.45",
+  "collapse.fadeEnd": "paint: fade = 1 - clamp(c/.3)",
+  "collapse.solidStart": "paint: msolid clamp((c-.3)/.55)",
+  "collapse.solidSpan": "paint: msolid span .55",
+  "collapse.letterEnd": "paint: mlet 1 - clamp(c/.55)",
+  "collapse.nameDx": "paint: mtn translate 44*c",
+  "collapse.nameSize": "NS: the name is 22 px in the compact bar",
+  "collapse.nameDrop": "measureXF: NB = (ST + 38) - ...",
+  "motion.sharedXFade": "MaterialSharedAxis opacity ramps: linear, over sharedX.at (out) and sharedX.inAt (in) of this duration",
+  "motion.fadeThroughOut": "the outgoing leg of a fade through: linear, over sharedX.at of fadeThrough.d (the incoming leg is fadeThrough.e)",
+  "size.indicator": ".tbar .ind{height:3px}",
+  "size.indicatorTop": ".tbar .ind{top:-1px}: over the hairline"
+ }
+}

@@ -16,7 +16,7 @@ final _grayContrast = ColorFilter.matrix(<double>[
 
 /// A per-channel affine of the gray: `multiply #c4434b`, then `screen dm`: out = g * m * (1 - d) + d.
 ColorFilter _tone() {
-  const m = M2Color.duoMultiply, d = M2Color.dm;
+  const m = M2Color.duoTint, d = M2Color.dm;
   List<double> row(double mc, double dc) => [mc * (1 - dc), 0, 0, 0, 255 * dc]; // reads the gray from the R channel
   return ColorFilter.matrix(<double>[...row(m.r, d.r), ...row(m.g, d.g), ...row(m.b, d.b), 0, 0, 0, 1, 0]);
 }
