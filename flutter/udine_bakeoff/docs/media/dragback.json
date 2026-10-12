@@ -1,0 +1,10 @@
+{
+  "sha": "78c460cc52208beeb59faa61d506ec3adef97253",
+  "device": "Agent_Emulator_Narrow (360x640 dp, 1080x1920, gesture nav, swangle_indirect software GL)",
+  "build": "flutter build apk --profile --target-platform android-x64; launched with --ez enable-impeller false",
+  "route": "Hampshire page",
+  "gesture": "adb input swipe down 600 px (200 dp, 700 ms): past commit, closes",
+  "m2_strip": "compare-dragback.png",
+  "note": "",
+  "recorder": "adb screenrecord; frames extracted at the container's own timestamps (frames are emitted only when the screen changes, ~15 fps under software GL)"
+}
