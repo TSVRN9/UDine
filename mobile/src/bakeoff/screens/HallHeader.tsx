@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { GestureDetector } from "react-native-gesture-handler";
@@ -8,7 +9,7 @@ import { busyView } from "../logic/busy";
 import { loadFixture } from "../logic/fixture";
 import { HALL_LX } from "../logic/letters";
 import { statusText } from "../logic/status";
-import { hoursKnown, liveKnown, useNet } from "../state/net";
+import { getNet, hoursKnown, liveKnown } from "../state/net";
 import type { ServeTarget } from "../logic/dishSheet";
 import type { PlaceKey } from "../logic/types";
 import type { useContainerTransform } from "../motion/useContainerTransform";
@@ -34,9 +35,13 @@ export function HallHeader({ t, H, place, name, scrollY, onBack, at, onPush, onP
   const compact = place.startsWith("c");
   const fx = loadFixture();
   // the band's copy shows what the band showed: no status or busy the network has not given it
-  const net = useNet();
+  // what the band showed when it was tapped, once: the copy never re-renders for a later network change (it is a layer the container's own
+  // progress has already faded out, and a commit under it redraws it as the band)
+  const [net] = useState(getNet);
   const busy = compact || !liveKnown(net) ? null : busyView(fx.busy[place as "W"]);
-  const ghost = (
+  // Once the screen is open the copy is faded out for good, and it is not drawn at all: a commit under a layer whose opacity only the
+  // UI thread has moved (a network arrival re-rendering the list beside it) put it back on screen, double-exposing the title.
+  const ghost = t.phase === "open" ? null : (
     <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, right: 0, top: rect.off, height: rect.height }, t.style.outgoing]}>
       <Band ghost compact={compact} name={name} status={hoursKnown(net) ? statusText(fx.hours[place], new Date(fx.clock)) : undefined} busy={busy ? <BusyRow lamps={busy.lamps} word={busy.word} /> : undefined}
         letter={compact ? undefined : <HallLetter letter={place as "W"} x={HALL_LX[place as "W"]} />} />
