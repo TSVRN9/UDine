@@ -1,4 +1,3 @@
-import { View } from "react-native";
 import { m2 } from "../../lib/theme";
 import { Felt } from "./Felt";
 import { Press } from "./Press";

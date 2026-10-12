@@ -385,7 +385,12 @@ export const m2 = {
     eventDate: 16,
     eventLinks: 16,
     markStart: 10,
-    markGap: 6
+    markGap: 6,
+    obtn: 14,
+    dirb: 16,
+    gbtn: 18,
+    gbtnTight: 14,
+    netBtnTop: 6
   },
   radius: {
     patch: 4,
@@ -420,7 +425,11 @@ export const m2 = {
     patch: 20,
     letterPatch: 28,
     mark: 30,
-    ring: 3
+    ring: 3,
+    btn: 52,
+    gbtn: 48,
+    gbtnMin: 84,
+    keyline: 1.5
   },
   opacity: {
     disabled: 0.4,

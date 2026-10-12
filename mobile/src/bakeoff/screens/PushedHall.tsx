@@ -35,7 +35,7 @@ export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { back(); return true; });
     return () => sub.remove();
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  });  
 
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * W }] }));
   const cast = usePushShadow(p);

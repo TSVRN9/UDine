@@ -4,7 +4,7 @@ import Svg, { Path } from "react-native-svg";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import type { SharedValue } from "react-native-reanimated";
 import { m2 } from "../../lib/theme";
-import { Press, Sheet, Text } from "../ui";
+import { Button, Press, Sheet, Text } from "../ui";
 import { openOffset, type Schedule } from "../logic/schedule";
 
 const mapsUrl = (ll: string, name: string) =>
@@ -33,10 +33,7 @@ export const HoursSheet = forwardRef<BottomSheetModal, { s: Schedule; maxHeight:
               {s.building ? <Text v="sched" color={m2.color.slate}>{s.building}</Text> : null}
             </View>
             {s.mapAddress ? (
-              <Press accessibilityRole="link" accessibilityLabel="Directions" onPress={() => Linking.openURL(mapsUrl(s.mapAddress!, s.name))}
-                style={{ height: m2.size.tap, paddingHorizontal: m2.space.action, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, justifyContent: "center" }}>
-                <Text v="link" color={m2.color.vm}>Directions</Text>
-              </Press>
+              <Button kind="line" size="md" label="Directions" accessibilityRole="link" accessibilityLabel="Directions" onPress={() => Linking.openURL(mapsUrl(s.mapAddress!, s.name))} />
             ) : null}
           </View>
           {s.payment ? (

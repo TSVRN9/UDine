@@ -2,6 +2,7 @@ export { Badge, DietBadge } from "./Badge";
 export { Felt } from "./Felt";
 export { ding, thud, thunk, tick } from "./haptics";
 export { Band } from "./Band";
+export { Button } from "./Button";
 export { Board, BusyRow, Meter } from "./Busy";
 export { Header } from "./Header";
 export { HallLetter } from "./HallLetter";

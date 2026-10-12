@@ -57,7 +57,7 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { leave(p.get()); return true; });
     return () => sub.remove();
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  });  
 
   const swipe = useEdgeSwipeBack({
     enabled: !leaving && !reduced,

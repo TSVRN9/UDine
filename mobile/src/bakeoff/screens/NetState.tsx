@@ -4,7 +4,7 @@ import Animated, { Keyframe, cancelAnimation, useAnimatedStyle, useSharedValue, 
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { timed } from "../ui/motion";
-import { Press, Text } from "../ui";
+import { Button, Text } from "../ui";
 import { useArrive } from "../ui/arrive";
 import type { MenuState } from "../logic/net";
 import { retry } from "../state/net";
@@ -47,10 +47,7 @@ export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuSt
             <View style={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.stateTop + m2.space.paragraph, paddingBottom: m2.space.line }}>
               <Text v="empty" color={m2.color.slate}>{text}</Text>
               {state === "fail" ? (
-                <Press accessibilityRole="button" onPress={() => { retry(); }}
-                  style={{ marginTop: m2.space.stateGap + m2.space.paragraph, height: 52, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
-                  <Text v="action" color={m2.color.vm}>Try again</Text>
-                </Press>
+                <Button kind="line" size="lg" label="Try again" onPress={() => { retry(); }} style={{ marginTop: m2.space.stateGap + m2.space.paragraph }} />
               ) : null}
             </View>
           )}

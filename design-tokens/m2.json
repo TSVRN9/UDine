@@ -395,7 +395,12 @@
   "eventDate": 16,
   "eventLinks": 16,
   "markStart": 10,
-  "markGap": 6
+  "markGap": 6,
+  "obtn": 14,
+  "dirb": 16,
+  "gbtn": 18,
+  "gbtnTight": 14,
+  "netBtnTop": 6
  },
  "radius": {
   "patch": 4,
@@ -430,7 +435,11 @@
   "patch": 20,
   "letterPatch": 28,
   "mark": 30,
-  "ring": 3
+  "ring": 3,
+  "btn": 52,
+  "gbtn": 48,
+  "gbtnMin": 84,
+  "keyline": 1.5
  },
  "opacity": {
   "disabled": 0.4,
@@ -851,7 +860,16 @@
   "space.markStart": ".mk{padding:0 12px 0 10px}: the 10",
   "space.markGap": ".mk{gap:6px}",
   "size.ring": ".evpatch{box-shadow:0 0 0 3px #fff}",
-  "radius.image": ".page[data-p=event] .evpatch img{border-radius:2px}"
+  "radius.image": ".page[data-p=event] .evpatch img{border-radius:2px}",
+  "size.btn": ".btn{height:52px}, .evbtn",
+  "size.gbtn": ".gbtn{height:48px}",
+  "size.gbtnMin": ".gbtn{min-width:84px}",
+  "size.keyline": ".btn.line / .obtn / .dirb border 1.5px",
+  "space.obtn": ".obtn{padding:0 14px}",
+  "space.dirb": ".dirb{padding:0 16px}",
+  "space.gbtn": ".gbtn{padding:0 18px}",
+  "space.gbtnTight": "the choose bar: .gbtn style=\"min-width:0;padding:0 14px\" (src.html:1994)",
+  "space.netBtnTop": ".netl .obtn{margin-top:6px}"
  },
  "felt": {
   "patch": {
