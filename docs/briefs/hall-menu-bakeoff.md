@@ -87,6 +87,10 @@ Rationale:
   scores, prices). Their pages work like a hall menu (stations, rows, the dish sheet with price,
   add-to-plate), and a café item starts its own plate the way a second hall does. Cafés with only a
   standing names list keep it.
+- **Terrace is included** (owner, 2026-10-12). It's physically on campus despite UMass's "off campus" label.
+- **Charles River Campus (Newton) sits behind a You toggle**, default off (owner, 2026-10-12). Turning it on adds the
+  campus alongside Amherst: its cafés-list group, page, Search and "where" results, plates and pinning. Turning it off
+  hides all of that without deleting anything.
 - **Designed in M2 before any build (round 9):**
   - a day control for a hall menu across the feed's roughly two-week window;
   - today's full hours and directions, reached from the hall header;
