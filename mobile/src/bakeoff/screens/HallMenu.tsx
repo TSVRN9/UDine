@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { View, useWindowDimensions } from "react-native";
+import { Image, View, useWindowDimensions } from "react-native";
 import Animated, {
   runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withTiming,
   type SharedValue,
@@ -24,7 +24,7 @@ import type { Dish, MealKey, PlaceKey } from "../logic/types";
 import { openDish } from "../state/dishSheet";
 import { halfwayOut } from "../motion/pushGate";
 import type { useContainerTransform } from "../motion/useContainerTransform";
-import { PHOTO_POS, photoOf } from "../photos";
+import { EVENT_PHOTO, PHOTO_POS, photoOf } from "../photos";
 import { hoursKnown, liveKnown, useMenuState, useNet } from "../state/net";
 import { add, useStore } from "../state/store";
 import { arriveIn, useArrival } from "../ui/arrive";
@@ -344,6 +344,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
           <Press feedback="tint" accessibilityRole="button" accessibilityLabel={it.title} disabled={!onEvent} onPress={() => onEvent?.(it.i)}
             style={{ minHeight: 52, paddingHorizontal: m2.space[4], paddingVertical: 14, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
             <Text v="link" color={m2.color.dm}>{it.title}</Text>
+            {/* the event page's banner is decoded now, so it is there when the page arrives (it was drawn a few frames after the push began) */}
+            {EVENT_PHOTO[it.title] ? <Image source={EVENT_PHOTO[it.title]} accessible={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} /> : null}
           </Press>
         );
       case "cafe":
