@@ -1,10 +1,22 @@
-// The kit. Task 11 builds what the Halls tab and the container transform need; the rest of RN's kit (ListRow, Badge,
-// ScoreBadge, Chip, Stepper, Sheet) arrives with the menu, dish sheet and plate in Task 12.
+// The kit: every component a screen is made of. Screens compose these and hold no raw values (test/literals_test.dart).
+export 'back_button.dart';
+export 'badge.dart';
 export 'band.dart';
 export 'busy.dart';
+export 'button.dart';
+export 'check_row.dart';
 export 'chevron.dart';
+export 'felt.dart';
 export 'hall_letter.dart';
+export 'haptics.dart';
+export 'list_row.dart';
+export 'lrow.dart';
+export 'mark_glyph.dart';
+export 'motion.dart';
 export 'photo.dart';
 export 'photos.dart';
 export 'press.dart';
+export 'score_badge.dart';
+export 'screen_header.dart';
+export 'stepper.dart';
 export 'tab_bar.dart';

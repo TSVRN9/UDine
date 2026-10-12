@@ -1,0 +1,2239 @@
+{
+"390": {
+"head": {
+"mhead": [
+0,
+0,
+390,
+306
+],
+"mtn": [
+20,
+144,
+161,
+40
+],
+"mts": [
+20,
+179,
+171.45,
+42
+],
+"mbz": [
+20,
+217,
+230,
+39
+],
+"mhist": [
+20,
+266,
+350,
+30
+],
+"mtabs": [
+0,
+306,
+390,
+48
+],
+"mswitch": [
+0,
+354,
+390,
+48
+],
+"swbtn": [
+0,
+355,
+285.48,
+47
+],
+"dayc": [
+285.48,
+355,
+104.52,
+47
+],
+"mlist": [
+0,
+402,
+390,
+4828
+],
+"tabs": [
+[
+"Breakfast",
+4,
+83.9
+],
+[
+"Lunch",
+87.9,
+60.1
+],
+[
+"Dinner",
+148.1,
+62.8
+],
+[
+"Late night",
+210.9,
+85.5
+],
+[
+"Grab 'N Go",
+296.3,
+89.7
+]
+],
+"ul": "translateX(94px) scaleX(44)",
+"let": [
+190,
+50,
+200,
+200
+],
+"back": [
+4,
+26,
+48,
+48
+]
+},
+"rows": [
+[
+"sth",
+50,
+"Miscellaneous"
+],
+[
+"row",
+79,
+"Local Roasted Sweet Potatoes"
+],
+[
+"sth",
+50,
+"Soups"
+],
+[
+"row",
+64,
+"Green Chile Posole"
+],
+[
+"row",
+79,
+"Roasted Red Pepper & Smoked Gouda "
+],
+[
+"sth",
+50,
+"Grill Station"
+],
+[
+"row",
+64,
+"Black Bean Burger"
+],
+[
+"row",
+64,
+"Golden BBQ Chicken Thigh"
+],
+[
+"row",
+64,
+"Halal Burger Patty"
+],
+[
+"row",
+64,
+"Halal French Fries"
+],
+[
+"row",
+79,
+"Hand Cut Sweet Potato Fries"
+],
+[
+"row",
+64,
+"Oatmeal Raisin Cookie"
+],
+[
+"row",
+64,
+"Roasted Zucchini"
+],
+[
+"sth",
+50,
+"Desserts"
+],
+[
+"row",
+79,
+"Chocolate Soft Serve Ice Cream"
+],
+[
+"row",
+79,
+"Plant Based Vanilla Ice Cream"
+],
+[
+"row",
+79,
+"Strawberry Plant Based Soft Serve"
+],
+[
+"row",
+79,
+"Vanilla Soft Serve Ice Cream"
+],
+[
+"row",
+64,
+"Zebra Brownies"
+],
+[
+"sth",
+50,
+"Noodle Bowl"
+],
+[
+"row",
+64,
+"Bean Sprouts"
+],
+[
+"row",
+64,
+"Beef Brisket Noodle Bowl"
+],
+[
+"row",
+64,
+"Chopped Cilantro"
+],
+[
+"row",
+64,
+"Hard Boiled Egg"
+],
+[
+"row",
+64,
+"Scallions"
+],
+[
+"row",
+64,
+"Steamed Bok Choy"
+],
+[
+"sth",
+50,
+"Street Food"
+],
+[
+"row",
+64,
+"Braised Pulmuone Tofu"
+],
+[
+"row",
+64,
+"Mee Goreng"
+],
+[
+"row",
+64,
+"Stir Fry Green Vegetables"
+],
+[
+"row",
+64,
+"Vegetable Spring Rolls"
+],
+[
+"row",
+77,
+"Yellow Curry Kabocha Squash w/Pork"
+],
+[
+"sth",
+50,
+"Tandoor"
+],
+[
+"row",
+77,
+"Baked Salmon w/Paprika Ginger Eggp"
+],
+[
+"row",
+79,
+"Chickpea Salad w/Teardrop Peppers "
+],
+[
+"row",
+64,
+"Creamy Cucumber Salad"
+],
+[
+"row",
+64,
+"Cumin Basmati Rice"
+],
+[
+"row",
+64,
+"Kachumbari Salad"
+],
+[
+"row",
+64,
+"Okra & Onions"
+],
+[
+"row",
+64,
+"Tear Drop Peppers"
+],
+[
+"sth",
+50,
+"Mediterranean"
+],
+[
+"row",
+77,
+"Baked Italian Sausage w/Potatoes &"
+],
+[
+"row",
+64,
+"Basil Cream Pesto Sauce"
+],
+[
+"row",
+64,
+"Fettuccini Pasta"
+],
+[
+"row",
+79,
+"Fresh Grated Parmesan Cheese"
+],
+[
+"row",
+64,
+"Herb Roasted Tomatoes"
+],
+[
+"row",
+64,
+"Marinara Sauce"
+],
+[
+"row",
+64,
+"Rigatoni Pasta"
+],
+[
+"row",
+79,
+"Rigatoni w/Broccolini & Ricotta"
+],
+[
+"sth",
+50,
+"Seasons"
+],
+[
+"row",
+64,
+"Baked Pakora"
+],
+[
+"row",
+64,
+"Coriander Chutney"
+],
+[
+"row",
+79,
+"Cucumber & Yogurt Raita Jain"
+],
+[
+"row",
+79,
+"Family Pulav (Vegetable Rice) Jain"
+],
+[
+"row",
+64,
+"Fresh Red Onions"
+],
+[
+"row",
+64,
+"GF Penne Pasta"
+],
+[
+"row",
+64,
+"Kidney Bean Curry Rasoi"
+],
+[
+"row",
+64,
+"Marinara Jain"
+],
+[
+"row",
+64,
+"Paneer Jalfrezi (Cheese)"
+],
+[
+"row",
+79,
+"Sauteed Cabbage w/Coconut"
+],
+[
+"row",
+64,
+"Tamarind Date Chutney"
+],
+[
+"sth",
+50,
+"Latino 1"
+],
+[
+"row",
+64,
+"Arroz Blanco"
+],
+[
+"row",
+64,
+"Black Beans"
+],
+[
+"row",
+79,
+"Carrots & Chayote w/Lemon"
+],
+[
+"row",
+79,
+"Esquites (Mexican Corn Salad)"
+],
+[
+"row",
+64,
+"Homemade Guacamole"
+],
+[
+"row",
+64,
+"Pork Adobada (Chicken)"
+],
+[
+"row",
+64,
+"Queso Fresco"
+],
+[
+"row",
+64,
+"Sibley's Pico de Gallo"
+],
+[
+"row",
+64,
+"Sour Cream"
+],
+[
+"pad-b",
+160,
+""
+]
+],
+"rowsOn": [
+[
+"sth",
+50
+],
+[
+"row",
+79
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+77
+],
+[
+"sth",
+50
+],
+[
+"row",
+77
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+77
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"pad-b",
+160
+]
+],
+"rowsHiding": [
+[
+"dietnote",
+53,
+"Hiding 22 dishes that list milk or"
+],
+[
+"sth",
+50,
+"Miscellaneous"
+],
+[
+"row",
+79,
+"Local Roasted Sweet Potatoes"
+],
+[
+"sth",
+50,
+"Soups"
+],
+[
+"row",
+64,
+"Green Chile Posole"
+],
+[
+"sth",
+50,
+"Grill Station"
+],
+[
+"row",
+64,
+"Black Bean Burger"
+],
+[
+"row",
+64,
+"Golden BBQ Chicken Thigh"
+],
+[
+"row",
+64,
+"Halal Burger Patty"
+],
+[
+"row",
+64,
+"Roasted Zucchini"
+],
+[
+"sth",
+50,
+"Desserts"
+],
+[
+"row",
+79,
+"Plant Based Vanilla Ice Cream"
+],
+[
+"row",
+79,
+"Strawberry Plant Based Soft Serve"
+],
+[
+"sth",
+50,
+"Noodle Bowl"
+],
+[
+"row",
+64,
+"Bean Sprouts"
+],
+[
+"row",
+64,
+"Beef Brisket Noodle Bowl"
+],
+[
+"row",
+64,
+"Chopped Cilantro"
+],
+[
+"row",
+64,
+"Scallions"
+],
+[
+"row",
+64,
+"Steamed Bok Choy"
+],
+[
+"sth",
+50,
+"Street Food"
+],
+[
+"row",
+64,
+"Braised Pulmuone Tofu"
+],
+[
+"row",
+64,
+"Stir Fry Green Vegetables"
+],
+[
+"row",
+77,
+"Yellow Curry Kabocha Squash w/Pork"
+],
+[
+"sth",
+50,
+"Tandoor"
+],
+[
+"row",
+77,
+"Baked Salmon w/Paprika Ginger Eggp"
+],
+[
+"row",
+64,
+"Cumin Basmati Rice"
+],
+[
+"row",
+64,
+"Kachumbari Salad"
+],
+[
+"row",
+64,
+"Tear Drop Peppers"
+],
+[
+"sth",
+50,
+"Mediterranean"
+],
+[
+"row",
+64,
+"Fettuccini Pasta"
+],
+[
+"row",
+64,
+"Herb Roasted Tomatoes"
+],
+[
+"row",
+64,
+"Marinara Sauce"
+],
+[
+"row",
+64,
+"Rigatoni Pasta"
+],
+[
+"sth",
+50,
+"Seasons"
+],
+[
+"row",
+64,
+"Baked Pakora"
+],
+[
+"row",
+64,
+"Coriander Chutney"
+],
+[
+"row",
+79,
+"Family Pulav (Vegetable Rice) Jain"
+],
+[
+"row",
+64,
+"Fresh Red Onions"
+],
+[
+"row",
+64,
+"GF Penne Pasta"
+],
+[
+"row",
+64,
+"Kidney Bean Curry Rasoi"
+],
+[
+"row",
+64,
+"Marinara Jain"
+],
+[
+"row",
+79,
+"Sauteed Cabbage w/Coconut"
+],
+[
+"row",
+64,
+"Tamarind Date Chutney"
+],
+[
+"sth",
+50,
+"Latino 1"
+],
+[
+"row",
+64,
+"Arroz Blanco"
+],
+[
+"row",
+64,
+"Black Beans"
+],
+[
+"row",
+79,
+"Carrots & Chayote w/Lemon"
+],
+[
+"row",
+64,
+"Homemade Guacamole"
+],
+[
+"row",
+64,
+"Pork Adobada (Chicken)"
+],
+[
+"row",
+64,
+"Sibley's Pico de Gallo"
+],
+[
+"pad-b",
+160,
+""
+]
+],
+"dish": {
+"sheet": [
+0,
+361.81,
+390,
+812
+],
+"grab": [
+0,
+361.81,
+390,
+22
+],
+"dn": [
+20,
+387.81,
+306,
+32.19
+],
+"dsv": [
+20,
+424,
+350,
+18
+],
+"mks": [
+20,
+450,
+350,
+30
+],
+"dal": [
+20,
+488,
+350,
+21
+],
+"dadd": [
+20,
+525,
+350,
+52
+],
+"where": [
+20,
+601,
+350,
+76
+],
+"wt": [
+20,
+601,
+350,
+24
+],
+"hchip": [
+20,
+633,
+134.45,
+44
+],
+"label": [
+20,
+701,
+350,
+521.19
+],
+"lt": [
+34,
+707,
+322,
+40
+],
+"ls": [
+34,
+747,
+322,
+37
+],
+"cal": [
+34,
+784,
+322,
+54
+],
+"grades": [
+20,
+1234.19,
+350,
+134
+],
+"ing": [
+20,
+1392.19,
+350,
+24
+],
+"mid": 361.8125,
+"favb": [
+334,
+377.81,
+48,
+48
+]
+}
+},
+"360": {
+"head": {
+"mhead": [
+0,
+0,
+360,
+306
+],
+"mtn": [
+20,
+144,
+161,
+40
+],
+"mts": [
+20,
+179,
+171.45,
+42
+],
+"mbz": [
+20,
+217,
+230,
+39
+],
+"mhist": [
+20,
+266,
+320,
+30
+],
+"mtabs": [
+0,
+306,
+360,
+48
+],
+"mswitch": [
+0,
+354,
+360,
+48
+],
+"swbtn": [
+0,
+355,
+255.48,
+47
+],
+"dayc": [
+255.48,
+355,
+104.52,
+47
+],
+"mlist": [
+0,
+402,
+360,
+4908
+],
+"tabs": [
+[
+"Breakfast",
+4,
+77.9
+],
+[
+"Lunch",
+81.9,
+54.1
+],
+[
+"Dinner",
+136.1,
+56.8
+],
+[
+"Late night",
+192.9,
+79.5
+],
+[
+"Grab 'N Go",
+272.3,
+83.7
+]
+],
+"ul": "translateX(88px) scaleX(38)",
+"let": [
+160,
+50,
+200,
+200
+],
+"back": [
+4,
+26,
+48,
+48
+]
+},
+"rows": [
+[
+"sth",
+50,
+"Miscellaneous"
+],
+[
+"row",
+79,
+"Local Roasted Sweet Potatoes"
+],
+[
+"sth",
+50,
+"Soups"
+],
+[
+"row",
+64,
+"Green Chile Posole"
+],
+[
+"row",
+79,
+"Roasted Red Pepper & Smoked Gouda "
+],
+[
+"sth",
+50,
+"Grill Station"
+],
+[
+"row",
+64,
+"Black Bean Burger"
+],
+[
+"row",
+64,
+"Golden BBQ Chicken Thigh"
+],
+[
+"row",
+64,
+"Halal Burger Patty"
+],
+[
+"row",
+64,
+"Halal French Fries"
+],
+[
+"row",
+79,
+"Hand Cut Sweet Potato Fries"
+],
+[
+"row",
+64,
+"Oatmeal Raisin Cookie"
+],
+[
+"row",
+64,
+"Roasted Zucchini"
+],
+[
+"sth",
+50,
+"Desserts"
+],
+[
+"row",
+79,
+"Chocolate Soft Serve Ice Cream"
+],
+[
+"row",
+79,
+"Plant Based Vanilla Ice Cream"
+],
+[
+"row",
+79,
+"Strawberry Plant Based Soft Serve"
+],
+[
+"row",
+79,
+"Vanilla Soft Serve Ice Cream"
+],
+[
+"row",
+64,
+"Zebra Brownies"
+],
+[
+"sth",
+50,
+"Noodle Bowl"
+],
+[
+"row",
+64,
+"Bean Sprouts"
+],
+[
+"row",
+64,
+"Beef Brisket Noodle Bowl"
+],
+[
+"row",
+64,
+"Chopped Cilantro"
+],
+[
+"row",
+64,
+"Hard Boiled Egg"
+],
+[
+"row",
+64,
+"Scallions"
+],
+[
+"row",
+64,
+"Steamed Bok Choy"
+],
+[
+"sth",
+50,
+"Street Food"
+],
+[
+"row",
+64,
+"Braised Pulmuone Tofu"
+],
+[
+"row",
+64,
+"Mee Goreng"
+],
+[
+"row",
+79,
+"Stir Fry Green Vegetables"
+],
+[
+"row",
+64,
+"Vegetable Spring Rolls"
+],
+[
+"row",
+77,
+"Yellow Curry Kabocha Squash w/Pork"
+],
+[
+"sth",
+50,
+"Tandoor"
+],
+[
+"row",
+77,
+"Baked Salmon w/Paprika Ginger Eggp"
+],
+[
+"row",
+99,
+"Chickpea Salad w/Teardrop Peppers "
+],
+[
+"row",
+79,
+"Creamy Cucumber Salad"
+],
+[
+"row",
+64,
+"Cumin Basmati Rice"
+],
+[
+"row",
+64,
+"Kachumbari Salad"
+],
+[
+"row",
+64,
+"Okra & Onions"
+],
+[
+"row",
+64,
+"Tear Drop Peppers"
+],
+[
+"sth",
+50,
+"Mediterranean"
+],
+[
+"row",
+77,
+"Baked Italian Sausage w/Potatoes &"
+],
+[
+"row",
+79,
+"Basil Cream Pesto Sauce"
+],
+[
+"row",
+64,
+"Fettuccini Pasta"
+],
+[
+"row",
+79,
+"Fresh Grated Parmesan Cheese"
+],
+[
+"row",
+64,
+"Herb Roasted Tomatoes"
+],
+[
+"row",
+64,
+"Marinara Sauce"
+],
+[
+"row",
+64,
+"Rigatoni Pasta"
+],
+[
+"row",
+79,
+"Rigatoni w/Broccolini & Ricotta"
+],
+[
+"sth",
+50,
+"Seasons"
+],
+[
+"row",
+64,
+"Baked Pakora"
+],
+[
+"row",
+64,
+"Coriander Chutney"
+],
+[
+"row",
+79,
+"Cucumber & Yogurt Raita Jain"
+],
+[
+"row",
+79,
+"Family Pulav (Vegetable Rice) Jain"
+],
+[
+"row",
+64,
+"Fresh Red Onions"
+],
+[
+"row",
+64,
+"GF Penne Pasta"
+],
+[
+"row",
+79,
+"Kidney Bean Curry Rasoi"
+],
+[
+"row",
+64,
+"Marinara Jain"
+],
+[
+"row",
+64,
+"Paneer Jalfrezi (Cheese)"
+],
+[
+"row",
+79,
+"Sauteed Cabbage w/Coconut"
+],
+[
+"row",
+64,
+"Tamarind Date Chutney"
+],
+[
+"sth",
+50,
+"Latino 1"
+],
+[
+"row",
+64,
+"Arroz Blanco"
+],
+[
+"row",
+64,
+"Black Beans"
+],
+[
+"row",
+79,
+"Carrots & Chayote w/Lemon"
+],
+[
+"row",
+79,
+"Esquites (Mexican Corn Salad)"
+],
+[
+"row",
+64,
+"Homemade Guacamole"
+],
+[
+"row",
+64,
+"Pork Adobada (Chicken)"
+],
+[
+"row",
+64,
+"Queso Fresco"
+],
+[
+"row",
+64,
+"Sibley's Pico de Gallo"
+],
+[
+"row",
+64,
+"Sour Cream"
+],
+[
+"pad-b",
+160,
+""
+]
+],
+"rowsOn": [
+[
+"sth",
+50
+],
+[
+"row",
+79
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+77
+],
+[
+"sth",
+50
+],
+[
+"row",
+77
+],
+[
+"row",
+99
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+77
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"sth",
+50
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+79
+],
+[
+"row",
+79
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"row",
+64
+],
+[
+"pad-b",
+160
+]
+],
+"rowsHiding": [
+[
+"dietnote",
+53,
+"Hiding 22 dishes that list milk or"
+],
+[
+"sth",
+50,
+"Miscellaneous"
+],
+[
+"row",
+79,
+"Local Roasted Sweet Potatoes"
+],
+[
+"sth",
+50,
+"Soups"
+],
+[
+"row",
+64,
+"Green Chile Posole"
+],
+[
+"sth",
+50,
+"Grill Station"
+],
+[
+"row",
+64,
+"Black Bean Burger"
+],
+[
+"row",
+64,
+"Golden BBQ Chicken Thigh"
+],
+[
+"row",
+64,
+"Halal Burger Patty"
+],
+[
+"row",
+64,
+"Roasted Zucchini"
+],
+[
+"sth",
+50,
+"Desserts"
+],
+[
+"row",
+79,
+"Plant Based Vanilla Ice Cream"
+],
+[
+"row",
+79,
+"Strawberry Plant Based Soft Serve"
+],
+[
+"sth",
+50,
+"Noodle Bowl"
+],
+[
+"row",
+64,
+"Bean Sprouts"
+],
+[
+"row",
+64,
+"Beef Brisket Noodle Bowl"
+],
+[
+"row",
+64,
+"Chopped Cilantro"
+],
+[
+"row",
+64,
+"Scallions"
+],
+[
+"row",
+64,
+"Steamed Bok Choy"
+],
+[
+"sth",
+50,
+"Street Food"
+],
+[
+"row",
+64,
+"Braised Pulmuone Tofu"
+],
+[
+"row",
+79,
+"Stir Fry Green Vegetables"
+],
+[
+"row",
+77,
+"Yellow Curry Kabocha Squash w/Pork"
+],
+[
+"sth",
+50,
+"Tandoor"
+],
+[
+"row",
+77,
+"Baked Salmon w/Paprika Ginger Eggp"
+],
+[
+"row",
+64,
+"Cumin Basmati Rice"
+],
+[
+"row",
+64,
+"Kachumbari Salad"
+],
+[
+"row",
+64,
+"Tear Drop Peppers"
+],
+[
+"sth",
+50,
+"Mediterranean"
+],
+[
+"row",
+64,
+"Fettuccini Pasta"
+],
+[
+"row",
+64,
+"Herb Roasted Tomatoes"
+],
+[
+"row",
+64,
+"Marinara Sauce"
+],
+[
+"row",
+64,
+"Rigatoni Pasta"
+],
+[
+"sth",
+50,
+"Seasons"
+],
+[
+"row",
+64,
+"Baked Pakora"
+],
+[
+"row",
+64,
+"Coriander Chutney"
+],
+[
+"row",
+79,
+"Family Pulav (Vegetable Rice) Jain"
+],
+[
+"row",
+64,
+"Fresh Red Onions"
+],
+[
+"row",
+64,
+"GF Penne Pasta"
+],
+[
+"row",
+79,
+"Kidney Bean Curry Rasoi"
+],
+[
+"row",
+64,
+"Marinara Jain"
+],
+[
+"row",
+79,
+"Sauteed Cabbage w/Coconut"
+],
+[
+"row",
+64,
+"Tamarind Date Chutney"
+],
+[
+"sth",
+50,
+"Latino 1"
+],
+[
+"row",
+64,
+"Arroz Blanco"
+],
+[
+"row",
+64,
+"Black Beans"
+],
+[
+"row",
+79,
+"Carrots & Chayote w/Lemon"
+],
+[
+"row",
+64,
+"Homemade Guacamole"
+],
+[
+"row",
+64,
+"Pork Adobada (Chicken)"
+],
+[
+"row",
+64,
+"Sibley's Pico de Gallo"
+],
+[
+"pad-b",
+160,
+""
+]
+],
+"dish": {
+"sheet": [
+0,
+329.63,
+360,
+812
+],
+"grab": [
+0,
+329.63,
+360,
+22
+],
+"dn": [
+20,
+355.63,
+276,
+64.38
+],
+"dsv": [
+20,
+424,
+320,
+18
+],
+"mks": [
+20,
+450,
+320,
+30
+],
+"dal": [
+20,
+488,
+320,
+21
+],
+"dadd": [
+20,
+525,
+320,
+52
+],
+"where": [
+20,
+601,
+320,
+76
+],
+"wt": [
+20,
+601,
+320,
+24
+],
+"hchip": [
+20,
+633,
+134.45,
+44
+],
+"label": [
+20,
+701,
+320,
+537.38
+],
+"lt": [
+34,
+707,
+292,
+40
+],
+"ls": [
+34,
+747,
+292,
+37
+],
+"cal": [
+34,
+784,
+292,
+54
+],
+"grades": [
+20,
+1250.38,
+320,
+134
+],
+"ing": [
+20,
+1408.38,
+320,
+24
+],
+"mid": 329.625,
+"favb": [
+304,
+345.63,
+48,
+48
+]
+}
+},
+"_": "M2 (flows/M2/src.html, built index.html) DOM metrics at 390 and 360 wide, dpr 1, Worcester lunch on Thursday Oct 8 12:41, via ~/.cache/udine-scratch/flutter/m2dom.js (Playwright): header and dish-sheet rects as [left, top, width, height] and every #mlist child as [class, height, text]. --st is 24 in M2 at these widths."
+}
