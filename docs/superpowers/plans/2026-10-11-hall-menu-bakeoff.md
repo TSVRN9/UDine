@@ -147,6 +147,14 @@ git commit -m "docs(design): M2 round 9 (days, hours, allergens, states) + behav
 > **Shapes after round 9:** `vectors.json` is authoritative. Its header in `M2/vectors.js` documents place keys,
 > `day`, `"all"` meals and price. Where this task's interfaces say `HallKey` for a serving place (refs, `halls`,
 > `plateHalls`, `totals`'s hall, `Fixture.days`/`hours`), read `PlaceKey`.
+>
+> **As built (PR #544; read these, not the interfaces below):**
+> - `Fixture` is flat: `{clock, areas, places, hours, grab, dishes, days, events}`. `places` is `Place[]` (key, name, area, building, address, mapAddress; area 4 = Charles River); `hours` covers every `PlaceKey` (cafés are hand-built `DiningHallHours` with `general` only); `grab` is the halls' Grab 'N Go window; `dishes` holds each distinct dish once. There is no `cafes`.
+> - `loadFixture()` is a lazy, cached `require("../fixture.json")` that expands the stored dish indices into `Dish` copies with their `station`.
+> - `dishKey` is M2's `norm()`: lower-case, apostrophes dropped, other non-alphanumeric runs collapsed to one space.
+> - `addDish(s, meal, name, refs, custom?)` takes an optional fifth `custom` argument. `WhereGroup` has `day: 0 | 1`. `whereAnswer(fx, dish, now, opts?: {newton?: boolean})`: Charles River servings count only with `newton`.
+> - `fixture.ts` also exports `servingOn`, `clockMeal`, `placeName`, `placeOrder`, `isCafe`, `shownPrice`, `HALLS`, `MEAL_LABEL`.
+> - `where.ts` calls `effectiveMealWindow` with a probe time at the place's own general opening time, because the shared function only answers while the place is open and M2 needs later-today and tomorrow windows. Revisit it if a general window ever crosses midnight, or a hall publishes a per-meal override.
 
 **Files:**
 - Create: `mobile/scripts/bakeoff-fixture.mjs`. It reads `docs/design/explorations/2026-10-ui-overhaul/flows/{menus-2026-10-08-to-22,locations-2026-10-08,locations-2026-10-11,events-2026-10-08}.json` (hours and busy from Oct 8, addresses and `map_address` from Oct 11) and writes the fixture. Place keys, allergen normalisation and the café list must match M2's `build.py`.

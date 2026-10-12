@@ -44,17 +44,15 @@ describe("plate ops match M2", () => {
     expect(s.plates).toEqual([]);
     expect(s.front).toBe(0);
   });
-  it("macros come from the plate's hall, not the hall the dish was opened in (Review Focus 1)", () => {
-    const brisket = refsFor("lunch", "Beef Brisket Noodle Bowl", ["W", "B"]);
+  it("macros come from the plate's hall, not the first ref (Review Focus 1)", () => {
+    const brisket = refsFor("lunch", "Beef Brisket Noodle Bowl", ["B", "W"]);   // B inserted before W
     const bbq = refsFor("lunch", "Golden BBQ Chicken Thigh", ["W"]);
-    let s = addDish(emptyPlates, "lunch", "Beef Brisket Noodle Bowl", brisket);
-    s = addDish(s, "lunch", "Golden BBQ Chicken Thigh", bbq);
+    expect(Object.keys(brisket)).toEqual(["B", "W"]);
+    expect(brisket.B.cal).not.toBe(brisket.W.cal);
+    const s = addDish(addDish(emptyPlates, "lunch", "Beef Brisket Noodle Bowl", brisket), "lunch", "Golden BBQ Chicken Thigh", bbq);
     expect(plateHalls(s.plates[0])).toEqual(["W"]);
-    expect(totals(s.plates[0]).cal).toBeCloseTo(brisket.W.cal + bbq.W.cal);
-    // opened from Berkshire first: the plate item still narrows to W and uses W's macros
-    let t = addDish(emptyPlates, "lunch", "Golden BBQ Chicken Thigh", bbq);
-    t = addDish(t, "lunch", "Beef Brisket Noodle Bowl", brisket);
-    expect(totals(t.plates[0]).cal).toBeCloseTo(brisket.W.cal + bbq.W.cal);
-    expect(totals(t.plates[0], "B").cal).toBeCloseTo(brisket.B.cal + bbq.W.cal);   // macroOf falls back to the first ref
+    expect(totals(s.plates[0]).cal).toBe(brisket.W.cal + bbq.W.cal);
+    expect(totals(s.plates[0], "B").cal).toBe(brisket.B.cal + bbq.W.cal);
+    expect(totals(s.plates[0], "B").cal).not.toBe(totals(s.plates[0]).cal);
   });
 });
