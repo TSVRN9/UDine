@@ -383,7 +383,9 @@ export const m2 = {
     eventTop: 20,
     eventBottom: 24,
     eventDate: 16,
-    eventLinks: 16
+    eventLinks: 16,
+    markStart: 10,
+    markGap: 6
   },
   radius: {
     patch: 4,
@@ -391,7 +393,8 @@ export const m2 = {
     card: 6,
     button: 8,
     sheet: 16,
-    pill: 999
+    pill: 999,
+    image: 2
   },
   size: {
     tabBar: 56,
@@ -413,7 +416,11 @@ export const m2 = {
       32.5
     ],
     indicator: 3,
-    indicatorTop: -1
+    indicatorTop: -1,
+    patch: 20,
+    letterPatch: 28,
+    mark: 30,
+    ring: 3
   },
   opacity: {
     disabled: 0.4,
@@ -491,6 +498,27 @@ export const m2 = {
     nameDx: 44,
     nameSize: 22,
     nameDrop: 38
+  },
+  felt: {
+    patch: {
+      radius: 4,
+      inset: 2,
+      stitchRadius: 2,
+      stitchWidth: 1
+    },
+    mark: {
+      radius: 5,
+      inset: 3,
+      stitchRadius: 3,
+      stitchWidth: 1
+    },
+    frame: {
+      radius: 6,
+      inset: 2.5,
+      stitchRadius: 3,
+      stitchWidth: 1.5,
+      pad: 7
+    }
   }
 } as const;
 export const m2MotionData = {

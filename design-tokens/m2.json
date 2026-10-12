@@ -393,7 +393,9 @@
   "eventTop": 20,
   "eventBottom": 24,
   "eventDate": 16,
-  "eventLinks": 16
+  "eventLinks": 16,
+  "markStart": 10,
+  "markGap": 6
  },
  "radius": {
   "patch": 4,
@@ -401,7 +403,8 @@
   "card": 6,
   "button": 8,
   "sheet": 16,
-  "pill": 999
+  "pill": 999,
+  "image": 2
  },
  "size": {
   "tabBar": 56,
@@ -423,7 +426,11 @@
    32.5
   ],
   "indicator": 3,
-  "indicatorTop": -1
+  "indicatorTop": -1,
+  "patch": 20,
+  "letterPatch": 28,
+  "mark": 30,
+  "ring": 3
  },
  "opacity": {
   "disabled": 0.4,
@@ -834,6 +841,37 @@
   "motion.sharedXFade": "MaterialSharedAxis opacity ramps: linear, over sharedX.at (out) and sharedX.inAt (in) of this duration",
   "motion.fadeThroughOut": "the outgoing leg of a fade through: linear, over sharedX.at of fadeThrough.d (the incoming leg is fadeThrough.e)",
   "size.indicator": ".tbar .ind{height:3px}",
-  "size.indicatorTop": ".tbar .ind{top:-1px}: over the hairline"
+  "size.indicatorTop": ".tbar .ind{top:-1px}: over the hairline",
+  "felt.patch": ".tg, .hchip .hl: gold felt, radius 4, ::after inset 2 radius 2 border 1px dashed (stitch)",
+  "felt.mark": ".mk: radius 5, ::after inset 3 radius 3",
+  "felt.frame": ".page[data-p=event] .evpatch: padding 7, radius 6, ::after inset 2.5 radius 3 border 1.5px dashed stitchGold",
+  "size.patch": ".tg{width:20px;height:20px}",
+  "size.letterPatch": ".hchip .hl{width:28px;height:28px}",
+  "size.mark": ".mk{height:30px}",
+  "space.markStart": ".mk{padding:0 12px 0 10px}: the 10",
+  "space.markGap": ".mk{gap:6px}",
+  "size.ring": ".evpatch{box-shadow:0 0 0 3px #fff}",
+  "radius.image": ".page[data-p=event] .evpatch img{border-radius:2px}"
+ },
+ "felt": {
+  "patch": {
+   "radius": 4,
+   "inset": 2,
+   "stitchRadius": 2,
+   "stitchWidth": 1
+  },
+  "mark": {
+   "radius": 5,
+   "inset": 3,
+   "stitchRadius": 3,
+   "stitchWidth": 1
+  },
+  "frame": {
+   "radius": 6,
+   "inset": 2.5,
+   "stitchRadius": 3,
+   "stitchWidth": 1.5,
+   "pad": 7
+  }
  }
 }
