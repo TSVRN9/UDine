@@ -1,3 +1,5 @@
+import { m2Motion } from "../../lib/motion";
+import { parseNet, type NetMode } from "./net";
 import type { Dish, Fixture, MealKey, PlaceKey, Station } from "./types";
 
 type Raw = Omit<Fixture, "days"> & { days: Record<string, Record<string, Record<string, [string, number[]][]>>> };
@@ -28,6 +30,19 @@ export function loadFixture(): Fixture {
     }
   }
   return (cached = { ...raw, days });
+}
+
+export type NetFixture = Fixture & { cached?: true; asOf?: string };
+/**
+ * The bundled fixture as a network would hand it over (M2 `?net=`): `slow` after a delay, `offline` flagged `cached` with the clock it was
+ * saved at, `fail` rejecting. The mode comes from `EXPO_PUBLIC_BAKEOFF_NET` (ok when unset or unknown).
+ */
+export function loadFixtureAsync(mode: NetMode = parseNet(process.env.EXPO_PUBLIC_BAKEOFF_NET)): Promise<NetFixture> {
+  const fx = loadFixture();
+  if (mode === "fail") return Promise.reject(new Error("bakeoff net: fail"));
+  if (mode === "offline") return Promise.resolve({ ...fx, cached: true, asOf: fx.clock });
+  if (mode === "slow") return new Promise((done) => setTimeout(() => done(fx), m2Motion.net.slow));
+  return Promise.resolve(fx);
 }
 
 export const placeName = (k: PlaceKey): string => loadFixture().places.find((p) => p.key === k)!.name;

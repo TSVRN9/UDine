@@ -9,6 +9,7 @@ import { loadFixture } from "../../bakeoff/logic/fixture";
 import type { ServeTarget } from "../../bakeoff/logic/dishSheet";
 import type { PlaceKey } from "../../bakeoff/logic/types";
 import { useContainerTransform } from "../../bakeoff/motion/useContainerTransform";
+import { EventPage } from "../../bakeoff/screens/EventPage";
 import { HallHeader } from "../../bakeoff/screens/HallHeader";
 import { HallsList, bandOff } from "../../bakeoff/screens/HallsList";
 import { PushedHall } from "../../bakeoff/screens/PushedHall";
@@ -21,6 +22,8 @@ export default function Halls() {
   // a hall pushed over the open one from a dish sheet's where-served; `p` is the push (1 = off to the right, 0 = in) the hall below shifts and dims by
   const [pushed, setPushed] = useState<{ at: ServeTarget; key: number } | null>(null);
   const p = useSharedValue(1);
+  // an event's page pushed over the open hall (the holiday note); it shifts and dims the hall below by the same `p`
+  const [ev, setEv] = useState<number | null>(null);
   // the sheet that asked for the push is half-way out
   const [go, setGo] = useState(false);
   const { width: W } = useWindowDimensions();
@@ -50,6 +53,7 @@ export default function Halls() {
     return () => cancelAnimationFrame(id);
   }, [H]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const pushEvent = (i: number) => { p.set(1); setEv(i); };
   const push = (to: ServeTarget) => { p.set(1); setGo(false); setPushed((cur) => ({ at: to, key: (cur?.key ?? 0) + 1 })); };
   // a where-served from the plate's dish sheet arrives here to push its hall (the plate sheet belongs to the layout, not to this tab)
   const pushRef = useRef(push);
@@ -62,8 +66,14 @@ export default function Halls() {
     <View ref={root} collapsable={false} style={{ flex: 1 }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
       <Animated.View style={[{ flex: 1 }, below]}>
         <HallsList hidden={t.phase === "closed" ? null : place} onOpen={onOpen} />
-        {t.phase !== "closed" && open ? <HallHeader t={t} H={H} place={open.key} name={open.name} scrollY={scrollY} onBack={() => t.close()} onPush={push} onPushGo={() => setGo(true)} /> : null}
+        {t.phase !== "closed" && open ? <HallHeader t={t} H={H} place={open.key} name={open.name} scrollY={scrollY} onBack={() => t.close()} onPush={push} onPushGo={() => setGo(true)} onEvent={pushEvent} /> : null}
       </Animated.View>
+      {ev != null ? (
+        <>
+          <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.scrim }, dim]} />
+          <EventPage i={ev} progress={p} onPop={() => setEv(null)} />
+        </>
+      ) : null}
       {pushed ? (
         <>
           <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.scrim }, dim]} />

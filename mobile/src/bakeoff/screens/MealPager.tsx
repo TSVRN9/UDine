@@ -23,7 +23,7 @@ export interface PagerHandle {
   release: () => void;
 }
 
-interface Ghost { id: number; rows: ReactElement[]; top: number; dir: -1 | 1 }
+interface Ghost { id: number; rows: ReactElement[]; top: number; dir: -1 | 1; curtain?: ReactNode }
 
 /**
  * The menu list, and the meal change's shared axis (M2 sharedAxisX): the old list slides 30 dp toward the side it leaves and
@@ -35,8 +35,10 @@ export const MealPager = forwardRef<PagerHandle, {
   header: ReactElement; footer: ReactElement; onScroll: any; scrollY: { get: () => number }; animatedRef?: any; onViewable?: () => void;
   /** 1 while the copy `hold` made may show; the caller drops it to 0 on the UI thread when the new day takes over */
   holdOn?: { get: () => number };
-  children?: ReactNode;
-}>(function MealPager({ data, renderItem, keyOf, typeOf, header, footer, onScroll, scrollY, animatedRef, onViewable, holdOn }, ref) {
+  /** What covers the list when there is nothing to list (a network state): over the list, under the copy a change holds. `copy` is true
+   * for the one the copy carries. */
+  curtain?: (copy: boolean) => ReactNode;
+}>(function MealPager({ data, renderItem, keyOf, typeOf, header, footer, onScroll, scrollY, animatedRef, onViewable, holdOn, curtain }, ref) {
   const list = useRef<FlashListRef<any>>(null);
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const run = useRef(0), dirSv = useSharedValue(1);
@@ -51,9 +53,14 @@ export const MealPager = forwardRef<PagerHandle, {
   renderRef.current = renderItem;
 
   // the rows on screen now, as a copy that sits where they are
+  const curtainRef = useRef(curtain);
+  curtainRef.current = curtain;
   const capture = (dir: -1 | 1): Ghost | null => {
     const l = list.current;
     if (!l) return null;
+    // a curtain (loading, offline, failed) is all there is on screen: the copy is the curtain
+    const c = curtainRef.current?.(true);
+    if (c) return { id: ++run.current, rows: [], top: 0, dir, curtain: c };
     const { startIndex, endIndex } = l.computeVisibleIndices();
     const first = l.getLayout(startIndex);
     return first ? { id: ++run.current, rows: dataRef.current.slice(startIndex, endIndex + 2).map((it, i) => renderRef.current(it, startIndex + i)), top: first.y + l.getFirstItemOffset() - scrollY.get(), dir } : null;
@@ -121,12 +128,14 @@ export const MealPager = forwardRef<PagerHandle, {
           onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false}
           onViewableItemsChanged={onViewable} drawDistance={600}
         />
+        {curtain?.(false)}
       </Animated.View>
       {ghost ? (
         <Animated.View pointerEvents="none" style={[fill, { overflow: "hidden", backgroundColor: m2.color.chalk }, leave]}>
           <View style={{ position: "absolute", left: 0, right: 0, top: ghost.top }}>
             {ghost.rows.map((el, i) => <View key={i}>{el}</View>)}
           </View>
+          {ghost.curtain}
         </Animated.View>
       ) : null}
     </View>

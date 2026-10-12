@@ -74,6 +74,8 @@ export function defaultMeal(fx: Fixture, day: string, place: PlaceKey, meal: Mea
 export const isOneMeal = (fx: Fixture, place: PlaceKey): boolean =>
   isCafe(place) && Object.values(fx.days).every((d) => !d[place] || Object.keys(d[place]!).length <= 1);
 
+/** Whether a place posts dishes on any day: halls and most cafés do, 11 cafés only describe themselves. */
+export const hasMenu = (fx: Fixture, place: PlaceKey): boolean => Object.values(fx.days).some((d) => d[place]);
 export const dayIsos = (fx: Fixture): string[] => Object.keys(fx.days);
 // formatted once per day and shape: on Hermes each toLocaleDateString is a JNI round trip (about 10 ms each in the release profile, PR #544)
 const fmtCache = new Map<string, string>();
@@ -94,7 +96,11 @@ export type Item =
   | { t: "note"; line: string; revealed: boolean }
   | { t: "head"; name: string; si: number }
   | { t: "dish"; dish: Dish; contains: string[] }
-  | { t: "empty"; text: string };
+  | { t: "empty"; text: string }
+  /** the holiday's note atop its own day's list (M2 `evRow` with `ownDay`: no date tag); `i` indexes `Fixture.events` */
+  | { t: "event"; i: number; title: string }
+  /** a café that lists no dishes: what it is, and that it doesn't list its menu (M2 `cafeBody`) */
+  | { t: "cafe"; name: string; description: string };
 
 /** The one flat list a hall screen scrolls. A revealed row that lists an avoided allergen carries it as `contains`. */
 export function menuItems(v: MenuView, prefs: Prefs, showAll: boolean, emptyText: string): Item[] {

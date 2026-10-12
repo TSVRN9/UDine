@@ -17,21 +17,24 @@ import { boardAt, busyView } from "../logic/busy";
 import { MEAL_LABEL, loadFixture } from "../logic/fixture";
 import { plateMeal } from "../logic/plate";
 import { HALL_LX } from "../logic/letters";
-import { dayCell, dayFull, dayIsos, defaultMeal, isOneMeal, mealsOf, menuItems, menuView, type Item } from "../logic/menuView";
-import { schedule, statusLine } from "../logic/schedule";
+import { dayCell, dayFull, dayIsos, defaultMeal, hasMenu, isOneMeal, mealsOf, menuItems, menuView, type Item, type MenuView } from "../logic/menuView";
+import { eventOn, schedule, statusLine } from "../logic/schedule";
 import type { ServeTarget } from "../logic/dishSheet";
 import type { Dish, MealKey, PlaceKey } from "../logic/types";
 import { openDish } from "../state/dishSheet";
 import { halfwayOut } from "../motion/pushGate";
 import type { useContainerTransform } from "../motion/useContainerTransform";
 import { PHOTO_POS, photoOf } from "../photos";
+import { hoursKnown, liveKnown, useMenuState, useNet } from "../state/net";
 import { add, useStore } from "../state/store";
+import { arriveIn, useArrival } from "../ui/arrive";
 import { mark } from "../perf";
 import { DietLine } from "./DietLine";
 import { DishRow } from "./DishRow";
 import { headerHeight } from "./HallsList";
 import { HoursSheet } from "./HoursSheet";
 import { MealPager, type PagerHandle } from "./MealPager";
+import { StateCurtain } from "./NetState";
 import { StationSwitcher } from "./StationSwitcher";
 
 const fill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
@@ -49,6 +52,7 @@ const fx = loadFixture();
 const isos = dayIsos(fx);
 
 const keyOf = (it: Item, i: number) => (it.t === "dish" ? `d:${it.dish.station}:${it.dish.key}` : it.t === "head" ? `h:${it.name}` : `${it.t}${i}`);
+const NONE: MenuView = { sections: [], hidden: 0, line: null };
 const typeOf = (it: Item) => it.t;
 
 const mealWord = (m: MealKey) => (m === "grab" ? "Grab 'N Go" : MEAL_LABEL[m].toLowerCase());
@@ -58,7 +62,7 @@ const mealWord = (m: MealKey) => (m === "grab" ? "Grab 'N Go" : MEAL_LABEL[m].to
  * never re-render or fade on a day change; what says the day (status, busy, tab and station labels, the list) fades through.
  * `ghost` is the band's copy that rides on the photo while the container opens.
  */
-export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush, onPushGo, onSettled }: {
+export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush, onPushGo, onSettled, onEvent }: {
   t: ReturnType<typeof useContainerTransform>; H: number; place: PlaceKey; name: string; scrollY: SharedValue<number>; ghost: React.ReactNode; onBack: () => void;
   /** a hall pushed from a dish's where-served: the day and meal to open on, and the dish to land on */
   at?: ServeTarget;
@@ -68,6 +72,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   onPushGo?: () => void;
   /** a pushed hall has drawn and scrolled to its dish (it is still out of sight until this is called) */
   onSettled?: () => void;
+  /** the holiday note on this day's list opens its event page (the screen above pushes it) */
+  onEvent?: (i: number) => void;
 }) {
   const { width, height: winH } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
@@ -75,6 +81,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const prefs = useStore((s) => s.prefs);
   const scores = useStore((s) => s.show);
   const compact = place.startsWith("c");
+  // a café that lists no dishes has no pinned rows, only what it is (M2 `nomenu`)
+  const nomenu = compact && !hasMenu(fx, place);
   const one = isOneMeal(fx, place);
   // eslint-disable-next-line react-hooks/rules-of-hooks -- __DEV__ is a build-time constant
   const dev = __DEV__ ? useLocalSearchParams<{ day?: string; meal?: string; sheet?: string; y?: string; reveal?: string; dish?: string }>() : {};
@@ -98,7 +106,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   useEffect(() => () => { alive.current = false; }, []);
   // the row M2 brought the dish up to stays tinted (`.row.here`) until the next dish is brought up
   const [hereKey, setHereKey] = useState<string | null>(null);
-  const meals = mealsOf(fx, isos[day], place);
+  // the network (M2 `menuState`, `hoursKnown`, `liveKnown`): the menu for this place and day may be loading, unsaved offline, or failed; then
+  // there are no meals, no stations and no list, but the day cell, the name and the status line keep their rooms
+  const net = useNet(), hk = hoursKnown(net), lk = liveKnown(net);
+  const netState = useMenuState(place, day);
+  const state = nomenu ? "ok" : netState;
+  const hkArrive = useArrival(hk), lkArrive = useArrival(lk), okArrive = useArrival(state === "ok");
+  const meals = useMemo(() => (state === "ok" ? mealsOf(fx, isos[day], place) : []), [state, day, place]);
   const meal = defaultMeal(fx, isos[day], place, mealSel);
   // perf marks (no-ops unless EXPO_PUBLIC_PERF=1): the render that carries a new day, and its commit
   const dayWas = useRef(day);
@@ -107,17 +121,20 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   useLayoutEffect(() => { mark("day:layout"); requestAnimationFrame(() => mark("day:frame1")); }, [day]);
 
   const rowMeal = useMemo(() => plateMeal(place, meal, new Date(fx.clock)), [place, meal]);
-  const view = useMemo(() => menuView(fx, isos[day], place, meal, prefs, showAll), [day, place, meal, prefs, showAll]);
-  const items = useMemo(
-    () => menuItems(view, prefs, showAll, meals.length ? "" : `No menu posted for ${dayFull(fx, day)}.`),
-    [view, prefs, showAll, day, meals.length],
-  );
+  const view = useMemo(() => (state === "ok" ? menuView(fx, isos[day], place, meal, prefs, showAll) : NONE), [state, day, place, meal, prefs, showAll]);
+  const items = useMemo((): Item[] => {
+    if (nomenu) return [{ t: "cafe", name, description: fx.places.find((p) => p.key === place)!.description }];
+    if (state !== "ok") return [];
+    // the holiday's note leads its own day's list (M2: events first, then the diet line), but only where a menu is posted
+    const notes = meals.includes(meal) ? fx.events.flatMap((e, i): Item[] => (eventOn(fx, e, place, day) ? [{ t: "event", i, title: e.title }] : [])) : [];
+    return [...notes, ...menuItems(view, prefs, showAll, meals.length ? "" : `No menu posted for ${dayFull(fx, day)}.`)];
+  }, [nomenu, state, view, prefs, showAll, day, meals, meal, place, name]);
   const heads = useMemo(() => items.flatMap((it, i) => (it.t === "head" ? [i] : [])), [items]);
   const stationLabel = view.sections[Math.min(cur, view.sections.length - 1)]?.name ?? "";
 
   // ---- geometry: M2 HH, CH, TH, SWH, PIN
   const HH = headerHeight(top), R = HH - top - BAR;
-  const TH = one ? 0 : m2.size.tabs, SWH = m2.size.tabs, PIN = top + BAR + TH + SWH;
+  const TH = one || nomenu ? 0 : m2.size.tabs, SWH = nomenu ? 0 : m2.size.tabs, PIN = top + BAR + TH + SWH;
   const y = scrollY;
   const c = useDerivedValue(() => clamp(y.get() / R));
   const pager = useRef<PagerHandle>(null);
@@ -227,7 +244,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // ---- sheets
   const hoursRef = useRef<BottomSheetModal>(null), stRef = useRef<BottomSheetModal>(null);
   const pending = useRef<{ day: number } | null>(null);
-  const sched = useMemo(() => schedule(fx, place, day), [place, day]);
+  const sched = useMemo(() => schedule(fx, place, day, { mode: net.mode, hours: hk }), [place, day, net.mode, hk]);
   const openHours = () => { setSheet("hours"); hoursRef.current?.present(); thud(); };
   const openStations = () => { if (!view.sections.length) return; setSheet("stations"); stRef.current?.present(); thud(); };
   useEffect(() => {
@@ -246,18 +263,23 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // ---- the header
   const src = photoOf(place, name);
   const busy = compact ? null : busyView(fx.busy[place as "W"]);
-  const live = !compact && day === 0;
+  const live = !compact && day === 0 && lk;
   const hallLetter = compact ? null : <HallLetter letter={place as "W"} x={HALL_LX[place as "W"]} top={top + 26} />;
-  const status = statusLine(fx, place, day);
+  // hours are cached for the day: today's status needs only them, another day's span needs its menu too
+  const status = hk && (day === 0 || state === "ok") ? statusLine(fx, place, day) : "";
   const mealItems = meals.map((m) => ({ key: m, label: MEAL_LABEL[m] }));
 
   const labels: Labels = {
     status, onStatus: status ? openHours : undefined,
-    busy: busy ? <View style={{ opacity: live ? 1 : 0 }} pointerEvents="none"><BusyRow {...busy} header /></View> : undefined,
-    board: live ? <Board columns={boardAt(fx.typical[place as "W"], fx.busy[place as "W"], now.getHours() * 60 + now.getMinutes())} /> : undefined,
-    meals: one ? undefined : { items: mealItems, selected: meal, onSelect: (k) => pickMeal(k as MealKey) },
+    // the busy row keeps its room when it has no live data (another day, offline, loading), so the name never moves
+    busy: busy ? (live
+      ? <Animated.View entering={lkArrive ? arriveIn : undefined} pointerEvents="none"><BusyRow {...busy} header /></Animated.View>
+      : <View style={{ opacity: 0 }} pointerEvents="none"><BusyRow {...busy} header /></View>) : undefined,
+    board: live ? <Animated.View entering={lkArrive ? arriveIn : undefined} style={fill}><Board columns={boardAt(fx.typical[place as "W"], fx.busy[place as "W"], now.getHours() * 60 + now.getMinutes())} /></Animated.View> : undefined,
+    meals: one || nomenu ? undefined : { items: mealItems, selected: meal, onSelect: (k) => pickMeal(k as MealKey) },
     station: stationLabel ? { label: stationLabel, onPress: openStations, open: sheet === "stations" } : undefined,
-    day: { label: dayCell(fx, day), accessibilityLabel: `${dayFull(fx, day)}, change the day`, onPress: openHours },
+    day: nomenu ? undefined : { label: dayCell(fx, day), accessibilityLabel: `${dayFull(fx, day)}, change the day`, onPress: openHours },
+    arrive: { status: hkArrive, menu: okArrive },
   };
 
   const done = () => {
@@ -309,10 +331,30 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     startPending();
   };
 
+  // M2 `renderMenuList`: what the list says instead of a menu
+  const stateText = state === "offline" ? `You're offline, and the menu for ${dayFull(fx, day)} isn't saved on this phone.`
+    : `${name}'s menu${day ? " for " + dayFull(fx, day) : ""} didn't load.`;
   const renderItem = (it: Item) => {
     switch (it.t) {
       case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={() => setShowAll((s) => !s)} />;
       case "head": return <View style={{ height: 50, paddingHorizontal: m2.space[4], paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
+      case "event":
+        // M2 `.evrow.evnote` on its own day: the title only, no date tag; it opens the event's page
+        return (
+          <Press feedback="tint" accessibilityRole="button" accessibilityLabel={it.title} disabled={!onEvent} onPress={() => onEvent?.(it.i)}
+            style={{ minHeight: 52, paddingHorizontal: m2.space[4], paddingVertical: 14, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
+            <Text v="link" color={m2.color.dm}>{it.title}</Text>
+          </Press>
+        );
+      case "cafe":
+        // M2 `cafeBody`: what the café is, and that the feed carries no dishes for it
+        return (
+          <View style={{ paddingHorizontal: m2.space[4], paddingTop: m2.space[4] + 4 }}>
+            {it.description ? <Text v="desc" color={m2.color.ink}>{it.description}</Text> : null}
+            <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: m2.space[5], marginBottom: m2.space[0] }}>Menu</Text>
+            <Text v="sched" color={m2.color.slate}>{`${it.name} doesn't list its menu in the app.`}</Text>
+          </View>
+        );
       case "empty": return <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
       default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} place={place} meal={rowMeal} onOpen={onOpen} here={it.dish.key === hereKey} />;
     }
@@ -324,6 +366,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
         {warm ? <MealPager
           ref={pager} data={items} renderItem={renderItem} animatedRef={aref} holdOn={holdOn} onScroll={onScroll} scrollY={y} onViewable={refreshHeads}
           keyOf={keyOf} typeOf={typeOf}
+          curtain={state === "ok" ? undefined : (copy) => <StateCurtain copy={copy} state={state} top={HH + TH + SWH} text={stateText} />}
           header={<View style={{ height: HH + TH + SWH, backgroundColor: m2.color.dm }} />} footer={<View style={{ height: 120 }} />}
         /> : null}
       </Animated.View>
