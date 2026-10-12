@@ -886,6 +886,12 @@ Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions
     - The menu list mounts inside the 500 ms open.
   - **Day-change stall.** The cause is a whole-screen re-render: an unstable `renderItem`, the ghost rows, and both label layers plus the Board. It is not the fixture filtering, which costs 0.02 ms, so the Task 5 suspicion was wrong.
   - **Lesson for the scorecard:** RN's vector art is a CPU-raster trap on Android. Its per-frame motion was fine everywhere else. Emulator recordings (Metro, about 10 fps) hid both defects; only a phone showed them.
+- **RN, a crash that passed review (introduced 5ff7b5a, found and fixed 827ee29).** The audit rework's `timed()` helper took
+  callbacks that Reanimated's Babel plugin doesn't workletize. On a device the hall open threw "Tried to synchronously call
+  a Remote Function" and ended on a black frame. The jest mock calls callbacks on the JS thread, so 1,984 tests and a
+  MERGE-equivalent review all passed. It was found only when the perf round ran the app. A source-scan test now fails on
+  any `timed()` callback without `"worklet"`. **Lesson: for RN, green jest plus review isn't enough for motion changes;
+  the device has to run them before a verdict.** That costs RN on the scorecard's adherence line.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
