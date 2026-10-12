@@ -198,8 +198,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     if (!goto || !warm) return;
     const i = items.findIndex((it) => it.t === "dish" && it.dish.key === goto);
     if (i >= 0) {
-      const id = requestAnimationFrame(() => { pager.current?.list()?.scrollToIndex({ index: i, viewOffset: PIN, animated: !at }); setGoto(null); });
-      return () => cancelAnimationFrame(id);
+      // FlashList places a row it has not drawn yet from its estimated heights, so one scrollToIndex can land stations away from the
+      // dish; each pass draws more of the list in between, and the last one lands on measured rows
+      let k = 0;
+      const go = () => { pager.current?.list()?.scrollToIndex({ index: i, viewOffset: PIN, animated: false }); if (++k < 3) setTimeout(go, 80); };
+      go();
+      setGoto(null);
+      return;
     }
     if (!showAll) setShowAll(true);
     else setGoto(null);
