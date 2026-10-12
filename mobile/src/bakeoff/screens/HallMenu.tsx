@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, {
-  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSequence, withTiming,
+  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
@@ -142,7 +142,6 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
       pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
       const out = FT.d * m2Motion.sharedX.at, back = FT.d * (1 - m2Motion.sharedX.at);
       lo.set(withTiming(0, { duration: out, easing: m2Linear }));
-      ln.set(withDelay(out, withTiming(1, { duration: back, easing: fade })));
       sc.set(1);
       f.set(withSequence(
         withTiming(0, { duration: out, easing: m2Linear }, () => {
@@ -150,6 +149,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
           holdOn.set(0);
           sc.set(FT.scale);
           sc.set(withTiming(1, { duration: back, easing: fade }));
+          ln.set(withTiming(1, { duration: back, easing: fade }));   // the labels come back in the same frame as the list
         }),
         withTiming(1, { duration: back, easing: fade }, () => { "worklet"; runOnJS(done)(); }),
       ));
