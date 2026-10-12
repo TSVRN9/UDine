@@ -1,12 +1,12 @@
 import renderer, { act } from "react-test-renderer";
 import { m2Motion } from "../../lib/motion";
+import { part, timed, useMotion } from "./motion";
 
 const calls: { to: number; cfg: Record<string, unknown> }[] = [];
 jest.mock("react-native-reanimated", () => {
   const actual = jest.requireActual("react-native-reanimated/mock");
   return { ...actual, ReduceMotion: { Never: "never", System: "system" }, useReducedMotion: () => (globalThis as { __rm?: boolean }).__rm === true, withTiming: (to: number, cfg: Record<string, unknown>) => { calls.push({ to, cfg }); return to; } };
 });
-import { part, timed, useMotion } from "./motion";
 
 describe("timed", () => {
   it("is a duration with its own curve, the system's to skip", () => {

@@ -1,6 +1,7 @@
 import { act } from "react";
 import renderer from "react-test-renderer";
 import { m2Motion } from "../../lib/motion";
+import { useSheetMotion } from "./Sheet";
 
 // M2 `RM` sheets (src.html:1836): a sheet takes the 120 ms crossfade. gorhom has no fade in place, so its slide runs on
 // a 120 ms linear timing instead of the spring.
@@ -12,7 +13,6 @@ jest.mock("@gorhom/bottom-sheet", () => ({
   BottomSheetModal: () => null, BottomSheetScrollView: () => null, BottomSheetBackdrop: () => null,
   useScrollEventsHandlersDefault: () => ({}),
 }));
-import { useSheetMotion } from "./Sheet";
 
 const config = () => { let out: unknown; const P = () => { out = useSheetMotion(); return null; }; act(() => { renderer.create(<P />); }); return out as { spring?: { stiffness: number }; timing?: { duration: number; easing: unknown } };
 };

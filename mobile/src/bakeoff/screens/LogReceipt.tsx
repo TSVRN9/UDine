@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { m2 } from "../../lib/theme";
 import { MEAL_LABEL, placeName } from "../logic/fixture";
 import { fc } from "../logic/dishSheet";
-import { Press, Text } from "../ui";
+import { Button, Text } from "../ui";
 import { loggedCal, undo, useStore, type Receipt } from "../state/store";
 
 /** M2 `showLogged`: the bar's slot after Log. What was logged and the day's calories so far, and Undo (outlined, in the bar's material). */
@@ -19,10 +19,7 @@ export function LogReceipt({ last }: { last: Receipt }) {
           <Text v="meta" color={m2.color.onDm}>cal</Text>
         </View>
       </View>
-      <Press accessibilityRole="button" onPress={undo}
-        style={{ height: m2.size.tap, paddingHorizontal: 14, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.outline, alignItems: "center", justifyContent: "center" }}>
-        <Text v="link" color={m2.color.white}>Undo</Text>
-      </Press>
+      <Button kind="outline" size="md" label="Undo" onPress={undo} />
     </View>
   );
 }

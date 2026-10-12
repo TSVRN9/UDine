@@ -5,7 +5,7 @@ import Animated, { FadeIn, runOnJS, useAnimatedStyle, useSharedValue, type Share
 import type BottomSheet from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion, m2SettleEasing } from "../../lib/motion";
-import { Press, Text, ding, tick } from "../ui";
+import { Button, Press, Text, ding, tick } from "../ui";
 import { timed } from "../ui/motion";
 import { fc } from "../logic/dishSheet";
 import { placeName } from "../logic/fixture";
@@ -32,9 +32,7 @@ function PlateLine({ plate, onLog, onOpen }: { plate: Plate; onLog: () => void; 
           <Text v="meta" color={m2.color.onDm}>protein</Text>
         </View>
       </Press>
-      <Press accessibilityRole="button" onPress={onLog} style={{ height: 48, minWidth: 84, paddingHorizontal: 18, borderRadius: m2.radius.button, backgroundColor: m2.color.gold, alignItems: "center", justifyContent: "center" }}>
-        <Text v="button" color={m2.color.dm}>Log</Text>
-      </Press>
+      <Button kind="gold" size="bar" label="Log" onPress={onLog} />
     </>
   );
 }
@@ -48,9 +46,7 @@ function Choose({ halls, onPick, onBack }: { halls: PlaceKey[]; onPick: (h: Plac
       </Press>
       <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: m2.space.part }}>
         {halls.map((h) => (
-          <Press key={h} accessibilityRole="button" onPress={() => onPick(h)} style={{ height: 48, flexShrink: 1, paddingHorizontal: 14, borderRadius: m2.radius.button, backgroundColor: m2.color.gold, alignItems: "center", justifyContent: "center" }}>
-            <Text v="button" color={m2.color.dm} numberOfLines={1}>{placeName(h)}</Text>
-          </Press>
+          <Button key={h} kind="gold" size="bar" tight label={placeName(h)} onPress={() => onPick(h)} />
         ))}
       </View>
     </>

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Image, Linking, View } from "react-native";
 import { m2 } from "../../lib/theme";
-import { Press, Text } from "../ui";
+import { Button, Text } from "../ui";
 import { Felt } from "../ui/Felt";
 import { loadFixture } from "../logic/fixture";
 import { EVENT_PHOTO } from "../photos";
@@ -34,11 +34,7 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
         <Text v="barNum" color={m2.color.gold} style={{ paddingTop: m2.space.eventDate }}>{when}</Text>
         <View style={{ marginTop: m2.space.group, gap: m2.space.eventLinks }}>
           {e.links.map(([label, url], k) => (
-            <Press key={label} accessibilityRole="link" onPress={() => Linking.openURL(url)}
-              style={[{ height: 52, borderRadius: m2.radius.button, alignItems: "center", justifyContent: "center" },
-                k ? { borderWidth: 1.5, borderColor: m2.color.outline } : { backgroundColor: m2.color.gold }]}>
-              <Text v="action" color={k ? m2.color.white : m2.color.dm}>{label}</Text>
-            </Press>
+            <Button key={label} kind={k ? "outline" : "gold"} size="lg" label={label} accessibilityRole="link" onPress={() => Linking.openURL(url)} />
           ))}
         </View>
       </View>

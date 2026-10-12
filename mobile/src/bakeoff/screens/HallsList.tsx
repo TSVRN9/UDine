@@ -4,7 +4,7 @@ import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } 
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
-import { Band, BusyRow, HallLetter, Photo, Press, Text } from "../ui";
+import { Band, BusyRow, Button, HallLetter, Photo, Text } from "../ui";
 import { useArrival, useArrive } from "../ui/arrive";
 import { busyView } from "../logic/busy";
 import { HALLS, MEAL_LABEL, clockMeal, loadFixture } from "../logic/fixture";
@@ -80,10 +80,7 @@ export function HallsList({ hidden, onOpen }: {
             <View accessibilityLiveRegion="polite" style={{ position: "absolute", right: m2.space.gutter, top: top + 40, alignItems: "flex-end" }}>
               <Text v="date" color={m2.color.onDm}>{net.mode === "offline" ? "You're offline" : "Couldn't connect"}</Text>
               {net.mode === "fail" ? (
-                <Press accessibilityRole="button" onPress={() => { retry(); }}
-                  style={{ height: m2.size.tap, paddingHorizontal: 14, marginTop: 6, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.outline, justifyContent: "center" }}>
-                  <Text v="link" color={m2.color.white}>Try again</Text>
-                </Press>
+                <Button kind="outline" size="md" label="Try again" onPress={() => { retry(); }} style={{ marginTop: m2.space.netBtnTop }} />
               ) : null}
             </View>
           ) : null}

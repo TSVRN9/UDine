@@ -1,8 +1,8 @@
-jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
 import renderer, { act } from "react-test-renderer";
 import { loadFixture } from "../logic/fixture";
 import type { Dish } from "../logic/types";
 import { DishRow } from "./DishRow";
+jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
 
 const fx = loadFixture();
 const all = fx.dishes;

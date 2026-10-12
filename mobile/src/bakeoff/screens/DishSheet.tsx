@@ -7,7 +7,7 @@ import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { timed } from "../ui/motion";
-import { GRAB, Press, ScoreBadge, ScrollEdge, Sheet, SheetMark, Text } from "../ui";
+import { Button, GRAB, Press, ScoreBadge, ScrollEdge, Sheet, SheetMark, Text } from "../ui";
 import { estimateCalBottom, labelRows, restingSnap, sheetMarks, sheetPrice, type DishCtx, type ServeTarget } from "../logic/dishSheet";
 import type { Dish } from "../logic/types";
 import { useStore, type Toggles } from "../state/store";
@@ -99,10 +99,7 @@ function parts({ dish, ctx, answer, scores, avoid, edge, onPlate, onAdd, onServe
       </Text>
     ) : <View key="contains" />,
     ctx.day === 0 ? (
-      <Press key="add" accessibilityRole="button" onPress={onAdd}
-        style={{ marginTop: m2.space.action, height: 52, borderRadius: m2.radius.button, backgroundColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
-        <Text v="action" color={m2.color.white}>{onPlate ? "Add another" : "Add to plate"}</Text>
-      </Press>
+      <Button key="add" kind="fill" size="lg" label={onPlate ? "Add another" : "Add to plate"} onPress={onAdd} style={{ marginTop: m2.space.action }} />
     ) : <View key="add" />,
     <WhereServed key="where" dish={dish} answer={answer} onServe={onServe} />,
     <NutritionLabel key="label" label={labelRows(dish.nutrition, dish.cal, dish.serving)} onCalBottom={onCalBottom} />,

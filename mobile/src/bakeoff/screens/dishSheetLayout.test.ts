@@ -1,7 +1,6 @@
 import vectors from "../logic/labelVectors.json";
-import { loadFixture } from "../logic/fixture";
+import { loadFixture , isCafe, placeName } from "../logic/fixture";
 import { estimateCalBottom, fc, labelRows, restingSnap, sheetMarks } from "../logic/dishSheet";
-import { isCafe, placeName } from "../logic/fixture";
 import { whereAnswer } from "../logic/where";
 
 const fx = loadFixture();
