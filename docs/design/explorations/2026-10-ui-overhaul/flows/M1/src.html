@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
+<meta name="theme-color" content="#3b0a0f">
+<title>UDine M1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --dm:#3b0a0f; --vm:#881c1c; --gold:#c99a2e; --chalk:#f8f9fb; --ink:#24171a; --slate:#6e6266;
+  --tint:#f3e4e4; --hair:rgba(36,23,26,.12); --field:#eceef2;
+  --st:24px; --sb:10px;
+  /* motion tokens (mirrored in JS as MO; spec for mobile/src/lib/motion.ts) */
+  --d-press:90ms;   --e-press:cubic-bezier(.2,0,0,1);
+  --d-release:180ms;--e-release:cubic-bezier(.34,1.56,.64,1);
+  --d-quick:160ms;  --e-quick:cubic-bezier(.2,0,0,1);
+  --d-enter:240ms;  --e-enter:cubic-bezier(.22,1,.36,1);
+  --d-exit:160ms;   --e-exit:cubic-bezier(.4,0,1,1);
+  --d-push:340ms;   --e-push:cubic-bezier(.22,1,.36,1);
+  --d-flash:900ms;  --stagger:40ms; --stagger-lead:60ms; --stagger-dense:18ms; --stagger-dense-lead:120ms;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#2a0b0f}
+body{font-family:"Libre Franklin",system-ui,sans-serif;color:var(--ink);font-size:16px;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid var(--gold);outline-offset:-3px}
+.num,.o{font-family:Oswald,sans-serif;font-variant-numeric:tabular-nums}
+#frame{position:relative;width:390px;height:844px;margin:0 auto;overflow:hidden;background:var(--chalk);top:50%;transform:translateY(-50%);border-radius:28px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+@media (max-width:500px){
+  #frame{width:100vw;height:100dvh;border-radius:0;top:0;transform:none;box-shadow:none}
+  :root{--st:max(24px,env(safe-area-inset-top));--sb:max(10px,env(safe-area-inset-bottom))}
+}
+#probe{position:absolute;visibility:hidden;height:var(--st);width:var(--sb)}
+.hide{display:none!important}
+.tab{position:absolute;inset:0}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+.pad-b{height:calc(150px + var(--sb))}
+
+/* press feedback (token press in, release out): scale for compact controls, tint for full-width rows/bands */
+.btn,.gbtn,.obtn,.custom,.chip,.add,.step button,.icon,.evcard,.tbar button,#mtabs button,.ptabs button,.vs button,.tbtn,.swbtn,.check i{transition:transform var(--d-release) var(--e-release),background-color var(--d-quick) var(--e-quick),color var(--d-quick) var(--e-quick),box-shadow var(--d-quick) var(--e-quick)}
+.btn.down,.gbtn.down,.obtn.down,.custom.down,.chip.down,.add.down,.step button.down,.icon.down,.evcard.down,.tbar button.down,#mtabs button.down,.ptabs button.down,.vs button.down,.tbtn.down,.swbtn.down{transform:scale(.96);transition-duration:var(--d-press);transition-timing-function:var(--e-press)}
+.row,.lrow,.prow2,#stidx button,.check,.prow{transition:background-color var(--d-quick) var(--e-quick)}
+.row.down,.lrow.down,.prow2.down,#stidx button.down,.check.down{background:rgba(36,23,26,.06);transition-duration:var(--d-press)}
+.band.down .press{opacity:1;transition-duration:var(--d-press)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}}
+.fadein{animation:fadeUp var(--d-enter) var(--e-enter) both}
+@keyframes segIn{from{transform:scaleY(.15);opacity:.25}}
+.meter i.on{transform-origin:50% 100%;animation:segIn var(--d-enter) var(--e-enter) both;animation-delay:calc(var(--i) * var(--stagger) + var(--stagger-lead))}
+.hist rect{transform-box:fill-box;transform-origin:50% 100%;animation:segIn var(--d-enter) var(--e-enter) both;animation-delay:calc(var(--i) * var(--stagger-dense) + var(--stagger-dense-lead))}
+
+/* ---------- tab bar ---------- */
+.tbar{position:absolute;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--hair);display:flex;padding-bottom:var(--sb)}
+.tbar button{flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:600;color:var(--slate);position:relative}
+.tbar button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tbar button[aria-selected=true]{color:var(--vm)}
+.tbar .ind{position:absolute;top:-1px;left:0;height:3px;width:calc(100% / 3);background:var(--vm);transition:transform var(--d-enter) var(--e-enter);pointer-events:none}
+.tbar .ind::before{content:""}
+@keyframes bumpUp{40%{transform:scale(1.18) translateY(-2px)}}
+.tbar button.bump svg{animation:bumpUp var(--d-push) var(--e-release)}
+
+/* ---------- plate bar ---------- */
+#bar{position:absolute;left:0;right:0;z-index:39;bottom:calc(57px + var(--sb));background:var(--dm);color:#fff;transform:translateY(110%);transition:transform var(--d-push) var(--e-push);touch-action:none}
+#bar.on{transform:none}
+#frame.kb .tbar{display:none}
+#frame.kb #bar{bottom:var(--kb)}
+#bar .in{display:flex;align-items:center;gap:12px;min-height:68px;padding:8px 12px 8px 20px}
+#bar .txt{flex:1;min-width:0}
+#bar .l1{font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bar .l2{font-size:13px;color:rgba(255,255,255,.8);margin-top:2px;white-space:nowrap}
+#bar .l2 b{font:600 26px/1 Oswald,sans-serif;color:#fff;font-variant-numeric:tabular-nums;margin-right:2px}
+#bar .l2 b+span{margin-right:12px}
+#bar .acts{display:flex;gap:8px}
+.gbtn{height:48px;min-width:84px;padding:0 18px;border-radius:8px;background:var(--gold);color:var(--dm);font-weight:700;font-size:16px}
+.obtn{height:44px;padding:0 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,.7);color:#fff;font-weight:600;font-size:15px}
+#bar .dots{position:absolute;left:0;right:0;top:5px;display:flex;justify-content:center;gap:5px}
+#bar .dots i{width:5px;height:5px;border-radius:3px;background:rgba(255,255,255,.35)}
+#bar .dots i.on{background:var(--gold)}
+#bar .peek{position:absolute;left:10px;right:10px;top:-5px;height:5px;background:#5a1820;border-radius:3px 3px 0 0}
+.roll{display:inline-block;position:relative;overflow:hidden;vertical-align:bottom}
+.roll>span{display:inline-block}
+
+/* ---------- halls ---------- */
+.hhead{background:var(--dm);color:#fff;padding:calc(var(--st) + 10px) 20px 16px}
+.hhead .r1{display:flex;justify-content:space-between;align-items:baseline;height:30px}
+.brand{font:600 22px Oswald,sans-serif;color:var(--gold)}
+.hhead .date{font-size:15px;color:rgba(255,255,255,.8)}
+.hhead h1{font:600 52px/1.05 Oswald,sans-serif;margin:2px 0 0}
+.evnote{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:6px 20px;text-align:left;font-size:15px;color:var(--dm);border-bottom:1px solid var(--hair)}
+.evnote i{flex:none;width:10px;height:10px;border-radius:2px;background:var(--gold);box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--gold)}
+.evnote span{flex:1}.evnote b{font:600 15px Oswald,sans-serif;color:var(--vm);font-weight:600}
+#mdim{position:absolute;inset:0;background:rgb(36,10,14);opacity:0;pointer-events:none}
+/* events carousel: chenille-patch cards on the maroon header; native scroll-snap = real momentum + snap */
+.sdisc{background:var(--dm);padding:4px 0 16px;overflow:hidden}
+.sdisc h2{font:600 22px/1.2 Oswald,sans-serif;color:#fff;margin:0;padding:8px 20px 0}
+.evc{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 20px;padding:12px 20px 4px;margin:0;scrollbar-width:none;overscroll-behavior-x:contain}
+.evc::-webkit-scrollbar{display:none}
+.evcard{flex:0 0 280px;scroll-snap-align:start;text-align:left;color:#fff;display:block}
+.evc.one .evcard{flex-basis:100%}
+.evc::after{content:"";flex:0 0 8px}
+.evpatch{position:relative;display:block;aspect-ratio:1024/432;border-radius:6px;overflow:hidden;background:var(--vm);box-shadow:0 0 0 3px #fff}
+.evpatch img{display:block;width:100%;height:100%;object-fit:cover}
+.evpatch::after{content:"";position:absolute;inset:4px;border-radius:3px;border:1.5px dashed rgba(201,154,46,.95);pointer-events:none}
+.evcap{display:flex;align-items:baseline;gap:10px;margin-top:10px}
+.evtt{flex:1;min-width:0;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.92)}
+.evtag{flex:none;color:var(--gold);font:500 15px/1 Oswald,sans-serif;font-variant-numeric:tabular-nums}
+.evcard.down .evpatch{transform:scale(.98)}
+.evpatch{transition:transform var(--d-release) var(--e-release)}
+.field svg{width:20px;height:20px;stroke:var(--vm);fill:none;stroke-width:2.2;stroke-linecap:round;flex:none}
+.band{display:block;position:relative;width:100%;height:112px;overflow:hidden;background:var(--vm);margin-top:1px;text-align:left;color:#fff;touch-action:manipulation}
+#bands{background:var(--dm)}
+.win{position:absolute;left:0;right:0;top:0;height:var(--hh)}
+.ph{position:absolute;inset:0;background-size:cover;background-repeat:no-repeat}
+.ph-W{background-image:url(__IMG_W__);background-position:72% 0}
+.ph-F{background-image:url(__IMG_F__);background-position:42% 0}
+.ph-H{background-image:url(__IMG_H__);background-position:60% 0}
+.ph-S{background-image:url(__IMG_S__);background-position:30% 40%}
+.ph-B{background-image:url(__IMG_B__);background-position:62% 0}
+.duo{position:absolute;inset:0;isolation:isolate}
+.duo .g{filter:grayscale(1) contrast(1.12)}
+.duo .t{position:absolute;inset:0;background:#c4434b;mix-blend-mode:multiply}
+.duo .s{position:absolute;inset:0;background:var(--dm);mix-blend-mode:screen}
+.lgrad{position:absolute;inset:0;background:linear-gradient(90deg,rgba(59,10,15,.82) 0,rgba(59,10,15,.55) 45%,rgba(59,10,15,0) 75%)}
+.press{position:absolute;inset:0;background:rgba(59,10,15,.22);opacity:0;transition:opacity var(--d-quick) var(--e-quick)}
+.let{position:absolute;right:0;width:200px;height:200px;pointer-events:none;overflow:visible}
+.band .let{top:-6px}
+.let .felt{fill:#fff;stroke:#fff;stroke-width:12px;stroke-linejoin:round}
+.let .gold{fill:var(--gold);stroke:var(--dm);stroke-width:1.5px;stroke-dasharray:5 4}
+.let text{font:700 210px Oswald,sans-serif}
+.bt{position:absolute;left:20px;top:16px}
+.bt .nm,.mt .nm{font:600 32px/1 Oswald,sans-serif;transform-origin:0 100%}
+.bt .st,.mt .st{font-size:15px;margin-top:7px;color:rgba(255,255,255,.86)}
+.sec{padding:22px 20px 0}
+.sec h2{font:600 22px/1.2 Oswald,sans-serif;color:var(--dm);margin:0 0 4px}
+.lrow{display:flex;align-items:center;justify-content:space-between;min-height:56px;border-bottom:1px solid var(--hair);width:100%;text-align:left;padding:8px 0;gap:12px}
+.lrow:last-child{border-bottom:0}
+.lrow .a{font-weight:600}
+.lrow .b{font-size:13px;color:var(--slate);margin-top:2px}
+.lrow .r{font-size:15px;color:var(--vm);font-weight:500;white-space:nowrap}
+
+/* ---------- hall menu ---------- */
+#menu{position:absolute;inset:0;z-index:5}
+#mscroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior-y:contain}
+#mspace{height:calc(var(--hh) + 96px)}
+#mlist{background:var(--chalk);min-height:100%}
+#mhead{position:absolute;left:0;right:0;top:0;height:var(--hh);overflow:hidden;z-index:2;background:var(--vm);will-change:transform;pointer-events:none}
+#mhead .phw{position:absolute;inset:0;will-change:transform}
+.tgrad{position:absolute;left:0;right:0;top:0;height:calc(var(--st) + 80px);background:linear-gradient(rgba(59,10,15,.6),rgba(59,10,15,0))}
+.bgrad{position:absolute;left:0;right:0;bottom:0;height:240px;background:linear-gradient(rgba(59,10,15,0),rgba(59,10,15,.5) 30%,rgba(59,10,15,.74) 50%,rgba(59,10,15,.93) 76%)}
+#msolid{position:absolute;inset:0;background:var(--vm);opacity:0}
+
+#mhead .let{top:calc(var(--st) + 26px)}
+.mt{position:absolute;left:20px;bottom:50px;color:#fff}
+.mt .nm{font-size:40px;display:block}
+#mctl{position:absolute;left:0;right:0;top:0;height:calc(var(--st) + 52px);padding-top:var(--st);z-index:4;display:flex;justify-content:space-between;align-items:center;padding-left:4px;padding-right:4px;pointer-events:none}
+#mctl button{pointer-events:auto}
+.icon{width:48px;height:48px;display:grid;place-items:center;color:#fff}
+.icon svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#mtabs{position:absolute;left:0;right:0;top:var(--hh);height:48px;z-index:3;background:var(--dm);display:flex;padding:0 6px;will-change:transform}
+#mtabs button{flex:1 1 auto;height:48px;color:rgba(255,255,255,.8);font-size:15px;font-weight:500;white-space:nowrap;position:relative;padding:0 6px}
+#mtabs button[aria-selected=true]{color:#fff;font-weight:600}
+#mtabs .ul{position:absolute;left:0;bottom:0;height:3px;width:1px;background:var(--gold);transform-origin:0 0;transition:transform var(--d-enter) var(--e-enter);pointer-events:none}
+.sth{display:flex;align-items:flex-end;width:100%;height:50px;padding:0 20px 6px;margin:0;background:var(--chalk);font:600 22px Oswald,sans-serif;color:var(--dm);text-align:left}
+.sth.hit{animation:hit var(--d-flash) var(--e-quick)}
+.sth.hitrm{background:var(--tint)}   /* reduced motion: the landing tint holds, then clears, with no fade */
+@keyframes hit{0%,30%{background:var(--tint)}100%{background:var(--chalk)}}
+/* station switcher: one control pinned under the meal tabs; in-list station names are plain titles */
+#mswitch{position:absolute;left:0;right:0;top:calc(var(--hh) + 48px);height:48px;z-index:3;background:var(--chalk);border-bottom:1px solid var(--hair);display:flex;align-items:center;padding:0 12px;will-change:transform}
+.swbtn{display:flex;align-items:center;gap:10px;height:40px;max-width:100%;padding:0 16px 0 12px;border-radius:20px;background:var(--tint);color:var(--dm)}
+.swbtn svg{width:20px;height:20px;flex:none;stroke:var(--vm);fill:none;stroke-width:2.2;stroke-linecap:round}
+.swbtn .o{font:600 19px/1 Oswald,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block}
+.swbtn[aria-expanded=true]{background:var(--vm);color:#fff}.swbtn[aria-expanded=true] svg{stroke:#fff}
+.row{display:flex;align-items:center;min-height:64px;padding:6px 8px 6px 20px;gap:8px;position:relative}
+.row::after{content:"";position:absolute;left:20px;right:0;bottom:0;height:1px;background:var(--hair)}
+.row .tx{flex:1;min-width:0}
+.row .n{font-weight:600;line-height:1.25}
+.row .m{font-size:13px;color:var(--slate);margin-top:3px;display:flex;align-items:baseline;gap:4px;flex-wrap:wrap}
+.row .m b{font:500 15px Oswald,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.row .m .gap{width:8px}
+.star{color:var(--vm);font-size:13px;margin-left:4px}
+.add{width:48px;height:48px;border-radius:8px;display:grid;place-items:center;color:var(--vm);flex:none}
+.add svg,.step svg{width:20px;height:20px;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;fill:none}
+.add.ghost{box-shadow:inset 0 0 0 1.5px rgba(136,28,28,.45);width:44px;height:44px;margin:2px}
+.step{display:flex;align-items:center;background:var(--tint);border-radius:8px;height:44px;flex:none}
+.step button{width:44px;height:44px;display:grid;place-items:center;color:var(--vm)}
+.step .q{min-width:26px;text-align:center;font:600 20px Oswald,sans-serif;color:var(--dm);font-variant-numeric:tabular-nums}
+.ht{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:4px;font:600 13px/1 Oswald,sans-serif;font-style:normal;color:var(--slate);box-shadow:inset 0 0 0 1px rgba(110,98,102,.45);margin-left:2px}
+.ht.on{background:var(--dm);color:var(--gold);box-shadow:none}
+.tags{display:inline-flex;gap:2px;margin-left:6px}
+#stidx{position:absolute;left:0;right:0;z-index:6;background:var(--chalk);max-height:60%;overflow-y:auto;box-shadow:0 18px 30px rgba(36,10,14,.25);transform-origin:top;padding:4px 0 8px}
+#stidx button{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:48px;padding:0 20px;text-align:left;font-size:17px;font-weight:500;border-left:4px solid transparent}
+#stidx button.cur{border-left-color:var(--vm);font-weight:700;color:var(--vm)}
+#stidx button .c{font:500 15px Oswald,sans-serif;color:var(--slate)}
+#stscrim{position:absolute;inset:0;z-index:5;background:rgba(36,10,14,.36)}
+.dietnote{display:flex;justify-content:space-between;align-items:center;padding:4px 8px 4px 20px;font-size:14px;color:var(--slate);border-bottom:1px solid var(--hair)}
+.tbtn{height:44px;padding:0 12px;color:var(--vm);font-weight:600;font-size:15px}
+
+/* ---------- search ---------- */
+.shead{position:relative;background:var(--dm);padding:calc(var(--st) + 12px) 20px 14px;overflow:hidden}
+.shead .ph,.shead .duo{opacity:.55}
+.shead .lgrad{background:linear-gradient(rgba(59,10,15,.3),rgba(59,10,15,.75))}
+.field{position:relative;display:flex;align-items:center;gap:10px;height:52px;border-radius:8px;background:#fff;padding:0 4px 0 16px}
+.field input{flex:1;min-width:0;height:100%;border:0;outline:0;background:none;font:500 17px "Libre Franklin",sans-serif;color:var(--ink)}
+.field input::placeholder{color:var(--slate);font-weight:400}
+.field input::-webkit-search-cancel-button{display:none}
+.stick{position:sticky;top:0;z-index:2}
+.lenses{display:flex;gap:8px;overflow-x:auto;padding:12px 20px;scrollbar-width:none;background:var(--chalk);border-bottom:1px solid var(--hair)}
+.lenses::-webkit-scrollbar{display:none}
+.chip{flex:none;height:44px;padding:0 14px;border-radius:8px;box-shadow:inset 0 0 0 1.5px rgba(110,98,102,.4);font-size:15px;font-weight:500;color:var(--ink);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.chip[aria-pressed=true]{background:var(--vm);color:#fff;box-shadow:inset 0 0 0 1.5px var(--vm)}
+.chip .x{font-size:18px;line-height:1}
+#search{display:flex;flex-direction:column}
+#search>*{flex-shrink:0}
+#sres{flex:1}
+.empty{padding:28px 20px 8px;color:var(--slate);font-size:16px;line-height:1.45}
+.custom{display:flex;align-items:center;gap:10px;width:calc(100% - 40px);margin:8px 20px;min-height:52px;border-radius:8px;padding:0 16px;box-shadow:inset 0 0 0 1.5px rgba(136,28,28,.5);color:var(--vm);font-weight:600;text-align:left}
+.custom.solid{background:var(--vm);color:#fff;box-shadow:none}
+
+/* ---------- you & pages ---------- */
+.yhead{background:var(--dm);color:#fff;padding:calc(var(--st) + 10px) 20px 18px}
+.yhead .date{font-size:15px;color:rgba(255,255,255,.8);height:30px;display:flex;align-items:baseline}
+.yhead h1{font:600 52px/1.05 Oswald,sans-serif;margin:2px 0 0}
+.facts{border:2px solid var(--dm);padding:4px 12px 6px;background:#fff;color:var(--dm)}
+.facts .cal{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:7px solid var(--dm);padding:2px 0 4px}
+.facts .cal span{font-weight:700;font-size:18px}
+.facts .cal b{font:700 44px/1 Oswald,sans-serif;font-variant-numeric:tabular-nums}
+.facts .nr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--dm);padding:7px 0 5px;font-weight:600;font-size:15px}
+.facts .nr:last-child{border-bottom:0}
+.facts .nr b{font:600 20px Oswald,sans-serif;font-variant-numeric:tabular-nums}
+.meal{padding:12px 0;border-bottom:1px solid var(--hair)}
+.meal .h{display:flex;justify-content:space-between;align-items:baseline}
+.meal .h .a{font-weight:700}
+.meal .h .t{font-size:13px;color:var(--slate)}
+.meal .it{display:flex;justify-content:space-between;font-size:14px;color:var(--slate);margin-top:4px}
+.meal .it b{font:500 15px Oswald,sans-serif;color:var(--ink)}
+.chev{width:16px;height:16px;stroke:var(--slate);fill:none;stroke-width:2.2;flex:none}
+.page{position:absolute;inset:0;z-index:30;background:var(--chalk);overflow-y:auto;overscroll-behavior-y:contain}
+.bz{display:flex;align-items:center;gap:8px;font-size:14px;color:#fff;white-space:nowrap;transform-origin:0 100%}
+.bt .bz{margin-top:6px}
+.mt .bz{margin-top:8px;font-size:14px;flex-wrap:wrap;row-gap:5px;max-width:230px}
+.mt .bzx{flex-basis:100%;font-size:14px;color:rgba(255,255,255,.86)}
+.mt .bzx:empty{display:none}
+.meter{display:inline-flex;gap:2px;align-items:flex-end;flex:none}
+.meter i{width:5px;height:12px;border-radius:1px;background:rgba(255,255,255,.38)}
+.meter i.on{background:var(--gold)}
+.hist{position:absolute;left:20px;right:20px;bottom:10px;height:30px}
+.hist svg{display:block;width:100%;height:100%;overflow:visible}
+.evimg{display:block;width:100%;height:auto}
+.chips1{display:flex;gap:8px;padding:12px 0 4px}
+.ahd{position:sticky;top:calc(var(--st) + 52px);z-index:1;background:var(--chalk);font:600 22px/1.2 Oswald,sans-serif;color:var(--dm);padding:16px 0 6px;margin:0}
+.lrow .r.off{color:var(--slate);font-weight:400}
+.pstat{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 0 4px}
+.pstat b{font:600 26px Oswald,sans-serif;color:var(--vm)}
+.pstat b.off{color:var(--slate)}
+.pstat span{color:var(--slate);font-size:15px}
+.h3{font:600 22px/1.2 Oswald,sans-serif;color:var(--dm);margin:22px 0 4px}
+.sgrp{font:600 20px Oswald,sans-serif;color:var(--dm);padding:14px 20px 2px}
+.prow2{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:60px;padding:8px 20px;text-align:left;position:relative}
+.prow2::after{content:"";position:absolute;left:20px;right:0;bottom:0;height:1px;background:var(--hair)}
+.prow2 .a{font-weight:600}.prow2 .b{font-size:13px;color:var(--slate);margin-top:2px}
+.prow2 .r{font-size:14px;color:var(--vm);font-weight:500;white-space:nowrap}.prow2 .r.off{color:var(--slate);font-weight:400}
+.gnote{padding:12px 20px 4px;font-size:15px;color:var(--slate)}
+.gnote b{color:var(--vm);font-weight:600}
+.pbar{position:sticky;top:0;z-index:2;background:var(--vm);color:#fff;height:calc(var(--st) + 52px);padding:var(--st) 4px 0;display:flex;align-items:center;gap:2px}
+.pbar .o{font:600 22px Oswald,sans-serif}
+.pbody{padding:8px 20px 20px}
+.check{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:56px;border-bottom:1px solid var(--hair);text-align:left;font-weight:600}
+.check i{width:26px;height:26px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--slate);display:grid;place-items:center}
+.check[aria-checked=true] i{background:var(--vm);box-shadow:none}
+.check[aria-checked=true] i::after{content:"";width:12px;height:7px;border:solid #fff;border-width:0 0 2.5px 2.5px;transform:translateY(-2px) rotate(-45deg)}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;height:52px;border-radius:8px;background:var(--vm);color:#fff;font-weight:700;font-size:17px}
+.btn.line{background:none;color:var(--vm);box-shadow:inset 0 0 0 1.5px var(--vm)}
+.vs,.stack{display:grid;gap:12px;margin-top:12px}
+.vs button{min-height:96px;border-radius:8px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--hair);padding:16px;text-align:left;font:600 22px/1.15 Oswald,sans-serif;color:var(--dm)}
+.vs .or{text-align:center;color:var(--slate);font-size:14px}
+
+/* ---------- sheets ---------- */
+#scrim{position:absolute;inset:0;z-index:50;background:rgb(36,10,14);opacity:0;pointer-events:none}
+.sheet{position:absolute;left:0;right:0;top:0;height:100%;z-index:51;background:var(--chalk);border-radius:16px 16px 0 0;transform:translate3d(0,110%,0);display:flex;flex-direction:column;touch-action:none;will-change:transform}
+.grab{flex:none;height:22px;display:grid;place-items:center}
+.grab::before{content:"";width:40px;height:5px;border-radius:3px;background:rgba(36,23,26,.22)}
+.sbody{flex:1;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:0 20px calc(24px + var(--sb))}
+.sbody>div{display:flow-root}
+.sh1{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:2px 0 6px}
+.sh1 h2{font:600 34px/1.1 Oswald,sans-serif;color:var(--dm);margin:0}
+.sh1 span{color:var(--slate);font-size:15px;text-align:right}
+.ptabs{display:flex;gap:4px;margin:0 -8px 4px}
+.ptabs button{height:44px;padding:0 10px;font-weight:600;font-size:15px;color:var(--slate);position:relative}
+.ptabs button[aria-selected=true]{color:var(--dm)}
+.ptabs button[aria-selected=true]::after{content:"";position:absolute;left:10px;right:10px;bottom:4px;height:3px;background:var(--vm)}
+.prow{display:flex;align-items:center;gap:8px;min-height:64px;border-bottom:1px solid var(--hair);position:relative}
+.prow .tx{flex:1;min-width:0}
+.prow .n{font-weight:600}
+.prow .m{font-size:13px;color:var(--slate);margin-top:3px}
+.prow .m b{font:500 15px Oswald,sans-serif;color:var(--ink)}
+.sheet .facts{margin:16px 0}
+/* dish detail: FDA label in the plate-totals treatment, marks, grades, allergens, ingredients */
+.gl{width:16px;height:16px;flex:none;vertical-align:-3px}
+.mk-in{display:inline-flex;margin-left:6px;color:#2f6f3a;vertical-align:-2px}
+.mk-in .gl{width:15px;height:15px}
+.chip .gl{margin-right:-2px}
+.chip[aria-pressed=true] .gl path[stroke="#fff"]{stroke:var(--vm)}
+.mks{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.mk{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px 0 8px;border-radius:14px;box-shadow:inset 0 0 0 1.5px var(--vm);color:var(--vm);font-size:13px;font-weight:600}
+.alg{margin-top:12px;padding:10px 12px;border-left:4px solid var(--vm);background:var(--tint);color:var(--dm);font-size:15px;line-height:1.4}
+.alg b{font:600 16px Oswald,sans-serif;margin-right:6px}
+.label .lt{font:700 30px/1.1 Oswald,sans-serif;border-bottom:1px solid var(--dm);padding:2px 0 4px}
+.label .ls{display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:6px 0;border-bottom:7px solid var(--dm)}
+.label .cal{border-bottom:4px solid var(--dm)}
+.label .lr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid var(--dm);padding:5px 0 4px;font-size:15px}
+.label .lr b{font:inherit;font-weight:700}
+.label .lr .dv{font:600 16px Oswald,sans-serif;font-variant-numeric:tabular-nums;min-width:3ch;text-align:right}
+.label .lr.sub{padding-left:16px}
+.label .lr.thin{font-size:13px;font-weight:700}
+.label .lr.last{border-bottom:7px solid var(--dm)}
+.label .lf{font-size:12px;color:var(--ink);padding:6px 0 2px;line-height:1.35}
+.grades{display:grid;gap:10px;margin:4px 0 6px}
+.grade{display:flex;align-items:center;gap:12px;min-height:32px}
+.grade .gl2{flex:0 0 112px;font-weight:600;font-size:15px}
+.grade b{font:600 16px Oswald,sans-serif;color:var(--dm)}
+.hbars{display:inline-flex;gap:3px;align-items:flex-end}
+.hbars i{width:9px;height:18px;border-radius:2px;box-shadow:inset 0 0 0 1.5px #2f6f3a}
+.hbars i.on{background:#2f6f3a;transform-origin:50% 100%;animation:segIn var(--d-enter) var(--e-enter) both;animation-delay:calc(var(--i) * var(--stagger) + var(--stagger-lead))}
+.crs{display:inline-flex;gap:4px}
+.crs i{width:26px;height:26px;border-radius:5px;display:grid;place-items:center;font:600 14px/1 Oswald,sans-serif;font-style:normal;color:var(--slate);box-shadow:inset 0 0 0 1px rgba(110,98,102,.45)}
+.crs i.on{box-shadow:none;transform:scale(1.12)}   /* letter colour per tile keeps 4.5:1: white on A/E, ink on B/C/D */
+.ing{overflow:hidden;max-height:4.5em;position:relative}
+.ing p{margin:0;line-height:1.5;font-size:15px;color:var(--ink)}
+.ing:not(.open)::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1.5em;background:linear-gradient(rgba(248,249,251,0),var(--chalk))}
+.twob{display:flex;justify-content:space-between;margin-top:6px}
+.roll{display:inline-grid;overflow:hidden;vertical-align:bottom}
+.roll>span{grid-area:1/1}
+.sheet .custom{width:100%;margin:10px 0 0}
+.sheet .btn+.btn,.sheet .btn+.custom{margin-top:10px}
+.hallpick{display:flex;gap:8px}
+.hallpick .btn{flex:1}
+.form label{display:block;font-size:14px;font-weight:600;color:var(--slate);margin:12px 0 6px}
+.form input{width:100%;height:50px;border-radius:8px;border:0;background:var(--field);padding:0 14px;font:500 17px "Libre Franklin",sans-serif;color:var(--ink)}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.kv{font-size:15px;color:var(--slate);line-height:1.5}
+.toast{position:absolute;left:20px;right:20px;z-index:60;bottom:calc(140px + var(--sb));background:var(--dm);color:#fff;border-radius:8px;padding:14px 16px;font-size:15px;opacity:0;transform:translateY(8px);transition:opacity var(--d-quick) var(--e-quick),transform var(--d-enter) var(--e-enter);pointer-events:none}
+.toast.on{opacity:1;transform:none}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:0s!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+<div id="frame">
+  <div id="probe"></div>
+
+  <!-- HALLS TAB -->
+  <section id="tab-halls" class="tab">
+    <div id="halls" class="tab scroll">
+      <header class="hhead">
+        <div class="r1"><span class="brand">UDine</span><span class="date">Thursday, October 8</span></div>
+        <h1>Lunch</h1>
+      </header>
+      <div id="bands"></div>
+      <section class="sec">
+        <h2>Cafés &amp; markets</h2>
+        <div id="areas"></div>
+      </section>
+      <div class="pad-b"></div>
+    </div>
+
+    <div id="menu" class="hide">
+      <div id="mdim"></div>
+      <div id="mscroll"><div id="mspace"></div><div id="mlist"></div></div>
+      <div id="mhead">
+        <div class="phw"><div class="ph" id="mph"></div><div class="duo" id="mduo"><div class="ph g" id="mphg"></div><div class="t"></div><div class="s"></div></div></div>
+        <div class="lgrad" id="mlg"></div>
+        <div class="tgrad" id="mtg"></div><div class="bgrad" id="mbg"></div>
+        <div id="msolid"></div>
+        <svg class="let" id="mlet" viewBox="0 0 200 200"></svg>
+        <div class="mt" id="mt"><span class="nm" id="mtn"></span><div class="st" id="mts"></div><div class="bz" id="mbz"></div></div>
+        <div class="hist" id="mhist"></div>
+      </div>
+      <div id="mtabs" role="tablist"></div>
+      <div id="mswitch"><button class="swbtn" data-act="stations" aria-haspopup="listbox" aria-expanded="false"><svg viewBox="0 0 20 20"><path d="M7 5h10M7 10h10M7 15h10"/><circle cx="3" cy="5" r=".6"/><circle cx="3" cy="10" r=".6"/><circle cx="3" cy="15" r=".6"/></svg><span class="o" id="swname"></span></button></div>
+      <div id="mctl">
+        <button class="icon" data-act="back" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button class="icon" data-act="hallsearch" aria-label="Search this hall"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg></button>
+      </div>
+      <div id="stscrim" class="hide" data-act="closeidx"></div>
+      <div id="stidx" class="hide" role="listbox"></div>
+    </div>
+  </section>
+
+  <!-- SEARCH TAB -->
+  <section id="tab-search" class="tab hide">
+    <div id="search" class="tab scroll">
+      <div class="stick"><header class="shead">
+        <div class="ph ph-S"></div><div class="duo"><div class="ph ph-S g"></div><div class="t"></div><div class="s"></div></div><div class="lgrad"></div>
+                <div class="field"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg>
+          <input id="q" type="search" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search dishes">
+          <button class="icon hide" id="qclear" aria-label="Clear" style="color:var(--slate)"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+        </div>
+      </header>
+      </div>
+      <div class="sdisc" id="sdisc"><h2>Events</h2><div class="evc" id="evc" role="region" aria-label="Events"></div></div>
+      <div class="lenses" id="lenses"></div>
+      <div id="sres"></div>
+      <div class="pad-b"></div>
+    </div>
+  </section>
+
+  <!-- YOU TAB -->
+  <section id="tab-you" class="tab hide">
+    <div id="you" class="tab scroll"></div>
+  </section>
+
+
+  <div id="bar"><div class="peek hide"></div><div class="dots"></div><div class="in"></div></div>
+
+  <nav class="tbar" role="tablist">
+    <i class="ind" aria-hidden="true"></i>
+    <button data-tab="halls" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M19 10v9M9.5 19v-6h5v6M3 19.5h18"/></svg>Halls</button>
+    <button data-tab="search" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg>Search</button>
+    <button data-tab="you" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>You</button>
+  </nav>
+
+  <div id="scrim"></div>
+  <section class="sheet" id="psheet" aria-label="Your plate"><div class="grab"></div><div class="sbody" id="psbody"></div></section>
+  <section class="sheet" id="isheet"><div class="grab"></div><div class="sbody" id="isbody"></div></section>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+'use strict';
+const M = __MENU__;
+const HALLS = ['W','F','H','B'];
+const HN = {W:'Worcester',F:'Franklin',H:'Hampshire',B:'Berkshire'};
+const P = __PLACES__;                         // real hours, payment, descriptions, menus (uapp/get_infov2), events (get_beacons_events)
+const NOW = 12*60+40;                          // Thursday 12:40 PM
+const fmtT = m => m>=1439?'midnight': m===720?'noon' : `${(Math.floor(m/60)+11)%12+1}${m%60?':'+String(m%60).padStart(2,'0'):''} ${m<720?'AM':'PM'}`;
+const span = (o,c) => `${fmtT(o)} to ${fmtT(c)}`;
+const isOpen = ([o,c]) => NOW>=o && NOW<c;
+const status = ([o,c]) => NOW<o ? `Opens ${fmtT(o)}` : NOW>=c ? 'Closed for today' : `Open until ${fmtT(c)}`;
+const HOURS = Object.fromEntries(Object.entries(P.hours).map(([h,v])=>[h,status(v)]));
+// Busy: same shape as get_infov2's `busy`. Values are SIMULATED for a Thursday lunch rush (the live capture was from the evening).
+const NULL3 = [{in:30,pct:null},{in:60,pct:null},{in:90,pct:null}];
+const BUSY = {
+  W:{level:2,label:'Busy',pct:82,usual_pct:86,trend:'falling',vs_usual:'usual',outlook:[{in:30,pct:70},{in:60,pct:55},{in:90,pct:40}],calmer_at:'13:30',confidence:'good'},
+  F:{level:1,label:'A little busy',pct:48,usual_pct:55,trend:'falling',vs_usual:'usual',outlook:NULL3,calmer_at:null,confidence:'new'},
+  H:{level:0,label:'Not busy',pct:27,usual_pct:44,trend:'steady',vs_usual:'quieter',outlook:NULL3,calmer_at:null,confidence:'good'},
+  B:{level:2,label:'Busy',pct:88,usual_pct:74,trend:'steady',vs_usual:'busier',outlook:[{in:30,pct:80},{in:60,pct:68},{in:90,pct:null}],calmer_at:null,confidence:'new'},
+};
+// Typical Thursday, busy % by hour from opening (SIMULATED; would come from our own occupancy-history table)
+const TYPICAL = {
+  W:[7,[15,25,30,22,30,62,86,70,40,30,45,70,82,60,40,30,22]],
+  F:[7,[12,20,22,18,30,55,50,30,20,25,45,55,35,20]],
+  H:[7,[10,18,20,16,28,44,40,25,18,22,40,48,30,18]],
+  B:[11,[45,74,70,45,30,40,72,84,70,50,40,45,38]],
+};
+function busyRow(h, full){
+  const b=BUSY[h], n=Math.max(1,Math.ceil(b.pct/20)), low=b.confidence!=='good';   // low confidence is carried by the word, never by the meter
+  const word = low ? 'Probably '+b.label.toLowerCase() : b.label;
+  let extra='';
+  if(full){ if(b.calmer_at){ const [hh,mm]=b.calmer_at.split(':').map(Number); extra=`Calmer around ${fmtT(hh*60+mm)}`; }
+    else if(b.vs_usual==='busier') extra='Busier than usual'; else if(b.vs_usual==='quieter') extra='Quieter than usual'; }
+  return `<span class="meter" aria-hidden="true">${[0,1,2,3,4].map(i=>`<i class="${i<n?'on':''}" style="--i:${i}"></i>`).join('')}</span><span>${word}</span>${full?`<span class="bzx">${extra}</span>`:''}`;
+}
+function histSVG(h){
+  // typical day as bars; now in gold at the live value; the outlook (when there is one) as gold outlines
+  const [start, v]=TYPICAL[h], b=BUSY[h], n=v.length, W=350, Hh=30, gap=3, bw=(W-gap*(n-1))/n;
+  const nowI=Math.floor(NOW/60)-start, out={1:b.outlook[1]&&b.outlook[1].pct, 2:b.outlook[2]&&b.outlook[2].pct};
+  return `<svg viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" aria-hidden="true">${v.map((x,i)=>{
+    const live = i===nowI ? b.pct : (i>nowI && out[i-nowI]!=null ? out[i-nowI] : null);
+    const val = live ?? x, hgt=Math.max(2,val/100*Hh), X=i*(bw+gap), Y=Hh-hgt;
+    if(i===nowI) return `<rect style="--i:${i}" x="${X}" y="${Y}" width="${bw}" height="${hgt}" rx="1" fill="#c99a2e"/>`;
+    if(live!=null) return `<rect x="${X+.75}" y="${Y+.75}" width="${bw-1.5}" height="${hgt-1.5}" rx="1" fill="none" stroke="#c99a2e" stroke-width="1.5"/>`;
+    return `<rect style="--i:${i}" x="${X}" y="${Y}" width="${bw}" height="${hgt}" rx="1" fill="rgba(255,255,255,.5)"/>`; }).join('')}</svg>`;
+}
+const MEALS = [['breakfast','Breakfast'],['lunch','Lunch'],['dinner','Dinner'],['late','Late night'],['grab',"Grab 'N Go"]];
+const ML = Object.fromEntries(MEALS);
+const LX = {W:72,F:118,H:88,B:91};           // letter x in the 200px box (D1 crop)
+const OFF = {W:.30,F:.10,H:.24,B:.22};        // band window into the header photo, fraction of header height (architecture + room)
+const RES = {W:0,F:0,H:0,B:0};               // duotone kept in the expanded header (0 = full colour, as Worcester)
+const BAND_H = 112, TABS_H = 48;
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* ---------- motion tokens: every animation names one (this table is the spec for mobile/src/lib/motion.ts) ---------- */
+const MO = {
+  press:   {d:90,  e:'cubic-bezier(.2,0,0,1)'},     // finger down
+  release: {d:180, e:'cubic-bezier(.34,1.56,.64,1)'},// finger up, small overshoot; also "pop in"
+  quick:   {d:160, e:'cubic-bezier(.2,0,0,1)'},     // number rolls, toggles, small swaps
+  enter:   {d:240, e:'cubic-bezier(.22,1,.36,1)'},  // things arriving, list reflow, underline travel
+  exit:    {d:160, e:'cubic-bezier(.4,0,1,1)'},     // things leaving
+  push:    {d:340, e:'cubic-bezier(.22,1,.36,1)'},  // page push, bar slide-in
+  pop:     {d:280, e:'cubic-bezier(.4,0,.2,1)'},    // page pop
+  count:   {d:650, e:'cubic-bezier(.33,1,.68,1)'},  // count-ups and acknowledgement fades
+  hero:    {d:500, e:'cubic-bezier(.22,1,.36,1)'},  // the hall transition only
+  flash:   {d:900, e:'cubic-bezier(.2,0,0,1)'},     // landed-station highlight
+  scrub:   {d:200, max:420, perPx:.05},             // close from a collapsed header: scroll back to top first
+  scrollFallback:{d:520},                           // when 'scrollend' isn't supported
+  rmFade:  {d:120, e:'linear'},                     // reduced motion: every movement becomes this crossfade
+  stagger: {step:40, lead:60, dense:18, denseLead:120},  // meter segments / curve bars fill-in
+};
+const SPRING = {sheet:{k:300,z:.84}};               // sheets: velocity-carrying spring
+// A(): the only way anything animates. Reduced motion keeps opacity-only crossfades (rmFade) and drops movement.
+function A(el, kf, tok, extra={}){
+  if(!el || !el.animate) return null; const t=MO[tok];
+  if(RM){ const o=kf.filter(f=>'opacity' in f); return o.length>1 ? el.animate(o.map(f=>({opacity:f.opacity})),{duration:MO.rmFade.d,easing:MO.rmFade.e}) : null; }
+  return el.animate(kf,{duration:t.d,easing:t.e,...extra});
+}
+const done = a => a ? a.finished.catch(()=>{}) : Promise.resolve();
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const frame = $('#frame');
+let ST, SB, HH, CH, H;
+function measure(){ const p=$('#probe').getBoundingClientRect(); ST=p.height; SB=p.width; HH=ST+282; CH=ST+52; H=frame.clientHeight; frame.style.setProperty('--hh',HH+'px'); }
+measure(); addEventListener('resize',()=>{measure();});
+
+let armed=false; addEventListener('pointerdown',()=>armed=true,{capture:true,once:true});
+const buzz = p => { try{ if(armed && navigator.vibrate) navigator.vibrate(p); }catch(e){} };
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => s.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const fq = q => q===.5?'½':(q%1? Math.floor(q)+'½' : String(q));
+const f1 = x => (Math.round(x*10)/10).toFixed(1).replace(/\.0$/,'');
+const fc = x => Math.round(x).toLocaleString('en-US');
+const clamp = (x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+
+/* ---------- data ---------- */
+const DISH = {};             // id -> dish
+const BYK = {};              // meal -> k -> {k,n,refs:{h:dish}}
+for (const h of HALLS) for (const meal in M[h]) M[h][meal].forEach((st,si)=>st[1].forEach((x,di)=>{
+  const d = {id:`${h}.${meal}.${si}.${di}`,h,meal,si,st:st[0],n:x[0],cal:x[1],p:x[2],c:x[3],f:x[4],d:x[5],srv:x[6],nut:x[7],ing:x[8],alg:x[9],hf:x[10],cr:x[11],k:norm(x[0])};
+  DISH[d.id]=d; (BYK[meal] ||= {}); (BYK[meal][d.k] ||= {k:d.k,n:d.n,refs:{}}).refs[h] ||= d;
+}));
+const byName = (h,meal,n) => BYK[meal][norm(n)].refs[h];
+
+/* ---------- state ---------- */
+const S = {
+  tab:'halls', hall:null, mmeal:'lunch',
+  smeal:'lunch', scope:null, lenses:new Set(), q:'',
+  plates:[], front:0, lastHall:null, openNow:true, fav:new Set(), diet:{veg:false,plant:false,halal:false}, wins:{},
+  log:[{meal:'breakfast',hall:'W',time:'8:42 AM',items:['Hard Boiled Egg','Make Your Own Waffles','Red Potato Home Fries'].map(n=>{const d=byName('W','breakfast',n);return{n,qty:1,cal:d.cal,p:d.p,c:d.c,f:d.f};})}],
+  lastLog:null,
+};
+try{ const sv=JSON.parse(localStorage.getItem('udine-m1')||'null'); if(sv){ S.fav=new Set(sv.fav||[]); Object.assign(S.diet,sv.diet||{}); } }catch(e){}
+const save = ()=>{ try{ localStorage.setItem('udine-m1',JSON.stringify({fav:[...S.fav],diet:S.diet})); }catch(e){} };
+
+/* ---------- plate model: a plate belongs to the halls that serve everything on it ---------- */
+const itemHalls = it => it.custom ? null : Object.keys(it.refs);
+function plateHalls(pl){ let s=null; for(const it of pl.items){ const h=itemHalls(it); if(!h) continue; s = s? s.filter(x=>h.includes(x)) : HALLS.filter(x=>h.includes(x)); } return s; }
+function canJoin(pl, meal, hs){ if(pl.meal!==meal) return false; const ph=plateHalls(pl); return !ph || !hs || ph.some(h=>hs.includes(h)); }
+function findItem(meal,k,ctxHall){
+  // the plate item for this dish; a hall menu only sees plates that hall can serve
+  for (let i of [S.front, ...S.plates.keys()]) { const pl=S.plates[i]; if(!pl||pl.meal!==meal) continue;
+    const it=pl.items.find(x=>x.k===k); if(!it) continue;
+    if(ctxHall){ const ph=plateHalls(pl); if(ph && !ph.includes(ctxHall)) continue; }
+    return {pl,it}; }
+  return null;
+}
+function wouldSplit(meal, hs){ return S.plates.length>0 && !S.plates.some(pl=>canJoin(pl,meal,hs)); }
+let PID=0;
+function addDish(meal, k, refs, n, custom){
+  const hs = custom? null : Object.keys(refs);
+  const fr = S.plates[S.front];
+  let pl = fr && canJoin(fr,meal,hs) ? fr : S.plates.find(p=>canJoin(p,meal,hs));
+  if(!pl){ pl={id:++PID,meal,items:[]}; S.plates.push(pl); }
+  S.front = S.plates.indexOf(pl);
+  let it = pl.items.find(x=>x.k===k);
+  if(it){ it.qty = it.qty===.5?1:it.qty+1; if(!custom) for(const h in it.refs) if(!refs[h]) delete it.refs[h]; }
+  else { it={k,n,refs:{...refs},qty:1,custom}; pl.items.push(it); }
+  buzz(8); refresh();
+  return it;
+}
+function stepItem(pl,it,dir){
+  if(dir>0) it.qty = it.qty===.5?1:it.qty+1;
+  else if(it.qty>1) it.qty--; else if(it.qty===1) it.qty=.5;
+  else { pl.items.splice(pl.items.indexOf(it),1); buzz(14);
+    if(!pl.items.length){ S.plates.splice(S.plates.indexOf(pl),1); S.front=Math.max(0,Math.min(S.front,S.plates.length-1)); } }
+  if(dir>0) buzz(8); refresh();
+}
+function macroOf(it, hall){ if(it.custom) return it.custom; return it.refs[hall] || Object.values(it.refs)[0]; }
+function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t={cal:0,p:0,c:0,f:0,n:0};
+  for(const it of pl.items){ const m=macroOf(it,hall); t.cal+=m.cal*it.qty; t.p+=m.p*it.qty; t.c+=m.c*it.qty; t.f+=m.f*it.qty; t.n+=it.qty; } return t; }
+function hallLabel(hs){ if(!hs) return ''; const n=hs.map(h=>HN[h]); return n.length===1?n[0]: n.length===4?'Any hall': n.slice(0,-1).join(', ')+' or '+n[n.length-1]; }
+function plateLabel(pl){ const hs=plateHalls(pl); return hs? `${hallLabel(hs)} ${ML[pl.meal].toLowerCase()}` : ML[pl.meal]; }
+const dayTotal = () => S.log.reduce((a,m)=>{ for(const i of m.items){a.cal+=i.cal*i.qty;a.p+=i.p*i.qty;a.c+=i.c*i.qty;a.f+=i.f*i.qty;} return a; },{cal:0,p:0,c:0,f:0});
+
+function logPlate(pl, hall){
+  hall ||= (plateHalls(pl)||[null])[0];
+  const now=new Date(2026,9,8,12,41);
+  const entry={meal:pl.meal,hall,time:now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
+    items:pl.items.map(it=>{const m=macroOf(it,hall);return{n:it.n,qty:it.qty,cal:m.cal,p:m.p,c:m.c,f:m.f};})};
+  const before=dayTotal().cal;
+  S.log.push(entry); const idx=S.plates.indexOf(pl); S.plates.splice(idx,1); S.front=Math.max(0,Math.min(S.front,S.plates.length-1));
+  S.lastLog={entry,pl,idx,before}; buzz([12,60,24]);
+  psheet.to('closed'); refresh(); showLogged();
+}
+function undoLog(){ const L=S.lastLog; if(!L) return; clearTimeout(barT);
+  // reverse: the day total counts back down, then the plate rises back into the bar
+  const el=$('#dayN'); if(el) countTo(el, dayTotal().cal, L.before);
+  S.log.splice(S.log.indexOf(L.entry),1); S.plates.splice(L.idx,0,L.pl); S.front=L.idx; S.lastLog=null; buzz(6);
+  setTimeout(()=>{ barMode='plate'; const inn=$('#bar .in'); inn.innerHTML=''; refresh(); A(inn,[{transform:'translateY(14px)',opacity:0},{transform:'none',opacity:1}],'enter'); }, RM?0:MO.count.d*.6); }
+
+/* ---------- small render helpers ---------- */
+const IC = {
+  plus:'<svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg>',
+  minus:'<svg viewBox="0 0 20 20"><path d="M4 10h12"/></svg>',
+  chev:'<svg viewBox="0 0 18 18"><path d="M4 7l5 5 5-5"/></svg>',
+  rchev:'<svg class="chev" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>',
+  back:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+};
+function ctl(q, ghost){ return q ? `<div class="step" data-q="${q}"><button class="dec" aria-label="Less">${IC.minus}</button><span class="q">${fq(q)}</span><button class="inc" aria-label="More">${IC.plus}</button></div>`
+  : `<button class="add${ghost?' ghost':''}" aria-label="Add">${IC.plus}</button>`; }
+const meta = d => `<b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${f1(d.p)}g</b> protein`;
+// Mark set. Glyphs are drawn, never emoji. Leaf = plant based (filled) / vegetarian (outline): the only marks shown inline on rows.
+const GL = {
+  plant:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13C3 6 7 3 13.5 2.5 13.5 9 10 13 3 13Z" fill="currentColor"/><path d="M3 13 9 7" stroke="#fff" stroke-width="1.2" fill="none"/></svg>',
+  veg:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13C3 6 7 3 13.5 2.5 13.5 9 10 13 3 13Z M3 13 9 7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  halal:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 5v6M10.5 5v6M5.5 8h5" stroke="currentColor" stroke-width="1.5"/></svg>',
+  local:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5S3 9.6 3 6.5a5 5 0 0 1 10 0c0 3.1-5 8-5 8Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.5" r="1.6" fill="currentColor"/></svg>',
+  sus:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.5h-2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  carbon:'<svg class="gl" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2c2.4 0 3.6 2.6 3.6 5.6S10.4 14 8 14 4.4 10.6 4.4 7.6 5.6 2 8 2Z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+};
+const dietMark = d => d.d&2 ? `<i class="mk-in pb" title="Plant based">${GL.plant}</i>` : d.d&1 ? `<i class="mk-in vg" title="Vegetarian">${GL.veg}</i>` : '';
+function marksHTML(d){ return [d.d&2&&['plant','Plant based'], d.d&1&&!(d.d&2)&&['veg','Vegetarian'], d.d&4&&['halal','Halal'], d.d&8&&['local','Local'], d.d&16&&['sus','Sustainable']]
+  .filter(Boolean).map(([g,l])=>`<span class="mk">${GL[g]}${l}</span>`).join(''); }
+const CRC = {A:'#1d6b37',B:'#6fa83a',C:'#b9bd1f',D:'#a7a7a7',E:'#6e6e6e'};   // UMass's own A–E icon colours
+function gradesHTML(hf, cr){
+  const h = hf==null ? '' : `<div class="grade"><span class="gl2">Healthfulness</span><span class="hbars" role="img" aria-label="${hf} of 7">${[0,1,2,3,4,5,6].map(i=>`<i class="${i<hf?'on':''}" style="--i:${i}"></i>`).join('')}</span><b>${hf} of 7</b></div>`;
+  const c = cr==null ? '' : `<div class="grade"><span class="gl2">Carbon rating</span><span class="crs" role="img" aria-label="${cr}, on a scale from A to E">${'ABCDE'.split('').map(x=>`<i class="${x===cr?'on':''}" style="${x===cr?`background:${CRC[x]};color:${'AE'.includes(x)?'#fff':'#24171a'}`:''}">${x}</i>`).join('')}</span></div>`;
+  return h||c ? `<div class="grades">${h}${c}</div>` : '';
+}
+// FDA-style label. %DV: the menu's own value when published; otherwise computed from FDA daily values (sat fat 20 g, cholesterol 300 mg).
+const NK = ['ff','fat','fatDv','sat','satDv','trans','chol','sod','sodDv','carb','carbDv','fib','fibDv','sug','pro','proDv'];
+const FDA = {fat:78, sat:20, chol:300, sod:2300, carb:275, fib:28, pro:50};
+const nutObj = a => Object.fromEntries(NK.map((k,i)=>[k,a?a[i]:null]));
+function labelHTML(N, cal, serving){
+  const g=(v,u='g')=> v==null?'–':`${f1(v)}${u}`, pc=(v,dv,base)=> dv!=null ? dv : (v!=null&&base ? Math.round(v/base*100) : null);
+  const row=(name,v,u,dv,base,cls='')=>{ const p=pc(v,dv,base); return `<div class="lr ${cls}"><span><b>${name}</b> ${g(v,u)}</span><span class="dv">${p==null?'':p+'%'}</span></div>`; };
+  const sub=(name,v,u,dv,base)=>{ const p=pc(v,dv,base); return `<div class="lr sub"><span>${name} ${g(v,u)}</span><span class="dv">${p==null?'':p+'%'}</span></div>`; };
+  return `<div class="facts label"><div class="lt">Nutrition Facts</div>${serving?`<div class="ls"><span>Serving size</span><span>${esc(serving)}</span></div>`:''}
+    <div class="cal"><span>Calories</span><b class="num">${fc(cal)}</b></div>${N.ff!=null?`<div class="lr thin"><span></span><span>Fat cal. ${fc(N.ff)}</span></div>`:''}
+    <div class="lr thin hdv"><span></span><span>% Daily Value*</span></div>
+    ${row('Total Fat',N.fat,'g',N.fatDv,FDA.fat)}${sub('Saturated Fat',N.sat,'g',N.satDv,FDA.sat)}${sub('<i>Trans</i> Fat',N.trans,'g',null,null)}
+    ${row('Cholesterol',N.chol,'mg',null,FDA.chol)}${row('Sodium',N.sod,'mg',N.sodDv,FDA.sod,'sod')}${row('Total Carbohydrate',N.carb,'g',N.carbDv,FDA.carb)}
+    ${sub('Dietary Fiber',N.fib,'g',N.fibDv,FDA.fib)}${sub('Total Sugars',N.sug,'g',null,null)}${row('Protein',N.pro,'g',N.proDv,FDA.pro,'last')}
+    <div class="lf">*Percent Daily Values are based on a 2,000 calorie diet.</div></div>`;
+}
+function letterSVG(L){ return `<text class="felt" x="${LX[L]}" y="186">${L}</text><text class="gold" x="${LX[L]}" y="186">${L}</text>`; }
+function factsHTML(t, big='Calories'){ return `<div class="facts"><div class="cal"><span>${big}</span><b class="num">${fc(t.cal)}</b></div>
+  <div class="nr"><span>Protein</span><b>${f1(t.p)}g</b></div><div class="nr"><span>Carbs</span><b>${f1(t.c)}g</b></div><div class="nr"><span>Fat</span><b>${f1(t.f)}g</b></div></div>`; }
+const dietOK = d => (!S.diet.veg || d.d&3) && (!S.diet.plant || d.d&2) && (!S.diet.halal || d.d&4);
+const dietOn = () => S.diet.veg||S.diet.plant||S.diet.halal;
+const dietWords = () => [S.diet.plant&&'plant based',S.diet.veg&&!S.diet.plant&&'vegetarian',S.diet.halal&&'halal'].filter(Boolean).join(', ');
+
+/* ---------- halls ---------- */
+function areaOrder(){ const near={W:1,H:3,B:3,F:0}[S.lastHall]; return near==null?[0,1,2,3]:[near,...[0,1,2,3].filter(a=>a!==near)]; }
+function renderHalls(){
+  $('#bands').innerHTML = HALLS.map(h=>`<button class="band" data-h="${h}" aria-label="${HN[h]}, ${HOURS[h]}, ${esc(BUSY[h].label)}">
+    <div class="win" style="top:${-Math.round(OFF[h]*HH)}px"><div class="duo"><div class="ph g ph-${h}"></div><div class="t"></div><div class="s"></div></div></div>
+    <div class="lgrad"></div><svg class="let" viewBox="0 0 200 200">${letterSVG(h)}</svg><div class="press"></div>
+    <div class="bt"><div class="nm">${HN[h]}</div><div class="st">${HOURS[h]}</div><div class="bz">${busyRow(h,false)}</div></div></button>`).join('');
+  renderAreas();
+}
+function renderAreas(){
+  $('#areas').innerHTML = [0,1,2,3].map(a=>{ const ps=P.places.filter(x=>x[1]===a), open=ps.filter(x=>isOpen([x[3],x[4]])).length;
+    return `<button class="lrow" data-act="page" data-p="cafes" data-c="${a}"><div><div class="a">${esc(P.areas[a])}</div><div class="b">${open} of ${ps.length} open now</div></div>${IC.rchev}</button>`; }).join('');
+}
+const EVIMG = {ipd:'__IMG_EV_ipd__', oct:'__IMG_EV_oct__', pg:'__IMG_EV_pg__', sust:'__IMG_EV_sust__'};
+let EVENTS = P.events;   // build.py already dropped expired ones and merged "<X> Hours" into "<X>"
+$('#evc').addEventListener('scrollend',()=>buzz(4));   // a tick when a card settles
+function renderEvents(){
+  const c=$('#evc'); $('#sdisc').dataset.n=EVENTS.length; c.classList.toggle('one',EVENTS.length===1);
+  c.innerHTML = EVENTS.map((e,i)=>`<button class="evcard" data-act="page" data-p="event" data-c="${i}" aria-label="${esc(e[0])}${evWhen(e)?', '+evWhen(e):''}">
+    <span class="evpatch"><img alt="" src="${EVIMG[e[3]]}" draggable="false"></span><span class="evcap"><span class="evtt">${esc(e[0])}</span>${evWhen(e)?`<span class="evtag">${evWhen(e)}</span>`:''}</span></button>`).join('');
+}
+// Only an expiry is published. Within a week it reads as the day itself ("Mon, Oct 12"); within two months as a run
+// ("Through Oct 31"); anything later is an ongoing promo and gets no date.
+const evSoon = (e,h) => e[4].includes(h) && (e[1]*1000-Date.UTC(2026,9,8))/864e5 <= 7;   // contextual: this week, at this hall
+function evWhen(e){ const d=new Date(e[1]*1000), days=(e[1]*1000-Date.UTC(2026,9,8))/864e5, o={timeZone:'UTC',month:'short',day:'numeric'};
+  return days<=7 ? d.toLocaleDateString('en-US',{...o,weekday:'short'}) : days<=60 ? 'Through '+d.toLocaleDateString('en-US',o) : ''; }
+
+/* ---------- hall menu ---------- */
+function renderMenu(){
+  const h=S.hall, meals=MEALS.filter(m=>M[h][m[0]]);
+  if(!M[h][S.mmeal]) S.mmeal = M[h].lunch?'lunch':meals[0][0];
+  ['#mph','#mphg'].forEach(s=>$(s).className='ph ph-'+h+(s==='#mphg'?' g':''));
+  $('#mlet').innerHTML=letterSVG(h); $('#mtn').textContent=HN[h]; $('#mts').textContent=HOURS[h];
+  $('#mbz').innerHTML=busyRow(h,true); $('#mbz').setAttribute('aria-label',$('#mbz').textContent); $('#mhist').innerHTML=histSVG(h);
+  $('#mtabs').innerHTML = meals.map(([k,l])=>`<button role="tab" data-meal="${k}" aria-selected="${k===S.mmeal}">${l}</button>`).join('') + '<i class="ul" aria-hidden="true"></i>';
+  requestAnimationFrame(()=>placeUL(false));
+  renderMenuList();
+}
+function renderMenuList(){
+  const h=S.hall, meal=S.mmeal; let html='';
+  if(meal==='grab'){ const g=P.grab[h]; html+=`<div class="gnote"><b>${status(g)}</b>, ${span(g[0],g[1])}</div>`; }
+  EVENTS.forEach((e,i)=>{ if(evSoon(e,h)) html+=`<button class="evnote" data-act="page" data-p="event" data-c="${i}"><i aria-hidden="true"></i><span>${esc(e[0])}</span><b>${evWhen(e)}</b></button>`; });
+  if(dietOn()) html+=`<div class="dietnote"><span>Showing ${dietWords()} dishes</span><button class="tbtn" data-act="dietoff">Show all</button></div>`;
+  M[h][meal].forEach((st,si)=>{
+    const rows = st[1].map((x,di)=>DISH[`${h}.${meal}.${si}.${di}`]).filter(dietOK);
+    if(!rows.length) return;
+    html += `<h3 class="sth" data-st="${si}">${esc(st[0])}</h3>` + rows.map(d=>{
+      const f=findItem(meal,d.k,h); return `<div class="row" data-id="${d.id}"><div class="tx"><div class="n">${esc(d.n)}${dietMark(d)}${S.fav.has(d.k)?'<span class="star" aria-label="Favorite">★</span>':''}</div><div class="m">${meta(d)}</div></div>${ctl(f&&f.it.qty, !f && wouldSplit(meal,[h]))}</div>`;}).join('');
+  });
+  $('#mlist').innerHTML = html + '<div class="pad-b"></div>';
+  updSwitch(true);
+}
+/* ---------- hall header: ONE function paints every element from (open progress p, scroll y) ----------
+   p: 0 = the band on Halls, 1 = the expanded header. y: menu scroll; collapse progress c = y / (HH - CH).
+   Every element is either a FLIP from a measured rect (translate/scale lerped by p) or an opacity lerped by p,
+   so nothing can lag or pop: open and close are the same frames, played forward or back. */
+const bez=(x1,y1,x2,y2)=>{ const B=(a,b,t)=>3*a*(1-t)*(1-t)*t+3*b*(1-t)*t*t+t*t*t;
+  return x=>{ if(x<=0) return 0; if(x>=1) return 1; let lo=0,hi=1,t=.5; for(let i=0;i<24;i++){ t=(lo+hi)/2; if(B(x1,x2,t)<x) lo=t; else hi=t; } return B(y1,y2,t); }; };
+const EASE_F=bez(.22,1,.36,1), XD=MO.hero.d*(+new URLSearchParams(location.search).get('slow')||1);   // ?slow=N for frame capture
+const ZERO={T:0,off:0,y0:0,L:[0,0],N:[0,0],S:[0,0],B:[0,0]};
+let XF=ZERO, XP=1, xfRaf=0, NB=24;
+const E={}; ['mhead','mduo','mlg','mbg','mtg','msolid','mlet','mtn','mts','mbz','mhist','mctl','mtabs','mswitch','mscroll','mdim'].forEach(k=>E[k]=$('#'+k)); E.phw=$('#mhead .phw');
+function paint(p,y){
+  const q=1-p, X=XF, R=HH-CH, d=clamp(y,0,R), c=d/R, fade=1-clamp(c/.3), r=RES[S.hall]||0;
+  E.mhead.style.transform=`translate3d(0,${X.y0*q-d}px,0)`;
+  E.mhead.style.clipPath= q>1e-4 ? `inset(${X.off*q}px 0 ${(HH-X.off-BAND_H)*q}px 0)` : 'none';
+  E.phw.style.transformOrigin='50% 0';
+  E.phw.style.transform = y<0 ? `scale(${1+(-y)/HH})` : `translate3d(0,${d*.45}px,0)`;
+  E.mduo.style.opacity = r+(1-r)*q; E.mlg.style.opacity=q; E.mbg.style.opacity=p; E.mtg.style.opacity=p;
+  E.msolid.style.opacity = clamp((c-.3)/.55);
+  E.mlet.style.transform=`translate3d(${X.L[0]*q}px,${X.L[1]*q}px,0)`; E.mlet.style.opacity=1-clamp(c/.55);
+  E.mtn.style.transform=`translate3d(${X.N[0]*q+44*c}px,${X.N[1]*q+NB*c}px,0) scale(${(1-.2*q)*(1-.45*c)})`;
+  E.mts.style.transform=`translate3d(${X.S[0]*q}px,${X.S[1]*q}px,0)`; E.mts.style.opacity=fade;
+  E.mbz.style.transform=`translate3d(${X.B[0]*q}px,${X.B[1]*q}px,0)`; E.mbz.style.opacity=fade;
+  const bx=E.mbz.querySelector('.bzx'); if(bx) bx.style.opacity=p;
+  E.mhist.style.opacity=p*fade;
+  E.mctl.style.transform=`translate3d(0,${X.T*q}px,0)`; E.mctl.style.opacity=p;
+  E.mtabs.style.transform=`translate3d(0,${(H-HH)*q-d}px,0)`; E.mswitch.style.transform=E.mtabs.style.transform;
+  E.mdim.style.opacity = .4*p;   // Halls recedes as one unit; nothing on it moves
+  E.mscroll.style.transform= q>1e-4 ? `translate3d(0,${(H-HH)*q}px,0)` : '';
+  if(!$('#stidx').classList.contains('hide')) placeIdx();
+}
+const applyCollapse = y => paint(XP,y);
+function measureXF(){
+  XF=ZERO; paint(1,0);
+  const band=$(`.band[data-h="${S.hall}"]`), fr=frame.getBoundingClientRect(), br=band.getBoundingClientRect(), hr=E.mhead.getBoundingClientRect();
+  NB=(ST+38)-(E.mtn.getBoundingClientRect().bottom-hr.top-(HH-CH));   // name's drop into the compact bar
+  const T=br.top-fr.top, off=Math.round(OFF[S.hall]*HH), y0=T-off;
+  const dd=(el,src)=>{ const a=el.getBoundingClientRect(), b=src.getBoundingClientRect(); return [b.left-a.left, b.bottom-a.bottom-y0]; };
+  XF={T,off,y0, L:dd(E.mlet,band.querySelector('.let')), N:dd(E.mtn,band.querySelector('.nm')), S:dd(E.mts,band.querySelector('.st')), B:(()=>{ const a=E.mbz.getBoundingClientRect(), b=band.querySelector('.bz').getBoundingClientRect(); return [b.left-a.left, b.top-a.top-y0]; })()};
+}
+let rafS=0; $('#mscroll').addEventListener('scroll',()=>{ if(rafS) return; rafS=requestAnimationFrame(()=>{rafS=0; paint(XP,$('#mscroll').scrollTop); updSwitch(); }); },{passive:true});
+function runXF(to, done){
+  cancelAnimationFrame(xfRaf); const t0=performance.now();
+  const f=t=>{ const k=clamp((t-t0)/XD), e=EASE_F(k); XP = to ? e : 1-e; paint(XP,0); if(k<1) xfRaf=requestAnimationFrame(f); else done&&done(); };
+  f(t0);
+}
+function openHall(h, instant){
+  cancelAnimationFrame(xfRaf);
+  S.hall=h; S.lastHall=h; S.mmeal='lunch'; renderMenu();
+  $('#menu').classList.remove('hide'); $('#mscroll').scrollTop=0; syncFront(h); buzz(6);
+  updSwitch(true);   // titles have layout only once the menu is visible
+  measureXF();
+  if(RM){ XP=1; paint(1,0); if(!instant) A($('#menu'),[{opacity:0},{opacity:1}],'quick'); return; }
+  $$('.band').forEach(b=>b.style.visibility = b.dataset.h===h ? 'hidden' : '');   // the band IS the header now: never show both
+  if(instant){ XP=1; paint(1,0); return; }
+  XP=0; runXF(1);
+}
+function resetHalls(){ $$('.band').forEach(b=>b.style.visibility=''); }
+function closeHall(){
+  closeIdx(); if(!S.hall) return;
+  cancelAnimationFrame(xfRaf);
+  const fin=()=>{ $('#menu').classList.add('hide'); S.hall=null; XP=1; resetHalls(); };
+  if(RM){ done(A($('#menu'),[{opacity:1},{opacity:0}],'quick')).then(fin); return; }
+  const sc=$('#mscroll'), y0=sc.scrollTop, back=()=>{ measureXF(); runXF(0,fin); };
+  if(y0<=0){ back(); return; }
+  // scrub back to the top first (like a status-bar tap), then play the open frames in reverse
+  const t0=performance.now(), D=Math.min(MO.scrub.max,MO.scrub.d+y0*MO.scrub.perPx);
+  const f=t=>{ const k=clamp((t-t0)/D), e=1-Math.pow(1-k,3); sc.scrollTop=y0*(1-e); paint(1,sc.scrollTop); if(k<1) xfRaf=requestAnimationFrame(f); else back(); };
+  xfRaf=requestAnimationFrame(f);
+}
+function syncFront(h){ const i=S.plates.findIndex(pl=>pl.meal===S.mmeal && (plateHalls(pl)||[h]).includes(h)); if(i>=0 && i!==S.front){ S.front=i; renderBar(); } }
+
+/* station switcher: one control pinned under the meal tabs shows the current station and opens a jump list */
+const stTop = s => s.offsetTop;                                   // titles are no longer sticky; offsetParent is #mscroll
+const PIN = () => CH+TABS_H+48;                                   // compact bar + meal tabs + switcher
+function curStation(){ const y=$('#mscroll').scrollTop+PIN()+2; let c=null; for(const s of $$('#mlist .sth')) if(stTop(s)<=y) c=s.dataset.st; return c ?? $('#mlist .sth')?.dataset.st; }
+let swCur=null;
+function updSwitch(force){
+  const c=curStation(); if(c==null||(!force&&c===swCur)) return; const dir = swCur==null||force ? 0 : (+c>+swCur?1:-1); swCur=c;
+  const el=$('#swname'), name=M[S.hall][S.mmeal][c][0];
+  if(!dir){ el.textContent=name; return; }
+  el.textContent=name; A(el,[{transform:`translateY(${dir*60}%)`,opacity:0},{transform:'none',opacity:1}],'quick');
+}
+function placeIdx(){ const R=HH-CH, d=clamp($('#mscroll').scrollTop,0,R), top=(HH-d+TABS_H+48)+'px'; $('#stidx').style.top=top; $('#stscrim').style.top=top; }
+function openIdx(){
+  const cur=curStation(), h=S.hall, meal=S.mmeal;
+  $('#stidx').innerHTML = $$('#mlist .sth').map(s=>{ const st=M[h][meal][s.dataset.st]; const n=$$(`#mlist .row[data-id^="${h}.${meal}.${s.dataset.st}."]`).length;
+    return `<button role="option" data-jump="${s.dataset.st}" class="${s.dataset.st===cur?'cur':''}" aria-selected="${s.dataset.st===cur}"><span>${esc(st[0])}</span><span class="c">${n}</span></button>`; }).join('');
+  placeIdx(); $('#stidx').classList.remove('hide'); $('#stscrim').classList.remove('hide'); $('.swbtn').setAttribute('aria-expanded','true');
+  A($('#stidx'),[{transform:'translateY(-12px)',opacity:0},{transform:'none',opacity:1}],'enter'); A($('#stscrim'),[{opacity:0},{opacity:1}],'enter');
+  const c=$('#stidx .cur'); if(c) $('#stidx').scrollTop=Math.max(0,c.offsetTop-96);
+  buzz(5);
+}
+function closeIdx(){
+  if($('#stidx').classList.contains('hide')) return; $('.swbtn').setAttribute('aria-expanded','false');
+  const a=A($('#stidx'),[{transform:'none',opacity:1},{transform:'translateY(-12px)',opacity:0}],'exit'); A($('#stscrim'),[{opacity:1},{opacity:0}],'exit');
+  done(a).then(()=>{ $('#stidx').classList.add('hide'); $('#stscrim').classList.add('hide'); });
+}
+function jump(si){
+  closeIdx(); const el=$(`#mlist .sth[data-st="${si}"]`); if(!el) return;
+  const sc=$('#mscroll'), top=Math.min(stTop(el)-PIN(), sc.scrollHeight-sc.clientHeight);
+  const land=()=>{ updSwitch(); if(RM){ el.classList.add('hitrm'); setTimeout(()=>el.classList.remove('hitrm'),MO.flash.d); return; }
+    el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); };   // the landed title flashes once
+  if(RM){ sc.scrollTop=top; land(); } else { sc.scrollTo({top, behavior:'smooth'}); let t=setTimeout(land,MO.scrollFallback.d); sc.addEventListener('scrollend',()=>{ clearTimeout(t); land(); },{once:true}); }
+  buzz(5);
+}
+function placeUL(anim){ const ul=$('#mtabs .ul'), b=$('#mtabs button[aria-selected=true]'); if(!ul||!b) return;
+  if(!anim) ul.style.transition='none'; ul.style.transform=`translateX(${b.offsetLeft+8}px) scaleX(${b.offsetWidth-16})`; if(!anim){ void ul.offsetWidth; ul.style.transition=''; } }
+
+/* ---------- search ---------- */
+const LENSES=[['protein','High protein'],['light','Light'],['veg','Vegetarian'],['plant','Plant based'],['halal','Halal'],['lowc','Low carbon'],['fav','Favorites']];
+const LGL={veg:GL.veg,plant:GL.plant,halal:GL.halal,lowc:GL.carbon};
+function renderLenses(){
+  const sc = S.scope? `<button class="chip" aria-pressed="true" data-act="unscope">At ${HN[S.scope]}${S.smeal!=='lunch'?' '+ML[S.smeal].toLowerCase():''}<span class="x" aria-hidden="true">×</span></button>`:'';
+  $('#lenses').innerHTML = sc + LENSES.map(([k,l])=>`<button class="chip" data-lens="${k}" aria-pressed="${S.lenses.has(k)}">${LGL[k]||''}${l}</button>`).join('');
+}
+function rep(g){ const pl=S.plates[S.front]; const ph=pl&&pl.meal===S.smeal&&plateHalls(pl);
+  const h=(S.scope&&g.refs[S.scope]&&S.scope) || (ph&&ph.find(x=>g.refs[x])) || HALLS.find(x=>g.refs[x]); return g.refs[h]; }
+function results(){
+  const toks=norm(S.q).split(' ').filter(Boolean);
+  let out=[];
+  for(const g of Object.values(BYK[S.smeal]||{})){
+    if(S.scope && !g.refs[S.scope]) continue;
+    if(toks.length && !toks.every(t=>g.k.split(' ').some(w=>w.startsWith(t)) || g.k.includes(t))) continue;
+    const d=rep(g); if(!d) continue;
+    if(!toks.length && !S.lenses.size && d.cal<40) continue;
+    if(S.lenses.has('protein') && d.p<15) continue;
+    if(S.lenses.has('light') && !(d.cal<=250 && d.cal>=40)) continue;
+    if(S.lenses.has('veg') && !(d.d&3)) continue;
+    if(S.lenses.has('plant') && !(d.d&2)) continue;
+    if(S.lenses.has('halal') && !(d.d&4)) continue;
+    if(S.lenses.has('fav') && !S.fav.has(g.k)) continue;
+    if(S.lenses.has('lowc') && !(d.cr==='A'||d.cr==='B')) continue;
+    const t0=toks[0]||''; const rank = !t0?0 : g.k.startsWith(t0)?0 : g.k.split(' ').some(w=>w.startsWith(t0))?1:2;
+    const join = wouldSplit(S.smeal,Object.keys(g.refs))?1:0;
+    out.push({g,d,rank,join});
+  }
+  out.sort((a,b)=>a.join-b.join || a.rank-b.rank || (S.lenses.has('light')? a.d.cal-b.d.cal : b.d.p-a.d.p) || a.g.n.localeCompare(b.g.n));
+  return out;
+}
+function placeHits(){
+  const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.length || S.scope) return [];
+  const hit=(words)=>toks.every(t=>words.some(w=>w.startsWith(t)));
+  const out=[];
+  for(const h of HALLS){ const w=norm(HN[h]+' dining commons hall').split(' ');
+    if(hit(w)) out.push(`<button class="prow2" data-act="hall" data-h="${h}"><div><div class="a">${HN[h]}</div><div class="b">Dining commons</div></div><span class="r">${HOURS[h]}</span></button>`);
+    if(hit(norm(HN[h]+" grab n go grab and go").split(' '))){ const g=P.grab[h];
+      out.push(`<button class="prow2" data-act="hall" data-h="${h}" data-meal="grab"><div><div class="a">${HN[h]} Grab 'N Go</div><div class="b">${HN[h]}</div></div><span class="r${isOpen(g)?'':' off'}">${status(g)}</span></button>`); } }
+  P.places.forEach((x,i)=>{ const words=norm(x[0]+' '+x[2]+' '+P.areas[x[1]]).split(' '); const item=!hit(words) && x[7].find(n=>hit(norm(n).split(' ')));
+    if(hit(words)||item){ const o=isOpen([x[3],x[4]]);
+      out.push(`<button class="prow2" data-act="page" data-p="place" data-c="${i}"><div><div class="a">${esc(x[0])}</div><div class="b">${esc(item||x[2])}</div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`); } });
+  return out.slice(0,4);
+}
+function renderSearch(){
+  $('#q').placeholder = S.scope? `Search ${HN[S.scope]} ${ML[S.smeal].toLowerCase()}` : `Search ${ML[S.smeal].toLowerCase()} at every hall`;
+  $('#qclear').classList.toggle('hide',!S.q);
+  const r=results(), pl=S.plates[S.front], ph=pl&&pl.meal===S.smeal?plateHalls(pl):null;
+  const pl2=placeHits(); let html = (pl2.length? `<div class="sgrp" data-key="g-places">Places</div>${pl2.join('')}${r.length?`<div class="sgrp" data-key="g-dishes">${ML[S.smeal]} dishes</div>`:''}`:(!S.q&&!S.lenses.size&&r.length?`<div class="sgrp" data-key="g-now">${ML[S.smeal]} now</div>`:'')) + r.map(({g,d})=>{ const f=findItem(S.smeal,g.k); const tags=HALLS.filter(h=>g.refs[h]).map(h=>`<i class="ht${ph&&ph.includes(h)?' on':''}" aria-label="${HN[h]}">${h}</i>`).join('');
+    return `<div class="row" data-k="${esc(g.k)}" data-src="s"><div class="tx"><div class="n">${esc(g.n)}${dietMark(d)}${S.fav.has(g.k)?'<span class="star">★</span>':''}</div><div class="m">${meta(d)}<span class="tags">${tags}</span></div></div>${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,Object.keys(g.refs)))}</div>`; }).join('');
+  if(!r.length && pl2.length){ html+=`<button class="custom" data-act="custom">Add “${esc(S.q)}” as a custom food</button>`; } else if(!r.length){
+    html = S.q ? `<p class="empty">Nothing called “${esc(S.q)}” is on ${S.scope?HN[S.scope]+"'s ":''}${ML[S.smeal].toLowerCase()} menu today.</p><button class="custom solid" data-act="custom">${IC.plus.replace('<svg','<svg width="20" height="20" stroke="currentColor" stroke-width="2.4" fill="none"')}Add “${esc(S.q)}” as a custom food</button>`
+      : S.lenses.has('fav') ? `<p class="empty">Star a dish from its details and it shows up here whenever it's served.</p>` : `<p class="empty">No dishes match these filters at ${ML[S.smeal].toLowerCase()}.</p>`;
+  } else if(S.q) html += `<button class="custom" data-act="custom">Add “${esc(S.q)}” as a custom food</button>`;
+  // FLIP: rows that survive a keystroke glide to their new place, new ones fade up, groups fade in
+  const box=$('#sres'), key=el=>el.dataset.k||el.dataset.key||(el.dataset.c!=null?'p'+el.dataset.c:el.dataset.h?'h'+el.dataset.h+(el.dataset.meal||''):null);
+  const before=new Map(); for(const el of box.children){ const k=key(el); if(k) before.set(k, el.getBoundingClientRect().top); }
+  const wasEmpty=!!box.querySelector('.empty'), wasText=wasEmpty&&box.querySelector('.empty').textContent;
+  box.innerHTML=html; let n=0;
+  for(const el of box.children){ if(n++>18) break; const k=key(el); if(k&&before.has(k)){ const dy=before.get(k)-el.getBoundingClientRect().top; if(Math.abs(dy)>1) A(el,[{transform:`translateY(${dy}px)`},{transform:'none'}],'enter'); }
+    else if(!el.classList.contains('empty')||!wasEmpty) A(el,[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],'enter'); }
+  const em=box.querySelector('.empty'); if(em && !(wasEmpty && wasText===em.textContent)) em.classList.add('fadein');
+  setIdle();
+}
+// Search's idle state (nothing typed, no lens, no scope) is the "what's on" hub: the events carousel on maroon.
+const isIdle = () => !S.q && !S.lenses.size && !S.scope && EVENTS.length>0;
+function setIdle(){ const idle=isIdle(), el=$('#sdisc'), was=!el.classList.contains('hide');
+  if(idle===was) return;
+  if(idle){ el.classList.remove('hide'); A(el,[{opacity:0},{opacity:1}],'enter'); }
+  else done(A(el,[{opacity:1},{opacity:0}],'exit')).then(()=>{ if(!isIdle()) el.classList.add('hide'); }); }
+function goSearch(scope, meal){
+  S.scope=scope||null; S.smeal=meal||'lunch'; setTab('search');
+  selectQ(); renderLenses(); renderSearch();
+}
+$('#q').addEventListener('input',e=>{ S.q=e.target.value; renderSearch(); $('#search').scrollTop=0; });
+$('#q').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); const b=$('#sres .row .add, #sres .row .inc'); if(b) b.click(); } });
+$('#qclear').addEventListener('pointerdown',e=>e.preventDefault());
+$('#qclear').addEventListener('click',()=>{ $('#q').value=''; S.q=''; renderSearch(); $('#q').focus(); });
+// keep the keyboard up between picks: nothing in the results takes focus
+for(const t of ['pointerdown','mousedown']) $('#search').addEventListener(t,e=>{ if(document.activeElement===$('#q') && e.target.closest('#sres,#lenses') && !e.target.closest('[data-act=custom]')) e.preventDefault(); });
+
+/* ---------- tabs & pages ---------- */
+function setTab(t){
+  if(S.tab===t && t==='halls' && S.hall){ closeHall(); return; }
+  const changed=S.tab!==t; S.tab=t; closeAllPages();
+  for(const k of ['halls','search','you']) $('#tab-'+k).classList.toggle('hide',k!==t);
+  $$('.tbar button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  $('.tbar .ind').style.transform=`translateX(${['halls','search','you'].indexOf(t)*100}%)`;
+  if(changed){ buzz(4); A($('#tab-'+t),[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],'quick'); }
+  if(t!=='search') $('#q').blur();
+  if(t==='search'){ renderLenses(); renderSearch(); }
+  if(t==='you') renderYou();
+  if(t==='halls' && S.hall){ renderMenuList(); syncFront(S.hall); }
+}
+function renderYou(){
+  const t=dayTotal();
+  const meals=[...S.log].reverse().map(m=>{ const c=m.items.reduce((a,i)=>a+i.cal*i.qty,0);
+    return `<div class="meal"><div class="h"><span class="a">${ML[m.meal]}${m.hall?' at '+HN[m.hall]:''}</span><span class="t">${m.time}</span></div>
+      ${m.items.map(i=>`<div class="it"><span>${i.qty!==1?fq(i.qty)+' × ':''}${esc(i.n)}</span><b>${fc(i.cal*i.qty)}</b></div>`).join('')}
+      <div class="it"><span></span><b style="font-weight:600">${fc(c)} cal</b></div></div>`; }).join('');
+  $('#you').innerHTML = `<header class="yhead"><div class="date">Thursday, October 8</div><h1>Today</h1></header>
+    <div class="sec" style="padding-top:20px">${factsHTML(t)}</div>
+    <section class="sec"><h2>Meals</h2>${meals}</section>
+    <section class="sec">${[['favs','Favorites',S.fav.size? S.fav.size+' dishes':'None yet'],['diet','Dietary preferences',dietOn()?dietWords():'Everything'],['rank','Which was better?',rankPool().length+' dishes logged'],['export','Export my data',S.log.length+(S.log.length===1?' meal':' meals')]]
+      .map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section><div class="pad-b"></div>`;
+}
+let pages=[];
+function openPage(p, extra){
+  const el=document.createElement('div'); el.className='page'; el.dataset.p=p; el.dataset.x=extra??'';
+  const [title, body]=pageContent(p, extra);
+  el.innerHTML=`<div class="pbar"><button class="icon" data-act="pageback" aria-label="Back">${IC.back}</button><span class="o">${esc(title)}</span></div><div class="pbody">${body}</div><div class="pad-b"></div>`;
+  frame.insertBefore(el, $('#bar')); el.style.zIndex=30+pages.length; pages.push(el);
+  if(p==='cafes' && extra!=null && extra!==''){ const t=el.querySelector(`[data-area="${extra}"]`); if(t) el.scrollTop=Math.max(0,t.offsetTop-ST-52); }
+  A(el,[{transform:'translate3d(100%,0,0)',opacity:RM?0:1},{transform:'none',opacity:1}],'push'); buzz(3);
+}
+function rerenderPage(){ const el=pages.at(-1); if(!el) return; const y=el.scrollTop; const [t,b]=pageContent(el.dataset.p, el.dataset.x); el.querySelector('.pbar .o').textContent=t; const pb=el.querySelector('.pbody'); pb.innerHTML=b; el.scrollTop=y; A(pb,[{opacity:.4},{opacity:1}],'quick'); }
+function closeAllPages(){ pages.forEach(e=>e.remove()); pages=[]; }
+function closePage(){ const el=pages.pop(); if(!el) return;
+  const fin=()=>{ el.remove(); if(S.tab==='you'&&!pages.length) renderYou(); };
+  done(A(el,[{transform:'none',opacity:1},{transform:'translate3d(100%,0,0)',opacity:RM?0:1}],'pop')).then(fin); }
+function placeRow(i){ const x=P.places[i], o=isOpen([x[3],x[4]]);
+  return `<button class="lrow" data-act="page" data-p="place" data-c="${i}"><div><div class="a">${esc(x[0])}</div><div class="b">${esc(x[2])}</div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`; }
+function servedNow(k){ const g=BYK.lunch[k]; return g? HALLS.filter(h=>g.refs[h]) : []; }
+function rankPool(){ const s=new Map(); for(const m of S.log) for(const i of m.items) s.set(norm(i.n),i.n); return [...s.entries()]; }
+function pageContent(p, x){
+  if(p==='cafes'){ const by=a=>P.places.map((x,i)=>[x,i]).filter(([x])=>x[1]===a && (!S.openNow||isOpen([x[3],x[4]]))).sort((A,B)=>(isOpen([B[0][3],B[0][4]])-isOpen([A[0][3],A[0][4]]))||A[0][0].localeCompare(B[0][0]));
+    return ['Cafés & markets', `<div class="chips1"><button class="chip" data-act="opennow" aria-pressed="${S.openNow}">Open now</button></div>`
+      + areaOrder().map(a=>{ const r=by(a); return `<h2 class="ahd" data-area="${a}">${esc(P.areas[a])}</h2>${r.length? r.map(([,i])=>placeRow(i)).join('') : '<p class="kv">Nothing open here right now.</p>'}`; }).join('')]; }
+  if(p==='place'){ const v=P.places[x], o=isOpen([v[3],v[4]]);
+    return [v[0], `<div class="pstat"><b class="${o?'':'off'}">${status([v[3],v[4]])}</b><span>${span(v[3],v[4])}</span></div>
+      <p class="kv" style="margin:4px 0">${esc(v[2])}</p><p class="kv" style="margin:4px 0 12px">${esc(v[5])}</p><p style="line-height:1.5;margin:0">${esc(v[6])}</p>
+      <h3 class="h3">Menu</h3>${v[7].length? v[7].map(n=>`<div class="lrow"><div class="a" style="font-weight:500">${esc(n)}</div><button class="add" data-act="custom" data-name="${esc(n)}" aria-label="Add ${esc(n)}">${IC.plus}</button></div>`).join('')
+        : `<p class="kv">${esc(v[0])} doesn't list its menu in the app.</p><button class="btn" data-act="custom" data-name="">Add a custom food</button>`}`]; }
+  if(p==='event'){ const e=P.events[x];
+    return [e[0], `${e[3]?`<img class="evimg" alt="" src="${EVIMG[e[3]]}" style="margin:8px -20px 0;width:calc(100% + 40px)">`:''}${evWhen(e)?`<p class="pstat"><b>${evWhen(e)}</b></p>`:''}
+      <div class="stack">${e[2].map(([l,u],k)=>`<a class="btn${k?' line':''}" style="text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>`]; }
+  if(p==='favs'){ const f=[...S.fav]; return ['Favorites', f.length? f.map(k=>{ const g=BYK.lunch[k]||Object.values(BYK).map(b=>b[k]).find(Boolean); const s=servedNow(k);
+      return `<div class="lrow"><div><div class="a">${esc(g?g.n:k)}</div><div class="b">${s.length?'At lunch now at '+hallLabel(s):'Not on lunch today'}</div></div></div>`; }).join('')
+      : `<p class="empty" style="padding-left:0">Star a dish from its details and it shows up here, with where it's served today.</p>`]; }
+  if(p==='diet') return ['Dietary preferences', [['veg','Vegetarian'],['plant','Plant based'],['halal','Halal']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.diet[k]}" data-diet="${k}">${l}<i></i></button>`).join('')];
+  if(p==='export') return ['Export my data', `<div class="stack"><button class="btn" data-act="exp" data-fmt="json">Export JSON</button><button class="btn line" data-act="exp" data-fmt="csv">Export CSV</button></div>`];
+  if(p==='rank'){ const pool=rankPool(); const pairs=[]; for(let i=0;i<pool.length;i++) for(let j=i+1;j<pool.length;j++){ const key=pool[i][0]+'|'+pool[j][0]; if(!(key in S.wins)) pairs.push([pool[i],pool[j],key]); }
+    const order=pool.map(([k,n])=>[n,Object.entries(S.wins).filter(([key,w])=>w===k).length]).sort((a,b)=>b[1]-a[1]);
+    if(pairs.length && pool.length>1){ const [a,b,key]=pairs[0]; return ['Which was better?', `<div class="vs"><button data-win="${esc(a[0])}" data-key="${esc(key)}">${esc(a[1])}</button><div class="or">or</div><button data-win="${esc(b[0])}" data-key="${esc(key)}">${esc(b[1])}</button></div>`]; }
+    return ['Your ranking', pool.length>1? order.map(([n],i)=>`<div class="lrow"><div class="a">${i+1}. ${esc(n)}</div></div>`).join('') : `<p class="empty" style="padding-left:0">Log a couple of meals and you can rank what you ate.</p>`]; }
+  return ['', ''];
+}
+function exportData(fmt){
+  const rows=[]; for(const m of S.log) for(const i of m.items) rows.push({date:'2026-10-08',time:m.time,meal:m.meal,hall:m.hall?HN[m.hall]:'',dish:i.n,servings:i.qty,cal:i.cal*i.qty,protein:+(i.p*i.qty).toFixed(1),carbs:+(i.c*i.qty).toFixed(1),fat:+(i.f*i.qty).toFixed(1)});
+  const body = fmt==='json' ? JSON.stringify({log:rows,favorites:[...S.fav],rankings:S.wins},null,2)
+    : [Object.keys(rows[0]).join(','), ...rows.map(r=>Object.values(r).map(v=>/[",]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(','))].join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([body],{type:fmt==='json'?'application/json':'text/csv'})); a.download='udine-2026-10-08.'+fmt; a.click();
+  toast('Exported udine-2026-10-08.'+fmt);
+}
+let toastT; function toast(s){ const t=$('#toast'); t.textContent=s; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),2200); }
+
+/* ---------- sheets: detents, rubber band, velocity snap ---------- */
+function spring(from,to,v0,set,done,k=SPRING.sheet.k,z=SPRING.sheet.z){
+  if(RM){ set(to); done&&done(); return ()=>{}; }
+  let x=from,v=v0,c=2*Math.sqrt(k)*z,last=performance.now(),id;
+  const f=t=>{ const dt=Math.min(.05,(t-last)/1000); last=t; const n=Math.max(1,Math.ceil(dt/.004)),hh=dt/n;
+    for(let i=0;i<n;i++){ const a=-k*(x-to)-c*v; v+=a*hh; x+=v*hh; }
+    if(Math.abs(x-to)<.3&&Math.abs(v)<10){ set(to); done&&done(); } else { set(x); id=requestAnimationFrame(f); } };
+  id=requestAnimationFrame(f); return ()=>cancelAnimationFrame(id);
+}
+const rubber=(x,d)=>(1-1/(x*.55/d+1))*d;
+function Sheet(el, body, detentsFn){
+  const sh={el,y:H*1.1,stop:()=>{},state:'closed',onClose:null};
+  const D=()=>({...detentsFn(), closed:H});
+  sh.set=y=>{ sh.y=y; el.style.transform=`translate3d(0,${y}px,0)`; const d=D(); $('#scrim').style.opacity=clamp((H-y)/(H-d.mid))*.5; };
+  sh.to=(name,v=0)=>{ sh.stop(); const d=D(); const target=typeof name==='number'?name:d[name]; sh.state=name;
+    $('#scrim').style.pointerEvents = name==='closed'?'none':'auto';
+    if(name!=='closed') { el.style.visibility='visible'; activeSheet=sh; }
+    sh.stop=spring(sh.y,target,v,sh.set,()=>{ if(name==='closed'){ el.style.visibility='hidden'; if(activeSheet===sh) activeSheet=null; sh.onClose&&sh.onClose(); } });
+    if(name!=='closed') buzz(4); };
+  sh.release=(vy)=>{ const d=D(); const proj=sh.y+vy*.18; let best='closed',bd=1e9;
+    for(const k of ['top','mid','closed']){ const dd=Math.abs(d[k]-proj); if(dd<bd){bd=dd;best=k;} }
+    if(best==='mid' && d.mid<=d.top+4) best = proj>d.top+80?'closed':'top';
+    sh.to(best, vy); };
+  sh.drag=y=>{ const d=D(); sh.set(y<d.top ? d.top-rubber(d.top-y,H) : y); };
+  el.style.visibility='hidden';
+  // one pointer stream: drags the sheet unless the body should scroll
+  let g=null;
+  el.addEventListener('pointerdown',e=>{ if(e.button>0) return; sh.stop(); g={id:e.pointerId,y0:e.clientY,s0:sh.y,mode:null,vs:[[e.timeStamp,e.clientY]],inBody:!!e.target.closest('.sbody')}; });
+  el.addEventListener('pointermove',e=>{ if(!g||e.pointerId!==g.id) return; const dy=e.clientY-g.y0;
+    if(!g.mode){ if(Math.abs(dy)<5) return; const d=D(), atTop=sh.y<=d.top+2;
+      g.mode = !g.inBody ? 'drag' : (dy<0 && !atTop) ? 'drag' : (dy>0 && body.scrollTop<=0) ? 'drag' : 'scroll';
+      if(g.mode==='drag'){ try{el.setPointerCapture(e.pointerId);}catch(_){}} }
+    if(g.mode!=='drag') return;
+    g.vs.push([e.timeStamp,e.clientY]); if(g.vs.length>6) g.vs.shift();
+    sh.drag(g.s0+dy); });
+  const end=e=>{ if(!g||e.pointerId!==g.id) return; const m=g.mode; const vs=g.vs; g=null; if(m!=='drag') return;
+    const a=vs[0],b=vs[vs.length-1]; const v= b[0]-a[0]>0 ? (b[1]-a[1])/(b[0]-a[0])*1000 : 0; sh.release(clamp(v,-4000,4000)); suppressClick=true; setTimeout(()=>suppressClick=false,50); };
+  el.addEventListener('pointerup',end); el.addEventListener('pointercancel',e=>{ if(g&&g.mode==='drag') end(e); else g=null; });
+  body.addEventListener('touchmove',e=>{ if(g&&g.mode==='drag'&&e.cancelable) e.preventDefault(); },{passive:false});
+  return sh;
+}
+let activeSheet=null, suppressClick=false;
+const contentH = b => (b.firstElementChild ? b.firstElementChild.offsetHeight : 0) + 22 + 24 + SB;
+const psheet=Sheet($('#psheet'),$('#psbody'),()=>{ const c=contentH($('#psbody')); return {top:ST+8, mid:Math.max(ST+8, Math.min(H*.36, H-c))}; });
+const isheet=Sheet($('#isheet'),$('#isbody'),()=>{ const c=contentH($('#isbody')); return {top:ST+8, mid:Math.max(ST+8, H-Math.min(c,H*.86))}; });
+psheet.onClose=()=>renderBar();
+$('#scrim').addEventListener('click',()=>{ activeSheet&&activeSheet.to('closed'); });
+
+function renderPSheet(){
+  const pl=S.plates[S.front];
+  if(!pl){ $('#psbody').innerHTML=`<div><div class="sh1"><h2>Your plate</h2></div><p class="empty" style="padding-left:0">Your plate is empty.</p></div>`; return; }
+  const hs=plateHalls(pl), t=totals(pl);
+  const tabs = S.plates.length>1 ? `<div class="ptabs" role="tablist">${S.plates.map((p,i)=>`<button role="tab" data-plate="${i}" aria-selected="${i===S.front}">${esc(plateLabel(p))}</button>`).join('')}</div>`:'';
+  $('#psbody').dataset.pid=pl.id; $('#psbody').dataset.n=pl.items.length;
+  const rows = pl.items.map((it,i)=>{ const m=macroOf(it,(hs||[])[0]); return `<div class="prow" data-pi="${i}"><div class="tx"><div class="n">${esc(it.n)}</div><div class="m"><b>${fc(m.cal)}</b> cal each</div></div>${ctl(it.qty)}</div>`; }).join('');
+  const n=t.n, items = n===1?'1 item':`${fq(n)} items`;
+  const logBtns = hs && hs.length>1 ? `<div class="hallpick">${hs.map(h=>`<button class="btn" data-act="logat" data-h="${h}">Log at ${HN[h]}</button>`).join('')}</div>` : `<button class="btn" data-act="log">Log ${items}</button>`;
+  $('#psbody').innerHTML = `<div>${tabs}<div class="sh1"><h2>Your plate</h2>${tabs?'':`<span>${esc(plateLabel(pl))}</span>`}</div>${rows}${factsHTML(t)}${logBtns}
+    <button class="custom" data-act="more">${IC.plus.replace('<svg','<svg width="20" height="20" stroke="currentColor" stroke-width="2.4" fill="none"')}Add something else</button>
+    <div class="twob"><button class="tbtn" data-act="fulllabel">Full label</button><button class="tbtn" data-act="clear">Clear plate</button></div></div>`;
+}
+function openDish(d){
+  const g=BYK[d.meal][d.k], hs=HALLS.filter(h=>g.refs[h]), N=nutObj(d.nut);
+  $('#isbody').innerHTML = `<div class="dish"><div class="sh1"><h2 style="font-size:28px">${esc(d.n)}</h2></div>
+    <p class="kv" style="margin:0">${esc(d.srv)} at ${HN[d.h]}${hs.length>1?`. Also at ${hallLabel(hs.filter(h=>h!==d.h))} ${ML[d.meal].toLowerCase()}`:''}.</p>
+    ${marksHTML(d)?`<div class="mks">${marksHTML(d)}</div>`:''}
+    ${d.alg?`<div class="alg"><b>Contains</b> ${esc(d.alg)}</div>`:''}
+    <div class="stack" style="margin-top:14px"><button class="btn" data-act="dadd" data-id="${d.id}">Add to plate</button></div>
+    ${labelHTML(N, d.cal, d.srv)}
+    ${gradesHTML(d.hf, d.cr)}
+    ${d.ing?`<h3 class="h3" style="font-size:20px">Ingredients</h3><div class="ing" id="ing"><p>${esc(d.ing)}</p></div>${d.ing.length>180?`<button class="tbtn" data-act="ing" aria-expanded="false" style="padding:0">Show all</button>`:''}`:''}
+    <div class="stack"><button class="btn line" data-act="fav" data-k="${esc(d.k)}">${S.fav.has(d.k)?'★ Favorited':'☆ Add to favorites'}</button></div></div>`;
+  $('#isbody').scrollTop=0; isheet.to('mid');
+}
+function openPlateLabel(){
+  const pl=S.plates[S.front]; if(!pl) return; const hall=(plateHalls(pl)||[])[0], sum=Object.fromEntries(NK.map(k=>[k,k.endsWith('Dv')?null:0]));
+  let cal=0; for(const it of pl.items){ const m=macroOf(it,hall); cal+=m.cal*it.qty;
+    if(it.custom){ sum.fat+=m.f*it.qty; sum.carb+=m.c*it.qty; sum.pro+=m.p*it.qty; continue; }
+    const N=nutObj(m.nut); for(const k of NK) if(!k.endsWith('Dv') && N[k]!=null) sum[k]+=N[k]*it.qty; }
+  $('#isbody').innerHTML=`<div class="dish"><div class="sh1"><h2 style="font-size:28px">Your plate</h2><span>${esc(plateLabel(pl))}</span></div>
+    <p class="kv" style="margin:0">${pl.items.map(it=>`${it.qty!==1?fq(it.qty)+' × ':''}${esc(it.n)}`).join(', ')}</p>${labelHTML(sum, cal, '')}</div>`;
+  $('#isbody').scrollTop=0; isheet.to('top');
+}
+function openCustom(name){
+  $('#isbody').innerHTML = `<div><div class="sh1"><h2 style="font-size:28px">Custom food</h2></div>
+    <form class="form" id="cform"><label for="cn">Name</label><input id="cn" value="${esc(name||'')}" required>
+    <div class="two"><div><label for="cc">Calories</label><input id="cc" inputmode="decimal" required></div><div><label for="cp">Protein (g)</label><input id="cp" inputmode="decimal"></div>
+    <div><label for="ccb">Carbs (g)</label><input id="ccb" inputmode="decimal"></div><div><label for="cf">Fat (g)</label><input id="cf" inputmode="decimal"></div></div>
+    <button class="btn" style="margin-top:18px">Add to plate</button></form></div>`;
+  $(name?'#cc':'#cn').focus({preventScroll:true}); // synchronous, or iOS won't raise the keyboard
+  isheet.to('top');
+}
+document.addEventListener('submit',e=>{ if(e.target.id!=='cform') return; e.preventDefault();
+  const num=s=>+($(s).value.replace(',','.'))||0; const n=$('#cn').value.trim(); if(!n) return;
+  addDish(S.smeal||'lunch','custom:'+norm(n)+':'+Date.now(),{},n,{cal:num('#cc'),p:num('#cp'),c:num('#ccb'),f:num('#cf')});
+  isheet.to('closed'); });
+
+/* ---------- plate bar ---------- */
+let barMode='plate', barT;
+// number roll: the old value leaves, the new one arrives, in the direction of change (token quick)
+function rollTo(el, text, dir){ const old=el.dataset.v ?? el.textContent; if(old===text) return; el.dataset.v=text;
+  if(dir==null){ const a=parseFloat(String(old).replace(/[^\d.]/g,'')), b=parseFloat(String(text).replace(/[^\d.]/g,'')); dir = isNaN(a)||isNaN(b)||b>=a ? 1 : -1; }
+  if(RM||!el.isConnected){ el.textContent=text; return; }
+  el.innerHTML=`<span class="roll"><span class="ro">${esc(old)}</span><span class="rn">${esc(text)}</span></span>`;
+  const [o,n]=el.querySelectorAll('span span');
+  A(o,[{transform:'none',opacity:1},{transform:`translateY(${-dir*70}%)`,opacity:0}],'quick',{fill:'forwards'});
+  done(A(n,[{transform:`translateY(${dir*70}%)`,opacity:0},{transform:'none',opacity:1}],'quick')).then(()=>{ if(el.dataset.v===text) el.textContent=text; }); }
+function renderBar(){
+  const bar=$('#bar'), inn=bar.querySelector('.in');
+  if(barMode==='logged') return;
+  const pl=S.plates[S.front];
+  bar.classList.toggle('on',!!pl);
+  bar.querySelector('.dots').innerHTML = S.plates.length>1 ? S.plates.map((_,i)=>`<i class="${i===S.front?'on':''}"></i>`).join(''):'';
+  bar.querySelector('.peek').classList.toggle('hide',S.plates.length<2);
+  if(!pl) return;
+  const hs=plateHalls(pl), t=totals(pl);
+  const existing=inn.querySelector('#barCal');
+  if(barMode==='choose' && hs && hs.length>1){
+    inn.innerHTML=`<button class="txt" data-act="unchoose" style="text-align:left;min-height:48px"><div class="l1">Log at</div></button><div class="acts">${hs.map(h=>`<button class="gbtn" data-act="logat" data-h="${h}" style="min-width:0;padding:0 14px">${HN[h]}</button>`).join('')}</div>`; return; }
+  barMode='plate';
+  const nItems = t.n===1?'1 item':`${fq(t.n)} items`;
+  if(existing && inn.querySelector('.l1')){ inn.querySelector('#barL').textContent=plateLabel(pl); rollTo(inn.querySelector('#barN'),nItems); rollTo(existing,fc(t.cal)); rollTo(inn.querySelector('#barP'),f1(t.p)+'g'); return; }
+  inn.innerHTML=`<div class="txt"><div class="l1"><span id="barL">${esc(plateLabel(pl))}</span>, <span class="num2" id="barN">${nItems}</span></div><div class="l2"><b class="num" id="barCal">${fc(t.cal)}</b><span>cal</span><b class="num" id="barP">${f1(t.p)}g</b><span>protein</span></div></div>
+    <div class="acts"><button class="gbtn" data-act="barlog">Log</button></div>`;
+}
+function bumpBar(){ A($('#bar .in'),[{transform:'none'},{transform:'translateY(-4px)'},{transform:'none'}],'enter'); }
+function countTo(el, from, to){ const t0=performance.now(), D=MO.count.d;
+  const tick=t=>{ const p=RM?1:clamp((t-t0)/D), e=1-Math.pow(1-p,3); el.textContent=fc(from+(to-from)*e); if(p<1) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick); }
+function showLogged(){
+  const L=S.lastLog; barMode='logged'; const bar=$('#bar'); bar.classList.add('on');
+  bar.querySelector('.dots').innerHTML=''; bar.querySelector('.peek').classList.add('hide');
+  const inn=bar.querySelector('.in');
+  A(inn,[{transform:'translateY(14px)',opacity:0},{transform:'none',opacity:1}],'enter');   // the plate drops away, the day total arrives
+  const yb=$('.tbar [data-tab=you]'); yb.classList.remove('bump'); void yb.offsetWidth; yb.classList.add('bump');
+  inn.innerHTML=`<div class="txt"><div class="l1">Logged ${esc(L.entry.hall?HN[L.entry.hall]+' ':'')}${ML[L.entry.meal].toLowerCase()}</div><div class="l2">Today <b class="num" id="dayN">${fc(L.before)}</b><span>cal</span></div></div><div class="acts"><button class="obtn" data-act="undo">Undo</button></div>`;
+  const to=dayTotal().cal, el=$('#dayN'), t0=performance.now();
+  countTo(el, L.before, to);
+  clearTimeout(barT); barT=setTimeout(()=>{ barMode='plate'; S.lastLog=null; if(S.plates.length){ inn.innerHTML=''; renderBar(); A(inn,[{opacity:0},{opacity:1}],'enter'); } else renderBar(); },5000);
+}
+// bar gestures: drag up opens the plate sheet, sideways swipes between plates
+(()=>{ const bar=$('#bar'); let g=null;
+  bar.addEventListener('pointerdown',e=>{ if(barMode!=='plate'||e.target.closest('button')) return; g={id:e.pointerId,x0:e.clientX,y0:e.clientY,mode:null,vs:[]}; });
+  bar.addEventListener('pointermove',e=>{ if(!g||e.pointerId!==g.id) return; const dx=e.clientX-g.x0, dy=e.clientY-g.y0;
+    if(!g.mode){ if(Math.hypot(dx,dy)<6) return; g.mode=Math.abs(dy)>Math.abs(dx)?'v':'h'; try{bar.setPointerCapture(e.pointerId);}catch(_){}
+      if(g.mode==='v'){ renderPSheet(); $('#psheet').style.visibility='visible'; activeSheet=psheet; g.top=bar.getBoundingClientRect().top-frame.getBoundingClientRect().top; } }
+    g.vs.push([e.timeStamp,e.clientY,e.clientX]); if(g.vs.length>6) g.vs.shift();
+    if(g.mode==='v') psheet.drag(g.top+dy);
+    else bar.querySelector('.in').style.transform=`translateX(${S.plates.length>1?dx:dx*.25}px)`; });
+  const end=e=>{ if(!g||e.pointerId!==g.id) return; const G=g; g=null; const vs=G.vs; if(!G.mode){ renderPSheet(); psheet.to('mid'); return; }
+    const a=vs[0],b=vs[vs.length-1]; const dt=b&&a?(b[0]-a[0]):0;
+    if(G.mode==='v'){ $('#scrim').style.pointerEvents='auto'; psheet.release(dt?clamp((b[1]-a[1])/dt*1000,-4000,4000):0); return; }
+    const inn=bar.querySelector('.in'); const dx=e.clientX-G.x0, vx=dt?(b[2]-a[2])/dt:0;
+    if(S.plates.length>1 && (Math.abs(dx)>70||Math.abs(vx)>.5)){ const dir=dx<0?1:-1; S.front=(S.front+dir+S.plates.length)%S.plates.length; buzz(5);
+      inn.style.transform=''; inn.innerHTML=''; renderBar(); A(inn,[{transform:`translateX(${dir*60}px)`,opacity:0},{transform:'none',opacity:1}],'enter'); refreshLists(); }
+    else { A(inn,[{transform:inn.style.transform||'none'},{transform:'none'}],'enter'); inn.style.transform=''; } };
+  bar.addEventListener('pointerup',end); bar.addEventListener('pointercancel',e=>{g=null; bar.querySelector('.in').style.transform='';});
+})();
+
+function rowState(row){
+  if(row.dataset.id){ const d=DISH[row.dataset.id], f=findItem(d.meal,d.k,d.h); return [f?f.it.qty:0, !f && wouldSplit(d.meal,[d.h])]; }
+  const g=BYK[S.smeal][row.dataset.k], f=findItem(S.smeal,g.k); return [f?f.it.qty:0, !f && wouldSplit(S.smeal,Object.keys(g.refs))]; }
+function setCtl(row, q, ghost){
+  const st=row.querySelector('.step'), ad=row.querySelector(':scope > .add'), old=st?+st.dataset.q:0;
+  if(q===old){ if(ad) ad.classList.toggle('ghost',!!ghost); return; }
+  const make=h=>{ const t=document.createElement('div'); t.innerHTML=h; return t.firstElementChild; };
+  if(old && q){ st.dataset.q=q; rollTo(st.querySelector('.q'), fq(q), q>old?1:-1); return; }
+  if(!old && q){ const n=make(ctl(q)); ad.replaceWith(n); n.style.transformOrigin='100% 50%';
+    A(n,[{transform:'scaleX(.4)',opacity:0},{transform:'none',opacity:1}],'enter');
+    A(row,[{backgroundColor:'rgba(136,28,28,.12)'},{backgroundColor:'rgba(136,28,28,0)'}],'count');   // the row acknowledges the add
+    return; }
+  // removed: the stepper shrinks away (as a detached ghost) while + pops back
+  const n=make(ctl(0,ghost)), gh=st.cloneNode(true), r=st.getBoundingClientRect(), rr=row.getBoundingClientRect();
+  gh.style.cssText=`position:absolute;left:${r.left-rr.left}px;top:${r.top-rr.top}px;pointer-events:none;transform-origin:100% 50%`; row.appendChild(gh);
+  st.replaceWith(n); done(A(gh,[{transform:'none',opacity:1},{transform:'scaleX(.4)',opacity:0}],'exit')).then(()=>gh.remove());
+  A(n,[{transform:'scale(.6)',opacity:0},{transform:'none',opacity:1}],'release');
+}
+function refreshLists(){
+  const box = S.tab==='halls'&&S.hall ? $('#mlist') : S.tab==='search' ? $('#sres') : null;
+  if(box) for(const row of box.querySelectorAll('.row')){ const [q,g]=rowState(row); setCtl(row,q,g); }
+}
+function refreshSheet(){ if(psheet.state==='closed') return; const pl=S.plates[S.front], b=$('#psbody');
+  if(!pl || b.dataset.pid!=String(pl.id) || +b.dataset.n!==pl.items.length){ renderPSheet(); return; }
+  const hs=plateHalls(pl), t=totals(pl); $$('#psbody .prow').forEach((r,i)=>setCtl(r, pl.items[i].qty));
+  const fb=$$('#psbody .facts b'); [fc(t.cal),f1(t.p)+'g',f1(t.c)+'g',f1(t.f)+'g'].forEach((v,i)=>fb[i]&&rollTo(fb[i],v));
+  const lb=$('#psbody [data-act=log]'); if(lb) lb.textContent=`Log ${t.n===1?'1 item':fq(t.n)+' items'}`; }
+function refresh(){ const was=$('#bar').classList.contains('on'); refreshLists(); renderBar(); refreshSheet(); if(was && S.plates.length) bumpBar(); }
+
+/* ---------- input ---------- */
+document.addEventListener('pointerdown',e=>{ const t=e.target.closest('button,.row,.lrow,.band'); if(!t) return; t.classList.add('down');
+  const up=()=>{ t.classList.remove('down'); removeEventListener('pointerup',up,true); removeEventListener('pointercancel',up,true); };
+  addEventListener('pointerup',up,true); addEventListener('pointercancel',up,true); }, true);
+document.addEventListener('scroll',()=>$$('.down').forEach(x=>x.classList.remove('down')),true);
+
+document.addEventListener('click',e=>{
+  if(suppressClick){ e.preventDefault(); return; }
+  const t=e.target;
+  const tb=t.closest('.tbar button'); if(tb){ if(tb.dataset.tab==='search' && S.tab==='search'){ $('#q').focus(); return; } if(tb.dataset.tab==='search'){ goSearch(null,'lunch'); return; } setTab(tb.dataset.tab); return; }
+  const band=t.closest('.band'); if(band){ openHall(band.dataset.h); return; }
+  const mt=t.closest('#mtabs button'); if(mt){ const ts=$$('#mtabs button'), dir=Math.sign(ts.indexOf(mt)-ts.findIndex(b=>b.getAttribute('aria-selected')==='true')); S.mmeal=mt.dataset.meal; ts.forEach(b=>b.setAttribute('aria-selected',b===mt)); placeUL(true); renderMenuList(); A($('#mlist'),[{transform:`translateX(${dir*28}px)`,opacity:0},{transform:'none',opacity:1}],'enter'); const R=HH-CH; if($('#mscroll').scrollTop>R) $('#mscroll').scrollTop=R; syncFront(S.hall); buzz(4); return; }
+  const jb=t.closest('[data-jump]'); if(jb){ jump(jb.dataset.jump); return; }
+  const lens=t.closest('[data-lens]'); if(lens){ const k=lens.dataset.lens; S.lenses.has(k)?S.lenses.delete(k):S.lenses.add(k); buzz(4); lens.setAttribute('aria-pressed',S.lenses.has(k)); renderSearch(); return; }
+  const pt=t.closest('[data-plate]'); if(pt){ S.front=+pt.dataset.plate; renderPSheet(); A($('#psbody > div'),[{opacity:.3},{opacity:1}],'quick'); renderBar(); refreshLists(); buzz(4); return; }
+  const dk=t.closest('[data-diet]'); if(dk){ S.diet[dk.dataset.diet]=!S.diet[dk.dataset.diet]; dk.setAttribute('aria-checked',S.diet[dk.dataset.diet]); A(dk.querySelector('i'),[{transform:'scale(.7)'},{transform:'none'}],'release'); buzz(4); save(); return; }
+  const wn=t.closest('[data-win]'); if(wn){ S.wins[wn.dataset.key]=wn.dataset.win; buzz(6); done(A(wn,[{transform:'none'},{transform:'scale(1.03)'},{transform:'none'}],'release')).then(rerenderPage); return; }
+  // rows: +, −, or the row itself
+  const row=t.closest('.row');
+  if(row){
+    let meal, k, refs, n, ctxHall=null, d=null;
+    if(row.dataset.id){ d=DISH[row.dataset.id]; meal=d.meal; k=d.k; n=d.n; refs={[d.h]:d}; ctxHall=d.h; }
+    else { meal=S.smeal; const g=BYK[meal][row.dataset.k]; k=g.k; n=g.n; refs=g.refs; d=rep(g); }
+    if(t.closest('.add')){ addDish(meal,k,refs,n); afterPick(row); return; }
+    const f=findItem(meal,k,ctxHall);
+    if(t.closest('.inc')&&f){ stepItem(f.pl,f.it,1); afterPick(row); return; }
+    if(t.closest('.dec')&&f){ stepItem(f.pl,f.it,-1); return; }
+    if(!t.closest('button')) openDish(d);
+    return;
+  }
+  const prow=t.closest('.prow'); if(prow){ const pl=S.plates[S.front], it=pl.items[+prow.dataset.pi]; if(t.closest('.inc')) stepItem(pl,it,1); else if(t.closest('.dec')){ if(it.qty===.5) done(A(prow,[{transform:'none',opacity:1},{transform:'translateX(-24px)',opacity:0}],'exit',{fill:'forwards'})).then(()=>stepItem(pl,it,-1)); else stepItem(pl,it,-1); } return; }
+  const a=t.closest('[data-act]'); if(!a) return;
+  const act=a.dataset.act;
+  if(act==='hallsearch') goSearch(S.hall,S.mmeal);
+  else if(act==='unscope'){ S.scope=null; S.smeal='lunch'; done(A(a,[{opacity:1,transform:'none'},{opacity:0,transform:'scale(.9)'}],'exit')).then(()=>{ renderLenses(); renderSearch(); }); }
+  else if(act==='back') closeHall();
+  else if(act==='closeidx') closeIdx();
+  else if(act==='stations') ($('#stidx').classList.contains('hide') ? openIdx() : closeIdx());
+  else if(act==='fulllabel') openPlateLabel();
+  else if(act==='ing'){ const box=$('#ing'), open=a.getAttribute('aria-expanded')==='true', lh=parseFloat(getComputedStyle(box.firstElementChild).lineHeight)*3;
+    box.style.transition=RM?'none':`max-height ${MO.enter.d}ms ${MO.enter.e}`; box.style.maxHeight=(open?lh:box.scrollHeight)+'px'; box.classList.toggle('open',!open);
+    a.setAttribute('aria-expanded',!open); a.textContent=open?'Show all':'Show less'; buzz(3); }
+  else if(act==='page') openPage(a.dataset.p, a.dataset.c);
+  else if(act==='opennow'){ S.openNow=!S.openNow; buzz(4); rerenderPage(); }
+  else if(act==='hall'){ $('#q').blur(); setTab('halls'); if(S.hall){ cancelAnimationFrame(xfRaf); $('#menu').classList.add('hide'); S.hall=null; resetHalls(); } openHall(a.dataset.h); if(a.dataset.meal){ S.mmeal=a.dataset.meal; renderMenu(); } }
+  else if(act==='pageback') closePage();
+  else if(act==='custom'){ openCustom(a.dataset.name!==undefined?a.dataset.name:S.q); }
+  else if(act==='barlog'){ const pl=S.plates[S.front], hs=plateHalls(pl); if(hs&&hs.length>1){ barMode='choose'; renderBar(); } else logPlate(pl); }
+  else if(act==='log') logPlate(S.plates[S.front]);
+  else if(act==='logat') logPlate(S.plates[S.front], a.dataset.h);
+  else if(act==='undo') undoLog();
+  else if(act==='unchoose'){ barMode='plate'; $('#bar .in').innerHTML=''; renderBar(); }
+  else if(act==='more'){ psheet.to('closed'); goSearch(null, S.plates[S.front]?.meal||'lunch'); }
+  else if(act==='clear'){ S.plates.splice(S.front,1); S.front=0; psheet.to('closed'); refresh(); }
+  else if(act==='dietoff'){ S.diet={veg:false,plant:false,halal:false}; save(); renderMenuList(); A($('#mlist'),[{opacity:.4},{opacity:1}],'quick'); }
+  else if(act==='dadd'){ const d=DISH[a.dataset.id]; const g=BYK[d.meal][d.k]; addDish(d.meal,d.k, S.tab==='search'?g.refs:{[d.h]:d}, d.n); isheet.to('closed'); }
+  else if(act==='fav'){ const k=a.dataset.k; S.fav.has(k)?S.fav.delete(k):S.fav.add(k); save(); a.textContent=S.fav.has(k)?'★ Favorited':'☆ Add to favorites'; A(a,[{transform:'scale(.94)'},{transform:'none'}],'release'); buzz(6); if(S.tab==='halls'&&S.hall){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } else if(S.tab==='search') renderSearch(); }
+  else if(act==='exp') exportData(a.dataset.fmt);
+});
+function selectQ(){ const q=$('#q'); q.focus({preventScroll:true}); q.select(); try{ q.setSelectionRange(0,q.value.length); }catch(e){} }
+function afterPick(row){ if(row.dataset.src==='s') selectQ(); }
+// lift the plate bar over the on-screen keyboard (iOS keeps the layout viewport; the visual viewport shrinks)
+if(window.visualViewport){ const vv=visualViewport, kbf=()=>{ const kb=Math.max(0,innerHeight-vv.height-vv.offsetTop); frame.style.setProperty('--kb',kb+'px'); frame.classList.toggle('kb',kb>80); }; vv.addEventListener('resize',kbf); vv.addEventListener('scroll',kbf); }
+$('#psheet').addEventListener('click',()=>{},true);
+
+/* ---------- boot ---------- */
+renderHalls(); renderBar(); renderEvents(); setIdle(); $('.tbar .ind').style.transform='translateX(0)';
+const qs=new URLSearchParams(location.search), state=qs.get('state');
+const W=(n)=>byName('W','lunch',n);
+function bench(){ addDish('lunch',W('Beef Brisket Noodle Bowl').k,BYK.lunch[W('Beef Brisket Noodle Bowl').k].refs,'Beef Brisket Noodle Bowl'); const g=BYK.lunch[W('Golden BBQ Chicken Thigh').k]; addDish('lunch',g.k,g.refs,g.n); addDish('lunch',g.k,g.refs,g.n); }
+const hallQ=qs.get('hall')||'W';
+if(qs.has('events')){ EVENTS=P.events.slice(0,+qs.get('events')); renderEvents(); setIdle(); }
+// debug frames wait for the webfonts, or the FLIP rects would be measured on fallback metrics
+if(qs.has('progress')) document.fonts.ready.then(()=>{ openHall(hallQ,'debug'); XP=+qs.get('progress'); paint(XP,0); });
+if(qs.has('scroll')) document.fonts.ready.then(()=>{ openHall(hallQ,'debug'); const y=+qs.get('scroll'); $('#mscroll').scrollTop=y; paint(1,y); });
+if(state==='menu'||state==='collapsed'||state==='index'){ openHall(hallQ,true);
+  if(state==='collapsed'||state==='index'){ $('#mscroll').scrollTop=520; paint(1,520); if(state==='index') openIdx(); } }
+if(state==='franklin'){ openHall('F',true); }
+if(state==='cafes'){ S.lastHall='W'; openPage('cafes'); }
+if(state==='place'){ openPage('place', P.places.findIndex(x=>x[0]==='Wasabi')); }
+if(state==='event'){ openPage('event', 0); }
+if(state==='label'){ openHall('W',true); openDish(W('Golden BBQ Chicken Thigh')); }
+if(state==='platelabel'){ bench(); openPlateLabel(); }
+if(state==='stations'){ openHall('W',true); $('#mscroll').scrollTop=520; paint(1,520); updSwitch(true); openIdx(); }
+if(state==='places'){ goSearch(null,'lunch'); $('#q').value='coffee'; S.q='coffee'; renderSearch(); }
+if(state==='search'){ goSearch(null,'lunch'); }
+if(state==='typed'){ goSearch(null,'lunch'); const b=BYK.lunch[norm('Beef Brisket Noodle Bowl')]; addDish('lunch',b.k,b.refs,b.n); $('#q').value='bbq'; S.q='bbq'; renderSearch(); }
+if(state==='lens'){ goSearch(null,'lunch'); S.lenses.add('protein'); S.lenses.add('halal'); renderLenses(); renderSearch(); $('#q').blur(); }
+if(state==='nomatch'){ goSearch(null,'lunch'); $('#q').value='chobani'; S.q='chobani'; renderSearch(); }
+if(state==='plate'){ openHall('W',true); bench(); renderPSheet(); psheet.to('mid'); }
+if(state==='split'){ bench(); const g=BYK.lunch[norm(byName('F','lunch',M.F.lunch[3][1][0][0]).n)]; addDish('lunch',g.k,{F:g.refs.F},g.n); renderPSheet(); psheet.to('mid'); }
+if(state==='logged'){ bench(); logPlate(S.plates[0]); clearTimeout(barT); }
+if(state==='you'){ bench(); logPlate(S.plates[0]); clearTimeout(barT); barMode='plate'; renderBar(); setTab('you'); }
+if(state==='dish'){ openHall('W',true); openDish(W('Beef Brisket Noodle Bowl')); }
+if(state==='custom'){ goSearch(null,'lunch'); $('#q').value='chobani'; S.q='chobani'; renderSearch(); openCustom('chobani'); }
+window.__S=S; window.__dayTotal=dayTotal; window.__plateHalls=plateHalls; window.__totals=totals;
+</script>
+</body>
+</html>

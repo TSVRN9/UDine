@@ -1,0 +1,1746 @@
+[
+ {
+  "location_title": "Franklin Dining Commons",
+  "short_name": "Franklin Dining Commons",
+  "location_id": 2,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the Central Residential Area, Franklin Dining Commons is famous for its vegan and vegetarian cuisine. With a fully kosher kitchen, vegetarian line, hand rolled sushi, pasta bar, stir fry station, pizza, authentic international cuisine, there is an option for everyone! At Franklin you also have the opportunity to enjoy the permaculture garden where we grow the ingredients and herbs used in our food.",
+  "address": "260 Stockbridge Rd Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 20,
+   "trend": "falling",
+   "usual_pct": 29,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 81,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Apple Cinnamon Pancakes\",\"BUSH's Baked Beans\",\"Chicken Congee\",\"Chinese Twist Cruller\",\"Hard Boiled Egg\",\"Hot Oatmeal\",\"Omelet Station\",\"Red Potato Home Fries\",\"Roasted Tomatoes w\\/Feta & Spinach\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Smoked Bacon Slices\",\"Southwest Tofu Scramble\",\"Gingerbread Bundt\",\"Mini Apple Danish\",\"Gluten Free Waffles\",\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Herbed Roasted Chicken Legs\",\"Sausage Pepperonata\",\"Fresh Corn on the Cob\",\"Lyonnaise Potatoes\",\"Braised Collards in Tomato Onion Gravy\",\"Spiced Cauliflower & Chickpeas\",\"Black Bean Burger\",\"French Fries\",\"Grilled Cheese Sandwich\",\"Grilled Chicken Breast\",\"Halal SPARE Beef Burger\",\"Sweet Potato Fries\",\"Baked General Tso's Pulmuone Tofu\",\"Ginger & Tomato Salad\",\"Jasmine Rice\",\"Plant Based Cheese Pizza\",\"Plant Based Steak & Cheese Pizza\",\"Quinoa, Corn & Avocado Salad\",\"Szechuan Broccoli\",\"Cavatappi Pasta\",\"Fettuccini Pasta\",\"Marinara Sauce\",\"Tomato Cream Basil Sauce\",\"Tortellini w\\/Basil Pesto & Grape Tomatoes\",\"American Cheese\",\"Chicken Salad\",\"Deli Beef\",\"Deli Ham\",\"Homemade Spicy Hummus\",\"Provolone Cheese\",\"Turkey Breast\",\"Oatmeal Raisin Cookie\",\"Zebra Brownies\",\"Plant-Based Condiments Bar w\\/Almonds\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Burger Bar\",\"Esquites (Mexican Corn Salad)\",\"Latin Toppings\",\"Pollo (Chicken) in Poblano Sauce\",\"Refried Black Beans\",\"Yellow Rice\",\"Zucchini, Corn & Peppers\",\"Brown Rice\",\"Chicken, Pork & Shrimp Wonton Soup\",\"Mei Fun Noodles\",\"Sesame Ginger Baby Bok Choy\",\"Szechuan Pork Belly w\\/Cabbage & Caul\",\"Vegetable Spring Rolls\",\"Breaded Chicken Sandwich\",\"Chewy M&M Bar\",\"STOUFFER'S Macaroni and Cheese\",\"Steamed Broccoli\",\"Triple Choc Chip Cookies\",\"Zesty Orange Chicken & Rice\",\"Zesty Orange Tofu & Rice\",\"Buffalo Chicken Wrap\",\"Eggplant Wrap\",\"GF Ham & American Cheese Whole Grain Bread\",\"GF Ham & Swiss Sandwich\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Tuna Salad Sandwich\",\"GF Turkey & Provolone on Whole Grain Bread\",\"Gluten Free Turkey Sandwich\",\"Tossed Salad\",\"Turkey Bacon Wrap\",\"Vegetarian Hummus Wrap\",\"Cabbage Parmesan\",\"Creamy Tuscan Chicken\",\"Lemon Rice Pilaf\",\"Local Roasted Sweet Potatoes\",\"Agrodolce Honeynut Squash\",\"Roasted Garlic Zucchini w\\/Tomatoes\",\"Edamame & Mushroom\",\"Pan Fried Vegetarian Potsticker\",\"Sauteed Broccoli\",\"Sweet Chili Dumpling Sauce\",\"Sweet Chili Tofu Baked\",\"Vegetable Fried Rice\",\"Cavatappi w\\/Tomato Cream & Spinach\",\"Blueberry Buckle\",\"Chocolate Malva Pudding\",\"Local Whole Wheat Bread\",\"California Roll\",\"Shrimp Sushi Roll\",\"Vegetable Sushi Roll\",\"Diced Tomatoes\",\"McAtee Family Three Bean Turkey Chili\",\"Scallions\",\"Shredded Cheddar Cheese\",\"Sour Cream\",\"Beef Nacho Bar\",\"Plant Based Chorizo Crumbles\",\"Queso Sauce\",\"VIOLIFE Plant Based Cheddar Cheese\",\"Warm Charred Corn Salsa\",\"Stir Fried Vegetables\",\"Teriyaki Salmon w\\/Sesame Seeds\",\"Teriyaki Tofu w\\/Sesame Seeds\",\"Vegetable Yaki Udon\"]",
+  "menu_meal": "{\"Breakfast\":[\"Apple Cinnamon Pancakes\",\"BUSH's Baked Beans\",\"Chicken Congee\",\"Chinese Twist Cruller\",\"Hard Boiled Egg\",\"Hot Oatmeal\",\"Omelet Station\",\"Red Potato Home Fries\",\"Roasted Tomatoes w\\/Feta & Spinach\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Smoked Bacon Slices\",\"Southwest Tofu Scramble\",\"Gingerbread Bundt\",\"Mini Apple Danish\",\"Gluten Free Waffles\"],\"Lunch\":[\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Herbed Roasted Chicken Legs\",\"Sausage Pepperonata\",\"Fresh Corn on the Cob\",\"Lyonnaise Potatoes\",\"Braised Collards in Tomato Onion Gravy\",\"Spiced Cauliflower & Chickpeas\",\"Black Bean Burger\",\"French Fries\",\"Grilled Cheese Sandwich\",\"Grilled Chicken Breast\",\"Halal SPARE Beef Burger\",\"Sweet Potato Fries\",\"Baked General Tso's Pulmuone Tofu\",\"Ginger & Tomato Salad\",\"Jasmine Rice\",\"Plant Based Cheese Pizza\",\"Plant Based Steak & Cheese Pizza\",\"Quinoa, Corn & Avocado Salad\",\"Szechuan Broccoli\",\"Cavatappi Pasta\",\"Fettuccini Pasta\",\"Marinara Sauce\",\"Tomato Cream Basil Sauce\",\"Tortellini w\\/Basil Pesto & Grape Tomatoes\",\"American Cheese\",\"Chicken Salad\",\"Deli Beef\",\"Deli Ham\",\"Homemade Spicy Hummus\",\"Provolone Cheese\",\"Turkey Breast\",\"Oatmeal Raisin Cookie\",\"Zebra Brownies\",\"Plant-Based Condiments Bar w\\/Almonds\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Burger Bar\",\"Esquites (Mexican Corn Salad)\",\"Latin Toppings\",\"Pollo (Chicken) in Poblano Sauce\",\"Refried Black Beans\",\"Yellow Rice\",\"Zucchini, Corn & Peppers\",\"Brown Rice\",\"Chicken, Pork & Shrimp Wonton Soup\",\"Mei Fun Noodles\",\"Sesame Ginger Baby Bok Choy\",\"Szechuan Pork Belly w\\/Cabbage & Caul\",\"Vegetable Spring Rolls\"],\"Grab N'Go\":[\"Breaded Chicken Sandwich\",\"Chewy M&M Bar\",\"French Fries\",\"STOUFFER'S Macaroni and Cheese\",\"Steamed Broccoli\",\"Triple Choc Chip Cookies\",\"Zesty Orange Chicken & Rice\",\"Zesty Orange Tofu & Rice\",\"Buffalo Chicken Wrap\",\"Eggplant Wrap\",\"GF Ham & American Cheese Whole Grain Bread\",\"GF Ham & Swiss Sandwich\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Tuna Salad Sandwich\",\"GF Turkey & Provolone on Whole Grain Bread\",\"Gluten Free Turkey Sandwich\",\"Tossed Salad\",\"Turkey Bacon Wrap\",\"Vegetarian Hummus Wrap\"],\"Dinner\":[\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Cabbage Parmesan\",\"Creamy Tuscan Chicken\",\"Lemon Rice Pilaf\",\"Local Roasted Sweet Potatoes\",\"Agrodolce Honeynut Squash\",\"Roasted Garlic Zucchini w\\/Tomatoes\",\"Black Bean Burger\",\"French Fries\",\"Grilled Cheese Sandwich\",\"Grilled Chicken Breast\",\"Halal SPARE Beef Burger\",\"Sweet Potato Fries\",\"Edamame & Mushroom\",\"Ginger & Tomato Salad\",\"Pan Fried Vegetarian Potsticker\",\"Quinoa, Corn & Avocado Salad\",\"Sauteed Broccoli\",\"Sweet Chili Dumpling Sauce\",\"Sweet Chili Tofu Baked\",\"Vegetable Fried Rice\",\"Cavatappi Pasta\",\"Cavatappi w\\/Tomato Cream & Spinach\",\"Fettuccini Pasta\",\"Marinara Sauce\",\"Tomato Cream Basil Sauce\",\"Blueberry Buckle\",\"Chocolate Malva Pudding\",\"Local Whole Wheat Bread\",\"Plant-Based Condiments Bar w\\/Almonds\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"California Roll\",\"Shrimp Sushi Roll\",\"Vegetable Sushi Roll\",\"Diced Tomatoes\",\"McAtee Family Three Bean Turkey Chili\",\"Scallions\",\"Shredded Cheddar Cheese\",\"Sour Cream\",\"Beef Nacho Bar\",\"Latin Toppings\",\"Plant Based Chorizo Crumbles\",\"Queso Sauce\",\"VIOLIFE Plant Based Cheddar Cheese\",\"Warm Charred Corn Salsa\",\"Brown Rice\",\"Jasmine Rice\",\"Stir Fried Vegetables\",\"Teriyaki Salmon w\\/Sesame Seeds\",\"Teriyaki Tofu w\\/Sesame Seeds\",\"Vegetable Spring Rolls\",\"Vegetable Yaki Udon\"]}"
+ },
+ {
+  "location_title": "Hampshire Dining Commons",
+  "short_name": "Hampshire Dining Commons",
+  "location_id": 3,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the Southwest Residential Area, Hampshire Dining Commons prides itself on healthy eating, sustainability, world flavors, and community. Hampshire offers a variety of options including a vegetarian line, gluten free options, noodle bowls, hand rolled sushi, authentic street food, grill station, and much more.",
+  "address": "141 Southwest Cir Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 24,
+   "trend": "falling",
+   "usual_pct": 41,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 106,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Apple Cinnamon Pancakes\",\"BUSH's Baked Beans\",\"Hard Boiled Egg\",\"Hot Oatmeal\",\"Make Your Own Waffles\",\"Omelet Station\",\"Red Potato Home Fries\",\"Roasted Tomatoes w\\/Feta & Spinach\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Smoked Bacon Slices\",\"Gingerbread Bundt\",\"Mini Apple Danish\",\"Black Beans\",\"Fried Plantain\",\"Huevos Rancheros\",\"\",\"1% Milk\",\"Bacon Breakfast Sandwich (English Muffin)\",\"Breakfast Burrito w\\/Bacon\",\"Lowfat Chocolate Milk\",\"Orange Juice\",\"Worcester Breakfast Sandwich\",\"Yogurt Strawberry\",\"Green Chile Posole\",\"Tomato Bisque Soup\",\"French Onion Braised Chicken\",\"Hot Sausage, Onions & Peppers\",\"Lyonnaise Potatoes\",\"Margherita Eggplant w\\/Pesto\",\"Maple Roasted Sweet Potatoes\",\"Steamed Broccoli\",\"BBQ Pulled Pork on Brioche\",\"Cajun Chicken Thigh\",\"French Fries\",\"Grilled Chicken Breast\",\"Halal SPARE Beef Burger\",\"Local Roasted Sweet Potatoes\",\"Roasted Cauliflower\",\"Sweet Potato Fries\",\"Turkey Burger Patty\",\"Cajun Red Beans & Rice\",\"Plant Based Cheese Pizza\",\"Plant Based Chorizo & Jalapeno Quesadilla\",\"Plant Based Steak & Cheese Pizza\",\"Chickpea Salad w\\/Tomatoes & Feta\",\"Greek-Styled Ravioli\",\"Homemade Red Pepper Hummus\",\"Linguini Pasta\",\"Marinara Sauce\",\"Marinated Olives, Tomatoes & Artichokes\",\"Meatball Sauce\",\"Penne Pasta\",\"Penne w\\/Meatballs & Creamy Tom Sauce (Beef & Pork)\",\"Red Pepper Pesto Pasta Salad\",\"Summer Squash, Tomato & Basil\",\"Oatmeal Raisin Cookie\",\"Zebra Brownies\",\"Beef for Pho\",\"Chicken Pho Broth (Fish)\",\"Chicken for Pho\",\"Green Curry Pho Broth (Anchovies)\",\"Pho Noodles\",\"Pho Toppings\",\"Vegetarian Pho Base\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Vegetable Pizza\",\"California Roll\",\"Purple Sweet Potato Tempura Sushi Roll\",\"Teriyaki Pulmuone Tofu Roll\",\"Vegetable Sushi Roll\",\"GF Avocado Toast Bar (Bacon)\",\"Chopped Cilantro\",\"Queso Fresco\",\"Red Rice\",\"Roasted Ancho Chili Butternut\",\"Salsa Verde con Aguacate\",\"Tamale Corn Cakes\",\"Baked Sweet & Sour Tofu\",\"Mei Fun Noodles\",\"Mussaman Curry (Chicken)\",\"Stir Fried Vegetables w\\/Sesame\",\"Vegetable Fried Rice\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Creamy Tuscan Chicken\",\"Stuffed Mushroom w\\/Spin & Blue Cheese\",\"Lemon Rice Pilaf\",\"Wilted Swiss Chard\",\"Black Bean Burger\",\"Herb Roasted Mushrooms\",\"Brussel Sprouts w\\/Almonds\",\"Plant Based Pasta Supreme\",\"Potato & Cheese Pierogi\",\"Sauteed Kale\",\"Gnocchi w\\/Mushroom & Pea Cream Sauce\",\"Italian Rstd Mushrooms & Vegetables\",\"Tortellini w\\/Basil Pesto & Grape Tomatoes\",\"Blueberry Buckle\",\"Chocolate Malva Pudding\",\"Local Whole Wheat Bread\",\"Vietnamese Pork & Shrimp Noodle Bowl\",\"Teriyaki Chicken Roll\",\"Broccoli Flowerettes\",\"GF Butternut Ravioli w\\/Sausage & Kale\",\"GF Garlic Bread\",\"GF Greek-Styled Ravioli\",\"Latin Toppings\",\"Puerto Rican Beans\",\"Puerto Rican Rice & Pigeon Peas\",\"Puerto Rican Roast Chicken\",\"Chicken Tikka Masala\",\"Chole Chickpea Curry\",\"Naan\",\"Potato & Pea Samosa\",\"Sauteed Cabbage w\\/Coconut\",\"Vegetable Pulao\"]",
+  "menu_meal": "{\"Breakfast\":[\"Apple Cinnamon Pancakes\",\"BUSH's Baked Beans\",\"Hard Boiled Egg\",\"Hot Oatmeal\",\"Make Your Own Waffles\",\"Omelet Station\",\"Red Potato Home Fries\",\"Roasted Tomatoes w\\/Feta & Spinach\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Smoked Bacon Slices\",\"Gingerbread Bundt\",\"Mini Apple Danish\",\"Black Beans\",\"Fried Plantain\",\"Huevos Rancheros\"],\"Grab N'Go\":[\"\",\"1% Milk\",\"Bacon Breakfast Sandwich (English Muffin)\",\"Breakfast Burrito w\\/Bacon\",\"Hot Oatmeal\",\"Lowfat Chocolate Milk\",\"Mini Apple Danish\",\"Orange Juice\",\"Worcester Breakfast Sandwich\",\"Yogurt Strawberry\"],\"Lunch\":[\"Green Chile Posole\",\"Tomato Bisque Soup\",\"French Onion Braised Chicken\",\"Hot Sausage, Onions & Peppers\",\"Lyonnaise Potatoes\",\"Margherita Eggplant w\\/Pesto\",\"Maple Roasted Sweet Potatoes\",\"Steamed Broccoli\",\"BBQ Pulled Pork on Brioche\",\"Cajun Chicken Thigh\",\"French Fries\",\"Grilled Chicken Breast\",\"Halal SPARE Beef Burger\",\"Local Roasted Sweet Potatoes\",\"Roasted Cauliflower\",\"Sweet Potato Fries\",\"Turkey Burger Patty\",\"Cajun Red Beans & Rice\",\"Plant Based Cheese Pizza\",\"Plant Based Chorizo & Jalapeno Quesadilla\",\"Plant Based Steak & Cheese Pizza\",\"Chickpea Salad w\\/Tomatoes & Feta\",\"Greek-Styled Ravioli\",\"Homemade Red Pepper Hummus\",\"Linguini Pasta\",\"Marinara Sauce\",\"Marinated Olives, Tomatoes & Artichokes\",\"Meatball Sauce\",\"Penne Pasta\",\"Penne w\\/Meatballs & Creamy Tom Sauce (Beef & Pork)\",\"Red Pepper Pesto Pasta Salad\",\"Summer Squash, Tomato & Basil\",\"Oatmeal Raisin Cookie\",\"Zebra Brownies\",\"Beef for Pho\",\"Chicken Pho Broth (Fish)\",\"Chicken for Pho\",\"Green Curry Pho Broth (Anchovies)\",\"Pho Noodles\",\"Pho Toppings\",\"Vegetarian Pho Base\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Vegetable Pizza\",\"California Roll\",\"Purple Sweet Potato Tempura Sushi Roll\",\"Teriyaki Pulmuone Tofu Roll\",\"Vegetable Sushi Roll\",\"GF Avocado Toast Bar (Bacon)\",\"Black Beans\",\"Chopped Cilantro\",\"Queso Fresco\",\"Red Rice\",\"Roasted Ancho Chili Butternut\",\"Salsa Verde con Aguacate\",\"Tamale Corn Cakes\",\"Baked Sweet & Sour Tofu\",\"Mei Fun Noodles\",\"Mussaman Curry (Chicken)\",\"Stir Fried Vegetables w\\/Sesame\",\"Vegetable Fried Rice\"],\"Dinner\":[\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Creamy Tuscan Chicken\",\"Stuffed Mushroom w\\/Spin & Blue Cheese\",\"Lemon Rice Pilaf\",\"Local Roasted Sweet Potatoes\",\"Steamed Broccoli\",\"Wilted Swiss Chard\",\"BBQ Pulled Pork on Brioche\",\"Black Bean Burger\",\"Cajun Chicken Thigh\",\"French Fries\",\"Grilled Chicken Breast\",\"Halal SPARE Beef Burger\",\"Herb Roasted Mushrooms\",\"Sweet Potato Fries\",\"Brussel Sprouts w\\/Almonds\",\"Plant Based Pasta Supreme\",\"Potato & Cheese Pierogi\",\"Sauteed Kale\",\"Chickpea Salad w\\/Tomatoes & Feta\",\"Gnocchi w\\/Mushroom & Pea Cream Sauce\",\"Homemade Red Pepper Hummus\",\"Italian Rstd Mushrooms & Vegetables\",\"Linguini Pasta\",\"Marinara Sauce\",\"Marinated Olives, Tomatoes & Artichokes\",\"Meatball Sauce\",\"Penne Pasta\",\"Red Pepper Pesto Pasta Salad\",\"Tortellini w\\/Basil Pesto & Grape Tomatoes\",\"Blueberry Buckle\",\"Chocolate Malva Pudding\",\"Local Whole Wheat Bread\",\"Vietnamese Pork & Shrimp Noodle Bowl\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Vegetable Pizza\",\"California Roll\",\"Teriyaki Chicken Roll\",\"Teriyaki Pulmuone Tofu Roll\",\"Vegetable Sushi Roll\",\"Broccoli Flowerettes\",\"GF Butternut Ravioli w\\/Sausage & Kale\",\"GF Garlic Bread\",\"GF Greek-Styled Ravioli\",\"Fried Plantain\",\"Latin Toppings\",\"Puerto Rican Beans\",\"Puerto Rican Rice & Pigeon Peas\",\"Puerto Rican Roast Chicken\",\"Chicken Tikka Masala\",\"Chole Chickpea Curry\",\"Naan\",\"Potato & Pea Samosa\",\"Sauteed Cabbage w\\/Coconut\",\"Vegetable Pulao\"]}"
+ },
+ {
+  "location_title": "Whitmore Caf\u00e9",
+  "short_name": "Whitmore Caf\u00e9",
+  "location_id": 14,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "04:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the Whitmore Administration Building, Whitmore Cafe is the perfect place to enjoy freshly brewed Coffee, fresh baked pastry, hot paninis, delicious salad, and much more!",
+  "address": "181 Presidents Dr Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Green Fields Salads & Wraps Salads: Garden Salad, Fruit & Nut, Buffalo Chicken, Cobb, Wraps: Buffalo Chicken, Chicken Ceasar, Chicken Bacon Ranch, Honey BBQ (all wraps include lettuce, tomato, and cheddar cheese) Illy Beverages Coffee, Latte, Hot Tea, Hot Chocolate, Cappuccino, Americano, Espresso, Iced Coffee, Iced Tea, Iced Americano Additional Options: Espresso Shot, Add Flavor Shot, Dairy Alternative",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Procrastination Station",
+  "short_name": "Procrastination Station",
+  "location_id": 17,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "08:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the W.E.B. Du Bois Library, Procrastination Station offers the best coffee and espresso-based drinks, plus all natural and organic offerings including salads, sandwiches, and more. Hot items include fresh soup, ciabatta paninis, plus a full line of pastries and breakfast treats.",
+  "address": "W.E.B. Du Bois Library 154 Hicks Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Organic and Fair-Trade Hot Beverages: Coffee, Espresso, Americano, Cappuccino, Caf\u00e9 Latte, Organic Chai, Organic Hot Cocoa, Tea Sustaining Cool Beverages: Iced Coffee, Iced Caf\u00e9 Latte, Iced Organic Chai, Iced Tea Additions: Extra Espresso Shot, Flavor Shot, Dairy Alternative",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Courtside Caf\u00e9",
+  "short_name": "Courtside Caf\u00e9",
+  "location_id": 18,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "A generous gift from the class of 2009, The Courtside Caf\u00e9 is located on the second level of the Recreation Center. Grab a snack, fresh smoothie, or cold drink after your workout. Grab and go sandwiches and salads are served as well.",
+  "address": "161 Commonwealth Ave Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 3,
+   "trend": "steady",
+   "usual_pct": 5,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 2,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Smoothie Menu One side 16oz : $8.50 Add Protein : Vanilla Whey , Chocolate Whey , Peanut butter , Plant Based Hemp $1.75 Hand Crafted Originals: 1. Berry Banana \u2013 Raspberry, Blackberry, Strawberry, Blueberry, and Banana 2. Mango Tango \u2013 Mango, Pineapple, Banana, and Ginger powder 3. Passionate Pineapple \u2013 Blood Orange, Passion Fruit, Pineapple, and Ginger powder 4. Summer Blush \u2013 Peach and Raspberry 5. Green Monster \u2013 Kale, Spinach, Cucumber, Peach, and Banana 6. V-9 \u2013 Avocado, Spinach, Kale, Pineapple, Cilantro, Cayenne, Carrot Juice 7.Matcha Strawberry \u2013 Strawberry, Green Tea Matcha, Honey Craft your own (includes 3 ingredients, protein and base) Featured Ingredients: Wild Berry Blend, Strawberry, Banana, Pineapple, Mango, Peach, Raspberry, Passionfruit Puree, Blood Orange Puree, Green Tea Matcha Kale, Spinach, Cucumber, , Avocado, Ginger Powder Grab and Go Energy Drinks Fruit Cups $ 4.25 Pre-Packaged Salads, Sandwiches and Wraps $5.25-$7.75 Protein Bars $2.99-$4.99 Acai Bowls Small: $6 Large: $8.50 Choose from: Acai Berry, Acai Protein, Acai Coconut Mango",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Worcester Caf\u00e9",
+  "short_name": "Worcester Caf\u00e9",
+  "location_id": 647,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "04:00 PM",
+  "open_24": 0,
+  "short_description": "Worcester Caf\u00e9 is located on the first floor of Worcester Commons and features a variety of items for breakfast and lunch featuring fresh brewed coffee, espresso drinks, smoothies, breakfast sandwiches and more!",
+  "address": "667 N Pleasant St Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Bacon, Egg & Cheese on English Muffin\",\"Breakfast Croissant w\\/Bacon\",\"Egg & Cheese Croissant\",\"Egg and Cheese on an English Muffin\",\"Sausage Biscuit w\\/ Egg\",\"3 oz Cinnamon Raisin Bagel\",\"Banana Chocolate Chip Bread\",\"Blueberry Strap Bread\",\"Everything Bagel\",\"Lemon Zucchini Bread\",\"Mini Butter Croissant\",\"Mini Cheese Danish\",\"Mini Chocolate Croissant\",\"Mini Cinnamon Bun\",\"Plain Bagel\",\"Pumpkin Cheese Bread\",\"Fudge Drop Brownies\",\"16 oz Cappuccino\",\"16 oz Caramel Macchiato\",\"16 oz Chai\",\"16 oz Chamomile Tea\",\"16 oz Coffee\",\"16 oz Earl Grey Tea\",\"16 oz Hot Americano\",\"16 oz Latte\",\"16 oz Matcha Latte\",\"20 oz Cappuccino\",\"20 oz Caramel Macchiato\",\"20 oz Chai\",\"20 oz Chamomile Tea\",\"20 oz Coffee\",\"20 oz Cold Brew\",\"20 oz Earl Grey Tea\",\"20 oz Hot Americano\",\"20 oz Iced Americano\",\"20 oz Iced Caramel Macchiato\",\"20 oz Iced Chai Latte\",\"20 oz Iced Latte\",\"20 oz Iced Matcha Latte\",\"20 oz Iced Tea\",\"20 oz Latte\",\"20 oz Matcha Latte\",\"Boba Almond Milk\",\"Boba Maple Milk\",\"Boba Oat Milk\",\"Boba Skim Milk\",\"Boba Soy Milk\",\"Caramel Flavored Syrup\",\"Chocolate Milkshake\",\"Coconut Flavored Syrup\",\"DRISCOLL'S Berries & Cream Smoothie\",\"DRISCOLL'S Hidden Greens Smoothie\",\"DRISCOLL'S Very Berry Smoothie\",\"Double Espresso\",\"Extra Shot Espresso\",\"Hazelnut Flavored Syrup\",\"MONIN Agave Nectar\",\"MONIN Pumpkin Spice Syrup\",\"Raspberry Flavored Syrup\",\"Single Espresso\",\"Strawberry Banana Smoothie\",\"Strawberry Milkshake\",\"UMass Water\",\"Vanilla Flavored Syrup\",\"Vanilla Milkshake\",\"Butter\",\"Peanut Butter\",\"Whipped Topping\",\"BBQ Chicken Sandwich\",\"Buffalo Chicken Wrap\",\"Chicken Ciabatta Sandwich\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Turkey Cheddar Sandwich w\\/Tomato Aioli\",\"Hot Italian Grinder\",\"Hummus & Vegetables on Whole Wheat\",\"People's Three Cheese Panini\",\"Spicy Chicken Biscuit w\\/ Sriracha Mayo & Jalapenos\",\"Tuna on White\",\"Turkey Multigrain Croissant\",\"Turkey Pesto Croissant\",\"Chicken Caesar Salad\",\"Driscolls Berry Salad\",\"Fruit Cup\",\"MAPLELINE Skim Milk\",\"MAPLELINE Whole Milk\",\"PACIFIC Almond Milk\",\"PACIFIC Soy Milk\"]",
+  "menu_meal": "{\"Daily Offerings\":[\"Bacon, Egg & Cheese on English Muffin\",\"Breakfast Croissant w\\/Bacon\",\"Egg & Cheese Croissant\",\"Egg and Cheese on an English Muffin\",\"Sausage Biscuit w\\/ Egg\",\"3 oz Cinnamon Raisin Bagel\",\"Banana Chocolate Chip Bread\",\"Blueberry Strap Bread\",\"Everything Bagel\",\"Lemon Zucchini Bread\",\"Mini Butter Croissant\",\"Mini Cheese Danish\",\"Mini Chocolate Croissant\",\"Mini Cinnamon Bun\",\"Plain Bagel\",\"Pumpkin Cheese Bread\",\"Fudge Drop Brownies\",\"16 oz Cappuccino\",\"16 oz Caramel Macchiato\",\"16 oz Chai\",\"16 oz Chamomile Tea\",\"16 oz Coffee\",\"16 oz Earl Grey Tea\",\"16 oz Hot Americano\",\"16 oz Latte\",\"16 oz Matcha Latte\",\"20 oz Cappuccino\",\"20 oz Caramel Macchiato\",\"20 oz Chai\",\"20 oz Chamomile Tea\",\"20 oz Coffee\",\"20 oz Cold Brew\",\"20 oz Earl Grey Tea\",\"20 oz Hot Americano\",\"20 oz Iced Americano\",\"20 oz Iced Caramel Macchiato\",\"20 oz Iced Chai Latte\",\"20 oz Iced Latte\",\"20 oz Iced Matcha Latte\",\"20 oz Iced Tea\",\"20 oz Latte\",\"20 oz Matcha Latte\",\"Boba Almond Milk\",\"Boba Maple Milk\",\"Boba Oat Milk\",\"Boba Skim Milk\",\"Boba Soy Milk\",\"Caramel Flavored Syrup\",\"Chocolate Milkshake\",\"Coconut Flavored Syrup\",\"DRISCOLL'S Berries & Cream Smoothie\",\"DRISCOLL'S Hidden Greens Smoothie\",\"DRISCOLL'S Very Berry Smoothie\",\"Double Espresso\",\"Extra Shot Espresso\",\"Hazelnut Flavored Syrup\",\"MONIN Agave Nectar\",\"MONIN Pumpkin Spice Syrup\",\"Raspberry Flavored Syrup\",\"Single Espresso\",\"Strawberry Banana Smoothie\",\"Strawberry Milkshake\",\"UMass Water\",\"Vanilla Flavored Syrup\",\"Vanilla Milkshake\",\"Butter\",\"Peanut Butter\",\"Whipped Topping\",\"BBQ Chicken Sandwich\",\"Buffalo Chicken Wrap\",\"Chicken Ciabatta Sandwich\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Turkey Cheddar Sandwich w\\/Tomato Aioli\",\"Hot Italian Grinder\",\"Hummus & Vegetables on Whole Wheat\",\"People's Three Cheese Panini\",\"Spicy Chicken Biscuit w\\/ Sriracha Mayo & Jalapenos\",\"Tuna on White\",\"Turkey Multigrain Croissant\",\"Turkey Pesto Croissant\",\"Chicken Caesar Salad\",\"Driscolls Berry Salad\",\"Fruit Cup\",\"MAPLELINE Skim Milk\",\"MAPLELINE Whole Milk\",\"PACIFIC Almond Milk\",\"PACIFIC Soy Milk\"]}"
+ },
+ {
+  "location_title": "ISB Caf\u00e9",
+  "short_name": "ISB Caf\u00e9",
+  "location_id": 883,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "02:30 PM",
+  "open_24": 0,
+  "short_description": "Located in the Integrated Science building, the ISB cafe features Starbucks coffee and specialty beverages, as well as assorted snacks.",
+  "address": "661 N Pleasant St Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Assorted snacks daily in-store. Limited Starbucks Beverages Menu: Hot Brewed Coffee, Iced Coffee, Smoothies, Latte, Iced Latte, Americano, Iced Americano, Cappuccino, Caramel Macchiato, Iced Caramel Macchiato, Espresso Single Shot, Espresso Double Shot, Hot Tea, Hot Chocolate Shaken Iced Tea: Shaken Iced Tea Lemonade, Chai Latte, Iced Chai Latte, Matcha Latte, Iced Matcha Latte, Teavana Refreshers Frappuccinos: Coffee, Caramel, Mocha, White Mocha or Java Chip, Vanilla Bean Cream, Matcha, Chai, Strawberries & Cream Add Ons: Extra Espresso Shot, Add Flavor Shot, Dairy Alternatives",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Roots Caf\u00e9",
+  "short_name": "Roots Caf\u00e9",
+  "location_id": 1724,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the Honors Residential Complex, Roots Cafe features fresh items such as a salad bar, artisan pizza, mac and cheese, quesadillas and more!",
+  "address": "157 Commonwealth Ave Amherst, MA 02184",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 8,
+   "trend": "steady",
+   "usual_pct": 10,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 21,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Hampshire Caf\u00e9",
+  "short_name": "Hampshire Caf\u00e9",
+  "location_id": 1723,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "07:00 PM",
+  "open_24": 0,
+  "short_description": "Located on the first floor in Hampshire Dining Commons, Hampshire Cafe features Starbucks coffee and specialty drinks. Grab freshly prepared artisan sandwiches, salads, build your own parfait, and assorted snacks. In addition to great coffee and food, Hampshire Cafe also offers various toiletries in their store.",
+  "address": "141 Southwest Circle Amherst, MA 02184",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Assorted snacks daily in-store. Build Your Own Parfait \u2013 1 meal swipe Limited Starbucks Beverages Menu: Hot Brewed Coffee, Iced Coffee, Smoothies, Latte, Iced Latte, Americano, Iced Americano, Cappuccino, Caramel Macchiato, Iced Caramel Macchiato, Espresso Single Shot, Espresso Double Shot, Hot Tea, Hot Chocolate Shaken Iced Tea: Shaken Iced Tea Lemonade, Chai Latte, Iced Chai Latte, Matcha Latte, Iced Matcha Latte, Teavana Refreshers Frappuccinos: Coffee, Caramel, Mocha, White Mocha or Java Chip, Vanilla Bean Cream, Matcha, Chai, Strawberries & Cream Add Ons: Extra Espresso Shot, Add Flavor Shot, Dairy Alternatives",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Peet\u2019s Coffee & Tea",
+  "short_name": "Peet\u2019s Coffee & Tea",
+  "location_id": 4311,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "03:00 PM",
+  "open_24": 0,
+  "short_description": "Served on the first floor of the Integrated Learning Center, Peet's Coffee & Tea is a San Francisco Bay Area based artisanal coffee roaster and retailer. Our coffee is prepared in small batches from fresh, high-quality beans that are dark roasted to create a rich and complex flavor. Enjoy our drip coffee, espresso or any one of our specialty hot and cold beverages, along with a grab and go snack.",
+  "address": "650 North Pleasant St. Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "JAVIVA BLENDED Regular or Light; Available in Decaf Coffee $3.50 / $4 / $4.50 + Mocha, Caramel, Vanilla $4 / $4.50 / $5 + Chocolate & Caramel Swirl $4.25 / 4.75 / $5.25 Espresso $4 / $4.50 / $5 Chai or Matcha Green Tea $4 / $4.50 / $5 Coffee-free $4 / $4.50 / $5 CUSTOMIZE YOUR PEET\u2019S Soy or Almond Milk $0.75 Additional Espresso Shot $0.75 Additional Flavored Syrup $0.50 COFFEE Coffee of the Day $1.75 / $2 / $2.25 Caf\u00e9 Au Lait $2.50 / $2.75 / $3 TEA Matcha Green Tea Latte $3.25 / $3.75 / $4.25 Vanilla Matcha Latte $3.75 / $4.25 / $4.75 Masala Chai Latte $3.25 / $3.75 / $4.25 Hot Tea -Black, Green, Herbal $2.25 ICED DRINKS Iced Coffee $.2.25 / $2.75 / $3.25 Iced Latte $3.25 / $3.75 / $4.25 Iced Vanilla Latte $3.50 / $4.25 / $4.75 Iced Caramel Macchiato $4 / $4.50 / $5 Iced Mocha $3.75 / $4.25 / $4.75 Iced Matcha Latte $3.50 / $4 / $4.50 Iced Chai Latte $3.50 / $4 / $4.50 Tea Coolers $2.75 / $3.25 / $3.75 Iced Tea -Black or Green $1.75 / $2.25 / $2.75 ESPRESSO Cappuccino $3.25 / $3.50 / $4.25 Americano $2.25 / $2.75 / $3.25 Espresso Single, Double, Triple $1.75 / $2.50 /$3.25 Latte $3.25 / $3.75 / $4.25 Soy or Almond Milk Latte $3.50 / $4.25 / $4.75 Vanilla Latte $3.50 / $4.25 / $4.75 Caramel Macchiato $4 / $4.50 / $5 Mocha $3.50 / $4.25 / $4.50 White Chocolate Mocha $3.75 / $4.25 / $5 PUMPKIN POWER Dark Chocolate Pumpkin Mocha $4 / $4.75 / $5 Pumpkin Latte $3.50 / $4.25 / $4.75 Pumpkin Chai Latte $3.75 / $4.25 / $4.75 Pumpkin Javiva $4 / $4.50 / $5 UMASS HOUSE BAKED TREATS Local Bagel $1.25 Cookie $1.25 Scone $1.75 Muffin $1.75 Croissant $2 BREAKFAST FEATURING LOCAL CAGE FREE EGGS Breakfast Bagel $4.75 Breakfast Bacon Croissant $5.75 Breakfast Veggie Croissant $4.75 Breakfast Croissant No Bacon $5.25 English Muffin Ham & Egg $4.25 Local Bagel with Cream Cheese $ 1.75 ENTREES Paninis Spinach & Mushroom Panini $6.75 Pepperoni Panini $6.75 Caprese Panini $6.75 Cheese Steak Panini $6.75 BBQ Chicken Panini $6.75 Hot Italian Grinder $7.75 Hot Turkey Club Grinder $7.75 Garden Salad $4.75 Chef Salad $6.75 Greek $6.75",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "babyBerk",
+  "short_name": "babyBerk",
+  "location_id": 61,
+  "opening_hours": "07:00 PM",
+  "closing_hours": "09:10 PM",
+  "open_24": 0,
+  "short_description": "Find the babyBerk food truck around campus featuring their famous babyBerk burger, golden BBQ, and UMac and Nash: Nashville hot chicken quesadilla with Mac and cheese!",
+  "address": ",",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": null,
+   "vs_usual": null,
+   "outlook": null,
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Baby Berk Menu",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "babyBerk 2",
+  "short_name": "babyBerk 2",
+  "location_id": 884,
+  "opening_hours": "07:00 PM",
+  "closing_hours": "09:10 PM",
+  "open_24": 0,
+  "short_description": "Find the BabyBerk2 food truck around campus and at most UMass Athletics events. Try out one of their famous quesadillas, some loaded tater tots, or a variety of drinks and snacks. Also featuring a rotating menu of daily specials.Follow us on Instagram for daily location updates: umass_babyberk",
+  "address": ",",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": null,
+   "vs_usual": null,
+   "outlook": null,
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Baby Berk 2 Menu",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Morrill Caf\u00e9",
+  "short_name": "Morrill Caf\u00e9",
+  "location_id": 2061,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "02:00 PM",
+  "open_24": 0,
+  "short_description": "Choose from a variety of freshly prepared coffee and espresso beverages. Enjoy our fresh house- baked goods, freshly- prepared salads, sandwiches, as well as our convenient grab and go options.",
+  "address": "Morrill 2 Second Floor 627 N PLEASANT ST Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Sandwiches, salads, fruit cups and, snacks are available in-store. Hot Beverages Coffee, Latte, Mocha, Chai Latte, Cappuccino, Espresso, Hot Tea, Hot Chocolate Cold Beverages Iced Coffee, Iced Latte, Iced Mocha, Iced Chai Add Ons Dairy Alternative, Add an Espresso Shot, Add Flavor Shot",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Paciugo",
+  "short_name": "Paciugo",
+  "location_id": 5991,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Indulge in traditionally crafted Italian Gelato. Using only the freshest fruits and all- natural ingredients, there\u2019s plenty to love about this decadent dessert that is light, and unbelievably smooth with 70% less fat than ice cream. Choose from a variety of flavors offered on a daily basis.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "People's Organic Coffee",
+  "short_name": "People's Organic Coffee",
+  "location_id": 32,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "04:00 PM",
+  "open_24": 0,
+  "short_description": "Located on the main concourse of the Campus Center, People\u2019s Organic offers natural, organic, and sustainable foods. Choose from a selection of salads, paninis, fresh cookies, locally baked pastries, and so much more. People\u2019s organic serves Fair Trade coffees, features a variety of coffee beverages, and organic teas.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Bacon Croissant Veggie Croissant Turkey & Bacon Breakfast Brioche Quiche, Broccoli Quiche, Ham Antioxidant Salad Strawberry Pecan",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Tavola",
+  "short_name": "Tavola",
+  "location_id": 4661,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "At Tavola our fresh house made dough shines through. We offer a variety of house made pizza, hummus bowls, pasta, salads, wraps, and more!",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Chicken Broccoli Alfredo Pasta\",\"Rigatoni\",\"Veggie Alfredo Pasta\",\"Tavola Salad w\\/Beef\",\"Tavola Salad w\\/Chicken\",\"Tavola Salad w\\/Falafel\",\"Tavola Salad w\\/Lamb\",\"Cime di Rapa Pizza\",\"Mamma Mia Pizza (Pork)\",\"Mediterranean Wrap w\\/Beef\",\"Mediterranean Wrap w\\/Chicken + Almonds\",\"Mediterranean Wrap w\\/Falafel\",\"Mediterranean Wrap w\\/Lamb\",\"Hummus Bowl w\\/Beef\",\"Hummus Bowl w\\/Chicken\",\"Hummus Bowl w\\/Falafel\",\"Hummus Bowl w\\/Lamb\",\"Beef Kefta\",\"Dolmadas (Stuffed Grape Leaves)\",\"Falafel\",\"Fountain Drink\",\"Hand Fruit\",\"Hummus\",\"Moroccan Lamb Skewers\",\"Olives\",\"Pita Bread\",\"Spanish Grilled Chicken Skewers\"]",
+  "menu_meal": "{\"Lunch\":[\"Chicken Broccoli Alfredo Pasta\",\"Rigatoni\",\"Veggie Alfredo Pasta\",\"Tavola Salad w\\/Beef\",\"Tavola Salad w\\/Chicken\",\"Tavola Salad w\\/Falafel\",\"Tavola Salad w\\/Lamb\",\"Cime di Rapa Pizza\",\"Mamma Mia Pizza (Pork)\",\"Mediterranean Wrap w\\/Beef\",\"Mediterranean Wrap w\\/Chicken + Almonds\",\"Mediterranean Wrap w\\/Falafel\",\"Mediterranean Wrap w\\/Lamb\",\"Hummus Bowl w\\/Beef\",\"Hummus Bowl w\\/Chicken\",\"Hummus Bowl w\\/Falafel\",\"Hummus Bowl w\\/Lamb\",\"Beef Kefta\",\"Dolmadas (Stuffed Grape Leaves)\",\"Falafel\",\"Fountain Drink\",\"Hand Fruit\",\"Hummus\",\"Moroccan Lamb Skewers\",\"Olives\",\"Pita Bread\",\"Spanish Grilled Chicken Skewers\"],\"Dinner\":[\"Chicken Broccoli Alfredo Pasta\",\"Rigatoni\",\"Veggie Alfredo Pasta\",\"Tavola Salad w\\/Beef\",\"Tavola Salad w\\/Chicken\",\"Tavola Salad w\\/Falafel\",\"Tavola Salad w\\/Lamb\",\"Cime di Rapa Pizza\",\"Mamma Mia Pizza (Pork)\",\"Mediterranean Wrap w\\/Beef\",\"Mediterranean Wrap w\\/Chicken + Almonds\",\"Mediterranean Wrap w\\/Falafel\",\"Mediterranean Wrap w\\/Lamb\",\"Hummus Bowl w\\/Beef\",\"Hummus Bowl w\\/Chicken\",\"Hummus Bowl w\\/Falafel\",\"Hummus Bowl w\\/Lamb\",\"Beef Kefta\",\"Dolmadas (Stuffed Grape Leaves)\",\"Falafel\",\"Fountain Drink\",\"Hand Fruit\",\"Hummus\",\"Moroccan Lamb Skewers\",\"Olives\",\"Pita Bread\",\"Spanish Grilled Chicken Skewers\"]}"
+ },
+ {
+  "location_title": "Yum! Bakery",
+  "short_name": "Yum! Bakery",
+  "location_id": 4666,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Yum! Bakery is a full-service bakery located in the Blue Wall. Enjoy our homemade cookies, pastries, cakes, French macarons as well as many seasonal treats.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Paciugo Gelato Homemade cookies, pastries, and cakes",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Green Fields",
+  "short_name": "Green Fields",
+  "location_id": 4671,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "At Green Fields choose from a variety of healthy, sustainable, and delicious options. Choose one from our menu or even build your own salad and wrap. All salads are hand tossed, and prepared fresh on sight with the best possible ingredients. Featuring many locally sourced items when available.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Buffalo Chicken Salad\",\"Caesar Salad w\\/Chicken\",\"Cobb Salad\",\"Create Your Own Salad\",\"Garden Salad\",\"Mediterranean Chicken Salad\",\"Power Salad\",\"Southwestern Salad w\\/Chicken\",\"Buffalo Chicken Wrap\",\"Caesar Salad Chicken Wrap\",\"Cobb Salad Wrap\",\"Create Your Own Wrap\",\"Garden Salad Wrap\",\"Mediterranean Chicken Wrap\",\"Power Salad Wrap\",\"Southwestern Salad Chicken Wrap\",\"Add Fresh Avocado\",\"Bacon\",\"Blueberries\",\"Cheese\",\"Dolmadas (Stuffed Grape Leaves)\",\"Extra Wrap\",\"Fountain Drink\",\"Fried Buffalo Chicken\",\"Fried Chicken\",\"Grilled Diced Chicken\",\"Hand Fruit\",\"Hard Boiled Eggs\",\"Hummus\",\"Kettle Chips\",\"Middle Eastern Fried Chickpeas\",\"Pulmuone Tofu Bites\",\"Roasted Sweet Potatoes\"]",
+  "menu_meal": "{\"Lunch\":[\"Buffalo Chicken Salad\",\"Caesar Salad w\\/Chicken\",\"Cobb Salad\",\"Create Your Own Salad\",\"Garden Salad\",\"Mediterranean Chicken Salad\",\"Power Salad\",\"Southwestern Salad w\\/Chicken\",\"Buffalo Chicken Wrap\",\"Caesar Salad Chicken Wrap\",\"Cobb Salad Wrap\",\"Create Your Own Wrap\",\"Garden Salad Wrap\",\"Mediterranean Chicken Wrap\",\"Power Salad Wrap\",\"Southwestern Salad Chicken Wrap\",\"Add Fresh Avocado\",\"Bacon\",\"Blueberries\",\"Cheese\",\"Dolmadas (Stuffed Grape Leaves)\",\"Extra Wrap\",\"Fountain Drink\",\"Fried Buffalo Chicken\",\"Fried Chicken\",\"Grilled Diced Chicken\",\"Hand Fruit\",\"Hard Boiled Eggs\",\"Hummus\",\"Kettle Chips\",\"Middle Eastern Fried Chickpeas\",\"Pulmuone Tofu Bites\",\"Roasted Sweet Potatoes\"],\"Dinner\":[\"Buffalo Chicken Salad\",\"Caesar Salad w\\/Chicken\",\"Cobb Salad\",\"Create Your Own Salad\",\"Garden Salad\",\"Mediterranean Chicken Salad\",\"Power Salad\",\"Southwestern Salad w\\/Chicken\",\"Buffalo Chicken Wrap\",\"Caesar Salad Chicken Wrap\",\"Cobb Salad Wrap\",\"Create Your Own Wrap\",\"Garden Salad Wrap\",\"Mediterranean Chicken Wrap\",\"Power Salad Wrap\",\"Southwestern Salad Chicken Wrap\",\"Add Fresh Avocado\",\"Bacon\",\"Blueberries\",\"Cheese\",\"Dolmadas (Stuffed Grape Leaves)\",\"Extra Wrap\",\"Fountain Drink\",\"Fried Buffalo Chicken\",\"Fried Chicken\",\"Grilled Diced Chicken\",\"Hand Fruit\",\"Hard Boiled Eggs\",\"Hummus\",\"Kettle Chips\",\"Middle Eastern Fried Chickpeas\",\"Pulmuone Tofu Bites\",\"Roasted Sweet Potatoes\"]}"
+ },
+ {
+  "location_title": "Tamales",
+  "short_name": "Tamales",
+  "location_id": 4676,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "At Tamales delight in an authentic Mexican dining experience. Choose between a burrito, wrapped in a fresh house made tortilla, quesadilla, rice bowl, or salad featuring the freshest and most sustainable ingredients.",
+  "address": "Campus Center 1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Beef Salad\",\"Carnitas Salad\",\"Chicken Salad\",\"Lentil Salad\",\"Beef Nachos\",\"Carnitas Nachos\",\"Chicken Nachos\",\"Lentil Nachos\",\"Loaded Nachos w\\/Beef\",\"Loaded Nachos w\\/Chicken\",\"Loaded Nachos w\\/Lentils\",\"Loaded Nachos w\\/Pork\",\"Beef Burrito\",\"Carnitas Pork Burrito\",\"Chicken Burrito\",\"Lentil Burrito\",\"Beef Quesadilla\",\"Carnitas Quesadilla\",\"Cheese Quesadilla\",\"Chicken Quesadilla\",\"Lentil Quesadilla\",\"Brown Rice w\\/Lime & Cilantro\",\"Cheddar Cheese\",\"Guacamole\",\"Pickled Cabbage and Cucumber\",\"Pickled Red Onions\",\"Pinto Beans\",\"Salsa\",\"Shredded Lettuce\",\"Sour Cream\",\"Sweet Corn Salsa\",\"Tomatillo Salsa\",\"White Rice w\\/Lime & Cilantro\",\"Carnitas Rice Bowl\",\"Marinated Beef Rice Bowl\",\"Marinated Chicken Rice Bowl\",\"Marinated Lentil Rice Bowl\",\"Extra Tortilla Wrap\",\"Fountain Drink\",\"Hand Fruit\",\"Marinated Carne Asada\",\"Marinated Chicken\",\"Pork Carnitas\",\"Rice\",\"Spiced Lentils\",\"Tortilla Chips\",\"Tortilla Chips and Salsa\",\"White Queso Dip w\\/Jalapeno\"]",
+  "menu_meal": "{\"Lunch\":[\"Beef Salad\",\"Carnitas Salad\",\"Chicken Salad\",\"Lentil Salad\",\"Beef Nachos\",\"Carnitas Nachos\",\"Chicken Nachos\",\"Lentil Nachos\",\"Loaded Nachos w\\/Beef\",\"Loaded Nachos w\\/Chicken\",\"Loaded Nachos w\\/Lentils\",\"Loaded Nachos w\\/Pork\",\"Beef Burrito\",\"Carnitas Pork Burrito\",\"Chicken Burrito\",\"Lentil Burrito\",\"Beef Quesadilla\",\"Carnitas Quesadilla\",\"Cheese Quesadilla\",\"Chicken Quesadilla\",\"Lentil Quesadilla\",\"Brown Rice w\\/Lime & Cilantro\",\"Cheddar Cheese\",\"Guacamole\",\"Pickled Cabbage and Cucumber\",\"Pickled Red Onions\",\"Pinto Beans\",\"Salsa\",\"Shredded Lettuce\",\"Sour Cream\",\"Sweet Corn Salsa\",\"Tomatillo Salsa\",\"White Rice w\\/Lime & Cilantro\",\"Carnitas Rice Bowl\",\"Marinated Beef Rice Bowl\",\"Marinated Chicken Rice Bowl\",\"Marinated Lentil Rice Bowl\",\"Extra Tortilla Wrap\",\"Fountain Drink\",\"Hand Fruit\",\"Marinated Carne Asada\",\"Marinated Chicken\",\"Pork Carnitas\",\"Rice\",\"Spiced Lentils\",\"Tortilla Chips\",\"Tortilla Chips and Salsa\",\"White Queso Dip w\\/Jalapeno\"],\"Dinner\":[\"Beef Salad\",\"Carnitas Salad\",\"Chicken Salad\",\"Lentil Salad\",\"Beef Nachos\",\"Carnitas Nachos\",\"Chicken Nachos\",\"Lentil Nachos\",\"Loaded Nachos w\\/Beef\",\"Loaded Nachos w\\/Chicken\",\"Loaded Nachos w\\/Lentils\",\"Loaded Nachos w\\/Pork\",\"Beef Burrito\",\"Carnitas Pork Burrito\",\"Chicken Burrito\",\"Lentil Burrito\",\"Beef Quesadilla\",\"Carnitas Quesadilla\",\"Cheese Quesadilla\",\"Chicken Quesadilla\",\"Lentil Quesadilla\",\"Brown Rice w\\/Lime & Cilantro\",\"Cheddar Cheese\",\"Guacamole\",\"Pickled Cabbage and Cucumber\",\"Pickled Red Onions\",\"Pinto Beans\",\"Salsa\",\"Shredded Lettuce\",\"Sour Cream\",\"Sweet Corn Salsa\",\"Tomatillo Salsa\",\"White Rice w\\/Lime & Cilantro\",\"Carnitas Rice Bowl\",\"Marinated Beef Rice Bowl\",\"Marinated Chicken Rice Bowl\",\"Marinated Lentil Rice Bowl\",\"Extra Tortilla Wrap\",\"Fountain Drink\",\"Hand Fruit\",\"Marinated Carne Asada\",\"Marinated Chicken\",\"Pork Carnitas\",\"Rice\",\"Spiced Lentils\",\"Tortilla Chips\",\"Tortilla Chips and Salsa\",\"White Queso Dip w\\/Jalapeno\"]}"
+ },
+ {
+  "location_title": "Wasabi",
+  "short_name": "Wasabi",
+  "location_id": 4681,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "At Wasabi enjoy the freshest, most delicious sushi served in the northeast. Offering a variety of signature rolls, we only use sustainably harvested seafood. Also serving teppanyaki, donburi, miso soup, and plenty more off our grill.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Edamame\",\"Miso Soup w\\/Pulmuone Tofu\",\"Seaweed Salad\",\"Vegetable Tempura\",\"Add Fried Egg\",\"Jasmine Rice\",\"Sushi Rice w\\/Vinegar\",\"Alaskan Roll\",\"California Roll\",\"Paradise Roll\",\"Pink Panther Roll\",\"Rainbow Roll\",\"Red Dragon Roll\",\"Spicy Tuna Roll\",\"Sweet Potato Tempura Roll\",\"Tiger Roll\",\"Vegetable Sushi Roll\",\"Blue Wall Don\",\"Chicken Katsudon\",\"Chicken Teriyaki Don\",\"Plant Based Bulgogi Don\",\"Poke Bowl\",\"Pork Katsudon\",\"Spicy Salmon Bowl\",\"Spicy Tuna Bowl\",\"Add Fresh Avocado\",\"Add Ginger\",\"Add Pickled Cucumber\",\"Add Veggies\",\"Add Wasabi\",\"Fountain Drink\",\"Hand Fruit\",\"Spicy Marinated Tuna\",\"Spicy Salmon\",\"Tonkatsu Sauce\"]",
+  "menu_meal": "{\"Lunch\":[\"Edamame\",\"Miso Soup w\\/Pulmuone Tofu\",\"Seaweed Salad\",\"Vegetable Tempura\",\"Add Fried Egg\",\"Jasmine Rice\",\"Sushi Rice w\\/Vinegar\",\"Alaskan Roll\",\"California Roll\",\"Paradise Roll\",\"Pink Panther Roll\",\"Rainbow Roll\",\"Red Dragon Roll\",\"Spicy Tuna Roll\",\"Sweet Potato Tempura Roll\",\"Tiger Roll\",\"Vegetable Sushi Roll\",\"Blue Wall Don\",\"Chicken Katsudon\",\"Chicken Teriyaki Don\",\"Plant Based Bulgogi Don\",\"Poke Bowl\",\"Pork Katsudon\",\"Spicy Salmon Bowl\",\"Spicy Tuna Bowl\",\"Add Fresh Avocado\",\"Add Ginger\",\"Add Pickled Cucumber\",\"Add Veggies\",\"Add Wasabi\",\"Fountain Drink\",\"Hand Fruit\",\"Spicy Marinated Tuna\",\"Spicy Salmon\",\"Tonkatsu Sauce\"],\"Dinner\":[\"Edamame\",\"Miso Soup w\\/Pulmuone Tofu\",\"Seaweed Salad\",\"Vegetable Tempura\",\"Add Fried Egg\",\"Jasmine Rice\",\"Sushi Rice w\\/Vinegar\",\"Alaskan Roll\",\"California Roll\",\"Paradise Roll\",\"Pink Panther Roll\",\"Rainbow Roll\",\"Red Dragon Roll\",\"Spicy Tuna Roll\",\"Sweet Potato Tempura Roll\",\"Tiger Roll\",\"Vegetable Sushi Roll\",\"Blue Wall Don\",\"Chicken Katsudon\",\"Chicken Teriyaki Don\",\"Plant Based Bulgogi Don\",\"Poke Bowl\",\"Pork Katsudon\",\"Spicy Salmon Bowl\",\"Spicy Tuna Bowl\",\"Add Fresh Avocado\",\"Add Ginger\",\"Add Pickled Cucumber\",\"Add Veggies\",\"Add Wasabi\",\"Fountain Drink\",\"Hand Fruit\",\"Spicy Marinated Tuna\",\"Spicy Salmon\",\"Tonkatsu Sauce\"]}"
+ },
+ {
+  "location_title": "Deli Delish",
+  "short_name": "Deli Delish",
+  "location_id": 4686,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Choose between specialty grinders, rolls, and hot sandwiches offered daily. Made with fresh baked bread, fresh sustainable ingredients, house roasted turkey, and roast beef.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Blue Wall Club (Bacon)\",\"Buffalo Chicken Sandwich\",\"Caprese Sandwich\",\"Chicken Bacon Ranch Sandwich\",\"Chicken Pesto Sandwich\",\"The BLT\",\"Chicken Parmesan Grinder\",\"Bacon\",\"Extra Cheese\",\"Extra Meat\",\"Fountain Drink\",\"Guacamole\",\"Hand Fruit\",\"Potato Chips\"]",
+  "menu_meal": "{\"Lunch\":[\"Blue Wall Club (Bacon)\",\"Buffalo Chicken Sandwich\",\"Caprese Sandwich\",\"Chicken Bacon Ranch Sandwich\",\"Chicken Pesto Sandwich\",\"The BLT\",\"Chicken Parmesan Grinder\",\"Bacon\",\"Extra Cheese\",\"Extra Meat\",\"Fountain Drink\",\"Guacamole\",\"Hand Fruit\",\"Potato Chips\"],\"Dinner\":[\"Blue Wall Club (Bacon)\",\"Buffalo Chicken Sandwich\",\"Caprese Sandwich\",\"Chicken Bacon Ranch Sandwich\",\"Chicken Pesto Sandwich\",\"The BLT\",\"Bacon\",\"Extra Cheese\",\"Extra Meat\",\"Fountain Drink\",\"Guacamole\",\"Hand Fruit\",\"Potato Chips\"]}"
+ },
+ {
+  "location_title": "Star Ginger",
+  "short_name": "Star Ginger",
+  "location_id": 4691,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "At Star Ginger we offer authentic Vietnamese, Thai, and other Asian specialties. Choose between a delicious pho noodle bowl, or a rice bowl with one of the many protein options, veggies, and side salad. Also try an authentic Bibimbap Korean rice bowl.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Chicken Potsticker\",\"Vegetable Spring Rolls\",\"Orange Chicken Entree\",\"Thai BBQ Chicken Entree\",\"Brown Rice\",\"Jasmine Rice\",\"Green Beans w\\/Red Peppers\",\"Morning Glory w\\/Fermented Bean Curd\",\"Vietnamese Chicken Curry Entree\",\"Xiu Mai Tofu Entree\",\"Asian Mixed Greens\",\"Thai Beef Curry w\\/Winter Squash\",\"Beef Pho w\\/Chicken Broth\",\"Beef Pho w\\/Spicy Green Curry Broth\",\"Beef Pho w\\/Vegetable Broth\",\"Chicken Pho w\\/Chicken Broth\",\"Chicken Pho w\\/Spicy Green Curry Broth\",\"Chicken Pho w\\/Vegetable Broth\",\"Pulmuone Tofu Pho w\\/Chicken Broth\",\"Pulmuone Tofu Pho w\\/Spicy Green Curry Broth\",\"Pulmuone Tofu Pho w\\/Vegetable Broth\",\"Bangkok Beef\",\"Fountain Drink\",\"Orange Chicken\",\"Thai BBQ Chicken\",\"Vietnamese Chicken Curry\",\"Xiu Mai Tofu\"]",
+  "menu_meal": "{\"Lunch\":[\"Chicken Potsticker\",\"Vegetable Spring Rolls\",\"Orange Chicken Entree\",\"Thai BBQ Chicken Entree\",\"Brown Rice\",\"Jasmine Rice\",\"Green Beans w\\/Red Peppers\",\"Morning Glory w\\/Fermented Bean Curd\",\"Vietnamese Chicken Curry Entree\",\"Xiu Mai Tofu Entree\",\"Asian Mixed Greens\",\"Thai Beef Curry w\\/Winter Squash\",\"Beef Pho w\\/Chicken Broth\",\"Beef Pho w\\/Spicy Green Curry Broth\",\"Beef Pho w\\/Vegetable Broth\",\"Chicken Pho w\\/Chicken Broth\",\"Chicken Pho w\\/Spicy Green Curry Broth\",\"Chicken Pho w\\/Vegetable Broth\",\"Pulmuone Tofu Pho w\\/Chicken Broth\",\"Pulmuone Tofu Pho w\\/Spicy Green Curry Broth\",\"Pulmuone Tofu Pho w\\/Vegetable Broth\",\"Bangkok Beef\",\"Fountain Drink\",\"Orange Chicken\",\"Thai BBQ Chicken\",\"Vietnamese Chicken Curry\",\"Xiu Mai Tofu\"],\"Dinner\":[\"Chicken Potsticker\",\"Vegetable Spring Rolls\",\"Orange Chicken Entree\",\"Thai BBQ Chicken Entree\",\"Brown Rice\",\"Jasmine Rice\",\"Green Beans w\\/Red Peppers\",\"Morning Glory w\\/Fermented Bean Curd\",\"Vietnamese Chicken Curry Entree\",\"Xiu Mai Tofu Entree\",\"Asian Mixed Greens\",\"Thai Beef Curry w\\/Winter Squash\",\"Beef Pho w\\/Chicken Broth\",\"Beef Pho w\\/Spicy Green Curry Broth\",\"Beef Pho w\\/Vegetable Broth\",\"Chicken Pho w\\/Chicken Broth\",\"Chicken Pho w\\/Spicy Green Curry Broth\",\"Chicken Pho w\\/Vegetable Broth\",\"Pulmuone Tofu Pho w\\/Chicken Broth\",\"Pulmuone Tofu Pho w\\/Spicy Green Curry Broth\",\"Pulmuone Tofu Pho w\\/Vegetable Broth\",\"Bangkok Beef\",\"Fountain Drink\",\"Orange Chicken\",\"Thai BBQ Chicken\",\"Vietnamese Chicken Curry\",\"Xiu Mai Tofu\"]}"
+ },
+ {
+  "location_title": "The Grill",
+  "short_name": "The Grill",
+  "location_id": 4696,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Come enjoy a freshly prepared burger or grilled sandwich featuring Grass Fed Beef, or Plainville Farm All-Natural Turkey. Choose a style from our menu or build your own! Also serving chicken fingers and fries.",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 9,
+   "trend": "falling",
+   "usual_pct": 18,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 115,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"4B Burger\",\"Blue Wall Burger w\\/Onions Rings\",\"Breaded Chicken Burger\",\"Cheeseburger\",\"Chicken Tenders & Fries Basket\",\"Fried Chicken Tenders\",\"Gold'n Spicy Burger\",\"Hamburger\",\"Hatch Burger w\\/Garlic Aioli\",\"Impossible Burger (Bun Contains Milk)\",\"Chocolate Shake\",\"Strawberry Shake\",\"Vanilla Shake\",\"Add Caramelized Onions\",\"Add Fresh Avocado\",\"Add Fried Egg\",\"Add On Beef Patty\",\"Add On Impossible Patty\",\"Add Sauteed Mushrooms\",\"Bacon\",\"Breaded Chicken Breast\",\"Extra American Cheese\",\"Extra Cheddar\",\"Extra Pepper Jack\",\"Extra Swiss\",\"Fountain Drink\",\"French Fries\",\"Hand Fruit\",\"Onion Rings\",\"Plant Based Cheddar Cheese Slice\",\"Sweet Potato Fries\"]",
+  "menu_meal": "{\"Lunch\":[\"4B Burger\",\"Blue Wall Burger w\\/Onions Rings\",\"Breaded Chicken Burger\",\"Cheeseburger\",\"Chicken Tenders & Fries Basket\",\"Fried Chicken Tenders\",\"Gold'n Spicy Burger\",\"Hamburger\",\"Hatch Burger w\\/Garlic Aioli\",\"Impossible Burger (Bun Contains Milk)\",\"Chocolate Shake\",\"Strawberry Shake\",\"Vanilla Shake\",\"Add Caramelized Onions\",\"Add Fresh Avocado\",\"Add Fried Egg\",\"Add On Beef Patty\",\"Add On Impossible Patty\",\"Add Sauteed Mushrooms\",\"Bacon\",\"Breaded Chicken Breast\",\"Extra American Cheese\",\"Extra Cheddar\",\"Extra Pepper Jack\",\"Extra Swiss\",\"Fountain Drink\",\"French Fries\",\"Hand Fruit\",\"Onion Rings\",\"Plant Based Cheddar Cheese Slice\",\"Sweet Potato Fries\"],\"Dinner\":[\"4B Burger\",\"Blue Wall Burger w\\/Onions Rings\",\"Breaded Chicken Burger\",\"Cheeseburger\",\"Chicken Tenders & Fries Basket\",\"Fried Chicken Tenders\",\"Gold'n Spicy Burger\",\"Hamburger\",\"Hatch Burger w\\/Garlic Aioli\",\"Impossible Burger (Bun Contains Milk)\",\"Chocolate Shake\",\"Strawberry Shake\",\"Vanilla Shake\",\"Add Caramelized Onions\",\"Add Fresh Avocado\",\"Add Fried Egg\",\"Add On Beef Patty\",\"Add On Impossible Patty\",\"Add Sauteed Mushrooms\",\"Bacon\",\"Breaded Chicken Breast\",\"Extra American Cheese\",\"Extra Cheddar\",\"Extra Pepper Jack\",\"Extra Swiss\",\"Fountain Drink\",\"French Fries\",\"Hand Fruit\",\"Onion Rings\",\"Plant Based Cheddar Cheese Slice\",\"Sweet Potato Fries\"]}"
+ },
+ {
+  "location_title": "The Hub",
+  "short_name": "The Hub",
+  "location_id": 9150,
+  "opening_hours": "09:00 AM",
+  "closing_hours": "02:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the Furcolo building, The Hub proudly serves locally roasted Esselon coffee and espresso beverages, as well as freshly baked pastries, gourmet sandwiches, and salads.",
+  "address": "813 North Pleasant Street Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Argo Tea",
+  "short_name": "Argo Tea",
+  "location_id": 9605,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "05:00 PM",
+  "open_24": 0,
+  "short_description": "Located in Hampden Building, Argo Tea\u2019s menu includes signature drinks such as all natural tea, loose leaf tea, Caribou Coffee, and espresso beverages. Grab a bite to eat with fresh baked pasties, and paninis.",
+  "address": "Hampden Building 131 Southwest Circle Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Sample Menu items: Black tea Hot or Iced Green tea Hot or Iced Earl Gray tea Hot or Iced Freshly brewed coffee Hot or Iced Cappuccino Caffe Mocha Chai hot or iced Teappuccino hot or iced Mate Late Hot or Iced Matcha Vanilla Latte hot or iced Green Tea Ginger Twist hot or iced Bubble Tea Tea Sparkle Blueberry Muffin Macarons Croissants Paninis Raw Bars",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Newman Caf\u00e9",
+  "short_name": "Newman Caf\u00e9",
+  "location_id": 9980,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "02:00 PM",
+  "open_24": 0,
+  "short_description": "Located inside of the Newman Center, the Newman Caf\u00e9 offers a variety of breakfast and lunch options from local cage free scrambled eggs, coffee, burgers, mac n cheese, and more.",
+  "address": "111 Thatcher Road Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars",
+  "is_new": "0",
+  "breakfast_menu": "Egg Plates: 2 Eggs & Toast, Cheese Omelet, Veggie Omelet, Newman Special Omelet $5.00 Sandwiches/Burritos: Egg & Cheese on Toast, Egg & Cheese Toast, Breakfast Burrito, Newman Special Burrito Add-Ons: 2 Pancakes, Toast, Bagel with Cream Cheese , Bacon or Sausage, Homefries, Corned Beef Hash, Steel-Cut Oatmeal Drinks : Hot Coffee, Iced Coffee",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Snack Overflow",
+  "short_name": "Snack Overflow",
+  "location_id": 9981,
+  "opening_hours": "09:00 AM",
+  "closing_hours": "03:00 PM",
+  "open_24": 0,
+  "short_description": "Located in Manning College of Information & Computer Sciences, Snack Overflow offers a variety of options, from rich coffee, to specialty hot, and cold beverages.",
+  "address": "140 Governors Dr Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars",
+  "is_new": "0",
+  "breakfast_menu": "Hot Beverages Hot Coffee $1.95/$2.25/$2.50 Espresso $1.75 Cappuccino $3.25/$3.50/$4.25 Caf\u00e9 au Lait $2.50/$2.75/$3.00 Cocoa $2.75/$3.25/$3.75 Hot Tea $2.25 Flavored Drinks and Seasonal Specials Cool Beverages Iced Coffees and Lattes $2.75 to $4.75 Iced Tea $1.75/$2.25/$2.75 UMass House Baked Treats Muffins $0.75 Croissants $1.25 Cookies $1.50",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "UMass Store",
+  "short_name": "UMass Store",
+  "location_id": 9967,
+  "opening_hours": "09:00 AM",
+  "closing_hours": "06:00 PM",
+  "open_24": 0,
+  "short_description": "The UMass Store is the official retailer for all things UMass. Shop in person at our 2nd Floor Concourse location in the Campus Center or online at UMassStore.com",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": null,
+   "label": null,
+   "pct": null,
+   "trend": null,
+   "usual_pct": null,
+   "vs_usual": null,
+   "outlook": null,
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "none"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, UCard Debit, Apple Pay, All Major Cards, UMass Store Gift Cards, Bank Gift Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Post & Bean Caf\u00e9",
+  "short_name": "Post & Bean Caf\u00e9",
+  "location_id": 10293,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "03:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the John W. Olver Design Building, Post & Bean proudly serves coffee, and espresso beverages, as well as fresh baked pastries, gourmet sandwiches, snacks, salads, and more.",
+  "address": "551 N. Pleasant Street Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "Cold Beverages: Iced Coffee, Iced Tea, Iced Latte, Iced Mocha, Iced Americano Hot Beverages: Coffee, Organic Tea, Latte, Mocha, Americano, Cappuccino, Espresso, Hot Chocolate Add Ons: Dairy Alternative, Add an Espresso Shot, Add Flavor Shot Breakfast Breakfast Brioche: Egg, swiss, and tomato on a brioche roll Veggie Croissant: Egg, swiss, and tomato on a multigrain croissant Bacon Croissant: Egg, bacon, swiss, and tomato on multigrain croissant",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Charles River Campus of UMass Amherst",
+  "short_name": "Charles River Campus of UMass Amherst",
+  "location_id": 10372,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "11:30 PM",
+  "open_24": 0,
+  "short_description": "The Charles River Campus of UMass Amherst is located in Newton, MA. Students, staff and faculty in the area are encouraged to enjoy award-winning UMass Dining at the Main Dining Room, Campus Center. Visit our Meal Plan page for more information regarding our dining establishment and meal plan prices.",
+  "address": "100 Carlson Ave Newton, MA 02459",
+  "busy": {
+   "level": null,
+   "label": null,
+   "pct": null,
+   "trend": null,
+   "usual_pct": null,
+   "vs_usual": null,
+   "outlook": null,
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "none"
+  },
+  "business_level": 0,
+  "accepted_payment": "Meal Plan, Cash, Credit Card",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Black Bean Frijoles\",\"Chocolate Chip Pancakes\",\"Cream of Wheat Cereal\",\"Fried Plantain\",\"Hard Boiled Egg\",\"Omelet Bar\",\"Pork Sausage Links\",\"Skillet Hash Browns\",\"Mini Maple Pecan Danish\",\"Mocha Almond Muffin (Tree Nuts)\",\"Chana Masala Cauliflower Soup\",\"Homemade Clam Chowder w\\/Bacon\",\"Chicken w\\/Crunchy Apple Salsa\",\"Spanish Clams\",\"Brown Rice Pilaf\",\"Spanish Chickpeas w\\/Spinach\",\"Roasted Zucchini\",\"Rstd Butternut Squash w\\/Cider & Cranberries\",\"FANTINI Hamburger Bun\",\"French Fries\",\"Fried Chicken Tenders\",\"Grass Fed Beef Burger\",\"Grilled Cheese Sandwich\",\"Grilled Chicken Breast\",\"Impossible Patty\",\"Mozzarella Sticks\",\"Plant Based Chorizo & Jalapeno Quesadilla\",\"Sweet Potato Fries\",\"Make Your Own Stir Fry\",\"Pasta Pronto Bar\",\"Bacon Ranch Salad\",\"Broccoli\",\"CORTO Olive Oil\",\"Carrots\",\"Celery\",\"Cheese Cheddar Slice\",\"Cherry Tomatoes\",\"Chickpeas\",\"Country French Dressing\",\"Cucumbers\",\"Diced Pulmuone Tofu\",\"Fresh Green Peppers\",\"Fresh Red Peppers\",\"Fresh Yellow Peppers\",\"Homemade Hummus\",\"Honey Mustard\",\"KEN'S Italian Dressing\",\"KEN'S Low Calorie Italian Dressing\",\"KEN'S Rasp Vinaigrette Dressing\",\"KEN'S Thousand Island Dressing\",\"MARZETTI'S Ranch Dressing\",\"Mesclun Mix\",\"Sliced Eggs\",\"Spinach Leaves\",\"Tuna\",\"12\\\" Flour Tortilla\",\"American Cheese\",\"Chicken Salad\",\"Deli Beef\",\"Deli Salami\",\"Deli Turkey Breast\",\"FANTINI Bread Soft Rye\",\"FANTINI Sourdough Bread\",\"FANTINI White Bread\",\"FANTINI Whole Wheat Bread\",\"Fresh Red Onions\",\"Homemade Spicy Hummus\",\"Lettuce\",\"Multigrain Bread\",\"Pickles\",\"Provolone Cheese\",\"Swiss Cheese\",\"Tomatoes\",\"Wrap Spinach\",\"Oatmeal Raisin Cookie\",\"Raspberry Lemon Bread Pudding\",\"Chicken Katsu\",\"Japanese Curry Noodles\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"California Roll\",\"Vegetable Sushi Roll\",\"Baked Ziti w\\/Beef & Mozzarella\",\"Buffalo Meatless Tenders\",\"Savory Baked Chicken\",\"Cheddar Polenta\",\"Italian Summer Vegetables\",\"Spinach w\\/Mushrooms\",\"Chorizo Jalapeno Quesadilla\",\"Vegetable Spring Rolls\",\"Blackberry Crisp\",\"Caramel Brownies\"]",
+  "menu_meal": "{\"Breakfast\":[\"Black Bean Frijoles\",\"Chocolate Chip Pancakes\",\"Cream of Wheat Cereal\",\"Fried Plantain\",\"Hard Boiled Egg\",\"Omelet Bar\",\"Pork Sausage Links\",\"Skillet Hash Browns\",\"Mini Maple Pecan Danish\",\"Mocha Almond Muffin (Tree Nuts)\"],\"Lunch\":[\"Chana Masala Cauliflower Soup\",\"Homemade Clam Chowder w\\/Bacon\",\"Chicken w\\/Crunchy Apple Salsa\",\"Spanish Clams\",\"Brown Rice Pilaf\",\"Spanish Chickpeas w\\/Spinach\",\"Roasted Zucchini\",\"Rstd Butternut Squash w\\/Cider & Cranberries\",\"FANTINI Hamburger Bun\",\"French Fries\",\"Fried Chicken Tenders\",\"Grass Fed Beef Burger\",\"Grilled Cheese Sandwich\",\"Grilled Chicken Breast\",\"Impossible Patty\",\"Mozzarella Sticks\",\"Plant Based Chorizo & Jalapeno Quesadilla\",\"Sweet Potato Fries\",\"Make Your Own Stir Fry\",\"Pasta Pronto Bar\",\"Bacon Ranch Salad\",\"Broccoli\",\"CORTO Olive Oil\",\"Carrots\",\"Celery\",\"Cheese Cheddar Slice\",\"Cherry Tomatoes\",\"Chickpeas\",\"Country French Dressing\",\"Cucumbers\",\"Diced Pulmuone Tofu\",\"Fresh Green Peppers\",\"Fresh Red Peppers\",\"Fresh Yellow Peppers\",\"Homemade Hummus\",\"Honey Mustard\",\"KEN'S Italian Dressing\",\"KEN'S Low Calorie Italian Dressing\",\"KEN'S Rasp Vinaigrette Dressing\",\"KEN'S Thousand Island Dressing\",\"MARZETTI'S Ranch Dressing\",\"Mesclun Mix\",\"Sliced Eggs\",\"Spinach Leaves\",\"Tuna\",\"12\\\" Flour Tortilla\",\"American Cheese\",\"Chicken Salad\",\"Deli Beef\",\"Deli Salami\",\"Deli Turkey Breast\",\"FANTINI Bread Soft Rye\",\"FANTINI Sourdough Bread\",\"FANTINI White Bread\",\"FANTINI Whole Wheat Bread\",\"Fresh Red Onions\",\"Homemade Spicy Hummus\",\"Lettuce\",\"Multigrain Bread\",\"Pickles\",\"Provolone Cheese\",\"Swiss Cheese\",\"Tomatoes\",\"Wrap Spinach\",\"Oatmeal Raisin Cookie\",\"Raspberry Lemon Bread Pudding\",\"Chicken Katsu\",\"Japanese Curry Noodles\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"California Roll\",\"Vegetable Sushi Roll\"],\"Dinner\":[\"Chana Masala Cauliflower Soup\",\"Homemade Clam Chowder w\\/Bacon\",\"Baked Ziti w\\/Beef & Mozzarella\",\"Buffalo Meatless Tenders\",\"Savory Baked Chicken\",\"Cheddar Polenta\",\"Italian Summer Vegetables\",\"Spinach w\\/Mushrooms\",\"Chorizo Jalapeno Quesadilla\",\"FANTINI Hamburger Bun\",\"French Fries\",\"Fried Chicken Tenders\",\"Grass Fed Beef Burger\",\"Grilled Cheese Sandwich\",\"Grilled Chicken Breast\",\"Impossible Patty\",\"Mozzarella Sticks\",\"Plant Based Chorizo & Jalapeno Quesadilla\",\"Sweet Potato Fries\",\"Make Your Own Stir Fry\",\"Vegetable Spring Rolls\",\"Cheese Cheddar Slice\",\"12\\\" Flour Tortilla\",\"American Cheese\",\"Chicken Salad\",\"Deli Beef\",\"Deli Salami\",\"Deli Turkey Breast\",\"FANTINI Bread Soft Rye\",\"FANTINI Sourdough Bread\",\"FANTINI White Bread\",\"FANTINI Whole Wheat Bread\",\"Fresh Red Onions\",\"Homemade Spicy Hummus\",\"Lettuce\",\"Multigrain Bread\",\"Pickles\",\"Provolone Cheese\",\"Spinach Leaves\",\"Swiss Cheese\",\"Tomatoes\",\"Wrap Spinach\",\"Blackberry Crisp\",\"Caramel Brownies\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"California Roll\",\"Vegetable Sushi Roll\"]}"
+ },
+ {
+  "location_title": "Carney Caf\u00e9",
+  "short_name": "Carney Caf\u00e9",
+  "location_id": 10392,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "03:00 PM",
+  "open_24": 0,
+  "short_description": "Located in Isenberg, Carney Cafe offers a wide variety of food such as flatbread pizzas, assorted grilled cheese, baked goods, grab n go, and much more. Also enjoy Peet\u2019s Coffee and espresso beverages.",
+  "address": "121 Presidents Drive Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 0,
+  "accepted_payment": "YCMP, Dining Dollars, UCard Debit, Cash, Credit Card",
+  "is_new": "0",
+  "breakfast_menu": "Hot Beverages: Coffee, Tea, Latte, Chai Latte, Caramel Macchiato, Americano, Cappuccino, Espresso, Hot Chocolate Iced Beverages : Iced Coffee, Iced Tea, Iced Latte, Iced Chai Latte, Iced Caramel Macchiato, Iced Americano Add-Ons: Dairy Alternative, Add an Espresso Shot, Add a Flavor Smoothies: Choose base: yogurt or coconut milk ~ Mango Tango, Berry Banana, Green Monster Breakfast : Breakfast Brioche, Veggie Croissant, Bacon Croissant, Quiche Slice Bowls : Power Bowl, Spicy Tuna Bowl, Side Seaweed Salad Flatbread Pizzas: Margherita, Chicken Pesto, Grilled Cheese Classic, Mac N Broccoli, Buffalo Chicken Other : Mac N Cheese, Tomato Bisque",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Berkshire Grab \u2018N Go",
+  "short_name": "Berkshire Grab \u2018N Go",
+  "location_id": 10666,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "08:00 PM",
+  "open_24": 0,
+  "short_description": "Perfect for someone on the go looking for a quick trip to the dining commons! With a menu rotating daily, for 1 Meal swipe students can choose 1 entree and 4 sides. Side options range from hot sides, fruit, veggies, dessert, beverages, and more!",
+  "address": "121 Southwest Cir Amherst , MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 0,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Worcester Grab \u2018N Go",
+  "short_name": "Worcester Grab \u2018N Go",
+  "location_id": 10667,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "08:00 PM",
+  "open_24": 0,
+  "short_description": "Perfect for someone on the go looking for a quick trip to the dining commons! With a menu rotating daily, for 1 Meal swipe students can choose 1 entree and 4 sides. Side options range from hot sides, fruit, veggies, dessert, beverages, and more!",
+  "address": "669 North Pleasant Street Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 0,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Franklin Grab \u2018N Go",
+  "short_name": "Franklin Grab \u2018N Go",
+  "location_id": 10716,
+  "opening_hours": "10:00 AM",
+  "closing_hours": "04:00 PM",
+  "open_24": 0,
+  "short_description": "Perfect for someone on the go looking for a quick trip to the dining commons! With a menu rotating daily, for 1 Meal swipe students can choose 1 entree and 4 sides. Side options range from hot sides, fruit, veggies, dessert, beverages, and more!",
+  "address": "260 Stockbridge Rd Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 0,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Hampshire Grab \u2018N Go",
+  "short_name": "Hampshire Grab \u2018N Go",
+  "location_id": 10715,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "11:00 AM",
+  "open_24": 0,
+  "short_description": "Perfect for someone on the go looking for a quick trip to the dining commons! With a menu rotating daily, for 1 Meal swipe students can choose 1 entree and 4 sides. Side options range from hot sides, fruit, veggies, dessert, beverages, and more!",
+  "address": "141 Southwest Cir Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 0,
+   "trend": "steady",
+   "usual_pct": 0,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 0,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "The Commonwealth Restaurant",
+  "short_name": "The Commonwealth Restaurant",
+  "location_id": 10709,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "We proudly welcome you to The Commonwealth Restaurant. Located on the top floor of Worcester Commons, our elegantly modern restaurant offers a relaxed atmosphere featuring beautiful views of campus. Enjoy a delicious, fresh, local, and sustainable menu along with a full bar service, five days a week. Whether you\u2019re visiting campus, entertaining campus guests, or simply grabbing a bite to eat, dining with us is an experience worth repeating.Reservations and walk-ins welcome. Please contact thecommonwealth@umass.edu or call 413-545-0255 to best accommodate your reservation.",
+  "address": "Worcester Commons 667 N Pleasant St Amherst, MA 01003",
+  "busy": {
+   "level": null,
+   "label": null,
+   "pct": null,
+   "trend": null,
+   "usual_pct": null,
+   "vs_usual": null,
+   "outlook": null,
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "none"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard Debit",
+  "is_new": "0",
+  "breakfast_menu": "Click here for the Lunch Menu Click here for the Lite Fare Menu Click here for the Dinner Menu Click here for the Dessert Menu",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": null,
+  "menu_meal": null
+ },
+ {
+  "location_title": "Terrace",
+  "short_name": "Terrace",
+  "location_id": 11150,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "10:00 PM",
+  "open_24": 0,
+  "short_description": "Located in the Fieldstone Apartments, Terrace features a variety of breakfast tarts, club sandwiches, salads, Peet's espresso beverages, and more!",
+  "address": "345 Lincoln Ave Amherst, MA 01002",
+  "busy": {
+   "level": null,
+   "label": null,
+   "pct": null,
+   "trend": null,
+   "usual_pct": null,
+   "vs_usual": null,
+   "outlook": null,
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "none"
+  },
+  "business_level": 0,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP Swipe",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Bacon, Egg & Cheese on English Muffin\",\"Breakfast Croissant w\\/Bacon\",\"Egg & Cheese Croissant\",\"Sausage Biscuit w\\/ Egg\",\"Harissa Chicken\",\"House Chopped Salad\",\"Power Bowl Salad\",\"Croque Madame (Ham, Cheese & Egg)\",\"Croque Monsieur (Ham & Cheese w\\/Bechamel)\",\"French Grilled Cheese Sandwich\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Turkey Cheddar Sandwich w\\/Tomato Aioli\",\"Pastrami on Seeded Rye w\\/ Sauerkraut, Pickle Spear\",\"Terrace Cafe Burger\",\"Terrace Club Sandwich\",\"Tuna on White\",\"Tuscan Sandwich\",\"Fruit Cup\",\"Red Berry Compote Beignet\",\"Artichoke Pizza\",\"Arugula Salad\",\"Bacon\",\"Fried Egg\",\"Harissa Aioli\",\"Roasted Potato\",\"Shoe String Fries\"]",
+  "menu_meal": "{\"Breakfast\":[\"Bacon, Egg & Cheese on English Muffin\",\"Breakfast Croissant w\\/Bacon\",\"Egg & Cheese Croissant\",\"Sausage Biscuit w\\/ Egg\"],\"Lunch\":[\"Bacon, Egg & Cheese on English Muffin\",\"Breakfast Croissant w\\/Bacon\",\"Egg & Cheese Croissant\",\"Sausage Biscuit w\\/ Egg\"],\"Dinner\":[\"Harissa Chicken\",\"House Chopped Salad\",\"Power Bowl Salad\",\"Croque Madame (Ham, Cheese & Egg)\",\"Croque Monsieur (Ham & Cheese w\\/Bechamel)\",\"French Grilled Cheese Sandwich\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Turkey Cheddar Sandwich w\\/Tomato Aioli\",\"Pastrami on Seeded Rye w\\/ Sauerkraut, Pickle Spear\",\"Terrace Cafe Burger\",\"Terrace Club Sandwich\",\"Tuna on White\",\"Tuscan Sandwich\",\"Fruit Cup\",\"Red Berry Compote Beignet\",\"Artichoke Pizza\",\"Arugula Salad\",\"Bacon\",\"Fried Egg\",\"Harissa Aioli\",\"Roasted Potato\",\"Shoe String Fries\"]}"
+ },
+ {
+  "location_title": "Harvest Market",
+  "short_name": "Harvest Market",
+  "location_id": 4306,
+  "opening_hours": "08:00 AM",
+  "closing_hours": "09:00 PM",
+  "open_24": 0,
+  "short_description": "Located on the main concourse of the Campus Center, Harvest Market is a full-service market serving healthy, sustainable, and delicious options for on-the-go customers. Our hot bar features Indian, Asian, traditional American, and many other world cuisines. Don\u2019t miss out on the salad bar featuring freshly prepared salads using locally sourced in-season ingredients when available. Other highlights include Dannon yogurt bar, all natural organic snacks, local cheeses and deli meats, grab and go salads and sandwiches, and much more!",
+  "address": "1 Campus Center Way Amherst, MA 01003",
+  "busy": {
+   "level": 0,
+   "label": "Not busy",
+   "pct": 26,
+   "trend": "falling",
+   "usual_pct": 32,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 60,
+     "pct": null,
+     "level": null
+    },
+    {
+     "in": 90,
+     "pct": null,
+     "level": null
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "good"
+  },
+  "business_level": 130,
+  "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"12 oz Hot Oatmeal\",\"8 oz Hot Oatmeal\",\"Egg & Swiss Croissant Sandwich\",\"Sausage Breakfast Sandwich (English Muffin)\",\"BUSH's Baked Beans\",\"Broccoli & Cheddar Quiche\",\"Buttermilk Pancakes\",\"Florentine Benedict\",\"Ham & Cheese Quiche\",\"Hash Brown Cakes\",\"Pork Sausage Links\",\"Pure Maple Syrup\",\"Roasted Tomatoes\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Tomato, Bacon & Egg Muffin\",\"12 oz Chicken Wild Rice Soup\",\"12 oz Minestrone Soup\",\"8 oz Chicken Wild Rice Soup\",\"8 oz Minestrone Soup\",\"Cheese Pizza\",\"Cime di Rapa Pizza\",\"Pepperoni Pizza\",\"African Soul Rice Salad\",\"CABOT Plain Whole Milk Greek Yogurt\",\"Chicken Topping\",\"Cottage Cheese\",\"Deli Chicken Salad\",\"GF Honey Oat Granola\",\"Hard Boiled Eggs\",\"Local Honey\",\"Marinated Tofu\",\"Mixed Fresh Fruit\",\"Pineapple Chunks\",\"Raisins\",\"Sunflower Seeds\",\"Tortellini Salad\",\"Tuna Salad\",\"Buffalo Chicken Wrap\",\"Chicken Caesar Salad\",\"Chicken Caesar Wrap\",\"Chicken Pesto Mozzarella Sandwich\",\"Driscolls Berry Salad\",\"Fruit Cup\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Turkey Cheddar Sandwich w\\/Tomato Aioli\",\"Ham and Swiss w\\/ Honey Mustard\",\"Hummus & Vegetables on Whole Wheat\",\"PB&J Triple Stack Sandwich\",\"Triple Stack Turkey Sandwich\",\"Cumin Basmati Rice\",\"Dal Tadka\",\"Lamb Vindaloo\",\"Mini Vegetable Curry Samosa\",\"Naan\",\"Chicken Piccata\",\"Coriander Maple Glazed Carrots\",\"Egg Noodle Pasta\",\"Lemon Pepper Roasted Potatoes\",\"Portabella Mushroom Stroganoff\",\"Swedish Meatballs\",\"Yellow Cheddar Macaroni & Cheese (8 oz)\",\"Zucchini, Corn & Peppers\",\"Baby Spinach\",\"Blue Cheese Crumbles\",\"Blue Cheese Dressing\",\"Broccoli Flowerettes\",\"Carrots\",\"Cherry Tomatoes\",\"Chipotle Ranch Dressing\",\"Creamy Caesar Dressing\",\"Cucumbers\",\"Edamame\",\"Feta Cheese\",\"LITTLE LEAF Spring Mix\",\"Local Red Onions\",\"Mixed Peppers\",\"Parmesan Cheese\",\"Ranch Dressing\",\"Romaine Lettuce\",\"Sliced Mushrooms\",\"Watercress\",\"White Balsamic Dressing\",\"Jasmine Rice\",\"Korean Black Bean Noodles (Pulmuone Pork, Beef)\",\"Korean Stir Fried Rice Cakes\",\"Pulmuone Tofu w\\/Java Curry\",\"Sesame Ginger Baby Bok Choy\",\"Spicy Angel Wings\"]",
+  "menu_meal": "{\"Breakfast\":[\"12 oz Hot Oatmeal\",\"8 oz Hot Oatmeal\",\"Egg & Swiss Croissant Sandwich\",\"Sausage Breakfast Sandwich (English Muffin)\",\"BUSH's Baked Beans\",\"Broccoli & Cheddar Quiche\",\"Buttermilk Pancakes\",\"Florentine Benedict\",\"Ham & Cheese Quiche\",\"Hash Brown Cakes\",\"Pork Sausage Links\",\"Pure Maple Syrup\",\"Roasted Tomatoes\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Tomato, Bacon & Egg Muffin\"],\"Lunch\":[\"12 oz Chicken Wild Rice Soup\",\"12 oz Minestrone Soup\",\"8 oz Chicken Wild Rice Soup\",\"8 oz Minestrone Soup\",\"Cheese Pizza\",\"Cime di Rapa Pizza\",\"Pepperoni Pizza\",\"African Soul Rice Salad\",\"CABOT Plain Whole Milk Greek Yogurt\",\"Chicken Topping\",\"Cottage Cheese\",\"Deli Chicken Salad\",\"GF Honey Oat Granola\",\"Hard Boiled Eggs\",\"Local Honey\",\"Marinated Tofu\",\"Mixed Fresh Fruit\",\"Pineapple Chunks\",\"Raisins\",\"Sunflower Seeds\",\"Tortellini Salad\",\"Tuna Salad\",\"Cumin Basmati Rice\",\"Dal Tadka\",\"Lamb Vindaloo\",\"Mini Vegetable Curry Samosa\",\"Naan\",\"Chicken Piccata\",\"Coriander Maple Glazed Carrots\",\"Egg Noodle Pasta\",\"Lemon Pepper Roasted Potatoes\",\"Portabella Mushroom Stroganoff\",\"Swedish Meatballs\",\"Yellow Cheddar Macaroni & Cheese (8 oz)\",\"Zucchini, Corn & Peppers\",\"Baby Spinach\",\"Blue Cheese Crumbles\",\"Blue Cheese Dressing\",\"Broccoli Flowerettes\",\"Carrots\",\"Cherry Tomatoes\",\"Chipotle Ranch Dressing\",\"Creamy Caesar Dressing\",\"Cucumbers\",\"Edamame\",\"Feta Cheese\",\"LITTLE LEAF Spring Mix\",\"Local Red Onions\",\"Mixed Peppers\",\"Parmesan Cheese\",\"Ranch Dressing\",\"Romaine Lettuce\",\"Sliced Mushrooms\",\"Watercress\",\"White Balsamic Dressing\",\"Jasmine Rice\",\"Korean Black Bean Noodles (Pulmuone Pork, Beef)\",\"Korean Stir Fried Rice Cakes\",\"Pulmuone Tofu w\\/Java Curry\",\"Sesame Ginger Baby Bok Choy\",\"Spicy Angel Wings\"],\"Grab N'Go\":[\"Buffalo Chicken Wrap\",\"Chicken Caesar Salad\",\"Chicken Caesar Wrap\",\"Chicken Pesto Mozzarella Sandwich\",\"Driscolls Berry Salad\",\"Fruit Cup\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"GF Turkey Cheddar Sandwich w\\/Tomato Aioli\",\"Ham and Swiss w\\/ Honey Mustard\",\"Hummus & Vegetables on Whole Wheat\",\"PB&J Triple Stack Sandwich\",\"Triple Stack Turkey Sandwich\"],\"Dinner\":[\"12 oz Chicken Wild Rice Soup\",\"12 oz Minestrone Soup\",\"8 oz Chicken Wild Rice Soup\",\"8 oz Minestrone Soup\",\"Cheese Pizza\",\"Cime di Rapa Pizza\",\"Pepperoni Pizza\",\"African Soul Rice Salad\",\"CABOT Plain Whole Milk Greek Yogurt\",\"Chicken Topping\",\"Cottage Cheese\",\"Deli Chicken Salad\",\"GF Honey Oat Granola\",\"Hard Boiled Eggs\",\"Local Honey\",\"Marinated Tofu\",\"Mixed Fresh Fruit\",\"Pineapple Chunks\",\"Raisins\",\"Sunflower Seeds\",\"Tortellini Salad\",\"Tuna Salad\",\"Cumin Basmati Rice\",\"Dal Tadka\",\"Lamb Vindaloo\",\"Mini Vegetable Curry Samosa\",\"Naan\",\"Chicken Piccata\",\"Coriander Maple Glazed Carrots\",\"Egg Noodle Pasta\",\"Lemon Pepper Roasted Potatoes\",\"Portabella Mushroom Stroganoff\",\"Swedish Meatballs\",\"Yellow Cheddar Macaroni & Cheese (8 oz)\",\"Zucchini, Corn & Peppers\",\"Baby Spinach\",\"Blue Cheese Crumbles\",\"Blue Cheese Dressing\",\"Broccoli Flowerettes\",\"Carrots\",\"Cherry Tomatoes\",\"Chipotle Ranch Dressing\",\"Creamy Caesar Dressing\",\"Cucumbers\",\"Edamame\",\"Feta Cheese\",\"LITTLE LEAF Spring Mix\",\"Local Red Onions\",\"Mixed Peppers\",\"Parmesan Cheese\",\"Ranch Dressing\",\"Romaine Lettuce\",\"Sliced Mushrooms\",\"Watercress\",\"White Balsamic Dressing\",\"Jasmine Rice\",\"Korean Black Bean Noodles (Pulmuone Pork, Beef)\",\"Korean Stir Fried Rice Cakes\",\"Pulmuone Tofu w\\/Java Curry\",\"Sesame Ginger Baby Bok Choy\",\"Spicy Angel Wings\"]}"
+ },
+ {
+  "location_title": "Berkshire Dining Commons",
+  "short_name": "Berkshire Dining Commons",
+  "location_id": 4,
+  "opening_hours": "11:00 AM",
+  "closing_hours": "11:59 PM",
+  "open_24": 0,
+  "short_description": "Located in the Southwest Residential Area, this award winning dining common features many display cooking areas with freshness in mind. Come enjoy hand rolled sushi, stir fry station, authentic international cuisine, fresh salad bar, customizable deli bar, pizza, and so much more!",
+  "address": "121 Southwest Cir Amherst, MA 01003",
+  "busy": {
+   "level": 2,
+   "label": "Busy",
+   "pct": 89,
+   "trend": "steady",
+   "usual_pct": 72,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": 75,
+     "level": 1
+    },
+    {
+     "in": 60,
+     "pct": 75,
+     "level": 1
+    },
+    {
+     "in": 90,
+     "pct": 79,
+     "level": 1
+    }
+   ],
+   "calmer_at": null,
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 655,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": null,
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Breakfast Burrito\",\"Corned Beef Hash\",\"GF Bacon Breakfast Bagel Sandwich\",\"GF Breakfast Bagel Sandwich\",\"Hot Oatmeal\",\"Mini Apple Danish\",\"Mocha Scuffin\",\"O'Brien Potatoes\",\"Sausage Breakfast Burrito\",\"Scrambled Eggs\",\"Strawberry Yogurt Parfait\",\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"French Onion Braised Chicken\",\"Hot Sausage, Onions & Peppers\",\"Herb Buttered Red Potatoes\",\"Margherita Eggplant w\\/Pesto\",\"Sauteed Kale\",\"Steamed Broccoli\",\"Black Bean Burger\",\"Grilled Chicken Breast\",\"Grilled Chicken Thighs\",\"Halal French Fries\",\"Halal SPARE Beef Burger\",\"Hand Cut Sweet Potato Fries\",\"Green Curry Thai Pulmuone Tofu\",\"Honey Lemongrass Chicken\",\"Pad Thai w\\/Peanuts\",\"Stir Fry Green Vegetables\",\"Vegetable Fried Rice\",\"Vegetable Spring Rolls\",\"Cheese Rigatoni w\\/Plant Based Nasoya Bolognese Sauce\",\"Linguini Pasta\",\"Marinara Sauce\",\"Penne Pasta\",\"Plant Based Bolognese Sauce\",\"American Cheese\",\"Chicken Salad\",\"Deli Beef\",\"Homemade Mid Eastern Hummus\",\"Provolone Cheese\",\"Tuna Salad\",\"Turkey Breast\",\"Lemon Cooler Cookies\",\"Zebra Brownies\",\"Beef Brisket Noodle Bowl\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Grilled Kielbasa\",\"Potato & Cheese Pierogi\",\"Sauerkraut Topping\",\"Sour Cream\",\"Sweet & Sour Braised Red Cabbage\",\"Chewy M&M Bar\",\"French Fries\",\"Mashed Potatoes\",\"Penne w\\/Basil Pesto Cream & Sun Dried Tomatoes\",\"Philly Cheese Steak Grinder\",\"Roast Turkey\",\"Roasted Butternut Squash\",\"Triple Choc Chip Cookies\",\"Turkey Gravy\",\"Buffalo Chicken Wrap\",\"Chicken Caesar Salad\",\"Fruit Salad\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"Gluten Free Turkey Sandwich\",\"Tossed Salad\",\"Tuna on White\",\"Baked Italian Sausage w\\/Potatoes & Onions\",\"Creamy Tuscan Chicken\",\"Garlic Bread Knots\",\"Lasagna Rollete w\\/ Rsted Tomatoes & Basil Pesto\",\"Rigatoni w\\/Broccolini & Ricotta\",\"Basil Parmesan Roasted Tomatoes\",\"Beans & Greens (Fish)\",\"Egg & Tomato Stir Fry\",\"Korean BBQ Chicken\",\"Korean Fried Rice w\\/Nasyoa Kimchi\",\"Pulmuone Tofu w\\/Ssamjang Sauce\",\"Tomato Cream Basil Sauce\",\"Tortellini w\\/Basil Pesto & Grape Tomatoes\",\"Alfalfa Sprouts\",\"Banana Peppers\",\"Cannellini Bean Salad w\\/Red Onion & Olives\",\"Carrots Sticks\",\"Celery Sticks\",\"Cheese Feta\",\"Chickpeas\",\"Chopped Walnuts\",\"Craisins\",\"Cucumbers\",\"Grape Tomatoes\",\"Green Olives\",\"Green Peppers\",\"Kale & Carrot Salad w\\/ Pepitas & Tahini\",\"Marinated Olives, Tomatoes & Artichokes\",\"Olive Tapenade\",\"Onions\",\"Parmesan Cheese\",\"Pita Chips\",\"Pulmuone Tofu\",\"Radishes\",\"Romaine Lettuce\",\"Sliced Eggs\",\"Sliced Mushrooms\",\"Spinach Leaves\",\"Sunflower Seeds\",\"Tuna\",\"Blueberry Buckle\",\"Local Whole Wheat Bread\",\"Hawaiian Roll\",\"Chicken Pho Broth (Fish)\",\"Chicken for Pho\",\"Green Curry Pho Broth (Anchovies)\",\"Pho Noodles\",\"Pho Toppings\",\"Vegetarian Pho Base\",\"California Roll\",\"Shrimp Sushi Roll\",\"Teriyaki Chicken Roll\",\"Vegetable Sushi Roll\",\"Ancho Lime Pulled Chicken\",\"Corn Tostada\",\"Pickled Red Onions\",\"Plant Based Chorizo Crumbles\",\"Queso Fresco\",\"Refried Black Beans\",\"Salsa Verde con Aguacate\",\"Yellow Rice\",\"Cajun Spiced Chicken\",\"Bacon Cheddar Baked Eggs\",\"Butterfinger Pancakes (Peanuts)\",\"Canadian Bacon\",\"Red Potato Home Fries\",\"BBQ Chicken Wings\",\"BBQ Pork Ribs\",\"Brazilian Collard Greens w\\/Bacon\",\"Buffalo Chicken Wings\",\"Cornbread Loaf\",\"Fried Plantain\",\"STOUFFER'S Alfredo Sauce\",\"Shrimp Fried Rice\",\"Southern Macaroni & Cheese\",\"Vegetable Pizza\",\"Pearl Sugar Waffle Sundae\"]",
+  "menu_meal": "{\"Grab N'Go\":[\"Breakfast Burrito\",\"Corned Beef Hash\",\"GF Bacon Breakfast Bagel Sandwich\",\"GF Breakfast Bagel Sandwich\",\"Hot Oatmeal\",\"Mini Apple Danish\",\"Mocha Scuffin\",\"O'Brien Potatoes\",\"Sausage Breakfast Burrito\",\"Scrambled Eggs\",\"Strawberry Yogurt Parfait\",\"Chewy M&M Bar\",\"French Fries\",\"Mashed Potatoes\",\"Penne w\\/Basil Pesto Cream & Sun Dried Tomatoes\",\"Philly Cheese Steak Grinder\",\"Roast Turkey\",\"Roasted Butternut Squash\",\"Triple Choc Chip Cookies\",\"Turkey Gravy\",\"Buffalo Chicken Wrap\",\"Chicken Caesar Salad\",\"Fruit Salad\",\"GF Peanut Butter & Strawberry Jam Sandwich\",\"Gluten Free Turkey Sandwich\",\"Tossed Salad\",\"Tuna on White\"],\"Lunch\":[\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"French Onion Braised Chicken\",\"Hot Sausage, Onions & Peppers\",\"Herb Buttered Red Potatoes\",\"Margherita Eggplant w\\/Pesto\",\"Sauteed Kale\",\"Steamed Broccoli\",\"Black Bean Burger\",\"Grilled Chicken Breast\",\"Grilled Chicken Thighs\",\"Halal French Fries\",\"Halal SPARE Beef Burger\",\"Hand Cut Sweet Potato Fries\",\"Green Curry Thai Pulmuone Tofu\",\"Honey Lemongrass Chicken\",\"Pad Thai w\\/Peanuts\",\"Stir Fry Green Vegetables\",\"Vegetable Fried Rice\",\"Vegetable Spring Rolls\",\"Cheese Rigatoni w\\/Plant Based Nasoya Bolognese Sauce\",\"Linguini Pasta\",\"Marinara Sauce\",\"Penne Pasta\",\"Plant Based Bolognese Sauce\",\"American Cheese\",\"Chicken Salad\",\"Deli Beef\",\"Homemade Mid Eastern Hummus\",\"Provolone Cheese\",\"Tuna Salad\",\"Turkey Breast\",\"Lemon Cooler Cookies\",\"Zebra Brownies\",\"Beef Brisket Noodle Bowl\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Grilled Kielbasa\",\"Potato & Cheese Pierogi\",\"Sauerkraut Topping\",\"Sour Cream\",\"Sweet & Sour Braised Red Cabbage\"],\"Dinner\":[\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Baked Italian Sausage w\\/Potatoes & Onions\",\"Creamy Tuscan Chicken\",\"Garlic Bread Knots\",\"Lasagna Rollete w\\/ Rsted Tomatoes & Basil Pesto\",\"Rigatoni w\\/Broccolini & Ricotta\",\"Basil Parmesan Roasted Tomatoes\",\"Beans & Greens (Fish)\",\"Black Bean Burger\",\"Grilled Chicken Breast\",\"Grilled Chicken Thighs\",\"Halal French Fries\",\"Halal SPARE Beef Burger\",\"Hand Cut Sweet Potato Fries\",\"Egg & Tomato Stir Fry\",\"Korean BBQ Chicken\",\"Korean Fried Rice w\\/Nasyoa Kimchi\",\"Pulmuone Tofu w\\/Ssamjang Sauce\",\"Stir Fry Green Vegetables\",\"Vegetable Spring Rolls\",\"Linguini Pasta\",\"Marinara Sauce\",\"Penne Pasta\",\"Tomato Cream Basil Sauce\",\"Tortellini w\\/Basil Pesto & Grape Tomatoes\",\"Alfalfa Sprouts\",\"Banana Peppers\",\"Cannellini Bean Salad w\\/Red Onion & Olives\",\"Carrots Sticks\",\"Celery Sticks\",\"Cheese Feta\",\"Chickpeas\",\"Chopped Walnuts\",\"Craisins\",\"Cucumbers\",\"Grape Tomatoes\",\"Green Olives\",\"Green Peppers\",\"Homemade Mid Eastern Hummus\",\"Kale & Carrot Salad w\\/ Pepitas & Tahini\",\"Marinated Olives, Tomatoes & Artichokes\",\"Olive Tapenade\",\"Onions\",\"Parmesan Cheese\",\"Pita Chips\",\"Pulmuone Tofu\",\"Radishes\",\"Romaine Lettuce\",\"Sliced Eggs\",\"Sliced Mushrooms\",\"Spinach Leaves\",\"Sunflower Seeds\",\"Tuna\",\"Blueberry Buckle\",\"Local Whole Wheat Bread\",\"Hawaiian Roll\",\"Chicken Pho Broth (Fish)\",\"Chicken for Pho\",\"Green Curry Pho Broth (Anchovies)\",\"Pho Noodles\",\"Pho Toppings\",\"Vegetarian Pho Base\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"California Roll\",\"Shrimp Sushi Roll\",\"Teriyaki Chicken Roll\",\"Vegetable Sushi Roll\",\"Ancho Lime Pulled Chicken\",\"Corn Tostada\",\"Pickled Red Onions\",\"Plant Based Chorizo Crumbles\",\"Queso Fresco\",\"Refried Black Beans\",\"Salsa Verde con Aguacate\",\"Sour Cream\",\"Yellow Rice\"],\"Late Night\":[\"Cajun Spiced Chicken\",\"Bacon Cheddar Baked Eggs\",\"Butterfinger Pancakes (Peanuts)\",\"Canadian Bacon\",\"Red Potato Home Fries\",\"BBQ Chicken Wings\",\"BBQ Pork Ribs\",\"Brazilian Collard Greens w\\/Bacon\",\"Buffalo Chicken Wings\",\"Cornbread Loaf\",\"Fried Plantain\",\"STOUFFER'S Alfredo Sauce\",\"Shrimp Fried Rice\",\"Southern Macaroni & Cheese\",\"Cheese Pizza\",\"Pepperoni Pizza\",\"Vegetable Pizza\",\"Pearl Sugar Waffle Sundae\"]}"
+ },
+ {
+  "location_title": "Worcester Commons",
+  "short_name": "Worcester Commons",
+  "location_id": 1,
+  "opening_hours": "07:00 AM",
+  "closing_hours": "11:59 PM",
+  "open_24": 0,
+  "short_description": "Located in the Northeast Residential Area, Worcester Dining Commons is the newest and one of the most popular dining facilities on campus. Worcester offers a variety of options including Mediterranean, authentic street food, tandoor Indian kitchen, hand rolled sushi, noodle bowls, pizza, and much more!",
+  "address": "667 N Pleasant St Amherst, MA 01003",
+  "busy": {
+   "level": 2,
+   "label": "Busy",
+   "pct": 84,
+   "trend": "steady",
+   "usual_pct": 86,
+   "vs_usual": "usual",
+   "outlook": [
+    {
+     "in": 30,
+     "pct": 76,
+     "level": 1
+    },
+    {
+     "in": 60,
+     "pct": 66,
+     "level": 1
+    },
+    {
+     "in": 90,
+     "pct": 58,
+     "level": 1
+    }
+   ],
+   "calmer_at": "21:30",
+   "updated": 1791508202,
+   "confidence": "new"
+  },
+  "business_level": 672,
+  "accepted_payment": "Meal Plans, Dining Dollars, UCard Debit, Cash, Credit Cards",
+  "is_new": "0",
+  "breakfast_menu": "",
+  "lunch_menu": "",
+  "dinner_menu": "",
+  "menu": "[\"Apple Cinnamon Pancakes\",\"BUSH's Baked Beans\",\"Chinese Twist Cruller\",\"Hard Boiled Egg\",\"Make Your Own Waffles\",\"Pork Sausage Links\",\"Red Potato Home Fries\",\"Roasted Tomatoes w\\/Feta & Spinach\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Southwest Tofu Scramble\",\"Gingerbread Bundt\",\"Mini Apple Danish\",\"American Cheese\",\"Diced Tomatoes\",\"Fresh Green Peppers\",\"Omelet Bar\",\"Onions\",\"Shredded Cheddar Cheese\",\"Sliced Mushrooms\",\"Chicken Congee\",\"Hot Oatmeal\",\"Chocolate Soft Serve Ice Cream\",\"Plant Based Vanilla Ice Cream\",\"Strawberry Plant Based Soft Serve\",\"Vanilla Soft Serve Ice Cream\",\"\",\"1% Milk\",\"Corned Beef Hash\",\"Lowfat Chocolate Milk\",\"O'Brien Potatoes\",\"Orange Juice\",\"Cauliflower & Potato Curry\",\"Coriander Chutney\",\"DANNON Nonfat Plain Yogurt\",\"Hot Mango Pickle\",\"Masala Chai\",\"Mixed Vegetable Paratha\",\"Black Beans\",\"Fried Plantain\",\"Huevos Rancheros\",\"Local Roasted Sweet Potatoes\",\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Black Bean Burger\",\"Golden BBQ Chicken Thigh\",\"Halal Burger Patty\",\"Halal French Fries\",\"Hand Cut Sweet Potato Fries\",\"Oatmeal Raisin Cookie\",\"Roasted Zucchini\",\"Zebra Brownies\",\"Bean Sprouts\",\"Beef Brisket Noodle Bowl\",\"Chopped Cilantro\",\"Scallions\",\"Steamed Bok Choy\",\"Braised Pulmuone Tofu\",\"Mee Goreng\",\"Stir Fry Green Vegetables\",\"Vegetable Spring Rolls\",\"Yellow Curry Kabocha Squash w\\/Pork Belly (Fish)\",\"Baked Salmon w\\/Paprika Ginger Eggplant Sauce\",\"Chickpea Salad w\\/Teardrop Peppers & Artichoke Hearts\",\"Creamy Cucumber Salad\",\"Cumin Basmati Rice\",\"Kachumbari Salad\",\"Okra & Onions\",\"Tear Drop Peppers\",\"Beef Nachos\",\"Chewy M&M Bar\",\"Chunky Salsa\",\"General Tso Chicken\",\"General Tso Pulmuone Tofu\",\"Guacamole\",\"Jasmine Rice\",\"Plant Based Chorizo Nachos\",\"Queso Sauce\",\"Sliced Jalapeno\",\"Sour Cream\",\"Triple Choc Chip Cookies\",\"Baked Italian Sausage w\\/Potatoes & Onions\",\"Basil Cream Pesto Sauce\",\"Fettuccini Pasta\",\"Fresh Grated Parmesan Cheese\",\"Herb Roasted Tomatoes\",\"Marinara Sauce\",\"Rigatoni Pasta\",\"Rigatoni w\\/Broccolini & Ricotta\",\"Baked Pakora\",\"Cucumber & Yogurt Raita Jain\",\"Family Pulav (Vegetable Rice) Jain\",\"Fresh Red Onions\",\"GF Penne Pasta\",\"Kidney Bean Curry Rasoi\",\"Marinara Jain\",\"Paneer Jalfrezi (Cheese)\",\"Sauteed Cabbage w\\/Coconut\",\"Tamarind Date Chutney\",\"Arroz Blanco\",\"Carrots & Chayote w\\/Lemon\",\"Esquites (Mexican Corn Salad)\",\"Homemade Guacamole\",\"Pork Adobada (Chicken)\",\"Queso Fresco\",\"Sibley's Pico de Gallo\",\"Kumamoto Style Ramen Broth (Pork, Chicken & Seafood)\",\"Roasted Butternut Squash\",\"Steamed Broccoli\",\"Blueberry Buckle\",\"Chocolate Malva Pudding\",\"Local Whole Wheat Bread\",\"Baby Bok Choy\",\"Chashu Pork Topping\",\"Kumamoto Style Ramen (Pork & Chicken)\",\"Mayu (Black Garlic Oil)\",\"California Roll\",\"Purple Sweet Potato Tempura Sushi Roll\",\"Spicy Tuna Roll\",\"Teriyaki Pulmuone Tofu Roll\",\"Vegetable Sushi Roll\",\"Kimchi Fried Rice\",\"Korean BBQ Pulmuone Tofu\",\"Korean Gochujang BBQ Ribs\",\"Babaganoush\",\"Chicken Shawarma\",\"Citrus Yogurt w\\/Sumac\",\"Lavash Bread\",\"Roasted Onions & Peppers\",\"Sweet Onion Salad\",\"Tahini Sauce\",\"Turmeric Basmati Rice\",\"Garlic Parmesan Chicken Leg\",\"Tortellini w\\/Creamy Tuscan Tomato Sauce\",\"Carrots\",\"Corn\",\"Diced Avocado\",\"Eggplant Donburi Jain\",\"Gluten Free Unagi Sauce\",\"Japanese Pickled Cucumbers\",\"Nori\",\"Pickled Ginger\",\"Plain Sushi Rice\",\"Sauteed Spinach w\\/Sesame Seeds\",\"Toasted Yellow Sesame Seeds\",\"Corn w\\/Red Peppers\",\"Mole Amarillo Chicken\",\"Pinto Beans\",\"Cajun Chicken Thigh\",\"Bacon Jalapeno Quesadilla\",\"Plant Based Chorizo & Jalapeno Quesadilla\",\"Shredded Lettuce\",\"Yellow Rice\"]",
+  "menu_meal": "{\"Breakfast\":[\"Apple Cinnamon Pancakes\",\"BUSH's Baked Beans\",\"Chinese Twist Cruller\",\"Hard Boiled Egg\",\"Make Your Own Waffles\",\"Pork Sausage Links\",\"Red Potato Home Fries\",\"Roasted Tomatoes w\\/Feta & Spinach\",\"Sauteed Mushrooms\",\"Scrambled Eggs\",\"Southwest Tofu Scramble\",\"Gingerbread Bundt\",\"Mini Apple Danish\",\"American Cheese\",\"Diced Tomatoes\",\"Fresh Green Peppers\",\"Omelet Bar\",\"Onions\",\"Shredded Cheddar Cheese\",\"Sliced Mushrooms\",\"Chicken Congee\",\"Hot Oatmeal\",\"Chocolate Soft Serve Ice Cream\",\"Plant Based Vanilla Ice Cream\",\"Strawberry Plant Based Soft Serve\",\"Vanilla Soft Serve Ice Cream\",\"Cauliflower & Potato Curry\",\"Coriander Chutney\",\"DANNON Nonfat Plain Yogurt\",\"Hot Mango Pickle\",\"Masala Chai\",\"Mixed Vegetable Paratha\",\"Black Beans\",\"Fried Plantain\",\"Huevos Rancheros\"],\"Grab N'Go\":[\"\",\"1% Milk\",\"Chicken Congee\",\"Corned Beef Hash\",\"Hard Boiled Egg\",\"Hot Oatmeal\",\"Lowfat Chocolate Milk\",\"Mini Apple Danish\",\"O'Brien Potatoes\",\"Orange Juice\",\"Scrambled Eggs\",\"Beef Nachos\",\"Chewy M&M Bar\",\"Chunky Salsa\",\"General Tso Chicken\",\"General Tso Pulmuone Tofu\",\"Guacamole\",\"Jasmine Rice\",\"Plant Based Chorizo Nachos\",\"Queso Sauce\",\"Sliced Jalapeno\",\"Sour Cream\",\"Triple Choc Chip Cookies\"],\"Lunch\":[\"Local Roasted Sweet Potatoes\",\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Black Bean Burger\",\"Golden BBQ Chicken Thigh\",\"Halal Burger Patty\",\"Halal French Fries\",\"Hand Cut Sweet Potato Fries\",\"Oatmeal Raisin Cookie\",\"Roasted Zucchini\",\"Chocolate Soft Serve Ice Cream\",\"Plant Based Vanilla Ice Cream\",\"Strawberry Plant Based Soft Serve\",\"Vanilla Soft Serve Ice Cream\",\"Zebra Brownies\",\"Bean Sprouts\",\"Beef Brisket Noodle Bowl\",\"Chopped Cilantro\",\"Hard Boiled Egg\",\"Scallions\",\"Steamed Bok Choy\",\"Braised Pulmuone Tofu\",\"Mee Goreng\",\"Stir Fry Green Vegetables\",\"Vegetable Spring Rolls\",\"Yellow Curry Kabocha Squash w\\/Pork Belly (Fish)\",\"Baked Salmon w\\/Paprika Ginger Eggplant Sauce\",\"Chickpea Salad w\\/Teardrop Peppers & Artichoke Hearts\",\"Creamy Cucumber Salad\",\"Cumin Basmati Rice\",\"Kachumbari Salad\",\"Okra & Onions\",\"Tear Drop Peppers\",\"Baked Italian Sausage w\\/Potatoes & Onions\",\"Basil Cream Pesto Sauce\",\"Fettuccini Pasta\",\"Fresh Grated Parmesan Cheese\",\"Herb Roasted Tomatoes\",\"Marinara Sauce\",\"Rigatoni Pasta\",\"Rigatoni w\\/Broccolini & Ricotta\",\"Baked Pakora\",\"Coriander Chutney\",\"Cucumber & Yogurt Raita Jain\",\"Family Pulav (Vegetable Rice) Jain\",\"Fresh Red Onions\",\"GF Penne Pasta\",\"Kidney Bean Curry Rasoi\",\"Marinara Jain\",\"Paneer Jalfrezi (Cheese)\",\"Sauteed Cabbage w\\/Coconut\",\"Tamarind Date Chutney\",\"Arroz Blanco\",\"Black Beans\",\"Carrots & Chayote w\\/Lemon\",\"Esquites (Mexican Corn Salad)\",\"Homemade Guacamole\",\"Pork Adobada (Chicken)\",\"Queso Fresco\",\"Sibley's Pico de Gallo\",\"Sour Cream\"],\"Dinner\":[\"Kumamoto Style Ramen Broth (Pork, Chicken & Seafood)\",\"Green Chile Posole\",\"Roasted Red Pepper & Smoked Gouda Bisque\",\"Black Bean Burger\",\"Golden BBQ Chicken Thigh\",\"Halal Burger Patty\",\"Halal French Fries\",\"Hand Cut Sweet Potato Fries\",\"Roasted Butternut Squash\",\"Steamed Broccoli\",\"Blueberry Buckle\",\"Chocolate Malva Pudding\",\"Chocolate Soft Serve Ice Cream\",\"Plant Based Vanilla Ice Cream\",\"Strawberry Plant Based Soft Serve\",\"Vanilla Soft Serve Ice Cream\",\"Local Whole Wheat Bread\",\"Baby Bok Choy\",\"Bean Sprouts\",\"Chashu Pork Topping\",\"Hard Boiled Egg\",\"Kumamoto Style Ramen (Pork & Chicken)\",\"Mayu (Black Garlic Oil)\",\"Roasted Zucchini\",\"Scallions\",\"California Roll\",\"Purple Sweet Potato Tempura Sushi Roll\",\"Spicy Tuna Roll\",\"Teriyaki Pulmuone Tofu Roll\",\"Vegetable Sushi Roll\",\"Kimchi Fried Rice\",\"Korean BBQ Pulmuone Tofu\",\"Korean Gochujang BBQ Ribs\",\"Stir Fry Green Vegetables\",\"Vegetable Spring Rolls\",\"Babaganoush\",\"Chicken Shawarma\",\"Citrus Yogurt w\\/Sumac\",\"Lavash Bread\",\"Roasted Onions & Peppers\",\"Sweet Onion Salad\",\"Tahini Sauce\",\"Turmeric Basmati Rice\",\"Basil Cream Pesto Sauce\",\"Fettuccini Pasta\",\"Fresh Grated Parmesan Cheese\",\"Garlic Parmesan Chicken Leg\",\"Marinara Sauce\",\"Rigatoni Pasta\",\"Tortellini w\\/Creamy Tuscan Tomato Sauce\",\"Carrots\",\"Corn\",\"Diced Avocado\",\"Eggplant Donburi Jain\",\"GF Penne Pasta\",\"Gluten Free Unagi Sauce\",\"Japanese Pickled Cucumbers\",\"Marinara Jain\",\"Nori\",\"Pickled Ginger\",\"Plain Sushi Rice\",\"Sauteed Spinach w\\/Sesame Seeds\",\"Toasted Yellow Sesame Seeds\",\"Arroz Blanco\",\"Corn w\\/Red Peppers\",\"Esquites (Mexican Corn Salad)\",\"Homemade Guacamole\",\"Mole Amarillo Chicken\",\"Pinto Beans\",\"Sibley's Pico de Gallo\"],\"Late Night\":[\"Black Bean Burger\",\"Cajun Chicken Thigh\",\"Halal Burger Patty\",\"Halal French Fries\",\"Roasted Butternut Squash\",\"Chocolate Soft Serve Ice Cream\",\"Plant Based Vanilla Ice Cream\",\"Strawberry Plant Based Soft Serve\",\"Vanilla Soft Serve Ice Cream\",\"Bacon Jalapeno Quesadilla\",\"Homemade Guacamole\",\"Pinto Beans\",\"Plant Based Chorizo & Jalapeno Quesadilla\",\"Shredded Cheddar Cheese\",\"Shredded Lettuce\",\"Sibley's Pico de Gallo\",\"Sour Cream\",\"Yellow Rice\",\"Fresh Grated Parmesan Cheese\"]}"
+ }
+]
