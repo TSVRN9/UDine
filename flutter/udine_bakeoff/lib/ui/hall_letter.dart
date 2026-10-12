@@ -36,12 +36,16 @@ final _cache = <(String, double, double), (ui.Path, ui.Path)>{};
       return (path, _dashed(path, M2Layout.stitchOn, M2Layout.stitchOff));
     });
 
+/// How many times a hall letter has been painted (tests: a scroll or a fade must not repaint it).
+int letterPaints = 0;
+
 class _LetterPainter extends CustomPainter {
   final String letter;
   final double x, size;
   const _LetterPainter(this.letter, this.x, this.size);
   @override
   void paint(Canvas canvas, Size _) {
+    letterPaints++;
     final (path, stitch) = _shapes(letter, x, size);
     canvas.drawPath(path, Paint()..color = M2Color.white);
     canvas.drawPath(path, Paint()..color = M2Color.white..style = PaintingStyle.stroke..strokeWidth = M2Layout.feltStroke..strokeJoin = StrokeJoin.round);

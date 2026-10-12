@@ -46,7 +46,7 @@ class _HoursSheetState extends State<HoursSheet> {
     Widget day(SchedDay d) {
       final open = d.current && (d.meals.isNotEmpty || d.event != null);
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _DayRow(label: d.label, right: d.right, current: d.current, onTap: () => w.onPick(d.i)),
+        SheetOption(label: d.label, trailing: d.right, trailingStyle: SheetTrailing.note, current: d.current, onTap: () => w.onPick(d.i)),
         if (open)
           NegMargin(
             top: M2Layout.mwsTop,
@@ -114,31 +114,4 @@ class _HoursSheetState extends State<HoursSheet> {
       ],
     );
   }
-}
-
-/// `#days .day`: a day's name, and on the right its span or what it is (15, slate; maroon on the current day).
-class _DayRow extends StatelessWidget {
-  final String label, right;
-  final bool current;
-  final VoidCallback onTap;
-  const _DayRow({required this.label, required this.right, required this.current, required this.onTap});
-  @override
-  Widget build(BuildContext context) => Semantics(
-        selected: current, button: true, label: '$label${right.isEmpty ? '' : ', $right'}',
-        child: Press(
-          semantics: false, overlay: M2Color.pressRow, onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: M2Layout.optionH),
-            padding: const EdgeInsets.only(left: M2Space.action, right: M2Space.gutter),
-            decoration: BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: current ? M2Color.vm : M2Color.chalk.withValues(alpha: 0)))),
-            child: ExcludeSemantics(
-              child: Row(children: [
-                Expanded(child: Text(label, style: M2Text.dayRow.style(current ? M2Color.vm : M2Color.ink).copyWith(fontWeight: current ? bold700 : FontWeight.w500))),
-                const SizedBox(width: M2Space.panel),
-                Text(right, style: M2Text.sched.style(current ? M2Color.vm : M2Color.slate).copyWith(fontWeight: current ? FontWeight.w500 : FontWeight.w400)),
-              ]),
-            ),
-          ),
-        ),
-      );
 }

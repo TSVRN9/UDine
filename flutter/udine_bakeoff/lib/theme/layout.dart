@@ -138,4 +138,5 @@ abstract final class M2Layout {
   static const todayTop = 20.0; // You's Today section: `style="padding-top:20px"` on its `.sec`
   static const firstScreen = 14; // list items drawn while the container opens (a screenful and a half)
   static const rowTall = 79.0, noteRow = 53.0, ghostRows = 14; // typical heights for a guess at an unbuilt row; the rows a meal change copies
+  static const factsFrame = 2.0, factsPadX = 12.0, factsPadTop = 4.0, factsPadBottom = 6.0; // `.facts` border 2, padding 4 12 6
 }

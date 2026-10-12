@@ -19,6 +19,8 @@ double _clamp(double x) => x < 0
 /// M2's scoreboard lamp board (`histSVG`): one column of five lamps per hour from opening, lit like the band meter; this hour
 /// gold; the next hours from the live forecast when there is one, else the typical Thursday.
 class LampBoard extends CustomPainter {
+  /// How many times the board has been painted (tests: a scroll must not repaint it).
+  static int paints = 0;
   final Busy busy;
   final int first;
   final List<int> typical;
@@ -26,6 +28,7 @@ class LampBoard extends CustomPainter {
   const LampBoard(this.busy, this.first, this.typical, this.nowHour);
   @override
   void paint(Canvas canvas, Size size) {
+    paints++;
     final n = typical.length,
         w = M2Layout.boardW,
         h = M2Layout.histH,

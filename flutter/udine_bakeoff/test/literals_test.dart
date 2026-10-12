@@ -44,7 +44,7 @@ void main() {
     });
   });
 
-  for (final (dir, strict) in [('lib/screens', true), ('lib/motion', true), ('lib/ui', false)]) {
+  for (final (dir, strict) in [('lib/screens', true), ('lib/motion', true), ('lib/ui', true)]) {
     test('$dir has no raw literals the tokens own', () {
       final bad = <String>[];
       for (final f in Directory(dir).listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {

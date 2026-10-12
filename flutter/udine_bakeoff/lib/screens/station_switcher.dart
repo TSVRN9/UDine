@@ -32,30 +32,3 @@ class StationSheet extends StatelessWidget {
         ],
       );
 }
-
-/// `#stidx button`, `#days .day`: a 48 dp option row in a sheet, a 4 dp maroon edge when it is the current one.
-class SheetOption extends StatelessWidget {
-  final String label;
-  final String? trailing;
-  final bool current;
-  final VoidCallback onTap;
-  const SheetOption({super.key, required this.label, this.trailing, required this.current, required this.onTap});
-  @override
-  Widget build(BuildContext context) => Semantics(
-        selected: current, button: true, label: label,
-        child: Press(
-          semantics: false, overlay: M2Color.pressRow, onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: M2Layout.optionH),
-            padding: const EdgeInsets.only(left: M2Space.action, right: M2Space.gutter),
-            decoration: BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: current ? M2Color.vm : M2Color.chalk.withValues(alpha: 0)))),
-            child: ExcludeSemantics(
-              child: Row(children: [
-                Expanded(child: Text(label, style: M2Text.dayRow.style(current ? M2Color.vm : M2Color.ink).copyWith(fontWeight: current ? bold700 : FontWeight.w500))),
-                if (trailing != null) Text(trailing!, style: M2Text.metaNum.withSize(M2Layout.optionCount).style(M2Color.slate)),
-              ]),
-            ),
-          ),
-        ),
-      );
-}

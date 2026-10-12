@@ -212,7 +212,7 @@ class _Body extends StatelessWidget {
               child: Transform.translate(offset: const Offset(M2Layout.plateTabsInset, 0), child: Wrap(spacing: M2Layout.plateTabGap, children: [
                 for (var i = 0; i < plates.length; i++)
                   Press(
-                    label: plateLabel(fx, plates[i]), onTap: () { store.setFront(i); Haptics.selection(); },
+                    scale: true, label: plateLabel(fx, plates[i]), onTap: () { store.setFront(i); Haptics.selection(); },
                     child: Container(
                       height: M2Size.tap, padding: const EdgeInsets.symmetric(horizontal: M2Layout.plateTabPad), alignment: Alignment.center,
                       child: Stack(alignment: Alignment.bottomCenter, children: [

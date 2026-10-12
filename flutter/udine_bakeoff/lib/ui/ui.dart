@@ -21,6 +21,8 @@ export 'photo.dart';
 export 'photos.dart';
 export 'press.dart';
 export 'score_badge.dart';
+export 'sheet.dart';
+export 'sheet_option.dart';
 export 'screen_header.dart';
 export 'stepper.dart';
 export 'tab_bar.dart';

@@ -120,7 +120,7 @@ class _DishSheetState extends State<DishSheet> {
                     ),
                     Wrap(spacing: M2Layout.wcGap, runSpacing: M2Layout.wcGap, children: [
                       for (final h in answer[i].halls)
-                        Press(semantics: true, label: placeName(fx, h), onTap: () => _serve(h, answer[i]), child: HallChip(letter: isCafe(h) ? null : h, name: placeName(fx, h))),
+                        Press(scale: true, semantics: true, label: placeName(fx, h), onTap: () => _serve(h, answer[i]), child: HallChip(letter: isCafe(h) ? null : h, name: placeName(fx, h))),
                     ]),
                   ],
                 ]),

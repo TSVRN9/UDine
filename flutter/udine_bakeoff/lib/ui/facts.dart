@@ -20,8 +20,8 @@ class Facts extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         color: M2Color.white,
-        padding: const EdgeInsets.fromLTRB(2 + 12, 2 + 4, 2 + 12, 2 + 6),
-        foregroundDecoration: const BoxDecoration(border: Border.fromBorderSide(BorderSide(color: M2Color.dm, width: 2))),
+        padding: const EdgeInsets.fromLTRB(M2Layout.factsFrame + M2Layout.factsPadX, M2Layout.factsFrame + M2Layout.factsPadTop, M2Layout.factsFrame + M2Layout.factsPadX, M2Layout.factsFrame + M2Layout.factsPadBottom),
+        foregroundDecoration: const BoxDecoration(border: Border.fromBorderSide(BorderSide(color: M2Color.dm, width: M2Layout.factsFrame))),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
             padding: const EdgeInsets.only(top: M2Layout.calPadTop, bottom: M2Layout.calPadBottom),

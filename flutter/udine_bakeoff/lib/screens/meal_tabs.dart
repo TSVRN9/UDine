@@ -55,7 +55,7 @@ class _MealTabsState extends State<MealTabs> {
               child: Semantics(
                 selected: i == sel, button: true, label: labels[i],
                 child: Press(
-                  semantics: false, overlay: M2Color.pressOnDm, onTap: () => w.onTap(w.meals[i]),
+                  semantics: false, scale: true, onTap: () => w.onTap(w.meals[i]), // `.mts button.down` scales; it has no tint
                   child: ExcludeSemantics(
                     child: Center(
                       child: AnimatedBuilder(
