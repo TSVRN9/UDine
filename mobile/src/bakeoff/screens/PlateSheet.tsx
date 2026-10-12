@@ -8,6 +8,7 @@ import { m2 } from "../../lib/theme";
 import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { Press, Stepper, Text, thud, thunk, tick, useSheetMotion } from "../ui";
 import { exitLayout, exitOut } from "../ui/exit";
+import { HairRow } from "../ui/HairRow";
 import type { DishCtx } from "../logic/dishSheet";
 import { fc } from "../logic/dishSheet";
 import { fq, macroOf, plateHalls, plateLabel, totals, type Plate, type PlateItem } from "../logic/plate";
@@ -25,8 +26,7 @@ function PlateRow({ plate, it, onOpen }: { plate: Plate; it: PlateItem; onOpen: 
   const m = macroOf(it, place);
   return (
     <Animated.View layout={exitLayout} exiting={exitOut}>
-      <Press feedback="tint" accessibilityRole="button" onPress={it.custom ? undefined : () => onOpen(it)}
-        style={{ minHeight: m2.size.row, flexDirection: "row", alignItems: "center", gap: m2.space.part, borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
+      <HairRow onPress={it.custom ? undefined : () => onOpen(it)} style={{ minHeight: m2.size.row, flexDirection: "row", alignItems: "center", gap: m2.space.part }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text v="rowName" color={m2.color.ink}>{it.name}</Text>
           <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: m2.space.metaTop }}>
@@ -36,7 +36,7 @@ function PlateRow({ plate, it, onOpen }: { plate: Plate; it: PlateItem; onOpen: 
         <Stepper label={fq(it.qty)}
           onDec={() => { if (it.qty === 0.5) thunk(); step(plate.id, it.key, -1); }}
           onInc={() => { thud(); step(plate.id, it.key, 1); }} />
-      </Press>
+      </HairRow>
     </Animated.View>
   );
 }

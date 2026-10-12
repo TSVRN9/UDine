@@ -15,10 +15,10 @@ export function ScreenHeader({ date, title, brand, variant = "halls", children }
       {brand ? (
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", height: m2.size.titleRow }}>
           <Text v="brand" color={m2.color.gold}>{brand}</Text>
-          <Text v="date" color={m2.color.onDm}>{date}</Text>
+          <Text v="headDate" color={m2.color.onDm}>{date}</Text>
         </View>
       ) : (
-        <View style={{ height: m2.size.titleRow, justifyContent: "flex-end" }}><Text v="date" color={m2.color.onDm}>{date}</Text></View>
+        <View style={{ height: m2.size.titleRow, justifyContent: "flex-end" }}><Text v="headDate" color={m2.color.onDm}>{date}</Text></View>
       )}
       <Text v="hallTitle" color={m2.color.white} accessibilityRole="header" style={{ marginTop: m2.space.titleTop }}>{title}</Text>
       {children}

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { View, type AccessibilityRole, type AccessibilityState } from "react-native";
 import { m2 } from "../../lib/theme";
-import { Press } from "./Press";
+import { HairRow } from "./HairRow";
 import { Text } from "./Text";
 
 /** The quiet line under an `LRow`'s title (M2 `.lrow .b`). */
@@ -17,10 +17,7 @@ export function LRow({ title, sub, lead, trailing, onPress, last, accessibilityR
   title: string; sub?: ReactNode; lead?: ReactNode; trailing?: ReactNode; onPress?: () => void; last?: boolean;
   accessibilityRole?: AccessibilityRole; accessibilityLabel?: string; accessibilityState?: AccessibilityState;
 }) {
-  const box = {
-    minHeight: m2.size.lrow, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: m2.space.panel, paddingVertical: m2.space.part,
-    borderBottomWidth: last ? 0 : 1, borderBottomColor: m2.color.hair,
-  } as const;
+  const box = { minHeight: m2.size.lrow, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: m2.space.panel, paddingVertical: m2.space.part } as const;
   const left = (
     <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space.panel, flex: 1, minWidth: 0 }}>
       {lead}
@@ -30,9 +27,7 @@ export function LRow({ title, sub, lead, trailing, onPress, last, accessibilityR
       </View>
     </View>
   );
-  return onPress ? (
-    <Press feedback="tint" accessibilityRole={accessibilityRole ?? "button"} accessibilityLabel={accessibilityLabel} accessibilityState={accessibilityState} onPress={onPress} style={box}>{left}{trailing}</Press>
-  ) : (
-    <View accessibilityRole={accessibilityRole} accessibilityLabel={accessibilityLabel} style={box}>{left}{trailing}</View>
+  return (
+    <HairRow onPress={onPress} last={last} style={box} accessibilityRole={accessibilityRole} accessibilityLabel={accessibilityLabel} accessibilityState={accessibilityState}>{left}{trailing}</HairRow>
   );
 }

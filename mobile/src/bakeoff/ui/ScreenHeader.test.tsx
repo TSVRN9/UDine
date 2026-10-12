@@ -20,6 +20,10 @@ describe("ScreenHeader", () => {
     expect(flat(line)).toMatchObject({ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" });
     expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.accessibilityRole === "header")[0])).toMatchObject({ marginTop: 2, fontSize: 52 });
   });
+  it("its date is 15 on a 20 dp line: it sets the baseline row the brand shares", () => {
+    const r = make(<ScreenHeader brand="UDine" date="Thursday, October 8" title="Lunch" />);
+    expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.children === "Thursday, October 8")[0])).toMatchObject({ fontSize: 15, lineHeight: 20 });
+  });
   it("You: the date alone at the foot of its 30 dp line, 18 under the title", () => {
     const r = make(<ScreenHeader variant="you" date="Thursday, October 8" title="You" />);
     expect(flat(head(r)).paddingBottom).toBe(18);

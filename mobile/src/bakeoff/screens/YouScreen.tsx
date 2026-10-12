@@ -8,6 +8,7 @@ import { fc } from "../logic/dishSheet";
 import { fq } from "../logic/plate";
 import { dayFull, prefSummary } from "../logic/menuView";
 import { ScoreBadge, Text } from "../ui";
+import { HairRow } from "../ui/HairRow";
 import { RowChevron } from "../ui/Chevron";
 import { LRow, LRowSub } from "../ui/LRow";
 import { ScreenHeader } from "../ui/ScreenHeader";
@@ -32,7 +33,7 @@ const H2 = ({ children }: { children: string }) => (
 function Meal({ e }: { e: LogEntry }) {
   const total = e.items.reduce((a, i) => a + i.cal * i.qty, 0);
   return (
-    <View style={{ borderBottomWidth: 1, borderBottomColor: m2.color.hair, paddingVertical: m2.space.part }}>
+    <HairRow style={{ paddingVertical: m2.space.part }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
         <Text v="rowName" color={m2.color.ink}>{`${MEAL_LABEL[e.meal]}${e.place ? " at " + placeName(e.place) : ""}`}</Text>
         <Text v="date" color={m2.color.slate}>{TIME}</Text>
@@ -47,7 +48,7 @@ function Meal({ e }: { e: LogEntry }) {
         <Text v="mealCal" color={m2.color.ink}>{fc(total)}</Text>
         <Text v="mealCal" color={m2.color.ink}>cal</Text>
       </View>
-    </View>
+    </HairRow>
   );
 }
 

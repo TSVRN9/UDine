@@ -9,7 +9,7 @@ describe("design-tokens/m2.json is the one source", () => {
     expect(readFileSync(OUT, "utf8")).toBe(generate(json));
   });
   it("every token two levels deep names the M2 rule it comes from", () => {
-    const groups = Object.keys(json).filter((g) => !["$comment", "version", "trace"].includes(g));
+    const groups = Object.keys(json).filter((g) => !["$comment", "version", "rnOnly", "trace"].includes(g));
     const missing = groups.flatMap((g) => Object.keys(json[g]).map((k) => `${g}.${k}`)).filter((p) => !json.trace[p]);
     expect(missing).toEqual([]);
   });
@@ -34,5 +34,13 @@ describe("design-tokens/m2.json is the one source", () => {
     };
     expect(ratio(join(dir, "libre-franklin/400Regular/LibreFranklin_400Regular.ttf"))).toBeCloseTo(json.fontMetrics["Libre Franklin"].normalLine, 3);
     expect(ratio(join(dir, "oswald/600SemiBold/Oswald_600SemiBold.ttf"))).toBeCloseTo(json.fontMetrics.Oswald.normalLine, 3);
+  });
+  it("the spacing that names an M2 rule has that rule's number (src.html: .sec 153, .evband 114, .stack, .cbody 257, .dh~.dh 354, .yhead 381)", () => {
+    expect(json.space).toMatchObject({ sectionTop: 22, cafeBodyTop: 20, dietGroupTop: 28, eventTop: 16, eventBottom: 20, eventDate: 12, eventLinks: 12, yheadBottom: 18 });
+  });
+  it("every token marked rnOnly is there, and the header says how easing names resolve", () => {
+    const missing = json.rnOnly.filter((p: string) => { const [g, k] = p.split("."); return !(g in json) || !(k in json[g]); });
+    expect(missing).toEqual([]);
+    expect(json.$comment).toMatch(/resolves through `curves`/);
   });
 });

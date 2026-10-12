@@ -5,6 +5,7 @@ import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { Press, Stepper, thud, thunk } from "../ui";
 import { useMotion } from "../ui/motion";
+import { tapBox } from "../ui/tap";
 import { findItem, fq, rowCode } from "../logic/plate";
 import type { Dish, MealKey, PlaceKey } from "../logic/types";
 import { add, getState, step, useStore } from "../state/store";
@@ -47,7 +48,7 @@ function PlusLane({ animate, ghost, name, onAdd }: { animate: boolean; ghost: bo
     <Animated.View entering={animate ? (reduced ? fadeIn : plusIn) : undefined}>
       <Press accessibilityRole="button" accessibilityLabel={`Add ${name}`} onPress={onAdd}
         style={ghost
-          ? { width: m2.size.tap, height: m2.size.tap, margin: m2.space.ghostMargin, borderRadius: m2.radius.button, borderWidth: m2.size.keyline, borderColor: m2.color.ghost, alignItems: "center", justifyContent: "center" }
+          ? { ...tapBox, margin: m2.space.ghostMargin, borderRadius: m2.radius.button, borderWidth: m2.size.keyline, borderColor: m2.color.ghost }
           : { width: m2.size.add, height: m2.size.add, borderRadius: m2.radius.button, alignItems: "center", justifyContent: "center" }}>
         <Plus />
       </Press>

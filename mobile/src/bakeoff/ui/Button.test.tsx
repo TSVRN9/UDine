@@ -18,7 +18,7 @@ const cases = [
   ["EventPage: the first link", "gold", "lg", {}, { height: 52, backgroundColor: m2.color.gold }, { fontSize: 17, color: m2.color.dm }],
   ["EventPage: the other links", "outline", "lg", {}, { height: 52, borderWidth: 1.5, borderColor: m2.color.outline }, { fontSize: 17, color: m2.color.white }],
   ["PlateBar: Log (.gbtn)", "gold", "bar", {}, { height: 48, minWidth: 84, paddingHorizontal: 18, backgroundColor: m2.color.gold }, { fontSize: 16, color: m2.color.dm }],
-  ["PlateBar: a hall to log at (.gbtn, min-width 0, padding 14)", "gold", "bar", { tight: true }, { height: 48, minWidth: 0, paddingHorizontal: 14, backgroundColor: m2.color.gold, flexShrink: 1 }, { fontSize: 16, color: m2.color.dm }],
+  ["PlateBar: a hall to log at (.gbtn, min-width 0, padding 14)", "gold", "choose", {}, { height: 48, minWidth: 0, paddingHorizontal: 14, backgroundColor: m2.color.gold, flexShrink: 1 }, { fontSize: 16, color: m2.color.dm }],
 ] as const;
 
 describe("Button", () => {

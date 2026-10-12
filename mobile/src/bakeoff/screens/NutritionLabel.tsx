@@ -20,8 +20,8 @@ function Row({ r }: { r: LabelRow }) {
   const top = r.kind === "row";
   return (
     <View style={[rule(r.last ? heavy : 1), { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: m2.space.panel, paddingTop: m2.space.nrBottom, paddingBottom: m2.space.line, paddingLeft: top ? 0 : m2.space.action }]}>
-      <Text v="lbl" color={m2.color.dm} style={{ flexShrink: 1 }}>
-        {top ? <Text v="lbl" color={m2.color.dm} style={bold}>{r.name}</Text> : r.name.startsWith("Trans") ? <><Text v="lbl" color={m2.color.dm} style={{ fontStyle: "italic" }}>Trans</Text>{r.name.slice(5)}</> : r.name}
+      <Text v="lblRow" color={m2.color.dm} style={{ flexShrink: 1 }}>
+        {top ? <Text v="lblRow" color={m2.color.dm} style={bold}>{r.name}</Text> : r.name.startsWith("Trans") ? <><Text v="lblRow" color={m2.color.dm} style={{ fontStyle: "italic" }}>Trans</Text>{r.name.slice(5)}</> : r.name}
         {` ${r.value}`}
       </Text>
       <Text v="dv" color={m2.color.dm} style={{ minWidth: m2.size.dvMin, textAlign: "right" }}>{r.right}</Text>
@@ -44,8 +44,8 @@ export function NutritionLabel({ label, onCalBottom }: { label: Label; onCalBott
       </View>
       {label.serving ? (
         <View style={[rule(heavy), { flexDirection: "row", justifyContent: "space-between", gap: m2.space.panel, paddingVertical: m2.space.lsPad }]}>
-          <Text v="lbl" color={m2.color.dm} style={bold}>Serving size</Text>
-          <Text v="lbl" color={m2.color.dm} style={[bold, { flexShrink: 1, textAlign: "right" }]}>{label.serving}</Text>
+          <Text v="lblRow" color={m2.color.dm} style={bold}>Serving size</Text>
+          <Text v="lblRow" color={m2.color.dm} style={[bold, { flexShrink: 1, textAlign: "right" }]}>{label.serving}</Text>
         </View>
       ) : null}
       <View onLayout={(e) => { at.current.cal = { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height }; report(); }}

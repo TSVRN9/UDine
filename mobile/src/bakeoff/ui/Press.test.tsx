@@ -5,6 +5,12 @@ import { m2Motion } from "../../lib/motion";
 import { Press } from "./Press";
 
 const timings: { to: number; token: unknown }[] = [];
+// the reanimated mock evaluates an animated style once per render; this one reads its shared values when the style is read, as the UI thread does
+jest.mock("react-native-reanimated", () => {
+  const actual = jest.requireActual("react-native-reanimated/mock");
+  const live = (fn: () => Record<string, unknown>) => Object.defineProperties({}, Object.fromEntries(Object.keys(fn()).map((k) => [k, { enumerable: true, get: () => fn()[k] }])));
+  return { ...actual, useAnimatedStyle: live };
+});
 jest.mock("./motion", () => ({ timed: (to: number, token: unknown) => { timings.push({ to, token }); return to; } }));
 
 const make = (el: React.ReactElement) => { let r!: renderer.ReactTestRenderer; act(() => { r = renderer.create(el); }); return r; };
@@ -29,6 +35,18 @@ describe("Press tint is an overlay over its children, not a background", () => {
     const hosts = press(r).findAll((n) => typeof n.type === "string");
     const at = (f: (n: renderer.ReactTestInstance) => boolean) => hosts.findIndex(f);
     expect(at((n) => flat(n).backgroundColor === m2.color.pressBand)).toBeGreaterThan(at((n) => String(n.type) === "Text"));
+  });
+});
+
+describe("Press's state layer", () => {
+  const layerOpacity = (r: renderer.ReactTestRenderer) => flat(r.root.findAll((n) => typeof n.type === "string" && n.props.pointerEvents === "none" && flat(n).backgroundColor === m2.color.pressRow)[0]).opacity;
+  it("is clear at rest, full under the finger, and clear again on release", () => {
+    const r = make(<Press feedback="tint"><Text>x</Text></Press>);
+    expect(layerOpacity(r)).toBe(0);
+    act(() => { press(r).props.onPressIn({}); });
+    expect(layerOpacity(r)).toBe(1);
+    act(() => { press(r).props.onPressOut({}); });
+    expect(layerOpacity(r)).toBe(0);
   });
 });
 
