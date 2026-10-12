@@ -1,0 +1,10 @@
+{
+  "sha": "2e3c2bf9804f3064911afdd8ade13a675eac0f62",
+  "branch": "bakeoff/rn",
+  "worktree": "/tmp/claude-1000/wt-rn",
+  "route": "bakeoff",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-12T08:07:37Z"
+}
