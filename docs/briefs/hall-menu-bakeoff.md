@@ -49,7 +49,12 @@ record these at 390×844:
 - add, stepper, plate sheet drag, and Log.
 
 Backend: none. Both builds read a fixed fixture, never the network:
-- the Oct 8–9 menus, locations and events in `docs/design/explorations/2026-10-ui-overhaul/flows/*.json`;
+- the menus in `docs/design/explorations/2026-10-ui-overhaul/flows/menus-2026-10-08-to-22.json` (halls and
+  the 17 dish-menu cafés, Oct 8–22; its `source` field says what was substituted for days the feed no
+  longer serves), plus the Oct 8 locations and events JSON in the same folder;
+- meal windows from `@udine/shared`'s `mapInfoV2`/`effectiveMealWindow` on the locations JSON (no hall
+  publishes per-meal times, so these are the standard windows clamped to each hall's hours: lunch
+  runs to 4:30 PM, not M2's guessed 3:30);
 - a fixed clock of Thursday, Oct 8, 12:41 PM, the same as M2.
 
 Residency: no change. The plate log in each build is device-only, the same as the consumption log
@@ -76,7 +81,12 @@ Rationale:
   - The current FilterSheet's macro, station and price filters are dropped; Search's chips cover
     macros.
 - **Quantity:** the M2 stepper only (1 → ½ → remove). Hold-and-slide is dropped.
-- **Price:** on the dish sheet only, when the feed has one. Rows don't show it.
+- **Price:** on the dish sheet only, when the feed has one. Rows don't show it. Only café items
+  carry a price (hall dishes never do), so:
+- **Cafés get real dishes** (owner, 2026-10-11). 17 cafés have full dish menus in the feed (nutrition,
+  scores, prices). Their pages work like a hall menu (stations, rows, the dish sheet with price,
+  add-to-plate), and a café item starts its own plate the way a second hall does. Cafés with only a
+  standing names list keep it.
 - **Designed in M2 before any build (round 9):**
   - a day control for a hall menu across the feed's roughly two-week window;
   - today's full hours and directions, reached from the hall header;
