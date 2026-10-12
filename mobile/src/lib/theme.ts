@@ -124,3 +124,75 @@ export function buttonColors(variant: ButtonVariant): {
       return { backgroundColor: "transparent", color: withOpacity(colors.ink900, 65), borderColor: "transparent" };
   }
 }
+
+/**
+ * Bake-off tokens (docs/briefs/hall-menu-bakeoff.md), copied from M2 round 9c: `src.html`'s `:root`,
+ * its type rules and its score ramps (`CRC`/`HFC`). Only src/bakeoff reads this; shipped tokens above
+ * are untouched. Sizes are M2's px as dp, unscaled (the meal row is laid out for 360dp at 14).
+ */
+export const m2 = {
+  color: {
+    dm: "#3b0a0f",
+    vm: "#881c1c",
+    gold: "#c99a2e",
+    chalk: "#f8f9fb",
+    ink: "#24171a",
+    slate: "#6e6266",
+    tint: "#f3e4e4",
+    hair: "rgba(36,23,26,0.12)",
+    field: "#eceef2",
+    white: "#ffffff",
+    onDm: "rgba(255,255,255,0.8)",
+    onDmSoft: "rgba(255,255,255,0.86)",
+    divider: "rgba(255,255,255,0.14)",
+    pressRow: "rgba(36,23,26,0.06)",
+    pressDark: "rgba(255,255,255,0.08)",
+    felt: "#5a1820",
+    scrim: "rgba(36,10,14,1)",
+    // [tile, ink]
+    carbon: {
+      A: ["#0d6d3a", "#0d6d3a"],
+      B: ["#9bcb3b", "#3d5c0a"],
+      C: ["#dbe11d", "#4f5208"],
+      D: ["#bcbdc0", "#45464a"],
+      E: ["#818285", "#2f3033"],
+    } as Record<"A" | "B" | "C" | "D" | "E", readonly [string, string]>,
+    health: ["#cfe0f2", "#b4cbe3", "#98b5d4", "#7da0c5", "#618ab7", "#4675a8", "#2a5f99", "#0f4a8a"] as readonly string[],
+    healthInk: "#0f3a66",
+  },
+  font: {
+    body: fonts.body400,
+    bodyMd: fonts.body500,
+    bodySb: fonts.body600,
+    num: fonts.display500,
+    numSb: fonts.display600,
+    numB: fonts.display700,
+  },
+  // size / lineHeight, M2's CSS rules
+  type: {
+    mealTab: { size: 14, line: 17 },
+    tabBar: { size: 12, line: 15 },
+    brand: { size: 22, line: 26 },
+    date: { size: 15, line: 20 },
+    hallTitle: { size: 52, line: 55 },
+    bandName: { size: 32, line: 32 },
+    pinName: { size: 24, line: 24 },
+    menuName: { size: 40, line: 40 },
+    status: { size: 15, line: 20 },
+    statusSm: { size: 14, line: 18 },
+    section: { size: 22, line: 26 },
+    station: { size: 20, line: 20 },
+    stationHead: { size: 22, line: 26 },
+    day: { size: 20, line: 20 },
+    rowName: { size: 16, line: 20 },
+    meta: { size: 13, line: 17 },
+    metaNum: { size: 15, line: 20 },
+    stepper: { size: 20, line: 24 },
+    letter: { size: 18, line: 18 },
+    tile: { size: 14, line: 14 },
+    button: { size: 16, line: 20 },
+  },
+  space: [4, 8, 12, 16, 20, 24, 32] as const,
+  radius: { patch: 4, thumb: 5, card: 6, button: 8, pill: 999 },
+  size: { tabBar: 56, row: 64, tabs: 48, stationRow: 50, band: 112, tap: 44, tile: [18, 22.5], tileSheet: [24, 30] },
+} as const;

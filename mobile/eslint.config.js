@@ -114,6 +114,21 @@ module.exports = defineConfig([
     rules: { "react-hooks/globals": "off" },
   },
   {
+    // Bake-off (docs/briefs/hall-menu-bakeoff.md): screens take colour, motion and type from the kit
+    // (src/bakeoff/ui) and tokens (theme.ts `m2`, motion.ts `m2Motion`), never a literal.
+    files: ["src/app/bakeoff/**/*.{ts,tsx}", "src/bakeoff/**/*.{ts,tsx}"],
+    ignores: ["src/bakeoff/ui/**", "src/bakeoff/logic/**", "**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]", message: "Bake-off: colours come from m2.color via the kit." },
+        { selector: "Literal[value=/^rgba?\\(/]", message: "Bake-off: colours come from m2.color via the kit." },
+        { selector: "Property[key.name=/^(duration|delay|stiffness|damping|mass)$/] > Literal", message: "Bake-off: motion comes from m2Motion." },
+        { selector: "Property[key.name=/^(fontSize|lineHeight|letterSpacing)$/] > Literal", message: "Bake-off: type comes from the kit's Text." },
+      ],
+    },
+  },
+  {
     // TS test files get jest globals for free from @types/jest (tsconfig's "types": ["jest"]),
     // but ESLint's TS parser doesn't consult that for scope analysis, and plain .js tests get no
     // ambient types at all -- so `describe`/`it`/`expect` read as undefined (no-undef) either way.

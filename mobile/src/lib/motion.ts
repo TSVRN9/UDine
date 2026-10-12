@@ -91,3 +91,49 @@ export const toastActionDwell = 6000;
 
 /** How far a toast travels while it fades in/out: `toastStyle`'s `translateY(12px)` in Prototype.dc.html. */
 export const toastRise = 12;
+
+/**
+ * Bake-off motion (docs/briefs/hall-menu-bakeoff.md), copied from M2 round 9c's `MO`, `SPRING` and
+ * `PUSH_E` in src.html. Easings are raw bezier control points; `emphasized` is M2's two-segment path
+ * (EMPH), not expressible as one bezier, so it is a function.
+ */
+const emphSeg = [
+  [0, 0, 0.05, 0, 0.133333, 0.06, 0.166666, 0.4],
+  [0.166666, 0.4, 0.208333, 0.82, 0.25, 1, 1, 1],
+] as const;
+export function emphasized(x: number): number {
+  "worklet";
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const s = x <= 0.166666 ? emphSeg[0] : emphSeg[1];
+  const bez = (a: number, b: number, c: number, d: number, t: number) => {
+    const u = 1 - t;
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+  };
+  let lo = 0;
+  let hi = 1;
+  let t = 0.5;
+  for (let i = 0; i < 30; i++) {
+    t = (lo + hi) / 2;
+    if (bez(s[0], s[2], s[4], s[6], t) < x) lo = t;
+    else hi = t;
+  }
+  return bez(s[1], s[3], s[5], s[7], t);
+}
+
+export const m2Motion = {
+  press: { d: 90, e: [0.2, 0, 0, 1] as const, scale: 0.97 },
+  settle: { d: 200, e: [0.2, 0, 0, 1] as const },
+  cont: { d: 500 }, // container transform, enter; easing `emphasized`
+  contBack: { d: 400 }, // same frames reversed
+  fadeThrough: { d: 250, e: [0, 0, 0, 1] as const, scale: 0.97, z: 8 },
+  sharedX: { d: 450, at: 0.35, dist: 30 }, // easing `emphasized`
+  scroll: { d: 500 }, // easing `emphasized`
+  exit: { d: 150, e: [0.3, 0, 0.8, 0.2] as const },
+  scrub: { d: 200, max: 420, perPx: 0.05 },
+  scrim: 0.32,
+  dragBack: { dist: 480, commit: 0.82, flick: 0.5 },
+  push: { e: [0.32, 0.72, 0, 1] as const, shift: 0.3, dim: 0.1, commit: 0.5 }, // d = cont / contBack
+  rmFade: { d: 120 },
+  spring: { sheet: { k: 300, z: 0.84 } },
+} as const;
