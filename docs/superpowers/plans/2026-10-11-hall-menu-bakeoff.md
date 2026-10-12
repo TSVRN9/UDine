@@ -737,6 +737,9 @@ the round-9 states. Compare screenshots with M2's.
 - [ ] The owner records the verdict. If RN adherence was poor, run the NativeWind/Uniwind variant first
   (spec).
 - [ ] Commit `docs(decisions): hall-menu bake-off verdict`.
+- [ ] Follow-up for the rebuild (not an M2 defect, not a bake-off criterion): the RN type table has 48 variants, 40 distinct
+  (font, size, line, tabular) tuples (`design-tokens/m2.json` `type`). About 12 role styles would change rendered sizes, so
+  the rebuild decides the scale (sizes, then roles) before it collapses the names.
 
 ---
 

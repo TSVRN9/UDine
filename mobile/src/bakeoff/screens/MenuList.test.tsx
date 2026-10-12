@@ -35,7 +35,7 @@ describe("one line of the hall's list", () => {
     expect(open).toHaveBeenCalledWith(3);
     expect(flat(b).minHeight).toBe(52);
     const inert = make(<MenuItem it={{ t: "event", i: 3, title: "x" }} row={row()} />);
-    expect(inert.root.findAll((n) => typeof n.props.onPress === "function")[0].props.disabled).toBe(true);
+    expect(inert.root.findAll((n) => typeof n.props.onPress === "function")).toHaveLength(0);
   });
   it("a café with no dishes says what it is and that it lists none", () => {
     const r = make(<MenuItem it={{ t: "cafe", name: "Wasabi", description: "Sushi." }} row={row()} />);

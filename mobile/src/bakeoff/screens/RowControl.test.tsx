@@ -62,6 +62,8 @@ describe("a dish row's control in the lane", () => {
     const { s, v } = mount(other, "F");
     act(() => s.add("lunch", dish.name, { W: dish }));
     expect(JSON.stringify(v.toJSON())).toContain('"borderWidth":1.5');
+    // the outlined + is the 44 dp tap box
+    expect(JSON.stringify(v.toJSON())).toMatch(/"width":44,"height":44|"height":44,"width":44/);
     press(button(v, `Add ${other.name}`));
     expect(s.getState().plates.plates).toHaveLength(2);
     expect(s.getState().plates.front).toBe(1);

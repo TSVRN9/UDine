@@ -37,14 +37,14 @@ export function RatingsPanel({ health, carbon }: { health: number | null; carbon
     <View style={{ marginTop: m2.space.panel, borderWidth: m2.size.frame, borderColor: m2.color.dm, paddingHorizontal: m2.space.panel, backgroundColor: m2.color.white }}>
       {health != null ? (
         <View style={{ paddingVertical: m2.space.grPad, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: m2.space.panel }}>
-          <Text v="lbl" color={m2.color.dm} style={bold}>Healthfulness</Text>
+          <Text v="lblRow" color={m2.color.dm} style={bold}>Healthfulness</Text>
           <Scale kind="health" value={health} label={`${health} of 7`} />
         </View>
       ) : null}
       {carbon != null ? (
         <View style={{ paddingVertical: m2.space.grPad, ...(health != null ? { borderTopWidth: 1, borderTopColor: m2.color.dm } : null) }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: m2.space.panel }}>
-            <Text v="lbl" color={m2.color.dm} style={bold}>Carbon rating</Text>
+            <Text v="lblRow" color={m2.color.dm} style={bold}>Carbon rating</Text>
             <Scale kind="carbon" value={carbon} label={`${carbon}, on a scale from A to E`} />
           </View>
           <Text v="lblThin" color={m2.color.ink} style={{ marginTop: m2.space.gsTop }}>{`${CARBON_BAND[carbon]} kg CO₂e per kg of food`}</Text>

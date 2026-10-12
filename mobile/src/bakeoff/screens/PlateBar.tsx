@@ -46,7 +46,7 @@ function Choose({ halls, onPick, onBack }: { halls: PlaceKey[]; onPick: (h: Plac
       </Press>
       <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: m2.space.part }}>
         {halls.map((h) => (
-          <Button key={h} kind="gold" size="bar" tight label={placeName(h)} onPress={() => onPick(h)} />
+          <Button key={h} kind="gold" size="choose" label={placeName(h)} onPress={() => onPick(h)} />
         ))}
       </View>
     </>

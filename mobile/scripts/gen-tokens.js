@@ -8,7 +8,7 @@ const path = require("path");
 const SRC = path.join(__dirname, "../../design-tokens/m2.json");
 const OUT = path.join(__dirname, "../src/lib/m2.generated.ts");
 const WEIGHT = { 400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold" };
-const HANDLED = new Set(["$comment", "version", "trace", "color", "grade", "font", "fontMetrics", "type", "motion", "curves"]);
+const HANDLED = new Set(["$comment", "version", "rnOnly", "trace", "color", "grade", "font", "fontMetrics", "type", "motion", "curves"]);
 const r1 = (x) => Math.round(x * 10) / 10;
 
 const rnFont = ({ family, weight }) => `${family.replace(/ /g, "")}_${weight}${WEIGHT[weight]}`;

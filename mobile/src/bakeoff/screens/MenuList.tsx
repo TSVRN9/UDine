@@ -1,7 +1,8 @@
 import { forwardRef } from "react";
 import { Image, View } from "react-native";
 import { m2 } from "../../lib/theme";
-import { Press, Text } from "../ui";
+import { Text } from "../ui";
+import { HairRow } from "../ui/HairRow";
 import type { Item } from "../logic/menuView";
 import type { Dish, MealKey, PlaceKey } from "../logic/types";
 import type { Toggles } from "../state/store";
@@ -29,12 +30,12 @@ export function MenuItem({ it, row }: { it: Item; row: RowContext }) {
     case "event":
       // M2 `.evrow.evnote` on its own day: the title only, no date tag; it opens the event's page
       return (
-        <Press feedback="tint" accessibilityRole="button" accessibilityLabel={it.title} disabled={!row.onEvent} onPress={() => row.onEvent?.(it.i)}
-          style={{ minHeight: m2.size.evrow, paddingHorizontal: m2.space.gutter, paddingVertical: m2.space.evrow, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
+        <HairRow accessibilityLabel={it.title} onPress={row.onEvent ? () => row.onEvent?.(it.i) : undefined}
+          style={{ minHeight: m2.size.evrow, paddingHorizontal: m2.space.gutter, paddingVertical: m2.space.evrow, justifyContent: "center" }}>
           <Text v="link" color={m2.color.dm}>{it.title}</Text>
           {/* the event page's banner is decoded now, so it is there when the page arrives (it was drawn a few frames after the push began) */}
           {EVENT_PHOTO[it.title] ? <Image source={EVENT_PHOTO[it.title]} accessible={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} /> : null}
-        </Press>
+        </HairRow>
       );
     case "cafe":
       // M2 `cafeBody`: what the café is, and that the feed carries no dishes for it

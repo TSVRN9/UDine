@@ -1,6 +1,15 @@
 {
- "$comment": "UDine M2 design tokens: the single source for the React Native (mobile/src/lib/m2.generated.ts) and Flutter (tokens.dart) bake-off stacks. Units: px = dp, ms, unitless ratios, rgba(r,g,b,a) strings. Every token path two levels deep has a `trace` entry naming the M2 rule it comes from (~/.cache/udine-scratch/flows/M2/src.html, CONCEPT.md). Generated TS: `pnpm tokens` in /mobile; mobile/src/lib/m2.generated.test.ts fails when it is stale.",
+ "$comment": "UDine M2 design tokens: the single source for the React Native (mobile/src/lib/m2.generated.ts) and Flutter (tokens.dart) bake-off stacks. Units: px = dp, ms, unitless ratios, rgba(r,g,b,a) strings. Every token path two levels deep has a `trace` entry naming the M2 rule it comes from (~/.cache/udine-scratch/flows/M2/src.html, CONCEPT.md). Generated TS: `pnpm tokens` in /mobile; mobile/src/lib/m2.generated.test.ts fails when it is stale. Easings: a bezier array [x1,y1,x2,y2] is a cubic-bezier; a name (\"emphasized\") resolves through `curves` (emphasized is the M3 two-segment path in `curves.emphasized`), \"linear\" is linear, and [0,0,0,1] is the standard decelerate. `rnOnly` lists the tokens only the React Native stack needs (no M2 rule): Flutter may ignore them. A timing token with `always` plays under the OS reduced-motion setting.",
  "version": 1,
+ "rnOnly": [
+  "motion.sheetRetry",
+  "motion.landing",
+  "motion.pushWatchdog",
+  "space.markNudgeX",
+  "space.markNudgeY",
+  "size.slotW",
+  "ratio.descender"
+ ],
  "color": {
   "dm": "#3b0a0f",
   "vm": "#881c1c",
@@ -125,7 +134,7 @@
   "date": {
    "font": "body",
    "size": 15,
-   "line": 20
+   "line": "normal"
   },
   "hallTitle": {
    "font": "numSb",
@@ -198,7 +207,7 @@
   "meta": {
    "font": "body",
    "size": 13,
-   "line": 17
+   "line": "normal"
   },
   "metaNum": {
    "font": "num",
@@ -232,7 +241,7 @@
   "link": {
    "font": "bodySb",
    "size": 15,
-   "line": 20
+   "line": "normal"
   },
   "empty": {
    "font": "body",
@@ -316,7 +325,7 @@
   "dv": {
    "font": "numSb",
    "size": 16,
-   "line": 20,
+   "line": "normal",
    "tabular": true
   },
   "lbl": {
@@ -332,7 +341,7 @@
   "lblThin": {
    "font": "body",
    "size": 13,
-   "line": 18
+   "line": "normal"
   },
   "lblFoot": {
    "font": "body",
@@ -359,12 +368,12 @@
   "factRow": {
    "font": "bodySb",
    "size": 15,
-   "line": 20
+   "line": "normal"
   },
   "factNum": {
    "font": "numSb",
    "size": 20,
-   "line": 24,
+   "line": "normal",
    "tabular": true
   },
   "mealCal": {
@@ -372,6 +381,16 @@
    "size": 18,
    "line": 22,
    "tabular": true
+  },
+  "headDate": {
+   "font": "body",
+   "size": 15,
+   "line": 20
+  },
+  "lblRow": {
+   "font": "body",
+   "size": 15,
+   "line": "normal"
   }
  },
  "space": {
@@ -386,14 +405,14 @@
   "stateTop": 28,
   "paragraph": 16,
   "stateGap": 16,
-  "sectionTop": 26,
+  "sectionTop": 22,
   "yheadBottom": 18,
-  "cafeBodyTop": 24,
-  "dietGroupTop": 32,
-  "eventTop": 20,
-  "eventBottom": 24,
-  "eventDate": 16,
-  "eventLinks": 16,
+  "cafeBodyTop": 20,
+  "dietGroupTop": 28,
+  "eventTop": 16,
+  "eventBottom": 20,
+  "eventDate": 12,
+  "eventLinks": 12,
   "markStart": 10,
   "markGap": 6,
   "obtn": 14,
@@ -840,7 +859,7 @@
   "type.mealTab": ".mts button 14px/500 (selected 600)",
   "type.tabBar": ".tbar button 12px/600",
   "type.brand": ".brand 600 22px Oswald",
-  "type.date": ".hhead .date 15px",
+  "type.date": ".dsv, .pstat span, #days .day .r 15px (no line-height)",
   "type.hallTitle": ".hhead h1 600 52px/1.05",
   "type.bandName": ".bt .nm 600 32px/1",
   "type.pinName": ".pin .bt .nm 24px",
@@ -853,13 +872,13 @@
   "type.stationHead": ".sth 600 22px Oswald (no line-height)",
   "type.day": ".dayc .o 600 20px/1",
   "type.rowName": ".row .n 600 16px/1.25",
-  "type.meta": ".row .m 13px",
+  "type.meta": ".row .m 13px (no line-height)",
   "type.metaNum": ".row .m b 500 15px Oswald (no line-height)",
   "type.stepper": ".step .q 600 20px Oswald",
   "type.letter": ".hchip 600 18px/1, .hl 700 18px/1",
   "type.tile": ".tile text 600 14px Oswald",
   "type.button": ".btn 700 17px / .gbtn 700 16px",
-  "type.link": ".tbtn 600 15px",
+  "type.link": ".tbtn 600 15px (no line-height)",
   "type.empty": ".empty 16px/1.45",
   "type.desc": ".cbody .desc 16px/1.5",
   "type.sched": ".scha p 15px/1.4",
@@ -874,16 +893,16 @@
   "type.action": ".evbtn 17px",
   "type.labelTitle": ".label .lt 700 30px/1.1",
   "type.calNum": ".facts .cal b 700 44px/1",
-  "type.dv": ".label .lr .dv 600 16px Oswald",
+  "type.dv": ".label .lr .dv 600 16px Oswald (no line-height)",
   "type.lbl": ".label .lr 15px",
   "type.lblLg": ".facts .cal span 700 18px",
-  "type.lblThin": ".label .lr.thin 13px",
+  "type.lblThin": ".label .lr.thin 13px (no line-height)",
   "type.lblFoot": ".label .lf 12px/1.35",
   "type.scaleNum": ".sscale i 500 14px/1",
   "type.ing": ".ing p 15px/1.5",
   "type.barNum": "#bar .l2 b 600 26px/1",
-  "type.factRow": ".facts .nr 600 15px",
-  "type.factNum": ".facts .nr b 600 20px Oswald",
+  "type.factRow": ".facts .nr 600 15px (no line-height)",
+  "type.factNum": ".facts .nr b 600 20px Oswald (no line-height)",
   "type.mealCal": ".lrow .mc b 600 18px Oswald",
   "space.line": "CONCEPT.md sheet scale: 4 within a line group",
   "space.part": "8 between the parts of a group",
@@ -896,14 +915,14 @@
   "space.stateTop": ".mst{padding:28px 20px 8px}",
   "space.paragraph": "UA p{margin:1em 0} around .mst .empty (not reset in M2)",
   "space.stateGap": ".mst .empty{padding:0 0 16px}",
-  "space.sectionTop": "drawn 26; .sec says 22 (audit: unmapped)",
-  "space.yheadBottom": "drawn 18; .yhead padding-bottom 18",
-  "space.cafeBodyTop": "drawn 24; .cbody says 20 (audit: unmapped)",
-  "space.dietGroupTop": "drawn 32; .dh~.dh says 28 (audit: unmapped)",
-  "space.eventTop": "drawn 20; .evband padding 16 20 20 (audit: unmapped)",
-  "space.eventBottom": "drawn 24 (audit: unmapped)",
-  "space.eventDate": "drawn 16 (audit: unmapped)",
-  "space.eventLinks": "drawn 16; .evband .stack gap 12 (audit: unmapped)",
+  "space.sectionTop": ".sec{padding:22px 20px 0}",
+  "space.yheadBottom": ".yhead{padding:calc(var(--st) + 10px) 20px 18px}",
+  "space.cafeBodyTop": ".cbody{padding:20px 20px 0}",
+  "space.dietGroupTop": ".dh~.dh{margin-top:28px}",
+  "space.eventTop": ".evband{padding:16px 20px 20px}: top",
+  "space.eventBottom": ".evband{padding:16px 20px 20px}: bottom",
+  "space.eventDate": ".evband .pstat{padding:12px 0 0}",
+  "space.eventLinks": ".stack{gap:12px}",
   "radius.card": ".evpatch 6",
   "radius.button": ".btn 8",
   "radius.sheet": ".sheet 16",
@@ -1083,7 +1102,9 @@
   "motion.landing": "RN only: toDish polls the list every 40 ms (40 tries) for two equal passes and lands 8 above the pinned rows (M2 `toDish`: scrollTop = offsetTop - pinned - 8)",
   "ratio.descender": "RN only: Oswald's descenders reach below a line box of 1 x its size (M2 `line-height: 1`) and Android clips text to its view: the room a tight line gets below it",
   "radius.patch": ".tg 4",
-  "radius.thumb": ".thumb 5"
+  "radius.thumb": ".thumb 5",
+  "type.headDate": ".hhead .date 15px on the 30px .r1 baseline row (line kept at 20: it sets the row)",
+  "type.lblRow": ".label .lr, .gr, .ls 15px (no line-height); `lbl` is `.dish .dal` at 1.4"
  },
  "felt": {
   "patch": {

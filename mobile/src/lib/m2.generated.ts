@@ -95,7 +95,7 @@ export const m2 = {
     },
     date: {
       size: 15,
-      line: 20,
+      line: 18.2,
       font: "LibreFranklin_400Regular",
       tabular: false
     },
@@ -173,7 +173,7 @@ export const m2 = {
     },
     meta: {
       size: 13,
-      line: 17,
+      line: 15.8,
       font: "LibreFranklin_400Regular",
       tabular: false
     },
@@ -209,7 +209,7 @@ export const m2 = {
     },
     link: {
       size: 15,
-      line: 20,
+      line: 18.2,
       font: "LibreFranklin_600SemiBold",
       tabular: false
     },
@@ -299,7 +299,7 @@ export const m2 = {
     },
     dv: {
       size: 16,
-      line: 20,
+      line: 23.7,
       font: "Oswald_600SemiBold",
       tabular: true
     },
@@ -317,7 +317,7 @@ export const m2 = {
     },
     lblThin: {
       size: 13,
-      line: 18,
+      line: 15.8,
       font: "LibreFranklin_400Regular",
       tabular: false
     },
@@ -347,13 +347,13 @@ export const m2 = {
     },
     factRow: {
       size: 15,
-      line: 20,
+      line: 18.2,
       font: "LibreFranklin_600SemiBold",
       tabular: false
     },
     factNum: {
       size: 20,
-      line: 24,
+      line: 29.6,
       font: "Oswald_600SemiBold",
       tabular: true
     },
@@ -362,6 +362,18 @@ export const m2 = {
       line: 22,
       font: "Oswald_600SemiBold",
       tabular: true
+    },
+    headDate: {
+      size: 15,
+      line: 20,
+      font: "LibreFranklin_400Regular",
+      tabular: false
+    },
+    lblRow: {
+      size: 15,
+      line: 18.2,
+      font: "LibreFranklin_400Regular",
+      tabular: false
     }
   },
   space: {
@@ -376,14 +388,14 @@ export const m2 = {
     stateTop: 28,
     paragraph: 16,
     stateGap: 16,
-    sectionTop: 26,
+    sectionTop: 22,
     yheadBottom: 18,
-    cafeBodyTop: 24,
-    dietGroupTop: 32,
-    eventTop: 20,
-    eventBottom: 24,
-    eventDate: 16,
-    eventLinks: 16,
+    cafeBodyTop: 20,
+    dietGroupTop: 28,
+    eventTop: 16,
+    eventBottom: 20,
+    eventDate: 12,
+    eventLinks: 12,
     markStart: 10,
     markGap: 6,
     obtn: 14,
