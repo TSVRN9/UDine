@@ -552,6 +552,14 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 
 ---
 
+**Carried from Task 6 review (2026-10-12), for Task 7 to fix where it touches them:**
+- `state/dishSheet.ts`'s module `open` flag clears only in the Sheet's `onDismiss`. If `DishSheetHost` unmounts while
+  open, every later `openDish` is refused. Clear it on host unmount; the plate entry makes this reachable.
+- The `HallMenu` landing loop and the `PushedHall` gate have no unmount cleanup or watchdog. A never-settled
+  `PushedHall` stays mounted and takes the first hardware back press.
+- `index.tsx` `push()` holds one slot, while M2's `NAV` is a stack. A where-served tap from a pushed hall replaces it,
+  and back returns to the base hall. Record this as a departure unless Task 7 needs depth.
+
 ### Task 8: RN network states
 
 **Carried from Task 5 (orchestrator, 2026-10-12).** Task 5 did not build these, and Task 8 must:
