@@ -19,6 +19,16 @@ class ListKeys {
   GlobalKey row(int si, String key) => rows.putIfAbsent('$si.$key', GlobalKey.new);
 }
 
+/// The keys a list draws its rows with; a copy of it (the meal change's outgoing list) overrides them with none, so a key is never
+/// on two widgets.
+class ListKeysScope extends InheritedWidget {
+  final ListKeys? keys;
+  const ListKeysScope({super.key, required this.keys, required super.child});
+  static ListKeys? of(BuildContext c) => c.dependOnInheritedWidgetOfExactType<ListKeysScope>()?.keys;
+  @override
+  bool updateShouldNotify(ListKeysScope old) => old.keys != keys;
+}
+
 class MealActions {
   final void Function(Dish d) onOpen, onAdd, onInc, onDec;
   final ValueChanged<bool> onReveal;
@@ -26,20 +36,19 @@ class MealActions {
 }
 
 /// One day's meal at a place as M2 draws it (`renderMenuList`): the Grab 'N Go note, the line over a filtered list, station
-/// heads and dish rows, or what an empty list says. `keys` is null for a copy.
+/// heads and dish rows, or what an empty list says. Its keys come from the ListKeysScope above it.
 class MealList extends StatelessWidget {
   final Fixture fx;
   final String place, meal;
   final int day;
   final bool reveal;
   final String? hereKey; // 'station.dishKey' of the serving a where-served tap landed on
-  final ListKeys? keys;
   final MealActions actions;
-  const MealList({super.key, required this.fx, required this.place, required this.day, required this.meal, required this.reveal, this.hereKey, this.keys, required this.actions});
+  const MealList({super.key, required this.fx, required this.place, required this.day, required this.meal, required this.reveal, this.hereKey, required this.actions});
 
   @override
   Widget build(BuildContext context) {
-    final store = StoreScope.of(context);
+    final store = StoreScope.of(context), keys = ListKeysScope.of(context);
     final iso = dayIsos(fx)[day], menu = fx.days[iso]?[place]?[meal];
     if (menu == null) {
       return _State(text: 'No menu posted for ${dayFull(fx, day)}.');

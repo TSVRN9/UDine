@@ -9,7 +9,9 @@ class DishCtx {
   final String place, meal;
   final int day;
   final bool fromPlate;
-  const DishCtx({required this.dish, required this.place, required this.meal, required this.day, this.fromPlate = false});
+  /// the places an Add counts for: the hall from a menu, the plate item's own from the plate
+  final Map<String, Dish>? refs;
+  const DishCtx({required this.dish, required this.place, required this.meal, required this.day, this.fromPlate = false, this.refs});
 }
 
 /// A where-served tap's destination: the place's screen on that day and meal, arriving at the dish.

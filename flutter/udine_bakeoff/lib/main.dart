@@ -3,43 +3,46 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'logic/fixture.dart';
 import 'screens/halls.dart';
+import 'shell.dart';
+import 'state/seed.dart';
+import 'state/store.dart';
 import 'theme/tokens.dart';
-import 'ui/ui.dart';
+
+/// `--dart-define=BAKEOFF_SEED=plate=W:lunch:...&scores=health` seeds the store for recordings (see state/seed.dart).
+const _seed = String.fromEnvironment('BAKEOFF_SEED');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final fx = Fixture.fromJson(jsonDecode(await rootBundle.loadString('assets/fixture.json')) as Map<String, dynamic>);
-  runApp(BakeoffApp(fx: fx));
+  final store = Store(fx);
+  await store.hydrate(); // what the device kept lands before the first frame: no pop-in
+  if (_seed.isNotEmpty) applySeed(store, fx, _seed);
+  runApp(BakeoffApp(fx: fx, store: store));
 }
 
-/// The bake-off shell: Halls, Search, You. Search has no content in this build and its tab is inert; You arrives with Task 12.
+/// The bake-off app: Halls, Search, You. Search has no content in this build and its tab is inert.
 class BakeoffApp extends StatefulWidget {
   final Fixture fx;
   final List<String> pins;
-  const BakeoffApp({super.key, required this.fx, this.pins = defaultPins});
+  final Store? store;
+  const BakeoffApp({super.key, required this.fx, this.pins = defaultPins, this.store});
   @override
   State<BakeoffApp> createState() => _BakeoffAppState();
 }
 
 class _BakeoffAppState extends State<BakeoffApp> {
-  int _tab = 0;
+  late final Store _store = widget.store ?? Store(widget.fx);
 
   @override
   Widget build(BuildContext context) {
-    return WidgetsApp(
-      color: M2Color.dm,
-      debugShowCheckedModeBanner: false,
-      home: Builder(builder: (context) {
-        final pad = MediaQuery.paddingOf(context);
-        return ColoredBox(
-          color: M2Color.chalk,
-          child: Column(children: [
-            Expanded(child: _tab == 0 ? HallsTab(fx: widget.fx, pins: widget.pins, top: pad.top) : const SizedBox.expand()),
-            M2TabBar(selected: _tab, onSelect: (i) => setState(() => _tab = i), bottomInset: pad.bottom),
-          ]),
-        );
-      }),
-      pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),
+    return StoreScope(
+      store: _store,
+      child: WidgetsApp(
+        color: M2Color.dm,
+        debugShowCheckedModeBanner: false,
+        home: Shell(fx: widget.fx, pins: widget.pins, store: _store),
+        pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),
+      ),
     );
   }
 }

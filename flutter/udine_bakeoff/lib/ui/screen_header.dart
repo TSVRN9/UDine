@@ -9,11 +9,12 @@ class ScreenHeader extends StatelessWidget {
   final String? title, date, mark;
   final double bottomPad;
   final VoidCallback? onBack;
-  final bool page;
-  const ScreenHeader.title({super.key, required this.top, required String this.title, this.date, this.mark, this.bottomPad = M2Layout.headPadBottom})
+  final bool page, dateLeft;
+  /// `dateLeft`: the date alone on the left, as You's header has it (`.yhead .date`); otherwise the mark left and the date right.
+  const ScreenHeader.title({super.key, required this.top, required String this.title, this.date, this.mark, this.bottomPad = M2Layout.headPadBottom, this.dateLeft = false})
       : page = false, onBack = null;
   const ScreenHeader.page({super.key, required this.top, required String this.title, required this.onBack})
-      : page = true, date = null, mark = null, bottomPad = 0;
+      : page = true, date = null, mark = null, bottomPad = 0, dateLeft = false;
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +34,8 @@ class ScreenHeader extends StatelessWidget {
         SizedBox(
           height: M2Layout.brandRowH,
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-            if (mark != null) Text(mark!, style: M2Text.brand.style(M2Color.gold)) else const SizedBox.shrink(),
-            if (date != null) Text(date!, style: M2Text.date.style(M2Color.onDm)),
+            if (mark != null) Text(mark!, style: M2Text.brand.style(M2Color.gold)) else if (dateLeft && date != null) Text(date!, style: M2Text.date.style(M2Color.onDm)) else const SizedBox.shrink(),
+            if (!dateLeft && date != null) Text(date!, style: M2Text.date.style(M2Color.onDm)),
           ]),
         ),
         Padding(padding: const EdgeInsets.only(top: M2Layout.titleGap), child: Semantics(header: true, child: Text(title!, style: M2Text.hallTitle.style(M2Color.white)))),

@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:udine_bakeoff/main.dart';
 import 'package:udine_bakeoff/motion/container_math.dart';
 import 'package:udine_bakeoff/motion/container_transform.dart';
+import 'package:udine_bakeoff/screens/hall_menu.dart';
 import 'package:udine_bakeoff/screens/halls.dart';
-import 'package:udine_bakeoff/screens/hall_page.dart';
 import 'package:udine_bakeoff/ui/ui.dart';
 import '../fonts.dart';
 import '../logic/support.dart';
@@ -49,7 +49,7 @@ void main() {
     await tester.tap(find.text('Hampshire'));
     await tester.pump();
     expect(h.phase, Phase.opening);
-    expect(find.byType(HallPage), findsOneWidget);
+    expect(find.byType(HallMenu), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 250));
     expect(h.p, inInclusiveRange(0.5, 0.99));
     await tester.pumpAndSettle();
@@ -57,7 +57,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Back'));
     await tester.pumpAndSettle();
     expect((h.phase, h.p), (Phase.closed, 0.0));
-    expect(find.byType(HallPage), findsNothing);
+    expect(find.byType(HallMenu), findsNothing);
   });
 
   testWidgets('Review Focus 4: a back during the open, then a second tap during the close, land in one consistent state', (tester) async {
@@ -76,11 +76,11 @@ void main() {
     expect(h.phase, Phase.opening);
     await tester.pumpAndSettle();
     expect((h.phase, h.p), (Phase.open, 1.0));
-    expect(find.byType(HallPage), findsOneWidget);
+    expect(find.byType(HallMenu), findsOneWidget);
     h.t.close();
     await tester.pumpAndSettle();
     expect((h.phase, h.p), (Phase.closed, 0.0));
-    expect(find.byType(HallPage), findsNothing);
+    expect(find.byType(HallMenu), findsNothing);
     // and the band is back, hittable
     await tester.tap(find.text('Franklin'));
     await tester.pumpAndSettle();

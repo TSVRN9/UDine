@@ -20,17 +20,14 @@ class StationSheet extends StatelessWidget {
         handle: handle, top: top, onClosed: onClosed, header: const SheetGrab(),
         slivers: [
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: M2Layout.sheetBottom),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.sheetTitleTop, M2Space.gutter, M2Layout.sheetTitleBottom),
                   child: Semantics(header: true, child: Text(title, style: M2Text.schedHead.style(M2Color.dm))),
                 ),
                 for (var i = 0; i < stations.length; i++)
                   SheetOption(label: stations[i].$1, trailing: '${stations[i].$2}', current: i == current, onTap: () => onPick(i)),
-              ]),
-            ),
+            ]),
           ),
         ],
       );

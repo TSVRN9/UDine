@@ -14,7 +14,11 @@ class SharedAxis extends StatefulWidget {
   /// +1 when the new content is to the right of the old (the tab order decides), -1 to the left
   final int dir;
   final Widget child;
-  const SharedAxis({super.key, required this.id, required this.dir, required this.child});
+  /// the content changed for another reason (a day change, which fades through): swap without sliding
+  final bool still;
+  /// wraps the outgoing copy (to take its keys away)
+  final Widget Function(Widget copy)? copyOf;
+  const SharedAxis({super.key, required this.id, required this.dir, required this.child, this.still = false, this.copyOf});
   @override
   State<SharedAxis> createState() => SharedAxisState();
 }
@@ -29,8 +33,9 @@ class SharedAxisState extends State<SharedAxis> with SingleTickerProviderStateMi
   @override
   void didUpdateWidget(SharedAxis oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.id != widget.id) {
-      _ghost = reducedMotion(context) ? null : oldWidget.child;
+    if (oldWidget.id != widget.id && !widget.still) {
+      final copy = reducedMotion(context) ? null : oldWidget.child;
+      _ghost = copy == null ? null : (widget.copyOf?.call(copy) ?? copy);
       _dir = widget.dir;
       final a = resolveAnim(context, M2Motion.sharedX);
       c.duration = a.duration;

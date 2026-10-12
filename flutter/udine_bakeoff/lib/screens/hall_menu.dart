@@ -32,9 +32,12 @@ class HallMenu extends StatefulWidget {
   /// arrive already at this serving (a where-served push)
   final HallTarget? land;
   final VoidCallback onBack;
+  /// Wraps the scrolling list in the container's back-drag recogniser, a descendant of the scroll view so that, at the top, a drag
+  /// down is claimed before the list's own (M2 decides the axis itself, on its first move).
+  final Widget Function(Widget child)? dragWrap;
   const HallMenu({
     super.key, required this.fx, required this.place, required this.top, required this.height, this.progress = kAlwaysCompleteAnimation, this.band, this.bandOpen = true,
-    this.day = 0, this.meal, this.land, required this.onBack,
+    this.day = 0, this.meal, this.land, required this.onBack, this.dragWrap,
   });
   @override
   State<HallMenu> createState() => HallMenuState();
@@ -48,7 +51,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   late final LandingScrollController _sc = LandingScrollController(landing: _landing);
   final _scrollY = ValueNotifier<double>(0);
   late final AnimationController _dayFade = AnimationController(vsync: this, value: 1);
-  bool _dayIn = false;
+  bool _dayIn = false, _daySwap = false;
   final _keys = ListKeys();
   final _contentKey = GlobalKey();
   final _pagerKey = GlobalKey<SharedAxisState>();
@@ -172,6 +175,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     void swap() {
       final y = _sc.hasClients ? _sc.offset.clamp(0.0, _r) : 0.0;
       setState(() {
+        _daySwap = true;
         _day = i;
         _meal = defaultMeal(fx, dayIsos(fx)[i], place, _meal);
         _reveal = false;
@@ -179,6 +183,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        _daySwap = false;
         if (_sc.hasClients) _sc.jumpTo(y.clamp(0.0, _sc.position.maxScrollExtent));
         _updateStation();
         if (i == 0) _syncFront();
@@ -298,11 +303,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final meals = menuOpen ? mealsOf(fx, iso, place) : const <String>[];
     final meal = meals.isNotEmpty && !meals.contains(_meal) ? defaultMeal(fx, iso, place, _meal) : _meal;
     final list = menuOpen
-        ? MealList(fx: fx, place: place, day: _day, meal: meal, reveal: _reveal, hereKey: _here, keys: _keys, actions: _actions)
+        ? MealList(fx: fx, place: place, day: _day, meal: meal, reveal: _reveal, hereKey: _here, actions: _actions)
         : const SizedBox.shrink();
     final listArea = ConstrainedBox(
       constraints: BoxConstraints(minHeight: h),
-      child: ColoredBox(color: M2Color.chalk, child: SharedAxis(key: _pagerKey, id: '$iso|$meal', dir: _dir, child: list)),
+      child: ColoredBox(color: M2Color.chalk, child: ListKeysScope(keys: _keys, child: SharedAxis(key: _pagerKey, id: meal, dir: _dir, still: _daySwap, copyOf: (c) => ListKeysScope(keys: null, child: c), child: list))),
     );
     final padB = SizedBox(height: M2Layout.listPadBottom2 + MediaQuery.paddingOf(context).bottom);
     final status = fx.hours[place]!;
@@ -323,11 +328,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
             },
             child: SingleChildScrollView(
               controller: _sc, physics: const ClampingScrollPhysics(),
-              child: Column(key: _contentKey, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              child: (widget.dragWrap ?? (c) => c)(Column(key: _contentKey, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 SizedBox(height: hh + th + sw),
                 listArea,
                 padB,
-              ]),
+              ])),
             ),
           ),
         ),

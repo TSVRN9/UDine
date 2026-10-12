@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 Future<void> loadFonts() async {
   for (final (family, files) in [
     ('Oswald', ['Oswald_500Medium', 'Oswald_600SemiBold', 'Oswald_700Bold']),
-    ('LibreFranklin', ['LibreFranklin_400Regular', 'LibreFranklin_500Medium', 'LibreFranklin_600SemiBold']),
+    ('LibreFranklin', ['LibreFranklin_400Regular', 'LibreFranklin_500Medium', 'LibreFranklin_600SemiBold', 'LibreFranklin_700Bold']),
   ]) {
     final l = FontLoader(family);
     for (final f in files) {

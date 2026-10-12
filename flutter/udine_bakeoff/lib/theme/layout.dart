@@ -117,4 +117,33 @@ abstract final class M2Layout {
   static const schedNameTop = 2.0, schedRowTop = 6.0, schedPayTop = 10.0, schedDescTop = 20.0, schedDaysTop = 16.0; // `.schn`, `.schw`, `.schp`, `.schd`, `#days`
   static const mwsPadBottom = 10.0, mwsPadLeft = 36.0, mwsTop = -4.0, evRowH = 44.0; // `#days .mws`
   static const landingSlack = 12.0; // `openSched`: the chosen day ends 12 dp above the sheet's lower edge
+  // the nutrition label and ratings panel (`.label`, `.grades`, `.sscale`)
+  static const dvMin = 38.0; // `.label .lr .dv` min-width: 3ch of 16 dp Oswald
+  static const labelTitleTop = 2.0, labelTitleBottom = 4.0, servingPad = 6.0, calPadTop = 2.0, calPadBottom = 4.0;
+  static const scaleGap = 3.0, scaleOnPad = 2.0, scaleNumBar = 7.0, scaleBar = 4.0, scaleBarInset = 1.0, hscaleW = 14.0, cscaleW = 17.0;
+  static const ratingPad = 10.0, gradeNoteTop = 6.0;
+  // the dish sheet (`.dish`)
+  static const dishHeadTop = 4.0, dishHeadBottom = 4.0; // `.dhd` padding 0 20 4, `.dn` margin 4 0 0
+  static const dsvTop = 4.0, dalTop = 8.0, dadd = 16.0, whereTop = 24.0, wlGap = 16.0, wtBottom = 8.0, labelTop = 24.0, gradesTop = 12.0; // `.dsv`, `.dal`, `.dadd`, `.where`, `.wl+.wl`, `.wt`, `.facts`, `.facts.grades`
+  static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 40.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore`
+  static const shadowBlur = 14.0, shadowSpread = -8.0, shadowDy = 10.0, stuckAt = 4.0; // `.dish.stuck .dhd`
+  // the plate bar and sheet (`#bar`, `.prow`, `.ptabs`, `.facts`)
+  static const barMin = 68.0, barPadTop = 8.0, barPadRight = 12.0, barGap = 12.0, barL2Top = 2.0, barNumGap = 2.0, barUnitGap = 12.0; // `#bar .in`, `.l2`
+  static const dotsTop = 5.0, dotSize = 5.0, dotGap = 5.0, peekInset = 10.0, peekH = 5.0, peekTop = -5.0; // `#bar .dots`, `.peek`
+  static const logAtPad = 14.0; // `.gbtn` in choose mode
+  static const plateTabsInset = -8.0, plateTabsBottom = 4.0, plateTabPad = 10.0, plateTabUnder = 3.0, plateTabUnderBottom = 4.0, plateTabGap = 4.0; // `.ptabs`
+  static const prowMin = 64.0, prowGap = 8.0, prowMetaTop = 3.0; // `.prow`
+  static const plateBodyTop = 4.0, factsMargin = 16.0; // `#psheet .sbody` padding-top, `.sheet .facts` margin
+  static const midFrac = 0.36; // the plate sheet's resting line: 36% of the frame down
+  static const factCalBottom = 7.0, factRowTop = 7.0, factRowBottom = 5.0; // `.facts .cal`, `.nr`
+  static const treatTop = 16.0; // spare
+  static const peekRadius = 3.0; // `.peek` border-radius 3 3 0 0
+  // You and its pages (`.yhead`, `.pbody`, `.dh`)
+  static const youHeadBottom = 18.0; // `.yhead` padding-bottom
+  static const pbodyTop = 8.0, pbodyBottom = 20.0, dietTop = 12.0, dietGroupTop = 28.0; // `.pbody` padding 8 20 20, `.dh`, `.dh~.dh` (m2.json said 32: drawn by RN)
+  static const mealCalGap = 6.0; // `.lrow .mc` gap
+  static const listFoot = 150.0; // `.pad-b`
+  static const safeTopMin = 24.0; // `--st: max(24px, env(safe-area-inset-top))`
+  static const plateFoot = 84.0; // `#psheet .sbody` padding-bottom: 84 + --sb, the room that clears the bar
+  static const todayTop = 20.0; // You's Today section: `style="padding-top:20px"` on its `.sec`
 }

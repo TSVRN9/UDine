@@ -83,6 +83,8 @@ flutter:
           weight: 500
         - asset: assets/fonts/LibreFranklin_600SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/LibreFranklin_700Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

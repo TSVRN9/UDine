@@ -48,9 +48,10 @@ class _HoursSheetState extends State<HoursSheet> {
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _DayRow(label: d.label, right: d.right, current: d.current, onTap: () => w.onPick(d.i)),
         if (open)
-          Container(
+          NegMargin(
+            top: M2Layout.mwsTop,
+            child: Container(
             key: _end,
-            margin: const EdgeInsets.only(top: M2Layout.mwsTop),
             padding: const EdgeInsets.fromLTRB(M2Layout.mwsPadLeft, 0, M2Space.gutter, M2Layout.mwsPadBottom),
             decoration: const BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: M2Color.vm))),
             child: d.event != null
@@ -65,6 +66,7 @@ class _HoursSheetState extends State<HoursSheet> {
                         Text(m.window, style: M2Text.sched.style(M2Color.slate)),
                       ]),
                   ]),
+            ),
           ),
       ]);
     }
@@ -73,9 +75,7 @@ class _HoursSheetState extends State<HoursSheet> {
       handle: w.handle, top: w.top, onClosed: w.onClosed, header: const SheetGrab(), landing: _landing,
       slivers: [
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: M2Layout.sheetBottom),
-            child: Column(key: _body, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          child: Column(key: _body, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -110,7 +110,6 @@ class _HoursSheetState extends State<HoursSheet> {
               if (s.description != null && s.description!.isNotEmpty)
                 Padding(padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.schedDescTop, M2Space.gutter, 0), child: Text(s.description!, style: M2Text.ing.style(M2Color.ink))),
             ]),
-          ),
         ),
       ],
     );

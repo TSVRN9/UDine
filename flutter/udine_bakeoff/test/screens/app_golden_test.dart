@@ -1,0 +1,86 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:udine_bakeoff/main.dart';
+import 'package:udine_bakeoff/screens/hall_menu.dart';
+import 'package:udine_bakeoff/ui/ui.dart';
+import '../fonts.dart';
+import '../logic/support.dart';
+import 'harness.dart';
+
+// The sheets, the plate and You as the whole app draws them, 390 x 844, against M2's render of the same state. Committed goldens draw
+// no photos; BAKEOFF_PHOTO_SHOTS=<dir> writes the same screens with them.
+Future<void> app(WidgetTester t, String name, {String seed = '', double w = 390, required Future<void> Function(WidgetTester) act}) async {
+  sized(t, w: w);
+  for (final withPhotos in [false, if (photoShots != null) true]) {
+    Photos.enabled = withPhotos;
+    final key = GlobalKey();
+    final store = freshStore(seed);
+    await t.pumpWidget(RepaintBoundary(key: key, child: BakeoffApp(fx: fx, store: store)));
+    if (withPhotos) await t.runAsync(() => Future.delayed(const Duration(milliseconds: 600)));
+    await t.pumpAndSettle();
+    await act(t);
+    await t.pumpAndSettle(const Duration(milliseconds: 50), EnginePhase.sendSemanticsUpdate, const Duration(seconds: 6));
+    if (!withPhotos) {
+      await expectLater(find.byKey(key), matchesGoldenFile('app_${name}_${w.round()}.png'));
+    } else {
+      await savePng(t, key, '$photoShots/app_$name-${w.round()}-photos.png');
+    }
+  }
+}
+
+Future<void> openHall(WidgetTester t, String name) async {
+  await t.tap(find.text(name).first);
+  await t.pumpAndSettle();
+}
+
+Future<void> tapRow(WidgetTester t, String name) async {
+  await t.scrollUntilVisible(find.text(name), 120, scrollable: find.descendant(of: find.byType(HallMenu), matching: find.byType(Scrollable)).first);
+  await t.pumpAndSettle();
+  await t.tap(find.text(name));
+}
+
+void main() {
+  setUpAll(loadFonts);
+  testWidgets('dish sheet at rest', (t) => app(t, 'dish', act: (t) async {
+        await openHall(t, 'Worcester');
+        await tapRow(t, 'Golden BBQ Chicken Thigh');
+      }));
+  testWidgets('dish sheet with both scores on', (t) => app(t, 'dish_scored', seed: 'scores=health,carbon', act: (t) async {
+        await openHall(t, 'Worcester');
+        await tapRow(t, 'Golden BBQ Chicken Thigh');
+      }));
+  testWidgets('station switcher open', (t) => app(t, 'stations', act: (t) async {
+        await openHall(t, 'Worcester');
+        await t.tap(find.textContaining('Miscellaneous').last);
+      }));
+  testWidgets('hours and directions', (t) => app(t, 'hours', act: (t) async {
+        await openHall(t, 'Worcester');
+        await t.tap(find.text('Today'));
+      }));
+  testWidgets('hours on a later day', (t) => app(t, 'hours_day', act: (t) async {
+        await openHall(t, 'Worcester');
+        await t.tap(find.text('Today'));
+        await t.pumpAndSettle();
+        await t.tap(find.text('Saturday, October 17'));
+        await t.pumpAndSettle();
+        await t.tap(find.text('Sat 17'));
+      }));
+  testWidgets('plate bar with the benchmark plate', (t) => app(t, 'plate_bar', seed: 'plate=W:lunch:beef brisket noodle bowl,golden bbq chicken thigh*2', act: (t) async {
+        await openHall(t, 'Worcester');
+      }));
+  testWidgets('plate sheet at mid', (t) => app(t, 'plate_mid', seed: 'plate=W:lunch:beef brisket noodle bowl,golden bbq chicken thigh*2', act: (t) async {
+        await openHall(t, 'Worcester');
+        await t.tap(find.textContaining('Worcester lunch,').first);
+      }));
+  testWidgets('logged: the receipt with Undo', (t) => app(t, 'logged', seed: 'plate=W:lunch:beef brisket noodle bowl,golden bbq chicken thigh*2&logged=1&receipt=1', act: (t) async {
+        await openHall(t, 'Worcester');
+      }));
+  testWidgets('You', (t) => app(t, 'you', seed: 'plate=W:lunch:beef brisket noodle bowl,golden bbq chicken thigh*2&logged=1', act: (t) async {
+        await t.tap(find.text('You').last);
+      }));
+  testWidgets('Dietary preferences', (t) => app(t, 'diet', seed: 'diet=veg&avoid=Peanuts,Milk', act: (t) async {
+        await t.tap(find.text('You').last);
+        await t.pumpAndSettle();
+        await t.tap(find.text('Dietary preferences'));
+      }));
+}

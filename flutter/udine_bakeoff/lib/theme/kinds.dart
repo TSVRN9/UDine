@@ -2,6 +2,9 @@
 import 'package:flutter/animation.dart';
 import 'package:flutter/painting.dart';
 
+/// Libre Franklin 700, which M2 draws bold text in (labels, `.btn`, Contains) and m2.json has no row for: Flutter-only.
+const bold700 = FontWeight.w700;
+
 /// A duration and its curve, always together: nothing animates with a bare duration.
 class Anim {
   final int ms;
@@ -23,6 +26,10 @@ class M2Type {
         decoration: TextDecoration.none, leadingDistribution: TextLeadingDistribution.even,
         fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
       );
+  /// The same row in Libre Franklin 700 (`.btn`, `.gbtn`).
+  M2Type bold() => M2Type(size, line, family, bold700, tabular: tabular);
+  /// The same row at the font's own line height: where M2's CSS sets no `line-height` and the token file carries one anyway.
+  M2Type normal() => M2Type(size, null, family, weight, tabular: tabular);
   M2Type withSize(double s) => M2Type(s, line == null ? null : line! * s / size, family, weight, tabular: tabular);
 }
 

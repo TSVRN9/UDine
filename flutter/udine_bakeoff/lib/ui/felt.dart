@@ -42,6 +42,6 @@ class Felt extends StatelessWidget {
   @override
   Widget build(BuildContext context) => CustomPaint(
         painter: _FeltPainter(color, stitch, radius, inset, innerRadius),
-        child: Container(width: width, height: height, padding: padding, alignment: Alignment.center, child: child),
+        child: Container(width: width, height: height, padding: padding, child: Align(alignment: Alignment.center, widthFactor: width == null ? 1 : null, heightFactor: height == null ? 1 : null, child: child)),
       );
 }

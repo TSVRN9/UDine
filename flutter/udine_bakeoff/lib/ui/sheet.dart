@@ -47,6 +47,8 @@ class M2Sheet extends StatefulWidget {
   final bool scrim;
   final Widget? header;
   final List<Widget> slivers;
+  /// room under the content inside the scroll (`.sbody` padding-bottom: 24 plus the bottom inset; the plate sheet clears its bar with 84)
+  final double? bottomPad;
   final ScrollPhysics? physics;
   /// Where the body starts (scroll offset), from the first layout and before the sheet is visible: the hours sheet opens at the
   /// chosen day. Gets the metrics and the resting height; null leaves it at the top.
@@ -55,7 +57,7 @@ class M2Sheet extends StatefulWidget {
   final Color color;
   const M2Sheet({
     super.key, required this.handle, required this.top, required this.slivers, this.mid, this.min = 0, this.startOpen = true, this.onClosed, this.onSize,
-    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.landing, this.color = M2Color.chalk,
+    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.landing, this.bottomPad, this.color = M2Color.chalk,
   });
   @override
   State<M2Sheet> createState() => _M2SheetState();
@@ -98,13 +100,14 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   double get _max => (_h - widget.top);
   double _clampPx(double v) => v.clamp(widget.min, _max);
 
-  double _defaultMid(SheetMetrics m) => (m.content + M2Layout.sheetBottom + MediaQuery.paddingOf(context).bottom).clamp(0, m.height * M2Layout.sheetMaxFrac);
+  double get _pad => widget.bottomPad ?? (M2Layout.sheetBottom + MediaQuery.paddingOf(context).bottom);
+  double _defaultMid(SheetMetrics m) => (m.content + _pad).clamp(0, m.height * M2Layout.sheetMaxFrac);
 
   void _measure() {
     if (!mounted || _h == 0 || !_dsc.isAttached) return;
     final box = _bodyKey.currentContext;
     final sc = _scrollMetrics();
-    final content = sc == null ? 0.0 : sc.maxScrollExtent + sc.viewportDimension;
+    final content = sc == null ? 0.0 : sc.maxScrollExtent + sc.viewportDimension - _pad; // (the room under the content is not part of what the resting height fits)
     final m = SheetMetrics(_h, content, box);
     final mid = _clampPx((widget.mid ?? _defaultMid)(m));
     if (!_measured && widget.landing != null) {
@@ -204,6 +207,8 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     return false;
   }
 
+  Widget _scroll(ScrollController sc) => CustomScrollView(controller: sc, physics: widget.physics, key: _bodyKey, slivers: [if (widget.header != null) PinnedHeaderSliver(child: widget.header!), ...widget.slivers, SliverToBoxAdapter(child: SizedBox(height: _pad))]);
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
@@ -224,7 +229,8 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
               animation: _dsc,
               builder: (_, _) {
                 final s = _dsc.isAttached ? _dsc.size : 0.0;
-                final f = midFrac <= 0 ? 0.0 : (s / midFrac).clamp(0.0, 1.0);
+                // (closed - y) / (closed - mid): from the sheet's lowest height, not from nothing
+                final f = midFrac <= minFrac ? 0.0 : ((s - minFrac) / (midFrac - minFrac)).clamp(0.0, 1.0);
                 return IgnorePointer(
                   ignoring: f <= 0,
                   child: GestureDetector(
@@ -243,10 +249,9 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
               onNotification: _onScroll,
               child: DecoratedBox(
                 decoration: BoxDecoration(color: widget.color, borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius))),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius)),
-                  child: CustomScrollView(controller: sc, physics: widget.physics, key: _bodyKey, slivers: [if (widget.header != null) PinnedHeaderSliver(child: widget.header!), ...widget.slivers]),
-                ),
+                child: widget.radius == 0
+                    ? _scroll(sc)
+                    : ClipRRect(borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius)), child: _scroll(sc)),
               ),
             );
           },

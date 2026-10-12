@@ -7,7 +7,7 @@ import '../motion/container_math.dart';
 import '../motion/container_transform.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
-import 'hall_page.dart';
+import 'hall_menu.dart';
 
 /// The pinned cafés on Halls; pinning UI is out of scope for the bake-off.
 const defaultPins = ['Wasabi', 'Tamales'];
@@ -166,50 +166,65 @@ class HallsTabState extends State<HallsTab> with SingleTickerProviderStateMixin 
     super.dispose();
   }
 
+  final _menu = GlobalKey<HallMenuState>();
+
+  /// The interactive back (drag down from the top of the list, or in from the left edge) around `child`.
+  Widget _back(Widget child) => RawGestureDetector(
+        behavior: HitTestBehavior.opaque,
+        gestures: {
+          BackSwipeRecognizer: GestureRecognizerFactoryWithHandlers<BackSwipeRecognizer>(
+            // a drag down only takes the screen while its list is at the top (M2: `sc.scrollTop <= 0`)
+            () => BackSwipeRecognizer(onGrab: t.grab, onMove: t.move, onRelease: t.release, canDragDown: () => _menu.currentState?.atTop ?? true),
+            (_) {},
+          ),
+        },
+        child: child,
+      );
+
+  /// Hardware back: closes the open hall (true), or says there is none.
+  bool closeHall() {
+    if (!t.machine.mounted) return false;
+    t.close();
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !t.machine.mounted,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) t.close();
-      },
-      child: LayoutBuilder(builder: (_, c) {
-        final h = c.maxHeight;
-        return Stack(children: [
+    return LayoutBuilder(builder: (_, c) {
+      final h = c.maxHeight;
+      return Stack(children: [
+        Positioned.fill(
+          child: HallsList(
+            fx: widget.fx, pins: widget.pins, top: widget.top, hidden: _place,
+            onOpen: (key, band) {
+              final origin = (context.findRenderObject()! as RenderBox).localToGlobal(Offset.zero);
+              _place = key;
+              t.open(BandRect(band.top - origin.dy, band.height, bandOff(key, widget.top)));
+            },
+          ),
+        ),
+        if (t.machine.mounted && _place != null) ...[
           Positioned.fill(
-            child: HallsList(
-              fx: widget.fx, pins: widget.pins, top: widget.top, hidden: _place,
-              onOpen: (key, band) {
-                final origin = (context.findRenderObject()! as RenderBox).localToGlobal(Offset.zero);
-                _place = key;
-                t.open(BandRect(band.top - origin.dy, band.height, bandOff(key, widget.top)));
-              },
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: t.progress,
+                builder: (_, _) => ColoredBox(color: M2Color.scrim.withValues(alpha: M2Motion.scrim * t.progress.value)),
+              ),
             ),
           ),
-          if (t.machine.mounted && _place != null) ...[
-            Positioned.fill(
-              child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: t.progress,
-                  builder: (_, _) => ColoredBox(color: M2Color.scrim.withValues(alpha: M2Motion.scrim * t.progress.value)),
+          Positioned.fill(
+            child: _back(
+              ContainerWindow(
+                t: t, height: h,
+                child: HallMenu(
+                  key: _menu, fx: widget.fx, place: _place!, top: widget.top, height: h, progress: t.progress, band: t.rect, bandOpen: t.phase == Phase.open, onBack: t.close,
+                  dragWrap: _back,
                 ),
               ),
             ),
-            Positioned.fill(
-              child: RawGestureDetector(
-                behavior: HitTestBehavior.opaque,
-                gestures: {
-                  BackSwipeRecognizer: GestureRecognizerFactoryWithHandlers<BackSwipeRecognizer>(
-                    () => BackSwipeRecognizer(onGrab: t.grab, onMove: t.move, onRelease: t.release),
-                    (_) {},
-                  ),
-                },
-                child: ContainerWindow(t: t, height: h, child: HallPage(t: t, fx: widget.fx, place: _place!, height: h, top: widget.top)),
-              ),
-            ),
-          ],
-        ]);
-      }),
-    );
+          ),
+        ],
+      ]);
+    });
   }
 }
