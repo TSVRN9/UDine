@@ -546,6 +546,10 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 
 ### Task 8: RN network states
 
+**Carried from Task 5 (orchestrator, 2026-10-12).** Task 5 did not build these, and Task 8 must:
+- cafés with only a standing names list, which keep it (brief, "Cafés get real dishes");
+- the Oct 12 "Indigenous Peoples Day Hours" note row atop Monday's list (M2 `compare-evnote.png`).
+
 **Files:**
 - Modify: `mobile/src/bakeoff/logic/fixture.ts`. Add `loadFixtureAsync(mode: "ok" | "slow" | "offline" | "fail")`, with the mode from `EXPO_PUBLIC_BAKEOFF_NET`. It defaults to `ok`; `slow` adds a 1500 ms delay; `offline` returns the fixture flagged `{ cached: true, asOf }`; `fail` rejects.
 - Create: the state components round 9 designs (names follow round 9's NOTES).
