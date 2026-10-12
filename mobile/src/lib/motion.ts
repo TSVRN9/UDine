@@ -148,3 +148,7 @@ export const m2Motion = {
   rmFade: { d: 120 },
   spring: { sheet: { k: 300, z: 0.84 } },
 } as const;
+
+/** Linear, and M2's `settle` curve as Reanimated easings (the bake-off kit reads these; no easing is spelled outside this file). */
+export const m2Linear = ReanimatedEasing.linear;
+export const m2SettleEasing = ReanimatedEasing.bezier(...m2Motion.settle.e);

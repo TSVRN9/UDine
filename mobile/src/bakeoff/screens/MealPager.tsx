@@ -1,8 +1,8 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { View } from "react-native";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { emphasized, m2Motion } from "../../lib/motion";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { emphasized, m2Linear, m2Motion } from "../../lib/motion";
 import { m2 } from "../../lib/theme";
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as unknown as typeof FlashList;
@@ -64,8 +64,8 @@ export const MealPager = forwardRef<PagerHandle, {
     p.set(0); o.set(0); g.set(1);
     const raf = requestAnimationFrame(() => requestAnimationFrame(() => {
       p.set(withTiming(1, { duration: X.d, easing: emphasized }, (done) => { if (done) runOnJS(drop)(id); }));
-      o.set(withTiming(1, { duration: X.d * X.inAt, easing: Easing.linear }));
-      g.set(withTiming(0, { duration: X.d * X.at, easing: Easing.linear }));
+      o.set(withTiming(1, { duration: X.d * X.inAt, easing: m2Linear }));
+      g.set(withTiming(0, { duration: X.d * X.at, easing: m2Linear }));
     }));
     return () => cancelAnimationFrame(raf);
   }, [data, p, o, g, drop]);
