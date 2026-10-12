@@ -34,7 +34,7 @@ import { DishRow } from "./DishRow";
 import { headerHeight } from "./HallsList";
 import { HoursSheet } from "./HoursSheet";
 import { MealPager, type PagerHandle } from "./MealPager";
-import { ArrivalVeil, StateCurtain } from "./NetState";
+import { StateCurtain } from "./NetState";
 import { StationSwitcher } from "./StationSwitcher";
 
 const fill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
@@ -368,7 +368,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
         {warm ? <MealPager
           ref={pager} data={items} renderItem={renderItem} animatedRef={aref} holdOn={holdOn} onScroll={onScroll} scrollY={y} onViewable={refreshHeads}
           keyOf={keyOf} typeOf={typeOf}
-          curtain={state === "ok" ? (okArrive ? (copy) => (copy ? null : <ArrivalVeil />) : undefined) : (copy) => <StateCurtain copy={copy} state={state} top={HH + TH + SWH} text={stateText} />}
+          curtain={state === "ok" ? undefined : (copy) => <StateCurtain copy={copy} state={state} top={HH + TH + SWH} text={stateText} />}
           header={<View style={{ height: HH + TH + SWH, backgroundColor: m2.color.dm }} />} footer={<View style={{ height: 120 }} />}
         /> : null}
       </Animated.View>
