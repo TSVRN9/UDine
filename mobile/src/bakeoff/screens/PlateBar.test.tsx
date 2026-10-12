@@ -62,3 +62,15 @@ it("a half-item plate says ½ items, not 0½ items", () => {
   });
   expect(text(mount())).toContain("Worcester lunch, ½ items");
 });
+it("keeps the removed plate drawn while the bar slides away, and never the logged one after its receipt", () => {
+  const d = dish("W", "Golden BBQ Chicken Thigh");
+  act(() => { store.add("lunch", d.name, { W: d }); });
+  const v = mount();
+  act(() => { const id = store.getState().plates.plates[0].id; store.step(id, d.key, -1); store.step(id, d.key, -1); });
+  expect(store.getState().plates.plates).toHaveLength(0);
+  expect(text(v)).toContain("Worcester lunch");
+  act(() => { store.add("lunch", d.name, { W: d }); });
+  press(v, /Log/);
+  act(() => store.dropReceipt());
+  expect(text(v)).not.toContain("Worcester lunch");
+});

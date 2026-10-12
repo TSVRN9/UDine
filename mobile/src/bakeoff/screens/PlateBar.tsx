@@ -8,7 +8,7 @@ import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { Press, Text, ding, tick } from "../ui";
 import { fc } from "../logic/dishSheet";
 import { placeName } from "../logic/fixture";
-import { fq, plateHalls, plateLabel, totals } from "../logic/plate";
+import { fq, plateHalls, plateLabel, totals, type Plate } from "../logic/plate";
 import type { PlaceKey } from "../logic/types";
 import { dropReceipt, getState, log, setFront, useStore } from "../state/store";
 import { LogReceipt } from "./LogReceipt";
@@ -19,9 +19,7 @@ const f1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1).replace(/\.0$/, "
 const nItems = (n: number) => (n === 1 ? "1 item" : `${fq(n)} items`);
 const settle = { duration: m2Motion.settle.d, easing: m2SettleEasing };
 
-function PlateLine({ onLog, onOpen }: { onLog: () => void; onOpen: () => void }) {
-  const plate = useStore((s) => s.plates.plates[s.plates.front]);
-  if (!plate) return null;
+function PlateLine({ plate, onLog, onOpen }: { plate: Plate; onLog: () => void; onOpen: () => void }) {
   const t = totals(plate);
   return (
     <>
@@ -69,6 +67,11 @@ export function PlateBar({ sheet, animatedIndex, collapse }: { sheet: RefObject<
   const front = useStore((s) => s.plates.front);
   const last = useStore((s) => s.last);
   const front0 = useStore((s) => s.plates.plates[s.plates.front]);
+  // the last plate stays drawn while the bar slides away after it is emptied or logged (M2 leaves the bar's content as it was)
+  const [held, setHeld] = useState<Plate | undefined>(front0);
+  if (front0 && front0 !== held) setHeld(front0);
+  else if (last && held && !front0) setHeld(undefined);   // a logged plate is not held: the receipt replaced it
+  const shown = front0 ?? held;
   const halls = useMemo(() => (front0 ? plateHalls(front0) : null), [front0]);
   // the plate the question is asked of: another plate in front is another question
   const frontId = useStore((s) => s.plates.plates[s.plates.front]?.id ?? null);
@@ -131,7 +134,7 @@ export function PlateBar({ sheet, animatedIndex, collapse }: { sheet: RefObject<
           <Animated.View style={[{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space[2], paddingLeft: m2.space[4], paddingRight: m2.space[2] }, mode === "plate" ? slide : null]}>
             {mode === "logged" && last ? <LogReceipt last={last} />
               : mode === "choose" && halls ? <Choose halls={halls} onPick={doLog} onBack={() => setChooseFor(null)} />
-              : <PlateLine onLog={onLog} onOpen={onOpen} />}
+              : (shown ? <PlateLine plate={shown} onLog={onLog} onOpen={onOpen} /> : null)}
           </Animated.View>
         </Animated.View>
       </GestureDetector>
