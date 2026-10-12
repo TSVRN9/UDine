@@ -42,3 +42,19 @@ export function schedule(fx: Fixture, place: PlaceKey, chosen: number): Schedule
   });
   return { name: p.name, address: p.address ?? "", mapAddress: p.mapAddress, building: cafe ? p.building : null, payment: cafe ? p.payment : null, description: cafe ? p.description : null, days };
 }
+
+// Row heights of the schedule sheet (HoursSheet): fixed by the type scale, so the offset it opens at can be worked out before it draws.
+const ROW = 48, LINE = 22, HEAD = 2 + 32 + 6, BUTTON = 44, LIST_TOP = 16 + 1, SLACK = 24;
+
+/**
+ * M2 opens the schedule already scrolled so the chosen day and its hours show at rest (`viewport` px of list). The sheet starts at
+ * this offset; nothing scrolls after it is drawn. The address block's wrapped lines are estimated (a payment line is two lines).
+ */
+export function openOffset(s: Schedule, viewport: number): number {
+  const cur = s.days.find((d) => d.current);
+  if (!cur) return 0;
+  const block = (d: SchedDay) => ROW + (d.meals.length ? 6 + LINE * d.meals.length : d.event ? 6 + BUTTON : 0);
+  const top = HEAD + Math.max(LINE * (s.building ? 2 : 1), BUTTON) + (s.payment ? 10 + LINE * 2 : 0) + LIST_TOP;
+  const bottom = top + s.days.filter((d) => d.i < cur.i).reduce((n, d) => n + block(d), 0) + block(cur);
+  return Math.max(0, bottom + SLACK - viewport);
+}

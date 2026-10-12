@@ -13,6 +13,10 @@ export interface PagerHandle {
   list: () => FlashListRef<any> | null;
   /** Meal change: the old list's visible rows leave as a copy while the new meal comes in (MaterialSharedAxis X). */
   shift: (dir: -1 | 1, apply: () => void) => void;
+  /** Day change: the old rows stay as a copy over the list while `apply` draws the new day; `ready` runs once it is drawn. */
+  hold: (apply: () => void, ready: () => void) => void;
+  /** Drop the copy `hold` left. */
+  release: (then?: () => void) => void;
 }
 
 interface Ghost { id: number; rows: unknown[]; top: number; dir: -1 | 1 }
@@ -31,34 +35,50 @@ export const MealPager = forwardRef<PagerHandle, {
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const run = useRef(0), dirSv = useSharedValue(1);
   const p = useSharedValue(1), o = useSharedValue(1), g = useSharedValue(0);
-  const pending = useRef<number | null>(null);
+  const pending = useRef<{ id: number; ready?: () => void } | null>(null);
+  const after = useRef<(() => void) | null>(null);
   const dataRef = useRef(data);
   dataRef.current = data;
 
+  // the rows on screen now, as a copy that sits where they are
+  const capture = (dir: -1 | 1): Ghost | null => {
+    const l = list.current;
+    if (!l) return null;
+    const { startIndex, endIndex } = l.computeVisibleIndices();
+    const first = l.getLayout(startIndex);
+    return first ? { id: ++run.current, rows: dataRef.current.slice(startIndex, endIndex + 2), top: first.y + l.getFirstItemOffset() - scrollY.get(), dir } : null;
+  };
   const drop = useCallback((id: number) => setGhost((cur) => (cur && cur.id === id ? null : cur)), []);
   useImperativeHandle(ref, () => ({
     list: () => list.current,
     shift: (dir, apply) => {
-      const l = list.current;
-      let next: Ghost | null = null;
-      if (l) {
-        const { startIndex, endIndex } = l.computeVisibleIndices();
-        const first = l.getLayout(startIndex);
-        if (first) next = { id: ++run.current, rows: dataRef.current.slice(startIndex, endIndex + 2), top: first.y + l.getFirstItemOffset() - scrollY.get(), dir };
-      }
-      const id = next?.id ?? ++run.current;
+      const next = capture(dir);
       dirSv.set(dir);
       // nothing moves until the new meal is drawn (see the effect): the old list stays as it is until then
-      pending.current = id;
+      pending.current = { id: next?.id ?? ++run.current };
       setGhost(next);
       apply();
     },
-  }), [dirSv, scrollY]);
+    hold: (apply, ready) => {
+      const next = capture(1);
+      dirSv.set(0); // no slide: the copy and the list both stay where they are
+      p.set(1); o.set(1); g.set(1);
+      pending.current = { id: next?.id ?? ++run.current, ready };
+      setGhost(next);
+      apply();
+    },
+    release: (then) => { after.current = then ?? null; setGhost(null); },
+  }), [dirSv, scrollY]); // eslint-disable-line react-hooks/exhaustive-deps -- capture and the shared values are stable
 
   useEffect(() => {
-    const id = pending.current;
-    if (id == null) return;
+    const q = pending.current;
+    if (q == null) return;
     pending.current = null;
+    const id = q.id;
+    if (q.ready) {
+      const raf = requestAnimationFrame(() => requestAnimationFrame(q.ready!));
+      return () => cancelAnimationFrame(raf);
+    }
     // the copy of the old rows now covers the list, so the new meal can be set at its start; the list lays its rows out a
     // frame after React commits them, so both move from the second frame on
     p.set(0); o.set(0); g.set(1);
@@ -69,6 +89,14 @@ export const MealPager = forwardRef<PagerHandle, {
     }));
     return () => cancelAnimationFrame(raf);
   }, [data, p, o, g, drop]);
+
+  // `release(then)`: `then` runs once the copy is gone
+  useEffect(() => {
+    if (ghost || !after.current) return;
+    const fn = after.current;
+    after.current = null;
+    fn();
+  }, [ghost]);
 
   const enter = useAnimatedStyle(() => ({ opacity: o.get(), transform: [{ translateX: dirSv.get() * X.dist * (1 - p.get()) }] }));
   const leave = useAnimatedStyle(() => ({ opacity: g.get(), transform: [{ translateX: -dirSv.get() * X.dist * p.get() }] }));

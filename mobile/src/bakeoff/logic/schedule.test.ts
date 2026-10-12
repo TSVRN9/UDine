@@ -1,5 +1,5 @@
 import { loadFixture } from "./fixture";
-import { schedule, statusLine } from "./schedule";
+import { openOffset, schedule, statusLine } from "./schedule";
 
 const fx = loadFixture();
 
@@ -45,5 +45,23 @@ describe("schedule matches M2 round 9", () => {
     expect(statusLine(fx, "W", 0)).toBe("Open until midnight");
     expect(statusLine(fx, "W", 9)).toBe("7 AM to midnight");
     expect(statusLine(fx, "W", 2)).toBe("");
+  });
+});
+
+describe("openOffset: the sheet opens already scrolled to the chosen day", () => {
+  const viewport = 528;
+  it("today needs no scroll", () => expect(openOffset(schedule(fx, "W", 0), viewport)).toBe(0));
+  it("a later day starts scrolled, so its block ends above the bottom of the viewport", () => {
+    for (const [place, day] of [["W", 9], ["W", 14], [fx.places.find((p) => p.name === "Wasabi")!.key, 7]] as const) {
+      const s = schedule(fx, place, day);
+      const off = openOffset(s, viewport);
+      expect(off).toBeGreaterThan(0);
+      // at viewport 0 the offset is the block's bottom plus the slack; scrolled by `off`, that bottom sits `viewport` below the top
+      expect(off + viewport).toBe(openOffset(s, 0));
+    }
+  });
+  it("is larger for a later day than an earlier one, and zero when the viewport holds it all", () => {
+    expect(openOffset(schedule(fx, "W", 12), viewport)).toBeGreaterThan(openOffset(schedule(fx, "W", 6), viewport));
+    expect(openOffset(schedule(fx, "W", 9), 5000)).toBe(0);
   });
 });

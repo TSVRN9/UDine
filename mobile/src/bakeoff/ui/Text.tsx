@@ -18,6 +18,9 @@ export function Text({ v = "date", color = m2.color.ink, style, ...p }: TextProp
     lineHeight: t.line,
     color,
     ...(NUM.includes(v) ? { fontVariant: ["tabular-nums"] } : null),
+    // Oswald's descenders reach below a line box of 1 x its size (M2's `line-height: 1`), and Android clips text to its view: the view
+    // gets room below the text, and the same amount comes off its margin, so the glyphs and the layout stay where M2 has them
+    ...(t.line < t.size * 1.2 ? { paddingBottom: Math.ceil(t.size * 0.3), marginBottom: -Math.ceil(t.size * 0.3) } : null),
   };
   return <RNText {...p} style={[s, style]} />;
 }

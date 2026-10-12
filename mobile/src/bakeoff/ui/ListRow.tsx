@@ -12,14 +12,16 @@ import { Text } from "./Text";
 // non-breaking spaces (they wrap with the last word, as M2's `nw`) and is drawn over them where the last line ends.
 const SLOT = "\u00A0".repeat(7);
 let slotW = 0;
+// where each name's last line ends, so a row drawn again (the copy a day change holds) wears its patch at once
+const ends = new Map<string, { x: number; y: number }>();
 
 export function ListRow({ name, marks, meta, trailing, lane, onPress }: { name: string; marks?: ReactNode; meta?: ReactNode; trailing?: ReactNode; lane?: boolean; onPress?: () => void }) {
-  const [end, setEnd] = useState<{ x: number; y: number } | null>(null);
+  const [end, setEnd] = useState<{ x: number; y: number } | null>(() => ends.get(name) ?? null);
   return (
     <Press feedback="tint" onPress={onPress} style={{ minHeight: m2.size.row, flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingLeft: m2.space[4], paddingRight: m2.space[1] }}>
       <View style={{ flex: 1, minWidth: 0, marginRight: m2.space[1] }}>
         <View>
-          <Text v="rowName" onTextLayout={marks ? (e) => { const l = e.nativeEvent.lines[e.nativeEvent.lines.length - 1]; if (l) setEnd({ x: l.x + l.width, y: l.y }); } : undefined}>
+          <Text v="rowName" onTextLayout={marks ? (e) => { const l = e.nativeEvent.lines[e.nativeEvent.lines.length - 1]; if (l) { const e = { x: l.x + l.width, y: l.y }; ends.set(name, e); setEnd(e); } } : undefined}>
             {marks ? name + SLOT : name}
           </Text>
           {marks && end ? <View style={{ position: "absolute", left: end.x - (slotW || 26) + 6, top: end.y + 2 }}>{marks}</View> : null}
