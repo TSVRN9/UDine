@@ -1,10 +1,12 @@
 import { useRef, type RefObject } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
-import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
 import { Band, BusyRow, Button, HallLetter, Photo, Text } from "../ui";
+import { RowChevron } from "../ui/Chevron";
+import { LRow, LRowSub } from "../ui/LRow";
+import { ScreenHeader } from "../ui/ScreenHeader";
 import { useArrival, useArrive } from "../ui/arrive";
 import { busyView } from "../logic/busy";
 import { HALLS, MEAL_LABEL, clockMeal, loadFixture } from "../logic/fixture";
@@ -20,10 +22,6 @@ const PINS = ["Wasabi", "Tamales"];
 
 export const headerHeight = (top: number) => top + 282;
 export const bandOff = (key: PlaceKey, top: number) => Math.round((key.startsWith("c") ? CAFE_OFF : PHOTO_OFF[key as "W"]) * headerHeight(top));
-
-const Chevron = () => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={m2.color.slate} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M9 6l6 6-6 6" /></Svg>
-);
 
 export function HallsList({ hidden, onOpen }: {
   hidden: PlaceKey | null;
@@ -70,21 +68,16 @@ export function HallsList({ hidden, onOpen }: {
   return (
     <View style={{ flex: 1, backgroundColor: m2.color.chalk }}>
       <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false}>
-        <View style={{ backgroundColor: m2.color.dm, paddingTop: top + 10, paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.action }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", height: 30 }}>
-            <Text v="brand" color={m2.color.gold}>UDine</Text>
-            <Text v="date" color={m2.color.onDm}>{date}</Text>
-          </View>
-          <Text v="hallTitle" color={m2.color.white} accessibilityRole="header" style={{ marginTop: 2 }}>{MEAL_LABEL[clockMeal(now)]}</Text>
+        <ScreenHeader brand="UDine" date={date} title={MEAL_LABEL[clockMeal(now)]}>
           {net.mode === "offline" || net.mode === "fail" ? (
-            <View accessibilityLiveRegion="polite" style={{ position: "absolute", right: m2.space.gutter, top: top + 40, alignItems: "flex-end" }}>
+            <View accessibilityLiveRegion="polite" style={{ position: "absolute", right: m2.space.gutter, top: top + m2.space.netTop, alignItems: "flex-end" }}>
               <Text v="date" color={m2.color.onDm}>{net.mode === "offline" ? "You're offline" : "Couldn't connect"}</Text>
               {net.mode === "fail" ? (
                 <Button kind="outline" size="md" label="Try again" onPress={() => { retry(); }} style={{ marginTop: m2.space.netBtnTop }} />
               ) : null}
             </View>
           ) : null}
-        </View>
+        </ScreenHeader>
         <View style={{ backgroundColor: m2.color.dm }}>{places.slice(0, 4).map(cell)}</View>
         <View style={{ backgroundColor: m2.color.dm }}>{places.slice(4).map(cell)}</View>
         <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter, paddingBottom: 120 }}>
@@ -93,13 +86,8 @@ export function HallsList({ hidden, onOpen }: {
             const ps = fx.places.filter((p) => p.area === i);
             const open = ps.filter((p) => isOpenNow(fx.hours[p.key], now)).length;
             return (
-              <View key={a} style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space.part, borderBottomWidth: i < all.length - 1 ? 1 : 0, borderBottomColor: m2.color.hair }}>
-                <View>
-                  <Text v="rowName">{a}</Text>
-                  {hk ? <Animated.View entering={hkArrive ? arriveIn : undefined}><Text v="meta" color={m2.color.slate} style={{ marginTop: 2 }}>{`${open} of ${ps.length} open now`}</Text></Animated.View> : null}
-                </View>
-                <Chevron />
-              </View>
+              <LRow key={a} title={a} last={i === all.length - 1} trailing={<RowChevron />}
+                sub={hk ? <Animated.View entering={hkArrive ? arriveIn : undefined}><LRowSub>{`${open} of ${ps.length} open now`}</LRowSub></Animated.View> : undefined} />
             );
           })}
         </View>

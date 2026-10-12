@@ -390,7 +390,11 @@ export const m2 = {
     dirb: 16,
     gbtn: 18,
     gbtnTight: 14,
-    netBtnTop: 6
+    netBtnTop: 6,
+    headTop: 10,
+    lrowSub: 2,
+    netTop: 40,
+    titleTop: 2
   },
   radius: {
     patch: 4,
@@ -399,7 +403,8 @@ export const m2 = {
     button: 8,
     sheet: 16,
     pill: 999,
-    image: 2
+    image: 2,
+    check: 6
   },
   size: {
     tabBar: 56,
@@ -429,7 +434,17 @@ export const m2 = {
     btn: 52,
     gbtn: 48,
     gbtnMin: 84,
-    keyline: 1.5
+    keyline: 1.5,
+    lrow: 56,
+    icon: 48,
+    titleRow: 30,
+    chevron: 18,
+    chevronSm: 16,
+    backIcon: 24,
+    check: 26,
+    checkBorder: 2,
+    chevronStatus: 14,
+    chevronStroke: 2
   },
   opacity: {
     disabled: 0.4,

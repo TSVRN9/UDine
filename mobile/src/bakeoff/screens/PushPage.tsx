@@ -2,11 +2,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { BackHandler, ScrollView, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
-import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
-import { Press, Text } from "../ui";
+import { BackButton, Text } from "../ui";
 import { part, timed, useMotion } from "../ui/motion";
 import { usePushShadow } from "../ui/push";
 import { useEdgeSwipeBack } from "../motion/useEdgeSwipeBack";
@@ -77,9 +76,7 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
     <GestureDetector gesture={swipe as ReturnType<typeof Gesture.Pan>}>
       <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: ground ?? m2.color.chalk }, slide, cast, crossfade]}>
         <View style={{ height: top + 52, paddingTop: top, paddingHorizontal: m2.space.line, flexDirection: "row", alignItems: "center", backgroundColor: ground ?? m2.color.vm }}>
-          <Press accessibilityRole="button" accessibilityLabel="Back" onPress={() => leave(p.get())} style={{ width: m2.size.tap + 4, height: m2.size.tap + 4, alignItems: "center", justifyContent: "center" }}>
-            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={m2.color.white} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M15 5l-7 7 7 7" /></Svg>
-          </Press>
+          <BackButton onPress={() => leave(p.get())} />
           {title ? <Text v="section" color={m2.color.white} numberOfLines={1} accessibilityRole="header" style={{ flex: 1, paddingRight: m2.space.action }}>{title}</Text> : null}
         </View>
         <ScrollView contentContainerStyle={poster

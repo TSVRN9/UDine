@@ -400,7 +400,11 @@
   "dirb": 16,
   "gbtn": 18,
   "gbtnTight": 14,
-  "netBtnTop": 6
+  "netBtnTop": 6,
+  "headTop": 10,
+  "lrowSub": 2,
+  "netTop": 40,
+  "titleTop": 2
  },
  "radius": {
   "patch": 4,
@@ -409,7 +413,8 @@
   "button": 8,
   "sheet": 16,
   "pill": 999,
-  "image": 2
+  "image": 2,
+  "check": 6
  },
  "size": {
   "tabBar": 56,
@@ -439,7 +444,17 @@
   "btn": 52,
   "gbtn": 48,
   "gbtnMin": 84,
-  "keyline": 1.5
+  "keyline": 1.5,
+  "lrow": 56,
+  "icon": 48,
+  "titleRow": 30,
+  "chevron": 18,
+  "chevronSm": 16,
+  "backIcon": 24,
+  "check": 26,
+  "checkBorder": 2,
+  "chevronStatus": 14,
+  "chevronStroke": 2
  },
  "opacity": {
   "disabled": 0.4,
@@ -869,7 +884,22 @@
   "space.dirb": ".dirb{padding:0 16px}",
   "space.gbtn": ".gbtn{padding:0 18px}",
   "space.gbtnTight": "the choose bar: .gbtn style=\"min-width:0;padding:0 14px\" (src.html:1994)",
-  "space.netBtnTop": ".netl .obtn{margin-top:6px}"
+  "space.netBtnTop": ".netl .obtn{margin-top:6px}",
+  "size.lrow": ".lrow{min-height:56px}, .check",
+  "size.icon": ".icon{width:48px;height:48px}",
+  "size.titleRow": ".hhead .r1{height:30px}",
+  "size.chevron": ".dayc svg 18 / the Halls area rows",
+  "size.chevronSm": ".chev{16px}",
+  "size.backIcon": ".icon svg{24px}",
+  "space.headTop": ".hhead{padding-top:calc(var(--st) + 10px)}",
+  "space.lrowSub": ".lrow .b{margin-top:2px}",
+  "space.netTop": ".netl{top:calc(var(--st) + 40px)}",
+  "space.titleTop": ".hhead h1{margin:2px 0 0}",
+  "size.check": ".check i{width:26px;height:26px}",
+  "size.checkBorder": ".check i box-shadow inset 2px slate",
+  "radius.check": ".check i{border-radius:6px}",
+  "size.chevronStatus": "#mts .sch{width:14px;height:14px}",
+  "size.chevronStroke": "#mts .sch stroke-width:2"
  },
  "felt": {
   "patch": {

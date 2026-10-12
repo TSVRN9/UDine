@@ -5,12 +5,11 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
-import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
-import { Board, BusyRow, HallLetter, Header, Photo, Press, Text, thud, tick } from "../ui";
+import { BackButton, Board, BusyRow, HallLetter, Header, Photo, Press, Text, thud, tick } from "../ui";
 import type { Labels } from "../ui/Header";
 import { BAR } from "../ui/Header";
 import { boardAt, busyView } from "../logic/busy";
@@ -44,10 +43,6 @@ const clamp = (x: number) => {
   "worklet";
   return Math.min(1, Math.max(0, x));
 };
-
-const Back = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={m2.color.white} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M15 5l-7 7 7 7" /></Svg>
-);
 
 // one fixture for the screen: a stable object, so the memos below depend only on what changes
 const fx = loadFixture();
@@ -388,7 +383,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
         />
       </Animated.View>
       <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top, left: 4, height: BAR, justifyContent: "center" }, t.style.incoming]}>
-        <Press accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} style={{ width: m2.size.tap + 4, height: m2.size.tap + 4, alignItems: "center", justifyContent: "center" }}><Back /></Press>
+        <BackButton onPress={onBack} />
       </Animated.View>
       {warm ? <HoursSheet ref={hoursRef} s={sched} maxHeight={winH * 0.86} animatedPosition={hoursPos} onPick={(i) => { if (i === day) hoursRef.current?.dismiss(); else { mark("day:pick"); pending.current = { day: i }; leaveAt.set(halfwayOut(hoursPos.get(), winH)); hoursRef.current?.dismiss(); tick(); } }} onDismiss={onDismiss} /> : null}
       {warm ? <StationSwitcher

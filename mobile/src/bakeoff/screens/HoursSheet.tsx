@@ -1,20 +1,16 @@
 import { forwardRef } from "react";
 import { Linking, Platform, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import type { SharedValue } from "react-native-reanimated";
 import { m2 } from "../../lib/theme";
 import { Button, Press, Sheet, Text } from "../ui";
+import { RowChevron } from "../ui/Chevron";
 import { openOffset, type Schedule } from "../logic/schedule";
 
 const mapsUrl = (ll: string, name: string) =>
   Platform.OS === "ios" ? `https://maps.apple.com/?ll=${ll}&q=${encodeURIComponent(name)}` : `https://www.google.com/maps/search/?api=1&query=${ll}`;
 
 const GRAB = 22;
-
-const Rchev = () => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={m2.color.slate} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M9 6l6 6-6 6" /></Svg>
-);
 
 /**
  * M2's schedule (round 9): where the place is, then the days in date order with the chosen one open in place. A day row
@@ -62,7 +58,7 @@ export const HoursSheet = forwardRef<BottomSheetModal, { s: Schedule; maxHeight:
                         <Press accessibilityRole="link" onPress={() => Linking.openURL(d.event!.href)}
                           style={{ minHeight: m2.size.tap, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                           <Text v="rowName" color={m2.color.dm}>{d.event.title}</Text>
-                          <Rchev />
+                          <RowChevron size={m2.size.chevronSm} />
                         </Press>
                       ) : null}
                     </View>
