@@ -1,0 +1,33 @@
+import { useMemo } from "react";
+import { View } from "react-native";
+import { m2 } from "../../lib/theme";
+import { HallChip, Text } from "../ui";
+import { isCafe, loadFixture, placeName } from "../logic/fixture";
+import type { ServeTarget } from "../logic/dishSheet";
+import type { Dish } from "../logic/types";
+import { whenText, whereAnswer } from "../logic/where";
+
+const fx = loadFixture();
+
+/**
+ * M2 `whereHTML`: where you can get the dish, now or next. One line per answer (at most two), each place a tag that opens it there.
+ * Never says where it is not: a dish with no serving left says so in one line.
+ */
+export function WhereServed({ dish, onServe }: { dish: Dish; onServe: (t: ServeTarget) => void }) {
+  const answer = useMemo(() => whereAnswer(fx, dish.name, new Date(fx.clock)), [dish]);
+  return (
+    <View style={{ marginTop: m2.space[5] }}>
+      {answer.length === 0 ? <Text v="sheetHead" color={m2.color.dm}>Not on the menu again today or tomorrow</Text> : null}
+      {answer.map((g, i) => (
+        <View key={`${g.st}${g.meal}${g.open}`} style={i ? { marginTop: m2.space[3] } : null}>
+          <Text v={i ? "sheetHeadSm" : "sheetHead"} color={i ? m2.color.vm : m2.color.dm} style={{ marginBottom: m2.space[1] }}>{whenText(g, answer[i - 1])}</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: m2.space[1] }}>
+            {g.halls.map((h) => (
+              <HallChip key={h} name={placeName(h)} letter={isCafe(h) ? undefined : h} onPress={() => onServe({ place: h, meal: g.meal, day: g.day, dish: dish.key })} />
+            ))}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}

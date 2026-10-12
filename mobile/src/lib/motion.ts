@@ -152,3 +152,6 @@ export const m2Motion = {
 /** Linear, and M2's `settle` curve as Reanimated easings (the bake-off kit reads these; no easing is spelled outside this file). */
 export const m2Linear = ReanimatedEasing.linear;
 export const m2SettleEasing = ReanimatedEasing.bezier(...m2Motion.settle.e);
+
+/** M2's `PUSH_E`: the easing a pushed screen travels on. */
+export const m2PushEasing = ReanimatedEasing.bezier(...m2Motion.push.e);

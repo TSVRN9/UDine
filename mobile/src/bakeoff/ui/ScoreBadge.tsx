@@ -12,13 +12,13 @@ const HEART = "M12 27.6C5.9 23.2 1.8 19.4 1.8 12.9 1.8 8.7 4.7 5.6 8.4 5.6c1.6 0
 export function ScoreBadge({ kind, value, size }: {
   kind: "health" | "carbon";
   value: number | Carbon | null;
-  size: "row" | "sheet";
+  size: "row" | "sheet" | "scale";
 }) {
   if (value == null) return null;
   const carbon = kind === "carbon";
   const [bg, ink] = carbon ? m2.color.carbon[value as Carbon] : [m2.color.health[value as number], m2.color.healthInk];
   const edge = carbon ? CREDGE.has(value as string) : (value as number) < 4;
-  const [w, h] = size === "row" ? m2.size.tile : m2.size.tileSheet;
+  const [w, h] = size === "row" ? m2.size.tile : size === "sheet" ? m2.size.tileSheet : m2.size.tileScale;
   return (
     <Svg
       width={w}

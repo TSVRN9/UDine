@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, {
   runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withTiming,
@@ -18,7 +18,9 @@ import { MEAL_LABEL, loadFixture } from "../logic/fixture";
 import { HALL_LX } from "../logic/letters";
 import { dayCell, dayFull, dayIsos, defaultMeal, isOneMeal, mealsOf, menuItems, menuView, type Item } from "../logic/menuView";
 import { schedule, statusLine } from "../logic/schedule";
-import type { MealKey, PlaceKey } from "../logic/types";
+import type { ServeTarget } from "../logic/dishSheet";
+import type { Dish, MealKey, PlaceKey } from "../logic/types";
+import { openDish } from "../state/dishSheet";
 import type { useContainerTransform } from "../motion/useContainerTransform";
 import { PHOTO_POS, photoOf } from "../photos";
 import { useBakeoffState } from "../state/prefs";
@@ -53,8 +55,12 @@ const mealWord = (m: MealKey) => (m === "grab" ? "Grab 'N Go" : MEAL_LABEL[m].to
  * never re-render or fade on a day change; what says the day (status, busy, tab and station labels, the list) fades through.
  * `ghost` is the band's copy that rides on the photo while the container opens.
  */
-export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
+export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush }: {
   t: ReturnType<typeof useContainerTransform>; H: number; place: PlaceKey; name: string; scrollY: SharedValue<number>; ghost: React.ReactNode; onBack: () => void;
+  /** a hall pushed from a dish's where-served: the day and meal to open on, and the dish to land on */
+  at?: ServeTarget;
+  /** where-served to another place or day: the screen above pushes it */
+  onPush?: (t: ServeTarget) => void;
 }) {
   const { width, height: winH } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
@@ -63,14 +69,16 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   const compact = place.startsWith("c");
   const one = isOneMeal(fx, place);
   // eslint-disable-next-line react-hooks/rules-of-hooks -- __DEV__ is a build-time constant
-  const dev = __DEV__ ? useLocalSearchParams<{ day?: string; meal?: string; sheet?: string; y?: string; reveal?: string }>() : {};
+  const dev = __DEV__ ? useLocalSearchParams<{ day?: string; meal?: string; sheet?: string; y?: string; reveal?: string; dish?: string }>() : {};
 
   // one day for the list and the labels: a day change commits it once, while a copy of the old rows and the old labels stay on screen
-  const [day, setDay] = useState(() => +(dev.day ?? 0) || 0);
+  const [day, setDay] = useState(() => at?.day ?? (+(dev.day ?? 0) || 0));
   // the labels as they were before a day change (null: they are the current ones)
   const [held, setHeld] = useState<Labels | null>(null);
-  const [mealSel, setMealSel] = useState<MealKey>((dev.meal as MealKey) ?? "lunch");
-  const [showAll, setShowAll] = useState(() => dev.reveal === "1");
+  const [mealSel, setMealSel] = useState<MealKey>(at?.meal ?? (dev.meal as MealKey) ?? "lunch");
+  const [showAll, setShowAll] = useState(() => !at && dev.reveal === "1");
+  // the dish a where-served button (or the dev entry) is bringing up: scrolled to once the list has it, revealed first if preferences hide it
+  const [goto, setGoto] = useState<string | null>(at?.dish ?? null);
   const [sheet, setSheet] = useState<"hours" | "stations" | null>(null);
   const [cur, setCur] = useState(0);
   // the container opens before the list is drawn: mounting ~30 rows blocks JS, and the open's clock starts at the first layout
@@ -173,6 +181,30 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
     });
   };
 
+  // ---- the dish sheet
+  // one callback for every row, so a row never re-renders for it; the sheet reads the screen's current place, meal and day when it opens
+  const here = useRef({ place, meal, day });
+  const serve = useRef<(t: ServeTarget) => void>(() => {});
+  useEffect(() => {
+    here.current = { place, meal, day };
+    serve.current = (to) => {
+      // inside this place and day the list just brings the dish up; anywhere else the screen above pushes that hall, already at the dish
+      if (to.place === place && to.day === day) { if (to.meal !== meal) pickMeal(to.meal); setGoto(to.dish); }
+      else onPush?.(to);
+    };
+  });
+  const onOpen = useCallback((dish: Dish) => { openDish(dish, { from: "hall", ...here.current, onServe: (to) => serve.current(to) }); }, []);
+  useEffect(() => {
+    if (!goto || !warm) return;
+    const i = items.findIndex((it) => it.t === "dish" && it.dish.key === goto);
+    if (i >= 0) {
+      const id = requestAnimationFrame(() => { pager.current?.list()?.scrollToIndex({ index: i, viewOffset: PIN, animated: !at }); setGoto(null); });
+      return () => cancelAnimationFrame(id);
+    }
+    if (!showAll) setShowAll(true);
+    else setGoto(null);
+  }, [goto, items, warm, showAll]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- sheets
   const hoursRef = useRef<BottomSheetModal>(null), stRef = useRef<BottomSheetModal>(null);
   const pending = useRef<{ day: number } | null>(null);
@@ -186,11 +218,14 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
     if (p?.day != null) changeDay(p.day);
   };
   useEffect(() => {
-    if (!__DEV__ || !(dev.sheet || dev.y)) return;
+    if (!__DEV__ || at || !(dev.sheet || dev.y || dev.dish)) return;
     const id = setTimeout(() => {
       if (dev.y) pager.current?.list()?.scrollToOffset({ offset: +dev.y, animated: false });
       if (dev.sheet === "hours") openHours();
       if (dev.sheet === "stations") openStations();
+      // `dish=<key>`: the dish sheet for a dish on this menu, as a row tap would open it
+      const d = dev.dish && items.flatMap((it) => (it.t === "dish" ? [it.dish] : [])).find((x) => x.key === dev.dish);
+      if (d) onOpen(d);
     }, 1200);
     return () => clearTimeout(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -217,7 +252,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
       case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={() => setShowAll((s) => !s)} />;
       case "head": return <View style={{ height: 50, paddingHorizontal: m2.space[4], paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
       case "empty": return <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
-      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} />;
+      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} onOpen={onOpen} />;
     }
   };
 

@@ -1,0 +1,157 @@
+{
+ "_": "M2 labelHTML (flows/M2/src.html) run in a node vm on fixture.json dishes: rows are the .lr rows as [left, %DV]. Regenerate: see PR #544 Task 6.",
+ "vectors": [
+  {
+   "dish": "Apple Cinnamon Pancakes",
+   "cal": 93,
+   "serving": "1 each",
+   "cals": "93",
+   "rows": [
+    [
+     "",
+     "Fat cal. 16"
+    ],
+    [
+     "",
+     "% Daily Value*"
+    ],
+    [
+     "Total Fat 1.8g",
+     "2%"
+    ],
+    [
+     "Saturated Fat 0.5g",
+     "3%"
+    ],
+    [
+     "Trans Fat 0g",
+     ""
+    ],
+    [
+     "Cholesterol 4.5mg",
+     "2%"
+    ],
+    [
+     "Sodium 207.1mg",
+     "9%"
+    ],
+    [
+     "Total Carbohydrate 17.4g",
+     "13%"
+    ],
+    [
+     "Dietary Fiber 0.1g",
+     "0%"
+    ],
+    [
+     "Total Sugars 3.7g",
+     ""
+    ],
+    [
+     "Protein 2.3g",
+     "4%"
+    ]
+   ]
+  },
+  {
+   "dish": "Golden BBQ Chicken Thigh",
+   "cal": 93,
+   "serving": "1 each",
+   "cals": "93",
+   "rows": [
+    [
+     "",
+     "Fat cal. 26"
+    ],
+    [
+     "",
+     "% Daily Value*"
+    ],
+    [
+     "Total Fat 2.9g",
+     "4%"
+    ],
+    [
+     "Saturated Fat 0.6g",
+     "3%"
+    ],
+    [
+     "Trans Fat 0g",
+     ""
+    ],
+    [
+     "Cholesterol 63.2mg",
+     "21%"
+    ],
+    [
+     "Sodium 685.5mg",
+     "30%"
+    ],
+    [
+     "Total Carbohydrate 2.4g",
+     "2%"
+    ],
+    [
+     "Dietary Fiber 0.1g",
+     "0%"
+    ],
+    [
+     "Total Sugars 2.2g",
+     ""
+    ],
+    [
+     "Protein 13.3g",
+     "24%"
+    ]
+   ]
+  },
+  {
+   "dish": "Add Crispy Chicken",
+   "cal": 0,
+   "serving": "3 oz",
+   "cals": "0",
+   "rows": [
+    [
+     "",
+     "% Daily Value*"
+    ],
+    [
+     "Total Fat –",
+     ""
+    ],
+    [
+     "Saturated Fat –",
+     ""
+    ],
+    [
+     "Trans Fat –",
+     ""
+    ],
+    [
+     "Cholesterol –",
+     ""
+    ],
+    [
+     "Sodium –",
+     ""
+    ],
+    [
+     "Total Carbohydrate –",
+     ""
+    ],
+    [
+     "Dietary Fiber –",
+     ""
+    ],
+    [
+     "Total Sugars –",
+     ""
+    ],
+    [
+     "Protein –",
+     ""
+    ]
+   ]
+  }
+ ]
+}
