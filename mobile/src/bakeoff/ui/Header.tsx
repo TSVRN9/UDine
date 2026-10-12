@@ -36,8 +36,9 @@ export const BAR = m2.size.bar;
  */
 export function Header({ title, photo, letter, height, top = 0, labels, oldLabels, newStyle, oldStyle, gradStyle, contentStyle, collapse }: {
   title: string; photo?: ReactNode; letter?: ReactNode; height: number; top?: number;
-  /** What says the day, as it is now, and as it was before a day change (it fades out in its own layer while `labels` fades in). */
-  labels: Labels; oldLabels: Labels;
+  /** What says the day, as it is now, and as it was before a day change (it fades out in its own layer while `labels` fades in): `oldLabels` is only there while a
+   * day change holds it, and the header is drawn once the rest of the time. */
+  labels: Labels; oldLabels?: Labels | null;
   /** Animated styles for the container transform: the photo gradients, and the title and controls. */
   gradStyle?: AStyle; contentStyle?: AStyle;
   /** Opacity of the layer holding `labels`, and of the one holding `oldLabels`. */
@@ -76,16 +77,16 @@ export function Header({ title, photo, letter, height, top = 0, labels, oldLabel
           <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space.gutter, bottom: m2.size.nameBottom }}>
             <Animated.View style={[{ transformOrigin: "0% 100%" }, name]}><Text v="menuName" color={m2.color.white} accessibilityRole="header">{title}</Text></Animated.View>
             <Animated.View pointerEvents="box-none" style={fadeC}>
-              <Layers now={<TitleParts l={labels} />} was={<TitleParts l={oldLabels} />} newStyle={newStyle} oldStyle={oldStyle} />
+              <Layers now={<TitleParts l={labels} />} was={oldLabels ? <TitleParts l={oldLabels} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
             </Animated.View>
           </View>
-          <Animated.View pointerEvents="none" style={[fill, fadeC]}><Animated.View pointerEvents="none" style={[fill, newStyle]}>{labels.board}</Animated.View><Animated.View pointerEvents="none" style={[fill, oldStyle]}>{oldLabels.board}</Animated.View></Animated.View>
+          <Animated.View pointerEvents="none" style={[fill, fadeC]}><Animated.View pointerEvents="none" style={[fill, newStyle]}>{labels.board}</Animated.View></Animated.View>
         </Animated.View>
       </View>
       {labels.meals ? (
         <View accessibilityRole="tablist" style={{ height: m2.size.tabs, paddingHorizontal: m2.space.line }}>
           <Animated.View style={[{ flex: 1 }, contentStyle]}>
-            <Layers fillParent now={<Arrive key={labels.meals.items.length ? "tabs" : "none"} on={labels.arrive?.menu}><MealTabs meals={labels.meals} /></Arrive>} was={oldLabels.meals ? <MealTabs meals={oldLabels.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+            <Layers fillParent now={<Arrive key={labels.meals.items.length ? "tabs" : "none"} on={labels.arrive?.menu}><MealTabs meals={labels.meals} /></Arrive>} was={oldLabels?.meals ? <MealTabs meals={oldLabels?.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
           </Animated.View>
         </View>
       ) : null}
@@ -93,16 +94,16 @@ export function Header({ title, photo, letter, height, top = 0, labels, oldLabel
         <View style={{ height: m2.size.tabs, flexDirection: "row", borderTopWidth: labels.meals ? 1 : 0, borderTopColor: m2.color.swRule }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Animated.View style={[{ flex: 1 }, contentStyle]}>
-              <Layers fillParent now={labels.station ? <Arrive on={labels.arrive?.menu}><StationButton s={labels.station} /></Arrive> : null} was={oldLabels.station ? <StationButton s={oldLabels.station} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+              <Layers fillParent now={labels.station ? <Arrive on={labels.arrive?.menu}><StationButton s={labels.station} /></Arrive> : null} was={oldLabels?.station ? <StationButton s={oldLabels?.station} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
             </Animated.View>
           </View>
           {labels.day ? (
             <Animated.View style={contentStyle}>
               {/* a zero-height copy of both cells gives the cell the wider of the two widths, so "Today" does not shift when "Fri 9" arrives */}
               <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: 0, overflow: "hidden", opacity: 0 }}>
-                <DayCell d={labels.day} />{oldLabels.day ? <DayCell d={oldLabels.day} /> : null}
+                <DayCell d={labels.day} />{oldLabels?.day ? <DayCell d={oldLabels?.day} /> : null}
               </View>
-              <Layers fillParent now={<DayCell d={labels.day} />} was={oldLabels.day ? <DayCell d={oldLabels.day} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+              <Layers fillParent now={<DayCell d={labels.day} />} was={oldLabels?.day ? <DayCell d={oldLabels?.day} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
             </Animated.View>
           ) : null}
         </View>

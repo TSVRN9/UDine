@@ -644,6 +644,12 @@ export const m2 = {
   },
   ratio: {
     descender: 0.3
+  },
+  letterX: {
+    W: 72,
+    F: 99,
+    H: 88,
+    B: 91
   }
 } as const;
 export const m2MotionData = {

@@ -79,7 +79,12 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
     progress.set(1);
     send({ type: "done", run: next.run });
   }, [T, BH, Y0, progress, send]);
-  const ready = useCallback(() => { const go = waiting.current; waiting.current = null; go?.(); }, []);
+  // `onLayout` fires on the JS commit, before the UI thread has mounted or drawn the overlay, so the clock starts two frames later
+  const ready = useCallback(() => {
+    const go = waiting.current;
+    waiting.current = null;
+    if (go) requestAnimationFrame(() => requestAnimationFrame(go));
+  }, []);
 
   const close = useCallback(() => {
     const next = send({ type: "close" });

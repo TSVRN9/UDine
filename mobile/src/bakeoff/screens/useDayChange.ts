@@ -1,8 +1,7 @@
 import { useRef, useState, type RefObject } from "react";
-import { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSequence, type SharedValue } from "react-native-reanimated";
+import { runOnJS, useAnimatedStyle, useSharedValue, withSequence, type SharedValue } from "react-native-reanimated";
 import type { Labels } from "../ui/labels";
 import { dayLegs } from "../motion/dayChange";
-import { halfwayOut } from "../motion/pushGate";
 import { timed, useMotion } from "../ui/motion";
 import { tick } from "../ui";
 import { mark } from "../perf";
@@ -13,8 +12,8 @@ import type { PagerHandle } from "./MealPager";
  * The list and the labels commit once, under the old ones (the copy of the old rows, the old labels' layer); the fade out and back in is then
  * only shared values on the UI thread. `setDay` commits the new day; `track(labels)` (the caller says what the labels are after every render) is what the old layer shows.
  */
-export function useDayChange({ pager, y, R, winH, origin, setDay }: {
-  pager: RefObject<PagerHandle | null>; y: SharedValue<number>; R: number; winH: number;
+export function useDayChange({ pager, y, R, origin, setDay }: {
+  pager: RefObject<PagerHandle | null>; y: SharedValue<number>; R: number;
   /** the list's vertical centre, the origin of its scale-up (dp from the top of the screen) */
   origin: number; setDay: (i: number) => void;
 }) {
@@ -59,28 +58,18 @@ export function useDayChange({ pager, y, R, winH, origin, setDay }: {
       ));
     });
   };
-  // M2 `pickDay`: `isheet.away(() => changeDay(i))`, the day change starts once the schedule is half-way out, not when it has
-  // closed (gorhom's `onDismiss` comes when the close spring is spent, about 0.5 s after the sheet is out of sight on the
-  // release build; PR #544 "Release profiling"). The sheet's own position crossing the midpoint starts it; `onDismiss` is the fallback.
-  const pending = useRef<{ day: number } | null>(null);
-  const hoursPos = useSharedValue(winH), leaveAt = useSharedValue(-1);
-  const startPending = () => {
-    leaveAt.set(-1);
-    const p = pending.current;
-    pending.current = null;
-    if (p?.day != null) changeDay(p.day);
-  };
-  useAnimatedReaction(() => leaveAt.get() >= 0 && hoursPos.get() >= leaveAt.get(), (hit, was) => { if (hit && !was) runOnJS(startPending)(); });
-  /** A day was picked in the schedule: the same day only closes it; another closes it and changes the day once it is half-way out. */
+  /**
+   * A day was picked in the schedule: the same day only closes it; another starts the change at once and closes it. M2 starts the change when the
+   * sheet is half-way out (`isheet.away`); here the JS it costs (the whole screen renders under the old rows) overlaps the sheet's exit instead.
+   */
   const pickDay = (i: number, current: number, dismiss: () => void) => {
     if (i === current) { dismiss(); return; }
     mark("day:pick");
-    pending.current = { day: i };
-    leaveAt.set(halfwayOut(hoursPos.get(), winH));
+    changeDay(i);
     dismiss();
     tick();
   };
   /** What the labels are now: the old layer shows these until the new day lands. */
   const track = (l: Labels) => { labelsRef.current = l; };
-  return { held, track, holdOn, newLabels, oldLabelsStyle, listFade, hoursPos, pickDay, startPending };
+  return { held, track, holdOn, newLabels, oldLabelsStyle, listFade, pickDay };
 }

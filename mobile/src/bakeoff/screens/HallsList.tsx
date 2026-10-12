@@ -10,7 +10,6 @@ import { ScreenHeader } from "../ui/ScreenHeader";
 import { useArrival, useArrive } from "../ui/arrive";
 import { busyView } from "../logic/busy";
 import { HALLS, MEAL_LABEL, clockMeal, loadFixture } from "../logic/fixture";
-import { HALL_LX } from "../logic/letters";
 import { isOpenNow, statusText } from "../logic/status";
 import type { PlaceKey } from "../logic/types";
 import { hoursKnown, liveKnown, retry, useNet } from "../state/net";
@@ -56,7 +55,7 @@ export function HallsList({ hidden, onOpen }: {
               <Photo source={src} width={width} height={HH} pos={compact ? 0.5 : PHOTO_POS[key as "W"]} />
             </View>
           ) : undefined}
-          letter={compact ? undefined : <HallLetter letter={key} x={HALL_LX[key as "W"]} />}
+          letter={compact ? undefined : <HallLetter letter={key as "W"} />}
         />
       </View>
     );

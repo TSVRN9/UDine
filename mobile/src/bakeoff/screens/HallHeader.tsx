@@ -8,7 +8,6 @@ import { BusyRow, HallLetter } from "../ui";
 import { BandFace, bandHeight } from "../ui/Band";
 import { busyView } from "../logic/busy";
 import { loadFixture } from "../logic/fixture";
-import { HALL_LX } from "../logic/letters";
 import { statusText } from "../logic/status";
 import { getNet, hoursKnown, liveKnown } from "../state/net";
 import type { ServeTarget } from "../logic/dishSheet";
@@ -46,7 +45,7 @@ export function HallHeader({ t, H, place, name, scrollY, onBack, at, onPush, onP
     <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, right: 0, top: rect.off, height: rect.height }, t.style.outgoing]}>
       <View style={{ height: bandHeight(compact), overflow: "hidden" }}>
         <BandFace compact={compact} name={name} status={hoursKnown(net) ? statusText(fx.hours[place], new Date(fx.clock)) : undefined} busy={busy ? <BusyRow lamps={busy.lamps} word={busy.word} /> : undefined}
-          letter={compact ? undefined : <HallLetter letter={place as "W"} x={HALL_LX[place as "W"]} />} />
+          letter={compact ? undefined : <HallLetter letter={place as "W"} />} />
       </View>
     </Animated.View>
   );

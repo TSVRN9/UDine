@@ -1,3 +1,4 @@
+import { m2 } from "../../lib/theme";
 import type { HallKey } from "./types";
 
 /**
@@ -5,4 +6,4 @@ import type { HallKey } from "./types";
  * round 10). The box moves with the band's width, so the ink's left edge is W 262, F 296, H 285.5, B 288 at 390 and
  * 30 less at 360: a deliberately loose column.
  */
-export const HALL_LX: Record<HallKey, number> = { W: 72, F: 99, H: 88, B: 91 };
+export const HALL_LX: Record<HallKey, number> = m2.letterX;
