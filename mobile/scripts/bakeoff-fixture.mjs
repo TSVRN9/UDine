@@ -136,7 +136,7 @@ for (const [t, e] of Object.entries(byt)) {
   if (e.pdf_link) links.push([h ? "See the menu" : "Open the flyer", e.pdf_link]);
   if (e.external_link) links.push(["Open the link", e.external_link]);
   if (h) links.push(["Holiday hours", h.external_link || h.pdf_link]);
-  events.push({ title: t, expires: e.expiration_date, links, scope: t === "Indigenous Peoples Day" ? "WFHB" : "" });
+  events.push({ title: t, expires: e.expiration_date, links, scope: t === "Indigenous Peoples Day" ? "WFHB" : "", hoursTitle: h ? h.title.trim() : null });
 }
 events.sort((a, b) => a.expires - b.expires);
 
