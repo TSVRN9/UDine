@@ -9,6 +9,7 @@ abstract final class M2Layout {
   static const brandRowH = 30.0; // `.hhead .r1`
   static const titleGap = 2.0; // `.hhead h1` margin-top
   static const secTitleGap = 4.0; // `.sec h2` margin-bottom
+  static const secTop = 22.0; // `.sec` padding-top (m2.json's sectionTop says 26, drawn by RN; M2's DOM measures 22 from the last band)
   static const listPadBottom = 120.0; // clears the plate bar
   static const areaRowMin = 56.0; // `.lrow` min-height
   static const areaMetaGap = 2.0; // `.lrow .b` margin-top
@@ -95,4 +96,25 @@ abstract final class M2Layout {
   static const chevronShadowDy = 1.0, chevronShadowSigma = 1.0; // `#mctl .icon svg{filter: drop-shadow(0 1px 2px rgba(36,10,14,.65))}`: blur 2 = sigma 1
   static const checkSize = 26.0, checkRadius = 6.0, checkRing = 2.0, checkStroke = 2.5, checkW = 12.0, checkH = 7.0, checkLift = 2.0; // `.check i`
   static const pageTitleGap = 2.0; // `.pbar` gap
+  // the hall header's title block (`.mt`) and the compact bar (`paint`: NB, NS)
+  static const titleBottomCafe = 22.0; // `#menu.cafe .mt{bottom: 22px}`
+  static const nameMinFit = 26.0; // `fitName`: a long café name shrinks to fit, never below this
+  static const nameBarTop = 38.0; // `measureXF`: the collapsed name's bottom sits at --st + 38
+  static const stationRowH = 48.0; // `#mtabs`, `#mswitch` height
+  static const boardW = 350.0, boardGap = 3.0, boardLampGap = 2.0, boardRadius = 0.6; // `histSVG`: viewBox 350 x 30, gap 3, lg 2, rx .6
+  static const statusChevronStroke = 2.0; // `#mts .sch`
+  // `.tg`'s baseline is the bottom of its glyph (an inline-grid takes its first item's), 3 dp below the text's: 13 dp from the patch's top
+  // Chrome snaps the line box to whole dp (22 where the arithmetic gives 22.5); Flutter does not, so the patch's baseline sits
+  // patchSnap lower than the rule says
+  static const patchSnap = 1.0;
+  static const patchBaseline = (patch + patchGlyph) / 2 - patchDrop + patchSnap;
+  // the list's other rows (`.gnote`, `.mst`)
+  static const gnotePadTop = 12.0, gnotePadBottom = 4.0; // `.gnote` padding 12 20 4
+  static const stateBottom = 8.0; // `.mst` padding-bottom
+  static const listPadBottom2 = 150.0; // `.pad-b`: 150 + --sb, clears the plate bar
+  static const sheetTitleTop = 2.0, sheetTitleBottom = 6.0; // `.sh1` margin 2 0 6
+  static const optionH = 48.0, optionEdge = 4.0, optionCount = 16.0; // `#stidx button`, `#days .day`, `.c`
+  static const schedNameTop = 2.0, schedRowTop = 6.0, schedPayTop = 10.0, schedDescTop = 20.0, schedDaysTop = 16.0; // `.schn`, `.schw`, `.schp`, `.schd`, `#days`
+  static const mwsPadBottom = 10.0, mwsPadLeft = 36.0, mwsTop = -4.0, evRowH = 44.0; // `#days .mws`
+  static const landingSlack = 12.0; // `openSched`: the chosen day ends 12 dp above the sheet's lower edge
 }

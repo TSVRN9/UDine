@@ -20,7 +20,9 @@ const allergens = ['Milk', 'Eggs', 'Fish', 'Shellfish', 'Tree Nuts', 'Peanuts', 
 const mealOrder = ['breakfast', 'lunch', 'dinner', 'late', 'all', 'grab'];
 
 bool _dietOn(Prefs p) => p.veg || p.plant || p.halal;
-bool _dietOK(Prefs p, Dish d) => (!p.veg || d.diet & 3 != 0) && (!p.plant || d.diet & 2 != 0) && (!p.halal || d.diet & 4 != 0);
+bool dietOK(Prefs p, Dish d) => (!p.veg || d.diet & 3 != 0) && (!p.plant || d.diet & 2 != 0) && (!p.halal || d.diet & 4 != 0);
+/// Whether a dish passes both the diet and the avoided allergens (M2 `prefOK`).
+bool prefOK(Prefs p, Dish d) => dietOK(p, d) && hits(p, d).isEmpty;
 /// The avoided allergens a dish lists. A blank list is "not listed", never "none": such a dish has no hits.
 List<String> hits(Prefs p, Dish d) => p.avoid.where(d.allergens.contains).toList();
 String _orList(List<String> l) => l.length < 2 ? l.join() : l.length <= 3 ? '${l.sublist(0, l.length - 1).join(', ')} or ${l.last}' : '${l.take(3).join(', ')} or ${l.length - 3} more';
@@ -44,11 +46,11 @@ class MenuView {
 /// M2's renderMenuList: a place's meal on a day after diet and allergen filtering. `showAll` only reveals; it never writes back.
 MenuView menuView(Fixture fx, String day, String place, String meal, Prefs prefs, bool showAll) {
   final stations = fx.days[day]?[place]?[meal] ?? const <Station>[];
-  final byAllergen = stations.expand((s) => s.dishes).where((d) => _dietOK(prefs, d) && hits(prefs, d).isNotEmpty).toList();
+  final byAllergen = stations.expand((s) => s.dishes).where((d) => dietOK(prefs, d) && hits(prefs, d).isNotEmpty).toList();
   final sections = [
     for (final s in stations)
-      if (showAll ? s.dishes.isNotEmpty : s.dishes.any((d) => _dietOK(prefs, d) && hits(prefs, d).isEmpty))
-        Station(s.name, showAll ? s.dishes : s.dishes.where((d) => _dietOK(prefs, d) && hits(prefs, d).isEmpty).toList()),
+      if (showAll ? s.dishes.isNotEmpty : s.dishes.any((d) => dietOK(prefs, d) && hits(prefs, d).isEmpty))
+        Station(s.name, showAll ? s.dishes : s.dishes.where((d) => dietOK(prefs, d) && hits(prefs, d).isEmpty).toList()),
   ];
   return MenuView(sections, showAll ? 0 : byAllergen.length, _line(prefs, byAllergen, showAll));
 }

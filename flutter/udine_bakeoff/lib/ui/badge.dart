@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
+import 'boxes.dart';
 import 'felt.dart';
 import 'mark_glyph.dart';
 
@@ -18,19 +19,21 @@ class Badge extends StatelessWidget {
   static Badge? forDiet(int diet) =>
       diet & 2 != 0 ? const Badge(Glyph.plant, label: 'Plant based') : diet & 1 != 0 ? const Badge(Glyph.veg, label: 'Vegetarian') : null;
 
-  /// A name with its patch, the last word and the patch never parted (M2 `nameHTML`: the last word and its marks sit in a nowrap
-  /// span), the patch 3 dp below the baseline.
+  /// A name with its patch: the last word and the patch never parted (M2 `nameHTML` puts them in a nowrap span), the patch's
+  /// baseline [M2Layout.patchBaseline] from its top, so it hangs 7 dp below the text's baseline.
   static InlineSpan name(String text, TextStyle style, {Widget? badge, InlineSpan? star}) {
     if (badge == null && star == null) return TextSpan(text: text, style: style);
     final i = text.lastIndexOf(' ');
     return TextSpan(style: style, children: [
       TextSpan(text: text.substring(0, i + 1)),
-      TextSpan(text: '⁠${text.substring(i + 1)}'),
-      if (badge != null)
-        WidgetSpan(
-          alignment: PlaceholderAlignment.baseline, baseline: TextBaseline.alphabetic,
-          child: Padding(padding: const EdgeInsets.only(left: M2Layout.patchLeft), child: Baseline(baseline: M2Layout.patch - M2Layout.patchDrop, baselineType: TextBaseline.alphabetic, child: badge)),
-        ),
+      WidgetSpan(
+        alignment: PlaceholderAlignment.baseline, baseline: TextBaseline.alphabetic,
+        child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+          Text(text.substring(i + 1), style: style),
+          if (badge != null)
+            Padding(padding: const EdgeInsets.only(left: M2Layout.patchLeft), child: BaselineAt(baseline: M2Layout.patchBaseline, child: badge)),
+        ]),
+      ),
       ?star,
     ]);
   }

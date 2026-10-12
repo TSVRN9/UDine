@@ -1,0 +1,60 @@
+import 'package:flutter/widgets.dart';
+import '../logic/dish_sheet.dart' show f1, fc;
+import '../logic/fixture.dart';
+import '../logic/menu_view.dart' show rowScores;
+import '../theme/tokens.dart';
+import '../ui/ui.dart';
+
+/// What a row's control shows (`rowCode`): its quantity on the plate it would join, 0 for the plain +, -1 for the ghost +.
+typedef RowCode = double;
+
+/// A dish row on a hall menu: name with its diet patch, calories and protein, the scores You turned on, and the control lane. A
+/// dish that is unscored draws no tile and no slot, so a row is the same size with every score toggle on or off (Review Focus 5).
+class DishRow extends StatelessWidget {
+  final Dish dish;
+  final ({bool health, bool carbon}) scores;
+  /// the avoided allergens a revealed row lists, said first
+  final List<String> contains;
+  /// null: another day's dish, which carries no control (it cannot go on today's plate)
+  final RowCode? code;
+  final bool here;
+  final VoidCallback onOpen, onAdd, onInc, onDec;
+  const DishRow({super.key, required this.dish, required this.scores, this.contains = const [], this.code, this.here = false, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = dish, sc = rowScores(d.health, d.carbon, scores);
+    final num = M2Text.metaNum.style(M2Color.ink), unit = M2Text.meta.style(M2Color.slate);
+    Widget group(List<Widget> kids) => Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: kids);
+    const gap = SizedBox(width: M2Layout.numSpace);
+    final meta = Wrap(
+      spacing: M2Layout.metaGapX, runSpacing: M2Layout.metaGapY, crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (contains.isNotEmpty) Text('Contains ${_andList(contains.map((a) => a.toLowerCase()).toList())}', style: M2Text.meta.style(M2Color.vm).copyWith(fontWeight: FontWeight.w600)),
+        group([
+          Text(fc(d.cal), style: num), gap, Text('cal', style: unit), gap, const SizedBox(width: M2Layout.numGap), gap, Text('${f1(d.p)}g', style: num), gap, Text('protein', style: unit),
+        ]),
+        if (sc != null)
+          // `.row .m .sc{margin-block:-1px}`: a 22.5 tile rides in the 22 line without growing it
+          NegMargin(
+            top: -M2Layout.scoreRise, bottom: -M2Layout.scoreRise,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              ScoreBadge(kind: ScoreKind.health, value: sc.health),
+              if (sc.health != null && sc.carbon != null) const SizedBox(width: M2Layout.scoreGap),
+              ScoreBadge(kind: ScoreKind.carbon, value: sc.carbon),
+            ]),
+          ),
+      ],
+    );
+    final badge = Badge.forDiet(d.diet);
+    return ListRow(
+      label: '${d.name}, ${fc(d.cal)} calories, ${f1(d.p)} grams protein',
+      here: here, onTap: onOpen,
+      name: Badge.name(d.name, M2Text.rowName.style(M2Color.ink), badge: badge),
+      meta: meta,
+      control: code == null ? null : RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec),
+    );
+  }
+}
+
+String _andList(List<String> l) => l.length < 2 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';

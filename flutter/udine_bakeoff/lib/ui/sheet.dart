@@ -48,11 +48,14 @@ class M2Sheet extends StatefulWidget {
   final Widget? header;
   final List<Widget> slivers;
   final ScrollPhysics? physics;
+  /// Where the body starts (scroll offset), from the first layout and before the sheet is visible: the hours sheet opens at the
+  /// chosen day. Gets the metrics and the resting height; null leaves it at the top.
+  final double? Function(SheetMetrics m, double mid)? landing;
   /// the ground of the sheet
   final Color color;
   const M2Sheet({
     super.key, required this.handle, required this.top, required this.slivers, this.mid, this.min = 0, this.startOpen = true, this.onClosed, this.onSize,
-    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.color = M2Color.chalk,
+    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.landing, this.color = M2Color.chalk,
   });
   @override
   State<M2Sheet> createState() => _M2SheetState();
@@ -104,6 +107,10 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     final content = sc == null ? 0.0 : sc.maxScrollExtent + sc.viewportDimension;
     final m = SheetMetrics(_h, content, box);
     final mid = _clampPx((widget.mid ?? _defaultMid)(m));
+    if (!_measured && widget.landing != null) {
+      final off = widget.landing!(m, mid);
+      if (off != null && _sc!.hasClients) _sc!.jumpTo(off.clamp(0.0, _sc!.position.maxScrollExtent));
+    }
     final changed = (mid - _midPx).abs() > 0.5;
     _midPx = mid;
     if (!_measured) {
@@ -247,4 +254,19 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
       ]);
     });
   }
+}
+
+/// `.grab`: the 22 dp strip with the 40 x 5 handle, the sheet's pinned top.
+class SheetGrab extends StatelessWidget {
+  final Color color;
+  const SheetGrab({super.key, this.color = M2Color.chalk});
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        color: color,
+        child: SizedBox(
+          height: M2Layout.grabH,
+          child: Center(child: Container(width: M2Layout.grabW, height: M2Layout.grabBar, decoration: const BoxDecoration(color: M2Color.grab, borderRadius: BorderRadius.all(Radius.circular(M2Layout.grabBar)))),
+          ),
+        ),
+      );
 }
