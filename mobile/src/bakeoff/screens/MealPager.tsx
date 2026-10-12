@@ -96,12 +96,12 @@ export const MealPager = forwardRef<PagerHandle, {
     // the copy of the old rows now covers the list, so the new meal can be set at its start; the list lays its rows out a
     // frame after React commits them, so both move from the second frame on
     p.set(0); o.set(0); g.set(1);
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => {
+    // not cancelled by a later data change either (Show all, prefs): the slide's end is what returns the pager to idle
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       p.set(withTiming(1, { duration: X.d, easing: emphasized }, (done) => { if (done) runOnJS(drop)(id); }));
       o.set(withTiming(1, { duration: X.d * X.inAt, easing: m2Linear }));
       g.set(withTiming(0, { duration: X.d * X.at, easing: m2Linear }));
     }));
-    return () => cancelAnimationFrame(raf);
   }, [data, p, o, g, drop]);
 
   const enter = useAnimatedStyle(() => ({ opacity: o.get(), transform: [{ translateX: dirSv.get() * X.dist * (1 - p.get()) }] }));

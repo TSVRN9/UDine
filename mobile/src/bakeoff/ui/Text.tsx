@@ -25,7 +25,8 @@ export function Text({ v = "date", color = m2.color.ink, style, ...p }: TextProp
   if (t.line < t.size * 1.2) {
     const room = Math.ceil(t.size * 0.3), own = StyleSheet.flatten(style) as TextStyle | undefined;
     const base = (typeof own?.marginBottom === "number" ? own.marginBottom : typeof own?.marginVertical === "number" ? own.marginVertical : typeof own?.margin === "number" ? own.margin : 0);
-    return <RNText {...p} style={[s, style, { paddingBottom: (typeof own?.paddingBottom === "number" ? own.paddingBottom : 0) + room, marginBottom: base - room }]} />;
+    const pad = typeof own?.paddingBottom === "number" ? own.paddingBottom : typeof own?.paddingVertical === "number" ? own.paddingVertical : typeof own?.padding === "number" ? own.padding : 0;
+    return <RNText {...p} style={[s, style, { paddingBottom: pad + room, marginBottom: base - room }]} />;
   }
   return <RNText {...p} style={[s, style]} />;
 }

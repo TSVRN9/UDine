@@ -39,24 +39,27 @@ export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss
     const { k, z } = m2Motion.spring.sheet;
     const scroll = useRef<any>(null);
     // armed only for a sheet that opens scrolled: otherwise gorhom's hook sees every scroll (a plain list's first scroll is not ours)
-    const armed = useSharedValue(false), laidOut = useRef(false);
+    const armed = useSharedValue(false), laidOut = useRef(false), box = useRef({ h: 0, c: 0 });
+    // scroll once, as soon as the content is tall enough to reach the offset (the first layout can come before it is)
+    const openScrolled = () => {
+      const { h, c } = box.current;
+      if (laidOut.current || !contentOffset || !h || c - h < contentOffset - 1) return;
+      laidOut.current = true;
+      armed.set(true);
+      (scroll.current?.getScrollResponder?.() ?? scroll.current)?.scrollTo({ y: contentOffset, animated: false });
+    };
     // gorhom calls this as a hook, once per render of its scrollable, from a stable function: that is what the rule cannot see
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hook = useCallback<ScrollEventsHandlersHookType>((r, o) => useOpenedAt(armed, r, o), [armed]);
     const animationConfigs = useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
     return (
-      <BottomSheetModal ref={ref} enableDynamicSizing maxDynamicContentSize={maxHeight} enablePanDownToClose onDismiss={() => { laidOut.current = false; armed.set(false); onDismiss?.(); }}
+      <BottomSheetModal ref={ref} enableDynamicSizing maxDynamicContentSize={maxHeight} enablePanDownToClose onDismiss={() => { laidOut.current = false; box.current = { h: 0, c: 0 }; armed.set(false); onDismiss?.(); }}
         animationConfigs={animationConfigs} handleComponent={Grab}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderTopLeftRadius: m2.radius.sheet, borderTopRightRadius: m2.radius.sheet }}
         backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={0} disappearsOnIndex={-1} opacity={m2Motion.scrim} pressBehavior="close" />}>
         <BottomSheetScrollView ref={scroll} scrollEventsHandlersHook={hook}
-          onLayout={() => {
-            if (laidOut.current) return;   // the first layout only: later ones (content growing) must not put the list back
-            laidOut.current = true;
-            if (!contentOffset) return;
-            armed.set(true);
-            (scroll.current?.getScrollResponder?.() ?? scroll.current)?.scrollTo({ y: contentOffset, animated: false });
-          }}
+          onLayout={(e) => { box.current.h = e.nativeEvent.layout.height; openScrolled(); }}
+          onContentSizeChange={(_w, h) => { box.current.c = h; openScrolled(); }}
           contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingBottom: m2.space[5] }}>{children}</BottomSheetScrollView>
       </BottomSheetModal>
     );

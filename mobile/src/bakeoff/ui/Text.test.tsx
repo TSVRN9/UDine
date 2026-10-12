@@ -30,5 +30,9 @@ describe("Text keeps descenders (Oswald at line == size clips on Android)", () =
     const s = style("station", { paddingBottom: 3 });
     expect(s.paddingBottom).toBe(3 + Math.ceil(m2.type.station.size * 0.3));
   });
+  it("a caller's paddingVertical or padding is folded in the same way", () => {
+    expect(style("station", { paddingVertical: 4 }).paddingBottom).toBe(4 + Math.ceil(m2.type.station.size * 0.3));
+    expect(style("station", { padding: 2 }).paddingBottom).toBe(2 + Math.ceil(m2.type.station.size * 0.3));
+  });
   it("a roomy variant is left alone", () => expect(style("rowName").paddingBottom).toBeUndefined());
 });
