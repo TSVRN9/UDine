@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, {
-  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withTiming,
+  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSequence, withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
@@ -11,6 +11,7 @@ import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { emphasized, m2Linear, m2Motion, standardDecelerate } from "../../lib/motion";
 import { Board, BusyRow, HallLetter, Header, Photo, Press, Text, thud, tick } from "../ui";
+import type { Labels } from "../ui/Header";
 import { BAR } from "../ui/Header";
 import { boardAt, busyView } from "../logic/busy";
 import { MEAL_LABEL, loadFixture } from "../logic/fixture";
@@ -65,10 +66,10 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   // eslint-disable-next-line react-hooks/rules-of-hooks -- __DEV__ is a build-time constant
   const dev = __DEV__ ? useLocalSearchParams<{ day?: string; meal?: string; sheet?: string; y?: string; reveal?: string }>() : {};
 
-  // `listDay` is the day the list shows, `headDay` the day its labels say: a day change draws the list first, under a copy of the
-  // old rows, and the labels follow once it is drawn
-  const [listDay, setListDay] = useState(() => +(dev.day ?? 0) || 0);
-  const [headDay, setHeadDay] = useState(listDay);
+  // one day for the list and the labels: a day change commits it once, while a copy of the old rows and the old labels stay on screen
+  const [day, setDay] = useState(() => +(dev.day ?? 0) || 0);
+  // the labels as they were before a day change (null: they are the current ones)
+  const [held, setHeld] = useState<Labels | null>(null);
   const [mealSel, setMealSel] = useState<MealKey>((dev.meal as MealKey) ?? "lunch");
   const [showAll, setShowAll] = useState(() => dev.reveal === "1");
   const [sheet, setSheet] = useState<"hours" | "stations" | null>(null);
@@ -76,22 +77,16 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   // the container opens before the list is drawn: mounting ~30 rows blocks JS, and the open's clock starts at the first layout
   const [warm, setWarm] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setWarm(true)); return () => cancelAnimationFrame(id); }, []);
-  const day = headDay;
-  const meals = mealsOf(fx, isos[headDay], place);
-  const meal = defaultMeal(fx, isos[headDay], place, mealSel);
-  const listMeal = defaultMeal(fx, isos[listDay], place, mealSel);
+  const meals = mealsOf(fx, isos[day], place);
+  const meal = defaultMeal(fx, isos[day], place, mealSel);
 
-  const view = useMemo(() => menuView(fx, isos[listDay], place, listMeal, prefs, showAll), [listDay, place, listMeal, prefs, showAll]);
+  const view = useMemo(() => menuView(fx, isos[day], place, meal, prefs, showAll), [day, place, meal, prefs, showAll]);
   const items = useMemo(
-    () => menuItems(view, prefs, showAll, mealsOf(fx, isos[listDay], place).length ? "" : `No menu posted for ${dayFull(fx, listDay)}.`),
-    [view, prefs, showAll, listDay, place],
+    () => menuItems(view, prefs, showAll, meals.length ? "" : `No menu posted for ${dayFull(fx, day)}.`),
+    [view, prefs, showAll, day, meals.length],
   );
   const heads = useMemo(() => items.flatMap((it, i) => (it.t === "head" ? [i] : [])), [items]);
-  const headView = useMemo(
-    () => (headDay === listDay && meal === listMeal ? view : menuView(fx, isos[headDay], place, meal, prefs, showAll)),
-    [view, headDay, listDay, meal, listMeal, place, prefs, showAll],
-  );
-  const stationLabel = headView.sections[Math.min(cur, headView.sections.length - 1)]?.name ?? "";
+  const stationLabel = view.sections[Math.min(cur, view.sections.length - 1)]?.name ?? "";
 
   // ---- geometry: M2 HH, CH, TH, SWH, PIN
   const HH = headerHeight(top), R = HH - top - BAR;
@@ -129,30 +124,25 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
     tick();
   };
 
-  // ---- day change (M2 changeDay): what says the day fades out where it is, then the new day fades in (the list scaling up from .97)
-  const f = useSharedValue(1), sc = useSharedValue(1), pf = useSharedValue(1), holdOn = useSharedValue(1);
+  // ---- day change (M2 changeDay): what says the day fades out where it is, then the new day fades in (the list scaling up from .97).
+  // The list and the labels commit once, under the old ones (the copy of the old rows, the old labels' layer); the fade out and back
+  // in is then only shared values on the UI thread.
+  const f = useSharedValue(1), sc = useSharedValue(1), lo = useSharedValue(0), ln = useSharedValue(1), holdOn = useSharedValue(1);
   const FT = m2Motion.fadeThrough, fade = standardDecelerate;
-  const labelsIn = useRef(false);
-  const swap = (i: number) => {
-    const keep = Math.min(y.get(), R);
-    labelsIn.current = true;
-    setHeadDay(i);
-    pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
+  const done = () => {
     pager.current?.release();
+    setHeld(null);
   };
-  // the new labels were drawn while hidden: fade them in
-  useEffect(() => {
-    if (!labelsIn.current) return;
-    labelsIn.current = false;
-    pf.set(withTiming(1, { duration: FT.d * (1 - m2Motion.sharedX.at), easing: fade }));
-  }, [headDay]); // eslint-disable-line react-hooks/exhaustive-deps
-  // the old content stays until the new day is drawn; then it fades out in place and the new one fades in. The list's fade runs
-  // out and back in on the UI thread without waiting for JS; the labels come back once they have committed.
   const changeDay = (i: number) => {
+    const keep = Math.min(y.get(), R);
     holdOn.set(1);
-    pager.current?.hold(() => setListDay(i), () => {
+    lo.set(1); ln.set(0);   // the old layer shows exactly what is on screen: until the commit lands it is the current labels
+    setHeld(labels);
+    pager.current?.hold(() => { setDay(i); }, () => {
+      pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
       const out = FT.d * m2Motion.sharedX.at, back = FT.d * (1 - m2Motion.sharedX.at);
-      pf.set(withTiming(0, { duration: out, easing: m2Linear }));
+      lo.set(withTiming(0, { duration: out, easing: m2Linear }));
+      ln.set(withDelay(out, withTiming(1, { duration: back, easing: fade })));
       sc.set(1);
       f.set(withSequence(
         withTiming(0, { duration: out, easing: m2Linear }, () => {
@@ -160,13 +150,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
           holdOn.set(0);
           sc.set(FT.scale);
           sc.set(withTiming(1, { duration: back, easing: fade }));
-          runOnJS(swap)(i);
         }),
-        withTiming(1, { duration: back, easing: fade }),
+        withTiming(1, { duration: back, easing: fade }, () => { "worklet"; runOnJS(done)(); }),
       ));
     });
   };
-  const parts = useAnimatedStyle(() => ({ opacity: pf.get() }));
+  const newLabels = useAnimatedStyle(() => ({ opacity: ln.get() }));
+  const oldLabelsStyle = useAnimatedStyle(() => ({ opacity: lo.get() }));
   const listFade = useAnimatedStyle(() => ({ opacity: f.get(), transform: [{ scale: sc.get() }], transformOrigin: `50% ${(H + PIN) / 2}px` }));
 
   // ---- meals
@@ -182,7 +172,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   // ---- sheets
   const hoursRef = useRef<BottomSheetModal>(null), stRef = useRef<BottomSheetModal>(null);
   const pending = useRef<{ day: number } | null>(null);
-  const sched = useMemo(() => schedule(fx, place, headDay), [place, headDay]);
+  const sched = useMemo(() => schedule(fx, place, day), [place, day]);
   const openHours = () => { setSheet("hours"); hoursRef.current?.present(); thud(); };
   const openStations = () => { if (!view.sections.length) return; setSheet("stations"); stRef.current?.present(); thud(); };
   const onDismiss = () => {
@@ -209,12 +199,21 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   const status = statusLine(fx, place, day);
   const mealItems = meals.map((m) => ({ key: m, label: MEAL_LABEL[m] }));
 
+  const labels: Labels = {
+    status, onStatus: status ? openHours : undefined,
+    busy: busy ? <View style={{ opacity: live ? 1 : 0 }} pointerEvents="none"><BusyRow {...busy} header /></View> : undefined,
+    board: live ? <Board columns={boardAt(fx.typical[place as "W"], fx.busy[place as "W"], now.getHours() * 60 + now.getMinutes())} /> : undefined,
+    meals: one ? undefined : { items: mealItems, selected: meal, onSelect: (k) => pickMeal(k as MealKey) },
+    station: stationLabel ? { label: stationLabel, onPress: openStations, open: sheet === "stations" } : undefined,
+    day: { label: dayCell(fx, day), accessibilityLabel: `${dayFull(fx, day)}, change the day`, onPress: openHours },
+  };
+
   const renderItem = (it: Item) => {
     switch (it.t) {
       case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={() => setShowAll((s) => !s)} />;
       case "head": return <View style={{ height: 50, paddingHorizontal: m2.space[4], paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
       case "empty": return <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
-      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={listDay === 0} />;
+      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} />;
     }
   };
 
@@ -230,18 +229,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
       <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top: 0, left: 0, right: 0 }, headerTx]}>
         <Header
           title={name} top={top} height={HH}
-          status={status} onStatus={status ? openHours : undefined}
-          busy={busy ? <View style={{ opacity: live ? 1 : 0 }} pointerEvents="none"><BusyRow {...busy} header /></View> : undefined}
-          board={live ? <Board columns={boardAt(fx.typical[place as "W"], fx.busy[place as "W"], now.getHours() * 60 + now.getMinutes())} /> : undefined}
           photo={src ? <Photo source={src} width={width} height={HH} pos={compact ? 0.5 : PHOTO_POS[place as "W"]} duo={t.style.photo} /> : undefined}
           letter={<>
             {hallLetter ? <Animated.View pointerEvents="none" style={[fill, t.style.incoming]}>{hallLetter}</Animated.View> : null}
             {ghost}
           </>}
-          meals={one ? undefined : { items: mealItems, selected: meal, onSelect: (k) => pickMeal(k as MealKey) }}
-          station={stationLabel ? { label: stationLabel, onPress: openStations, open: sheet === "stations" } : undefined}
-          day={{ label: dayCell(fx, day), accessibilityLabel: `${dayFull(fx, day)}, change the day`, onPress: openHours }}
-          gradStyle={t.style.grad} contentStyle={t.style.incoming} partsStyle={parts} collapse={c}
+          labels={labels} oldLabels={held ?? labels} newStyle={newLabels} oldStyle={oldLabelsStyle}
+          gradStyle={t.style.grad} contentStyle={t.style.incoming} collapse={c}
         />
       </Animated.View>
       <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top, left: 4, height: BAR, justifyContent: "center" }, t.style.incoming]}>

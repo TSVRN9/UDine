@@ -24,6 +24,25 @@ const clamp = (x: number) => {
 /** The compact bar's height under the status bar (M2 CH = ST + 52). */
 export const BAR = 52;
 
+export interface Labels {
+  status?: string; onStatus?: () => void; busy?: ReactNode; board?: ReactNode;
+  meals?: { items: { key: string; label: string }[]; selected: string; onSelect: (key: string) => void };
+  station?: { label: string; onPress: () => void; open?: boolean };
+  day?: { label: string; accessibilityLabel: string; onPress: () => void };
+}
+
+const abs = { position: "absolute", top: 0, left: 0, right: 0 } as const;
+/** The day's labels exist twice, `now` and `was`, stacked: a day change commits the new ones while the old stay on screen, and the
+ * switch is two opacities on the UI thread, with no commit between them. `was` never takes touches. */
+function Layers({ now, was, newStyle, oldStyle, fillParent }: { now: ReactNode; was: ReactNode; newStyle?: AStyle; oldStyle?: AStyle; fillParent?: boolean }) {
+  return (
+    <View style={fillParent ? { flex: 1 } : undefined}>
+      <Animated.View style={[fillParent ? { flex: 1 } : null, newStyle]}>{now}</Animated.View>
+      <Animated.View pointerEvents="none" style={[fillParent ? { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } : abs, oldStyle]}>{was}</Animated.View>
+    </View>
+  );
+}
+
 /**
  * Round 9c hall header: photo window with the name and status, then the meal row (14 px, every meal visible, never
  * scrolled), then the station row with the day cell at its right end. Rows with no data are not drawn.
@@ -32,15 +51,14 @@ export const BAR = 52;
  * solid maroon grows over it, the letter, status and busy fade, and the name shrinks into the bar (the caller translates
  * the whole header by the scroll; the rows below ride with it and pin under the bar).
  */
-export function Header({ title, status, onStatus, busy, board, photo, letter, height = 240, top = 0, meals, station, day, gradStyle, contentStyle, partsStyle, collapse }: {
-  title: string; status?: string; onStatus?: () => void; busy?: ReactNode; board?: ReactNode; photo?: ReactNode; letter?: ReactNode; height?: number; top?: number;
-  meals?: { items: { key: string; label: string }[]; selected: string; onSelect: (key: string) => void };
-  station?: { label: string; onPress: () => void; open?: boolean };
-  day?: { label: string; accessibilityLabel: string; onPress: () => void };
+export function Header({ title, photo, letter, height = 240, top = 0, labels, oldLabels, newStyle, oldStyle, gradStyle, contentStyle, collapse }: {
+  title: string; photo?: ReactNode; letter?: ReactNode; height?: number; top?: number;
+  /** What says the day, as it is now, and as it was before a day change (it fades out in its own layer while `labels` fades in). */
+  labels: Labels; oldLabels: Labels;
   /** Animated styles for the container transform: the photo gradients, and the title and controls. */
   gradStyle?: AStyle; contentStyle?: AStyle;
-  /** Fades the parts that name the day (labels, status, busy, board) while it changes. */
-  partsStyle?: AStyle;
+  /** Opacity of the layer holding `labels`, and of the one holding `oldLabels`. */
+  newStyle?: AStyle; oldStyle?: AStyle;
   collapse?: SharedValue<number>;
 }) {
   const zero = useSharedValue(0);
@@ -61,20 +79,6 @@ export function Header({ title, status, onStatus, busy, board, photo, letter, he
   });
   const fadeC = useAnimatedStyle(() => ({ opacity: 1 - clamp(c.get() / 0.3) }));
 
-  // the gold underline slides to the selected tab (M2 placeUL: translateX(offsetLeft + 8) scaleX(width - 16), settle)
-  const tabs = useRef<Record<string, { x: number; w: number }>>({});
-  const ulX = useSharedValue(0), ulW = useSharedValue(0), ulSet = useRef(false);
-  const place = (key: string, animate: boolean) => {
-    const t = tabs.current[key];
-    if (!t) return;
-    if (!animate || !ulSet.current) { ulX.set(t.x + 8); ulW.set(t.w - 16); ulSet.current = true; return; }
-    ulX.set(withTiming(t.x + 8, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
-    ulW.set(withTiming(t.w - 16, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
-  };
-  const selected = meals?.selected;
-  useEffect(() => { if (selected) place(selected, true); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
-  const underline = useAnimatedStyle(() => ({ transform: [{ translateX: ulX.get() }, { scaleX: Math.max(ulW.get(), 0) }] }));
-
   return (
     <View pointerEvents="box-none" style={{ backgroundColor: m2.color.dm }}>
       <View pointerEvents="box-none" style={{ height, backgroundColor: m2.color.vm, overflow: "hidden" }}>
@@ -88,63 +92,106 @@ export function Header({ title, status, onStatus, busy, board, photo, letter, he
         <Animated.View style={[fill, contentStyle]} pointerEvents="box-none">
           <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space[4], bottom: 50 }}>
             <Animated.View style={[{ transformOrigin: "0% 100%" }, name]}><Text v="menuName" color={m2.color.white} accessibilityRole="header">{title}</Text></Animated.View>
-            <Animated.View pointerEvents="box-none" style={fadeC}><Animated.View pointerEvents="box-none" style={partsStyle}>
-              <View style={{ minHeight: 20, marginTop: 7 }}>
-                {status ? (
-                  <Press accessibilityRole="button" accessibilityLabel={`${status}, hours and directions`} onPress={onStatus} disabled={!onStatus}
-                    hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                    <Text v="status" color={m2.color.onDmSoft}>{status}</Text>
-                    {onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
-                  </Press>
-                ) : null}
-              </View>
-              {busy}
-            </Animated.View></Animated.View>
+            <Animated.View pointerEvents="box-none" style={fadeC}>
+              <Layers now={<TitleParts l={labels} />} was={<TitleParts l={oldLabels} />} newStyle={newStyle} oldStyle={oldStyle} />
+            </Animated.View>
           </View>
-          <Animated.View pointerEvents="none" style={[fill, fadeC]}><Animated.View pointerEvents="none" style={[fill, partsStyle]}>{board}</Animated.View></Animated.View>
+          <Animated.View pointerEvents="none" style={[fill, fadeC]}><Animated.View pointerEvents="none" style={[fill, newStyle]}>{labels.board}</Animated.View><Animated.View pointerEvents="none" style={[fill, oldStyle]}>{oldLabels.board}</Animated.View></Animated.View>
         </Animated.View>
       </View>
-      {meals ? (
+      {labels.meals ? (
         <View accessibilityRole="tablist" style={{ height: m2.size.tabs, paddingHorizontal: 4 }}>
-          <Animated.View style={[{ flex: 1 }, contentStyle]}><Animated.View style={[{ flex: 1, flexDirection: "row" }, partsStyle]}>
-            {meals.items.map((m) => {
-              const on = m.key === meals.selected;
-              return (
-                <Press key={m.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => meals.onSelect(m.key)}
-                  onLayout={(e) => { tabs.current[m.key] = { x: e.nativeEvent.layout.x, w: e.nativeEvent.layout.width }; if (on) place(m.key, false); }}
-                  style={{ flexGrow: 1, flexShrink: 1, height: m2.size.tabs, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" }}>
-                  <Text v="mealTab" color={on ? m2.color.white : m2.color.onDm} style={{ fontFamily: on ? m2.font.bodySb : m2.font.bodyMd }} numberOfLines={1}>{m.label}</Text>
-                </Press>
-              );
-            })}
-            {meals.items.length ? <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, bottom: 0, height: 3, width: 1, backgroundColor: m2.color.gold, transformOrigin: "0% 0%" }, underline]} /> : null}
-          </Animated.View></Animated.View>
+          <Animated.View style={[{ flex: 1 }, contentStyle]}>
+            <Layers fillParent now={<TabRow meals={labels.meals} />} was={oldLabels.meals ? <TabRow meals={oldLabels.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+          </Animated.View>
         </View>
       ) : null}
-      {station || day ? (
-        <View style={{ height: m2.size.tabs, flexDirection: "row", borderTopWidth: meals ? 1 : 0, borderTopColor: "rgba(255,255,255,0.12)" }}>
+      {labels.station || labels.day ? (
+        <View style={{ height: m2.size.tabs, flexDirection: "row", borderTopWidth: labels.meals ? 1 : 0, borderTopColor: "rgba(255,255,255,0.12)" }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            {station ? (
-              <Animated.View style={[{ flex: 1 }, contentStyle]}><Animated.View style={[{ flex: 1 }, partsStyle]}>
-                <Press feedback="tint" accessibilityRole="button" accessibilityLabel={`${station.label}, stations`} accessibilityState={{ expanded: !!station.open }} onPress={station.onPress}
-                  style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space[4] }}>
-                  <Text v="station" color={m2.color.gold} numberOfLines={1} style={{ flexShrink: 1 }}>{station.label}</Text>
-                  <Flip open={!!station.open}><Chevron /></Flip>
-                </Press>
-              </Animated.View></Animated.View>
-            ) : null}
+            <Animated.View style={[{ flex: 1 }, contentStyle]}>
+              <Layers fillParent now={labels.station ? <StationButton s={labels.station} /> : null} was={oldLabels.station ? <StationButton s={oldLabels.station} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+            </Animated.View>
           </View>
-          {day ? (
-            <Animated.View style={contentStyle}><Animated.View style={[{ flex: 1 }, partsStyle]}>
-              <Press feedback="tint" accessibilityRole="button" accessibilityLabel={day.accessibilityLabel} onPress={day.onPress}
-                style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space[3], paddingRight: m2.space[4], borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
-                <Text v="day" color={m2.color.gold}>{day.label}</Text>
-                <Chevron />
-              </Press>
-            </Animated.View></Animated.View>
+          {labels.day ? (
+            <Animated.View style={contentStyle}>
+              {/* a zero-height copy of both cells gives the cell the wider of the two widths, so "Today" does not shift when "Fri 9" arrives */}
+              <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: 0, overflow: "hidden", opacity: 0 }}>
+                <DayCell d={labels.day} />{oldLabels.day ? <DayCell d={oldLabels.day} /> : null}
+              </View>
+              <Layers fillParent now={<DayCell d={labels.day} />} was={oldLabels.day ? <DayCell d={oldLabels.day} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+            </Animated.View>
           ) : null}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+function TitleParts({ l }: { l: Labels }) {
+  return (
+    <>
+      <View style={{ minHeight: 20, marginTop: 7 }}>
+        {l.status ? (
+          <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
+            hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
+            {l.onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
+          </Press>
+        ) : null}
+      </View>
+      {l.busy}
+    </>
+  );
+}
+
+function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
+  return (
+    <Press feedback="tint" accessibilityRole="button" accessibilityLabel={`${s.label}, stations`} accessibilityState={{ expanded: !!s.open }} onPress={s.onPress}
+      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space[4] }}>
+      <Text v="station" color={m2.color.gold} numberOfLines={1} style={{ flexShrink: 1 }}>{s.label}</Text>
+      <Flip open={!!s.open}><Chevron /></Flip>
+    </Press>
+  );
+}
+
+function DayCell({ d }: { d: NonNullable<Labels["day"]> }) {
+  return (
+    <Press feedback="tint" accessibilityRole="button" accessibilityLabel={d.accessibilityLabel} onPress={d.onPress}
+      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space[3], paddingRight: m2.space[4], borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
+      <Text v="day" color={m2.color.gold}>{d.label}</Text>
+      <Chevron />
+    </Press>
+  );
+}
+
+/** The meal row's tabs, with the gold underline sliding to the selected one (M2 placeUL: translateX(offsetLeft + 8) scaleX(width - 16), settle). */
+function TabRow({ meals }: { meals: NonNullable<Labels["meals"]> }) {
+  const tabs = useRef<Record<string, { x: number; w: number }>>({});
+  const ulX = useSharedValue(0), ulW = useSharedValue(0), ulSet = useRef(false);
+  const place = (key: string, animate: boolean) => {
+    const t = tabs.current[key];
+    if (!t) return;
+    if (!animate || !ulSet.current) { ulX.set(t.x + 8); ulW.set(t.w - 16); ulSet.current = true; return; }
+    ulX.set(withTiming(t.x + 8, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
+    ulW.set(withTiming(t.w - 16, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
+  };
+  const selected = meals.selected;
+  useEffect(() => { place(selected, true); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+  const underline = useAnimatedStyle(() => ({ transform: [{ translateX: ulX.get() }, { scaleX: Math.max(ulW.get(), 0) }] }));
+  return (
+    <View style={{ flex: 1, flexDirection: "row" }}>
+      {meals.items.map((m) => {
+        const on = m.key === meals.selected;
+        return (
+          <Press key={m.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => meals.onSelect(m.key)}
+            onLayout={(e) => { tabs.current[m.key] = { x: e.nativeEvent.layout.x, w: e.nativeEvent.layout.width }; if (on) place(m.key, false); }}
+            style={{ flexGrow: 1, flexShrink: 1, height: m2.size.tabs, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" }}>
+            <Text v="mealTab" color={on ? m2.color.white : m2.color.onDm} style={{ fontFamily: on ? m2.font.bodySb : m2.font.bodyMd }} numberOfLines={1}>{m.label}</Text>
+          </Press>
+        );
+      })}
+      {meals.items.length ? <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, bottom: 0, height: 3, width: 1, backgroundColor: m2.color.gold, transformOrigin: "0% 0%" }, underline]} /> : null}
     </View>
   );
 }
