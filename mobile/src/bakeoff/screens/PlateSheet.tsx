@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, { FadeIn, LinearTransition, FadeOut } from "react-native-reanimated";
 import { useGlobalSearchParams, useRouter } from "expo-router";
@@ -66,11 +66,9 @@ export function PlateSheet({ tabH }: { tabH: number }) {
   const snaps = [BAR, mid, full];
 
   // the bar rises when there is something to show and goes away when there is not; an empty plate takes the open sheet down with it
-  // The sheet mounts the first time there is something to show, already at the bar (gorhom drops a snap asked of it before it has
-  // laid out, which left the bar missing on a cold start); after that it is shown and put away by snapping.
-  const [mounted, setMounted] = useState(false);
-  if (visible && !mounted) setMounted(true);
-  useEffect(() => { if (!mounted) return; if (visible) ref.current?.snapToIndex(SNAPS.bar); else ref.current?.close(); }, [visible, mounted]);
+  // The sheet is mounted with the layout, closed, so the first add of a session only has to snap it to the bar (mounting it on first use
+  // put the bar about 0.4 s behind the stepper). It is shown and put away by snapping.
+  useEffect(() => { if (visible) ref.current?.snapToIndex(SNAPS.bar); else ref.current?.close(); }, [visible]);
   // dev only (screenshots): `?psheet=mid|large` opens the plate sheet once it has something to show
   // eslint-disable-next-line react-hooks/rules-of-hooks -- __DEV__ is a build-time constant
   const dev = __DEV__ ? useGlobalSearchParams<{ psheet?: string }>().psheet : undefined;
@@ -98,11 +96,11 @@ export function PlateSheet({ tabH }: { tabH: number }) {
 
   return (
     <View pointerEvents="box-none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: tabH, overflow: "hidden" }}>
-      {mounted ? <BottomSheet
-        ref={ref} index={0} snapPoints={snaps} animationConfigs={spring} handleComponent={Handle} enablePanDownToClose={false} enableDynamicSizing={false}
+      <BottomSheet
+        ref={ref} index={-1} snapPoints={snaps} animationConfigs={spring} handleComponent={Handle} enablePanDownToClose={false} enableDynamicSizing={false}
         onAnimate={(from, to) => { if (from >= 0 && to >= 0 && from !== to) tick(); }}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderRadius: 0 }}
-        backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={SNAPS.mid} disappearsOnIndex={SNAPS.bar} opacity={m2Motion.scrim} pressBehavior="collapse" />}>
+        backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={SNAPS.mid} disappearsOnIndex={SNAPS.bar} opacity={m2Motion.plateScrim} style={{ backgroundColor: m2.color.plateScrim }} pressBehavior="collapse" />}>
         <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingTop: m2.space[0], paddingBottom: m2.space[5] }}>
           {plate ? (
             <Animated.View key={plate.id} entering={FadeIn.duration(m2Motion.settle.d).easing(m2SettleEasing)}>
@@ -127,7 +125,7 @@ export function PlateSheet({ tabH }: { tabH: number }) {
             </Animated.View>
           ) : null}
         </BottomSheetScrollView>
-      </BottomSheet> : null}
+      </BottomSheet>
     </View>
   );
 }

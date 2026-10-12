@@ -153,6 +153,7 @@ export const m2 = {
     outline: "rgba(255,255,255,0.7)",
     felt: "#5a1820",
     scrim: "rgba(36,10,14,1)",
+    plateScrim: "rgb(36,10,14)",
     // [tile, ink]
     carbon: {
       A: ["#0d6d3a", "#0d6d3a"],

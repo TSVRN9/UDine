@@ -167,3 +167,15 @@ describe("dev params (screenshots)", () => {
     expect(st.last).toBeNull();
   });
 });
+
+it("persists only prefs, show, newton and the log: never the plate in progress, the receipt or the set-aside plates", async () => {
+  const s = fresh();
+  s.add("lunch", BBQ, refsFor("lunch", BBQ, ["W"]));
+  s.setPrefs({ veg: true });
+  s.log();
+  s.add("lunch", BRISKET, refsFor("lunch", BRISKET, ["W", "B"]));
+  s.setNewton(true);
+  await s.flush();
+  const kept = JSON.parse((await require("@react-native-async-storage/async-storage").getItem("bakeoff.store.v1")) as string);
+  expect(Object.keys(kept).sort()).toEqual(["log", "newton", "prefs", "show"]);
+});
