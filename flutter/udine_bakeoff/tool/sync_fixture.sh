@@ -8,3 +8,4 @@ git show "$ref:mobile/src/bakeoff/logic/vectors.json" > test/vectors.json
 # the design tokens: a snapshot of the RN branch's token source, then the Dart generated from it
 git show "$ref:design-tokens/m2.json" > tool/m2.json
 dart run tool/gen_tokens.dart
+git show "$ref:mobile/src/bakeoff/logic/labelVectors.json" > test/label_vectors.json
