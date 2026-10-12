@@ -1,6 +1,6 @@
 import vectors from "../logic/labelVectors.json";
 import { loadFixture } from "../logic/fixture";
-import { estimateCalBottom, labelRows, restingSnap, sheetMarks } from "../logic/dishSheet";
+import { estimateCalBottom, fc, labelRows, restingSnap, sheetMarks } from "../logic/dishSheet";
 import { isCafe, placeName } from "../logic/fixture";
 import { whereAnswer } from "../logic/where";
 
@@ -76,5 +76,14 @@ describe("estimateCalBottom: the sheet rises at once from this, then retargets t
       where: answer.map((g) => ({ chips: g.halls.map((h) => placeName(h).length), letters: g.halls.map((h) => !isCafe(h)) })),
     });
     expect(Math.abs(est - measured)).toBeLessThanOrEqual(8);
+  });
+});
+
+describe("fc: calorie and gram numbers group thousands without Intl (one JNI call per row in the release profile)", () => {
+  it("rounds and groups, never calling toLocaleString", () => {
+    const spy = jest.spyOn(Number.prototype, "toLocaleString");
+    expect([fc(164), fc(1234.5), fc(999.4), fc(1234567)]).toEqual(["164", "1,235", "999", "1,234,567"]);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

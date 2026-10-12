@@ -50,8 +50,11 @@ export const Sheet = forwardRef<BottomSheetModal, {
   onScrollY?: (y: number) => void;
   /** the first child is pinned to the top of the scroll */
   sticky?: boolean;
+  /** gorhom's own: an animation starts between two detent indices; the sheet settled at an index */
+  onAnimate?: (from: number, to: number) => void;
+  onChange?: (index: number) => void;
 }>(
-  function Sheet({ maxHeight, onDismiss, contentOffset = 0, children, snapPoints, animatedPosition, onScrollY, sticky }, ref) {
+  function Sheet({ maxHeight, onDismiss, contentOffset = 0, children, snapPoints, animatedPosition, onScrollY, sticky, onAnimate, onChange }, ref) {
     const { k, z } = m2Motion.spring.sheet;
     const scroll = useRef<any>(null);
     // armed only for a sheet that opens scrolled: otherwise gorhom's hook sees every scroll (a plain list's first scroll is not ours)
@@ -76,7 +79,7 @@ export const Sheet = forwardRef<BottomSheetModal, {
     const animationConfigs = useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
     return (
       <BottomSheetModal ref={ref} enableDynamicSizing={!snapPoints} maxDynamicContentSize={maxHeight} snapPoints={snapPoints} animatedPosition={animatedPosition} enablePanDownToClose onDismiss={() => { laidOut.current = false; box.current = { h: 0, c: 0 }; reached.current = false; retries.current = 0; armed.set(false); onDismiss?.(); }}
-        animationConfigs={animationConfigs} handleComponent={Grab}
+        animationConfigs={animationConfigs} handleComponent={Grab} onAnimate={onAnimate} onChange={onChange}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderTopLeftRadius: m2.radius.sheet, borderTopRightRadius: m2.radius.sheet }}
         backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={0} disappearsOnIndex={-1} opacity={m2Motion.scrim} pressBehavior="close" />}>
         <BottomSheetScrollView ref={scroll} style={snapPoints ? undefined : { maxHeight: maxHeight - GRAB }} stickyHeaderIndices={sticky ? [0] : undefined} onScroll={(e) => { const y = e.nativeEvent.contentOffset.y; if (y >= contentOffset - 1) reached.current = true; onScrollY?.(y); }} scrollEventsHandlersHook={hook}

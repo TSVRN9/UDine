@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { BackHandler, View, useWindowDimensions } from "react-native";
 import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
@@ -11,6 +11,7 @@ import { estimateCalBottom, labelRows, restingSnap, sheetMarks, sheetPrice, type
 import type { Dish } from "../logic/types";
 import { useBakeoffState, type Toggles } from "../state/prefs";
 import { closeDish, useOpenDish } from "../state/dishSheet";
+import { mark } from "../perf";
 import { NutritionLabel } from "./NutritionLabel";
 import { RatingsPanel } from "./RatingsPanel";
 import { WhereServed } from "./WhereServed";
@@ -144,7 +145,9 @@ function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
   };
   useAnimatedReaction(() => serving.get() && pos.get() > winH - rest / 2, (hit, was) => { if (hit && !was) runOnJS(go)(); });
 
-  useEffect(() => { ref.current?.present(); }, []);
+  mark("sheet:render");
+  useLayoutEffect(() => { mark("sheet:layout"); });
+  useEffect(() => { mark("sheet:present"); ref.current?.present(); }, []);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { ref.current?.dismiss(); return true; });
     return () => sub.remove();
@@ -152,9 +155,10 @@ function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
 
   // `serve` reaches the sheet's ref only when a button is tapped, never while rendering
   // eslint-disable-next-line react-hooks/refs
-  const content = parts({ dish, ctx, answer, scores, avoid: prefs.avoid, edge, onServe: serve, onCalBottom: (y) => setRest(restingSnap({ calBottom: y, grab: GRAB, winH, top })) });
+  const content = parts({ dish, ctx, answer, scores, avoid: prefs.avoid, edge, onServe: serve, onCalBottom: (y) => { mark("sheet:calBottom"); setRest(restingSnap({ calBottom: y, grab: GRAB, winH, top })); } });
   return (
     <Sheet ref={ref} maxHeight={full} snapPoints={snaps} animatedPosition={pos} sticky
+      onAnimate={(from, to) => mark(`sheet:animate ${from}>${to}`)} onChange={(i) => mark(`sheet:index ${i}`)}
       onScrollY={(y) => edge.set(y > 4 ? 1 : 0)} onDismiss={() => { go(); closeDish(); }}>
       {content}
     </Sheet>

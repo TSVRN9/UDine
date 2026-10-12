@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 import { Linking, Platform, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
+import type { SharedValue } from "react-native-reanimated";
 import { m2 } from "../../lib/theme";
 import { Press, Sheet, Text } from "../ui";
 import { openOffset, type Schedule } from "../logic/schedule";
@@ -19,11 +20,11 @@ const Rchev = () => (
  * M2's schedule (round 9): where the place is, then the days in date order with the chosen one open in place. A day row
  * picks that day; opened on a later day it scrolls just enough that the chosen day and its hours are on screen at rest.
  */
-export const HoursSheet = forwardRef<BottomSheetModal, { s: Schedule; maxHeight: number; onPick: (i: number) => void; onDismiss: () => void }>(
-  function HoursSheet({ s, maxHeight, onPick, onDismiss }, ref) {
+export const HoursSheet = forwardRef<BottomSheetModal, { s: Schedule; maxHeight: number; onPick: (i: number) => void; onDismiss: () => void; animatedPosition?: SharedValue<number> }>(
+  function HoursSheet({ s, maxHeight, onPick, onDismiss, animatedPosition }, ref) {
     const offset = openOffset(s, maxHeight - GRAB);
     return (
-      <Sheet ref={ref} maxHeight={maxHeight} onDismiss={onDismiss} contentOffset={offset}>
+      <Sheet ref={ref} maxHeight={maxHeight} onDismiss={onDismiss} contentOffset={offset} animatedPosition={animatedPosition}>
         <View>
           <Text v="schedHead" color={m2.color.dm} style={{ marginTop: 2 }}>{s.name}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 6 }}>

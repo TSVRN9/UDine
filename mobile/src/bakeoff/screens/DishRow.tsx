@@ -3,11 +3,11 @@ import { View } from "react-native";
 import { m2 } from "../../lib/theme";
 import { DietBadge, ListRow, ScoreBadge, Text } from "../ui";
 import type { Toggles } from "../state/prefs";
+import { fc } from "../logic/dishSheet";
 import { rowScores } from "../logic/menuView";
 import type { Dish } from "../logic/types";
 
 const f1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1).replace(/\.0$/, "");
-const fc = (x: number) => Math.round(x).toLocaleString("en-US");
 
 /**
  * One dish: name with its diet patch, then the meta line of groups that wrap whole: Contains (revealed rows only), the

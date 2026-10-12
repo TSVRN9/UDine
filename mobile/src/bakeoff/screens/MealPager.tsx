@@ -1,10 +1,11 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { View } from "react-native";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { emphasized, m2Linear, m2Motion } from "../../lib/motion";
 import { m2 } from "../../lib/theme";
 import { pagerStep, type PagerEvent, type Phase } from "../motion/pagerMachine";
+import { mark } from "../perf";
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as unknown as typeof FlashList;
 const fill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
@@ -72,7 +73,9 @@ export const MealPager = forwardRef<PagerHandle, {
     },
     hold: (apply, ready) => {
       if (!send("hold")) return false;
+      mark("hold:start");
       const next = capture(1);
+      mark(`hold:captured ${next?.rows.length ?? 0}`);
       dirSv.set(0); // no slide: the copy and the list both stay where they are
       p.set(1); o.set(1); g.set(1);
       pending.current = { id: next?.id ?? ++run.current, ready };
@@ -83,14 +86,16 @@ export const MealPager = forwardRef<PagerHandle, {
     release: () => { send("done"); setTimeout(() => setGhost(null), m2Motion.fadeThrough.d); },
   }), [dirSv, scrollY]); // eslint-disable-line react-hooks/exhaustive-deps -- capture and the shared values are stable
 
+  useLayoutEffect(() => { if (pending.current) mark("pager:layout"); }, [data]);
   useEffect(() => {
     const q = pending.current;
     if (q == null) return;
     pending.current = null;
     const id = q.id;
     if (q.ready) {
+      mark("pager:effect");
       // not cancelled by a later data change: `ready` is the day change's only way forward, and it runs once
-      requestAnimationFrame(() => requestAnimationFrame(() => { if (send("ready")) q.ready!(); }));
+      requestAnimationFrame(() => { mark("pager:raf1"); requestAnimationFrame(() => { mark("pager:raf2"); if (send("ready")) q.ready!(); }); });
       return;
     }
     // the copy of the old rows now covers the list, so the new meal can be set at its start; the list lays its rows out a

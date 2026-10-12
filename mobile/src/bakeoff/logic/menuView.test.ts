@@ -1,5 +1,5 @@
 import { loadFixture } from "./fixture";
-import { ALLERGENS, NO_PREFS, dayCell, dayFull, defaultMeal, hits, isOneMeal, mealsOf, menuItems, menuView, rowScores, type Prefs } from "./menuView";
+import { ALLERGENS, NO_PREFS, dayCell, dayFull, dayLong, defaultMeal, hits, isOneMeal, mealsOf, menuItems, menuView, rowScores, type Prefs } from "./menuView";
 import type { Dish, MealKey, PlaceKey } from "./types";
 
 const fx = loadFixture();
@@ -150,5 +150,15 @@ describe("menuItems", () => {
     expect(menuItems(menuView(fx, "2026-10-10", "W", "lunch", NO_PREFS, false), NO_PREFS, false, "No menu posted for Saturday, October 10.")).toEqual([
       { t: "empty", text: "No menu posted for Saturday, October 10." },
     ]);
+  });
+});
+
+describe("day labels are formatted once (Hermes Intl is a JNI call per use: ~10 ms each in the release profile)", () => {
+  it("a repeated dayCell/dayFull/dayLong makes no Intl call", () => {
+    dayCell(fx, 2); dayFull(fx, 2); dayLong(fx, 2);
+    const spy = jest.spyOn(Date.prototype, "toLocaleDateString");
+    expect([dayCell(fx, 2), dayFull(fx, 2), dayLong(fx, 2)]).toEqual(["Sat 10", "Saturday, October 10", "Saturday, October 10"]);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

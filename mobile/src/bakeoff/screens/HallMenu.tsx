@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, {
   runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withTiming,
@@ -21,9 +21,11 @@ import { schedule, statusLine } from "../logic/schedule";
 import type { ServeTarget } from "../logic/dishSheet";
 import type { Dish, MealKey, PlaceKey } from "../logic/types";
 import { openDish } from "../state/dishSheet";
+import { halfwayOut } from "../motion/pushGate";
 import type { useContainerTransform } from "../motion/useContainerTransform";
 import { PHOTO_POS, photoOf } from "../photos";
 import { useBakeoffState } from "../state/prefs";
+import { mark } from "../perf";
 import { DietLine } from "./DietLine";
 import { DishRow } from "./DishRow";
 import { headerHeight } from "./HallsList";
@@ -93,6 +95,11 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const [hereKey, setHereKey] = useState<string | null>(null);
   const meals = mealsOf(fx, isos[day], place);
   const meal = defaultMeal(fx, isos[day], place, mealSel);
+  // perf marks (no-ops unless EXPO_PUBLIC_PERF=1): the render that carries a new day, and its commit
+  const dayWas = useRef(day);
+  // eslint-disable-next-line react-hooks/refs -- a timing probe, not state
+  if (dayWas.current !== day) { dayWas.current = day; mark("day:render"); }
+  useLayoutEffect(() => { mark("day:layout"); requestAnimationFrame(() => mark("day:frame1")); }, [day]);
 
   const view = useMemo(() => menuView(fx, isos[day], place, meal, prefs, showAll), [day, place, meal, prefs, showAll]);
   const items = useMemo(
@@ -143,35 +150,6 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // in is then only shared values on the UI thread.
   const f = useSharedValue(1), sc = useSharedValue(1), lo = useSharedValue(0), ln = useSharedValue(1), holdOn = useSharedValue(1);
   const FT = m2Motion.fadeThrough, fade = standardDecelerate;
-  const done = () => {
-    pager.current?.release();
-    setHeld(null);
-  };
-  const changeDay = (i: number) => {
-    const keep = Math.min(y.get(), R);
-    // refused (and nothing touched) while another change is running: see motion/pagerMachine
-    pager.current?.hold(() => {
-      holdOn.set(1);
-      lo.set(1); ln.set(0);   // the old layer shows exactly what is on screen: until the commit lands it is the current labels
-      setHeld(labels);
-      setDay(i);
-    }, () => {
-      pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
-      const out = FT.d * m2Motion.sharedX.at, back = FT.d * (1 - m2Motion.sharedX.at);
-      lo.set(withTiming(0, { duration: out, easing: m2Linear }));
-      sc.set(1);
-      f.set(withSequence(
-        withTiming(0, { duration: out, easing: m2Linear }, () => {
-          "worklet";
-          holdOn.set(0);
-          sc.set(FT.scale);
-          sc.set(withTiming(1, { duration: back, easing: fade }));
-          ln.set(withTiming(1, { duration: back, easing: fade }));   // the labels come back in the same frame as the list
-        }),
-        withTiming(1, { duration: back, easing: fade }, () => { "worklet"; runOnJS(done)(); }),
-      ));
-    });
-  };
   const newLabels = useAnimatedStyle(() => ({ opacity: ln.get() }));
   const oldLabelsStyle = useAnimatedStyle(() => ({ opacity: lo.get() }));
   const listFade = useAnimatedStyle(() => ({ opacity: f.get(), transform: [{ scale: sc.get() }], transformOrigin: `50% ${(H + PIN) / 2}px` }));
@@ -202,7 +180,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       else onPush?.(to);
     };
   });
-  const onOpen = useCallback((dish: Dish) => { openDish(dish, { from: "hall", ...here.current, onServe: (to) => serve.current(to), onServeGo: () => goRef.current?.() }); }, []);
+  const onOpen = useCallback((dish: Dish) => { mark("sheet:tap"); openDish(dish, { from: "hall", ...here.current, onServe: (to) => serve.current(to), onServeGo: () => goRef.current?.() }); }, []);
   useEffect(() => {
     if (!goto || !warm) return;
     const i = items.findIndex((it) => it.t === "dish" && it.dish.key === goto);
@@ -241,12 +219,6 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const sched = useMemo(() => schedule(fx, place, day), [place, day]);
   const openHours = () => { setSheet("hours"); hoursRef.current?.present(); thud(); };
   const openStations = () => { if (!view.sections.length) return; setSheet("stations"); stRef.current?.present(); thud(); };
-  const onDismiss = () => {
-    setSheet(null);
-    const p = pending.current;
-    pending.current = null;
-    if (p?.day != null) changeDay(p.day);
-  };
   useEffect(() => {
     if (!__DEV__ || at || !(dev.sheet || dev.y || dev.dish)) return;
     const id = setTimeout(() => {
@@ -275,6 +247,55 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     meals: one ? undefined : { items: mealItems, selected: meal, onSelect: (k) => pickMeal(k as MealKey) },
     station: stationLabel ? { label: stationLabel, onPress: openStations, open: sheet === "stations" } : undefined,
     day: { label: dayCell(fx, day), accessibilityLabel: `${dayFull(fx, day)}, change the day`, onPress: openHours },
+  };
+
+  const done = () => {
+    mark("day:done");
+    pager.current?.release();
+    setHeld(null);
+  };
+  const changeDay = (i: number) => {
+    const keep = Math.min(y.get(), R);
+    // refused (and nothing touched) while another change is running: see motion/pagerMachine
+    pager.current?.hold(() => {
+      holdOn.set(1);
+      lo.set(1); ln.set(0);   // the old layer shows exactly what is on screen: until the commit lands it is the current labels
+      setHeld(labels);
+      setDay(i);
+      mark("day:apply");
+    }, () => {
+      mark("day:ready");
+      pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
+      const out = FT.d * m2Motion.sharedX.at, back = FT.d * (1 - m2Motion.sharedX.at);
+      lo.set(withTiming(0, { duration: out, easing: m2Linear }));
+      sc.set(1);
+      f.set(withSequence(
+        withTiming(0, { duration: out, easing: m2Linear }, () => {
+          "worklet";
+          holdOn.set(0);
+          sc.set(FT.scale);
+          sc.set(withTiming(1, { duration: back, easing: fade }));
+          ln.set(withTiming(1, { duration: back, easing: fade }));   // the labels come back in the same frame as the list
+        }),
+        withTiming(1, { duration: back, easing: fade }, () => { "worklet"; runOnJS(done)(); }),
+      ));
+    });
+  };
+  // M2 `pickDay`: `isheet.away(() => changeDay(i))`, the day change starts once the schedule is half-way out, not when it has
+  // closed (gorhom's `onDismiss` comes when the close spring is spent, about 0.5 s after the sheet is out of sight on the
+  // release build; PR #544 "Release profiling"). The sheet's own position crossing the midpoint starts it; `onDismiss` is the fallback.
+  const hoursPos = useSharedValue(winH), leaveAt = useSharedValue(-1);
+  const startPending = () => {
+    leaveAt.set(-1);
+    const p = pending.current;
+    pending.current = null;
+    if (p?.day != null) changeDay(p.day);
+  };
+  useAnimatedReaction(() => leaveAt.get() >= 0 && hoursPos.get() >= leaveAt.get(), (hit, was) => { if (hit && !was) runOnJS(startPending)(); });
+  const onDismiss = () => {
+    mark("day:dismissed");
+    setSheet(null);
+    startPending();
   };
 
   const renderItem = (it: Item) => {
@@ -310,7 +331,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top, left: 4, height: BAR, justifyContent: "center" }, t.style.incoming]}>
         <Press accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} style={{ width: m2.size.tap + 4, height: m2.size.tap + 4, alignItems: "center", justifyContent: "center" }}><Back /></Press>
       </Animated.View>
-      {warm ? <HoursSheet ref={hoursRef} s={sched} maxHeight={winH * 0.86} onPick={(i) => { if (i === day) hoursRef.current?.dismiss(); else { pending.current = { day: i }; hoursRef.current?.dismiss(); tick(); } }} onDismiss={onDismiss} /> : null}
+      {warm ? <HoursSheet ref={hoursRef} s={sched} maxHeight={winH * 0.86} animatedPosition={hoursPos} onPick={(i) => { if (i === day) hoursRef.current?.dismiss(); else { mark("day:pick"); pending.current = { day: i }; leaveAt.set(halfwayOut(hoursPos.get(), winH)); hoursRef.current?.dismiss(); tick(); } }} onDismiss={onDismiss} /> : null}
       {warm ? <StationSwitcher
         ref={stRef} maxHeight={winH * 0.86} onDismiss={onDismiss} current={Math.min(cur, view.sections.length - 1)}
         title={`${name} ${mealWord(meal)}${day ? ", " + dayCell(fx, day) : ""}`}
