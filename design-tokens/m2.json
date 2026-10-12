@@ -404,7 +404,11 @@
   "headTop": 10,
   "lrowSub": 2,
   "netTop": 40,
-  "titleTop": 2
+  "titleTop": 2,
+  "stationHeadBottom": 6,
+  "evrow": 14,
+  "bandStatusTop": 7,
+  "pinStatusTop": 6
  },
  "radius": {
   "patch": 4,
@@ -454,7 +458,10 @@
   "check": 26,
   "checkBorder": 2,
   "chevronStatus": 14,
-  "chevronStroke": 2
+  "chevronStroke": 2,
+  "evrow": 52,
+  "listFoot": 120,
+  "pin": 84
  },
  "opacity": {
   "disabled": 0.4,
@@ -899,7 +906,14 @@
   "size.checkBorder": ".check i box-shadow inset 2px slate",
   "radius.check": ".check i{border-radius:6px}",
   "size.chevronStatus": "#mts .sch{width:14px;height:14px}",
-  "size.chevronStroke": "#mts .sch stroke-width:2"
+  "size.chevronStroke": "#mts .sch stroke-width:2",
+  "space.stationHeadBottom": ".sth{padding:0 20px 6px}",
+  "space.evrow": ".evrow{padding:14px 20px}",
+  "size.evrow": ".evrow{min-height:52px}",
+  "size.listFoot": ".pad-b{height:calc(150px + var(--sb))}: drawn 120",
+  "size.pin": ".band.pin{height:84px}",
+  "space.bandStatusTop": ".bt .st{margin-top:7px}",
+  "space.pinStatusTop": ".pin .bt .st{margin-top:6px}"
  },
  "felt": {
   "patch": {

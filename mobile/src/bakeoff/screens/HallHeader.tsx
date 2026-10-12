@@ -4,7 +4,8 @@ import Animated from "react-native-reanimated";
 import { GestureDetector } from "react-native-gesture-handler";
 import type { SharedValue } from "react-native-reanimated";
 import { m2 } from "../../lib/theme";
-import { Band, BusyRow, HallLetter } from "../ui";
+import { BusyRow, HallLetter } from "../ui";
+import { BandFace, bandHeight } from "../ui/Band";
 import { busyView } from "../logic/busy";
 import { loadFixture } from "../logic/fixture";
 import { HALL_LX } from "../logic/letters";
@@ -43,8 +44,10 @@ export function HallHeader({ t, H, place, name, scrollY, onBack, at, onPush, onP
   // UI thread has moved (a network arrival re-rendering the list beside it) put it back on screen, double-exposing the title.
   const ghost = t.phase === "open" ? null : (
     <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, right: 0, top: rect.off, height: rect.height }, t.style.outgoing]}>
-      <Band ghost compact={compact} name={name} status={hoursKnown(net) ? statusText(fx.hours[place], new Date(fx.clock)) : undefined} busy={busy ? <BusyRow lamps={busy.lamps} word={busy.word} /> : undefined}
-        letter={compact ? undefined : <HallLetter letter={place as "W"} x={HALL_LX[place as "W"]} />} />
+      <View style={{ height: bandHeight(compact), overflow: "hidden" }}>
+        <BandFace compact={compact} name={name} status={hoursKnown(net) ? statusText(fx.hours[place], new Date(fx.clock)) : undefined} busy={busy ? <BusyRow lamps={busy.lamps} word={busy.word} /> : undefined}
+          letter={compact ? undefined : <HallLetter letter={place as "W"} x={HALL_LX[place as "W"]} />} />
+      </View>
     </Animated.View>
   );
   const window = (
