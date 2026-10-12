@@ -30,6 +30,31 @@ const STATES = [
   ['cafe-one-collapsed', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('Worcester Café')}}); document.querySelector('#mscroll').scrollTop=500; paint(1,500)`)],
   ['cafe-nomenu', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('ISB Café')}})`)],
   ['cafe-sheet', '', async p => { await p.evaluate(`openHall('C',true,null,{cafe:${cafe('Green Fields')}})`); await p.waitForTimeout(300); await p.locator('#mlist .row .n').nth(1).tap(); await p.waitForTimeout(800); }],
+  // round 10
+  ['r10-first-rest', ''],
+  ['r10-first-scrolled', '', async p => { await p.evaluate(() => obsheet.to('top')); await p.waitForTimeout(700); await p.evaluate(() => { document.querySelector('#obbody').scrollTop = 420; }); }],
+  ['r10-you-on', '?state=you'],
+  ['r10-you-on-2', '?state=you', p => p.evaluate(() => { document.querySelector('#you').scrollTop = 560; })],
+  ['r10-you-off', '?state=you', p => p.evaluate(() => setTrack(false))],
+  ['r10-search-off', '?state=search', async p => { await p.evaluate(() => setTrack(false)); await p.locator('#q').fill('bbq'); await p.waitForTimeout(400); await p.evaluate(() => document.querySelector('#q').blur()); }],
+  ['r10-hall-off', '?state=menu', p => p.evaluate(() => setTrack(false))],
+  ['r10-sheet-off', '?state=menu', async p => { await p.evaluate(() => setTrack(false)); await p.locator('#mlist .row', { hasText: 'Golden BBQ' }).locator('.n').tap(); await p.waitForTimeout(800); }],
+  ['r10-day', '?state=you', async p => { await p.locator('#you [data-p=day][data-c="2026-10-06"]').tap(); await p.waitForTimeout(900); }],
+  ['r10-meal', '?state=you', async p => { await p.locator('#you [data-p=day][data-c="2026-10-06"]').tap(); await p.waitForTimeout(900); await p.locator('.page [data-meal-id]', { hasText: 'Lunch' }).tap(); await p.waitForTimeout(800); }],
+  ['r10-bowl-noodle', '?state=menu', async p => { await p.evaluate(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = 1500; }); await p.locator('#mlist .row', { hasText: 'Beef Brisket Noodle Bowl' }).locator('.n').tap(); await p.waitForTimeout(800);
+    for (const n of ['Hard Boiled Egg', 'Steamed Bok Choy']) { await p.locator('#isbody .brow', { hasText: n }).locator('.add').tap(); await p.waitForTimeout(300); } }],
+  ['r10-bowl-cafe', '', async p => { await p.evaluate(`openHall('C',true,null,{cafe:${cafe('Green Fields')}})`); await p.waitForTimeout(300); await p.locator('#mlist .row', { hasText: 'Create Your Own Salad' }).locator('.n').tap(); await p.waitForTimeout(800);
+    for (const n of ['Add Fresh Avocado', 'Grilled Diced Chicken']) { await p.locator('#isbody .brow', { hasText: n }).locator('.add').tap(); await p.waitForTimeout(300); } await p.evaluate(() => isheet.to('top')); await p.waitForTimeout(600); await p.evaluate(() => { document.querySelector('#isbody').scrollTop = 0; }); }],
+  ['r10-bowl-salad', '?state=menu&hall=B', async p => { await p.locator('#mtabs .mts button[data-meal=dinner]').tap(); await p.waitForTimeout(700); await p.locator('#mlist .row.syn').first().tap(); await p.waitForTimeout(800);
+    for (const n of ['Chickpeas', 'Cucumbers', 'Cheese Feta']) { const r = p.locator('#isbody .brow', { hasText: n }).first(); if (await r.count()) { await r.locator('.add').tap(); await p.waitForTimeout(300); } } }],
+  ['r10-bowl-plate', '?state=menu', async p => { await p.locator('#mlist .row', { hasText: 'Beef Brisket Noodle Bowl' }).locator('.n').tap(); await p.waitForTimeout(800);
+    for (const n of ['Hard Boiled Egg', 'Steamed Bok Choy']) { await p.locator('#isbody .brow', { hasText: n }).locator('.add').tap(); await p.waitForTimeout(300); }
+    await p.locator('#bfoot [data-act=badd]').tap(); await p.waitForTimeout(1000); await p.evaluate(() => { if (plateOpen()) psheet.to('mid'); }); await p.waitForTimeout(900); }],
+  ['r10-health-off', '?state=you', p => p.evaluate(() => { const r = document.querySelector('#you [data-act=track]'); document.querySelector('#you').scrollTop = r.offsetTop - 200; })],
+  ['r10-health-allow', '?state=you', async p => { await p.evaluate(() => { const r = document.querySelector('#you [data-act=track]'); document.querySelector('#you').scrollTop = r.offsetTop - 200; }); await p.locator('#you [data-act=health]').tap(); await p.waitForTimeout(300); await p.locator('.ossheet [data-os="1"]').tap(); await p.waitForTimeout(300); }],
+  ['r10-health-os', '?state=you', async p => { await p.evaluate(() => { const r = document.querySelector('#you [data-act=track]'); document.querySelector('#you').scrollTop = r.offsetTop - 200; }); await p.locator('#you [data-act=health]').tap(); await p.waitForTimeout(300); }],
+  ['r10-health-deny', '?state=you&health=deny', async p => { await p.evaluate(() => { const r = document.querySelector('#you [data-act=track]'); document.querySelector('#you').scrollTop = r.offsetTop - 200; }); await p.locator('#you [data-act=health]').tap(); await p.waitForTimeout(300); await p.locator('.ossheet [data-os="0"]').tap(); await p.waitForTimeout(300); }],
+  ['r10-health-revoked', '?state=you&health=revoked', async p => { await p.evaluate(() => { localStorage.setItem('udine-m2', JSON.stringify({ health: true })); }); await p.reload(); await p.waitForTimeout(600); await p.evaluate(() => { setTab('you'); const r = document.querySelector('#you [data-act=track]'); document.querySelector('#you').scrollTop = r.offsetTop - 200; }); }],
   // round 9c
   ['c-halls', '?pins=2'],
   ['c-w-top', '?state=menu'], ['c-w-collapsed', '?state=collapsed'],
@@ -58,6 +83,7 @@ const STATES = [
     const files = [];
     for (const w of [390, 360]) {
       const ctx = await b.newContext({ viewport: { width: w, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      if (!name.startsWith('r10-first')) await ctx.addInitScript(() => { try { localStorage.setItem('udine-m2-first', 'done'); } catch (e) {} });
       const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
       await p.goto('file://' + D + '/index.html' + q); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(500);
       if (fn) { await fn(p); await p.waitForTimeout(500); }

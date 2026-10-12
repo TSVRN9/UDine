@@ -1991,6 +1991,217 @@
    "front": 0
   },
   {
+   "name": "bowl: Noodle Bowl (a natural base) next to the plain dish",
+   "ops": [
+    [
+     "bowl",
+     "lunch",
+     "W",
+     "Beef Brisket Noodle Bowl",
+     "Noodle Bowl",
+     [
+      [
+       "Hard Boiled Egg",
+       1
+      ],
+      [
+       "Steamed Bok Choy",
+       1
+      ]
+     ]
+    ],
+    [
+     "add",
+     "lunch",
+     "Beef Brisket Noodle Bowl",
+     [
+      "W"
+     ]
+    ],
+    [
+     "bowl",
+     "lunch",
+     "W",
+     "Beef Brisket Noodle Bowl",
+     "Noodle Bowl",
+     [
+      [
+       "Hard Boiled Egg",
+       1
+      ],
+      [
+       "Steamed Bok Choy",
+       1
+      ]
+     ]
+    ]
+   ],
+   "plates": [
+    {
+     "meal": "lunch",
+     "halls": [
+      "W"
+     ],
+     "label": "Worcester lunch",
+     "items": [
+      [
+       "Beef Brisket Noodle Bowl",
+       2,
+       {
+        "parts": [
+         [
+          "Hard Boiled Egg",
+          1
+         ],
+         [
+          "Steamed Bok Choy",
+          1
+         ]
+        ],
+        "cal": 340,
+        "price": null
+       }
+      ],
+      [
+       "Beef Brisket Noodle Bowl",
+       1
+      ]
+     ],
+     "totals": {
+      "cal": 898,
+      "p": 60.9,
+      "c": 123.5,
+      "f": 20.6
+     }
+    }
+   ],
+   "front": 0
+  },
+  {
+   "name": "bowl: a café dish with its Add-ons (prices sum)",
+   "ops": [
+    [
+     "bowl",
+     "lunch",
+     "c3",
+     "Create Your Own Salad",
+     "Add-ons",
+     [
+      [
+       "Add Fresh Avocado",
+       1
+      ],
+      [
+       "Grilled Diced Chicken",
+       2
+      ]
+     ]
+    ]
+   ],
+   "plates": [
+    {
+     "meal": "lunch",
+     "halls": [
+      "c3"
+     ],
+     "label": "Green Fields lunch",
+     "items": [
+      [
+       "Create Your Own Salad",
+       1,
+       {
+        "parts": [
+         [
+          "Add Fresh Avocado",
+          1
+         ],
+         [
+          "Grilled Diced Chicken",
+          2
+         ]
+        ],
+        "cal": 714,
+        "price": "$23.25"
+       }
+      ]
+     ],
+     "totals": {
+      "cal": 714,
+      "p": 41.4,
+      "c": 41.4,
+      "f": 44.3
+     }
+    }
+   ],
+   "front": 0
+  },
+  {
+   "name": "bowl: the Salad Bar (a synthetic base: only its parts)",
+   "ops": [
+    [
+     "bowl",
+     "dinner",
+     "B",
+     null,
+     "Salad Bar",
+     [
+      [
+       "Chickpeas",
+       1
+      ],
+      [
+       "Cucumbers",
+       1
+      ],
+      [
+       "Cheese Feta",
+       0.5
+      ]
+     ]
+    ]
+   ],
+   "plates": [
+    {
+     "meal": "dinner",
+     "halls": [
+      "B"
+     ],
+     "label": "Berkshire dinner",
+     "items": [
+      [
+       "Your salad from the Salad Bar",
+       1,
+       {
+        "parts": [
+         [
+          "Chickpeas",
+          1
+         ],
+         [
+          "Cucumbers",
+          1
+         ],
+         [
+          "Cheese Feta",
+          0.5
+         ]
+        ],
+        "cal": 82,
+        "price": null
+       }
+      ]
+     ],
+     "totals": {
+      "cal": 82,
+      "p": 4.6,
+      "c": 7.8,
+      "f": 3.9
+     }
+    }
+   ],
+   "front": 0
+  },
+  {
    "name": "lunch and dinner are different plates",
    "ops": [
     [

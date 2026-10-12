@@ -508,6 +508,54 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .favb svg{fill:none}
 .favb[aria-pressed=true] svg{fill:var(--gold);stroke:var(--gold)}
 .dish .dsv{margin:4px 0 0;font-size:15px;color:var(--slate)}
+/* round 10: the bowl builder. The station's own name heads its add-ins; each is a compact row with the row's stepper; the
+   action is pinned to the sheet's foot in the plate bar's material (maroon, Oswald figures, the gold Log button) */
+.dish .bh{font:600 20px/1.2 Oswald,sans-serif;color:var(--dm);margin:24px 0 4px}
+.brow{display:flex;align-items:center;gap:8px;min-height:56px;border-bottom:1px solid var(--hair)}
+.brow .tx{flex:1;min-width:0}.brow .n{font-weight:600;line-height:1.25}.brow .m{font-size:13px;color:var(--slate);margin-top:2px}
+.brow .m b{font:500 15px Oswald,sans-serif;color:var(--ink)}
+.dish.build .where{margin-top:24px}
+#bfoot{position:absolute;left:0;right:0;top:0;z-index:3;display:flex;align-items:center;gap:12px;min-height:68px;padding:8px 12px calc(8px + var(--sb)) 20px;background:var(--dm);color:#fff}
+#bfoot .txt{flex:1;min-width:0}
+#bfoot .l2{font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap}
+#bfoot .l2 b{font:600 26px/1 Oswald,sans-serif;color:#fff;font-variant-numeric:tabular-nums;margin-right:2px}
+#bfoot .l2 b+span{margin-right:12px}
+#bfoot .gbtn[disabled]{opacity:.45}
+#isheet:has(#bfoot:not(.hide)) .sbody{padding-bottom:calc(92px + var(--sb));scroll-padding-bottom:calc(84px + var(--sb))}   /* anything scrolled into view clears the pinned foot */
+.prow .pw{font-size:13px;color:var(--slate);margin-top:2px;line-height:1.3}
+.row.syn{width:100%;text-align:left}
+/* round 10: tracking off. The menu keeps its shape: hall rows keep their lane (empty), Search's letters rise into the + slot,
+   the bar and every way to record are gone, and "where" takes the sheet's action slot */
+#frame.notrack .row>.add,#frame.notrack .row>.step{visibility:hidden}
+#frame.notrack .lane>.add,#frame.notrack .lane>.step{display:none}
+#frame.notrack .lane{justify-content:flex-start;padding-top:10px}
+#frame.notrack #bar,#frame.notrack [data-act=custom],#frame.notrack .custom{display:none!important}
+#frame.notrack .dish .where{margin-top:16px}
+/* You (round 10) */
+.check .cl{display:flex;align-items:center;gap:12px;text-align:left}
+.check .lt .tile{width:24px;height:30px}
+.lrow .mc{display:flex;align-items:center;gap:6px;color:var(--slate);font-size:13px;white-space:nowrap}
+.lrow .mc b{font:600 18px Oswald,sans-serif;color:var(--ink)}
+.mealr .b{font-size:13px}
+.hrow{padding-left:0}
+.hrow .check{border-bottom:0}
+.hrow .obtn.dk{color:var(--vm);border-color:var(--vm);margin:0 0 14px}
+.yhead .date.brand{font:600 22px Oswald,sans-serif;color:var(--gold)}
+.lgone{display:flex;align-items:center;gap:8px;min-height:64px;border-bottom:1px solid var(--hair)}
+.lgone .tx{flex:1;min-width:0}.lgone .n{font-weight:500;color:var(--slate)}
+/* first run: You's own rows, in a sheet with no backdrop */
+#obsheet{z-index:45;box-shadow:0 -6px 24px rgba(36,10,14,.22);height:calc(100% - var(--st) - 8px)}
+.obh{display:flex;justify-content:space-between;align-items:center;margin:0 -8px 0 0}
+.obh h2{font:600 34px/1.1 Oswald,sans-serif;color:var(--dm);margin:0}
+.ob h2:not(.obh h2){font:600 22px/1.2 Oswald,sans-serif;color:var(--dm);margin:22px 0 4px}
+.ob .check:last-child{border-bottom:0}
+/* the simulated OS permission sheet: drawn as the platform's, plainly not UDine's */
+.ossheet{position:absolute;inset:0;z-index:70;background:rgba(0,0,0,.4);display:grid;place-items:center;font-family:system-ui,-apple-system,Roboto,sans-serif}
+.osc{width:300px;background:#f2f2f2;color:#111;border-radius:14px;padding:20px 20px 8px}
+.ost{margin:0 0 16px;font-size:17px;line-height:1.35;font-weight:600}
+.osb{display:flex;justify-content:flex-end;gap:8px}
+.osb button{height:44px;padding:0 14px;color:#1a5fd0;font:500 16px system-ui,sans-serif}
+.row.syn .n{font-weight:600}
 .dish .mks{margin-top:8px}
 .mks-s{display:inline-flex;align-items:center;gap:8px;height:30px}
 .mks-s .tile{width:24px;height:30px}
@@ -623,7 +671,8 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
   <div id="pscrim"></div>
   <section class="sheet" id="psheet" aria-label="Your plate"><div class="sbody" id="psbody"></div></section>
   <div id="scrim"></div>
-  <section class="sheet" id="isheet"><div class="grab"></div><div class="sbody" id="isbody"></div></section>
+  <section class="sheet" id="isheet"><div class="grab"></div><div class="sbody" id="isbody"></div><div id="bfoot" class="hide"></div></section>
+  <section class="sheet" id="obsheet" aria-label="You"><div class="grab"></div><div class="sbody" id="obbody"></div></section>
   <div class="toast" id="toast"></div>
 </div>
 
@@ -698,7 +747,7 @@ const CLOCKMEAL = Object.entries({breakfast:[420,660],lunch:[660,990],dinner:[99
 // a plate is a meal: a café's all-day or Grab 'N Go menu goes on the plate of the meal the clock is in ("Worcester Café lunch")
 const plateMeal = d => isCafe(d.h) && (d.meal==='all'||d.meal==='grab') ? CLOCKMEAL : d.meal;
 const ML = Object.fromEntries(MEALS);
-const LX = {W:89,F:82,H:81.5,B:82};          // letter x in the 200px box. Round 9c: chosen so the felt's visible left edge is the same for all four (Franklin's F had sat 27 to 53 px right of the others)
+const LX = {W:72,F:99,H:88,B:91};           // letter x in the 200px box (D1 crop). Owner, round 10: a loose column, not an aligned one; Franklin's F (118 before 9c) comes 19 left (296 at 390, against W 262, H 285.5, B 288) so it no longer reads as pushed right
 const OFF = {W:.30,F:.10,H:.24,B:.22};        // band window into the header photo, fraction of header height (architecture + room)
 const RES = {W:0,F:0,H:0,B:0};               // duotone kept in the expanded header (0 = full colour, as Worcester)
 const BAND_H = 112, TABS_H = 48, SW_H = 48;
@@ -809,13 +858,13 @@ const S = {
   tab:'halls', hall:null, mmeal:'lunch',
   smeal:'lunch', scope:null, lenses:new Set(), q:'',
   plates:[], front:0, lastHall:null, openNow:true, fav:new Set(), diet:{veg:false,plant:false,halal:false}, avoid:{}, newton:false, offPlates:[], reveal:false, sreveal:false, wins:{}, show:{hf:false,cr:false},
-  log:[{meal:'breakfast',hall:'W',time:'8:42 AM',items:['Hard Boiled Egg','Make Your Own Waffles','Red Potato Home Fries'].map(n=>{const d=byName('W','breakfast',n);return{n,qty:1,cal:d.cal,p:d.p,c:d.c,f:d.f};})}],
-  lastLog:null,
+  log:[], lastLog:null,
+  track:true, seen:false, health:false, hrec:[],   // round 10: Track what I eat, first run done, Write to Health, the simulated Health store
 };
 // device-local only: favorites, diet and pinned cafés (by name, in the order pinned)
 S.pins=[];
-try{ const sv=JSON.parse(localStorage.getItem('udine-m2')||'null'); if(sv){ S.fav=new Set(sv.fav||[]); Object.assign(S.diet,sv.diet||{}); Object.assign(S.avoid,sv.avoid||{}); Object.assign(S.show,sv.show||{}); S.newton=!!sv.newton; S.pins=(sv.pins||[]).filter(n=>P.places.some(x=>x[0]===n)); } }catch(e){}
-const save = ()=>{ try{ localStorage.setItem('udine-m2',JSON.stringify({fav:[...S.fav],diet:S.diet,avoid:S.avoid,pins:S.pins,show:S.show,newton:S.newton})); }catch(e){} };
+try{ const sv=JSON.parse(localStorage.getItem('udine-m2')||'null'); if(sv){ S.fav=new Set(sv.fav||[]); Object.assign(S.diet,sv.diet||{}); Object.assign(S.avoid,sv.avoid||{}); Object.assign(S.show,sv.show||{}); S.newton=!!sv.newton; if('track' in sv) S.track=!!sv.track; S.health=!!sv.health; S.pins=(sv.pins||[]).filter(n=>P.places.some(x=>x[0]===n)); } }catch(e){}
+const save = ()=>{ try{ localStorage.setItem('udine-m2',JSON.stringify({fav:[...S.fav],diet:S.diet,avoid:S.avoid,pins:S.pins,show:S.show,newton:S.newton,track:S.track,health:S.health})); }catch(e){} };
 
 /* ---------- plate model: a plate belongs to the places that serve everything on it ----------
    A place is a hall or a café (round 9). A dish's refs never mix the two (Search groups halls and cafés apart), so a café
@@ -834,6 +883,7 @@ function findItem(meal,k,ctxHall){
 function wouldSplit(meal, hs){ return S.plates.length>0 && !S.plates.some(pl=>canJoin(pl,meal,hs)); }
 let PID=0;
 function addDish(meal, k, refs, n, custom){
+  if(!S.track) return null;   // tracking off: nothing records
   if(barMode!=='plate'){ clearTimeout(barT); barMode='plate'; S.lastLog=null; $('#bar .in').innerHTML=''; }
   const hs = custom? null : Object.keys(refs);
   const fr = S.plates[S.front];
@@ -858,22 +908,113 @@ function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t={cal:0,p:0,
   for(const it of pl.items){ const m=macroOf(it,hall); t.cal+=m.cal*it.qty; t.p+=m.p*it.qty; t.c+=m.c*it.qty; t.f+=m.f*it.qty; t.n+=it.qty; } return t; }
 function hallLabel(hs){ if(!hs) return ''; const n=hs.map(PN); return n.length===1?n[0]: n.length===4&&!hs.some(isCafe)?'Any hall': n.slice(0,-1).join(', ')+' or '+n[n.length-1]; }
 function plateLabel(pl){ const hs=plateHalls(pl); return hs? `${hallLabel(hs)} ${ML[pl.meal].toLowerCase()}` : ML[pl.meal]; }
-const dayTotal = () => S.log.reduce((a,m)=>{ for(const i of m.items){a.cal+=i.cal*i.qty;a.p+=i.p*i.qty;a.c+=i.c*i.qty;a.f+=i.f*i.qty;} return a; },{cal:0,p:0,c:0,f:0});
+/* ---------- the log (round 10) ----------
+   A meal: {id, at (local "YYYY-MM-DDTHH:MM"), day (ISO, after the 2 AM rollover), meal, hall (a place), items:[…]}.
+   An item: {id (dish id, or null), n, qty, cal, p, c, f, nut, price, parts?:[[name, qty]]}, a snapshot taken when it was
+   logged, so a past meal stays true whatever the feed does later. */
+const TODAY = '2026-10-08', ROLLOVER = 2;   // shared/src/date.ts DEFAULT_ROLLOVER_HOUR: a 12:30 AM meal belongs to the day before
+const logicalDay = at => { const d=new Date(at+':00Z'); if(d.getUTCHours()<ROLLOVER) d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); };
+const fmtClock = at => { const [h,m]=at.slice(11).split(':').map(Number); return `${(h+11)%12+1}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
+const isoFull = iso => new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'long',month:'long',day:'numeric'});
+const mealTotal = m => m.items.reduce((a,i)=>{ a.cal+=i.cal*i.qty; a.p+=i.p*i.qty; a.c+=i.c*i.qty; a.f+=i.f*i.qty; return a; },{cal:0,p:0,c:0,f:0});
+const dayTotal = (day=TODAY) => S.log.filter(m=>m.day===day).reduce((a,m)=>{ const t=mealTotal(m); for(const k in a) a[k]+=t[k]; return a; },{cal:0,p:0,c:0,f:0});
+const logDays = () => [...new Set(S.log.map(m=>m.day))].sort().reverse();   // only days with something logged
+let MID=0;
+const snapItem = (d, qty, parts) => ({id:d.id||null, n:d.n, qty, cal:d.cal, p:d.p, c:d.c, f:d.f, nut:d.nut||null, price:d.price||null, ...(parts?{parts}:{})});
+const mealLabel = m => `${ML[m.meal]}${m.hall?' at '+PN(m.hall):''}`;
 
 function logPlate(pl, hall){
   hall ||= (plateHalls(pl)||[null])[0];
-  const now=new Date(2026,9,8,12,41);
-  const entry={meal:pl.meal,hall,time:now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
-    items:pl.items.map(it=>{const m=macroOf(it,hall);return{n:it.n,qty:it.qty,cal:m.cal,p:m.p,c:m.c,f:m.f};})};
+  const at=TODAY+'T12:41';
+  const entry={id:++MID, at, day:logicalDay(at), time:fmtClock(at), meal:pl.meal, hall,
+    items:pl.items.map(it=>{ const m=macroOf(it,hall); return snapItem(m, it.qty, m.parts && m.parts.map(([d,q])=>[d.n,q])); })};
   const before=dayTotal().cal;
-  S.log.push(entry); const idx=S.plates.indexOf(pl); S.plates.splice(idx,1); S.front=Math.max(0,Math.min(S.front,S.plates.length-1));
+  S.log.push(entry); healthWrite(entry); const idx=S.plates.indexOf(pl); S.plates.splice(idx,1); S.front=Math.max(0,Math.min(S.front,S.plates.length-1));
   S.lastLog={entry,pl,idx,before}; buzz([12,60,24]);
-  if(psheet.state!=='closed') psheet.to('closed'); refresh(); showLogged();
+  if(psheet.state!=='closed') psheet.to('closed'); refresh(); showLogged(); if(S.tab==='you') renderYou();
 }
 // the receipt is a Material snackbar in the bar's place: it crossfades in, Undo crossfades the plate back
 function undoLog(){ const L=S.lastLog; if(!L) return; clearTimeout(barT);
-  S.log.splice(S.log.indexOf(L.entry),1); S.plates.splice(L.idx,0,L.pl); S.front=L.idx; S.lastLog=null; buzz(6);
-  barMode='plate'; const inn=$('#bar .in'); inn.innerHTML=''; refresh(); A(inn,[{opacity:0},{opacity:1}],'settle'); }
+  if(L.kind==='delete'){ S.log.splice(L.idx,0,L.entry); healthWrite(L.entry); S.lastLog=null; buzz(6); barMode='plate'; $('#bar .in').innerHTML=''; refresh(); youRefresh(); return; }
+  S.log.splice(S.log.indexOf(L.entry),1); healthDelete(L.entry); S.plates.splice(L.idx,0,L.pl); S.front=L.idx; S.lastLog=null; buzz(6);
+  barMode='plate'; const inn=$('#bar .in'); inn.innerHTML=''; refresh(); A(inn,[{opacity:0},{opacity:1}],'settle'); youRefresh(); }
+
+/* ---------- Health Connect / Apple Health (round 10), simulated ----------
+   ?os=ios|android names the platform; ?health=allow|deny|revoked is what the OS answers. Each logged meal is written as one
+   record; an edit rewrites it and a delete deletes it. Nothing is read back. HEALTH.records stands in for the platform's
+   store (the test reads it). Which nutrient fields a platform accepts is to be checked at build time. */
+const OSQ=new URLSearchParams(location.search), OS = OSQ.get('os')==='ios' ? 'ios' : 'android';
+const HNAME = OS==='ios' ? 'Apple Health' : 'Health Connect';
+const HEALTH = {answer: OSQ.get('health')||'allow', granted:null, denied:false, records:[]};   // granted: null = never asked
+HEALTH.granted = S.health ? HEALTH.answer==='allow' : null;   // on with the OS no longer allowing it: revoked in system settings
+const healthLive = () => S.track && S.health && HEALTH.granted===true;
+function healthRecord(m){ const t=mealTotal(m); return {mealId:m.id, name:mealLabel(m), at:m.at, energyKcal:Math.round(t.cal), proteinG:+t.p.toFixed(1), carbsG:+t.c.toFixed(1), fatG:+t.f.toFixed(1)}; }
+function healthWrite(m){ if(!healthLive()) return; const i=HEALTH.records.findIndex(r=>r.mealId===m.id), r=healthRecord(m); if(i>=0) HEALTH.records[i]=r; else HEALTH.records.push(r); }
+function healthDelete(m){ if(!healthLive()) return; HEALTH.records=HEALTH.records.filter(r=>r.mealId!==m.id); }
+
+/* ---------- bowls (round 10): a bowl is one plate item made of plate items ----------
+   The feed links no base to its add-ins, so the stations decide (NOTES "Round 10"):
+   - halls: Noodle Bowl, Pasta Bar and Omelet build on a natural base (a dish of at least 120 cal that isn't a sauce,
+     topping, broth or dressing; at Omelet, the Omelet Bar dish); the station's other dishes are its add-ins;
+   - unpriced Salad Bar, Cold Bar and Deli Bar stations build on a synthetic base ("Your salad from the Salad Bar") that
+     carries no nutrition of its own: the bowl is only the sum of what was chosen;
+   - cafés: a dish builds when its place and meal have an Add-ons or Toppings station; those dishes (with nutrition) are its
+     add-ins. A bowl's nutrition is summed from its parts (grams summed, %DV from FDA values in the label). */
+const stName = st => st.replace(/\s*\$.*$/,'').replace(/\s+Items$/,'').replace('Salad Bar/Dressings','Salad Bar').trim();
+const NATURAL = {'Noodle Bowl':1,'Pasta Bar':1,'Omelet':1};
+const isPartName = n => /sauce|topping|broth|dressing/i.test(n);
+const isBaseAt = (st, d) => st==='Omelet' ? /omelet/i.test(d.n) : d.cal>=120 && !isPartName(d.n);
+const stDishes = (day,h,meal,si) => MD[day][h][meal][si][1].map((_,di)=>DISH[did(day,h,meal,si,di)]);
+function synOf(day,h,meal,si){ const st=MD[day][h][meal][si][0], nm=stName(st); if(!/^(Salad Bar|Deli Bar|Cold Bar)$/.test(nm)) return null;
+  const ds=stDishes(day,h,meal,si); if(ds.filter(d=>d.price).length > ds.length*.1) return null;   // a bar of finished, priced dishes isn't a build
+  return {label:`Your ${nm==='Deli Bar'?'sandwich':'salad'} from the ${nm}`, head:nm, h, meal, si, day, parts:ds}; }
+function buildOf(d){ if(!d || d.id.startsWith('bowl:')) return null; const ss=(MD[d.day][d.h]||{})[d.meal]; if(!ss) return null; const st=stName(ss[d.si][0]);
+  if(synOf(d.day,d.h,d.meal,d.si)) return null;   // a bar's dishes are its synthetic base's parts (and singles on their own)
+  if(!isCafe(d.h)){ if(!NATURAL[st] || !isBaseAt(st,d)) return null;
+    const parts=stDishes(d.day,d.h,d.meal,d.si).filter(x=>x!==d && !isBaseAt(st,x)); return parts.length ? {head:st, parts, base:d, h:d.h, meal:d.meal} : null; }
+  if(/^(Add-ons|Toppings)$/.test(ss[d.si][0].trim())) return null;
+  const parts=ss.flatMap((s2,si)=>/^(Add-ons|Toppings)$/.test(s2[0].trim()) ? stDishes(d.day,d.h,d.meal,si) : []).filter(x=>x.cal>0);
+  const heads=[...new Set(ss.filter(s2=>/^(Add-ons|Toppings)$/.test(s2[0].trim())).map(s2=>s2[0].trim()))];
+  return parts.length ? {head:heads.join(' and '), parts, base:d, h:d.h, meal:d.meal} : null; }
+const money = v => v==null ? null : '$'+v.toFixed(2);
+const cents = s => s ? +s.replace(/[^\d.]/g,'') : 0;
+// one dish-like object for a bowl: what the plate, the label, the log and Health read
+function bowlDish(base, parts, syn, h){
+  const all=[...(base?[[base,1]]:[]), ...parts], nut=Array(16).fill(null);
+  for(const [x,q] of all) (x.nut||[]).forEach((v,i)=>{ if(NK[i].endsWith('Dv')||v==null) return; nut[i]=(nut[i]||0)+v*q; });
+  const sum=k=>all.reduce((a,[x,q])=>a+x[k]*q,0), pr=all.reduce((a,[x,q])=>a+cents(x.price)*q,0), algs=[...new Set(all.flatMap(([x])=>x.algs||[]))].sort((a,b)=>ALG.indexOf(a)-ALG.indexOf(b));
+  const key=(base?base.k:'syn:'+syn.label+':'+h)+'+'+parts.map(([x,q])=>x.k+'*'+q).sort().join('+');
+  const src=base||syn;
+  return {id:'bowl:'+key, k:'bowl:'+key, n:base?base.n:syn.label, cal:Math.round(sum('cal')), p:sum('p'), c:sum('c'), f:sum('f'), nut, d:base?base.d:0, h, meal:src.meal, day:0,
+    srv:base?base.srv:'', price:pr?money(pr):null, alg:algs.join(', '), algs, hf:base?base.hf:null, cr:base?base.cr:null, ing:base?base.ing:'', base, syn, parts}; }
+const withLine = parts => parts.length ? 'with '+parts.map(([x,q])=>(q!==1?fq(q)+' × ':'')+x.n).join(', ') : '';
+
+/* ---------- seeded history (round 10; NOTES "Round 10": the days and meals are seeded, the dishes and their nutrition are
+   the fixture's). Thu Oct 1 to today; Saturday Oct 3 has nothing logged; a 12:30 AM late night on Tue Oct 6 counts for
+   Monday; a Noodle Bowl bowl with parts; a priced Green Fields lunch. ---------- */
+const seedDish = (h, n) => { const all=Object.values(DISH).filter(d=>d.h===h && d.n===n); if(!all.length) throw new Error('seed: no '+n+' at '+h); return all[0]; };
+const seedBowl = (h, base, parts) => { const b=seedDish(h,base), ps=parts.map(([n,q])=>[seedDish(h,n),q]); return bowlDish(b, ps, null, h); };
+const SEED = [
+  ['2026-10-01T08:20','breakfast','W',[['Scrambled Eggs',1],['Red Potato Home Fries',1],['Hard Boiled Egg',1]]],
+  ['2026-10-01T12:10','lunch','F',[['Black Bean Burger',1],['French Fries',1]]],
+  ['2026-10-01T18:30','dinner','H',[['Green Chile Posole',2],['Roasted Zucchini',1]]],
+  ['2026-10-02T13:05','lunch','c'+P.places.findIndex(x=>x[0]==='Green Fields'),[['Caesar Salad w/Chicken',1]]],
+  ['2026-10-02T19:15','dinner','W',[['Golden BBQ Chicken Thigh',2],['Cumin Basmati Rice',1]]],
+  ['2026-10-04T12:45','lunch','B',[['Beef Brisket Noodle Bowl',1]]],
+  ['2026-10-04T18:05','dinner','F',[['Black Bean Burger',1],['Roasted Zucchini',.5]]],
+  ['2026-10-05T08:40','breakfast','H',[['Scrambled Eggs',1],['Hot Oatmeal',1]]],
+  ['2026-10-05T12:30','lunch','W',[[{bowl:['Beef Brisket Noodle Bowl',[['Hard Boiled Egg',1],['Steamed Bok Choy',1]]]},1]]],
+  ['2026-10-05T18:50','dinner','B',[['Korean BBQ Chicken',1],['Jasmine Rice',1]]],
+  ['2026-10-06T00:30','late','W',[['Black Bean Burger',1]]],
+  ['2026-10-06T08:05','breakfast','F',[['Chinese Twist Cruller',1],['Hard Boiled Egg',1]]],
+  ['2026-10-06T12:18','lunch','W',[[{bowl:['Beef Brisket Noodle Bowl',[['Hard Boiled Egg',1],['Steamed Bok Choy',1]]]},1],['Golden BBQ Chicken Thigh',2]]],
+  ['2026-10-06T18:40','dinner','c'+P.places.findIndex(x=>x[0]==='Green Fields'),[['Cobb Salad',1]]],
+  ['2026-10-07T12:20','lunch','W',[['Golden BBQ Chicken Thigh',1],['Local Roasted Sweet Potatoes',1],['Green Chile Posole',1]]],
+  ['2026-10-07T18:10','dinner','H',[['Green Chile Posole',1],['Black Bean Burger',1]]],
+  ['2026-10-08T08:42','breakfast','W',[['Hard Boiled Egg',1],['Make Your Own Waffles',1],['Red Potato Home Fries',1]]],
+];
+function seedLog(){ return SEED.map(([at,meal,h,items])=>({id:++MID, at, day:logicalDay(at), time:fmtClock(at), meal, hall:h,
+  items:items.map(([x,q])=>{ if(x.bowl){ const b=seedBowl(h,x.bowl[0],x.bowl[1]); return snapItem(b,q,b.parts.map(([d,n])=>[d.n,n])); } return snapItem(seedDish(h,x),q); })})); }
 
 /* ---------- small render helpers ---------- */
 const IC = {
@@ -1001,6 +1142,21 @@ function setNewton(on){ S.newton=on; save();
     S.front=Math.max(0,Math.min(S.front,S.plates.length-1)); if(S.hall && inNewton(PK())) hideHall(); }
   else { S.plates.push(...S.offPlates); S.offPlates=[]; }
   renderPins(); renderAreas(); fillBands(false); refresh(); }
+// Track what I eat (round 10). Off: UDine is a menu. The plate in progress and the history stay as they are (nothing is
+// deleted); the + lanes empty in place, the bar leaves. On: they're back as they were.
+function setTrack(on){ S.track=on; save(); frame.classList.toggle('notrack',!on); if(!on){ if(psheet.state!=='closed') psheet.to('closed'); }
+  renderBar(); if(menuShowing()){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } if(S.tab==='search') renderSearch();
+  renderYou(); buzz(4); }
+// Write to Health: the row is the lead-in; tapping it asks the OS at once (simulated). Allowed: it fills. Denied: it stays empty,
+// says so, and offers the platform's settings. Turning it off stops writing; what was written stays in Health.
+function healthTap(){
+  if(healthLive()){ S.health=false; save(); renderYou(); return; }
+  osSheet(ok=>{ HEALTH.granted=ok; HEALTH.denied=!ok; S.health=ok; save(); renderYou(); });   // denied or revoked: asking again is the OS's call
+}
+function osSheet(done){ const o=document.createElement('div'); o.className='ossheet'; o.setAttribute('role','dialog');
+  o.innerHTML=`<div class="osc"><p class="ost">${OS==='ios'?'“UDine” would like to write to Health':'Allow UDine to write nutrition data to Health Connect?'}</p><div class="osb"><button data-os="0">${OS==='ios'?'Don’t Allow':'Cancel'}</button><button data-os="1">Allow</button></div></div>`;
+  frame.appendChild(o); o.addEventListener('click',e=>{ const b=e.target.closest('[data-os]'); if(!b) return; o.remove();
+    done(b.dataset.os==='1' && HEALTH.answer==='allow'); }); }
 function retry(){ NET=''; hallsLoaded=true; renderNet(); fillBands(true); if(menuShowing()) arrive(); buzz(6); }
 // pinned cafés: rows under the four bands, live status, opened with the same container transform as any row
 const pinIdx = n => P.places.findIndex(x=>x[0]===n);
@@ -1112,7 +1268,8 @@ function renderMenuList(){
       const rows = s[1].map((x,di)=>DISH[did(day,k,meal,si,di)]).filter(d=>S.reveal||prefOK(d));
       if(!rows.length) return;
       // another day's dishes can't go on today's plate: their rows open the sheet and carry no control
-      html += `<h3 class="sth" data-st="${si}">${esc(s[0])}</h3>` + rows.map(d=>{
+      const sy = !day && S.track && synOf(0,k,meal,si);
+      html += `<h3 class="sth" data-st="${si}">${esc(s[0])}</h3>` + (sy ? `<button class="row syn" data-syn="${si}"><div class="tx"><div class="n">${esc(sy.label)}</div></div>${IC.rchev}</button>` : '') + rows.map(d=>{
         const pm=plateMeal(d), f=!day&&findItem(pm,d.k,k);
         return `<div class="row" data-id="${d.id}"><div class="tx"><div class="n">${nameHTML(d.n, dietMark(d)+(S.fav.has(d.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${S.reveal?contHTML(d):''}${meta(d)}</div></div>${day?'':ctl(f&&f.it.qty, !f && wouldSplit(pm,[k]))}</div>`;}).join('');
     });
@@ -1145,7 +1302,7 @@ function schedHTML(){
     ${C&&v[6]?`<p class="schd">${esc(v[6])}</p>`:''}</div>`;
 }
 function openSched(){
-  const b=$('#isbody'); b.innerHTML=schedHTML(); b.scrollTop=0; IS.mid=null; isheet.to('mid'); buzz(5);
+  $('#bfoot').classList.add('hide'); const b=$('#isbody'); b.innerHTML=schedHTML(); b.scrollTop=0; IS.mid=null; isheet.to('mid'); buzz(5);
   // opened on a later day, the sheet scrolls just enough that the chosen day (and its hours) is on screen at rest
   const cur=$('#days .day.cur'); if(!cur) return;
   const end=cur.nextElementSibling?.classList.contains('mws') ? cur.nextElementSibling : cur;
@@ -1341,7 +1498,7 @@ function updSwitch(force){
 }
 function openIdx(){
   const cur=curStation(), h=PK(), meal=S.mmeal, MM=(menuOf(S.mday,h)||{})[meal], pre=S.mday?S.mday+'.':''; if(!MM||cur==null) return;
-  $('#isbody').innerHTML = `<div><div class="sh1"><h2 style="font-size:28px">${esc(PN(h))} ${mealWord(meal)}${S.mday?', '+dayCell(S.mday):''}</h2></div><div id="stidx" role="listbox">${$$('#mlist .sth').map(s=>{ const st=MM[s.dataset.st], n=$$(`#mlist .row[data-id^="${pre}${h}.${meal}.${s.dataset.st}."]`).length;
+  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML = `<div><div class="sh1"><h2 style="font-size:28px">${esc(PN(h))} ${mealWord(meal)}${S.mday?', '+dayCell(S.mday):''}</h2></div><div id="stidx" role="listbox">${$$('#mlist .sth').map(s=>{ const st=MM[s.dataset.st], n=$$(`#mlist .row[data-id^="${pre}${h}.${meal}.${s.dataset.st}."]`).length;
     return `<button role="option" data-jump="${s.dataset.st}" class="${s.dataset.st===cur?'cur':''}" aria-selected="${s.dataset.st===cur}"><span>${esc(st[0])}</span><span class="c">${n}</span></button>`; }).join('')}</div></div>`;
   $('#isbody').scrollTop=0; IS.mid=null; isheet.to('mid'); $('.swbtn').setAttribute('aria-expanded','true'); buzz(5);
 }
@@ -1494,7 +1651,7 @@ for(const t of ['pointerdown','mousedown']) $('#search').addEventListener(t,e=>{
 function setTab(t){
   if(S.tab===t && S.hall && S.hallTab===t){ closeHall(); return; }
   const prev=S.tab, changed=prev!==t; S.tab=t; closeAllPages();
-  if(psheet.state!=='closed') psheet.to('closed'); if(isheet.state!=='closed') isheet.to('closed');
+  if(psheet.state!=='closed') psheet.to('closed'); if(isheet.state!=='closed') isheet.to('closed'); if(obsheet.state!=='closed'){ markSeen(); obsheet.to('closed'); }
   const layers=k=>[$('#tab-'+k), ...(S.hall && S.hallTab===k ? [$('#menu')] : [])];
   for(const el of [...['halls','search','you'].map(k=>$('#tab-'+k)), $('#menu')]){ el.getAnimations().forEach(a=>a.cancel()); el.style.pointerEvents=''; }
   for(const k of ['halls','search','you']) $('#tab-'+k).classList.toggle('hide', k!==t);
@@ -1514,21 +1671,52 @@ function setTab(t){
   if(t==='you') renderYou();
   if(S.hall && S.hallTab===t){ renderMenuList(); if(!S.mday) syncFront(S.hall); }
 }
+// You (round 10): with tracking on, Today (its totals and meals), then Earlier, one row per logged day; then the choices.
+// With tracking off, only the choices, under "You"; Export stays while there is history.
+const mealRow = m => `<button class="lrow mealr" data-meal-id="${m.id}"><div><div class="a">${esc(mealLabel(m))}</div><div class="b">${esc(m.time)}</div></div><span class="mc"><b class="num">${fc(mealTotal(m).cal)}</b> cal${IC.rchev}</span></button>`;
+const dayBlock = (day, title='') => { const ms=S.log.filter(m=>m.day===day).sort((a,b)=>a.at<b.at?-1:1); return `<div class="sec" style="padding-top:20px">${title?`<h2>${title}</h2>`:''}${factsHTML(dayTotal(day))}</div>
+  <section class="sec"><h2>Meals</h2>${ms.length?ms.map(mealRow).join(''):'<p class="kv">Nothing logged yet today.</p>'}</section>`; };
+const checkRow = (attrs, on, label, line, lead='') => `<button class="check" role="checkbox" aria-checked="${on}" ${attrs}><span class="cl">${lead}<span>${label}${line?`<span class="cb">${line}</span>`:''}</span></span><i></i></button>`;
+// the choices, in the order first run shows them: one control per setting, here and there
+function trackRows(){ const den = HEALTH.denied || (S.health && HEALTH.granted===false), line = den ? (HEALTH.denied ? `${HNAME} didn't allow it` : `Not allowed in ${HNAME} any more`) : 'Each meal you log';
+  return checkRow('data-act="track"', S.track, 'Track what I eat', 'Calories, protein, carbs and fat')
+    + (S.track ? `<div class="hrow">${checkRow('data-act="health"', healthLive(), 'Write to '+HNAME, line)}${den?`<button class="obtn dk" data-act="hsettings">Open ${OS==='ios'?'Settings':HNAME}</button>`:''}</div>` : ''); }
+const dietRows = () => `<h2>Only show</h2>${[['veg','Vegetarian'],['plant','Plant based'],['halal','Halal']].map(([k,l])=>checkRow(`data-diet="${k}"`, S.diet[k], l)).join('')}
+  <h2>Avoid</h2>${ALG.map(a=>checkRow(`data-avoid="${a}"`, !!S.avoid[a], a[0]+a.slice(1).toLowerCase())).join('')}`;
+const showRows = () => [['hf','Healthfulness',tileSVG('hf',5)],['cr','Carbon rating',tileSVG('cr','B')]].map(([k,l,t])=>checkRow(`data-show="${k}"`, S.show[k], l, '', `<span class="lt">${t}</span>`)).join('');
 function renderYou(){
-  const t=dayTotal();
-  const meals=[...S.log].reverse().map(m=>{ const c=m.items.reduce((a,i)=>a+i.cal*i.qty,0);
-    return `<div class="meal"><div class="h"><span class="a">${ML[m.meal]}${m.hall?' at '+esc(PN(m.hall)):''}</span><span class="t">${m.time}</span></div>
-      ${m.items.map(i=>`<div class="it"><span>${i.qty!==1?fq(i.qty)+' × ':''}${esc(i.n)}</span><b>${fc(i.cal*i.qty)}</b></div>`).join('')}
-      <div class="it"><span></span><b style="font-weight:600">${fc(c)} cal</b></div></div>`; }).join('');
-  $('#you').innerHTML = `<header class="yhead"><div class="date">Thursday, October 8</div><h1>Today</h1></header>
-    <div class="sec" style="padding-top:20px">${factsHTML(t)}</div>
-    <section class="sec"><h2>Meals</h2>${meals}</section>
-    <section class="sec">${[['favs','Favorites',S.fav.size? S.fav.size+' dishes':'None yet'],['diet','Dietary preferences',prefSummary()],['rank','Which was better?',rankPool().length+' dishes logged'],['export','Export my data',S.log.length+(S.log.length===1?' meal':' meals')]]
-      .map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section>
-    <section class="sec"><h2>Campus</h2><button class="check" role="checkbox" aria-checked="${S.newton}" data-act="newton"><span>Charles River Campus<span class="cb">Newton</span></span><i></i></button></section>
-    <section class="sec"><h2>Show on dishes</h2>${[['hf','Healthfulness'],['cr','Carbon rating']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.show[k]}" data-show="${k}">${l}<i></i></button>`).join('')}</section><div class="pad-b"></div>`;
+  const hist=S.log.length>0, earlier=logDays().filter(d=>d!==TODAY);
+  const rows=[['favs','Favorites',S.fav.size? S.fav.size+' dishes':'None yet'],['diet','Dietary preferences',prefSummary()],
+    ...(S.track?[['rank','Which was better?',rankPool().length+' dishes logged']]:[]), ...(hist?[['export','Export my data',logDays().length+(logDays().length===1?' day':' days')]]:[])];
+  // one header whatever the switch says: the tab's own name, under the date; with tracking on, Today is the first section
+  $('#you').innerHTML = `<header class="yhead"><div class="date">Thursday, October 8</div><h1>You</h1></header>` + (S.track ? `${dayBlock(TODAY,'Today')}
+      ${earlier.length?`<section class="sec"><h2>Earlier</h2>${earlier.map(d=>`<button class="lrow" data-act="page" data-p="day" data-c="${d}"><div><div class="a">${isoFull(d)}</div></div><span class="mc"><b class="num">${fc(dayTotal(d).cal)}</b> cal${IC.rchev}</span></button>`).join('')}</section>`:''}`
+      : '')
+    + `<section class="sec">${trackRows()}</section>
+    <section class="sec">${rows.map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section>
+    <section class="sec"><h2>Campus</h2>${checkRow('data-act="newton"', S.newton, 'Charles River Campus', 'Newton')}</section>
+    <section class="sec"><h2>Show on dishes</h2>${showRows()}</section><div class="pad-b"></div>`;
 }
-/* ---------- push (round 7): iOS navigation for everything that isn't a band on Halls ----------
+const youRefresh = () => { if(S.tab==='you' && !NAV.some(n=>n.kind==='page')) { const y=$('#you').scrollTop; renderYou(); $('#you').scrollTop=y; } else rerenderPage(); };
+
+/* ---------- a logged meal (round 10): plate rows in the item sheet ----------
+   The stepper edits as you go (it is its own undo); the last half of an item leaves an inline Undo where it was; Delete meal
+   puts the sheet away and shows the receipt with Undo in the bar's slot. Every change rewrites the meal's Health record. */
+let MS=null;   // {m, gone:[[item, index]]}
+function openMeal(id){ const m=S.log.find(x=>x.id===+id); if(!m) return; MS={m, gone:null}; renderMeal(); IS.mid=null; $('#isbody').scrollTop=0; isheet.to('mid'); }
+function renderMeal(){ const m=MS.m, t=mealTotal(m);
+  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish lmeal"><div class="sh1"><h2 style="font-size:28px">${esc(mealLabel(m))}</h2><span>${esc(m.time)}</span></div>
+    ${m.items.map((it,i)=>`<div class="prow" data-li="${i}"><div class="tx"><div class="n">${esc(it.n)}</div>${it.parts&&it.parts.length?`<div class="pw">${esc('with '+it.parts.map(([n,q])=>(q!==1?fq(q)+' × ':'')+n).join(', '))}</div>`:''}<div class="m"><b>${fc(it.cal)}</b> cal each</div></div>${ctl(it.qty)}</div>`).join('')}
+    ${MS.gone?`<div class="lgone"><div class="tx"><div class="n">Removed ${esc(MS.gone[0].n)}</div></div><button class="tbtn" data-act="ungone">Undo</button></div>`:''}
+    ${factsHTML(t)}<div class="twob"><button class="tbtn" data-act="mlabel">Full label</button><button class="tbtn" data-act="mdelete">Delete meal</button></div></div>`; }
+function stepLogged(i, dir){ const m=MS.m, it=m.items[i];
+  if(dir>0) it.qty = it.qty===.5?1:it.qty+1; else if(it.qty>1) it.qty--; else if(it.qty===1) it.qty=.5;
+  else { m.items.splice(i,1); MS.gone=[it,i]; buzz(14); if(!m.items.length){ MS.gone=null; m.items.push(it); return deleteMeal(); } }
+  buzz(dir>0?8:4); healthWrite(m); renderMeal(); youRefresh(); }
+function deleteMeal(){ const m=MS.m, idx=S.log.indexOf(m); S.log.splice(idx,1); healthDelete(m); S.lastLog={kind:'delete', entry:m, idx}; buzz([12,40]);
+  isheet.away(()=>{ youRefresh(); receipt(`Deleted ${PN(m.hall)} ${mealWord(m.meal)}`); }); }
+
+/* ---------- push (round 7)/* ---------- push (round 7): iOS navigation for everything that isn't a band on Halls ----------
    The new screen slides in from the right edge over the old one, which shifts left by MO.push.shift of the width and dims
    to MO.push.dim. Back, and an edge swipe that follows the finger 1:1, play it in reverse. The tab bar and the plate bar
    never move. NAV is the stack of pushed screens (pages, and the hall screen when it was pushed), bottom to top; each
@@ -1604,6 +1792,7 @@ function pageContent(p, x){
   if(p==='favs'){ const f=[...S.fav]; return ['Favorites', f.length? f.map(k=>{ const g=BYK.lunch[k]||Object.values(BYK).map(b=>b[k]).find(Boolean); const s=servedNow(k);
       return `<div class="lrow"><div><div class="a">${esc(g?g.n:k)}</div><div class="b">${s.length?'At lunch now at '+hallLabel(s):'Not on lunch today'}</div></div></div>`; }).join('')
       : `<p class="empty" style="padding-left:0">Star a dish from its details and it shows up here, with where it's served today.</p>`]; }
+  if(p==='day'){ return [isoFull(x), dayBlock(x)]; }
   if(p==='diet') return ['Dietary preferences', `<h2 class="h3 dh">Only show</h2>${[['veg','Vegetarian'],['plant','Plant based'],['halal','Halal']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.diet[k]}" data-diet="${k}">${l}<i></i></button>`).join('')}
     <h2 class="h3 dh">Avoid</h2>${ALG.map(a=>`<button class="check" role="checkbox" aria-checked="${!!S.avoid[a]}" data-avoid="${a}">${a[0]+a.slice(1).toLowerCase()}<i></i></button>`).join('')}`];
   if(p==='export') return ['Export my data', `<div class="stack"><button class="btn" data-act="exp" data-fmt="json">Export JSON</button><button class="btn line" data-act="exp" data-fmt="csv">Export CSV</button></div>`];
@@ -1637,7 +1826,7 @@ function Sheet(el, body, detentsFn, scrim){
   const sh={el,y:H,stop:()=>{},state:'closed',onClose:null,leave:null,fade:false}; SHEETS.push(sh);
   el.style.transform=`translate3d(0,${H}px,0)`;   // closed rests on the bottom edge: an open rises from its first frame
   const D=()=>({closed:H, ...detentsFn()});
-  sh.set=y=>{ sh.y=y; el.style.transform=`translate3d(0,${y}px,0)`; const d=D(); scrim.style.opacity=clamp((d.closed-y)/Math.max(1,d.closed-d.mid))*.5;
+  sh.set=y=>{ sh.y=y; el.style.transform=`translate3d(0,${y}px,0)`; sh.onSet&&sh.onSet(y); const d=D(); scrim.style.opacity=clamp((d.closed-y)/Math.max(1,d.closed-d.mid))*.5;
     if(sh.leave && y>=sh.leave.y){ const f=sh.leave.f; sh.leave=null; f(); } };
   // a sheet under another one (the dish over the plate) is the active one again once the top one is gone
   const closed=()=>{ el.style.visibility='hidden'; if(activeSheet===sh) activeSheet=SHEETS.find(x=>x!==sh && x.state!=='closed')||null; sh.onClose&&sh.onClose(); };
@@ -1686,7 +1875,7 @@ const IS={mid:null};   // the dish sheet sets its own resting height (dishMid); 
 const isheet=Sheet($('#isheet'),$('#isbody'),()=>{ const c=contentH($('#isbody')); return {top:ST+8, mid:IS.mid ?? Math.max(ST+8, H-Math.min(c,H*.86))}; }, $('#scrim'));
 isheet.fade=true;
 function plateOpen(){   // the bar becomes the sheet's top edge, pixel for pixel, then the sheet rises under the finger
-  const bar=$('#bar'); if(bar.classList.contains('insheet')||!S.plates.length) return false;
+  const bar=$('#bar'); if(bar.classList.contains('insheet')||!S.plates.length||!S.track) return false;
   $('#q').blur();   // the sheet never sits under the keyboard
   PS.rest=bar.offsetTop; renderPSheet(); psheet.set(PS.rest);
   $('#psheet').insertBefore(bar,$('#psbody')); bar.classList.add('insheet'); $('#psheet').style.visibility='visible'; return true;
@@ -1694,7 +1883,9 @@ function plateOpen(){   // the bar becomes the sheet's top edge, pixel for pixel
 psheet.onClose=()=>{ const bar=$('#bar'); if(bar.classList.contains('insheet')){ bar.classList.remove('insheet'); frame.insertBefore(bar,$('.tbar')); } renderBar(); };
 $('#pscrim').addEventListener('click',()=>psheet.to('closed'));
 $('#scrim').addEventListener('click',()=>isheet.to('closed'));
-isheet.onClose=()=>{ const b=$('.swbtn'); if(b) b.setAttribute('aria-expanded','false'); IS.mid=null; DS=null; };
+isheet.onClose=()=>{ const b=$('.swbtn'); if(b) b.setAttribute('aria-expanded','false'); IS.mid=null; DS=null; $('#bfoot').classList.add('hide'); };
+// the bowl's foot is pinned to the screen's bottom edge while the sheet is there; leaving, it rides down with the sheet
+isheet.onSet = y => { const f=$('#bfoot'); if(f && !f.classList.contains('hide') && isheet.state!=='closed') f.style.transform=`translate3d(0,${Math.max(0,H-y-f.offsetHeight)}px,0)`; };
 
 function renderPSheet(){
   const pl=S.plates[S.front];
@@ -1702,7 +1893,7 @@ function renderPSheet(){
   const hs=plateHalls(pl), t=totals(pl);
   const tabs = S.plates.length>1 ? `<div class="ptabs" role="tablist">${S.plates.map((p,i)=>`<button role="tab" data-plate="${i}" aria-selected="${i===S.front}">${esc(plateLabel(p))}</button>`).join('')}</div>`:'';
   $('#psbody').dataset.pid=pl.id; $('#psbody').dataset.n=pl.items.length;
-  const rows = pl.items.map((it,i)=>{ const m=macroOf(it,(hs||[])[0]); return `<div class="prow" data-pi="${i}"><div class="tx"><div class="n">${esc(it.n)}</div><div class="m"><b>${fc(m.cal)}</b> cal each</div></div>${ctl(it.qty)}</div>`; }).join('');
+  const rows = pl.items.map((it,i)=>{ const m=macroOf(it,(hs||[])[0]); return `<div class="prow" data-pi="${i}"><div class="tx"><div class="n">${esc(it.n)}</div>${m.parts&&m.parts.length?`<div class="pw">${esc(withLine(m.parts))}</div>`:''}<div class="m"><b>${fc(m.cal)}</b> cal each</div></div>${ctl(it.qty)}</div>`; }).join('');
   // Log lives in one place: the bar, which is this sheet's top edge
   $('#psbody').innerHTML = `<div>${tabs}${rows}${factsHTML(t)}
     <button class="custom" data-act="more">${IC.plus.replace('<svg','<svg width="20" height="20" stroke="currentColor" stroke-width="2.4" fill="none"')}Add something else</button>
@@ -1714,18 +1905,49 @@ function renderPSheet(){
    backdrop, puts it away. refs: the halls an Add counts for (every hall serving it from Search, the hall from a menu,
    the plate item's own from the plate). */
 let DS=null;
-function openDish(d, src, refs){
-  DS={d, refs: refs || {[d.h]:d}};
-  $('#q').blur(); renderDish(); $('#isbody').scrollTop=0; IS.mid=dishMid(); isheet.to('mid'); }
+function openDish(d, src, refs, edit, plain){
+  const B = S.track && !d.day && !plain && (edit ? edit.build : buildOf(d));   // plain: a dish already on the plate opens as itself ("Add another")
+  DS={d, refs: refs || {[d.h]:d}, build: B ? {...B, sel:new Map(edit?edit.sel:[]), edit:edit&&edit.ref} : null};
+  $('#q').blur(); renderDish(); $('#isbody').scrollTop=0; IS.mid=DS.build ? buildMid() : dishMid(); isheet.to('mid'); }
+// a bowl on the plate reopens its builder with its parts chosen; the foot reads Update
+function openBowl(m, pl, it){ const B = m.base ? buildOf(m.base) : {head:m.syn.head, parts:m.syn.parts, base:null, syn:m.syn, h:m.h, meal:m.syn.meal};
+  const d = m.base || {id:'syn', n:m.syn.label, k:'syn', h:m.h, meal:m.syn.meal, day:0, d:0, srv:'', algs:[], alg:'', nut:null, cal:0,p:0,c:0,f:0};
+  openDish(d, null, it.refs, {build:B, sel:m.parts.map(([x,q])=>[x.id,q]), ref:{pl,it}}); }
+// a synthetic base ("Your salad from the Salad Bar"): its sheet is only the builder
+function openSyn(y){ openDish({id:'syn', n:y.label, k:'syn', h:y.h, meal:y.meal, day:0, d:0, srv:'', algs:[], alg:'', nut:null, cal:0,p:0,c:0,f:0}, null, null, {build:{head:y.head, parts:y.parts, base:null, syn:y, h:y.h, meal:y.meal}, sel:[]}); }
 // price (round 9): the serving's, so only a café serving has one, wherever the sheet was opened from. It leads the serving line.
-function renderDish(){ const d=DS.d, N=nutObj(d.nut), on=!d.day && findItem(plateMeal(d),d.k), mk=marksHTML(d)+scoresHTML(d,'mks-s'), pr=isCafe(d.h)&&d.price ? `<b class="pr">${esc(d.price)}</b>` : '';
-  $('#isbody').innerHTML=`<div class="dish"><div class="dhd"><h2 class="dn">${esc(d.n)}</h2><button class="icon favb" data-act="fav" data-k="${esc(d.k)}" aria-pressed="${S.fav.has(d.k)}" aria-label="Favorite">${IC.star}</button></div>
+function renderDish(){ if(DS.build) return renderBuild(); const d=DS.d, N=nutObj(d.nut), on=!d.day && findItem(plateMeal(d),d.k), mk=marksHTML(d)+scoresHTML(d,'mks-s'), pr=isCafe(d.h)&&d.price ? `<b class="pr">${esc(d.price)}</b>` : '';
+  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="dhd"><h2 class="dn">${esc(d.n)}</h2><button class="icon favb" data-act="fav" data-k="${esc(d.k)}" aria-pressed="${S.fav.has(d.k)}" aria-label="Favorite">${IC.star}</button></div>
     ${pr||d.srv?`<p class="dsv">${pr}${esc(d.srv)}</p>`:''}${mk?`<div class="mks">${mk}</div>`:''}${d.alg?`<p class="dal"><b>Contains</b>${d.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>`:''}
-    ${d.day?'':`<button class="btn dadd" data-act="dadd">${on?'Add another':'Add to plate'}</button>`}
+    ${d.day||!S.track?'':`<button class="btn dadd" data-act="dadd">${on?'Add another':'Add to plate'}</button>`}
     ${whereHTML(d.k)}${labelHTML(N, d.cal, d.srv)}${gradesHTML(d.hf, d.cr)}
     ${d.ing?`<h3 class="ingh">Ingredients</h3><div class="ing" id="ing"><p>${esc(d.ing)}</p></div><button class="tbtn ingmore" data-act="ing" aria-expanded="false">Show all</button>`:''}</div>`;
   const ing=$('#ing'); if(ing && ing.scrollHeight<=ing.clientHeight+1){ ing.classList.add('open'); ing.nextElementSibling.remove(); }   // measured, not counted: "Show all" only when it is cut
 }
+// the builder (round 10): the dish's identity, its station's add-ins with the row's stepper, then where, the label and the
+// ratings, all summed live; the action is pinned to the sheet's foot in the plate bar's material
+const bowlNow = () => { const B=DS.build; return bowlDish(B.base, [...B.sel].filter(([,q])=>q>0).map(([id,q])=>[DISH[id],q]), B.syn, B.h); };
+function renderBuild(){ const B=DS.build, bd=bowlNow(), base=B.base, mk=base?marksHTML(base)+scoresHTML(base,'mks-s'):'';
+  $('#isbody').innerHTML=`<div class="dish build"><div class="dhd"><h2 class="dn">${esc(bd.n)}</h2>${base?`<button class="icon favb" data-act="fav" data-k="${esc(base.k)}" aria-pressed="${S.fav.has(base.k)}" aria-label="Favorite">${IC.star}</button>`:''}</div>
+    <p class="dsv bsv">${bd.price&&isCafe(B.h)?`<b class="pr">${esc(bd.price)}</b>`:''}${esc(base?base.srv:'')}</p>${mk?`<div class="mks">${mk}</div>`:''}<p class="dal bal"${bd.algs.length?'':' hidden'}><b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>
+    <h3 class="bh">${esc(B.head)}</h3><div class="bparts">${B.parts.map(x=>`<div class="brow" data-bp="${x.id}"><div class="tx"><div class="n">${nameHTML(x.n, dietMark(x))}</div><div class="m"><span class="mg"><b>${fc(x.cal)}</b> cal${isCafe(B.h)&&x.price?`<span class="gap"></span><b>${esc(x.price)}</b>`:''}</span></div></div>${ctl(B.sel.get(x.id)||0)}</div>`).join('')}</div>
+    ${base?whereHTML(base.k):''}<div class="blab">${labelHTML(nutObj(bd.nut), bd.cal, '')}</div>${base?gradesHTML(base.hf, base.cr):''}
+    ${base&&base.ing?`<h3 class="ingh">Ingredients</h3><div class="ing" id="ing"><p>${esc(base.ing)}</p></div><button class="tbtn ingmore" data-act="ing" aria-expanded="false">Show all</button>`:''}</div>`;
+  const ing=$('#ing'); if(ing && ing.scrollHeight<=ing.clientHeight+1){ ing.classList.add('open'); ing.nextElementSibling.remove(); }
+  footHTML(bd); }
+function footHTML(bd){ const f=$('#bfoot'), B=DS.build, none=!B.base && !bd.parts.length;
+  f.innerHTML=`<div class="txt"><div class="l2"><b class="num">${fc(bd.cal)}</b><span>cal</span><b class="num">${f1(bd.p)}g</b><span>protein</span></div></div><button class="gbtn" data-act="badd"${none?' disabled':''}>${B.edit?'Update':'Add'}</button>`;
+  f.classList.remove('hide'); isheet.onSet(isheet.y); }
+// a part's stepper changes the bowl in place: its control, the foot, the price, Contains and the label
+function stepPart(id, dir){ const B=DS.build, q=B.sel.get(id)||0, n = dir>0 ? (q===.5?1:q+1) : q>1 ? q-1 : q===1 ? .5 : 0;
+  if(n) B.sel.set(id,n); else B.sel.delete(id); const row=$(`#isbody .brow[data-bp="${id}"]`); setCtl(row, n);
+  const bd=bowlNow(); footHTML(bd); $('#isbody .blab').innerHTML=labelHTML(nutObj(bd.nut), bd.cal, '');
+  const pr=$('#isbody .bsv .pr'); if(pr) pr.textContent=bd.price||''; else if(bd.price&&isCafe(B.h)) $('#isbody .bsv').insertAdjacentHTML('afterbegin',`<b class="pr">${esc(bd.price)}</b>`);
+  const al=$('#isbody .bal'); al.hidden=!bd.algs.length; al.innerHTML=`<b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}`;
+  A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle'); buzz(dir>0?6:4); }
+// the bowl's resting height: its name and identity, the add-ins heading and four of them, above the foot
+function buildMid(){ const b=$('#isbody'), rows=b.querySelectorAll('.brow'), last=rows[Math.min(3,rows.length-1)], top=b.getBoundingClientRect().top-b.scrollTop;
+  const need=GRAB_H+(last?last.getBoundingClientRect().bottom-top:200)+($('#bfoot').offsetHeight||68)+8; return Math.max(ST+8, H-need); }
 const GRAB_H=22;
 $('#isbody').addEventListener('scroll',()=>{ const b=$('#isbody'), d=b.querySelector('.dish'); if(!d) return; d.classList.toggle('stuck',b.scrollTop>4);
   if(b.scrollTop>0 && isheet.state==='mid' && IS.mid!=null) isheet.to('top'); },{passive:true});   // scrolled (wheel, trackpad, keys) at rest: it expands, as a drag up does
@@ -1737,12 +1959,12 @@ function openPlateLabel(src){
   let cal=0; for(const it of pl.items){ const m=macroOf(it,hall); cal+=m.cal*it.qty;
     if(it.custom){ sum.fat+=m.f*it.qty; sum.carb+=m.c*it.qty; sum.pro+=m.p*it.qty; continue; }
     const N=nutObj(m.nut); for(const k of NK) if(!k.endsWith('Dv') && N[k]!=null) sum[k]+=N[k]*it.qty; }
-  $('#isbody').innerHTML=`<div class="dish"><div class="sh1"><h2 style="font-size:28px">Your plate</h2><span>${esc(plateLabel(pl))}</span></div>
+  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="sh1"><h2 style="font-size:28px">Your plate</h2><span>${esc(plateLabel(pl))}</span></div>
     <p class="kv" style="margin:0">${pl.items.map(it=>`${it.qty!==1?fq(it.qty)+' × ':''}${esc(it.n)}`).join(', ')}</p>${labelHTML(sum, cal, '')}</div>`;
   $('#isbody').scrollTop=0; IS.mid=null; isheet.to('top');
 }
 function openCustom(name, src){
-  $('#isbody').innerHTML = `<div><div class="sh1"><h2 style="font-size:28px">Custom food</h2></div>
+  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML = `<div><div class="sh1"><h2 style="font-size:28px">Custom food</h2></div>
     <form class="form" id="cform"><label for="cn">Name</label><input id="cn" value="${esc(name||'')}" required>
     <div class="two"><div><label for="cc">Calories</label><input id="cc" inputmode="decimal" required></div><div><label for="cp">Protein (g)</label><input id="cp" inputmode="decimal"></div>
     <div><label for="ccb">Carbs (g)</label><input id="ccb" inputmode="decimal"></div><div><label for="cf">Fat (g)</label><input id="cf" inputmode="decimal"></div></div>
@@ -1761,7 +1983,7 @@ let barMode='plate', barT;
 function renderBar(){
   const bar=$('#bar'), inn=bar.querySelector('.in');
   if(barMode==='logged') return;
-  const pl=S.plates[S.front];
+  const pl=S.track && S.plates[S.front];
   bar.classList.toggle('on',!!pl);
   bar.querySelector('.dots').innerHTML = S.plates.length>1 ? S.plates.map((_,i)=>`<i class="${i===S.front?'on':''}"></i>`).join(''):'';
   bar.querySelector('.peek').classList.toggle('hide',S.plates.length<2);
@@ -1779,11 +2001,14 @@ function renderBar(){
 function plateBarHTML(pl){ const t=totals(pl), nItems = t.n===1?'1 item':`${fq(t.n)} items`;
   return `<div class="txt"><div class="l1"><span id="barL">${esc(plateLabel(pl))}</span>, <span class="num2" id="barN">${nItems}</span></div><div class="l2"><b class="num" id="barCal">${fc(t.cal)}</b><span>cal</span><b class="num" id="barP">${f1(t.p)}g</b><span>protein</span></div></div>
     <div class="acts"><button class="gbtn" data-act="barlog">Log</button></div>`; }
-function showLogged(){
-  const L=S.lastLog; barMode='logged'; const bar=$('#bar'); bar.classList.add('on');
+function showLogged(){ const L=S.lastLog;
+  receipt(`Logged ${L.entry.hall?PN(L.entry.hall)+' ':''}${ML[L.entry.meal].toLowerCase()}`, `<div class="l2">Today <b class="num" id="dayN">${fc(dayTotal().cal)}</b><span>cal</span></div>`); }
+// the receipt: a snackbar with Undo in the plate bar's slot (it shows there with or without a plate in progress)
+function receipt(text, l2=''){
+  barMode='logged'; const bar=$('#bar'); bar.classList.add('on');
   bar.querySelector('.dots').innerHTML=''; bar.querySelector('.peek').classList.add('hide');
   const inn=bar.querySelector('.in');
-  inn.innerHTML=`<div class="txt"><div class="l1">Logged ${esc(L.entry.hall?PN(L.entry.hall)+' ':'')}${ML[L.entry.meal].toLowerCase()}</div><div class="l2">Today <b class="num" id="dayN">${fc(dayTotal().cal)}</b><span>cal</span></div></div><div class="acts"><button class="obtn" data-act="undo">Undo</button></div>`;
+  inn.innerHTML=`<div class="txt"><div class="l1">${esc(text)}</div>${l2}</div><div class="acts"><button class="obtn" data-act="undo">Undo</button></div>`;
   A(inn,[{opacity:0},{opacity:1}],'settle');   // the receipt (a snackbar with Undo) crossfades into the bar's place
   clearTimeout(barT); barT=setTimeout(()=>{ barMode='plate'; S.lastLog=null; inn.innerHTML=''; renderBar(); if(S.plates.length) A(inn,[{opacity:0},{opacity:1}],'settle'); },5000);
 }
@@ -1829,7 +2054,7 @@ function setCtl(row, q, ghost){
   A(n,[{opacity:0},{opacity:1}],'settle');
 }
 function refreshLists(){
-  for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later)')){ const [q,g]=rowState(row); setCtl(row,q,g); }
+  for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later):not(.syn)')){ const [q,g]=rowState(row); setCtl(row,q,g); }
 }
 function refreshSheet(){ if(psheet.state==='closed') return; const pl=S.plates[S.front], b=$('#psbody');
   if(!pl || b.dataset.pid!=String(pl.id) || +b.dataset.n!==pl.items.length){ renderPSheet(); return; }
@@ -1851,7 +2076,8 @@ document.addEventListener('click',e=>{
     if(k==='search' && S.tab==='search'){ $('#q').focus(); return; } if(k==='search'){ goSearch(null,'lunch'); return; } setTab(k); return; }
   // a tap on the plate bar grows it into the plate sheet (handled on click, after the touch is over)
   const bb=t.closest('#bar'); if(bb && !t.closest('button')){ if(barMode==='plate' && plateOpen()) psheet.to('mid'); return; }
-  const band=t.closest('.band'); if(band){ $('#q').blur(); band.dataset.c!=null ? openHall('C', false, band, {cafe:+band.dataset.c}) : openHall(band.dataset.h, false, band); return; }   // (a Halls band, or a hall card in Search: both grow into the hall)
+  const band=t.closest('.band'); if(band && obsheet.state!=='closed'){ markSeen(); obsheet.away(()=>{ band.dataset.c!=null ? openHall('C', false, band, {cafe:+band.dataset.c}) : openHall(band.dataset.h, false, band); }); return; }
+  if(band){ $('#q').blur(); band.dataset.c!=null ? openHall('C', false, band, {cafe:+band.dataset.c}) : openHall(band.dataset.h, false, band); return; }   // (a Halls band, or a hall card in Search: both grow into the hall)
   const mt=t.closest('#mtabs .mts button'); if(mt){ switchMeal(mt.dataset.meal); return; }
   const dy=t.closest('#days [data-day]'); if(dy){ pickDay(+dy.dataset.day); return; }
   const jb=t.closest('[data-jump]'); if(jb){ jump(jb.dataset.jump); return; }
@@ -1861,6 +2087,9 @@ document.addEventListener('click',e=>{
   const dk=t.closest('[data-diet]'); if(dk){ S.diet[dk.dataset.diet]=!S.diet[dk.dataset.diet]; dk.setAttribute('aria-checked',S.diet[dk.dataset.diet]); buzz(4); save(); return; }
   const av=t.closest('[data-avoid]'); if(av){ const k=av.dataset.avoid; S.avoid[k]=!S.avoid[k]; if(!S.avoid[k]) delete S.avoid[k]; av.setAttribute('aria-checked',!!S.avoid[k]); buzz(4); save(); return; }
   const wn=t.closest('[data-win]'); if(wn){ S.wins[wn.dataset.key]=wn.dataset.win; buzz(6); rerenderPage(); return; }
+  // round 10: a bowl's parts step in place; the synthetic base opens its builder
+  const br=t.closest('.brow'); if(br){ if(t.closest('.add,.inc')) stepPart(br.dataset.bp,1); else if(t.closest('.dec')) stepPart(br.dataset.bp,-1); return; }
+  const sy=t.closest('[data-syn]'); if(sy){ openSyn(synOf(0,PK(),S.mmeal,+sy.dataset.syn)); return; }
   // rows: + tosses the dish's calories into the plate, − takes them back out, the row itself grows into its detail
   const row=t.closest('.row');
   if(row){
@@ -1874,8 +2103,11 @@ document.addEventListener('click',e=>{
     if(!t.closest('button')) openDish(d, row, refs);
     return;
   }
+  const lr=t.closest('#isbody .lmeal .prow[data-li]'); if(lr){ if(t.closest('.inc')) stepLogged(+lr.dataset.li,1); else if(t.closest('.dec')) stepLogged(+lr.dataset.li,-1); return; }
+  const mr=t.closest('[data-meal-id]'); if(mr){ openMeal(mr.dataset.mealId); return; }
   const prow=t.closest('.prow'); if(prow){ const pl=S.plates[S.front], it=pl.items[+prow.dataset.pi];
-    if(!t.closest('button')){ if(!it.custom) openDish(macroOf(it,(plateHalls(pl)||[])[0]), prow, it.refs); return; }   // a plate row opens its dish, over the plate
+    if(!t.closest('button')){ if(!it.custom){ const m=macroOf(it,(plateHalls(pl)||[])[0]);
+      if(m.parts) openBowl(m, pl, it); else openDish(m, prow, it.refs, null, true); } return; }   // a plate row opens its dish (a bowl, its builder), over the plate
     if(t.closest('.inc')) stepItem(pl,it,1); else if(t.closest('.dec')){
     // the last half leaves the plate: its row closes up (nothing to travel to; the plate is where it was)
     if(it.qty===.5) done(A(prow,[{height:prow.offsetHeight+'px',opacity:1},{height:'0px',opacity:0}],'exit',{fill:'forwards'})).then(()=>stepItem(pl,it,-1)); else stepItem(pl,it,-1); } return; }
@@ -1917,6 +2149,10 @@ document.addEventListener('click',e=>{
   // Show all (round 9): reveals what this list hid until you leave it; the preferences themselves are never edited here
   else if(act==='prefshow'||act==='prefhide'){ const on=act==='prefshow', inS=!!a.closest('#sres');
     if(inS){ S.sreveal=on; renderSearch(); } else { S.reveal=on; const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; A($('#mlist'),[{opacity:.4},{opacity:1}],'settle'); } buzz(4); }
+  else if(act==='badd'){ const B=DS.build, bd=bowlNow(), plain=B.base && !bd.parts.length, meal=plateMeal(B.base||{h:B.h,meal:B.meal}), ed=B.edit;
+    // the sheet goes down; the bowl lands on the plate (or replaces the one being edited) where the bar can show it
+    isheet.away(()=>{ if(ed){ const {pl,it}=ed, twin=pl.items.find(x=>x!==it && x.k===bd.k); if(twin){ twin.qty+=it.qty; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=bd.k; it.n=bd.n; it.refs={[B.h]:bd}; } buzz(8); refresh(); }
+      else if(plain) addDish(meal, B.base.k, {[B.h]:B.base}, B.base.n); else addDish(meal, bd.k, {[B.h]:bd}, bd.n); }); }
   else if(act==='dadd'){ const {d,refs}=DS;
     // the sheet goes down; the row's + becomes its stepper and the bar updates in place, where you can see them
     isheet.away(()=>addDish(plateMeal(d),d.k,refs,d.n)); }
@@ -1924,6 +2160,15 @@ document.addEventListener('click',e=>{
     // the lists under the sheet show the star where they are
     relist(); }
   else if(act==='exp') exportData(a.dataset.fmt);
+  else if(act==='track'){ setTrack(!S.track); if(obsheet.state!=='closed') renderOb(); }
+  else if(act==='obdone'){ markSeen(); obsheet.to('closed'); }
+  else if(act==='health'){ healthTap(); }
+  else if(act==='hsettings'){ toast(`${OS==='ios'?'Settings':HNAME} opens here`); }
+  else if(act==='mdelete'){ deleteMeal(); }
+  else if(act==='ungone'){ const [it,i]=MS.gone; MS.m.items.splice(i,0,it); MS.gone=null; healthWrite(MS.m); renderMeal(); youRefresh(); buzz(6); }
+  else if(act==='mlabel'){ const m=MS.m, sum=Object.fromEntries(NK.map(k=>[k,k.endsWith('Dv')?null:0])); let cal=0;
+    for(const it of m.items){ cal+=it.cal*it.qty; const N=nutObj(it.nut); for(const k of NK) if(!k.endsWith('Dv') && N[k]!=null) sum[k]+=N[k]*it.qty; }
+    $('#isbody').innerHTML=`<div class="dish"><div class="sh1"><h2 style="font-size:28px">${esc(mealLabel(m))}</h2><span>${esc(m.time)}</span></div>${labelHTML(sum, cal, '')}</div>`; isheet.to('top'); }
   else if(act==='newton'){ setNewton(!S.newton); a.setAttribute('aria-checked',S.newton); buzz(4); }
 });
 function selectQ(){ const q=$('#q'); q.focus({preventScroll:true}); q.select(); try{ q.setSelectionRange(0,q.value.length); }catch(e){} }
@@ -1932,11 +2177,31 @@ function afterPick(row){ if(row.dataset.src==='s') selectQ(); }
 if(window.visualViewport){ const vv=visualViewport, kbf=()=>{ const kb=Math.max(0,innerHeight-vv.height-vv.offsetTop); frame.style.setProperty('--kb',kb+'px'); frame.classList.toggle('kb',kb>80); }; vv.addEventListener('resize',kbf); vv.addEventListener('scroll',kbf); }
 $('#psheet').addEventListener('click',()=>{},true);
 
+/* ---------- first run (round 10): You's own choices, once, over the open menu ----------
+   A non-modal sheet (no backdrop) resting just under the four hall bands, which stay live: tapping one puts the sheet away
+   and opens the hall. Done, dragging it away or opening a hall all count as done, with the choices as they stand. */
+const obScrim=document.createElement('div');   // a stand-in: this sheet dims nothing and blocks nothing
+const obsheet=Sheet($('#obsheet'),$('#obbody'),()=>{ const fr=frame.getBoundingClientRect(), b=$('#bands').getBoundingClientRect();
+  return {top:ST+8, mid:Math.max(ST+8, Math.min(H*.7, b.bottom-fr.top))}; }, obScrim);
+const FIRSTKEY='udine-m2-first';
+const markSeen = () => { S.seen=true; try{ localStorage.setItem(FIRSTKEY,'done'); }catch(e){} };
+obsheet.onClose=markSeen;
+function renderOb(){ $('#obbody').innerHTML=`<div class="ob"><div class="obh"><h2>You</h2><button class="tbtn" data-act="obdone">Done</button></div>
+  <div class="sec0">${checkRow('data-act="track"', S.track, 'Track what I eat', 'Calories, protein, carbs and fat')}</div>
+  <div class="sec0">${dietRows()}</div><div class="sec0"><h2>Show on dishes</h2>${showRows()}</div></div>`; }
+function firstRun(){ renderOb(); $('#obbody').scrollTop=0; obsheet.to('mid'); }
+$('#obbody').addEventListener('scroll',()=>{ if($('#obbody').scrollTop>0 && obsheet.state==='mid') obsheet.to('top'); },{passive:true});   // scrolled at rest: it expands, as the dish sheet does
+
 /* ---------- boot ---------- */
+frame.addEventListener('scroll',()=>{ frame.scrollTop=0; frame.scrollLeft=0; });   // the frame clips; it never scrolls (a focus or scrollIntoView below the fold would shift every layer)
+S.log = seedLog();   // the seeded week (NOTES "Round 10")
+frame.classList.toggle('notrack', !S.track);
 renderHalls(); renderBar(); renderEvents(); setIdle(); $('.tbar .ind').style.transform='translateX(0)';
 // ?net=slow: hours and busy arrive in place after a moment; a hall's menu arrives on its own (menuState)
 if(NET==='slow') setTimeout(()=>{ hallsLoaded=true; fillBands(true); if(menuShowing()){ const y=$('#mscroll').scrollTop; renderMenu(); $('#mscroll').scrollTop=y; A($('#mts'),[{opacity:0},{opacity:1}],'settle'); } }, SLOW);
 const qs=new URLSearchParams(location.search), state=qs.get('state');
+try{ S.seen = localStorage.getItem(FIRSTKEY)==='done'; }catch(e){}
+if(!S.seen || qs.has('first')) document.fonts.ready.then(()=>requestAnimationFrame(firstRun));
 const W=(n)=>byName('W','lunch',n);
 function bench(){ addDish('lunch',W('Beef Brisket Noodle Bowl').k,BYK.lunch[W('Beef Brisket Noodle Bowl').k].refs,'Beef Brisket Noodle Bowl'); const g=BYK.lunch[W('Golden BBQ Chicken Thigh').k]; addDish('lunch',g.k,g.refs,g.n); addDish('lunch',g.k,g.refs,g.n); }
 const hallQ=qs.get('hall')||'W';

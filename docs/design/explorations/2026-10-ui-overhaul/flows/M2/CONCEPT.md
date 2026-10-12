@@ -361,3 +361,243 @@ Oct 9 breakfast; Oct 12 holiday hours; the loading indicator; "All day"; the 12:
     off, it appears nowhere; its pins and plates are kept and come back with it.
   - UMass publishes no photo of it, so its band and page header are the band's own maroon ground, and its list rows have no
     thumbnail, as the halls' Search rows have none.
+
+## Round 10: a menu that can keep a ledger (concept, before build)
+
+Critique: `CRITIQUE-r10.md`. Motion: nothing new (table at the end).
+
+**The idea.** UDine is always a menu, and it can also keep a ledger.
+- **The menu** never waits and never changes shape: halls, cafés, Search, and dish sheets with nutrition and scores.
+- **The ledger** is everything that records what you ate: the +, the plate, Log, your days, the bowl builder, and
+  writing to Health. It is one switch, **Track what I eat**.
+- **You** is that switch, the ledger it opens, and the few choices that shape the menu: diet, allergens, scores, campus.
+- **First run is You's choices, shown once, over the open menu.**
+
+Everything else follows from treating a meal as a plate:
+- a logged meal is a plate that was logged, so a past meal opens as plate rows with the same steppers;
+- a bowl is one plate item made of plate items.
+
+```
+ First run (390): a non-modal sheet         Scrolled up
+┌────────────────────────────────────────┐ ┌────────────────────────────────────────┐
+│ UDine            Thursday, October 8   │ │ ──── You                       Done    │
+│ Lunch                                  │ │ Only show                              │
+├────────────────────────────────────────┤ │ Vegetarian                         [ ] │
+│ Worcester               ▐ W ▌ (live)   │ │ Plant based                        [ ] │
+├────────────────────────────────────────┤ │ Halal                              [ ] │
+│ Franklin                ▐ F ▌ (live)   │ │ Avoid                                  │
+├────────────────────────────────────────┤ │ Milk                               [ ] │
+│ Hampshire               ▐ H ▌ (live)   │ │ Eggs                               [ ] │
+├────────────────────────────────────────┤ │ …  (the 11 allergens)                  │
+│ Berkshire               ▐ B ▌ (live)   │ │ Show on dishes                         │
+╞═══════════════ ──── ═══════════════════╡ │ [5] Healthfulness                  [ ] │
+│ You                              Done  │ │ [B] Carbon rating                  [ ] │
+│ Track what I eat                   [x] │ │                                        │
+│ Calories, protein, carbs and fat       │ │                                        │
+└────────────────────────────────────────┘ └────────────────────────────────────────┘
+  the four bands stay tappable: a tap puts the sheet away (choices kept) and opens the hall
+```
+
+### 1. First run
+- **Where.** On first launch, Halls opens as always. You's choices rise as a **non-modal bottom sheet**: no backdrop, and
+  its resting top sits just under the four hall bands, so all four stay visible and live.
+  - Tapping a band puts the sheet away (`Sheet.away`) and opens that hall by the container transform. That's one tap to
+    a menu, as on any later launch.
+  - A pinned café band or the café list is reached by dragging the sheet down.
+- **What.** It holds You's own controls, in You's order and with You's check rows. There is one control per setting
+  everywhere; nothing is a duplicate built for onboarding.
+  1. **Track what I eat**, with the line "Calories, protein, carbs and fat". It's the one choice that changes the app's
+     shape, so it's first, and it's at rest.
+  2. **Only show:** Vegetarian, Plant based, Halal.
+  3. **Avoid:** the 11 allergens, in round 9's order.
+  4. **Show on dishes:** Healthfulness and Carbon rating. Each row leads with its own tile (a "5" heart, a "B"
+     footprint), the badge it turns on, so the choice shows itself without a caption.
+- **Done** is a text button in the sheet's title row.
+- **It's shown once.** Done, dragging it away, or opening a hall all count as done, with the current choices kept. It never comes back. Everything stays on You.
+- **Why not a carousel.** A 3-page carousel costs three taps before the menu, at a hall door. This sheet costs zero:
+  the menu is already there and usable. And it teaches where the settings live, because it *is* You's settings.
+
+### 2. Tracking off: a pure menu app
+- **Gone:**
+  - the + and steppers on every row, and the ghost + that marks a second plate;
+  - the plate bar, the plate sheet and the Log receipt;
+  - "Add to plate" in the sheet;
+  - "Add “x” as a custom food" in Search and on a menu-less café;
+  - the bowl builder (a build station's dishes are just dishes);
+  - the Health row;
+  - You's day block and your days.
+- **Kept:** halls, cafés, Search, events, the schedule, and dish sheets with marks, scores, Contains, price, where it's
+  served, the label and the ratings.
+- **Shape.**
+  - A hall row's lane is empty and the row keeps its height, so a list never reflows when the switch changes.
+  - In Search the lane loses its + and the hall letters rise into the + slot (top right).
+  - In the sheet, "where it's served" takes the action's place, 16 px after the identity group, so it is the sheet's
+    primary action: it opens a hall at a meal.
+- **Off sets aside; on restores.** A plate in progress and every logged day are kept, the way the Charles River toggle
+  keeps its plates. Turning tracking back on brings back the plate, the days and the Health row exactly as they were.
+- The switch fades its consequences in place (`settle`): lanes empty, the bar leaves by its own `exit`.
+
+```
+ You, tracking on                           You, tracking off
+┌────────────────────────────────────────┐ ┌────────────────────────────────────────┐
+│ Thursday, October 8                    │ │ UDine                                  │
+│ Today                                  │ │ You                                    │
+├────────────────────────────────────────┤ ├────────────────────────────────────────┤
+│ Calories                         1,201 │ │ Track what I eat                   [ ] │
+│ Protein 70.4g  Carbs 120g  Fat 41g     │ │ Calories, protein, carbs and fat       │
+│ Meals                                  │ │ Favorites                      2 dishes│
+│ Breakfast at Worcester  8:42 AM   398 ›│ │ Dietary preferences    Vegetarian     ›│
+│ Lunch at Worcester     12:41 PM   404 ›│ │ Export my data          8 days        ›│
+│ Earlier                                │ │ Campus                                 │
+│ Wednesday, October 7        2,105 cal ›│ │ Charles River Campus               [ ] │
+│ Tuesday, October 6          1,688 cal ›│ │ Newton                                 │
+│ Monday, October 5           2,312 cal ›│ │ Show on dishes                         │
+│ …                                      │ │ [5] Healthfulness                  [ ] │
+│ Track what I eat                   [x] │ │ [B] Carbon rating                  [ ] │
+│ Write to Health Connect            [ ] │ └────────────────────────────────────────┘
+│ Favorites ›  Dietary preferences ›     │
+│ Which was better? ›  Export my data ›  │
+│ Campus …   Show on dishes …            │
+└────────────────────────────────────────┘
+```
+
+### 3. Past logs
+- **The way in is You itself.** With tracking on, You opens on **Today**: the day's totals in the label's box, then
+  **Meals**, then **Earlier**, which lists one row per logged day ("Wednesday, October 7", "2,105 cal"), newest first.
+  - Days with nothing logged don't appear. The day turns over at 2 AM (`DEFAULT_ROLLOVER_HOUR`), so a 12:30 AM late night
+    belongs to the day before.
+- **A day** is **pushed**, as every row on You is. Its page is You's Today block for that day: its date as the title, its
+  totals, its meals.
+- **A meal opens in the item sheet** (`#isheet`, the station switcher's and dish's sheet), laid out as plate rows:
+  - the title "Lunch at Worcester", with the time beside it;
+  - each item with the plate's stepper (1 → ½ → remove);
+  - the totals box, Full label, and "Delete meal" where the plate has "Clear plate".
+  - Edits apply as you make them; the stepper is its own undo.
+  - Removing the last half of an item, or **Delete meal**, puts the sheet away (for a delete) and shows the receipt
+    snackbar in the plate bar's slot ("Deleted Worcester lunch", **Undo**). That's round 2's Log receipt, which already
+    appears with no plate in progress.
+- **Today's meals** open the same way. "Logged" is one state, whichever day it is.
+- **Log item shape (new).**
+  - A meal: `{id, day (ISO, after rollover), time, meal, place, items:[…], health?:{recordId}}`.
+  - An item: `{dish id, n, qty, parts?:[{dish id, qty}], snap:{cal,p,c,f,nut,price}}`.
+  - The snapshot keeps a past meal true even when the dish's feed record changes or disappears. The dish id lets the
+    label and "where" still open.
+
+```
+ A day (pushed)                             A meal (item sheet over the day)
+┌────────────────────────────────────────┐ ┌────────────────────────────────────────┐
+│ ‹  Tuesday, October 6                  │ │                 ────                   │
+├────────────────────────────────────────┤ │ Lunch at Worcester          12:18 PM   │
+│ Calories                         1,688 │ │ Beef Brisket Noodle Bowl     [− 1 +]   │
+│ Protein 81g  Carbs 190g  Fat 52g       │ │ with Hard Boiled Egg, Bok Choy         │
+│ Breakfast at Franklin   8:05 AM   311 ›│ │ 340 cal each                           │
+│ Lunch at Worcester     12:18 PM   614 ›│ │ Golden BBQ Chicken Thigh     [− 2 +]   │
+│ Dinner at Green Fields  6:40 PM   763 ›│ │ 93 cal each                            │
+│                                        │ │ Calories                          526  │
+│                                        │ │ Protein 46g  Carbs 31g  Fat 22g        │
+│                                        │ │ Full label                 Delete meal │
+└────────────────────────────────────────┘ └────────────────────────────────────────┘
+                                             ┌──────────────────────────────────────┐
+                                             │ Deleted Worcester lunch       Undo   │  receipt, in the bar's slot
+                                             └──────────────────────────────────────┘
+```
+
+### 4. Bowl builder: a bowl is a plate item made of plate items
+- **Which dishes build.** The feed has no base → add-in link (critique #2), so the rule follows the stations:
+  - **Halls:** only stations with a natural base.
+    - Noodle Bowl: the base is its "… Noodle Bowl"/"… Bowl" dish.
+    - Omelet: the base is "Omelet Bar".
+    - Pasta Bar: a pasta is the base, and the rest of the station are its add-ins.
+    - Deli Bar and Salad Bar have no base, so they stay single dishes (open question).
+  - **Cafés:** a dish in any station of a place and meal that also has an **Add-ons** or **Toppings** station. Its
+    add-ins are that station's dishes that have nutrition (Fountain Drink has none; open question on sides).
+- **The row doesn't change.** Its + still adds one plain dish in one tap (the benchmark's brisket bowl, 404 cal, A–C,
+  vectors). The builder lives in the sheet only. A row's stepper counts the plain dish only; a built bowl shows on the
+  plate.
+- **The sheet.**
+  - The identity group is unchanged.
+  - Where "Add to plate" was, the station's own name is the heading ("Noodle Bowl", "Toppings", "Add-ons"). Under it are
+    compact add-in rows, each with the row's + → stepper (1 → ½ → remove) and its calories.
+  - **Pinned to the sheet's foot** is the plate bar's material: the bowl's running calories and protein in Oswald, and a
+    gold **Add** (round 2's Log button), so the action never scrolls away from a long list.
+  - Everything below sums live, in place: "where", the label (grams summed, %DV from FDA values, as M2 already does when
+    the feed has none) and, at a café, the price ("$11.00" becomes "$15.25" with grilled chicken).
+  - With nothing chosen, Add adds the plain dish.
+- **On the plate** a bowl is one item, named after its base, with "with Hard Boiled Egg, Steamed Bok Choy" as its second
+  line.
+  - Its stepper scales the whole bowl.
+  - Two different bowls of one base are two items, keyed by base and parts.
+  - Tapping it reopens the sheet with its parts chosen, and the foot reads **Update**.
+  - Its places are where the base and every part are served, so a bowl stays at its station's place and joins plates
+    as any dish does.
+- **Logged**, it keeps its parts (`parts`), so a past meal still says what was in it.
+
+```
+ Dish sheet, a build dish (at rest)          The same, at a café, scrolled
+┌────────────────────────────────────────┐ ┌────────────────────────────────────────┐
+│                 ────                   │ │ Create Your Own Salad              ☆   │
+│ Beef Brisket Noodle Bowl           ☆   │ │ $16.50  1 each                         │
+│ 1 bowl                                 │ │ Add-ons                                │
+│ [patches] [tiles]                      │ │ Add Fresh Avocado  55 cal    [− 1 +]   │
+│ Contains Wheat, Soy, Eggs …            │ │ Grilled Diced Chicken 86 cal [− 1 +]   │
+│ Noodle Bowl                            │ │ Hummus             126 cal        +    │
+│ Hard Boiled Egg     111 cal   [− 1 +]  │ │ Kettle Chips       101 cal        +    │
+│ Steamed Bok Choy     11 cal   [− 1 +]  │ │ …                                      │
+│ Bean Sprouts          2 cal        +   │ │ Lunch now, until 4:30 PM               │
+│ Scallions             5 cal        +   │ │ [Green Fields]                         │
+├────────────────────────────────────────┤ ├────────────────────────────────────────┤
+│ 340 cal  24.3g protein       [  Add  ] │ │ 628 cal  30.5g protein       [  Add  ] │
+└────────────────────────────────────────┘ └────────────────────────────────────────┘
+```
+
+### 5. Health Connect / Apple Health
+- **Where.** On You, directly under **Track what I eat**, and only while it's on. It's a check row named for the
+  platform: "Write to Health Connect" (Android) or "Write to Apple Health" (iOS).
+- **The lead-in is the row.** Its second line says what will be written: "Each meal you log". Tapping it raises the OS
+  permission sheet straight away. There is no interstitial: the row already says what you're agreeing to, and the OS
+  sheet lists the fields.
+  - **Allowed:** the check fills (`settle`). Each meal logged from then on is written, an edit rewrites its record, and a
+    delete deletes it. Nothing is read back.
+  - **Denied:** the check stays empty. The second line reads "Health Connect didn't allow it", with an outlined **Open
+    Health Connect** (or **Open Settings**) button, the round-9 Try again control.
+  - **Revoked in system settings:** checked when You is shown or the app resumes. It's the denied state, with "Not
+    allowed in Health Connect any more". Nothing is lost on our side.
+- **What's written:** the meal's time and its nutrients, mapped to whatever the platform's nutrition record supports.
+  The label has calories, fat, saturated and trans fat, cholesterol, sodium, carbohydrate, fibre, sugars and protein;
+  which of these each platform accepts is to be verified at build time.
+- **The prototype simulates the OS.**
+  - `?os=ios|android` picks the platform's name.
+  - `?health=allow|deny|revoked` picks the outcome. The permission sheet is drawn as a neutral system sheet, clearly not
+    UDine's.
+
+```
+ Off                                         Allowed
+│ Track what I eat                    [x] │ │ Track what I eat                    [x] │
+│ Write to Health Connect             [ ] │ │ Write to Health Connect             [x] │
+│ Each meal you log                       │ │ Each meal you log                       │
+ Denied                                      Revoked (found on resume)
+│ Write to Health Connect             [ ] │ │ Write to Health Connect             [ ] │
+│ Health Connect didn't allow it          │ │ Not allowed in Health Connect any more  │
+│ [ Open Health Connect ]                 │ │ [ Open Health Connect ]                 │
+```
+
+### Motion, round 10 (all existing)
+| Interaction | Pattern |
+|---|---|
+| First run | Bottom sheet, non-modal, resting under the bands; a band tap is `Sheet.away` plus the container transform |
+| Tracking on or off | In place (`settle`); the plate bar leaves with `exit` |
+| A day on You | Push (edge swipe back) |
+| A meal | Bottom sheet (`#isheet`) |
+| Steppers, Delete, Undo | In place; the receipt snackbar in the bar's slot |
+| Bowl add-ins, running total, price | In place (`settle`, + → stepper) |
+| Health toggle | In place; the permission sheet is the OS's own |
+
+### Seeded history (NOTES, not the UI)
+Oct 1–7 is built from dishes that exist in the Oct 8–22 fixture, with their real nutrition, at plausible times:
+- 2–3 meals a day;
+- Saturday Oct 3 not logged (a gap);
+- one late night at 12:30 AM that counts for the day before;
+- a Noodle Bowl bowl with parts;
+- a priced Green Fields lunch.
+
+The days and meals are seeded. Today's 8:42 AM breakfast stays as seeded in round 1.

@@ -62,7 +62,7 @@ const I = [
   { name: 'placeclose', q: 'state=search', setup: async p => { await p.keyboard.type('wasabi'); await p.waitForTimeout(300 * K); await p.locator('#sres [data-act=cafe]').first().tap(); }, act: p => p.locator('#mctl [data-act=back]').tap(), dur: 700 },
   { name: 'areaopen', q: '', act: p => p.locator('#areas .lrow').first().tap(), dur: 700 },
   { name: 'areaclose', q: '', setup: p => p.locator('#areas .lrow').first().tap(), act: p => p.locator('[data-act=pageback]').tap(), dur: 700 },
-  { name: 'youopen', q: 'state=you', act: p => p.locator('#you .lrow').first().tap(), dur: 700 },
+  { name: 'youopen', q: 'state=you', act: p => p.locator('#you .lrow[data-act=page]').first().tap(), dur: 700 },
   { name: 'platelabel', q: 'state=plate', act: p => p.locator('#psheet [data-act=fulllabel]').tap(), dur: 800 },
   { name: 'custom', q: 'state=nomatch', act: p => p.locator('#sres [data-act=custom]').tap(), dur: 800 },
   { name: 'sheetclose', q: 'state=plate', act: p => p.locator('#pscrim').tap({ position: { x: 200, y: 60 } }), dur: 900 },
@@ -82,7 +82,7 @@ const I = [
     act: async (p, mark, touch) => { const b = await p.locator('#evc').boundingBox(); if (b) await touch([[300, b.y + 60], [250, b.y + 61], [200, b.y + 62], [150, b.y + 62], [120, b.y + 62]]); await mark(700); await p.locator('#evc .evcard').nth(1).tap(); }, dur: 1500 },
   { name: 'eventopen', q: 'state=search', setup: p => p.evaluate(() => document.querySelector('#q').blur()), act: p => p.locator('#evc .evcard').first().tap(), dur: 800 },
   { name: 'eventclose', q: 'state=search', setup: async p => { await p.evaluate(() => document.querySelector('#q').blur()); await p.locator('#evc .evcard').first().tap(); }, act: p => p.locator('[data-act=pageback]').tap(), dur: 700 },
-  { name: 'youclose', q: 'state=you', setup: p => p.locator('#you .lrow').first().tap(), act: p => p.locator('[data-act=pageback]').tap(), dur: 700 },
+  { name: 'youclose', q: 'state=you', setup: p => p.locator('#you .lrow[data-act=page]').first().tap(), act: p => p.locator('[data-act=pageback]').tap(), dur: 700 },
   { name: 'eventdrag', q: 'state=search', setup: async p => { await p.evaluate(() => document.querySelector('#q').blur()); await p.locator('#evc .evcard').first().tap(); },
     act: async (p, mark, touch) => { const pts = []; for (let i = 0; i <= 16; i++) pts.push([200, 420 + i * 19]); await touch(pts, 25 * K); }, dur: 1500 },
   { name: 'eventpeek', q: 'state=search', setup: p => p.evaluate(() => document.querySelector('#q').blur()), act: p => p.locator('#evc .evcard').nth(1).tap({ position: { x: 30, y: 50 } }), dur: 800 },
@@ -98,6 +98,14 @@ const I = [
   { name: 'schedday', q: 'state=menu', act: p => p.locator('.dayc').tap(), dur: 900 },
   { name: 'schedstatus', q: 'state=menu', act: p => p.locator('#mts').tap(), dur: 900 },
   { name: 'showall', q: 'state=menu', setup: p => p.evaluate(() => { S.avoid = { Milk: true }; renderMenuList(); }), act: p => p.locator('.dietnote [data-act=prefshow]').tap(), dur: 600 },
+  // round 10 (firstband needs FIRST=1: a fresh first launch)
+  { name: 'firstband', q: '', act: p => p.locator('.band[data-h=F]').tap(), dur: 1300 },
+  { name: 'pastmeal', q: 'state=you', setup: p => p.locator('#you [data-p=day][data-c="2026-10-06"]').tap(), act: p => p.locator('.page [data-meal-id]', { hasText: 'Lunch' }).tap(), dur: 900 },
+  { name: 'bowladd', q: 'state=menu', setup: async p => { await p.evaluate(() => openDish(Object.values(DISH).find(x => !x.day && x.h === 'W' && x.n === 'Beef Brisket Noodle Bowl'))); await p.waitForTimeout(900 * K);
+      await p.evaluate(() => { for (const n of ['Hard Boiled Egg', 'Steamed Bok Choy']) [...document.querySelectorAll('#isbody .brow')].find(r => r.querySelector('.n').textContent.startsWith(n)).querySelector('.add').click(); }); },
+    act: p => p.locator('#bfoot [data-act=badd]').tap(), dur: 1300 },
+  { name: 'mealdelete', q: 'state=you', setup: async p => { await p.locator('#you [data-p=day][data-c="2026-10-06"]').tap(); await p.waitForTimeout(900 * K); await p.locator('.page [data-meal-id]', { hasText: 'Lunch' }).tap(); },
+    act: async (p, mark) => { await p.locator('#isbody [data-act=mdelete]').tap(); await mark(1000); await p.locator('#bar [data-act=undo]').tap(); }, dur: 1700 },
   { name: 'collapse', q: 'state=menu', act: async (p, mark, touch) => { const pts = []; for (let i = 0; i <= 24; i++) pts.push([200, 640 - i * 14]); await touch(pts, 70 * K / 4); }, dur: 1100 },
   { name: 'closecollapsed', q: 'state=collapsed', act: p => p.locator('#mctl [data-act=back]').tap(), dur: 1200 },
 ];
@@ -105,7 +113,7 @@ const I = [
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome', args: ['--disable-features=OverscrollHistoryNavigation'] });   // an edge swipe must not navigate the test page back
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1, reducedMotion: process.env.RM ? 'reduce' : 'no-preference' });
-  await ctx.addInitScript(SLOW);
+  await ctx.addInitScript(SLOW); if (!process.env.FIRST) await ctx.addInitScript(() => { try { localStorage.setItem('udine-m2-first', 'done'); } catch (e) {} });
   const p = await ctx.newPage(); cdp = await ctx.newCDPSession(p); await cdp.send('Animation.enable');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   const touch = async (pts, hold = 16) => {

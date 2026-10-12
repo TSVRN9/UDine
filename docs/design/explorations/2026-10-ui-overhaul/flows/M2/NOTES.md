@@ -1446,3 +1446,206 @@ The owner asked for three things:
   the new day cell).
 - The day-change strip: `build/r9/strip-daychange-zoom.png`. With two meals (Franklin, Sunday) the tabs share the row
   evenly.
+
+
+## Round 10: a menu that can keep a ledger
+
+The owner's decisions are in the bake-off brief, "Owner decisions" (2026-10-12). The critique is `CRITIQUE-r10.md` and the
+concept is `CONCEPT.md`, "Round 10".
+
+The owner's answers:
+- tracking off hides "Which was better?", and Export stays while any history exists;
+- a skipped first run means tracking on, no diet or allergens, scores off;
+- with tracking off, "where it's served" takes the sheet's action slot;
+- Salad Bar and Deli Bar get a synthetic base.
+
+The coordinator agreed to the rest:
+- Charles River is not in first run;
+- add-ons with no nutrition are left out;
+- a past meal can change quantities, remove items or be deleted;
+- Health has no backfill, keeps what it already holds when switched off, and stops (then resumes) with tracking;
+- the seeded week is as proposed.
+
+### Data and model
+- **The log** is by day. A meal is `{id, at, day, time, meal, hall, items}`.
+  - `day` is computed from `at` with the 2 AM rollover (`ROLLOVER`, shared/src/date.ts `DEFAULT_ROLLOVER_HOUR`).
+  - An item is a snapshot: `{id, n, qty, cal, p, c, f, nut, price, parts?}`.
+  - `dayTotal(day)` is per day, and today is `TODAY`.
+- **The seeded history** (`SEED`, `seedLog()`) is seeded, not recorded. The days and meals are invented; every dish and its
+  nutrition is the fixture's, and `seedDish` throws if a name isn't served at that place.
+  - Thu Oct 1 to Wed Oct 7, plus today's 8:42 AM Worcester breakfast (seeded since round 1).
+  - 2–3 meals a day; nothing on Saturday Oct 3.
+  - A 12:30 AM late night on Tue Oct 6, which counts for Monday.
+  - Two Noodle Bowl bowls with parts (Mon and Tue lunch at Worcester).
+  - Two priced Green Fields meals (Fri lunch, Tue dinner).
+  - Day totals run from 393 to 1,268 cal, so the logging reads as partial, as real logging is.
+- **Bowls (`buildOf`, `synOf`, `bowlDish`).** The feed links no base to its add-ins, so the stations decide.
+  - **Halls, natural base** (Noodle Bowl, Pasta Bar, Omelet):
+    - the base is a dish of at least 120 cal whose name has no sauce, topping, broth or dressing (at Omelet, "Omelet
+      Bar");
+    - the station's other dishes are its add-ins;
+    - a base's row + still adds the plain dish.
+  - **Synthetic base** (owner): an unpriced station named Salad Bar, Cold Bar or Deli Bar.
+    - The stations are Berkshire's Salad Bar/Dressings; Franklin's and Berkshire's Deli Bar; Harvest Market's "Salad Bar
+      $11.50/LB"; Harvest's and Roots' "Cold Bar Items $11.50/LB"; and, with the Newton toggle on, Charles River's Salad
+      Bar and Deli Bar.
+    - Its row heads the station, with a chevron: "Your salad from the Salad Bar", "Your salad from the Cold Bar", "Your
+      sandwich from the Deli Bar".
+    - The name is sentence case, starts with "Your" and names the station, so it reads as something the student built.
+      It never reads as a UMass dish: feed names are title case and never begin with "Your".
+    - It reads the same on the plate, in a past meal and in a Health record name.
+    - It has no nutrition of its own: the bowl is only the sum of what's chosen. With nothing chosen the foot reads 0
+      and Add is disabled.
+    - The station's singles keep their own +.
+  - **Bars left as single dishes** (owner question for later): Harvest Market's Hot Bar Items, Indian Bar and Asian Bar.
+    These are hot entrées sold by the pound, with no natural base, and a "your bowl from the Hot Bar" adds little. Also:
+    - Green Fields', Tavola's, Tamales', Whitmore's, Terrace's, People's and Star Ginger's "Salad Bar/Dressings" (and
+      Terrace's "Deli Bar") are finished, priced dishes, not bars of parts;
+    - Stir Fry Station has a single condiments dish.
+  - **Cafés:** a dish builds when its place and meal have an Add-ons or Toppings station. Its add-ins are those stations'
+    dishes with nutrition: Fountain Drink is left out, and sides such as Hand Fruit stay. Prices sum ("$12.25" plus
+    avocado and chicken is "$19.00").
+  - **A bowl** is one plate item whose ref is the summed dish:
+    - grams are summed and %DV comes from FDA values, as the label already does when the feed has none;
+    - its key is the base plus its parts, so two different bowls are two items;
+    - a plain item of the same dish is separate (the row's stepper counts only it).
+- **Health (simulated).**
+  - `?os=ios|android` names the platform. `?health=allow|deny|revoked` is what the OS answers (revoked: stored on, no
+    longer allowed).
+  - `HEALTH.records` stands in for the store: one record per meal, `{mealId, name, at, energyKcal, proteinG, carbsG, fatG}`.
+    Edits rewrite a meal's record, deletes delete it, and Undo writes it back. Nothing is read back.
+  - Which fields each platform accepts is to be verified at build time.
+- **Persisted:** `track`, `health` (in `udine-m2`); first run in `udine-m2-first`.
+
+### Design (as built; motion all existing)
+- **First run.** A non-modal sheet (`#obsheet`, no backdrop) rests just under the four hall bands.
+  - It holds You's own rows: Track what I eat, Only show, Avoid, and Show on dishes with each row's tile.
+  - A band tap is `Sheet.away` plus the container transform: one tap to a hall. Done, drag away or a band all mark it done.
+  - `?first=1` shows it for shots.
+- **Tracking off** (`#frame.notrack`, `setTrack`):
+  - hall rows keep their lane, empty, at the same height;
+  - Search's letters rise into the + slot;
+  - gone: the bar, both custom-food buttons, the builder and the synthetic rows;
+  - the sheet has no Add, and "where" sits 16 px under the identity;
+  - You is "UDine / You" with the switch, the list (no ranking; Export while there's history), Campus and Show on dishes;
+  - the plate in progress and the history stay, and come back on.
+- **You, tracking on:**
+  - Today, then Meals (each a row, with "cal"), then Earlier (one row per logged day, newest first, with its total);
+  - Track what I eat, with Write to Health Connect under it;
+  - the list, Campus, Show on dishes.
+- **A day** is pushed. Its page is You's Today block for that day.
+- **A meal** opens in the item sheet as plate rows with steppers, its totals, Full label and Delete meal.
+  - The last half of an item leaves an inline "Removed … Undo" row.
+  - Delete meal puts the sheet away and shows the receipt ("Deleted Worcester lunch", Undo) in the bar's slot.
+- **The builder:**
+  - the identity group (price summed at a café, Contains the union of all parts);
+  - the station's name as heading, then compact add-in rows with the row's stepper;
+  - where, then the summed label, ratings and ingredients;
+  - a foot in the plate bar's material (Oswald calories and protein, the gold Add, or Update when editing) pinned to the
+    screen's bottom edge, riding down with the sheet when it leaves;
+  - resting height: identity plus four add-ins plus the foot.
+  - A bowl on the plate shows "with …" and reopens its builder to edit. A plain dish on the plate opens its plain sheet
+    ("Add another").
+- **Health row:** "Write to Health Connect" (or Apple Health), "Each meal you log".
+  - A tap raises the OS sheet straight away.
+  - Denied: "Health Connect didn't allow it" and an outlined, 44 px "Open Health Connect".
+  - Revoked: "Not allowed in Health Connect any more", same button.
+  - The OS sheet is drawn in system type and grey, plainly not UDine's.
+
+### Letters (owner, folded in from 9c)
+- The 9c alignment is reversed: W, H and B are back at 262, 285.5 and 288 px at 390 (232, 255.5 and 258 at 360).
+- Franklin's F, at 315 before 9c, moves to 296 (266 at 360): `LX.F` goes from 118 to 99.
+  - At 300 it still read as pushed right of H and B by eye, so it went 4 px further. It's a loose column, not an
+    aligned one.
+- Crop: `build/r9/p10/letters.png` (390 left, 360 right). Franklin's open still lands in place (`strip-openf-zoom.png`).
+
+### Review passes
+**Pass 1** (stills `build/r9/p10`, `sheet1.png` to `sheet5.png`): 3 flaws.
+1. The builder's foot floated mid-screen. Playwright's tap scrolled `#frame`, which clips but could still scroll
+   programmatically, so every layer moved. The frame is now pinned (`scroll` resets it), which also guards against a
+   focus doing the same on a phone.
+2. Meal rows showed calories without "cal", while day rows had it.
+3. The test's inline Undo row used `.prow`, so the plate's row handler caught its tap first. It's now `.lgone`.
+
+**Pass 2** (strips): 1 flaw.
+1. `bowladd`: the foot stayed pinned while the sheet left and overlapped the rising plate bar. Leaving, it now rides
+   with the sheet.
+
+Under reduced motion, a builder's "where" chip scrolled into view landed under the foot. The sheet's scroller now has
+bottom scroll padding equal to the foot.
+
+**Pass 3: clean.** Checked:
+- every still in `p10` at 390 and 360;
+- `strip-firstband-zoom.png`, `strip-pastmeal-zoom.png`, `strip-bowladd-zoom.png`, `strip-mealdelete-zoom.png`, and their
+  full strips `build/rec/strip-M2-{firstband,pastmeal,bowladd,mealdelete}.png`.
+
+### Tests (`test.js`, `round10`; `RED=10` runs it alone)
+- **First run** (three fresh contexts):
+  - it rests under the four bands, with tracking on, no diet, no allergens and scores off, and without Charles River;
+  - a band tap puts it away and opens Franklin;
+  - Done keeps a choice made in it;
+  - dragging it away closes it;
+  - after each, a reload doesn't bring it back.
+- **Tracking off:**
+  - no visible + or stepper on hall rows, and row heights unchanged;
+  - no bar; `addDish` and `plateOpen` refuse;
+  - the sheet has no Add, and "where" is 16 px under the identity;
+  - no builder; Search has no + and no custom food;
+  - You reads "You", with no ranking, no days and no Health row; Export stays with history and goes without it.
+  - Back on: the plate in progress, the days and ranking return. The switch persists.
+- **Past logs:**
+  - Earlier's rows equal the per-day sums, newest first, and Oct 3 has no row;
+  - the 12:30 AM meal counts for Oct 5;
+  - the day page total;
+  - a step edits the meal and the day;
+  - the last half leaves an inline Undo that restores it;
+  - Delete meal closes the sheet and shows "Deleted Worcester lunch"; Undo brings it back and the day shows it.
+- **Bowls:**
+  - the Noodle Bowl's heading; the foot and label at 340 (218 + 111 + 11);
+  - it lands as one item with its parts;
+  - the row's + still adds the plain dish, and the row counts only that;
+  - reopened from the plate it shows Update with its parts, and Update replaces it in place with three parts;
+  - Green Fields: "Add-ons", 628 cal and $19.00, no Fountain Drink, "Green Fields lunch";
+  - the Salad Bar: "Your salad from the Salad Bar", 0 and disabled at first, then exactly the sum of the chosen items
+    on the plate; its singles keep their +;
+  - Franklin's Deli Bar has "Your sandwich from the Deli Bar".
+- **Health:**
+  - allow: the OS sheet is asked on a tap; on log, 404 is written; an edit gives 622; a delete removes it and Undo
+    restores it;
+  - tracking off writes nothing and hides the row, and back on it's still on;
+  - deny: "Health Connect didn't allow it", a 44 px "Open Health Connect", nothing written;
+  - revoked: "Not allowed in Health Connect any more";
+  - iOS names Apple Health.
+- **Letters:** the exact left edges above at 390 and 360. Franklin's header letter keeps the bands' offset.
+- **Older tests adjusted:**
+  - the round-7 "You row" push source is now a page row (the first row on You is a meal, which is a sheet);
+  - `rec.js`'s `youopen` and `youclose` likewise;
+  - every harness marks first run done in its contexts (`udine-m2-first`), except where first run is tested.
+- **Red:** `RED=10 SRC=build/r9/before-r10-index.html` gives all 5 scenarios RED on round 9c.
+- **Now:** `node test.js` gives 5,084 checks and `RM=1 node test.js` gives 3,361, all green. `RED=1`, `RED=8` and `RED=9` are green.
+
+### Vectors
+- 13 plate sequences, adding three bowls:
+  - the Noodle Bowl beside the plain dish: a second identical bowl adds to its qty, and the plain dish stays separate;
+  - Green Fields with Add-ons: 714 cal, $23.25;
+  - the synthetic Salad Bar: 82 cal, only its parts.
+- The new `bowl` op is described in `vectors.js`' header.
+- A plate item with parts is written as `[name, qty, {parts, cal, price}]`.
+
+### Files
+- `src.html`, `build.py` (unchanged this round), `test.js`, `rec.js` (`firstband` with `FIRST=1`, `pastmeal`, `bowladd`,
+  `mealdelete`), `strips.sh`, `shots9.js` (`r10-*`), `vectors.js`, `vectors.json`.
+- Round 9c's page, source and test: `build/r9/before-r10-*`.
+
+### Round 10 follow-up (coordinator review)
+- **"sy" through Franklin's F in `letters.png`** was the crop, not the band. The 360 panel's crop began at x = 185 px,
+  which cut "Probably a little bu|sy" and stood "sy" beside the left panel's F.
+  - Measured on the bands, every hall's text ends by 196 px at both widths. Franklin's F ink starts at 283 at 390 (253 at
+    360). The letters are not moved.
+  - A new test forces every busy label (the longest is "Probably a little busy") into every band at 390 and 360 and
+    asserts the text keeps 8 px clear of the letter's ink.
+  - `letters.png` is re-cropped from x = 210 px.
+- **You's title** is now "You" under the date in both states. With tracking on, "Today" is the first section's heading,
+  over the day's totals and meals. Before, the title switched between "Today" and "UDine / You", although the tab is
+  always "You".
+- Shot: `build/r9/p10/you-title.png` (on at 390 and 360, then off).

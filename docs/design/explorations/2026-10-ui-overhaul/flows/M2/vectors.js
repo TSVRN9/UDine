@@ -18,7 +18,11 @@
 //     "name": "benchmark",
 //     "ops": [ ["add", meal, dish, [place keys]]     // refs: that dish's serving today at each place
 //            | ["step", plate index, dish, +1|-1]    // +1: 1 -> 2, 1/2 -> 1; -1: 2 -> 1 -> 1/2 -> removed (an empty plate goes)
-//            | ["custom", meal, name, {cal,p,c,f}] ],
+//            | ["custom", meal, name, {cal,p,c,f}]
+//            | ["bowl", meal, place key, base dish | null, station, [[part dish, qty]…]] ],
+//              // round 10: a bowl is one plate item, base + parts summed. A null base is a synthetic one ("Your salad from the
+//              // Salad Bar") that carries no nutrition of its own; station names its bar. Another bowl of the same base and
+//              // parts adds to that item's qty; the plain base dish (an "add") is always a separate item.
 //     "plates": [ {"meal", "halls": [place keys] | null, "label", "items": [[dish, qty]], "totals": {"cal","p","c","f"}} ],
 //     "front": index } ],
 //   "scores": [ {"dish", "health": 0..7 | null, "carbon": "A".."E" | null, "rawHealthfulness": number | null} ],
@@ -53,6 +57,9 @@ const PLATES = [
   { name: 'café plate next to a hall plate', ops: [['add', 'lunch', 'Beef Brisket Noodle Bowl', ['W', 'B']], ['add', 'lunch', 'Golden BBQ Chicken Thigh', ['W']], ['add', 'lunch', 'Caesar Salad w/Chicken', ['Green Fields']]] },
   { name: 'same name at a hall and a café: two plates', ops: [['add', 'lunch', 'French Fries', ['hall']], ['add', 'lunch', 'French Fries', ['café']]] },
   { name: 'all-day café menu on the lunch plate', ops: [['add', 'lunch', 'Bacon, Egg & Cheese on English Muffin', ['Worcester Café']], ['add', 'lunch', 'Bacon, Egg & Cheese on English Muffin', ['Worcester Café']]] },
+  { name: 'bowl: Noodle Bowl (a natural base) next to the plain dish', ops: [['bowl', 'lunch', 'W', 'Beef Brisket Noodle Bowl', 'Noodle Bowl', [['Hard Boiled Egg', 1], ['Steamed Bok Choy', 1]]], ['add', 'lunch', 'Beef Brisket Noodle Bowl', ['W']], ['bowl', 'lunch', 'W', 'Beef Brisket Noodle Bowl', 'Noodle Bowl', [['Hard Boiled Egg', 1], ['Steamed Bok Choy', 1]]]] },
+  { name: 'bowl: a café dish with its Add-ons (prices sum)', ops: [['bowl', 'lunch', 'Green Fields', 'Create Your Own Salad', 'Add-ons', [['Add Fresh Avocado', 1], ['Grilled Diced Chicken', 2]]]] },
+  { name: 'bowl: the Salad Bar (a synthetic base: only its parts)', ops: [['bowl', 'dinner', 'B', null, 'Salad Bar', [['Chickpeas', 1], ['Cucumbers', 1], ['Cheese Feta', .5]]]] },
   { name: 'lunch and dinner are different plates', ops: [['add', 'lunch', 'Golden BBQ Chicken Thigh', ['W']], ['add', 'dinner', 'Korean BBQ Chicken', ['B']]] },
 ];
 const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green Fields'], ['Bacon, Egg & Cheese on English Muffin', 'Worcester Café'], ['California Roll', 'Wasabi'], ['Baby Spinach', 'Roots Café'],
@@ -60,7 +67,7 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
 
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome' });
-  const p = await b.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  const ctx0 = await b.newContext(); await ctx0.addInitScript(() => { try { localStorage.setItem('udine-m2-first', 'done'); } catch (e) {} }); const p = await ctx0.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('file://' + __dirname + '/index.html'); await p.evaluate(() => localStorage.removeItem('udine-m2')); await p.reload(); await p.waitForTimeout(400);
   const out = { clock: CLOCK };
   out.places = await p.evaluate(() => Object.fromEntries([...HALLS, ...[...DISHMENU].filter(isCafe).sort((a, b) => PORD(a) - PORD(b))].map(k => [k, PN(k)])));
@@ -91,13 +98,19 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
           addDish(meal, k, refs, n); resolved.push(['add', meal, n, hs]); continue; }
         else if (op[0] === 'step') { const pl = S.plates[op[1]], it = pl.items.find(i => i.n === op[2]); stepItem(pl, it, op[3]); }
         else if (op[0] === 'custom') addDish(op[1], 'custom:' + norm(op[2]), {}, op[2], op[3]);
+        else if (op[0] === 'bowl') { const [, meal, pl, base, st, parts] = op, h = keyOf(pl), at = d => d.h === h && !d.day && (d.meal === meal || plateMeal(d) === meal);
+          const part = n => Object.values(DISH).find(d => at(d) && d.n === n && stName(MD[0][h][d.meal][d.si][0]) === st) || (() => { throw new Error('no part ' + n + ' at ' + st); })();
+          let bd;
+          if (base) { const b = Object.values(DISH).find(d => at(d) && d.n === base); if (!b || !buildOf(b)) throw new Error('not a build base: ' + base); bd = bowlDish(b, parts.map(([n, q]) => [part(n), q]), null, h); }
+          else { const p0 = part(parts[0][0]), y = synOf(0, h, p0.meal, p0.si); if (!y) throw new Error('not a synthetic bar: ' + st); bd = bowlDish(null, parts.map(([n, q]) => [part(n), q]), y, h); }
+          addDish(meal, bd.k, { [h]: bd }, bd.n); resolved.push(['bowl', meal, h, base, st, parts]); continue; }
         resolved.push(op);
       }
       const r1 = x => Math.round(x * 10) / 10;
-      return { ops: resolved, plates: S.plates.map(pl => { const t = totals(pl); return { meal: pl.meal, halls: plateHalls(pl), label: plateLabel(pl), items: pl.items.map(i => [i.n, i.qty]), totals: { cal: r1(t.cal), p: r1(t.p), c: r1(t.c), f: r1(t.f) } }; }), front: S.front };
+      return { ops: resolved, plates: S.plates.map(pl => { const t = totals(pl); return { meal: pl.meal, halls: plateHalls(pl), label: plateLabel(pl), items: pl.items.map(i => { const m = macroOf(i); return m.parts ? [i.n, i.qty, { parts: m.parts.map(([x, q]) => [x.n, q]), cal: m.cal, price: m.price }] : [i.n, i.qty]; }), totals: { cal: r1(t.cal), p: r1(t.p), c: r1(t.c), f: r1(t.f) } }; }), front: S.front };
     }, seq.ops);
     // the ops as written to the file carry place keys only (names and 'hall' / 'café' are resolved above)
-    if (r.ops.some(o => o[0] === 'add' && o[3].some(h => !(h in out.places)))) throw new Error('unresolved place in ' + seq.name);
+    if (r.ops.some(o => (o[0] === 'add' && o[3].some(h => !(h in out.places))) || (o[0] === 'bowl' && !(o[2] in out.places)))) throw new Error('unresolved place in ' + seq.name);
     out.plate.push({ name: seq.name, ...r });
   }
   const bench = out.plate[0].plates[0];
