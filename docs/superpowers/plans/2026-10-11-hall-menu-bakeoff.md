@@ -618,7 +618,7 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 
 **Before any Task 9 build that goes to a phone (2026-10-12):** the release profiling left a debug broadcast receiver
 (`com.udinetogether.udine.PROFILE`, which starts and stops the Hermes sampler) in the gitignored prebuild output
-`mobile/android/.../MainApplication.kt` in `/tmp/claude-1000/wt-rn`. It must not ship. Run `npx expo prebuild --clean`
+`mobile/android/.../MainApplication.kt` in the RN worktree (`.claude/worktrees/bakeoff-rn`, moved off tmpfs 2026-10-12; its `.cxx`/`build` caches still name the old path, so prebuild clean). It must not ship. Run `npx expo prebuild --clean`
 or remove the receiver, and confirm with `grep -r PROFILE mobile/android/app/src`. `EXPO_PUBLIC_PERF` must be unset.
 
 ### Task 10: Flutter scaffold, fixture and logic port
