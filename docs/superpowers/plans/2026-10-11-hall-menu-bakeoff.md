@@ -706,6 +706,15 @@ the round-9 states. Compare screenshots with M2's.
 - **RN, Task 4:** REWORK once. The busy rows and board were missing because the fixture dropped them (a Task 2 miss
   the reviewer didn't catch); the orchestrator caught it by eye.
 - **RN, Task 2:** REWORK once (the plate-hall macro rule was untested, and departures from the plan were undocumented).
+- **RN, Task 5:** REWORK once. All three defects were found by the orchestrator's frame review; the reviewer confirmed
+  them:
+  - The day change blanked the bars and list for about 400 ms while JS rendered.
+  - Android clipped Oswald descenders when line height equals size.
+  - The schedule sheet scrolled to the chosen day after presenting.
+- **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
+  The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
+  Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
+  to watch for yet.
 
 ### Task 16: M2 round 10: bowl builder, onboarding, past logs, Health sync (design; doesn't block the verdict)
 
