@@ -706,8 +706,15 @@ the round-9 states. Compare screenshots with M2's.
 - **RN, Task 4:** REWORK once. The busy rows and board were missing because the fixture dropped them (a Task 2 miss
   the reviewer didn't catch); the orchestrator caught it by eye.
 - **RN, Task 2:** REWORK once (the plate-hall macro rule was untested, and departures from the plan were undocumented).
-- **RN, Task 5:** REWORK once. All three defects were found by the orchestrator's frame review; the reviewer confirmed
-  them:
+- **RN, Task 5:** REWORK three times so far.
+  - Round 2 came from the orchestrator's frames: labels lagged the list, and the scroll fix had broken drag-to-dismiss.
+  - Round 3 came from the reviewer's code read, with no screenshot showing it:
+    - the descender fix's margin was overridden by callers, a layout regression;
+    - a day change interleaved with a meal change could strand the labels at opacity 0;
+    - the old-label layer was exposed to screen readers.
+  - The labels need a held copy because RN commits on JS while the fade runs on the UI thread; M2's synchronous DOM
+    swap has no such seam.
+  - Round 1's three defects were all found by the orchestrator's frame review; the reviewer confirmed them:
   - The day change blanked the bars and list for about 400 ms while JS rendered.
   - Android clipped Oswald descenders when line height equals size.
   - The schedule sheet scrolled to the chosen day after presenting.
