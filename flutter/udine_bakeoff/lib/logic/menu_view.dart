@@ -5,6 +5,12 @@ class Prefs {
   final bool veg, plant, halal;
   final List<String> avoid;
   const Prefs({this.veg = false, this.plant = false, this.halal = false, this.avoid = const []});
+  Prefs copyWith({bool? veg, bool? plant, bool? halal, List<String>? avoid}) =>
+      Prefs(veg: veg ?? this.veg, plant: plant ?? this.plant, halal: halal ?? this.halal, avoid: avoid ?? this.avoid);
+  @override
+  bool operator ==(Object other) => other is Prefs && other.veg == veg && other.plant == plant && other.halal == halal && other.avoid.length == avoid.length && [for (var i = 0; i < avoid.length; i++) other.avoid[i] == avoid[i]].every((b) => b);
+  @override
+  int get hashCode => Object.hash(veg, plant, halal, Object.hashAll(avoid));
 }
 
 const noPrefs = Prefs();
