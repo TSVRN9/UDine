@@ -74,7 +74,7 @@ export const MealPager = forwardRef<PagerHandle, {
     shift: (dir, apply) => {
       if (!send("shift")) return false;
       const next = capture(dir);
-      dirSv.set(reduced ? 0 : dir);
+      dirSv.set(dir);
       // nothing moves until the new meal is drawn (see the effect): the old list stays as it is until then
       pending.current = { id: next?.id ?? ++run.current };
       setGhost(next);

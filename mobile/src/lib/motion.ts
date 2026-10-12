@@ -132,7 +132,7 @@ export function emphasized(x: number): number {
 /** What `timed` gives Reanimated's `withTiming` as its `easing`. */
 export type Curve = NonNullable<WithTimingConfig["easing"]>;
 /** A motion token that moves something: how long, and on what curve. `timed` takes nothing else. */
-export interface Timing { readonly d: number; readonly e: Curve }
+export interface Timing { readonly d: number; readonly e: Curve; /** plays under the system's reduced-motion setting (only `rmFade`) */ readonly always?: boolean }
 
 const named: Record<string, Curve> = { emphasized, linear: ReanimatedEasing.linear };
 function build(e: string | readonly number[]): Curve {

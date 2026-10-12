@@ -28,6 +28,7 @@ import { add, useStore } from "../state/store";
 import { useArrival } from "../ui/arrive";
 import { timed, useMotion } from "../ui/motion";
 import { mark } from "../perf";
+import { stationJump } from "../motion/stationJump";
 import { MenuList } from "./MenuList";
 import { useDayChange } from "./useDayChange";
 import { useLanding } from "./useLanding";
@@ -148,9 +149,12 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const jumpTo = (si: number) => {
     refreshHeads();
     const target = Math.max(0, (headY.get()[si] ?? 0) - PIN);
-    jump.set(y.get());
-    // reduced motion (M2 `RM`, src.html:1507): the list is there, it does not travel
-    if (reduced) pager.current?.list()?.scrollToOffset({ offset: target, animated: false }); else jump.set(timed(target, m2Motion.scroll, (done) => { if (done) jump.set(-1); }));
+    const j = stationJump(reduced, y.get(), target);
+    if (j.kind === "set") pager.current?.list()?.scrollToOffset({ offset: j.to, animated: false });
+    else {
+      jump.set(j.from);
+      jump.set(timed(j.to, m2Motion.scroll, (done) => { if (done) jump.set(-1); }));
+    }
     tick();
   };
 

@@ -1,5 +1,6 @@
 import renderer, { act } from "react-test-renderer";
 import { m2Motion } from "../../lib/motion";
+import { dayLegs } from "../motion/dayChange";
 import { part, timed, useMotion } from "./motion";
 
 const calls: { to: number; cfg: Record<string, unknown> }[] = [];
@@ -19,7 +20,19 @@ describe("timed", () => {
     timed(1, m2Motion.rmFade);
     expect(calls[0].cfg).toMatchObject({ duration: 120, reduceMotion: "never" });
   });
-  it("part keeps the curve and shortens the time", () => expect(part(m2Motion.settle, 0.5)).toEqual({ d: 100, e: m2Motion.settle.e }));
+  it("the crossfade plays under the system setting however it was built: a day change's legs and a part of it are the crossfade too", () => {
+    calls.length = 0;
+    timed(1, dayLegs(true).in);
+    timed(1, dayLegs(true).out);
+    timed(1, part(m2Motion.rmFade, 0.5));
+    expect(calls.map((c) => c.cfg.reduceMotion)).toEqual(["never", "never", "never"]);
+  });
+  it("and a movement stays the system's to skip, as a part of itself", () => {
+    calls.length = 0;
+    timed(1, part(m2Motion.cont, 0.5));
+    expect(calls[0].cfg.reduceMotion).toBe("system");
+  });
+  it("part keeps the curve and shortens the time", () => expect(part(m2Motion.settle, 0.5)).toEqual({ ...m2Motion.settle, d: 100 }));
 });
 
 describe("useMotion", () => {

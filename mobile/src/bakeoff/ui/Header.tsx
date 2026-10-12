@@ -67,7 +67,7 @@ export function Header({ title, photo, letter, height, top = 0, labels, oldLabel
       <View pointerEvents="box-none" style={{ height, backgroundColor: m2.color.vm, overflow: "hidden" }}>
         <Animated.View pointerEvents="none" style={[fill, parallax]}>{photo}</Animated.View>
         <Animated.View style={[fill, gradStyle]} pointerEvents="none">
-          <LinearGradient colors={[...m2.gradient.headTop.stops]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: top + m2.gradient.headTop.height }} pointerEvents="none" />
+          <LinearGradient colors={[...m2.gradient.headTop.stops]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: top + m2.gradient.headTop.height.plus }} pointerEvents="none" />
           <LinearGradient colors={[...m2.gradient.headBottom.stops]} locations={[...m2.gradient.headBottom.locations]} style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: m2.gradient.headBottom.height }} pointerEvents="none" />
         </Animated.View>
         <Animated.View pointerEvents="none" style={[fill, { backgroundColor: m2.color.vm }, solid]} />

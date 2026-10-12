@@ -7,6 +7,6 @@ import { m2Motion, type Timing } from "../../lib/motion";
  */
 export function dayLegs(reduced: boolean): { out: Timing; in: Timing; scale: number } {
   const { fadeThrough: ft, fadeThroughOut, rmFade, sharedX } = m2Motion;
-  if (reduced) return { out: { d: rmFade.d / 2, e: rmFade.e }, in: { d: rmFade.d / 2, e: rmFade.e }, scale: 1 };
-  return { out: { d: fadeThroughOut.d * sharedX.at, e: fadeThroughOut.e }, in: { d: ft.d * (1 - sharedX.at), e: ft.e }, scale: ft.scale };
+  if (reduced) return { out: { ...rmFade, d: rmFade.d / 2 }, in: { ...rmFade, d: rmFade.d / 2 }, scale: 1 };
+  return { out: { ...fadeThroughOut, d: fadeThroughOut.d * sharedX.at }, in: { ...ft, d: ft.d * (1 - sharedX.at) }, scale: ft.scale };
 }
