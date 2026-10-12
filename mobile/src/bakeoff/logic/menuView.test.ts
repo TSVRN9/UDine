@@ -34,6 +34,14 @@ describe("menuView: allergens and diet", () => {
     const v = W({ avoid: [...ALLERGENS] });
     for (const d of blank) expect(names(v)).toContain(d);
   });
+  it("halal keeps only halal dishes", () => {
+    const lunch = all(TODAY, "W", "lunch");
+    expect(lunch.some((d) => d.diet & 4)).toBe(true);
+    expect(lunch.some((d) => !(d.diet & 4))).toBe(true);
+    const v = names(W({ halal: true }));
+    expect(v.length).toBeGreaterThan(0);
+    expect(v.every((d) => d.diet & 4)).toBe(true);
+  });
   it("vegetarian keeps plant based dishes (plant implies veg)", () => {
     const plant = all(TODAY, "W", "lunch").filter((d) => d.diet & 2);
     expect(plant.length).toBeGreaterThan(0);
