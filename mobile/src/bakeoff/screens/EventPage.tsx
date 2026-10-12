@@ -2,11 +2,14 @@ import { useMemo } from "react";
 import { Image, Linking, View } from "react-native";
 import { m2 } from "../../lib/theme";
 import { Press, Text } from "../ui";
+import { Felt } from "../ui/Felt";
 import { loadFixture } from "../logic/fixture";
 import { EVENT_PHOTO } from "../photos";
 import { PushPage } from "./PushPage";
 
 const fx = loadFixture();
+// the banners are 1024 x 432 (M2 `.evpatch{aspect-ratio:1024/432}`)
+const BANNER = 1024 / 432;
 
 /**
  * M2's event page (`pageContent('event')`) for a banner event: the deep-maroon card's ground throughout, the bar with only Back (the banner is
@@ -22,11 +25,10 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
       <View style={{ paddingTop: m2.space.eventTop, paddingBottom: m2.space.cafeBodyTop }}>
         {photo ? (
           // the white ring is outside the patch (M2 `box-shadow: 0 0 0 3px`), so it takes no room
-          <View accessibilityLabel={e.title} accessible style={{ marginHorizontal: -3, padding: 3, borderRadius: m2.radius.card + 3, backgroundColor: m2.color.white }}>
-            <View style={{ aspectRatio: 1024 / 432, borderRadius: m2.radius.card, padding: 7, overflow: "hidden", backgroundColor: m2.color.vm }}>
-              <Image source={photo} resizeMode="cover" style={{ width: "100%", height: "100%", borderRadius: 2 }} />
-              <View pointerEvents="none" style={{ position: "absolute", top: 2.5, left: 2.5, right: 2.5, bottom: 2.5, borderRadius: 3, borderWidth: 1.5, borderStyle: "dashed", borderColor: m2.color.stitchGold }} />
-            </View>
+          <View accessibilityLabel={e.title} accessible style={{ marginHorizontal: -m2.size.ring, padding: m2.size.ring, borderRadius: m2.radius.card + m2.size.ring, backgroundColor: m2.color.white }}>
+            <Felt kind="frame" style={{ aspectRatio: BANNER }}>
+              <Image source={photo} resizeMode="cover" style={{ width: "100%", height: "100%", borderRadius: m2.radius.image }} />
+            </Felt>
           </View>
         ) : null}
         <Text v="barNum" color={m2.color.gold} style={{ paddingTop: m2.space.eventDate }}>{when}</Text>

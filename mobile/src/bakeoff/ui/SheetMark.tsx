@@ -1,6 +1,6 @@
-import { View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { m2 } from "../../lib/theme";
+import { Felt } from "./Felt";
 import { Text } from "./Text";
 
 export type MarkKind = "plant" | "veg" | "halal" | "local" | "sus";
@@ -39,11 +39,10 @@ const Glyph = ({ kind }: { kind: MarkKind }) => (
 /** M2 `.mk`: the dish sheet's patch, 30 high: gold felt, maroon dashed stitching, glyph and label. */
 export function SheetMark({ kind }: { kind: MarkKind }) {
   return (
-    <View accessible accessibilityLabel={LABEL[kind]}
-      style={{ height: 30, paddingLeft: 10, paddingRight: 12, borderRadius: 5, backgroundColor: m2.color.gold, flexDirection: "row", alignItems: "center", gap: 6 }}>
-      <View pointerEvents="none" style={{ position: "absolute", top: 3, left: 3, right: 3, bottom: 3, borderRadius: 3, borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(59,10,15,0.75)" }} />
+    <Felt kind="mark" accessible accessibilityLabel={LABEL[kind]}
+      style={{ height: m2.size.mark, paddingLeft: m2.space.markStart, paddingRight: m2.space.panel, flexDirection: "row", alignItems: "center", gap: m2.space.markGap }}>
       <Glyph kind={kind} />
       <Text v="mark" color={m2.color.dm}>{LABEL[kind]}</Text>
-    </View>
+    </Felt>
   );
 }

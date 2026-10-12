@@ -8,6 +8,7 @@ const path = require("path");
 const SRC = path.join(__dirname, "../../design-tokens/m2.json");
 const OUT = path.join(__dirname, "../src/lib/m2.generated.ts");
 const WEIGHT = { 400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold" };
+const HANDLED = new Set(["$comment", "version", "trace", "color", "grade", "font", "fontMetrics", "type", "motion", "curves"]);
 const r1 = (x) => Math.round(x * 10) / 10;
 
 const rnFont = ({ family, weight }) => `${family.replace(/ /g, "")}_${weight}${WEIGHT[weight]}`;
@@ -27,7 +28,9 @@ function build(j) {
     health: j.grade.health.tiles,
     healthInk: j.grade.health.ink,
   };
-  const m2 = { color, font, type, space: j.space, radius: j.radius, size: j.size, opacity: j.opacity, gradient: j.gradient, shadow: j.shadow, edge: j.edge, collapse: j.collapse };
+  // every other group (space, radius, size, felt, ...) passes through as it is
+  const rest = Object.fromEntries(Object.entries(j).filter(([k]) => !HANDLED.has(k)));
+  const m2 = { color, font, type, ...rest };
   return { m2, m2MotionData: j.motion, m2Curves: j.curves };
 }
 

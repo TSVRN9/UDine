@@ -9,7 +9,7 @@ describe("design-tokens/m2.json is the one source", () => {
     expect(readFileSync(OUT, "utf8")).toBe(generate(json));
   });
   it("every token two levels deep names the M2 rule it comes from", () => {
-    const groups = ["color", "grade", "font", "fontMetrics", "type", "space", "radius", "size", "opacity", "gradient", "shadow", "edge", "curves", "motion", "collapse"];
+    const groups = Object.keys(json).filter((g) => !["$comment", "version", "trace"].includes(g));
     const missing = groups.flatMap((g) => Object.keys(json[g]).map((k) => `${g}.${k}`)).filter((p) => !json.trace[p]);
     expect(missing).toEqual([]);
   });
