@@ -14,11 +14,11 @@ const fc = (x: number) => Math.round(x).toLocaleString("en-US");
  * numbers, then the scores. A dish with nothing to score has no scores group, so a row's height never depends on the toggles
  * for it. `lane` reserves the control lane Task 7's + lives in (today's rows only). `onOpen` is one stable callback for every row (it opens the dish sheet).
  */
-export const DishRow = memo(function DishRow({ dish, contains, scores, lane, onOpen }: { dish: Dish; contains: string[]; scores: Toggles; lane: boolean; onOpen?: (dish: Dish) => void }) {
+export const DishRow = memo(function DishRow({ dish, contains, scores, lane, onOpen, here }: { here?: boolean; dish: Dish; contains: string[]; scores: Toggles; lane: boolean; onOpen?: (dish: Dish) => void }) {
   const sc = rowScores(dish, scores);
   return (
     <ListRow
-      name={dish.name} lane={lane} onPress={onOpen ? () => onOpen(dish) : undefined}
+      name={dish.name} lane={lane} here={here} onPress={onOpen ? () => onOpen(dish) : undefined}
       marks={dish.diet & 3 ? <DietBadge diet={dish.diet} /> : undefined}
       meta={
         <>

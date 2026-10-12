@@ -55,12 +55,16 @@ const mealWord = (m: MealKey) => (m === "grab" ? "Grab 'N Go" : MEAL_LABEL[m].to
  * never re-render or fade on a day change; what says the day (status, busy, tab and station labels, the list) fades through.
  * `ghost` is the band's copy that rides on the photo while the container opens.
  */
-export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush }: {
+export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush, onPushGo, onSettled }: {
   t: ReturnType<typeof useContainerTransform>; H: number; place: PlaceKey; name: string; scrollY: SharedValue<number>; ghost: React.ReactNode; onBack: () => void;
   /** a hall pushed from a dish's where-served: the day and meal to open on, and the dish to land on */
   at?: ServeTarget;
   /** where-served to another place or day: the screen above pushes it */
   onPush?: (t: ServeTarget) => void;
+  /** the sheet that asked for that push is half-way out */
+  onPushGo?: () => void;
+  /** a pushed hall has drawn and scrolled to its dish (it is still out of sight until this is called) */
+  onSettled?: () => void;
 }) {
   const { width, height: winH } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
@@ -82,8 +86,11 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const [sheet, setSheet] = useState<"hours" | "stations" | null>(null);
   const [cur, setCur] = useState(0);
   // the container opens before the list is drawn: mounting ~30 rows blocks JS, and the open's clock starts at the first layout
-  const [warm, setWarm] = useState(false);
-  useEffect(() => { const id = requestAnimationFrame(() => setWarm(true)); return () => cancelAnimationFrame(id); }, []);
+  // (a hall pushed to a dish is drawn out of sight, so it draws at once: its list must exist before it can be scrolled to the dish)
+  const [warm, setWarm] = useState(!!at);
+  useEffect(() => { if (at) return; const id = requestAnimationFrame(() => setWarm(true)); return () => cancelAnimationFrame(id); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // the row M2 brought the dish up to stays tinted (`.row.here`) until the next dish is brought up
+  const [hereKey, setHereKey] = useState<string | null>(null);
   const meals = mealsOf(fx, isos[day], place);
   const meal = defaultMeal(fx, isos[day], place, mealSel);
 
@@ -185,39 +192,43 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // one callback for every row, so a row never re-renders for it; the sheet reads the screen's current place, meal and day when it opens
   const here = useRef({ place, meal, day });
   const serve = useRef<(t: ServeTarget) => void>(() => {});
+  const goRef = useRef<(() => void) | undefined>(undefined);
   useEffect(() => {
     here.current = { place, meal, day };
+    goRef.current = onPushGo;
     serve.current = (to) => {
       // inside this place and day the list just brings the dish up; anywhere else the screen above pushes that hall, already at the dish
       if (to.place === place && to.day === day) { if (to.meal !== meal) pickMeal(to.meal); setGoto(to.dish); }
       else onPush?.(to);
     };
   });
-  const onOpen = useCallback((dish: Dish) => { openDish(dish, { from: "hall", ...here.current, onServe: (to) => serve.current(to) }); }, []);
+  const onOpen = useCallback((dish: Dish) => { openDish(dish, { from: "hall", ...here.current, onServe: (to) => serve.current(to), onServeGo: () => goRef.current?.() }); }, []);
   useEffect(() => {
     if (!goto || !warm) return;
     const i = items.findIndex((it) => it.t === "dish" && it.dish.key === goto);
     if (i >= 0) {
       // FlashList places a row it has not drawn yet from its estimated heights (scrollToIndex landed stations past the dish), so the
-      // offset is taken from the row's layout, and again after each pass has drawn more of the list: the last lands on measured rows
+      // offset is taken from the row's layout, and again as each pass draws more of the list: the last lands on measured rows. A
+      // pushed hall does this out of sight and only then reports `onSettled`, so it arrives already at the dish (M2 `toDish(id, true)`).
       let k = 0, last = -1;
+      const done = () => { refreshHeads(); setHereKey(goto); requestAnimationFrame(() => requestAnimationFrame(() => onSettled?.())); };
       const go = () => {
         const l = pager.current?.list();
         const lay = l?.getLayout(i);
-        if (!l || !lay) return;
-        const off = Math.max(0, lay.y + l.getFirstItemOffset() - PIN);
+        if (!l || !lay) { if (++k > 12) done(); else setTimeout(go, 50); return; }
+        const off = Math.max(0, lay.y + l.getFirstItemOffset() - PIN - 8);
         // stable (the row's layout stopped moving as the list drew around it): it is measured, and we are there
-        if (Math.abs(off - last) < 1 || ++k > 12) return;
+        if (Math.abs(off - last) < 1 || ++k > 12) { done(); return; }
         last = off;
         l.scrollToOffset({ offset: off, animated: false });
-        setTimeout(go, 100);
+        setTimeout(go, 50);
       };
       go();
       setGoto(null);
       return;
     }
     if (!showAll) setShowAll(true);
-    else setGoto(null);
+    else { setGoto(null); onSettled?.(); }
   }, [goto, items, warm, showAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- sheets
@@ -267,7 +278,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={() => setShowAll((s) => !s)} />;
       case "head": return <View style={{ height: 50, paddingHorizontal: m2.space[4], paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
       case "empty": return <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
-      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} onOpen={onOpen} />;
+      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} onOpen={onOpen} here={it.dish.key === hereKey} />;
     }
   };
 

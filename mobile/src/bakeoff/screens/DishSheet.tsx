@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { BackHandler, View, useWindowDimensions } from "react-native";
 import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
@@ -7,13 +7,15 @@ import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { GRAB, Press, ScoreBadge, ScrollEdge, Sheet, SheetMark, Text } from "../ui";
-import { labelRows, restingSnap, sheetMarks, sheetPrice, type DishCtx, type ServeTarget } from "../logic/dishSheet";
+import { estimateCalBottom, labelRows, restingSnap, sheetMarks, sheetPrice, type DishCtx, type ServeTarget } from "../logic/dishSheet";
 import type { Dish } from "../logic/types";
 import { useBakeoffState, type Toggles } from "../state/prefs";
 import { closeDish, useOpenDish } from "../state/dishSheet";
 import { NutritionLabel } from "./NutritionLabel";
 import { RatingsPanel } from "./RatingsPanel";
 import { WhereServed } from "./WhereServed";
+import { whereAnswer, type WhereGroup } from "../logic/where";
+import { isCafe, loadFixture, placeName } from "../logic/fixture";
 
 const bold = { fontFamily: m2.font.bodySb } as const;
 const LINES = 3;
@@ -56,8 +58,8 @@ function Ingredients({ text }: { text: string }) {
 }
 
 /** The sheet's content as the scroll's direct children (the first, the name, is pinned). Both the sheet and its off-screen measuring copy draw it. */
-function parts({ dish, ctx, scores, avoid, edge, onServe, onCalBottom }: {
-  dish: Dish; ctx: DishCtx; scores: Toggles; avoid: string[]; edge: Parameters<typeof ScrollEdge>[0]["on"];
+function parts({ dish, ctx, answer, scores, avoid, edge, onServe, onCalBottom }: {
+  dish: Dish; ctx: DishCtx; answer: WhereGroup[]; scores: Toggles; avoid: string[]; edge: Parameters<typeof ScrollEdge>[0]["on"];
   onServe: (t: ServeTarget) => void; onCalBottom?: (y: number) => void;
 }): ReactElement[] {
   const price = sheetPrice(ctx, dish), mk = sheetMarks(dish, scores);
@@ -98,51 +100,62 @@ function parts({ dish, ctx, scores, avoid, edge, onServe, onCalBottom }: {
         <Text v="action" color={m2.color.white}>Add to plate</Text>
       </Press>
     ) : <View key="add" />,
-    <WhereServed key="where" dish={dish} onServe={onServe} />,
+    <WhereServed key="where" dish={dish} answer={answer} onServe={onServe} />,
     <NutritionLabel key="label" label={labelRows(dish.nutrition, dish.cal, dish.serving)} onCalBottom={onCalBottom} />,
     <RatingsPanel key="ratings" health={dish.health} carbon={dish.carbon} />,
     dish.ingredients ? <Ingredients key="ing" text={dish.ingredients} /> : <View key="ing" />,
   ];
 }
 
-/** One open dish sheet: measured off-screen first (its resting height depends on the dish), then presented at that height. */
+const fx = loadFixture();
+
+/**
+ * One open dish sheet. It is presented the moment it is opened, at a resting height estimated from the dish alone; the real
+ * content reports where its Calories rule ends and the snap retargets while the sheet is still rising (M2 measures per dish too, but
+ * synchronously). Drawing the content off-screen first, to measure it, cost about 0.7 s between the tap and the first movement.
+ */
 function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
   const { width, height: winH } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
   const { scores, prefs } = useBakeoffState();
   const ref = useRef<BottomSheetModal>(null);
-  const [rest, setRest] = useState<number | null>(null);
-  const edge = useSharedValue(0), pos = useSharedValue(winH), serving = useSharedValue(false);
-  const target = useRef<ServeTarget | null>(null);
+  const answer = useMemo(() => whereAnswer(fx, dish.name, new Date(fx.clock)), [dish]);
   const full = winH - top - 8;
+  const [rest, setRest] = useState(() => restingSnap({
+    calBottom: estimateCalBottom(dish, {
+      width, price: !!sheetPrice(ctx, dish), add: ctx.day === 0, health: scores.health && dish.health != null, carbon: scores.carbon && dish.carbon != null,
+      where: answer.map((g) => ({ chips: g.halls.map((h) => placeName(h).length), letters: g.halls.map((h) => !isCafe(h)) })),
+    }),
+    grab: GRAB, winH, top,
+  }));
+  const edge = useSharedValue(0), pos = useSharedValue(winH), serving = useSharedValue(false);
+  const went = useRef(false);
+  const snaps = useMemo(() => (rest < full - 4 ? [rest, full] : [full]), [rest, full]);
 
-  // the where-served button: the sheet goes down, and once it is half-way out the destination starts (M2 `isheet.away`); the
-  // sheet's end is the fallback. One tap only: a second, during the rise or the leave, does nothing.
-  const fire = () => { const t = target.current; target.current = null; if (t) ctx.onServe?.(t); };
+  // the where-served button: the destination is prepared at once (it mounts and settles out of sight while the sheet goes down), and
+  // once the sheet is half-way out it moves (M2 `isheet.away`); the sheet's end is the fallback. One tap only: a second, during the
+  // rise or the leave, does nothing.
+  const go = () => { if (went.current) return; went.current = true; ctx.onServeGo?.(); };
   const serve = (t: ServeTarget) => {
     if (serving.get()) return;
     serving.set(true);
-    target.current = t;
+    ctx.onServe?.(t);
     ref.current?.dismiss();
   };
-  useAnimatedReaction(() => serving.get() && pos.get() > winH - (rest ?? 0) / 2, (hit, was) => { if (hit && !was) runOnJS(fire)(); });
+  useAnimatedReaction(() => serving.get() && pos.get() > winH - rest / 2, (hit, was) => { if (hit && !was) runOnJS(go)(); });
 
-  useEffect(() => { if (rest != null) ref.current?.present(); }, [rest]);
+  useEffect(() => { ref.current?.present(); }, []);
   useEffect(() => {
-    if (rest == null) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { ref.current?.dismiss(); return true; });
     return () => sub.remove();
-  }, [rest]);
+  }, []);
 
   // `serve` reaches the sheet's ref only when a button is tapped, never while rendering
   // eslint-disable-next-line react-hooks/refs
-  const content = parts({ dish, ctx, scores, avoid: prefs.avoid, edge, onServe: serve, onCalBottom: rest == null ? (y) => setRest((r) => r ?? restingSnap({ calBottom: y, grab: GRAB, winH, top })) : undefined });
-  if (rest == null) {
-    return <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, width, opacity: 0, paddingHorizontal: m2.space[4] }}>{content}</View>;
-  }
+  const content = parts({ dish, ctx, answer, scores, avoid: prefs.avoid, edge, onServe: serve, onCalBottom: (y) => setRest(restingSnap({ calBottom: y, grab: GRAB, winH, top })) });
   return (
-    <Sheet ref={ref} maxHeight={full} snapPoints={rest < full - 4 ? [rest, full] : [full]} animatedPosition={pos} sticky
-      onScrollY={(y) => edge.set(y > 4 ? 1 : 0)} onDismiss={() => { fire(); closeDish(); }}>
+    <Sheet ref={ref} maxHeight={full} snapPoints={snaps} animatedPosition={pos} sticky
+      onScrollY={(y) => edge.set(y > 4 ? 1 : 0)} onDismiss={() => { go(); closeDish(); }}>
       {content}
     </Sheet>
   );

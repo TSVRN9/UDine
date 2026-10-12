@@ -1,6 +1,8 @@
 import vectors from "../logic/labelVectors.json";
 import { loadFixture } from "../logic/fixture";
-import { labelRows, restingSnap, sheetMarks } from "../logic/dishSheet";
+import { estimateCalBottom, labelRows, restingSnap, sheetMarks } from "../logic/dishSheet";
+import { isCafe, placeName } from "../logic/fixture";
+import { whereAnswer } from "../logic/where";
 
 const fx = loadFixture();
 const dish = (name: string) => fx.dishes.find((d) => d.name === name)!;
@@ -56,5 +58,23 @@ describe("labelRows match M2's labelHTML (%DV published, computed from the FDA b
     expect(labelRows(d.nutrition, d.cal, "").serving).toBeNull();
     expect(labelRows(d.nutrition, d.cal, "").rows[0].right).toBe("% Daily Value*");
     expect(labelRows(dish("Golden BBQ Chicken Thigh").nutrition, 93, "1 each").serving).toBe("1 each");
+  });
+});
+
+describe("estimateCalBottom: the sheet rises at once from this, then retargets to the measured value", () => {
+  // measured on the 360 dp AVD (the real content's Calories-rule bottom, dp), with the toggles and day the dev entry used
+  const cases: [string, number, boolean, boolean, boolean, number][] = [
+    ["Golden BBQ Chicken Thigh", 459, false, false, true, 0],
+    ["Beef Brisket Noodle Bowl", 459, true, true, true, 0],
+    ["Local Whole Wheat Bread", 549, true, true, true, 0],
+  ];
+  it.each(cases)("%s ends within 8 dp of the measured %d", (name, measured, health, carbon) => {
+    const d = dish(name);
+    const answer = whereAnswer(fx, d.name, new Date(fx.clock));
+    const est = estimateCalBottom(d, {
+      width: 360, price: false, add: true, health: health && d.health != null, carbon: carbon && d.carbon != null,
+      where: answer.map((g) => ({ chips: g.halls.map((h) => placeName(h).length), letters: g.halls.map((h) => !isCafe(h)) })),
+    });
+    expect(Math.abs(est - measured)).toBeLessThanOrEqual(8);
   });
 });
