@@ -51,8 +51,19 @@ class ContainerTransform extends ChangeNotifier {
       rect = from;
       progress.value = 0;
     }
+    final fresh = phase == Phase.closed;
     final next = _send(Event.open);
-    if (next.phase == Phase.opening) _runTo(1, M2Motion.cont, next.run);
+    if (next.phase != Phase.opening) return;
+    if (!fresh) {
+      _runTo(1, M2Motion.cont, next.run); // the page is already built: a reopen during a close just turns round
+      return;
+    }
+    // A fresh open builds the hall's page in the frame this tap causes, which on a phone can take a hundred milliseconds or more:
+    // the clock starts after that frame is drawn, so the first painted frame is the band (progress 0), not the curve's 91%.
+    final run = next.run;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed && machine.run == run && machine.phase == Phase.opening) _runTo(1, M2Motion.cont, run);
+    });
   }
 
   void close() {

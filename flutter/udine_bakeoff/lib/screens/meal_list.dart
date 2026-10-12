@@ -44,7 +44,9 @@ class MealList extends StatelessWidget {
   final bool reveal;
   final String? hereKey; // 'station.dishKey' of the serving a where-served tap landed on
   final MealActions actions;
-  const MealList({super.key, required this.fx, required this.place, required this.day, required this.meal, required this.reveal, this.hereKey, required this.actions});
+  /// Draw only this many list items (stations and dishes): the first screenful while the container opens; null draws all.
+  final int? limit;
+  const MealList({super.key, this.limit, required this.fx, required this.place, required this.day, required this.meal, required this.reveal, this.hereKey, required this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +70,9 @@ class MealList extends StatelessWidget {
       ));
     }
     var si = -1;
+    var n = 0;
     for (final it in menuItems(view, prefs, reveal, '')) {
+      if (limit != null && n++ >= limit!) break;
       switch (it.t) {
         case 'note':
           kids.add(_DietNote(line: it.line!, revealed: reveal, onTap: () => actions.onReveal(!reveal)));

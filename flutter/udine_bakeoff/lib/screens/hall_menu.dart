@@ -52,6 +52,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   final _scrollY = ValueNotifier<double>(0);
   late final AnimationController _dayFade = AnimationController(vsync: this, value: 1);
   bool _dayIn = false, _daySwap = false;
+  // the container's open draws the first screenful of the list and the rest once it is open, so building 70 rows is never in the 500 ms
+  late bool _full = widget.land != null || widget.progress.value >= 1;
+  late final _dayN = ValueNotifier<int>(widget.land?.day ?? widget.day);
+  Widget? _header;
+  bool? _headerOpen;
   final _keys = ListKeys();
   final _contentKey = GlobalKey();
   final _pagerKey = GlobalKey<SharedAxisState>();
@@ -92,6 +97,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       }
     }
     _sc.addListener(_onScroll);
+    if (!_full) widget.progress.addStatusListener(_openStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _updateStation();
@@ -99,12 +105,21 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     });
   }
 
+  void _openStatus(AnimationStatus s) {
+    if (s == AnimationStatus.completed && !_full) {
+      widget.progress.removeStatusListener(_openStatus);
+      setState(() => _full = true);
+    }
+  }
+
   @override
   void dispose() {
+    widget.progress.removeStatusListener(_openStatus);
     _sc.removeListener(_onScroll);
     _sc.dispose();
     _scrollY.dispose();
     _dayFade.dispose();
+    _dayN.dispose();
     _station.dispose();
     super.dispose();
   }
@@ -179,6 +194,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       setState(() {
         _daySwap = true;
         _day = i;
+        _dayN.value = i;
         _meal = defaultMeal(fx, dayIsos(fx)[i], place, _meal);
         _reveal = false;
         _here = null;
@@ -305,7 +321,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final meals = menuOpen ? mealsOf(fx, iso, place) : const <String>[];
     final meal = meals.isNotEmpty && !meals.contains(_meal) ? defaultMeal(fx, iso, place, _meal) : _meal;
     final list = menuOpen
-        ? MealList(fx: fx, place: place, day: _day, meal: meal, reveal: _reveal, hereKey: _here, actions: _actions)
+        ? MealList(fx: fx, place: place, day: _day, meal: meal, reveal: _reveal, hereKey: _here, actions: _actions, limit: _full ? null : M2Layout.firstScreen)
         : const SizedBox.shrink();
     final listArea = ConstrainedBox(
       constraints: BoxConstraints(minHeight: h),
@@ -346,10 +362,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
             builder: (_, d, _) => Transform.translate(
               offset: Offset(0, -d),
               child: Stack(clipBehavior: Clip.none, children: [
-                HallHeader(
-                  fx: fx, place: place, top: top, day: _day, progress: p, scroll: _scrollY, dayFade: _dayFade, band: widget.band, bandOpen: widget.bandOpen,
-                  onStatus: status.general == null ? null : _openHours,
-                ),
+                _headerWidget(status.general != null),
                 if (th > 0)
                   Positioned(
                     left: 0, right: 0, top: hh, height: th,
@@ -383,6 +396,18 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         ),
       ]),
     );
+  }
+
+  /// The header is one widget instance, replaced only when the band's copy goes: a day change builds none of it.
+  Widget _headerWidget(bool hasHours) {
+    if (_header == null || _headerOpen != widget.bandOpen) {
+      _headerOpen = widget.bandOpen;
+      _header = HallHeader(
+        fx: fx, place: place, top: widget.top, day: _dayN, progress: widget.progress, scroll: _scrollY, dayFade: _dayFade, band: widget.band, bandOpen: widget.bandOpen,
+        onStatus: hasHours ? _openHours : null,
+      );
+    }
+    return _header!;
   }
 
   String _stationName(String meal) {

@@ -90,8 +90,8 @@ abstract final class M2Text {
   static const tabBar = M2Type(12.0, 15.0, 'LibreFranklin', FontWeight.w600);
   /// .brand 600 22px Oswald
   static const brand = M2Type(22.0, 26.0, 'Oswald', FontWeight.w600, tabular: true);
-  /// .hhead .date 15px
-  static const date = M2Type(15.0, 20.0, 'LibreFranklin', FontWeight.w400);
+  /// .dsv, .pstat span, #days .day .r 15px (no line-height)
+  static const date = M2Type(15.0, null, 'LibreFranklin', FontWeight.w400);
   /// .hhead h1 600 52px/1.05
   static const hallTitle = M2Type(52.0, 55.0, 'Oswald', FontWeight.w600, tabular: true);
   /// .bt .nm 600 32px/1
@@ -116,8 +116,8 @@ abstract final class M2Text {
   static const day = M2Type(20.0, 20.0, 'Oswald', FontWeight.w600, tabular: true);
   /// .row .n 600 16px/1.25
   static const rowName = M2Type(16.0, 20.0, 'LibreFranklin', FontWeight.w600);
-  /// .row .m 13px
-  static const meta = M2Type(13.0, 17.0, 'LibreFranklin', FontWeight.w400);
+  /// .row .m 13px (no line-height)
+  static const meta = M2Type(13.0, null, 'LibreFranklin', FontWeight.w400);
   /// .row .m b 500 15px Oswald (no line-height)
   static const metaNum = M2Type(15.0, null, 'Oswald', FontWeight.w500, tabular: true);
   /// .step .q 600 20px Oswald
@@ -128,8 +128,8 @@ abstract final class M2Text {
   static const tile = M2Type(14.0, 14.0, 'Oswald', FontWeight.w600, tabular: true);
   /// .btn 700 17px / .gbtn 700 16px
   static const button = M2Type(16.0, 20.0, 'LibreFranklin', FontWeight.w600);
-  /// .tbtn 600 15px
-  static const link = M2Type(15.0, 20.0, 'LibreFranklin', FontWeight.w600);
+  /// .tbtn 600 15px (no line-height)
+  static const link = M2Type(15.0, null, 'LibreFranklin', FontWeight.w600);
   /// .empty 16px/1.45
   static const empty = M2Type(16.0, 23.0, 'LibreFranklin', FontWeight.w400);
   /// .cbody .desc 16px/1.5
@@ -158,14 +158,14 @@ abstract final class M2Text {
   static const labelTitle = M2Type(30.0, 33.0, 'Oswald', FontWeight.w700, tabular: true);
   /// .facts .cal b 700 44px/1
   static const calNum = M2Type(44.0, 44.0, 'Oswald', FontWeight.w700, tabular: true);
-  /// .label .lr .dv 600 16px Oswald
-  static const dv = M2Type(16.0, 20.0, 'Oswald', FontWeight.w600, tabular: true);
+  /// .label .lr .dv 600 16px Oswald (no line-height)
+  static const dv = M2Type(16.0, null, 'Oswald', FontWeight.w600, tabular: true);
   /// .label .lr 15px
   static const lbl = M2Type(15.0, 21.0, 'LibreFranklin', FontWeight.w400);
   /// .facts .cal span 700 18px
   static const lblLg = M2Type(18.0, 22.0, 'LibreFranklin', FontWeight.w400);
-  /// .label .lr.thin 13px
-  static const lblThin = M2Type(13.0, 18.0, 'LibreFranklin', FontWeight.w400);
+  /// .label .lr.thin 13px (no line-height)
+  static const lblThin = M2Type(13.0, null, 'LibreFranklin', FontWeight.w400);
   /// .label .lf 12px/1.35
   static const lblFoot = M2Type(12.0, 16.0, 'LibreFranklin', FontWeight.w400);
   /// .sscale i 500 14px/1
@@ -174,12 +174,16 @@ abstract final class M2Text {
   static const ing = M2Type(15.0, 22.5, 'LibreFranklin', FontWeight.w400);
   /// #bar .l2 b 600 26px/1
   static const barNum = M2Type(26.0, 26.0, 'Oswald', FontWeight.w600, tabular: true);
-  /// .facts .nr 600 15px
-  static const factRow = M2Type(15.0, 20.0, 'LibreFranklin', FontWeight.w600);
-  /// .facts .nr b 600 20px Oswald
-  static const factNum = M2Type(20.0, 24.0, 'Oswald', FontWeight.w600, tabular: true);
+  /// .facts .nr 600 15px (no line-height)
+  static const factRow = M2Type(15.0, null, 'LibreFranklin', FontWeight.w600);
+  /// .facts .nr b 600 20px Oswald (no line-height)
+  static const factNum = M2Type(20.0, null, 'Oswald', FontWeight.w600, tabular: true);
   /// .lrow .mc b 600 18px Oswald
   static const mealCal = M2Type(18.0, 22.0, 'Oswald', FontWeight.w600, tabular: true);
+  /// .hhead .date 15px on the 30px .r1 baseline row (line kept at 20: it sets the row)
+  static const headDate = M2Type(15.0, 20.0, 'LibreFranklin', FontWeight.w400);
+  /// .label .lr, .gr, .ls 15px (no line-height); `lbl` is `.dish .dal` at 1.4
+  static const lblRow = M2Type(15.0, null, 'LibreFranklin', FontWeight.w400);
 }
 
 /// What `line-height: normal` is for each family: (ascender - descender + lineGap) / unitsPerEm of the shipped TTF.
@@ -210,22 +214,134 @@ abstract final class M2Space {
   static const paragraph = 16.0;
   /// .mst .empty{padding:0 0 16px}
   static const stateGap = 16.0;
-  /// drawn 26; .sec says 22 (audit: unmapped)
-  static const sectionTop = 26.0;
-  /// drawn 18; .yhead padding-bottom 18
+  /// .sec{padding:22px 20px 0}
+  static const sectionTop = 22.0;
+  /// .yhead{padding:calc(var(--st) + 10px) 20px 18px}
   static const yheadBottom = 18.0;
-  /// drawn 24; .cbody says 20 (audit: unmapped)
-  static const cafeBodyTop = 24.0;
-  /// drawn 32; .dh~.dh says 28 (audit: unmapped)
-  static const dietGroupTop = 32.0;
-  /// drawn 20; .evband padding 16 20 20 (audit: unmapped)
-  static const eventTop = 20.0;
-  /// drawn 24 (audit: unmapped)
-  static const eventBottom = 24.0;
-  /// drawn 16 (audit: unmapped)
-  static const eventDate = 16.0;
-  /// drawn 16; .evband .stack gap 12 (audit: unmapped)
-  static const eventLinks = 16.0;
+  /// .cbody{padding:20px 20px 0}
+  static const cafeBodyTop = 20.0;
+  /// .dh~.dh{margin-top:28px}
+  static const dietGroupTop = 28.0;
+  /// .evband{padding:16px 20px 20px}: top
+  static const eventTop = 16.0;
+  /// .evband{padding:16px 20px 20px}: bottom
+  static const eventBottom = 20.0;
+  /// .evband .pstat{padding:12px 0 0}
+  static const eventDate = 12.0;
+  /// .stack{gap:12px}
+  static const eventLinks = 12.0;
+  /// .mk{padding:0 12px 0 10px}: the 10
+  static const markStart = 10.0;
+  /// .mk{gap:6px}
+  static const markGap = 6.0;
+  /// .obtn{padding:0 14px}
+  static const obtn = 14.0;
+  /// .dirb{padding:0 16px}
+  static const dirb = 16.0;
+  /// .gbtn{padding:0 18px}
+  static const gbtn = 18.0;
+  /// the choose bar: .gbtn style="min-width:0;padding:0 14px" (src.html:1994)
+  static const gbtnTight = 14.0;
+  /// .netl .obtn{margin-top:6px}
+  static const netBtnTop = 6.0;
+  /// .hhead{padding-top:calc(var(--st) + 10px)}
+  static const headTop = 10.0;
+  /// .lrow .b{margin-top:2px}
+  static const lrowSub = 2.0;
+  /// .netl{top:calc(var(--st) + 40px)}
+  static const netTop = 40.0;
+  /// .hhead h1{margin:2px 0 0}
+  static const titleTop = 2.0;
+  /// .sth{padding:0 20px 6px}
+  static const stationHeadBottom = 6.0;
+  /// .evrow{padding:14px 20px}
+  static const evrow = 14.0;
+  /// .bt .st{margin-top:7px}
+  static const bandStatusTop = 7.0;
+  /// .pin .bt .st{margin-top:6px}
+  static const pinStatusTop = 6.0;
+  /// .sc{gap:6px}
+  static const scoreGap = 6.0;
+  /// .row .m .sc{margin-block:-1px}
+  static const tileRide = 1.0;
+  /// .dish .ingmore{margin-top:2px}
+  static const ingmoreTop = 2.0;
+  /// .facts{padding:4px 12px 6px}
+  static const factsBottom = 6.0;
+  /// .facts .cal{padding:2px 0 4px}, .label .lt
+  static const calTop = 2.0;
+  /// .facts .nr{padding:7px 0 5px}
+  static const nrTop = 7.0;
+  /// .facts .nr bottom; .label .lr{padding:5px 0 4px} top
+  static const nrBottom = 5.0;
+  /// .label .ls{padding:6px 0}, .label .lf{padding:6px 0 2px} top
+  static const lsPad = 6.0;
+  /// .label .lf{padding:6px 0 2px} bottom
+  static const lfBottom = 2.0;
+  /// .sched .schn{margin:2px 0 0}
+  static const schedNameTop = 2.0;
+  /// .schw{margin:6px 0 0}, .sh1 margin-bottom 6, .gs{margin:6px 0 0}
+  static const schedGap = 6.0;
+  /// .schp{margin:10px 0 0}
+  static const schedPayTop = 10.0;
+  /// #days .mws{padding-left:36px} less its 4px border
+  static const mwsStart = 32.0;
+  /// #days .mws{padding:0 20px 10px 36px}
+  static const mwsBottom = 10.0;
+  /// #bar .l2{margin-top:2px}
+  static const barL2Top = 2.0;
+  /// #bar .l2 b{margin-right:2px}
+  static const barNumGap = 2.0;
+  /// .row .m{margin-top:3px}, .prow .m
+  static const metaTop = 3.0;
+  /// .ptabs button{padding:0 10px}
+  static const ptab = 10.0;
+  /// #bar .peek{left:10px;right:10px}
+  static const peekInset = 10.0;
+  /// #bar .dots{top:5px}
+  static const dotsTop = 5.0;
+  /// #bar .dots{gap:5px}
+  static const dotsGap = 5.0;
+  /// .sscale{gap:3px}
+  static const scaleGap = 3.0;
+  /// .sscale i.on{padding:0 2px}
+  static const scaleOn = 2.0;
+  /// .sscale i{padding-bottom:7px}
+  static const stepPad = 7.0;
+  /// .gr{padding:10px 0}
+  static const grPad = 10.0;
+  /// .gs{margin:6px 0 0}
+  static const gsTop = 6.0;
+  /// .add.ghost{margin:2px}
+  static const ghostMargin = 2.0;
+  /// .meter{gap:2px}
+  static const lampGap = 2.0;
+  /// .bt .bz{margin-top:6px}
+  static const bzTop = 6.0;
+  /// .mt .bz{row-gap:5px}
+  static const bzRow = 5.0;
+  /// .hist{bottom:10px}
+  static const histBottom = 10.0;
+  /// .dayc{gap:6px}
+  static const dayGap = 6.0;
+  /// .hchip{gap:10px}
+  static const chipGap = 10.0;
+  /// .band .let{top:-6px}
+  static const letterRise = 6.0;
+  /// .row{padding:6px 8px 6px 20px}
+  static const rowY = 6.0;
+  /// .row .m{gap:4px 10px}
+  static const metaCol = 10.0;
+  /// .mts button{padding:0 6px}
+  static const mealTabPad = 6.0;
+  /// #mts{gap:5px}
+  static const mtsGap = 5.0;
+  /// .tbar button{gap:3px}
+  static const tabGap = 3.0;
+  /// .schd{margin:20px 0 0}
+  static const dayBlock = 20.0;
+  /// .meal{padding:12px 0;border-bottom:1px solid var(--hair)}
+  static const mealY = 12.0;
 }
 
 abstract final class M2Radius {
@@ -241,6 +357,14 @@ abstract final class M2Radius {
   static const sheet = 16.0;
   /// full
   static const pill = 999.0;
+  /// .page[data-p=event] .evpatch img{border-radius:2px}
+  static const image = 2.0;
+  /// .check i{border-radius:6px}
+  static const check = 6.0;
+  /// #bar .dots i{border-radius:3px}, .grab::before
+  static const dot = 3.0;
+  /// .sscale i::after{border-radius:2px}
+  static const stepBar = 2.0;
 }
 
 abstract final class M2Size {
@@ -266,6 +390,114 @@ abstract final class M2Size {
   static const indicator = 3.0;
   /// .tbar .ind{top:-1px}: over the hairline
   static const indicatorTop = -1.0;
+  /// .tg{width:20px;height:20px}
+  static const patch = 20.0;
+  /// .hchip .hl{width:28px;height:28px}
+  static const letterPatch = 28.0;
+  /// .mk{height:30px}
+  static const mark = 30.0;
+  /// .evpatch{box-shadow:0 0 0 3px #fff}
+  static const ring = 3.0;
+  /// .btn{height:52px}, .evbtn
+  static const btn = 52.0;
+  /// .gbtn{height:48px}
+  static const gbtn = 48.0;
+  /// .gbtn{min-width:84px}
+  static const gbtnMin = 84.0;
+  /// .btn.line / .obtn / .dirb border 1.5px
+  static const keyline = 1.5;
+  /// .lrow{min-height:56px}, .check
+  static const lrow = 56.0;
+  /// .icon{width:48px;height:48px}
+  static const icon = 48.0;
+  /// .hhead .r1{height:30px}
+  static const titleRow = 30.0;
+  /// .dayc svg 18 / the Halls area rows
+  static const chevron = 18.0;
+  /// .chev{16px}
+  static const chevronSm = 16.0;
+  /// .icon svg{24px}
+  static const backIcon = 24.0;
+  /// .check i{width:26px;height:26px}
+  static const check = 26.0;
+  /// .check i box-shadow inset 2px slate
+  static const checkBorder = 2.0;
+  /// #mts .sch{width:14px;height:14px}
+  static const chevronStatus = 14.0;
+  /// #mts .sch stroke-width:2
+  static const chevronStroke = 2.0;
+  /// .evrow{min-height:52px}
+  static const evrow = 52.0;
+  /// .pad-b{height:calc(150px + var(--sb))}: drawn 120
+  static const listFoot = 120.0;
+  /// .band.pin{height:84px}
+  static const pin = 84.0;
+  /// .facts{border:2px solid var(--dm)}
+  static const frame = 2.0;
+  /// .facts .cal{border-bottom:7px}, .label .ls
+  static const heavy = 7.0;
+  /// .label .cal{border-bottom:4px}
+  static const calRule = 4.0;
+  /// .label .lr .dv{min-width:3ch}
+  static const dvMin = 30.0;
+  /// .dish .ingmore{height:40px}
+  static const ingmore = 40.0;
+  /// #stidx button, #days .day{min-height:48px}
+  static const listRow = 48.0;
+  /// #stidx button.cur{border-left:4px}
+  static const curBar = 4.0;
+  /// drawn: .meal .it line (no M2 min-height)
+  static const mealItem = 32.0;
+  /// .pbar{height:calc(var(--st) + 52px)}
+  static const bar = 52.0;
+  /// .page[data-p=event] .pbody{padding-bottom:56px}
+  static const posterFoot = 56.0;
+  /// #bar .peek{height:5px}
+  static const peek = 5.0;
+  /// #bar .dots i{width:5px;height:5px}
+  static const dot = 5.0;
+  /// choose .txt{min-height:48px}
+  static const chooseBack = 48.0;
+  /// .spin{width:28px;height:28px}
+  static const spin = 28.0;
+  /// .spin{border:3px}
+  static const spinStroke = 3.0;
+  /// .mstate{height:160px}
+  static const mstate = 160.0;
+  /// .hscale i{width:14px}
+  static const stepHealth = 14.0;
+  /// .sscale i{width:17px}
+  static const stepCarbon = 17.0;
+  /// .sscale i::after{height:4px}
+  static const stepBar = 4.0;
+  /// .add{width:48px;height:48px}
+  static const add = 48.0;
+  /// .meter i{width:5px}
+  static const lampW = 5.0;
+  /// .meter i{height:12px}
+  static const lampH = 12.0;
+  /// .mt .bz{max-width:230px}
+  static const bzMax = 230.0;
+  /// .let{width:200px;height:200px}
+  static const letterBox = 200.0;
+  /// .let text{font:700 210px Oswald}
+  static const letterFont = 210.0;
+  /// .mt{bottom:50px}
+  static const nameBottom = 50.0;
+  /// .lane{width:114px}
+  static const lane = 114.0;
+  /// .dish.stuck .dhd shadow 0 10px 14px -8px
+  static const edgeShadow = 10.0;
+  /// .grab::before{width:40px}
+  static const grabW = 40.0;
+  /// .grab::before{height:5px}
+  static const grabH = 5.0;
+  /// .step .q{min-width:26px}
+  static const stepQ = 26.0;
+  /// .icon svg{stroke-width:2.2}
+  static const stroke = 2.2;
+  /// .swbtn svg{stroke-width:2.4}
+  static const strokeBold = 2.4;
 }
 
 abstract final class M2Opacity {
@@ -377,8 +609,9 @@ abstract final class M2Motion {
   static const pushIn = Anim(500, Cubic(0.32, 0.72, 0.0, 1.0));
   /// push out: MO.contBack timing on MO.push.e
   static const pushOut = Anim(400, Cubic(0.32, 0.72, 0.0, 1.0));
-  /// MO.rmFade
+  /// MO.rmFade; `always`: it plays under the system's reduced-motion setting (it is what reduced motion is replaced by)
   static const rmFade = Anim(120, Curves.linear);
+  static const rmFadeAlways = true;
   /// .spin animation 900ms linear infinite
   static const spin = Anim(900, Curves.linear);
   /// SPRING.sheet
@@ -399,8 +632,6 @@ abstract final class M2Motion {
   static const plateSwipeShift = 60.0;
   /// #bar pointerup
   static const plateSwipeRubber = 0.25;
-  /// RN only: no M2 equivalent
-  static const pushWatchdogD = 3000;
   /// SLOW, spinIn 1ms 400ms
   static const netSlow = 1500.0;
   /// SLOW, spinIn 1ms 400ms

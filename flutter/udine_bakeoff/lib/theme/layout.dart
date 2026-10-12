@@ -146,4 +146,5 @@ abstract final class M2Layout {
   static const safeTopMin = 24.0; // `--st: max(24px, env(safe-area-inset-top))`
   static const plateFoot = 84.0; // `#psheet .sbody` padding-bottom: 84 + --sb, the room that clears the bar
   static const todayTop = 20.0; // You's Today section: `style="padding-top:20px"` on its `.sec`
+  static const firstScreen = 14; // list items drawn while the container opens (a screenful and a half)
 }

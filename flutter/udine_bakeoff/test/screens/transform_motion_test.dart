@@ -26,6 +26,7 @@ void main() {
     final t = await boot(tester);
     await tester.tap(find.text('Hampshire'));
     await tester.pump();
+    await tester.pump(); // (the clock starts once the page's first frame is drawn)
     t.progress.stop();
     // [p, ghost (fout), band grade (q), header grade (p), title and back (fin), letter (fin)]
     for (final (p, ghost, grade, header, incoming) in [(0.15, 0.5, 0.85, 0.15, 0.0), (0.3, 0.0, 0.7, 0.3, 0.0), (0.65, 0.0, 0.35, 0.65, 0.5)]) {
@@ -52,6 +53,7 @@ void main() {
       final t = await boot(tester);
       await tester.tap(find.text('Hampshire'));
       await tester.pump();
+      await tester.pump(); // (the clock starts once the page's first frame is drawn)
       await tester.pump(); // first tick
       await lands(tester, t, Phase.opening, 500);
       t.close();
@@ -87,6 +89,7 @@ void main() {
       final t = await boot(tester);
       await tester.tap(find.text('Hampshire'));
       await tester.pump();
+      await tester.pump(); // (the clock starts once the page's first frame is drawn)
       await tester.pump(const Duration(milliseconds: 100));
       final p = t.progress.value;
       expect(p, inExclusiveRange(0.1, 0.9));

@@ -29,17 +29,24 @@ ui.Path _dashed(ui.Path src, double on, double off) {
   return out;
 }
 
+// The outline is parsed and its stitch laid out once per letter, box size and x, never per paint.
+final _cache = <(String, double, double), (ui.Path, ui.Path)>{};
+(ui.Path, ui.Path) _shapes(String letter, double x, double size) => _cache.putIfAbsent((letter, x, size), () {
+      final path = _outline(letter, M2Layout.letterFont * (size / M2Layout.letterBox)).shift(Offset(x, size * M2Layout.letterBaseline));
+      return (path, _dashed(path, M2Layout.stitchOn, M2Layout.stitchOff));
+    });
+
 class _LetterPainter extends CustomPainter {
   final String letter;
   final double x, size;
   const _LetterPainter(this.letter, this.x, this.size);
   @override
   void paint(Canvas canvas, Size _) {
-    final path = _outline(letter, M2Layout.letterFont * (size / M2Layout.letterBox)).shift(Offset(x, size * M2Layout.letterBaseline));
+    final (path, stitch) = _shapes(letter, x, size);
     canvas.drawPath(path, Paint()..color = M2Color.white);
     canvas.drawPath(path, Paint()..color = M2Color.white..style = PaintingStyle.stroke..strokeWidth = M2Layout.feltStroke..strokeJoin = StrokeJoin.round);
     canvas.drawPath(path, Paint()..color = M2Color.gold);
-    canvas.drawPath(_dashed(path, M2Layout.stitchOn, M2Layout.stitchOff), Paint()..color = M2Color.dm..style = PaintingStyle.stroke..strokeWidth = M2Layout.stitchStroke);
+    canvas.drawPath(stitch, Paint()..color = M2Color.dm..style = PaintingStyle.stroke..strokeWidth = M2Layout.stitchStroke);
   }
 
   @override
@@ -56,6 +63,6 @@ class HallLetter extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Positioned(
         right: 0, top: top, width: size, height: size,
-        child: ExcludeSemantics(child: IgnorePointer(child: CustomPaint(painter: _LetterPainter(letter, x, size)))),
+        child: ExcludeSemantics(child: IgnorePointer(child: RepaintBoundary(child: CustomPaint(painter: _LetterPainter(letter, x, size))))),
       );
 }

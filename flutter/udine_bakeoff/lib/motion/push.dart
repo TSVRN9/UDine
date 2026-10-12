@@ -22,7 +22,11 @@ class PushController extends ChangeNotifier {
     builder = b;
     p.value = 0;
     notifyListeners();
-    _go(1, M2Motion.pushIn);
+    // the page is built in this frame; the clock starts once it is drawn (a heavy page must not start the curve at 91%)
+    final run = ++_run;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed && run == _run && open) _go(1, M2Motion.pushIn);
+    });
   }
 
   void pop() {

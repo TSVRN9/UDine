@@ -258,6 +258,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Dietary preferences'));
       await t.pump();
+      await t.pump(); // (the clock starts once the page's first frame is drawn)
       await t.pump(const Duration(milliseconds: 150));
       final shell = t.state<ShellState>(find.byType(Shell));
       final p = shell.push.p.value;

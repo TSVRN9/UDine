@@ -48,6 +48,7 @@ void main() {
     final h = await boot(tester);
     await tester.tap(find.text('Hampshire'));
     await tester.pump();
+    await tester.pump(); // (the clock starts once the page's first frame is drawn)
     expect(h.phase, Phase.opening);
     expect(find.byType(HallMenu), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 250));
@@ -64,6 +65,7 @@ void main() {
     final h = await boot(tester);
     await tester.tap(find.text('Franklin'));
     await tester.pump();
+    await tester.pump(); // (the clock starts once the page's first frame is drawn)
     await tester.pump(const Duration(milliseconds: 120));
     h.t.close(); // the quick back-swipe, mid-open
     await tester.pump(const Duration(milliseconds: 100));
@@ -154,6 +156,7 @@ void main() {
     expect(opacity(), 1);
     await tester.tap(find.text('Hampshire'));
     await tester.pump();
+    await tester.pump(); // (the clock starts once the page's first frame is drawn)
     expect(opacity(), 0);
     await tester.pumpAndSettle();
     h.t.close();
@@ -205,6 +208,7 @@ void main() {
     final h = await boot(tester);
     await tester.tap(find.text('Hampshire'));
     await tester.pump();
+    await tester.pump(); // (the clock starts once the page's first frame is drawn)
     await tester.pump(const Duration(milliseconds: 150));
     final at = h.p;
     expect(h.phase, Phase.opening);
