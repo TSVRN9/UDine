@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
-import Svg, { Path } from "react-native-svg";
 import { formatTimeOfDay } from "@udine/shared";
 import { m2 } from "../../lib/theme";
 import { MEAL_LABEL, loadFixture, placeName } from "../logic/fixture";
 import { fc } from "../logic/dishSheet";
 import { fq } from "../logic/plate";
 import { dayFull, prefSummary } from "../logic/menuView";
-import { Press, ScoreBadge, Text } from "../ui";
+import { ScoreBadge, Text } from "../ui";
+import { RowChevron } from "../ui/Chevron";
+import { LRow, LRowSub } from "../ui/LRow";
+import { ScreenHeader } from "../ui/ScreenHeader";
 import { PushDim, usePush } from "../ui/push";
 import { setNewton, setShow, useStore, type LogEntry } from "../state/store";
 import { CheckRow } from "./CheckRow";
 import { DietPrefs } from "./DietPrefs";
 import { Facts } from "./Facts";
 import { PushPage } from "./PushPage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const fx = loadFixture();
 // the clock is fixed, so every meal was logged at the same minute
@@ -24,9 +25,6 @@ const DATE = dayFull(fx, 0);
 
 const sum = (log: LogEntry[]) => log.reduce((a, e) => { for (const i of e.items) { a.cal += i.cal * i.qty; a.p += i.p * i.qty; a.c += i.c * i.qty; a.f += i.f * i.qty; } return a; }, { cal: 0, p: 0, c: 0, f: 0 });
 
-const Chevron = () => (
-  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={m2.color.slate} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M9 6l6 6-6 6" /></Svg>
-);
 const H2 = ({ children }: { children: string }) => (
   <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginBottom: m2.space.line }}>{children}</Text>
 );
@@ -59,7 +57,6 @@ function Meal({ e }: { e: LogEntry }) {
  * the bar change with it. Favorites, ranking and Export are not in the bake-off.
  */
 export function YouScreen() {
-  const { top } = useSafeAreaInsets();
   const log = useStore((s) => s.log);
   const prefs = useStore((s) => s.prefs);
   const show = useStore((s) => s.show);
@@ -72,10 +69,7 @@ export function YouScreen() {
     <View style={{ flex: 1, backgroundColor: m2.color.chalk }}>
       <Animated.View style={[{ flex: 1 }, below]}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <View style={{ backgroundColor: m2.color.dm, paddingTop: top + 10, paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.yheadBottom }}>
-          <View style={{ height: 30, justifyContent: "flex-end" }}><Text v="date" color={m2.color.onDm}>{DATE}</Text></View>
-          <Text v="hallTitle" color={m2.color.white} accessibilityRole="header" style={{ marginTop: 2 }}>You</Text>
-        </View>
+        <ScreenHeader variant="you" date={DATE} title="You" />
         <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Today</H2>
           <Facts {...t} />
@@ -85,14 +79,7 @@ export function YouScreen() {
           {log.length ? [...log].reverse().map((e) => <Meal key={e.id} e={e} />) : <Text v="empty" color={m2.color.slate}>Nothing logged yet today.</Text>}
         </View>
         <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
-          <Press feedback="tint" accessibilityRole="button" onPress={() => { p.set(1); setPage(true); }}
-            style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space.part, gap: m2.space.panel }}>
-            <View style={{ flex: 1 }}>
-              <Text v="rowName" color={m2.color.ink}>Dietary preferences</Text>
-              <Text v="meta" color={m2.color.slate} style={{ marginTop: 2 }} numberOfLines={1}>{prefSummary(prefs)}</Text>
-            </View>
-            <Chevron />
-          </Press>
+          <LRow title="Dietary preferences" sub={<LRowSub>{prefSummary(prefs)}</LRowSub>} trailing={<RowChevron />} last onPress={() => { p.set(1); setPage(true); }} />
         </View>
         <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Campus</H2>

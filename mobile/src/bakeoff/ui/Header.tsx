@@ -1,21 +1,19 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { timed } from "./motion";
+import { Chevron } from "./Chevron";
 import { Press } from "./Press";
 import { Text } from "./Text";
 import { useArrive } from "./arrive";
 
 type AStyle = React.ComponentProps<typeof Animated.View>["style"];
 
-const Chevron = ({ stroke = m2.color.gold, size = 18, width = 2.4 }: { stroke?: string; size?: number; width?: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke={stroke} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round"><Path d="M4 7l5 5 5-5" /></Svg>
-);
+const Down = ({ stroke = m2.color.gold, size = m2.size.chevron, width = 2.4 }: { stroke?: string; size?: number; width?: number }) => <Chevron dir="down" size={size} stroke={stroke} width={width} />;
 
 const fill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
 const clamp = (x: number) => {
@@ -151,7 +149,7 @@ function TitleParts({ l }: { l: Labels }) {
           <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
             hitSlop={STATUS_SLOP} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
-            {l.onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
+            {l.onStatus ? <Down size={m2.size.chevronStatus} stroke={m2.color.onDmQuiet} width={m2.size.chevronStroke} /> : null}
           </Press>
         ) : null}
       </View>
@@ -165,7 +163,7 @@ function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
     <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={`${s.label}, stations`} accessibilityState={{ expanded: !!s.open }} onPress={s.onPress}
       style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space.gutter }}>
       <Text v="station" color={m2.color.gold} numberOfLines={1} style={{ flexShrink: 1 }}>{s.label}</Text>
-      <Flip open={!!s.open}><Chevron /></Flip>
+      <Flip open={!!s.open}><Down /></Flip>
     </Press>
   );
 }
@@ -175,7 +173,7 @@ function DayCell({ d }: { d: NonNullable<Labels["day"]> }) {
     <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={d.accessibilityLabel} onPress={d.onPress}
       style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space.action, paddingRight: m2.space.gutter, borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
       <Text v="day" color={m2.color.gold}>{d.label}</Text>
-      <Chevron />
+      <Down />
     </Press>
   );
 }
