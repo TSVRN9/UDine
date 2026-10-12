@@ -813,6 +813,24 @@ the round-9 states. Compare screenshots with M2's.
 - **Flutter, Task 10 (0 REWORK, MERGE-equivalent at 80e291e):** the logic port passed the shared vectors on the
   first run. The reviewer's mutation found halal filtering untested in both stacks; a test is added in Flutter
   Task 11 and RN Task 9.
+- **Flutter, Task 11 (1 REWORK round, MERGE-equivalent at 146a34c; nits 78c460c, media c194a6d):**
+  - The review caught 6 defects:
+    - a recogniser with no touch slop that swallowed Back taps with 3 px of drift;
+    - a 4 px header gap from an off-by-one spacing index, the same class as RN's band text bug;
+    - three untested motion behaviours;
+    - raw colours that duplicated an existing token;
+    - no tab indicator;
+    - no font licences.
+  - Fixing them added a literals test, Flutter's equivalent of RN's lint rule.
+  - Emulator caveats: Impeller crashed the AVD, so recordings are Skia. Software GL gives about 15 fps, so smoothness can't be judged on the AVD; Task 14 must measure on the phone with Impeller on.
+  - Android gesture navigation takes the 24 dp edge swipe in both stacks: it becomes a system back with no finger tracking. The fix is predictive back (Flutter: manifest opt-in plus back-gesture progress; RN: the same through react-native-screens). Not built in either stack.
+- **UI audit (2026-10-12, owner-requested), RN:**
+  - It found the band text 5 dp low and rows 3 dp off from invented line heights.
+  - Press feedback was painted under the photo, so band taps showed nothing.
+  - You's push left the screen beneath still, and no push cast a shadow.
+  - Three animations had no easing, reduced motion wasn't implemented, and touch targets were 37 dp.
+  - Foundation: an index-based spacing scale invited off-by-one errors, there were 52 type variants, 19 colour literals sat in the kit that the lint rule exempted, and 8 hand-rolled buttons.
+  - RN reworks all of it, including one `design-tokens/m2.json` that both stacks generate from. Flutter Task 12 builds the same lessons in from the start. **For the scorecard:** both stacks needed the same token discipline, so the kit and lint rule alone didn't keep agents on the design; mechanical checks plus audits did.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
