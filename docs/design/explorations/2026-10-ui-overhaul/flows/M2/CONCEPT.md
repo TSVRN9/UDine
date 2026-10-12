@@ -354,3 +354,10 @@ Oct 9 breakfast; Oct 12 holiday hours; the loading indicator; "All day"; the 12:
   - Oct 12's schedule row is a row titled "Indigenous Peoples Day Hours" that pushes the event.
   - Halls' Try again is an outlined 44 px button.
   - A day change never repaints the photo, letter or name.
+- **Round 9b (owner).**
+  - Terrace is a Southwest café (Fieldstone Apartments) with its UMass photo and a dish menu.
+  - The Charles River Campus (Newton) appears only while You's "Campus: Charles River Campus" toggle is on. When on, it adds
+    an area group last in Cafés & markets, its page, Search and "where", its own plates, the schedule and pinning. When
+    off, it appears nowhere; its pins and plates are kept and come back with it.
+  - UMass publishes no photo of it, so its band and page header are the band's own maroon ground, and its list rows have no
+    thumbnail, as the halls' Search rows have none.

@@ -30,6 +30,15 @@ const STATES = [
   ['cafe-one-collapsed', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('Worcester Café')}}); document.querySelector('#mscroll').scrollTop=500; paint(1,500)`)],
   ['cafe-nomenu', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('ISB Café')}})`)],
   ['cafe-sheet', '', async p => { await p.evaluate(`openHall('C',true,null,{cafe:${cafe('Green Fields')}})`); await p.waitForTimeout(300); await p.locator('#mlist .row .n').nth(1).tap(); await p.waitForTimeout(800); }],
+  // round 9b
+  ['b-terrace-area', '', async p => { await p.evaluate(() => openPage('cafes', 3, true)); await p.waitForTimeout(500); }],
+  ['b-terrace-page', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('Terrace')}})`)],
+  ['b-you-off', '?state=you', p => p.evaluate(() => { document.querySelector('#you').scrollTop = 9999; })],
+  ['b-you-on', '?state=you', async p => { await p.evaluate(() => { document.querySelector('#you').scrollTop = 9999; }); await p.locator('#you [data-act=newton]').tap(); await p.waitForTimeout(300); }],
+  ['b-areas-on', '', async p => { await p.evaluate(() => { setNewton(true); S.pins = ['Wasabi', 'Charles River Campus']; renderPins(); fillBands(false); document.querySelector('#halls').scrollTop = 9999; }); }],
+  ['b-cafes-cr', '', async p => { await p.evaluate(() => { setNewton(true); openPage('cafes', 4, true); }); await p.waitForTimeout(500); }],
+  ['b-cr-page', '', p => p.evaluate(`setNewton(true); openHall('C',true,null,{cafe:${cafe('Charles River Campus')}})`)],
+  ['b-cr-search', '?state=search', async p => { await p.evaluate(() => setNewton(true)); await p.locator('#q').fill('chorizo'); await p.waitForTimeout(400); await p.evaluate(() => document.querySelector('#q').blur()); }],
   ['search-cafe', '?state=search', async p => { await p.locator('#q').fill('caesar'); await p.waitForTimeout(400); await p.evaluate(() => document.querySelector('#q').blur()); await p.waitForTimeout(200); }],
   ['search-cafe-sheet', '?state=search', async p => { await p.locator('#q').fill('caesar'); await p.waitForTimeout(400); await p.locator('#sres .row[data-cg] .n').first().tap(); await p.waitForTimeout(800); await p.evaluate(() => { const b = document.querySelector('#isbody'); b.scrollTop = 0; }); }],
 ];

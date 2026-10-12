@@ -96,6 +96,8 @@ at round 8b.
     - 16 are in M2's `places`.
     - Terrace (345 Lincoln Ave) and Charles River (the Newton campus) are both deliberately excluded in `build.py` (`CAFES`
       comment).
+    - **Round 9b (owner):** Terrace is included (on campus, area 3, Fieldstone Apartments). Charles River is included behind a
+      Charles River Campus toggle on You, default off.
 20. **Café meals aren't M2's meals.**
     - The keys are `daily offerings`, `grabngo`, `breakfast`, `lunch` and `dinner`. Worcester Café has only
       `daily offerings`, and Roots' breakfast is beverages only.

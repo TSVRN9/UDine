@@ -20,7 +20,9 @@
   "c20": "Whitmore Café",
   "c23": "Hampshire Café",
   "c25": "Roots Café",
-  "c26": "Courtside Café"
+  "c26": "Courtside Café",
+  "c27": "Terrace",
+  "c28": "Charles River Campus"
  },
  "where": [
   {
@@ -1409,6 +1411,84 @@
    "text": [
     "Tomorrow, Grab 'N Go from 7 AM"
    ]
+  },
+  {
+   "dish": "Harissa Chicken",
+   "clock": "2026-10-08T12:41:00-04:00",
+   "answer": [
+    {
+     "st": "later",
+     "meal": "dinner",
+     "day": 0,
+     "open": "4:30 PM",
+     "close": "9:00 PM",
+     "halls": [
+      "c27"
+     ]
+    }
+   ],
+   "text": [
+    "Dinner from 4:30 PM"
+   ]
+  },
+  {
+   "dish": "Harissa Chicken",
+   "clock": "2026-10-08T16:31:00-04:00",
+   "answer": [
+    {
+     "st": "now",
+     "meal": "dinner",
+     "day": 0,
+     "open": "4:30 PM",
+     "close": "9:00 PM",
+     "halls": [
+      "c27"
+     ]
+    }
+   ],
+   "text": [
+    "Dinner now, until 9 PM"
+   ]
+  },
+  {
+   "dish": "Harissa Chicken",
+   "clock": "2026-10-08T21:30:00-04:00",
+   "answer": [],
+   "text": []
+  },
+  {
+   "dish": "Chorizo Jalapeno Quesadilla",
+   "clock": "2026-10-08T12:41:00-04:00",
+   "newton": true,
+   "answer": [
+    {
+     "st": "now",
+     "meal": "lunch",
+     "day": 0,
+     "open": "11:00 AM",
+     "close": "4:30 PM",
+     "halls": [
+      "c28"
+     ]
+    }
+   ],
+   "text": [
+    "Lunch now, until 4:30 PM"
+   ]
+  },
+  {
+   "dish": "Chorizo Jalapeno Quesadilla",
+   "clock": "2026-10-08T16:31:00-04:00",
+   "newton": true,
+   "answer": [],
+   "text": []
+  },
+  {
+   "dish": "Chorizo Jalapeno Quesadilla",
+   "clock": "2026-10-08T21:30:00-04:00",
+   "newton": true,
+   "answer": [],
+   "text": []
   }
  ],
  "plate": [
@@ -1820,7 +1900,7 @@
      "lunch",
      "French Fries",
      [
-      "c8"
+      "c28"
      ]
     ]
    ],
@@ -1848,9 +1928,9 @@
     {
      "meal": "lunch",
      "halls": [
-      "c8"
+      "c28"
      ],
-     "label": "The Grill lunch",
+     "label": "Charles River Campus lunch",
      "items": [
       [
        "French Fries",
@@ -1858,10 +1938,10 @@
       ]
      ],
      "totals": {
-      "cal": 316,
-      "p": 3.1,
-      "c": 30.7,
-      "f": 19.8
+      "cal": 193,
+      "p": 1.8,
+      "c": 17.7,
+      "f": 13.2
      }
     }
    ],
@@ -1985,6 +2065,12 @@
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "12",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
   },
   {
    "dish": "12 oz Aged Cheddar & Cauliflower Bisque",
@@ -2605,6 +2691,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Almond Joy Muffin",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Aloo Gobi",
    "health": 5,
    "carbon": "A",
@@ -2677,10 +2769,34 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Apple Bacon & Cheddar Pizza",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Apple Blackberry Cobbler",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Apple Blondie",
    "health": 0,
    "carbon": "E",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Apple Cider Cinnamon Muffin",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "Apple Cider Loaf (Nuts)",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
   },
   {
    "dish": "Apple Cinnamon Pancakes",
@@ -2695,16 +2811,46 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Apple Cranberry Cobbler",
+   "health": null,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Apple Crisp",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Apple Crisp",
    "health": 0,
    "carbon": "A",
    "rawHealthfulness": 0
   },
   {
+   "dish": "Apple Crisp",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Apple Fritters",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
    "dish": "Apple Fritters",
    "health": 2,
    "carbon": "A",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Apple Glazed Carrots",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
   },
   {
    "dish": "Apple Oat Coffeecake",
@@ -2779,16 +2925,34 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Artichoke Pizza",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
    "dish": "Artichoke Spinach Pasta Salad",
    "health": 6,
    "carbon": "A",
    "rawHealthfulness": 60
   },
   {
+   "dish": "Arugula Salad",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Asian Mixed Greens",
    "health": 4,
    "carbon": "A",
    "rawHealthfulness": 40
+  },
+  {
+   "dish": "Assorted Mini Danish (Almonds)",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Au Gratin Potatoes",
@@ -2801,6 +2965,12 @@
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Avocado Bean Breakfast Burrito",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
   },
   {
    "dish": "Avocado Benedict",
@@ -2839,6 +3009,12 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Awesome Burger",
+   "health": 2,
+   "carbon": "A",
+   "rawHealthfulness": 20
+  },
+  {
    "dish": "Babaganoush",
    "health": 3,
    "carbon": "A",
@@ -2867,6 +3043,12 @@
    "health": 3,
    "carbon": "A",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Bacon",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Bacon",
@@ -2917,6 +3099,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Bacon Ranch Salad",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Bacon Slices",
    "health": 0,
    "carbon": "E",
@@ -2933,6 +3121,12 @@
    "health": 4,
    "carbon": "A",
    "rawHealthfulness": 40
+  },
+  {
+   "dish": "Baked Blueberry Maple French Toast",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Baked Buffalo Pulmuone Tofu",
@@ -2987,6 +3181,12 @@
    "health": 0,
    "carbon": "C",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Baked Lentils",
+   "health": 7,
+   "carbon": null,
+   "rawHealthfulness": 70
   },
   {
    "dish": "Baked Meatless Tenders",
@@ -3145,6 +3345,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Banana Cinnamon Porridge",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Banana Fritter",
    "health": 3,
    "carbon": "A",
@@ -3251,6 +3457,12 @@
    "health": 0,
    "carbon": "C",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "BBQ Pulled Pork Casserole",
+   "health": 3,
+   "carbon": "C",
+   "rawHealthfulness": 30
   },
   {
    "dish": "BBQ Pulled Pork on Brioche",
@@ -3475,6 +3687,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Berry Flap Jacks",
+   "health": 0,
+   "carbon": "C",
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Besan Chilla (Chickpea Pancakes)",
    "health": 5,
    "carbon": "A",
@@ -3559,6 +3777,12 @@
    "rawHealthfulness": 10
   },
   {
+   "dish": "Blue Cheese Salad",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
    "dish": "Blue Wall Burger w/Onions Rings",
    "health": 0,
    "carbon": "E",
@@ -3595,6 +3819,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Blueberry Cobbler",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
    "dish": "Blueberry Coffeecake",
    "health": 2,
    "carbon": "D",
@@ -3616,6 +3846,12 @@
    "dish": "Blueberry Pancakes",
    "health": 3,
    "carbon": "A",
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "Blueberry Peach Buckle",
+   "health": 3,
+   "carbon": null,
    "rawHealthfulness": 30
   },
   {
@@ -3694,6 +3930,12 @@
    "dish": "Bok Choy",
    "health": 4,
    "carbon": "A",
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Bok Choy",
+   "health": 4,
+   "carbon": null,
    "rawHealthfulness": 40
   },
   {
@@ -3835,6 +4077,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Breakfast Bacon Sandwich",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Breakfast Biscuit Sandwich w/Pork Carnitas & Guac",
    "health": 3,
    "carbon": "D",
@@ -3871,6 +4119,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Breakfast Ham Sandwich",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Breakfast Peach Oat Crisp",
    "health": 1,
    "carbon": "A",
@@ -3901,9 +4155,21 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Broccoli",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Broccoli & Cheddar Quiche",
    "health": 2,
    "carbon": "B",
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "Broccoli Cheddar Quiche",
+   "health": 2,
+   "carbon": null,
    "rawHealthfulness": 20
   },
   {
@@ -3953,6 +4219,12 @@
    "health": 3,
    "carbon": "B",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Brownie Walnut Pudding Cake",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Brussel Sprouts w/Almonds",
@@ -4042,6 +4314,12 @@
    "dish": "Buffalo Chicken Salad",
    "health": 2,
    "carbon": "B",
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "Buffalo Chicken Salad",
+   "health": 2,
+   "carbon": null,
    "rawHealthfulness": 20
   },
   {
@@ -4249,6 +4527,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Butternut Squash w/Sage",
+   "health": 5,
+   "carbon": "A",
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Cabbage & Bean Salad",
    "health": 5,
    "carbon": "A",
@@ -4329,6 +4613,12 @@
   {
    "dish": "California Roll",
    "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "California Roll",
+   "health": 4,
    "carbon": "C",
    "rawHealthfulness": 40
   },
@@ -4385,6 +4675,12 @@
    "health": 2,
    "carbon": "B",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Caprese Grilled Cheese",
+   "health": 1,
+   "carbon": "B",
+   "rawHealthfulness": 10
   },
   {
    "dish": "Caprese Pasta Salad",
@@ -4501,6 +4797,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Carrots",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Carrots & Chayote w/Lemon",
    "health": 4,
    "carbon": "A",
@@ -4517,6 +4819,12 @@
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Carved Blackened Pork Loin",
+   "health": 2,
+   "carbon": "E",
+   "rawHealthfulness": 20
   },
   {
    "dish": "Carved Local Roast Turkey",
@@ -4583,6 +4891,12 @@
    "health": 1,
    "carbon": "B",
    "rawHealthfulness": 10
+  },
+  {
+   "dish": "Celery",
+   "health": 6,
+   "carbon": null,
+   "rawHealthfulness": 60
   },
   {
    "dish": "Celery Sticks",
@@ -4687,6 +5001,18 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Cheese Cheddar Slice",
+   "health": 2,
+   "carbon": "E",
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "Cheese Croissant",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Cheese Feta",
    "health": 1,
    "carbon": "E",
@@ -4751,6 +5077,12 @@
    "health": 2,
    "carbon": "A",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Cherry Cobbler",
+   "health": 1,
+   "carbon": "A",
+   "rawHealthfulness": 10
   },
   {
    "dish": "Cherry Cobbler",
@@ -4879,6 +5211,12 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Chicken Cacciatore",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Chicken Caesar Salad",
    "health": 3,
    "carbon": "C",
@@ -4999,6 +5337,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Chicken Noodle",
+   "health": 3,
+   "carbon": "A",
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Chicken Palava",
    "health": 3,
    "carbon": "C",
@@ -5098,6 +5442,12 @@
    "dish": "Chicken Quesadilla",
    "health": 2,
    "carbon": "C",
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "Chicken Quesadilla",
+   "health": 2,
+   "carbon": null,
    "rawHealthfulness": 20
   },
   {
@@ -5419,6 +5769,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Chimichurie Chicken",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Chimichurri Chicken",
    "health": 2,
    "carbon": "C",
@@ -5491,6 +5847,18 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Chive Scalloped Potatoes",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Choc Hazelnut Almond Croissant",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Chocolate Banana French Toast",
    "health": 2,
    "carbon": "B",
@@ -5515,6 +5883,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Chocolate Chip Pecan Bar",
+   "health": null,
+   "carbon": "C",
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Chocolate Chip Scones",
    "health": 0,
    "carbon": "C",
@@ -5525,6 +5899,12 @@
    "health": 0,
    "carbon": "E",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Chocolate Chunk Cookie",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Chocolate Cream Pie",
@@ -5599,6 +5979,18 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Chorizo Jalapeno Quesadilla",
+   "health": 0,
+   "carbon": "C",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Chunky Monkey Walnut Cookies",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Chunky Salsa",
    "health": 5,
    "carbon": "A",
@@ -5615,6 +6007,12 @@
    "health": 4,
    "carbon": "A",
    "rawHealthfulness": 40
+  },
+  {
+   "dish": "Cinnamon Bun",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Cinnamon Bun",
@@ -5687,6 +6085,12 @@
    "health": 0,
    "carbon": "B",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Cobb Salad w/Bacon",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
   },
   {
    "dish": "Cobb Salad w/Bacon & Chicken",
@@ -5833,10 +6237,22 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "CORTO Olive Oil",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
    "dish": "Cottage Cheese",
    "health": 5,
    "carbon": "D",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Country French Dressing",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Cous Cous w/Olives & Lemon",
@@ -5905,6 +6321,12 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Cream of Wheat Cereal",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Creamy Caesar Dressing",
    "health": 2,
    "carbon": "B",
@@ -5915,6 +6337,12 @@
    "health": 2,
    "carbon": "A",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Creamy Paneer & Green Pea Curry",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Creamy Paneer & Green Pea Curry",
@@ -5932,6 +6360,12 @@
    "dish": "Creamy Tuscan Chicken",
    "health": 0,
    "carbon": "C",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Creamy Tuscan Salmon",
+   "health": 0,
+   "carbon": null,
    "rawHealthfulness": 0
   },
   {
@@ -6001,10 +6435,22 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Crispy Creamer Potatoes",
+   "health": 4,
+   "carbon": "A",
+   "rawHealthfulness": 40
+  },
+  {
    "dish": "Crispy Fish Sandwich",
    "health": 2,
    "carbon": "A",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Crispy Peanut Butter Bar",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Crispy Po'Boy Tofu Sandwich",
@@ -6041,6 +6487,18 @@
    "health": 1,
    "carbon": "B",
    "rawHealthfulness": 10
+  },
+  {
+   "dish": "Croque Madame (Ham, Cheese & Egg)",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Croque Monsieur (Ham & Cheese w/Bechamel)",
+   "health": null,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Cuban Beef Stew",
@@ -6106,6 +6564,12 @@
    "dish": "Cucumbers",
    "health": 5,
    "carbon": "A",
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Cucumbers",
+   "health": 5,
+   "carbon": null,
    "rawHealthfulness": 50
   },
   {
@@ -6205,6 +6669,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Deli Beef",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Deli Chicken Salad",
    "health": 5,
    "carbon": "C",
@@ -6229,10 +6699,22 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Deli Turkey Breast",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Diced Avocado",
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Diced Pulmuone Tofu",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
   },
   {
    "dish": "Diced Pulmuone Tofu",
@@ -6293,6 +6775,12 @@
    "health": 1,
    "carbon": "D",
    "rawHealthfulness": 10
+  },
+  {
+   "dish": "Double Chocolate Muffin",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Double Espresso",
@@ -6565,6 +7053,36 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "FANTINI Bread Soft Rye",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "FANTINI Hamburger Bun",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "FANTINI Sourdough Bread",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "FANTINI White Bread",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "FANTINI Whole Wheat Bread",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Farmer's Market Salad",
    "health": 5,
    "carbon": "A",
@@ -6622,6 +7140,12 @@
    "dish": "Fish w/Salsa Verde & Roasted Tomatoes",
    "health": 5,
    "carbon": "E",
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Fish w/Salsa Verde & Roasted Tomatoes",
+   "health": 5,
+   "carbon": null,
    "rawHealthfulness": 50
   },
   {
@@ -6685,6 +7209,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "French Grilled Cheese Sandwich",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "French Ham & Cheese Croissant",
    "health": 0,
    "carbon": "C",
@@ -6697,6 +7227,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "French Onion Braised Chicken",
+   "health": null,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "French Onion Lentil Gratin",
    "health": 4,
    "carbon": "A",
@@ -6706,6 +7242,12 @@
    "dish": "French Toast",
    "health": 3,
    "carbon": "A",
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "French Toast",
+   "health": 3,
+   "carbon": null,
    "rawHealthfulness": 30
   },
   {
@@ -6740,6 +7282,12 @@
   },
   {
    "dish": "Fresh Corn on the Cob",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Fresh Corn on the Cob",
    "health": 6,
    "carbon": null,
    "rawHealthfulness": 60
@@ -6763,6 +7311,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Fresh Red Peppers",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Fresh Sauteed Spinach",
    "health": 6,
    "carbon": "A",
@@ -6773,6 +7327,12 @@
    "health": 6,
    "carbon": "A",
    "rawHealthfulness": 60
+  },
+  {
+   "dish": "Fresh Yellow Peppers",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
   },
   {
    "dish": "Fried Buffalo Chicken",
@@ -6803,6 +7363,12 @@
    "health": 0,
    "carbon": "A",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Fried Egg",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
   },
   {
    "dish": "Fried Eggplant w/Tahini, Pumpkin Seeds & Tomato",
@@ -6895,6 +7461,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Fudge Brownie (Sesame)",
+   "health": null,
+   "carbon": "C",
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Fudge Drop Brownie",
    "health": 0,
    "carbon": "E",
@@ -6907,10 +7479,28 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Fudge Drop Brownies",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Funghi Pizza",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
    "dish": "Galbi Jjim (Beef)",
    "health": 3,
    "carbon": "E",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Garam Masala Chicken",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Garden Salad",
@@ -7033,10 +7623,22 @@
    "rawHealthfulness": 10
   },
   {
+   "dish": "General Tso Chicken",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "General Tso Pulmuone Tofu",
    "health": 2,
    "carbon": "A",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "General Tso Pulmuone Tofu",
+   "health": 3,
+   "carbon": "A",
+   "rawHealthfulness": 30
   },
   {
    "dish": "General Tso Pulmuone Tofu",
@@ -7109,6 +7711,12 @@
    "health": 0,
    "carbon": "C",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "GF French Onion Meatloaf",
+   "health": 1,
+   "carbon": "E",
+   "rawHealthfulness": 10
   },
   {
    "dish": "GF Garlic Bread",
@@ -7262,6 +7870,12 @@
   },
   {
    "dish": "Ginger Pulmuone Tofu w/Green Beans",
+   "health": 5,
+   "carbon": "A",
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Ginger Pulmuone Tofu w/Green Beans",
    "health": 6,
    "carbon": "A",
    "rawHealthfulness": 60
@@ -7399,6 +8013,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Grass Fed Beef Burger",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Grated Parmesan Cheese",
    "health": 1,
    "carbon": null,
@@ -7423,6 +8043,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Greek Briam Roasted Vegetable",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Greek Chicken",
    "health": 3,
    "carbon": "C",
@@ -7433,6 +8059,18 @@
    "health": 7,
    "carbon": "A",
    "rawHealthfulness": 70
+  },
+  {
+   "dish": "Greek Feta Fries",
+   "health": 0,
+   "carbon": "B",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Greek Salad",
+   "health": null,
+   "carbon": null,
+   "rawHealthfulness": 50
   },
   {
    "dish": "Greek Spinach Rice Pilaf",
@@ -7615,6 +8253,12 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Grilled Ham & Cheese Sandwich",
+   "health": 0,
+   "carbon": "D",
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Grilled Kielbasa",
    "health": 1,
    "carbon": "E",
@@ -7789,10 +8433,22 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Harissa Aioli",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Harissa Braised Zucchini",
    "health": 3,
    "carbon": "A",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Harissa Chicken",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Harissa Tahini Sauce",
@@ -7957,6 +8613,12 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Homemade Hummus",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Homemade Macaroni & Cheese",
    "health": 0,
    "carbon": "C",
@@ -7984,13 +8646,13 @@
    "dish": "Homemade Spicy Hummus",
    "health": null,
    "carbon": "B",
-   "rawHealthfulness": 30
+   "rawHealthfulness": 50
   },
   {
    "dish": "Homemade Spicy Hummus",
    "health": null,
    "carbon": "B",
-   "rawHealthfulness": 50
+   "rawHealthfulness": 30
   },
   {
    "dish": "Honey Glazed Carrots",
@@ -7999,10 +8661,22 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Honey Glazed Carrots",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Honey Lemongrass Chicken",
    "health": 2,
    "carbon": "B",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Honey Mustard",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Honey Mustard Dressing",
@@ -8060,6 +8734,12 @@
   },
   {
    "dish": "Hot Sausage, Onions & Peppers",
+   "health": 0,
+   "carbon": "C",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Hot Sausage, Onions & Peppers",
    "health": 1,
    "carbon": "C",
    "rawHealthfulness": 10
@@ -8069,6 +8749,12 @@
    "health": 3,
    "carbon": "B",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "House Chopped Salad",
+   "health": 6,
+   "carbon": null,
+   "rawHealthfulness": 60
   },
   {
    "dish": "Huevos Rancheros",
@@ -8143,6 +8829,12 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Impossible Patty",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
    "dish": "Indian Lamb Curry",
    "health": 4,
    "carbon": "E",
@@ -8165,6 +8857,12 @@
    "health": 4,
    "carbon": "C",
    "rawHealthfulness": 40
+  },
+  {
+   "dish": "Irish Coffee Bread Pudding w/Kahlua",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Italian Cold Cut",
@@ -8219,6 +8917,18 @@
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Italiano Salad",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "Jack Daniel's Bread Pudding",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Jain Grits w/Parmesan & Herbs",
@@ -8393,6 +9103,24 @@
    "health": 2,
    "carbon": "E",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "KEN'S Italian Dressing",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "KEN'S Low Calorie Italian Dressing",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "KEN'S Thousand Island Dressing",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Kettle Chips",
@@ -8702,9 +9430,21 @@
   },
   {
    "dish": "Lemon Parmesan Broccoli",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Lemon Parmesan Broccoli",
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Lemon Pepper Chicken",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Lemon Pepper Chicken Thigh",
@@ -8782,6 +9522,12 @@
    "dish": "Lentils & Rice Jain",
    "health": 5,
    "carbon": "E",
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Lettuce",
+   "health": 5,
+   "carbon": "A",
    "rawHealthfulness": 50
   },
   {
@@ -8863,6 +9609,12 @@
    "rawHealthfulness": 10
   },
   {
+   "dish": "Loaded Waffle Fries w/Bacon",
+   "health": 0,
+   "carbon": "E",
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Loaded Waffle Fries w/Toppings",
    "health": 1,
    "carbon": null,
@@ -8924,6 +9676,12 @@
   },
   {
    "dish": "Lyonnaise Potatoes",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Lyonnaise Potatoes",
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
@@ -8935,10 +9693,28 @@
    "rawHealthfulness": 60
   },
   {
+   "dish": "M&M Brownie",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Macaroni & Pimento Cheese",
+   "health": 0,
+   "carbon": "A",
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Macaroni & Pimento Cheese",
    "health": 0,
    "carbon": "B",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Make Your Own Stir Fry",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
   },
   {
    "dish": "Make Your Own Waffles",
@@ -8971,7 +9747,19 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Mango Bread Pudding",
+   "health": 0,
+   "carbon": "B",
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Mango Lassi French Toast",
+   "health": 1,
+   "carbon": "A",
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Mango Strawberry Cobbler",
    "health": 1,
    "carbon": "A",
    "rawHealthfulness": 10
@@ -9169,6 +9957,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "MARZETTI'S Ranch Dressing",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Masala Chai",
    "health": 0,
    "carbon": "A",
@@ -9185,6 +9979,12 @@
    "health": 6,
    "carbon": "A",
    "rawHealthfulness": 60
+  },
+  {
+   "dish": "Mashed Potato Bowl w/Chicken",
+   "health": 0,
+   "carbon": "B",
+   "rawHealthfulness": 0
   },
   {
    "dish": "Mashed Potato Bowl w/Chicken",
@@ -9379,6 +10179,12 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Mesclun Mix",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Methi Paneer Rasoi",
    "health": 3,
    "carbon": "C",
@@ -9419,6 +10225,12 @@
    "health": 3,
    "carbon": "A",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Mexican Style Meatball Soup (Pork)",
+   "health": 1,
+   "carbon": "E",
+   "rawHealthfulness": 10
   },
   {
    "dish": "Mexican Style Potatoes",
@@ -9494,6 +10306,12 @@
   },
   {
    "dish": "Mini Butter Croissant",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Mini Butter Croissant",
    "health": 2,
    "carbon": "B",
    "rawHealthfulness": 20
@@ -9527,6 +10345,12 @@
    "health": 0,
    "carbon": "A",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Mini Raspberry Almond Croissant",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
   },
   {
    "dish": "Mini Vegetable Curry Samosa",
@@ -9575,6 +10399,12 @@
    "health": 2,
    "carbon": "B",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Mixed Berry Crisp",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Mixed Fresh Fruit",
@@ -9663,6 +10493,12 @@
   {
    "dish": "Moroccan Rice w/Almonds",
    "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Moroccan Rice w/Almonds",
+   "health": 4,
    "carbon": "B",
    "rawHealthfulness": 40
   },
@@ -9679,16 +10515,40 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Mortadella Pesto Pizza",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Mozzarella Sticks",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Mozzarella Sticks",
    "health": 2,
    "carbon": "C",
    "rawHealthfulness": 20
   },
   {
+   "dish": "Multigrain Bread",
+   "health": 5,
+   "carbon": "A",
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Multigrain Croissant",
    "health": 1,
    "carbon": "B",
    "rawHealthfulness": 10
+  },
+  {
+   "dish": "Multigrain Croissants",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
   },
   {
    "dish": "Mushroom Bourguignon",
@@ -9805,6 +10665,18 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "New England Clam Chowder (Pork)",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "New England Maple Almond Pudding",
+   "health": 0,
+   "carbon": "A",
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Newman Bacon Breakfast Burrito",
    "health": 1,
    "carbon": null,
@@ -9898,6 +10770,12 @@
    "dish": "Olives",
    "health": 3,
    "carbon": "A",
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "Omelet Bar",
+   "health": 3,
+   "carbon": null,
    "rawHealthfulness": 30
   },
   {
@@ -10003,6 +10881,18 @@
    "rawHealthfulness": 10
   },
   {
+   "dish": "Oreo Rice Krispy Treats",
+   "health": 0,
+   "carbon": "D",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Organic Black Bean Soup",
+   "health": 5,
+   "carbon": "A",
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Orzotto w/Prosciutto & Mushroom",
    "health": 2,
    "carbon": "B",
@@ -10072,6 +10962,12 @@
    "dish": "Panaeng Chicken Curry",
    "health": 3,
    "carbon": "B",
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "Pancake Bar",
+   "health": 3,
+   "carbon": null,
    "rawHealthfulness": 30
   },
   {
@@ -10207,16 +11103,34 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Pasta Pronto Bar",
+   "health": 7,
+   "carbon": null,
+   "rawHealthfulness": 70
+  },
+  {
    "dish": "Pasta Shells",
    "health": 4,
    "carbon": "A",
    "rawHealthfulness": 40
   },
   {
+   "dish": "Pastrami on Seeded Rye w/ Sauerkraut, Pickle Spear",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "PB&J Triple Stack Sandwich",
    "health": 4,
    "carbon": "B",
    "rawHealthfulness": 40
+  },
+  {
+   "dish": "Peach Blueberry Crisp",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Peach Cobbler",
@@ -10387,6 +11301,12 @@
    "rawHealthfulness": 60
   },
   {
+   "dish": "Peri Peri Chicken",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Pernil Al Horno (Puerto Rican)",
    "health": 1,
    "carbon": "E",
@@ -10525,6 +11445,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Pickles",
+   "health": 4,
+   "carbon": "D",
+   "rawHealthfulness": 40
+  },
+  {
    "dish": "Pico De Gallo Jain",
    "health": 5,
    "carbon": "A",
@@ -10625,6 +11551,12 @@
    "health": 3,
    "carbon": "A",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Plant Based BBQ Chic'n Mashed Potato Bowl",
+   "health": 0,
+   "carbon": "A",
+   "rawHealthfulness": 0
   },
   {
    "dish": "Plant Based BBQ Chic'n Mashed Potato Bowl",
@@ -11090,9 +12022,21 @@
   },
   {
    "dish": "Pork Sausage Links",
+   "health": 0,
+   "carbon": "E",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Pork Sausage Links",
    "health": 1,
    "carbon": "E",
    "rawHealthfulness": 10
+  },
+  {
+   "dish": "Pork Souvlakia",
+   "health": 3,
+   "carbon": "D",
+   "rawHealthfulness": 30
   },
   {
    "dish": "Pork Stir Fry",
@@ -11149,6 +12093,12 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Potato Gruyere Pizza",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
    "dish": "Potato Puffs",
    "health": 3,
    "carbon": "A",
@@ -11171,6 +12121,12 @@
    "health": 3,
    "carbon": "A",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Power Bowl Salad",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
   },
   {
    "dish": "Power Salad",
@@ -11207,6 +12163,12 @@
    "health": 1,
    "carbon": "E",
    "rawHealthfulness": 10
+  },
+  {
+   "dish": "Provolone Cheese",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
   },
   {
    "dish": "Puerto Rican Beans",
@@ -11438,6 +12400,12 @@
   },
   {
    "dish": "Quinoa w/ Roasted Squash & Sage",
+   "health": 4,
+   "carbon": "B",
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Quinoa w/ Roasted Squash & Sage",
    "health": 5,
    "carbon": "C",
    "rawHealthfulness": 50
@@ -11539,6 +12507,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Raspberry Vinaigrette",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Ratatouille w/Pulmuone Tofu",
    "health": 6,
    "carbon": "A",
@@ -11567,6 +12541,12 @@
    "health": 6,
    "carbon": "A",
    "rawHealthfulness": 60
+  },
+  {
+   "dish": "Red Berry Compote Beignet",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Red Dragon Roll",
@@ -11615,6 +12595,12 @@
    "health": 0,
    "carbon": "E",
    "rawHealthfulness": 0
+  },
+  {
+   "dish": "Red Velvet Cookie",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Reed Farm Chicken w/Lemon Caper Butter Sauce",
@@ -11751,6 +12737,12 @@
   {
    "dish": "Roasted Butternut Squash",
    "health": null,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Roasted Butternut Squash",
+   "health": null,
    "carbon": "A",
    "rawHealthfulness": 40
   },
@@ -11765,6 +12757,12 @@
    "health": null,
    "carbon": "A",
    "rawHealthfulness": 30
+  },
+  {
+   "dish": "Roasted Butternut Squash & Sage Pizza",
+   "health": null,
+   "carbon": null,
+   "rawHealthfulness": 0
   },
   {
    "dish": "Roasted Butternut Squash w/Balsamic & Pepitas",
@@ -11918,9 +12916,21 @@
   },
   {
    "dish": "Roasted Pork Loin w/Cran Bacon Relish",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
+   "dish": "Roasted Pork Loin w/Cran Bacon Relish",
    "health": 2,
    "carbon": "E",
    "rawHealthfulness": 20
+  },
+  {
+   "dish": "Roasted Potato",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
   },
   {
    "dish": "Roasted Potato Wedges",
@@ -11974,6 +12984,12 @@
    "dish": "Roasted Sweet Potatoes",
    "health": 5,
    "carbon": "A",
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Roasted Sweet Potatoes",
+   "health": 5,
+   "carbon": null,
    "rawHealthfulness": 50
   },
   {
@@ -12123,6 +13139,12 @@
   {
    "dish": "Rstd Red Potatoes w/Rosemary",
    "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Rstd Red Potatoes w/Rosemary",
+   "health": 4,
    "carbon": "A",
    "rawHealthfulness": 40
   },
@@ -12161,6 +13183,12 @@
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Salmon Baked w/Harissa & Grape Tomatoes",
+   "health": 3,
+   "carbon": "C",
+   "rawHealthfulness": 30
   },
   {
    "dish": "Salmon Cream Cheese Sushi Roll",
@@ -12373,6 +13401,12 @@
    "rawHealthfulness": 10
   },
   {
+   "dish": "Sausage w/Gravy & Buttermilk Biscuit",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Sausage, Broccolini, & Ricotta Penne",
    "health": 3,
    "carbon": "C",
@@ -12382,6 +13416,12 @@
    "dish": "Sauteed Broccoli",
    "health": 5,
    "carbon": "A",
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Sauteed Broccoli",
+   "health": 5,
+   "carbon": null,
    "rawHealthfulness": 50
   },
   {
@@ -12507,6 +13547,12 @@
   {
    "dish": "Sauteed Mushrooms & Kale",
    "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Sauteed Mushrooms & Kale",
+   "health": 5,
    "carbon": "D",
    "rawHealthfulness": 50
   },
@@ -12583,6 +13629,12 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Seasoned Mashed Potatoes",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Seaweed Salad",
    "health": 3,
    "carbon": "E",
@@ -12646,6 +13698,12 @@
    "dish": "Shepherd's Pie",
    "health": 2,
    "carbon": "E",
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "Shoe String Fries",
+   "health": 2,
+   "carbon": "A",
    "rawHealthfulness": 20
   },
   {
@@ -12715,6 +13773,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Shrimp & Roasted Corn Chowder",
+   "health": 0,
+   "carbon": "C",
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Shrimp Chilaquiles",
    "health": 2,
    "carbon": "E",
@@ -12736,6 +13800,12 @@
    "dish": "Shrimp Ho Fun",
    "health": 4,
    "carbon": "C",
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Shrimp Miso Ramen (Chicken)",
+   "health": 4,
+   "carbon": "B",
    "rawHealthfulness": 40
   },
   {
@@ -12823,6 +13893,24 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Skillet Hash Browns",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Skillet New Potatoes",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
+   "dish": "Sliced Eggs",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Sliced Eggs",
    "health": 4,
    "carbon": "B",
@@ -12874,6 +13962,12 @@
    "dish": "Smoked Bacon Slices",
    "health": 0,
    "carbon": "E",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Smoked Paprika Chicken",
+   "health": 0,
+   "carbon": null,
    "rawHealthfulness": 0
   },
   {
@@ -13165,6 +14259,12 @@
    "rawHealthfulness": 50
   },
   {
+   "dish": "Spicy Capicola Pizza",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Spicy Chicken Biscuit w/ Sriracha Mayo & Jalapenos",
    "health": 0,
    "carbon": null,
@@ -13339,10 +14439,22 @@
    "rawHealthfulness": 60
   },
   {
+   "dish": "Spinach Feta Pie",
+   "health": 1,
+   "carbon": "B",
+   "rawHealthfulness": 10
+  },
+  {
    "dish": "Spinach Leaves",
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Spinach Leaves",
+   "health": 7,
+   "carbon": null,
+   "rawHealthfulness": 70
   },
   {
    "dish": "Spring Mix",
@@ -13510,6 +14622,12 @@
    "dish": "Strawberry Cinnamon Tres Leche Cake",
    "health": 0,
    "carbon": "B",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Strawberry Milk Rice Crispy Treat",
+   "health": 0,
+   "carbon": "D",
    "rawHealthfulness": 0
   },
   {
@@ -13771,6 +14889,12 @@
    "rawHealthfulness": 30
   },
   {
+   "dish": "Sweet Potato Home Fries",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Sweet Potato Tempura Roll",
    "health": 3,
    "carbon": "A",
@@ -13793,6 +14917,12 @@
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
+  },
+  {
+   "dish": "Swiss Cheese",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
   },
   {
    "dish": "Szechuan Beef & Broccoli",
@@ -14065,6 +15195,24 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Terrace Cafe Burger",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
+   "dish": "Terrace Club Sandwich",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Thai Almond Rice Pudding w/Mango & Coconut",
+   "health": 2,
+   "carbon": null,
+   "rawHealthfulness": 20
+  },
+  {
    "dish": "Thai Almond Rice Pudding w/Mango & Coconut",
    "health": 2,
    "carbon": "B",
@@ -14233,6 +15381,12 @@
    "rawHealthfulness": 20
   },
   {
+   "dish": "Toasted Pita",
+   "health": 3,
+   "carbon": "A",
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Toasted Yellow Sesame Seeds",
    "health": 3,
    "carbon": "B",
@@ -14359,6 +15513,12 @@
    "rawHealthfulness": 10
   },
   {
+   "dish": "Tomatoes",
+   "health": 5,
+   "carbon": null,
+   "rawHealthfulness": 50
+  },
+  {
    "dish": "Tonkatsu Sauce",
    "health": null,
    "carbon": "A",
@@ -14474,6 +15634,12 @@
   },
   {
    "dish": "Tuna",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Tuna",
    "health": 5,
    "carbon": "E",
    "rawHealthfulness": 50
@@ -14494,6 +15660,12 @@
    "dish": "Tuna Salad",
    "health": 3,
    "carbon": "D",
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "Tuna Salad",
+   "health": 3,
+   "carbon": null,
    "rawHealthfulness": 30
   },
   {
@@ -14545,7 +15717,19 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Turmeric Basmati Rice",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
    "dish": "Tuscan Flatbread",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Tuscan Sandwich",
    "health": 0,
    "carbon": null,
    "rawHealthfulness": 0
@@ -14590,6 +15774,12 @@
    "dish": "Vanilla Cheesecake",
    "health": 0,
    "carbon": "B",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "Vanilla Cookie",
+   "health": 0,
+   "carbon": "D",
    "rawHealthfulness": 0
   },
   {
@@ -14744,6 +15934,12 @@
   },
   {
    "dish": "Vegetable Sushi Roll",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
+   "dish": "Vegetable Sushi Roll",
    "health": 5,
    "carbon": "A",
    "rawHealthfulness": 50
@@ -14786,6 +15982,12 @@
   },
   {
    "dish": "Veggie Alfredo Pasta",
+   "health": 3,
+   "carbon": "A",
+   "rawHealthfulness": 30
+  },
+  {
+   "dish": "Veggie Lasagna Stuffed Peppers",
    "health": 3,
    "carbon": "A",
    "rawHealthfulness": 30
@@ -14977,6 +16179,18 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "White Chocolate Cherry Blondie",
+   "health": 0,
+   "carbon": "B",
+   "rawHealthfulness": 0
+  },
+  {
+   "dish": "White Chocolate Cranberry",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "White Coconut Chutney",
    "health": 4,
    "carbon": "A",
@@ -15031,6 +16245,12 @@
    "rawHealthfulness": 10
   },
   {
+   "dish": "Wild Berry Muffin (Tree Nuts)",
+   "health": 3,
+   "carbon": null,
+   "rawHealthfulness": 30
+  },
+  {
    "dish": "Wild Rice",
    "health": 4,
    "carbon": "B",
@@ -15053,6 +16273,12 @@
    "health": 4,
    "carbon": "B",
    "rawHealthfulness": 40
+  },
+  {
+   "dish": "Wrap Spinach",
+   "health": 1,
+   "carbon": null,
+   "rawHealthfulness": 10
   },
   {
    "dish": "Yellow Cheddar Macaroni & Cheese (8 oz)",
@@ -15115,6 +16341,12 @@
    "rawHealthfulness": 0
   },
   {
+   "dish": "Zebra Brownies",
+   "health": 0,
+   "carbon": null,
+   "rawHealthfulness": 0
+  },
+  {
    "dish": "Zeera Chawal",
    "health": 1,
    "carbon": "E",
@@ -15157,6 +16389,12 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Zucchini & Corn",
+   "health": 4,
+   "carbon": null,
+   "rawHealthfulness": 40
+  },
+  {
    "dish": "Zucchini Mole Amarillo",
    "health": null,
    "carbon": "A",
@@ -15194,6 +16432,12 @@
   }
  ],
  "price": [
+  {
+   "dish": "Harissa Chicken",
+   "place": "Terrace",
+   "feedPrice": "$13.50",
+   "shown": "$13.50"
+  },
   {
    "dish": "Caesar Salad w/Chicken",
    "place": "Green Fields",

@@ -180,6 +180,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 #pins{background:var(--dm);display:flow-root}
 .thumb img{display:block;width:100%;height:100%;object-fit:cover}
 .thumb{flex:none;width:64px;height:34px;border-radius:5px;overflow:hidden;background:var(--hair)}
+.thumb.nophoto{background:var(--vm)}
 .lrow .lt{display:flex;align-items:center;gap:12px;min-width:0}
 .prow2 .lt{display:flex;align-items:center;gap:12px;min-width:0}
 .pinb svg{fill:none}
@@ -239,6 +240,9 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 /* a café in the hall screen (round 7): the same photo header, grade, name and collapse into the maroon bar. A café has no
    meals, stations, letter or busy board, so those rows aren't drawn and the name sits lower. */
 #menu.cafe #mhist{display:none}
+/* round 9b: a place UMass publishes no photo for (Charles River) is drawn on the band's own maroon ground, never a stand-in */
+#menu.nophoto #mhead .phw,.band.nophoto .win{display:none}
+#menu.nophoto #mhead{background:var(--vm)}
 #menu.nomenu #mtabs,#menu.nomenu #mswitch,#menu.one #mtabs{display:none}   /* round 9: a café without a dish menu has no pinned rows; a one-menu café has no tab row */
 #menu.cafe .mt{bottom:22px}
 /* the status line is the schedule's other door: a button, with a chevron quieter than the gold ones in the rows below */
@@ -345,6 +349,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .netl .obtn{margin-top:6px}
 .hhead{position:relative}
 .dh{margin-top:12px}
+.check .cb{display:block;font-size:13px;font-weight:400;color:var(--slate);margin-top:2px}
 .pbody>.check:last-child{border-bottom:0}
 .dh~.dh{margin-top:28px}
 .pr{font:600 20px/1 Oswald,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums;margin-right:8px}
@@ -637,8 +642,14 @@ const HALLS = ['W','F','H','B'];
 const HN = {W:'Worcester',F:'Franklin',H:'Hampshire',B:'Berkshire'};
 const P = __PLACES__;
 const isCafe = k => k[0]==='c';
+const LANE = k => PN(k)==='Charles River Campus' ? 'Charles River' : PN(k);   // round 9b: a Search lane's short name (its page and lists keep the full one)
 const PN = k => isCafe(k) ? P.places[+k.slice(1)][0] : HN[k];             // a place's name
 const PORD = k => isCafe(k) ? 4 + +k.slice(1) : HALLS.indexOf(k);         // halls first, then cafés in P.places' order
+// round 9b: the Charles River Campus (Newton, area 4) exists only while You's toggle is on. Off, it appears nowhere; nothing
+// of it is deleted (pins stay in S.pins, its plates are set aside in S.offPlates).
+const NEWTON = 4, inNewton = k => isCafe(k) && P.places[+k.slice(1)][1]===NEWTON;
+const placeOn = k => !inNewton(k) || S.newton;
+const areasOn = () => [0,1,2,3,...(S.newton?[NEWTON]:[])];
 const DISHMENU = new Set(MD.flatMap(d=>Object.keys(d)));                  // places with a dish menu on some day
 // a café that never has more than one menu a day gets no tab row: its day cell leads the station row
 const ONEMEAL = k => isCafe(k) && MD.every(d=>!d[k] || Object.keys(d[k]).length<=1);
@@ -769,7 +780,7 @@ const mealWin = (h,meal) => (WIN[h]||{})[meal] || null;
 // soonest first. A group is one answer: its halls share a meal and a start and end time.
 function wherePlan(k, now=NOW){
   const G=new Map();
-  for(const d of SERV[k]||[]){ const w=mealWin(d.h,d.meal); if(!w) continue;
+  for(const d of SERV[k]||[]){ if(!placeOn(d.h)) continue; const w=mealWin(d.h,d.meal); if(!w) continue;
     const st = d.day ? 'tomorrow' : now>=w[1] ? 'past' : now>=w[0] ? 'now' : 'later'; if(st==='past') continue;
     const key=[st,d.meal,w[0],w[1]].join(); if(!G.has(key)) G.set(key,{st,day:d.day,meal:d.meal,w,hs:[],ids:{}});
     const g=G.get(key); if(!g.ids[d.h]){ g.hs.push(d.h); g.ids[d.h]=d.id; } }
@@ -797,14 +808,14 @@ const byName = (h,meal,n) => BYK[meal][norm(n)].refs[h];
 const S = {
   tab:'halls', hall:null, mmeal:'lunch',
   smeal:'lunch', scope:null, lenses:new Set(), q:'',
-  plates:[], front:0, lastHall:null, openNow:true, fav:new Set(), diet:{veg:false,plant:false,halal:false}, avoid:{}, reveal:false, sreveal:false, wins:{}, show:{hf:false,cr:false},
+  plates:[], front:0, lastHall:null, openNow:true, fav:new Set(), diet:{veg:false,plant:false,halal:false}, avoid:{}, newton:false, offPlates:[], reveal:false, sreveal:false, wins:{}, show:{hf:false,cr:false},
   log:[{meal:'breakfast',hall:'W',time:'8:42 AM',items:['Hard Boiled Egg','Make Your Own Waffles','Red Potato Home Fries'].map(n=>{const d=byName('W','breakfast',n);return{n,qty:1,cal:d.cal,p:d.p,c:d.c,f:d.f};})}],
   lastLog:null,
 };
 // device-local only: favorites, diet and pinned cafés (by name, in the order pinned)
 S.pins=[];
-try{ const sv=JSON.parse(localStorage.getItem('udine-m2')||'null'); if(sv){ S.fav=new Set(sv.fav||[]); Object.assign(S.diet,sv.diet||{}); Object.assign(S.avoid,sv.avoid||{}); Object.assign(S.show,sv.show||{}); S.pins=(sv.pins||[]).filter(n=>P.places.some(x=>x[0]===n)); } }catch(e){}
-const save = ()=>{ try{ localStorage.setItem('udine-m2',JSON.stringify({fav:[...S.fav],diet:S.diet,avoid:S.avoid,pins:S.pins,show:S.show})); }catch(e){} };
+try{ const sv=JSON.parse(localStorage.getItem('udine-m2')||'null'); if(sv){ S.fav=new Set(sv.fav||[]); Object.assign(S.diet,sv.diet||{}); Object.assign(S.avoid,sv.avoid||{}); Object.assign(S.show,sv.show||{}); S.newton=!!sv.newton; S.pins=(sv.pins||[]).filter(n=>P.places.some(x=>x[0]===n)); } }catch(e){}
+const save = ()=>{ try{ localStorage.setItem('udine-m2',JSON.stringify({fav:[...S.fav],diet:S.diet,avoid:S.avoid,pins:S.pins,show:S.show,newton:S.newton})); }catch(e){} };
 
 /* ---------- plate model: a plate belongs to the places that serve everything on it ----------
    A place is a hall or a café (round 9). A dish's refs never mix the two (Search groups halls and cafés apart), so a café
@@ -965,7 +976,7 @@ const prefSummary = () => { const d=dietWords(), a=avoidOn().map(algWord), t=[d,
   return t ? t[0].toUpperCase()+t.slice(1) : 'Everything'; };
 
 /* ---------- halls ---------- */
-function areaOrder(){ const near={W:1,H:3,B:3,F:0}[S.lastHall]; return near==null?[0,1,2,3]:[near,...[0,1,2,3].filter(a=>a!==near)]; }
+function areaOrder(){ const near={W:1,H:3,B:3,F:0}[S.lastHall]; return near==null?areasOn():[near,...areasOn().filter(a=>a!==near)]; }   // Charles River, when on, last
 function renderHalls(){
   $('#bands').innerHTML = HALLS.map(h=>`<button class="band" data-h="${h}">
     <div class="win" style="top:${-Math.round(OFF[h]*HH)}px"><div class="duo"><div class="ph g ph-${h}"></div><div class="t"></div><div class="s"></div></div></div>
@@ -984,21 +995,28 @@ function fillBands(fade){ const hk=hoursKnown(), lk=liveKnown(), ch=[];
   if(fade) ch.forEach(el=>A(el,[{opacity:0},{opacity:1}],'settle')); }
 // the Halls header's date line keeps the date and adds what the network did: offline, or couldn't reach (with Try again)
 function renderNet(){ $('#netl').innerHTML = NET==='offline' ? `<span>You're offline</span>` : NET==='fail' ? `<span>Couldn't connect</span><button class="obtn" data-act="retry">Try again</button>` : ''; }
+// the Charles River toggle: off sets its plates aside and hides its screen; on brings them back as they were
+function setNewton(on){ S.newton=on; save();
+  if(!on){ S.offPlates.push(...S.plates.filter(pl=>(plateHalls(pl)||[]).some(inNewton))); S.plates=S.plates.filter(pl=>!S.offPlates.includes(pl));
+    S.front=Math.max(0,Math.min(S.front,S.plates.length-1)); if(S.hall && inNewton(PK())) hideHall(); }
+  else { S.plates.push(...S.offPlates); S.offPlates=[]; }
+  renderPins(); renderAreas(); fillBands(false); refresh(); }
 function retry(){ NET=''; hallsLoaded=true; renderNet(); fillBands(true); if(menuShowing()) arrive(); buzz(6); }
 // pinned cafés: rows under the four bands, live status, opened with the same container transform as any row
 const pinIdx = n => P.places.findIndex(x=>x[0]===n);
 const photo = (key, cls='') => RIMG[key] ? `<img class="ph-img${cls}" alt="" src="${RIMG[key]}" draggable="false">` : '';
-const thumb = key => RIMG[key] ? `<span class="thumb" aria-hidden="true">${photo(key)}</span>` : '';
+// a place with no published photo (Charles River) gets its band's maroon ground at thumbnail size, so the column aligns; never a picture
+const thumb = key => RIMG[key] ? `<span class="thumb" aria-hidden="true">${photo(key)}</span>` : P.places.some(x=>x[0]===key) ? '<span class="thumb nophoto" aria-hidden="true"></span>' : '';
 const OFFC = .3;   // a pinned café's window into its page header's photo, as OFF for a hall
-function renderPins(){ $('#pins').innerHTML = S.pins.map(n=>{ const i=pinIdx(n), x=P.places[i], st=hoursKnown()?status([x[3],x[4]]):'';
-  return `<button class="band pin" data-c="${i}" style="--img:url(${RIMG[x[0]]})" aria-label="${esc(x[0])}${st?', '+st:''}">
+function renderPins(){ $('#pins').innerHTML = S.pins.filter(n=>placeOn('c'+pinIdx(n))).map(n=>{ const i=pinIdx(n), x=P.places[i], st=hoursKnown()?status([x[3],x[4]]):'';
+  return `<button class="band pin${RIMG[x[0]]?'':' nophoto'}" data-c="${i}" style="--img:${RIMG[x[0]]?`url(${RIMG[x[0]]})`:'none'}" aria-label="${esc(x[0])}${st?', '+st:''}">
     <div class="win" style="top:${-Math.round(OFFC*HH)}px"><div class="duo"><div class="ph g ph-C"></div><div class="t"></div><div class="s"></div></div></div>
     <div class="lgrad"></div><div class="press"></div><div class="bt"><div class="nm">${esc(x[0])}</div><div class="st">${st}</div></div></button>`; }).join('');
   // a café open from its band keeps that band as its source (hidden: it is the screen) across a re-render
   if(S.hallSrc && !S.hallSrc.isConnected && S.cafe!=null){ const b=$(`.band.pin[data-c="${S.cafe}"]`); S.hallSrc=b; if(b) b.style.visibility='hidden'; } }
 const pinBtn = i => { const n=P.places[i][0], on=S.pins.includes(n); return `<button class="icon pinb" data-act="pin" data-name="${esc(n)}" aria-pressed="${on}" aria-label="${on?'Unpin from Halls':'Pin to Halls'}">${IC.pin}</button>`; };
 function renderAreas(){
-  $('#areas').innerHTML = [0,1,2,3].map(a=>{ const ps=P.places.filter(x=>x[1]===a), open=ps.filter(x=>isOpen([x[3],x[4]])).length;
+  $('#areas').innerHTML = areasOn().map(a=>{ const ps=P.places.filter(x=>x[1]===a), open=ps.filter(x=>isOpen([x[3],x[4]])).length;
     return `<button class="lrow" data-act="page" data-p="cafes" data-c="${a}"><div><div class="a">${esc(P.areas[a])}</div><div class="b">${hoursKnown()?`${open} of ${ps.length} open now`:''}</div></div>${IC.rchev}</button>`; }).join('');
 }
 const EVIMG = {ipd:'__IMG_EV_ipd__', oct:'__IMG_EV_oct__', pg:'__IMG_EV_pg__', sust:'__IMG_EV_sust__'};
@@ -1052,7 +1070,8 @@ function renderMenu(){
   $('#mctl .pinb')?.remove();
   // what names the place (photo, letter, name) is written only when the place changes: a day change never repaints it
   if($('#mhead').dataset.k!==k){ $('#mhead').dataset.k=k;
-    if(C){ const v=P.places[S.cafe]; $('#mhead').style.setProperty('--img',`url(${RIMG[v[0]]})`); ['#mph','#mphg'].forEach(s=>$(s).className='ph ph-C'+(s==='#mphg'?' g':'')); $('#mlet').innerHTML=''; }
+    $('#menu').classList.toggle('nophoto', C && !RIMG[P.places[S.cafe][0]]);
+    if(C){ const v=P.places[S.cafe]; $('#mhead').style.setProperty('--img',RIMG[v[0]]?`url(${RIMG[v[0]]})`:'none'); ['#mph','#mphg'].forEach(s=>$(s).className='ph ph-C'+(s==='#mphg'?' g':'')); $('#mlet').innerHTML=''; }
     else { ['#mph','#mphg'].forEach(s=>$(s).className='ph ph-'+k+(s==='#mphg'?' g':'')); $('#mlet').innerHTML=letterSVG(k); }
     $('#mtn').textContent=PN(k); }
   if(C) $('#mctl').insertAdjacentHTML('beforeend', pinBtn(S.cafe));   // (the pin was removed above; it is the café's own)
@@ -1369,7 +1388,8 @@ const qToks = () => norm(S.q).split(' ').filter(Boolean);
 // Search is the halls' lunch). A café group never shares refs with a hall group, so its + starts a café plate.
 let CG={};
 function cafeResults(){ const toks=qToks(); if((!toks.length && !S.lenses.size) || S.scope) return [];
-  CG={}; for(const m of [S.smeal,'all','grab']) for(const g of Object.values(CBYK[m]||{})){ const G=(CG[g.k] ||= {k:g.k,n:g.n,refs:{}}); for(const h in g.refs) G.refs[h] ||= g.refs[h]; }
+  CG={}; for(const m of [S.smeal,'all','grab']) for(const g of Object.values(CBYK[m]||{})){ const hs=Object.keys(g.refs).filter(placeOn); if(!hs.length) continue;
+    const G=(CG[g.k] ||= {k:g.k,n:g.n,refs:{}}); for(const h of hs) G.refs[h] ||= g.refs[h]; }
   return results(Object.values(CG)); }
 const sGroup = row => (row.dataset.cg ? CG : BYK[S.smeal])[row.dataset.k];
 function results(groups=Object.values(BYK[S.smeal]||{})){
@@ -1402,7 +1422,7 @@ function placeHits(){
     if(hit(w)) out.push(`<button class="prow2" data-act="hall" data-h="${h}"><div><div class="a">${HN[h]}</div><div class="b">Dining commons</div></div><span class="r">${HOURS[h]}</span></button>`);
     if(hit(norm(HN[h]+" grab n go grab and go").split(' '))){ const g=P.grab[h];
       out.push(`<button class="prow2" data-act="hall" data-h="${h}" data-meal="grab"><div class="lt">${thumb('grab:'+h)}<div><div class="a">${HN[h]} Grab 'N Go</div><div class="b">${HN[h]}</div></div></div><span class="r${isOpen(g)?'':' off'}">${status(g)}</span></button>`); } }
-  P.places.forEach((x,i)=>{ const words=norm(x[0]+' '+x[2]+' '+P.areas[x[1]]).split(' '); const item=!hit(words) && !DISHMENU.has('c'+i) && x[7].find(n=>hit(norm(n).split(' ')));   // a café with dishes is found by its dishes (round 9)
+  P.places.forEach((x,i)=>{ if(!placeOn('c'+i)) return; const words=norm(x[0]+' '+x[2]+' '+P.areas[x[1]]).split(' '); const item=!hit(words) && !DISHMENU.has('c'+i) && x[7].find(n=>hit(norm(n).split(' ')));   // a café with dishes is found by its dishes (round 9)
     if(hit(words)||item){ const o=isOpen([x[3],x[4]]);
       out.push(`<button class="prow2" data-act="cafe" data-c="${i}"><div class="lt">${thumb(x[0])}<div><div class="a">${esc(x[0])}</div><div class="b">${esc(item||x[2])}</div></div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`); } });
   return out;   // places are first-class: every match, not a sample
@@ -1416,7 +1436,7 @@ function laterHits(){ const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.
 // the halls serving it, by their letters (as on the bands); a row says where, never where not
 const andList = l => l.length<2 ? l.join('') : l.slice(0,-1).join(', ')+' and '+l.at(-1);
 // a café has no letter: its name (or how many cafés), after any hall letters
-const hallGlyph = (hs, said) => { const C=hs.filter(isCafe); return `<span class="tags" role="img" aria-label="${said} at ${esc(andList(hs.map(PN)))}">${hs.filter(h=>!isCafe(h)).map(h=>`<i class="ht on" aria-hidden="true">${h}</i>`).join('')}${C.length?`<span class="cnm" aria-hidden="true">${C.length===1?esc(PN(C[0])):C.length+' cafés'}</span>`:''}</span>`; };
+const hallGlyph = (hs, said) => { const C=hs.filter(isCafe); return `<span class="tags" role="img" aria-label="${said} at ${esc(andList(hs.map(PN)))}">${hs.filter(h=>!isCafe(h)).map(h=>`<i class="ht on" aria-hidden="true">${h}</i>`).join('')}${C.length?`<span class="cnm" aria-hidden="true">${C.length===1?esc(LANE(C[0])):C.length+' cafés'}</span>`:''}</span>`; };
 // dish detail: where you can get it, now or next. One line per answer, each hall a felt-letter tag that opens it there.
 function whereHTML(k){ const A=whereAnswer(k);
   if(!A.length) return `<div class="where"><p class="wt">Not on the menu again today or tomorrow</p></div>`;
@@ -1506,6 +1526,7 @@ function renderYou(){
     <section class="sec"><h2>Meals</h2>${meals}</section>
     <section class="sec">${[['favs','Favorites',S.fav.size? S.fav.size+' dishes':'None yet'],['diet','Dietary preferences',prefSummary()],['rank','Which was better?',rankPool().length+' dishes logged'],['export','Export my data',S.log.length+(S.log.length===1?' meal':' meals')]]
       .map(([p,a,b])=>`<button class="lrow" data-act="page" data-p="${p}"><div><div class="a">${a}</div><div class="b">${esc(b)}</div></div>${IC.rchev}</button>`).join('')}</section>
+    <section class="sec"><h2>Campus</h2><button class="check" role="checkbox" aria-checked="${S.newton}" data-act="newton"><span>Charles River Campus<span class="cb">Newton</span></span><i></i></button></section>
     <section class="sec"><h2>Show on dishes</h2>${[['hf','Healthfulness'],['cr','Carbon rating']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.show[k]}" data-show="${k}">${l}<i></i></button>`).join('')}</section><div class="pad-b"></div>`;
 }
 /* ---------- push (round 7): iOS navigation for everything that isn't a band on Halls ----------
@@ -1904,6 +1925,7 @@ document.addEventListener('click',e=>{
     // the lists under the sheet show the star where they are
     relist(); }
   else if(act==='exp') exportData(a.dataset.fmt);
+  else if(act==='newton'){ setNewton(!S.newton); a.setAttribute('aria-checked',S.newton); buzz(4); }
 });
 function selectQ(){ const q=$('#q'); q.focus({preventScroll:true}); q.select(); try{ q.setSelectionRange(0,q.value.length); }catch(e){} }
 function afterPick(row){ if(row.dataset.src==='s') selectQ(); }

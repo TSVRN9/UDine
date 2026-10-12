@@ -1298,3 +1298,83 @@ sheet run caught it mid-arrival. Strips viewed:
   - The alternative is to keep the top block and let a late day need one scroll.
 - **The activity indicator** is a CSS ring that spins (900 ms). Under reduced motion it stands still, as every animation
   in M2 does.
+
+
+## Round 9b: Terrace, and the Charles River Campus toggle
+
+The owner reversed two café decisions from round 9.
+
+### Data (`build.py`)
+- **Terrace** is added as area 3 (Southwest), building "Fieldstone Apartments".
+  - It is physically on campus: 42.3834, -72.5273, south of Hampshire Commons. UMass lists it as off campus.
+  - Its photo is UMass's location card (`assets/retail/terrace.png`).
+  - Its dish menu is tid 11150: breakfast and dinner today, with prices.
+- **Charles River Campus** ("Charles River Campus of UMass Amherst" in the feed) is added as area 4, "Charles River
+  Campus, Newton", building "Newton".
+  - Its menu is tid 10372: breakfast, lunch and dinner, with no prices.
+  - Its hours are 7 AM to 11:30 PM (Oct 8). Its address is 100 Carlson Ave, map pin 42.299095,-71.187034.
+- Both are appended to `places`, so no earlier café key moved. Terrace is `c27` and Charles River is `c28`; `vectors.json`'s
+  `places` is authoritative.
+- Places now number 29, 18 of them with dish menus.
+- **No Charles River photo.** get_infov2 has no image field in either capture, and UMass's location cards
+  (`assets/retail/index.json`, 36 entries) have none. `build.py` asserts it's the only place without one; nothing is
+  invented.
+
+### Design
+- **The toggle** is on You, in its own "Campus" section between the list rows and "Show on dishes". It's a check row,
+  "Charles River Campus" with "Newton" under it, default off, and persisted as `newton` in `udine-m2`.
+- **Off (`placeOn`), Charles River appears nowhere:**
+  - no area row or Cafés & markets group;
+  - no Search place or dish rows;
+  - nothing in "where" (`wherePlan` skips its servings);
+  - no pinned band.
+- **Nothing is deleted.** The pin stays in `S.pins`. Its plates move to `S.offPlates` and come back when it's on again. If
+  its screen is open, it closes.
+- **On, it adds to Amherst; it doesn't replace it:**
+  - a group last in Cafés & markets, and the same last on Halls' area list;
+  - its page, built like every dish café;
+  - Search (`At cafés`, lane "Charles River Campus") and "where";
+  - its own plates ("Charles River Campus lunch");
+  - the schedule, with its address and Directions;
+  - pinning.
+- **No photo, honestly.** Its pinned band and page header are the band's own maroon ground (`.nophoto`: the photo window is
+  not drawn), with the same name, status and gradients. Its list rows have no thumbnail, as the halls' rows in Search
+  have none.
+
+### Tests (`round9`, "round 9b")
+- **Terrace.**
+  - It's in Southwest's group, area 3, Fieldstone Apartments, with a dish menu and its photo.
+  - Its page has Breakfast and Dinner.
+  - "harissa chicken" is found in Search ("Dinner Terrace"), its sheet shows $13.50, and "where" names Terrace.
+- **Charles River, off** (with a Charles River pin and a Wasabi pin stored):
+  - no area row, and only Wasabi's band is drawn, while the pin is kept;
+  - not in Cafés & markets;
+  - no Search place, no row for its dish, and no "where".
+- **Charles River, on** (a real tap on You):
+  - the toggle survives a reload;
+  - its area comes last and its band is back, `.nophoto`, with no photo window;
+  - it's in Cafés & markets, and its page has Breakfast, Lunch and Dinner;
+  - its schedule has 100 Carlson Ave and Directions to Newton;
+  - Search finds its dish with its name in the lane, and "where" names it;
+  - its + makes "Charles River Campus lunch". Off sets that plate aside, and on brings it back.
+- **Off again:** it's nowhere again.
+- **Older checks:** Cafés & markets now has 28 Amherst places open at 12:41.
+- **Now:** `node test.js` gives 5,499 checks and `RM=1 node test.js` gives 3,559, all green.
+
+### Vectors
+- 75 where cases, including Terrace's Harissa Chicken and Charles River's Chorizo Jalapeno Quesadilla. The Charles River
+  case is computed with the toggle on and marked `"newton": true`.
+- Terrace's $13.50 joins the price cases.
+- There are 2,396 score cases, 172 of them a number with no H code.
+
+### Shots (`build/r9/p9b`, 390 and 360 at dpr 2; `sheet1.png`, `sheet2.png`, `sheet3.png`)
+All of these were viewed:
+- `b-terrace-area`, `b-terrace-page`;
+- `b-you-off`, `b-you-on`;
+- `b-areas-on` (Halls with the Charles River band and area row);
+- `b-cafes-cr` (Cafés & markets with Charles River);
+- `b-cr-page`;
+- `b-cr-search` ("chorizo": its quesadilla under At cafés).
+- **Follow-up.** A Search lane shows the short name "Charles River" (its page and lists keep "Charles River Campus"). Its
+  rows in Cafés & markets and in Search's Places get a thumbnail-sized tile of the band's own maroon ground, with no
+  picture and no letter, so the text column aligns (tested). Shots: `build/r9/p9b/sheet4.png`.

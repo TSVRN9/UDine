@@ -5,12 +5,15 @@
 // vectors.json:
 // {
 //   "clock": "2026-10-08T12:41:00-04:00",          // M2's fixed clock (NOW = 12:41)
-//   "places": {"W": "Worcester", ..., "c8": "Green Fields", ...},   // place keys: hall letters, 'c<i>' for a café
+//   "places": {"W": "Worcester", ..., "c3": "Green Fields", ...},   // authoritative: place keys are hall letters, 'c<i>'
+//                                                     // for a café (c27 Terrace, c28 Charles River Campus, Newton)
 //   "where": [ {                                    // wherePlan / whereAnswer / whenText
 //     "dish": "Golden BBQ Chicken Thigh", "clock": "2026-10-08T12:41:00-04:00",
 //     "answer": [ {"st": "now"|"later"|"tomorrow", "meal": "lunch"|..|"all"|"grab", "day": 0|1,
 //                  "open": "11:00 AM", "close": "4:30 PM", "halls": ["W", "c8", ...]} ],   // halls: place keys, halls first
-//     "text": ["Lunch now, until 4:30 PM"] } ],      // one line per answer, as the sheet prints it
+//     "text": ["Lunch now, until 4:30 PM"],          // one line per answer, as the sheet prints it
+//     "newton": true } ],                             // only on a case computed with the Charles River toggle on; off,
+//                                                     // Charles River servings are left out of every answer
 //   "plate": [ {                                    // addDish / stepItem / plateLabel / totals, from an empty state
 //     "name": "benchmark",
 //     "ops": [ ["add", meal, dish, [place keys]]     // refs: that dish's serving today at each place
@@ -36,6 +39,8 @@ const WHERE = [
   'French Fries', 'Cheese Pizza',
   // café only
   'Caesar Salad w/Chicken', 'Classic Chicken Sandwich', 'Chicken Tenders', '12 oz Minestrone Soup', 'Bacon, Egg & Cheese on English Muffin',
+  // round 9b: Terrace (on campus), and a Charles River dish, computed with You's Charles River toggle on ("newton": true)
+  'Harissa Chicken', { dish: 'Chorizo Jalapeno Quesadilla', newton: true },
 ];
 const CLOCKS = [12 * 60 + 41, 16 * 60 + 31, 21 * 60 + 30];   // 12:41 PM, 4:31 PM (a minute after lunch ends), 9:30 PM
 const PLATES = [
@@ -50,7 +55,7 @@ const PLATES = [
   { name: 'all-day café menu on the lunch plate', ops: [['add', 'lunch', 'Bacon, Egg & Cheese on English Muffin', ['Worcester Café']], ['add', 'lunch', 'Bacon, Egg & Cheese on English Muffin', ['Worcester Café']]] },
   { name: 'lunch and dinner are different plates', ops: [['add', 'lunch', 'Golden BBQ Chicken Thigh', ['W']], ['add', 'dinner', 'Korean BBQ Chicken', ['B']]] },
 ];
-const PRICE = [['Caesar Salad w/Chicken', 'Green Fields'], ['Bacon, Egg & Cheese on English Muffin', 'Worcester Café'], ['California Roll', 'Wasabi'], ['Baby Spinach', 'Roots Café'],
+const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green Fields'], ['Bacon, Egg & Cheese on English Muffin', 'Worcester Café'], ['California Roll', 'Wasabi'], ['Baby Spinach', 'Roots Café'],
   ['Golden BBQ Chicken Thigh', 'W'], ["Plant Based Chic'n Broccoli Supreme w/Pasta", 'F']];
 
 (async () => {
@@ -61,12 +66,13 @@ const PRICE = [['Caesar Salad w/Chicken', 'Green Fields'], ['Bacon, Egg & Cheese
   out.places = await p.evaluate(() => Object.fromEntries([...HALLS, ...[...DISHMENU].filter(isCafe).sort((a, b) => PORD(a) - PORD(b))].map(k => [k, PN(k)])));
   // ---- where
   out.where = [];
-  for (const n of WHERE) for (const t of CLOCKS) {
-    const v = await p.evaluate(([n, t]) => { const k = norm(n); if (!SERV[k]) return null;
+  for (const w of WHERE) for (const t of CLOCKS) {
+    const n = w.dish || w, newton = !!w.newton;
+    const v = await p.evaluate(([n, t, newton]) => { S.newton = newton; const k = norm(n); if (!SERV[k]) return null;
       const f = m => `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 || m >= 1440 ? 'AM' : 'PM'}`;
-      const A = whereAnswer(k, t); return { answer: A.map(g => ({ st: g.st, meal: g.meal, day: g.day, open: f(g.w[0]), close: f(g.w[1]), halls: g.hs })), text: A.map((g, i) => whenText(g, A[i - 1])) }; }, [n, t]);
+      const A = whereAnswer(k, t); S.newton = false; return { answer: A.map(g => ({ st: g.st, meal: g.meal, day: g.day, open: f(g.w[0]), close: f(g.w[1]), halls: g.hs })), text: A.map((g, i) => whenText(g, A[i - 1])) }; }, [n, t, newton]);
     if (!v) throw new Error('not served today or tomorrow: ' + n);
-    out.where.push({ dish: n, clock: at(t), ...v });
+    out.where.push({ dish: n, clock: at(t), ...(newton ? { newton: true } : {}), ...v });
   }
   // ---- plates
   out.plate = [];

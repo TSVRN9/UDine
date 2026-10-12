@@ -545,6 +545,63 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await page.evaluate(i => openHall('C', true, null, { cafe: i }), await cafeIdx('ISB Café'));
       assert.match(await page.locator('#mlist').textContent(), /ISB Café doesn't list its menu in the app\./);
     });
+    await scen('round 9b: Terrace on campus; Charles River behind its toggle', async () => {
+      // Terrace: in Southwest's group, with its own page, Search, "where" and price
+      await go(); await page.locator('#areas .lrow', { hasText: 'Southwest' }).tap(); await page.waitForTimeout(800);
+      assert.equal(await page.locator('.page[data-p=cafes] .ahd[data-area="3"] ~ .lrow', { hasText: 'Terrace' }).count() >= 1, true, 'Terrace is listed');
+      assert.equal(await page.evaluate(() => { const i = P.places.findIndex(x => x[0] === 'Terrace'); return [P.places[i][1], P.places[i][2], DISHMENU.has('c' + i), !!RIMG.Terrace].join(); }), '3,Fieldstone Apartments,true,true', 'area 3, Fieldstone Apartments, a dish menu, its own photo');
+      await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Terrace' }).tap(); await page.waitForTimeout(900);
+      assert.deepEqual(await page.locator('#mtabs .mts button').allTextContents(), ['Breakfast', 'Dinner'], "Terrace's meals today");
+      await go('?state=search'); await page.locator('#q').fill('harissa chicken'); await page.waitForTimeout(400);
+      const tr = page.locator('#sres .row', { has: page.locator('.n', { hasText: /^Harissa Chicken/ }) }); assert.equal(await tr.count(), 1, 'a Terrace dish is searchable');
+      assert.match(await tr.locator('.m').innerText(), /Dinner\s*Terrace/, 'later today, at Terrace');
+      await tr.locator('.n').tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('#isheet .pr').textContent(), '$13.50', 'with its price on the sheet');
+      assert.equal(await page.locator('#isheet .hchip.cafe').textContent(), 'Terrace', '"where" names Terrace');
+      // Charles River, off (the default): nowhere
+      const crd = await page.evaluate(() => Object.values(CBYK.lunch).find(g => g.n.length > 10 && /^[A-Za-z]/.test(g.n) && SERV[g.k].every(x => inNewton(x.h))).n);   // a dish served only at Charles River
+      const crIdx = await page.evaluate(() => P.places.findIndex(x => x[0] === 'Charles River Campus'));
+      await page.evaluate(n => { localStorage.setItem('udine-m2', JSON.stringify({ pins: ['Wasabi', n] })); }, 'Charles River Campus'); await page.goto(URL); await page.waitForTimeout(500);
+      const nowhere = async label => {
+        assert.equal(await page.locator('#areas .lrow', { hasText: 'Charles River' }).count(), 0, label + ': no area row');
+        assert.equal(await page.locator('#pins .band').count(), 1, label + ': its pin is kept but not drawn'); assert.deepEqual(await page.evaluate(() => S.pins), ['Wasabi', 'Charles River Campus'], label + ': the pin is not deleted');
+        await page.locator('#areas .lrow').first().tap(); await page.waitForTimeout(700); assert.equal(await page.locator('.page[data-p=cafes]', { hasText: 'Charles River' }).count(), 0, label + ': not in Cafés & markets');
+        await page.locator('[data-act=pageback]').tap(); await page.waitForTimeout(500);
+        await page.locator('.tbar button[data-tab=search]').tap(); await page.locator('#q').fill('charles river'); await page.waitForTimeout(400);
+        assert.equal(await page.locator('#sres .prow2').count(), 0, label + ': Search has no place');
+        await page.locator('#q').fill(crd.toLowerCase()); await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(n => [...document.querySelectorAll('#sres .row .n')].filter(e => e.textContent.startsWith(n)).length, crd), 0, label + `: no "${crd}" row`);
+        assert.deepEqual(await page.evaluate(n => whereAnswer(norm(n)), crd), [], label + ': no "where"');
+        await page.locator('.tbar button[data-tab=halls]').tap(); await page.waitForTimeout(400); };
+      await nowhere('off');
+      // on, by a real tap on You: everything appears
+      await page.locator('.tbar button[data-tab=you]').tap(); await page.waitForTimeout(400);
+      const tg = page.locator('#you [data-act=newton]'); assert.equal(await tg.getAttribute('aria-checked'), 'false', 'off by default');
+      assert.match(await tg.textContent(), /^Charles River CampusNewton$/); await tg.tap(); await page.waitForTimeout(300);
+      await page.reload(); await page.waitForTimeout(500); assert.equal(await page.evaluate(() => S.newton), true, 'the toggle survives a reload');
+      assert.equal(await page.locator('#areas .lrow').last().locator('.a').textContent(), 'Charles River Campus, Newton', 'its area group comes last');
+      const pin = page.locator('#pins .band[data-c="' + crIdx + '"]'); assert.equal(await pin.count(), 1, 'its pinned band is back');
+      assert.equal(await pin.evaluate(b => [b.classList.contains('nophoto'), getComputedStyle(b.querySelector('.win')).display].join()), 'true,none', 'no photo is invented: the band is its own maroon');
+      await page.locator('#areas .lrow').last().tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Charles River Campus' }).count(), 1, 'in Cafés & markets');
+      assert.deepEqual(await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Charles River Campus' }).evaluate(r => { const t = r.querySelector('.thumb'), a = r.querySelector('.a').getBoundingClientRect().left, o = document.querySelector('.page[data-p=cafes] .lrow .a').getBoundingClientRect().left;
+        return [!!t && t.classList.contains('nophoto'), !!(t && t.querySelector('img')), getComputedStyle(t).backgroundColor, Math.round(a - o)]; }), [true, false, 'rgb(136, 28, 28)', 0], 'a maroon tile, no picture, and its text in the column');
+      await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Charles River Campus' }).tap(); await page.waitForTimeout(900);
+      assert.deepEqual([await page.locator('#mtn').textContent(), await page.evaluate(() => document.querySelector('#menu').classList.contains('nophoto')), await page.locator('#mtabs .mts button').allTextContents()], ['Charles River Campus', true, ['Breakfast', 'Lunch', 'Dinner']], 'its page, built from its feed');
+      await page.locator('#mts').tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('#isheet .scha').textContent(), '100 Carlson AveNewton'); assert.match(await page.locator('#isheet .dirb').getAttribute('href'), /42\.299095,-71\.187034/, 'Directions to Newton');
+      await go('?state=search'); await page.evaluate(() => { S.newton = true; save(); }); await page.reload(); await page.waitForTimeout(400); await page.locator('#q').fill(crd.toLowerCase()); await page.waitForTimeout(400);
+      const cr = page.locator('#sres .row[data-cg]', { has: page.locator('.n', { hasText: new RegExp('^' + crd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }) }).first();
+      assert.equal(await cr.locator('.cnm').textContent(), 'Charles River', 'Search finds its dish (the lane uses the short name)');
+      assert.match(await page.evaluate(n => whereAnswer(norm(n)).map(g => g.hs.map(PN).join()).join(), crd), /Charles River Campus/, '"where" names it');
+      // its plate is set aside when the toggle goes off, and comes back
+      await cr.locator('.add').tap(); await page.waitForTimeout(400); assert.equal(await page.locator('#barL').textContent(), 'Charles River Campus lunch', 'its own plate');
+      await page.evaluate(() => setNewton(false)); assert.deepEqual(await page.evaluate(() => [S.plates.length, S.offPlates.length]), [0, 1], 'off: the plate is set aside, not deleted');
+      await page.evaluate(() => setNewton(true)); assert.equal(await page.evaluate(() => plateLabel(S.plates[0])), 'Charles River Campus lunch', 'on: it comes back');
+      await page.evaluate(() => { setNewton(false); }); await page.goto(URL); await page.waitForTimeout(400); await page.evaluate(() => localStorage.setItem('udine-m2', JSON.stringify({ pins: ['Wasabi', 'Charles River Campus'], newton: false }))); await page.reload(); await page.waitForTimeout(500);
+      await nowhere('off again');
+      await page.evaluate(() => localStorage.removeItem('udine-m2'));
+    });
     await scen('Search finds café dishes; "where" names the café', async () => {
       await go('?state=search'); await page.locator('#q').fill('caesar'); await page.waitForTimeout(400);
       const r = page.locator('#sres .row[data-cg]', { has: page.locator('.n', { hasText: /^Caesar Salad w\/Chicken/ }) });
@@ -722,7 +779,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   assert(await page.locator('.page[data-p=cafes]').isVisible(), 'area row opens cafés');
   const openRows = await page.locator('.page[data-p=cafes] .lrow').count();
   await page.locator('[data-act=opennow]').tap(); await page.waitForTimeout(150);
-  assert.equal(await page.locator('[data-act=opennow]').getAttribute('aria-pressed'), 'false'); assert(await page.locator('.page[data-p=cafes] .lrow').count() >= openRows, 'Open now off never hides places'); assert.equal(openRows, 27, 'all 27 cafés are open at 12:40');
+  assert.equal(await page.locator('[data-act=opennow]').getAttribute('aria-pressed'), 'false'); assert(await page.locator('.page[data-p=cafes] .lrow').count() >= openRows, 'Open now off never hides places'); assert.equal(openRows, 28, 'all 28 Amherst cafés (Terrace too, round 9b) are open at 12:41');
   await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Wasabi' }).tap(); await page.waitForTimeout(450);
   assert.equal(await page.evaluate(() => [S.cafe != null, document.querySelector('#menu').classList.contains('cafe')].join()), 'true,true', 'café detail (the hall screen, café mode)');
   assert.match(await page.locator('#mts').textContent(), /Open until 9 PM/);

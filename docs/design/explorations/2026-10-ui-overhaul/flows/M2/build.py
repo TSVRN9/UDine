@@ -71,7 +71,7 @@ locs = {x['location_title']: x for x in json.load(open(os.path.join(D, '..', 'lo
 def mins(t):
     hh, mm = map(int, t[:5].split(':')); ap = t[-2:]
     return (hh % 12 + (12 if ap == 'PM' else 0)) * 60 + mm
-AREAS = ['Campus Center', 'North, by Worcester', 'Library and academic core', 'Southwest, by Hampshire and Berkshire']
+AREAS = ['Campus Center', 'North, by Worcester', 'Library and academic core', 'Southwest, by Hampshire and Berkshire', 'Charles River Campus, Newton']
 CAFES = {  # name -> (area, building); Newton campus, babyBerk trucks, Terrace and The Commonwealth Restaurant left out
     'Paciugo': (0, 'Campus Center'), 'Tavola': (0, 'Campus Center'), 'Yum! Bakery': (0, 'Blue Wall, Campus Center'),
     'Green Fields': (0, 'Blue Wall, Campus Center'), 'Tamales': (0, 'Blue Wall, Campus Center'), 'Wasabi': (0, 'Blue Wall, Campus Center'),
@@ -82,13 +82,19 @@ CAFES = {  # name -> (area, building); Newton campus, babyBerk trucks, Terrace a
     'Procrastination Station': (2, 'Du Bois Library'), 'Whitmore Café': (2, 'Whitmore Building'), 'Carney Café': (2, 'Isenberg'),
     'Post & Bean Café': (2, 'Olver Design Building'),
     'Hampshire Café': (3, 'Hampshire Dining Commons'), 'Argo Tea': (3, 'Hampden'), 'Roots Café': (3, 'Honors College'), 'Courtside Café': (3, 'Recreation Center'),
+    # round 9b (owner): Terrace is on campus (42.3834, -72.5273, south of Hampshire Commons) though UMass files it as off campus.
+    # Charles River is the Newton campus: area 4, shown only when You's Charles River Campus toggle is on. Both go last, so no
+    # earlier place's key (c<i>) moves.
+    'Terrace': (3, 'Fieldstone Apartments'), 'Charles River Campus of UMass Amherst': (4, 'Newton'),
 }
+SHORT = {'Charles River Campus of UMass Amherst': 'Charles River Campus'}   # the name the app shows
 places = []
 for n, (area, bld) in CAFES.items():
     x = locs[n]
     items = json.loads(x['menu']) if x.get('menu') else []
-    places.append([n.replace('’', "'"), area, bld, mins(x['opening_hours']), mins(x['closing_hours']), x['accepted_payment'], x['short_description'].strip(), items])
-assert len(places) == 27
+    places.append([SHORT.get(n, n).replace('’', "'"), area, bld, mins(x['opening_hours']), mins(x['closing_hours']), x['accepted_payment'], x['short_description'].strip(), items])
+assert len(places) == 29
+TITLE = {SHORT.get(n, n).replace('’', "'"): n for n in CAFES}   # place name -> the feed's location_title
 HALLLOC = {'W': 'Worcester Commons', 'F': 'Franklin Dining Commons', 'H': 'Hampshire Dining Commons', 'B': 'Berkshire Dining Commons'}
 hours = {h: [mins(locs[n]['opening_hours']), mins(locs[n]['closing_hours'])] for h, n in HALLLOC.items()}
 grab = {h: [mins(locs[HN + ' Grab ‘N Go']['opening_hours']), mins(locs[HN + ' Grab ‘N Go']['closing_hours'])] for h, HN in
@@ -99,14 +105,13 @@ grab = {h: [mins(locs[HN + ' Grab ‘N Go']['opening_hours']), mins(locs[HN + ' 
 # Apartments) are in the feed but not in M2's places, as in every earlier round (owner, round 9).
 rk = lambda n: n.replace('’', "'").replace('‘', "'").lower()
 PKEY = {rk(n): h for n, h in HK.items()}
-PKEY.update({rk(p[0]): 'c%d' % i for i, p in enumerate(places)})
+PKEY.update({rk(TITLE[p[0]]): 'c%d' % i for i, p in enumerate(places)})
 DAYS = sorted(MENUS['days'])
 assert DAYS[0] == '2026-10-08' and DAYS[-1] == '2026-10-22' and len(DAYS) == 15
 used, MD = {}, []
 for iso in DAYS:
     day = {}
     for loc, meals in MENUS['days'][iso].items():
-        if loc in ('Charles River Campus of UMass Amherst', 'Terrace'): continue
         key = PKEY[rk(loc)]
         day[key] = {}
         for mk in sorted(meals, key=lambda m: ORDER.index(MK[m])):
@@ -115,7 +120,7 @@ for iso in DAYS:
 DISHES = [None] * len(used)
 for i, j in used.items(): DISHES[j] = dish(MENUS['dishes'][i])
 CAFEMENU = sorted({k for d in MD for k in d if k[0] == 'c'}, key=lambda k: int(k[1:]))
-assert len(CAFEMENU) == 16, CAFEMENU
+assert len(CAFEMENU) == 18, CAFEMENU
 assert MD[2] == {}, 'Oct 10 is empty everywhere'
 
 # sanity: the benchmark plate at Worcester lunch is 404 cal / 38.9 g protein; Golden BBQ's label is complete
@@ -156,7 +161,7 @@ def street(html):
     t = re.sub(r'<br\s*/?>', '\n', html or '', flags=re.I); t = re.sub(r'<[^>]+>', '', t)
     return t.split('\n')[0].strip()
 ADDR = {}
-for key, title in list(HALLLOC.items()) + [('c%d' % i, p[0]) for i, p in enumerate(places)]:
+for key, title in list(HALLLOC.items()) + [('c%d' % i, TITLE[p[0]]) for i, p in enumerate(places)]:
     x = L11[rk(title)]
     m = (x.get('map_address') or '').strip()
     assert re.fullmatch(r'-?\d+(\.\d+)?,-?\d+(\.\d+)?', m), (title, m)
@@ -191,7 +196,10 @@ def rimg(n):
     f = os.path.join(D, 'build', 'retail', os.path.basename(v['file']).rsplit('.', 1)[0] + '.jpg')
     return 'data:image/jpeg;base64,' + base64.b64encode(open(f, 'rb').read()).decode()
 RIMG = {p[0]: rimg(p[0]) for p in places}
-assert all(RIMG.values()), [k for k, v in RIMG.items() if not v]
+# Charles River has no photo: get_infov2 carries no image field and umassdining.com's location cards (assets/retail) have none.
+# None is invented; the app draws it on the band's own maroon ground.
+assert [k for k, v in RIMG.items() if not v] == ['Charles River Campus'], [k for k, v in RIMG.items() if not v]
+RIMG = {k: v for k, v in RIMG.items() if v}
 for h, HNm in {'W': 'Worcester', 'F': 'Franklin', 'H': 'Hampshire', 'B': 'Berkshire'}.items():
     RIMG['grab:' + h] = rimg(HNm + " Grab 'N Go"); assert RIMG['grab:' + h]
 PLACES = {'areas': AREAS, 'places': places, 'hours': hours, 'grab': grab, 'events': events}
