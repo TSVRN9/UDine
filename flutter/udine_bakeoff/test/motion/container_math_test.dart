@@ -32,7 +32,10 @@ void main() {
       expect(incomingOpacity(1), 1);
       expect(incomingOpacity(0.65), closeTo(0.5, 1e-9));
     });
-    test('the fade split is 30 / 70, as M2 paint() has it', () => expect(M2Motion.contFade, 0.3));
+    test('the split is M2 paint(): fout = 1 - clamp(p/.3), fin = clamp((p-.3)/.7)', () {
+      expect([0.0, 0.15, 0.3, 0.65, 1.0].map(outgoingOpacity).toList(), [1, closeTo(0.5, 1e-9), 0, 0, 0]);
+      expect([0.0, 0.15, 0.3, 0.65, 1.0].map(incomingOpacity).toList(), [0, 0, 0, closeTo(0.5, 1e-9), 1]);
+    });
   });
 
   group('settleTarget (M2: close below commit or on a flick)', () {

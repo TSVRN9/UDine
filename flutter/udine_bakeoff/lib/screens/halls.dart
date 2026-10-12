@@ -93,7 +93,7 @@ class _HallsListState extends State<HallsList> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Container(
               color: M2Color.dm,
-              padding: EdgeInsets.fromLTRB(M2Space.s[4], top + 10, M2Space.s[4], M2Space.s[2]),
+              padding: EdgeInsets.fromLTRB(M2Space.s[4], top + 10, M2Space.s[4], M2Space.s[3]),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 SizedBox(height: 30, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [brand, dateText])),
                 Padding(padding: const EdgeInsets.only(top: 2), child: Semantics(header: true, child: Text(mealLabel[clockMeal(DateTime.parse(fx.clock))]!, style: M2Text.hallTitle.style(M2Color.white)))),
