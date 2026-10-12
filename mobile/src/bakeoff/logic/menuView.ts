@@ -69,7 +69,14 @@ export const isOneMeal = (fx: Fixture, place: PlaceKey): boolean =>
   isCafe(place) && Object.values(fx.days).every((d) => !d[place] || Object.keys(d[place]!).length <= 1);
 
 export const dayIsos = (fx: Fixture): string[] => Object.keys(fx.days);
-const fmtD = (iso: string, o: Intl.DateTimeFormatOptions) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", ...o });
+// formatted once per day and shape: on Hermes each toLocaleDateString is a JNI round trip (about 10 ms each in the release profile, PR #544)
+const fmtCache = new Map<string, string>();
+const fmtD = (iso: string, o: Intl.DateTimeFormatOptions) => {
+  const k = iso + JSON.stringify(o);
+  let s = fmtCache.get(k);
+  if (s === undefined) { s = new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", ...o }); fmtCache.set(k, s); }
+  return s;
+};
 /** The day cell: "Today", "Fri 9". */
 export const dayCell = (fx: Fixture, i: number): string => (i === 0 ? "Today" : `${fmtD(dayIsos(fx)[i], { weekday: "short" })} ${new Date(dayIsos(fx)[i] + "T12:00:00Z").getUTCDate()}`);
 /** "Saturday, October 10". */

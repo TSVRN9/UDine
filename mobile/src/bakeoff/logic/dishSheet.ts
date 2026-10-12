@@ -39,7 +39,8 @@ export function sheetMarks(d: Pick<Dish, "diet" | "health" | "carbon">, on: { he
 }
 
 const f1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1).replace(/\.0$/, "");
-export const fc = (x: number) => Math.round(x).toLocaleString("en-US");
+/** en-US thousands grouping without Intl (a JNI call per use on Hermes; a row has two). */
+export const fc = (x: number) => String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 /** FDA daily values M2 computes %DV from when the menu publishes none. Cholesterol never has a published one. */
 const FDA = { fat: 78, sat: 20, chol: 300, sod: 2300, carb: 275, fiber: 28, protein: 50 };
 
