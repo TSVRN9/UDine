@@ -7,25 +7,42 @@ import { Press } from "./Press";
 import { Text } from "./Text";
 import { useArrive } from "./arrive";
 
-/** A hall band (112) or pinned café (84, `compact`): photo slot, M2's deep-maroon left grade, name and status.
- * `letter` is a slot (see HallLetter). The press layer (M2 `.band .press`) lies over the photo, grade and letter and under the text (`zIndex`). `ghost` is the band's copy drawn over the screen it opens into: no ground, no margin, no touches. */
-export function Band({ name, status, arrive, photo, letter, compact, ghost, busy, onPress }: {
-  name: string; status?: ReactNode; /** the status arrived from the network just now: it fades in where it ends up */ arrive?: boolean; photo?: ReactNode; letter?: ReactNode; compact?: boolean; ghost?: boolean; busy?: ReactNode; onPress?: () => void;
-}) {
+/** A hall band is 112 high, a pinned café 84 (`compact`). */
+export const bandHeight = (compact?: boolean) => (compact ? m2.size.pin : m2.size.band);
+
+interface FaceProps {
+  name: string; status?: ReactNode; /** the status arrived from the network just now: it fades in where it ends up */ arrive?: boolean;
+  photo?: ReactNode; /** a slot (see HallLetter) */ letter?: ReactNode; compact?: boolean; busy?: ReactNode;
+}
+
+/**
+ * What a band shows, as the children of whatever frames it: the photo slot, M2's deep-maroon left grade, the letter, then the name, status
+ * and busy row, which sit above a press layer a `Band` lays over the rest (`zIndex`). The band's copy that rides a container transform draws it alone.
+ */
+export function BandFace({ name, status, arrive, photo, letter, compact, busy }: FaceProps) {
   const { arriveIn } = useArrive();
+  const g = m2.gradient.band;
   return (
-    <Press feedback="tint" tint="band" accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
-      style={{ height: compact ? 84 : m2.size.band, overflow: "hidden", backgroundColor: ghost ? "transparent" : m2.color.vm, marginTop: ghost ? 0 : 1 }}
-      pointerEvents={ghost ? "none" : "auto"}>
+    <>
       {photo}
-      <LinearGradient colors={["rgba(59,10,15,0.82)", "rgba(59,10,15,0.55)", "rgba(59,10,15,0)"]} locations={[0, 0.45, 0.75]}
+      <LinearGradient colors={[...g.stops]} locations={[...g.locations]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} pointerEvents="none" />
       {letter}
       <View style={{ position: "absolute", zIndex: 1, left: m2.space.gutter, top: compact ? m2.space.pinTextTop : m2.space.bandTextTop }}>
         <Text v={compact ? "pinName" : "bandName"} color={m2.color.white}>{name}</Text>
-        {status ? <Animated.View entering={arrive ? arriveIn : undefined}><Text v={compact ? "statusSm" : "status"} color={m2.color.onDmSoft} style={{ marginTop: compact ? 6 : 7 }}>{status}</Text></Animated.View> : null}
+        {status ? <Animated.View entering={arrive ? arriveIn : undefined}><Text v={compact ? "statusSm" : "status"} color={m2.color.onDmSoft} style={{ marginTop: compact ? m2.space.pinStatusTop : m2.space.bandStatusTop }}>{status}</Text></Animated.View> : null}
         {busy}
       </View>
+    </>
+  );
+}
+
+/** A hall band or pinned café: a button on the deep-maroon ground, 1 dp under the one above, tinting under the finger (M2 `.band .press`). */
+export function Band({ onPress, ...face }: FaceProps & { onPress?: () => void }) {
+  return (
+    <Press feedback="tint" tint="band" accessibilityRole="button" accessibilityLabel={face.name} onPress={onPress}
+      style={{ height: bandHeight(face.compact), overflow: "hidden", backgroundColor: m2.color.vm, marginTop: 1 }}>
+      <BandFace {...face} />
     </Press>
   );
 }

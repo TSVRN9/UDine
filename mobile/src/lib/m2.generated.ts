@@ -394,7 +394,11 @@ export const m2 = {
     headTop: 10,
     lrowSub: 2,
     netTop: 40,
-    titleTop: 2
+    titleTop: 2,
+    stationHeadBottom: 6,
+    evrow: 14,
+    bandStatusTop: 7,
+    pinStatusTop: 6
   },
   radius: {
     patch: 4,
@@ -444,7 +448,10 @@ export const m2 = {
     check: 26,
     checkBorder: 2,
     chevronStatus: 14,
-    chevronStroke: 2
+    chevronStroke: 2,
+    evrow: 52,
+    listFoot: 120,
+    pin: 84
   },
   opacity: {
     disabled: 0.4,
