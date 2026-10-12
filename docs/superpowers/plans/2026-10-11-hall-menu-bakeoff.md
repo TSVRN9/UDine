@@ -552,6 +552,14 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
 
 ---
 
+**Carried from Task 6 review (2026-10-12), for Task 7 to fix where it touches them:**
+- `state/dishSheet.ts`'s module `open` flag clears only in the Sheet's `onDismiss`. If `DishSheetHost` unmounts while
+  open, every later `openDish` is refused. Clear it on host unmount; the plate entry makes this reachable.
+- The `HallMenu` landing loop and the `PushedHall` gate have no unmount cleanup or watchdog. A never-settled
+  `PushedHall` stays mounted and takes the first hardware back press.
+- `index.tsx` `push()` holds one slot, while M2's `NAV` is a stack. A where-served tap from a pushed hall replaces it,
+  and back returns to the base hall. Record this as a departure unless Task 7 needs depth.
+
 ### Task 8: RN network states
 
 **Carried from Task 5 (orchestrator, 2026-10-12).** Task 5 did not build these, and Task 8 must:
@@ -738,6 +746,21 @@ the round-9 states. Compare screenshots with M2's.
   - The day change blanked the bars and list for about 400 ms while JS rendered.
   - Android clipped Oswald descenders when line height equals size.
   - The schedule sheet scrolled to the chosen day after presenting.
+- **RN, Task 6:** first-pass motion was far from M2, all found by the orchestrator extracting every mp4 frame. The
+  sampled strip PNGs hid it, and the implementer's frame claims came partly from an earlier run. The problems:
+  - 0.7 s from tap to sheet;
+  - 0.9 s of dead time before the push;
+  - the pushed hall hunting for the dish on screen.
+  One rework fixed the landing (it now arrives settled and tinted). FlashList `scrollToIndex` overshoots rows it
+  hasn't drawn, so the landing reads the row's layout over repeated passes.
+- **RN, release APK (2026-10-12, Hermes, emulator software GL, `t6r-*`):**
+  - The container opens in about 400 ms with first motion at 100 ms.
+  - A meal change takes about 0.3 s.
+  - Sheet → hall takes about 1.2 s from tap to landed, including 0.4 s of dead time.
+  - A dish sheet takes 0.3 s to first motion and about 1.1 s to rest.
+  - **A day change takes about 1.2 s**, including 0.7 s of no change after the schedule sheet leaves while about 30
+    rows render under the held copy.
+  - The dish open and the day change are the RN feel risks to profile before the verdict.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
