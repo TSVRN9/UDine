@@ -23,9 +23,12 @@ Backend:
   - **First live day (2026-10-12):** thresholds also change within a day. Location 1 went from 386/205 at 9:00 to
     324/297 at 9:15. That's why each sample keeps its own thresholds. Headcounts rose from 0 overnight to 50–95 at the
     three open halls by 8:45–9:00. Location 3 reached 292 at 9:45, past its moderate of 272, so it read busy.
-    At 10:15 every hall's thresholds stepped up together (location 1 from 324/297 to 533/388, location 2 from 283/255 to
-    615/363, location 3 from 272/240 to 418/309, location 4 from 130/108 to 194/165). That fits thresholds set per
-    meal period rather than drifting. Comparing samples by inferred level, not by raw headcount, absorbs it.
+    **The thresholds are hourly.** Every hall's pair changes once an hour, first seen in the :15 sample, from opening on.
+    Location 1 went 576/383 overnight, then 102/44 (07:15), 386/205 (08:15), 324/297 (09:15), 533/388 (10:15), 590/405
+    (11:15) and 768/516 (12:15). They track the expected crowd for that hour, so the inferred level means "busy for this
+    hour", not absolute crowding: at 12:45 Worcester held 471 people, its lunch high so far, and read not busy because
+    the bar was 516. Hampshire's 304 against 273 read moderate. So `median_level` already answers "busier than usual for
+    now?", and `median_headcount` is the only absolute measure. The UI design should decide which one the meter shows.
   - **Inferred level:** headcount ≥ moderate is busy (2), ≥ notbusy is moderate (1), otherwise not busy (0). This matches
     Oct 8, when Worcester's 672 ≥ 612 and the feed's own `busy.label` said "Busy".
 
