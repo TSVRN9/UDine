@@ -831,6 +831,40 @@ the round-9 states. Compare screenshots with M2's.
   - Three animations had no easing, reduced motion wasn't implemented, and touch targets were 37 dp.
   - Foundation: an index-based spacing scale invited off-by-one errors, there were 52 type variants, 19 colour literals sat in the kit that the lint rule exempted, and 8 hand-rolled buttons.
   - RN reworks all of it, including one `design-tokens/m2.json` that both stacks generate from. Flutter Task 12 builds the same lessons in from the start. **For the scorecard:** both stacks needed the same token discipline, so the kit and lint rule alone didn't keep agents on the design; mechanical checks plus audits did.
+- **RN, phone frame stats (Task 9, baseline before the UI-audit rework):**
+
+Pixel 7 (`ro.product.model` = `Pixel 7`), 1080x2400, 90 Hz (`renderFrameRate` 90.0, panel modes 90/60 Hz; the app's frame deadline in `framestats` is 16.6 ms and most frames take about 17 ms, so it draws at about 60 fps on the 90 Hz panel). Build `1.0.0+356b2d2`, Hermes release, `EXPO_PUBLIC_BAKEOFF=1`, Skia/Vulkan. Android 'Do Not Disturb' on, nothing else running. 5 runs per motion. Each run: `dumpsys gfxinfo ... reset`, drive the gesture with `adb shell input`, read `dumpsys gfxinfo ... framestats`. Janky % is the median of the 5 runs (range in brackets); percentiles are the median of the 5 runs (p99 range in brackets). Frames counts include the settle time after the gesture (about 1 s of idle frames), so they dilute the janky %.
+
+| Motion | Frames per run | Janky % | p50 ms | p90 ms | p95 ms | p99 ms | Missed vsync (sum of 5) |
+|---|---|---|---|---|---|---|---|
+| hall open | 21/26/21/27/17 | 19.1 (15.4-29.4) | 18 | 113 | 150 | 150 (150-200) | 12 |
+| hall close (Back) | 37/36/37/37/36 | 8.1 (5.4-8.3) | 17 | 27 | 29 | 32 (25-44) | 0 |
+| drag-back down | 30/29/29/27/29 | 10.3 (6.7-14.8) | 17 | 22 | 25 | 26 (26-31) | 0 |
+| edge swipe (x=8, gesture nav) | 37/39/36/37/38 | 8.1 (5.1-8.3) | 17 | 25 | 28 | 30 (24-32) | 0 |
+| meal tab change (Dinner, Lunch) | 105/105/107/108/106 | 4.8 (3.7-6.7) | 16 | 20 | 26 | 65 (61-73) | 2 |
+| menu fling down and back | 125/147/151/150/149 | 3.4 (1.3-4.1) | 17 | 24 | 27 | 32 (28-53) | 1 |
+| dish sheet open, drag, dismiss | 195/195/190/197/194 | 3.1 (2.6-4.7) | 18 | 21 | 26 | 48 (44-65) | 1 |
+| add, plate sheet drag between detents | 253/243/244/242/242 | 2.9 (2.0-3.3) | 17 | 18 | 19 | 28 (23-31) | 2 |
+| Log then Undo | 44/45/46/43/45 | 11.1 (9.3-13.0) | 17 | 23 | 29 | 44 (34-48) | 0 |
+
+Notes on the table:
+- Edge swipe: the phone is on gesture navigation (`navigation_mode` 2). A swipe from x=8 px is taken by the system back gesture, which then closes the hall through the same back handler as row 2, so this row is the system-back close and says nothing about the app's own 24 dp edge pan.
+- Meal tab swipe: the meal change is a tap on a meal tab (the menu content has no horizontal swipe, and a horizontal swipe on it did nothing). The row is Dinner then Lunch, 2 shared-axis changes per run.
+- Hall open is the worst row by far. Its p90/p95/p99 are 113/150/150 ms, with 4-5 janky frames in 17-27. In a screenrecord the list-to-hall change is a single 35 ms step (the hall header and menu are already at their final place in the first hall frame), and there are 127-156 ms gaps with no new frame about 0.3 s later (video frames 20, 77 and 140 of the open recording).
+- Every row has p50 16-18 ms (a 60 fps cadence) and p90 18-27 ms. The 3 s and lower janky % rows are the long, mostly smooth ones (fling, dish sheet, plate sheet).
+- The `Missed vsync` counts are small (0-2 per 5 runs per row) except hall open (12).
+
+Latency (screenrecord at the display's rate, frames about 11 ms apart; `framestats` for the input timestamp):
+
+| Measure | Result |
+|---|---|
+| First add after a cold start (force-stop, relaunch, open Worcester, tap +): tap to stepper first visible | about 115-125 ms (the frame that mounts the stepper started 73 ms after the input frame and took 50 ms; it was the one slow frame there) |
+| Same: tap to the plate bar's first motion | about 250 ms (the bar starts 134 ms after the stepper's first frame; M2 target 136 ms, AVD about 0.3 s). Estimate: +-15 ms, because the tap time comes from the input frame in `framestats` and the video is aligned on the stepper's first frame. One cold run |
+| Meal tab tap (Dinner/Lunch, 6 taps) to the list moving | The list starts moving 0-46 ms after the tab underline starts (about 30-80 ms after the tap). No 400-600 ms stall. The change is settled 270-520 ms after the first visible change |
+| Day pick (Tomorrow/Today, 6 picks) to the new day's content | The sheet dismisses over the first 225-300 ms, then there is a 109-222 ms gap with no new frame, and the new day's rows start fading in 377-522 ms after the first visible change. So the day change still commits about 0.4-0.5 s after the tap, as on Metro (400-600 ms); the meal change does not |
+
+Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions, coordinates in px from a screenshot of this build), `phone-cold.sh`, `phone-tabs.sh`, `phone-table.py`; raw gfxinfo dumps in `out/`. Re-run after the UI rework: `phone-measure.sh all 5`, then `python3 phone-table.py`.
+
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
