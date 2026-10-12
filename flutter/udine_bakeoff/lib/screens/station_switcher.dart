@@ -50,8 +50,8 @@ class SheetOption extends StatelessWidget {
           semantics: false, overlay: M2Color.pressRow, onTap: onTap,
           child: Container(
             constraints: const BoxConstraints(minHeight: M2Layout.optionH),
-            padding: const EdgeInsets.only(left: M2Space.action - 0, right: M2Space.gutter),
-            decoration: BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: current ? M2Color.vm : const Color(0x00000000)))),
+            padding: const EdgeInsets.only(left: M2Space.action, right: M2Space.gutter),
+            decoration: BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: current ? M2Color.vm : M2Color.chalk.withValues(alpha: 0)))),
             child: ExcludeSemantics(
               child: Row(children: [
                 Expanded(child: Text(label, style: M2Text.dayRow.style(current ? M2Color.vm : M2Color.ink).copyWith(fontWeight: current ? FontWeight.w600 : FontWeight.w500))),

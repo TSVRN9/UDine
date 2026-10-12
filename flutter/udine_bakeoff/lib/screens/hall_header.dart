@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../logic/busy.dart';
 import '../logic/fixture.dart';
+import '../logic/hours.dart';
 import '../logic/schedule.dart';
 import '../motion/container_math.dart';
 import '../motion/container_transform.dart';
@@ -185,7 +186,7 @@ class _HallHeaderState extends State<HallHeader> {
     );
   }
 
-  int _nowHour(Fixture fx) => (DateTime.parse(fx.clock).toUtc().subtract(const Duration(hours: 4))).hour;
+  int _nowHour(Fixture fx) => toEastern(DateTime.parse(fx.clock)).hour;
 }
 
 class _Reverse extends Animation<double> with AnimationWithParentMixin<double> {
