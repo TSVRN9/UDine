@@ -6,13 +6,14 @@ import { Press } from "./Press";
 import { Text } from "./Text";
 
 /** A hall band (112) or pinned café (84, `compact`): photo slot, M2's deep-maroon left grade, name and status.
- * `letter` is a slot (see HallLetter). */
-export function Band({ name, status, photo, letter, compact, onPress }: {
-  name: string; status?: ReactNode; photo?: ReactNode; letter?: ReactNode; compact?: boolean; onPress?: () => void;
+ * `letter` is a slot (see HallLetter). `ghost` is the band's copy drawn over the screen it opens into: no ground, no margin, no touches. */
+export function Band({ name, status, photo, letter, compact, ghost, onPress }: {
+  name: string; status?: ReactNode; photo?: ReactNode; letter?: ReactNode; compact?: boolean; ghost?: boolean; onPress?: () => void;
 }) {
   return (
     <Press feedback="tint" accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
-      style={{ height: compact ? 84 : m2.size.band, overflow: "hidden", backgroundColor: m2.color.vm, marginTop: 1 }}>
+      style={{ height: compact ? 84 : m2.size.band, overflow: "hidden", backgroundColor: ghost ? "transparent" : m2.color.vm, marginTop: ghost ? 0 : 1 }}
+      pointerEvents={ghost ? "none" : "auto"}>
       {photo}
       <LinearGradient colors={["rgba(59,10,15,0.82)", "rgba(59,10,15,0.55)", "rgba(59,10,15,0)"]} locations={[0, 0.45, 0.75]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} pointerEvents="none" />

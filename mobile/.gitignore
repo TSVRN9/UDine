@@ -43,3 +43,6 @@ example
 /ios
 /android
 google-service-account.json
+
+# Bake-off photos (UMass Dining's own, copied by scripts/bakeoff-assets.sh; never commit)
+/assets/bakeoff/
