@@ -865,6 +865,27 @@ Latency (screenrecord at the display's rate, frames about 11 ms apart; `framesta
 
 Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions, coordinates in px from a screenshot of this build), `phone-cold.sh`, `phone-tabs.sh`, `phone-table.py`; raw gfxinfo dumps in `out/`. Re-run after the UI rework: `phone-measure.sh all 5`, then `python3 phone-table.py`.
 
+- **RN, phone trace (Perfetto on a Galaxy A53; the Pixel 7 runs GrapheneOS and refused ftrace, so it got framestats only), build 356b2d2:**
+  - A53 baseline (median janky %, p90/p99 ms), Pixel 7 in brackets:
+
+    | Motion | A53 | Pixel 7 |
+    |---|---|---|
+    | open | 50.0, 200/250 | 19.1, 113/150 |
+    | close | 12.0, 48/65 | 8.1 |
+    | drag-back | 15.0, 61/65 | 10.3 |
+    | meal tab | 8.1, 38/81 | 4.8 |
+    | fling | 0.7, 21/34 | 3.4 |
+    | dish sheet | 6.1, 32/77 | 3.1 |
+    | plate | 4.2, 25/44 | 2.9 |
+    | Log/Undo | 18.8, 42/61 | 11.1 |
+
+    Full table: `~/.cache/udine-scratch/phone/task9-frame-stats-a53.md`.
+  - **Hall open jump.** There is a 180 ms JS commit. Then the first frame takes 187 ms, of which 144 ms is `Record View#draw()`, and by the next frame the curve is at 0.91. Causes:
+    - react-native-svg rasterises every Svg in software inside `onDraw` on the UI thread. The 85-rect busy Board was drawn twice, plus two dashed 200 dp letters. A café, which has no SVG, records in 9–12 ms.
+    - The clock starts on `onLayout` (JS commit), before the first draw.
+    - The menu list mounts inside the 500 ms open.
+  - **Day-change stall.** The cause is a whole-screen re-render: an unstable `renderItem`, the ghost rows, and both label layers plus the Board. It is not the fixture filtering, which costs 0.02 ms, so the Task 5 suspicion was wrong.
+  - **Lesson for the scorecard:** RN's vector art is a CPU-raster trap on Android. Its per-frame motion was fine everywhere else. Emulator recordings (Metro, about 10 fps) hid both defects; only a phone showed them.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
