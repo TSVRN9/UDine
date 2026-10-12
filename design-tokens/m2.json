@@ -421,7 +421,9 @@
   "tileScale": [
    26,
    32.5
-  ]
+  ],
+  "indicator": 3,
+  "indicatorTop": -1
  },
  "opacity": {
   "disabled": 0.4,
@@ -830,6 +832,8 @@
   "collapse.nameSize": "NS: the name is 22 px in the compact bar",
   "collapse.nameDrop": "measureXF: NB = (ST + 38) - ...",
   "motion.sharedXFade": "MaterialSharedAxis opacity ramps: linear, over sharedX.at (out) and sharedX.inAt (in) of this duration",
-  "motion.fadeThroughOut": "the outgoing leg of a fade through: linear, over sharedX.at of fadeThrough.d (the incoming leg is fadeThrough.e)"
+  "motion.fadeThroughOut": "the outgoing leg of a fade through: linear, over sharedX.at of fadeThrough.d (the incoming leg is fadeThrough.e)",
+  "size.indicator": ".tbar .ind{height:3px}",
+  "size.indicatorTop": ".tbar .ind{top:-1px}: over the hairline"
  }
 }

@@ -3,6 +3,7 @@ import { BackHandler } from "react-native";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { m2Motion } from "../../lib/motion";
 import { timed } from "../ui/motion";
+import { usePushShadow } from "../ui/push";
 import type { ServeTarget } from "../logic/dishSheet";
 import { closedGate, gateStep } from "../motion/pushGate";
 import { useContainerTransform } from "../motion/useContainerTransform";
@@ -33,6 +34,7 @@ export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * W }] }));
+  const cast = usePushShadow(p);
   // Out of sight (p = 1) the screen draws and scrolls to its dish; it moves once that is done and the sheet is half-way out (pushGate)
   const gate = useRef(closedGate);
   const step = (e: "settled" | "go") => {
@@ -49,7 +51,7 @@ export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
   const open = t.phase !== "closed";
   useEffect(() => { if (go) step("go"); }, [go]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }, slide]}>
+    <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }, slide, cast]}>
       {open ? <HallHeader t={t} H={H} place={at.place} name={name} scrollY={scrollY} onBack={back} at={at} onPush={onPush} onPushGo={onPushGo} onSettled={() => step("settled")} pushed /> : null}
     </Animated.View>
   );

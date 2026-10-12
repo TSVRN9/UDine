@@ -1,6 +1,10 @@
+import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Circle, Path } from "react-native-svg";
 import { m2 } from "../../lib/theme";
+import { m2Motion } from "../../lib/motion";
+import { timed } from "./motion";
 import { Press } from "./Press";
 import { Text } from "./Text";
 
@@ -12,14 +16,23 @@ const ICON: Record<string, React.ReactNode> = {
 const LABEL: Record<string, string> = { index: "Halls", search: "Search", you: "You" };
 export const DISABLED_TABS = ["search"];
 
-/** M2 `.tbar`: white bar, hairline top, Halls / Search / You. A disabled tab is dimmed and inert. */
+/** M2 `.tbar`: white bar, hairline top, Halls / Search / You, and `.ind`, a bar a third wide that slides to the selected tab on `settle`.
+ * A disabled tab is dimmed and inert. */
 export function TabBar({ state, navigation, bottomInset = 0 }: {
   state: { index: number; routes: { key: string; name: string }[] };
   navigation: { navigate: (name: string) => void };
   bottomInset?: number;
 }) {
+  const n = state.routes.length;
+  const at = useSharedValue(state.index), [width, setWidth] = useState(0), placed = useRef(state.index);
+  useEffect(() => {
+    if (placed.current === state.index) return;
+    placed.current = state.index;
+    at.set(timed(state.index, m2Motion.settle));
+  }, [state.index, at]);
+  const ind = useAnimatedStyle(() => ({ width: width / n, transform: [{ translateX: (at.get() * width) / n }] }));
   return (
-    <View accessibilityRole="tablist" style={{ flexDirection: "row", backgroundColor: m2.color.white, borderTopWidth: 1, borderTopColor: m2.color.hair, paddingBottom: bottomInset }}>
+    <View accessibilityRole="tablist" onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ flexDirection: "row", backgroundColor: m2.color.white, borderTopWidth: 1, borderTopColor: m2.color.hair, paddingBottom: bottomInset }}>
       {state.routes.map((r, i) => {
         const selected = state.index === i;
         const disabled = DISABLED_TABS.includes(r.name);
@@ -34,6 +47,7 @@ export function TabBar({ state, navigation, bottomInset = 0 }: {
           </Press>
         );
       })}
+      <Animated.View testID="tab-indicator" pointerEvents="none" style={[{ position: "absolute", top: m2.size.indicatorTop, left: 0, height: m2.size.indicator, backgroundColor: m2.color.vm }, ind]} />
     </View>
   );
 }

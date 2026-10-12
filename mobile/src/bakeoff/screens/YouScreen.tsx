@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
+import Animated from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { formatTimeOfDay } from "@udine/shared";
 import { m2 } from "../../lib/theme";
@@ -8,6 +9,7 @@ import { fc } from "../logic/dishSheet";
 import { fq } from "../logic/plate";
 import { dayFull, prefSummary } from "../logic/menuView";
 import { Press, ScoreBadge, Text } from "../ui";
+import { PushDim, usePush } from "../ui/push";
 import { setNewton, setShow, useStore, type LogEntry } from "../state/store";
 import { CheckRow } from "./CheckRow";
 import { DietPrefs } from "./DietPrefs";
@@ -63,9 +65,12 @@ export function YouScreen() {
   const show = useStore((s) => s.show);
   const newton = useStore((s) => s.newton);
   const [page, setPage] = useState(false);
+  // a page pushed over You shifts and dims it (M2 `MO.push`), by the same `p` the page runs on
+  const { p, below, dim } = usePush();
   const t = sum(log);
   return (
     <View style={{ flex: 1, backgroundColor: m2.color.chalk }}>
+      <Animated.View style={[{ flex: 1 }, below]}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={{ backgroundColor: m2.color.dm, paddingTop: top + 10, paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.yheadBottom }}>
           <View style={{ height: 30, justifyContent: "flex-end" }}><Text v="date" color={m2.color.onDm}>{DATE}</Text></View>
@@ -80,7 +85,7 @@ export function YouScreen() {
           {log.length ? [...log].reverse().map((e) => <Meal key={e.id} e={e} />) : <Text v="empty" color={m2.color.slate}>Nothing logged yet today.</Text>}
         </View>
         <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
-          <Press feedback="tint" accessibilityRole="button" onPress={() => setPage(true)}
+          <Press feedback="tint" accessibilityRole="button" onPress={() => { p.set(1); setPage(true); }}
             style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space.part, gap: m2.space.panel }}>
             <View style={{ flex: 1 }}>
               <Text v="rowName" color={m2.color.ink}>Dietary preferences</Text>
@@ -99,7 +104,8 @@ export function YouScreen() {
           <CheckRow label="Carbon rating" lead={<ScoreBadge kind="carbon" value="B" size="sheet" />} on={show.carbon} last onToggle={() => setShow({ carbon: !show.carbon })} />
         </View>
       </ScrollView>
-      {page ? <PushPage title="Dietary preferences" onPop={() => setPage(false)}><DietPrefs /></PushPage> : null}
+      </Animated.View>
+      {page ? <><PushDim dim={dim} /><PushPage title="Dietary preferences" progress={p} onPop={() => setPage(false)}><DietPrefs /></PushPage></> : null}
     </View>
   );
 }

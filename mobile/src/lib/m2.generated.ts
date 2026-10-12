@@ -411,7 +411,9 @@ export const m2 = {
     tileScale: [
       26,
       32.5
-    ]
+    ],
+    indicator: 3,
+    indicatorTop: -1
   },
   opacity: {
     disabled: 0.4,
