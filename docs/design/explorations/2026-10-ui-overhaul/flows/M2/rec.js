@@ -56,8 +56,8 @@ const I = [
   { name: 'detaildrag', q: 'state=menu', setup: p => mRow(p, 'Green Chile Posole').locator('.n').tap(),
     act: async (p, mark, touch) => { const y0 = (await p.locator('#isheet').boundingBox()).y + 60, pts = []; for (let i = 0; i <= 12; i++) pts.push([200, y0 + i * 25]); await touch(pts, 20 * K); }, dur: 1300 },
   { name: 'detailclose', q: 'state=menu', setup: p => mRow(p, 'Green Chile Posole').locator('.n').tap(), act: p => p.locator('#scrim').tap({ position: { x: 200, y: 100 } }), dur: 900 },
-  { name: 'evnote', q: 'state=menu', act: p => p.locator('#mlist .evnote').first().tap(), dur: 800 },
-  { name: 'evnoteclose', q: 'state=menu', setup: p => p.locator('#mlist .evnote').first().tap(), act: p => p.locator('[data-act=pageback]').tap(), dur: 700 },
+  { name: 'evnote', q: 'state=menu&day=4', act: p => p.locator('#mlist .evnote').first().tap(), dur: 800 },
+  { name: 'evnoteclose', q: 'state=menu&day=4', setup: p => p.locator('#mlist .evnote').first().tap(), act: p => p.locator('[data-act=pageback]').tap(), dur: 700 },
   { name: 'pinclose', q: 'pins=2', setup: p => p.locator('#pins .band').first().tap(), act: p => p.locator('#mctl [data-act=back]').tap(), dur: 700 },
   { name: 'placeclose', q: 'state=search', setup: async p => { await p.keyboard.type('wasabi'); await p.waitForTimeout(300 * K); await p.locator('#sres [data-act=cafe]').first().tap(); }, act: p => p.locator('#mctl [data-act=back]').tap(), dur: 700 },
   { name: 'areaopen', q: '', act: p => p.locator('#areas .lrow').first().tap(), dur: 700 },
@@ -91,6 +91,12 @@ const I = [
   { name: 'busy', q: '', act: p => p.evaluate(() => renderHalls()), dur: 700 },
   { name: 'open', q: '', act: p => p.locator('.band[data-h=W]').tap(), dur: 800 },
   { name: 'close', q: 'state=menu', act: p => p.locator('#mctl [data-act=back]').tap(), dur: 800 },
+  // round 9: the day (schedule sheet, then fade through), the schedule from its two doors, Show all
+  { name: 'daychange', q: 'state=menu&hall=F', setup: p => p.locator('.dayc').tap(), act: p => p.locator('#days [data-day="3"]').tap(), dur: 1100 },
+  { name: 'daychangecollapsed', q: 'state=collapsed', setup: p => p.locator('.dayc').tap(), act: p => p.locator('#days [data-day="1"]').tap(), dur: 1100 },
+  { name: 'schedday', q: 'state=menu', act: p => p.locator('.dayc').tap(), dur: 900 },
+  { name: 'schedstatus', q: 'state=menu', act: p => p.locator('#mts').tap(), dur: 900 },
+  { name: 'showall', q: 'state=menu', setup: p => p.evaluate(() => { S.avoid = { Milk: true }; renderMenuList(); }), act: p => p.locator('.dietnote [data-act=prefshow]').tap(), dur: 600 },
   { name: 'collapse', q: 'state=menu', act: async (p, mark, touch) => { const pts = []; for (let i = 0; i <= 24; i++) pts.push([200, 640 - i * 14]); await touch(pts, 70 * K / 4); }, dur: 1100 },
   { name: 'closecollapsed', q: 'state=collapsed', act: p => p.locator('#mctl [data-act=back]').tap(), dur: 1200 },
 ];

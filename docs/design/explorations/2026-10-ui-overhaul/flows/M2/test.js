@@ -37,6 +37,7 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
   const mRow = n => page.locator('#mlist .row', { has: page.locator('.n', { hasText: new RegExp('^' + n) }) });
   const visible = async loc => { const b = await loc.boundingBox(); const bar = await page.locator('#bar').boundingBox(); return b && b.y > 120 && b.y + b.height < Math.min(bar.y, 844 - 90); };
   const results = [];
+  const fmt = m => `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;   // minutes -> get_infov2's "H:MM AM"
   // Round 7: the navigation model. Expanding card only for hall bands and pinned cafés; push (iOS) for everything else;
   // the dish detail is a sheet over the list it came from. Every rAF frame of each transition is sampled.
   // RED=1 runs only this block, each scenario caught, against SRC=<an older build> to show which ones fail there.
@@ -69,7 +70,7 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
     const back = () => page.evaluate(() => { const n = NAV.at(-1); window.__pn = n; (n.el.querySelector('[data-act=pageback]') || document.querySelector('#mctl [data-act=back]')).click(); });
     const sources = [
       ['event card in Search', 'state=search', () => page.evaluate(() => document.querySelector('#q').blur()), '#evc .evcard'],
-      ['event note in a hall', 'state=menu', null, '#mlist .evnote'],
+      ['event note in a hall', 'state=menu&day=4', null, '#mlist .evnote'],
       ['café result in Search', 'state=search', async () => { await page.keyboard.type('wasabi'); await page.waitForTimeout(300); }, '#sres .prow2:not([data-act=hall])'],
       ['hall result in Search', 'state=search', async () => { await page.keyboard.type('worcester'); await page.waitForTimeout(300); }, '#sres .prow2[data-act=hall]'],
       ['area row', '', null, '#areas .lrow'],
@@ -338,7 +339,233 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
         assert.deepEqual(long, ['Cheese Rigatoni w/Plant Based Nasoya Bolognese Sauce', true, true, true], 'the longest name carries every badge'); }
       await page.setViewportSize({ width: 390, height: 844 }); });
   };
-  if (process.env.RED) { await (process.env.RED === '8' ? round8 : round7)(); console.log(results.join('\n')); await browser.close(); return; }
+  // Round 9: the place and its day. Real meal windows; the day cell and the schedule; allergens behind "Show all"; network
+  // states; cafés with dishes (plates, price, Search, "where"). RED=9 runs only this block, each scenario caught
+  // (SRC=build/r9/before/index.html shows which fail on round 8b).
+  const round9 = async () => {
+    const RMm = !!process.env.RM;
+    const scen = async (name, fn) => { if (!process.env.RED) return fn(); try { await fn(); results.push('green  ' + name); } catch (e) { results.push('RED    ' + name + ': ' + e.message.split('\n')[0].slice(0, 240)); } };
+    const go = async q => { await page.goto(URL + (q || '')); await page.evaluate(() => { localStorage.removeItem('udine-m2'); }); await page.goto(URL + (q || '')); await page.waitForTimeout(500); };
+    const cafeIdx = n => page.evaluate(n => P.places.findIndex(x => x[0] === n), n);
+    const rowsN = () => page.locator('#mlist .row').count();
+    await scen('real meal windows (hours.ts)', async () => {
+      await go();
+      // `TZ=America/New_York node` on shared/src/hours.ts: mapInfoV2(locations-2026-10-08.json), then
+      // effectiveMealWindow(Worcester, 'lunch', Thu Oct 8 12:41) -> {"openTime":"11:00 AM","closeTime":"4:30 PM"}
+      const EW_WORCESTER_LUNCH = { openTime: '11:00 AM', closeTime: '4:30 PM' };
+      const w = await page.evaluate(() => [WIN.W.lunch, WIN.B.breakfast, WIN.F.late, WIN.H.late, WIN.W.late, WIN.B.late, typeof MEALWIN]);
+      assert.deepEqual([fmt(w[0][0]), fmt(w[0][1])], [EW_WORCESTER_LUNCH.openTime, EW_WORCESTER_LUNCH.closeTime], "Worcester's lunch is effectiveMealWindow's");
+      assert.deepEqual(w.slice(1, 6), [null, null, null, [1260, 1439], [1260, 1439]], 'no breakfast at Berkshire, no late night at Franklin or Hampshire, late night 9 to 11:59 at W and B');
+      assert.equal(w[6], 'undefined', 'the guessed MEALWIN is gone');
+      assert.equal(await page.evaluate(() => NOW), 12 * 60 + 41, 'the clock is 12:41');
+    });
+    await scen('day change: tabs for that day, header still, fade through', async () => {
+      await go('?state=franklin');
+      assert.deepEqual(await page.locator('#mtabs .mts button').allTextContents(), ['Breakfast', 'Lunch', 'Dinner', "Grab 'N Go"], 'Franklin Thursday');
+      // where each part of the header is (x, y, height: a status line's width follows its words)
+      const head = () => page.evaluate(() => ['#mhead', '#mtabs', '#mswitch', '#mtn', '#mts', '.dayc'].map(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.x, r.y, r.height].map(v => Math.round(v * 10) / 10).join(','); }).join('|'));
+      const h0 = await head();
+      await page.locator('.dayc').tap(); await page.waitForTimeout(700);
+      assert(await page.locator('#days').isVisible(), 'the day cell opens the schedule');
+      await page.evaluate(() => { window.__f = []; const f = () => { const r = ['#mhead', '#mtabs', '#mswitch', '#mtn', '#mts', '.dayc'].map(s => { const b = document.querySelector(s).getBoundingClientRect(); return [b.x, b.y, b.height].map(v => Math.round(v * 10) / 10).join(','); }).join('|');
+        const l = document.querySelector('#mlist'); __f.push([r, +getComputedStyle(l).opacity, getComputedStyle(l).transform]); if (__f.length < 90) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+      // what names the place never fades or repaints: the letter's nodes, the name's text node and the photo stay, opaque, in every frame
+      await page.evaluate(() => { const id = [document.querySelector('#mlet text'), document.querySelector('#mtn').firstChild, document.querySelector('#mph')]; window.__id = []; const g = () => { const now = [document.querySelector('#mlet text'), document.querySelector('#mtn').firstChild, document.querySelector('#mph')];
+        __id.push([now.every((n, i) => n === id[i]), ['#mlet', '#mtn', '#mph', '#mhead'].map(q => +getComputedStyle(document.querySelector(q)).opacity).join()]); if (__id.length < 90) requestAnimationFrame(g); }; requestAnimationFrame(g); });
+      // pixels too: the letter's warm felt, measured against the same spot just before the tap (under the same scrim)
+      const lb = await page.locator('#mlet').boundingBox(), clip = { x: lb.x + 100, y: Math.max(0, lb.y + 30), width: 80, height: 60 };
+      const warm = async () => +require('child_process').execSync(`python3 -c "
+import sys,io
+from PIL import Image
+im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.getdata()); print(sum(1 for r,g,b in d if r>b+45 and g>b+25)/len(d))"`, { input: await page.screenshot({ clip }) }).toString();
+      const w0 = await warm(), gold = [];
+      await page.locator('#days [data-day="3"]').tap();
+      for (let i = 0; i < 8; i++) { gold.push(await warm()); await page.waitForTimeout(30); }
+      await page.waitForTimeout(1000);
+      (await page.evaluate(() => __id)).forEach(([same, op], i) => { assert(same, `the letter, name and photo are never re-drawn during a day change (frame ${i})`); assert.equal(op, '1,1,1,1', `and stay opaque (frame ${i})`); });
+      assert(w0 > .15, `the letter is in the sampled spot (${(w0 * 100).toFixed(0)}% warm)`);
+      gold.forEach((g, i) => assert(g > w0 * .7, `the letter's gold is on screen in every sample (${i}: ${(g * 100).toFixed(0)}% vs ${(w0 * 100).toFixed(0)}% before)`));
+      const fr = await page.evaluate(() => __f);
+      assert.deepEqual(await page.locator('#mtabs .mts button').allTextContents(), ['Lunch', 'Dinner'], 'Franklin Sunday: no breakfast, no Grab \'N Go');
+      assert.equal(await page.locator('#dayl').textContent(), 'Sun 11');
+      assert.equal(await page.evaluate(() => S.mmeal), 'lunch', 'the meal is kept when the day has it');
+      fr.forEach(([r], i) => assert.equal(r, h0, `the header never moves during a day change (frame ${i})`));
+      if (!RMm) { const tr = fr.filter(([, , t]) => t !== 'none'); assert(tr.length > 3, 'the list fades through from .97 (scale frames sampled: ' + tr.length + ')');
+        tr.forEach(([, , t], i) => { const m = t.match(/matrix\(([^,]+),\s*0,\s*0,\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/); assert(m && Math.abs(m[1] - m[2]) < 1e-6 && +m[1] >= .969 && +m[1] <= 1, `a uniform .97 -> 1 scale, never a slide (frame ${i}: ${t})`); }); }
+      const ops = fr.map(([, o]) => o); assert(Math.min(...ops) < .5 && ops.at(-1) === 1, 'the new list fades in');
+      assert.equal(await page.locator('.dghost, #mscroll > div:not(#mspace):not(#mlist)').count(), 0, 'nothing left over at rest');
+      // the selected meal stays in view in the scrolling tabs; no tab is ellipsized; every tab is a 44 px target
+      for (const w of [390, 360]) { await page.setViewportSize({ width: w, height: 844 }); await go('?state=menu'); await page.locator('#mtabs .mts button[data-meal=grab]').tap(); await page.waitForTimeout(800);
+        const t = await page.evaluate(() => { const sc = document.querySelector('#mtabs .mts'), r = sc.getBoundingClientRect(); return [...sc.querySelectorAll('button')].map(b => { const q = b.getBoundingClientRect(); return [b.textContent, b.scrollWidth <= b.clientWidth, q.height, getComputedStyle(b).textOverflow, b.getAttribute('aria-selected') === 'true' ? q.left >= r.left - .5 && q.right <= r.right + .5 : true]; }); });
+        t.forEach(([n, whole, h, to, vis]) => { assert(whole && to !== 'ellipsis', `${w}px: ${n} is whole`); assert(h >= 44, `${w}px: ${n} is ${h}px tall`); assert(vis, `${w}px: the selected meal (${n}) is scrolled fully into view`); });
+        assert((await page.locator('.dayc').boundingBox()).height >= 44, 'the day cell is a 44 px target');
+        // a side with more to scroll fades into the row's maroon; a side at its end doesn't
+        const fade = () => page.evaluate(() => { const sc = document.querySelector('#mtabs .mts'), m = getComputedStyle(sc).maskImage || getComputedStyle(sc).webkitMaskImage; return [sc.classList.contains('fl'), sc.classList.contains('fr'), m !== 'none', sc.scrollLeft > 1, sc.scrollLeft < sc.scrollWidth - sc.clientWidth - 1]; });
+        let f = await fade(); assert.deepEqual([f[0], f[1], f[2]], [f[3], f[4], f[3] || f[4]], `${w}px: the fades follow what is left to scroll (${f})`);
+        await page.evaluate(() => { const sc = document.querySelector('#mtabs .mts'); sc.scrollLeft = 0; }); await page.waitForTimeout(150);
+        f = await fade(); assert.deepEqual(f.slice(0, 2), [false, true], `${w}px: at the start only the right side fades`);
+        const dl = (await page.locator('.dayc').boundingBox()).x, tl = (await page.locator('#mtabs .mts').boundingBox()).x; assert(dl === 0 && tl >= 100, `the day cell holds the edge; the tabs scroll from ${tl}px`); }
+      await page.setViewportSize({ width: 390, height: 844 });
+    });
+    await scen('the schedule: where, every window, every day', async () => {
+      await go('?state=menu');
+      await page.locator('#mts').tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('#isheet .schn').textContent(), 'Worcester', 'the status line opens the schedule');
+      assert.equal(await page.locator('#isheet .scha').textContent(), '667 N Pleasant St');
+      assert.match(await page.locator('#isheet .dirb').getAttribute('href'), /42\.3924624,-72\.5255959/, "Directions hands map_address to the maps app");
+      const days = await page.locator('#days .day').evaluateAll(b => b.map(x => [x.children[0].textContent, x.children[1].textContent]));
+      assert.equal(days.length, 15, 'every day of the feed, Oct 8 to 22');
+      assert.deepEqual(days[0], ['Today', '7 AM to midnight']); assert.deepEqual(days[2], ['Saturday, October 10', 'No menu posted'], 'Oct 10: No menu posted'); assert.equal(days[14][0], 'Thursday, October 22');
+      assert.deepEqual(await page.locator('#days .mws .mw').evaluateAll(r => r.map(x => x.textContent)), ['Breakfast7 AM to 11 AM', 'Lunch11 AM to 4:30 PM', 'Dinner4:30 PM to 9 PM', 'Late night9 PM to midnight', "Grab 'N Go7 AM to 8 PM"], "today's every window");
+      assert.equal(await page.locator('#days .mws').count(), 1, 'only the chosen day is open');
+      const ch = await page.evaluate(() => getComputedStyle(document.querySelector('#mts .sch')).stroke); assert.match(ch, /rgba\(255, 255, 255, 0\.6\)/, "the status line's chevron is quieter than the gold ones: " + ch);
+      // opened from the day cell on a late day, that day is on screen without scrolling
+      await page.locator('#scrim').tap({ position: { x: 200, y: 40 } }); await page.waitForTimeout(600);
+      await page.evaluate(() => { S.mday = 13; renderMenu(); }); await page.locator('.dayc').tap(); await page.waitForTimeout(800);
+      const vis = await page.evaluate(() => { const s = document.querySelector('#isheet').getBoundingClientRect(), m = document.querySelector('#days .mws').getBoundingClientRect(), d = document.querySelector('#days .day.cur').getBoundingClientRect(); return [d.top >= s.top + 22, m.bottom <= innerHeight + .5, document.querySelector('#days .day.cur').firstElementChild.textContent, Math.round(s.top), Math.round(d.top), Math.round(m.bottom)]; });
+      assert.deepEqual(vis.slice(0, 3), [true, true, 'Wednesday, October 21'], 'the chosen day (and its hours) is visible at rest: ' + vis.slice(3));
+      // a café's schedule: building and payment too
+      await go(); await page.evaluate(i => openHall('C', true, null, { cafe: i }), await cafeIdx('Wasabi')); await page.locator('#mts').tap(); await page.waitForTimeout(700);
+      assert.match(await page.locator('#isheet .sched').textContent(), /Blue Wall, Campus Center.*Payment.*Dining Dollars/s);
+      assert.deepEqual(await page.locator('#days .day').nth(3).evaluate(x => x.textContent), 'Sunday, October 11No menu posted', 'Wasabi Sunday: No menu posted (closed weekends: never "yet")');
+      // Oct 12 at a hall: the row opens the holiday's hours event (its real title, a chevron, a 44 px target), by the event push
+      await go('?state=menu&day=4'); await page.locator('.dayc').tap(); await page.waitForTimeout(800);
+      const ev = page.locator('#days .mws .evrow'); assert.equal(await ev.locator('.evtt').textContent(), 'Indigenous Peoples Day Hours');
+      assert.equal(await ev.locator('svg.chev').count(), 1, 'with a chevron'); assert((await ev.boundingBox()).height >= 44, 'a 44 px target');
+      await ev.tap(); await page.waitForTimeout(1300);
+      assert.deepEqual(await page.locator('.page[data-p=event] a.evbtn').allTextContents(), ['See the menu', 'Holiday hours'], 'it pushes the event page, with its Holiday hours');
+    });
+    await scen('allergens: hidden behind the line, Show all reveals, the setting survives', async () => {
+      await go('?state=you'); await page.locator('[data-p=diet]').tap(); await page.waitForTimeout(700);
+      assert.deepEqual(await page.locator('.page [data-avoid]').evaluateAll(b => b.map(x => x.textContent)), ['Milk', 'Eggs', 'Fish', 'Shellfish', 'Tree nuts', 'Peanuts', 'Wheat', 'Soy', 'Sesame', 'Gluten', 'Corn'], "the feed's 11 allergens, in order");
+      await page.locator('.page [data-avoid=Milk]').tap(); await page.waitForTimeout(300);
+      await page.locator('[data-act=pageback]').tap(); await page.waitForTimeout(600);
+      assert.equal(await page.locator('#you [data-p=diet] .b').textContent(), 'No milk', 'You says what you avoid');
+      await page.locator('.tbar button[data-tab=halls]').tap(); await page.waitForTimeout(400); await page.locator('.band[data-h=W]').tap(); await page.waitForTimeout(900);
+      const D = await page.evaluate(() => { const all = MD[0].W.lunch.flatMap((s, si) => s[1].map((x, di) => DISH[`W.lunch.${si}.${di}`])); return [all.length, all.filter(d => d.algs.includes('Milk')).length, all.filter(d => !d.alg).length]; });
+      assert.equal(await rowsN(), D[0] - D[1], `the ${D[1]} dishes that list milk are hidden`);
+      assert.equal(await page.locator('.dietnote span').textContent(), `Hiding ${D[1]} dishes that list milk`, 'the line counts them and never calls the rest safe');
+      assert.equal(await mRow('Green Chile Posole').count(), 1, 'a dish that lists nothing is not hidden (blank is "not listed")');
+      await page.locator('.dietnote [data-act=prefshow]').tap(); await page.waitForTimeout(500);
+      assert.equal(await rowsN(), D[0], 'Show all reveals them');
+      assert.equal(await page.locator('#mlist .row .cont').count(), D[1], 'each revealed dish leads with "Contains milk"');
+      assert.equal(await page.locator('#mlist .row .cont').first().textContent(), 'Contains milk');
+      assert.equal(await page.locator('.dietnote span').textContent(), 'Showing all dishes');
+      assert.deepEqual(await page.evaluate(() => [S.avoid, JSON.parse(localStorage.getItem('udine-m2')).avoid]), [{ Milk: true }, { Milk: true }], 'Show all never edits the preference');
+      await page.locator('#mtabs .mts button[data-meal=dinner]').tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('.dietnote span').textContent(), 'Showing all dishes', 'revealed across a meal change');
+      await page.locator('.dayc').tap(); await page.waitForTimeout(700); await page.locator('#days [data-day="1"]').tap(); await page.waitForTimeout(900);
+      assert.deepEqual([await page.evaluate(() => [S.reveal, S.mday].join()), await page.locator('.dietnote span').textContent()], ['true,1', 'Showing all dishes'], 'and across a day change');
+      await page.locator('#mctl [data-act=back]').tap(); await page.waitForTimeout(900); await page.locator('.band[data-h=W]').tap(); await page.waitForTimeout(900);
+      assert.match(await page.locator('.dietnote span').textContent(), /^Hiding \d+ dishes that list milk$/, 'leaving the hall hides them again');
+      await mRow('Golden BBQ Chicken Thigh').locator('.n').tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('#isheet .dal .av').count(), 0, 'Golden BBQ lists no milk');
+      await page.reload(); await page.waitForTimeout(400); assert.deepEqual(await page.evaluate(() => S.avoid), { Milk: true }, 'the setting survives a reload');
+      // Search hides them too, behind the same line
+      await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('pizza'); await page.waitForTimeout(400);
+      assert.match(await page.locator('#sres .dietnote span').textContent(), /^Hiding \d+ dish(es)? that lists? milk$/, 'Search has the line');
+      assert.equal(await page.evaluate(() => [...document.querySelectorAll('#sres .row')].filter(r => { const d = r.dataset.id ? DISH[r.dataset.id] : rep(sGroup(r)); return d.algs.includes('Milk'); }).length), 0, 'no row in Search lists milk');
+      // arriving at a hidden dish through "where" opens that list revealed, the row marked
+      await page.evaluate(() => { S.avoid = { Milk: true }; }); await go('?state=search'); await page.evaluate(() => { S.avoid = { Milk: true }; save(); });
+      await page.locator('#q').fill('gouda bisque'); await page.waitForTimeout(400); await page.evaluate(() => { S.sreveal = true; renderSearch(); });
+      await page.locator('#sres .row .n').first().tap(); await page.waitForTimeout(700); await page.locator('#isheet .hchip').first().tap(); await page.waitForTimeout(1600);
+      assert.equal(await page.evaluate(() => S.reveal), true, 'the list arrives revealed');
+      assert.equal(await page.locator('#mlist .row.here .cont').textContent(), 'Contains milk', 'and the dish it arrived at is marked');
+      await page.evaluate(() => localStorage.removeItem('udine-m2'));
+    });
+    await scen('network states: ?net=slow|offline|fail', async () => {
+      await page.goto(URL + '?net=slow'); await page.waitForTimeout(200);
+      assert.equal(await page.locator('.band[data-h=W] .st').textContent(), '', 'slow: the rack is drawn, its hours not yet');
+      await page.waitForTimeout(1800); assert.equal(await page.locator('.band[data-h=W] .st').textContent(), 'Open until midnight', 'slow: then they arrive');
+      await page.goto(URL + '?net=slow&state=menu'); await page.waitForTimeout(700);
+      assert(await page.locator('#mlist .spin').isVisible(), 'slow: the menu shows the activity indicator after 400 ms'); assert.equal(await page.locator('#mtabs .mts button').count(), 0, 'and no meals yet');
+      await page.waitForTimeout(1600); assert(await rowsN() > 20, 'slow: then the menu arrives');
+      await page.goto(URL + '?net=offline&pins=2'); await page.waitForTimeout(400);
+      assert.deepEqual(await page.locator('.hhead').evaluate(h => [h.querySelector('.date').textContent, h.querySelector('#netl').textContent]), ['Thursday, October 8', "You're offline"], 'offline: the date stays and the line adds it');
+      assert.equal(await page.locator('#bands .meter').count(), 0, 'offline: no busy meter (live data is never shown stale)');
+      assert.equal(await page.locator('.band[data-h=W] .st').textContent(), 'Open until midnight', 'offline: cached hours stay');
+      const filt = await page.evaluate(() => [...document.querySelectorAll('.band .ph, .band .duo, .band')].map(e => getComputedStyle(e).filter + getComputedStyle(e).opacity).join('|'));
+      await page.goto(URL + '?pins=2'); await page.waitForTimeout(400);
+      assert.equal(filt, await page.evaluate(() => [...document.querySelectorAll('.band .ph, .band .duo, .band')].map(e => getComputedStyle(e).filter + getComputedStyle(e).opacity).join('|')), 'offline alters no photo');
+      await page.goto(URL + '?net=offline&state=menu'); await page.waitForTimeout(500);
+      assert(await rowsN() > 20, "offline: today's saved menu"); assert.equal(await page.locator('#mhist svg').count(), 0, 'offline: no lamp board');
+      await page.evaluate(() => { S.mday = 5; renderMenu(); });
+      assert.equal(await page.locator('#mlist .empty').textContent(), "You're offline, and the menu for Tuesday, October 13 isn't saved on this phone.");
+      await page.locator('.dayc').tap(); await page.waitForTimeout(700); assert.equal(await page.locator('#days .day').nth(6).locator('.r').textContent(), 'Not saved');
+      await page.goto(URL + '?net=fail&state=menu'); await page.waitForTimeout(500);
+      assert.equal(await page.locator('#mlist .empty').textContent(), "Worcester's menu didn't load."); assert.equal(await page.locator('#netl').textContent(), "Couldn't connectTry again"); assert.equal(await page.locator('#netl .obtn').count(), 1, 'the same kind of control as the hall\'s Try again');
+      await page.locator('#mlist [data-act=retry]').tap(); await page.waitForTimeout(700);
+      assert(await rowsN() > 20, 'fail: Try again loads the menu'); assert.equal(await page.locator('#netl').textContent(), '', 'and clears the line');
+      await page.goto(URL + '?net=fail'); await page.waitForTimeout(300);
+      assert.equal(await page.locator('.band[data-h=W] .st').textContent(), '', 'fail: no hours');
+      for (const w of [390, 360]) { await page.setViewportSize({ width: w, height: 844 }); await page.waitForTimeout(150);
+        const [tb, h1, hd] = await page.evaluate(() => ['#netl .obtn', '.hhead h1', '.hhead'].map(q => { const r = document.querySelector(q).getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height }; }));
+        const h1w = await page.evaluate(() => { const r = document.createRange(); r.selectNodeContents(document.querySelector('.hhead h1')); return r.getBoundingClientRect().right; });
+        assert(tb.h >= 44, `${w}px: Halls' Try again is a 44 px outlined button (${tb.h})`); assert(tb.b <= hd.b - 4, `${w}px: inside the header`); assert(tb.l - h1w >= 16, `${w}px: clear of "Lunch" (${(tb.l - h1w).toFixed(0)} px)`); }
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.locator('#netl [data-act=retry]').tap(); await page.waitForTimeout(500);
+      assert.equal(await page.locator('.band[data-h=W] .st').textContent(), 'Open until midnight', 'Try again on Halls');
+      // the name never moves between states (the status keeps its room)
+      const ny = async q => { await page.goto(URL + q); await page.waitForTimeout(500); return (await page.locator('#mtn').boundingBox()).y; };
+      const y0 = await ny('?state=menu'); for (const q of ['?net=fail&state=menu', '?net=slow&state=menu', '?net=offline&state=menu']) assert.equal(await ny(q), y0, q + ': the name stays put');
+    });
+    await scen('cafés: dishes, their own plate, price', async () => {
+      await go('?state=menu'); await page.evaluate(() => bench());
+      const gf = await cafeIdx('Green Fields'); await page.evaluate(i => openHall('C', false, null, { cafe: i }), gf); await page.waitForTimeout(900);
+      assert.deepEqual(await page.locator('#mtabs .mts button').allTextContents(), ['Lunch', 'Dinner'], 'meal tabs from the feed');
+      assert(await page.locator('#mlist .sth').count() >= 3 && await rowsN() > 20, 'stations and dish rows');
+      await mRow('Caesar Salad w/Chicken').locator('.add').tap(); await page.waitForTimeout(500);
+      const pl = await page.evaluate(() => S.plates.map(p => [plateLabel(p), __plateHalls(p).join()]));
+      assert.deepEqual(pl, [['Worcester lunch', 'W'], ['Green Fields lunch', 'c' + gf]], 'a café dish starts its own plate, "Green Fields lunch"');
+      // the same dish name at a hall and a café never shares a plate
+      await page.evaluate(() => { const g = BYK.lunch['french fries'], c = CBYK.lunch['french fries'] || CBYK.all['french fries']; addDish('lunch', g.k, g.refs, g.n); addDish('lunch', c.k, c.refs, c.n); });
+      assert.equal(await page.evaluate(() => S.plates.filter(p => p.items.some(i => i.k === 'french fries')).length), 2, 'french fries: a hall plate and a café plate');
+      assert.equal(await page.evaluate(() => S.plates.filter(p => __plateHalls(p).some(isCafe) && __plateHalls(p).some(h => !isCafe(h))).length), 0, 'no plate mixes a café and a hall');
+      await mRow('Caesar Salad w/Chicken').locator('.n').tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('#isheet .dsv').textContent(), '$11.001 each', 'the price leads the serving line');
+      assert.equal(await page.locator('#mlist .row .pr, #sres .row .pr').count(), 0, 'rows never show a price');
+      await page.locator('#scrim').tap({ position: { x: 200, y: 40 } }); await page.waitForTimeout(600);
+      await page.evaluate(() => openDish(DISH['14.F.lunch.5.1'])); await page.waitForTimeout(600);
+      assert.equal(await page.locator('#isheet .pr').count(), 0, 'a hall serving never shows a price (the one priced hall dish)');
+      await page.evaluate(() => isheet.to('closed')); await page.waitForTimeout(500);
+      await page.evaluate(() => openDish(DISH['W.lunch.' + MD[0].W.lunch.findIndex(s => s[1].some(x => DISHES[x][0] === 'Golden BBQ Chicken Thigh')) + '.0'] || byName('W', 'lunch', 'Golden BBQ Chicken Thigh'))); await page.waitForTimeout(500);
+      assert.equal(await page.locator('#isheet .pr').count(), 0, 'a hall dish: no price');
+      // from the plate, the café dish keeps its price
+      await page.evaluate(() => isheet.to('closed')); await page.waitForTimeout(500);
+      await page.evaluate(() => { S.front = S.plates.findIndex(p => plateLabel(p) === 'Green Fields lunch'); renderBar(); if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(700);
+      await page.locator('#psbody .prow .n', { hasText: 'Caesar Salad w/Chicken' }).tap(); await page.waitForTimeout(700);
+      assert.equal(await page.locator('#isheet .pr').textContent(), '$11.00', 'a café dish opened from the plate keeps its price');
+      // a one-menu café: the day cell leads the station row, and the collapsed header is the bar plus that one row
+      await go(); await page.evaluate(i => openHall('C', true, null, { cafe: i }), await cafeIdx('Worcester Café'));
+      assert.deepEqual(await page.evaluate(() => [getComputedStyle(document.querySelector('#mtabs')).display, document.querySelector('.dayc').parentElement.id, PIN() - CH]), ['none', 'mswitch', 48]);
+      await page.evaluate(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = 600; paint(1, 600); }); await page.waitForTimeout(200);
+      const top = await page.evaluate(() => { const r = document.querySelector('#mlist .sth').getBoundingClientRect(); return [document.querySelector('#mswitch').getBoundingClientRect().bottom, CH + 48]; });
+      assert(Math.abs(top[0] - top[1]) < 1, `collapsed: the bar and one row (${top[0]} vs ${top[1]})`);
+      // a café without a dish menu keeps its body
+      await page.evaluate(i => openHall('C', true, null, { cafe: i }), await cafeIdx('ISB Café'));
+      assert.match(await page.locator('#mlist').textContent(), /ISB Café doesn't list its menu in the app\./);
+    });
+    await scen('Search finds café dishes; "where" names the café', async () => {
+      await go('?state=search'); await page.locator('#q').fill('caesar'); await page.waitForTimeout(400);
+      const r = page.locator('#sres .row[data-cg]', { has: page.locator('.n', { hasText: /^Caesar Salad w\/Chicken/ }) });
+      assert.equal(await r.count(), 1, 'a café dish row');
+      assert.equal(await r.locator('.cnm').textContent(), 'Green Fields', 'its lane names the café');
+      assert.equal(await page.locator('#sres .sgrp', { hasText: 'At cafés' }).count(), 1);
+      assert.equal(await page.locator('#sres .prow2', { hasText: 'Green Fields' }).count(), 0, 'Places no longer matches a café by its old names list');
+      await r.locator('.n').tap(); await page.waitForTimeout(700);
+      assert.deepEqual(await page.locator('#isheet .where .wl').evaluateAll(l => l.map(x => x.querySelector('.wt').textContent + ': ' + [...x.querySelectorAll('.hchip')].map(c => c.textContent).join(', '))), ['Lunch now, until 4:30 PM: Green Fields'], '"where" names the café');
+      await page.locator('#isheet .hchip.cafe').tap(); await page.waitForTimeout(1600);
+      assert.equal(await page.evaluate(() => [PK() === 'c' + P.places.findIndex(x => x[0] === 'Green Fields'), S.mmeal].join()), 'true,lunch', 'the café tag opens Green Fields at lunch');
+      assert.match(await page.locator('#mlist .row.here .n').textContent(), /Caesar Salad w\/Chicken/, 'scrolled to the dish');
+      // plate from Search: the café row's + starts the café plate
+      await go('?state=search'); await page.locator('#q').fill('caesar'); await page.waitForTimeout(400);
+      await r.locator('.add').tap(); await page.waitForTimeout(500);
+      assert.equal(await page.locator('#barL').textContent(), 'Green Fields lunch');
+      // where answers carry cafés at 4:31 too (a café dish only served at cafés)
+      assert.match(await page.evaluate(() => whereAnswer(norm('Caesar Salad w/Chicken'), 991).map(g => whenText(g) + ' ' + g.hs.map(PN).join()).join(' | ')), /^Dinner now, until 9 PM Green Fields/);
+    });
+  };
+  if (process.env.RED) { await ({ 8: round8, 9: round9 }[process.env.RED] || round7)(); console.log(results.join('\n')); await browser.close(); return; }
 
   // Round 5: the rack has one seam colour. Every seam between the Halls header, the hall bands and the pinned cafés is
   // deep maroon (the stack's own container), never the chalk of #halls behind it. Checked at three widths, at rest, after a
@@ -499,8 +726,9 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Wasabi' }).tap(); await page.waitForTimeout(450);
   assert.equal(await page.evaluate(() => [S.cafe != null, document.querySelector('#menu').classList.contains('cafe')].join()), 'true,true', 'café detail (the hall screen, café mode)');
   assert.match(await page.locator('#mts').textContent(), /Open until 9 PM/);
-  await page.locator('#mlist .lrow', { hasText: 'California Roll' }).locator('.add').tap(); await page.waitForTimeout(400);
-  assert.equal(await page.locator('#cn').inputValue(), 'California Roll', 'café menu item -> custom food, name prefilled');
+  // round 9: a café's menu is dishes now, and a café dish starts a plate of its own, labelled by the café
+  await mRow('California Roll').locator('.add').tap(); await page.waitForTimeout(400);
+  assert.equal(await page.locator('#barL').textContent(), 'Wasabi lunch', 'café dish -> its own plate, "Wasabi lunch"');
   await page.goto(URL); await page.waitForTimeout(300);
   // Round 4: events live in Search's idle state (4 cards, IPD + its Hours merged), snap, open the event page
   const wTop = (await page.locator('.band[data-h=W]').boundingBox()).y;
@@ -525,9 +753,12 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   assert.equal(await page.locator('#evc.one .evcard').count(), 1, 'one event: one full-width card');
   await page.goto(URL + '?events=0&state=search'); await page.waitForTimeout(300);
   assert(await page.locator('#sdisc').isHidden(), 'no events -> no carousel, no empty state');
-  // contextual: the all-DCs event shows as a quiet note inside each hall menu this week
+  // contextual: the all-DCs event shows as a quiet note inside each hall menu, on its own day (round 9: Monday Oct 12)
   await page.goto(URL + '?state=menu&hall=H'); await page.waitForTimeout(400);
-  assert.equal(await page.locator('#mlist .evnote').count(), 1, 'IPD note in Hampshire');
+  assert.equal(await page.locator('#mlist .evnote').count(), 0, 'no IPD note on Thursday');
+  await page.evaluate(() => { S.mday = 4; renderMenu(); });
+  assert.equal(await page.locator('#mlist .evnote').count(), 1, 'IPD note in Hampshire on Monday');
+  assert.equal(await page.locator('#mlist .evnote .evtag').count(), 0, 'on its own day the note does not repeat the date');
 
   // Round 4: only the tapped band moves; every other band, the Halls header and the café rows hold still in every frame
   for (const h of ['W', 'H']) {
@@ -614,19 +845,21 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   // then the rendered block: served now; now plus later at another hall; later today only; tomorrow only; and the hall tags.
   const say = (n, t) => page.evaluate(([n, t]) => whereAnswer(norm(n), t).map((g, i, A) => whenText(g, A[i - 1]) + ' ' + g.hs.join('')).join(' | '), [n, t]);
   await page.goto(URL); await page.waitForTimeout(300);
-  assert.equal(await say('Green Chile Posole', 760), 'Lunch now, until 3:30 PM WFHB', '12:40: posole at every hall now');
-  assert.equal(await say('Green Chile Posole', 945), 'Dinner from 4:30 PM WFHB', '3:45, between meals: next is dinner');
+  // round 9: the real windows (hours.ts: standard windows clamped to the hall's hours) end lunch at 4:30, when dinner starts
+  assert.equal(await say('Green Chile Posole', 761), 'Lunch now, until 4:30 PM WFHB', '12:41: posole at every hall now');
+  assert.equal(await say('Green Chile Posole', 945), 'Lunch now, until 4:30 PM WFHB', '3:45: still lunch (no gap between meals)');
+  assert.equal(await say('Green Chile Posole', 991), 'Dinner now, until 9 PM WFHB', '4:31: dinner');
   assert.equal(await say('Green Chile Posole', 1290), 'Tomorrow, lunch from 11 AM H', '9:30 PM: tomorrow');
-  assert.equal(await say('Black Bean Burger', 760), 'Lunch now, until 3:30 PM WFB | Dinner from 4:30 PM H', 'now, then later at another hall');
+  assert.equal(await say('Black Bean Burger', 761), 'Lunch now, until 4:30 PM WFB | Dinner from 4:30 PM H', 'now, then later at another hall');
   assert.equal(await say('Black Bean Burger', 1430), 'Late night now, until midnight W', '11:50 PM: late night');
-  assert.equal(await say('Chewy M&M Bar', 760), "Grab 'N Go now, until 4 PM F | Until 8 PM WB", 'two closing times for the same meal');
-  assert.equal(await say('Beef Brisket Noodle Bowl', 945), '', 'nothing left: no answer');
+  assert.equal(await say('Chewy M&M Bar', 761), "Grab 'N Go now, until 4 PM F | Until 8 PM WB", 'two closing times for the same meal');
+  assert.equal(await say('Beef Brisket Noodle Bowl', 991), '', 'nothing left: no answer');
   const where = async n => { await page.goto(URL); await page.waitForTimeout(300);
     await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type(n.toLowerCase()); await page.waitForTimeout(300);
     await page.locator('#sres .row', { has: page.locator('.n', { hasText: new RegExp('^' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }) }).first().locator('.n').tap(); await page.waitForTimeout(700);
     return page.evaluate(() => [...document.querySelectorAll('#isheet .where .wl')].map(l => l.querySelector('.wt').textContent + ': ' + [...l.querySelectorAll('.hchip')].map(c => c.textContent).join(', '))); };
-  assert.deepEqual(await where('Beef Brisket Noodle Bowl'), ['Lunch now, until 3:30 PM: WWorcester, BBerkshire'], 'served now');
-  assert.deepEqual(await where('Black Bean Burger'), ['Lunch now, until 3:30 PM: WWorcester, FFranklin, BBerkshire', 'Dinner from 4:30 PM: HHampshire'], 'now, and later at another hall');
+  assert.deepEqual(await where('Beef Brisket Noodle Bowl'), ['Lunch now, until 4:30 PM: WWorcester, BBerkshire'], 'served now');
+  assert.deepEqual(await where('Black Bean Burger'), ['Lunch now, until 4:30 PM: WWorcester, FFranklin, BBerkshire', 'Dinner from 4:30 PM: HHampshire'], 'now, and later at another hall');
   assert.deepEqual(await where('Korean BBQ Chicken'), ['Dinner from 4:30 PM: BBerkshire'], 'later today only');
   assert.deepEqual(await where('Chinese Twist Cruller'), ['Tomorrow, breakfast from 7 AM: WWorcester, FFranklin'], 'tomorrow only');
   assert.equal(await page.locator('#isheet .agrid, #isheet .adays').count(), 0, 'no grid, no day switch');
@@ -649,7 +882,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   await page.locator('.tbar button[data-tab=search]').tap(); await page.keyboard.type('cruller'); await page.waitForTimeout(300);
   await sRow('Chinese Twist Cruller').locator('.n').tap(); await page.waitForTimeout(700);
   await page.locator('#isheet .hchip', { hasText: 'Franklin' }).tap(); await page.waitForTimeout(1600);
-  assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal, document.querySelector('#mts').textContent].join()), 'F,1,breakfast,Tomorrow, Friday', 'opens Franklin, tomorrow, breakfast');
+  assert.equal(await page.evaluate(() => [S.hall, S.mday, S.mmeal, document.querySelector('#dayl').textContent, document.querySelector('#mts').textContent].join()), 'F,1,breakfast,Fri 9,7 AM to 9 PM', 'opens Franklin, tomorrow (the day cell), breakfast; the status line gives that day\'s hours');
   here = await page.locator('#mlist .row.here').boundingBox();
   assert(here && here.y > 150 && here.y < 260, 'scrolled to the dish under the header: ' + (here && here.y));
   assert.match(await page.locator('#mlist .row.here .n').textContent(), /Chinese Twist Cruller/);
@@ -674,6 +907,7 @@ d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: 
 
   await round7();
   await round8();
+  await round9();
 
   // pins: device-local, survive a reload, open with the container transform, unpin from the same control
   await page.goto(URL); await page.evaluate(() => localStorage.removeItem('udine-m2')); await page.reload(); await page.waitForTimeout(300);

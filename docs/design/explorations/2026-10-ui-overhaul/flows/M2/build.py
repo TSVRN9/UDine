@@ -6,11 +6,11 @@ Photos: build/<name>.jpg are produced by photos.sh (re-encoded, no retouching).
 import base64, json, os, re
 
 D = os.path.dirname(os.path.abspath(__file__))
-menu = json.load(open(os.path.join(D, '..', 'menu-full-2026-10-08.json')))
+MENUS = json.load(open(os.path.join(D, '..', 'menus-2026-10-08-to-22.json')))
 
 HK = {'Worcester': 'W', 'Franklin': 'F', 'Hampshire': 'H', 'Berkshire': 'B'}
-MK = {'breakfast': 'breakfast', 'lunch': 'lunch', 'dinner': 'dinner', 'late night': 'late', 'grabngo': 'grab'}
-ORDER = ['breakfast', 'lunch', 'dinner', 'late', 'grab']
+MK = {'breakfast': 'breakfast', 'lunch': 'lunch', 'dinner': 'dinner', 'late night': 'late', 'daily offerings': 'all', 'grabngo': 'grab'}
+ORDER = ['breakfast', 'lunch', 'dinner', 'late', 'all', 'grab']
 
 
 def diet(s, code):
@@ -40,36 +40,31 @@ NUT = ['calories-from-fat', 'total-fat', 'total-fat-dv', 'sat-fat', 'sat-fat-dv'
        'total-carb', 'total-carb-dv', 'dietary-fiber', 'dietary-fiber-dv', 'sugars', 'protein', 'protein-dv']
 
 
+# the feed's allergen values, in the order Dietary preferences lists them (the US "big nine", then gluten and corn)
+ALG = ['Milk', 'Eggs', 'Fish', 'Shellfish', 'Tree Nuts', 'Peanuts', 'Wheat', 'Soy', 'Sesame', 'Gluten', 'Corn']
+
+
+def allergens(v):  # "Milk, Eggs, Gluten, Soy, Corn  , Wheat" -> "Milk, Eggs, Gluten, Soy, Corn, Wheat"; blank -> "" (not listed, not "none")
+    parts = [p.strip() for p in (v or '').split(',') if p.strip()]
+    assert all(p in ALG for p in parts), parts
+    return ', '.join(parts)
+
+
 def dish(x):
-    n = [dv(x[k]) if k.endswith('-dv') else num(x[k]) for k in NUT]
+    g = lambda k: x.get(k) or ''
+    n = [dv(g(k)) if k.endswith('-dv') else num(g(k)) for k in NUT]
     # scored = the legend code H0..H7 in recipe-webcode (as umassdining.com draws its badges); data-healthfulness alone is
     # not trusted: 16 Oct 8 dishes carry a value with no H code (unscored). H0 is a real 0. Carbon: the letter, which
     # always matches its CR1..CR5 code.
-    hc = [int(c[1]) for c in x['recipe-webcode'].split() if re.fullmatch(r'H[0-7]', c)]
-    return [x['dish-name'].strip(), round(num(x['calories']) or 0), round(num(x['protein']) or 0, 1), round(num(x['total-carb']) or 0, 1),
-            round(num(x['total-fat']) or 0, 1), diet(x['clean-diet-str'], x['recipe-webcode']), x['serving-size'].strip().lower(),
-            n, re.sub(r'\s+', ' ', x['ingredient-list']).strip(), re.sub(r'\s*,\s*', ', ', x['allergens']).strip(' ,'),
-            hc[0] if hc else None, x['carbon-list'] if x['carbon-list'] in 'ABCDE' and x['carbon-list'] else None]
+    hc = [int(c[1]) for c in g('recipe-webcode').split() if re.fullmatch(r'H[0-7]', c)]
+    cr = g('carbon-list')
+    return [g('dish-name').strip(), round(num(g('calories')) or 0), round(num(g('protein')) or 0, 1), round(num(g('total-carb')) or 0, 1),
+            round(num(g('total-fat')) or 0, 1), diet(g('clean-diet-str'), g('recipe-webcode')), g('serving-size').strip().lower(),
+            n, re.sub(r'\s+', ' ', g('ingredient-list')).strip(), allergens(g('allergens')),
+            hc[0] if hc else None, cr if cr in ('A', 'B', 'C', 'D', 'E') else None, x.get('price') or None,
+            # the feed's raw data-healthfulness, kept only for vectors.js (a number with no H code is unscored and never drawn)
+            int(num(g('healthfulness'))) if num(g('healthfulness')) is not None else None]
 
-
-def compact(menu):
-    out = {}
-    for hall, meals in menu['halls'].items():
-        h = HK[hall]
-        out[h] = {}
-        for mk in sorted(meals, key=lambda m: ORDER.index(MK[m])):
-            out[h][MK[mk]] = [[station(s['station']), [dish(x) for x in s['dishes']]] for s in meals[mk]]
-    return out
-out = compact(menu)
-# tomorrow (Fri Oct 9): same shape; "where and when" and the hall menu for a tomorrow serving read it
-out2 = compact(json.load(open(os.path.join(D, '..', 'menu-full-2026-10-09.json'))))
-assert any(x[0] == 'Green Chile Posole' for st in out2['H']['lunch'] for x in st[1])
-
-# sanity: the benchmark plate at Worcester lunch is 404 cal / 38.9 g protein; Golden BBQ's label is complete
-w = {x[0]: x for st in out['W']['lunch'] for x in st[1]}
-b, g = w['Beef Brisket Noodle Bowl'], w['Golden BBQ Chicken Thigh']
-assert b[1] + 2 * g[1] == 404 and round(b[2] + 2 * g[2], 1) == 38.9, (b, g)
-assert g[7][NUT.index('sodium')] == 685.5 and g[7][NUT.index('sodium-dv')] == 30 and g[10] == 3 and g[11] == 'C', g
 
 # ---- places: real hours/descriptions/payment/menus from uapp/get_infov2 ----
 locs = {x['location_title']: x for x in json.load(open(os.path.join(D, '..', 'locations-2026-10-08.json')))}
@@ -98,6 +93,76 @@ HALLLOC = {'W': 'Worcester Commons', 'F': 'Franklin Dining Commons', 'H': 'Hamps
 hours = {h: [mins(locs[n]['opening_hours']), mins(locs[n]['closing_hours'])] for h, n in HALLLOC.items()}
 grab = {h: [mins(locs[HN + ' Grab ‘N Go']['opening_hours']), mins(locs[HN + ' Grab ‘N Go']['closing_hours'])] for h, HN in
         {'W': 'Worcester', 'F': 'Franklin', 'H': 'Hampshire', 'B': 'Berkshire'}.items()}
+
+# ---- menus, Oct 8-22 (round 9): halls and the cafés with dish menus ----
+# Place keys: the hall letters, and 'c<i>' for P.places[i]. Charles River (the Newton campus) and Terrace (Fieldstone
+# Apartments) are in the feed but not in M2's places, as in every earlier round (owner, round 9).
+rk = lambda n: n.replace('’', "'").replace('‘', "'").lower()
+PKEY = {rk(n): h for n, h in HK.items()}
+PKEY.update({rk(p[0]): 'c%d' % i for i, p in enumerate(places)})
+DAYS = sorted(MENUS['days'])
+assert DAYS[0] == '2026-10-08' and DAYS[-1] == '2026-10-22' and len(DAYS) == 15
+used, MD = {}, []
+for iso in DAYS:
+    day = {}
+    for loc, meals in MENUS['days'][iso].items():
+        if loc in ('Charles River Campus of UMass Amherst', 'Terrace'): continue
+        key = PKEY[rk(loc)]
+        day[key] = {}
+        for mk in sorted(meals, key=lambda m: ORDER.index(MK[m])):
+            day[key][MK[mk]] = [[station(st), [used.setdefault(i, len(used)) for i in ids]] for st, ids in meals[mk]]
+    MD.append(day)
+DISHES = [None] * len(used)
+for i, j in used.items(): DISHES[j] = dish(MENUS['dishes'][i])
+CAFEMENU = sorted({k for d in MD for k in d if k[0] == 'c'}, key=lambda k: int(k[1:]))
+assert len(CAFEMENU) == 16, CAFEMENU
+assert MD[2] == {}, 'Oct 10 is empty everywhere'
+
+# sanity: the benchmark plate at Worcester lunch is 404 cal / 38.9 g protein; Golden BBQ's label is complete
+w = {DISHES[x][0]: DISHES[x] for st in MD[0]['W']['lunch'] for x in st[1]}
+b, g = w['Beef Brisket Noodle Bowl'], w['Golden BBQ Chicken Thigh']
+assert b[1] + 2 * g[1] == 404 and round(b[2] + 2 * g[2], 1) == 38.9, (b, g)
+assert g[7][NUT.index('sodium')] == 685.5 and g[7][NUT.index('sodium-dv')] == 30 and g[10] == 3 and g[11] == 'C' and g[12] is None, g
+assert sum(1 for d in {(x[0], x[13], x[10]) for x in DISHES} if d[1] is not None and d[2] is None) >= 16, 'the unscored-with-a-number dishes'
+assert any(DISHES[x][0] == 'Green Chile Posole' for st in MD[1]['H']['lunch'] for x in st[1])
+assert 'breakfast' not in MD[3]['F'], 'Franklin, Sunday: no breakfast'
+
+# ---- meal windows (round 9): shared/src/hours.ts. No hall publishes per-meal times, so each meal is
+# STANDARD_MEAL_WINDOWS clamped to the place's general hours (effectiveMealWindow). Unlike effectiveMealWindow, the clamp is
+# applied whatever the clock says, because M2 also needs later today and tomorrow. Late night runs to the 2 AM rollover
+# before the clamp. Grab 'N Go keeps its own hours; a café's all-day menu and its Grab 'N Go are its general hours.
+STD = {'breakfast': (420, 660), 'lunch': (660, 990), 'dinner': (990, 1260), 'late': (1260, 1440 + 120)}
+def clamp(w, o, c):
+    a, b = max(w[0], o), min(w[1], c)
+    return [a, b] if a < b else None
+WIN = {}
+for h, n in HALLLOC.items():
+    o, c = hours[h]
+    WIN[h] = {m: clamp(w, o, c) for m, w in STD.items()}
+    WIN[h]['grab'] = grab[h]
+for k in CAFEMENU:
+    p = places[int(k[1:])]; o, c = p[3], p[4]
+    WIN[k] = {m: clamp(w, o, c) for m, w in STD.items()}
+    WIN[k]['all'] = WIN[k]['grab'] = [o, c]
+assert WIN['W']['lunch'] == [660, 990] and WIN['B']['breakfast'] is None and WIN['F']['late'] is None and WIN['W']['late'] == [1260, 1439]
+
+# ---- where (round 9): the street line of get_infov2's address and its map_address, from the Oct 11 snapshot (all 39
+# locations carry one; the Oct 8 capture has none). parseStreetAddress / parseMapAddress in shared/src/hours.ts.
+L11 = {rk(x['location_title']): x for x in json.load(open(os.path.join(D, '..', 'locations-2026-10-11.json')))}
+# Procrastination Station is missing from the Oct 11 snapshot (closed that Sunday). Its address and map_address are the Oct 8
+# raw get_infov2 capture's (local/photos/raw/infov2.json, gitignored), copied here so the build needs nothing outside flows/.
+L11.setdefault('procrastination station', {'address': '<p>W.E.B. Du Bois Library<br/>154 Hicks Way<br/>Amherst, MA 01003</p>', 'map_address': '42.389757,-72.528169'})
+def street(html):
+    t = re.sub(r'<br\s*/?>', '\n', html or '', flags=re.I); t = re.sub(r'<[^>]+>', '', t)
+    return t.split('\n')[0].strip()
+ADDR = {}
+for key, title in list(HALLLOC.items()) + [('c%d' % i, p[0]) for i, p in enumerate(places)]:
+    x = L11[rk(title)]
+    m = (x.get('map_address') or '').strip()
+    assert re.fullmatch(r'-?\d+(\.\d+)?,-?\d+(\.\d+)?', m), (title, m)
+    ADDR[key] = [street(x['address']), m]
+assert ADDR['W'] == ['667 N Pleasant St', '42.3924624,-72.5255959'], ADDR['W']
+
 # Events: drop expired ones, merge "<X> Hours" into "<X>" (one holiday, one card), soonest first, evergreen last.
 EVSCOPE = {'Indigenous Peoples Day': 'WFHB'}  # flyer: "October 12th, 5:00-9:00 PM, all DCs" (not in the feed)
 EVIMG = {'Indigenous Peoples Day': 'ipd', 'October Event': 'oct', 'Pete and Gerry': 'pg', 'Sustainability is on the menu': 'sust'}
@@ -113,13 +178,12 @@ for t, e in byt.items():
     if e['external_link']: links.append(['Open the link', e['external_link']])
     h = byt.get(t + ' Hours')
     if h: links.append(['Holiday hours', h['external_link'] or h['pdf_link']])
-    events.append([t, e['expiration_date'], links, EVIMG.get(t), EVSCOPE.get(t, '')])
+    events.append([t, e['expiration_date'], links, EVIMG.get(t), EVSCOPE.get(t, ''), byt[t + ' Hours']['title'].strip() if h else None])   # [5]: the merged hours event's own title
 events.sort(key=lambda e: e[1])
 assert [e[0] for e in events][0] == 'Indigenous Peoples Day' and len(events) == 4
 # Retail photos: UMass Dining's own location-card photos (assets/retail/index.json maps name -> file + source URL),
 # re-encoded to JPEG q80 in build/retail by photos.sh-equivalent below; no retouching. Keyed by place name, and 'grab:W' etc.
 RIDX = json.load(open(os.path.join(D, 'assets', 'retail', 'index.json')))
-rk = lambda n: n.replace('’', "'").replace('‘', "'").lower()
 RBY = {rk(k): v for k, v in RIDX.items()}
 def rimg(n):
     v = RBY.get(rk(n))
@@ -135,8 +199,10 @@ PLACES = {'areas': AREAS, 'places': places, 'hours': hours, 'grab': grab, 'event
 src = open(os.path.join(D, 'src.html')).read()
 src = src.replace('__PLACES__', json.dumps(PLACES, separators=(',', ':'), ensure_ascii=False))
 src = src.replace('__RIMG__', json.dumps(RIMG, separators=(',', ':')))
-src = src.replace('__MENU2__', json.dumps(out2, separators=(',', ':'), ensure_ascii=False))
-src = src.replace('__MENU__', json.dumps(out, separators=(',', ':'), ensure_ascii=False))
+J = lambda v: json.dumps(v, separators=(',', ':'), ensure_ascii=False)
+for k, v in {'__DISHES__': DISHES, '__MD__': MD, '__DAYS__': DAYS, '__WIN__': WIN, '__ADDR__': ADDR, '__ALG__': ALG}.items():
+    assert k in src, k
+    src = src.replace(k, J(v))
 for name, key in [('worcester', 'W'), ('franklin', 'F'), ('hampshire', 'H'), ('berkshire', 'B'), ('worcester-food', 'S'), ('ev-ipd', 'EV_ipd'), ('ev-oct', 'EV_oct'), ('ev-pg', 'EV_pg'), ('ev-sust', 'EV_sust')]:
     b64 = base64.b64encode(open(os.path.join(D, 'build', name + '.jpg'), 'rb').read()).decode()
     src = src.replace('__IMG_%s__' % key, 'data:image/jpeg;base64,' + b64)

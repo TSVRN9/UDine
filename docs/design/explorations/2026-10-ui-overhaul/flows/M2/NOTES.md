@@ -1041,3 +1041,260 @@ under the + and the panel's rules all stay.
 ### Open
 - **The heart and the blue ramp are my choice**, since there is no official health icon. At row size the heart's point is
   narrow, so the figure sits in its upper half.
+
+
+## Round 9: the place and its day
+
+The brief's round-9 items (`docs/briefs/hall-menu-bakeoff.md`, "Owner decisions") are:
+- a day control;
+- today's hours and directions;
+- allergens;
+- network states;
+- cafés with dishes;
+- price on the sheet.
+
+Critique: `CRITIQUE-r9.md`. Concept: `CONCEPT.md`, "Round 9", with an "As built" note.
+
+The owner's answers:
+- cafés go in Search and in "where";
+- dishes that list no allergens are shown;
+- Show all reveals until you leave the hall or café, across meal and day changes, and never edits the preference.
+
+The coordinator's decisions: Charles River and Terrace stay out; `map_address` comes from the Oct 11 snapshot.
+
+### Data (`build.py`)
+- **Menus.** `menus-2026-10-08-to-22.json` replaces `menu-full-2026-10-0{8,9}.json`. There are 15 days (`DAYS`), 4 halls and 16 cafés.
+  - `MD[day][place][meal]` is a list of `[station, [dish index]]`. `DISHES` holds each distinct dish once, 2,3xx of them.
+  - A place is a hall letter, or `c<i>` for `P.places[i]`.
+  - Café meal keys gain `all` ("daily offerings", shown as "All day").
+  - Charles River (Newton) and Terrace (Fieldstone Apartments) are in the feed and are left out, as in every earlier round.
+    So the feed's "17 cafés" are 16 here.
+- **Dish fields.** Two are new:
+  - `price` (r[12]), the feed's own string.
+  - `rawHealthfulness` (r[13]), the feed's `data-healthfulness`. Only `vectors.js` reads it; the UI scores from the H code,
+    as in 8b.
+- **Allergens** are split, trimmed and checked against the 11 values. The order is milk, eggs, fish, shellfish, tree nuts,
+  peanuts, wheat, soy, sesame, then gluten and corn. Blank stays blank.
+- **Asserts.**
+  - Oct 10 is empty everywhere.
+  - Franklin has no breakfast on Sunday.
+  - The benchmark plate is 404 cal / 38.9 g.
+  - Golden BBQ's label is complete and it has no price.
+  - At least 16 dishes have a healthfulness number but no H code.
+- **Meal windows (`WIN`)** follow `shared/src/hours.ts`: `STANDARD_MEAL_WINDOWS` clamped to the place's general hours.
+  - Unlike `effectiveMealWindow`, the clamp is applied regardless of the clock, because M2 needs later today and tomorrow.
+  - Late night runs to the 2 AM rollover before the clamp.
+  - Grab 'N Go keeps its own hours. A café's all-day and Grab 'N Go menus use its general hours.
+  - The real `effectiveMealWindow` (`TZ=America/New_York node`, importing `shared/src/hours.ts`, `mapInfoV2` on the Oct 8
+    JSON at 12:41) gives Worcester lunch `11:00 AM`–`4:30 PM`. That value is pasted into `test.js`.
+  - `MEALWIN` and `mealWin`'s guess are deleted. `NOW` is 12:41.
+- **Where (`ADDR`).** It holds the street line of get_infov2's `address` (`parseStreetAddress`) and its `map_address`, from
+  `locations-2026-10-11.json`.
+  - Procrastination Station is missing from that snapshot (closed that Sunday): 38 of our 39 places are in it. Its
+    address and `map_address` (42.389757,-72.528169) are copied inline in `build.py` from the Oct 8 raw capture
+    (`local/photos/raw/infov2.json`, gitignored), so the build reads nothing outside `flows/`.
+  - All eight Campus Center cafés share one map pin.
+- The page is 5.3 MB, up from 3.8 MB.
+
+### Design (what was built; motion is all existing patterns)
+- **Day cell.**
+  - It leads the meal row and is the station switcher's material.
+  - The meals scroll as whole tabs with no ellipsis. The selected tab is brought into view with `scroll`.
+  - A one-menu café (Worcester Café, Newman Café) has no tab row: its day cell leads the station row, so collapsed it is
+    the bar plus one row. `TH` and `SWH` carry the real pinned heights into `paint`, `PIN` and `#mspace`.
+- **The schedule** (in `#isheet`).
+  - Two ways in: the status line (a button with a 14 px chevron at 60% white) and the day cell.
+  - Top: the address and Directions (Apple Maps on iOS, Google Maps elsewhere, with `map_address`). A café adds its
+    building and Payment, and its description goes last.
+  - Then the 15 days in date order. The chosen day is open in place with its span and each meal posted that day.
+  - Opened on a later day, the body scrolls just enough (adding bottom room if needed) to show that day and its hours at
+    rest.
+- **Day change.**
+  - The sheet goes away (`Sheet.away`).
+  - At half-way out, the parts that say the day fade out where they are over the first 35% of `fadeThrough`: the list, the
+    tab row, the day cell, the status line, the busy row and board, and the station button.
+  - Then the new day is drawn and fades in, the list from .97.
+  - It is not shared axis (the meals own that axis), and the header never moves.
+- **The status line keeps its room** when it has nothing to say (loading, failed, nothing posted), and the busy row keeps
+  its room, invisibly, on other days and offline. The name never moves between days or network states.
+- **Events move to their day.** The IPD note is on Monday Oct 12's list. In the schedule, that day's row says "Holiday
+  hours" and holds the event in place of the snapshot windows. On its own day the note drops its date tag.
+- **Allergens.** Dietary preferences has two groups, "Only show" and "Avoid".
+  - The one line over a list counts what it hides by allergen and never calls the rest safe: "Hiding 20 dishes that list
+    milk", or "Showing vegetarian dishes, hiding 9 that list peanuts".
+  - Show all (`S.reveal`, `S.sreveal`) reveals until the hall or café closes, or until a fresh Search.
+  - Revealed rows lead with "Contains milk" in maroon. The sheet's Contains line sets avoided allergens in bold.
+  - Search and later rows are filtered, behind the same line.
+  - Arriving at a hidden dish through "where" opens the list revealed, with the row marked.
+  - The You row reads "Vegetarian, no peanuts".
+- **Network.** Photos, names and addresses are bundled. Hours are cached for the day. Busy is live and is never shown stale.
+  Menus are cached per place and day; offline, today and tomorrow are saved.
+  - Halls, loading: the status and busy lines arrive in place.
+  - Halls, offline: no busy meters, and "You're offline" under the date.
+  - Halls, failed: names and letters only, with "Couldn't connect" and Try again under the date.
+  - A hall, loading: an activity indicator after 400 ms, then the labels and list fade in.
+  - A hall, offline: today is as online minus the live layer. Unsaved days say "You're offline, and the menu for …
+    isn't saved on this phone", and the schedule says "Not saved".
+  - A hall, failed: "Worcester's menu didn't load." with Try again.
+- **Cafés with dishes** use the hall screen's path entirely: meal tabs from the feed, stations, rows with scores, the
+  sheet.
+  - "Now" is the standard window clamped to the café's hours.
+  - A café plate never joins a hall plate (place keys never mix). It is labelled "Green Fields lunch". An all-day or Grab
+    'N Go item goes on the clock's meal ("Worcester Café lunch").
+  - The 11 cafés without a dish menu keep their description and "doesn't list its menu" with Add a custom food.
+- **Price.** The serving's price leads the serving line in Oswald ("$11.00  1 each"), only for a café serving, whatever
+  opened the sheet. Rows never show it.
+- **Search.**
+  - Café dishes are a group, "At cafés", once something is typed or a lens is on. Idle Search is still the halls' lunch.
+  - Each row's lane names its café, or "7 cafés".
+  - Places no longer matches a café with dishes by its old names list, which duplicated the dish rows.
+  - "Where" chips for cafés are the deep-maroon tag with the name and no letter.
+
+### Review passes (`build/r9/p1`, `p2`: 390 left and 360 right at dpr 2, from `shots9.js`; strips from `rec.js`)
+**Pass 1: 9 flaws.**
+1. Collapsed, the busy row and lamp board showed over the compact bar. An edit had swallowed their opacity lines into a
+   comment.
+2. On an empty day the station row showed a lone gold chevron, and the tab row a 1 px underline stub.
+3. Loading, failed and empty days dropped the name about 40 px, because the status line collapsed. It now keeps its room.
+4. At 360 px, "Couldn't reach UMass Dining" touched "Lunch". It now reads "Couldn't connect".
+5. The IPD note repeated "Mon, Oct 12" inside Monday's own row and list.
+6. The Dietary preferences page drew a rule under its last row.
+7. Search listed Green Fields, Harvest Market and Worcester Café twice: under Places (by their old names lists) and as
+   dish rows.
+8. Café names in the lane wrapped to "Whitmore / Café".
+9. The schedule couldn't scroll a late chosen day into view at rest, because the scroll range ran out. It now adds room.
+
+**Pass 2: 3 flaws, from the day-change strips** (`build/r9/strip-daychange-zoom.png`, `strip-daychangecollapsed-zoom.png`).
+1. The first build overlapped the old and new lists for about 100 ms (double exposure). Its label copies lost their
+   id-scoped CSS: the status line sat 12 px high over the name, and the busy row wrapped.
+2. The tab and station rows went blank for a frame while the busy board popped off.
+3. Rebuilt as a sequential fade through: out in place, then in. The two chevrons were then left alone for a frame, so the
+   whole day cell and station button now fade.
+
+**Pass 3: clean.** After the last change, all 28 states were reshot (`build/r9/p3`) and viewed at both widths on the
+contact sheets `p3/sheet1.png` to `sheet4.png`. The loading state was retaken at 800 ms (`p3/hall-slow.png`), because the
+sheet run caught it mid-arrival. Strips viewed:
+- `strip-daychange-zoom`, `strip-daychangecollapsed-zoom`, `strip-schedday-zoom`, `strip-schedstatus-zoom`,
+  `strip-showall-zoom`;
+- `build/rec/strip-M2-daychange.png`.
+- One fix landed with this pass: an empty day's copy uses `text-wrap: pretty`, so "yet." no longer sits alone at 360 px.
+
+**Pass 4: 5 flaws** (coordinator review of pass 3). Shots in `build/r9/p4` (contact sheets `sheet1.png`, `sheet2.png`) and
+`build/r9/tabfade.png`. Strips re-recorded: `strip-daychange-zoom.png`, `strip-daychangecollapsed-zoom.png`,
+`build/rec/strip-M2-daychange.png`.
+1. **The day change blanked the letter for one frame**, about 176 ms in. `renderMenu` rewrote the letter's SVG and the
+   name's text even though the place hadn't changed, and one frame painted before they returned. What names the place
+   (photo, letter, name) is now written only when the place changes (`#mhead[data-k]`).
+   - The test checks every frame: the letter's and name's nodes are the same objects, the opacity of the letter, name,
+     photo and header is 1, and pixel samples of the letter keep their gold against a baseline taken under the same scrim.
+   - With the guard disabled (`build/r9/p4red/`), the test fails at frame 19.
+2. **Scrolling tabs showed cut fragments** ("Late n", "Grab '"). A side with more to scroll now fades its labels into the
+   row's own maroon over 24 px (`.mts.fl` / `.fr`, a mask that follows the scroll). The selected tab is kept 24 px clear of
+   a fade. Checked at 360 px in both header states, on Worcester and Harvest Market.
+3. **"No menu yet" implied a menu was coming**, which is false for a café closed on weekends. The schedule row now reads
+   "No menu posted", and the list "No menu posted for Saturday, October 10."
+4. **The Oct 12 schedule row only named the event.** The expanded line is now a row titled "Indigenous Peoples Day
+   Hours" (the hours event's own title, kept as the event's `[5]`), with a chevron and a 44 px target. It opens the event
+   page by the existing push, after the sheet goes, and that page has the Holiday hours link.
+5. **Halls' Try again was small corner text.** It is now an outlined button (`.obtn`, 44 px, white on maroon, the
+   counterpart of the hall screen's outlined Try again), under "Couldn't connect" in the date column. It is at least 16 px
+   clear of "Lunch" at 360 (tested).
+
+### Tests (`test.js`, `round9`; `RED=9` runs it alone, each scenario caught)
+- **Real windows.** Worcester lunch equals `effectiveMealWindow`'s 11:00 AM–4:30 PM. There is no breakfast at Berkshire, no
+  late night at F or H, and late night at W and B runs 9 PM to 11:59. `MEALWIN` is gone. `NOW` is 12:41.
+- **Day change.**
+  - Franklin Thursday has four tabs; Sunday has Lunch and Dinner. The day cell reads "Sun 11". The meal is kept.
+  - In every frame, the header's parts never move.
+  - The list scales uniformly from .97 and fades in. Nothing is left over.
+  - At 390 and 360 px, every tab is whole and at least 44 px tall, the selected one is fully in view, and the day cell
+    holds the edge.
+- **Schedule.**
+  - The status line opens it, with the address and a Directions link carrying `map_address`.
+  - It has 15 days; Oct 10 says "No menu posted". Today's five windows are listed, and only the chosen day is open.
+  - The status chevron is 60% white.
+  - Opened on Oct 21 from the day cell, that day and its hours are visible at rest.
+  - Wasabi's schedule has its building and Payment, and Sunday says "No menu posted".
+- **Allergens** (real taps on the You page).
+  - The 11 allergens are listed in order. You reads "No milk".
+  - The 20 milk dishes are hidden, the line counts them, and a dish with blank allergens stays.
+  - Show all reveals them all with "Contains milk", and the setting is unchanged in memory and in storage.
+  - The reveal survives a meal change and a day change, and resets on leaving the hall. The setting survives a reload.
+  - Search has the line, and no Search row lists milk.
+  - "Where" lands revealed, with the row marked.
+- **Network.**
+  - Slow: hours arrive late; the indicator shows, then the menu.
+  - Offline: the date stays with "You're offline". There is no meter, no photo is altered (computed filters and opacity
+    match online), and today is saved. Tuesday gives the offline copy, and the schedule says "Not saved".
+  - Fail: the copy is shown, and Try again works on the hall and on Halls.
+  - The name's y is identical in the online, fail, slow and offline states.
+- **Cafés.**
+  - Green Fields has meal tabs, stations and rows.
+  - Caesar Salad starts "Green Fields lunch" beside "Worcester lunch". French fries at a hall and at a café make two
+    plates, and no plate mixes the two.
+  - The sheet's serving line reads "$11.00 1 each", and no row has a price.
+  - The one priced hall dish (`14.F.lunch.5.1`, $0.08) shows no price, nor does Golden BBQ.
+  - A café dish opened from the plate keeps its price.
+  - Worcester Café's collapsed header is the bar plus one row. ISB Café keeps "doesn't list its menu".
+- **Search.**
+  - "caesar" gives an "At cafés" row whose lane says Green Fields, and no duplicate in Places.
+  - "Where" is ["Lunch now, until 4:30 PM: Green Fields"]. Its tag opens Green Fields at lunch, scrolled to the dish.
+  - The café row's + gives "Green Fields lunch".
+  - At 4:31 PM it is dinner at Green Fields.
+- **Updated older checks.**
+  - Round 5's clocks: posole is "Lunch now, until 4:30 PM" at 3:45 and "Dinner now, until 9 PM" at 4:31. Brisket has no
+    answer at 4:31, not 3:45.
+  - Franklin tomorrow now reads the day cell ("Fri 9") and that day's hours ("7 AM to 9 PM").
+  - The IPD note is on Monday, not Thursday.
+  - Wasabi's California Roll starts "Wasabi lunch" instead of opening a custom food.
+  - The event-note push sources use `?state=menu&day=4` (new param).
+- **Red.** `RED=9 SRC=$PWD/build/r9/before/index.html node test.js` gives all 7 scenarios RED on round 8b. With the current
+  build, all are green.
+- **Now** (after pass 4): `node test.js` gives 5,624 checks and `RM=1 node test.js` gives 3,651, all green. Counts vary
+  between runs because sampled frames are counted.
+- **Added in pass 4:**
+  - the letter, name and photo are never re-drawn and stay opaque in any frame of a day change;
+  - the letter's gold is on screen in pixel samples;
+  - the tab fades follow what is left to scroll, at 390 and 360;
+  - "No menu posted";
+  - the holiday row opens the event, with its title, chevron and 44 px target;
+  - Halls' Try again is a 44 px outlined button clear of "Lunch" at both widths. `RED=1` and `RED=8` (rounds 7
+  and 8 scenario by scenario) are green.
+- **Benchmark C** reports 2 or 7 flicks from run to run, on round 8b and round 9 alike (`r9b/benchc.js`: three runs each
+  gave 2, 7, 2 and 7, 7, 2). Whether a CDP flick flings is Chromium timing, not a regression.
+
+### Vectors (`vectors.js` -> `vectors.json`)
+- **where:** 23 dishes × 12:41, 4:31 and 9:30 PM, including 5 café-only dishes and 2 served at halls and cafés alike.
+- **plate:** 10 sequences: the benchmark, narrowing, a conflicting hall, ½ then removed, an emptied plate (front in range),
+  a custom item, a café plate beside a hall plate, the same name at a hall and a café, an all-day café item on the lunch
+  plate, and lunch vs dinner.
+- **scores:** all 2,203 distinct (dish, health, carbon, raw) combinations, 164 of them with a number but no H code.
+- **price:** 3 priced café dishes, 1 unpriced, Golden BBQ, and the $0.08 hall dish (not shown).
+- The shape is documented at the top of `vectors.js`. Halls are place keys (`c<i>` for cafés), and `places` maps them to
+  names.
+- Plate ops in the file carry resolved place keys only. The script refuses any add op whose places aren't in `places`.
+
+### Files
+- `build.py`, `src.html`, `test.js` (round 9 plus updated older checks), `rec.js` (`daychange`, `daychangecollapsed`,
+  `schedday`, `schedstatus`, `showall`; evnote sources on day 4), `strips.sh`, `shots9.js`, `vectors.js`, `vectors.json`.
+- Shots: `build/r9/p1`, `build/r9/p2`. Zoomed strips: `build/r9/strip-*-zoom.png` (`build/r9/zoom.py`).
+- Round 8b's page, source and test: `build/r9/before/`.
+
+### Open (for the owner)
+- **Header noise.** Expanded, the header has three chevrons: the status line's (small, 60% white) and the day cell's and
+  station's (gold). At 360 px it reads as two gold controls stacked at the left edge under a quiet line, not as clutter to
+  me. But the two gold dropdowns are stacked and identical in kind. If it reads as clutter to you, the day cell's chevron
+  could go: the cell is the schedule's second door, and the status line is the first.
+- **The status line is the schedule's door only while expanded.** Collapsed, the day cell is the only way in.
+- **Café hours on other days** use the Oct 8 snapshot, shown only on days the café has a menu posted. Sunday's capture had
+  Green Fields and Wasabi closed, and their Sunday menus are empty, so nothing contradicts.
+- **Search while failed.** Search still lists dishes under `?net=fail`. Only Halls and the hall screen model the network.
+- **The $0.08 hall dish** (Franklin, Oct 22) is presumably a per-unit café price on a shared dish record. It is never shown.
+- **The schedule scrolls itself on a late day.**
+  - Opened on a day low in the list, the body scrolls just enough to show that day and its hours at rest. That can scroll
+    the address and Directions out of view: 15 day rows don't fit 844 px under any top block.
+  - Because the body is pre-scrolled, a drag down first scrolls the list back, then dismisses. The backdrop tap always
+    dismisses.
+  - The alternative is to keep the top block and let a late day need one scroll.
+- **The activity indicator** is a CSS ring that spins (900 ms). Under reduced motion it stands still, as every animation
+  in M2 does.
