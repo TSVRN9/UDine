@@ -133,7 +133,7 @@ class _DishSheetState extends State<DishSheet> {
 
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
-        if (n.depth == 0 && n.metrics.axis == Axis.vertical) {
+        if (n.metrics.axis == Axis.vertical) {
           final stuck = n.metrics.pixels > M2Layout.stuckAt;
           if (stuck != _stuck) setState(() => _stuck = stuck);
         }

@@ -63,8 +63,9 @@ class SharedAxisState extends State<SharedAxis> with SingleTickerProviderStateMi
         Widget incoming = widget.child;
         if (arriving) {
           incoming = Opacity(
+            key: const ValueKey('axis-in'),
             opacity: enter,
-            child: rm ? incoming : Transform.translate(offset: Offset(_dir * M2Motion.sharedXDist * (1 - slide), 0), child: incoming),
+            child: rm ? incoming : Transform.translate(key: const ValueKey('axis-in-slide'), offset: Offset(_dir * M2Motion.sharedXDist * (1 - slide), 0), child: incoming),
           );
         }
         return Stack(children: [
@@ -75,8 +76,9 @@ class SharedAxisState extends State<SharedAxis> with SingleTickerProviderStateMi
               child: IgnorePointer(
                 child: ExcludeSemantics(
                   child: Opacity(
+                    key: const ValueKey('axis-out'),
                     opacity: 1 - _clamp(fade / M2Motion.sharedXAt),
-                    child: Transform.translate(offset: Offset(-_dir * M2Motion.sharedXDist * slide, 0), child: _ghost),
+                    child: Transform.translate(key: const ValueKey('axis-out-slide'), offset: Offset(-_dir * M2Motion.sharedXDist * slide, 0), child: _ghost),
                   ),
                 ),
               ),

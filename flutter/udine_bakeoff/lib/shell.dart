@@ -40,6 +40,9 @@ class ShellState extends State<Shell> with TickerProviderStateMixin implements S
   @override
   double get top => _top;
 
+  /// The push's controller, for tests.
+  PushController get push => _push;
+
   @override
   void dispose() {
     _push.dispose();

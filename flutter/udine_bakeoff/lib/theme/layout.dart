@@ -83,7 +83,7 @@ abstract final class M2Layout {
   static const swGap = 8.0; // `.swbtn` gap
   static const switchRule = 1.0; // `#mswitch` border-top
   static const chev18 = 18.0, chevThick = 2.4; // `.swbtn svg`, `.dayc svg`
-  static const statusChevron = 14.0, statusPadV = 12.0, statusPadR = 16.0, statusGapH = 5.0, statusMarginTop = -5.0, statusMarginBottom = -12.0; // `#mts`
+  static const statusChevron = 14.0, statusPadV = 13.0, statusPadR = 16.0, statusGapH = 5.0, statusMarginTop = -6.0, statusMarginBottom = -13.0; // `#mts` (padding 12 / margin -5 -12 in M2: a 42 dp target; one more each way makes it 44, the line and the layout where they were)
   static const histBottom = 10.0, histH = 30.0; // `.hist`
   static const bzTop = 8.0; // `.mt .bz`
   // sheets (`.sheet`, `.grab`, `.sbody`)
@@ -125,7 +125,7 @@ abstract final class M2Layout {
   // the dish sheet (`.dish`)
   static const dishHeadTop = 4.0, dishHeadBottom = 4.0; // `.dhd` padding 0 20 4, `.dn` margin 4 0 0
   static const dsvTop = 4.0, dalTop = 8.0, dadd = 16.0, whereTop = 24.0, wlGap = 16.0, wtBottom = 8.0, labelTop = 24.0, gradesTop = 12.0; // `.dsv`, `.dal`, `.dadd`, `.where`, `.wl+.wl`, `.wt`, `.facts`, `.facts.grades`
-  static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 40.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore`
+  static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 44.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore` (40 in M2: 44 here, a touch target)
   static const shadowBlur = 14.0, shadowSpread = -8.0, shadowDy = 10.0, stuckAt = 4.0; // `.dish.stuck .dhd`
   // the plate bar and sheet (`#bar`, `.prow`, `.ptabs`, `.facts`)
   static const barMin = 68.0, barPadTop = 8.0, barPadRight = 12.0, barGap = 12.0, barL2Top = 2.0, barNumGap = 2.0, barUnitGap = 12.0; // `#bar .in`, `.l2`

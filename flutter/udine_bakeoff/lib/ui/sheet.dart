@@ -114,7 +114,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
       final off = widget.landing!(m, mid);
       if (off != null && _sc!.hasClients) _sc!.jumpTo(off.clamp(0.0, _sc!.position.maxScrollExtent));
     }
-    final changed = (mid - _midPx).abs() > 0.5;
+    final changed = (mid - _midPx).abs() > 0.5, oldMid = _midPx;
     _midPx = mid;
     if (!_measured) {
       _measured = true;
@@ -122,9 +122,10 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
       setState(() {});
     } else if (changed) {
       // the content changed under a resting sheet: ease to the new resting height; a sheet being dragged or closing is left alone
-      if (_spring.running && _target > 0 && !_closed) {
+      final headingToMid = (_target - oldMid).abs() < 1 && _target > widget.min + 1;
+      if (_spring.running && headingToMid && !_closed) {
         _springTo(mid, v0: _spring.v);
-      } else if ((_px - _target).abs() < 1 && _target > 0 && _dsc.size > 0) {
+      } else if (!_spring.running && headingToMid && (_px - _target).abs() < 1) {
         _springTo(mid);
       }
       setState(() {});

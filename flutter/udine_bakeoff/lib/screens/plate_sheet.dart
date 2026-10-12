@@ -29,7 +29,7 @@ class PlateLayerState extends State<PlateLayer> with TickerProviderStateMixin {
   Store? _store;
   bool _choose = false, _wasVisible = false;
   Timer? _timer;
-  double _dx = 0, _slideDir = 1;
+  double _dx = 0, _x0 = 0, _slideDir = 1;
   final _body = ValueNotifier<int>(0);
 
   bool _visible(Store s) => s.plates.plates.isNotEmpty || s.last != null;
@@ -43,6 +43,7 @@ class PlateLayerState extends State<PlateLayer> with TickerProviderStateMixin {
       _store = s..addListener(_changed);
       _wasVisible = _visible(s);
       _rise.value = _wasVisible ? 1 : 0;
+      _changed(); // (a receipt already up starts its timer)
     }
   }
 
@@ -119,7 +120,9 @@ class PlateLayerState extends State<PlateLayer> with TickerProviderStateMixin {
             onTap: () {
               if (_mode == BarMode.plate && s.plates.plates.isNotEmpty) handle.to(_midPx);
             },
-            onHorizontalDragUpdate: _mode == BarMode.plate ? (e) => setState(() => _dx += e.delta.dx) : null,
+            // M2 measures the swipe from the pointer's first touch, not from where the drag was recognised
+            onHorizontalDragDown: _mode == BarMode.plate ? (d) => _x0 = d.globalPosition.dx : null,
+            onHorizontalDragUpdate: _mode == BarMode.plate ? (e) => setState(() => _dx = e.globalPosition.dx - _x0) : null,
             onHorizontalDragEnd: _mode == BarMode.plate ? _swipeEnd : null,
             child: AnimatedBuilder(
               animation: _swipe,
@@ -205,8 +208,8 @@ class _Body extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (plates.length > 1)
             Padding(
-              padding: const EdgeInsets.only(left: M2Layout.plateTabsInset, right: M2Layout.plateTabsInset, bottom: M2Layout.plateTabsBottom),
-              child: Wrap(spacing: M2Layout.plateTabGap, children: [
+              padding: const EdgeInsets.only(bottom: M2Layout.plateTabsBottom),
+              child: Transform.translate(offset: const Offset(M2Layout.plateTabsInset, 0), child: Wrap(spacing: M2Layout.plateTabGap, children: [
                 for (var i = 0; i < plates.length; i++)
                   Press(
                     label: plateLabel(fx, plates[i]), onTap: () { store.setFront(i); Haptics.selection(); },
@@ -218,7 +221,7 @@ class _Body extends StatelessWidget {
                       ]),
                     ),
                   ),
-              ]),
+              ])),
             ),
           for (final it in pl.items) _PlateRow(key: ValueKey('${pl.id}.${it.key}'), store: store, plate: pl, item: it, cal: macroOf(it, hs?.first).cal, onOpen: () => onDish(pl, it)),
           Padding(padding: const EdgeInsets.symmetric(vertical: M2Layout.factsMargin), child: Facts(cal: t.cal, p: t.p, c: t.c, f: t.f)),

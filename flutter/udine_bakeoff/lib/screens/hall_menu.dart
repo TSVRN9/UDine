@@ -71,6 +71,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   double get _ch => widget.top + M2Layout.barH;
   double get _r => _hh - _ch;
   double get _pin => _ch + _th + _sw;
+  /// The day showing, for tests.
+  int get debugDay => _day;
   bool get atTop => !_sc.hasClients || _sc.offset <= 0;
 
   @override
