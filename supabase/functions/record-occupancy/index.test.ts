@@ -30,7 +30,7 @@ Deno.test("rejects calls without the cron secret and does not fetch", async () =
   if (fetched || calls.upserts.length) throw new Error("must not fetch or write when unauthorized");
 });
 
-Deno.test("stores raw numbers, skips 999999 sensors, truncates observed_at to the 10-minute slot", async () => {
+Deno.test("stores raw numbers, skips 999999 sensors, truncates observed_at to the 15-minute slot", async () => {
   const { db, calls } = fakeDb();
   const res = await handle(req(SECRET), { db, fetch: feed(), now: () => NOW });
   if (res.status !== 200) throw new Error(`expected 200, got ${res.status}`);
@@ -60,7 +60,7 @@ Deno.test("stores busy.pct / busy.level when upstream carries them again", async
 Deno.test("idempotent within a slot: ignoreDuplicates upsert, same observed_at for two runs in one slot", async () => {
   const { db, calls } = fakeDb();
   await handle(req(SECRET), { db, fetch: feed(), now: () => new Date("2026-10-12T14:30:01Z") });
-  await handle(req(SECRET), { db, fetch: feed(), now: () => new Date("2026-10-12T14:39:59Z") });
+  await handle(req(SECRET), { db, fetch: feed(), now: () => new Date("2026-10-12T14:44:59Z") });
   const [a, b] = calls.upserts;
   if (a.rows[0].observed_at !== b.rows[0].observed_at) throw new Error("slot differs");
   const o = a.opts as { onConflict: string; ignoreDuplicates: boolean };
@@ -81,5 +81,5 @@ Deno.test("502 and no writes when upstream fails", async () => {
 });
 
 Deno.test("slotStart", () => {
-  if (slotStart(new Date("2026-10-12T00:09:59Z")).toISOString() !== "2026-10-12T00:00:00.000Z") throw new Error("slot");
+  if (slotStart(new Date("2026-10-12T00:14:59Z")).toISOString() !== "2026-10-12T00:00:00.000Z") throw new Error("slot");
 });
