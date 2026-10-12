@@ -64,7 +64,7 @@ function parts({ dish, ctx, scores, avoid, edge, onServe, onCalBottom }: {
   return [
     <View key="name" style={{ marginHorizontal: -m2.space[4], paddingHorizontal: m2.space[4], paddingBottom: 4, marginBottom: -4, backgroundColor: m2.color.chalk }}>
       <Text v="dishName" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: 4 }}>{dish.name}</Text>
-      <ScrollEdge on={edge} />
+      <ScrollEdge on={edge} room={Math.ceil(m2.type.dishName.size * 0.3)} />
     </View>,
     price || dish.serving ? (
       <View key="serving" style={{ flexDirection: "row", alignItems: "baseline", marginTop: 4 }}>

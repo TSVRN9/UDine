@@ -41,4 +41,11 @@ describe("DishRow (Review Focus 5)", () => {
     expect(texts(mount(scored, undefined, ["Milk", "Soy"]))).toContain("Contains milk and soy");
     expect(texts(mount(scored))).not.toContain("Contains");
   });
+  it("a press hands the row's dish to onOpen", () => {
+    const onOpen = jest.fn();
+    let v!: renderer.ReactTestRenderer;
+    act(() => { v = renderer.create(<DishRow dish={scored} contains={[]} scores={{ health: false, carbon: false }} lane={false} onOpen={onOpen} />); });
+    act(() => { v.root.findAll((n) => typeof n.props.onPress === "function")[0].props.onPress(); });
+    expect(onOpen).toHaveBeenCalledWith(scored);
+  });
 });
