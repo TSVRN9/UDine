@@ -469,7 +469,8 @@
   "mealTabPad": 6,
   "mtsGap": 5,
   "tabGap": 3,
-  "dayBlock": 20
+  "dayBlock": 20,
+  "mealY": 12
  },
  "radius": {
   "patch": 4,
@@ -1104,7 +1105,8 @@
   "radius.patch": ".tg 4",
   "radius.thumb": ".thumb 5",
   "type.headDate": ".hhead .date 15px on the 30px .r1 baseline row (line kept at 20: it sets the row)",
-  "type.lblRow": ".label .lr, .gr, .ls 15px (no line-height); `lbl` is `.dish .dal` at 1.4"
+  "type.lblRow": ".label .lr, .gr, .ls 15px (no line-height); `lbl` is `.dish .dal` at 1.4",
+  "space.mealY": ".meal{padding:12px 0;border-bottom:1px solid var(--hair)}"
  },
  "felt": {
   "patch": {

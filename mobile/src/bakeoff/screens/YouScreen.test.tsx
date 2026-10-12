@@ -2,6 +2,9 @@ import { act } from "react";
 import renderer from "react-test-renderer";
 import { YouScreen } from "./YouScreen";
 import { PushPage } from "./PushPage";
+import { StyleSheet } from "react-native";
+import { dishKey, loadFixture, servingOn } from "../logic/fixture";
+import * as store from "../state/store";
 
 jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
 jest.mock("expo-haptics", () => ({
@@ -28,5 +31,19 @@ describe("Dietary preferences is pushed over You", () => {
   it("draws You's dim under the page", () => {
     const r = open();
     expect(r.root.findAll((n) => typeof n.type === "string" && n.props.testID === "push-dim")).toHaveLength(1);
+  });
+});
+
+// M2 `.meal{padding:12px 0;border-bottom:1px solid var(--hair)}`
+describe("a meal logged today", () => {
+  it("has 12 above and below it and a hairline under it", () => {
+    const fx = loadFixture();
+    const dish = servingOn(fx, "2026-10-08", "W", "lunch", dishKey("Golden BBQ Chicken Thigh"))!;
+    act(() => store.resetStore());
+    act(() => { store.add("lunch", dish.name, { W: dish }); store.log(); });
+    let r!: renderer.ReactTestRenderer;
+    act(() => { r = renderer.create(<YouScreen />); });
+    const box = r.root.findAll((n) => typeof n.type === "string" && StyleSheet.flatten(n.props.style)?.borderBottomColor === "rgba(36,23,26,0.12)" && StyleSheet.flatten(n.props.style)?.paddingVertical !== undefined)[0];
+    expect(StyleSheet.flatten(box.props.style)).toMatchObject({ paddingVertical: 12, borderBottomWidth: 1 });
   });
 });
