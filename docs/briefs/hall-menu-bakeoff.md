@@ -109,6 +109,12 @@ Rationale:
   - **Google Health Connect / Apple Health:** a toggle that writes each logged meal's nutrition. Edits and deletes
     update the written record. Nothing is read back. It's on-device and user-initiated, so it's an export under the
     residency rules, not a sync.
+  - **Round 10 follow-ups:**
+    - with tracking off, ranking hides and Export stays while history exists;
+    - a skipped first run defaults to tracking on, no diet or allergen filters, and scores off;
+    - with tracking off, "where it's served" takes the sheet's action slot;
+    - Salad Bar and Deli Bar get a synthetic "built from the station" base with no nutrition of its own (owner,
+      2026-10-12).
 - **Deferred to the full-rebuild spec, with the owner asked per feature then:**
   - ranking allowance, skip and the post-log prompt;
   - Top Foods scores, Favorite Halls and Hall Completion;
