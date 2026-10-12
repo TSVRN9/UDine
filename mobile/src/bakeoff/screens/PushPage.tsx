@@ -8,6 +8,7 @@ import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { Press, Text } from "../ui";
 import { part, timed } from "../ui/motion";
+import { usePushShadow } from "../ui/push";
 import { useEdgeSwipeBack } from "../motion/useEdgeSwipeBack";
 
 const clamp = (x: number) => {
@@ -63,9 +64,10 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
     },
   });
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * W }] }));
+  const cast = usePushShadow(p);
   return (
     <GestureDetector gesture={swipe as ReturnType<typeof Gesture.Pan>}>
-      <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: ground ?? m2.color.chalk }, slide]}>
+      <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: ground ?? m2.color.chalk }, slide, cast]}>
         <View style={{ height: top + 52, paddingTop: top, paddingHorizontal: m2.space.line, flexDirection: "row", alignItems: "center", backgroundColor: ground ?? m2.color.vm }}>
           <Press accessibilityRole="button" accessibilityLabel="Back" onPress={() => leave(p.get())} style={{ width: m2.size.tap + 4, height: m2.size.tap + 4, alignItems: "center", justifyContent: "center" }}>
             <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={m2.color.white} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M15 5l-7 7 7 7" /></Svg>

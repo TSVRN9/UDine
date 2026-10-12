@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
-import { m2Motion } from "../../lib/motion";
 import { loadFixture } from "../../bakeoff/logic/fixture";
 import type { ServeTarget } from "../../bakeoff/logic/dishSheet";
 import type { PlaceKey } from "../../bakeoff/logic/types";
@@ -14,6 +13,7 @@ import { HallHeader } from "../../bakeoff/screens/HallHeader";
 import { HallsList, bandOff } from "../../bakeoff/screens/HallsList";
 import { PushedHall } from "../../bakeoff/screens/PushedHall";
 import { registerServe } from "../../bakeoff/state/serve";
+import { PushDim, usePush } from "../../bakeoff/ui/push";
 
 export default function Halls() {
   const { top } = useSafeAreaInsets();
@@ -21,7 +21,7 @@ export default function Halls() {
   const [place, setPlace] = useState<PlaceKey | null>(null);
   // a hall pushed over the open one from a dish sheet's where-served; `p` is the push (1 = off to the right, 0 = in) the hall below shifts and dims by
   const [pushed, setPushed] = useState<{ at: ServeTarget; key: number } | null>(null);
-  const p = useSharedValue(1);
+  const { p, below, dim } = usePush();
   // an event's page pushed over the open hall (the holiday note); it shifts and dims the hall below by the same `p`
   const [ev, setEv] = useState<number | null>(null);
   // the sheet that asked for the push is half-way out
@@ -59,8 +59,6 @@ export default function Halls() {
   const pushRef = useRef(push);
   useEffect(() => { pushRef.current = push; });
   useEffect(() => registerServe({ push: (to) => pushRef.current(to), go: () => setGo(true) }), []);
-  const below = useAnimatedStyle(() => ({ transform: [{ translateX: -m2Motion.push.shift * W * (1 - p.get()) }] }));
-  const dim = useAnimatedStyle(() => ({ opacity: m2Motion.push.dim * (1 - p.get()) }));
   const open = place && fx.places.find((x) => x.key === place);
   return (
     <View ref={root} collapsable={false} style={{ flex: 1 }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
@@ -70,13 +68,13 @@ export default function Halls() {
       </Animated.View>
       {ev != null ? (
         <>
-          <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.scrim }, dim]} />
+          <PushDim dim={dim} />
           <EventPage i={ev} progress={p} onPop={() => setEv(null)} />
         </>
       ) : null}
       {pushed ? (
         <>
-          <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.scrim }, dim]} />
+          <PushDim dim={dim} />
           <PushedHall key={pushed.key} at={pushed.at} name={fx.places.find((x) => x.key === pushed.at.place)!.name} H={H} W={W} p={p} go={go} onPop={() => setPushed(null)} onPush={push} onPushGo={() => setGo(true)} />
         </>
       ) : null}
