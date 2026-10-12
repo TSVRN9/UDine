@@ -83,4 +83,16 @@ void main() {
         await t.pumpAndSettle();
         await t.tap(find.text('Dietary preferences'));
       }));
+  // 360 dp: nothing wraps or clips that M2 does not
+  testWidgets('dish sheet at 360', (t) => app(t, 'dish', w: 360, act: (t) async {
+        await openHall(t, 'Worcester');
+        await tapRow(t, 'Golden BBQ Chicken Thigh');
+      }));
+  testWidgets('plate sheet at mid at 360', (t) => app(t, 'plate_mid', w: 360, seed: 'plate=W:lunch:beef brisket noodle bowl,golden bbq chicken thigh*2', act: (t) async {
+        await openHall(t, 'Worcester');
+        await t.tap(find.textContaining('Worcester lunch,').first);
+      }));
+  testWidgets('You at 360', (t) => app(t, 'you', w: 360, act: (t) async {
+        await t.tap(find.text('You').last);
+      }));
 }
