@@ -162,4 +162,64 @@ void main() {
     await tester.pumpAndSettle();
     expect(opacity(), 1);
   });
+
+  group('jitter is a tap, not a drag', () {
+    for (final d in const [Offset(0, 3), Offset(0, -5), Offset(4, 0), Offset(-2, 2), Offset(5, 5), Offset(-5, -5)]) {
+      testWidgets('Back with a ${d.dx},${d.dy} px wobble still closes', (tester) async {
+        final h = await boot(tester);
+        await tester.tap(find.text('Hampshire'));
+        await tester.pumpAndSettle();
+        final g = await tester.startGesture(tester.getCenter(find.bySemanticsLabel('Back')));
+        await g.moveBy(d);
+        await g.up();
+        await tester.pumpAndSettle();
+        expect((h.phase, h.p), (Phase.closed, 0.0));
+      });
+      testWidgets('a tap in the edge zone with a ${d.dx},${d.dy} px wobble does not grab', (tester) async {
+        final h = await boot(tester);
+        await tester.tap(find.text('Hampshire'));
+        await tester.pumpAndSettle();
+        final g = await tester.startGesture(const Offset(5, 400));
+        await g.moveBy(d);
+        await tester.pump();
+        expect(h.phase, Phase.open);
+        await g.up();
+        await tester.pumpAndSettle();
+        expect((h.phase, h.p), (Phase.open, 1.0));
+      });
+    }
+    testWidgets('a drag past the slop still grabs', (tester) async {
+      final h = await boot(tester);
+      await tester.tap(find.text('Hampshire'));
+      await tester.pumpAndSettle();
+      final g = await tester.startGesture(const Offset(200, 300));
+      await g.moveBy(const Offset(0, 40));
+      await tester.pump();
+      expect(h.phase, Phase.dragging);
+      await g.up();
+      await tester.pumpAndSettle();
+    });
+  });
+
+  testWidgets('a grab mid-animation stops the controller; the cancelled run never finishes and the release settles it', (tester) async {
+    final h = await boot(tester);
+    await tester.tap(find.text('Hampshire'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    final at = h.p;
+    expect(h.phase, Phase.opening);
+    final g = await tester.startGesture(const Offset(200, 600));
+    await g.moveBy(const Offset(0, 40));
+    await g.moveBy(const Offset(0, 100));
+    await tester.pump();
+    expect(h.phase, Phase.dragging);
+    expect(h.t.progress.isAnimating, isFalse);
+    expect(h.p, closeTo(1 - 140 / 480, 1e-9));
+    expect(h.p, isNot(closeTo(at, 1e-3)));
+    await tester.pump(const Duration(milliseconds: 600)); // the stopped open's own end time passes: it must not finish
+    expect(h.phase, Phase.dragging);
+    await g.up();
+    await tester.pumpAndSettle();
+    expect((h.phase, h.p), (Phase.closed, 0.0));
+  });
 }

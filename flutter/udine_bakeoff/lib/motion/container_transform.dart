@@ -124,14 +124,16 @@ class BackSwipeRecognizer extends OneSequenceGestureRecognizer {
     if (event is PointerMoveEvent) {
       _vt!.addPosition(event.timeStamp, event.position);
       final d = event.position - _from;
-      if (_mode == 0) {
+      // M2 decides on its first touchmove, which a browser only sends after its own touch slop; here the slop is explicit, so a
+      // tap with a wobbling finger stays a tap.
+      if (_mode == 0 && d.distance > kTouchSlop) {
         if (_edge && d.dx > 0 && d.dx >= d.dy.abs()) {
           _mode = 1;
           _decided();
         } else if (!_edge && d.dy > 0 && d.dy >= d.dx.abs() && (canDragDown?.call() ?? true)) {
           _mode = 2;
           _decided();
-        } else if (d.distance > 10) {
+        } else {
           _pointer = null;
           resolve(GestureDisposition.rejected);
           stopTrackingPointer(event.pointer);
@@ -174,7 +176,10 @@ class BackSwipeRecognizer extends OneSequenceGestureRecognizer {
 
   @override
   void rejectGesture(int pointer) {
-    if (pointer == _pointer && !_started) _pointer = null;
+    if (pointer == _pointer && !_started) {
+      _pointer = null;
+      stopTrackingPointer(pointer);
+    }
   }
 
   @override
