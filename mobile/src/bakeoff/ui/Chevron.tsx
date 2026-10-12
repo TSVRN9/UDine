@@ -17,3 +17,6 @@ export function Chevron({ dir, size, stroke, width = 2.2 }: { dir: keyof typeof 
 
 /** The `>` at the right of a row. */
 export const RowChevron = ({ size = m2.size.chevron }: { size?: number }) => <Chevron dir="right" size={size} stroke={m2.color.slate} />;
+
+/** The gold `v` on the station and day cells (M2 `.swbtn svg`, `.dayc svg`), and the quieter one by the status line. */
+export const DownChevron = ({ stroke = m2.color.gold, size = m2.size.chevron, width = 2.4 }: { stroke?: string; size?: number; width?: number }) => <Chevron dir="down" size={size} stroke={stroke} width={width} />;
