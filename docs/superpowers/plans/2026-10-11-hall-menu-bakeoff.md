@@ -73,7 +73,7 @@ to judge. Then pick the stack the whole app is rebuilt on.
 
 ---
 
-### Task 1: M2 round 9 design and behaviour vectors (built 2026-10-11, commit 1b27b11; awaiting owner approval)
+### Task 1: M2 round 9 design and behaviour vectors (owner-approved 2026-10-12 with 9b and 9c; commits 1b27b11, 457f87c, e0a39c3)
 
 Design work in the prototype, run like previous rounds: critique, then one concept, then build, then
 the orchestrator reviews frames. No app code.
