@@ -20,6 +20,9 @@ Backend:
   - `moderate_level` and `notbusy_level`: that location's thresholds. They drift over time (Worcester's moderate was 612 on
     Oct 8, 711 on Oct 11 and 576 on Oct 12). The Blue Wall cafés share one sensor (746/548). `999999` means the location
     has no sensor (UMass Store, Terrace, Charles River, Commonwealth).
+  - **First live day (2026-10-12):** thresholds also change within a day. Location 1 went from 386/205 at 9:00 to
+    324/297 at 9:15. That's why each sample keeps its own thresholds. Headcounts rose from 0 overnight to 50–95 at the
+    three open halls by 8:45–9:00. Location 3 reached 292 at 9:45, past its moderate of 272, so it read busy.
   - **Inferred level:** headcount ≥ moderate is busy (2), ≥ notbusy is moderate (1), otherwise not busy (0). This matches
     Oct 8, when Worcester's 672 ≥ 612 and the feed's own `busy.label` said "Busy".
 
