@@ -28,7 +28,7 @@ const W = 350, H = 30, GAP = 3, LG = 2, LH = (H - LG * 4) / 5;
 export function Board({ columns }: { columns: { lit: number; now: boolean }[] }) {
   const n = columns.length, bw = (W - GAP * (n - 1)) / n;
   return (
-    <View accessible={false} style={{ position: "absolute", left: m2.space[4], right: m2.space[4], bottom: 10, height: H }} pointerEvents="none">
+    <View accessible={false} style={{ position: "absolute", left: m2.space.gutter, right: m2.space.gutter, bottom: 10, height: H }} pointerEvents="none">
       <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
         {columns.map((c, i) => [0, 1, 2, 3, 4].map((k) => (
           <Rect key={`${i}-${k}`} x={i * (bw + GAP)} y={H - (k + 1) * LH - k * LG} width={bw} height={LH} rx={0.6}

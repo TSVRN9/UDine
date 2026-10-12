@@ -38,7 +38,7 @@ function Ingredients({ text }: { text: string }) {
   };
   return (
     <>
-      <Text v="sheetHead" color={m2.color.dm} style={{ marginTop: m2.space[5], marginBottom: m2.space[1] }}>Ingredients</Text>
+      <Text v="sheetHead" color={m2.color.dm} style={{ marginTop: m2.space.group, marginBottom: m2.space.part }}>Ingredients</Text>
       <Animated.View style={[{ overflow: "hidden" }, truncated ? box : null]}>
         <Text v="ing" color={m2.color.ink} onLayout={(e) => { const h = e.nativeEvent.layout.height; full.set(h); cut.set(h > closed + 1 ? 1 : 0); setMeasured(h); }}>{text}</Text>
         {truncated ? (
@@ -67,22 +67,22 @@ function parts({ dish, ctx, answer, scores, avoid, edge, onPlate, onAdd, onServe
 }): ReactElement[] {
   const price = sheetPrice(ctx, dish), mk = sheetMarks(dish, scores);
   return [
-    <View key="name" style={{ marginHorizontal: -m2.space[4], paddingHorizontal: m2.space[4], paddingBottom: 4, marginBottom: -4, backgroundColor: m2.color.chalk }}>
+    <View key="name" style={{ marginHorizontal: -m2.space.gutter, paddingHorizontal: m2.space.gutter, paddingBottom: 4, marginBottom: -4, backgroundColor: m2.color.chalk }}>
       {/* first, so the name's descenders draw over the edge's fill */}
       <ScrollEdge on={edge} room={Math.ceil(m2.type.dishName.size * 0.3)} />
       <Text v="dishName" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: 4 }}>{dish.name}</Text>
     </View>,
     price || dish.serving ? (
       <View key="serving" style={{ flexDirection: "row", alignItems: "baseline", marginTop: 4 }}>
-        {price ? <Text v="price" color={m2.color.ink} style={{ marginRight: m2.space[1] }}>{price}</Text> : null}
+        {price ? <Text v="price" color={m2.color.ink} style={{ marginRight: m2.space.part }}>{price}</Text> : null}
         {dish.serving ? <Text v="date" color={m2.color.slate} style={{ flexShrink: 1 }}>{dish.serving}</Text> : null}
       </View>
     ) : <View key="serving" />,
     mk ? (
-      <View key="marks" style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: m2.space[1], marginTop: m2.space[1] }}>
+      <View key="marks" style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: m2.space.part, marginTop: m2.space.part }}>
         {mk.marks.map((k) => <SheetMark key={k} kind={k} />)}
         {mk.health != null || mk.carbon != null ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space[1], height: 30 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space.part, height: 30 }}>
             <ScoreBadge kind="health" value={mk.health} size="sheet" />
             <ScoreBadge kind="carbon" value={mk.carbon} size="sheet" />
           </View>
@@ -90,7 +90,7 @@ function parts({ dish, ctx, answer, scores, avoid, edge, onPlate, onAdd, onServe
       </View>
     ) : <View key="marks" />,
     dish.allergens.length ? (
-      <Text key="contains" v="lbl" color={m2.color.ink} style={{ marginTop: m2.space[1] }}>
+      <Text key="contains" v="lbl" color={m2.color.ink} style={{ marginTop: m2.space.part }}>
         <Text v="lbl" color={m2.color.dm} style={bold}>{"Contains "}</Text>
         {dish.allergens.map((a, i) => (
           <Text key={a} v="lbl" color={avoid.includes(a) ? m2.color.vm : m2.color.ink} style={avoid.includes(a) ? bold : null}>{(i ? ", " : "") + a}</Text>
@@ -99,7 +99,7 @@ function parts({ dish, ctx, answer, scores, avoid, edge, onPlate, onAdd, onServe
     ) : <View key="contains" />,
     ctx.day === 0 ? (
       <Press key="add" accessibilityRole="button" onPress={onAdd}
-        style={{ marginTop: m2.space[3], height: 52, borderRadius: m2.radius.button, backgroundColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
+        style={{ marginTop: m2.space.action, height: 52, borderRadius: m2.radius.button, backgroundColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
         <Text v="action" color={m2.color.white}>{onPlate ? "Add another" : "Add to plate"}</Text>
       </Press>
     ) : <View key="add" />,

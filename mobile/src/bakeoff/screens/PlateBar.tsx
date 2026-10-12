@@ -27,7 +27,7 @@ function PlateLine({ plate, onLog, onOpen }: { plate: Plate; onLog: () => void; 
         <Text v="meta" color={m2.color.onDm} numberOfLines={1}>{`${plateLabel(plate)}, ${nItems(t.n)}`}</Text>
         <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 2 }}>
           <Text v="barNum" color={m2.color.white} style={{ marginRight: 2 }}>{fc(t.cal)}</Text>
-          <Text v="meta" color={m2.color.onDm} style={{ marginRight: m2.space[2] }}>cal</Text>
+          <Text v="meta" color={m2.color.onDm} style={{ marginRight: m2.space.panel }}>cal</Text>
           <Text v="barNum" color={m2.color.white} style={{ marginRight: 2 }}>{`${f1(t.p)}g`}</Text>
           <Text v="meta" color={m2.color.onDm}>protein</Text>
         </View>
@@ -43,10 +43,10 @@ function PlateLine({ plate, onLog, onOpen }: { plate: Plate; onLog: () => void; 
 function Choose({ halls, onPick, onBack }: { halls: PlaceKey[]; onPick: (h: PlaceKey) => void; onBack: () => void }) {
   return (
     <>
-      <Press feedback="tint" accessibilityRole="button" onPress={onBack} style={{ minHeight: 48, justifyContent: "center", paddingRight: m2.space[2] }}>
+      <Press feedback="tint" accessibilityRole="button" onPress={onBack} style={{ minHeight: 48, justifyContent: "center", paddingRight: m2.space.panel }}>
         <Text v="meta" color={m2.color.onDm}>Log at</Text>
       </Press>
-      <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: m2.space[1] }}>
+      <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: m2.space.part }}>
         {halls.map((h) => (
           <Press key={h} accessibilityRole="button" onPress={() => onPick(h)} style={{ height: 48, flexShrink: 1, paddingHorizontal: 14, borderRadius: m2.radius.button, backgroundColor: m2.color.gold, alignItems: "center", justifyContent: "center" }}>
             <Text v="button" color={m2.color.dm} numberOfLines={1}>{placeName(h)}</Text>
@@ -131,7 +131,7 @@ export function PlateBar({ sheet, animatedIndex, collapse }: { sheet: RefObject<
       ) : null}
       <GestureDetector gesture={pan}>
         <Animated.View key={mode} entering={FadeIn.duration(m2Motion.settle.d).easing(m2SettleEasing)} style={{ flex: 1 }}>
-          <Animated.View style={[{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space[2], paddingLeft: m2.space[4], paddingRight: m2.space[2] }, mode === "plate" ? slide : null]}>
+          <Animated.View style={[{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space.panel, paddingLeft: m2.space.gutter, paddingRight: m2.space.panel }, mode === "plate" ? slide : null]}>
             {mode === "logged" && last ? <LogReceipt last={last} />
               : mode === "choose" && halls ? <Choose halls={halls} onPick={doLog} onBack={() => setChooseFor(null)} />
               : (shown ? <PlateLine plate={shown} onLog={onLog} onOpen={onOpen} /> : null)}

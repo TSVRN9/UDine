@@ -337,12 +337,12 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const renderItem = (it: Item) => {
     switch (it.t) {
       case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={() => setShowAll((s) => !s)} />;
-      case "head": return <View style={{ height: 50, paddingHorizontal: m2.space[4], paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
+      case "head": return <View style={{ height: 50, paddingHorizontal: m2.space.gutter, paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
       case "event":
         // M2 `.evrow.evnote` on its own day: the title only, no date tag; it opens the event's page
         return (
           <Press feedback="tint" accessibilityRole="button" accessibilityLabel={it.title} disabled={!onEvent} onPress={() => onEvent?.(it.i)}
-            style={{ minHeight: 52, paddingHorizontal: m2.space[4], paddingVertical: 14, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
+            style={{ minHeight: 52, paddingHorizontal: m2.space.gutter, paddingVertical: 14, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
             <Text v="link" color={m2.color.dm}>{it.title}</Text>
             {/* the event page's banner is decoded now, so it is there when the page arrives (it was drawn a few frames after the push began) */}
             {EVENT_PHOTO[it.title] ? <Image source={EVENT_PHOTO[it.title]} accessible={false} style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} /> : null}
@@ -351,13 +351,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       case "cafe":
         // M2 `cafeBody`: what the café is, and that the feed carries no dishes for it
         return (
-          <View style={{ paddingHorizontal: m2.space[4], paddingTop: m2.space[4] + 4 }}>
+          <View style={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.cafeBodyTop }}>
             {it.description ? <Text v="desc" color={m2.color.ink}>{it.description}</Text> : null}
-            <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: m2.space[5], marginBottom: m2.space[0] }}>Menu</Text>
+            <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: m2.space.group, marginBottom: m2.space.line }}>Menu</Text>
             <Text v="sched" color={m2.color.slate}>{`${it.name} doesn't list its menu in the app.`}</Text>
           </View>
         );
-      case "empty": return <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
+      case "empty": return <View style={{ paddingHorizontal: m2.space.gutter, paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
       default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} place={place} meal={rowMeal} onOpen={onOpen} here={it.dish.key === hereKey} />;
     }
   };

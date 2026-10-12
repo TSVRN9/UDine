@@ -34,7 +34,7 @@ function Scale({ kind, value, label }: { kind: "health" | "carbon"; value: numbe
 export function RatingsPanel({ health, carbon }: { health: number | null; carbon: Carbon | null }) {
   if (health == null && carbon == null) return null;
   return (
-    <View style={{ marginTop: m2.space[2], borderWidth: 2, borderColor: m2.color.dm, paddingHorizontal: m2.space[2], backgroundColor: m2.color.white }}>
+    <View style={{ marginTop: m2.space.panel, borderWidth: 2, borderColor: m2.color.dm, paddingHorizontal: m2.space.panel, backgroundColor: m2.color.white }}>
       {health != null ? (
         <View style={{ paddingVertical: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <Text v="lbl" color={m2.color.dm} style={bold}>Healthfulness</Text>

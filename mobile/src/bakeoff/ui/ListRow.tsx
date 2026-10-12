@@ -18,9 +18,9 @@ const ends = new Map<string, { x: number; y: number }>();
 export function ListRow({ name, marks, meta, trailing, lane, onPress, here }: { here?: boolean; name: string; marks?: ReactNode; meta?: ReactNode; trailing?: ReactNode; lane?: boolean; onPress?: () => void }) {
   const [end, setEnd] = useState<{ x: number; y: number } | null>(() => ends.get(name) ?? null);
   return (
-    <Press feedback="tint" onPress={onPress} style={{ minHeight: m2.size.row, flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingLeft: m2.space[4], paddingRight: m2.space[1] }}>
+    <Press feedback="tint" onPress={onPress} style={{ minHeight: m2.size.row, flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingLeft: m2.space.gutter, paddingRight: m2.space.part }}>
       {here ? <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.here }} /> : null}
-      <View style={{ flex: 1, minWidth: 0, marginRight: m2.space[1] }}>
+      <View style={{ flex: 1, minWidth: 0, marginRight: m2.space.part }}>
         <View>
           <Text v="rowName" onTextLayout={marks ? (e) => { const l = e.nativeEvent.lines[e.nativeEvent.lines.length - 1]; if (l) { const e = { x: l.x + l.width, y: l.y }; ends.set(name, e); setEnd(e); } } : undefined}>
             {marks ? name + SLOT : name}
@@ -31,7 +31,7 @@ export function ListRow({ name, marks, meta, trailing, lane, onPress, here }: { 
         {meta ? <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 10, rowGap: 4, marginTop: 3 }}>{meta}</View> : null}
       </View>
       {lane ? <View style={{ width: 114, alignItems: "flex-end" }}>{trailing}</View> : trailing}
-      <View pointerEvents="none" style={{ position: "absolute", left: m2.space[4], right: 0, bottom: 0, height: 1, backgroundColor: m2.color.hair }} />
+      <View pointerEvents="none" style={{ position: "absolute", left: m2.space.gutter, right: 0, bottom: 0, height: 1, backgroundColor: m2.color.hair }} />
     </Press>
   );
 }

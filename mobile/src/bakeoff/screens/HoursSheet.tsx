@@ -34,7 +34,7 @@ export const HoursSheet = forwardRef<BottomSheetModal, { s: Schedule; maxHeight:
             </View>
             {s.mapAddress ? (
               <Press accessibilityRole="link" accessibilityLabel="Directions" onPress={() => Linking.openURL(mapsUrl(s.mapAddress!, s.name))}
-                style={{ height: m2.size.tap, paddingHorizontal: m2.space[3], borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, justifyContent: "center" }}>
+                style={{ height: m2.size.tap, paddingHorizontal: m2.space.action, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, justifyContent: "center" }}>
                 <Text v="link" color={m2.color.vm}>Directions</Text>
               </Press>
             ) : null}
@@ -42,19 +42,19 @@ export const HoursSheet = forwardRef<BottomSheetModal, { s: Schedule; maxHeight:
           {s.payment ? (
             <Text v="sched" color={m2.color.slate} style={{ marginTop: 10 }}><Text v="link" color={m2.color.dm}>Payment  </Text>{s.payment}</Text>
           ) : null}
-          <View accessibilityRole="list" style={{ marginTop: m2.space[3], marginHorizontal: -m2.space[4], borderTopWidth: 1, borderTopColor: m2.color.hair }}>
+          <View accessibilityRole="list" style={{ marginTop: m2.space.action, marginHorizontal: -m2.space.gutter, borderTopWidth: 1, borderTopColor: m2.color.hair }}>
             {s.days.map((d) => {
               const ink = d.current ? m2.color.vm : m2.color.ink;
               return (
                 <View key={d.i}
                   style={d.current ? { borderLeftWidth: 4, borderLeftColor: m2.color.vm } : { borderLeftWidth: 4, borderLeftColor: "transparent" }}>
                   <Press feedback="tint" accessibilityRole="button" accessibilityState={{ selected: d.current }} onPress={() => onPick(d.i)}
-                    style={{ minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingLeft: m2.space[3], paddingRight: m2.space[4] }}>
+                    style={{ minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingLeft: m2.space.action, paddingRight: m2.space.gutter }}>
                     <Text v="dayRow" color={ink} style={d.current ? { fontFamily: m2.font.bodySb } : null}>{d.label}</Text>
                     <Text v="date" color={d.current ? m2.color.vm : m2.color.slate} style={d.current ? { fontFamily: m2.font.bodyMd } : null}>{d.right}</Text>
                   </Press>
                   {d.meals.length || d.event ? (
-                    <View style={{ paddingLeft: 36 - 4, paddingRight: m2.space[4], paddingBottom: 10, marginTop: -4 }}>
+                    <View style={{ paddingLeft: 36 - 4, paddingRight: m2.space.gutter, paddingBottom: 10, marginTop: -4 }}>
                       {d.meals.map((m) => (
                         <View key={m.label} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
                           <Text v="sched" color={m2.color.ink}>{m.label}</Text>

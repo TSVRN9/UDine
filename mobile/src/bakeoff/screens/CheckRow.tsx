@@ -10,7 +10,7 @@ export function CheckRow({ label, line, lead, on, last, onToggle }: { label: str
     <Press feedback="tint" accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={line ? `${label}, ${line}` : label}
       onPress={() => { tick(); onToggle(); }}
       style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: last ? 0 : 1, borderBottomColor: m2.color.hair }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space[2], flex: 1, minWidth: 0 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space.panel, flex: 1, minWidth: 0 }}>
         {lead}
         <View style={{ flexShrink: 1 }}>
           <Text v="rowName" color={m2.color.ink}>{label}</Text>

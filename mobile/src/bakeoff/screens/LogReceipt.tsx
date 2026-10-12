@@ -10,7 +10,7 @@ export function LogReceipt({ last }: { last: Receipt }) {
   const today = useStore((s) => loggedCal(s.log));
   const { entry } = last;
   return (
-    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space[2] }}>
+    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space.panel }}>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text v="meta" color={m2.color.onDm} numberOfLines={1}>{`Logged ${entry.place ? placeName(entry.place) + " " : ""}${MEAL_LABEL[entry.meal].toLowerCase()}`}</Text>
         <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 2 }}>

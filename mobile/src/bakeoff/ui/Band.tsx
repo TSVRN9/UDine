@@ -20,7 +20,7 @@ export function Band({ name, status, arrive, photo, letter, compact, ghost, busy
       <LinearGradient colors={["rgba(59,10,15,0.82)", "rgba(59,10,15,0.55)", "rgba(59,10,15,0)"]} locations={[0, 0.45, 0.75]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} pointerEvents="none" />
       {letter}
-      <View style={{ position: "absolute", left: m2.space[4], top: compact ? 14 : m2.space[3] + 4 }}>
+      <View style={{ position: "absolute", left: m2.space.gutter, top: compact ? m2.space.pinTextTop : m2.space.bandTextTop }}>
         <Text v={compact ? "pinName" : "bandName"} color={m2.color.white}>{name}</Text>
         {status ? <Animated.View entering={arrive ? arriveIn : undefined}><Text v={compact ? "statusSm" : "status"} color={m2.color.onDmSoft} style={{ marginTop: compact ? 6 : 7 }}>{status}</Text></Animated.View> : null}
         {busy}

@@ -26,20 +26,20 @@ const Chevron = () => (
   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={m2.color.slate} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M9 6l6 6-6 6" /></Svg>
 );
 const H2 = ({ children }: { children: string }) => (
-  <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginBottom: m2.space[0] }}>{children}</Text>
+  <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginBottom: m2.space.line }}>{children}</Text>
 );
 
 function Meal({ e }: { e: LogEntry }) {
   const total = e.items.reduce((a, i) => a + i.cal * i.qty, 0);
   return (
-    <View style={{ borderBottomWidth: 1, borderBottomColor: m2.color.hair, paddingVertical: m2.space[1] }}>
+    <View style={{ borderBottomWidth: 1, borderBottomColor: m2.color.hair, paddingVertical: m2.space.part }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
         <Text v="rowName" color={m2.color.ink}>{`${MEAL_LABEL[e.meal]}${e.place ? " at " + placeName(e.place) : ""}`}</Text>
         <Text v="date" color={m2.color.slate}>{TIME}</Text>
       </View>
       {e.items.map((i, k) => (
         <View key={k} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", minHeight: 32, marginTop: 4 }}>
-          <Text v="empty" color={m2.color.slate} style={{ flex: 1, paddingRight: m2.space[2] }}>{(i.qty === 1 ? "" : `${fq(i.qty)} × `) + i.name}</Text>
+          <Text v="empty" color={m2.color.slate} style={{ flex: 1, paddingRight: m2.space.panel }}>{(i.qty === 1 ? "" : `${fq(i.qty)} × `) + i.name}</Text>
           <Text v="factNum" color={m2.color.ink}>{fc(i.cal * i.qty)}</Text>
         </View>
       ))}
@@ -67,21 +67,21 @@ export function YouScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: m2.color.chalk }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <View style={{ backgroundColor: m2.color.dm, paddingTop: top + 10, paddingHorizontal: m2.space[4], paddingBottom: m2.space[3] + 2 }}>
+        <View style={{ backgroundColor: m2.color.dm, paddingTop: top + 10, paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.yheadBottom }}>
           <View style={{ height: 30, justifyContent: "flex-end" }}><Text v="date" color={m2.color.onDm}>{DATE}</Text></View>
           <Text v="hallTitle" color={m2.color.white} accessibilityRole="header" style={{ marginTop: 2 }}>You</Text>
         </View>
-        <View style={{ paddingTop: m2.space[5] + 2, paddingHorizontal: m2.space[4] }}>
+        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Today</H2>
           <Facts {...t} />
         </View>
-        <View style={{ paddingTop: m2.space[5] + 2, paddingHorizontal: m2.space[4] }}>
+        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Meals</H2>
           {log.length ? [...log].reverse().map((e) => <Meal key={e.id} e={e} />) : <Text v="empty" color={m2.color.slate}>Nothing logged yet today.</Text>}
         </View>
-        <View style={{ paddingTop: m2.space[5] + 2, paddingHorizontal: m2.space[4] }}>
+        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <Press feedback="tint" accessibilityRole="button" onPress={() => setPage(true)}
-            style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space[1], gap: m2.space[2] }}>
+            style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space.part, gap: m2.space.panel }}>
             <View style={{ flex: 1 }}>
               <Text v="rowName" color={m2.color.ink}>Dietary preferences</Text>
               <Text v="meta" color={m2.color.slate} style={{ marginTop: 2 }} numberOfLines={1}>{prefSummary(prefs)}</Text>
@@ -89,11 +89,11 @@ export function YouScreen() {
             <Chevron />
           </Press>
         </View>
-        <View style={{ paddingTop: m2.space[5] + 2, paddingHorizontal: m2.space[4] }}>
+        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Campus</H2>
           <CheckRow label="Charles River Campus" line="Newton" on={newton} last onToggle={() => setNewton(!newton)} />
         </View>
-        <View style={{ paddingTop: m2.space[5] + 2, paddingHorizontal: m2.space[4] }}>
+        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Show on dishes</H2>
           <CheckRow label="Healthfulness" lead={<ScoreBadge kind="health" value={5} size="sheet" />} on={show.health} onToggle={() => setShow({ health: !show.health })} />
           <CheckRow label="Carbon rating" lead={<ScoreBadge kind="carbon" value="B" size="sheet" />} on={show.carbon} last onToggle={() => setShow({ carbon: !show.carbon })} />
