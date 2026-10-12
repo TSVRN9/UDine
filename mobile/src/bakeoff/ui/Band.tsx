@@ -7,8 +7,8 @@ import { Text } from "./Text";
 
 /** A hall band (112) or pinned café (84, `compact`): photo slot, M2's deep-maroon left grade, name and status.
  * `letter` is a slot (see HallLetter). `ghost` is the band's copy drawn over the screen it opens into: no ground, no margin, no touches. */
-export function Band({ name, status, photo, letter, compact, ghost, onPress }: {
-  name: string; status?: ReactNode; photo?: ReactNode; letter?: ReactNode; compact?: boolean; ghost?: boolean; onPress?: () => void;
+export function Band({ name, status, photo, letter, compact, ghost, busy, onPress }: {
+  name: string; status?: ReactNode; photo?: ReactNode; letter?: ReactNode; compact?: boolean; ghost?: boolean; busy?: ReactNode; onPress?: () => void;
 }) {
   return (
     <Press feedback="tint" accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
@@ -21,6 +21,7 @@ export function Band({ name, status, photo, letter, compact, ghost, onPress }: {
       <View style={{ position: "absolute", left: m2.space[4], top: compact ? 14 : m2.space[3] + 4 }}>
         <Text v={compact ? "pinName" : "bandName"} color={m2.color.white}>{name}</Text>
         {status ? <Text v={compact ? "statusSm" : "status"} color={m2.color.onDmSoft} style={{ marginTop: compact ? 6 : 7 }}>{status}</Text> : null}
+        {busy}
       </View>
     </Press>
   );

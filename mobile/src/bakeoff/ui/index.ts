@@ -1,5 +1,6 @@
 export { Badge } from "./Badge";
 export { Band } from "./Band";
+export { Board, BusyRow, Meter } from "./Busy";
 export { Chip } from "./Chip";
 export { Header } from "./Header";
 export { HallLetter } from "./HallLetter";

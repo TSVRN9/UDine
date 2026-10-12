@@ -140,6 +140,22 @@ for (const [t, e] of Object.entries(byt)) {
 }
 events.sort((a, b) => a.expires - b.expires);
 
-writeFileSync(join(OUT, "fixture.json"), JSON.stringify({ clock: "2026-10-08T12:41:00-04:00", areas: AREAS, places, hours, grab, dishes, days: fixDays, events }));
+// Busy: M2's own SIMULATED values for a Thursday lunch rush (src.html `BUSY`, `TYPICAL`; the live capture was from the
+// evening, so M2 does not render it). Copied verbatim; keep in step with src.html.
+const N3 = [{ in: 30, pct: null }, { in: 60, pct: null }, { in: 90, pct: null }];
+const busy = {
+  W: { level: 2, label: "Busy", pct: 82, usual_pct: 86, trend: "falling", vs_usual: "usual", outlook: [{ in: 30, pct: 70 }, { in: 60, pct: 55 }, { in: 90, pct: 40 }], calmer_at: "13:30", confidence: "good" },
+  F: { level: 1, label: "A little busy", pct: 48, usual_pct: 55, trend: "falling", vs_usual: "usual", outlook: N3, calmer_at: null, confidence: "new" },
+  H: { level: 0, label: "Not busy", pct: 27, usual_pct: 44, trend: "steady", vs_usual: "quieter", outlook: N3, calmer_at: null, confidence: "good" },
+  B: { level: 2, label: "Busy", pct: 88, usual_pct: 74, trend: "steady", vs_usual: "busier", outlook: [{ in: 30, pct: 80 }, { in: 60, pct: 68 }, { in: 90, pct: null }], calmer_at: null, confidence: "new" },
+};
+// Typical Thursday, busy % by hour from the first hour (src.html `TYPICAL`): [first hour, values]
+const typical = {
+  W: [7, [15, 25, 30, 22, 30, 62, 86, 70, 40, 30, 45, 70, 82, 60, 40, 30, 22]],
+  F: [7, [12, 20, 22, 18, 30, 55, 50, 30, 20, 25, 45, 55, 35, 20]],
+  H: [7, [10, 18, 20, 16, 28, 44, 40, 25, 18, 22, 40, 48, 30, 18]],
+  B: [11, [45, 74, 70, 45, 30, 40, 72, 84, 70, 50, 40, 45, 38]],
+};
+writeFileSync(join(OUT, "fixture.json"), JSON.stringify({ clock: "2026-10-08T12:41:00-04:00", areas: AREAS, places, hours, grab, busy, typical, dishes, days: fixDays, events }));
 copyFileSync(join(FLOWS, "M2/vectors.json"), join(OUT, "logic/vectors.json"));
 console.log(`fixture.json: ${dishes.length} dishes, ${places.length} places, ${events.length} events`);

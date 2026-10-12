@@ -4,7 +4,9 @@ import { GestureDetector } from "react-native-gesture-handler";
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
-import { Band, HallLetter, Header, Photo, Press } from "../ui";
+import { Band, Board, BusyRow, HallLetter, Header, Photo, Press } from "../ui";
+import { boardAt, busyView } from "../logic/busy";
+import { loadFixture } from "../logic/fixture";
 import { HALL_LX } from "../logic/letters";
 import type { PlaceKey } from "../logic/types";
 import type { useContainerTransform } from "../motion/useContainerTransform";
@@ -30,10 +32,12 @@ export function HallHeader({ t, H, place, name, status, onBack }: {
   const rect = t.rect.current!;
   const compact = place.startsWith("c");
   const src = photoOf(place, name)!;
+  const fx = loadFixture();
+  const busy = compact ? null : busyView(fx.busy[place as "W"]);
   const letter = compact ? null : <HallLetter letter={place} x={HALL_LX[place as "W"]} top={top + 26} />;
   const ghost = (
     <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, right: 0, top: rect.off, height: rect.height }, t.style.outgoing]}>
-      <Band ghost compact={compact} name={name} status={status}
+      <Band ghost compact={compact} name={name} status={status} busy={busy ? <BusyRow lamps={busy.lamps} word={busy.word} /> : undefined}
         letter={compact ? undefined : <HallLetter letter={place} x={HALL_LX[place as "W"]} />} />
     </Animated.View>
   );
@@ -44,7 +48,9 @@ export function HallHeader({ t, H, place, name, status, onBack }: {
         <Animated.View collapsable={false} onLayout={t.ready} style={[{ position: "absolute", left: 0, right: 0, overflow: "hidden", backgroundColor: m2.color.chalk }, t.style.container]}>
           <Animated.View style={[{ position: "absolute", left: 0, right: 0, top: 0, height: H }, t.style.layer]}>
             <Header
-              title={name} status={status} top={top} height={headerHeight(top)}
+              title={name} status={status} top={top}
+              busy={busy ? <BusyRow {...busy} header /> : undefined}
+              board={busy ? <Board columns={boardAt(fx.typical[place as "W"], fx.busy[place as "W"], new Date(fx.clock).getHours() * 60 + new Date(fx.clock).getMinutes())} /> : undefined} height={headerHeight(top)}
               photo={<Photo source={src} width={width} height={headerHeight(top)} pos={compact ? 0.5 : PHOTO_POS[place as "W"]} duo={t.style.photo} />}
               letter={<>
                 {letter ? <Animated.View pointerEvents="none" style={[fill, t.style.incoming]}>{letter}</Animated.View> : null}

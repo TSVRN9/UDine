@@ -71,6 +71,24 @@ describe("interruption reducer (Review Focus 4)", () => {
     expect(transition(g, { type: "release", to: "closed" }).phase).toBe("closing");
     expect(transition(g, { type: "release", to: "open" }).phase).toBe("opening");
   });
+  it("a grab whose gesture is cancelled settles by position and always leaves dragging", () => {
+    const g = at(closed, { type: "open" }, { type: "done", run: 1 }, { type: "grab" });
+    for (const [p, end] of [[0.9, "open"], [0.4, "closed"]] as const) {
+      const r = transition(g, { type: "release", to: settleTarget(0, p) });
+      expect(r.phase).toBe(end === "open" ? "opening" : "closing");
+      expect(transition(r, { type: "done", run: r.run }).phase).toBe(end);
+    }
+  });
+  it("a second release (finalize after end) changes nothing", () => {
+    const r = at(closed, { type: "open" }, { type: "grab" }, { type: "release", to: "closed" });
+    expect(transition(r, { type: "release", to: "open" })).toEqual(r);
+  });
+  it("a grab during a running open cancels it; its finish cannot reopen after the release closes", () => {
+    const o = at(closed, { type: "open" });
+    const r = at(o, { type: "grab" }, { type: "release", to: "closed" });
+    expect(transition(r, { type: "done", run: o.run })).toEqual(r);
+    expect(transition(r, { type: "done", run: r.run }).phase).toBe("closed");
+  });
   it("only a finished close frees the band: the overlay is mounted in every other phase", () => {
     const phases = [closed, at(closed, { type: "open" }), at(closed, { type: "open" }, { type: "grab" }), at(closed, { type: "open" }, { type: "close" })];
     expect(phases.map((m) => m.phase !== "closed")).toEqual([false, true, true, true]);
