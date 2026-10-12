@@ -1,7 +1,6 @@
 import renderer, { act } from "react-test-renderer";
 import { dishKey, loadFixture, servingOn } from "../logic/fixture";
 import type { Dish } from "../logic/types";
-import * as Reanimated from "react-native-reanimated";
 import { DishRow } from "./DishRow";
 import * as store from "../state/store";
 
@@ -82,25 +81,19 @@ describe("a dish row's control in the lane", () => {
     expect(button(v, "Increase")).toBeDefined();
     expect(button(v, `Add ${dish.name}`)).toBeUndefined();
   });
-  it("the arriving stepper mounts at opacity 0 and is never drawn whole first (no flicker on the first add)", () => {
-    const seen: number[] = [];
-    const real = Reanimated.useSharedValue;
-    const spy = jest.spyOn(Reanimated, "useSharedValue").mockImplementation(((v: unknown) => { if (new Error().stack?.includes("StepperLane")) seen.push(v as number); return real(v as never); }) as never);
+  it("the arriving stepper and the + that returns carry a UI-thread entering animation, and a lane that is only being drawn carries none", () => {
+    const entering = (v: renderer.ReactTestRenderer) => v.root.findAll((n) => typeof n.type === "string" && n.props.entering != null).length;
     const { v } = mount(dish, "W");
-    seen.length = 0;
+    expect(entering(v)).toBe(0);
     press(button(v, `Add ${dish.name}`));
-    spy.mockRestore();
-    // the stepper lane that mounts for the add starts at 0; it is never made at 1 and reset after
-    expect(seen.length).toBeGreaterThan(0);
-    expect(seen).not.toContain(1);
+    expect(entering(v)).toBe(1);   // the stepper arrives; it is never drawn whole first because its first frame is the animation's
+    press(button(v, "Decrease")); press(button(v, "Decrease"));   // 1 -> ½ -> removed
+    expect(entering(v)).toBe(1);   // and the + fades back in
+    expect(button(v, `Add ${dish.name}`)).toBeDefined();
   });
-  it("a row that mounts already on the plate is whole at once (no arrival for a row that is only being drawn)", () => {
+  it("a row that mounts already on the plate has no arrival", () => {
     act(() => store.add("lunch", dish.name, { W: dish }));
-    const seen: number[] = [];
-    const real = Reanimated.useSharedValue;
-    const spy = jest.spyOn(Reanimated, "useSharedValue").mockImplementation(((v: unknown) => { if (new Error().stack?.includes("StepperLane")) seen.push(v as number); return real(v as never); }) as never);
-    mount(dish, "W");
-    spy.mockRestore();
-    expect(seen).toContain(1);
+    const v = mount(dish, "W").v;
+    expect(v.root.findAll((n) => typeof n.type === "string" && n.props.entering != null)).toHaveLength(0);
   });
 });
