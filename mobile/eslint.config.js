@@ -146,6 +146,11 @@ module.exports = defineConfig([
     },
   },
   {
+    // build-time node scripts (scripts/gen-tokens.js)
+    files: ["scripts/**/*.js"],
+    languageOptions: { globals: globals.node },
+  },
+  {
     // TS test files get jest globals for free from @types/jest (tsconfig's "types": ["jest"]),
     // but ESLint's TS parser doesn't consult that for scope analysis, and plain .js tests get no
     // ambient types at all -- so `describe`/`it`/`expect` read as undefined (no-undef) either way.

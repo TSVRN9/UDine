@@ -16,7 +16,7 @@ const spinIn = new Keyframe({ 0: { opacity: 0 }, 100: { opacity: 1 } }).delay(S.
 function Spinner() {
   const r = useSharedValue(0);
   useEffect(() => {
-    r.set(withRepeat(withTiming(1, { duration: S.d, easing: m2Linear }), -1));
+    r.set(withRepeat(withTiming(1, { duration: m2Motion.spin.d, easing: m2Linear }), -1));
     return () => cancelAnimation(r);
   }, [r]);
   const turn = useAnimatedStyle(() => ({ transform: [{ rotate: `${r.get() * 360}deg` }] }));

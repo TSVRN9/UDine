@@ -62,6 +62,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "test": "TZ=America/New_York jest",
+    "tokens": "node scripts/gen-tokens.js",
     "build:internal-android": "scripts/build-internal-android.sh"
   },
   "private": true
