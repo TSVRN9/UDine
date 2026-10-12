@@ -98,8 +98,18 @@ Rationale:
   - loading, offline-with-cache and failed-fetch states for the Halls tab and hall menu;
   - price on the dish sheet.
 - **Bowl builder:** designed in M2 (round 10) in parallel with the builds; not in bake-off scope.
+- **Onboarding, past logs and Health sync** (owner, 2026-10-12): designed in M2 round 10 with the bowl builder; built
+  after the verdict, not in the bake-off.
+  - **Onboarding:** a first-run screen choosing the score badges (healthfulness, carbon), dietary preferences
+    (including allergens), and whether calorie/macro tracking is on. Every choice stays changeable on You.
+  - **Tracking off makes UDine a pure menu app:** no +, no plate, no Log, no past logs or totals. Halls, cafés, Search
+    and dish sheets with nutrition and scores remain. Turning it on brings them back with any earlier history intact.
+  - **Past logs:** a clear way in, day by day with daily totals. A past meal can be opened to change quantities,
+    remove items or be deleted, with Undo.
+  - **Google Health Connect / Apple Health:** a toggle that writes each logged meal's nutrition. Edits and deletes
+    update the written record. Nothing is read back. It's on-device and user-initiated, so it's an export under the
+    residency rules, not a sync.
 - **Deferred to the full-rebuild spec, with the owner asked per feature then:**
-  - log history and editing;
   - ranking allowance, skip and the post-log prompt;
   - Top Foods scores, Favorite Halls and Hall Completion;
   - export store picking;
