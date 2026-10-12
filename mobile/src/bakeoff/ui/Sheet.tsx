@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useRef, type ReactNode } from "react";
+import { useSharedValue } from "react-native-reanimated";
 import { View } from "react-native";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, useBottomSheetSpringConfigs, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
@@ -9,15 +10,15 @@ import { m2Motion } from "../../lib/motion";
  * opens already scrolled (M2), so the first scroll event, the one our own `scrollTo` makes as the content is measured, is let through
  * and recorded as the scroll position; everything after it is gorhom's own (so a drag down from the list still hands over to the sheet).
  */
-const useOpenedAt: ScrollEventsHandlersHookType = (ref, offsetY) => {
+function useOpenedAt(armed: { get: () => boolean }, ref: Parameters<ScrollEventsHandlersHookType>[0], offsetY: Parameters<ScrollEventsHandlersHookType>[1]) {
   const base = useScrollEventsHandlersDefault(ref, offsetY);
   const handleOnScroll = useCallback((e: any, ctx: any) => {
     "worklet";
-    if (!ctx.opened && e.contentOffset.y > 0) { ctx.opened = true; offsetY.set(e.contentOffset.y); return; }
+    if (armed.get() && !ctx.opened && e.contentOffset.y > 0) { ctx.opened = true; offsetY.set(e.contentOffset.y); return; }
     (base.handleOnScroll as any)?.(e, ctx);
-  }, [base, offsetY]);
+  }, [base, offsetY, armed]);
   return { ...base, handleOnScroll };
-};
+}
 const GRAB = 22;
 
 /** M2's `.grab`: a 22 px strip holding a 40 x 5 handle. */
@@ -37,14 +38,25 @@ export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss
   function Sheet({ maxHeight, onDismiss, contentOffset = 0, children }, ref) {
     const { k, z } = m2Motion.spring.sheet;
     const scroll = useRef<any>(null);
+    // armed only for a sheet that opens scrolled: otherwise gorhom's hook sees every scroll (a plain list's first scroll is not ours)
+    const armed = useSharedValue(false), laidOut = useRef(false);
+    // gorhom calls this as a hook, once per render of its scrollable, from a stable function: that is what the rule cannot see
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const hook = useCallback<ScrollEventsHandlersHookType>((r, o) => useOpenedAt(armed, r, o), [armed]);
     const animationConfigs = useBottomSheetSpringConfigs({ stiffness: k, damping: 2 * Math.sqrt(k) * z, mass: 1 });
     return (
-      <BottomSheetModal ref={ref} enableDynamicSizing maxDynamicContentSize={maxHeight} enablePanDownToClose onDismiss={onDismiss}
+      <BottomSheetModal ref={ref} enableDynamicSizing maxDynamicContentSize={maxHeight} enablePanDownToClose onDismiss={() => { laidOut.current = false; armed.set(false); onDismiss?.(); }}
         animationConfigs={animationConfigs} handleComponent={Grab}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderTopLeftRadius: m2.radius.sheet, borderTopRightRadius: m2.radius.sheet }}
         backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={0} disappearsOnIndex={-1} opacity={m2Motion.scrim} pressBehavior="close" />}>
-        <BottomSheetScrollView ref={scroll} scrollEventsHandlersHook={useOpenedAt}
-          onLayout={() => { if (contentOffset) (scroll.current?.getScrollResponder?.() ?? scroll.current)?.scrollTo({ y: contentOffset, animated: false }); }}
+        <BottomSheetScrollView ref={scroll} scrollEventsHandlersHook={hook}
+          onLayout={() => {
+            if (laidOut.current) return;   // the first layout only: later ones (content growing) must not put the list back
+            laidOut.current = true;
+            if (!contentOffset) return;
+            armed.set(true);
+            (scroll.current?.getScrollResponder?.() ?? scroll.current)?.scrollTo({ y: contentOffset, animated: false });
+          }}
           contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingBottom: m2.space[5] }}>{children}</BottomSheetScrollView>
       </BottomSheetModal>
     );

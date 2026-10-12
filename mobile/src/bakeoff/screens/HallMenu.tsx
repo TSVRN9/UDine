@@ -43,7 +43,6 @@ const Back = () => (
 const fx = loadFixture();
 const isos = dayIsos(fx);
 
-// stable for MealPager, so a label change (headDay) does not walk the list
 const keyOf = (it: Item, i: number) => (it.t === "dish" ? `d:${it.dish.station}:${it.dish.key}` : it.t === "head" ? `h:${it.name}` : `${it.t}${i}`);
 const typeOf = (it: Item) => it.t;
 
@@ -135,10 +134,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   };
   const changeDay = (i: number) => {
     const keep = Math.min(y.get(), R);
-    holdOn.set(1);
-    lo.set(1); ln.set(0);   // the old layer shows exactly what is on screen: until the commit lands it is the current labels
-    setHeld(labels);
-    pager.current?.hold(() => { setDay(i); }, () => {
+    // refused (and nothing touched) while another change is running: see motion/pagerMachine
+    pager.current?.hold(() => {
+      holdOn.set(1);
+      lo.set(1); ln.set(0);   // the old layer shows exactly what is on screen: until the commit lands it is the current labels
+      setHeld(labels);
+      setDay(i);
+    }, () => {
       pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
       const out = FT.d * m2Motion.sharedX.at, back = FT.d * (1 - m2Motion.sharedX.at);
       lo.set(withTiming(0, { duration: out, easing: m2Linear }));
@@ -163,10 +165,12 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   const pickMeal = (m: MealKey) => {
     if (m === meal) return;
     const dir = Math.sign(meals.indexOf(m) - meals.indexOf(meal)) as 1 | -1;
-    tick();
-    holdOn.set(1);
-    pager.current?.shift(dir, () => setMealSel(m));
-    requestAnimationFrame(() => { if (y.get() > R) pager.current?.list()?.scrollToOffset({ offset: R, animated: false }); });
+    pager.current?.shift(dir, () => {
+      tick();
+      holdOn.set(1);
+      setMealSel(m);
+      requestAnimationFrame(() => { if (y.get() > R) pager.current?.list()?.scrollToOffset({ offset: R, animated: false }); });
+    });
   };
 
   // ---- sheets
