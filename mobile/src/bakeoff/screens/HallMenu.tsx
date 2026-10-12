@@ -200,12 +200,17 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     if (i >= 0) {
       // FlashList places a row it has not drawn yet from its estimated heights (scrollToIndex landed stations past the dish), so the
       // offset is taken from the row's layout, and again after each pass has drawn more of the list: the last lands on measured rows
-      let k = 0;
+      let k = 0, last = -1;
       const go = () => {
         const l = pager.current?.list();
         const lay = l?.getLayout(i);
-        if (l && lay) l.scrollToOffset({ offset: Math.max(0, lay.y + l.getFirstItemOffset() - PIN), animated: false });
-        if (++k < 3) setTimeout(go, 80);
+        if (!l || !lay) return;
+        const off = Math.max(0, lay.y + l.getFirstItemOffset() - PIN);
+        // stable (the row's layout stopped moving as the list drew around it): it is measured, and we are there
+        if (Math.abs(off - last) < 1 || ++k > 12) return;
+        last = off;
+        l.scrollToOffset({ offset: off, animated: false });
+        setTimeout(go, 100);
       };
       go();
       setGoto(null);
