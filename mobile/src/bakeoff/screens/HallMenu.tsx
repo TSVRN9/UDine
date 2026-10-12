@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, {
   runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming,
@@ -38,6 +38,10 @@ const Back = () => (
   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={m2.color.white} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M15 5l-7 7 7 7" /></Svg>
 );
 
+// one fixture for the screen: a stable object, so the memos below depend only on what changes
+const fx = loadFixture();
+const isos = dayIsos(fx);
+
 const mealWord = (m: MealKey) => (m === "grab" ? "Grab 'N Go" : MEAL_LABEL[m].toLowerCase());
 
 /**
@@ -50,16 +54,17 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
 }) {
   const { width, height: winH } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
-  const fx = loadFixture();
   const now = new Date(fx.clock);
   const { prefs, scores } = useBakeoffState();
   const compact = place.startsWith("c");
   const one = isOneMeal(fx, place);
-  const isos = dayIsos(fx);
   // eslint-disable-next-line react-hooks/rules-of-hooks -- __DEV__ is a build-time constant
   const dev = __DEV__ ? useLocalSearchParams<{ day?: string; meal?: string; sheet?: string; y?: string; reveal?: string }>() : {};
 
-  const [day, setDay] = useState(() => +(dev.day ?? 0) || 0);
+  // `listDay` is the day the list shows, `headDay` the day its labels say: a day change draws the list first, under a copy of the
+  // old rows, and the labels follow once it is drawn
+  const [listDay, setListDay] = useState(() => +(dev.day ?? 0) || 0);
+  const [headDay, setHeadDay] = useState(listDay);
   const [mealSel, setMealSel] = useState<MealKey>((dev.meal as MealKey) ?? "lunch");
   const [showAll, setShowAll] = useState(() => dev.reveal === "1");
   const [sheet, setSheet] = useState<"hours" | "stations" | null>(null);
@@ -67,15 +72,22 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   // the container opens before the list is drawn: mounting ~30 rows blocks JS, and the open's clock starts at the first layout
   const [warm, setWarm] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setWarm(true)); return () => cancelAnimationFrame(id); }, []);
-  const iso = isos[day];
-  const meals = mealsOf(fx, iso, place);
-  const meal = defaultMeal(fx, iso, place, mealSel);
+  const day = headDay;
+  const meals = mealsOf(fx, isos[headDay], place);
+  const meal = defaultMeal(fx, isos[headDay], place, mealSel);
+  const listMeal = defaultMeal(fx, isos[listDay], place, mealSel);
 
-  const view = menuView(fx, iso, place, meal, prefs, showAll);
-  const empty = !meals.length ? `No menu posted for ${dayFull(fx, day)}.` : "";
-  const items = menuItems(view, prefs, showAll, empty);
-  const heads = items.flatMap((it, i) => (it.t === "head" ? [i] : []));
-  const stationLabel = view.sections[Math.min(cur, view.sections.length - 1)]?.name ?? "";
+  const view = useMemo(() => menuView(fx, isos[listDay], place, listMeal, prefs, showAll), [listDay, place, listMeal, prefs, showAll]);
+  const items = useMemo(
+    () => menuItems(view, prefs, showAll, mealsOf(fx, isos[listDay], place).length ? "" : `No menu posted for ${dayFull(fx, listDay)}.`),
+    [view, prefs, showAll, listDay, place],
+  );
+  const heads = useMemo(() => items.flatMap((it, i) => (it.t === "head" ? [i] : [])), [items]);
+  const headView = useMemo(
+    () => (headDay === listDay && meal === listMeal ? view : menuView(fx, isos[headDay], place, meal, prefs, showAll)),
+    [view, headDay, listDay, meal, listMeal, place, prefs, showAll],
+  );
+  const stationLabel = headView.sections[Math.min(cur, headView.sections.length - 1)]?.name ?? "";
 
   // ---- geometry: M2 HH, CH, TH, SWH, PIN
   const HH = headerHeight(top), R = HH - top - BAR;
@@ -116,20 +128,23 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   // ---- day change (M2 changeDay): everything that says the day fades out where it is, then the new day fades in
   const f = useSharedValue(1), sc = useSharedValue(1);
   const FT = m2Motion.fadeThrough, fade = standardDecelerate;
-  const swap = useCallback((i: number) => {
+  const swap = (i: number) => {
     const keep = Math.min(y.get(), R);
-    setDay(i);
-    // the list is drawn under the fade; start the fade in once it has been
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
+    setHeadDay(i);
+    pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
+    // the new labels and the new list are shown together once the copy of the old rows is gone
+    pager.current?.release(() => {
       sc.set(FT.scale);
       f.set(withTiming(1, { duration: FT.d * (1 - m2Motion.sharedX.at), easing: fade }));
       sc.set(withTiming(1, { duration: FT.d * (1 - m2Motion.sharedX.at), easing: fade }));
-    }));
-  }, [y, R, f, sc, FT, fade]);
-  const changeDay = useCallback((i: number) => {
-    f.set(withTiming(0, { duration: FT.d * m2Motion.sharedX.at, easing: m2Linear }, (done) => { if (done) runOnJS(swap)(i); }));
-  }, [f, swap, FT]);
+    });
+  };
+  // the old content stays until the new day is drawn; then it fades out in place and the new one fades in
+  const changeDay = (i: number) => {
+    pager.current?.hold(() => setListDay(i), () => {
+      f.set(withTiming(0, { duration: FT.d * m2Motion.sharedX.at, easing: m2Linear }, (done) => { if (done) runOnJS(swap)(i); }));
+    });
+  };
   const parts = useAnimatedStyle(() => ({ opacity: f.get() }));
   const listFade = useAnimatedStyle(() => ({ opacity: f.get(), transform: [{ scale: sc.get() }], transformOrigin: `50% ${(H + PIN) / 2}px` }));
 
@@ -145,7 +160,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
   // ---- sheets
   const hoursRef = useRef<BottomSheetModal>(null), stRef = useRef<BottomSheetModal>(null);
   const pending = useRef<{ day: number } | null>(null);
-  const sched = schedule(fx, place, day);
+  const sched = useMemo(() => schedule(fx, place, headDay), [place, headDay]);
   const openHours = () => { setSheet("hours"); hoursRef.current?.present(); thud(); };
   const openStations = () => { if (!view.sections.length) return; setSheet("stations"); stRef.current?.present(); thud(); };
   const onDismiss = () => {
@@ -183,10 +198,10 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
 
   return (
     <View style={fill} pointerEvents="box-none">
-      <Animated.View style={[fill, { backgroundColor: m2.color.chalk }, t.style.incoming, listFade]}>
+      <Animated.View needsOffscreenAlphaCompositing style={[fill, { backgroundColor: m2.color.chalk }, t.style.incoming, listFade]}>
         {warm ? <MealPager
           ref={pager} data={items} renderItem={renderItem} animatedRef={aref} onScroll={onScroll} scrollY={y} onViewable={refreshHeads}
-          keyOf={(it, i) => `${it.t}${i}`} typeOf={(it: Item) => it.t}
+          keyOf={(it: Item, i) => (it.t === "dish" ? `d:${it.dish.station}:${it.dish.key}` : it.t === "head" ? `h:${it.name}` : `${it.t}${i}`)} typeOf={(it: Item) => it.t}
           header={<View style={{ height: HH + TH + SWH, backgroundColor: m2.color.dm }} />} footer={<View style={{ height: 120 }} />}
         /> : null}
       </Animated.View>
