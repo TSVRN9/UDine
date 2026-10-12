@@ -10,7 +10,6 @@ import '../shell_api.dart';
 import '../state/store.dart';
 import '../theme/tokens.dart';
 import '../ui/landing_scroll.dart';
-import '../ui/sheet.dart';
 import '../ui/ui.dart';
 import 'hall_header.dart';
 import 'hours_sheet.dart';

@@ -6,7 +6,6 @@ import '../logic/where.dart';
 import '../shell_api.dart';
 import '../state/store.dart';
 import '../theme/tokens.dart';
-import '../ui/sheet.dart';
 import '../ui/ui.dart';
 
 /// Dish detail (M2 round 7): a sheet from the bottom edge over the list it was opened from, which stays where it was. It rests at a

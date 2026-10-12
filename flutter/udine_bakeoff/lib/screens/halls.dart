@@ -70,7 +70,7 @@ class _HallsListState extends State<HallsList> {
     final date = '${_weekdays[now.weekday - 1]}, ${_months[now.month - 1]} ${now.day}';
     final places = [...halls, for (final n in widget.pins) fx.places.firstWhere((p) => p.name == n).key];
     final brand = Text('UDine', style: M2Text.brand.normal().style(M2Color.gold));
-    final dateText = Text(date, style: M2Text.headDate.style(M2Color.onDm));
+    final dateText = Text(date, style: M2Text.date.style(M2Color.onDm));
     return ColoredBox(
       color: M2Color.chalk,
       child: Stack(children: [

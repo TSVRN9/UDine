@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
-import '../ui/sheet.dart';
 import '../ui/ui.dart';
 
 /// M2's station roster (`#stidx`): the meal's stations with their dish counts, the current one marked with a maroon edge. A pick

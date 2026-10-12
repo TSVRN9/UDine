@@ -6,7 +6,6 @@ import '../logic/plate.dart';
 import '../shell_api.dart';
 import '../state/store.dart';
 import '../theme/tokens.dart';
-import '../ui/sheet.dart';
 import '../ui/ui.dart';
 import 'plate_bar.dart';
 

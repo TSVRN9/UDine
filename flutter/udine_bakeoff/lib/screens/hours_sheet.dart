@@ -3,7 +3,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../logic/fixture.dart';
 import '../logic/schedule.dart';
 import '../theme/tokens.dart';
-import '../ui/sheet.dart';
 import '../ui/ui.dart';
 
 /// M2's schedule (round 9): the place's address and Directions, then the fifteen days in date order, the chosen one open in place with

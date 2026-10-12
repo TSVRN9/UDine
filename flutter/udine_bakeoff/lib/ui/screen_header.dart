@@ -34,8 +34,8 @@ class ScreenHeader extends StatelessWidget {
         SizedBox(
           height: M2Layout.brandRowH,
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-            if (mark != null) Text(mark!, style: M2Text.brand.normal().style(M2Color.gold) /* `.brand` sets no line-height: the 32.6 dp normal line puts its baseline 3 dp lower than m2.json's 26 */) else if (dateLeft && date != null) Text(date!, style: M2Text.headDate.style(M2Color.onDm)) else const SizedBox.shrink(),
-            if (!dateLeft && date != null) Text(date!, style: M2Text.headDate.style(M2Color.onDm)),
+            if (mark != null) Text(mark!, style: M2Text.brand.normal().style(M2Color.gold) /* `.brand` sets no line-height: the 32.6 dp normal line puts its baseline 3 dp lower than m2.json's 26 */) else if (dateLeft && date != null) Text(date!, style: M2Text.date.style(M2Color.onDm)) else const SizedBox.shrink(),
+            if (!dateLeft && date != null) Text(date!, style: M2Text.date.style(M2Color.onDm)),
           ]),
         ),
         Padding(padding: const EdgeInsets.only(top: M2Layout.titleGap), child: Semantics(header: true, child: Text(title!, style: M2Text.hallTitle.style(M2Color.white)))),

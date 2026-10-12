@@ -15,8 +15,8 @@ void main() {
   for (final w in [390.0, 360.0]) {
     testWidgets('Halls header and rack at $w: UDine 34, date 46, Lunch 66, first band 137.6, Cafés & markets 780.6', (t) async {
       await boot(t, w: w);
-      expect(top(t, find.text('UDine')), closeTo(34, 1.2));
-      expect(top(t, find.text('Thursday, October 8')), closeTo(46, 1.2));
+      expect(top(t, find.text('UDine')), closeTo(34, 0.8));
+      expect(top(t, find.text('Thursday, October 8')), closeTo(46, 0.8)); // (M2's date is on its normal line: RN's headDate 20 puts it 1 dp higher)
       expect(top(t, find.text('Lunch')), closeTo(66, 1.2));
       expect(t.getTopLeft(find.byType(Band).first).dy + 1, closeTo(137.59, 1.2)); // (the band's own top margin is the 1 dp seam)
       expect(top(t, find.text('Cafés & markets')), closeTo(780.59, 1.5));

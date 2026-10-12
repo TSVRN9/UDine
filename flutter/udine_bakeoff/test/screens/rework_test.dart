@@ -30,7 +30,9 @@ void main() {
     testWidgets('the board and the letter are layers of their own: scrolling the header repaints neither', (t) async {
       await boot(t);
       await openHall(t, 'Worcester');
-      expect(find.ancestor(of: find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LampBoard), matching: find.byType(RepaintBoundary)), findsWidgets);
+      // the layer itself, not any boundary somewhere above: the board and the letter each hold one of their own
+      expect(find.descendant(of: find.byType(HallBoard), matching: find.byType(RepaintBoundary)), findsOneWidget);
+      expect(find.descendant(of: find.byType(HallLetter), matching: find.byType(RepaintBoundary)), findsWidgets);
       final board = LampBoard.paints, letter = letterPaints;
       expect(board, greaterThan(0));
       for (var i = 0; i < 6; i++) {
