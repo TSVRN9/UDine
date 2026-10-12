@@ -1,19 +1,21 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
-
 import { LinearGradient } from "expo-linear-gradient";
 import { m2 } from "../../lib/theme";
-import { m2Motion } from "../../lib/motion";
-import { timed } from "./motion";
-import { Chevron } from "./Chevron";
-import { Press } from "./Press";
+import { DayCell } from "./DayCell";
+import type { Labels } from "./labels";
+import { Layers } from "./Layers";
+import { MealTabs } from "./MealTabs";
+import { StationButton } from "./StationButton";
 import { Text } from "./Text";
+import { TitleParts } from "./TitleParts";
 import { useArrive } from "./arrive";
 
-type AStyle = React.ComponentProps<typeof Animated.View>["style"];
+export { Layers } from "./Layers";
+export type { Labels } from "./labels";
 
-const Down = ({ stroke = m2.color.gold, size = m2.size.chevron, width = 2.4 }: { stroke?: string; size?: number; width?: number }) => <Chevron dir="down" size={size} stroke={stroke} width={width} />;
+type AStyle = React.ComponentProps<typeof Animated.View>["style"];
 
 const fill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
 const clamp = (x: number) => {
@@ -23,27 +25,6 @@ const clamp = (x: number) => {
 
 /** The compact bar's height under the status bar (M2 CH = ST + 52). */
 export const BAR = 52;
-
-export interface Labels {
-  status?: string; onStatus?: () => void; busy?: ReactNode; board?: ReactNode;
-  meals?: { items: { key: string; label: string }[]; selected: string; onSelect: (key: string) => void };
-  station?: { label: string; onPress: () => void; open?: boolean };
-  day?: { label: string; accessibilityLabel: string; onPress: () => void };
-  /** The tab and station labels arrived from the network just now: they fade in where they end up (the status and busy lines come in at once, as in M2). */
-  arrive?: { menu?: boolean };
-}
-
-const abs = { position: "absolute", top: 0, left: 0, right: 0 } as const;
-/** The day's labels exist twice, `now` and `was`, stacked: a day change commits the new ones while the old stay on screen, and the
- * switch is two opacities on the UI thread, with no commit between them. `was` never takes touches. */
-export function Layers({ now, was, newStyle, oldStyle, fillParent }: { now: ReactNode; was: ReactNode; newStyle?: AStyle; oldStyle?: AStyle; fillParent?: boolean }) {
-  return (
-    <View style={fillParent ? { flex: 1 } : undefined}>
-      <Animated.View style={[fillParent ? { flex: 1 } : null, newStyle]}>{now}</Animated.View>
-      <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[fillParent ? { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } : abs, oldStyle]}>{was}</Animated.View>
-    </View>
-  );
-}
 
 /**
  * Round 9c hall header: photo window with the name and status, then the meal row (14 px, every meal visible, never
@@ -104,7 +85,7 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
       {labels.meals ? (
         <View accessibilityRole="tablist" style={{ height: m2.size.tabs, paddingHorizontal: 4 }}>
           <Animated.View style={[{ flex: 1 }, contentStyle]}>
-            <Layers fillParent now={<Arrive key={labels.meals.items.length ? "tabs" : "none"} on={labels.arrive?.menu}><TabRow meals={labels.meals} /></Arrive>} was={oldLabels.meals ? <TabRow meals={oldLabels.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+            <Layers fillParent now={<Arrive key={labels.meals.items.length ? "tabs" : "none"} on={labels.arrive?.menu}><MealTabs meals={labels.meals} /></Arrive>} was={oldLabels.meals ? <MealTabs meals={oldLabels.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
           </Animated.View>
         </View>
       ) : null}
@@ -134,85 +115,4 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
 function Arrive({ on, children }: { on?: boolean; children: ReactNode }) {
   const { arriveIn } = useArrive();
   return <Animated.View entering={on ? arriveIn : undefined} style={{ flex: 1 }}>{children}</Animated.View>;
-}
-
-// M2 `#mts` pads its line 12 above and below (and 16 to the right); a line of status text is shorter than a touch target, so the slop is what
-// brings the button to `tap` without moving the line
-const slop = Math.ceil((m2.size.tap - m2.type.status.line) / 2);
-const STATUS_SLOP = { top: slop, bottom: slop, right: m2.space.action };
-
-function TitleParts({ l }: { l: Labels }) {
-  return (
-    <>
-      <View style={{ minHeight: m2.type.status.line, marginTop: 7 }}>
-        {l.status ? (
-          <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
-            hitSlop={STATUS_SLOP} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
-            {l.onStatus ? <Down size={m2.size.chevronStatus} stroke={m2.color.onDmQuiet} width={m2.size.chevronStroke} /> : null}
-          </Press>
-        ) : null}
-      </View>
-      {l.busy}
-    </>
-  );
-}
-
-function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
-  return (
-    <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={`${s.label}, stations`} accessibilityState={{ expanded: !!s.open }} onPress={s.onPress}
-      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space.gutter }}>
-      <Text v="station" color={m2.color.gold} numberOfLines={1} style={{ flexShrink: 1 }}>{s.label}</Text>
-      <Flip open={!!s.open}><Down /></Flip>
-    </Press>
-  );
-}
-
-function DayCell({ d }: { d: NonNullable<Labels["day"]> }) {
-  return (
-    <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={d.accessibilityLabel} onPress={d.onPress}
-      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space.action, paddingRight: m2.space.gutter, borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
-      <Text v="day" color={m2.color.gold}>{d.label}</Text>
-      <Down />
-    </Press>
-  );
-}
-
-/** The meal row's tabs, with the gold underline sliding to the selected one (M2 placeUL: translateX(offsetLeft + 8) scaleX(width - 16), settle). */
-function TabRow({ meals }: { meals: NonNullable<Labels["meals"]> }) {
-  const tabs = useRef<Record<string, { x: number; w: number }>>({});
-  const ulX = useSharedValue(0), ulW = useSharedValue(0), ulSet = useRef(false);
-  const place = (key: string, animate: boolean) => {
-    const t = tabs.current[key];
-    if (!t) return;
-    if (!animate || !ulSet.current) { ulX.set(t.x + 8); ulW.set(t.w - 16); ulSet.current = true; return; }
-    ulX.set(timed(t.x + 8, m2Motion.settle));
-    ulW.set(timed(t.w - 16, m2Motion.settle));
-  };
-  const selected = meals.selected;
-  useEffect(() => { place(selected, true); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
-  const underline = useAnimatedStyle(() => ({ transform: [{ translateX: ulX.get() }, { scaleX: Math.max(ulW.get(), 0) }] }));
-  return (
-    <View style={{ flex: 1, flexDirection: "row" }}>
-      {meals.items.map((m) => {
-        const on = m.key === meals.selected;
-        return (
-          <Press key={m.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => meals.onSelect(m.key)}
-            onLayout={(e) => { tabs.current[m.key] = { x: e.nativeEvent.layout.x, w: e.nativeEvent.layout.width }; if (on) place(m.key, false); }}
-            style={{ flexGrow: 1, flexShrink: 1, height: m2.size.tabs, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" }}>
-            <Text v="mealTab" color={on ? m2.color.white : m2.color.onDm} style={{ fontFamily: on ? m2.font.bodySb : m2.font.bodyMd }} numberOfLines={1}>{m.label}</Text>
-          </Press>
-        );
-      })}
-      {meals.items.length ? <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, bottom: 0, height: 3, width: 1, backgroundColor: m2.color.gold, transformOrigin: "0% 0%" }, underline]} /> : null}
-    </View>
-  );
-}
-
-/** M2 `.swbtn[aria-expanded=true] svg`: the chevron turns over on the container's own timing. */
-function Flip({ open, children }: { open: boolean; children: ReactNode }) {
-  const r = useSharedValue(0);
-  useEffect(() => { r.set(timed(open ? 1 : 0, m2Motion.cont)); }, [open, r]);
-  const s = useAnimatedStyle(() => ({ transform: [{ rotate: `${r.get() * 180}deg` }] }));
-  return <Animated.View style={s}>{children}</Animated.View>;
 }
