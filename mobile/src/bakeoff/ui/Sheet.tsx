@@ -10,14 +10,20 @@ import { m2Motion } from "../../lib/motion";
  * opens already scrolled (M2), so the first scroll event, the one our own `scrollTo` makes as the content is measured, is let through
  * and recorded as the scroll position; everything after it is gorhom's own (so a drag down from the list still hands over to the sheet).
  */
-function useOpenedAt(armed: { get: () => boolean }, ref: Parameters<ScrollEventsHandlersHookType>[0], offsetY: Parameters<ScrollEventsHandlersHookType>[1]) {
+function useOpenedAt(armed: { get: () => boolean; set: (v: boolean) => void }, ref: Parameters<ScrollEventsHandlersHookType>[0], offsetY: Parameters<ScrollEventsHandlersHookType>[1]) {
   const base = useScrollEventsHandlersDefault(ref, offsetY);
   const handleOnScroll = useCallback((e: any, ctx: any) => {
     "worklet";
-    if (armed.get() && !ctx.opened && e.contentOffset.y > 0) { ctx.opened = true; offsetY.set(e.contentOffset.y); return; }
+    // armed: our own scrollTo to the opening offset (and any retry of it) is the scroll position, not something to put back at the top
+    if (armed.get()) { offsetY.set(e.contentOffset.y); return; }
     (base.handleOnScroll as any)?.(e, ctx);
   }, [base, offsetY, armed]);
-  return { ...base, handleOnScroll };
+  const handleOnBeginDrag = useCallback((e: any, ctx: any) => {
+    "worklet";
+    armed.set(false);   // the finger is on the list: from here it is gorhom's (a drag down hands over to the sheet)
+    (base.handleOnBeginDrag as any)?.(e, ctx);
+  }, [base, armed]);
+  return { ...base, handleOnScroll, handleOnBeginDrag };
 }
 const GRAB = 22;
 
@@ -45,10 +51,12 @@ export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss
     const reached = useRef(false), retries = useRef(0);
     const openScrolled = () => {
       const { h, c } = box.current;
-      if (reached.current || !contentOffset || !h || c - h < contentOffset - 1) return;
-      laidOut.current = true;
-      armed.set(true);
-      (scroll.current?.getScrollResponder?.() ?? scroll.current)?.scrollTo({ y: contentOffset, animated: false });
+      if (!contentOffset || !h || c - h < contentOffset - 1) return;
+      if (!reached.current) {
+        laidOut.current = true;
+        armed.set(true);
+        (scroll.current?.getScrollResponder?.() ?? scroll.current)?.scrollTo({ y: contentOffset, animated: false });
+      }
       if (retries.current++ < 12) setTimeout(openScrolled, 80);
     };
     // gorhom calls this as a hook, once per render of its scrollable, from a stable function: that is what the rule cannot see
@@ -60,7 +68,7 @@ export const Sheet = forwardRef<BottomSheetModal, { maxHeight: number; onDismiss
         animationConfigs={animationConfigs} handleComponent={Grab}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderTopLeftRadius: m2.radius.sheet, borderTopRightRadius: m2.radius.sheet }}
         backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={0} disappearsOnIndex={-1} opacity={m2Motion.scrim} pressBehavior="close" />}>
-        <BottomSheetScrollView ref={scroll} onScroll={(e) => { if (e.nativeEvent.contentOffset.y >= contentOffset - 1) reached.current = true; }} scrollEventsHandlersHook={hook}
+        <BottomSheetScrollView ref={scroll} style={{ maxHeight: maxHeight - GRAB }} onScroll={(e) => { reached.current = e.nativeEvent.contentOffset.y >= contentOffset - 1; }} scrollEventsHandlersHook={hook}
           onLayout={(e) => { box.current.h = e.nativeEvent.layout.height; openScrolled(); }}
           onContentSizeChange={(_w, h) => { box.current.c = h; openScrolled(); }}
           contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingBottom: m2.space[5] }}>{children}</BottomSheetScrollView>
