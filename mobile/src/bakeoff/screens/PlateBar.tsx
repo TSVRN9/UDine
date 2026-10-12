@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type RefObject } from "react";
 import { View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { FadeIn, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { FadeIn, runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import type BottomSheet from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { Press, Text, ding, tick } from "../ui";
+import { timed } from "../ui/motion";
 import { fc } from "../logic/dishSheet";
 import { placeName } from "../logic/fixture";
 import { fq, plateHalls, plateLabel, totals, type Plate } from "../logic/plate";
@@ -17,7 +18,6 @@ import { LogReceipt } from "./LogReceipt";
 export const BAR = 68;
 const f1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1).replace(/\.0$/, "");
 const nItems = (n: number) => (n === 1 ? "1 item" : `${fq(n)} items`);
-const settle = { duration: m2Motion.settle.d, easing: m2SettleEasing };
 
 function PlateLine({ plate, onLog, onOpen }: { plate: Plate; onLog: () => void; onOpen: () => void }) {
   const t = totals(plate);
@@ -101,7 +101,7 @@ export function PlateBar({ sheet, animatedIndex, collapse }: { sheet: RefObject<
     setFront((getState().plates.front + dir + plates.length) % plates.length);
     tick();
     tx.set(dir * m2Motion.plateSwipe.shift); op.set(0);
-    tx.set(withTiming(0, settle)); op.set(withTiming(1, settle));
+    tx.set(timed(0, m2Motion.settle)); op.set(timed(1, m2Motion.settle));
   };
   const pan = Gesture.Pan()
     .enabled(mode === "plate")
@@ -111,12 +111,12 @@ export function PlateBar({ sheet, animatedIndex, collapse }: { sheet: RefObject<
       tx.set(count > 1 ? e.translationX : e.translationX * m2Motion.plateSwipe.rubber);
     })
     .onEnd((e) => {
-      if (animatedIndex.get() > 0.05) { tx.set(withTiming(0, settle)); return; }
+      if (animatedIndex.get() > 0.05) { tx.set(timed(0, m2Motion.settle)); return; }
       if (count > 1 && (Math.abs(e.translationX) > m2Motion.plateSwipe.commit || Math.abs(e.velocityX) / 1000 > m2Motion.plateSwipe.flick)) {
         runOnJS(switchTo)(e.translationX < 0 ? 1 : -1);
-      } else tx.set(withTiming(0, settle));
+      } else tx.set(timed(0, m2Motion.settle));
     })
-    .onFinalize((_e, ok) => { if (!ok) tx.set(withTiming(0, settle)); });
+    .onFinalize((_e, ok) => { if (!ok) tx.set(timed(0, m2Motion.settle)); });
   const slide = useAnimatedStyle(() => ({ opacity: op.get(), transform: [{ translateX: tx.get() }] }));
 
   return (

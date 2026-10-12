@@ -531,12 +531,20 @@ export const m2MotionData = {
     scale: 0.97,
     z: 8
   },
+  fadeThroughOut: {
+    d: 250,
+    e: "linear"
+  },
   sharedX: {
     d: 450,
     e: "emphasized",
     at: 0.35,
     dist: 30,
     inAt: 0.6
+  },
+  sharedXFade: {
+    d: 450,
+    e: "linear"
   },
   scroll: {
     d: 500,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Image, View, useWindowDimensions } from "react-native";
 import Animated, {
-  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withTiming,
+  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence,
   type SharedValue,
 } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
@@ -9,7 +9,7 @@ import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
-import { emphasized, m2Linear, m2Motion, standardDecelerate } from "../../lib/motion";
+import { m2Motion } from "../../lib/motion";
 import { Board, BusyRow, HallLetter, Header, Photo, Press, Text, thud, tick } from "../ui";
 import type { Labels } from "../ui/Header";
 import { BAR } from "../ui/Header";
@@ -28,6 +28,7 @@ import { EVENT_PHOTO, PHOTO_POS, photoOf } from "../photos";
 import { hoursKnown, liveKnown, useMenuState, useNet } from "../state/net";
 import { add, useStore } from "../state/store";
 import { useArrival } from "../ui/arrive";
+import { part, timed } from "../ui/motion";
 import { mark } from "../perf";
 import { DietLine } from "./DietLine";
 import { DishRow } from "./DishRow";
@@ -164,7 +165,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     refreshHeads();
     const target = Math.max(0, (headY.get()[si] ?? 0) - PIN);
     jump.set(y.get());
-    jump.set(withTiming(target, { duration: m2Motion.scroll.d, easing: emphasized }, (done) => { if (done) jump.set(-1); }));
+    jump.set(timed(target, m2Motion.scroll, (done) => { if (done) jump.set(-1); }));
     tick();
   };
 
@@ -172,7 +173,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // The list and the labels commit once, under the old ones (the copy of the old rows, the old labels' layer); the fade out and back
   // in is then only shared values on the UI thread.
   const f = useSharedValue(1), sc = useSharedValue(1), lo = useSharedValue(0), ln = useSharedValue(1), holdOn = useSharedValue(1);
-  const FT = m2Motion.fadeThrough, fade = standardDecelerate;
+  const FT = m2Motion.fadeThrough, legOut = part(m2Motion.fadeThroughOut, m2Motion.sharedX.at), legIn = part(FT, 1 - m2Motion.sharedX.at);
   const newLabels = useAnimatedStyle(() => ({ opacity: ln.get() }));
   const oldLabelsStyle = useAnimatedStyle(() => ({ opacity: lo.get() }));
   const listFade = useAnimatedStyle(() => ({ opacity: f.get(), transform: [{ scale: sc.get() }], transformOrigin: `50% ${(H + PIN) / 2}px` }));
@@ -299,18 +300,17 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     }, () => {
       mark("day:ready");
       pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
-      const out = FT.d * m2Motion.sharedX.at, back = FT.d * (1 - m2Motion.sharedX.at);
-      lo.set(withTiming(0, { duration: out, easing: m2Linear }));
+      lo.set(timed(0, legOut));
       sc.set(1);
       f.set(withSequence(
-        withTiming(0, { duration: out, easing: m2Linear }, () => {
+        timed(0, legOut, () => {
           "worklet";
           holdOn.set(0);
           sc.set(FT.scale);
-          sc.set(withTiming(1, { duration: back, easing: fade }));
-          ln.set(withTiming(1, { duration: back, easing: fade }));   // the labels come back in the same frame as the list
+          sc.set(timed(1, legIn));
+          ln.set(timed(1, legIn));   // the labels come back in the same frame as the list
         }),
-        withTiming(1, { duration: back, easing: fade }, () => { "worklet"; runOnJS(done)(); }),
+        timed(1, legIn, () => { "worklet"; runOnJS(done)(); }),
       ));
     });
   };

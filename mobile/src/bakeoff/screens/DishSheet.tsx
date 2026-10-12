@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { BackHandler, View, useWindowDimensions } from "react-native";
-import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
-import { m2Motion, m2SettleEasing } from "../../lib/motion";
+import { m2Motion } from "../../lib/motion";
+import { timed } from "../ui/motion";
 import { GRAB, Press, ScoreBadge, ScrollEdge, Sheet, SheetMark, Text } from "../ui";
 import { estimateCalBottom, labelRows, restingSnap, sheetMarks, sheetPrice, type DishCtx, type ServeTarget } from "../logic/dishSheet";
 import type { Dish } from "../logic/types";
@@ -34,7 +35,7 @@ function Ingredients({ text }: { text: string }) {
   const toggle = () => {
     const to = expanded ? 0 : 1;
     setExpanded(!expanded);
-    open.set(withTiming(to, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
+    open.set(timed(to, m2Motion.settle));
   };
   return (
     <>

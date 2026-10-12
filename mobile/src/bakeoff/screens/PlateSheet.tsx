@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import { View, useWindowDimensions } from "react-native";
-import Animated, { FadeIn, LinearTransition, FadeOut } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useGlobalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, type BottomSheetHandleProps } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
 import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { Press, Stepper, Text, thud, thunk, tick, useSheetSpring } from "../ui";
+import { exitLayout, exitOut } from "../ui/exit";
 import type { DishCtx } from "../logic/dishSheet";
 import { fc } from "../logic/dishSheet";
 import { fq, macroOf, plateHalls, plateLabel, totals, type Plate, type PlateItem } from "../logic/plate";
@@ -18,15 +19,12 @@ import { Facts } from "./Facts";
 import { BAR, PlateBar } from "./PlateBar";
 
 const SNAPS = { bar: 0, mid: 1, large: 2 } as const;
-// M2's `exit`: a row that leaves fades while the rows below close up into its place
-const rowLayout = LinearTransition.duration(m2Motion.exit.d);
-const rowOut = FadeOut.duration(m2Motion.exit.d);
 
 function PlateRow({ plate, it, onOpen }: { plate: Plate; it: PlateItem; onOpen: (it: PlateItem) => void }) {
   const place = plateHalls(plate)?.[0];
   const m = macroOf(it, place);
   return (
-    <Animated.View layout={rowLayout} exiting={rowOut}>
+    <Animated.View layout={exitLayout} exiting={exitOut}>
       <Press feedback="tint" accessibilityRole="button" onPress={it.custom ? undefined : () => onOpen(it)}
         style={{ minHeight: 64, flexDirection: "row", alignItems: "center", gap: m2.space.part, borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
         <View style={{ flex: 1, minWidth: 0 }}>

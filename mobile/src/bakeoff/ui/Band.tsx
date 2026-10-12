@@ -8,19 +8,19 @@ import { Text } from "./Text";
 import { arriveIn } from "./arrive";
 
 /** A hall band (112) or pinned café (84, `compact`): photo slot, M2's deep-maroon left grade, name and status.
- * `letter` is a slot (see HallLetter). `ghost` is the band's copy drawn over the screen it opens into: no ground, no margin, no touches. */
+ * `letter` is a slot (see HallLetter). The press layer (M2 `.band .press`) lies over the photo, grade and letter and under the text (`zIndex`). `ghost` is the band's copy drawn over the screen it opens into: no ground, no margin, no touches. */
 export function Band({ name, status, arrive, photo, letter, compact, ghost, busy, onPress }: {
   name: string; status?: ReactNode; /** the status arrived from the network just now: it fades in where it ends up */ arrive?: boolean; photo?: ReactNode; letter?: ReactNode; compact?: boolean; ghost?: boolean; busy?: ReactNode; onPress?: () => void;
 }) {
   return (
-    <Press feedback="tint" accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
+    <Press feedback="tint" tint="band" accessibilityRole="button" accessibilityLabel={name} onPress={onPress}
       style={{ height: compact ? 84 : m2.size.band, overflow: "hidden", backgroundColor: ghost ? "transparent" : m2.color.vm, marginTop: ghost ? 0 : 1 }}
       pointerEvents={ghost ? "none" : "auto"}>
       {photo}
       <LinearGradient colors={["rgba(59,10,15,0.82)", "rgba(59,10,15,0.55)", "rgba(59,10,15,0)"]} locations={[0, 0.45, 0.75]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} pointerEvents="none" />
       {letter}
-      <View style={{ position: "absolute", left: m2.space.gutter, top: compact ? m2.space.pinTextTop : m2.space.bandTextTop }}>
+      <View style={{ position: "absolute", zIndex: 1, left: m2.space.gutter, top: compact ? m2.space.pinTextTop : m2.space.bandTextTop }}>
         <Text v={compact ? "pinName" : "bandName"} color={m2.color.white}>{name}</Text>
         {status ? <Animated.View entering={arrive ? arriveIn : undefined}><Text v={compact ? "statusSm" : "status"} color={m2.color.onDmSoft} style={{ marginTop: compact ? 6 : 7 }}>{status}</Text></Animated.View> : null}
         {busy}
