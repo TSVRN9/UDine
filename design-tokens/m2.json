@@ -336,7 +336,7 @@
   "lblLg": {
    "font": "body",
    "size": 18,
-   "line": 22
+   "line": "normal"
   },
   "lblThin": {
    "font": "body",
@@ -598,11 +598,13 @@
    "stops": [
     "rgba(59,10,15,0)",
     "rgba(59,10,15,0.5)",
+    "rgba(59,10,15,0.74)",
     "rgba(59,10,15,0.93)"
    ],
    "locations": [
     0,
     0.3,
+    0.5,
     0.76
    ],
    "height": 240,
@@ -895,8 +897,8 @@
   "type.labelTitle": ".label .lt 700 30px/1.1",
   "type.calNum": ".facts .cal b 700 44px/1",
   "type.dv": ".label .lr .dv 600 16px Oswald (no line-height)",
-  "type.lbl": ".label .lr 15px",
-  "type.lblLg": ".facts .cal span 700 18px",
+  "type.lbl": ".dish .dal 15px/1.4 (the dish sheet's Contains line); the nutrition label's rows are lblRow",
+  "type.lblLg": ".facts .cal span 700 18px (no line-height)",
   "type.lblThin": ".label .lr.thin 13px (no line-height)",
   "type.lblFoot": ".label .lf 12px/1.35",
   "type.scaleNum": ".sscale i 500 14px/1",
@@ -941,7 +943,7 @@
   "opacity.edgeShadow": ".dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3",
   "gradient.band": ".lgrad",
   "gradient.headTop": ".tgrad (height st + 80)",
-  "gradient.headBottom": ".bgrad (height 240)",
+  "gradient.headBottom": ".bgrad{height:240px;linear-gradient(0, .5 at 30%, .74 at 50%, .93 at 76%)} (src.html:215)",
   "shadow.push": ".pushing box-shadow (src.html:54)",
   "edge.swipe": "touchstart edge guard: x < 24 (src.html:1455, 1767)",
   "curves.emphasized": "EMPH: the M3 emphasized path, two cubic segments",

@@ -43,4 +43,8 @@ describe("design-tokens/m2.json is the one source", () => {
     expect(missing).toEqual([]);
     expect(json.$comment).toMatch(/resolves through `curves`/);
   });
+  it("the head's bottom grade has all four of M2's stops (.bgrad: 0, .5 at 30%, .74 at 50%, .93 at 76%)", () => {
+    expect(json.gradient.headBottom.stops).toEqual(["rgba(59,10,15,0)", "rgba(59,10,15,0.5)", "rgba(59,10,15,0.74)", "rgba(59,10,15,0.93)"]);
+    expect(json.gradient.headBottom.locations).toEqual([0, 0.3, 0.5, 0.76]);
+  });
 });
