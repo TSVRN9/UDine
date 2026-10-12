@@ -8,7 +8,7 @@ export interface Net { mode: NetMode; halls: "loading" | "ready"; loaded: Readon
 
 const initial = (mode: NetMode): Net => ({ mode, halls: mode === "slow" ? "loading" : "ready", loaded: new Set() });
 let net = initial(parseNet(process.env.EXPO_PUBLIC_BAKEOFF_NET));
-let started = false, run = 0;
+let started = false, run = 0, held = false;
 const pending = new Set<string>();
 const listeners = new Set<() => void>();
 const set = (n: Net) => { net = n; listeners.forEach((l) => l()); };
@@ -20,15 +20,16 @@ export const hoursKnown = (n: Net): boolean => n.mode !== "fail" && n.halls === 
 export const liveKnown = (n: Net): boolean => (n.mode === "ok" || n.mode === "slow") && n.halls === "ready";
 
 /** Starts a mode over (the env's at launch, a dev `net=` param later): slow loads Halls' hours and busy once, through `loadFixtureAsync`. */
-export function startNet(mode: NetMode) {
+export function startNet(mode: NetMode, hold = false) {
   started = true;
+  held = hold;   // dev only (screenshots): a slow load that never arrives, so the loading state can be held still
   const mine = ++run;
   pending.clear();
   set(initial(mode));
-  if (mode === "slow") loadFixtureAsync("slow").then(() => { if (mine === run) set({ ...net, halls: "ready" }); }, () => {});
+  if (mode === "slow" && !hold) loadFixtureAsync("slow").then(() => { if (mine === run) set({ ...net, halls: "ready" }); }, () => {});
 }
 /** Launch: begin the mode the store was created with, once. */
-export const ensureNet = (mode?: NetMode) => { if (!started || (mode && mode !== net.mode)) startNet(mode ?? net.mode); };
+export const ensureNet = (mode?: NetMode, hold = false) => { if (!started || (mode && (mode !== net.mode || hold !== held)) || (!hold && held)) startNet(mode ?? net.mode, hold); };
 
 /** Try again (M2 `retry`): fetch again; the fetch now succeeds, so every screen leaves its failure at once. */
 export function retry() {
@@ -37,7 +38,7 @@ export function retry() {
 }
 
 function request(key: string) {
-  if (pending.has(key)) return;
+  if (held || pending.has(key)) return;
   pending.add(key);
   const mine = run;
   loadFixtureAsync(net.mode).then(() => { if (mine === run) set({ ...net, loaded: new Set(net.loaded).add(key) }); }, () => {});
