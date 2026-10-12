@@ -30,6 +30,15 @@ const STATES = [
   ['cafe-one-collapsed', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('Worcester Café')}}); document.querySelector('#mscroll').scrollTop=500; paint(1,500)`)],
   ['cafe-nomenu', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('ISB Café')}})`)],
   ['cafe-sheet', '', async p => { await p.evaluate(`openHall('C',true,null,{cafe:${cafe('Green Fields')}})`); await p.waitForTimeout(300); await p.locator('#mlist .row .n').nth(1).tap(); await p.waitForTimeout(800); }],
+  // round 9c
+  ['c-halls', '?pins=2'],
+  ['c-w-top', '?state=menu'], ['c-w-collapsed', '?state=collapsed'],
+  ['c-f-top', '?state=menu&hall=F'], ['c-f-collapsed', '?state=collapsed&hall=F'],
+  ['c-cafe-meals', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('Harvest Market')}})`)],
+  ['c-cafe-one', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('Worcester Café')}}); document.querySelector('#mscroll').scrollTop=400; paint(1,400)`)],
+  ['c-search-halls', '?state=search', async p => { await p.locator('#q').fill('hall'); await p.waitForTimeout(400); await p.evaluate(() => document.querySelector('#q').blur()); }],
+  ['c-search-worcester', '?state=search', async p => { await p.locator('#q').fill('worcester'); await p.waitForTimeout(400); await p.evaluate(() => document.querySelector('#q').blur()); }],
+  ['c-sched', '?state=menu', async p => { await p.locator('.dayc').tap(); await p.waitForTimeout(800); }],
   // round 9b
   ['b-terrace-area', '', async p => { await p.evaluate(() => openPage('cafes', 3, true)); await p.waitForTimeout(500); }],
   ['b-terrace-page', '', p => p.evaluate(`openHall('C',true,null,{cafe:${cafe('Terrace')}})`)],

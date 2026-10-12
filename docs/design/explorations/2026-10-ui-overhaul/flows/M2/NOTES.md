@@ -1378,3 +1378,71 @@ All of these were viewed:
 - **Follow-up.** A Search lane shows the short name "Charles River" (its page and lists keep "Charles River Campus"). Its
   rows in Cafés & markets and in Search's Places get a thumbnail-sized tile of the band's own maroon ground, with no
   picture and no letter, so the text column aligns (tested). Shots: `build/r9/p9b/sheet4.png`.
+
+
+## Round 9c: hall cards in Search, aligned letters, every meal visible
+
+The owner asked for three things:
+- a shorter hall card in Search, without the letter;
+- Franklin's F aligned with the other letters;
+- every meal tab visible, Grab 'N Go included.
+
+### Hall card in Search
+- **Where Search shows a hall.** Only in Places results: a name or "hall" match on a hall. Hall letters elsewhere in Search
+  (dish lanes, "where" chips) are markers, not halls, so they're unchanged. Worcester Grab 'N Go and the other Grab 'N Go
+  rows keep their place rows, with their own photo.
+- **The card (`hallCard`, `.band.hcard`)** is the hall band at 76 px, shorter than a pinned café's 84. It has the halls'
+  duotone and left gradient, the name in Oswald 24, and the status with the busy meter on one line. It has no letter.
+  - Matching halls stack at the top of Places on the rack's maroon seam (`.hcards`).
+- **Hall, not café.** Cafés never appear in Search as bands, only as thumbnail rows. Their bands elsewhere are in their
+  own full colour, while the hall card is the maroon duotone with the meter, which only halls have.
+- **Tapping** uses the container transform. The card is a `.band`, so `measureXF` treats it as the photo window, as on Halls.
+  - It replaces round 7's push for Search hall results; the "push: hall result" sampler was retired.
+  - The letter, which the card lacks, is header content: it fades in over .3–1 where it lands, like the status and the
+    tabs, so it never flies in from nowhere.
+  - Strips: `build/rec/strip-M2-hallresult.png`, `strip-M2-hallresultclose.png`, `build/r9/strip-hallresult-zoom.png`,
+    `strip-hallresultclose-zoom.png`. The close shrinks back into the card.
+
+### Letters
+- `LX` (the letter's x in its 200-unit box) is now W 89, F 82, H 81.5 and B 82, chosen so each felt's visible left edge
+  is the same. Measured on the rendered band at 390 px it is 279 px for all four; before, it was W 262, F 315, H 285.5 and
+  B 288.
+- The header's letter uses the same `LX`, so Franklin's open lands in place (`strip-M2-openf.png`,
+  `build/r9/strip-openf-zoom.png`).
+- The letters appear together only on Halls. Search's hall cards carry none.
+
+### Every meal visible
+- **The day cell ends the station row** ("Soups ⌄ … Today ⌄"), as the coordinator suggested, in both header states and
+  for every place.
+  - I kept that arrangement because the station row has spare width, is pinned in both states, and is where one-menu
+    cafés already had it. The row now reads "where in the list | which day".
+  - The alternative, a day cell in the bar beside the name, would be lost on the expanded photo header. It would also put
+    a second gold dropdown next to the back button.
+- **Measured.** At 15 px, Worcester's five labels need 324 px of text plus padding, which overflowed 360 px. At 14 px
+  (Breakfast 65, Lunch 41, Dinner 44, Late night 66, Grab 'N Go 71 px) they fit at 360 with 12 px between labels. The
+  tabs share the row as M2's tabs always have.
+- **No label changed**, and no label is ellipsized or clipped.
+- The scrolling tabs (`showTab`), the edge fade (`tabFade`, `.mts.fl/.fr`) and their tests are deleted.
+
+### Tests
+- **Letters:** at 390 and 360 px, the ink's left edge (letters alone, on black) is the same for W F H B within 1 px.
+  Franklin's header letter keeps the bands' offset.
+- **Every meal tab of every place on every day**, at 360 and 390, expanded and collapsed (`round9`, "day change"):
+  - each tab is whole, inside the row, not ellipsized and at least 44 px tall;
+  - the row neither scrolls nor fades;
+  - the day cell sits at the station row's right end and is at least 44 px tall.
+  - The day-change "header never moves" check reads the day cell's right edge, since its width follows "Today"/"Sun 11".
+- **Search:**
+  - "worcester" gives one 76 px duotone card with a meter and no letter, and no hall place row besides it;
+  - tapping it opens Worcester by the container transform (`S.hallSrc` is the card, and no push);
+  - the close leaves the card visible.
+- **Now:** `node test.js` gives 5,014 checks and `RM=1 node test.js` gives 3,418, all green. `RED=1`, `RED=8` and `RED=9`
+  are green scenario by scenario.
+- `vectors.json` was regenerated; its values are unchanged by 9c.
+
+### Shots (`build/r9/p9c`, 390 and 360 at dpr 2; `sheet1.png` to `sheet3.png`, `letters.png`)
+- `c-halls`, `c-w-top`, `c-w-collapsed`, `c-f-top`, `c-f-collapsed`, `c-cafe-meals` (Harvest Market, four meals),
+  `c-cafe-one` (Worcester Café), `c-search-halls` ("hall": all four cards), `c-search-worcester`, `c-sched` (opened from
+  the new day cell).
+- The day-change strip: `build/r9/strip-daychange-zoom.png`. With two meals (Franklin, Sunday) the tabs share the row
+  evenly.

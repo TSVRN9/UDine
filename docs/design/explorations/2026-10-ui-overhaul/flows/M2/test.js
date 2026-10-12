@@ -72,7 +72,6 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
       ['event card in Search', 'state=search', () => page.evaluate(() => document.querySelector('#q').blur()), '#evc .evcard'],
       ['event note in a hall', 'state=menu&day=4', null, '#mlist .evnote'],
       ['café result in Search', 'state=search', async () => { await page.keyboard.type('wasabi'); await page.waitForTimeout(300); }, '#sres .prow2:not([data-act=hall])'],
-      ['hall result in Search', 'state=search', async () => { await page.keyboard.type('worcester'); await page.waitForTimeout(300); }, '#sres .prow2[data-act=hall]'],
       ['area row', '', null, '#areas .lrow'],
       ['You row', 'state=you', null, '#you .lrow'],
     ];
@@ -348,6 +347,23 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
     const go = async q => { await page.goto(URL + (q || '')); await page.evaluate(() => { localStorage.removeItem('udine-m2'); }); await page.goto(URL + (q || '')); await page.waitForTimeout(500); };
     const cafeIdx = n => page.evaluate(n => P.places.findIndex(x => x[0] === n), n);
     const rowsN = () => page.locator('#mlist .row').count();
+    await scen('round 9c: the hall letters share a left edge', async () => {
+      for (const w of [390, 360]) { await page.setViewportSize({ width: w, height: 844 }); await go();
+        await page.addStyleTag({ content: '.band>*:not(.let){visibility:hidden}.band{background:#000!important}' });
+        const L = [];
+        for (const b of await page.locator('#bands .band').all()) { const r = await b.boundingBox(); L.push(+require('child_process').execSync(`python3 -c "
+import sys,io
+from PIL import Image
+im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('L'); W,H=im.size; px=im.load()
+print(next(x for x in range(W) if any(px[x,y]>200 for y in range(H))))"`, { input: await page.screenshot({ clip: r }) }).toString()) / 2; }
+        assert(Math.max(...L) - Math.min(...L) <= 1, `${w}px: W F H B start at the same x (${L})`); }
+      // Franklin's header letter is the band's, offset by the open: the open lands with its felt at the same left edge
+      await page.setViewportSize({ width: 390, height: 844 }); await go('?state=menu&hall=F');
+      const hl = await page.evaluate(() => { const t = document.querySelector('#mlet text.felt').getBBox(), r = document.querySelector('#mlet').getBoundingClientRect(); return Math.round((r.left + t.x * r.width / 200) * 10) / 10; });
+      await go('?state=menu&hall=W');
+      const wl = await page.evaluate(() => { const t = document.querySelector('#mlet text.felt').getBBox(), r = document.querySelector('#mlet').getBoundingClientRect(); return Math.round((r.left + t.x * r.width / 200) * 10) / 10; });
+      assert(Math.abs((hl - wl) - (82 - 89)) < 1, `the header letters keep the bands' offsets (F ${hl}, W ${wl})`);
+    });
     await scen('real meal windows (hours.ts)', async () => {
       await go();
       // `TZ=America/New_York node` on shared/src/hours.ts: mapInfoV2(locations-2026-10-08.json), then
@@ -363,11 +379,11 @@ const URL = 'file://' + (process.env.SRC || __dirname + '/index.html');   // SRC
       await go('?state=franklin');
       assert.deepEqual(await page.locator('#mtabs .mts button').allTextContents(), ['Breakfast', 'Lunch', 'Dinner', "Grab 'N Go"], 'Franklin Thursday');
       // where each part of the header is (x, y, height: a status line's width follows its words)
-      const head = () => page.evaluate(() => ['#mhead', '#mtabs', '#mswitch', '#mtn', '#mts', '.dayc'].map(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.x, r.y, r.height].map(v => Math.round(v * 10) / 10).join(','); }).join('|'));
+      const head = () => page.evaluate(() => ['#mhead', '#mtabs', '#mswitch', '#mtn', '#mts', '.dayc'].map(s => { const r = document.querySelector(s).getBoundingClientRect(); return [s === '.dayc' ? r.right : r.x, r.y, r.height].map(v => Math.round(v * 10) / 10).join(','); }).join('|'));   // (the day cell is right-aligned: its right edge)
       const h0 = await head();
       await page.locator('.dayc').tap(); await page.waitForTimeout(700);
       assert(await page.locator('#days').isVisible(), 'the day cell opens the schedule');
-      await page.evaluate(() => { window.__f = []; const f = () => { const r = ['#mhead', '#mtabs', '#mswitch', '#mtn', '#mts', '.dayc'].map(s => { const b = document.querySelector(s).getBoundingClientRect(); return [b.x, b.y, b.height].map(v => Math.round(v * 10) / 10).join(','); }).join('|');
+      await page.evaluate(() => { window.__f = []; const f = () => { const r = ['#mhead', '#mtabs', '#mswitch', '#mtn', '#mts', '.dayc'].map(s => { const b = document.querySelector(s).getBoundingClientRect(); return [s === '.dayc' ? b.right : b.x, b.y, b.height].map(v => Math.round(v * 10) / 10).join(','); }).join('|');
         const l = document.querySelector('#mlist'); __f.push([r, +getComputedStyle(l).opacity, getComputedStyle(l).transform]); if (__f.length < 90) requestAnimationFrame(f); }; requestAnimationFrame(f); });
       // what names the place never fades or repaints: the letter's nodes, the name's text node and the photo stay, opaque, in every frame
       await page.evaluate(() => { const id = [document.querySelector('#mlet text'), document.querySelector('#mtn').firstChild, document.querySelector('#mph')]; window.__id = []; const g = () => { const now = [document.querySelector('#mlet text'), document.querySelector('#mtn').firstChild, document.querySelector('#mph')];
@@ -394,17 +410,22 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
         tr.forEach(([, , t], i) => { const m = t.match(/matrix\(([^,]+),\s*0,\s*0,\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/); assert(m && Math.abs(m[1] - m[2]) < 1e-6 && +m[1] >= .969 && +m[1] <= 1, `a uniform .97 -> 1 scale, never a slide (frame ${i}: ${t})`); }); }
       const ops = fr.map(([, o]) => o); assert(Math.min(...ops) < .5 && ops.at(-1) === 1, 'the new list fades in');
       assert.equal(await page.locator('.dghost, #mscroll > div:not(#mspace):not(#mlist)').count(), 0, 'nothing left over at rest');
-      // the selected meal stays in view in the scrolling tabs; no tab is ellipsized; every tab is a 44 px target
-      for (const w of [390, 360]) { await page.setViewportSize({ width: w, height: 844 }); await go('?state=menu'); await page.locator('#mtabs .mts button[data-meal=grab]').tap(); await page.waitForTimeout(800);
-        const t = await page.evaluate(() => { const sc = document.querySelector('#mtabs .mts'), r = sc.getBoundingClientRect(); return [...sc.querySelectorAll('button')].map(b => { const q = b.getBoundingClientRect(); return [b.textContent, b.scrollWidth <= b.clientWidth, q.height, getComputedStyle(b).textOverflow, b.getAttribute('aria-selected') === 'true' ? q.left >= r.left - .5 && q.right <= r.right + .5 : true]; }); });
-        t.forEach(([n, whole, h, to, vis]) => { assert(whole && to !== 'ellipsis', `${w}px: ${n} is whole`); assert(h >= 44, `${w}px: ${n} is ${h}px tall`); assert(vis, `${w}px: the selected meal (${n}) is scrolled fully into view`); });
-        assert((await page.locator('.dayc').boundingBox()).height >= 44, 'the day cell is a 44 px target');
-        // a side with more to scroll fades into the row's maroon; a side at its end doesn't
-        const fade = () => page.evaluate(() => { const sc = document.querySelector('#mtabs .mts'), m = getComputedStyle(sc).maskImage || getComputedStyle(sc).webkitMaskImage; return [sc.classList.contains('fl'), sc.classList.contains('fr'), m !== 'none', sc.scrollLeft > 1, sc.scrollLeft < sc.scrollWidth - sc.clientWidth - 1]; });
-        let f = await fade(); assert.deepEqual([f[0], f[1], f[2]], [f[3], f[4], f[3] || f[4]], `${w}px: the fades follow what is left to scroll (${f})`);
-        await page.evaluate(() => { const sc = document.querySelector('#mtabs .mts'); sc.scrollLeft = 0; }); await page.waitForTimeout(150);
-        f = await fade(); assert.deepEqual(f.slice(0, 2), [false, true], `${w}px: at the start only the right side fades`);
-        const dl = (await page.locator('.dayc').boundingBox()).x, tl = (await page.locator('#mtabs .mts').boundingBox()).x; assert(dl === 0 && tl >= 100, `the day cell holds the edge; the tabs scroll from ${tl}px`); }
+      // round 9c: every meal of every place, every day, is visible at 360 and 390: whole, inside the row, unclipped, never
+      // ellipsized, 44 px tall, with no scroller or edge fade; the day cell ends the station row in both header states
+      for (const w of [360, 390]) { await page.setViewportSize({ width: w, height: 844 }); await go();
+        const bad = await page.evaluate(async () => { const out = []; const keys = [...HALLS, ...[...DISHMENU].filter(isCafe)];
+          for (const k of keys) for (let d = 0; d < DAYS.length; d++) { if (!menuOf(d, k)) continue;
+            if (isCafe(k)) openHall('C', true, null, { cafe: +k.slice(1), day: d }); else openHall(k, true, null, { day: d });
+            for (const y of [0, 600]) { const sc = document.querySelector('#mscroll'); sc.scrollTop = y; paint(1, sc.scrollTop);
+              const row = document.querySelector('#mtabs .mts'), r = row.getBoundingClientRect(), st = getComputedStyle(row);
+              if (st.overflowX !== 'visible' || row.scrollWidth > row.clientWidth + .5 || (st.maskImage || st.webkitMaskImage || 'none') !== 'none') out.push(`${PN(k)} day ${d}: the row scrolls or fades`);
+              for (const b of row.querySelectorAll('button')) { const q = b.getBoundingClientRect();
+                if (b.scrollWidth > b.clientWidth + .5 || getComputedStyle(b).textOverflow === 'ellipsis' || q.left < r.left - .5 || q.right > r.right + .5 || q.height < 44) out.push(`${PN(k)} day ${d}: ${b.textContent} (${q.left.toFixed(1)}-${q.right.toFixed(1)} of ${r.right.toFixed(1)}, h ${q.height})`); }
+              const dc = document.querySelector('.dayc').getBoundingClientRect(), sw = document.querySelector('#mswitch').getBoundingClientRect();
+              if (document.querySelector('.dayc').parentElement.id !== 'mswitch' || Math.abs(dc.right - sw.right) > .5 || dc.height < 44) out.push(`${PN(k)} day ${d}: the day cell is not at the station row's end`); } }
+          return out; });
+        assert.deepEqual(bad, [], `${w}px: every meal tab of every place and day is whole and visible`); }
+      assert.deepEqual(await page.evaluate(() => typeof showTab + typeof tabFade), 'undefinedundefined', 'the scrolling-tab code and the edge fade are gone');
       await page.setViewportSize({ width: 390, height: 844 });
     });
     await scen('the schedule: where, every window, every day', async () => {
@@ -860,16 +881,19 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   await page.locator('#sres [data-act=cafe]').first().tap(); await page.waitForTimeout(700);
   assert.equal(await page.locator('#mtn').textContent(), 'Wasabi', 'a place result opens its page');
   await page.locator('#mctl [data-act=back]').tap(); await page.waitForTimeout(600);
-  // a hall result: the hall is pushed over Search (the hall belongs to the Search tab), and popped back
+  // round 9c: a hall in Search is its band, short and without a letter; it grows into the hall (container transform)
   await page.locator('#q').fill('worcester'); await page.waitForTimeout(150);
-  await page.locator('#sres .prow2[data-act=hall]').first().tap(); await page.waitForTimeout(900);
-  assert(await page.locator('#menu').isVisible(), 'hall result opens the hall');
-  assert.equal(await page.evaluate(() => [S.tab, S.hallTab, S.hallSrc, NAV.at(-1).el.id].join()), 'search,search,,menu', 'pushed over Search');
+  const hc = page.locator('#sres .band.hcard').first();
+  assert.deepEqual(await hc.evaluate(b => [b.dataset.h, Math.round(b.getBoundingClientRect().height), !!b.querySelector('.let'), !!b.querySelector('.duo'), !!b.querySelector('.meter')]), ['W', 76, false, true, true], 'a 76 px duotone band with its meter and no letter');
+  assert.equal(await page.locator('#sres .prow2[data-act=hall]:not([data-meal])').count(), 0, 'no hall row besides the card (Grab \'N Go keeps its own place row)');
+  await hc.tap(); await page.waitForTimeout(900);
+  assert(await page.locator('#menu').isVisible(), 'hall card opens the hall');
+  assert.equal(await page.evaluate(() => [S.tab, S.hallTab, S.hallSrc && S.hallSrc.classList.contains('hcard'), NAV.filter(n => n.kind === 'menu').length].join()), 'search,search,true,0', 'by the container transform, not a push');
   assert.equal(await page.evaluate(() => document.querySelector('#mhead').style.clipPath), 'none');
   await page.evaluate(() => { document.querySelector('#mscroll').scrollTop = 400; }); await page.waitForTimeout(200);
   await page.locator('#mctl [data-act=back]').tap(); await page.waitForTimeout(1200);
   assert(await page.locator('#menu').isHidden(), 'close from collapsed');
-  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#sres .prow2[data-act=hall]')).visibility), 'visible', 'the row is back');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#sres .band.hcard')).visibility), 'visible', 'the card is back');
   // from Halls: the band is the source, hidden while it is the screen; identity transforms at rest
   await page.goto(URL); await page.waitForTimeout(300);
   await page.locator('.band[data-h=W]').tap(); await page.waitForTimeout(900);

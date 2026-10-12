@@ -176,6 +176,11 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .pin .bt{top:14px}
 .pin .bt .nm{font-size:24px}
 .pin .bt .st{font-size:14px;margin-top:6px}
+.hcards{background:var(--dm);display:flow-root;margin:4px 0 8px}
+.band.hcard{height:76px}
+.hcard .bt{top:13px}
+.hcard .bt .nm{font-size:24px}
+.hcard .bt .st{font-size:14px;margin-top:6px;display:flex;align-items:center;gap:10px}
 .ph-C{background-image:var(--img);background-position:50% 50%}
 #pins{background:var(--dm);display:flow-root}
 .thumb img{display:block;width:100%;height:100%;object-fit:cover}
@@ -218,19 +223,15 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .icon{width:48px;height:48px;display:grid;place-items:center;color:#fff}
 .icon svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 #mtabs{position:absolute;left:0;right:0;top:var(--hh);height:48px;z-index:3;background:var(--dm);display:flex;will-change:transform}
-/* round 9: the day cell leads the row that holds the meals. It is the station switcher's material (gold Oswald, chevron:
-   it opens a sheet). Only the meals scroll (Material's scrollable tabs): a tab is whole or cut by the scroller's edge,
-   never ellipsized, and the day cell keeps the scroller well clear of the 24 px back-swipe edge. */
-.dayc{flex:none;display:flex;align-items:center;gap:6px;height:48px;min-width:112px;padding:0 12px 0 20px;color:var(--gold);box-shadow:inset -1px 0 rgba(255,255,255,.14);text-align:left}
+/* round 9c: every meal is visible. The meal row holds only the meals (14 px, sharing the row; Worcester's five fit at 360 px
+   with 12 px between labels), never scrolled, cut or ellipsized. The day cell ends the station row: gold Oswald and a
+   chevron, the station switcher's material, so the row reads "where in the list | which day". One arrangement for every
+   place, a one-menu café included. */
+.dayc{flex:none;display:flex;align-items:center;gap:6px;height:47px;padding:0 20px 0 16px;color:var(--gold);box-shadow:inset 1px 0 rgba(255,255,255,.14);text-align:left}
 .dayc .o{font:600 20px/1 Oswald,sans-serif;white-space:nowrap}
 .dayc svg{width:18px;height:18px;flex:none;stroke:var(--gold);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.mts{flex:1;min-width:0;display:flex;position:relative;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior-x:contain;padding:0 6px}
-.mts::-webkit-scrollbar{display:none}
-/* a side with more to scroll fades its labels into the row's own maroon over 24 px: no cut fragment reads as a label */
-.mts.fl{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 24px);mask-image:linear-gradient(90deg,transparent 0,#000 24px)}
-.mts.fr{-webkit-mask-image:linear-gradient(270deg,transparent 0,#000 24px);mask-image:linear-gradient(270deg,transparent 0,#000 24px)}
-.mts.fl.fr{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%)}
-.mts button{flex:none;height:48px;color:rgba(255,255,255,.8);font-size:15px;font-weight:500;white-space:nowrap;position:relative;padding:0 10px}
+.mts{flex:1;min-width:0;display:flex;position:relative;padding:0 4px}
+.mts button{flex:1 1 auto;height:48px;color:rgba(255,255,255,.8);font-size:14px;font-weight:500;white-space:nowrap;position:relative;padding:0 6px}
 .mts button[aria-selected=true]{color:#fff;font-weight:600}
 .mts .ul{position:absolute;left:0;bottom:0;height:3px;width:1px;background:var(--gold);transform-origin:0 0;transition:transform var(--d-settle) var(--e-settle);pointer-events:none}
 .sth{display:flex;align-items:flex-end;width:100%;height:50px;padding:0 20px 6px;margin:0;background:var(--chalk);font:600 22px Oswald,sans-serif;color:var(--dm);text-align:left}
@@ -263,7 +264,6 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .cbody .lrow .add{width:44px;height:44px;margin-right:-10px}
 #mswitch{position:absolute;left:0;right:0;top:calc(var(--hh) + var(--th,48px));height:48px;z-index:3;background:var(--dm);border-top:1px solid rgba(255,255,255,.12);will-change:transform;display:flex}
 #menu.one #mswitch{border-top:0}
-#mswitch .dayc{height:47px}
 .swbtn{display:flex;align-items:center;gap:8px;flex:1;min-width:0;height:47px;padding:0 20px;color:var(--gold);text-align:left}
 .swbtn:has(.o:empty){visibility:hidden}   /* nothing posted, or not loaded: no station to name */
 .swbtn .o{font:600 20px/1 Oswald,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -602,8 +602,8 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
       <div class="mt" id="mt"><span class="nm" id="mtn"></span><button class="st" id="mts" data-act="sched" aria-haspopup="dialog"></button><div class="bz" id="mbz"></div></div>
       <div class="hist" id="mhist"></div>
     </div>
-    <div id="mtabs"><button class="dayc" data-act="sched" aria-haspopup="dialog"><span class="o" id="dayl">Today</span><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></button><div class="mts" role="tablist"></div></div>
-    <div id="mswitch"><button class="swbtn" data-act="stations" aria-haspopup="listbox" aria-expanded="false"><span class="o" id="swname"></span><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></button></div>
+    <div id="mtabs"><div class="mts" role="tablist"></div></div>
+    <div id="mswitch"><button class="swbtn" data-act="stations" aria-haspopup="listbox" aria-expanded="false"><span class="o" id="swname"></span><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></button><button class="dayc" data-act="sched" aria-haspopup="dialog"><span class="o" id="dayl">Today</span><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg></button></div>
     <div id="mghost" aria-hidden="true"></div>
     <div id="mctl">
       <button class="icon" data-act="back" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -698,7 +698,7 @@ const CLOCKMEAL = Object.entries({breakfast:[420,660],lunch:[660,990],dinner:[99
 // a plate is a meal: a café's all-day or Grab 'N Go menu goes on the plate of the meal the clock is in ("Worcester Café lunch")
 const plateMeal = d => isCafe(d.h) && (d.meal==='all'||d.meal==='grab') ? CLOCKMEAL : d.meal;
 const ML = Object.fromEntries(MEALS);
-const LX = {W:72,F:118,H:88,B:91};           // letter x in the 200px box (D1 crop)
+const LX = {W:89,F:82,H:81.5,B:82};          // letter x in the 200px box. Round 9c: chosen so the felt's visible left edge is the same for all four (Franklin's F had sat 27 to 53 px right of the others)
 const OFF = {W:.30,F:.10,H:.24,B:.22};        // band window into the header photo, fraction of header height (architecture + room)
 const RES = {W:0,F:0,H:0,B:0};               // duotone kept in the expanded header (0 = full colour, as Worcester)
 const BAND_H = 112, TABS_H = 48, SW_H = 48;
@@ -1087,11 +1087,10 @@ function renderMenu(){
   $('#mhist').innerHTML = live ? histSVG(k) : '';
   // the pinned rows: the day cell, then that day's meals
   $('#dayl').textContent=dayCell(day); $('.dayc').setAttribute('aria-label',`${dayFull(day)}, change the day`);
-  const dc=$('.dayc'); if(one) $('#mswitch').prepend(dc); else $('#mtabs').prepend(dc);
   const meals = MM ? MEALS.filter(x=>MM[x[0]]) : [];
   if(meals.length && !MM[S.mmeal]) S.mmeal = MM[CLOCKMEAL] ? CLOCKMEAL : MM.all ? 'all' : meals[0][0];
   $('#mtabs .mts').innerHTML = one ? '' : meals.map(([mk,l])=>`<button role="tab" data-meal="${mk}" aria-selected="${mk===S.mmeal}">${l}</button>`).join('') + (meals.length?'<i class="ul" aria-hidden="true"></i>':'');
-  requestAnimationFrame(()=>{ placeUL(false); showTab(false); });
+  requestAnimationFrame(()=>placeUL(false));
   renderMenuList();
 }
 // re-draw the showing list in place (scroll kept). Lists on other tabs re-draw when their tab returns (setTab).
@@ -1227,7 +1226,7 @@ function measureXF(src){
   // the outgoing content, drawn inside the container where the source showed it
   // a whole copy of the card, at the card's place: at p 0 the screen is exactly the card, whatever the screen's scroll
   E.mghost.style.setProperty('--img', src.style.getPropertyValue('--img'));   // a pinned café's photo is the band's own variable: the copy needs it too
-  if(band){ E.mghost.className='gband'+(src.classList.contains('pin')?' pin':''); for(const s of src.querySelectorAll(':scope > .win, :scope > .lgrad, :scope > .let, :scope > .bt')) E.mghost.appendChild(s.cloneNode(true)); }
+  if(band){ E.mghost.className='gband'+(src.classList.contains('pin')?' pin':'')+(src.classList.contains('hcard')?' hcard':''); for(const s of src.querySelectorAll(':scope > .win, :scope > .lgrad, :scope > .let, :scope > .bt')) E.mghost.appendChild(s.cloneNode(true)); }
   else { const g=src.cloneNode(true); g.removeAttribute('id'); g.style.visibility='visible'; g.classList.remove('down'); E.mghost.className='rowsrc'; E.mghost.appendChild(g); }
   Object.assign(E.mghost.style,{top:T+'px',height:r.height+'px',margin:0});
 }
@@ -1326,7 +1325,7 @@ function sharedAxisX(dir, render){
   old.animate([{opacity:0},{opacity:1,offset:.6},{opacity:1}],{duration:X.d,easing:'linear'});   // round 3: overlaps the outgoing fade, so the list never empties to bare ground
 }
 function switchMeal(meal){ const ts=$$('#mtabs .mts button'), mt=ts.find(b=>b.dataset.meal===meal), dir=Math.sign(ts.indexOf(mt)-ts.findIndex(b=>b.getAttribute('aria-selected')==='true'));
-  if(!mt||!dir) return; S.mmeal=meal; ts.forEach(b=>b.setAttribute('aria-selected',b===mt)); placeUL(true); showTab(true);
+  if(!mt||!dir) return; S.mmeal=meal; ts.forEach(b=>b.setAttribute('aria-selected',b===mt)); placeUL(true);
   sharedAxisX(dir, renderMenuList); const R=HH-CH; if($('#mscroll').scrollTop>R) $('#mscroll').scrollTop=R; if(!S.mday) syncFront(PK()); buzz(4); }
 function syncFront(h){ const m=isCafe(h)&&(S.mmeal==='all'||S.mmeal==='grab') ? CLOCKMEAL : S.mmeal;
   const i=S.plates.findIndex(pl=>pl.meal===m && (plateHalls(pl)||[h]).includes(h)); if(i>=0 && i!==S.front){ S.front=i; renderBar(); } }
@@ -1364,12 +1363,6 @@ function toDish(id, instant){ const row=$(`#mlist .row[data-id="${id}"]`); if(!r
   const sc=$('#mscroll'), y=Math.min(row.offsetTop-PIN()-8, sc.scrollHeight-sc.clientHeight);
   if(instant){ sc.scrollTop=y; paint(1,sc.scrollTop); updSwitch(true); return; }   // a swapped-in hall arrives already at the dish
   scrollToY(sc, y, ()=>updSwitch()); }
-// the selected meal is brought fully into view in the scrolling tab row (instantly when the row is drawn)
-const tabFade = () => { const sc=$('#mtabs .mts'); if(!sc) return; sc.classList.toggle('fl', sc.scrollLeft>1); sc.classList.toggle('fr', sc.scrollLeft<sc.scrollWidth-sc.clientWidth-1); };
-$('#mtabs .mts').addEventListener('scroll', tabFade, {passive:true});
-function showTab(anim){ const sc=$('#mtabs .mts'), b=sc&&sc.querySelector('button[aria-selected=true]'); tabFade(); if(!b) return;
-  const l=b.offsetLeft-24, r=b.offsetLeft+b.offsetWidth+24-sc.clientWidth, x = sc.scrollLeft>l ? l : sc.scrollLeft<r ? r : sc.scrollLeft;
-  if(x===sc.scrollLeft) return; if(!anim||RM){ sc.scrollLeft=x; return; } const x0=sc.scrollLeft; tween(0,1,MO.scroll.d,k=>sc.scrollLeft=x0+(x-x0)*k,null,EMPH); }
 function placeUL(anim){ const ul=$('#mtabs .ul'), b=$('#mtabs .mts button[aria-selected=true]'); if(!ul||!b) return;
   if(!anim) ul.style.transition='none'; ul.style.transform=`translateX(${b.offsetLeft+8}px) scaleX(${b.offsetWidth-16})`; if(!anim){ void ul.offsetWidth; ul.style.transition=''; } }
 
@@ -1417,16 +1410,22 @@ function results(groups=Object.values(BYK[S.smeal]||{})){
 function placeHits(){
   const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.length || S.scope) return [];
   const hit=(words)=>toks.every(t=>words.some(w=>w.startsWith(t)));
-  const out=[];
+  const out=[], cards=[];
   for(const h of HALLS){ const w=norm(HN[h]+' dining commons hall').split(' ');
-    if(hit(w)) out.push(`<button class="prow2" data-act="hall" data-h="${h}"><div><div class="a">${HN[h]}</div><div class="b">Dining commons</div></div><span class="r">${HOURS[h]}</span></button>`);
+    if(hit(w)) cards.push(hallCard(h));
     if(hit(norm(HN[h]+" grab n go grab and go").split(' '))){ const g=P.grab[h];
       out.push(`<button class="prow2" data-act="hall" data-h="${h}" data-meal="grab"><div class="lt">${thumb('grab:'+h)}<div><div class="a">${HN[h]} Grab 'N Go</div><div class="b">${HN[h]}</div></div></div><span class="r${isOpen(g)?'':' off'}">${status(g)}</span></button>`); } }
   P.places.forEach((x,i)=>{ if(!placeOn('c'+i)) return; const words=norm(x[0]+' '+x[2]+' '+P.areas[x[1]]).split(' '); const item=!hit(words) && !DISHMENU.has('c'+i) && x[7].find(n=>hit(norm(n).split(' ')));   // a café with dishes is found by its dishes (round 9)
     if(hit(words)||item){ const o=isOpen([x[3],x[4]]);
       out.push(`<button class="prow2" data-act="cafe" data-c="${i}"><div class="lt">${thumb(x[0])}<div><div class="a">${esc(x[0])}</div><div class="b">${esc(item||x[2])}</div></div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`); } });
+  if(cards.length) out.unshift(`<div class="hcards" data-key="g-halls">${cards.join('')}</div>`);   // the halls first, as one stack with the rack's seam
   return out;   // places are first-class: every match, not a sample
 }
+// round 9c: a hall in Search is the hall band, short (76 px) and without its letter: the duotone photo, the name, the status
+// and the busy meter (only halls have one; a café's band is in its own colour). Like a band on Halls, it grows into its hall.
+const hallCard = h => `<button class="band hcard" data-h="${h}" aria-label="${[HN[h], hoursKnown()&&HOURS[h], liveKnown()&&BUSY[h].label].filter(Boolean).join(', ')}">
+  <div class="win" style="top:${-Math.round(OFF[h]*HH)}px"><div class="duo"><div class="ph g ph-${h}"></div><div class="t"></div><div class="s"></div></div></div>
+  <div class="lgrad"></div><div class="press"></div><div class="bt"><div class="nm">${HN[h]}</div><div class="st">${hoursKnown()?HOURS[h]:''}${liveKnown()?`<span class="meter" aria-hidden="true">${[0,1,2,3,4].map(i=>`<i class="${i<lamps(BUSY[h].pct)?'on':''}"></i>`).join('')}</span>`:''}</div></div></button>`;
 // dishes that match but aren't served at this meal now: later today or tomorrow. They open their detail (where and when).
 function laterHits(){ const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.length||S.scope) return [];
   const out=[]; for(const k in SERV){ if(BYK[S.smeal]&&BYK[S.smeal][k] || CG[k]) continue; if(!toks.every(t=>k.split(' ').some(w=>w.startsWith(t))||k.includes(t))) continue;
@@ -1852,7 +1851,7 @@ document.addEventListener('click',e=>{
     if(k==='search' && S.tab==='search'){ $('#q').focus(); return; } if(k==='search'){ goSearch(null,'lunch'); return; } setTab(k); return; }
   // a tap on the plate bar grows it into the plate sheet (handled on click, after the touch is over)
   const bb=t.closest('#bar'); if(bb && !t.closest('button')){ if(barMode==='plate' && plateOpen()) psheet.to('mid'); return; }
-  const band=t.closest('.band'); if(band){ band.dataset.c!=null ? openHall('C', false, band, {cafe:+band.dataset.c}) : openHall(band.dataset.h); return; }
+  const band=t.closest('.band'); if(band){ $('#q').blur(); band.dataset.c!=null ? openHall('C', false, band, {cafe:+band.dataset.c}) : openHall(band.dataset.h, false, band); return; }   // (a Halls band, or a hall card in Search: both grow into the hall)
   const mt=t.closest('#mtabs .mts button'); if(mt){ switchMeal(mt.dataset.meal); return; }
   const dy=t.closest('#days [data-day]'); if(dy){ pickDay(+dy.dataset.day); return; }
   const jb=t.closest('[data-jump]'); if(jb){ jump(jb.dataset.jump); return; }
