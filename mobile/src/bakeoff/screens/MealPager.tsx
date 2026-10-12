@@ -1,9 +1,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { View } from "react-native";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { emphasized, m2Linear, m2Motion } from "../../lib/motion";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import { m2Motion } from "../../lib/motion";
 import { m2 } from "../../lib/theme";
+import { part, timed } from "../ui/motion";
 import { pagerStep, type PagerEvent, type Phase } from "../motion/pagerMachine";
 import { mark } from "../perf";
 
@@ -110,9 +111,9 @@ export const MealPager = forwardRef<PagerHandle, {
     p.set(0); o.set(0); g.set(1);
     // not cancelled by a later data change either (Show all, prefs): the slide's end is what returns the pager to idle
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      p.set(withTiming(1, { duration: X.d, easing: emphasized }, (done) => { if (done) runOnJS(drop)(id); }));
-      o.set(withTiming(1, { duration: X.d * X.inAt, easing: m2Linear }));
-      g.set(withTiming(0, { duration: X.d * X.at, easing: m2Linear }));
+      p.set(timed(1, X, (done) => { if (done) runOnJS(drop)(id); }));
+      o.set(timed(1, part(m2Motion.sharedXFade, X.inAt)));
+      g.set(timed(0, part(m2Motion.sharedXFade, X.at)));
     }));
   }, [data, p, o, g, drop]);
 

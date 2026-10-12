@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
-import { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
-import { emphasized, m2Motion } from "../../lib/motion";
+import { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
+import { m2Motion } from "../../lib/motion";
+import { timed } from "../ui/motion";
 import { incomingOpacity, outgoingOpacity, settleTarget, transition, type Event, type Machine } from "./containerMath";
 import { useEdgeSwipeBack } from "./useEdgeSwipeBack";
 
@@ -37,7 +38,7 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
 
   // Runs progress to `to` over `ms`; only the run that is still current may finish the machine.
   const runTo = useCallback((to: 0 | 1, ms: number, run: number) => {
-    progress.set(withTiming(to, { duration: ms, easing: emphasized }, (finished) => {
+    progress.set(timed(to, { d: ms, e: m2Motion.cont.e }, (finished) => {
       if (finished) runOnJS(send)({ type: "done", run });
     }));
   }, [progress, send]);

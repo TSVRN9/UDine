@@ -554,12 +554,20 @@
    "scale": 0.97,
    "z": 8
   },
+  "fadeThroughOut": {
+   "d": 250,
+   "e": "linear"
+  },
   "sharedX": {
    "d": 450,
    "e": "emphasized",
    "at": 0.35,
    "dist": 30,
    "inAt": 0.6
+  },
+  "sharedXFade": {
+   "d": 450,
+   "e": "linear"
   },
   "scroll": {
    "d": 500,
@@ -820,6 +828,8 @@
   "collapse.letterEnd": "paint: mlet 1 - clamp(c/.55)",
   "collapse.nameDx": "paint: mtn translate 44*c",
   "collapse.nameSize": "NS: the name is 22 px in the compact bar",
-  "collapse.nameDrop": "measureXF: NB = (ST + 38) - ..."
+  "collapse.nameDrop": "measureXF: NB = (ST + 38) - ...",
+  "motion.sharedXFade": "MaterialSharedAxis opacity ramps: linear, over sharedX.at (out) and sharedX.inAt (in) of this duration",
+  "motion.fadeThroughOut": "the outgoing leg of a fade through: linear, over sharedX.at of fadeThrough.d (the incoming leg is fadeThrough.e)"
  }
 }

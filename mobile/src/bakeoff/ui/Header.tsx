@@ -1,11 +1,12 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { m2 } from "../../lib/theme";
-import { m2Motion, m2SettleEasing } from "../../lib/motion";
+import { m2Motion } from "../../lib/motion";
+import { timed } from "./motion";
 import { Press } from "./Press";
 import { Text } from "./Text";
 import { arriveIn } from "./arrive";
@@ -155,7 +156,7 @@ function TitleParts({ l }: { l: Labels }) {
 
 function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
   return (
-    <Press feedback="tint" accessibilityRole="button" accessibilityLabel={`${s.label}, stations`} accessibilityState={{ expanded: !!s.open }} onPress={s.onPress}
+    <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={`${s.label}, stations`} accessibilityState={{ expanded: !!s.open }} onPress={s.onPress}
       style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space.gutter }}>
       <Text v="station" color={m2.color.gold} numberOfLines={1} style={{ flexShrink: 1 }}>{s.label}</Text>
       <Flip open={!!s.open}><Chevron /></Flip>
@@ -165,7 +166,7 @@ function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
 
 function DayCell({ d }: { d: NonNullable<Labels["day"]> }) {
   return (
-    <Press feedback="tint" accessibilityRole="button" accessibilityLabel={d.accessibilityLabel} onPress={d.onPress}
+    <Press feedback="tint" tint="onDm" accessibilityRole="button" accessibilityLabel={d.accessibilityLabel} onPress={d.onPress}
       style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space.action, paddingRight: m2.space.gutter, borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
       <Text v="day" color={m2.color.gold}>{d.label}</Text>
       <Chevron />
@@ -181,8 +182,8 @@ function TabRow({ meals }: { meals: NonNullable<Labels["meals"]> }) {
     const t = tabs.current[key];
     if (!t) return;
     if (!animate || !ulSet.current) { ulX.set(t.x + 8); ulW.set(t.w - 16); ulSet.current = true; return; }
-    ulX.set(withTiming(t.x + 8, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
-    ulW.set(withTiming(t.w - 16, { duration: m2Motion.settle.d, easing: m2SettleEasing }));
+    ulX.set(timed(t.x + 8, m2Motion.settle));
+    ulW.set(timed(t.w - 16, m2Motion.settle));
   };
   const selected = meals.selected;
   useEffect(() => { place(selected, true); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -207,7 +208,7 @@ function TabRow({ meals }: { meals: NonNullable<Labels["meals"]> }) {
 /** M2 `.swbtn[aria-expanded=true] svg`: the chevron turns over on the container's own timing. */
 function Flip({ open, children }: { open: boolean; children: ReactNode }) {
   const r = useSharedValue(0);
-  useEffect(() => { r.set(withTiming(open ? 1 : 0, { duration: m2Motion.cont.d })); }, [open, r]);
+  useEffect(() => { r.set(timed(open ? 1 : 0, m2Motion.cont)); }, [open, r]);
   const s = useAnimatedStyle(() => ({ transform: [{ rotate: `${r.get() * 180}deg` }] }));
   return <Animated.View style={s}>{children}</Animated.View>;
 }

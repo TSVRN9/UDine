@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { BackHandler } from "react-native";
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
-import { m2Motion, m2PushEasing } from "../../lib/motion";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
+import { m2Motion } from "../../lib/motion";
+import { timed } from "../ui/motion";
 import type { ServeTarget } from "../logic/dishSheet";
 import { closedGate, gateStep } from "../motion/pushGate";
 import { useContainerTransform } from "../motion/useContainerTransform";
@@ -23,7 +24,7 @@ export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
   const back = () => {
     if (going.get()) return;
     going.set(true);
-    p.set(withTiming(1, { duration: m2Motion.contBack.d, easing: m2PushEasing }, (done) => { if (done) runOnJS(onPop)(); }));
+    p.set(timed(1, m2Motion.pushOut, (done) => { if (done) runOnJS(onPop)(); }));
   };
   // declared after the transform's own handler, so it runs first: back pops this screen rather than closing the hall below
   useEffect(() => {
@@ -37,7 +38,7 @@ export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
   const step = (e: "settled" | "go") => {
     const r = gateStep(gate.current, e);
     gate.current = r.gate;
-    if (r.start && !going.get()) p.set(withTiming(0, { duration: m2Motion.cont.d, easing: m2PushEasing }));
+    if (r.start && !going.get()) p.set(timed(0, m2Motion.pushIn));
   };
   // a pushed hall that never reports settled (or whose sheet never reports half-way) is let go after the watchdog, so it cannot
   // stay mounted off to the right and take the first hardware back press

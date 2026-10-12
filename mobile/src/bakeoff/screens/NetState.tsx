@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { View } from "react-native";
-import Animated, { Keyframe, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import Animated, { Keyframe, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat } from "react-native-reanimated";
 import { m2 } from "../../lib/theme";
-import { m2Linear, m2Motion } from "../../lib/motion";
+import { m2Motion } from "../../lib/motion";
+import { timed } from "../ui/motion";
 import { Press, Text } from "../ui";
 import { arriveOut } from "../ui/arrive";
 import type { MenuState } from "../logic/net";
@@ -16,7 +17,7 @@ const spinIn = new Keyframe({ 0: { opacity: 0 }, 100: { opacity: 1 } }).delay(S.
 function Spinner() {
   const r = useSharedValue(0);
   useEffect(() => {
-    r.set(withRepeat(withTiming(1, { duration: m2Motion.spin.d, easing: m2Linear }), -1));
+    r.set(withRepeat(timed(1, m2Motion.spin), -1));
     return () => cancelAnimation(r);
   }, [r]);
   const turn = useAnimatedStyle(() => ({ transform: [{ rotate: `${r.get() * 360}deg` }] }));

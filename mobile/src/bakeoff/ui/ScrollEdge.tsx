@@ -1,7 +1,8 @@
-import Animated, { useAnimatedStyle, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, type SharedValue } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { m2 } from "../../lib/theme";
-import { m2Motion, m2SettleEasing } from "../../lib/motion";
+import { m2Motion } from "../../lib/motion";
+import { timed } from "./motion";
 
 /**
  * M2 `.dish.stuck .dhd`: the edge a pinned header gets once something scrolls under it, a 1 dp hair and a soft shadow
@@ -10,7 +11,7 @@ import { m2Motion, m2SettleEasing } from "../../lib/motion";
  * box): the edge starts below it, over a chalk fill, so the rule never cuts through a `g`.
  */
 export function ScrollEdge({ on, room = 0 }: { on: SharedValue<number>; room?: number }) {
-  const style = useAnimatedStyle(() => ({ opacity: withTiming(on.get(), { duration: m2Motion.settle.d, easing: m2SettleEasing }) }));
+  const style = useAnimatedStyle(() => ({ opacity: timed(on.get(), m2Motion.settle) }));
   return (
     <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, right: 0, bottom: -(10 + room), height: 11 + room }, style]}>
       <Svg width="100%" height={11 + room}>

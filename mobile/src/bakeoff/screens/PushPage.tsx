@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { BackHandler, ScrollView, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
-import { m2Motion, m2PushEasing } from "../../lib/motion";
+import { m2Motion } from "../../lib/motion";
 import { Press, Text } from "../ui";
+import { part, timed } from "../ui/motion";
 import { useEdgeSwipeBack } from "../motion/useEdgeSwipeBack";
 
 const clamp = (x: number) => {
@@ -39,10 +40,10 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
     if (gone.get()) return;
     gone.set(true);
     setLeaving(true);
-    p.set(withTiming(1, { duration: m2Motion.contBack.d * (1 - from), easing: m2PushEasing }, (done) => { if (done) runOnJS(onPop)(); }));
+    p.set(timed(1, part(m2Motion.pushOut, 1 - from), (done) => { if (done) runOnJS(onPop)(); }));
   };
   useEffect(() => {
-    p.set(withTiming(0, { duration: m2Motion.cont.d, easing: m2PushEasing }));
+    p.set(timed(0, m2Motion.pushIn));
     return () => cancelAnimation(p);
   }, [p]);
   useEffect(() => {
@@ -58,7 +59,7 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
       "worklet";
       const q = clamp(d / W);
       if (q > m2Motion.push.commit || v > m2Motion.dragBack.flick) runOnJS(leave)(q);
-      else p.set(withTiming(0, { duration: m2Motion.cont.d * q, easing: m2PushEasing }));
+      else p.set(timed(0, part(m2Motion.pushIn, q)));
     },
   });
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * W }] }));
