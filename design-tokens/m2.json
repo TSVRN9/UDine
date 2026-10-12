@@ -453,6 +453,8 @@
   "dayBlock": 20
  },
  "radius": {
+  "patch": 4,
+  "thumb": 5,
   "card": 6,
   "button": 8,
   "sheet": 16,
@@ -566,7 +568,10 @@
     0,
     1
    ],
-   "height": 80,
+   "height": {
+    "statusBar": 0,
+    "plus": 80
+   },
    "angle": "top to bottom"
   },
   "headBottom": {
@@ -733,7 +738,8 @@
   },
   "rmFade": {
    "d": 120,
-   "e": "linear"
+   "e": "linear",
+   "always": true
   },
   "spin": {
    "d": 900,
@@ -914,7 +920,7 @@
   "opacity.disabled": "#bfoot .gbtn[disabled]{opacity:.45}; disabled tab .4 (tbar)",
   "opacity.edgeShadow": ".dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3",
   "gradient.band": ".lgrad",
-  "gradient.headTop": ".tgrad{height:calc(var(--st) + 80px)}: 80 under the status bar",
+  "gradient.headTop": ".tgrad (height st + 80)",
   "gradient.headBottom": ".bgrad (height 240)",
   "shadow.push": ".pushing box-shadow (src.html:54)",
   "edge.swipe": "touchstart edge guard: x < 24 (src.html:1455, 1767)",
@@ -934,7 +940,7 @@
   "motion.push": "MO.push",
   "motion.pushIn": "push in: MO.cont timing on MO.push.e",
   "motion.pushOut": "push out: MO.contBack timing on MO.push.e",
-  "motion.rmFade": "MO.rmFade",
+  "motion.rmFade": "MO.rmFade; `always`: it plays under the system's reduced-motion setting (it is what reduced motion is replaced by)",
   "motion.spin": ".spin animation 900ms linear infinite",
   "motion.spring": "SPRING.sheet",
   "motion.lane": "setCtl",
@@ -1075,7 +1081,9 @@
   "space.dayBlock": ".schd{margin:20px 0 0}",
   "motion.sheetRetry": "RN only: a sheet that opens scrolled retries its scrollTo every 80 ms, up to 12 times, until a scroll event shows it took",
   "motion.landing": "RN only: toDish polls the list every 40 ms (40 tries) for two equal passes and lands 8 above the pinned rows (M2 `toDish`: scrollTop = offsetTop - pinned - 8)",
-  "ratio.descender": "RN only: Oswald's descenders reach below a line box of 1 x its size (M2 `line-height: 1`) and Android clips text to its view: the room a tight line gets below it"
+  "ratio.descender": "RN only: Oswald's descenders reach below a line box of 1 x its size (M2 `line-height: 1`) and Android clips text to its view: the room a tight line gets below it",
+  "radius.patch": ".tg 4",
+  "radius.thumb": ".thumb 5"
  },
  "felt": {
   "patch": {

@@ -26,6 +26,6 @@ describe("how a sheet moves", () => {
     mockReduced = true;
     const c = config();
     expect(c.spring).toBeUndefined();
-    expect(c.timing).toEqual({ duration: m2Motion.rmFade.d, easing: m2Motion.rmFade.e });
+    expect(c.timing).toEqual({ duration: m2Motion.rmFade.d, easing: m2Motion.rmFade.e, reduceMotion: "never" });
   });
 });

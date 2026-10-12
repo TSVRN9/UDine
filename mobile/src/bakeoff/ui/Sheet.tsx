@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useRef, type ReactNode } from "react";
-import { useSharedValue, type SharedValue } from "react-native-reanimated";
+import { ReduceMotion, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { View } from "react-native";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, useBottomSheetSpringConfigs, useBottomSheetTimingConfigs, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType } from "@gorhom/bottom-sheet";
 import { m2 } from "../../lib/theme";
@@ -27,10 +27,11 @@ function useOpenedAt(armed: { get: () => boolean; set: (v: boolean) => void }, r
   return { ...base, handleOnScroll, handleOnBeginDrag };
 }
 /** M2's sheet spring (`SPRING.sheet`) for gorhom: every sheet the finger can release uses it. With reduced motion (M2 `RM`) a sheet takes
- * the 120 ms crossfade's timing instead: gorhom has no fade in place, so it still travels, but over a tenth of a second and never on the spring. */
+ * the 120 ms crossfade's timing instead, set to play under the system setting (gorhom's animations otherwise follow Reanimated's and are skipped):
+ * gorhom has no fade in place, so it still travels, but over a tenth of a second and never on the spring. */
 export function useSheetMotion() {
   const spring = useBottomSheetSpringConfigs(m2SheetSpring);
-  const crossfade = useBottomSheetTimingConfigs({ duration: m2Motion.rmFade.d, easing: m2Motion.rmFade.e });
+  const crossfade = useBottomSheetTimingConfigs({ duration: m2Motion.rmFade.d, easing: m2Motion.rmFade.e, reduceMotion: ReduceMotion.Never });
   return useMotion().reduced ? crossfade : spring;
 }
 export const GRAB = 22;

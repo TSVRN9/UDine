@@ -443,6 +443,8 @@ export const m2 = {
     dayBlock: 20
   },
   radius: {
+    patch: 4,
+    thumb: 5,
     card: 6,
     button: 8,
     sheet: 16,
@@ -556,7 +558,10 @@ export const m2 = {
         0,
         1
       ],
-      height: 80,
+      height: {
+        statusBar: 0,
+        plus: 80
+      },
       angle: "top to bottom"
     },
     headBottom: {
@@ -734,7 +739,8 @@ export const m2MotionData = {
   },
   rmFade: {
     d: 120,
-    e: "linear"
+    e: "linear",
+    always: true
   },
   spin: {
     d: 900,
