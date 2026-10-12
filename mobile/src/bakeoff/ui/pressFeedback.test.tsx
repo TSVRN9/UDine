@@ -10,7 +10,7 @@ import { MealTabs } from "./MealTabs";
 // M2 `.btn.down, .hchip.down, .ptabs button.down, .mts button.down, ... {transform: scale(.97)}` (src.html:41-43): compact controls scale, only full-width
 // rows and bands tint (src.html:44-48)
 const make = (el: React.ReactElement) => { let r!: renderer.ReactTestRenderer; act(() => { r = renderer.create(el); }); return r; };
-const tinted = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.type === "string" && n.props.pointerEvents === "none" && [m2.color.pressRow, m2.color.pressOnDm, m2.color.pressBand].includes(StyleSheet.flatten(n.props.style)?.backgroundColor as string)).length;
+const tinted = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.type === "string" && n.props.pointerEvents === "none" && ([m2.color.pressRow, m2.color.pressOnDm, m2.color.pressBand] as string[]).includes(StyleSheet.flatten(n.props.style)?.backgroundColor as string)).length;
 const presses = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.props.onPressIn === "function");
 const scales = (n: renderer.ReactTestInstance) => JSON.stringify(StyleSheet.flatten(n.props.style).transform).includes("scale");
 
