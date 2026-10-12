@@ -43,6 +43,14 @@ void main() {
       }
       expect(names(v).every((d) => d.diet & 3 != 0), isTrue);
     });
+    test('halal keeps only halal dishes and counts none of them as hidden', () {
+      final halal = all(today, 'W', 'lunch').where((d) => d.diet & 4 != 0).toList();
+      expect(halal, isNotEmpty);
+      expect(halal.length, lessThan(all(today, 'W', 'lunch').length));
+      final v = w(prefs(halal: true));
+      expect(names(v), halal);
+      expect(v.hidden, 0);
+    });
     test('stations keep the feed order and empty ones are dropped', () {
       final feed = fx.days[today]!['W']!['lunch']!.map((s) => s.name).toList();
       expect(w(prefs()).sections.map((s) => s.name).toList(), feed);
