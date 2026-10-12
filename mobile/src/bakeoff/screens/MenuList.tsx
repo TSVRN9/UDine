@@ -73,3 +73,19 @@ export const MenuList = forwardRef<PagerHandle, {
     />
   );
 });
+
+/**
+ * The rows the open shows while the container grows (M2 fades the destination's content, list included, in over the last 70% of the open, already in
+ * its final layout): just those that fit under the pinned head, as plain `MenuItem`s in a View, with the same spacer the list has above them, so the
+ * lazy list that takes over once the open has settled lays its first row exactly here. No FlashList, no virtualisation: a handful of rows to mount
+ * inside the animation instead of a list. `height` is the overlay's, `head` the pinned header and rows; a row is at least `size.row` tall.
+ */
+export function MenuSlice({ items, row, head, height }: { items: Item[]; row: RowContext; head: number; height: number }) {
+  const n = Math.ceil((height - head) / m2.size.row);
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden" }}>
+      <View style={{ height: head, backgroundColor: m2.color.dm }} />
+      {items.slice(0, n).map((it, i) => <View key={i} testID="slice-row"><MenuItem it={it} row={row} /></View>)}
+    </View>
+  );
+}

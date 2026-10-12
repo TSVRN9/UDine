@@ -26,6 +26,7 @@ jest.mock("@shopify/flash-list", () => {
   return {
     FlashList: R.forwardRef(function FL(props: any, ref: any) {
       R.useImperativeHandle(ref, () => ({ computeVisibleIndices: () => ({ startIndex: 0, endIndex: 1 }), getLayout: () => ({ y: 0 }), getFirstItemOffset: () => 0, scrollToOffset: () => {} }));
+      R.useEffect(() => { props.onViewableItemsChanged?.({}); });
       return <V>{props.ListHeaderComponent}{props.data.map((d: any, i: number) => <V key={i}>{props.renderItem({ item: d, index: i })}</V>)}</V>;
     }),
   };
@@ -171,21 +172,38 @@ describe("the band's copy that rides the opening container", () => {
 });
 
 // The list, and the two sheets, mount when the open has settled: mounting ~30 rows inside the 500 ms put a UI-thread commit under the animation
+// M2 fades the destination's content, list included, in over the last 70% of the open, already in its final layout: a static slice of the rows that
+// fit the screen is mounted with the overlay (no FlashList, no virtualisation), and the lazy list takes over once the open has settled.
 describe("a hall's list while the container opens", () => {
-  const rows = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.props.accessibilityLabel === "string" && n.props.accessibilityLabel.startsWith("Add ")).length;
-  it("is not mounted while it opens (the header is)", async () => {
+  const rows = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.type === "string" && typeof n.props.accessibilityLabel === "string" && n.props.accessibilityLabel.startsWith("Add ")).length;
+  const flashLists = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => n.props.ListHeaderComponent !== undefined).length;
+  it("has its first rows in it while it opens: a slice that fits the screen, not the list", async () => {
     const r = await mount("ok", "W", 0, undefined, "opening");
-    expect(rows(r)).toBe(0);
     expect(texts(r)).toContain("Worcester");
+    expect(rows(r)).toBeGreaterThan(0);
+    expect(rows(r)).toBeLessThanOrEqual(Math.ceil((800 - (24 + 282 + 48 + 48)) / 64));
+    expect(flashLists(r)).toBe(0);
   });
-  it("is mounted once the open has settled", async () => {
+  it("hands over to the full list once the open has settled, and the slice is gone (no row twice)", async () => {
+    const r = await mount("ok", "W", 0, undefined, "opening");
+    const slice = rows(r);
+    const t = r.root.findByType(HallMenu).props.t;
+    t.phase = "open";
+    act(() => { r.update(<HallMenu t={t} H={800} place="W" name="Worcester" scrollY={{ get: () => 0, set: () => {} } as never} ghost={null} onBack={() => {}} />); });
+    await flush();
+    expect(flashLists(r)).toBe(1);
+    expect(rows(r)).toBeGreaterThan(slice);
+    const open = await mount("ok", "W", 0, undefined, "open");
+    expect(rows(r)).toBe(rows(open));
+  });
+  it("is mounted straight away when the hall is already open", async () => {
     const r = await mount("ok", "W", 0, undefined, "open");
     expect(rows(r)).toBeGreaterThan(0);
+    expect(flashLists(r)).toBe(1);
   });
   it("and stays mounted while it closes", async () => {
     const r = await mount("ok", "W", 0, undefined, "open");
     const t = r.root.findByType(HallMenu).props.t;
-    expect(t.phase).toBe("open");
     t.phase = "closing";
     act(() => { r.update(<HallMenu t={t} H={800} place="W" name="Worcester" scrollY={{ get: () => 0, set: () => {} } as never} ghost={null} onBack={() => {}} />); });
     expect(rows(r)).toBeGreaterThan(0);

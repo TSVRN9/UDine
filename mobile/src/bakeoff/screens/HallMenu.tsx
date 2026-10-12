@@ -25,11 +25,10 @@ import { PHOTO_POS, photoOf } from "../photos";
 import { hoursKnown, liveKnown, useMenuState, useNet } from "../state/net";
 import { add, useStore } from "../state/store";
 import { useArrival } from "../ui/arrive";
-import { useArrive } from "../ui/arrive";
 import { timed, useMotion } from "../ui/motion";
 import { mark } from "../perf";
 import { goToStation } from "../motion/stationJump";
-import { MenuList } from "./MenuList";
+import { MenuList, MenuSlice } from "./MenuList";
 import { useDayChange } from "./useDayChange";
 import { useLanding } from "./useLanding";
 import { headerHeight } from "./HallsList";
@@ -92,7 +91,9 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // on every Halls render. A hall pushed to a dish is drawn out of sight, so it draws at once: its list must exist before it can be scrolled to the dish.
   const [warm, setWarm] = useState(!!at || t.phase === "open");
   if (!warm && t.phase === "open") setWarm(true);
-  const listFresh = useArrival(warm);
+  // while it opens, the first rows are a static slice behind the (not yet mounted) list; the list reports its first rows and the slice goes
+  const [sliceOn] = useState(!(at || t.phase === "open"));
+  const [listUp, setListUp] = useState(false);
   // the network (M2 `menuState`, `hoursKnown`, `liveKnown`): the menu for this place and day may be loading, unsaved offline, or failed; then
   // there are no meals, no stations and no list, but the day cell, the name and the status line keep their rooms
   const net = useNet(), hk = hoursKnown(net), lk = liveKnown(net);
@@ -129,7 +130,6 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const headY = useSharedValue<number[]>([]);
   const jump = useSharedValue(-1);
   const { reduced } = useMotion();
-  const { arriveIn } = useArrive();
 
   const onScroll = useAnimatedScrollHandler((e) => { y.set(e.contentOffset.y); });
   const headerTx = useAnimatedStyle(() => ({ transform: [{ translateY: -Math.min(Math.max(y.get(), 0), R) }] }));
@@ -242,6 +242,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     setSheet(null);
   };
 
+  const onListViewable = () => { refreshHeads(); setListUp(true); };
   const onToggleAll = useCallback(() => setShowAll((v) => !v), []);
   const row = useMemo(() => ({ scores, day, place, meal: rowMeal, onOpen, hereKey, onToggleAll, onEvent }), [scores, day, place, rowMeal, onOpen, hereKey, onToggleAll, onEvent]);
 
@@ -252,11 +253,12 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   return (
     <View style={fill} pointerEvents="box-none">
       <Animated.View needsOffscreenAlphaCompositing style={[fill, { backgroundColor: m2.color.chalk }, t.style.incoming, listFade]}>
-        {warm ? <Animated.View entering={listFresh ? arriveIn : undefined} style={{ flex: 1 }}><MenuList
-          ref={pager} items={items} animatedRef={aref} holdOn={holdOn} onScroll={onScroll} scrollY={y} onViewable={refreshHeads}
+        {sliceOn && !listUp ? <MenuSlice items={items} row={row} head={HH + TH + SWH} height={H} /> : null}
+        {warm ? <MenuList
+          ref={pager} items={items} animatedRef={aref} holdOn={holdOn} onScroll={onScroll} scrollY={y} onViewable={onListViewable}
           state={state} stateText={stateText} head={HH + TH + SWH}
           row={row}
-        /></Animated.View> : null}
+        /> : null}
       </Animated.View>
       <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top: 0, left: 0, right: 0 }, headerTx]}>
         <Header
