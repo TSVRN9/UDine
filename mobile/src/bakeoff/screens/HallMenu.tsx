@@ -27,14 +27,14 @@ import type { useContainerTransform } from "../motion/useContainerTransform";
 import { EVENT_PHOTO, PHOTO_POS, photoOf } from "../photos";
 import { hoursKnown, liveKnown, useMenuState, useNet } from "../state/net";
 import { add, useStore } from "../state/store";
-import { arriveIn, useArrival } from "../ui/arrive";
+import { useArrival } from "../ui/arrive";
 import { mark } from "../perf";
 import { DietLine } from "./DietLine";
 import { DishRow } from "./DishRow";
 import { headerHeight } from "./HallsList";
 import { HoursSheet } from "./HoursSheet";
 import { MealPager, type PagerHandle } from "./MealPager";
-import { StateCurtain } from "./NetState";
+import { ArrivalVeil, StateCurtain } from "./NetState";
 import { StationSwitcher } from "./StationSwitcher";
 
 const fill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
@@ -111,7 +111,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   const net = useNet(), hk = hoursKnown(net), lk = liveKnown(net);
   const netState = useMenuState(place, day);
   const state = nomenu ? "ok" : netState;
-  const hkArrive = useArrival(hk), lkArrive = useArrival(lk), okArrive = useArrival(state === "ok");
+  const okArrive = useArrival(state === "ok");
   const meals = useMemo(() => (state === "ok" ? mealsOf(fx, isos[day], place) : []), [state, day, place]);
   const meal = defaultMeal(fx, isos[day], place, mealSel);
   // perf marks (no-ops unless EXPO_PUBLIC_PERF=1): the render that carries a new day, and its commit
@@ -273,13 +273,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
     status, onStatus: status ? openHours : undefined,
     // the busy row keeps its room when it has no live data (another day, offline, loading), so the name never moves
     busy: busy ? (live
-      ? <Animated.View entering={lkArrive ? arriveIn : undefined} pointerEvents="none"><BusyRow {...busy} header /></Animated.View>
+      ? <View pointerEvents="none"><BusyRow {...busy} header /></View>
       : <View style={{ opacity: 0 }} pointerEvents="none"><BusyRow {...busy} header /></View>) : undefined,
-    board: live ? <Animated.View entering={lkArrive ? arriveIn : undefined} style={fill}><Board columns={boardAt(fx.typical[place as "W"], fx.busy[place as "W"], now.getHours() * 60 + now.getMinutes())} /></Animated.View> : undefined,
+    board: live ? <Board columns={boardAt(fx.typical[place as "W"], fx.busy[place as "W"], now.getHours() * 60 + now.getMinutes())} /> : undefined,
     meals: one || nomenu ? undefined : { items: mealItems, selected: meal, onSelect: (k) => pickMeal(k as MealKey) },
     station: stationLabel ? { label: stationLabel, onPress: openStations, open: sheet === "stations" } : undefined,
     day: nomenu ? undefined : { label: dayCell(fx, day), accessibilityLabel: `${dayFull(fx, day)}, change the day`, onPress: openHours },
-    arrive: { status: hkArrive, menu: okArrive },
+    arrive: { menu: okArrive },
   };
 
   const done = () => {
@@ -368,7 +368,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
         {warm ? <MealPager
           ref={pager} data={items} renderItem={renderItem} animatedRef={aref} holdOn={holdOn} onScroll={onScroll} scrollY={y} onViewable={refreshHeads}
           keyOf={keyOf} typeOf={typeOf}
-          curtain={state === "ok" ? undefined : (copy) => <StateCurtain copy={copy} state={state} top={HH + TH + SWH} text={stateText} />}
+          curtain={state === "ok" ? (okArrive ? (copy) => (copy ? null : <ArrivalVeil />) : undefined) : (copy) => <StateCurtain copy={copy} state={state} top={HH + TH + SWH} text={stateText} />}
           header={<View style={{ height: HH + TH + SWH, backgroundColor: m2.color.dm }} />} footer={<View style={{ height: 120 }} />}
         /> : null}
       </Animated.View>

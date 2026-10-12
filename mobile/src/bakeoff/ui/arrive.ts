@@ -7,7 +7,7 @@ import { m2Motion, m2SettleEasing } from "../../lib/motion";
  * starts on the UI thread when the view mounts (a shared value started from an effect, or reset from a layout effect, costs visible frames).
  */
 export const arriveIn = new Keyframe({ 0: { opacity: 0 }, 100: { opacity: 1, easing: m2SettleEasing } }).duration(m2Motion.settle.d);
-/** The chalk that covers a list until its menu has arrived goes the same way (the rows beneath it are ground, as in M2's fade). */
+/** A chalk veil mounted over a list at its arrival and fading out: the rows beneath come in from chalk, as M2's `arrive()` fades `#mlist` in from 0. */
 export const arriveOut = new Keyframe({ 0: { opacity: 1 }, 100: { opacity: 0, easing: m2SettleEasing } }).duration(m2Motion.settle.d);
 
 /**
