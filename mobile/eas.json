@@ -14,6 +14,12 @@
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_sNs-0ho2fQDRiVR340N5MA_R25HyvI4"
       }
     },
+    "bakeoff": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_BAKEOFF": "1"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "env": {
