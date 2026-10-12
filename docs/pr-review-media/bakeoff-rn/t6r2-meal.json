@@ -1,0 +1,10 @@
+{
+  "sha": "22581e8588e8883e417501a55847d9d870a33777",
+  "branch": "bakeoff/rn",
+  "worktree": "/tmp/claude-1000/wt-rn",
+  "route": "release APK (assembleRelease, x86_64, EXPO_PUBLIC_BAKEOFF=1 EXPO_PUBLIC_PERF=1, Hermes bytecode, embedded bundle), driven by adb input tap + screenrecord 540x960, 10 fps frames, strip numbered from the recording's start (tap at 2.0 s = f20)",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-12T13:42:09Z"
+}
