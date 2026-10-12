@@ -452,7 +452,8 @@ export const m2 = {
     mealTabPad: 6,
     mtsGap: 5,
     tabGap: 3,
-    dayBlock: 20
+    dayBlock: 20,
+    mealY: 12
   },
   radius: {
     patch: 4,

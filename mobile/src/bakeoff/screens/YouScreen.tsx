@@ -33,7 +33,7 @@ const H2 = ({ children }: { children: string }) => (
 function Meal({ e }: { e: LogEntry }) {
   const total = e.items.reduce((a, i) => a + i.cal * i.qty, 0);
   return (
-    <HairRow style={{ paddingVertical: m2.space.part }}>
+    <HairRow style={{ paddingVertical: m2.space.mealY }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
         <Text v="rowName" color={m2.color.ink}>{`${MEAL_LABEL[e.meal]}${e.place ? " at " + placeName(e.place) : ""}`}</Text>
         <Text v="date" color={m2.color.slate}>{TIME}</Text>
