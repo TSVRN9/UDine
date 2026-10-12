@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, {
-  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming,
+  runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
@@ -41,6 +41,10 @@ const Back = () => (
 // one fixture for the screen: a stable object, so the memos below depend only on what changes
 const fx = loadFixture();
 const isos = dayIsos(fx);
+
+// stable for MealPager, so a label change (headDay) does not walk the list
+const keyOf = (it: Item, i: number) => (it.t === "dish" ? `d:${it.dish.station}:${it.dish.key}` : it.t === "head" ? `h:${it.name}` : `${it.t}${i}`);
+const typeOf = (it: Item) => it.t;
 
 const mealWord = (m: MealKey) => (m === "grab" ? "Grab 'N Go" : MEAL_LABEL[m].toLowerCase());
 
@@ -125,27 +129,44 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
     tick();
   };
 
-  // ---- day change (M2 changeDay): everything that says the day fades out where it is, then the new day fades in
-  const f = useSharedValue(1), sc = useSharedValue(1);
+  // ---- day change (M2 changeDay): what says the day fades out where it is, then the new day fades in (the list scaling up from .97)
+  const f = useSharedValue(1), sc = useSharedValue(1), pf = useSharedValue(1), holdOn = useSharedValue(1);
   const FT = m2Motion.fadeThrough, fade = standardDecelerate;
+  const labelsIn = useRef(false);
   const swap = (i: number) => {
     const keep = Math.min(y.get(), R);
+    labelsIn.current = true;
     setHeadDay(i);
     pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
-    // the new labels and the new list are shown together once the copy of the old rows is gone
-    pager.current?.release(() => {
-      sc.set(FT.scale);
-      f.set(withTiming(1, { duration: FT.d * (1 - m2Motion.sharedX.at), easing: fade }));
-      sc.set(withTiming(1, { duration: FT.d * (1 - m2Motion.sharedX.at), easing: fade }));
-    });
+    pager.current?.release();
   };
-  // the old content stays until the new day is drawn; then it fades out in place and the new one fades in
+  // the new labels were drawn while hidden: fade them in
+  useEffect(() => {
+    if (!labelsIn.current) return;
+    labelsIn.current = false;
+    pf.set(withTiming(1, { duration: FT.d * (1 - m2Motion.sharedX.at), easing: fade }));
+  }, [headDay]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the old content stays until the new day is drawn; then it fades out in place and the new one fades in. The list's fade runs
+  // out and back in on the UI thread without waiting for JS; the labels come back once they have committed.
   const changeDay = (i: number) => {
+    holdOn.set(1);
     pager.current?.hold(() => setListDay(i), () => {
-      f.set(withTiming(0, { duration: FT.d * m2Motion.sharedX.at, easing: m2Linear }, (done) => { if (done) runOnJS(swap)(i); }));
+      const out = FT.d * m2Motion.sharedX.at, back = FT.d * (1 - m2Motion.sharedX.at);
+      pf.set(withTiming(0, { duration: out, easing: m2Linear }));
+      sc.set(1);
+      f.set(withSequence(
+        withTiming(0, { duration: out, easing: m2Linear }, () => {
+          "worklet";
+          holdOn.set(0);
+          sc.set(FT.scale);
+          sc.set(withTiming(1, { duration: back, easing: fade }));
+          runOnJS(swap)(i);
+        }),
+        withTiming(1, { duration: back, easing: fade }),
+      ));
     });
   };
-  const parts = useAnimatedStyle(() => ({ opacity: f.get() }));
+  const parts = useAnimatedStyle(() => ({ opacity: pf.get() }));
   const listFade = useAnimatedStyle(() => ({ opacity: f.get(), transform: [{ scale: sc.get() }], transformOrigin: `50% ${(H + PIN) / 2}px` }));
 
   // ---- meals
@@ -153,6 +174,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
     if (m === meal) return;
     const dir = Math.sign(meals.indexOf(m) - meals.indexOf(meal)) as 1 | -1;
     tick();
+    holdOn.set(1);
     pager.current?.shift(dir, () => setMealSel(m));
     requestAnimationFrame(() => { if (y.get() > R) pager.current?.list()?.scrollToOffset({ offset: R, animated: false }); });
   };
@@ -192,7 +214,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
       case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={() => setShowAll((s) => !s)} />;
       case "head": return <View style={{ height: 50, paddingHorizontal: m2.space[4], paddingBottom: 6, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
       case "empty": return <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: 8 }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
-      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={day === 0} />;
+      default: return <DishRow dish={it.dish} contains={it.contains} scores={scores} lane={listDay === 0} />;
     }
   };
 
@@ -200,8 +222,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack }: {
     <View style={fill} pointerEvents="box-none">
       <Animated.View needsOffscreenAlphaCompositing style={[fill, { backgroundColor: m2.color.chalk }, t.style.incoming, listFade]}>
         {warm ? <MealPager
-          ref={pager} data={items} renderItem={renderItem} animatedRef={aref} onScroll={onScroll} scrollY={y} onViewable={refreshHeads}
-          keyOf={(it: Item, i) => (it.t === "dish" ? `d:${it.dish.station}:${it.dish.key}` : it.t === "head" ? `h:${it.name}` : `${it.t}${i}`)} typeOf={(it: Item) => it.t}
+          ref={pager} data={items} renderItem={renderItem} animatedRef={aref} holdOn={holdOn} onScroll={onScroll} scrollY={y} onViewable={refreshHeads}
+          keyOf={keyOf} typeOf={typeOf}
           header={<View style={{ height: HH + TH + SWH, backgroundColor: m2.color.dm }} />} footer={<View style={{ height: 120 }} />}
         /> : null}
       </Animated.View>
