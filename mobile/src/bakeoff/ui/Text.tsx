@@ -2,7 +2,7 @@ import { StyleSheet, Text as RNText, type TextProps, type TextStyle } from "reac
 import { m2 } from "../../lib/theme";
 
 type Variant = keyof typeof m2.type;
-const NUM: Variant[] = ["brand", "hallTitle", "bandName", "pinName", "menuName", "section", "station", "stationHead", "day", "metaNum", "stepper", "letter", "tile", "schedHead", "dishName", "price", "mark", "sheetHead", "sheetHeadSm", "chip", "labelTitle", "calNum", "dv", "scaleNum"];
+const NUM: Variant[] = ["brand", "hallTitle", "bandName", "pinName", "menuName", "section", "station", "stationHead", "day", "metaNum", "stepper", "letter", "tile", "schedHead", "dishName", "price", "mark", "sheetHead", "sheetHeadSm", "chip", "labelTitle", "calNum", "dv", "scaleNum", "barNum", "factNum", "mealCal"];
 const weight: Partial<Record<Variant, string>> = {
   mealTab: m2.font.bodyMd, tabBar: m2.font.bodySb, rowName: m2.font.bodySb, button: m2.font.bodySb,
   metaNum: m2.font.num, hallTitle: m2.font.numSb, bandName: m2.font.numSb, pinName: m2.font.numSb,
@@ -10,6 +10,7 @@ const weight: Partial<Record<Variant, string>> = {
   station: m2.font.numSb, day: m2.font.numSb, schedHead: m2.font.numSb, link: m2.font.bodySb, dayRow: m2.font.bodyMd, stepper: m2.font.numSb, letter: m2.font.numB, tile: m2.font.numSb,
   dishName: m2.font.numSb, price: m2.font.numSb, mark: m2.font.numSb, sheetHead: m2.font.numSb, sheetHeadSm: m2.font.numSb, chip: m2.font.numSb,
   action: m2.font.bodySb, labelTitle: m2.font.numB, calNum: m2.font.numB, dv: m2.font.numSb, scaleNum: m2.font.num,
+  barNum: m2.font.numSb, factRow: m2.font.bodySb, factNum: m2.font.numSb, mealCal: m2.font.numSb,
 };
 
 export function Text({ v = "date", color = m2.color.ink, style, ...p }: TextProps & { v?: Variant; color?: string }) {

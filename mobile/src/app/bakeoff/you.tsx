@@ -1,6 +1,5 @@
-import { View } from "react-native";
-import { m2 } from "../../lib/theme";
+import { YouScreen } from "../../bakeoff/screens/YouScreen";
 
 export default function You() {
-  return <View style={{ flex: 1, backgroundColor: m2.color.chalk }} />;
+  return <YouScreen />;
 }

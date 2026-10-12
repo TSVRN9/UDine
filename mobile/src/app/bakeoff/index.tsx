@@ -10,10 +10,9 @@ import type { ServeTarget } from "../../bakeoff/logic/dishSheet";
 import type { PlaceKey } from "../../bakeoff/logic/types";
 import { useContainerTransform } from "../../bakeoff/motion/useContainerTransform";
 import { HallHeader } from "../../bakeoff/screens/HallHeader";
-import { DishSheetHost } from "../../bakeoff/screens/DishSheet";
 import { HallsList, bandOff } from "../../bakeoff/screens/HallsList";
 import { PushedHall } from "../../bakeoff/screens/PushedHall";
-import { applyDevParams } from "../../bakeoff/state/prefs";
+import { registerServe } from "../../bakeoff/state/serve";
 
 export default function Halls() {
   const { top } = useSafeAreaInsets();
@@ -46,13 +45,16 @@ export default function Halls() {
   // dev only (screenshots): `bakeoff?hall=W&day=2&meal=dinner&sheet=hours&y=400&reveal=1&diet=veg&avoid=Milk&scores=health,carbon`
   useEffect(() => {
     if (!__DEV__) return;
-    applyDevParams(q);
     if (!(q.hall && H && t.phase === "closed" && fx.places.some((p) => p.key === q.hall))) return;
     const id = requestAnimationFrame(() => { setPlace(q.hall as PlaceKey); t.show({ top: 0, height: m2.size.band, off: 0 }); });
     return () => cancelAnimationFrame(id);
   }, [H]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const push = (to: ServeTarget) => { p.set(1); setGo(false); setPushed((cur) => ({ at: to, key: (cur?.key ?? 0) + 1 })); };
+  // a where-served from the plate's dish sheet arrives here to push its hall (the plate sheet belongs to the layout, not to this tab)
+  const pushRef = useRef(push);
+  useEffect(() => { pushRef.current = push; });
+  useEffect(() => registerServe({ push: (to) => pushRef.current(to), go: () => setGo(true) }), []);
   const below = useAnimatedStyle(() => ({ transform: [{ translateX: -m2Motion.push.shift * W * (1 - p.get()) }] }));
   const dim = useAnimatedStyle(() => ({ opacity: m2Motion.push.dim * (1 - p.get()) }));
   const open = place && fx.places.find((x) => x.key === place);
@@ -68,7 +70,6 @@ export default function Halls() {
           <PushedHall key={pushed.key} at={pushed.at} name={fx.places.find((x) => x.key === pushed.at.place)!.name} H={H} W={W} p={p} go={go} onPop={() => setPushed(null)} onPush={push} onPushGo={() => setGo(true)} />
         </>
       ) : null}
-      <DishSheetHost />
     </View>
   );
 }

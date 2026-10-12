@@ -10,6 +10,7 @@ import { HALLS, MEAL_LABEL, clockMeal, loadFixture } from "../logic/fixture";
 import { HALL_LX } from "../logic/letters";
 import { isOpenNow, statusText } from "../logic/status";
 import type { PlaceKey } from "../logic/types";
+import { useStore } from "../state/store";
 import { CAFE_OFF, PHOTO_OFF, PHOTO_POS, photoOf } from "../photos";
 
 /** The pinned cafés on Halls; pinning UI is out of scope for the bake-off. */
@@ -29,6 +30,7 @@ export function HallsList({ hidden, onOpen }: {
   const { width } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
   const fx = loadFixture();
+  const newton = useStore((s) => s.newton);
   const now = new Date(fx.clock);
   const HH = headerHeight(top);
   const y = useSharedValue(0);
@@ -74,11 +76,11 @@ export function HallsList({ hidden, onOpen }: {
         <View style={{ backgroundColor: m2.color.dm }}>{places.slice(4).map(cell)}</View>
         <View style={{ paddingTop: m2.space[4] + 6, paddingHorizontal: m2.space[4], paddingBottom: 120 }}>
           <Text v="section" color={m2.color.dm} style={{ marginBottom: m2.space[0] }}>Cafés & markets</Text>
-          {fx.areas.slice(0, 4).map((a, i) => {
+          {fx.areas.slice(0, newton ? 5 : 4).map((a, i, all) => {
             const ps = fx.places.filter((p) => p.area === i);
             const open = ps.filter((p) => isOpenNow(fx.hours[p.key], now)).length;
             return (
-              <View key={a} style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space[1], borderBottomWidth: i < 3 ? 1 : 0, borderBottomColor: m2.color.hair }}>
+              <View key={a} style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space[1], borderBottomWidth: i < all.length - 1 ? 1 : 0, borderBottomColor: m2.color.hair }}>
                 <View>
                   <Text v="rowName">{a}</Text>
                   <Text v="meta" color={m2.color.slate} style={{ marginTop: 2 }}>{`${open} of ${ps.length} open now`}</Text>

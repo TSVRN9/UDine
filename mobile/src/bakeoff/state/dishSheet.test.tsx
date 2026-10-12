@@ -1,5 +1,6 @@
 import { loadFixture } from "../logic/fixture";
-import { closeDish, getOpenDish, openDish } from "./dishSheet";
+import { act, create } from "react-test-renderer";
+import { closeDish, getOpenDish, openDish, useClearOnUnmount } from "./dishSheet";
 
 const [a, b] = loadFixture().dishes;
 const ctx = { from: "hall" as const, place: "W" as const, meal: "lunch" as const, day: 0 };
@@ -15,5 +16,15 @@ it("refuses a second open while one is on screen or leaving, and takes one again
   expect(openDish(b, ctx)).toBe(false);
   expect(getOpenDish()?.dish).toBe(a);
   closeDish();
+  expect(openDish(b, ctx)).toBe(true);
+});
+
+it("a host that unmounts while a dish is open does not leave every later open refused", () => {
+  const Host = () => { useClearOnUnmount(); return null; };
+  let r!: ReturnType<typeof create>;
+  act(() => { r = create(<Host />); });
+  expect(openDish(a, ctx)).toBe(true);
+  act(() => r.unmount());
+  expect(getOpenDish()).toBeNull();
   expect(openDish(b, ctx)).toBe(true);
 });

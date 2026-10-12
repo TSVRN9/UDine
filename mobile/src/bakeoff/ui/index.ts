@@ -1,5 +1,5 @@
 export { Badge, DietBadge } from "./Badge";
-export { thud, tick } from "./haptics";
+export { ding, thud, thunk, tick } from "./haptics";
 export { Band } from "./Band";
 export { Board, BusyRow, Meter } from "./Busy";
 export { Chip } from "./Chip";
@@ -9,7 +9,7 @@ export { Photo } from "./Photo";
 export { ListRow } from "./ListRow";
 export { Press } from "./Press";
 export { ScoreBadge, type Carbon } from "./ScoreBadge";
-export { GRAB, Sheet } from "./Sheet";
+export { GRAB, Sheet, useSheetSpring } from "./Sheet";
 export { SheetMark, type MarkKind } from "./SheetMark";
 export { HallChip } from "./HallChip";
 export { ScrollEdge } from "./ScrollEdge";

@@ -147,6 +147,14 @@ export const m2Motion = {
   push: { e: [0.32, 0.72, 0, 1] as const, shift: 0.3, dim: 0.1, commit: 0.5 }, // d = cont / contBack
   rmFade: { d: 120 },
   spring: { sheet: { k: 300, z: 0.84 } },
+  // a row's + widens leftward into its lane (`scaleX` from this) and a removed stepper collapses to this (M2 `setCtl`)
+  lane: { from: 0.42, out: 0.4 },
+  // the receipt stays this long before the bar goes back to the plate (M2 `receipt`'s timer)
+  receipt: { d: 5000 },
+  // switching plates on the bar: a swipe past `commit` dp, or faster than `flick` px/ms; the new plate slides in from `shift` dp (M2 bar `pointerup`)
+  plateSwipe: { commit: 70, flick: 0.5, shift: 60, rubber: 0.25 },
+  // a pushed hall that never reports settled is let go after this long, so it cannot sit mounted and take the first back press
+  pushWatchdog: { d: 3000 },
 } as const;
 
 /** Linear, and M2's `settle` curve as Reanimated easings (the bake-off kit reads these; no easing is spelled outside this file). */

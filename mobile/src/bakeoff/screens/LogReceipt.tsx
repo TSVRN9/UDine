@@ -1,0 +1,28 @@
+import { View } from "react-native";
+import { m2 } from "../../lib/theme";
+import { MEAL_LABEL, placeName } from "../logic/fixture";
+import { fc } from "../logic/dishSheet";
+import { Press, Text } from "../ui";
+import { loggedCal, undo, useStore, type Receipt } from "../state/store";
+
+/** M2 `showLogged`: the bar's slot after Log. What was logged and the day's calories so far, and Undo (outlined, in the bar's material). */
+export function LogReceipt({ last }: { last: Receipt }) {
+  const today = useStore((s) => loggedCal(s.log));
+  const { entry } = last;
+  return (
+    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: m2.space[2] }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text v="meta" color={m2.color.onDm} numberOfLines={1}>{`Logged ${entry.place ? placeName(entry.place) + " " : ""}${MEAL_LABEL[entry.meal].toLowerCase()}`}</Text>
+        <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 2 }}>
+          <Text v="meta" color={m2.color.onDm}>{"Today "}</Text>
+          <Text v="barNum" color={m2.color.white} style={{ marginRight: 2 }}>{fc(today)}</Text>
+          <Text v="meta" color={m2.color.onDm}>cal</Text>
+        </View>
+      </View>
+      <Press accessibilityRole="button" onPress={undo}
+        style={{ height: m2.size.tap, paddingHorizontal: 14, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.outline, alignItems: "center", justifyContent: "center" }}>
+        <Text v="link" color={m2.color.white}>Undo</Text>
+      </Press>
+    </View>
+  );
+}

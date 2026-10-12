@@ -39,6 +39,12 @@ export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
     gate.current = r.gate;
     if (r.start && !going.get()) p.set(withTiming(0, { duration: m2Motion.cont.d, easing: m2PushEasing }));
   };
+  // a pushed hall that never reports settled (or whose sheet never reports half-way) is let go after the watchdog, so it cannot
+  // stay mounted off to the right and take the first hardware back press
+  useEffect(() => {
+    const id = setTimeout(() => { step("settled"); step("go"); }, m2Motion.pushWatchdog.d);
+    return () => clearTimeout(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const open = t.phase !== "closed";
   useEffect(() => { if (go) step("go"); }, [go]); // eslint-disable-line react-hooks/exhaustive-deps
   return (

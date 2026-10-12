@@ -2,23 +2,24 @@ import { memo } from "react";
 import { View } from "react-native";
 import { m2 } from "../../lib/theme";
 import { DietBadge, ListRow, ScoreBadge, Text } from "../ui";
-import type { Toggles } from "../state/prefs";
+import type { Toggles } from "../state/store";
 import { fc } from "../logic/dishSheet";
 import { rowScores } from "../logic/menuView";
-import type { Dish } from "../logic/types";
+import type { Dish, MealKey, PlaceKey } from "../logic/types";
+import { RowControl } from "./RowControl";
 
 const f1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1).replace(/\.0$/, "");
 
 /**
  * One dish: name with its diet patch, then the meta line of groups that wrap whole: Contains (revealed rows only), the
  * numbers, then the scores. A dish with nothing to score has no scores group, so a row's height never depends on the toggles
- * for it. `lane` reserves the control lane Task 7's + lives in (today's rows only). `onOpen` is one stable callback for every row (it opens the dish sheet).
+ * for it. `lane` reserves the control lane the row's + lives in (today's rows only). `onOpen` is one stable callback for every row (it opens the dish sheet).
  */
-export const DishRow = memo(function DishRow({ dish, contains, scores, lane, onOpen, here }: { here?: boolean; dish: Dish; contains: string[]; scores: Toggles; lane: boolean; onOpen?: (dish: Dish) => void }) {
+export const DishRow = memo(function DishRow({ dish, contains, scores, lane, place, meal, onOpen, here }: { here?: boolean; dish: Dish; contains: string[]; scores: Toggles; lane: boolean; /** where it is served, and the plate meal an add counts for */ place: PlaceKey; meal: MealKey; onOpen?: (dish: Dish) => void }) {
   const sc = rowScores(dish, scores);
   return (
     <ListRow
-      name={dish.name} lane={lane} here={here} onPress={onOpen ? () => onOpen(dish) : undefined}
+      name={dish.name} lane={lane} here={here} trailing={lane ? <RowControl place={place} meal={meal} dish={dish} /> : undefined} onPress={onOpen ? () => onOpen(dish) : undefined}
       marks={dish.diet & 3 ? <DietBadge diet={dish.diet} /> : undefined}
       meta={
         <>

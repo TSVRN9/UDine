@@ -9,8 +9,9 @@ import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { GRAB, Press, ScoreBadge, ScrollEdge, Sheet, SheetMark, Text } from "../ui";
 import { estimateCalBottom, labelRows, restingSnap, sheetMarks, sheetPrice, type DishCtx, type ServeTarget } from "../logic/dishSheet";
 import type { Dish } from "../logic/types";
-import { useBakeoffState, type Toggles } from "../state/prefs";
-import { closeDish, useOpenDish } from "../state/dishSheet";
+import { useStore, type Toggles } from "../state/store";
+import { findItem, plateMeal } from "../logic/plate";
+import { closeDish, useClearOnUnmount, useOpenDish } from "../state/dishSheet";
 import { mark } from "../perf";
 import { NutritionLabel } from "./NutritionLabel";
 import { RatingsPanel } from "./RatingsPanel";
@@ -59,8 +60,9 @@ function Ingredients({ text }: { text: string }) {
 }
 
 /** The sheet's content as the scroll's direct children (the first, the name, is pinned). Both the sheet and its off-screen measuring copy draw it. */
-function parts({ dish, ctx, answer, scores, avoid, edge, onServe, onCalBottom }: {
+function parts({ dish, ctx, answer, scores, avoid, edge, onPlate, onAdd, onServe, onCalBottom }: {
   dish: Dish; ctx: DishCtx; answer: WhereGroup[]; scores: Toggles; avoid: string[]; edge: Parameters<typeof ScrollEdge>[0]["on"];
+  /** the dish is already on a plate: the button reads "Add another" (M2) */ onPlate: boolean; onAdd: () => void;
   onServe: (t: ServeTarget) => void; onCalBottom?: (y: number) => void;
 }): ReactElement[] {
   const price = sheetPrice(ctx, dish), mk = sheetMarks(dish, scores);
@@ -96,9 +98,9 @@ function parts({ dish, ctx, answer, scores, avoid, edge, onServe, onCalBottom }:
       </Text>
     ) : <View key="contains" />,
     ctx.day === 0 ? (
-      <Press key="add" accessibilityRole="button" onPress={ctx.onAdd}
+      <Press key="add" accessibilityRole="button" onPress={onAdd}
         style={{ marginTop: m2.space[3], height: 52, borderRadius: m2.radius.button, backgroundColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
-        <Text v="action" color={m2.color.white}>Add to plate</Text>
+        <Text v="action" color={m2.color.white}>{onPlate ? "Add another" : "Add to plate"}</Text>
       </Press>
     ) : <View key="add" />,
     <WhereServed key="where" dish={dish} answer={answer} onServe={onServe} />,
@@ -118,7 +120,7 @@ const fx = loadFixture();
 function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
   const { width, height: winH } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
-  const { scores, prefs } = useBakeoffState();
+  const scores = useStore((s) => s.show), prefs = useStore((s) => s.prefs);
   const ref = useRef<BottomSheetModal>(null);
   const answer = useMemo(() => whereAnswer(fx, dish.name, new Date(fx.clock)), [dish]);
   const full = winH - top - 8;
@@ -129,21 +131,32 @@ function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
     }),
     grab: GRAB, winH, top,
   }));
-  const edge = useSharedValue(0), pos = useSharedValue(winH), serving = useSharedValue(false);
-  const went = useRef(false);
+  const edge = useSharedValue(0), pos = useSharedValue(winH), serving = useSharedValue(false), adding = useSharedValue(false);
+  const went = useRef(false), added = useRef(false);
+  const onPlate = useStore((s) => findItem(s.plates, plateMeal(ctx.place, ctx.meal, new Date(fx.clock)), dish.key, ctx.place) != null);
   const snaps = useMemo(() => (rest < full - 4 ? [rest, full] : [full]), [rest, full]);
 
   // the where-served button: the destination is prepared at once (it mounts and settles out of sight while the sheet goes down), and
   // once the sheet is half-way out it moves (M2 `isheet.away`); the sheet's end is the fallback. One tap only: a second, during the
   // rise or the leave, does nothing.
   const go = () => { if (went.current) return; went.current = true; ctx.onServeGo?.(); };
+  // Add: the sheet goes down and the dish lands on the plate once it is half-way out (M2 `isheet.away`), where the row's stepper and the
+  // bar show it. Half-way, not gorhom's onDismiss, which comes when the spring is spent, long after the sheet is out of sight; `onDismiss`
+  // is the fallback, and one of them only.
+  const land = () => { if (added.current) return; added.current = true; ctx.onAdd?.(); };
+  const addTap = () => {
+    if (adding.get() || serving.get()) return;
+    adding.set(true);
+    ref.current?.dismiss();
+  };
   const serve = (t: ServeTarget) => {
-    if (serving.get()) return;
+    if (serving.get() || adding.get()) return;
     serving.set(true);
     ctx.onServe?.(t);
     ref.current?.dismiss();
   };
   useAnimatedReaction(() => serving.get() && pos.get() > winH - rest / 2, (hit, was) => { if (hit && !was) runOnJS(go)(); });
+  useAnimatedReaction(() => adding.get() && pos.get() > winH - rest / 2, (hit, was) => { if (hit && !was) runOnJS(land)(); });
 
   mark("sheet:render");
   useLayoutEffect(() => { mark("sheet:layout"); });
@@ -155,11 +168,11 @@ function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
 
   // `serve` reaches the sheet's ref only when a button is tapped, never while rendering
   // eslint-disable-next-line react-hooks/refs
-  const content = parts({ dish, ctx, answer, scores, avoid: prefs.avoid, edge, onServe: serve, onCalBottom: (y) => { mark("sheet:calBottom"); setRest(restingSnap({ calBottom: y, grab: GRAB, winH, top })); } });
+  const content = parts({ dish, ctx, answer, scores, avoid: prefs.avoid, edge, onPlate, onAdd: addTap, onServe: serve, onCalBottom: (y) => { mark("sheet:calBottom"); setRest(restingSnap({ calBottom: y, grab: GRAB, winH, top })); } });
   return (
     <Sheet ref={ref} maxHeight={full} snapPoints={snaps} animatedPosition={pos} sticky
       onAnimate={(from, to) => mark(`sheet:animate ${from}>${to}`)} onChange={(i) => mark(`sheet:index ${i}`)}
-      onScrollY={(y) => edge.set(y > 4 ? 1 : 0)} onDismiss={() => { go(); closeDish(); }}>
+      onScrollY={(y) => edge.set(y > 4 ? 1 : 0)} onDismiss={() => { go(); if (adding.get()) land(); closeDish(); }}>
       {content}
     </Sheet>
   );
@@ -168,5 +181,6 @@ function DishSheetView({ dish, ctx }: { dish: Dish; ctx: DishCtx }) {
 /** Mounted once, above the screens that open a dish. */
 export function DishSheetHost() {
   const open = useOpenDish();
+  useClearOnUnmount();
   return open ? <DishSheetView key={open.seq} dish={open.dish} ctx={open.ctx} /> : null;
 }
