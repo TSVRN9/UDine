@@ -23,8 +23,9 @@ export default function BakeoffLayout() {
   const q = useGlobalSearchParams();
   const query = JSON.stringify(q);
   // the network mode: EXPO_PUBLIC_BAKEOFF_NET at launch, and in a dev build a `net=slow|offline|fail|ok` param (before paint, so no frame shows the other mode)
-  const net = __DEV__ && typeof q.net === "string" ? parseNet(q.net) : undefined;
-  useLayoutEffect(() => { ensureNet(net); }, [net]);
+  const net = parseNet(__DEV__ && typeof q.net === "string" ? q.net : process.env.EXPO_PUBLIC_BAKEOFF_NET);
+  const hold = __DEV__ && q.hold === "1";
+  useLayoutEffect(() => { ensureNet(net, hold); }, [net, hold]);
   useEffect(() => { hydrate().then(() => applyDevParams(JSON.parse(query))); }, [query]);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -24,7 +24,7 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
           // the white ring is outside the patch (M2 `box-shadow: 0 0 0 3px`), so it takes no room
           <View accessibilityLabel={e.title} accessible style={{ marginHorizontal: -3, padding: 3, borderRadius: m2.radius.card + 3, backgroundColor: m2.color.white }}>
             <View style={{ aspectRatio: 1024 / 432, borderRadius: m2.radius.card, padding: 7, overflow: "hidden", backgroundColor: m2.color.vm }}>
-              <Image source={photo} resizeMode="cover" style={{ flex: 1, borderRadius: 2 }} />
+              <Image source={photo} resizeMode="cover" style={{ width: "100%", height: "100%", borderRadius: 2 }} />
               <View pointerEvents="none" style={{ position: "absolute", top: 2.5, left: 2.5, right: 2.5, bottom: 2.5, borderRadius: 3, borderWidth: 1.5, borderStyle: "dashed", borderColor: m2.color.stitchGold }} />
             </View>
           </View>
