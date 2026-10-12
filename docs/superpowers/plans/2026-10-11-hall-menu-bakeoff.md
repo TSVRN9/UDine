@@ -699,6 +699,14 @@ the round-9 states. Compare screenshots with M2's.
 
 ---
 
+**Findings so far (fill the scorecard from these):**
+- **RN, Task 4:** on Android gesture navigation, the OS takes left-edge swipes (about 24 dp), so the hall's edge swipe
+  arrives as system back with the 400 ms close and no finger tracking. RN/Expo SDK 57 exposes no predictive-back
+  progress for a custom overlay. Drag-down tracks. iOS is untested (needs the tester).
+- **RN, Task 4:** REWORK once. The busy rows and board were missing because the fixture dropped them (a Task 2 miss
+  the reviewer didn't catch); the orchestrator caught it by eye.
+- **RN, Task 2:** REWORK once (the plate-hall macro rule was untested, and departures from the plan were undocumented).
+
 ### Task 16: M2 round 10: bowl builder, onboarding, past logs, Health sync (design; doesn't block the verdict)
 
 Design round in M2, run like Task 1 Steps 2–7, after round 9c lands (same files):
