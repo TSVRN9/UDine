@@ -8,6 +8,7 @@ import { m2 } from "../../lib/theme";
 import { m2Motion, m2SettleEasing } from "../../lib/motion";
 import { Press } from "./Press";
 import { Text } from "./Text";
+import { arriveIn } from "./arrive";
 
 type AStyle = React.ComponentProps<typeof Animated.View>["style"];
 
@@ -29,6 +30,8 @@ export interface Labels {
   meals?: { items: { key: string; label: string }[]; selected: string; onSelect: (key: string) => void };
   station?: { label: string; onPress: () => void; open?: boolean };
   day?: { label: string; accessibilityLabel: string; onPress: () => void };
+  /** The status line, or the tab and station labels, arrived from the network just now: they fade in where they end up. */
+  arrive?: { status?: boolean; menu?: boolean };
 }
 
 const abs = { position: "absolute", top: 0, left: 0, right: 0 } as const;
@@ -102,7 +105,7 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
       {labels.meals ? (
         <View accessibilityRole="tablist" style={{ height: m2.size.tabs, paddingHorizontal: 4 }}>
           <Animated.View style={[{ flex: 1 }, contentStyle]}>
-            <Layers fillParent now={<TabRow meals={labels.meals} />} was={oldLabels.meals ? <TabRow meals={oldLabels.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+            <Layers fillParent now={<Arrive key={labels.meals.items.length ? "tabs" : "none"} on={labels.arrive?.menu}><TabRow meals={labels.meals} /></Arrive>} was={oldLabels.meals ? <TabRow meals={oldLabels.meals} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
           </Animated.View>
         </View>
       ) : null}
@@ -110,7 +113,7 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
         <View style={{ height: m2.size.tabs, flexDirection: "row", borderTopWidth: labels.meals ? 1 : 0, borderTopColor: "rgba(255,255,255,0.12)" }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Animated.View style={[{ flex: 1 }, contentStyle]}>
-              <Layers fillParent now={labels.station ? <StationButton s={labels.station} /> : null} was={oldLabels.station ? <StationButton s={oldLabels.station} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
+              <Layers fillParent now={labels.station ? <Arrive on={labels.arrive?.menu}><StationButton s={labels.station} /></Arrive> : null} was={oldLabels.station ? <StationButton s={oldLabels.station} /> : null} newStyle={newStyle} oldStyle={oldStyle} />
             </Animated.View>
           </View>
           {labels.day ? (
@@ -128,16 +131,23 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
   );
 }
 
+/** A layout animation on its own wrapper, so it starts on the UI thread at mount and never fights the layer's opacity above it. */
+function Arrive({ on, children }: { on?: boolean; children: ReactNode }) {
+  return <Animated.View entering={on ? arriveIn : undefined} style={{ flex: 1 }}>{children}</Animated.View>;
+}
+
 function TitleParts({ l }: { l: Labels }) {
   return (
     <>
       <View style={{ minHeight: 20, marginTop: 7 }}>
         {l.status ? (
-          <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
-            hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
-            {l.onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
-          </Press>
+          <Animated.View entering={l.arrive?.status ? arriveIn : undefined}>
+            <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
+              hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
+              {l.onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
+            </Press>
+          </Animated.View>
         ) : null}
       </View>
       {l.busy}

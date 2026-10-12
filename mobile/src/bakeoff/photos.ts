@@ -21,3 +21,5 @@ export const PHOTO_OFF: Record<"W" | "F" | "H" | "B", number> = { W: 0.3, F: 0.1
 export const CAFE_OFF = 0.3;
 export const photoOf = (key: PlaceKey, name: string): ImageSourcePropType | undefined =>
   key.startsWith("c") ? CAFE_PHOTO[name] : HALL_PHOTO[key as "W"];
+/** The holiday note's banner (M2 `EVIMG`), by event title: the one event that lands on a hall's list. */
+export const EVENT_PHOTO: Record<string, ImageSourcePropType> = { "Indigenous Peoples Day": require("../../assets/bakeoff/ev/ipd.jpg") };

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { BackHandler, ScrollView, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
@@ -19,10 +19,19 @@ const clamp = (x: number) => {
  * a body that scrolls. Back, the hardware back and an edge swipe that follows the finger all leave the same way; only one leave runs, and a
  * swipe that takes hold during the arrival stops it where it is.
  */
-export function PushPage({ title, onPop, children }: { title: string; onPop: () => void; children: ReactNode }) {
+export function PushPage({ title, onPop, children, progress, ground, poster }: {
+  title?: string; onPop: () => void; children: ReactNode;
+  /** the push (1 = off to the right, 0 = in) when the screen below shifts and dims by it; its owner starts it at 1 */
+  progress?: SharedValue<number>;
+  /** the page's ground and bar, when it is not chalk under a maroon bar (an event's page is the card's deep maroon throughout) */
+  ground?: string;
+  /** the body is a poster: its group sits at the optical centre of what the bar leaves */
+  poster?: boolean;
+}) {
   const { width: W } = useWindowDimensions();
   const { top } = useSafeAreaInsets();
-  const p = useSharedValue(1);
+  const own = useSharedValue(1);
+  const p = progress ?? own;
   const [leaving, setLeaving] = useState(false);
   const gone = useSharedValue(false);
 
@@ -55,14 +64,16 @@ export function PushPage({ title, onPop, children }: { title: string; onPop: () 
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * W }] }));
   return (
     <GestureDetector gesture={swipe as ReturnType<typeof Gesture.Pan>}>
-      <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.chalk }, slide]}>
-        <View style={{ height: top + 52, paddingTop: top, paddingHorizontal: m2.space[0], flexDirection: "row", alignItems: "center", backgroundColor: m2.color.vm }}>
+      <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: ground ?? m2.color.chalk }, slide]}>
+        <View style={{ height: top + 52, paddingTop: top, paddingHorizontal: m2.space[0], flexDirection: "row", alignItems: "center", backgroundColor: ground ?? m2.color.vm }}>
           <Press accessibilityRole="button" accessibilityLabel="Back" onPress={() => leave(p.get())} style={{ width: m2.size.tap + 4, height: m2.size.tap + 4, alignItems: "center", justifyContent: "center" }}>
             <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={m2.color.white} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M15 5l-7 7 7 7" /></Svg>
           </Press>
-          <Text v="section" color={m2.color.white} numberOfLines={1} accessibilityRole="header" style={{ flex: 1, paddingRight: m2.space[3] }}>{title}</Text>
+          {title ? <Text v="section" color={m2.color.white} numberOfLines={1} accessibilityRole="header" style={{ flex: 1, paddingRight: m2.space[3] }}>{title}</Text> : null}
         </View>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingTop: m2.space[1], paddingBottom: 120 }}>{children}</ScrollView>
+        <ScrollView contentContainerStyle={poster
+          ? { flexGrow: 1, justifyContent: "center", paddingHorizontal: m2.space[4], paddingBottom: 56 }
+          : { paddingHorizontal: m2.space[4], paddingTop: m2.space[1], paddingBottom: 120 }}>{children}</ScrollView>
       </Animated.View>
     </GestureDetector>
   );

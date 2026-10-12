@@ -156,6 +156,9 @@ export const m2Motion = {
   plateSwipe: { commit: 70, flick: 0.5, shift: 60, rubber: 0.25 },
   // a pushed hall that never reports settled is let go after this long, so it cannot sit mounted and take the first back press
   pushWatchdog: { d: 3000 },
+  // the network states (round 9): a slow fetch takes `slow`; the activity indicator shows only after `spinner.delay` and snaps in
+  // (M2 `spinIn`, 1 ms), turning once per `spinner.d`
+  net: { slow: 1500, spinner: { delay: 400, snap: 1, d: 900 } },
 } as const;
 
 /** Linear, and M2's `settle` curve as Reanimated easings (the bake-off kit reads these; no easing is spelled outside this file). */

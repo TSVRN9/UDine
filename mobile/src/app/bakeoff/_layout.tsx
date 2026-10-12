@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useGlobalSearchParams } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { LogBox } from "react-native";
@@ -9,6 +9,8 @@ import { m2 } from "../../lib/theme";
 import { TabBar } from "../../bakeoff/ui";
 import { DishSheetHost } from "../../bakeoff/screens/DishSheet";
 import { PlateSheet } from "../../bakeoff/screens/PlateSheet";
+import { ensureNet } from "../../bakeoff/state/net";
+import { parseNet } from "../../bakeoff/logic/net";
 import { applyDevParams, hydrate } from "../../bakeoff/state/store";
 
 // dev only: the root layout's background-task registration warns on every cold start, and its toast covers the tab bar in screenshots
@@ -20,6 +22,9 @@ export default function BakeoffLayout() {
   // dev only (screenshots): the route's query seeds the store (`state/store.ts` applyDevParams), on whichever tab the link opens
   const q = useGlobalSearchParams();
   const query = JSON.stringify(q);
+  // the network mode: EXPO_PUBLIC_BAKEOFF_NET at launch, and in a dev build a `net=slow|offline|fail|ok` param (before paint, so no frame shows the other mode)
+  const net = __DEV__ && typeof q.net === "string" ? parseNet(q.net) : undefined;
+  useLayoutEffect(() => { ensureNet(net); }, [net]);
   useEffect(() => { hydrate().then(() => applyDevParams(JSON.parse(query))); }, [query]);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
