@@ -29,7 +29,7 @@ function Spinner() {
 /**
  * What a hall's list says when it has no menu to show (M2 `.mstate`, `.mst`): loading, not saved offline, didn't load. It is chalk over the
  * list, below the pinned rows (`top` is their bottom edge), and leaves by fading out where it stands, so the rows beneath arrive as M2's
- * fade-in does. `copy` is the one the day change holds while the new day draws: it has no exit of its own.
+ * fade-in does. Its text sits 14 dp lower than `.mst`'s 28 (the paragraph keeps the browser's 1 em margin in M2), and the button 16 dp lower again. `copy` is the one the day change holds while the new day draws: it has no exit of its own.
  */
 export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuState, "ok">; top: number; text: string; copy?: boolean }) {
   return (
@@ -39,11 +39,11 @@ export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuSt
         {state === "loading" ? (
           <View style={{ height: 160, alignItems: "center", justifyContent: "center" }}><Spinner /></View>
         ) : (
-          <View style={{ paddingHorizontal: m2.space[4], paddingTop: 28, paddingBottom: m2.space[0] }}>
+          <View style={{ paddingHorizontal: m2.space[4], paddingTop: 42, paddingBottom: m2.space[0] }}>
             <Text v="empty" color={m2.color.slate}>{text}</Text>
             {state === "fail" ? (
               <Press accessibilityRole="button" onPress={() => { retry(); }}
-                style={{ marginTop: m2.space[3], height: 52, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
+                style={{ marginTop: 28, height: 52, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
                 <Text v="action" color={m2.color.vm}>Try again</Text>
               </Press>
             ) : null}
