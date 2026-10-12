@@ -1,10 +1,10 @@
 {
-  "sha": "8ca65655a5c16277bc052a110b5c422064d08939",
+  "sha": "42e13d608cd1c71a521e0375721635aecc82644a",
   "branch": "bakeoff/rn",
-  "worktree": "/tmp/claude-1000/wt-rn",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/bakeoff-rn",
   "route": "bakeoff?hall=W&day=4&sheet=hours",
   "device": "Agent_Emulator_Narrow",
   "stress": "",
-  "dirty": false,
-  "ts": "2026-10-12T16:39:55Z"
+  "dirty": true,
+  "ts": "2026-10-12T17:12:45Z"
 }
