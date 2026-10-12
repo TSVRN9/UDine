@@ -706,7 +706,15 @@ the round-9 states. Compare screenshots with M2's.
 - **RN, Task 4:** REWORK once. The busy rows and board were missing because the fixture dropped them (a Task 2 miss
   the reviewer didn't catch); the orchestrator caught it by eye.
 - **RN, Task 2:** REWORK once (the plate-hall macro rule was untested, and departures from the plan were undocumented).
-- **RN, Task 5:** REWORK three times so far.
+- **RN, Task 5:** MERGE after four REWORK rounds.
+  - Round 3 introduced a regression: the schedule opened at the top again. The implementer reported having viewed
+    every frame; the reviewer flagged the frame and the orchestrator confirmed it.
+  - The final schedule opening fights gorhom's scroll lock: it caps the viewport and retries `scrollTo` up to 12 ×
+    80 ms while a wrapped gorhom scroll hook records instead of resetting. It works but is fragile, and depends on
+    gorhom internals. A Flutter `DraggableScrollableSheet` with an initial offset has no such lock; Task 12 will
+    show whether that holds.
+  - Round 4 made the opening scroll's `reached` flag sticky (5b8874d), so a user's scroll is never snapped back.
+  - Earlier rounds:
   - Round 2 came from the orchestrator's frames: labels lagged the list, and the scroll fix had broken drag-to-dismiss.
   - Round 3 came from the reviewer's code read, with no screenshot showing it:
     - the descender fix's margin was overridden by callers, a layout regression;
