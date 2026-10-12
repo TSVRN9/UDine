@@ -151,7 +151,7 @@ class PlateLayerState extends State<PlateLayer> with TickerProviderStateMixin {
             offset: Offset(0, (1 - v) * M2Layout.barMin * 1.1),
             child: Stack(children: [
               M2Sheet(
-                handle: handle, top: widget.top, min: M2Layout.barMin, startOpen: false, radius: 0, header: bar, color: M2Color.chalk, bottomPad: M2Layout.plateFoot + MediaQuery.paddingOf(context).bottom,
+                handle: handle, top: widget.top, min: M2Layout.barMin, startOpen: false, radius: 0, header: bar, color: M2Color.chalk, bottomPad: M2Layout.plateFoot + safeBottom(context),
                 mid: (m) => _mid = _midOf(m), onSize: (px) => _size.value = px,
                 slivers: [
                   SliverToBoxAdapter(
@@ -181,7 +181,7 @@ class PlateLayerState extends State<PlateLayer> with TickerProviderStateMixin {
   double get _midPx => _mid;
   double _midOf(SheetMetrics m) {
     final screen = MediaQuery.sizeOf(context).height;
-    return (m.content + M2Layout.treatTop).clamp(M2Layout.barMin, m.height - M2Layout.midFrac * screen);
+    return (m.content + M2Layout.plateMidPad).clamp(M2Layout.barMin, m.height - M2Layout.midFrac * screen);
   }
 
   void _openDish(Plate pl, PlateItem it) {

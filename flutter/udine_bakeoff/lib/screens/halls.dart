@@ -69,7 +69,7 @@ class _HallsListState extends State<HallsList> {
     final now = toEastern(DateTime.parse(fx.clock));
     final date = '${_weekdays[now.weekday - 1]}, ${_months[now.month - 1]} ${now.day}';
     final places = [...halls, for (final n in widget.pins) fx.places.firstWhere((p) => p.name == n).key];
-    final brand = Text('UDine', style: M2Text.brand.style(M2Color.gold));
+    final brand = Text('UDine', style: M2Text.brand.normal().style(M2Color.gold));
     final dateText = Text(date, style: M2Text.headDate.style(M2Color.onDm));
     return ColoredBox(
       color: M2Color.chalk,
@@ -89,7 +89,7 @@ class _HallsListState extends State<HallsList> {
             ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where((k) => !isCafe(k))) _cell(k, now)])),
             if (places.any(isCafe)) ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where(isCafe)) _cell(k, now)])),
             Padding(
-              padding: EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, M2Layout.listPadBottom),
+              padding: EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, M2Layout.listFoot + safeBottom(context)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Padding(padding: EdgeInsets.only(bottom: M2Layout.secTitleGap), child: Text('Cafés & markets', style: M2Text.section.style(M2Color.dm))),
                 for (var i = 0; i < M2Layout.areaCount; i++)

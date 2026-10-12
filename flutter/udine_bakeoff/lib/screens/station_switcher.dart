@@ -51,7 +51,7 @@ class SheetOption extends StatelessWidget {
             decoration: BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: current ? M2Color.vm : M2Color.chalk.withValues(alpha: 0)))),
             child: ExcludeSemantics(
               child: Row(children: [
-                Expanded(child: Text(label, style: M2Text.dayRow.style(current ? M2Color.vm : M2Color.ink).copyWith(fontWeight: current ? FontWeight.w600 : FontWeight.w500))),
+                Expanded(child: Text(label, style: M2Text.dayRow.style(current ? M2Color.vm : M2Color.ink).copyWith(fontWeight: current ? bold700 : FontWeight.w500))),
                 if (trailing != null) Text(trailing!, style: M2Text.metaNum.withSize(M2Layout.optionCount).style(M2Color.slate)),
               ]),
             ),

@@ -133,7 +133,7 @@ class _DayRow extends StatelessWidget {
             decoration: BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: current ? M2Color.vm : M2Color.chalk.withValues(alpha: 0)))),
             child: ExcludeSemantics(
               child: Row(children: [
-                Expanded(child: Text(label, style: M2Text.dayRow.style(current ? M2Color.vm : M2Color.ink).copyWith(fontWeight: current ? FontWeight.w600 : FontWeight.w500))),
+                Expanded(child: Text(label, style: M2Text.dayRow.style(current ? M2Color.vm : M2Color.ink).copyWith(fontWeight: current ? bold700 : FontWeight.w500))),
                 const SizedBox(width: M2Space.panel),
                 Text(right, style: M2Text.sched.style(current ? M2Color.vm : M2Color.slate).copyWith(fontWeight: current ? FontWeight.w500 : FontWeight.w400)),
               ]),

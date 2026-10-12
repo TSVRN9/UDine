@@ -22,7 +22,7 @@ class _FeltPainter extends CustomPainter {
   void paint(Canvas canvas, Size s) {
     canvas.drawRRect(RRect.fromRectAndRadius(Offset.zero & s, Radius.circular(radius)), Paint()..color = color);
     final r = RRect.fromRectAndRadius(Rect.fromLTWH(inset, inset, s.width - 2 * inset, s.height - 2 * inset), Radius.circular(innerRadius));
-    canvas.drawPath(dashed(ui.Path()..addRRect(r.deflate(M2Layout.stitchW / 2)), M2Layout.dashOn, M2Layout.dashOff), Paint()..color = stitch..style = PaintingStyle.stroke..strokeWidth = M2Layout.stitchW);
+    canvas.drawPath(dashed(ui.Path()..addRRect(r.deflate(M2Felt.patchStitchWidth / 2)), M2Layout.dashOn, M2Layout.dashOff), Paint()..color = stitch..style = PaintingStyle.stroke..strokeWidth = M2Felt.patchStitchWidth);
   }
 
   @override
@@ -37,7 +37,7 @@ class Felt extends StatelessWidget {
   final Color color, stitch;
   final EdgeInsetsGeometry padding;
   final Widget? child;
-  const Felt({super.key, this.width, this.height, this.radius = M2Radius.patch, this.inset = M2Layout.stitchInset, this.innerRadius = M2Layout.stitchInnerRadius,
+  const Felt({super.key, this.width, this.height, this.radius = M2Felt.patchRadius, this.inset = M2Felt.patchInset, this.innerRadius = M2Felt.patchStitchRadius,
       this.color = M2Color.gold, this.stitch = M2Color.stitch, this.padding = EdgeInsets.zero, this.child});
   @override
   Widget build(BuildContext context) => CustomPaint(

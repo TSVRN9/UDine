@@ -1,3 +1,5 @@
+import '../theme/tokens.dart';
+
 // UMass Dining's photos are gitignored: tool/bakeoff_assets.sh copies them into assets/bakeoff/. A missing file draws
 // nothing (the band's maroon ground shows), so a checkout without them still builds and tests.
 const hallPhoto = {'W': 'worcester.jpg', 'F': 'franklin.jpg', 'H': 'hampshire.jpg', 'B': 'berkshire.jpg'};
@@ -26,7 +28,7 @@ const photoPos = {'W': 0.72, 'F': 0.42, 'H': 0.6, 'B': 0.62};
 const photoOff = {'W': 0.3, 'F': 0.1, 'H': 0.24, 'B': 0.22};
 const cafeOff = 0.3;
 /// The chenille letter's text x inside its 200 px box (M2 `LX`, owner-approved round 10; RN logic/letters.ts).
-const hallLx = {'W': 72.0, 'F': 99.0, 'H': 88.0, 'B': 91.0};
+const hallLx = letterX;
 
 double headerHeight(double top) => top + 282;
 double bandOff(String key, double top) => ((key.startsWith('c') ? cafeOff : photoOff[key]!) * headerHeight(top)).roundToDouble();

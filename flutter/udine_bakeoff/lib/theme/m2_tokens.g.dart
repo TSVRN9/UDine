@@ -160,10 +160,10 @@ abstract final class M2Text {
   static const calNum = M2Type(44.0, 44.0, 'Oswald', FontWeight.w700, tabular: true);
   /// .label .lr .dv 600 16px Oswald (no line-height)
   static const dv = M2Type(16.0, null, 'Oswald', FontWeight.w600, tabular: true);
-  /// .label .lr 15px
+  /// .dish .dal 15px/1.4 (the dish sheet's Contains line); the nutrition label's rows are lblRow
   static const lbl = M2Type(15.0, 21.0, 'LibreFranklin', FontWeight.w400);
-  /// .facts .cal span 700 18px
-  static const lblLg = M2Type(18.0, 22.0, 'LibreFranklin', FontWeight.w400);
+  /// .facts .cal span 700 18px (no line-height)
+  static const lblLg = M2Type(18.0, null, 'LibreFranklin', FontWeight.w400);
   /// .label .lr.thin 13px (no line-height)
   static const lblThin = M2Type(13.0, null, 'LibreFranklin', FontWeight.w400);
   /// .label .lf 12px/1.35
@@ -536,8 +536,8 @@ abstract final class M2Gradient {
   static const band = (colors: [Color.fromRGBO(59, 10, 15, 0.82), Color.fromRGBO(59, 10, 15, 0.55), Color.fromRGBO(59, 10, 15, 0)], stops: [0.0, 0.45, 0.75]);
   /// .tgrad (height st + 80)
   static const headTop = (colors: [Color.fromRGBO(59, 10, 15, 0.6), Color.fromRGBO(59, 10, 15, 0)], stops: [0.0, 1.0]);
-  /// .bgrad (height 240)
-  static const headBottom = (colors: [Color.fromRGBO(59, 10, 15, 0), Color.fromRGBO(59, 10, 15, 0.5), Color.fromRGBO(59, 10, 15, 0.93)], stops: [0.0, 0.3, 0.76]);
+  /// .bgrad{height:240px;linear-gradient(0, .5 at 30%, .74 at 50%, .93 at 76%)} (src.html:215)
+  static const headBottom = (colors: [Color.fromRGBO(59, 10, 15, 0), Color.fromRGBO(59, 10, 15, 0.5), Color.fromRGBO(59, 10, 15, 0.74), Color.fromRGBO(59, 10, 15, 0.93)], stops: [0.0, 0.3, 0.5, 0.76]);
 }
 
 abstract final class M2Shadow {
@@ -547,6 +547,25 @@ abstract final class M2Shadow {
     BoxShadow(offset: Offset(-10.0, 0.0), blurRadius: 28.0, color: Color.fromRGBO(36, 10, 14, 0.16)),
   ];
 }
+
+/// The felt patches: corner radius, stitch inset, stitch radius, stitch width.
+abstract final class M2Felt {
+  static const patchRadius = 4.0;
+  static const patchInset = 2.0;
+  static const patchStitchRadius = 2.0;
+  static const patchStitchWidth = 1.0;
+  static const markRadius = 5.0;
+  static const markInset = 3.0;
+  static const markStitchRadius = 3.0;
+  static const markStitchWidth = 1.0;
+  static const frameRadius = 6.0;
+  static const frameInset = 2.5;
+  static const frameStitchRadius = 3.0;
+  static const frameStitchWidth = 1.5;
+}
+
+/// The chenille letter's text x in its 200 dp box, per hall.
+const letterX = {'W': 72.0, 'F': 99.0, 'H': 88.0, 'B': 91.0};
 
   /// EMPH: the M3 emphasized path, two cubic segments
 const emphasized = Emphasized([[0.0, 0.0, 0.05, 0.0, 0.133333, 0.06, 0.166666, 0.4], [0.166666, 0.4, 0.208333, 0.82, 0.25, 1.0, 1.0, 1.0]]);

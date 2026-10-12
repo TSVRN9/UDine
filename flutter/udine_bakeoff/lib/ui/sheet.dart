@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'haptics.dart';
+import 'insets.dart';
 import 'motion.dart';
 
 /// What a sheet knows when it works out its resting height.
@@ -100,7 +101,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   double get _max => (_h - widget.top);
   double _clampPx(double v) => v.clamp(widget.min, _max);
 
-  double get _pad => widget.bottomPad ?? (M2Layout.sheetBottom + MediaQuery.paddingOf(context).bottom);
+  double get _pad => widget.bottomPad ?? (M2Layout.sheetBottom + safeBottom(context));
   double _defaultMid(SheetMetrics m) => (m.content + _pad).clamp(0, m.height * M2Layout.sheetMaxFrac);
 
   void _measure() {

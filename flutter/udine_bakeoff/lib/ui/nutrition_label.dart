@@ -19,13 +19,13 @@ class NutritionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // M2 sets no line-height on the label's rows (`.label .lr`), so they take the font's own: 34 dp rows, not RN's 21 + 9
-    final lbl = M2Text.lbl.normal().style(M2Color.dm), bold = lbl.copyWith(fontWeight: bold700);
+    
+    final lbl = M2Text.lblRow.style(M2Color.dm), bold = lbl.copyWith(fontWeight: bold700);
     Widget row(LabelRow r) {
       // an empty %DV is an empty span in M2: it keeps its width and adds no height, so a row without one is 28 dp, not 34
-      final dv = SizedBox(width: M2Layout.dvMin, child: r.right.isEmpty ? null : Text(r.right, textAlign: TextAlign.right, style: M2Text.dv.normal().style(M2Color.dm)));
+      final dv = SizedBox(width: M2Layout.dvMin, child: r.right.isEmpty ? null : Text(r.right, textAlign: TextAlign.right, style: M2Text.dv.style(M2Color.dm)));
       if (r.kind == LabelKind.thin) {
-        final st = M2Text.lblThin.normal().style(M2Color.dm).copyWith(fontWeight: bold700);
+        final st = M2Text.lblThin.style(M2Color.dm).copyWith(fontWeight: bold700);
         return _rule(Padding(padding: const EdgeInsets.only(top: _rowTop, bottom: _rowBottom), child: Align(alignment: Alignment.centerRight, child: Text(r.right, style: st))), _hair);
       }
       final sub = r.kind == LabelKind.sub;
@@ -62,7 +62,7 @@ class NutritionLabel extends StatelessWidget {
           Padding(
             key: calKey, padding: const EdgeInsets.only(top: M2Layout.calPadTop, bottom: M2Layout.calPadBottom),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('Calories', style: M2Text.lblLg.normal().style(M2Color.dm).copyWith(fontWeight: bold700)),
+              Text('Calories', style: M2Text.lblLg.style(M2Color.dm).copyWith(fontWeight: bold700)),
               Text(label.cal, style: M2Text.calNum.style(M2Color.dm)),
             ]),
           ),
@@ -102,7 +102,7 @@ class RatingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (health == null && carbon == null) return const SizedBox.shrink();
-    final b = M2Text.lbl.normal().style(M2Color.dm).copyWith(fontWeight: bold700);
+    final b = M2Text.lblRow.style(M2Color.dm).copyWith(fontWeight: bold700);
     final rows = <Widget>[
       if (health != null)
         Padding(

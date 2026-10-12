@@ -10,6 +10,7 @@ export 'facts.dart';
 export 'felt.dart';
 export 'hall_letter.dart';
 export 'haptics.dart';
+export 'insets.dart';
 export 'list_row.dart';
 export 'lrow.dart';
 export 'mark_glyph.dart';

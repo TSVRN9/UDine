@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine_bakeoff/main.dart';
-import 'package:udine_bakeoff/screens/hall_menu.dart';
 import 'package:udine_bakeoff/ui/ui.dart';
 import '../fonts.dart';
 import '../logic/support.dart';
@@ -34,8 +33,7 @@ Future<void> openHall(WidgetTester t, String name) async {
 }
 
 Future<void> tapRow(WidgetTester t, String name) async {
-  await t.scrollUntilVisible(find.text(name), 120, scrollable: find.descendant(of: find.byType(HallMenu), matching: find.byType(Scrollable)).first);
-  await t.pumpAndSettle();
+  await bringIn(t, find.text(name));
   await t.tap(find.text(name));
 }
 

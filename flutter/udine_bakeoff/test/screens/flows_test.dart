@@ -43,12 +43,11 @@ Future<void> openHall(WidgetTester t, String name) async {
 
 Finder row(String name) => find.byWidgetPredicate((w) => w is DishRow && w.dish.name == name); // (a name with its diet patch is split into spans: no single Text to find)
 Future<void> tapName(WidgetTester t, String name) async {
-  await t.scrollUntilVisible(row(name), 120, scrollable: find.descendant(of: find.byType(HallMenu), matching: find.byType(Scrollable)).first);
-  await t.pumpAndSettle();
+  await bringIn(t, row(name));
   await t.tapAt(t.getTopLeft(row(name)) + const Offset(40, 22));
 }
 HallMenuState menu(WidgetTester t) => t.state<HallMenuState>(find.byType(HallMenu).last);
-ScrollController list(WidgetTester t) => t.widget<SingleChildScrollView>(find.descendant(of: find.byType(HallMenu).last, matching: find.byType(SingleChildScrollView)).first).controller!;
+ScrollController list(WidgetTester t) => t.widget<CustomScrollView>(find.descendant(of: find.byType(HallMenu).last, matching: find.byType(CustomScrollView)).first).controller!;
 double opacityOf(WidgetTester t, Key k) => t.widget<Opacity>(find.byKey(k)).opacity;
 double dx(WidgetTester t, Key k) => t.widget<Transform>(find.byKey(k)).transform.getTranslation().x;
 
@@ -426,10 +425,10 @@ void main() {
       await t.pump();
       await t.pump(const Duration(milliseconds: 60));
       expect(find.byKey(const ValueKey('axis-out')), findsNothing);
-      expect(find.byKey(const ValueKey('axis-in-slide')), findsNothing);
+      expect(dx(t, const ValueKey('axis-in-slide')), 0);
       expect(opacityOf(t, const ValueKey('axis-in')), closeTo(0.5, 0.05));
       await t.pump(const Duration(milliseconds: 70));
-      expect(find.byKey(const ValueKey('axis-in')), findsNothing); // done by 120 ms
+      expect(opacityOf(t, const ValueKey('axis-in')), 1); // done by 120 ms
     });
   });
 
@@ -451,4 +450,4 @@ void main() {
 }
 
 bool hallIsSwapped(HallMenuState s) => s.debugDay != 0;
-double listOpacity(WidgetTester t) => t.widget<Opacity>(find.ancestor(of: find.byType(SingleChildScrollView), matching: find.byType(Opacity)).first).opacity;
+double listOpacity(WidgetTester t) => t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity;

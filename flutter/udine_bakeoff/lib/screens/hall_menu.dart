@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import '../logic/fixture.dart';
 import '../logic/menu_view.dart';
@@ -51,17 +53,15 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   late final LandingScrollController _sc = LandingScrollController(landing: _landing);
   final _scrollY = ValueNotifier<double>(0);
   late final AnimationController _dayFade = AnimationController(vsync: this, value: 1);
-  bool _dayIn = false, _daySwap = false;
-  // the container's open draws the first screenful of the list and the rest once it is open, so building 70 rows is never in the 500 ms
-  late bool _full = widget.land != null || widget.progress.value >= 1;
+  bool _dayIn = false;
   late final _dayN = ValueNotifier<int>(widget.land?.day ?? widget.day);
   Widget? _header;
   bool? _headerOpen;
   final _keys = ListKeys();
-  final _contentKey = GlobalKey();
-  final _pagerKey = GlobalKey<SharedAxisState>();
+  final _listKey = GlobalKey(), _pagerKey = GlobalKey<SharedAxisLayerState>();
+  List<ListItem> _items = const [];
+  late final AnimationController _jumpC = AnimationController(vsync: this);
   final _station = ValueNotifier<int?>(null);
-  int _dir = 1;
   SheetHandle? _stationsSheet;
 
   Fixture get fx => widget.fx;
@@ -97,7 +97,6 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       }
     }
     _sc.addListener(_onScroll);
-    if (!_full) widget.progress.addStatusListener(_openStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _updateStation();
@@ -105,20 +104,13 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     });
   }
 
-  void _openStatus(AnimationStatus s) {
-    if (s == AnimationStatus.completed && !_full) {
-      widget.progress.removeStatusListener(_openStatus);
-      setState(() => _full = true);
-    }
-  }
-
   @override
   void dispose() {
-    widget.progress.removeStatusListener(_openStatus);
     _sc.removeListener(_onScroll);
     _sc.dispose();
     _scrollY.dispose();
     _dayFade.dispose();
+    _jumpC.dispose();
     _dayN.dispose();
     _station.dispose();
     super.dispose();
@@ -132,35 +124,88 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     _updateStation();
   }
 
-  RenderBox? _contentBox() => _contentKey.currentContext?.findRenderObject() as RenderBox?;
-  double? _offsetOf(GlobalKey k) {
-    final box = k.currentContext?.findRenderObject() as RenderBox?, content = _contentBox();
-    if (box == null || content == null || !box.attached || !box.hasSize) return null;
-    return box.getTransformTo(content).getTranslation().y;
+  /// Where a built row's top is in the scroll's own coordinates (what scrolling there would put at the top), or null while it is not
+  /// built: the list is lazy.
+  double? _topOf(GlobalKey k) {
+    final box = k.currentContext?.findRenderObject();
+    final sliver = _listKey.currentContext?.findRenderObject();
+    if (box == null || !box.attached || sliver is! RenderSliverMultiBoxAdaptor) return null;
+    // the sliver's own child that holds the row: its layout offset in the sliver, and the sliver starts after the header's room.
+    // (Read from the parent data, not by asking the box to reveal itself, which reads its size in the middle of a layout.)
+    RenderObject cur = box;
+    while (cur.parent != null && cur.parent != sliver) {
+      cur = cur.parent!;
+    }
+    if (cur.parent != sliver) return null;
+    return _hh + _th + _sw + ((cur.parentData! as SliverMultiBoxAdaptorParentData).layoutOffset ?? 0);
   }
 
-  double? _landing(double max) {
+  /// A guess at an item's offset from the typical heights, for the rows not built yet (a head 50, a dish 64 or 79, a note 53).
+  double _estimate(int index) {
+    var y = _hh + _th + _sw;
+    for (var i = 0; i < index && i < _items.length; i++) {
+      final it = _items[i];
+      y += switch (it.kind) { ItemKind.head => M2Size.stationRow, ItemKind.dish => it.dish!.name.length > 26 ? M2Layout.rowTall : M2Size.row, ItemKind.note => M2Layout.noteRow, _ => M2Layout.noteRow };
+    }
+    return y;
+  }
+
+  /// The landing row: an estimate until it is built, then its exact offset; the viewport lays out again after each answer, so a
+  /// pushed hall is at its dish in the frame it is first drawn.
+  double? _landing(double max, double pixels) {
     final here = _here;
     if (here == null) return null;
-    final dot = here.indexOf('.'), y = _offsetOf(_keys.row(int.parse(here.substring(0, dot)), here.substring(dot + 1)));
-    return y == null ? null : (y - _pin - M2Space.part).clamp(0, max);
+    final dot = here.indexOf('.'), si = int.parse(here.substring(0, dot)), key = here.substring(dot + 1);
+    final y = _topOf(_keys.row(si, key));
+    if (y != null) return y - _pin - M2Space.part;
+    final i = _items.indexWhere((x) => x.id == here);
+    final guess = _estimate(i < 0 ? 0 : i) - _pin - M2Space.part;
+    return guess > pixels + 1 ? guess : pixels + widget.height * 0.6; // not built where it should be: keep walking toward it
   }
 
-  /// M2 `curStation`: the last station whose head has reached the line under the pinned rows.
+  /// M2 `curStation`: the last station whose head has reached the line under the pinned rows. Heads that are not built are far
+  /// enough off that the first built row's station is the answer when no built head is above the line.
   void _updateStation() {
-    final stations = _keys.stations.keys.toList()..sort();
-    if (stations.isEmpty || !_sc.hasClients) {
-      if (_station.value != null && stations.isEmpty) _station.value = null;
+    if (_items.isEmpty || !_sc.hasClients) return;
+    final heads = _items.where((i) => i.kind == ItemKind.head).map((i) => i.si).toList();
+    if (heads.isEmpty) {
+      if (_station.value != null) _station.value = null;
       return;
     }
     final y = _sc.offset + _pin + 2;
     int? cur;
-    for (final si in stations) {
-      final top = _offsetOf(_keys.stations[si]!);
+    for (final si in heads) {
+      final top = _keys.stations[si] == null ? null : _topOf(_keys.stations[si]!);
       if (top != null && top <= y) cur = si;
     }
-    cur ??= stations.first;
+    if (cur == null) {
+      final ro = _listKey.currentContext?.findRenderObject();
+      var fi = 0;
+      if (ro is RenderSliverMultiBoxAdaptor && ro.firstChild != null) fi = ro.indexOf(ro.firstChild!);
+      var s = heads.first;
+      for (var i = 0; i <= fi && i < _items.length; i++) {
+        if (_items[i].kind == ItemKind.head) s = _items[i].si;
+      }
+      cur = _items.indexWhere((i) => i.kind == ItemKind.head && i.si == s) > fi ? heads.first : s;
+    }
     if (cur != _station.value) _station.value = cur;
+  }
+
+  /// A copy of the rows on screen, drawn where they are, for the meal change's outgoing list.
+  Widget? _captureGhost() {
+    final ro = _listKey.currentContext?.findRenderObject();
+    if (ro is! RenderSliverMultiBoxAdaptor || ro.firstChild == null || !_sc.hasClients) return null;
+    final first = ro.firstChild!, fi = ro.indexOf(first), lo = (first.parentData! as SliverMultiBoxAdaptorParentData).layoutOffset ?? 0;
+    final store = StoreScope.read(context), a = _actions;
+    return Stack(children: [
+      Positioned(
+        left: 0, right: 0, top: _hh + _th + _sw + lo - _sc.offset,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (var i = fi; i < _items.length && i < fi + M2Layout.ghostRows; i++)
+            buildItem(context, _items[i], fx: fx, store: store, place: place, day: _day, meal: _meal, reveal: _reveal, hereKey: null, keys: null, actions: a),
+        ]),
+      ),
+    ]);
   }
 
   /// M2 `syncFront`: the plate bar's front plate follows the meal and place the menu shows.
@@ -176,10 +221,9 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     if (to < 0 || to == from || (_pagerKey.currentState?.running ?? false)) return;
     if (_sc.hasClients && _sc.offset > _r) _sc.jumpTo(_r);
     Haptics.selection();
-    setState(() {
-      _dir = (to - from).sign;
-      _meal = meal;
-    });
+    final ghost = _captureGhost();
+    if (ghost != null) _pagerKey.currentState?.run((to - from).sign, ghost);
+    setState(() => _meal = meal);
     if (_day == 0) _syncFront();
     WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _updateStation() : null);
   }
@@ -192,7 +236,6 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     void swap() {
       final y = _sc.hasClients ? _sc.offset.clamp(0.0, _r) : 0.0;
       setState(() {
-        _daySwap = true;
         _day = i;
         _dayN.value = i;
         _meal = defaultMeal(fx, dayIsos(fx)[i], place, _meal);
@@ -201,7 +244,6 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _daySwap = false;
         if (_sc.hasClients) _sc.jumpTo(y.clamp(0.0, _sc.position.maxScrollExtent));
         _updateStation();
         if (i == 0) _syncFront();
@@ -253,16 +295,28 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
 
   void _jump(int si, SheetHandle h) {
     h.close();
-    final y = _offsetOf(_keys.station(si));
-    if (y == null || !_sc.hasClients) return;
+    if (!_sc.hasClients) return;
     Haptics.selection();
-    final to = (y - _pin).clamp(0.0, _sc.position.maxScrollExtent);
-    final a = resolveAnim(context, M2Motion.scroll);
+    final i = _items.indexWhere((x) => x.kind == ItemKind.head && x.si == si);
+    if (i < 0) return;
+    // the head's exact offset once it is built; until then the estimate, which the walk toward it corrects as rows are built
+    double target() => ((_topOf(_keys.station(si)) ?? _estimate(i)) - _pin).clamp(0.0, _sc.position.maxScrollExtent);
     if (reducedMotion(context)) {
-      _sc.jumpTo(to);
-    } else {
-      _sc.animateTo(to, duration: a.duration, curve: a.curve);
+      _sc.jumpTo(target());
+      WidgetsBinding.instance.addPostFrameCallback((_) => mounted && _sc.hasClients ? _sc.jumpTo(target()) : null);
+      return;
     }
+    final a = M2Motion.scroll, y0 = _sc.offset;
+    _jumpC
+      ..stop()
+      ..duration = a.duration
+      ..value = 0;
+    void tick() => _sc.jumpTo(y0 + (target() - y0) * a.curve.transform(_jumpC.value));
+    _jumpC.addListener(tick);
+    _jumpC.forward().whenComplete(() {
+      _jumpC.removeListener(tick);
+      if (mounted && _sc.hasClients) _sc.jumpTo(target());
+    });
   }
 
   // ---- hours and directions
@@ -320,14 +374,9 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final iso = _iso;
     final meals = menuOpen ? mealsOf(fx, iso, place) : const <String>[];
     final meal = meals.isNotEmpty && !meals.contains(_meal) ? defaultMeal(fx, iso, place, _meal) : _meal;
-    final list = menuOpen
-        ? MealList(fx: fx, place: place, day: _day, meal: meal, reveal: _reveal, hereKey: _here, actions: _actions, limit: _full ? null : M2Layout.firstScreen)
-        : const SizedBox.shrink();
-    final listArea = ConstrainedBox(
-      constraints: BoxConstraints(minHeight: h),
-      child: ColoredBox(color: M2Color.chalk, child: ListKeysScope(keys: _keys, child: SharedAxis(key: _pagerKey, id: meal, dir: _dir, still: _daySwap, copyOf: (c) => ListKeysScope(keys: null, child: c), child: list))),
-    );
-    final padB = SizedBox(height: M2Layout.listPadBottom2 + MediaQuery.paddingOf(context).bottom);
+    final store = StoreScope.of(context), spacer = hh + th + sw, tail = M2Layout.listFoot + safeBottom(context);
+    _items = menuOpen ? mealItems(fx, store.prefs, place, _day, meal, _reveal) : const [];
+    final wrap = widget.dragWrap ?? (Widget c) => c;
     final status = fx.hours[place]!;
     return ColoredBox(
       color: M2Color.chalk,
@@ -340,17 +389,25 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
               final o = incomingOpacity(p.value) * _dayFade.value;
               final scale = _dayIn && !reducedMotion(context) ? M2Motion.fadeThroughScale + (1 - M2Motion.fadeThroughScale) * _dayFade.value : 1.0;
               return Opacity(
+                key: const ValueKey('fade-list'),
                 opacity: o.clamp(0.0, 1.0),
                 child: Transform.scale(scale: scale, alignment: Alignment(0, (_pin + (h - _pin) / 2) / h * 2 - 1), child: c),
               );
             },
-            child: SingleChildScrollView(
-              controller: _sc, physics: const ClampingScrollPhysics(),
-              child: (widget.dragWrap ?? (c) => c)(Column(key: _contentKey, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                SizedBox(height: hh + th + sw),
-                listArea,
-                padB,
-              ])),
+            child: SharedAxisLayer(
+              key: _pagerKey,
+              child: CustomScrollView(
+                controller: _sc, physics: const ClampingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(child: wrap(SizedBox(height: spacer))),
+                  if (menuOpen)
+                    MealSliver(
+                      sliverKey: _listKey, fx: fx, items: _items, place: place, day: _day, meal: meal, reveal: _reveal, hereKey: _here, keys: _keys, actions: _actions, dragWrap: widget.dragWrap,
+                    ),
+                  // the list is at least a screen (`#mlist{min-height:100%}`) and then the room that clears the plate bar
+                  SliverLayoutBuilder(builder: (_, c) => SliverToBoxAdapter(child: wrap(SizedBox(height: tail + math.max(0.0, h + spacer - c.precedingScrollExtent))))),
+                ],
+              ),
             ),
           ),
         ),

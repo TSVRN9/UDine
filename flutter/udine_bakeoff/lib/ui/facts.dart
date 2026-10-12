@@ -12,8 +12,8 @@ class Facts extends StatelessWidget {
         padding: const EdgeInsets.only(top: M2Layout.factRowTop, bottom: M2Layout.factRowBottom),
         decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: M2Color.dm))),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-          Text(name, style: M2Text.factRow.normal().style(M2Color.dm)),
-          Text('${f1(v)}g', style: M2Text.factNum.normal().style(M2Color.dm)),
+          Text(name, style: M2Text.factRow.style(M2Color.dm)),
+          Text('${f1(v)}g', style: M2Text.factNum.style(M2Color.dm)),
         ]),
       );
 
@@ -27,7 +27,7 @@ class Facts extends StatelessWidget {
             padding: const EdgeInsets.only(top: M2Layout.calPadTop, bottom: M2Layout.calPadBottom),
             decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: M2Color.dm, width: M2Layout.factCalBottom))),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(big, style: M2Text.lblLg.normal().style(M2Color.dm).copyWith(fontWeight: bold700)),
+              Text(big, style: M2Text.lblLg.style(M2Color.dm).copyWith(fontWeight: bold700)),
               Text(fc(cal), style: M2Text.calNum.style(M2Color.dm)),
             ]),
           ),

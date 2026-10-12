@@ -109,6 +109,18 @@ String generate(Map<String, dynamic> j, {String source = 'design-tokens/m2.json'
   }
   out.writeln('}\n');
 
+  out.writeln('/// The felt patches: corner radius, stitch inset, stitch radius, stitch width.');
+  out.writeln('abstract final class M2Felt {');
+  for (final e in (j['felt'] as Map).entries) {
+    final v = e.value as Map;
+    for (final f in ['radius', 'inset', 'stitchRadius', 'stitchWidth']) {
+      out.writeln('  static const ${e.key}${_cap(f)} = ${_num(v[f])};');
+    }
+  }
+  out.writeln('}\n');
+  out.writeln('/// The chenille letter\'s text x in its 200 dp box, per hall.');
+  out.writeln('const letterX = {${[for (final e in (j['letterX'] as Map).entries) "'${e.key}': ${_num(e.value)}"].join(', ')}};\n');
+
   final seg = (j['curves']['emphasized'] as List).map((s) => '[${(s as List).map((n) => _num(n)).join(', ')}]').join(', ');
   out.write(doc('curves.emphasized'));
   out.writeln('const emphasized = Emphasized([$seg]);\n');

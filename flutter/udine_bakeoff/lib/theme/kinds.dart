@@ -28,7 +28,7 @@ class M2Type {
       );
   /// The same row in Libre Franklin 700 (`.btn`, `.gbtn`).
   M2Type bold() => M2Type(size, line, family, bold700, tabular: tabular);
-  /// The same row at the font's own line height: where M2's CSS sets no `line-height` and the token file carries one anyway.
+  /// The same row at the font's own line height, for a rule where M2's CSS sets none and m2.json carries a fixed one (`brand`).
   M2Type normal() => M2Type(size, null, family, weight, tabular: tabular);
   M2Type withSize(double s) => M2Type(s, line == null ? null : line! * s / size, family, weight, tabular: tabular);
 }

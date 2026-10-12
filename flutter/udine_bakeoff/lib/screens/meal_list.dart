@@ -10,23 +10,13 @@ import '../theme/tokens.dart';
 import '../ui/ui.dart';
 import 'dish_row.dart';
 
-/// The keys a hall screen needs to find rows in its own list (station heads and dishes), so a jump or a landing reads exact
-/// offsets. A copy of a list (a meal change's outgoing one) is built without them.
+/// The keys a hall screen needs to find rows in its own list: station heads (a handful) and the one dish a where-served tap landed
+/// on. A copy of a list (a meal change's outgoing one) is built without them.
 class ListKeys {
   final stations = <int, GlobalKey>{};
   final rows = <String, GlobalKey>{};
   GlobalKey station(int si) => stations.putIfAbsent(si, GlobalKey.new);
   GlobalKey row(int si, String key) => rows.putIfAbsent('$si.$key', GlobalKey.new);
-}
-
-/// The keys a list draws its rows with; a copy of it (the meal change's outgoing list) overrides them with none, so a key is never
-/// on two widgets.
-class ListKeysScope extends InheritedWidget {
-  final ListKeys? keys;
-  const ListKeysScope({super.key, required this.keys, required super.child});
-  static ListKeys? of(BuildContext c) => c.dependOnInheritedWidgetOfExactType<ListKeysScope>()?.keys;
-  @override
-  bool updateShouldNotify(ListKeysScope old) => old.keys != keys;
 }
 
 class MealActions {
@@ -35,60 +25,102 @@ class MealActions {
   const MealActions({required this.onOpen, required this.onAdd, required this.onInc, required this.onDec, required this.onReveal});
 }
 
-/// One day's meal at a place as M2 draws it (`renderMenuList`): the Grab 'N Go note, the line over a filtered list, station
-/// heads and dish rows, or what an empty list says. Its keys come from the ListKeysScope above it.
-class MealList extends StatelessWidget {
-  final Fixture fx;
-  final String place, meal;
-  final int day;
-  final bool reveal;
-  final String? hereKey; // 'station.dishKey' of the serving a where-served tap landed on
-  final MealActions actions;
-  /// Draw only this many list items (stations and dishes): the first screenful while the container opens; null draws all.
-  final int? limit;
-  const MealList({super.key, this.limit, required this.fx, required this.place, required this.day, required this.meal, required this.reveal, this.hereKey, required this.actions});
+enum ItemKind { grab, note, head, dish, state }
 
-  @override
-  Widget build(BuildContext context) {
-    final store = StoreScope.of(context), keys = ListKeysScope.of(context);
-    final iso = dayIsos(fx)[day], menu = fx.days[iso]?[place]?[meal];
-    if (menu == null) {
-      return _State(text: 'No menu posted for ${dayFull(fx, day)}.');
+/// One thing in the list, before it is a widget: cheap to make for the whole menu, built into a widget only when it scrolls near.
+class ListItem {
+  final ItemKind kind;
+  final int si;
+  final Dish? dish;
+  final List<String> contains;
+  final String? text;
+  final TimeWindow? grab;
+  const ListItem(this.kind, {this.si = -1, this.dish, this.contains = const [], this.text, this.grab});
+  String get id => switch (kind) { ItemKind.head => 'h$si', ItemKind.dish => '$si.${dish!.key}', _ => kind.name };
+}
+
+/// What the list says for a place's meal on a day (M2 `renderMenuList`): the Grab 'N Go note, the line over a filtered list, station
+/// heads and dish rows, or what an empty list says.
+List<ListItem> mealItems(Fixture fx, Prefs prefs, String place, int day, String meal, bool reveal) {
+  final iso = dayIsos(fx)[day], menu = fx.days[iso]?[place]?[meal];
+  if (menu == null) return [ListItem(ItemKind.state, text: 'No menu posted for ${dayFull(fx, day)}.')];
+  final view = menuView(fx, iso, place, meal, prefs, reveal), out = <ListItem>[];
+  if (meal == 'grab' && day == 0 && !isCafe(place)) out.add(ListItem(ItemKind.grab, grab: fx.grab[place]));
+  var si = -1;
+  for (final it in menuItems(view, prefs, reveal, '')) {
+    switch (it.t) {
+      case 'note':
+        out.add(ListItem(ItemKind.note, text: it.line));
+      case 'head':
+        si = it.si;
+        out.add(ListItem(ItemKind.head, si: si, text: it.name));
+      case 'dish':
+        out.add(ListItem(ItemKind.dish, si: si, dish: it.dish, contains: it.contains));
     }
-    final prefs = store.prefs, view = menuView(fx, iso, place, meal, prefs, reveal);
-    final now = DateTime.parse(fx.clock), pm = plateMeal(fx, place, meal, now);
-    final scores = (health: store.show.health, carbon: store.show.carbon);
-    final kids = <Widget>[];
-    if (meal == 'grab' && day == 0 && !isCafe(place)) {
-      final g = fx.grab[place]!, st = statusText(DiningHallHours.fromJson({'general': {'openTime': g.openTime, 'closeTime': g.closeTime}}), toEastern(now));
-      kids.add(Padding(
+  }
+  return out;
+}
+
+/// An item as a widget. `keys` is null for a copy.
+Widget buildItem(BuildContext context, ListItem it, {required Fixture fx, required Store store, required String place, required int day, required String meal, required bool reveal, String? hereKey, ListKeys? keys, required MealActions actions}) {
+  switch (it.kind) {
+    case ItemKind.state:
+      return _State(text: it.text!);
+    case ItemKind.grab:
+      final g = it.grab!, now = DateTime.parse(fx.clock), st = statusText(DiningHallHours.fromJson({'general': {'openTime': g.openTime, 'closeTime': g.closeTime}}), toEastern(now));
+      return Padding(
         padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.gnotePadTop, M2Space.gutter, M2Layout.gnotePadBottom),
         child: Text.rich(TextSpan(style: M2Text.date.style(M2Color.slate), children: [
           TextSpan(text: st, style: const TextStyle(color: M2Color.vm, fontWeight: FontWeight.w600)),
           TextSpan(text: ', ${fmtT(g.openTime)} to ${fmtT(g.closeTime)}'),
         ])),
-      ));
-    }
-    var si = -1;
-    var n = 0;
-    for (final it in menuItems(view, prefs, reveal, '')) {
-      if (limit != null && n++ >= limit!) break;
-      switch (it.t) {
-        case 'note':
-          kids.add(_DietNote(line: it.line!, revealed: reveal, onTap: () => actions.onReveal(!reveal)));
-        case 'head':
-          si = it.si;
-          kids.add(_StationHead(key: keys?.station(si), name: it.name!));
-        case 'dish':
-          final d = it.dish!;
-          kids.add(DishRow(
-            key: keys?.row(si, d.key), dish: d, scores: scores, contains: it.contains, here: hereKey == '$si.${d.key}',
-            code: day == 0 ? rowCode(store.plates, pm, d.key, place) : null,
-            onOpen: () => actions.onOpen(d), onAdd: () => actions.onAdd(d), onInc: () => actions.onInc(d), onDec: () => actions.onDec(d),
-          ));
-      }
-    }
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: kids);
+      );
+    case ItemKind.note:
+      return _DietNote(line: it.text!, revealed: reveal, onTap: () => actions.onReveal(!reveal));
+    case ItemKind.head:
+      return _StationHead(key: keys?.station(it.si) ?? ValueKey(it.id), name: it.text!);
+    case ItemKind.dish:
+      final d = it.dish!, pm = plateMeal(fx, place, meal, DateTime.parse(fx.clock)), here = hereKey == it.id;
+      return DishRow(
+        key: keys != null && here ? keys.row(it.si, d.key) : ValueKey(it.id), dish: d, scores: (health: store.show.health, carbon: store.show.carbon), contains: it.contains, here: here,
+        code: day == 0 ? rowCode(store.plates, pm, d.key, place) : null,
+        onOpen: () => actions.onOpen(d), onAdd: () => actions.onAdd(d), onInc: () => actions.onInc(d), onDec: () => actions.onDec(d),
+      );
+  }
+}
+
+/// The list as a lazy sliver with stable keys: a day or meal change, an add, or the container finishing its open builds only the rows
+/// that are near the screen. The rows a copy or a jump needs are built when the scroll gets there.
+class MealSliver extends StatelessWidget {
+  final Fixture fx;
+  final List<ListItem> items;
+  final String place, meal;
+  final int day;
+  final bool reveal;
+  final String? hereKey;
+  final ListKeys keys;
+  final MealActions actions;
+  final Key? sliverKey;
+  /// wraps every row in the container's back-drag recogniser (see HallMenu.dragWrap)
+  final Widget Function(Widget child)? dragWrap;
+  const MealSliver({super.key, this.sliverKey, this.dragWrap, required this.fx, required this.items, required this.place, required this.day, required this.meal, required this.reveal, this.hereKey, required this.keys, required this.actions});
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final index = {for (var i = 0; i < items.length; i++) ValueKey(items[i].id): i};
+    return SliverList(
+      key: sliverKey,
+      delegate: SliverChildBuilderDelegate(
+        (context, i) {
+          final child = buildItem(context, items[i], fx: fx, store: store, place: place, day: day, meal: meal, reveal: reveal, hereKey: hereKey, keys: keys, actions: actions);
+          return KeyedSubtree(key: ValueKey(items[i].id), child: dragWrap == null ? child : dragWrap!(child));
+        },
+        childCount: items.length,
+        findChildIndexCallback: (k) => index[k],
+        addAutomaticKeepAlives: false,
+      ),
+    );
   }
 }
 

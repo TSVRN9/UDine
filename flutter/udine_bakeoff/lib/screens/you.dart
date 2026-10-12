@@ -65,7 +65,7 @@ class YouScreen extends StatelessWidget {
             CheckRow(label: 'Healthfulness', lead: const ScoreBadge(kind: ScoreKind.health, value: 5, size: ScoreSize.sheet), on: show.health, onChanged: (v) { Haptics.selection(); store.setShow(health: v); }),
             CheckRow(label: 'Carbon rating', lead: const ScoreBadge(kind: ScoreKind.carbon, value: 'B', size: ScoreSize.sheet), on: show.carbon, last: true, onChanged: (v) { Haptics.selection(); store.setShow(carbon: v); }),
           ]),
-          SizedBox(height: M2Layout.listFoot + MediaQuery.paddingOf(context).bottom),
+          SizedBox(height: M2Layout.listFoot + safeBottom(context)),
         ]),
       ),
     );
@@ -89,7 +89,7 @@ class DietPage extends StatelessWidget {
         Expanded(
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.pbodyTop, M2Space.gutter, M2Layout.pbodyBottom + M2Layout.listFoot),
+            padding: EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.pbodyTop, M2Space.gutter, M2Layout.pbodyBottom + M2Layout.listFoot + safeBottom(context)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               head('Only show', M2Layout.dietTop),
               CheckRow(label: 'Vegetarian', on: prefs.veg, onChanged: (v) { Haptics.selection(); store.setPrefs(veg: v); }),

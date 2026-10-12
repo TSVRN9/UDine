@@ -49,7 +49,7 @@ class MarkPatch extends StatelessWidget {
         label: label,
         child: ExcludeSemantics(
           child: Felt(
-            height: M2Layout.markH, radius: M2Radius.thumb, inset: M2Layout.markStitchInset, innerRadius: M2Layout.markStitchRadius,
+            height: M2Layout.markH, radius: M2Felt.markRadius, inset: M2Felt.markInset, innerRadius: M2Felt.markStitchRadius,
             padding: const EdgeInsets.only(left: M2Layout.markPadL, right: M2Layout.markPadR),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               MarkGlyph(glyph, color: M2Color.dm, size: M2Layout.markGlyph),

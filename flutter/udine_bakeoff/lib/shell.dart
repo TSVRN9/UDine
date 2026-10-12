@@ -84,8 +84,7 @@ class ShellState extends State<Shell> with TickerProviderStateMixin implements S
 
   @override
   Widget build(BuildContext context) {
-    final pad = MediaQuery.paddingOf(context);
-    _top = pad.top < M2Layout.safeTopMin ? M2Layout.safeTopMin : pad.top; // --st: max(24px, env(safe-area-inset-top))
+    _top = safeTop(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) => didPop ? null : _back(),
@@ -106,7 +105,7 @@ class ShellState extends State<Shell> with TickerProviderStateMixin implements S
                   Positioned.fill(child: PlateLayer(key: _plate, top: _top + M2Layout.sheetTop)),
                 ]),
               ),
-              M2TabBar(selected: _tab, onSelect: (i) { Haptics.selection(); setState(() => _tab = i); _push.pop(); }, bottomInset: pad.bottom),
+              M2TabBar(selected: _tab, onSelect: (i) { Haptics.selection(); setState(() => _tab = i); _push.pop(); }, bottomInset: safeBottom(context)),
             ]),
             for (final s in _sheets) Positioned.fill(key: ObjectKey(s), child: s.build(s.handle, () => _remove(s))),
           ]),

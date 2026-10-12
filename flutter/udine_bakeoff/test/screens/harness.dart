@@ -74,3 +74,28 @@ Future<void> savePng(WidgetTester t, GlobalKey key, String path) => t.runAsync((
       Directory(File(path).parent.path).createSync(recursive: true);
       File(path).writeAsBytesSync(png!.buffer.asUint8List());
     });
+
+/// Scrolls a lazy list until `f` is built and sits in the clear part of the screen (under the pinned rows, above the plate bar).
+Future<void> bringIn(WidgetTester t, Finder f, {double from = 402 + 28, double to = 640}) async {
+  for (var i = 0; i < 80; i++) {
+    if (f.evaluate().isNotEmpty) {
+      final y = t.getTopLeft(f.first).dy;
+      if (y > from && y < to) {
+        await t.pumpAndSettle();
+        return;
+      }
+      await _scrollBy(t, y <= from ? 150 : -150);
+    } else {
+      await _scrollBy(t, -150);
+    }
+  }
+  throw StateError('never got $f into view');
+}
+
+Future<void> _scrollBy(WidgetTester t, double dy) async {
+  final g = await t.startGesture(const Offset(195, 700));
+  await g.moveBy(Offset(0, dy.sign * 20));
+  await g.moveBy(Offset(0, dy - dy.sign * 20));
+  await g.up();
+  await t.pump();
+}

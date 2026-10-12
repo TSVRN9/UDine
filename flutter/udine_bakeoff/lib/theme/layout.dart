@@ -10,7 +10,6 @@ abstract final class M2Layout {
   static const titleGap = 2.0; // `.hhead h1` margin-top
   static const secTitleGap = 4.0; // `.sec h2` margin-bottom
   static const secTop = 22.0; // `.sec` padding-top (m2.json's sectionTop says 26, drawn by RN; M2's DOM measures 22 from the last band)
-  static const listPadBottom = 120.0; // clears the plate bar
   static const areaRowMin = 56.0; // `.lrow` min-height
   static const areaMetaGap = 2.0; // `.lrow .b` margin-top
   static const areaCount = 4; // Newton is off in this build
@@ -23,12 +22,10 @@ abstract final class M2Layout {
   static const topGradH = 80.0; // `.tgrad` height: var(--st) + 80
   static const bottomGradH = 240.0; // `.bgrad`
   static const titleBottom = 50.0; // `.mt` bottom
-  static const statusGap = 7.0; // `.mt .st` margin-top
   static const statusMin = 20.0;
   static const letterTop = 26.0; // `#mhead .let` top: var(--st) + 26
   static const backBtn = 48.0; // `.icon`
   static const backLeft = 4.0; // `#mctl` padding-left
-  static const backStroke = 2.2;
   // the band (M2 `.band`, `.pin`, `.bt`)
   static const bandCompact = 84.0; // `.band.pin`
   static const seam = 1.0; // `.band` margin-top
@@ -51,10 +48,8 @@ abstract final class M2Layout {
   static const patch = 20.0, patchGlyph = 12.0; // `.tg` size, `.tg .gl`
   static const patchLeft = 6.0; // `.tg` margin-left
   static const patchDrop = 3.0; // `.tg` vertical-align: -3px
-  static const stitchInset = 2.0, stitchInnerRadius = 2.0; // `.tg::after`
-  static const stitchW = 1.0, dashOn = 3.0, dashOff = 3.0; // a 1px dashed border
+  static const dashOn = 3.0, dashOff = 3.0; // a 1px dashed border: 3 on, 3 off
   static const markH = 30.0, markPadL = 10.0, markPadR = 12.0, markGap = 6.0, markGlyph = 16.0; // `.mk`, `.gl`
-  static const markStitchInset = 3.0, markStitchRadius = 3.0; // `.mk::after`
   static const marksTop = 8.0, marksGap = 8.0; // `.dish .mks`, `.mks`
   static const hl = 28.0, hchipGap = 10.0, hchipPadL = 8.0, hchipPadR = 16.0; // `.hchip .hl`, `.hchip`
   static const hchipH = 44.0; // `.hchip`
@@ -68,7 +63,6 @@ abstract final class M2Layout {
   static const rowMetaTop = 3.0, metaGapX = 10.0, metaGapY = 4.0, numGap = 8.0, numSpace = 4.0; // `.row .m`, `.mg`, `.gap`
   static const scoreGap = 6.0, scoreRise = 1.0; // `.sc`, `.row .m .sc{margin-block:-1px}`
   static const addSize = 48.0, ghostSize = 44.0, ghostMargin = 2.0, glyph = 20.0, glyphStroke = 2.4; // `.add`, `.add.ghost`, `.add svg`
-  static const stepQ = 26.0; // `.step .q` min-width
   static const lane = 114.0; // the control lane: `.add` 48 + margin-left 66 = `.step` 44 + 26 + 44
   static const hairline = 1.0;
   // headings in the list (`.sth`, `.dietnote`)
@@ -81,15 +75,12 @@ abstract final class M2Layout {
   static const underH = 3.0, underInset = 8.0; // `.mts .ul`, placeUL: translateX(left + 8) scaleX(width - 16)
   static const dayGap = 6.0, dayPadL = 16.0, dayPadR = 20.0; // `.dayc`
   static const swGap = 8.0; // `.swbtn` gap
-  static const switchRule = 1.0; // `#mswitch` border-top
   static const chev18 = 18.0, chevThick = 2.4; // `.swbtn svg`, `.dayc svg`
   static const statusChevron = 14.0, statusPadV = 13.0, statusPadR = 16.0, statusGapH = 5.0, statusMarginTop = -6.0, statusMarginBottom = -13.0; // `#mts` (padding 12 / margin -5 -12 in M2: a 42 dp target; one more each way makes it 44, the line and the layout where they were)
   static const histBottom = 10.0, histH = 30.0; // `.hist`
-  static const bzTop = 8.0; // `.mt .bz`
   // sheets (`.sheet`, `.grab`, `.sbody`)
   static const grabH = 22.0, grabW = 40.0, grabBar = 5.0; // `.grab`
   static const sheetTop = 8.0; // top detent: --st + 8
-  static const sbodyPad = 20.0; // `.sbody` padding
   static const sheetBottom = 24.0; // `.sbody` padding-bottom (plus --sb)
   static const sheetMaxFrac = 0.86; // contentH is capped at 86% of the frame
   static const chevronShadow = Color.fromRGBO(36, 10, 14, 0.65); // not in tool/m2.json
@@ -111,7 +102,6 @@ abstract final class M2Layout {
   // the list's other rows (`.gnote`, `.mst`)
   static const gnotePadTop = 12.0, gnotePadBottom = 4.0; // `.gnote` padding 12 20 4
   static const stateBottom = 8.0; // `.mst` padding-bottom
-  static const listPadBottom2 = 150.0; // `.pad-b`: 150 + --sb, clears the plate bar
   static const sheetTitleTop = 2.0, sheetTitleBottom = 6.0; // `.sh1` margin 2 0 6
   static const optionH = 48.0, optionEdge = 4.0, optionCount = 16.0; // `#stidx button`, `#days .day`, `.c`
   static const schedNameTop = 2.0, schedRowTop = 6.0, schedPayTop = 10.0, schedDescTop = 20.0, schedDaysTop = 16.0; // `.schn`, `.schw`, `.schp`, `.schd`, `#days`
@@ -136,15 +126,16 @@ abstract final class M2Layout {
   static const plateBodyTop = 4.0, factsMargin = 16.0; // `#psheet .sbody` padding-top, `.sheet .facts` margin
   static const midFrac = 0.36; // the plate sheet's resting line: 36% of the frame down
   static const factCalBottom = 7.0, factRowTop = 7.0, factRowBottom = 5.0; // `.facts .cal`, `.nr`
-  static const treatTop = 16.0; // spare
   static const peekRadius = 3.0; // `.peek` border-radius 3 3 0 0
   // You and its pages (`.yhead`, `.pbody`, `.dh`)
   static const youHeadBottom = 18.0; // `.yhead` padding-bottom
-  static const pbodyTop = 8.0, pbodyBottom = 20.0, dietTop = 12.0, dietGroupTop = 28.0; // `.pbody` padding 8 20 20, `.dh`, `.dh~.dh` (m2.json said 32: drawn by RN)
+  static const pbodyTop = 8.0, pbodyBottom = 20.0, dietTop = 22.0, dietGroupTop = 28.0; // `.pbody` padding 8 20 20, `.h3{margin:22px 0 4px}` wins over `.dh{margin-top:12px}` at equal specificity; `.dh~.dh` 28
   static const mealCalGap = 6.0; // `.lrow .mc` gap
-  static const listFoot = 150.0; // `.pad-b`
+  static const listFoot = 150.0; // `.pad-b`: 150 + --sb, under every list, clearing the plate bar
+  static const plateMidPad = 16.0; // the plate sheet's resting height fits its content, the bar and 16 (`psheet` mid in src.html)
   static const safeTopMin = 24.0; // `--st: max(24px, env(safe-area-inset-top))`
   static const plateFoot = 84.0; // `#psheet .sbody` padding-bottom: 84 + --sb, the room that clears the bar
   static const todayTop = 20.0; // You's Today section: `style="padding-top:20px"` on its `.sec`
   static const firstScreen = 14; // list items drawn while the container opens (a screenful and a half)
+  static const rowTall = 79.0, noteRow = 53.0, ghostRows = 14; // typical heights for a guess at an unbuilt row; the rows a meal change copies
 }

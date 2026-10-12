@@ -11,6 +11,8 @@ typedef RowCode = double;
 /// A dish row on a hall menu: name with its diet patch, calories and protein, the scores You turned on, and the control lane. A
 /// dish that is unscored draws no tile and no slot, so a row is the same size with every score toggle on or off (Review Focus 5).
 class DishRow extends StatelessWidget {
+  /// How many times a row's build has run (tests count what a flip or a day change builds).
+  static int builds = 0;
   final Dish dish;
   final ({bool health, bool carbon}) scores;
   /// the avoided allergens a revealed row lists, said first
@@ -23,6 +25,7 @@ class DishRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    builds++;
     final d = dish, sc = rowScores(d.health, d.carbon, scores);
     final num = M2Text.metaNum.style(M2Color.ink), unit = M2Text.meta.style(M2Color.slate);
     Widget group(List<Widget> kids) => Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: kids);
