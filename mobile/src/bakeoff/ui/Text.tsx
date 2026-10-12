@@ -1,4 +1,4 @@
-import { Text as RNText, type TextProps, type TextStyle } from "react-native";
+import { StyleSheet, Text as RNText, type TextProps, type TextStyle } from "react-native";
 import { m2 } from "../../lib/theme";
 
 type Variant = keyof typeof m2.type;
@@ -18,9 +18,14 @@ export function Text({ v = "date", color = m2.color.ink, style, ...p }: TextProp
     lineHeight: t.line,
     color,
     ...(NUM.includes(v) ? { fontVariant: ["tabular-nums"] } : null),
-    // Oswald's descenders reach below a line box of 1 x its size (M2's `line-height: 1`), and Android clips text to its view: the view
-    // gets room below the text, and the same amount comes off its margin, so the glyphs and the layout stay where M2 has them
-    ...(t.line < t.size * 1.2 ? { paddingBottom: Math.ceil(t.size * 0.3), marginBottom: -Math.ceil(t.size * 0.3) } : null),
   };
+  // Oswald's descenders reach below a line box of 1 x its size (M2's `line-height: 1`), and Android clips text to its view: the view
+  // gets room below the text, and the same amount comes off its bottom margin, so the glyphs and the layout stay where M2 has them.
+  // The caller's own bottom margin is what the layout should be, so the room comes off that, not off a margin it replaced.
+  if (t.line < t.size * 1.2) {
+    const room = Math.ceil(t.size * 0.3), own = StyleSheet.flatten(style) as TextStyle | undefined;
+    const base = (typeof own?.marginBottom === "number" ? own.marginBottom : typeof own?.marginVertical === "number" ? own.marginVertical : typeof own?.margin === "number" ? own.margin : 0);
+    return <RNText {...p} style={[s, style, { paddingBottom: (typeof own?.paddingBottom === "number" ? own.paddingBottom : 0) + room, marginBottom: base - room }]} />;
+  }
   return <RNText {...p} style={[s, style]} />;
 }
