@@ -1,30 +1,20 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:udine_bakeoff/logic/fixture.dart';
 import 'package:udine_bakeoff/main.dart';
+import 'package:udine_bakeoff/ui/ui.dart';
+import 'fonts.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  setUpAll(loadFonts);
+  testWidgets('the app boots from the bundled fixture to the Halls tab', (tester) async {
+    Photos.enabled = false;
+    final raw = (await tester.runAsync(() => rootBundle.loadString('assets/fixture.json')))!;
+    final fx = Fixture.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    await tester.pumpWidget(BakeoffApp(fx: fx));
+    expect(find.text('Lunch'), findsOneWidget);
+    expect(find.text('Worcester'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
