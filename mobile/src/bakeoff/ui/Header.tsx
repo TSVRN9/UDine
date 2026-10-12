@@ -30,8 +30,8 @@ export interface Labels {
   meals?: { items: { key: string; label: string }[]; selected: string; onSelect: (key: string) => void };
   station?: { label: string; onPress: () => void; open?: boolean };
   day?: { label: string; accessibilityLabel: string; onPress: () => void };
-  /** The status line, or the tab and station labels, arrived from the network just now: they fade in where they end up. */
-  arrive?: { status?: boolean; menu?: boolean };
+  /** The tab and station labels arrived from the network just now: they fade in where they end up (the status and busy lines come in at once, as in M2). */
+  arrive?: { menu?: boolean };
 }
 
 const abs = { position: "absolute", top: 0, left: 0, right: 0 } as const;
@@ -141,13 +141,11 @@ function TitleParts({ l }: { l: Labels }) {
     <>
       <View style={{ minHeight: 20, marginTop: 7 }}>
         {l.status ? (
-          <Animated.View entering={l.arrive?.status ? arriveIn : undefined}>
-            <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
-              hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-              <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
-              {l.onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
-            </Press>
-          </Animated.View>
+          <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
+            hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Text v="status" color={m2.color.onDmSoft}>{l.status}</Text>
+            {l.onStatus ? <Chevron size={14} stroke="rgba(255,255,255,0.6)" width={2} /> : null}
+          </Press>
         ) : null}
       </View>
       {l.busy}

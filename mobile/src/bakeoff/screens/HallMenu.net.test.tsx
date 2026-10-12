@@ -99,6 +99,33 @@ describe("a hall in each network state", () => {
   });
 });
 
+describe("a menu arriving from the network (M2 arrive())", () => {
+  const entering = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.type === "string" && n.props.entering != null);
+  const settle = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
+  it("Try again: the failure text and the button are gone in the commit that brings the rows, and the rows fade in over chalk", async () => {
+    const r = await mount("fail");
+    expect(entering(r)).toHaveLength(0);
+    press(r, "Try again");
+    await settle();   // no timer has run: this is the arrival's own commit
+    const t = texts(r);
+    expect(t).toContain("Lunch");
+    expect(t).not.toContain("Worcester's menu didn't load.");
+    expect(t).not.toContain("Try again");
+    expect(entering(r).length).toBeGreaterThan(0);
+    await flush(400);
+    expect(entering(r)).toHaveLength(0);   // and the fade is not left on for later
+  });
+  it("slow: the spinner is gone in the commit that brings the rows, and the status line comes in with no fade of its own", async () => {
+    const r = await mount("slow");
+    await act(async () => { jest.advanceTimersByTime(1500); });
+    const t = texts(r);
+    expect(t).toContain("Lunch");
+    expect(r.root.findAll((n) => n.props.accessibilityRole === "progressbar")).toHaveLength(0);
+    const status = r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.children === "Open until midnight")[0];
+    for (let n: renderer.ReactTestInstance | null = status; n; n = n.parent) expect(n.props.entering).toBeUndefined();
+  });
+});
+
 describe("the holiday note", () => {
   it("leads its own day's list, with no date tag, and opens its event", async () => {
     const open = jest.fn();

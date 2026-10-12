@@ -33,7 +33,7 @@ function Spinner() {
  */
 export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuState, "ok">; top: number; text: string; copy?: boolean }) {
   return (
-    <Animated.View exiting={copy ? undefined : arriveOut} pointerEvents={copy ? "none" : "auto"}
+    <Animated.View pointerEvents={copy ? "none" : "auto"}
       style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.chalk }}>
       <View style={{ marginTop: top }}>
         {state === "loading" ? (
@@ -52,4 +52,12 @@ export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuSt
       </View>
     </Animated.View>
   );
+}
+
+/**
+ * M2 `arrive()` fades the list in from 0 over the chalk. The new rows are drawn at once (the state is gone in the same commit), and
+ * this chalk, mounted with them, fades out over them: a layout animation, so it starts on the UI thread with the commit.
+ */
+export function ArrivalVeil() {
+  return <Animated.View entering={arriveOut} pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.chalk }} />;
 }

@@ -6,6 +6,6 @@ SRC="${BAKEOFF_PHOTOS:-/home/tavern/Projects/js/UDine/docs/design/explorations/2
 DST="$(cd "$(dirname "$0")/.." && pwd)/assets/bakeoff"
 mkdir -p "$DST/retail" "$DST/ev"
 for h in worcester franklin hampshire berkshire; do cp "$SRC/$h.jpg" "$DST/$h.jpg"; done
-cp "$SRC"/retail/*.jpg "$DST/retail/"
+cp "$SRC"/retail/*.jpg "$SRC"/retail/*.png "$DST/retail/"
 cp "$SRC/ev/ipd.jpg" "$DST/ev/ipd.jpg"
 echo "copied to $DST"
