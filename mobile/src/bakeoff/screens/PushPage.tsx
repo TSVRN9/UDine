@@ -65,15 +65,15 @@ export function PushPage({ title, onPop, children, progress, ground, poster }: {
   return (
     <GestureDetector gesture={swipe as ReturnType<typeof Gesture.Pan>}>
       <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: ground ?? m2.color.chalk }, slide]}>
-        <View style={{ height: top + 52, paddingTop: top, paddingHorizontal: m2.space[0], flexDirection: "row", alignItems: "center", backgroundColor: ground ?? m2.color.vm }}>
+        <View style={{ height: top + 52, paddingTop: top, paddingHorizontal: m2.space.line, flexDirection: "row", alignItems: "center", backgroundColor: ground ?? m2.color.vm }}>
           <Press accessibilityRole="button" accessibilityLabel="Back" onPress={() => leave(p.get())} style={{ width: m2.size.tap + 4, height: m2.size.tap + 4, alignItems: "center", justifyContent: "center" }}>
             <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={m2.color.white} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><Path d="M15 5l-7 7 7 7" /></Svg>
           </Press>
-          {title ? <Text v="section" color={m2.color.white} numberOfLines={1} accessibilityRole="header" style={{ flex: 1, paddingRight: m2.space[3] }}>{title}</Text> : null}
+          {title ? <Text v="section" color={m2.color.white} numberOfLines={1} accessibilityRole="header" style={{ flex: 1, paddingRight: m2.space.action }}>{title}</Text> : null}
         </View>
         <ScrollView contentContainerStyle={poster
-          ? { flexGrow: 1, justifyContent: "center", paddingHorizontal: m2.space[4], paddingBottom: 56 }
-          : { paddingHorizontal: m2.space[4], paddingTop: m2.space[1], paddingBottom: 120 }}>{children}</ScrollView>
+          ? { flexGrow: 1, justifyContent: "center", paddingHorizontal: m2.space.gutter, paddingBottom: 56 }
+          : { paddingHorizontal: m2.space.gutter, paddingTop: m2.space.part, paddingBottom: 120 }}>{children}</ScrollView>
       </Animated.View>
     </GestureDetector>
   );

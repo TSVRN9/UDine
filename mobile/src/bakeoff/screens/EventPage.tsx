@@ -19,7 +19,7 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
   const photo = EVENT_PHOTO[e.title];
   return (
     <PushPage onPop={onPop} progress={progress} ground={m2.color.dm} poster>
-      <View style={{ paddingTop: m2.space[3] + 4, paddingBottom: m2.space[4] + 4 }}>
+      <View style={{ paddingTop: m2.space.eventTop, paddingBottom: m2.space.cafeBodyTop }}>
         {photo ? (
           // the white ring is outside the patch (M2 `box-shadow: 0 0 0 3px`), so it takes no room
           <View accessibilityLabel={e.title} accessible style={{ marginHorizontal: -3, padding: 3, borderRadius: m2.radius.card + 3, backgroundColor: m2.color.white }}>
@@ -29,8 +29,8 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
             </View>
           </View>
         ) : null}
-        <Text v="barNum" color={m2.color.gold} style={{ paddingTop: m2.space[2] + 4 }}>{when}</Text>
-        <View style={{ marginTop: m2.space[5], gap: m2.space[2] + 4 }}>
+        <Text v="barNum" color={m2.color.gold} style={{ paddingTop: m2.space.eventDate }}>{when}</Text>
+        <View style={{ marginTop: m2.space.group, gap: m2.space.eventLinks }}>
           {e.links.map(([label, url], k) => (
             <Press key={label} accessibilityRole="link" onPress={() => Linking.openURL(url)}
               style={[{ height: 52, borderRadius: m2.radius.button, alignItems: "center", justifyContent: "center" },

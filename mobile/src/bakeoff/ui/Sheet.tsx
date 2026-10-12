@@ -89,7 +89,7 @@ export const Sheet = forwardRef<BottomSheetModal, {
         <BottomSheetScrollView ref={scroll} style={snapPoints ? undefined : { maxHeight: maxHeight - GRAB }} stickyHeaderIndices={sticky ? [0] : undefined} onScroll={(e) => { const y = e.nativeEvent.contentOffset.y; if (y >= contentOffset - 1) reached.current = true; onScrollY?.(y); }} scrollEventsHandlersHook={hook}
           onLayout={(e) => { box.current.h = e.nativeEvent.layout.height; openScrolled(); }}
           onContentSizeChange={(_w, h) => { box.current.c = h; openScrolled(); }}
-          contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingBottom: m2.space[5] }}>{children}</BottomSheetScrollView>
+          contentContainerStyle={{ paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.group }}>{children}</BottomSheetScrollView>
       </BottomSheetModal>
     );
   },

@@ -42,11 +42,11 @@ export function StateCurtain({ state, top, text, copy }: { state: Exclude<MenuSt
           {state === "loading" ? (
             <View style={{ height: 160, alignItems: "center", justifyContent: "center" }}><Spinner /></View>
           ) : (
-            <View style={{ paddingHorizontal: m2.space[4], paddingTop: 42, paddingBottom: m2.space[0] }}>
+            <View style={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.stateTop + m2.space.paragraph, paddingBottom: m2.space.line }}>
               <Text v="empty" color={m2.color.slate}>{text}</Text>
               {state === "fail" ? (
                 <Press accessibilityRole="button" onPress={() => { retry(); }}
-                  style={{ marginTop: 28, height: 52, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
+                  style={{ marginTop: m2.space.stateGap + m2.space.paragraph, height: 52, borderRadius: m2.radius.button, borderWidth: 1.5, borderColor: m2.color.vm, alignItems: "center", justifyContent: "center" }}>
                   <Text v="action" color={m2.color.vm}>Try again</Text>
                 </Press>
               ) : null}

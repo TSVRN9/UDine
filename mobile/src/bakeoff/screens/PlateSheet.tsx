@@ -28,7 +28,7 @@ function PlateRow({ plate, it, onOpen }: { plate: Plate; it: PlateItem; onOpen: 
   return (
     <Animated.View layout={rowLayout} exiting={rowOut}>
       <Press feedback="tint" accessibilityRole="button" onPress={it.custom ? undefined : () => onOpen(it)}
-        style={{ minHeight: 64, flexDirection: "row", alignItems: "center", gap: m2.space[1], borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
+        style={{ minHeight: 64, flexDirection: "row", alignItems: "center", gap: m2.space.part, borderBottomWidth: 1, borderBottomColor: m2.color.hair }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text v="rowName" color={m2.color.ink}>{it.name}</Text>
           <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 3 }}>
@@ -101,11 +101,11 @@ export function PlateSheet({ tabH }: { tabH: number }) {
         onAnimate={(from, to) => { if (from >= 0 && to >= 0 && from !== to) tick(); }}
         backgroundStyle={{ backgroundColor: m2.color.chalk, borderRadius: 0 }}
         backdropComponent={(p) => <BottomSheetBackdrop {...p} appearsOnIndex={SNAPS.mid} disappearsOnIndex={SNAPS.bar} opacity={m2Motion.plateScrim} style={{ backgroundColor: m2.color.plateScrim }} pressBehavior="collapse" />}>
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: m2.space[4], paddingTop: m2.space[0], paddingBottom: m2.space[5] }}>
+        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.line, paddingBottom: m2.space.group }}>
           {plate ? (
             <Animated.View key={plate.id} entering={FadeIn.duration(m2Motion.settle.d).easing(m2SettleEasing)}>
               {plates.length > 1 ? (
-                <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: m2.space[0], marginHorizontal: -m2.space[1], marginBottom: m2.space[0] }}>
+                <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: m2.space.line, marginHorizontal: -m2.space.part, marginBottom: m2.space.line }}>
                   {plates.map((p, i) => (
                     <Press key={p.id} accessibilityRole="tab" accessibilityState={{ selected: i === front }} onPress={() => { if (i !== front) { tick(); setFront(i); } }}
                       style={{ height: m2.size.tap, paddingHorizontal: 10, justifyContent: "center" }}>
@@ -116,9 +116,9 @@ export function PlateSheet({ tabH }: { tabH: number }) {
                 </View>
               ) : null}
               {plate.items.map((it) => <PlateRow key={it.key} plate={plate} it={it} onOpen={open} />)}
-              <View style={{ marginVertical: m2.space[3] }}><Facts {...totals(plate)} /></View>
+              <View style={{ marginVertical: m2.space.action }}><Facts {...totals(plate)} /></View>
               <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-                <Press accessibilityRole="button" onPress={clearPlate} style={{ height: m2.size.tap, paddingHorizontal: m2.space[2], justifyContent: "center" }}>
+                <Press accessibilityRole="button" onPress={clearPlate} style={{ height: m2.size.tap, paddingHorizontal: m2.space.panel, justifyContent: "center" }}>
                   <Text v="link" color={m2.color.vm}>Clear plate</Text>
                 </Press>
               </View>

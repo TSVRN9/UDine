@@ -18,7 +18,7 @@ function Row({ r }: { r: LabelRow }) {
   }
   const top = r.kind === "row";
   return (
-    <View style={[rule(r.last ? 7 : 1), { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12, paddingTop: 5, paddingBottom: 4, paddingLeft: top ? 0 : m2.space[3] }]}>
+    <View style={[rule(r.last ? 7 : 1), { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12, paddingTop: 5, paddingBottom: 4, paddingLeft: top ? 0 : m2.space.action }]}>
       <Text v="lbl" color={m2.color.dm} style={{ flexShrink: 1 }}>
         {top ? <Text v="lbl" color={m2.color.dm} style={bold}>{r.name}</Text> : r.name.startsWith("Trans") ? <><Text v="lbl" color={m2.color.dm} style={{ fontStyle: "italic" }}>Trans</Text>{r.name.slice(5)}</> : r.name}
         {` ${r.value}`}
@@ -37,7 +37,7 @@ export function NutritionLabel({ label, onCalBottom }: { label: Label; onCalBott
   const report = () => { const { label: y, cal } = at.current; if (y != null && cal) onCalBottom?.(y + cal.y + cal.h); };
   return (
     <View onLayout={(e) => { at.current.label = e.nativeEvent.layout.y; report(); }}
-      style={{ marginTop: m2.space[5], borderWidth: 2, borderColor: m2.color.dm, paddingTop: 4, paddingHorizontal: m2.space[2], paddingBottom: 6, backgroundColor: m2.color.white }}>
+      style={{ marginTop: m2.space.group, borderWidth: 2, borderColor: m2.color.dm, paddingTop: 4, paddingHorizontal: m2.space.panel, paddingBottom: 6, backgroundColor: m2.color.white }}>
       <View style={[rule(1), { paddingTop: 2, paddingBottom: 4 }]}>
         <Text v="labelTitle" color={m2.color.dm}>Nutrition Facts</Text>
       </View>

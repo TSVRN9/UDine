@@ -130,6 +130,10 @@ export function buttonColors(variant: ButtonVariant): {
  * its type rules and its score ramps (`CRC`/`HFC`). Only src/bakeoff reads this; shipped tokens above
  * are untouched. Sizes are M2's px as dp, unscaled (the meal row is laid out for 360dp at 14).
  */
+// hhea (ascender - descender + lineGap) / unitsPerEm of the shipped TTFs (typeLines.test.ts reads them): CSS `line-height: normal`
+const NORMAL = { body: 1.212, num: 1.482 } as const;
+const normalLine = (font: keyof typeof NORMAL, size: number) => Math.round(size * NORMAL[font] * 10) / 10;
+
 export const m2 = {
   color: {
     dm: "#3b0a0f",
@@ -175,7 +179,7 @@ export const m2 = {
     numSb: fonts.display600,
     numB: fonts.display700,
   },
-  // size / lineHeight, M2's CSS rules
+  // size / lineHeight, M2's CSS rules. Where a rule sets no line-height the line is the font's own (`normal`): `normalLine`.
   type: {
     mealTab: { size: 14, line: 17 },
     tabBar: { size: 12, line: 15 },
@@ -185,15 +189,17 @@ export const m2 = {
     bandName: { size: 32, line: 32 },
     pinName: { size: 24, line: 24 },
     menuName: { size: 40, line: 40 },
-    status: { size: 15, line: 20 },
-    statusSm: { size: 14, line: 18 },
+    status: { size: 15, line: normalLine("body", 15) },
+    statusSm: { size: 14, line: normalLine("body", 14) },
+    // `.dietnote` sets line-height 1.35 itself
+    note: { size: 14, line: 18 },
     section: { size: 22, line: 26 },
     station: { size: 20, line: 20 },
-    stationHead: { size: 22, line: 26 },
+    stationHead: { size: 22, line: normalLine("num", 22) },
     day: { size: 20, line: 20 },
     rowName: { size: 16, line: 20 },
     meta: { size: 13, line: 17 },
-    metaNum: { size: 15, line: 20 },
+    metaNum: { size: 15, line: normalLine("num", 15) },
     stepper: { size: 20, line: 24 },
     letter: { size: 18, line: 18 },
     tile: { size: 14, line: 14 },
@@ -227,7 +233,18 @@ export const m2 = {
     factNum: { size: 20, line: 24 },
     mealCal: { size: 18, line: 22 },
   },
-  space: [4, 8, 12, 16, 20, 24, 32] as const,
+  // Named by role. `line`..`group` are M2's own sheet scale (CONCEPT.md: 4 within a line group, 8 between the parts of a group, 12 label to
+  // ratings, 16 before the action, 24 between groups); `gutter` is the side inset every screen shares. The rest name the M2 rule they come from.
+  space: {
+    line: 4, part: 8, panel: 12, action: 16, gutter: 20, group: 24,
+    bandTextTop: 16, // `.bt{top:16px}`
+    pinTextTop: 14, // `.pin .bt{top:14px}`
+    stateTop: 28, // `.mst{padding-top:28px}`
+    paragraph: 16, // the UA's `p{margin:1em 0}` around `.mst .empty` (M2 never resets it)
+    stateGap: 16, // `.mst .empty{padding-bottom:16px}`
+    // no M2 rule gives these sums; they are what the screens drew before the tokens (see the audit notes)
+    sectionTop: 26, yheadBottom: 18, cafeBodyTop: 24, dietGroupTop: 32, eventTop: 20, eventBottom: 24, eventDate: 16, eventLinks: 16,
+  } as const,
   radius: { patch: 4, thumb: 5, card: 6, button: 8, sheet: 16, pill: 999 },
   size: { tabBar: 56, row: 64, tabs: 48, stationRow: 50, band: 112, tap: 44, tile: [18, 22.5], tileSheet: [24, 30], tileScale: [26, 32.5] },
 } as const;

@@ -23,8 +23,8 @@ describe("Text keeps descenders (Oswald at line == size clips on Android)", () =
     expect(sh.paddingBottom).toBe(Math.ceil(m2.type.schedHead.size * 0.3));
     expect(sh.marginBottom).toBe(6 - (sh.paddingBottom as number));
     expect(sh.marginTop).toBe(2);
-    const se = style("section", { marginBottom: m2.space[0] });
-    expect(se.marginBottom).toBe(m2.space[0] - (se.paddingBottom as number));
+    const se = style("section", { marginBottom: m2.space.line });
+    expect(se.marginBottom).toBe(m2.space.line - (se.paddingBottom as number));
   });
   it("a caller's paddingBottom adds to the room", () => {
     const s = style("station", { paddingBottom: 3 });

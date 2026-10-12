@@ -93,7 +93,7 @@ export function Header({ title, photo, letter, height = 240, top = 0, labels, ol
         <Animated.View pointerEvents="none" style={[fill, { backgroundColor: m2.color.vm }, solid]} />
         <Animated.View pointerEvents="none" style={[fill, letterFade]}>{letter}</Animated.View>
         <Animated.View style={[fill, contentStyle]} pointerEvents="box-none">
-          <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space[4], bottom: 50 }}>
+          <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space.gutter, bottom: 50 }}>
             <Animated.View style={[{ transformOrigin: "0% 100%" }, name]}><Text v="menuName" color={m2.color.white} accessibilityRole="header">{title}</Text></Animated.View>
             <Animated.View pointerEvents="box-none" style={fadeC}>
               <Layers now={<TitleParts l={labels} />} was={<TitleParts l={oldLabels} />} newStyle={newStyle} oldStyle={oldStyle} />
@@ -139,7 +139,7 @@ function Arrive({ on, children }: { on?: boolean; children: ReactNode }) {
 function TitleParts({ l }: { l: Labels }) {
   return (
     <>
-      <View style={{ minHeight: 20, marginTop: 7 }}>
+      <View style={{ minHeight: m2.type.status.line, marginTop: 7 }}>
         {l.status ? (
           <Press accessibilityRole="button" accessibilityLabel={`${l.status}, hours and directions`} onPress={l.onStatus} disabled={!l.onStatus}
             hitSlop={{ top: 5, bottom: 12, right: 16 }} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
@@ -156,7 +156,7 @@ function TitleParts({ l }: { l: Labels }) {
 function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
   return (
     <Press feedback="tint" accessibilityRole="button" accessibilityLabel={`${s.label}, stations`} accessibilityState={{ expanded: !!s.open }} onPress={s.onPress}
-      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space[4] }}>
+      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: m2.space.gutter }}>
       <Text v="station" color={m2.color.gold} numberOfLines={1} style={{ flexShrink: 1 }}>{s.label}</Text>
       <Flip open={!!s.open}><Chevron /></Flip>
     </Press>
@@ -166,7 +166,7 @@ function StationButton({ s }: { s: NonNullable<Labels["station"]> }) {
 function DayCell({ d }: { d: NonNullable<Labels["day"]> }) {
   return (
     <Press feedback="tint" accessibilityRole="button" accessibilityLabel={d.accessibilityLabel} onPress={d.onPress}
-      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space[3], paddingRight: m2.space[4], borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
+      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: m2.space.action, paddingRight: m2.space.gutter, borderLeftWidth: 1, borderLeftColor: m2.color.divider }}>
       <Text v="day" color={m2.color.gold}>{d.label}</Text>
       <Chevron />
     </Press>

@@ -14,7 +14,7 @@ export function Facts({ cal, p, c, f, label = "Calories" }: { cal: number; p: nu
     </View>
   );
   return (
-    <View style={{ borderWidth: 2, borderColor: m2.color.dm, paddingTop: 4, paddingHorizontal: m2.space[2], paddingBottom: 6, backgroundColor: m2.color.white }}>
+    <View style={{ borderWidth: 2, borderColor: m2.color.dm, paddingTop: 4, paddingHorizontal: m2.space.panel, paddingBottom: 6, backgroundColor: m2.color.white }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottomWidth: 7, borderBottomColor: m2.color.dm, paddingTop: 2, paddingBottom: 4 }}>
         <Text v="lblLg" color={m2.color.dm} style={{ fontFamily: m2.font.bodySb }}>{label}</Text>
         <Text v="calNum" color={m2.color.dm}>{fc(cal)}</Text>

@@ -67,7 +67,7 @@ describe("a hall in each network state", () => {
     const b = nameBlock(r);
     expect(flat(b.props.style)).toEqual({ position: "absolute", left: 20, bottom: 50 });
     // the status line's box has its height whether or not it has a line, and a busy row is under it in every state (hidden when not live)
-    const box = b.findAll((x) => x.props.style && flat(x.props.style).minHeight === 20 && flat(x.props.style).marginTop === 7);
+    const box = b.findAll((x) => x.props.style && flat(x.props.style).minHeight === 18.2 && flat(x.props.style).marginTop === 7);
     expect(box.length).toBeGreaterThan(0);
     expect(b.findAll((x) => (x.type as unknown) === "Text" && x.props.children === "Busy").length).toBeGreaterThan(0);
   });

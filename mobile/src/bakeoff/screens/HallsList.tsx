@@ -69,14 +69,14 @@ export function HallsList({ hidden, onOpen }: {
   return (
     <View style={{ flex: 1, backgroundColor: m2.color.chalk }}>
       <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false}>
-        <View style={{ backgroundColor: m2.color.dm, paddingTop: top + 10, paddingHorizontal: m2.space[4], paddingBottom: m2.space[3] }}>
+        <View style={{ backgroundColor: m2.color.dm, paddingTop: top + 10, paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.action }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", height: 30 }}>
             <Text v="brand" color={m2.color.gold}>UDine</Text>
             <Text v="date" color={m2.color.onDm}>{date}</Text>
           </View>
           <Text v="hallTitle" color={m2.color.white} accessibilityRole="header" style={{ marginTop: 2 }}>{MEAL_LABEL[clockMeal(now)]}</Text>
           {net.mode === "offline" || net.mode === "fail" ? (
-            <View accessibilityLiveRegion="polite" style={{ position: "absolute", right: m2.space[4], top: top + 40, alignItems: "flex-end" }}>
+            <View accessibilityLiveRegion="polite" style={{ position: "absolute", right: m2.space.gutter, top: top + 40, alignItems: "flex-end" }}>
               <Text v="date" color={m2.color.onDm}>{net.mode === "offline" ? "You're offline" : "Couldn't connect"}</Text>
               {net.mode === "fail" ? (
                 <Press accessibilityRole="button" onPress={() => { retry(); }}
@@ -89,13 +89,13 @@ export function HallsList({ hidden, onOpen }: {
         </View>
         <View style={{ backgroundColor: m2.color.dm }}>{places.slice(0, 4).map(cell)}</View>
         <View style={{ backgroundColor: m2.color.dm }}>{places.slice(4).map(cell)}</View>
-        <View style={{ paddingTop: m2.space[4] + 6, paddingHorizontal: m2.space[4], paddingBottom: 120 }}>
-          <Text v="section" color={m2.color.dm} style={{ marginBottom: m2.space[0] }}>Cafés & markets</Text>
+        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter, paddingBottom: 120 }}>
+          <Text v="section" color={m2.color.dm} style={{ marginBottom: m2.space.line }}>Cafés & markets</Text>
           {fx.areas.slice(0, newton ? 5 : 4).map((a, i, all) => {
             const ps = fx.places.filter((p) => p.area === i);
             const open = ps.filter((p) => isOpenNow(fx.hours[p.key], now)).length;
             return (
-              <View key={a} style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space[1], borderBottomWidth: i < all.length - 1 ? 1 : 0, borderBottomColor: m2.color.hair }}>
+              <View key={a} style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: m2.space.part, borderBottomWidth: i < all.length - 1 ? 1 : 0, borderBottomColor: m2.color.hair }}>
                 <View>
                   <Text v="rowName">{a}</Text>
                   {hk ? <Animated.View entering={hkArrive ? arriveIn : undefined}><Text v="meta" color={m2.color.slate} style={{ marginTop: 2 }}>{`${open} of ${ps.length} open now`}</Text></Animated.View> : null}
@@ -106,7 +106,7 @@ export function HallsList({ hidden, onOpen }: {
           })}
         </View>
       </Animated.ScrollView>
-      <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, height: top + 44, backgroundColor: m2.color.dm, paddingTop: top, paddingHorizontal: m2.space[4], flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, bar]}>
+      <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, height: top + 44, backgroundColor: m2.color.dm, paddingTop: top, paddingHorizontal: m2.space.gutter, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, bar]}>
         <Text v="brand" color={m2.color.gold}>UDine</Text>
         <Text v="date" color={m2.color.onDm}>{date}</Text>
       </Animated.View>
