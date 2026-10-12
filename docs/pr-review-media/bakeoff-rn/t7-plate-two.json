@@ -1,0 +1,10 @@
+{
+  "sha": "fa72d38bdb56ee70e98bc6cf4c0f71e57e38e098",
+  "branch": "bakeoff/rn",
+  "worktree": "/tmp/claude-1000/wt-rn",
+  "route": "bakeoff?reset=1&hall=W&y=330&plate=W:lunch:beef%20brisket%20noodle%20bowl,golden%20bbq%20chicken%20thigh*2;F:lunch:herbed%20roasted%20chicken%20legs",
+  "device": "Agent_Emulator_Narrow",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-12T14:31:47Z"
+}
