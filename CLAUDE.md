@@ -59,6 +59,7 @@ explicitly exports it or opts a truncated summary in.
 | Favorited foods (spotted-elsewhere alerts) | Server only if signed in + notifications on. `profiles.notifications_enabled` defaults **true** for accounts created on/after 2026-08-26 (#248 Part B, a column default — not backfilled onto existing rows); the device only actually registers a push token once OS permission is granted, and the server-side RPC itself now refuses to register a token at all when the flag is off (#277) |
 | Friends, pings, profile, auth identity | Server |
 | Dish nutrition catalog (`public.dishes`) | Server, public/read-only — deduplicated dish names + nutrition only, no per-user data; not a consumption log or a menu cache |
+| Hall occupancy history (`occupancy_samples`) | Server, public read-only via RPC — upstream crowd headcounts + thresholds per location over time, no per-user data. Like `public.dishes`: public facts about places, not anyone's behavior; works anonymously (RPC granted to `anon`) |
 
 **Anonymous-first:** menus, nutrition, events, press, filters, local logging/ranking work with zero
 account. Sign-in gates only friends, pings, cross-device sync, push alerts, server favorite halls.
