@@ -311,7 +311,7 @@ export const m2 = {
     },
     lblLg: {
       size: 18,
-      line: 22,
+      line: 21.8,
       font: "LibreFranklin_400Regular",
       tabular: false
     },
@@ -581,11 +581,13 @@ export const m2 = {
       stops: [
         "rgba(59,10,15,0)",
         "rgba(59,10,15,0.5)",
+        "rgba(59,10,15,0.74)",
         "rgba(59,10,15,0.93)"
       ],
       locations: [
         0,
         0.3,
+        0.5,
         0.76
       ],
       height: 240,

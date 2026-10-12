@@ -26,7 +26,7 @@ describe("M2 sets no line-height on these rules, so the line is the font's norma
   it.each([
     ["status", BODY], ["statusSm", BODY], ["metaNum", NUM], ["stationHead", NUM],
     // the free-flowing rest of 1b: rules M2 sets no line-height on, in rows that grow with their text
-    ["meta", BODY], ["date", BODY], ["link", BODY], ["lblRow", BODY], ["lblThin", BODY], ["factRow", BODY], ["factNum", NUM], ["dv", NUM],
+    ["meta", BODY], ["date", BODY], ["link", BODY], ["lblRow", BODY], ["lblThin", BODY], ["factRow", BODY], ["factNum", NUM], ["dv", NUM], ["lblLg", BODY],
   ] as const)("%s", (v, ratio) => {
     expect(m2.type[v].line).toBe(r1(m2.type[v].size * ratio));
   });
