@@ -17,7 +17,7 @@ export const StationSwitcher = forwardRef<BottomSheetModal, {
           return (
             <Press key={s.name} feedback="tint" accessibilityRole="button" accessibilityState={{ selected: cur }} onPress={() => onPick(si)}
               style={{ minHeight: m2.size.listRow, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingRight: m2.space.gutter, paddingLeft: m2.space.action, borderLeftWidth: m2.size.curBar, borderLeftColor: cur ? m2.color.vm : "transparent" }}>
-              <Text v="dayRow" color={cur ? m2.color.vm : m2.color.ink} style={cur ? { fontFamily: m2.font.bodySb } : null}>{s.name}</Text>
+              <Text v="dayRow" color={cur ? m2.color.vm : m2.color.ink} style={cur ? { fontFamily: m2.font.bodyB } : null}>{s.name}</Text>
               <Text v="metaNum" color={m2.color.slate}>{s.count}</Text>
             </Press>
           );

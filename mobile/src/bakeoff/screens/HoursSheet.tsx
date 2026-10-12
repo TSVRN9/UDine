@@ -43,7 +43,7 @@ export const HoursSheet = forwardRef<BottomSheetModal, { s: Schedule; maxHeight:
                   style={{ borderLeftWidth: m2.size.curBar, borderLeftColor: d.current ? m2.color.vm : "transparent" }}>
                   <Press feedback="tint" accessibilityRole="button" accessibilityState={{ selected: d.current }} onPress={() => onPick(d.i)}
                     style={{ minHeight: m2.size.listRow, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: m2.space.panel, paddingLeft: m2.space.action, paddingRight: m2.space.gutter }}>
-                    <Text v="dayRow" color={ink} style={d.current ? { fontFamily: m2.font.bodySb } : null}>{d.label}</Text>
+                    <Text v="dayRow" color={ink} style={d.current ? { fontFamily: m2.font.bodyB } : null}>{d.label}</Text>
                     <Text v="date" color={d.current ? m2.color.vm : m2.color.slate} style={d.current ? { fontFamily: m2.font.bodyMd } : null}>{d.right}</Text>
                   </Press>
                   {d.meals.length || d.event ? (

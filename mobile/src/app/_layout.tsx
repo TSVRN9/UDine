@@ -2,6 +2,7 @@ import {
   LibreFranklin_400Regular,
   LibreFranklin_500Medium,
   LibreFranklin_600SemiBold,
+  LibreFranklin_700Bold,
 } from "@expo-google-fonts/libre-franklin";
 import { Oswald_500Medium, Oswald_600SemiBold, Oswald_700Bold } from "@expo-google-fonts/oswald";
 import { useFonts } from "expo-font";
@@ -58,6 +59,7 @@ export default function RootLayout() {
     LibreFranklin_400Regular,
     LibreFranklin_500Medium,
     LibreFranklin_600SemiBold,
+    LibreFranklin_700Bold,
   });
 
   useEffect(() => {

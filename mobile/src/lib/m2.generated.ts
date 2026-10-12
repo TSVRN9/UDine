@@ -72,7 +72,8 @@ export const m2 = {
     bodySb: "LibreFranklin_600SemiBold",
     num: "Oswald_500Medium",
     numSb: "Oswald_600SemiBold",
-    numB: "Oswald_700Bold"
+    numB: "Oswald_700Bold",
+    bodyB: "LibreFranklin_700Bold"
   },
   type: {
     mealTab: {
@@ -453,7 +454,8 @@ export const m2 = {
     mtsGap: 5,
     tabGap: 3,
     dayBlock: 20,
-    mealY: 12
+    mealY: 12,
+    h3Top: 22
   },
   radius: {
     patch: 4,
@@ -542,7 +544,8 @@ export const m2 = {
     grabH: 5,
     stepQ: 26,
     stroke: 2.2,
-    strokeBold: 2.4
+    strokeBold: 2.4,
+    sbMin: 10
   },
   opacity: {
     disabled: 0.4,

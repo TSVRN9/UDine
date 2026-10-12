@@ -104,6 +104,10 @@
   "numB": {
    "family": "Oswald",
    "weight": 700
+  },
+  "bodyB": {
+   "family": "Libre Franklin",
+   "weight": 700
   }
  },
  "fontMetrics": {
@@ -470,7 +474,8 @@
   "mtsGap": 5,
   "tabGap": 3,
   "dayBlock": 20,
-  "mealY": 12
+  "mealY": 12,
+  "h3Top": 22
  },
  "radius": {
   "patch": 4,
@@ -559,7 +564,8 @@
   "grabH": 5,
   "stepQ": 26,
   "stroke": 2.2,
-  "strokeBold": 2.4
+  "strokeBold": 2.4,
+  "sbMin": 10
  },
  "opacity": {
   "disabled": 0.4,
@@ -1112,7 +1118,10 @@
   "letterX.W": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
   "letterX.F": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
   "letterX.H": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
-  "letterX.B": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)"
+  "letterX.B": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "font.bodyB": "#stidx button.cur, #days .day.cur: font-weight 700",
+  "space.h3Top": ".h3{margin:22px 0 4px} (declared after .dh{margin-top:12px}, so it wins: the first group is 22)",
+  "size.sbMin": ":root --sb: max(10px, env(safe-area-inset-bottom)) (src.html:31)"
  },
  "felt": {
   "patch": {

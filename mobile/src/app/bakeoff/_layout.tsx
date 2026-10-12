@@ -7,6 +7,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
 import { TabBar } from "../../bakeoff/ui";
+import { sbOf } from "../../bakeoff/ui/inset";
 import { DishSheetHost } from "../../bakeoff/screens/DishSheet";
 import { PlateSheet } from "../../bakeoff/screens/PlateSheet";
 import { ensureNet } from "../../bakeoff/state/net";
@@ -18,7 +19,7 @@ if (__DEV__) LogBox.ignoreLogs(["No task registered for key"]);
 
 export default function BakeoffLayout() {
   const { bottom } = useSafeAreaInsets();
-  const inset = Math.max(10, bottom);
+  const inset = sbOf(bottom);
   // dev only (screenshots): the route's query seeds the store (`state/store.ts` applyDevParams), on whichever tab the link opens
   const q = useGlobalSearchParams();
   const query = JSON.stringify(q);
