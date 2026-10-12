@@ -2,6 +2,7 @@ import renderer, { act } from "react-test-renderer";
 import { dishKey, loadFixture, servingOn } from "../logic/fixture";
 import type { Dish } from "../logic/types";
 import { DishRow } from "./DishRow";
+import { RowControl } from "./RowControl";
 import * as store from "../state/store";
 
 jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
@@ -95,5 +96,28 @@ describe("a dish row's control in the lane", () => {
     act(() => store.add("lunch", dish.name, { W: dish }));
     const v = mount(dish, "W").v;
     expect(v.root.findAll((n) => typeof n.type === "string" && n.props.entering != null)).toHaveLength(0);
+  });
+  describe("a recycled row (the same instance given another dish) is not an arrival", () => {
+    const entering = (v: renderer.ReactTestRenderer) => v.root.findAll((n) => typeof n.type === "string" && n.props.entering != null).length;
+    const other2 = fx.days["2026-10-08"].W!.lunch!.flatMap((s) => s.dishes).find((d) => d.key !== dish.key)!;
+    const rerender = (a: Dish, b: Dish, aOn: boolean, bOn: boolean) => {
+      act(() => { if (aOn) store.add("lunch", a.name, { W: a }); if (bOn) store.add("lunch", b.name, { W: b }); });
+      let v!: renderer.ReactTestRenderer;
+      act(() => { v = renderer.create(<RowControl place="W" meal="lunch" dish={a} />); });
+      expect(entering(v)).toBe(0);
+      act(() => v.update(<RowControl place="W" meal="lunch" dish={b} />));
+      return v;
+    };
+    it("stepper to stepper (both on the plate)", () => expect(entering(rerender(dish, other2, true, true))).toBe(0));
+    it("stepper to + (the other dish is not on the plate): the lane type changes, nothing arrives", () => {
+      const v = rerender(dish, other2, true, false);
+      expect(button(v, `Add ${other2.name}`)).toBeDefined();
+      expect(entering(v)).toBe(0);
+    });
+    it("+ to stepper (the other dish is on the plate)", () => {
+      const v = rerender(other2, dish, false, true);
+      expect(button(v, "Increase")).toBeDefined();
+      expect(entering(v)).toBe(0);
+    });
   });
 });
