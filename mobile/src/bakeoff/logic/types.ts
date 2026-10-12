@@ -21,12 +21,19 @@ export interface Place {
   address: string | null; mapAddress: string | null;
 }
 export interface FixtureEvent { title: string; expires: number; links: [string, string][]; scope: string }
+export interface Busy {
+  level: number; label: string; pct: number; usual_pct: number; trend: string; vs_usual: "usual" | "busier" | "quieter";
+  outlook: { in: number; pct: number | null }[]; calmer_at: string | null; confidence: "good" | "new";
+}
 export interface Fixture {
   clock: string;
   areas: string[];
   places: Place[];
   hours: Record<PlaceKey, DiningHallHours>;
   grab: Record<HallKey, TimeWindow>;
+  /** M2's simulated Thursday-lunch busy values per hall, and the typical-Thursday board: [first hour, % per hour] */
+  busy: Record<HallKey, Busy>;
+  typical: Record<HallKey, [number, number[]]>;
   /** every distinct dish served in the 15 days (station is "" here; a serving's station is on `days`) */
   dishes: Dish[];
   days: Record<string, Partial<Record<PlaceKey, Partial<Record<MealKey, Station[]>>>>>;

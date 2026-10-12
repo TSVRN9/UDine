@@ -17,6 +17,7 @@ export function useEdgeSwipeBack({ enabled, onGrab, onMove, onRelease }: {
   onMove: (dist: number) => void;
   onRelease: (dist: number, v: number) => void;
 }) {
+  const active = useSharedValue(false), last = useSharedValue(0);
   const x0 = useSharedValue(0), y0 = useSharedValue(0), edge = useSharedValue(false), mode = useSharedValue(0);
   return useMemo(
     () =>
@@ -31,13 +32,17 @@ export function useEdgeSwipeBack({ enabled, onGrab, onMove, onRelease }: {
           else if (!edge.get() && dy > 0 && dy >= Math.abs(dx)) { mode.set(2); sm.activate(); }
           else if (Math.hypot(dx, dy) > 10) sm.fail();
         })
-        .onStart(() => { onGrab(); })
-        .onUpdate((e) => { onMove(mode.value === 1 ? e.translationX : e.translationY); })
-        .onEnd((e) => {
-          const x = mode.value === 1;
-          onRelease(x ? e.translationX : e.translationY, (x ? e.velocityX : e.velocityY) / 1000);
-        })
-        .onFinalize(() => { mode.set(0); }),
-    [enabled, onGrab, onMove, onRelease, x0, y0, edge, mode],
+        .onStart(() => { active.set(true); last.set(0); onGrab(); })
+        .onUpdate((e) => { const d = mode.get() === 1 ? e.translationX : e.translationY; last.set(d); onMove(d); })
+        // Release lives in onFinalize, which RNGH calls however the gesture ends (lifted, cancelled by the OS or another
+        // handler); `active` makes it send exactly once, and only for a gesture that started.
+        .onFinalize((e) => {
+          if (!active.get()) { mode.set(0); return; }
+          active.set(false);
+          const x = mode.get() === 1;
+          mode.set(0);
+          onRelease(last.get(), (x ? e.velocityX : e.velocityY) / 1000);
+        }),
+    [enabled, onGrab, onMove, onRelease, active, last, x0, y0, edge, mode],
   );
 }

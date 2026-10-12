@@ -4,7 +4,8 @@ import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } 
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { m2 } from "../../lib/theme";
-import { Band, HallLetter, Photo, Text } from "../ui";
+import { Band, BusyRow, HallLetter, Photo, Text } from "../ui";
+import { busyView } from "../logic/busy";
 import { HALLS, MEAL_LABEL, clockMeal, loadFixture } from "../logic/fixture";
 import { HALL_LX } from "../logic/letters";
 import { isOpenNow, statusText } from "../logic/status";
@@ -46,7 +47,8 @@ export function HallsList({ hidden, onOpen }: {
     return (
       <View key={key} ref={refOf(key)} collapsable={false} style={{ opacity: hidden === key ? 0 : 1 }}>
         <Band
-          name={p.name} compact={compact} status={statusText(fx.hours[key], now)} onPress={() => onOpen(key, refOf(key), compact)}
+          name={p.name} compact={compact} status={statusText(fx.hours[key], now)}
+          busy={compact ? undefined : <BusyRow {...busyView(fx.busy[key as "W"])} />} onPress={() => onOpen(key, refOf(key), compact)}
           photo={src ? (
             <View style={{ position: "absolute", left: 0, top: -off }}>
               <Photo source={src} width={width} height={HH} pos={compact ? 0.5 : PHOTO_POS[key as "W"]} />

@@ -16,8 +16,8 @@ const Chevron = () => (
 
 /** Round 9c hall header: photo window with the name and status, then the meal row (14 px, every meal visible,
  * never scrolled), then the station row with the day cell at its right end. Rows with no data are not drawn. */
-export function Header({ title, status, photo, letter, height = 240, top = 0, left, right, meals, station, day, gradStyle, contentStyle }: {
-  title: string; status?: ReactNode; photo?: ReactNode; letter?: ReactNode; height?: number; top?: number;
+export function Header({ title, status, busy, board, photo, letter, height = 240, top = 0, left, right, meals, station, day, gradStyle, contentStyle }: {
+  title: string; status?: ReactNode; busy?: ReactNode; board?: ReactNode; photo?: ReactNode; letter?: ReactNode; height?: number; top?: number;
   left?: ReactNode; right?: ReactNode;
   meals?: { items: { key: string; label: string }[]; selected: string; onSelect: (key: string) => void };
   station?: { label: string; onPress: () => void; open?: boolean };
@@ -39,7 +39,9 @@ export function Header({ title, status, photo, letter, height = 240, top = 0, le
         <View style={{ position: "absolute", left: m2.space[4], bottom: 50 }}>
           <Text v="menuName" color={m2.color.white} accessibilityRole="header">{title}</Text>
           {status ? <Text v="status" color={m2.color.onDmSoft} style={{ marginTop: 7 }}>{status}</Text> : null}
+          {busy}
         </View>
+        {board}
         </Animated.View>
       </View>
       {meals ? (
