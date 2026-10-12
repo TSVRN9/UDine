@@ -1,0 +1,51 @@
+[
+ {
+  "location_id": 4,
+  "short_name": "Berkshire Dining Commons",
+  "business_level": 159,
+  "moderate_level": 463,
+  "notbusy_level": 165
+ },
+ {
+  "location_id": 1,
+  "short_name": "Worcester Commons",
+  "business_level": 162,
+  "moderate_level": 576,
+  "notbusy_level": 383
+ },
+ {
+  "location_id": 2,
+  "short_name": "Franklin Dining Commons",
+  "business_level": 0,
+  "moderate_level": 470,
+  "notbusy_level": 266
+ },
+ {
+  "location_id": 14,
+  "short_name": "Whitmore Café",
+  "business_level": 0,
+  "moderate_level": 43,
+  "notbusy_level": 7
+ },
+ {
+  "location_id": 5991,
+  "short_name": "Paciugo",
+  "business_level": 0,
+  "moderate_level": 746,
+  "notbusy_level": 548
+ },
+ {
+  "location_id": 9967,
+  "short_name": "UMass Store",
+  "business_level": 0,
+  "moderate_level": 999999,
+  "notbusy_level": 999999
+ },
+ {
+  "location_id": 10709,
+  "short_name": "The Commonwealth Restaurant",
+  "business_level": 0,
+  "moderate_level": 999999,
+  "notbusy_level": 999999
+ }
+]
