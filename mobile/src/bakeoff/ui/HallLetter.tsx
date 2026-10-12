@@ -1,15 +1,21 @@
-import Svg, { Text as SvgText } from "react-native-svg";
+import { Image, View } from "react-native";
 import { m2 } from "../../lib/theme";
 
-/** The band's chenille varsity letter: felt (white, stroked) under a gold fill with a dashed maroon stitch.
- * The box is right-aligned to its parent; `x` is the text's start x inside it (M2's `LX`, see logic/letters.ts), so the
- * letter keeps its distance from the right edge at any width. The caller holds the positions. */
-export function HallLetter({ letter, x, top = -m2.space.letterRise, size = m2.size.letterBox }: { letter: string; x: number; top?: number; size?: number }) {
-  const font = { fontFamily: m2.font.numB, fontSize: m2.size.letterFont * (size / m2.size.letterBox) };
+// Pre-rendered by scripts/bakeoff-letters.js from M2's own paths (Oswald 700 at 210 px, a white felt stroke under a gold fill with a dashed
+// maroon stitch, the letter at M2's `LX` in the 200 px box). An Svg is rasterised in software on the UI thread on every draw.
+const LETTER = {
+  W: require("../../../assets/bakeoff/letters/W.png"),
+  F: require("../../../assets/bakeoff/letters/F.png"),
+  H: require("../../../assets/bakeoff/letters/H.png"),
+  B: require("../../../assets/bakeoff/letters/B.png"),
+} as const;
+
+/** The band's chenille varsity letter: the 200 dp box, right-aligned to its parent (so the letter keeps its distance from the right edge at any
+ * width; the letter's place in the box is baked in, see logic/letters.ts). */
+export function HallLetter({ letter, top = -m2.space.letterRise }: { letter: keyof typeof LETTER; top?: number }) {
   return (
-    <Svg width={size} height={size} style={{ position: "absolute", right: 0, top }} pointerEvents="none">
-      <SvgText x={x} y={size * 0.93} fill={m2.color.white} stroke={m2.color.white} strokeWidth={12} strokeLinejoin="round" {...font}>{letter}</SvgText>
-      <SvgText x={x} y={size * 0.93} fill={m2.color.gold} stroke={m2.color.dm} strokeWidth={1.5} strokeDasharray="5 4" {...font}>{letter}</SvgText>
-    </Svg>
+    <View pointerEvents="none" style={{ position: "absolute", right: 0, top, width: m2.size.letterBox, height: m2.size.letterBox }}>
+      <Image source={LETTER[letter]} fadeDuration={0} style={{ width: m2.size.letterBox, height: m2.size.letterBox }} />
+    </View>
   );
 }

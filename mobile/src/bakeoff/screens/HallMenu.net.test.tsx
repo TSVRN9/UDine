@@ -36,9 +36,9 @@ beforeEach(() => { jest.useFakeTimers(); (global as any).requestAnimationFrame =
 const live: renderer.ReactTestRenderer[] = [];
 afterEach(() => { act(() => live.splice(0).forEach((r) => r.unmount())); jest.useRealTimers(); });
 
-async function mount(mode: NetMode, place: PlaceKey = "W", day = 0, onEvent?: (i: number) => void) {
+async function mount(mode: NetMode, place: PlaceKey = "W", day = 0, onEvent?: (i: number) => void, phase = "open") {
   act(() => startNet(mode));
-  const t = { style: new Proxy({}, { get: () => ({}) }), phase: "open", rect: { current: null }, dragBack: {}, ready: () => {}, open: () => {}, close: () => {}, progress: { get: () => 1 } } as never;
+  const t = { style: new Proxy({}, { get: () => ({}) }), phase, rect: { current: null }, dragBack: {}, ready: () => {}, open: () => {}, close: () => {}, progress: { get: () => 1 } } as never;
   const at = day ? { place, day, meal: "lunch", dish: "none" } as never : undefined;
   const name = loadFixture().places.find((p) => p.key === place)!.name;
   let r!: renderer.ReactTestRenderer;
@@ -167,5 +167,27 @@ describe("the band's copy that rides the opening container", () => {
   it("is drawn while the screen opens and is gone once it is open (a commit under it brought it back over the title)", () => {
     expect(count("opening")).toBe(2);
     expect(count("open")).toBe(1);
+  });
+});
+
+// The list, and the two sheets, mount when the open has settled: mounting ~30 rows inside the 500 ms put a UI-thread commit under the animation
+describe("a hall's list while the container opens", () => {
+  const rows = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.props.accessibilityLabel === "string" && n.props.accessibilityLabel.startsWith("Add ")).length;
+  it("is not mounted while it opens (the header is)", async () => {
+    const r = await mount("ok", "W", 0, undefined, "opening");
+    expect(rows(r)).toBe(0);
+    expect(texts(r)).toContain("Worcester");
+  });
+  it("is mounted once the open has settled", async () => {
+    const r = await mount("ok", "W", 0, undefined, "open");
+    expect(rows(r)).toBeGreaterThan(0);
+  });
+  it("and stays mounted while it closes", async () => {
+    const r = await mount("ok", "W", 0, undefined, "open");
+    const t = r.root.findByType(HallMenu).props.t;
+    expect(t.phase).toBe("open");
+    t.phase = "closing";
+    act(() => { r.update(<HallMenu t={t} H={800} place="W" name="Worcester" scrollY={{ get: () => 0, set: () => {} } as never} ghost={null} onBack={() => {}} />); });
+    expect(rows(r)).toBeGreaterThan(0);
   });
 });

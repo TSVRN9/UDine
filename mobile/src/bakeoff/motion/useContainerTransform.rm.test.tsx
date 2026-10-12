@@ -24,12 +24,15 @@ function mount() {
 const band = { top: 300, height: 112, off: 40 };
 
 describe("the container transform with mockReduced motion", () => {
-  beforeEach(() => { mockTimings.length = 0; });
-  it("opens with no growth: the screen is full size at once, and fades in on the 120 ms crossfade", () => {
+  beforeEach(() => { jest.useFakeTimers(); (global as any).requestAnimationFrame = (f: () => void) => setTimeout(f, 16); mockTimings.length = 0; });
+  afterEach(() => jest.useRealTimers());
+  const frames = async () => { await act(async () => { jest.advanceTimersByTime(40); }); };
+  it("opens with no growth: the screen is full size at once, and fades in on the 120 ms crossfade", async () => {
     mockReduced = true;
     const t = mount();
     act(() => { t().open(band); });
     act(() => { t().ready(); });
+    await frames();
     expect(t().progress.get()).toBe(1);
     expect(mockTimings).toEqual([{ to: 1, token: expect.objectContaining({ d: 120 }) }]);
   });
@@ -48,11 +51,12 @@ describe("the container transform with mockReduced motion", () => {
     act(() => { t().show(band); });
     expect((t.latest().dragBack as unknown as { config: { enabled: boolean } }).config.enabled).toBe(false);
   });
-  it("with motion on it grows over the container's 500 ms and the drag-back is armed", () => {
+  it("with motion on it grows over the container's 500 ms and the drag-back is armed", async () => {
     mockReduced = false;
     const t = mount();
     act(() => { t().open(band); });
     act(() => { t().ready(); });
+    await frames();
     expect(mockTimings[0].token.d).toBe(500);
     act(() => { t().show(band); });
     expect((t.latest().dragBack as unknown as { config: { enabled: boolean } }).config.enabled).toBe(true);

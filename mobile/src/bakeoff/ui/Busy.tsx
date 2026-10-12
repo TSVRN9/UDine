@@ -1,5 +1,5 @@
+import { memo } from "react";
 import { View } from "react-native";
-import Svg, { Rect } from "react-native-svg";
 import { m2 } from "../../lib/theme";
 import { Text } from "./Text";
 
@@ -24,17 +24,26 @@ export function BusyRow({ lamps, word, extra, header }: { lamps: number; word: s
 }
 
 const W = 350, H = 30, GAP = 3, LG = 2, LH = (H - LG * 4) / 5;
-/** M2's `histSVG`: one column of five lamps per hour, lit like the band meter; the current hour is gold. */
-export function Board({ columns }: { columns: { lit: number; now: boolean }[] }) {
-  const n = columns.length, bw = (W - GAP * (n - 1)) / n;
+/** Where each lamp of M2's `histSVG` sits in its 350 x 30 box: column `i` of `n`, lamp `k` up from the foot. */
+export function lampRects(n: number) {
+  const bw = (W - GAP * (n - 1)) / n;
+  return Array.from({ length: n * 5 }, (_, j) => {
+    const i = Math.floor(j / 5), k = j % 5;
+    return { i, k, x: i * (bw + GAP), y: H - (k + 1) * LH - k * LG, w: bw, h: LH };
+  });
+}
+const pct = (v: number) => `${(v / W) * 100}%` as const;
+
+/**
+ * M2's `histSVG`: one column of five lamps per hour, lit like the band meter; the current hour is gold. Plain Views, positioned in percent of the box's
+ * width (an Svg is rasterised in software on the UI thread on every draw, and this one has 85 rects).
+ */
+export const Board = memo(function Board({ columns }: { columns: { lit: number; now: boolean }[] }) {
   return (
     <View accessible={false} style={{ position: "absolute", left: m2.space.gutter, right: m2.space.gutter, bottom: m2.space.histBottom, height: H }} pointerEvents="none">
-      <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-        {columns.map((c, i) => [0, 1, 2, 3, 4].map((k) => (
-          <Rect key={`${i}-${k}`} x={i * (bw + GAP)} y={H - (k + 1) * LH - k * LG} width={bw} height={LH} rx={0.6}
-            fill={k >= c.lit ? m2.color.boardOff : c.now ? m2.color.gold : m2.color.boardOn} />
-        )))}
-      </Svg>
+      {lampRects(columns.length).map(({ i, k, x, y, w, h }) => (
+        <View key={`${i}-${k}`} style={{ position: "absolute", left: pct(x), top: y, width: pct(w), height: h, borderRadius: 1, backgroundColor: k >= columns[i].lit ? m2.color.boardOff : columns[i].now ? m2.color.gold : m2.color.boardOn }} />
+      ))}
     </View>
   );
-}
+});

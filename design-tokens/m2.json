@@ -1106,7 +1106,11 @@
   "radius.thumb": ".thumb 5",
   "type.headDate": ".hhead .date 15px on the 30px .r1 baseline row (line kept at 20: it sets the row)",
   "type.lblRow": ".label .lr, .gr, .ls 15px (no line-height); `lbl` is `.dish .dal` at 1.4",
-  "space.mealY": ".meal{padding:12px 0;border-bottom:1px solid var(--hair)}"
+  "space.mealY": ".meal{padding:12px 0;border-bottom:1px solid var(--hair)}",
+  "letterX.W": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "letterX.F": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "letterX.H": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "letterX.B": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)"
  },
  "felt": {
   "patch": {
@@ -1131,5 +1135,11 @@
  },
  "ratio": {
   "descender": 0.3
+ },
+ "letterX": {
+  "W": 72,
+  "F": 99,
+  "H": 88,
+  "B": 91
  }
 }

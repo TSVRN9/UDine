@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, memo, useCallback } from "react";
 import { Image, View } from "react-native";
 import { m2 } from "../../lib/theme";
 import { Text } from "../ui";
@@ -23,7 +23,7 @@ export interface RowContext {
 }
 
 /** One line of the hall's list: a station head, the diet note, a holiday's note, a café's body, an empty day, or a dish. */
-export function MenuItem({ it, row }: { it: Item; row: RowContext }) {
+export const MenuItem = memo(function MenuItem({ it, row }: { it: Item; row: RowContext }) {
   switch (it.t) {
     case "note": return <DietLine line={it.line} revealed={it.revealed} onToggle={row.onToggleAll} />;
     case "head": return <View style={{ height: m2.size.stationRow, paddingHorizontal: m2.space.gutter, paddingBottom: m2.space.stationHeadBottom, justifyContent: "flex-end", backgroundColor: m2.color.chalk }}><Text v="stationHead" color={m2.color.dm} accessibilityRole="header">{it.name}</Text></View>;
@@ -49,7 +49,7 @@ export function MenuItem({ it, row }: { it: Item; row: RowContext }) {
     case "empty": return <View style={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.stateTop, paddingBottom: m2.space.part }}><Text v="empty" color={m2.color.slate}>{it.text}</Text></View>;
     default: return <DishRow dish={it.dish} contains={it.contains} scores={row.scores} lane={row.day === 0} place={row.place} meal={row.meal} onOpen={row.onOpen} here={it.dish.key === row.hereKey} />;
   }
-}
+});
 
 /**
  * The hall's list: its rows (`MenuItem`) under a spacer the height of the pinned header, the network state's curtain over them when
@@ -61,9 +61,12 @@ export const MenuList = forwardRef<PagerHandle, {
   head: number;
   animatedRef: unknown; holdOn: { get: () => number }; onScroll: unknown; scrollY: { get: () => number }; onViewable: () => void;
 }>(function MenuList({ items, state, stateText, row, head, animatedRef, holdOn, onScroll, scrollY, onViewable }, ref) {
+  // one renderItem for as long as the rows' context is the same one, and rows that bail out of a render nothing changed for: a day change
+  // renders the screen five or six times, and a new closure here drew every visible row each time
+  const renderItem = useCallback((it: Item) => <MenuItem it={it} row={row} />, [row]);
   return (
     <MealPager
-      ref={ref} data={items} renderItem={(it: Item) => <MenuItem it={it} row={row} />} animatedRef={animatedRef} holdOn={holdOn} onScroll={onScroll} scrollY={scrollY} onViewable={onViewable}
+      ref={ref} data={items} renderItem={renderItem} animatedRef={animatedRef} holdOn={holdOn} onScroll={onScroll} scrollY={scrollY} onViewable={onViewable}
       keyOf={keyOf} typeOf={typeOf}
       curtain={state === "ok" ? undefined : (copy) => <StateCurtain copy={copy} state={state} top={head} text={stateText} />}
       header={<View style={{ height: head, backgroundColor: m2.color.dm }} />} footer={<View style={{ height: m2.size.listFoot }} />}
