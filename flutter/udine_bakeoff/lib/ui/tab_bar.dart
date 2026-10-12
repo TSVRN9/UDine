@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'press.dart';
@@ -43,7 +44,7 @@ class M2TabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: EdgeInsets.only(bottom: bottomInset),
+        padding: EdgeInsets.only(bottom: math.max(bottomInset, M2Layout.safeBottomMin)),
         decoration: BoxDecoration(color: M2Color.white, border: Border(top: BorderSide(color: M2Color.hair))),
         child: Stack(clipBehavior: Clip.none, children: [
           Row(children: [

@@ -28,4 +28,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 120));
     expect(tester.getRect(bar()).left, 260.0);
   });
+
+  testWidgets('M2 --sb: the bottom inset is at least 10 px, and the device inset when larger', (tester) async {
+    Widget bar(double inset) => Directionality(textDirection: TextDirection.ltr, child: Align(alignment: Alignment.bottomLeft, child: SizedBox(width: 390, child: M2TabBar(selected: 0, onSelect: (_) {}, bottomInset: inset))));
+    await tester.pumpWidget(bar(0));
+    expect(tester.getSize(find.byType(M2TabBar)).height, 1 + 56 + 10);
+    await tester.pumpWidget(bar(34));
+    expect(tester.getSize(find.byType(M2TabBar)).height, 1 + 56 + 34);
+  });
 }

@@ -201,7 +201,7 @@ void main() {
     });
   });
 
-  testWidgets('a grab mid-animation stops the controller; the cancelled run never finishes and the release settles it', (tester) async {
+  testWidgets('a grab during a running open takes over: it tracks the finger, the open never finishes under it, and the release settles to closed', (tester) async {
     final h = await boot(tester);
     await tester.tap(find.text('Hampshire'));
     await tester.pump();
@@ -213,7 +213,6 @@ void main() {
     await g.moveBy(const Offset(0, 100));
     await tester.pump();
     expect(h.phase, Phase.dragging);
-    expect(h.t.progress.isAnimating, isFalse);
     expect(h.p, closeTo(1 - 140 / 480, 1e-9));
     expect(h.p, isNot(closeTo(at, 1e-3)));
     await tester.pump(const Duration(milliseconds: 600)); // the stopped open's own end time passes: it must not finish

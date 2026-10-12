@@ -195,6 +195,7 @@ abstract final class M2Layout {
   static const tabIcon = 24.0, tabGap = 3.0, tabIconStroke = 1.8, tabIndicatorH = 3.0;
   static const chevron = 18.0, chevronStroke = 2.2;
   static const backSize = 24.0;
+  static const safeBottomMin = 10.0; // `--sb: max(10px, env(safe-area-inset-bottom))`
   static const tabIndicatorTop = -1.0; // `.tbar .ind` top: over the hairline
   static const disabledTab = 0.4;
 }
