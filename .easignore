@@ -59,3 +59,17 @@ example
 /mobile/ios
 /mobile/android
 google-service-account.json
+
+# supabase/.gitignore and web/.gitignore (EAS reads only this root file, never nested ignores)
+/supabase/.branches
+/supabase/.temp
+/supabase/.env.keys
+/supabase/.env.local
+/supabase/.env.*.local
+/web/node_modules
+/web/.output
+/web/.vercel
+/web/.netlify
+/web/.wrangler
+/web/.svelte-kit
+/web/build
