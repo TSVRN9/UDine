@@ -1,20 +1,16 @@
-import { useMemo } from "react";
 import { View } from "react-native";
 import { m2 } from "../../lib/theme";
 import { HallChip, Text } from "../ui";
-import { isCafe, loadFixture, placeName } from "../logic/fixture";
+import { isCafe, placeName } from "../logic/fixture";
 import type { ServeTarget } from "../logic/dishSheet";
 import type { Dish } from "../logic/types";
-import { whenText, whereAnswer } from "../logic/where";
-
-const fx = loadFixture();
+import { whenText, type WhereGroup } from "../logic/where";
 
 /**
  * M2 `whereHTML`: where you can get the dish, now or next. One line per answer (at most two), each place a tag that opens it there.
  * Never says where it is not: a dish with no serving left says so in one line.
  */
-export function WhereServed({ dish, onServe }: { dish: Dish; onServe: (t: ServeTarget) => void }) {
-  const answer = useMemo(() => whereAnswer(fx, dish.name, new Date(fx.clock)), [dish]);
+export function WhereServed({ dish, answer, onServe }: { dish: Dish; answer: WhereGroup[]; onServe: (t: ServeTarget) => void }) {
   return (
     <View style={{ marginTop: m2.space[5] }}>
       {answer.length === 0 ? <Text v="sheetHead" color={m2.color.dm}>Not on the menu again today or tomorrow</Text> : null}

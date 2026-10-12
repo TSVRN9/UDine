@@ -20,10 +20,10 @@ const fill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as c
  * photo (the shared element); the band's own copy rides on that photo and fades out, and the title, back button, letter and
  * the menu below fade in over their final layout. The menu itself is `HallMenu`.
  */
-export function HallHeader({ t, H, place, name, scrollY, onBack, at, onPush, pushed }: {
+export function HallHeader({ t, H, place, name, scrollY, onBack, at, onPush, onPushGo, onSettled, pushed }: {
   t: ReturnType<typeof useContainerTransform>; H: number; place: PlaceKey; name: string; scrollY: SharedValue<number>; onBack: () => void;
   /** a hall pushed from a dish's where-served: its day, meal and dish; `onPush` pushes another such hall from its sheet */
-  at?: ServeTarget; onPush?: (t: ServeTarget) => void;
+  at?: ServeTarget; onPush?: (t: ServeTarget) => void; onPushGo?: () => void; onSettled?: () => void;
   /** pushed screens have no drag-down (M2 round 7): their way back is the push's own */
   pushed?: boolean;
 }) {
@@ -40,7 +40,7 @@ export function HallHeader({ t, H, place, name, scrollY, onBack, at, onPush, pus
   const window = (
     <Animated.View collapsable={false} onLayout={t.ready} style={[{ position: "absolute", left: 0, right: 0, overflow: "hidden", backgroundColor: m2.color.chalk }, t.style.container]}>
       <Animated.View style={[{ position: "absolute", left: 0, right: 0, top: 0, height: H }, t.style.layer]}>
-        <HallMenu t={t} H={H} place={place} name={name} scrollY={scrollY} ghost={ghost} onBack={onBack} at={at} onPush={onPush} />
+        <HallMenu t={t} H={H} place={place} name={name} scrollY={scrollY} ghost={ghost} onBack={onBack} at={at} onPush={onPush} onPushGo={onPushGo} onSettled={onSettled} />
       </Animated.View>
     </Animated.View>
   );

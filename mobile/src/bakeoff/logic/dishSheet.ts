@@ -11,8 +11,10 @@ export interface DishCtx {
   day: number;
   /** Add / Add another: Task 7's store. Unset until then. */
   onAdd?: () => void;
-  /** a where-served button: the sheet is already going away */
+  /** a where-served button was tapped: prepare the destination now (the sheet is going away) */
   onServe?: (t: ServeTarget) => void;
+  /** the sheet is half-way out: the destination may start to move */
+  onServeGo?: () => void;
 }
 export interface ServeTarget { place: PlaceKey; meal: MealKey; day: 0 | 1; dish: string }
 
@@ -80,3 +82,44 @@ export const sheetPrice = (ctx: Pick<DishCtx, "place">, d: Dish): string | null 
 export const CARBON_BAND: Record<Carbon, string> = {
   A: "Very low: under 1.75", B: "Low: 1.75 to 3", C: "Medium: 3 to 4.25", D: "High: 4.25 to 5.5", E: "Very high: over 5.5",
 };
+
+/**
+ * The bottom of the label's Calories rule from the dish alone, before anything is drawn, so the sheet can start rising at once and
+ * retarget to the measured value while it does. Widths are Oswald/Libre Franklin averages at M2's sizes read off the device; the
+ * estimate is within a few dp for a typical dish, and a miss only means a small retarget during the rise.
+ */
+export function estimateCalBottom(d: Pick<Dish, "name" | "serving" | "allergens" | "diet">, o: {
+  width: number; price: boolean; add: boolean; health: boolean; carbon: boolean; where: { chips: number[]; letters: boolean[] }[];
+}): number {
+  const rows = (widths: number[], gap: number, avail: number) => {
+    let n = widths.length ? 1 : 0, x = 0;
+    for (const w of widths) { if (x && x + gap + w > avail) { n++; x = w; } else x += (x ? gap : 0) + w; }
+    return n;
+  };
+  const wrap = (text: string, per: number, avail: number) => {
+    let n = 1, x = 0;
+    for (const word of text.split(" ")) { const w = (word.length + 1) * per; if (x && x + w > avail + per) { n++; x = w; } else x += w; }
+    return n;
+  };
+  const avail = o.width - 40;
+  let y = 4 + 32 * wrap(d.name, 12.3, avail);
+  if (o.price || d.serving) y += 4 + 20;
+  const tiles = (o.health ? 1 : 0) + (o.carbon ? 1 : 0);
+  const marks = sheetMarks({ ...d, health: o.health ? 0 : null, carbon: o.carbon ? "A" : null }, { health: true, carbon: true });
+  if (marks) {
+    const w = marks.marks.map((k) => 44 + 6.7 * ({ plant: 11, veg: 10, halal: 5, local: 5, sus: 11 }[k]));
+    if (tiles) w.push(tiles * 24 + (tiles - 1) * 8);
+    y += 8 + 30 * rows(w, 8, avail) + 8 * (rows(w, 8, avail) - 1);
+  }
+  if (d.allergens.length) y += 8 + 21 * wrap(`Contains ${d.allergens.join(", ")}`, 7.1, avail);
+  if (o.add) y += 16 + 52;
+  y += 24;
+  o.where.forEach((g, i) => {
+    y += (i ? 16 : 0) + 24 + 8;
+    const r = rows(g.chips.map((c, k) => (g.letters[k] ? 62 : 32) + 8.1 * c), 8, avail);
+    y += 44 * r + 8 * (r - 1);
+  });
+  if (!o.where.length) y += 24;
+  // the label: margin, frame and padding, title, serving row, then the Calories row
+  return y + 24 + 6 + 40 + (d.serving ? 40 : 0) + 54;
+}

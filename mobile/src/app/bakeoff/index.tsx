@@ -22,6 +22,8 @@ export default function Halls() {
   // a hall pushed over the open one from a dish sheet's where-served; `p` is the push (1 = off to the right, 0 = in) the hall below shifts and dims by
   const [pushed, setPushed] = useState<{ at: ServeTarget; key: number } | null>(null);
   const p = useSharedValue(1);
+  // the sheet that asked for the push is half-way out
+  const [go, setGo] = useState(false);
   const { width: W } = useWindowDimensions();
   const scrollY = useSharedValue(0);
   const t = useContainerTransform(H, scrollY);
@@ -50,7 +52,7 @@ export default function Halls() {
     return () => cancelAnimationFrame(id);
   }, [H]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const push = (to: ServeTarget) => { p.set(1); setPushed((cur) => ({ at: to, key: (cur?.key ?? 0) + 1 })); };
+  const push = (to: ServeTarget) => { p.set(1); setGo(false); setPushed((cur) => ({ at: to, key: (cur?.key ?? 0) + 1 })); };
   const below = useAnimatedStyle(() => ({ transform: [{ translateX: -m2Motion.push.shift * W * (1 - p.get()) }] }));
   const dim = useAnimatedStyle(() => ({ opacity: m2Motion.push.dim * (1 - p.get()) }));
   const open = place && fx.places.find((x) => x.key === place);
@@ -58,12 +60,12 @@ export default function Halls() {
     <View ref={root} collapsable={false} style={{ flex: 1 }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
       <Animated.View style={[{ flex: 1 }, below]}>
         <HallsList hidden={t.phase === "closed" ? null : place} onOpen={onOpen} />
-        {t.phase !== "closed" && open ? <HallHeader t={t} H={H} place={open.key} name={open.name} scrollY={scrollY} onBack={() => t.close()} onPush={push} /> : null}
+        {t.phase !== "closed" && open ? <HallHeader t={t} H={H} place={open.key} name={open.name} scrollY={scrollY} onBack={() => t.close()} onPush={push} onPushGo={() => setGo(true)} /> : null}
       </Animated.View>
       {pushed ? (
         <>
           <Animated.View pointerEvents="none" style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.scrim }, dim]} />
-          <PushedHall key={pushed.key} at={pushed.at} name={fx.places.find((x) => x.key === pushed.at.place)!.name} H={H} W={W} p={p} onPop={() => setPushed(null)} onPush={push} />
+          <PushedHall key={pushed.key} at={pushed.at} name={fx.places.find((x) => x.key === pushed.at.place)!.name} H={H} W={W} p={p} go={go} onPop={() => setPushed(null)} onPush={push} onPushGo={() => setGo(true)} />
         </>
       ) : null}
       <DishSheetHost />

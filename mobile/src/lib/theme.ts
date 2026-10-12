@@ -146,6 +146,7 @@ export const m2 = {
     onDmSoft: "rgba(255,255,255,0.86)",
     divider: "rgba(255,255,255,0.14)",
     pressRow: "rgba(36,23,26,0.06)",
+    here: "rgba(136,28,28,0.07)",
     pressDark: "rgba(255,255,255,0.08)",
     felt: "#5a1820",
     scrim: "rgba(36,10,14,1)",

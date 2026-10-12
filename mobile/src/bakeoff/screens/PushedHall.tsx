@@ -1,18 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { BackHandler } from "react-native";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { m2Motion, m2PushEasing } from "../../lib/motion";
 import type { ServeTarget } from "../logic/dishSheet";
+import { closedGate, gateStep } from "../motion/pushGate";
 import { useContainerTransform } from "../motion/useContainerTransform";
 import { HallHeader } from "./HallHeader";
 
 /**
  * A hall pushed over the screen below (M2 round 7 `navPush`): it travels in from the right on the push curve while `p` (shared with
- * the screen below, which shifts and dims by it) runs 1 -> 0, already at its dish. Back, or the hardware back, runs it out again.
+ * the screen below, which shifts and dims by it) runs 1 -> 0, already at its dish: it is drawn and scrolled out of sight first. Back, or the hardware back, runs it out again.
  * The screen is a plain hall menu with its container transform already open, so it has none of its own: no drag-down.
  */
-export function PushedHall({ at, name, H, W, p, onPop, onPush }: {
-  at: ServeTarget; name: string; H: number; W: number; p: SharedValue<number>; onPop: () => void; onPush: (t: ServeTarget) => void;
+export function PushedHall({ at, name, H, W, p, go, onPop, onPush, onPushGo }: {
+  at: ServeTarget; name: string; H: number; W: number; p: SharedValue<number>; go: boolean; onPop: () => void; onPush: (t: ServeTarget) => void; onPushGo: () => void;
 }) {
   const scrollY = useSharedValue(0);
   const t = useContainerTransform(H, scrollY);
@@ -31,17 +32,18 @@ export function PushedHall({ at, name, H, W, p, onPop, onPush }: {
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * W }] }));
-  // the push's clock starts once the menu has drawn: HallMenu mounts its list one frame after itself, and that blocks JS for a few frames
+  // Out of sight (p = 1) the screen draws and scrolls to its dish; it moves once that is done and the sheet is half-way out (pushGate)
+  const gate = useRef(closedGate);
+  const step = (e: "settled" | "go") => {
+    const r = gateStep(gate.current, e);
+    gate.current = r.gate;
+    if (r.start && !going.get()) p.set(withTiming(0, { duration: m2Motion.cont.d, easing: m2PushEasing }));
+  };
   const open = t.phase !== "closed";
-  useEffect(() => {
-    if (!open) return;
-    let b = 0;
-    const a = requestAnimationFrame(() => { b = requestAnimationFrame(() => { if (!going.get()) p.set(withTiming(0, { duration: m2Motion.cont.d, easing: m2PushEasing })); }); });
-    return () => { cancelAnimationFrame(a); cancelAnimationFrame(b); };
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (go) step("go"); }, [go]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }, slide]}>
-      {t.phase !== "closed" ? <HallHeader t={t} H={H} place={at.place} name={name} scrollY={scrollY} onBack={back} at={at} onPush={onPush} pushed /> : null}
+      {open ? <HallHeader t={t} H={H} place={at.place} name={name} scrollY={scrollY} onBack={back} at={at} onPush={onPush} onPushGo={onPushGo} onSettled={() => step("settled")} pushed /> : null}
     </Animated.View>
   );
 }
