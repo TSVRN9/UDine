@@ -584,6 +584,15 @@ export function menuView(fx: Fixture, day: string, h: HallKey, meal: MealKey, pr
   Screenshot each state on the Halls tab and the hall menu, and compare with round 9's M2 shots.
 - [ ] **Step 5: Commit.**
 
+> **As built (PR #544, Task 8):**
+> - `logic/net.ts` (pure: `NetMode`, `parseNet`, `menuState`), `loadFixtureAsync(mode)` in `logic/fixture.ts` (mode from `EXPO_PUBLIC_BAKEOFF_NET`; `slow` waits `m2Motion.net.slow` = 1500 ms; `offline` returns the fixture flagged `{cached, asOf}`; `fail` rejects), and `state/net.ts` (the store: mode, whether Halls' hours and busy have arrived, the "place|day" menus that have; `useMenuState`, `retry`). `slow`, `retry` and each menu's load go through `loadFixtureAsync`.
+> - M2's rules, as `menuState`/`hoursKnown`/`liveKnown`: offline keeps today and tomorrow; failed knows nothing; slow loads each place and day once. The status line, the busy row (and board) and the name keep their rooms in every state, so the name's y is the same in all of them (measured on the screenshots: 437 px from the top at 1080 px wide in ok, slow, offline, failed and offline on an unsaved day).
+> - Screens: `NetState.tsx` (`StateCurtain`: spinner after 400 ms, the unsaved-day text, the failure with Try again); Halls header's "You're offline" / "Couldn't connect" + Try again; the schedule says "Not saved" / no hours (`schedule(fx, place, day, net)`); `EventPage.tsx`; `HallMenu` builds the holiday note and the café body as list items.
+> - Arrivals follow M2's `arrive()`: the state's words, button and spinner are gone in the commit that brings the rows; the chalk beneath leaves with an `arriveOut` exiting Keyframe, so the rows come in from chalk as `#mlist` fades in from 0; the tab and station labels fade in (`arriveIn` entering Keyframes, only on a network arrival, through `useArrival`); the status and busy lines are in at once, as `renderMenu()` writes them. (A first version mounted a chalk veil that faded out; the veil showed the rows for a frame and then held the list blank for 7 frames, so the chalk stays and the words go instead.) `MealPager` carries the curtain, and the day change's copy carries a copy of it, so a change from a state with no rows has something to hold.
+> - Carried from Task 5: cafés without a dish menu (11 of them) keep their description and "<name> doesn't list its menu in the app." with no pinned rows (no tab or station row, no day cell, one "Today" row in the schedule). **No "Add a custom food":** M2's button opens a form sheet and adds a custom plate item; the store, the plate sheet and the bar have no custom item, and the brief defers saved custom foods. The Oct 12 note leads that day's list with no date tag, opens the event page by a push from the right (the hall shifts and dims by the same progress; edge swipe and Back as for every page), and the schedule's row says "Holiday hours" (done in Task 5).
+> - Departures: the event row inside the schedule sheet still opens its link (M2 opens the event page); a hall pushed from where-served (`PushedHall`) draws the note without a tap; every café with a photo in M2's retail set shows it (28 of the 29 do; Charles River Campus has none and keeps the plain maroon header of M2's `nophoto`); **M2 puts a pin button in the header of every café page and RN does not have it** (pinning is out of the bake-off's scope); the event page's banner/cover is decoded with the note row (a hidden 1 dp copy), because it was drawn a few frames late on the first push. Dev: `net=slow|offline|fail|ok` (and `hold=1` to keep a slow load from ever arriving, for stills) on any bakeoff route.
+> - Found on the way: the band's copy that rides the opening container (`HallHeader` ghost) came back over the title after a network arrival in two of three recordings (a double exposure of the name, status and busy row at +110 px). It is not drawn once the container is `open` (red: `HallMenu.net.test.tsx`, "is drawn while the screen opens and is gone once it is open").
+
 ---
 
 ### Task 9: RN review, iOS checklist and devices
@@ -791,6 +800,19 @@ the round-9 states. Compare screenshots with M2's.
     animation in RN starts at mount on the UI thread, never from an effect.**
   - Cold first add on the AVD: the stepper is visible the frame after the tap and the bar's first motion is about
     0.3 s after it, against M2's 136 ms. Measure on a phone in Task 9.
+- **RN, Task 8 (1 REWORK round, MERGE-equivalent at 7c8966b):**
+  - The orchestrator's frames caught both blocking defects. Try again's failure text ghosted over the arriving rows,
+    because the curtain faded out over rows drawn at full opacity. And only 4 of 32 bundled café photos were wired:
+    the builder recorded "ISB has no photo" as a departure without checking the asset folder. The reviewer added the
+    missing pin as a departure.
+  - The builder's first fix (a veil mounted on arrival) flashed rows for a frame and then blanked them for 7. They
+    kept the existing chalk layer and let it leave instead. **Lesson: in RN, an overlay that leaves is cheaper and
+    steadier than one mounted to hide an arrival.**
+  - Process: the review gate counts a plan-doc commit as code, so media had to be re-shot on a clean tree after a
+    docs-only commit.
+- **Flutter, Task 10 (0 REWORK, MERGE-equivalent at 80e291e):** the logic port passed the shared vectors on the
+  first run. The reviewer's mutation found halal filtering untested in both stacks; a test is added in Flutter
+  Task 11 and RN Task 9.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
