@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f2f2f7">
+<title>Plate Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f2f7; --cell:#fff; --label:#000; --label2:#6c6c70; --tint:#881c1c; --tint-bg:#f1e4e4;
+  --tint-press:#6e1616; --sep:#c6c6c8; --fill:#eeeef0; --track:#e3e3e8; --press:#d1d1d6; --chev:#9c9ca1;
+  --spring:cubic-bezier(.32,.72,0,1); --pop:cubic-bezier(.34,1.3,.64,1); --out:cubic-bezier(.2,0,0,1);
+  --st:max(env(safe-area-inset-top),12px); --sb:env(safe-area-inset-bottom);
+  font-family:-apple-system,"SF Pro Text","SF Pro Display",Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased; color:var(--label);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#d4d4da}
+body{display:grid;place-items:center;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible{outline:3px solid #1d64d8;outline-offset:2px}
+#app{position:relative;width:390px;height:844px;overflow:hidden;overflow:clip;background:var(--bg);border-radius:52px;
+  box-shadow:0 0 0 11px #1d1d1f,0 30px 80px rgba(0,0,0,.35);user-select:none;-webkit-user-select:none}
+@media (max-width:500px){body{display:block;background:var(--bg)}#app{width:100vw;height:100vh;height:100dvh;border-radius:0;box-shadow:none}}
+.noanim *, .noanim *::before{transition:none!important;animation:none!important}
+
+/* screens */
+.screen{position:absolute;inset:0;background:var(--bg);overflow-y:auto;overflow-x:hidden;touch-action:pan-y;
+  transition:transform .5s var(--spring);will-change:transform;overscroll-behavior:contain}
+.screen.off{transform:translate3d(100%,0,0);visibility:hidden}
+.screen.under{transform:translate3d(-28%,0,0)}
+.screen.under::after{content:"";position:fixed;inset:0;background:rgba(0,0,0,.08);pointer-events:none}
+.screen.sliding{visibility:visible}
+
+/* type */
+h1{font-size:34px;line-height:41px;font-weight:700;letter-spacing:-.9px;margin:0}
+.t3{font-size:20px;line-height:25px;font-weight:700;letter-spacing:-.4px;margin:0}
+.hd{font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.41px}
+.bd{font-size:17px;line-height:22px;letter-spacing:-.41px}
+.sh{font-size:15px;line-height:20px;letter-spacing:-.24px;color:var(--label2)}
+.fn{font-size:13px;line-height:18px;color:var(--label2)}
+.num{font-variant-numeric:tabular-nums}
+
+/* glass buttons */
+.glass{width:44px;height:44px;border-radius:22px;background:rgba(255,255,255,.86);display:grid;place-items:center;
+  box-shadow:0 1px 6px rgba(0,0,0,.08),inset 0 0 0 .5px rgba(0,0,0,.06);transition:transform .3s var(--pop)}
+.glass:active{transform:scale(.92);transition:transform .12s var(--out)}
+.glass svg{width:22px;height:22px;stroke:#000;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.glass.on{background:var(--tint)} .glass.on svg{stroke:#fff}
+
+/* home */
+.top{padding:var(--st) 16px 0}
+.toprow{display:flex;align-items:center;justify-content:space-between;height:44px}
+.toprow .tools{display:flex;gap:8px}
+.date{font-size:15px;font-weight:600;color:var(--label2)}
+.top h1{margin-top:2px}
+.sub{margin:2px 0 0;min-height:20px}
+.halls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:16px 16px 0}
+.hall{height:72px;border-radius:20px;background:var(--tint);color:#fff;text-align:left;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between;
+  transition:transform .3s var(--pop)}
+.hall:active{transform:scale(.95);transition:transform .12s var(--out);background:var(--tint-press)}
+.hall b{font-size:26px;line-height:28px;font-weight:700}
+.hall span{font-size:13px;line-height:16px;font-weight:600;color:#f6e6e6;letter-spacing:-.1px}
+.sec{display:flex;align-items:baseline;justify-content:space-between;padding:22px 16px 8px}
+.target{margin:0 16px;background:var(--cell);border-radius:26px;padding:14px 0 6px;overflow:hidden}
+.trow{display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 18px;height:46px}
+.tval{display:flex;align-items:baseline;gap:6px}
+.tval .big{font-size:40px;line-height:46px;font-weight:700;letter-spacing:-1.2px;color:var(--tint)}
+.tval .unit{font-size:17px;font-weight:600;color:var(--label2)}
+.chip{height:34px;padding:0 14px;border-radius:17px;background:var(--tint-bg);color:var(--tint);font-size:15px;font-weight:600;position:relative;
+  transition:opacity .25s,transform .3s var(--pop)}
+.chip::before{content:"";position:absolute;inset:-5px -2px}
+.chip:active{transform:scale(.95)}
+.chip[aria-hidden=true]{opacity:0;pointer-events:none;transform:scale(.9)}
+.ruler{position:relative;height:58px;margin-top:4px;touch-action:pan-y;cursor:grab;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+.rtrack{position:absolute;top:0;bottom:0;left:50%;will-change:transform}
+.rtrack .minor{position:absolute;bottom:8px;left:0;height:12px;
+  background:repeating-linear-gradient(90deg,#b8b8bd 0 1px,transparent 1px 8px)}
+.rtrack .maj{position:absolute;bottom:8px;width:2px;height:22px;margin-left:-.5px;background:#8e8e93;border-radius:1px}
+.rtrack .maj i{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-style:normal;font-size:12px;font-weight:500;color:var(--label2)}
+.rtrack .sug{position:absolute;bottom:0;width:6px;height:6px;margin-left:-2.5px;border-radius:3px;background:var(--tint)}
+.needle{position:absolute;left:50%;bottom:4px;width:4px;height:38px;margin-left:-2px;border-radius:2px;background:var(--tint)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);margin:8px 16px 10px;height:44px;padding:4px;border-radius:22px;background:var(--track);position:relative}
+.seg button{position:relative;z-index:1;font-size:13px;font-weight:500;border-radius:18px;transition:color .2s}
+.seg button[aria-pressed=true]{font-weight:600}
+.seg .thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/3);border-radius:18px;background:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);transition:transform .4s var(--spring)}
+
+.pager{position:relative;height:236px;margin-top:12px;touch-action:pan-y;overflow:hidden}
+.ptrack{position:absolute;top:0;left:16px;height:100%;display:flex;gap:10px;will-change:transform}
+.pcard{flex:none;width:322px;height:236px;border-radius:26px;background:var(--cell);padding:16px 18px;text-align:left;display:flex;flex-direction:column;
+  transition:transform .3s var(--pop),opacity .3s}
+.pcard:active{transform:scale(.98);transition:transform .12s var(--out)}
+.pcard .ph{display:flex;justify-content:space-between;align-items:baseline}
+.pcard .ph .hd{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.pcard ul{list-style:none;margin:10px 0 0;padding:0;flex:1}
+.pcard li{display:flex;gap:8px;font-size:15px;line-height:22px;letter-spacing:-.24px;white-space:nowrap}
+.pcard li b{width:26px;flex:none;color:var(--tint);font-weight:600;text-align:right}
+.pcard li span{overflow:hidden;text-overflow:ellipsis}
+.pcard.empty{justify-content:center;align-items:center;text-align:center}
+.dots{display:flex;justify-content:center;gap:8px;height:28px;align-items:center}
+.dots i{width:7px;height:7px;border-radius:4px;background:#c6c6c8;transition:background .2s}
+.dots i.on{background:var(--tint)}
+
+/* fit bars */
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:62px 1fr 74px;align-items:center;gap:10px;font-size:13px;line-height:18px}
+.bar .lb{color:var(--label2)}
+.bar .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.btrack{position:relative;height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.btrack .fl{position:absolute;inset:0;background:var(--tint);border-radius:4px;transform-origin:0 50%;transform:scaleX(0);transition:transform .55s var(--spring)}
+.btrack .tk{position:absolute;top:-2px;bottom:-2px;left:80%;width:2px;background:#000;opacity:.55}
+.btrack.over .fl{background:#5a0f0f}
+
+/* grouped cells */
+.group{margin:0 16px;background:var(--cell);border-radius:26px;overflow:hidden}
+.cell{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 16px;text-align:left;position:relative;transition:background .25s cubic-bezier(.25,.1,.25,1)}
+.cell:active{background:var(--press);transition:none}
+.cell+.cell::before,.mrow+.mrow::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.cell .grow{flex:1;min-width:0}
+.cell .chev{width:9px;height:14px;stroke:var(--chev);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.cell.tint{color:var(--tint)} .cell.tint svg{stroke:var(--tint)}
+.icon{width:22px;height:22px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* nav bar */
+.nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:var(--st) 8px 6px 8px;
+  background:rgba(242,242,247,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.nav .ttl{text-align:center;line-height:1.15}
+.nav .ttl .fn{display:block}
+.nav .glass{margin-left:8px}
+
+/* menu */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 10px;scrollbar-width:none;touch-action:pan-x}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex:none;height:44px;padding:0 14px;border-radius:22px;background:var(--cell);font-size:15px;font-weight:500;white-space:nowrap;transition:background .2s,color .2s}
+.chips button.on{background:var(--tint);color:#fff}
+.stn{scroll-margin-top:150px}
+.stn h3{font-size:20px;line-height:25px;font-weight:700;letter-spacing:-.4px;margin:20px 32px 8px}
+.mrow{display:flex;align-items:center;gap:10px;min-height:64px;padding:8px 10px 8px 16px;position:relative}
+.mrow .grow{flex:1;min-width:0}
+.mrow .bd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.add{width:44px;height:44px;display:grid;place-items:center;flex:none}
+.add i{width:30px;height:30px;border-radius:15px;background:var(--tint-bg);display:grid;place-items:center;transition:transform .3s var(--pop)}
+.add:active i{transform:scale(.85);transition:transform .1s}
+.add svg,.step svg{width:16px;height:16px;stroke:var(--tint);stroke-width:2.4;fill:none;stroke-linecap:round}
+.step{display:flex;align-items:center;height:44px;width:96px;border-radius:22px;background:var(--fill);flex:none;position:relative;animation:grow .28s var(--pop)}
+.step button{width:48px;height:44px;display:grid;place-items:center;transition:opacity .1s}
+.step button:active{opacity:.5}
+.step b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--tint);font-weight:600;font-size:17px;pointer-events:none;font-variant-numeric:tabular-nums}
+@keyframes grow{from{transform:scaleX(.45);opacity:.4}to{transform:none;opacity:1}}
+.menupad{height:150px}
+
+/* plate bar */
+#pbar{position:absolute;left:12px;right:12px;bottom:calc(10px + var(--sb));z-index:20;height:72px;border-radius:36px;display:flex;align-items:center;gap:8px;padding:0 10px 0 22px;
+  background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 8px 30px rgba(0,0,0,.16),inset 0 0 0 .5px rgba(0,0,0,.06);
+  transform:translate3d(0,120px,0);transition:transform .5s var(--spring)}
+#pbar.show{transform:none}
+#pbar .info{flex:1;min-width:0;text-align:left;height:100%;display:flex;flex-direction:column;justify-content:center;gap:3px}
+#pbar .minibar{height:4px;border-radius:2px;background:var(--track);overflow:hidden;width:100%;max-width:180px}
+#pbar .minibar i{display:block;height:100%;background:var(--tint);transform-origin:0 50%;transition:transform .55s var(--spring)}
+.btn{height:52px;padding:0 24px;border-radius:26px;background:var(--tint);color:#fff;font-size:17px;font-weight:600;letter-spacing:-.41px;transition:transform .3s var(--pop),background .15s}
+.btn:active{transform:scale(.96);background:var(--tint-press);transition:transform .12s var(--out)}
+
+/* sheet */
+#scrim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30;transition:opacity .5s var(--spring)}
+#scrim.live{pointer-events:auto}
+#sheet{position:absolute;left:0;right:0;top:calc(var(--st) + 42px);bottom:0;z-index:31;background:var(--bg);border-radius:28px 28px 0 0;
+  transform:translate3d(0,110%,0);will-change:transform;display:flex;flex-direction:column;touch-action:none;box-shadow:0 -4px 30px rgba(0,0,0,.12)}
+#sheet.anim,#sheet.anim .sfoot{transition:transform .5s var(--spring)}
+.grab{width:36px;height:5px;border-radius:3px;background:#c6c6c8;margin:7px auto 0;flex:none}
+.shead{display:flex;align-items:center;gap:8px;padding:6px 12px 0 20px;min-height:52px;flex:none}
+.shead .grow{flex:1}
+.glass.sm{width:44px;height:44px;background:var(--track);box-shadow:none}
+.glass.sm svg{width:16px;height:16px;stroke:var(--label2);stroke-width:2.6}
+.sbody{flex:1;overflow:hidden;padding-bottom:calc(100px + var(--sb))}
+#sheet.large .sbody{overflow-y:auto;touch-action:pan-y}
+.gauge{margin:8px 16px 0;background:var(--cell);border-radius:26px;padding:14px 18px 16px}
+.gnum{display:flex;align-items:baseline;gap:6px;margin-bottom:12px}
+.gnum .big{font-size:34px;line-height:41px;font-weight:700;letter-spacing:-.9px}
+.sfoot{position:absolute;left:0;right:0;bottom:0;padding:10px 16px calc(12px + var(--sb));background:linear-gradient(rgba(242,242,247,0),var(--bg) 30%)}
+.sfoot .btn{width:100%}
+
+/* plate rows */
+.prows{margin:12px 16px 0;background:var(--cell);border-radius:26px;overflow:hidden}
+.prow{display:flex;align-items:center;gap:6px;min-height:76px;padding:0 10px 0 0;position:relative;transition:opacity .25s,transform .35s var(--spring)}
+.prow+.prow::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.prow.gone{opacity:0;transform:scale(.96)}
+.swipe{flex:1;min-width:0;height:76px;overflow:hidden;position:relative;touch-action:inherit;
+  -webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}
+.strack{position:absolute;top:0;bottom:0;left:0;display:flex;gap:8px;will-change:transform}
+.slot{flex:none;height:76px;padding:12px 0 0 16px;letter-spacing:-.41px;display:flex;flex-direction:column;gap:2px;text-align:left}
+.slot .bd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .meta{display:flex;align-items:center;gap:8px;padding-right:4px}
+.slot .meta .sh{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdots{display:flex;gap:4px;flex:none;margin-left:auto}
+.pdots i{width:5px;height:5px;border-radius:3px;background:#c6c6c8;transition:transform .2s}
+.pdots i.on{transform:scale(1.3)}
+.pdots i.on{background:var(--tint)}
+.alts{display:flex;gap:8px;overflow-x:auto;padding:2px 16px 14px;scrollbar-width:none;touch-action:pan-x}
+.alts::-webkit-scrollbar{display:none}
+.alts[hidden]{display:none}
+.alts button{flex:none;min-height:44px;padding:4px 14px;border-radius:22px;background:var(--fill);text-align:left;max-width:220px}
+.alts button span{display:block;font-size:15px;line-height:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alts button small{display:block;font-size:13px;color:var(--label2)}
+.alts button.on{background:var(--tint-bg);box-shadow:inset 0 0 0 1.5px var(--tint)}
+
+/* switches (filters) */
+.sw{width:51px;height:31px;border-radius:16px;background:#e3e3e8;position:relative;flex:none;transition:background .25s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:14px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .3s var(--pop)}
+.cell[aria-checked=true] .sw{background:var(--tint)}
+.cell[aria-checked=true] .sw::after{transform:translateX(20px)}
+
+/* search */
+.sfield{flex:1;height:44px;border-radius:22px;background:var(--track);display:flex;align-items:center;gap:6px;padding:0 14px}
+.sfield input{flex:1;border:0;background:none;font:inherit;font-size:17px;outline:none;min-width:0;color:#000}
+.sfield svg{width:18px;height:18px;stroke:var(--label2);fill:none;stroke-width:2.2;flex:none}
+.empty{padding:28px 32px;text-align:center}
+.custom{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.custom input{width:110px;height:44px;border-radius:12px;border:0;background:var(--cell);font:inherit;font-size:17px;padding:0 12px}
+
+/* HUD */
+#hud{position:absolute;left:50%;top:44%;z-index:50;width:200px;padding:24px 16px 20px;border-radius:26px;text-align:center;
+  background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 12px 40px rgba(0,0,0,.18);
+  transform:translate(-50%,-50%) scale(.85);opacity:0;pointer-events:none;transition:transform .45s var(--pop),opacity .25s}
+#hud.show{transform:translate(-50%,-50%) scale(1);opacity:1}
+#hud .ck{width:52px;height:52px;border-radius:26px;background:var(--tint);display:grid;place-items:center;margin:0 auto 10px}
+#hud .ck svg{width:26px;height:26px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* rolling numbers */
+.roll{display:inline-grid;overflow:hidden;vertical-align:bottom}
+.roll>span{grid-area:1/1;transition:transform .32s var(--out),opacity .32s}
+.roll>span.in-up{transform:translateY(100%);opacity:0}
+.roll>span.in-down{transform:translateY(-100%);opacity:0}
+
+@media (prefers-reduced-motion:reduce){
+  .screen,#sheet.anim,#sheet.anim .sfoot,#pbar,.btrack .fl,#pbar .minibar i,.ptrack,.strack,.prow,.seg .thumb{transition-duration:.01s!important}
+  #scrim,#hud{transition:opacity .2s!important}
+  #hud{transform:translate(-50%,-50%)!important}
+  .step{animation:none}
+  .roll>span{transition:none!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<section class="screen" id="home" aria-label="Lunch">
+  <header class="top">
+    <div class="toprow">
+      <div class="date">Thursday, October 8</div>
+      <div class="tools">
+        <button class="glass" id="bFilter" aria-label="Dietary filters"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+        <button class="glass" id="bSearch" aria-label="Search dishes"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
+        <button class="glass" id="bYou" aria-label="Today"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5"/></svg></button>
+      </div>
+    </div>
+    <h1>Lunch</h1>
+    <p class="sub sh" id="daySub"></p>
+  </header>
+  <div class="halls" id="halls"></div>
+  <div class="sec"><h2 class="t3">Plan lunch</h2></div>
+  <div class="target">
+    <div class="trow">
+      <div class="tval"><span class="big num roll" id="tNum"></span><span class="unit">cal</span></div>
+      <button class="chip" id="tReset" aria-hidden="true"></button>
+    </div>
+    <div class="ruler" id="ruler" role="slider" aria-label="Lunch calories" tabindex="0" aria-valuemin="300" aria-valuemax="1500">
+      <div class="rtrack" id="rtrack"></div><i class="needle"></i>
+    </div>
+  </div>
+  <div class="seg" id="mix" role="group" aria-label="Macro mix"><i class="thumb"></i></div>
+  <div class="pager" id="pager"><div class="ptrack" id="ptrack"></div></div>
+  <div class="dots" id="pdots"></div>
+  <div class="group" style="margin-top:6px">
+    <button class="cell" data-sub="cafes"><span class="grow bd">Cafés and markets</span><svg class="chev" viewBox="0 0 9 14"><path d="M1.5 1.5L7 7l-5.5 5.5"/></svg></button>
+  </div>
+  <div style="height:calc(28px + var(--sb))"></div>
+</section>
+
+<section class="screen off" id="menu">
+  <div class="nav">
+    <button class="glass" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="ttl"><span class="hd" id="mTitle"></span><span class="fn">Lunch, today</span></div><span></span>
+  </div>
+  <div class="chips" id="mChips"></div>
+  <div id="mList"></div>
+  <div class="menupad"></div>
+</section>
+
+<section class="screen off" id="search">
+  <div class="nav" style="grid-template-columns:52px 1fr 8px">
+    <button class="glass" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <label class="sfield"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="q" type="search" placeholder="Search" autocomplete="off" enterkeyhint="search"></label><span></span>
+  </div>
+  <div id="sList"></div>
+  <div class="menupad"></div>
+</section>
+
+<section class="screen off" id="you">
+  <div class="nav">
+    <button class="glass" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="ttl"><span class="hd">Today</span><span class="fn">Thursday, October 8</span></div><span></span>
+  </div>
+  <div class="gauge" style="margin-top:4px"><div class="gnum"><span class="big num" id="yCal"></span><span class="sh" id="yOf"></span></div><div class="bars" id="yBars"></div></div>
+  <div id="yMeals"></div>
+  <div class="group" style="margin-top:24px">
+    <button class="cell" data-sub="rank"><span class="grow bd">Rank dishes</span><svg class="chev" viewBox="0 0 9 14"><path d="M1.5 1.5L7 7l-5.5 5.5"/></svg></button>
+    <button class="cell" data-sub="events"><span class="grow bd">Events and newsletter</span><svg class="chev" viewBox="0 0 9 14"><path d="M1.5 1.5L7 7l-5.5 5.5"/></svg></button>
+    <button class="cell" id="bExport"><span class="grow bd">Export my data</span><svg class="chev" viewBox="0 0 9 14"><path d="M1.5 1.5L7 7l-5.5 5.5"/></svg></button>
+  </div>
+  <div style="height:calc(40px + var(--sb))"></div>
+</section>
+
+<section class="screen off" id="sub">
+  <div class="nav">
+    <button class="glass" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="ttl"><span class="hd" id="subTitle"></span></div><span></span>
+  </div>
+  <div id="subBody"></div>
+</section>
+
+<div id="pbar" role="region" aria-label="Your plate">
+  <button class="info" id="pbInfo"><span class="hd num" id="pbTop"></span><span class="minibar"><i id="pbFill"></i></span><span class="fn num" id="pbLeft"></span></button>
+  <button class="btn" id="pbLog">Log</button>
+</div>
+
+<div id="scrim"></div>
+<div id="sheet" role="dialog" aria-modal="true">
+  <div class="grab"></div>
+  <div class="shead" id="shead"></div>
+  <div class="sbody" id="sbody"></div>
+  <div class="sfoot" id="sfoot"><button class="btn" id="sLog"></button></div>
+</div>
+
+<div id="hud" role="status" aria-live="polite"><div class="ck"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div class="hd">Lunch logged</div><div class="sh num" id="hudSub"></div></div>
+</div>
+
+<script>
+const MENU=[[["Miscellaneous",[["Local Roasted Sweet Potatoes","4 oz",164,1.7,22.0,8.0,"PVH"]]],["Soups",[["Green Chile Posole","5 oz",62,1.9,9.4,2.2,"PVH"],["Roasted Red Pepper & Smoked Gouda Bisque","5 oz",176,4.1,10.5,12.9,"VH"]]],["Grill Station",[["Black Bean Burger","1 each",160,7.0,19.0,7.0,"PVH"],["Golden BBQ Chicken Thigh","1 each",93,13.3,2.4,2.9,"H"],["Halal Burger Patty","1 each",144,12.6,0.0,10.2,"H"],["Halal French Fries","3 OZ",193,1.8,17.7,13.2,"PVH"],["Hand Cut Sweet Potato Fries","3 oz",178,0.9,17.3,11.7,"V"],["Oatmeal Raisin Cookie","1 each",110,2.0,18.0,3.5,"VH"],["Roasted Zucchini","2 1/2 OZ",25,0.5,4.8,0.8,"PVH"]]],["Desserts",[["Chocolate Soft Serve Ice Cream","4 oz",222,3.9,24.8,11.7,"VH"],["Plant Based Vanilla Ice Cream","4 oz",179,0.7,24.9,8.3,"PVH"],["Strawberry Plant Based Soft Serve","4 oz",187,0.7,27.8,7.9,"PVH"],["Vanilla Soft Serve Ice Cream","4 oz",169,2.6,26.1,5.9,"VH"],["Zebra Brownies","1 PIECE",172,1.4,23.6,7.9,"VH"]]],["Noodle Bowl",[["Bean Sprouts","1/2 OZ",2,0.2,0.2,0.0,"PVH"],["Beef Brisket Noodle Bowl","1 bowl",218,12.3,39.9,1.6,""],["Chopped Cilantro","1/8 oz",1,0.1,0.1,0.0,"PVH"],["Hard Boiled Egg","2 EACH",111,10.7,0.0,7.7,"VH"],["Scallions","1/2 OZ",5,0.3,1.1,0.0,"PVH"],["Steamed Bok Choy","3 oz",11,1.3,1.9,0.2,"PVH"]]],["Street Food",[["Braised Pulmuone Tofu","4 oz",123,9.2,8.8,6.1,"PV"],["Mee Goreng","4 oz",107,4.3,19.8,1.3,"VH"],["Stir Fry Green Vegetables","3 oz",34,1.9,3.4,1.9,"PVH"],["Vegetable Spring Rolls","2 EACH",158,1.1,5.6,15.3,"V"],["Yellow Curry Kabocha Squash w/Pork Belly (Fish)","3 oz",194,3.0,3.8,18.3,""]]],["Tandoor",[["Baked Salmon w/Paprika Ginger Eggplant Sauce","4 oz",155,13.1,6.6,8.1,"H"],["Chickpea Salad w/Teardrop Peppers & Artichoke Hearts","2 oz",115,3.4,6.7,8.4,"VH"],["Creamy Cucumber Salad","2 oz",26,1.6,2.6,1.2,"VH"],["Cumin Basmati Rice","3 OZ",138,2.5,24.5,2.8,"PVH"],["Kachumbari Salad","2 oz",13,0.4,2.7,0.0,"PVH"],["Okra & Onions","3 oz",92,1.3,6.7,7.0,"V"],["Tear Drop Peppers","1 oz",25,0.0,6.1,0.0,"PVH"]]],["Mediterranean",[["Baked Italian Sausage w/Potatoes & Onions","4 oz",199,12.4,6.7,13.5,""],["Basil Cream Pesto Sauce","2 OZ",203,3.4,3.4,19.8,"V"],["Fettuccini Pasta","4 OZ",149,5.2,31.3,0.7,"PVH"],["Fresh Grated Parmesan Cheese","1/4 OZ",28,1.8,1.3,1.6,"VH"],["Herb Roasted Tomatoes","1 each",22,0.2,0.9,2.0,"PVH"],["Marinara Sauce","2 OZL",27,0.9,3.2,1.6,"PVH"],["Rigatoni Pasta","4 OZ",154,5.4,32.4,0.8,"VH"],["Rigatoni w/Broccolini & Ricotta","4 oz",155,5.1,23.2,5.3,"VH"]]],["Seasons",[["Baked Pakora","1 each",23,1.0,4.0,0.3,"PVH"],["Coriander Chutney","1 oz",14,0.0,0.9,0.9,"PVH"],["Cucumber & Yogurt Raita Jain","1 OZ",12,1.0,1.1,0.5,"VH"],["Family Pulav (Vegetable Rice) Jain","3 OZ",113,1.9,16.3,4.3,"PVH"],["Fresh Red Onions","1/4 OZ",4,0.1,0.8,0.0,"PVH"],["GF Penne Pasta","4 OZ",203,4.1,43.5,1.0,"PVH"],["Kidney Bean Curry Rasoi","3 oz",108,4.0,13.6,4.7,"VH"],["Marinara Jain","2 oz",23,0.9,3.6,0.0,"PVH"],["Paneer Jalfrezi (Cheese)","4 oz",214,12.6,7.0,15.5,"VH"],["Sauteed Cabbage w/Coconut","3 OZ",86,1.3,6.0,6.7,"PVH"],["Tamarind Date Chutney","1 oz",28,0.0,7.6,0.0,"PVH"]]],["Latino",[["Arroz Blanco","3 OZ",130,1.6,18.5,4.8,"PVH"],["Black Beans","3 OZ",80,3.6,12.7,1.7,"PVH"],["Carrots & Chayote w/Lemon","3 OZ",40,0.9,6.4,1.6,"PVH"],["Esquites (Mexican Corn Salad)","2 oz",79,2.8,9.8,4.0,"VH"],["Homemade Guacamole","3 OZ",112,0.1,5.7,10.9,"PVH"],["Pork Adobada (Chicken)","4 oz",116,8.1,8.0,6.0,""],["Queso Fresco","1/2 oz",47,2.8,0.5,3.8,"VH"],["Sibley's Pico de Gallo","1 OZ",6,0.2,1.4,0.0,"PVH"],["Sour Cream","1 OZ",61,1.0,1.0,5.1,"VH"]]]],[["Soups",[["Green Chile Posole","5 oz",62,1.9,9.4,2.2,"PVH"],["Roasted Red Pepper & Smoked Gouda Bisque","5 oz",176,4.1,10.5,12.9,"VH"]]],["Entrees",[["Herbed Roasted Chicken Legs","1 EACH",101,13.5,0.4,4.9,"H"],["Sausage Pepperonata","3 oz",142,10.0,3.5,9.2,""]]],["Starches",[["Fresh Corn on the Cob","1/2 each",31,1.2,6.8,0.5,"PVH"],["Lyonnaise Potatoes","3 OZ",88,1.6,13.8,3.2,"PVH"]]],["Vegetables",[["Braised Collards in Tomato Onion Gravy","3 oz",31,2.4,5.0,0.8,"PVH"],["Spiced Cauliflower & Chickpeas","3 oz",53,2.6,7.1,1.8,"PVH"]]],["Grill Station",[["Black Bean Burger","1 each",160,7.0,19.0,7.0,"PVH"],["French Fries","3 OZ",193,1.8,17.7,13.2,"V"],["Grilled Cheese Sandwich","1/2 Sandwich",153,5.5,19.4,6.4,"V"],["Grilled Chicken Breast","3 oz",105,18.9,0.1,3.0,"H"],["Halal SPARE Beef Burger","1 Each",130,12.0,2.0,8.0,"H"],["Sweet Potato Fries","3 OZ",194,0.9,16.9,13.7,"V"]]],["Vegetarian Line",[["Baked General Tso's Pulmuone Tofu","3 oz",115,8.8,10.8,4.4,"PV"],["Ginger & Tomato Salad","2 oz",11,0.4,2.1,0.0,"PVH"],["Jasmine Rice","3 OZ",92,1.7,20.7,0.0,"PVH"],["Plant Based Cheese Pizza","1 slice",159,4.2,24.2,5.0,"PVH"],["Plant Based Steak & Cheese Pizza","1 slice",184,5.6,26.2,6.4,"PV"],["Quinoa, Corn & Avocado Salad","2 oz",37,1.3,6.8,0.9,"PVH"],["Szechuan Broccoli","3 oz",138,1.5,28.7,2.3,"PV"]]],["Pasta Bar",[["Cavatappi Pasta","4 oz",140,5.9,29.5,0.7,"PVH"],["Fettuccini Pasta","4 OZ",149,5.2,31.3,0.7,"PVH"],["Marinara Sauce","2 OZL",27,0.9,3.2,1.6,"PVH"],["Tomato Cream Basil Sauce","2 OZ",119,2.3,3.8,10.8,"VH"],["Tortellini w/Basil Pesto & Grape Tomatoes","4 oz",212,6.6,27.2,8.9,"V"]]],["Deli Bar",[["American Cheese","1/2 OZ",46,2.5,0.5,4.1,"V"],["Chicken Salad","2 OZ",69,9.6,1.9,2.6,"H"],["Deli Beef","2 OZ",61,11.1,0.0,2.0,""],["Deli Ham","2 oz",67,9.3,1.3,2.7,""],["Homemade Spicy Hummus","2 OZ",95,3.9,9.6,5.1,"PVH"],["Provolone Cheese","1/2 OZ",47,3.4,0.0,4.1,"VH"],["Turkey Breast","2 OZ",61,13.2,0.0,1.0,"H"]]],["Desserts",[["Oatmeal Raisin Cookie","1 each",110,2.0,18.0,3.5,"VH"],["Zebra Brownies","1 PIECE",172,1.4,23.6,7.9,"VH"]]],["Stir Fry Station",[["Plant-Based Condiments Bar w/Almonds","2 OZ",229,5.0,11.5,17.8,"PV"]]],["Pizza",[["Cheese Pizza","1 SLICE",203,9.4,29.6,5.4,"VH"],["Pepperoni Pizza","1 SLICE",217,9.9,29.0,7.0,""]]],["Gluten Free",[["Burger Bar","1 each",464,20.7,47.7,21.9,""]]],["Latino",[["Esquites (Mexican Corn Salad)","2 oz",79,2.8,9.8,4.0,"VH"],["Latin Toppings","3 oz",130,4.9,3.6,10.6,"VH"],["Pollo (Chicken) in Poblano Sauce","1 each",79,7.5,1.7,4.3,"H"],["Refried Black Beans","1 oz",25,1.5,4.3,0.1,"PVH"],["Yellow Rice","3 oz",103,1.7,19.3,1.3,"PVH"],["Zucchini, Corn & Peppers","2 OZ",45,1.1,7.0,2.0,"PVH"]]],["Express",[["Brown Rice","3 1/2 OZ",123,2.7,25.9,0.9,"PVH"],["Chicken, Pork & Shrimp Wonton Soup","5 oz",206,11.8,24.4,9.3,""],["Jasmine Rice","3 OZ",93,1.7,20.8,0.0,"PVH"],["Mei Fun Noodles","4 OZ",178,4.9,33.6,2.4,"VH"],["Sesame Ginger Baby Bok Choy","3 OZ",24,1.3,2.4,1.3,"PVH"],["Szechuan Pork Belly w/Cabbage & Caul","4 oz",355,5.8,13.6,30.9,""],["Vegetable Spring Rolls","2 EACH",158,1.1,5.6,15.3,"V"]]]],[["Soups",[["Green Chile Posole","5 oz",62,1.9,9.4,2.2,"PVH"],["Tomato Bisque Soup","5 OZL",113,1.9,11.3,6.9,"VH"]]],["Entrees",[["French Onion Braised Chicken","1 each",176,18.5,5.4,8.6,""],["Hot Sausage, Onions & Peppers","3 1/2 oz",177,7.4,4.1,14.6,""]]],["Starches",[["Lyonnaise Potatoes","3 OZ",88,1.6,13.8,3.2,"PVH"],["Margherita Eggplant w/Pesto","4 OZ",140,4.9,5.0,11.8,"V"]]],["Vegetables",[["Maple Roasted Sweet Potatoes","3 OZ",100,1.3,17.7,2.9,"PVH"],["Steamed Broccoli","3 OZ",29,2.6,2.1,1.7,"PVH"]]],["Grill Station",[["BBQ Pulled Pork on Brioche","1/2 each",251,12.7,31.7,8.5,""],["Cajun Chicken Thigh","1 EACH",100,16.1,0.0,3.4,"H"],["French Fries","3 OZ",193,1.8,17.7,13.2,"V"],["Grilled Chicken Breast","3 oz",105,18.9,0.1,3.0,"H"],["Halal SPARE Beef Burger","1 Each",130,12.0,2.0,8.0,"H"],["Local Roasted Sweet Potatoes","4 oz",164,1.7,22.0,8.0,"PVH"],["Roasted Cauliflower","3 oz",34,1.6,4.1,1.8,"PVH"],["Sweet Potato Fries","3 OZ",194,0.9,16.9,13.7,"V"],["Turkey Burger Patty","1 each",186,17.7,0.4,11.3,""]]],["Vegetarian Line",[["Cajun Red Beans & Rice","3 oz",48,1.2,9.1,0.4,"PVH"],["Plant Based Cheese Pizza","1 slice",159,4.2,24.2,5.0,"PVH"],["Plant Based Chorizo & Jalapeno Quesadilla","1 EACH",90,3.8,13.2,2.5,"PVH"],["Plant Based Steak & Cheese Pizza","1 slice",184,5.6,26.2,6.4,"PV"]]],["Pasta Bar",[["Chickpea Salad w/Tomatoes & Feta","2 oz",96,3.4,6.3,6.5,"VH"],["Greek-Styled Ravioli","4 oz",283,11.9,34.7,13.6,"V"],["Homemade Red Pepper Hummus","2 oz",78,3.0,8.9,3.8,"PVH"],["Linguini Pasta","4 OZ",142,6.0,29.8,0.7,"PVH"],["Marinara Sauce","2 OZL",27,0.9,3.2,1.6,"PVH"],["Marinated Olives, Tomatoes & Artichokes","2 oz",80,0.4,2.8,7.6,"PVH"],["Meatball Sauce","2 oz",97,5.1,3.6,7.1,""],["Penne Pasta","4 OZ",147,6.2,30.9,0.8,"PVH"],["Penne w/Meatballs & Creamy Tom Sauce (Beef & Pork)","4 oz",192,8.1,20.6,9.4,""],["Red Pepper Pesto Pasta Salad","2 OZ",158,5.5,19.5,4.0,""],["Summer Squash, Tomato & Basil","3 oz",25,1.0,4.5,0.6,"PVH"]]],["Desserts",[["Oatmeal Raisin Cookie","1 each",110,2.0,18.0,3.5,"VH"],["Zebra Brownies","1 PIECE",172,1.4,23.6,7.9,"VH"]]],["Noodle Bowl",[["Beef for Pho","1 oz",30,5.6,0.0,1.0,""],["Chicken Pho Broth (Fish)","8 oz",24,0.9,2.9,1.4,""],["Chicken for Pho","1 oz",28,6.4,0.0,0.3,"H"],["Green Curry Pho Broth (Anchovies)","8 oz",249,2.3,13.6,20.4,"H"],["Pho Noodles","1 1/2 oz",11,0.2,2.7,0.0,"PVH"],["Pho Toppings","2 oz",34,3.0,2.9,1.4,"PVH"],["Vegetarian Pho Base","8 oz",24,0.0,3.8,1.4,"PVH"]]],["Pizza",[["Cheese Pizza","1 SLICE",203,9.4,29.6,5.4,"VH"],["Pepperoni Pizza","1 SLICE",217,9.9,29.0,7.0,""],["Vegetable Pizza","1 SLICE",202,9.5,29.5,5.5,"VH"]]],["Sushi",[["California Roll","1 roll",222,5.9,47.3,0.8,""],["Purple Sweet Potato Tempura Sushi Roll","1 roll",228,3.7,47.9,1.8,"PVH"],["Teriyaki Pulmuone Tofu Roll","1 roll",241,7.9,44.8,3.0,"PV"],["Vegetable Sushi Roll","1 roll",196,3.6,42.9,0.6,"PVH"]]],["Gluten Free",[["GF Avocado Toast Bar (Bacon)","1 each",227,11.8,3.9,18.7,""]]],["Latino",[["Black Beans","3 OZ",80,3.6,12.7,1.7,"PVH"],["Chopped Cilantro","1/8 oz",1,0.1,0.1,0.0,"PVH"],["Queso Fresco","1/2 oz",47,2.8,0.5,3.8,"VH"],["Red Rice","2 OZ",199,3.5,41.1,0.6,"PVH"],["Roasted Ancho Chili Butternut","3 OZ",85,1.5,12.0,4.2,"PVH"],["Salsa Verde con Aguacate","1 OZ",29,0.1,1.8,2.6,"PVH"],["Tamale Corn Cakes","1 each",152,2.4,16.7,9.2,"VH"]]],["Street Food",[["Baked Sweet & Sour Tofu","4 oz",179,4.4,25.7,6.4,"PVH"],["Mei Fun Noodles","4 OZ",178,4.9,33.6,2.4,"VH"],["Mussaman Curry (Chicken)","4 oz",137,3.4,8.8,9.7,"H"],["Stir Fried Vegetables w/Sesame","3 OZ",54,2.5,2.7,3.9,"PVH"],["Vegetable Fried Rice","4 OZ",137,2.8,19.5,5.1,"VH"]]]],[["Soups",[["Green Chile Posole","5 oz",62,1.9,9.4,2.2,"PVH"],["Roasted Red Pepper & Smoked Gouda Bisque","5 oz",176,4.1,10.5,12.9,"VH"]]],["Entrees",[["French Onion Braised Chicken","1 each",176,18.5,5.4,8.6,""],["Hot Sausage, Onions & Peppers","3 1/2 oz",177,7.4,4.1,14.6,""]]],["Starches",[["Herb Buttered Red Potatoes","3 OZ",74,1.6,12.8,2.0,"VH"],["Margherita Eggplant w/Pesto","4 OZ",140,4.9,5.0,11.8,"V"]]],["Vegetables",[["Sauteed Kale","3 oz",56,3.6,8.0,2.2,"PVH"],["Steamed Broccoli","3 OZ",29,2.6,2.1,1.7,"PVH"]]],["Grill Station",[["Black Bean Burger","1 each",160,7.0,19.0,7.0,"PVH"],["Grilled Chicken Breast","1 oz",35,6.3,0.0,1.0,"H"],["Grilled Chicken Thighs","1 each",89,13.3,0.0,3.7,"H"],["Halal French Fries","3 OZ",193,1.8,17.7,13.2,"PVH"],["Halal SPARE Beef Burger","1 Each",130,12.0,2.0,8.0,"H"],["Hand Cut Sweet Potato Fries","3 oz",178,0.9,17.3,11.7,"V"]]],["International",[["Green Curry Thai Pulmuone Tofu","4 oz",165,7.1,5.9,12.4,"PVH"],["Honey Lemongrass Chicken","4 each",305,28.3,21.5,11.7,""],["Pad Thai w/Peanuts","3 oz",214,4.2,25.1,11.3,"H"],["Stir Fry Green Vegetables","3 oz",34,1.9,3.4,1.9,"PVH"],["Vegetable Fried Rice","4 OZ",137,2.8,19.5,5.1,"VH"],["Vegetable Spring Rolls","2 EACH",158,1.1,5.6,15.3,"V"]]],["Pasta Bar",[["Cheese Rigatoni w/Plant Based Nasoya Bolognese Sauce","4 OZ",206,10.2,26.0,7.0,"V"],["Linguini Pasta","4 OZ",142,6.0,29.8,0.7,"PVH"],["Marinara Sauce","2 OZL",27,0.9,3.2,1.6,"PVH"],["Penne Pasta","4 OZ",147,6.2,30.9,0.8,"PVH"],["Plant Based Bolognese Sauce","2 OZ",75,5.0,5.0,3.7,"PV"]]],["Deli Bar",[["American Cheese","1/2 OZ",46,2.5,0.5,4.1,"V"],["Chicken Salad","2 OZ",67,5.4,2.5,3.9,"H"],["Deli Beef","2 OZ",61,11.1,0.0,2.0,""],["Homemade Mid Eastern Hummus","2 oz",94,3.6,10.4,4.6,"PVH"],["Provolone Cheese","1/2 OZ",47,3.4,0.0,4.1,"VH"],["Tuna Salad","2 OZ",80,8.8,2.0,4.0,"H"],["Turkey Breast","2 OZ",61,13.2,0.0,1.0,"H"]]],["Desserts",[["Lemon Cooler Cookies","1 each",81,0.8,12.9,2.9,"PVH"],["Zebra Brownies","1 PIECE",172,1.4,23.6,7.9,"VH"]]],["Noodle Bowl",[["Beef Brisket Noodle Bowl","1 bowl",220,12.5,40.3,1.7,""]]],["Pizza",[["Cheese Pizza","1 SLICE",203,9.4,29.6,5.4,"VH"],["Pepperoni Pizza","1 SLICE",217,9.9,29.0,7.0,""]]],["Display Station",[["Grilled Kielbasa","2 OZ",125,5.6,1.4,10.4,""],["Potato & Cheese Pierogi","3 EACH",217,5.6,33.7,6.5,"VH"],["Sauerkraut Topping","2 OZ",9,0.0,1.9,0.0,"PVH"],["Sour Cream","1 OZ",61,1.0,1.0,5.1,"VH"],["Sweet & Sour Braised Red Cabbage","3 oz",58,1.0,15.1,0.1,"PV"]]]]];
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const app = $('#app');
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+const buzz = p => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} };
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const g1 = n => (Math.round(n * 10) / 10).toString();
+const qty = q => (q >= 1 ? Math.floor(q) : '') + (q % 1 ? '½' : '') || '0';
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ICON = {
+  plus: '<svg viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11"/></svg>',
+  minus: '<svg viewBox="0 0 16 16"><path d="M2.5 8h11"/></svg>',
+  x: '<svg viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>',
+  chev: '<svg class="chev" viewBox="0 0 9 14"><path d="M1.5 1.5L7 7l-5.5 5.5"/></svg>',
+};
+
+/* ---------- data ---------- */
+const HALLS = ['Worcester', 'Franklin', 'Hampshire', 'Berkshire'];
+const D = []; // flat dish table: lunch, all four halls
+MENU.forEach((stations, h) => stations.forEach(([st, rows]) => rows.forEach(([n, sv, cal, p, c, f, fl]) => {
+  const d = { id: D.length, h, st, n, sv, cal, p, c, f, fl };
+  d.role = (p >= 8 && p * 4 / Math.max(cal, 1) >= .22) ? 'protein' : (cal >= 80 && c * 4 / cal >= .45) ? 'starch' : 'side';
+  D.push(d);
+})));
+// Day: real Worcester breakfast dishes, Oct 8.
+const GOAL = { cal: 2200, p: 150, c: 250, f: 73 };
+const BREAKFAST = [['Scrambled Eggs', 112, 10.7, 0, 7.7], ['Make Your Own Waffles', 222, 4.4, 44.5, 2.2], ['Pork Sausage Links', 88, 3.6, 0, 8.2], ['Masala Chai', 39, 1.1, 6, 1.2]];
+const LOG = [{ meal: 'Breakfast', hall: 0, items: BREAKFAST.map(([n, cal, p, c, f]) => ({ n, q: 1, cal, p, c, f })) }];
+const MIXES = [{ k: 'Balanced', p: .25, c: .5, f: .25 }, { k: 'More protein', p: .35, c: .4, f: .25 }, { k: 'Low carb', p: .3, c: .25, f: .45 }];
+const S = { T: 850, sug: 850, mix: 0, filt: { V: false, P: false, H: false }, props: [], cart: [[], [], [], []], hall: 0, plate: null };
+
+const eaten = () => LOG.reduce((t, m) => { m.items.forEach(i => { t.cal += i.cal * i.q; t.p += i.p * i.q; t.c += i.c * i.q; t.f += i.f * i.q; }); return t; }, { cal: 0, p: 0, c: 0, f: 0 });
+const MEALS_LEFT = 2; // lunch + dinner
+function suggest() { const left = GOAL.cal - eaten().cal; return Math.max(300, Math.min(1500, Math.round(left / MEALS_LEFT / 50) * 50)); }
+
+/* ---------- planner ---------- */
+// Condiments, toppings and build-your-own components never anchor a proposed plate.
+const EXC_ST = /^(Desserts|Soups|Deli Bar)$/;
+const EXC_N = /sauce|chutney|parmesan|american cheese|provolone|sour cream|pico|guacamole|salsa|queso|topping|raita|cilantro|scallions|bean sprouts|red onions|broth|for pho|pho noodles|pho base|\bbar\b|hummus|tear drop|kachumbari|marinara/i;
+const passDiet = d => (!S.filt.V || d.fl.includes('V')) && (!S.filt.P || d.fl.includes('P')) && (!S.filt.H || d.fl.includes('H'));
+const plannable = d => d.cal >= 40 && !EXC_ST.test(d.st) && !EXC_N.test(d.n) && passDiet(d);
+const QA = [1, 1.5, 2, 2.5, 3], QB = [.5, 1, 1.5, 2];
+const qpen = (q, side) => (q % 1 ? .004 : 0) + (q > 2 ? .006 * (q - 2) : 0) + (side && q > 1 ? .006 * (q - 1) : 0);
+function err(cal, p, c, T, mix) {
+  const PT = T * mix.p / 4, CT = T * mix.c / 4;
+  return 4 * ((cal - T) / T) ** 2 + 3 * (Math.max(0, PT - p) / PT) ** 2 + .6 * ((c - CT) / CT) ** 2;
+}
+function totals(items) {
+  const t = { cal: 0, p: 0, c: 0, f: 0 };
+  for (const it of items) { const d = D[it.id]; t.cal += d.cal * it.q; t.p += d.p * it.q; t.c += d.c * it.q; t.f += d.f * it.q; }
+  return t;
+}
+// Bounded exhaustive search (a tiny knapsack): one protein anchor + optional starch + optional side, half-serving steps.
+function bestPlate(h, T, mix) {
+  const E = D.filter(d => d.h === h && plannable(d));
+  const A = E.filter(d => d.role === 'protein'), SS = [null, ...E.filter(d => d.role === 'starch')], V = [null, ...E.filter(d => d.role === 'side')];
+  let best = null, be = Infinity;
+  for (const a of A) for (const qa of QA) {
+    const a1 = a.cal * qa, a2 = a.p * qa, a3 = a.c * qa, pa = qpen(qa);
+    for (const s of SS) for (const qs of (s ? QB : [0])) {
+      const b1 = a1 + (s ? s.cal * qs : 0), b2 = a2 + (s ? s.p * qs : 0), b3 = a3 + (s ? s.c * qs : 0), pb = pa + qpen(qs, 1) + (s ? .002 : 0);
+      if (b1 > T * 1.25) continue;
+      for (const v of V) for (const qv of (v ? QB : [0])) {
+        const e = err(b1 + (v ? v.cal * qv : 0), b2 + (v ? v.p * qv : 0), b3 + (v ? v.c * qv : 0), T, mix) + pb + qpen(qv, 1) + (v ? .002 : .015);
+        if (e < be) { be = e; best = [[a, qa], [s, qs], [v, qv]]; }
+      }
+    }
+  }
+  if (!best) return null;
+  return { hall: h, e: be, items: best.filter(x => x[0]).map(([d, q]) => ({ id: d.id, q, pin: false })) };
+}
+function propose() {
+  const mix = MIXES[S.mix];
+  S.props = HALLS.map((_, h) => bestPlate(h, S.T, mix)).filter(Boolean).sort((a, b) => a.e - b.e).slice(0, 3);
+}
+// Re-fit quantities of the planner-owned rows; rows the user stepped stay put.
+function refit(plate) {
+  const free = plate.items.filter(i => !i.pin), mix = MIXES[S.mix];
+  if (!free.length) return;
+  const fixed = totals(plate.items.filter(i => i.pin));
+  const grids = free.map(i => D[i.id].role === 'protein' ? QA : QB);
+  let best = null, be = Infinity;
+  const rec = (k, cal, p, c, pen, qs) => {
+    if (k === free.length) { const e = err(cal, p, c, S.T, mix) + pen; if (e < be) { be = e; best = qs.slice(); } return; }
+    const d = D[free[k].id];
+    for (const q of grids[k]) { qs.push(q); rec(k + 1, cal + d.cal * q, p + d.p * q, c + d.c * q, pen + qpen(q, d.role !== 'protein'), qs); qs.pop(); }
+  };
+  rec(0, fixed.cal, fixed.p, fixed.c, 0, []);
+  free.forEach((it, k) => { it.q = best[k]; });
+}
+// Fill the gap: keep everything on the plate, add up to two dishes from the same hall.
+function fillPlate(plate) {
+  const mix = MIXES[S.mix], base = totals(plate.items), on = new Set(plate.items.map(i => i.id));
+  const E = D.filter(d => d.h === plate.hall && plannable(d) && !on.has(d.id));
+  let be = err(base.cal, base.p, base.c, S.T, mix), best = null;
+  const tryE = (adds) => {
+    let cal = base.cal, p = base.p, c = base.c, pen = 0;
+    for (const [d, q] of adds) { cal += d.cal * q; p += d.p * q; c += d.c * q; pen += qpen(q, 1) + .01; }
+    const e = err(cal, p, c, S.T, mix) + pen; if (e < be) { be = e; best = adds; }
+  };
+  E.forEach((a, i) => QB.forEach(qa => { tryE([[a, qa]]); for (let j = i + 1; j < E.length; j++) QB.forEach(qb => tryE([[a, qa], [E[j], qb]])); }));
+  if (!best) return false;
+  best.forEach(([d, q]) => plate.items.push({ id: d.id, q, pin: false }));
+  return true;
+}
+// Nearby alternatives: same station first (closest macros), then same role elsewhere in the hall.
+function cycleFor(id, plate) {
+  const d = D[id], on = new Set(plate.items.map(i => i.id));
+  const E = D.filter(x => x.h === d.h && x.id !== id && !on.has(x.id) && plannable(x));
+  const dist = x => Math.abs(x.cal - d.cal) / 150 + Math.abs(x.p - d.p) / 12;
+  const same = E.filter(x => x.st === d.st).sort((a, b) => dist(a) - dist(b));
+  const role = E.filter(x => x.st !== d.st && x.role === d.role).sort((a, b) => dist(a) - dist(b));
+  return [id, ...same.map(x => x.id), ...role.map(x => x.id)].slice(0, 6);
+}
+
+/* ---------- gestures ---------- */
+let owner = null, dragged = false;
+document.addEventListener('click', e => { if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; } }, true);
+document.addEventListener('pointerdown', () => { dragged = false; }, true);
+document.addEventListener('touchstart', () => {}, { passive: true }); // enables :active on iOS
+const rubber = (x, dim) => (1 - 1 / (x * .55 / dim + 1)) * dim;
+function gesture(el, lock, filter) {
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0 || (filter && !filter(e))) return;
+    const s = { x: e.clientX, y: e.clientY, id: e.pointerId, ctl: null, pts: [[e.timeStamp, e.clientX, e.clientY]] };
+    const move = ev => {
+      if (ev.pointerId !== s.id) return;
+      if (owner && owner !== s) return done();
+      const dx = ev.clientX - s.x, dy = ev.clientY - s.y;
+      s.pts.push([ev.timeStamp, ev.clientX, ev.clientY]); if (s.pts.length > 6) s.pts.shift();
+      if (!s.ctl) {
+        if (Math.hypot(dx, dy) < 8) return;
+        s.ctl = lock(Math.abs(dx) > Math.abs(dy) ? 'x' : 'y', e);
+        if (!s.ctl) return done();
+        owner = s; dragged = true;
+        try { el.setPointerCapture(s.id); } catch (er) {}
+      }
+      s.ctl.move(dx, dy);
+    };
+    const up = ev => {
+      if (ev.pointerId !== s.id) return;
+      done();
+      if (s.ctl) {
+        const a = s.pts[0], b = s.pts[s.pts.length - 1], dt = Math.max(1, b[0] - a[0]);
+        const stale = ev.timeStamp - b[0] > 80;
+        s.ctl.end(stale ? 0 : (b[1] - a[1]) / dt, stale ? 0 : (b[2] - a[2]) / dt);
+      }
+      if (owner === s) owner = null;
+    };
+    const done = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  });
+}
+
+/* ---------- rolling numbers ---------- */
+function roll(el, text, dir) {
+  const cur = el.lastElementChild;
+  if (cur && cur.textContent === String(text)) return;
+  const n = document.createElement('span'); n.textContent = text;
+  if (!cur || RM.matches || app.classList.contains('noanim')) { el.replaceChildren(n); return; }
+  n.className = dir < 0 ? 'in-down' : 'in-up'; el.appendChild(n);
+  void n.offsetWidth;
+  n.className = ''; cur.className = dir < 0 ? 'in-up' : 'in-down';
+  setTimeout(() => cur.remove(), 340);
+}
+const rollNum = (el, v) => { const old = +(el.dataset.v || 0); el.dataset.v = v; roll(el, fmt(v), Math.sign(v - old)); };
+
+/* ---------- navigation ---------- */
+const stack = ['home'];
+function push(id) {
+  const from = $('#' + stack[stack.length - 1]), to = $('#' + id);
+  stack.push(id);
+  to.classList.add('sliding'); to.classList.remove('off'); to.scrollTop = 0;
+  from.classList.add('under');
+  updateBar();
+}
+function pop(n = 1) {
+  while (n-- > 0 && stack.length > 1) {
+    const from = $('#' + stack.pop()), to = $('#' + stack[stack.length - 1]);
+    from.style.transform = ''; to.style.transform = '';
+    from.classList.add('off'); to.classList.remove('under');
+    setTimeout(() => from.classList.contains('off') && from.classList.remove('sliding'), 520);
+  }
+  if (stack.at(-1) === 'home') renderHome(); if (stack.at(-1) === 'menu') renderMenu();
+  updateBar();
+}
+document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => pop()));
+// Edge-swipe back, as on iOS.
+['menu', 'search', 'you', 'sub'].forEach(id => {
+  const el = $('#' + id);
+  gesture(el, axis => {
+    if (axis !== 'x') return null;
+    const under = $('#' + stack[stack.length - 2]), W = app.clientWidth;
+    el.style.transition = under.style.transition = 'none';
+    return {
+      move(dx) { const x = Math.max(0, dx); el.style.transform = `translate3d(${x}px,0,0)`; under.style.transform = `translate3d(${-.28 * W * (1 - x / W)}px,0,0)`; },
+      end(vx) {
+        el.style.transition = under.style.transition = '';
+        const x = parseFloat(el.style.transform.slice(12)) || 0;
+        if (x + vx * 200 > W * .45) { pop(); buzz(6); } else { el.style.transform = ''; under.style.transform = ''; }
+      },
+    };
+  }, e => e.clientX - app.getBoundingClientRect().left < 24 && stack.at(-1) === id);
+});
+
+/* ---------- home ---------- */
+function renderSub() {
+  const t = eaten();
+  $('#daySub').textContent = `${fmt(t.cal)} of ${fmt(GOAL.cal)} cal today, ${fmt(Math.max(0, GOAL.p - t.p))} g protein to go`;
+}
+$('#halls').innerHTML = HALLS.map((h, i) => `<button class="hall" data-hall="${i}"><b>${h[0]}</b><span>${h}</span></button>`).join('');
+$('#halls').addEventListener('click', e => { const b = e.target.closest('[data-hall]'); if (b) openMenu(+b.dataset.hall); });
+
+// Ruler: 10 cal per 8px, momentum + snap.
+const R = { min: 300, max: 1500, px: .8, x: 0, raf: 0 };
+(function buildRuler() {
+  const w = (R.max - R.min) * R.px, t = $('#rtrack');
+  let h = `<div class="minor" style="width:${w + 1}px"></div>`;
+  for (let v = R.min; v <= R.max; v += 100) h += `<span class="maj" style="left:${(v - R.min) * R.px}px"><i>${v}</i></span>`;
+  t.innerHTML = h + '<span class="sug" id="rsug"></span>';
+})();
+const xFor = v => -(v - R.min) * R.px;
+function setRuler(x, settle) {
+  R.x = x;
+  $('#rtrack').style.transform = `translate3d(${x}px,0,0)`;
+  const v = Math.round(Math.min(R.max, Math.max(R.min, R.min - x / R.px)) / 10) * 10;
+  if (v !== S.T) {
+    if (Math.floor(v / 50) !== Math.floor(S.T / 50)) buzz(3);
+    S.T = v; rollNum($('#tNum'), v); $('#ruler').setAttribute('aria-valuenow', v); renderReset();
+  }
+  if (settle) { propose(); renderPager(); }
+}
+function renderReset() {
+  const b = $('#tReset'); b.textContent = `Use ${fmt(S.sug)}`; b.setAttribute('aria-hidden', S.T === S.sug);
+  $('#rsug').style.left = (S.sug - R.min) * R.px + 'px';
+}
+function animateRulerTo(v) {
+  cancelAnimationFrame(R.raf);
+  const t = $('#rtrack'); t.style.transition = 'transform .45s var(--spring)'; setRuler(xFor(v), true);
+  setTimeout(() => { t.style.transition = ''; }, 460);
+}
+$('#tReset').addEventListener('click', () => { animateRulerTo(S.sug); buzz(8); });
+gesture($('#ruler'), axis => {
+  if (axis !== 'x') return null;
+  cancelAnimationFrame(R.raf);
+  const x0 = R.x, lo = xFor(R.max), hi = 0;
+  const clamp = x => x > hi ? hi + rubber(x - hi, 120) : x < lo ? lo - rubber(lo - x, 120) : x;
+  return {
+    move(dx) { setRuler(clamp(x0 + dx)); },
+    end(vx) {
+      let x = R.x, v = RM.matches ? 0 : vx * 16, last = performance.now();
+      const step = now => {
+        const k = (now - last) / 16; last = now;
+        x += v * k; v *= Math.pow(.95, k);
+        if (x > hi || x < lo) v *= .6;
+        if (Math.abs(v) > .3 && x < hi + 60 && x > lo - 60) { setRuler(x); R.raf = requestAnimationFrame(step); return; }
+        const snapped = Math.min(hi, Math.max(lo, Math.round(x / 8) * 8));
+        const t = $('#rtrack'); t.style.transition = 'transform .35s var(--spring)'; setRuler(snapped, true);
+        setTimeout(() => { t.style.transition = ''; }, 360);
+      };
+      R.raf = requestAnimationFrame(step);
+    },
+  };
+});
+$('#ruler').addEventListener('keydown', e => {
+  const d = { ArrowRight: 10, ArrowUp: 10, ArrowLeft: -10, ArrowDown: -10 }[e.key];
+  if (d) { e.preventDefault(); setRuler(xFor(Math.min(R.max, Math.max(R.min, S.T + d))), true); }
+});
+
+// Macro mix segmented control
+$('#mix').insertAdjacentHTML('beforeend', MIXES.map((m, i) => `<button data-mix="${i}" aria-pressed="${i === S.mix}">${m.k}</button>`).join(''));
+$('#mix').addEventListener('click', e => {
+  const b = e.target.closest('[data-mix]'); if (!b || +b.dataset.mix === S.mix) return;
+  S.mix = +b.dataset.mix; buzz(4); renderMix(); propose(); renderPager();
+});
+function renderMix() {
+  $('#mix .thumb').style.transform = `translateX(${S.mix * 100}%)`;
+  $('#mix').querySelectorAll('[data-mix]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.mix === S.mix));
+}
+
+// Plate pager
+const P = { i: 0, x: 0, w: 332 };
+function renderPager() {
+  const T = S.T;
+  $('#ptrack').innerHTML = S.props.length ? S.props.map((pl, i) => {
+    const t = totals(pl.items), PT = T * MIXES[S.mix].p / 4;
+    return `<button class="pcard" data-prop="${i}">
+      <div class="ph"><span class="hd">${HALLS[pl.hall]}</span><span class="sh num">${fmt(t.cal)} cal</span></div>
+      <ul>${pl.items.map(it => `<li><b>${qty(it.q)}</b><span>${esc(D[it.id].n)}</span></li>`).join('')}</ul>
+      <div class="bars">${barHTML('Calories', t.cal, T, '')}${barHTML('Protein', t.p, PT, ' g')}${barHTML('Carbs', t.c, T * MIXES[S.mix].c / 4, ' g')}</div>
+    </button>`;
+  }).join('') : `<div class="pcard empty"><p class="bd">No plate fits these filters at lunch today.</p></div>`;
+  $('#pdots').innerHTML = S.props.map((_, i) => `<i class="${i === P.i ? 'on' : ''}"></i>`).join('');
+  P.i = Math.min(P.i, Math.max(0, S.props.length - 1));
+  setPager(-P.i * P.w, true);
+  requestAnimationFrame(() => fillBars($('#ptrack')));
+}
+function barHTML(lb, v, t, unit) {
+  return `<div class="bar"><span class="lb">${lb}</span><span class="btrack" data-v="${v}" data-t="${t}"><i class="fl"></i><i class="tk"></i></span><span class="v">${fmt(v)}${unit}<span class="fn"> / ${fmt(t)}</span></span></div>`;
+}
+function fillBars(root) {
+  root.querySelectorAll('.btrack').forEach(b => {
+    const v = +b.dataset.v, t = +b.dataset.t;
+    b.querySelector('.fl').style.transform = `scaleX(${Math.min(1, v / (t * 1.25))})`;
+    b.classList.toggle('over', v > t * 1.1);
+  });
+}
+function setPager(x, anim) {
+  P.x = x; const t = $('#ptrack');
+  t.style.transition = anim ? 'transform .5s var(--spring)' : 'none';
+  t.style.transform = `translate3d(${x}px,0,0)`;
+}
+gesture($('#pager'), axis => {
+  if (axis !== 'x' || S.props.length < 2) return null;
+  const x0 = P.x, lo = -(S.props.length - 1) * P.w;
+  return {
+    move(dx) { let x = x0 + dx; if (x > 0) x = rubber(x, 200); if (x < lo) x = lo - rubber(lo - x, 200); setPager(x); },
+    end(vx) {
+      const proj = P.x + vx * 220;
+      let i = Math.round(-proj / P.w);
+      i = Math.max(0, Math.min(S.props.length - 1, Math.max(P.i - 1, Math.min(P.i + 1, i))));
+      if (i !== P.i) buzz(4);
+      P.i = i; setPager(-i * P.w, true);
+      $('#pdots').querySelectorAll('i').forEach((d, k) => d.classList.toggle('on', k === i));
+    },
+  };
+});
+$('#ptrack').addEventListener('click', e => {
+  const c = e.target.closest('[data-prop]'); if (!c) return;
+  const pl = S.props[+c.dataset.prop];
+  openPlate(pl.hall, pl.items.map(i => ({ ...i }))); // a draft: never touches the hall's hand-built plate
+});
+function renderHome() { renderSub(); renderReset(); }
+
+/* ---------- hall menu ---------- */
+function openMenu(h) { S.hall = h; renderMenu(true); push('menu'); }
+function renderMenu(fresh) {
+  const h = S.hall, cart = S.cart[h];
+  $('#mTitle').textContent = HALLS[h];
+  const sts = MENU[h].map(([st], k) => ({ st, ds: D.filter(d => d.h === h && d.st === st && passDiet(d)), k })).filter(s => s.ds.length);
+  if (fresh) {
+    $('#mChips').innerHTML = sts.map(s => `<button data-st="${s.k}">${esc(s.st)}</button>`).join('');
+    $('#mChips').scrollLeft = 0;
+  }
+  $('#mList').innerHTML = sts.map(s => `<section class="stn" id="st${s.k}"><h3>${esc(s.st)}</h3><div class="group">${
+    s.ds.map(d => menuRow(d, cart.find(i => i.id === d.id))).join('')}</div></section>`).join('') ||
+    `<div class="empty"><p class="bd">Nothing at ${HALLS[h]} matches your filters this lunch.</p></div>`;
+  activeChip();
+}
+function menuRow(d, it) {
+  return `<div class="mrow" data-id="${d.id}"><div class="grow"><div class="bd">${esc(d.n)}</div><div class="sh num">${fmt(d.cal)} cal, ${g1(d.p)} g protein</div></div>${stepHTML(it)}</div>`;
+}
+const stepHTML = it => it ? `<div class="step"><button data-step="-1" aria-label="Remove one">${ICON.minus}</button><b>${qty(it.q)}</b><button data-step="1" aria-label="Add one">${ICON.plus}</button></div>`
+  : `<button class="add" data-step="1" aria-label="Add"><i>${ICON.plus}</i></button>`;
+function stepCart(h, id, dir) {
+  const cart = S.cart[h]; let it = cart.find(i => i.id === id);
+  if (!it) { it = { id, q: 0, pin: true }; cart.push(it); }
+  it.q = Math.max(0, it.q + dir); it.pin = true;
+  if (!it.q) { cart.splice(cart.indexOf(it), 1); buzz(12); } else buzz(6);
+  S.hall = h;
+  return cart.find(i => i.id === id);
+}
+function onRowStep(e, listEl) {
+  const b = e.target.closest('[data-step]'); if (!b) return;
+  const row = b.closest('[data-id]'), id = +row.dataset.id, d = D[id];
+  const it = stepCart(d.h, id, +b.dataset.step);
+  row.querySelector('.step, .add').outerHTML = stepHTML(it);
+  updateBar();
+}
+$('#mList').addEventListener('click', e => onRowStep(e));
+$('#mChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-st]'); if (!b) return;
+  const sec = $('#st' + b.dataset.st), m = $('#menu');
+  m.scrollTo({ top: sec.offsetTop - $('#menu .nav').offsetHeight - $('#mChips').offsetHeight + 4, behavior: RM.matches ? 'auto' : 'smooth' });
+  buzz(3);
+});
+function activeChip() {
+  const m = $('#menu'), y = m.scrollTop + 170;
+  let on = null; m.querySelectorAll('.stn').forEach(s => { if (s.offsetTop <= y) on = s.id.slice(2); });
+  $('#mChips').querySelectorAll('button').forEach(b => {
+    const was = b.classList.contains('on'), is = b.dataset.st === on;
+    if (was !== is) { b.classList.toggle('on', is); if (is) { const c = $('#mChips'); if (b.offsetLeft < c.scrollLeft || b.offsetLeft + b.offsetWidth > c.scrollLeft + c.clientWidth) c.scrollTo({ left: b.offsetLeft - 16, behavior: RM.matches ? 'auto' : 'smooth' }); } }
+  });
+}
+// Keep chips pinned under the nav while the list scrolls.
+$('#menu').addEventListener('scroll', () => { activeChip(); });
+$('#mChips').style.cssText = 'position:sticky;top:calc(var(--st) + 50px);z-index:4;background:rgba(242,242,247,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)';
+
+/* ---------- plate bar ---------- */
+function updateBar() {
+  const top = stack.at(-1), cart = S.cart[S.hall], show = (top === 'menu' || top === 'search') && cart.length > 0;
+  $('#pbar').classList.toggle('show', show);
+  if (!cart.length) return;
+  const t = totals(cart), n = cart.reduce((a, i) => a + i.q, 0);
+  $('#pbTop').textContent = `${qty(n)} item${n === 1 ? '' : 's'}, ${fmt(t.cal)} cal`;
+  const gap = S.T - t.cal;
+  $('#pbLeft').textContent = Math.abs(gap) < 25 ? `On your ${fmt(S.T)} cal lunch` : gap > 0 ? `${fmt(gap)} cal to go for lunch` : `${fmt(-gap)} cal over lunch`;
+  $('#pbFill').style.transform = `scaleX(${Math.min(1, t.cal / S.T)})`;
+}
+$('#pbInfo').addEventListener('click', () => openPlate(S.hall));
+$('#pbLog').addEventListener('click', () => logPlate(S.hall));
+
+/* ---------- sheet ---------- */
+const SH = { ty: 0, kind: null };
+const sheet = $('#sheet'), scrim = $('#scrim'), sfoot = $('#sfoot');
+function detents() {
+  const full = sheet.offsetHeight, H = app.clientHeight;
+  const last = $('#sbody').lastElementChild, content = last ? last.offsetTop + last.offsetHeight + 16 + sfoot.offsetHeight : 0;
+  const med = content <= full ? Math.max(360, content) : Math.max(560, H * .72);
+  return { large: 0, med: full - med, closed: full + 40, full };
+}
+function setSheet(ty, anim) {
+  SH.ty = ty;
+  const d = detents();
+  sheet.classList.toggle('anim', !!anim);
+  scrim.style.transition = anim ? '' : 'none';
+  sheet.style.transform = `translate3d(0,${ty}px,0)`;
+  sfoot.style.transform = `translate3d(0,${-Math.min(Math.max(0, ty), d.med)}px,0)`; // pinned to the screen bottom, leaves with the sheet below medium
+  const o = ty >= d.med ? .28 * Math.max(0, 1 - (ty - d.med) / (d.closed - d.med)) : .28 + .12 * (1 - ty / Math.max(1, d.med));
+  scrim.style.opacity = o;
+  sheet.classList.toggle('large', ty <= 1);
+}
+function openSheet(kind) {
+  SH.kind = kind;
+  sheet.classList.remove('anim'); setSheet(detents().closed);
+  scrim.classList.add('live');
+  void sheet.offsetWidth;
+  setSheet(detents().med, true);
+}
+function closeSheet() {
+  setSheet(detents().closed, true); scrim.classList.remove('live');
+  SH.kind = null; updateBar();
+  if (stack.at(-1) === 'menu') renderMenu();
+}
+scrim.addEventListener('click', closeSheet);
+gesture(sheet, (axis, e) => {
+  if (axis === 'x') { const sw = e.target.closest('.swipe'); return sw ? rowSwipe(sw) : null; }
+  if (e.target.closest('.alts, .custom')) return null;
+  const d = detents();
+  if (SH.ty <= 1 && e.target.closest('.sbody')) return null; // large: body scrolls natively
+  const y0 = SH.ty;
+  return {
+    move(dx, dy) { let y = y0 + dy; if (y < 0) y = -rubber(-y, 300); setSheet(y); },
+    end(vx, vy) {
+      const stops = [d.large, d.med, d.closed];
+      let target;
+      if (vy > .9) target = stops.find(s => s > SH.ty + 4) ?? d.closed;
+      else if (vy < -.9) target = [...stops].reverse().find(s => s < SH.ty - 4) ?? d.large;
+      else { const proj = SH.ty + vy * 150; target = stops.reduce((a, s) => Math.abs(s - proj) < Math.abs(a - proj) ? s : a); }
+      if (target === d.closed) closeSheet(); else { setSheet(target, true); if (target !== y0) buzz(4); }
+    },
+  };
+});
+
+/* plate sheet */
+function openPlate(h, draft) {
+  S.hall = h;
+  const items = draft || S.cart[h];
+  S.plate = { hall: h, items, draft: !!draft };
+  items.forEach(it => { if (!it.cyc) { it.cyc = cycleFor(it.id, S.plate); it.ci = 0; } });
+  $('#shead').innerHTML = `<div class="grow"><div class="t3">${HALLS[h]}</div><div class="fn">Lunch, today</div></div><button class="glass sm" id="sClose" aria-label="Close">${ICON.x}</button>`;
+  $('#sClose').onclick = closeSheet;
+  $('#sbody').innerHTML = `<div class="gauge"><div class="gnum"><span class="big num roll" id="gCal"></span><span class="sh num" id="gOf"></span></div><div class="bars" id="gBars"></div></div>
+    <div class="prows" id="prows"></div><div class="prows" id="pacts"></div>`;
+  renderPlate();
+  openSheet('plate');
+  if (!nudged && !RM.matches && !app.classList.contains('noanim')) {
+    const k = items.findIndex(it => it.cyc.length > 1), sw = $(`[data-row="${k}"] .swipe`);
+    if (sw) {
+      nudged = true;
+      const tr = sw.querySelector('.strack'), base = -(+sw.dataset.cw + 8);
+      setTimeout(() => { tr.style.transition = 'transform .35s var(--out)'; tr.style.transform = `translate3d(${base - 44}px,0,0)`; }, 650);
+      setTimeout(() => { tr.style.transition = 'transform .5s var(--pop)'; tr.style.transform = `translate3d(${base}px,0,0)`; }, 1050);
+    }
+  }
+}
+let nudged = false;
+function renderPlate(onlyGauge) {
+  const pl = S.plate, t = totals(pl.items), T = S.T, mix = MIXES[S.mix];
+  rollNum($('#gCal'), t.cal);
+  $('#gOf').textContent = `of ${fmt(T)} cal`;
+  $('#gBars').innerHTML = barHTML('Protein', t.p, T * mix.p / 4, ' g') + barHTML('Carbs', t.c, T * mix.c / 4, ' g') + barHTML('Fat', t.f, T * mix.f / 9, ' g');
+  // Keep fills animating from their previous value.
+  const prev = (renderPlate.prev ||= {});
+  $('#gBars').querySelectorAll('.btrack').forEach((b, k) => { const fl = b.querySelector('.fl'); fl.style.transition = 'none'; fl.style.transform = prev[k] || 'scaleX(0)'; });
+  void $('#gBars').offsetWidth;
+  $('#gBars').querySelectorAll('.fl').forEach(fl => { fl.style.transition = ''; });
+  fillBars($('#gBars'));
+  $('#gBars').querySelectorAll('.fl').forEach((fl, k) => { prev[k] = fl.style.transform; });
+  const n = pl.items.reduce((a, i) => a + i.q, 0);
+  $('#sLog').textContent = n ? `Log ${qty(n)} item${n === 1 ? '' : 's'}` : 'Log';
+  $('#sLog').disabled = !n; $('#sLog').style.opacity = n ? 1 : .4;
+  if (onlyGauge) return;
+  $('#prows').innerHTML = pl.items.map((it, i) => plateRow(it, i)).join('');
+  $('#prows').style.display = pl.items.length ? '' : 'none';
+  $('#prows').querySelectorAll('.swipe').forEach(sw => placeTrack(sw));
+  const canFill = T - t.cal > 60;
+  $('#pacts').innerHTML = (canFill ? `<button class="cell tint" id="pFill"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/></svg><span class="grow bd">Fill to ${fmt(T)} cal</span></button>` : '') +
+    `<button class="cell tint" id="pAdd"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span class="grow bd">Add from ${HALLS[pl.hall]}</span></button>`;
+  const f = $('#pFill'); if (f) f.onclick = () => { if (fillPlate(pl)) { pl.items.forEach(it => { if (!it.cyc) { it.cyc = cycleFor(it.id, pl); it.ci = 0; } }); buzz(10); renderPlate(); } };
+  if (SH.kind === 'plate' && SH.ty > 1) setSheet(detents().med, true);
+  $('#pAdd').onclick = () => {
+    if (pl.draft) pl.items.forEach(it => { const c = S.cart[pl.hall].find(x => x.id === it.id); if (c) c.q += it.q; else S.cart[pl.hall].push({ id: it.id, q: it.q, pin: true }); });
+    closeSheet(); if (stack.at(-1) !== 'menu') openMenu(pl.hall); };
+}
+function plateRow(it, i) {
+  return `<div class="prow" data-row="${i}"><div class="swipe" role="button" aria-label="${esc(D[it.id].n)}, other dishes">${'<div class="strack"></div>'}</div>
+    <div class="step"><button data-pstep="-1" aria-label="Less">${ICON.minus}</button><b>${qty(it.q)}</b><button data-pstep="1" aria-label="More">${ICON.plus}</button></div></div>
+    <div class="alts" data-alts="${i}" hidden></div>`;
+}
+function slotHTML(id, it, cw) {
+  if (id == null) return `<div class="slot" style="width:${cw}px"></div>`;
+  const d = D[id], n = it.cyc.length, k = it.cyc.indexOf(id);
+  return `<div class="slot" style="width:${cw}px"><div class="bd">${esc(d.n)}</div><div class="meta"><span class="sh">${esc(d.st)}</span>${
+    n > 1 ? `<span class="pdots">${it.cyc.map((_, j) => `<i class="${j === k ? 'on' : ''}"></i>`).join('')}</span>` : ''}</div></div>`;
+}
+function placeTrack(sw) {
+  const i = +sw.closest('.prow').dataset.row, it = S.plate.items[i];
+  const cw = sw.clientWidth - 18, tr = sw.querySelector('.strack');
+  tr.innerHTML = slotHTML(it.cyc[it.ci - 1], it, cw) + slotHTML(it.cyc[it.ci], it, cw) + slotHTML(it.cyc[it.ci + 1], it, cw);
+  tr.style.transition = 'none'; tr.style.transform = `translate3d(${-(cw + 8)}px,0,0)`;
+  sw.dataset.cw = cw;
+}
+function rowSwipe(sw) {
+  const i = +sw.closest('.prow').dataset.row, it = S.plate.items[i], cw = +sw.dataset.cw, base = -(cw + 8), tr = sw.querySelector('.strack');
+  tr.style.transition = 'none';
+  return {
+    move(dx) {
+      const can = dx < 0 ? it.ci < it.cyc.length - 1 : it.ci > 0;
+      const x = can ? Math.max(-cw - 8, Math.min(cw + 8, dx)) : Math.sign(dx) * rubber(Math.abs(dx), cw);
+      tr.style.transform = `translate3d(${base + x}px,0,0)`;
+    },
+    end(vx) {
+      const cur = new DOMMatrix(getComputedStyle(tr).transform).m41 - base;
+      let dir = 0;
+      if ((cur < -cw * .3 || vx < -.35) && it.ci < it.cyc.length - 1) dir = 1;
+      else if ((cur > cw * .3 || vx > .35) && it.ci > 0) dir = -1;
+      tr.style.transition = 'transform .32s var(--spring)';
+      tr.style.transform = `translate3d(${base - dir * (cw + 8)}px,0,0)`;
+      if (dir) setTimeout(() => swapTo(i, it.ci + dir), RM.matches ? 0 : 300);
+    },
+  };
+}
+function swapTo(i, ci) {
+  const it = S.plate.items[i];
+  it.ci = ci; it.id = it.cyc[ci]; it.pin = false;
+  buzz(8);
+  refit(S.plate);
+  renderPlate();
+  const a = $(`[data-alts="${i}"]`); if (a && openAlts === i) showAlts(i);
+}
+let openAlts = -1;
+function showAlts(i) {
+  const it = S.plate.items[i], a = $(`[data-alts="${i}"]`);
+  a.hidden = false;
+  a.innerHTML = it.cyc.map((id, j) => `<button data-alt="${j}" class="${j === it.ci ? 'on' : ''}"><span>${esc(D[id].n)}</span><small>${fmt(D[id].cal)} cal, ${g1(D[id].p)} g protein</small></button>`).join('');
+  openAlts = i;
+}
+$('#sbody').addEventListener('click', e => {
+  const st = e.target.closest('[data-pstep]');
+  if (st) {
+    const i = +st.closest('.prow').dataset.row, it = S.plate.items[i];
+    it.q = Math.max(0, it.q + .5 * +st.dataset.pstep); it.pin = true;
+    if (!it.q) {
+      buzz(12); const row = st.closest('.prow'); row.classList.add('gone');
+      setTimeout(() => { S.plate.items.splice(i, 1); openAlts = -1; refit(S.plate); renderPlate(); }, RM.matches ? 0 : 220);
+    } else { buzz(6); st.parentElement.querySelector('b').textContent = qty(it.q); renderPlate(true); updateSlotsCal(); }
+    return;
+  }
+  const alt = e.target.closest('[data-alt]');
+  if (alt) { const i = +alt.parentElement.dataset.alts; swapTo(i, +alt.dataset.alt); return; }
+  const sw = e.target.closest('.swipe');
+  if (sw) {
+    const i = +sw.closest('.prow').dataset.row;
+    const was = openAlts === i;
+    document.querySelectorAll('.alts').forEach(a => { a.hidden = true; }); openAlts = -1;
+    if (!was) showAlts(i);
+    buzz(3);
+  }
+});
+function updateSlotsCal() { $('#prows').querySelectorAll('.swipe').forEach(sw => placeTrack(sw)); }
+$('#sLog').addEventListener('click', () => { if (SH.kind === 'plate') logPlate(S.plate.hall, S.plate.items); });
+
+/* ---------- log ---------- */
+function logPlate(h, cart = S.cart[h]) {
+  if (!cart.length) return;
+  const t = totals(cart);
+  LOG.push({ meal: 'Lunch', hall: h, items: cart.map(i => { const d = D[i.id]; return { n: d.n, q: i.q, cal: d.cal, p: d.p, c: d.c, f: d.f }; }) });
+  if (cart === S.cart[h]) S.cart[h] = [];
+  buzz([10, 50, 18]);
+  if (SH.kind) closeSheet();
+  $('#hudSub').textContent = `${fmt(t.cal)} cal, ${g1(t.p)} g protein`;
+  $('#hud').classList.add('show');
+  updateBar();
+  setTimeout(() => {
+    $('#hud').classList.remove('show');
+    if (stack.length > 1) pop(stack.length - 1);
+    renderHome();
+  }, app.classList.contains('noanim') ? 0 : 1300);
+}
+
+/* ---------- search ---------- */
+$('#bSearch').addEventListener('click', () => { push('search'); $('#q').value = ''; renderSearch(); setTimeout(() => $('#q').focus(), 350); });
+$('#q').addEventListener('input', renderSearch);
+function renderSearch() {
+  const q = $('#q').value.trim().toLowerCase(), toks = q.split(/\s+/).filter(Boolean);
+  if (!toks.length) { $('#sList').innerHTML = ''; return; }
+  const hits = D.filter(d => toks.every(t => d.n.toLowerCase().includes(t)) && passDiet(d)).slice(0, 40);
+  $('#sList').innerHTML = hits.length ? `<div class="group" style="margin-top:8px">${hits.map(d => {
+    const it = S.cart[d.h].find(i => i.id === d.id);
+    return `<div class="mrow" data-id="${d.id}"><div class="grow"><div class="bd">${esc(d.n)}</div><div class="sh num">${HALLS[d.h]}, ${fmt(d.cal)} cal</div></div>${stepHTML(it)}</div>`;
+  }).join('')}</div>` : `<div class="empty"><p class="bd">No lunch dish matches “${esc(q)}” today.</p>
+     <div class="custom"><input id="cCal" type="number" inputmode="numeric" placeholder="Calories" aria-label="Calories"><input id="cP" type="number" inputmode="decimal" placeholder="Protein g" aria-label="Protein in grams"><button class="btn" id="cAdd">Log “${esc(q)}”</button></div></div>`;
+  const c = $('#cAdd');
+  if (c) c.onclick = () => {
+    const cal = +$('#cCal').value || 0, p = +$('#cP').value || 0; if (!cal) { $('#cCal').focus(); return; }
+    LOG.push({ meal: 'Lunch', hall: -1, items: [{ n: $('#q').value.trim(), q: 1, cal, p, c: 0, f: 0 }] });
+    $('#hudSub').textContent = `${fmt(cal)} cal`; $('#hud').classList.add('show'); buzz([10, 50, 18]);
+    setTimeout(() => { $('#hud').classList.remove('show'); pop(stack.length - 1); }, 1300);
+  };
+}
+$('#sList').addEventListener('click', e => onRowStep(e));
+
+/* ---------- you ---------- */
+$('#bYou').addEventListener('click', () => { renderYou(); push('you'); });
+function renderYou() {
+  const t = eaten();
+  $('#yCal').textContent = fmt(t.cal); $('#yOf').textContent = `of ${fmt(GOAL.cal)} cal`;
+  $('#yBars').innerHTML = barHTML('Protein', t.p, GOAL.p, ' g') + barHTML('Carbs', t.c, GOAL.c, ' g') + barHTML('Fat', t.f, GOAL.f, ' g');
+  requestAnimationFrame(() => fillBars($('#yBars')));
+  $('#yMeals').innerHTML = LOG.map(m => `<div class="sec"><h2 class="t3">${m.meal}</h2><span class="sh">${m.hall >= 0 ? HALLS[m.hall] : 'Custom'}</span></div><div class="group">${
+    m.items.map(i => `<div class="cell"><span class="grow bd">${esc(i.n)}</span><span class="sh num">${i.q === 1 ? '' : qty(i.q) + ' servings, '}${fmt(i.cal * i.q)} cal</span></div>`).join('')}</div>`).join('');
+}
+$('#bExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ date: '2026-10-08', goal: GOAL, log: LOG }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'udine-2026-10-08.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+/* ---------- shallow screens ---------- */
+const SUBS = {
+  cafes: ['Cafés and markets', `<div class="group" style="margin-top:8px">${['Blue Wall', 'Harvest Market', "People's Organic Coffee"].map(n => `<div class="cell"><span class="grow bd">${n}</span></div>`).join('')}</div>`],
+  rank: ['Rank dishes', '<div class="empty"><p class="bd">Log a few more meals and the dishes you’ve eaten will show up here to compare.</p></div>'],
+  events: ['Events and newsletter', '<div class="empty"><p class="bd">No events to show.</p></div>'],
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-sub]'); if (!b) return;
+  const [t, body] = SUBS[b.dataset.sub]; $('#subTitle').textContent = t; $('#subBody').innerHTML = body; push('sub');
+});
+
+/* ---------- filters ---------- */
+$('#bFilter').addEventListener('click', () => {
+  $('#shead').innerHTML = `<div class="grow"><div class="t3">Filters</div></div><button class="glass sm" id="sClose" aria-label="Close">${ICON.x}</button>`;
+  $('#sClose').onclick = () => { closeSheet(); };
+  const rows = [['V', 'Vegetarian'], ['P', 'Plant based'], ['H', 'Halal']];
+  $('#sbody').innerHTML = `<div class="group" style="margin-top:8px">${rows.map(([k, n]) => `<button class="cell" role="switch" data-f="${k}" aria-checked="${S.filt[k]}"><span class="grow bd">${n}</span><span class="sw"></span></button>`).join('')}</div>`;
+  $('#sLog').textContent = 'Done'; $('#sLog').disabled = false; $('#sLog').style.opacity = 1;
+  openSheet('filter');
+});
+$('#sbody').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  S.filt[b.dataset.f] = !S.filt[b.dataset.f]; b.setAttribute('aria-checked', S.filt[b.dataset.f]); buzz(5);
+  $('#bFilter').classList.toggle('on', Object.values(S.filt).some(Boolean));
+  propose(); renderPager();
+});
+$('#sLog').addEventListener('click', () => { if (SH.kind === 'filter') closeSheet(); }, true);
+
+/* ---------- boot ---------- */
+S.sug = S.T = suggest();
+renderMix(); renderHome();
+setRuler(xFor(S.T)); rollNum($('#tNum'), S.T);
+propose(); renderPager();
+sheet.style.transform = 'translate3d(0,110%,0)';
+
+window.__f3 = { S, D, LOG, eaten, totals, HALLS, stack, propose, refit, swapTo, logPlate, openMenu, openPlate, stepCart };
+
+const state = new URLSearchParams(location.search).get('state');
+if (state) {
+  app.classList.add('noanim');
+  const bench = () => { const W = 0; const th = D.find(d => d.h === W && d.n === 'Golden BBQ Chicken Thigh'), br = D.find(d => d.h === W && d.n === 'Beef Brisket Noodle Bowl'); openMenu(W); stepCart(W, th.id, 1); stepCart(W, th.id, 1); stepCart(W, br.id, 1); renderMenu(); updateBar(); return br; };
+  if (state === 'target') { setRuler(xFor(650), true); S.mix = 1; renderMix(); propose(); renderPager(); }
+  if (state === 'plate' || state === 'swap') {
+    const pl = S.props[0]; openPlate(pl.hall, pl.items.map(i => ({ ...i })));
+    if (state === 'swap') { const i = S.plate.items.findIndex(x => x.cyc.length > 2); swapTo(i, 1); showAlts(i); }
+  }
+  if (state === 'menu') { const br = bench(); $('#menu').scrollTop = $('#st' + MENU[0].findIndex(s => s[0] === 'Grill Station')).offsetTop - 160; }
+  if (state === 'manual') { bench(); openPlate(0); }
+  if (state === 'logged') { bench(); logPlate(0); setTimeout(() => $('#hud').classList.add('show'), 30); }
+  if (state === 'you') { bench(); logPlate(0); setTimeout(() => { renderYou(); push('you'); }, 30); }
+  if (state === 'filters') $('#bFilter').click();
+  requestAnimationFrame(() => requestAnimationFrame(() => { app.classList.remove('noanim'); }));
+}
+</script>
+</body>
+</html>
