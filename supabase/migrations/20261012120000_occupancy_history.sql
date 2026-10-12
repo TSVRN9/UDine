@@ -1,10 +1,10 @@
 -- Hall occupancy history (docs/briefs/hall-occupancy-history.md). The record-occupancy Edge
--- Function samples UMass's get_infov2 every 10 minutes and stores the RAW per-location numbers
+-- Function samples UMass's get_infov2 every 15 minutes and stores the RAW per-location numbers
 -- (headcount + that location's own moderate/notbusy thresholds; the busy/not-busy meaning is
 -- inferred, so it is not baked in). Public facts about places, no per-user data -- like public.dishes.
 create table public.occupancy_samples (
   location_id int not null,
-  observed_at timestamptz not null, -- the run's 10-minute slot, so a retried run can't double-count
+  observed_at timestamptz not null, -- the run's 15-minute slot, so a retried run can't double-count
   headcount int not null,
   moderate_at int not null,
   notbusy_at int not null,
@@ -53,8 +53,8 @@ grant execute on function public.occupancy_typical(int, int) to anon, authentica
 -- Same vault secrets + x-udine-cron-secret gate as 20260914150000_schedule_populate_always_available_dishes.sql.
 select
   cron.schedule(
-    'record-occupancy-every-10-minutes',
-    '*/10 * * * *',
+    'record-occupancy-every-15-minutes',
+    '*/15 * * * *',
     $$
     select
       net.http_post(

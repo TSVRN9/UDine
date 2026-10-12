@@ -24,7 +24,7 @@ Backend:
     Oct 8, when Worcester's 672 ≥ 612 and the feed's own `busy.label` said "Busy".
 
   The meaning is inferred, so **store the raw numbers**, plus `busy.pct`/`busy.level` whenever that object reappears.
-- New Edge Function `record-occupancy`, scheduled by pg_cron + pg_net **every 10 minutes, all day** (`*/10 * * * *`).
+- New Edge Function `record-occupancy`, scheduled by pg_cron + pg_net **every 15 minutes, all day** (`*/15 * * * *`; owner, 2026-10-12; aligned to the 15-minute RPC buckets, so each bucket gets exactly one sample a day).
   Late night runs past midnight, and zeros overnight are data too.
   - Auth: reuse the existing pair, the Vault-backed `Authorization` header and `x-udine-cron-secret`, checked by
     `supabase/functions/_shared/cronAuth.ts`.
@@ -35,7 +35,7 @@ Backend:
   - deletes samples older than 12 weeks.
 - **The table:** `public.occupancy_samples (location_id int, observed_at timestamptz, headcount int, moderate_at int,
   notbusy_at int, pct smallint null, level smallint null, primary key (location_id, observed_at))`.
-  - `observed_at` is the run's time truncated to its 10-minute slot (upstream no longer gives an `updated` stamp), so a
+  - `observed_at` is the run's time truncated to its 15-minute slot (upstream no longer gives an `updated` stamp), so a
     retried run doesn't double-count.
   - Inserts use `on conflict do nothing`.
 - **The RPC:** `security definer` `occupancy_typical(p_location_id int, p_dow int)` with `search_path` pinned.
@@ -67,14 +67,14 @@ Rationale:
 - Rejected: computing typical curves on the device from the app's own polling. Each device only
   sees the moments it was open, so the curves would be sparse and per-user.
 - Rejected: storing the whole `get_infov2` payload. We'd keep only what the derivation needs.
-- Cadence: 144 upstream calls a day, which is gentle. Every other cron here is hourly or daily.
-  10 minutes is the coarsest interval that still resolves a lunch rush. The owner asked for every time of day
+- Cadence: 96 upstream calls a day, which is gentle. Every other cron here is hourly or daily.
+  15 minutes still resolves a lunch rush and matches the RPC's 15-minute buckets. The owner asked for every time of day
   (2026-10-12), so there's no window.
 
 ## Acceptance
 
 - [ ] Migration creates the table, RLS, grants, RPC (search_path pinned), retention and schedule — evidence: pgTAP (anon can't select `occupancy_samples`, anon can execute the RPC, TRUNCATE revoked, RPC returns medians for seeded samples)
-- [ ] `record-occupancy` rejects calls without the cron secret, skips `999999`/non-integer locations, stores the raw numbers, and is idempotent within a 10-minute slot — evidence: deno test
+- [ ] `record-occupancy` rejects calls without the cron secret, skips `999999`/non-integer locations, stores the raw numbers, and is idempotent within a 15-minute slot — evidence: deno test
 - [ ] `occupancy.ts` derives `usuallyClearsAt`/`vsUsual`/`confidence` correctly, including null-outlook and low-sample cases — evidence: test (shared lane)
 - [ ] CLAUDE.md residency table gains the occupancy row — evidence: diff
 - [ ] Owner applies the migration and confirms rows accumulating, using `select count(*) … group by location_id` after a day — evidence: owner
