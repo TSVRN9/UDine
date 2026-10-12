@@ -40,7 +40,10 @@ to judge. Then pick the stack the whole app is rebuilt on.
   stay untouched.
 - **Never merge into `main`.** Branches are `bakeoff/rn` and `bakeoff/flutter`, each a draft PR for
   review only.
-- **Fixed clock:** `2026-10-08T12:41:00-04:00`. Fixture days are 2026-10-08 and 2026-10-09.
+- **Fixed clock:** `2026-10-08T12:41:00-04:00`. Fixture days are 2026-10-08 to 2026-10-22, from
+  `flows/menus-2026-10-08-to-22.json` (4 halls and 16 cafés; Oct 10 is empty, as are most café weekends and Oct 19 on).
+- **Places:** a place key is a hall letter (`W F H B`) or a café key (`c<i>`, as in `vectors.json`'s `places`). A café
+  plate never joins a hall plate. Price shows on the dish sheet for café servings only.
 - **Score rule:**
   - healthfulness counts as scored only when `recipe-webcode` contains `H0`…`H7`, and `H0` is a real 0;
   - carbon counts as scored only when `carbon-list` is one of `A`–`E`;
@@ -58,7 +61,7 @@ to judge. Then pick the stack the whole app is rebuilt on.
    in Task 2.
 2. **A dish whose only remaining serving today has already ended.** Where-served must skip ended
    windows and fall through to "later" or "tomorrow", never "now". Test it in Task 2 with the clock at
-   3:31 PM.
+   4:31 PM (lunch ends at 4:30 with the real windows).
 3. **The stepper at ½ going down.** The item is removed, and an empty plate is removed with it. `front`
    must stay in range. Test it in Task 2.
 4. **An interrupted container transform.** A quick back-swipe mid-open, or a second tap during the
@@ -70,7 +73,7 @@ to judge. Then pick the stack the whole app is rebuilt on.
 
 ---
 
-### Task 1: M2 round 9 design and behaviour vectors
+### Task 1: M2 round 9 design and behaviour vectors (built 2026-10-11, commit 1b27b11; awaiting owner approval)
 
 Design work in the prototype, run like previous rounds: critique, then one concept, then build, then
 the orchestrator reviews frames. No app code.
@@ -88,8 +91,8 @@ the orchestrator reviews frames. No app code.
 {
   "clock": "2026-10-08T12:41:00-04:00",
   "where": [ { "dish": "Golden BBQ Chicken Thigh", "clock": "2026-10-08T12:41:00-04:00",
-               "answer": [ { "st": "now", "meal": "lunch", "open": "11:00 AM", "close": "3:30 PM", "halls": ["W"] } ],
-               "text": ["Lunch now, until 3:30 PM"] } ],
+               "answer": [ { "st": "now", "meal": "lunch", "open": "11:00 AM", "close": "4:30 PM", "halls": ["W"] } ],
+               "text": ["Lunch now, until 4:30 PM"] } ],
   "plate": [ { "ops": [["add","lunch","Beef Brisket Noodle Bowl",["W","B"]],["add","lunch","Golden BBQ Chicken Thigh",["W"]],["add","lunch","Golden BBQ Chicken Thigh",["W"]]],
                "plates": [ { "meal": "lunch", "halls": ["W"], "label": "Worcester lunch",
                              "items": [["Beef Brisket Noodle Bowl",1],["Golden BBQ Chicken Thigh",2]],
@@ -120,7 +123,7 @@ the orchestrator reviews frames. No app code.
   - an allergen hides dishes and "Show all" reveals them;
   - each network state is reachable via `?net=slow|offline|fail`.
 - [ ] **Step 4: Write `vectors.js`.** It loads `index.html` and calls `wherePlan`/`whereAnswer`/
-  `whenText` for at least 20 dishes at the clocks 12:41 PM, 3:31 PM and 9:30 PM. It drives
+  `whenText` for at least 20 dishes at the clocks 12:41 PM, 4:31 PM and 9:30 PM. It drives
   `addDish`/`stepItem`/`plateLabel`/`totals` through at least 8 op sequences: the benchmark plate, a
   conflicting-hall second plate, ½ removal, an emptied plate, and a custom item. It reads the embedded
   dish data for every scored and unscored case, including all 16 "number but no H code" dishes. It
@@ -141,8 +144,12 @@ git commit -m "docs(design): M2 round 9 (days, hours, allergens, states) + behav
 
 ### Task 2: RN fixture and domain logic
 
+> **Shapes after round 9:** `vectors.json` is authoritative. Its header in `M2/vectors.js` documents place keys,
+> `day`, `"all"` meals and price. Where this task's interfaces say `HallKey` for a serving place (refs, `halls`,
+> `plateHalls`, `totals`'s hall, `Fixture.days`/`hours`), read `PlaceKey`.
+
 **Files:**
-- Create: `mobile/scripts/bakeoff-fixture.mjs`. It reads `docs/design/explorations/2026-10-ui-overhaul/flows/{menu-full-2026-10-08,menu-full-2026-10-09,locations-2026-10-08,events-2026-10-08}.json` and writes the fixture.
+- Create: `mobile/scripts/bakeoff-fixture.mjs`. It reads `docs/design/explorations/2026-10-ui-overhaul/flows/{menus-2026-10-08-to-22,locations-2026-10-08,locations-2026-10-11,events-2026-10-08}.json` (hours and busy from Oct 8, addresses and `map_address` from Oct 11) and writes the fixture. Place keys, allergen normalisation and the café list must match M2's `build.py`.
 - Create: `mobile/src/bakeoff/fixture.json` (generated, committed)
 - Create: `mobile/src/bakeoff/logic/types.ts`, `fixture.ts`, `where.ts`, `plate.ts`
 - Create: `mobile/src/bakeoff/logic/vectors.json`, a copy of Task 1's file (the fixture script copies it)
@@ -156,7 +163,8 @@ git commit -m "docs(design): M2 round 9 (days, hours, allergens, states) + behav
 ```ts
 // types.ts
 export type HallKey = "W" | "F" | "H" | "B";
-export type MealKey = "breakfast" | "lunch" | "dinner" | "late" | "grab";
+export type PlaceKey = HallKey | `c${number}`;
+export type MealKey = "breakfast" | "lunch" | "dinner" | "late" | "grab" | "all";
 export type Carbon = "A" | "B" | "C" | "D" | "E";
 export interface Nutrition { fatCal: number|null; fat: number|null; fatDv: number|null; sat: number|null; satDv: number|null;
   trans: number|null; chol: number|null; sod: number|null; sodDv: number|null; carb: number|null; carbDv: number|null;
