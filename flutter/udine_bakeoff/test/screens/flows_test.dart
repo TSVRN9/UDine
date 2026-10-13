@@ -9,6 +9,7 @@ import 'package:udine_bakeoff/motion/push.dart';
 import 'package:udine_bakeoff/screens/dish_row.dart';
 import 'package:udine_bakeoff/screens/dish_sheet.dart';
 import 'package:udine_bakeoff/screens/hall_menu.dart';
+import 'package:udine_bakeoff/screens/meal_pager.dart';
 import 'package:udine_bakeoff/screens/halls.dart';
 import 'package:udine_bakeoff/screens/plate_sheet.dart';
 import 'package:udine_bakeoff/shell.dart';
@@ -380,6 +381,17 @@ void main() {
       expect(opacityOf(t, const ValueKey('axis-in')), closeTo(0.2 / M2Motion.sharedXInAt, 0.03));
       await t.pumpAndSettle();
       expect(opacityOf(t, const ValueKey('axis-in')), 1);
+    });
+
+    testWidgets('the shared axis with nothing to copy (an empty list) still slides and fades the incoming list in', (t) async {
+      final k = GlobalKey<SharedAxisLayerState>();
+      await t.pumpWidget(Directionality(textDirection: TextDirection.ltr, child: SizedBox(width: 390, height: 600, child: SharedAxisLayer(key: k, child: const ColoredBox(color: M2Color.chalk)))));
+      k.currentState!.run(1, null);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 90));
+      expect(dx(t, const ValueKey('axis-in-slide')), closeTo(M2Motion.sharedXDist * (1 - M2Motion.sharedX.curve.transform(0.2)), 0.8));
+      expect(opacityOf(t, const ValueKey('axis-in')), closeTo(0.2 / M2Motion.sharedXInAt, 0.03));
+      expect(find.byKey(const ValueKey('axis-out')), findsNothing);
     });
 
     testWidgets('a second meal tab tapped mid-run retargets: the new change runs from its start, toward its own side', (t) async {
