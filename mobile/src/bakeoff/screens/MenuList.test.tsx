@@ -55,4 +55,11 @@ describe("one line of the hall's list", () => {
     expect(tinted(plain)).toBe(0);
     expect(tinted(here)).toBe(1);
   });
+  // `<h3 class="h3">Menu</h3><p class="kv">`: the paragraph's default 15 px top margin collapses with the h3's 4 px bottom margin and wins (src.html:1282)
+  it("a café's 'doesn't list its menu' line starts 15 under its Menu heading, not 4", () => {
+    const r = make(<MenuItem it={{ t: "cafe", name: "Wasabi", description: "Sushi." }} row={row()} />);
+    const heading = r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.children === "Menu")[0];
+    const st = flat(heading) as { marginBottom: number; paddingBottom: number };
+    expect(st.marginBottom + st.paddingBottom).toBe(15);
+  });
 });
