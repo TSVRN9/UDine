@@ -16,8 +16,6 @@ const BODY = normalOf(join(dir, "libre-franklin/400Regular/LibreFranklin_400Regu
 const NUM = normalOf(join(dir, "oswald/600SemiBold/Oswald_600SemiBold.ttf"));
 const r1 = (x: number) => Math.round(x * 10) / 10;
 
-it("the header's date keeps its own 20: it sits on a 30 dp baseline row with the brand", () => expect(m2.type.headDate).toMatchObject({ size: 15, line: 20 }));
-
 describe("M2 sets no line-height on these rules, so the line is the font's normal one", () => {
   it("the metrics this reads are Libre Franklin 1.212 and Oswald 1.482", () => {
     expect(r1(BODY * 1000) / 1000).toBeCloseTo(1.212, 3);
@@ -27,6 +25,8 @@ describe("M2 sets no line-height on these rules, so the line is the font's norma
     ["status", BODY], ["statusSm", BODY], ["metaNum", NUM], ["stationHead", NUM],
     // the free-flowing rest of 1b: rules M2 sets no line-height on, in rows that grow with their text
     ["meta", BODY], ["date", BODY], ["link", BODY], ["lblRow", BODY], ["lblThin", BODY], ["factRow", BODY], ["factNum", NUM], ["dv", NUM], ["lblLg", BODY],
+    // `.brand{font:600 22px Oswald}` and `.hhead .date` (15 px) set no line-height: M2 puts the brand box at 34 (32 high) and the date box at 46 (18 high)
+    ["brand", NUM], ["headDate", BODY],
   ] as const)("%s", (v, ratio) => {
     expect(m2.type[v].line).toBe(r1(m2.type[v].size * ratio));
   });
