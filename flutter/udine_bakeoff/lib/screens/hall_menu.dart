@@ -254,11 +254,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   // ---- meal tabs: shared axis
   void _switchMeal(String meal) {
     final ms = mealsOf(fx, _iso, place), from = ms.indexOf(_meal), to = ms.indexOf(meal);
-    if (to < 0 || to == from || (_pagerKey.currentState?.running ?? false)) return;
+    if (to < 0 || to == from) return;
     if (_sc.hasClients && _sc.offset > _r) _sc.jumpTo(_r);
     Haptics.selection();
     final ghost = _captureGhost();
-    if (ghost != null) _pagerKey.currentState?.run((to - from).sign, ghost);
+    _pagerKey.currentState?.run((to - from).sign, ghost);
     setState(() => _meal = meal);
     if (_day == 0) _syncFront();
     WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _updateStation() : null);

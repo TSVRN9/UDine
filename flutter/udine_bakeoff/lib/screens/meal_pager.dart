@@ -21,18 +21,21 @@ class SharedAxisLayer extends StatefulWidget {
 class SharedAxisLayerState extends State<SharedAxisLayer> with SingleTickerProviderStateMixin {
   late final AnimationController c = AnimationController(vsync: this, value: 1);
   Widget? _ghost;
-  int _dir = 1;
+  int _dir = 1, _gen = 0;
 
   bool get running => c.isAnimating;
 
   /// Starts a change: `ghost` is a copy of the rows that were on screen, drawn where they were; `dir` is +1 when the new content is to
   /// the right of the old (the tab order decides).
-  void run(int dir, Widget ghost) {
+  void run(int dir, Widget? ghost) {
+    // M2 `sharedAxisX`: always the incoming leg, from the start, whatever was running; an outgoing copy only when there were rows to copy,
+    // and a tap mid-run retargets (the new change replaces the old one's legs)
     _dir = dir;
     _ghost = reducedMotion(context) ? null : ghost;
+    final mine = ++_gen;
     c.duration = resolveAnim(context, M2Motion.sharedX).duration;
     c.forward(from: 0).whenComplete(() {
-      if (mounted) setState(() => _ghost = null);
+      if (mounted && mine == _gen) setState(() => _ghost = null);
     });
     setState(() {});
   }

@@ -368,6 +368,36 @@ void main() {
       expect(dx(t, const ValueKey('axis-out-slide')), greaterThan(0)); // back toward lunch: the other way
     });
 
+    testWidgets('a meal tab tapped in the first frame after the hall is there still runs the shared axis (no rows to copy: the incoming leg alone, as M2)', (t) async {
+      Photos.enabled = false;
+      sized(t);
+      await t.pumpWidget(hallApp(store: freshStore(), shell: FakeShell()));
+      await t.tap(find.text('Dinner')); // no pump yet: the list has not laid out
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 90));
+      final slide = M2Motion.sharedX.curve.transform(0.2);
+      expect(dx(t, const ValueKey('axis-in-slide')), closeTo(M2Motion.sharedXDist * (1 - slide), 0.8));
+      expect(opacityOf(t, const ValueKey('axis-in')), closeTo(0.2 / M2Motion.sharedXInAt, 0.03));
+      await t.pumpAndSettle();
+      expect(opacityOf(t, const ValueKey('axis-in')), 1);
+    });
+
+    testWidgets('a second meal tab tapped mid-run retargets: the new change runs from its start, toward its own side', (t) async {
+      await boot(t);
+      await openHall(t, 'Worcester');
+      await t.tap(find.text('Dinner'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 180)); // .4 of the first change
+      await t.tap(find.text('Late night'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 90));
+      final slide = M2Motion.sharedX.curve.transform(0.2);
+      expect(dx(t, const ValueKey('axis-in-slide')), closeTo(M2Motion.sharedXDist * (1 - slide), 0.8));
+      expect(opacityOf(t, const ValueKey('axis-in')), closeTo(0.2 / M2Motion.sharedXInAt, 0.03));
+      await t.pumpAndSettle();
+      expect(find.text('Late night'), findsWidgets);
+    });
+
     testWidgets('the station chevron turns over on cont (500 ms, emphasized) while the roster is up', (t) async {
       await boot(t);
       await openHall(t, 'Worcester');
