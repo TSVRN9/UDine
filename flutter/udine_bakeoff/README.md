@@ -51,3 +51,4 @@ Frame numbers: `adb -s <serial> shell dumpsys gfxinfo com.udinetogether.udine_ba
 - **Café build-your-own is not built:** M2's dish sheet for a café dish with an Add-ons or Toppings station lists those add-ons with a
   running total in a bottom bar; here the sheet shows the dish alone (name, price, contains, Add to plate, where served, label).
   The price golden uses a finished, priced dish (People's Organic Coffee's Cubano Croissant), which M2 also draws without a build.
+- **A meal tab tapped mid-run drops the old outgoing copy.** M2's `sharedAxisX` lets each change's ghost finish, so two outgoing copies can overlap for a moment; here the new change replaces the old ghost (the incoming leg restarts from 0 either way).
