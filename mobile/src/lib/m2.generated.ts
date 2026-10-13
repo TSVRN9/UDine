@@ -549,7 +549,8 @@ export const m2 = {
     glyph: 20,
     tick: 16,
     rowGlyph: 12,
-    markGlyph: 16
+    markGlyph: 16,
+    nameBottomCafe: 22
   },
   opacity: {
     disabled: 0.4,

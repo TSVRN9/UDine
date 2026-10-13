@@ -569,7 +569,8 @@
   "glyph": 20,
   "tick": 16,
   "rowGlyph": 12,
-  "markGlyph": 16
+  "markGlyph": 16,
+  "nameBottomCafe": 22
  },
  "opacity": {
   "disabled": 0.4,
@@ -1129,7 +1130,8 @@
   "size.glyph": ".add svg, .step svg{width:20px;height:20px}",
   "size.tick": ".check[aria-checked=true] i::after: 16 dp tick",
   "size.rowGlyph": ".tg .gl{width:12px;height:12px}",
-  "size.markGlyph": ".gl{width:16px;height:16px}"
+  "size.markGlyph": ".gl{width:16px;height:16px}",
+  "size.nameBottomCafe": "#menu.cafe .mt{bottom:22px} (src.html:~296)"
  },
  "felt": {
   "patch": {

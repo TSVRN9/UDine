@@ -49,3 +49,18 @@ describe("the header's layers", () => {
     expect(mounts).toBe(1);
   });
 });
+
+// M2 `#menu.cafe .mt{bottom:22px}` (a café's name sits lower: no letter, no board) and `.mt .bz{margin-top:8px}`, which keeps its 8 dp when the busy row is empty
+describe("a café's title block", () => {
+  const block = (r: renderer.ReactTestRenderer) => r.root.findAll((n) => typeof n.type === "string" && StyleSheet.flatten(n.props.style)?.bottom !== undefined && StyleSheet.flatten(n.props.style)?.position === "absolute" && StyleSheet.flatten(n.props.style)?.left === 20)[0];
+  const draw = (cafe: boolean, l: Labels) => { let r!: renderer.ReactTestRenderer; act(() => { r = renderer.create(<Header title="Wasabi" height={240} cafe={cafe} labels={l} oldLabels={null} />); }); return r; };
+  it("hangs 22 above the header's foot, a hall's 50", () => {
+    expect(StyleSheet.flatten(block(draw(true, labels)).props.style).bottom).toBe(22);
+    expect(StyleSheet.flatten(block(draw(false, labels)).props.style).bottom).toBe(50);
+  });
+  it("keeps the busy row's 8 dp under the status line when it has no busy row", () => {
+    const spacers = (r: renderer.ReactTestRenderer) => block(r).findAll((n) => typeof n.type === "string" && StyleSheet.flatten(n.props.style)?.height === 8 && n.props.testID === "busy-room");
+    expect(spacers(draw(true, labels))).toHaveLength(1);
+    expect(spacers(draw(true, { ...labels, busy: <Text>Busy</Text> }))).toHaveLength(0);
+  });
+});

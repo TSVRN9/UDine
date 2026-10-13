@@ -262,7 +262,7 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       </Animated.View>
       <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top: 0, left: 0, right: 0 }, headerTx]}>
         <Header
-          title={name} top={top} height={HH}
+          title={name} top={top} height={HH} cafe={compact}
           photo={src ? <Photo source={src} width={width} height={HH} pos={compact ? 0.5 : PHOTO_POS[place as "W"]} duo={t.style.photo} /> : undefined}
           letter={<>
             {hallLetter ? <Animated.View pointerEvents="none" style={[fill, t.style.incoming]}>{hallLetter}</Animated.View> : null}
