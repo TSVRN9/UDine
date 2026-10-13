@@ -25,13 +25,13 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
       <View style={{ paddingTop: m2.space.eventTop, paddingBottom: m2.space.eventBottom }}>
         {photo ? (
           // the white ring is outside the patch (M2 `box-shadow: 0 0 0 3px`), so it takes no room
-          <View accessibilityLabel={e.title} accessible style={{ marginHorizontal: -m2.size.ring, padding: m2.size.ring, borderRadius: m2.radius.card + m2.size.ring, backgroundColor: m2.color.white }}>
+          <View accessibilityLabel={e.title} accessible style={{ margin: -m2.size.ring, padding: m2.size.ring, borderRadius: m2.radius.card + m2.size.ring, backgroundColor: m2.color.white }}>
             <Felt kind="frame" style={{ aspectRatio: BANNER }}>
               <Image source={photo} resizeMode="cover" style={{ width: "100%", height: "100%", borderRadius: m2.radius.image }} />
             </Felt>
           </View>
         ) : null}
-        <Text v="pstat" color={m2.color.gold} style={{ paddingTop: m2.space.eventDate }}>{when}</Text>
+        <Text v="pstat" color={m2.color.gold} style={{ marginTop: m2.space.paragraph, paddingTop: m2.space.eventDate }}>{when}</Text>
         <View style={{ marginTop: m2.space.group, gap: m2.space.eventLinks }}>
           {e.links.map(([label, url], k) => (
             <Button key={label} kind={k ? "outline" : "gold"} size="lg" label={label} accessibilityRole="link" onPress={() => Linking.openURL(url)} />
