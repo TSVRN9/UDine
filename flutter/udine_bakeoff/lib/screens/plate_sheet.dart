@@ -143,7 +143,8 @@ class PlateLayerState extends State<PlateLayer> with TickerProviderStateMixin {
     return AnimatedBuilder(
       animation: _rise,
       builder: (context, _) {
-        final v = M2Motion.cont.curve.transform(_rise.value);
+        // leaving, the curve runs forward in time (M2's transition is on the bar): a reversed controller needs it mirrored
+        final v = _rise.status == AnimationStatus.reverse ? 1 - M2Motion.cont.curve.transform(1 - _rise.value) : M2Motion.cont.curve.transform(_rise.value);
         return IgnorePointer(
           ignoring: _rise.value == 0,
           child: Transform.translate(

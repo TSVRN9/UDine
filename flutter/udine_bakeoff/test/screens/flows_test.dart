@@ -181,6 +181,22 @@ void main() {
       expect(s.last, isNull);
     });
 
+    testWidgets('with no plate left, the bar starts leaving in the frame the receipt clears and moves at once (M2: the transition is on the bar, its curve runs forward in time)', (t) async {
+      final s = await boot(t, seed: 'plate=W:lunch:$bbq&logged=1&receipt=1');
+      double y() => t.getTopLeft(find.byType(M2Sheet)).dy;
+      var guard = 0;
+      while (s.last != null && guard++ < 600) {
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      expect(s.last, isNull);
+      final y0 = y();
+      await t.pump(const Duration(milliseconds: 16));
+      await t.pump(const Duration(milliseconds: 16));
+      // the curve runs forward in time: after 16 to 32 ms of M2's `cont` the bar has fallen by curve(t) of its travel
+      final travel = M2Layout.barMin * 1.1, lo = M2Motion.cont.curve.transform(16 / M2Motion.cont.ms) * travel, hi = M2Motion.cont.curve.transform(32 / M2Motion.cont.ms) * travel;
+      expect(y() - y0, inInclusiveRange(lo * 0.8, hi * 1.2), reason: 'two frames after the receipt cleared');
+    });
+
     testWidgets('a plate several places serve asks where to log: one gold button per place', (t) async {
       final s = await boot(t);
       s.add('lunch', brisket, {'W': servingOn(fx, today, 'W', 'lunch', dishKey(brisket))!, 'B': servingOn(fx, today, 'B', 'lunch', dishKey(brisket))!});
