@@ -27,19 +27,27 @@ describe("picking a day in the schedule", () => {
     expect(hold).not.toHaveBeenCalled();
     expect(setDay).not.toHaveBeenCalled();
   });
-  it("another day starts the change at once, while the sheet is still on its way out", () => {
+  it("another day starts the change at once: the old labels' layer first, the new day's commit one frame later", () => {
+    jest.useFakeTimers(); (global as any).requestAnimationFrame = (f: () => void) => setTimeout(f, 16);
     const { dc, hold, setDay } = mount();
     const order: string[] = [];
     hold.mockImplementationOnce((apply: () => void) => { order.push("hold"); apply(); return true; });
+    act(() => { dc().track(labels("Open until 9 PM")); });
     act(() => { dc().pickDay(2, 0, () => order.push("dismiss")); });
-    expect(hold).toHaveBeenCalledTimes(1);
-    expect(setDay).toHaveBeenCalledWith(2);
     expect(order).toEqual(["hold", "dismiss"]);
+    // the layer that holds the old labels is committed, and the screen still says the old day: otherwise the header is blank until the commit lands
+    expect(dc().held?.status).toBe("Open until 9 PM");
+    expect(setDay).not.toHaveBeenCalled();
+    act(() => { jest.advanceTimersByTime(16); });
+    expect(setDay).toHaveBeenCalledWith(2);
+    jest.useRealTimers();
   });
   it("the old labels' layer holds the labels as they were when the change began", () => {
+    jest.useFakeTimers(); (global as any).requestAnimationFrame = (f: () => void) => setTimeout(f, 16);
     const { dc } = mount();
     act(() => { dc().track(labels("Open until 9 PM")); });
     act(() => { dc().pickDay(1, 0, () => {}); });
     expect(dc().held?.status).toBe("Open until 9 PM");
+    jest.useRealTimers();
   });
 });
