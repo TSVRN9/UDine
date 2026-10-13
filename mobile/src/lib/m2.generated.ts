@@ -416,6 +416,7 @@ export const m2 = {
     lrowSub: 2,
     netTop: 40,
     titleTop: 2,
+    titleInk: -2,
     stationHeadBottom: 6,
     evrow: 14,
     bandStatusTop: 7,
