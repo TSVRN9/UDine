@@ -740,6 +740,39 @@ the round-9 states. Compare screenshots with M2's.
 
 ---
 
+**Scorecard draft (2026-10-13; the owner's feel rating decides):**
+
+1. **Feel:** pending. Both final builds are installed on the A53, as "UDine (internal)" (RN) and "udine_bakeoff" (Flutter).
+2. **Frame timing,** Galaxy A53, 60 Hz, SurfaceFlinger presents, 5 runs. Each cell is janky %, then the max frame interval in ms.
+
+   | Motion | RN 78aca1e | Flutter ba09747 |
+   |---|---|---|
+   | hall open | 17.1, 217 (two no-frame waits: tap→first frame, list mount) | 3.2, 34 |
+   | close | 4.0, 33 | 4.3, 34 |
+   | drag-back | 5.0, 50 | 0.0, 33 |
+   | edge swipe | 6.7, 50 | 4.2, 34 |
+   | meal tab | 4.4, 100 | 2.0, 50 |
+   | fling | 0.0, 17 | 1.0, 34 |
+   | dish sheet | 0.8, 33 | 2.6, 50 |
+   | plate sheet | 1.6, 251 | 1.1, 33 |
+   | Log/Undo | 7.4, 217 | 4.5, 33 |
+
+   - **Day pick, time to settled:** RN 768–969 ms (14–27% janky). Flutter 551–568 ms (3–6% janky).
+   - **Cold first add, tap → stepper / bar:** RN 136–176 / 235–277 ms. Flutter 79–120 / 138–147 ms; M2's target for the bar is 136 ms.
+   - **Cold first hall open:** RN smooth after a 117–167 ms wait. Flutter is 45% janky, frames 33–84 ms apart; fix in progress.
+   - **Flutter cold launch:** a white window for about 1 s; fix in progress.
+   - **RN fast fling:** recycled rows draw stale diet badges for about 0.25 s, and the list is half blank for 33 ms; fix in progress.
+3. **Design fidelity and agent adherence:**
+   - Both stacks needed at least one REWORK on every task.
+   - Both reached M2 within about 1 dp, measured against M2's own DOM.
+   - RN additionally shipped a crash that passed jest and review (the worklet callbacks, found only by running on a device). Its motion took four perf rounds, two Perfetto traces and a Hermes profile.
+   - Flutter's reviews found more evidence and test gaps. Its code defects were caught by its own tests: the landing header, the station name after a late arrival, the dish-sheet 4 dp.
+4. **Platform divergence (RN):** iOS was not seen (owner, 2026-10-12: no store-track builds until the new UI is complete). Android gesture nav takes the edge swipe in both stacks.
+5. **Port cost:**
+   - **Slice size:** RN about 4,700 lines of app code plus 3,500 of tests. Flutter about 6,900 plus 3,200.
+   - **Ported logic:** about 880 Dart lines against 660 TS. Flutter needs `@udine/shared` (about 2.5k) and `mobile/src/lib` (about 8k) ported or bridged. The edge functions keep the TypeScript.
+   - **Shared token source:** `design-tokens/m2.json` drives both stacks.
+
 **Findings so far (fill the scorecard from these):**
 - **RN, Task 4:** on Android gesture navigation, the OS takes left-edge swipes (about 24 dp), so the hall's edge swipe
   arrives as system back with the 400 ms close and no finger tracking. RN/Expo SDK 57 exposes no predictive-back
