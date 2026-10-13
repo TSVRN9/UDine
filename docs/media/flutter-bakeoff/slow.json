@@ -1,0 +1,28 @@
+{
+ "recording": "slow.mp4",
+ "sha": "b3110f2",
+ "build": {
+  "sha": "b3110f2",
+  "apk": "flutter build apk --profile --target-platform android-x64 --dart-define=BAKEOFF_NET=slow",
+  "launch": "am start --ez enable-impeller false (Skia)"
+ },
+ "device": {
+  "avd": "Agent_Emulator_Narrow",
+  "serial": "emulator-5556",
+  "wm_size": "1080x1920",
+  "wm_density": 480,
+  "dp": "360x640",
+  "gpu": "swangle_indirect (coordinator-booted)",
+  "android": "15 (API 35) x86_64",
+  "note": "software GL: judge order and layout, not cadence"
+ },
+ "route": "cold launch > Halls > Worcester",
+ "gesture": "am start; 5 s; tap Worcester band",
+ "input_log": [
+  "T launch 1791864782.383015791",
+  "T tap-hall 1791864787.435330157"
+ ],
+ "observed": "Halls names first, hours and busy fade in after the load; hall spinner after 400 ms; tabs, station and list fade in from 0 on arrival",
+ "frames": "extracted at the encoder's real rate (screenrecord emits on change); strip labels give ms from the first frame",
+ "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)"
+}

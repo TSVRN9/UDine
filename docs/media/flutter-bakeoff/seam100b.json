@@ -1,0 +1,30 @@
+{
+ "recording": "seam100b.mp4",
+ "sha": "b3110f2",
+ "build": {
+  "sha": "b3110f2",
+  "apk": "flutter build apk --profile --target-platform android-x64",
+  "launch": "am start --ez enable-impeller false (Skia)"
+ },
+ "device": {
+  "avd": "Agent_Emulator_Narrow",
+  "serial": "emulator-5556",
+  "wm_size": "1080x1920",
+  "wm_density": 480,
+  "dp": "360x640",
+  "gpu": "swangle_indirect (coordinator-booted)",
+  "android": "15 (API 35) x86_64",
+  "note": "software GL: judge order and layout, not cadence"
+ },
+ "route": "Halls > Worcester",
+ "gesture": "tap band; 1.3 s; tap Back; 0.1 s; tap Franklin band (log in .log)",
+ "input_log": [
+  "T tap-band 1791864644.714580826",
+  "T back 1791864646.054260652",
+  "T tap-franklin 1791864646.190623536",
+  "T done 1791864646.221390614"
+ ],
+ "observed": "tap at ~136 ms after Back swallowed; Halls at rest, Franklin not opened",
+ "frames": "extracted at the encoder's real rate (screenrecord emits on change); strip labels give ms from the first frame",
+ "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)"
+}
