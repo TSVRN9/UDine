@@ -1,10 +1,10 @@
 {
-  "sha": "1ab0b73edfc6d62bde98c27d68a431500c895a8f",
+  "sha": "46ee0ccc867ec7d96e124a2f710470519176587c",
   "branch": "bakeoff/rn",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/bakeoff-rn",
   "route": "bakeoff?reset=1&hall=H (drag down at 1.5 s; dev client, screenrecord 540x960, 10 fps frames, strip numbered from the recording's start, f1 = 0 ms)",
   "device": "Agent_Emulator_Narrow",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-13T02:12:43Z"
+  "ts": "2026-10-13T03:19:54Z"
 }
