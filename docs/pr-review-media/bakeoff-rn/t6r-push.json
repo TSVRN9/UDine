@@ -1,10 +1,10 @@
 {
-  "sha": "30f3d94e33990b75f2d3e5df20199414058b7641",
+  "sha": "78aca1e3c59684a2d29308da565427f3fbabf8a1",
   "branch": "bakeoff/rn",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/bakeoff-rn",
-  "route": "release APK built at 30f3d94 (assembleRelease, x86_64, EXPO_PUBLIC_BAKEOFF=1, no EXPO_PUBLIC_PERF, Hermes bytecode, embedded bundle, versionName 1.0.0+30f3d94), installed on the emulator only, driven by adb input (hall open, station Noodle Bowl, dish Beef Brisket Noodle Bowl open; tap the Berkshire chip at 1.2 s); screenrecord 540x960, 10 fps frames, strip numbered from the recording's start, f1 = 0 ms; not screenshot.sh (dev client)",
+  "route": "release APK built at 78aca1e (assembleRelease, x86_64, EXPO_PUBLIC_BAKEOFF=1, no EXPO_PUBLIC_PERF, Hermes bytecode, embedded bundle, versionName 1.0.0+78aca1e), installed on the emulator only, driven by adb input (hall open, station Noodle Bowl, dish Beef Brisket Noodle Bowl open; tap the Berkshire chip at 1.2 s); screenrecord 540x960, 10 fps frames, strip numbered from the recording's start, f1 = 0 ms; not screenshot.sh (dev client)",
   "device": "Agent_Emulator_Narrow",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-13T05:24:36Z"
+  "ts": "2026-10-13T06:51:23Z"
 }
