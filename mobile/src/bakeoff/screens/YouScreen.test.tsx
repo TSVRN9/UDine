@@ -47,3 +47,19 @@ describe("a meal logged today", () => {
     expect(StyleSheet.flatten(box.props.style)).toMatchObject({ paddingVertical: 12, borderBottomWidth: 1 });
   });
 });
+
+// M2 `dayBlock`: the Today section is `<div class="sec" style="padding-top:20px">`, 2 under `.sec`'s 22 the sections after it keep
+describe("You's first section", () => {
+  it("starts 20 under the head, the others 22", () => {
+    let r!: renderer.ReactTestRenderer;
+    act(() => { r = renderer.create(<YouScreen />); });
+    const top = (h: string) => {
+      const t = r.root.findAll((x) => (x.type as unknown) === "Text" && x.props.children === h)[0];
+      let n = t.parent;
+      while (n && StyleSheet.flatten(n.props.style)?.paddingTop === undefined) n = n.parent;
+      return StyleSheet.flatten(n!.props.style).paddingTop;
+    };
+    expect(top("Today")).toBe(20);
+    expect(top("Meals")).toBe(22);
+  });
+});
