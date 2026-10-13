@@ -48,3 +48,6 @@ Frame numbers: `adb -s <serial> shell dumpsys gfxinfo com.udinetogether.udine_ba
 - **Not built:** the calorie toss on Log and the stepper's collapsing ghost (a removed half just shrinks away on `exit`).
 - **Edge swipe on gesture-navigation Android:** the system back gesture owns the left edge, so the app's edge pan only shows with
   three-button navigation or on iOS. Predictive back is not built.
+- **Café build-your-own is not built:** M2's dish sheet for a café dish with an Add-ons or Toppings station lists those add-ons with a
+  running total in a bottom bar; here the sheet shows the dish alone (name, price, contains, Add to plate, where served, label).
+  The price golden uses a finished, priced dish (People's Organic Coffee's Cubano Croissant), which M2 also draws without a build.
