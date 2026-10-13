@@ -39,4 +39,7 @@ export const DishRow = memo(function DishRow({ dish, contains, scores, lane, pla
       }
     />
   );
-});
+}, (a, b) =>
+  // `contains` is rebuilt with every list (a new array, the same words): compare it by what it says
+  a.dish === b.dish && a.contains.join("|") === b.contains.join("|") && a.scores.health === b.scores.health && a.scores.carbon === b.scores.carbon
+  && a.lane === b.lane && a.place === b.place && a.meal === b.meal && a.onOpen === b.onOpen && a.here === b.here);

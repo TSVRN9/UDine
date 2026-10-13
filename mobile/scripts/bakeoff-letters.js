@@ -12,7 +12,7 @@ const tokens = require("../../design-tokens/m2.json");
 const X = tokens.letterX; // M2 `LX` (src/bakeoff/logic/letters.ts HALL_LX)
 const BOX = tokens.size.letterBox, FONT = tokens.size.letterFont, C = tokens.color;
 const ttf = path.join(__dirname, "../node_modules/@expo-google-fonts/oswald/700Bold/Oswald_700Bold.ttf");
-const out = path.join(__dirname, "../assets/bakeoff/letters");
+const out = process.env.BAKEOFF_OUT || path.join(__dirname, "../assets/bakeoff/letters");
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "letters-"));
 fs.mkdirSync(path.join(dir, "fonts"));

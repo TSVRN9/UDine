@@ -565,7 +565,11 @@
   "stepQ": 26,
   "stroke": 2.2,
   "strokeBold": 2.4,
-  "sbMin": 10
+  "sbMin": 10,
+  "glyph": 20,
+  "tick": 16,
+  "rowGlyph": 12,
+  "markGlyph": 16
  },
  "opacity": {
   "disabled": 0.4,
@@ -1121,7 +1125,11 @@
   "letterX.B": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
   "font.bodyB": "#stidx button.cur, #days .day.cur: font-weight 700",
   "space.h3Top": ".h3{margin:22px 0 4px} (declared after .dh{margin-top:12px}, so it wins: the first group is 22)",
-  "size.sbMin": ":root --sb: max(10px, env(safe-area-inset-bottom)) (src.html:31)"
+  "size.sbMin": ":root --sb: max(10px, env(safe-area-inset-bottom)) (src.html:31)",
+  "size.glyph": ".add svg, .step svg{width:20px;height:20px}",
+  "size.tick": ".check[aria-checked=true] i::after: 16 dp tick",
+  "size.rowGlyph": ".tg .gl{width:12px;height:12px}",
+  "size.markGlyph": ".gl{width:16px;height:16px}"
  },
  "felt": {
   "patch": {

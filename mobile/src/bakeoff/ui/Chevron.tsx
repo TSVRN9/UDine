@@ -1,18 +1,10 @@
-import Svg, { Path } from "react-native-svg";
 import { m2 } from "../../lib/theme";
+import { Glyph, type GlyphName } from "./Glyph";
 
-// one path per direction, drawn once (M2 `.icon svg`, `.chev`, `.swbtn svg`)
-const SHAPE = {
-  back: { box: 24, d: "M15 5l-7 7 7 7" },
-  forward: { box: 24, d: "M9 6l6 6-6 6" },
-  down: { box: 18, d: "M4 7l5 5 5-5" },
-} as const;
-
-export function Chevron({ dir, size, stroke, width = m2.size.stroke }: { dir: keyof typeof SHAPE; size: number; stroke: string; width?: number }) {
-  const s = SHAPE[dir];
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${s.box} ${s.box}`} fill="none" stroke={stroke} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round"><Path d={s.d} /></Svg>
-  );
+/** M2's chevrons (`.icon svg`, `.chev`, `.swbtn svg`): the back arrow, the row's `>`, and the down `v` (2.4 in its 18 box, 2 beside the status line). */
+export function Chevron({ dir, size, stroke, width = m2.size.stroke }: { dir: "back" | "forward" | "down"; size: number; stroke: string; width?: number }) {
+  const name: GlyphName = dir === "back" ? "chevronBack" : dir === "forward" ? "chevronForward" : width === m2.size.chevronStroke ? "chevronDownThin" : "chevronDown";
+  return <Glyph name={name} size={size} tint={stroke} />;
 }
 
 /** The `>` at the right of a row. */

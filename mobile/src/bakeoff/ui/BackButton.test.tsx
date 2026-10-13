@@ -1,7 +1,6 @@
 import { act } from "react";
-import { StyleSheet } from "react-native";
+import { Image, StyleSheet } from "react-native";
 import renderer from "react-test-renderer";
-import Svg, { Path } from "react-native-svg";
 import { m2 } from "../../lib/theme";
 import { BackButton } from "./BackButton";
 
@@ -19,9 +18,9 @@ describe("BackButton", () => {
     act(() => { p.props.onPress(); });
     expect(hit).toHaveBeenCalledTimes(1);
   });
-  it("draws one white 24 dp chevron on M2's path", () => {
+  it("draws one white 24 dp chevron (the back arrow's image)", () => {
     const r = make(<BackButton onPress={() => {}} />);
-    expect(r.root.findByType(Svg).props).toMatchObject({ width: 24, height: 24, stroke: m2.color.white, strokeWidth: 2.2 });
-    expect(r.root.findByType(Path).props.d).toBe("M15 5l-7 7 7 7");
+    expect(r.root.findAllByType(Image)).toHaveLength(1);
+    expect(StyleSheet.flatten(r.root.findByType(Image).props.style)).toMatchObject({ width: 24, height: 24, tintColor: m2.color.white });
   });
 });
