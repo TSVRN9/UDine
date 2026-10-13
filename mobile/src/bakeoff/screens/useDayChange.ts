@@ -37,10 +37,14 @@ export function useDayChange({ pager, y, R, origin, setDay }: {
     // refused (and nothing touched) while another change is running: see motion/pagerMachine
     pager.current?.hold(() => {
       holdOn.set(1);
-      lo.set(1); ln.set(0);   // the old layer shows exactly what is on screen: until the commit lands it is the current labels
+      // The old labels' layer is committed first (a cheap render: the rows bail out), and only then does the screen flip to the new day: the layer is
+      // drawn the frame before the labels swap, so the header is never blank while the new day's commit (the expensive one) is on the JS thread.
       setHeld(labelsRef.current);
-      setDay(i);
-      mark("day:apply");
+      requestAnimationFrame(() => {
+        lo.set(1); ln.set(0);
+        setDay(i);
+        mark("day:apply");
+      });
     }, () => {
       mark("day:ready");
       pager.current?.list()?.scrollToOffset({ offset: keep, animated: false });
