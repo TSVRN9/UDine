@@ -42,6 +42,19 @@ class _HallsListState extends State<HallsList> with SingleTickerProviderStateMix
   Net get net => _net ?? _ok;
 
   @override
+  void initState() {
+    super.initState();
+    // decode every hall's photo while Halls is idle, so the first hall to open does not decode it in its opening frames
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !Photos.enabled) return;
+      for (final k in [...halls, ...widget.pins.map((n) => widget.fx.places.firstWhere((p) => p.name == n).key)]) {
+        final path = photoOf(k, widget.fx.places.firstWhere((p) => p.key == k).name);
+        if (path != null) precacheImage(AssetImage(path), context);
+      }
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final n = NetScope.maybeOf(context) ?? _ok;
