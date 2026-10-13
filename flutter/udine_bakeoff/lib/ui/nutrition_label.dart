@@ -58,16 +58,19 @@ class NutritionLabel extends StatelessWidget {
             ),
             _thick,
           ),
-        _rule(
+        // keyed with its rule: M2's `.cal` box (54) includes its 4 dp border, and the dish sheet rests on its bottom
+        KeyedSubtree(
+          key: calKey,
+          child: _rule(
           Padding(
-            key: calKey, padding: const EdgeInsets.only(top: M2Layout.calPadTop, bottom: M2Layout.calPadBottom),
+            padding: const EdgeInsets.only(top: M2Layout.calPadTop, bottom: M2Layout.calPadBottom),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text('Calories', style: M2Text.lblLg.style(M2Color.dm).copyWith(fontWeight: bold700)),
               Text(label.cal, style: M2Text.calNum.style(M2Color.dm)),
             ]),
           ),
           _calRule,
-        ),
+        )),
         for (final r in label.rows) row(r),
         Padding(padding: const EdgeInsets.only(top: _footTop, bottom: _footBottom), child: Text('*Percent Daily Values are based on a 2,000 calorie diet.', style: M2Text.lblFoot.style(M2Color.ink).copyWith(height: _footLine))),
       ]),

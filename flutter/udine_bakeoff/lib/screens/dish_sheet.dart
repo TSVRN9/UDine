@@ -142,20 +142,29 @@ class _DishSheetState extends State<DishSheet> {
         handle: widget.handle, top: widget.top, onClosed: widget.onClosed, mid: _mid, header: const SheetGrab(),
         slivers: [
           PinnedHeaderSliver(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.dishHeadTop, M2Space.gutter, M2Layout.dishHeadBottom),
-              decoration: BoxDecoration(
-                color: M2Color.chalk,
-                boxShadow: _stuck
-                    ? [
-                        const BoxShadow(offset: Offset(0, -M2Layout.dishHeadTop), color: M2Color.chalk),
-                        const BoxShadow(offset: Offset(0, 1), color: M2Color.hair),
-                        BoxShadow(offset: const Offset(0, M2Layout.shadowDy), blurRadius: M2Layout.shadowBlur, spreadRadius: M2Layout.shadowSpread, color: M2Color.scrim.withValues(alpha: M2Opacity.edgeShadow)),
-                      ]
-                    : const [BoxShadow(offset: Offset(0, -M2Layout.dishHeadTop), color: M2Color.chalk)],
+            // `.dhd`: padding-bottom 4 under the name and margin-bottom -4, so the next row starts at the name's own bottom while the ground
+            // (and, when stuck, its edge) reaches 4 under it: the ground is painted 4 past the layout box
+            child: Stack(clipBehavior: Clip.none, children: [
+              Positioned(
+                left: 0, right: 0, top: 0, bottom: -M2Layout.dishHeadBottom,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: M2Color.chalk,
+                    boxShadow: _stuck
+                        ? [
+                            const BoxShadow(offset: Offset(0, -M2Layout.dishHeadTop), color: M2Color.chalk),
+                            const BoxShadow(offset: Offset(0, 1), color: M2Color.hair),
+                            BoxShadow(offset: const Offset(0, M2Layout.shadowDy), blurRadius: M2Layout.shadowBlur, spreadRadius: M2Layout.shadowSpread, color: M2Color.scrim.withValues(alpha: M2Opacity.edgeShadow)),
+                          ]
+                        : const [BoxShadow(offset: Offset(0, -M2Layout.dishHeadTop), color: M2Color.chalk)],
+                  ),
+                ),
               ),
-              child: Semantics(header: true, child: Text(d.name, style: M2Text.dishName.style(M2Color.dm))),
-            ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.dishHeadTop, M2Space.gutter, 0),
+                child: Semantics(header: true, child: Text(d.name, style: M2Text.dishName.style(M2Color.dm))),
+              ),
+            ]),
           ),
           SliverToBoxAdapter(child: body),
         ],

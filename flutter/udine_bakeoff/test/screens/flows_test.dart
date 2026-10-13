@@ -236,7 +236,7 @@ void main() {
       await openHall(t, 'Worcester');
       await tapName(t, bbq);
       await t.pumpAndSettle();
-      List<BoxShadow> shadows() => (t.widgetList<Container>(find.byType(Container)).map((c) => c.decoration).whereType<BoxDecoration>().firstWhere((d) => d.boxShadow?.any((s) => s.color == M2Color.chalk) ?? false)).boxShadow!;
+      List<BoxShadow> shadows() => (t.widgetList<DecoratedBox>(find.byType(DecoratedBox)).map((c) => c.decoration).whereType<BoxDecoration>().firstWhere((d) => d.boxShadow?.any((s) => s.color == M2Color.chalk) ?? false)).boxShadow!;
       expect(shadows(), hasLength(1));
       await t.drag(find.text('Nutrition Facts'), const Offset(0, -500)); // the first drag takes the sheet to the top
       await t.pumpAndSettle();
@@ -264,6 +264,29 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byType(DishSheet), findsNothing);
       expect(s.plates.plates, isEmpty);
+    });
+  });
+
+  group('dish sheet positions (M2 DOM at 390 x 844: Golden BBQ, and a priced café dish)', () {
+    Rect add(WidgetTester t) => t.getRect(find.ancestor(of: find.text('Add to plate'), matching: find.byType(Press)).first);
+    testWidgets('the name pins over the label: Add to plate is at 525 (M2 .btn), 4 dp under the serving line, whatever the line holds', (t) async {
+      await boot(t);
+      await openHall(t, 'Worcester');
+      await tapName(t, bbq);
+      await t.pumpAndSettle();
+      expect(add(t).top, closeTo(525, 1.5)); // the pinned name's 4 dp bottom padding is cancelled by its -4 margin (`.dhd`)
+    });
+    testWidgets('a priced dish: the price line starts 4 under the name (457 against the name at 420.8) and Add to plate is at 525', (t) async {
+      Photos.enabled = false;
+      sized(t);
+      await t.pumpWidget(BakeoffApp(fx: fx, store: freshStore(), pins: const ["People's Organic Coffee", 'Tamales']));
+      await t.pumpAndSettle();
+      await t.tap(find.text("People's Organic Coffee").first);
+      await t.pumpAndSettle();
+      await t.tapAt(t.getTopLeft(find.byType(DishRow).at(1)) + const Offset(40, 22));
+      await t.pumpAndSettle();
+      expect(t.getRect(find.textContaining('1 each', findRichText: true).first).top, closeTo(457, 1.5));
+      expect(add(t).top, closeTo(525, 1.5));
     });
   });
 

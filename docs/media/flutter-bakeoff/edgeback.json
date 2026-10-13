@@ -21,7 +21,8 @@
  "input_log": [
   "T edge-swipe 1791865271.937451968"
  ],
- "observed": "tracks, commits, pops",
+ "observed": "Dietary preferences popped by a swipe from the left edge. The chevron bubble in the frames is Android's system back gesture (3-button/gesture navigation owns the left edge), not the app's edge tracking. The app's edge pan was not shown by this input: the swipe started inside the system gesture zone.",
  "frames": "extracted at the encoder's real rate (screenrecord emits on change); strip labels give ms from the first frame",
- "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)"
+ "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)",
+ "caveat": "The chevron bubble in the frames is Android's system back gesture (3-button/gesture navigation owns the left edge), not the app's edge tracking. The app's edge pan was not shown by this input: the swipe started inside the system gesture zone. Flutter's VelocityTracker counts the pointer-down event as a sample, M2 measures velocity over the moves only, and `input swipe` injects few, coarse events (a 'fling' from three samples), so a short swipe can read as a fast one; real fingers are unaffected."
 }
