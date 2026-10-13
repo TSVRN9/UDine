@@ -54,6 +54,7 @@ void netCases() {
     expect(s.days[5].right, 'Not saved');
     expect(s.days[5].meals, isEmpty);
     expect(s.days[3].right, 'Not saved');
+    expect(s.days[2].right, 'Not saved'); // the first day past tomorrow
     expect(s.days[1].right, isNot('Not saved'));
     expect(schedule(fx, 'W', 0, mode: NetMode.offline).days[0].meals, isNotEmpty);
   });

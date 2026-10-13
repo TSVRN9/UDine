@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../logic/fixture.dart';
 import '../logic/net.dart';
+import '../logic/net.dart' as logic show menuState;
 
 /// What the network has done (M2 `NET`, `hallsLoaded`, `LOADED`): the mode, whether Halls' hours and busy have arrived, and the
 /// "place|day" menus that have. `hold` is a test seam: a slow load that never arrives, so the loading state can be held still.
@@ -24,13 +25,7 @@ class Net extends ChangeNotifier {
   /// M2 `liveKnown`: busy is live and never shown stale, so offline and failed have none.
   bool get liveKnown => (mode == NetMode.ok || mode == NetMode.slow) && _hallsReady;
 
-  MenuState menuState(String place, int day) => _menuState('$place|$day', day);
-  MenuState _menuState(String key, int day) => switch (mode) {
-        NetMode.fail => MenuState.fail,
-        NetMode.offline => day <= 1 ? MenuState.ok : MenuState.offline,
-        NetMode.slow => loaded.contains(key) ? MenuState.ok : MenuState.loading,
-        NetMode.ok => MenuState.ok,
-      };
+  MenuState menuState(String place, int day) => logic.menuState(mode, loaded, '$place|$day', day);
 
   void _loadHalls() {
     final mine = _run;

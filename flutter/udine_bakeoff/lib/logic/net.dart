@@ -24,25 +24,16 @@ class NetFailure implements Exception {
   String toString() => "Couldn't connect";
 }
 
-/// What a load answered: the fixture, and whether it is the saved copy (offline) and when it was saved.
-class Loaded {
-  final Fixture fx;
-  final bool cached;
-  final DateTime? asOf;
-  const Loaded(this.fx, {this.cached = false, this.asOf});
-}
-
-/// The fixture as the network gives it in a mode (RN `loadFixtureAsync`): ok at once; slow after `slow` (M2's SLOW, 1500 ms by the token);
-/// offline the saved copy, flagged and dated; fail an error.
-Future<Loaded> loadFixture(Fixture bundled, NetMode mode, {Duration? slow}) async {
+/// The fixture as the network gives it in a mode (RN `loadFixtureAsync`): ok and offline (the saved copy) at once; slow after `slow`
+/// (M2's SLOW, 1600 ms by the token); fail an error.
+Future<Fixture> loadFixture(Fixture bundled, NetMode mode, {Duration? slow}) async {
   switch (mode) {
     case NetMode.ok:
-      return Loaded(bundled);
+    case NetMode.offline:
+      return bundled;
     case NetMode.slow:
       await Future<void>.delayed(slow ?? Duration(milliseconds: M2Motion.netSlow.round()));
-      return Loaded(bundled);
-    case NetMode.offline:
-      return Loaded(bundled, cached: true, asOf: DateTime.parse(bundled.clock));
+      return bundled;
     case NetMode.fail:
       throw const NetFailure();
   }

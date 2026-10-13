@@ -2,6 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine_bakeoff/logic/net.dart';
 import 'package:udine_bakeoff/state/net.dart';
+import 'package:udine_bakeoff/theme/tokens.dart';
 import 'support.dart';
 
 void main() {
@@ -21,10 +22,13 @@ void main() {
     });
   });
 
+  // M2 `SLOW = 1600` (src.html:1204). tool/m2.json is patched to it until RN's design-tokens/m2.json (still 1500 on origin/bakeoff/rn) is fixed; the next
+  // tool/sync_fixture.sh then restores 1500 and this goes red, which is the reminder.
+  test('the slow load is M2\'s 1600 ms', () => expect(M2Motion.netSlow, 1600));
+
   group('loadFixture by mode', () {
     test('ok resolves at once with the fixture', () async {
-      final l = await loadFixture(fx, NetMode.ok);
-      expect((l.fx, l.cached), (fx, false));
+      expect(await loadFixture(fx, NetMode.ok), fx);
     });
     test('slow resolves only after the slow delay', () async {
       var done = false;
@@ -34,13 +38,10 @@ void main() {
       await f;
       expect(done, isTrue);
     });
-    test('offline resolves with the saved copy, flagged cached, with when it was saved', () async {
-      final l = await loadFixture(fx, NetMode.offline);
-      expect((l.cached, l.asOf), (true, DateTime.parse(fx.clock)));
-    });
+    test('offline resolves with the saved copy', () async => expect(await loadFixture(fx, NetMode.offline), fx));
     test('fail rejects with an error the retry path can catch, and retrying in ok mode resolves', () async {
       await expectLater(loadFixture(fx, NetMode.fail), throwsA(isA<NetFailure>()));
-      expect((await loadFixture(fx, NetMode.ok)).cached, isFalse);
+      expect(await loadFixture(fx, NetMode.ok), fx);
     });
   });
 

@@ -18,21 +18,11 @@ const _netMode = String.fromEnvironment('BAKEOFF_NET');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final fx = Fixture.fromJson(
-    jsonDecode(await rootBundle.loadString('assets/fixture.json'))
-        as Map<String, dynamic>,
-  );
+  final fx = Fixture.fromJson(jsonDecode(await rootBundle.loadString('assets/fixture.json')) as Map<String, dynamic>);
   final store = Store(fx);
-  await store
-      .hydrate(); // what the device kept lands before the first frame: no pop-in
+  await store.hydrate(); // what the device kept lands before the first frame: no pop-in
   if (_seed.isNotEmpty) applySeed(store, fx, _seed);
-  runApp(
-    BakeoffApp(
-      fx: fx,
-      store: store,
-      net: Net(fx, mode: parseNet(_netMode)),
-    ),
-  );
+  runApp(BakeoffApp(fx: fx, store: store, net: Net(fx, mode: parseNet(_netMode))));
 }
 
 /// The bake-off app: Halls, Search, You. Search has no content in this build and its tab is inert.
@@ -41,13 +31,7 @@ class BakeoffApp extends StatefulWidget {
   final List<String> pins;
   final Store? store;
   final Net? net;
-  const BakeoffApp({
-    super.key,
-    required this.fx,
-    this.pins = defaultPins,
-    this.store,
-    this.net,
-  });
+  const BakeoffApp({super.key, required this.fx, this.pins = defaultPins, this.store, this.net});
   @override
   State<BakeoffApp> createState() => _BakeoffAppState();
 }
@@ -66,10 +50,7 @@ class _BakeoffAppState extends State<BakeoffApp> {
           color: M2Color.dm,
           debugShowCheckedModeBanner: false,
           home: Shell(fx: widget.fx, pins: widget.pins, store: _store),
-          pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
-            settings: settings,
-            pageBuilder: (c, _, _) => builder(c),
-          ),
+          pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),
         ),
       ),
     );

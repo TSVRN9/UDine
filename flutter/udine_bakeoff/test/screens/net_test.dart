@@ -48,6 +48,9 @@ void near(Rect r, List<double> m2, {double tol = 1.5}) {
   expect(r.height, closeTo(m2[3], tol));
 }
 
+/// What every Opacity above a widget multiplies to.
+double opacityOf(WidgetTester t, Finder f) => t.widgetList<Opacity>(find.ancestor(of: f, matching: find.byType(Opacity))).fold(1.0, (a, o) => a * o.opacity);
+Finder stationName() => find.descendant(of: find.byType(StationRow), matching: find.byType(Text)).first;
 double listOpacity(WidgetTester t) => t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity;
 double tabsOpacity(WidgetTester t) => t.widgetList<Opacity>(find.descendant(of: find.byType(MealTabs), matching: find.byType(Opacity))).first.opacity;
 final status = statusLine(fx, 'W', 0);
@@ -63,7 +66,7 @@ void main() {
       expect(find.text(statusText(fx.hours['W']!, DateTime.parse(fx.clock))), findsNothing);
       expect(find.byType(BusyRow), findsNothing);
       expect(find.textContaining('open now'), findsNothing);
-      await t.pump(ms(1500)); // the load lands; this frame draws the first of the fade
+      await t.pump(ms(M2Motion.netSlow.round())); // the load lands; this frame draws the first of the fade
       final fade = find.ancestor(of: find.textContaining('open now'), matching: find.byType(FadeTransition)).first;
       expect(t.widget<FadeTransition>(fade).opacity.value, lessThan(0.05));
       await t.pump(ms(settleMs ~/ 2));
@@ -124,18 +127,22 @@ void main() {
       final net = Net(fx, mode: NetMode.slow);
       await hall(t, net);
       expect(rows, findsNothing);
-      await t.pump(ms(1500));
+      await t.pump(ms(M2Motion.netSlow.round()));
       expect(rows, findsWidgets);
       expect(find.text(status), findsOneWidget); // at once: nothing fades it
+      expect(opacityOf(t, find.text(status)), 1);
+      expect(opacityOf(t, stationName()), lessThan(0.05)); // the station name fades with the tabs and the list
       expect(find.byType(BusyRow), findsWidgets);
       expect(listOpacity(t), lessThan(0.05));
       expect(tabsOpacity(t), lessThan(0.05));
       await t.pump(ms(settleMs ~/ 2));
       expect(listOpacity(t), inExclusiveRange(0.1, 0.99));
       expect(tabsOpacity(t), closeTo(listOpacity(t), 1e-6));
+      expect(opacityOf(t, stationName()), closeTo(listOpacity(t), 1e-6));
       await t.pump(ms(settleMs));
       expect(listOpacity(t), 1);
       expect(tabsOpacity(t), 1);
+      expect(opacityOf(t, stationName()), 1);
     });
 
     testWidgets('offline, a day that is not saved: the copy at M2\'s place, no rows, no Try again, no station name', (t) async {
@@ -244,6 +251,8 @@ void main() {
       expect(p, closeTo(M2Motion.pushIn.curve.transform(150 / 500), 0.04));
       final under = t.widget<Transform>(find.ancestor(of: find.byType(FadeThroughTabs), matching: find.byType(Transform)).first).transform.getTranslation().x;
       expect(under, closeTo(-390 * M2Motion.pushShift * p, 0.5));
+      final dim = t.widgetList<ColoredBox>(find.byType(ColoredBox)).where((b) => b.color.a > 0 && b.color.a < 0.12 && b.color.toARGB32() & 0xFFFFFF == 0x240A0E);
+      expect(dim.single.color.a, closeTo(M2Motion.pushDim * p, 0.01));
       expect(find.byWidgetPredicate((w) => w is DecoratedBox && w.decoration is BoxDecoration && (w.decoration as BoxDecoration).boxShadow?.length == 2), findsOneWidget);
       await t.pumpAndSettle();
       expect(find.byType(EventPage), findsOneWidget);

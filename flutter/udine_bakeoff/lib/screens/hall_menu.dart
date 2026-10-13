@@ -149,6 +149,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       _arrive.animateTo(1, curve: a.curve);
     }
     setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _updateStation() : null); // the station the new rows start at
   }
 
   // ---- scroll

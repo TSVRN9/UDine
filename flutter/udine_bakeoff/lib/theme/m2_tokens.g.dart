@@ -653,7 +653,7 @@ abstract final class M2Motion {
   /// #bar pointerup
   static const plateSwipeRubber = 0.25;
   /// SLOW, spinIn 1ms 400ms
-  static const netSlow = 1500.0;
+  static const netSlow = 1600.0;
   /// SLOW, spinIn 1ms 400ms
   static const netSpinnerDelay = 400.0;
   /// SLOW, spinIn 1ms 400ms
