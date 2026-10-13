@@ -545,7 +545,11 @@ export const m2 = {
     stepQ: 26,
     stroke: 2.2,
     strokeBold: 2.4,
-    sbMin: 10
+    sbMin: 10,
+    glyph: 20,
+    tick: 16,
+    rowGlyph: 12,
+    markGlyph: 16
   },
   opacity: {
     disabled: 0.4,

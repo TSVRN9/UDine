@@ -1,18 +1,16 @@
 import { useState } from "react";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
-import Svg, { Path } from "react-native-svg";
 import { m2 } from "../../lib/theme";
 import { m2Motion } from "../../lib/motion";
 import { Press, Stepper, thud, thunk } from "../ui";
+import { Glyph } from "../ui/Glyph";
 import { useMotion } from "../ui/motion";
 import { tapBox } from "../ui/tap";
 import { findItem, fq, rowCode } from "../logic/plate";
 import type { Dish, MealKey, PlaceKey } from "../logic/types";
 import { add, getState, step, useStore } from "../state/store";
 
-const Plus = () => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={m2.color.vm} strokeWidth={2.4} strokeLinecap="round"><Path d="M12 5v14M5 12h14" /></Svg>
-);
+const Plus = () => <Glyph name="plus" size={m2.size.glyph} tint={m2.color.vm} />;
 
 /** One step on the plate that holds this dish: the + Stepper's two buttons and a plate row's two share it (haptics: Light for more, Rigid for a removal). */
 export function stepDish(meal: MealKey, key: string, place: PlaceKey | undefined, dir: 1 | -1) {

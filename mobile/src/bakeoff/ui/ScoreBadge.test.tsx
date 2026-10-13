@@ -1,7 +1,5 @@
-import { processColor } from "react-native";
 import renderer, { act } from "react-test-renderer";
 import { ScoreBadge } from "./ScoreBadge";
-import { m2 } from "../../lib/theme";
 
 function mount(el: React.ReactElement) {
   let v!: renderer.ReactTestRenderer;
@@ -23,7 +21,8 @@ describe("ScoreBadge", () => {
   it("labels the carbon letter", () => {
     expect(labelled(mount(<ScoreBadge kind="carbon" value="A" size="row" />), "Carbon rating A")).not.toHaveLength(0);
   });
-  it("draws the tile in M2's ramp colour", () => {
-    expect(JSON.stringify(mount(<ScoreBadge kind="carbon" value="B" size="row" />).toJSON())).toContain(`"fill":{"type":0,"payload":${String(processColor(m2.color.carbon.B[0]))}}`);
+  it("is its own image for each rating (the ramp colour is baked in: assets.fresh.test regenerates them from the tokens)", () => {
+    const src = (k: "health" | "carbon", v: number | "A" | "B") => JSON.stringify(mount(<ScoreBadge kind={k} value={v} size="row" />).root.findByType(require("react-native").Image).props.source);
+    expect(new Set([src("carbon", "A"), src("carbon", "B"), src("health", 0), src("health", 5)]).size).toBe(4);
   });
 });
