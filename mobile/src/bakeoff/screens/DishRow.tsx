@@ -30,7 +30,7 @@ export const DishRow = memo(function DishRow({ dish, contains, scores, lane, pla
             <Text v="metaNum" color={m2.color.ink}>{`${f1(dish.p)}g`}</Text><Text v="meta" color={m2.color.slate}>{" protein"}</Text>
           </View>
           {sc ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: m2.space.scoreGap, marginVertical: -m2.space.tileRide }}>
+            <View style={{ flexDirection: "row", alignItems: "center", alignSelf: "center", gap: m2.space.scoreGap, marginVertical: -m2.space.tileRide }}>
               <ScoreBadge kind="health" value={sc.health} size="row" />
               <ScoreBadge kind="carbon" value={sc.carbon} size="row" />
             </View>
