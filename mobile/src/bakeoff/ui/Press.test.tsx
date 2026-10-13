@@ -5,11 +5,12 @@ import { m2Motion } from "../../lib/motion";
 import { Press } from "./Press";
 
 const timings: { to: number; token: unknown }[] = [];
+let mockStyleHooks = 0;
 // the reanimated mock evaluates an animated style once per render; this one reads its shared values when the style is read, as the UI thread does
 jest.mock("react-native-reanimated", () => {
   const actual = jest.requireActual("react-native-reanimated/mock");
   const live = (fn: () => Record<string, unknown>) => Object.defineProperties({}, Object.fromEntries(Object.keys(fn()).map((k) => [k, { enumerable: true, get: () => fn()[k] }])));
-  return { ...actual, useAnimatedStyle: live };
+  return { ...actual, useAnimatedStyle: (fn: () => Record<string, unknown>) => { mockStyleHooks++; return live(fn); } };
 });
 jest.mock("./motion", () => ({ timed: (to: number, token: unknown) => { timings.push({ to, token }); return to; } }));
 
@@ -58,5 +59,14 @@ describe("Press times on M2's tokens", () => {
     act(() => { p.props.onPressIn({}); });
     act(() => { p.props.onPressOut({}); });
     expect(timings).toEqual([{ to: 1, token: m2Motion.press }, { to: 0, token: m2Motion.settle }]);
+  });
+});
+
+// a list mounts one Press per row, and each useAnimatedStyle is shareables built on the JS thread (about 2 ms on the A53): a Press builds only the style its feedback uses
+describe("Press's animated styles", () => {
+  it.each(["tint", "scale"] as const)("%s feedback mounts one", (feedback) => {
+    mockStyleHooks = 0;
+    make(<Press feedback={feedback}><View /></Press>);
+    expect(mockStyleHooks).toBe(1);
   });
 });

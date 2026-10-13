@@ -1,5 +1,5 @@
 import { loadFixture } from "./fixture";
-import { ALLERGENS, NO_PREFS, dayCell, dayFull, dayLong, defaultMeal, hits, isOneMeal, prefSummary, mealsOf, menuItems, menuView, rowScores, type Prefs } from "./menuView";
+import { ALLERGENS, NO_PREFS, dayCell, dayFull, dayIsos, dayLong, defaultMeal, hits, isOneMeal, prefSummary, mealsOf, menuItems, menuView, rowScores, type Prefs } from "./menuView";
 import type { Dish, MealKey, PlaceKey } from "./types";
 
 const fx = loadFixture();
@@ -161,7 +161,18 @@ describe("menuItems", () => {
   });
 });
 
-describe("day labels are formatted once (Hermes Intl is a JNI call per use: ~10 ms each in the release profile)", () => {
+describe("day labels come from tables (Hermes Intl is a JNI call per use: ~10 ms each in the release profile)", () => {
+  it("every day's labels equal Intl's, and a first dayCell/dayFull/dayLong makes no Intl call", () => {
+    const spy0 = jest.spyOn(Date.prototype, "toLocaleDateString");
+    const got = dayIsos(fx).map((_, i) => [dayCell(fx, i), dayFull(fx, i), dayLong(fx, i)]);
+    expect(spy0).not.toHaveBeenCalled();
+    spy0.mockRestore();
+    dayIsos(fx).forEach((iso, i) => {
+      const d = new Date(iso + "T12:00:00Z");
+      expect(got[i][1]).toBe(d.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric" }));
+      if (i) expect(got[i][0]).toBe(`${d.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short" })} ${d.getUTCDate()}`);
+    });
+  });
   it("a repeated dayCell/dayFull/dayLong makes no Intl call", () => {
     dayCell(fx, 2); dayFull(fx, 2); dayLong(fx, 2);
     const spy = jest.spyOn(Date.prototype, "toLocaleDateString");
