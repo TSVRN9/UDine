@@ -774,6 +774,7 @@ the round-9 states. Compare screenshots with M2's.
    - Both reached M2 within about 1 dp, measured against M2's own DOM.
    - RN additionally shipped a crash that passed jest and review (the worklet callbacks, found only by running on a device). Its motion took four perf rounds, two Perfetto traces and a Hermes profile.
    - Flutter's reviews found more evidence and test gaps. Its code defects were caught by its own tests: the landing header, the station name after a late arrival, the dish-sheet 4 dp.
+   - **RN dev builds intermittently log "Can't perform a React state update on an unmounted component"**, a setState after unmount. It's unlocated, and it doesn't show in release; fix it in the rebuild if RN wins.
 4. **Platform divergence (RN):** iOS was not seen (owner, 2026-10-12: no store-track builds until the new UI is complete). Android gesture nav takes the edge swipe in both stacks.
 5. **Port cost:**
    - **Slice size:** RN about 4,700 lines of app code plus 3,500 of tests. Flutter about 6,900 plus 3,200.
