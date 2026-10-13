@@ -1,8 +1,7 @@
 import { act } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import renderer from "react-test-renderer";
 import { m2 } from "../../lib/theme";
-import { Text } from "react-native";
 import { Header, type Labels } from "./Header";
 
 const labels: Labels = { status: "Open until midnight", onStatus: () => {} };
