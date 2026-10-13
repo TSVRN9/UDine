@@ -396,6 +396,7 @@ export const m2 = {
     paragraph: 16,
     stateGap: 16,
     sectionTop: 22,
+    dayTop: 20,
     kvTop: 15,
     yheadBottom: 18,
     cafeBodyTop: 20,

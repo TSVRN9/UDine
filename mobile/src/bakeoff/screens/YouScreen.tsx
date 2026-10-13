@@ -71,7 +71,7 @@ export function YouScreen() {
       <Animated.View style={[{ flex: 1 }, below]}>
       <ScrollView contentContainerStyle={{ paddingBottom: m2.size.listFoot }}>
         <ScreenHeader variant="you" date={DATE} title="You" />
-        <View style={{ paddingTop: m2.space.sectionTop, paddingHorizontal: m2.space.gutter }}>
+        <View style={{ paddingTop: m2.space.dayTop, paddingHorizontal: m2.space.gutter }}>
           <H2>Today</H2>
           <Facts {...t} />
         </View>
