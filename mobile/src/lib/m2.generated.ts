@@ -438,6 +438,7 @@ export const m2 = {
     barL2Top: 2,
     barNumGap: 2,
     metaTop: 3,
+    markLine: 2,
     ptab: 10,
     peekInset: 10,
     dotsTop: 5,
