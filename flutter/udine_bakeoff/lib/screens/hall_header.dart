@@ -188,7 +188,7 @@ class HallHeaderState extends State<HallHeader> {
     _bandGrade = const IgnorePointer(child: BandGrade());
     _ghost = Band(
       ghost: true, compact: compact, name: name, status: w.net.hoursKnown ? statusLine(fx, place, 0) : '',
-      busy: busy == null ? null : BusyRow(lamps: busy.lamps, word: busy.word),
+      busy: busy == null || !w.net.liveKnown ? null : BusyRow(lamps: busy.lamps, word: busy.word),
       letter: compact ? null : HallLetter(letter: place, x: hallLx[place]!),
     );
     _title = Semantics(header: true, child: Text(name, style: nameStyle.style(M2Color.white), maxLines: 1));
@@ -280,6 +280,8 @@ class HallHeaderState extends State<HallHeader> {
                   return Opacity(opacity: (o * w.dayFade.value).clamp(0.0, 1.0), child: IgnorePointer(ignoring: o <= 0.5, child: ch));
                 },
               ),
+              // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
+              if (compact) const SizedBox(height: M2Layout.busyTopHeader),
               if (!compact)
                 AnimatedBuilder(
                   animation: Listenable.merge([p, w.scroll, w.dayFade]),

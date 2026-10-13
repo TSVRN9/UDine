@@ -190,6 +190,16 @@ void main() {
   });
 
   group('cafés without a dish menu', () {
+    testWidgets('a café\'s title block sits where M2 puts it: the empty busy row keeps its 8 under the status (name 211, status line 258)', (t) async {
+      for (final k in ['c13', 'c5']) {
+        await hall(t, Net(fx), place: k);
+        final name = fx.places.firstWhere((q) => q.key == k).name;
+        expect(at(t, find.text(name)).top, closeTo(211, 1), reason: k);
+        expect(at(t, find.textContaining('Open')).top, closeTo(258, 1), reason: k);
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
     testWidgets('the description, "Menu", and the line that says so; no custom food button, no tabs', (t) async {
       await hall(t, Net(fx), place: 'c13');
       final p = fx.places.firstWhere((q) => q.key == 'c13');
