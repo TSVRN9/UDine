@@ -1,8 +1,8 @@
 {
  "recording": "evpush.mp4",
- "sha": "eed06d0",
+ "sha": "b3110f2",
  "build": {
-  "sha": "eed06d0",
+  "sha": "b3110f2",
   "apk": "flutter build apk --profile --target-platform android-x64",
   "launch": "am start --ez enable-impeller false (Skia)"
  },
