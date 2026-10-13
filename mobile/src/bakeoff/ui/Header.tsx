@@ -34,8 +34,8 @@ export const BAR = m2.size.bar;
  * solid maroon grows over it, the letter, status and busy fade, and the name shrinks into the bar (the caller translates
  * the whole header by the scroll; the rows below ride with it and pin under the bar).
  */
-export function Header({ title, photo, letter, height, top = 0, labels, oldLabels, newStyle, oldStyle, gradStyle, contentStyle, collapse }: {
-  title: string; photo?: ReactNode; letter?: ReactNode; height: number; top?: number;
+export function Header({ title, photo, letter, height, top = 0, cafe, labels, oldLabels, newStyle, oldStyle, gradStyle, contentStyle, collapse }: {
+  title: string; photo?: ReactNode; letter?: ReactNode; height: number; top?: number; /** a café: the title block hangs lower (M2 `#menu.cafe .mt`) */ cafe?: boolean;
   /** What says the day, as it is now, and as it was before a day change (it fades out in its own layer while `labels` fades in): `oldLabels` is only there while a
    * day change holds it, and the header is drawn once the rest of the time. */
   labels: Labels; oldLabels?: Labels | null;
@@ -74,7 +74,7 @@ export function Header({ title, photo, letter, height, top = 0, labels, oldLabel
         <Animated.View pointerEvents="none" style={[fill, { backgroundColor: m2.color.vm }, solid]} />
         <Animated.View pointerEvents="none" style={[fill, letterFade]}>{letter}</Animated.View>
         <Animated.View style={[fill, contentStyle]} pointerEvents="box-none">
-          <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space.gutter, bottom: m2.size.nameBottom }}>
+          <View onLayout={onBlock} pointerEvents="box-none" style={{ position: "absolute", left: m2.space.gutter, bottom: cafe ? m2.size.nameBottomCafe : m2.size.nameBottom }}>
             <Animated.View style={[{ transformOrigin: "0% 100%" }, name]}><Text v="menuName" color={m2.color.white} accessibilityRole="header">{title}</Text></Animated.View>
             <Animated.View pointerEvents="box-none" style={fadeC}>
               <Layers now={<TitleParts l={labels} />} was={oldLabels ? <TitleParts l={oldLabels} /> : null} newStyle={newStyle} oldStyle={oldStyle} />

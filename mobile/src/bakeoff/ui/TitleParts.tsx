@@ -22,7 +22,8 @@ export function TitleParts({ l }: { l: Labels }) {
           </Press>
         ) : null}
       </View>
-      {l.busy}
+      {/* M2 keeps the empty busy row's margin (`.mt .bz{margin-top:8px}`) */}
+      {l.busy ?? <View testID="busy-room" style={{ height: m2.space.part }} />}
     </>
   );
 }
