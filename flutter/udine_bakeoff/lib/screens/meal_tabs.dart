@@ -5,7 +5,7 @@ import '../ui/ui.dart';
 
 /// `#mtabs`: every meal of the day is visible, never scrolled or cut. The buttons share the row as `flex: 1 1 auto` does: each is
 /// its label's width, the rest of the row split equally (a selected label is 600, so wider). A gold underline under the selected
-/// one moves on `settle`. The row is opaque ground; only its labels fade.
+/// one moves on `settle`. The row is opaque ground; its labels and the underline fade.
 class MealTabs extends StatefulWidget {
   final List<String> meals;
   final String selected;
@@ -72,7 +72,7 @@ class _MealTabsState extends State<MealTabs> {
             AnimatedPositioned(
               duration: _placed ? ul.duration : Duration.zero, curve: ul.curve,
               left: lefts[sel] + M2Layout.underInset, width: ws[sel] - 2 * M2Layout.underInset, bottom: 0, height: M2Layout.underH,
-              child: const IgnorePointer(child: ColoredBox(color: M2Color.gold)),
+              child: IgnorePointer(child: AnimatedBuilder(animation: w.fade, builder: (_, child) => Opacity(opacity: w.fade.value, child: child), child: const ColoredBox(color: M2Color.gold))), // `.mts .ul` is inside `.mts`: it fades with the labels
             ),
         ]);
       }),

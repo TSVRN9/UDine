@@ -50,6 +50,8 @@ void near(Rect r, List<double> m2, {double tol = 1.5}) {
 
 /// What every Opacity above a widget multiplies to.
 double opacityOf(WidgetTester t, Finder f) => t.widgetList<Opacity>(find.ancestor(of: f, matching: find.byType(Opacity))).fold(1.0, (a, o) => a * o.opacity);
+Finder get underline => find.descendant(of: find.byType(MealTabs), matching: find.byWidgetPredicate((w) => w is ColoredBox && w.color == M2Color.gold));
+Finder get tabLabel => find.descendant(of: find.byType(MealTabs), matching: find.text('Lunch'));
 Finder stationName() => find.descendant(of: find.byType(StationRow), matching: find.byType(Text)).first;
 double listOpacity(WidgetTester t) => t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity;
 double tabsOpacity(WidgetTester t) => t.widgetList<Opacity>(find.descendant(of: find.byType(MealTabs), matching: find.byType(Opacity))).first.opacity;
@@ -132,6 +134,8 @@ void main() {
       expect(find.text(status), findsOneWidget); // at once: nothing fades it
       expect(opacityOf(t, find.text(status)), 1);
       expect(opacityOf(t, stationName()), lessThan(0.05)); // the station name fades with the tabs and the list
+      expect(opacityOf(t, underline), closeTo(opacityOf(t, tabLabel), 1e-6)); // the underline is part of the tab row (`.mts .ul`): it fades with the labels
+      expect(opacityOf(t, underline), lessThan(0.05));
       expect(find.byType(BusyRow), findsWidgets);
       expect(listOpacity(t), lessThan(0.05));
       expect(tabsOpacity(t), lessThan(0.05));
@@ -139,6 +143,8 @@ void main() {
       expect(listOpacity(t), inExclusiveRange(0.1, 0.99));
       expect(tabsOpacity(t), closeTo(listOpacity(t), 1e-6));
       expect(opacityOf(t, stationName()), closeTo(listOpacity(t), 1e-6));
+      expect(opacityOf(t, underline), closeTo(opacityOf(t, tabLabel), 1e-6));
+      expect(opacityOf(t, underline), inExclusiveRange(0.1, 0.99));
       await t.pump(ms(settleMs));
       expect(listOpacity(t), 1);
       expect(tabsOpacity(t), 1);
