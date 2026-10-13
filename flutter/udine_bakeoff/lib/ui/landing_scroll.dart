@@ -22,6 +22,7 @@ class _LandingPosition extends ScrollPositionWithSingleContext {
 
   @override
   bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
+    var moved = false;
     if (!_landed && owner.landing != null) {
       final want = owner.landing!(maxScrollExtent, pixels);
       if (want == null || ++_tries > 8) {
@@ -32,9 +33,13 @@ class _LandingPosition extends ScrollPositionWithSingleContext {
           _landed = true;
         } else {
           correctBy(to - pixels);
+          moved = true;
         }
       }
     }
-    return super.applyContentDimensions(minScrollExtent, maxScrollExtent);
+    final ok = super.applyContentDimensions(minScrollExtent, maxScrollExtent);
+    // correctBy is silent: whoever follows the offset (a header that collapses with it) is told once the layout is done
+    if (moved) WidgetsBinding.instance.addPostFrameCallback((_) => hasPixels ? notifyListeners() : null);
+    return ok;
   }
 }
