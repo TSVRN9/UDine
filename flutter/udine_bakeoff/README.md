@@ -35,3 +35,16 @@ Frame numbers: `adb -s <serial> shell dumpsys gfxinfo com.udinetogether.udine_ba
 - **Bold** is Libre Franklin 700, bundled (m2.json has only 400 to 600); it is `bold700`, Flutter-only.
 - **Touch targets:** the status line and the ingredients' "Show all" are 44 dp (M2: 42 and 40).
 - **Flutter rounds a line to whole dp,** so a label foot is 24 where M2 is 24.2, and ±1 dp of glyph position shows in the goldens.
+- **A tap on a band during a close is swallowed.** M2's `xfOn` guards only the drag-back `touchstart` (src.html:1455); a band click goes
+  straight to `openHall` as a hard cut. Here the container is one machine, so a tap in the first ~340 ms after Back is ignored and
+  nothing queues; later ones open normally (recorded: `docs/media/flutter-bakeoff/seam*`).
+- **Charles River toggle's reach:** off, it sets that campus's plates aside (and brings them back as they were) and drops its places
+  from where-served. M2's `placeOn` also filters the pinned list, the areas' "N of M open now" counts and search; none of those consult
+  the toggle here (the pins in this build are two halls-adjacent cafés outside Newton, and Search has no content).
+- **The plate sheet's mid detent** is `_midOf`: the sheet's content plus `plateMidPad`, kept between the bar and the 36% line
+  (`midFrac`); M2 and RN rest at a fixed 36%. A one-item plate rests lower than M2's.
+- **The push is one slot in general** (Dietary preferences, the event page, a where-served hall): a push while one is up is not
+  stacked, and a hall pushed from where-served replaces rather than nests.
+- **Not built:** the calorie toss on Log and the stepper's collapsing ghost (a removed half just shrinks away on `exit`).
+- **Edge swipe on gesture-navigation Android:** the system back gesture owns the left edge, so the app's edge pan only shows with
+  three-button navigation or on iOS. Predictive back is not built.

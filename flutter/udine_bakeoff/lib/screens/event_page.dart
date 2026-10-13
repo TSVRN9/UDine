@@ -57,35 +57,34 @@ class EventPage extends StatelessWidget {
           child: LayoutBuilder(
             builder: (_, c) {
               final foot = math.max(0.0, M2Layout.listFoot + safeBottom(context) - (MediaQuery.sizeOf(context).height - c.maxHeight - M2Layout.barH - top));
-              return Padding(
-              padding: EdgeInsets.only(bottom: foot),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: M2Size.posterFoot),
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Space.eventTop, M2Space.gutter, M2Space.eventBottom),
-                      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        banner,
-                        if (when.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Space.paragraph + M2Space.eventDate), child: Text(when, style: M2Text.barNum.normal().style(M2Color.gold))),
-                        Padding(
-                          padding: const EdgeInsets.only(top: M2Space.group),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                            for (var k = 0; k < e.links.length; k++) ...[
-                              if (k > 0) const SizedBox(height: M2Space.eventLinks),
-                              Button(
-                                kind: k == 0 ? ButtonKind.gold : ButtonKind.outline, size: ButtonSize.large, label: e.links[k][0], expand: true,
-                                onTap: () => launchUrl(Uri.parse(e.links[k][1]), mode: LaunchMode.externalApplication).catchError((_) => false),
-                              ),
-                            ],
-                          ]),
-                        ),
-                      ]),
-                    ),
+              // the scroll fills down to the screen's edge; the foot and the poster's room are scrollable room inside it, the group centred in the rest
+              final room = foot + M2Size.posterFoot;
+              return SingleChildScrollView(
+                child: Container(
+                  constraints: BoxConstraints(minHeight: c.maxHeight),
+                  padding: EdgeInsets.only(bottom: room),
+                  alignment: Alignment.center,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Space.eventTop, M2Space.gutter, M2Space.eventBottom),
+                    child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      banner,
+                      if (when.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Space.paragraph + M2Space.eventDate), child: Text(when, style: M2Text.barNum.normal().style(M2Color.gold))),
+                      Padding(
+                        padding: const EdgeInsets.only(top: M2Space.group),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          for (var k = 0; k < e.links.length; k++) ...[
+                            if (k > 0) const SizedBox(height: M2Space.eventLinks),
+                            Button(
+                              kind: k == 0 ? ButtonKind.gold : ButtonKind.outline, size: ButtonSize.large, label: e.links[k][0], expand: true,
+                              onTap: () => launchUrl(Uri.parse(e.links[k][1]), mode: LaunchMode.externalApplication).catchError((_) => false),
+                            ),
+                          ],
+                        ]),
+                      ),
+                    ]),
                   ),
                 ),
-              ),
-            );
+              );
             },
           ),
         ),

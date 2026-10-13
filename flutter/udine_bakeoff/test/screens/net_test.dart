@@ -270,6 +270,24 @@ void main() {
       near(at(t, find.widgetWithText(Press, 'Holiday hours')), [20, 475.3, 350, 52]);
     });
 
+    testWidgets('the event page at 360 x 640: its scroll runs to the screen\'s bottom edge (the foot is scrollable room, not a smaller viewport) and every button can be reached', (t) async {
+      Photos.enabled = false;
+      sized(t, w: 360, h: 640);
+      await t.pumpWidget(BakeoffApp(fx: fx, store: freshStore(), net: Net(fx)));
+      await t.pump(ms(50));
+      await t.tap(find.text('Franklin').first);
+      await t.pumpAndSettle();
+      menu(t).changeDay(4);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Indigenous Peoples Day'));
+      await t.pumpAndSettle();
+      final page = t.getRect(find.byType(EventPage)), scroll = t.getRect(find.descendant(of: find.byType(EventPage), matching: find.byType(SingleChildScrollView)));
+      expect(scroll.bottom, closeTo(page.bottom, 0.5));
+      await t.drag(find.descendant(of: find.byType(EventPage), matching: find.byType(SingleChildScrollView)), const Offset(0, -400));
+      await t.pumpAndSettle();
+      expect(t.getRect(find.widgetWithText(Press, 'Holiday hours')).bottom, lessThanOrEqualTo(page.bottom));
+    });
+
     testWidgets('the schedule: the holiday\'s row says "Holiday hours" and opens the event, the hall behind it unmoved', (t) async {
       final s = schedule(fx, 'W', 4);
       expect(s.days[4].right, 'Holiday hours');

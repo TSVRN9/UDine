@@ -12,8 +12,8 @@ import 'harness.dart';
 
 // Every network state as the whole app draws it, against M2's render of the same state (`?net=`, flows/M2). Committed goldens draw no
 // photos; BAKEOFF_PHOTO_SHOTS=<dir> writes the same screens with them. The loading states are held (`Net.hold`, a test seam).
-Future<void> net(WidgetTester t, String name, NetMode mode, {bool hold = false, double w = 390, List<String> pins = defaultPins, required Future<void> Function(WidgetTester) act}) async {
-  sized(t, w: w);
+Future<void> net(WidgetTester t, String name, NetMode mode, {bool hold = false, double w = 390, double h = 844, List<String> pins = defaultPins, required Future<void> Function(WidgetTester) act}) async {
+  sized(t, w: w, h: h);
   for (final withPhotos in [false, if (photoShots != null) true]) {
     Photos.enabled = withPhotos;
     final key = GlobalKey();
@@ -24,9 +24,9 @@ Future<void> net(WidgetTester t, String name, NetMode mode, {bool hold = false, 
     if (withPhotos) await t.runAsync(() => Future.delayed(const Duration(milliseconds: 600))); // (images the act brought in)
     await frames(t, 1200); // past the 400 ms spinner delay and every settle
     if (!withPhotos) {
-      await expectLater(find.byKey(key), matchesGoldenFile('net_${name}_${w.round()}.png'));
+      await expectLater(find.byKey(key), matchesGoldenFile('net_${name}_${w.round()}${h == 844 ? '' : 'x${h.round()}'}.png'));
     } else {
-      await savePng(t, key, '$photoShots/net_$name-${w.round()}-photos.png');
+      await savePng(t, key, '$photoShots/net_$name-${w.round()}${h == 844 ? '' : 'x${h.round()}'}-photos.png');
     }
   }
 }
@@ -62,6 +62,12 @@ void main() {
           await frames(t, 1000);
         }));
   }
+  testWidgets('event page at 360 x 640', (t) => net(t, 'ipd_page', NetMode.ok, w: 360, h: 640, act: (t) async {
+        await open(t, 'Worcester');
+        await day(t, 4);
+        await t.tap(find.text('Indigenous Peoples Day'));
+        await frames(t, 1000);
+      }));
   testWidgets('hall loading', (t) => net(t, 'hall_slow', NetMode.slow, hold: true, act: (t) => open(t, 'Worcester')));
   testWidgets('hall offline, today', (t) => net(t, 'hall_offline', NetMode.offline, act: (t) => open(t, 'Worcester')));
   testWidgets('hall offline, a day not saved', (t) => net(t, 'hall_offline_day', NetMode.offline, act: (t) async {
