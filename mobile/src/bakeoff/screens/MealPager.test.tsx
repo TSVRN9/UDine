@@ -11,6 +11,7 @@ jest.mock("@shopify/flash-list", () => {
       R.useImperativeHandle(ref, () => ({
         computeVisibleIndices: () => ({ startIndex: 0, endIndex: 1 }), getLayout: () => ({ y: 0 }), getFirstItemOffset: () => 0, scrollToOffset: () => {},
       }));
+      (globalThis as any).__flProps = props;
       return <V>{props.data.map((d: any, i: number) => <V key={i}>{props.renderItem({ item: d, index: i })}</V>)}</V>;
     }),
   };
@@ -58,5 +59,13 @@ describe("MealPager wiring: a data change right after a commit cannot wedge the 
     let again = false;
     act(() => { again = ref.current!.shift(1, () => r.update(<Host ref={ref} data={["q"]} />)); });
     expect(again).toBe(true);
+  });
+});
+
+// every row drawn beyond the screen is a native node and its JS (A53 profile: the mount after an open and a day change are layout and commit of the rows): 300 dp ahead, about five rows
+describe("MealPager draws a short way past the screen", () => {
+  it("passes the list a 300 dp draw distance", () => {
+    act(() => { renderer.create(<Host data={["a", "b"]} />); });
+    expect((globalThis as any).__flProps.drawDistance).toBe(300);
   });
 });
