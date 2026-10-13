@@ -942,6 +942,17 @@ Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions
     - One Flutter day pick in six had a 397 ms gap.
     - Files: `~/.cache/udine-scratch/phone/flutter-a53.md`.
   - **Not yet measured:** RN's row-SVG fix for the day change, which is in progress.
+- **RN 1565f42 on the A53 (row SVGs replaced by images, memoised rows), measured with SurfaceFlinger:**
+  - **Hall open:** 15.8% janky, p99 217 ms. Flutter: 3.2%, p99 33.
+    - The animation itself is smooth: the first hall frame is 21–34 ms, and the list mount is now 20 ms, down from 53–66.
+    - The jank is two waits with no frame: tap to first frame takes 101–270 ms of JS, and there's about 100 ms before the post-settle list mount.
+  - **Cold first open:** a 167 ms wait, then 34 smooth frames. Flutter's cold open is the opposite: it starts at once, then runs choppy for about 0.5 s.
+  - **Cold first add:** tap to stepper about 100 ms (Flutter about 80); bar about 180 ms (Flutter about 146; M2's target is 136).
+  - **Day pick:**
+    - 0.82–1.09 s (Flutter 0.53–0.60), 13.5–19.4% janky.
+    - The commit frame fell to 50–54 ms, but 250–294 ms of JS re-render remains, followed by a 185–234 ms quiet gap and a cleanup frame.
+    - The 20 RNSVG/Reanimated warnings per open are gone.
+  - **Remaining RN cost is JS render time** (open tap and day change). Splitting it needs a Hermes CPU profile.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
