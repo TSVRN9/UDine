@@ -369,6 +369,12 @@
    "line": 26,
    "tabular": true
   },
+  "pstat": {
+   "font": "numSb",
+   "size": 26,
+   "line": "normal",
+   "tabular": true
+  },
   "factRow": {
    "font": "bodySb",
    "size": 15,
@@ -916,6 +922,7 @@
   "type.scaleNum": ".sscale i 500 14px/1",
   "type.ing": ".ing p 15px/1.5",
   "type.barNum": "#bar .l2 b 600 26px/1",
+  "type.pstat": ".pstat b 600 26px Oswald (no line-height: the normal line, taller than barNum's 1)",
   "type.factRow": ".facts .nr 600 15px (no line-height)",
   "type.factNum": ".facts .nr b 600 20px Oswald (no line-height)",
   "type.mealCal": ".lrow .mc b 600 18px Oswald",

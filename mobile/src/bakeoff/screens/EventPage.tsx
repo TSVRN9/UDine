@@ -31,7 +31,7 @@ export function EventPage({ i, progress, onPop }: { i: number; progress: Paramet
             </Felt>
           </View>
         ) : null}
-        <Text v="barNum" color={m2.color.gold} style={{ paddingTop: m2.space.eventDate }}>{when}</Text>
+        <Text v="pstat" color={m2.color.gold} style={{ paddingTop: m2.space.eventDate }}>{when}</Text>
         <View style={{ marginTop: m2.space.group, gap: m2.space.eventLinks }}>
           {e.links.map(([label, url], k) => (
             <Button key={label} kind={k ? "outline" : "gold"} size="lg" label={label} accessibilityRole="link" onPress={() => Linking.openURL(url)} />

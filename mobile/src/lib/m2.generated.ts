@@ -346,6 +346,12 @@ export const m2 = {
       font: "Oswald_600SemiBold",
       tabular: true
     },
+    pstat: {
+      size: 26,
+      line: 38.5,
+      font: "Oswald_600SemiBold",
+      tabular: true
+    },
     factRow: {
       size: 15,
       line: 18.2,
