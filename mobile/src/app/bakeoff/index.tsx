@@ -64,7 +64,7 @@ export default function Halls() {
   return (
     <View ref={root} collapsable={false} style={{ flex: 1 }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
       <Animated.View style={[{ flex: 1 }, below]}>
-        <HallsList hidden={t.phase === "closed" ? null : place} onOpen={onOpen} />
+        <HallsList hidden={t.sourceHidden ? place : null} onOpen={onOpen} />
         {t.phase !== "closed" && open ? <HallHeader t={t} H={H} place={open.key} name={open.name} scrollY={scrollY} onBack={() => t.close()} onPush={push} onPushGo={() => setGo(true)} onEvent={pushEvent} /> : null}
       </Animated.View>
       {ev != null ? (
