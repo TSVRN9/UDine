@@ -797,7 +797,7 @@ export const m2MotionData = {
     d: 3000
   },
   net: {
-    slow: 1500,
+    slow: 1600,
     spinner: {
       delay: 400,
       snap: 1

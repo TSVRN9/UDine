@@ -800,7 +800,7 @@
    "d": 3000
   },
   "net": {
-   "slow": 1500,
+   "slow": 1600,
    "spinner": {
     "delay": 400,
     "snap": 1
@@ -979,7 +979,7 @@
   "motion.receipt": "receipt timer",
   "motion.plateSwipe": "#bar pointerup",
   "motion.pushWatchdog": "RN only: no M2 equivalent",
-  "motion.net": "SLOW, spinIn 1ms 400ms",
+  "motion.net": "SLOW = 1600 (src.html:1204), spinIn 1ms 400ms",
   "collapse.parallax": "paint: phw translate d*.45",
   "collapse.fadeEnd": "paint: fade = 1 - clamp(c/.3)",
   "collapse.solidStart": "paint: msolid clamp((c-.3)/.55)",

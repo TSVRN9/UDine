@@ -9,10 +9,10 @@ describe("loadFixtureAsync", () => {
     expect(fx.days).toBe(loadFixture().days);
     expect(fx.cached).toBeUndefined();
   });
-  it("slow resolves only after 1500 ms", async () => {
+  it("slow resolves only after M2's SLOW (1600 ms, src.html:1204)", async () => {
     let done = false;
     const p = loadFixtureAsync("slow").then((fx) => { done = true; return fx; });
-    await jest.advanceTimersByTimeAsync(1499);
+    await jest.advanceTimersByTimeAsync(1599);
     expect(done).toBe(false);
     await jest.advanceTimersByTimeAsync(1);
     expect((await p).days).toBe(loadFixture().days);
