@@ -134,7 +134,7 @@ export const MealPager = forwardRef<PagerHandle, {
           data={data} renderItem={({ item, index }: any) => renderItem(item, index)} keyExtractor={keyOf} getItemType={typeOf}
           ListHeaderComponent={header} ListFooterComponent={footer}
           onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false}
-          onViewableItemsChanged={onViewable} drawDistance={300}
+          onViewableItemsChanged={onViewable} drawDistance={600}
         />
         {curtain?.(false)}
       </Animated.View>
