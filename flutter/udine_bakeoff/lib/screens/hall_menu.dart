@@ -6,11 +6,14 @@ import '../logic/menu_view.dart';
 import '../logic/plate.dart';
 import '../motion/container_math.dart';
 import '../motion/container_transform.dart';
+import '../logic/net.dart';
 import '../shell_api.dart';
+import '../state/net.dart';
 import '../state/store.dart';
 import '../theme/tokens.dart';
 import '../ui/landing_scroll.dart';
 import '../ui/ui.dart';
+import 'event_page.dart';
 import 'hall_header.dart';
 import 'hours_sheet.dart';
 import 'meal_list.dart';
@@ -52,6 +55,12 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   late final LandingScrollController _sc = LandingScrollController(landing: _landing);
   final _scrollY = ValueNotifier<double>(0);
   late final AnimationController _dayFade = AnimationController(vsync: this, value: 1);
+  // M2 `arrive()`: when a menu that was loading or failed lands, tabs, station name and list fade in from nothing over `settle`
+  late final AnimationController _arrive = AnimationController(vsync: this, value: 1, duration: M2Motion.settle.duration);
+  Net? _net;
+  late final Net _ok = Net(fx);
+  String? _seenKey;
+  MenuState _seen = MenuState.ok;
   bool _dayIn = false;
   late final _dayN = ValueNotifier<int>(widget.land?.day ?? widget.day);
   Widget? _header;
@@ -109,10 +118,37 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     _sc.dispose();
     _scrollY.dispose();
     _dayFade.dispose();
+    _arrive.dispose();
+    _net?.removeListener(_onNet);
     _jumpC.dispose();
     _dayN.dispose();
     _station.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final n = NetScope.maybeOf(context) ?? _ok;
+    if (n != _net) {
+      _net?.removeListener(_onNet);
+      _net = n..addListener(_onNet);
+    }
+  }
+
+  Net get net => _net ?? _ok;
+  MenuState get _state => _dishMenu ? net.menuState(place, _day) : MenuState.ok;
+
+  /// The network moved: a menu that was not showing is now, and arrives; anything else just redraws.
+  void _onNet() {
+    if (!mounted) return;
+    if (_seenKey == '$place|$_day' && _seen != MenuState.ok && _state == MenuState.ok) {
+      _arrive.value = 0;
+      final a = reducedMotion(context) ? M2Motion.rmFade : M2Motion.settle;
+      _arrive.duration = a.duration;
+      _arrive.animateTo(1, curve: a.curve);
+    }
+    setState(() {});
   }
 
   // ---- scroll
@@ -322,7 +358,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   void _openHours() {
     Haptics.selection();
     ShellScope.of(context).pushSheet((h, done) => HoursSheet(
-          handle: h, top: ShellScope.of(context).top + M2Layout.sheetTop, fx: fx, place: place, chosen: _day, onClosed: done,
+          handle: h, top: ShellScope.of(context).top + M2Layout.sheetTop, fx: fx, place: place, chosen: _day, onClosed: done, net: net,
+          onEvent: (i) => h.away(() => _actions.onEvent(i)),
           onPick: (i) {
             if (i == _day) {
               h.close();
@@ -358,6 +395,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
           Haptics.remove();
         }
       },
+      onRetry: () {
+        Haptics.light();
+        net.retry();
+      },
+      onEvent: (i) => ShellScope.of(context).pushPage((c, pop) => EventPage(top: ShellScope.of(c).top, index: i, onBack: pop)),
       onReveal: (on) {
         Haptics.selection();
         setState(() => _reveal = on);
@@ -371,10 +413,14 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final p = widget.progress;
     final menuOpen = _dishMenu;
     final iso = _iso;
-    final meals = menuOpen ? mealsOf(fx, iso, place) : const <String>[];
+    final meals = menuOpen && _state == MenuState.ok ? mealsOf(fx, iso, place) : const <String>[];
     final meal = meals.isNotEmpty && !meals.contains(_meal) ? defaultMeal(fx, iso, place, _meal) : _meal;
     final store = StoreScope.of(context), spacer = hh + th + sw, tail = M2Layout.listFoot + safeBottom(context);
-    _items = menuOpen ? mealItems(fx, store.prefs, place, _day, meal, _reveal) : const [];
+    final st = _state, ok = st == MenuState.ok, key = '$place|$_day';
+    if (st == MenuState.loading) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? net.request(key) : null);
+    _seenKey = key;
+    _seen = st;
+    _items = menuOpen ? mealItems(fx, store.prefs, place, _day, meal, _reveal, state: st) : _cafe ? cafeItems(fx, place) : const [];
     final wrap = widget.dragWrap ?? (Widget c) => c;
     final status = fx.hours[place]!;
     return ColoredBox(
@@ -383,9 +429,9 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         // the list: the header's room above it, then the day's meal
         Positioned.fill(
           child: AnimatedBuilder(
-            animation: Listenable.merge([p, _dayFade]),
+            animation: Listenable.merge([p, _dayFade, _arrive]),
             builder: (_, c) {
-              final o = incomingOpacity(p.value) * _dayFade.value;
+              final o = incomingOpacity(p.value) * _dayFade.value * _arrive.value;
               final scale = _dayIn && !reducedMotion(context) ? M2Motion.fadeThroughScale + (1 - M2Motion.fadeThroughScale) * _dayFade.value : 1.0;
               return Opacity(
                 key: const ValueKey('fade-list'),
@@ -399,7 +445,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                 controller: _sc, physics: const ClampingScrollPhysics(),
                 slivers: [
                   SliverToBoxAdapter(child: wrap(SizedBox(height: spacer))),
-                  if (menuOpen)
+                  if (_items.isNotEmpty)
                     MealSliver(
                       sliverKey: _listKey, fx: fx, items: _items, place: place, day: _day, meal: meal, reveal: _reveal, hereKey: _here, keys: _keys, actions: _actions, dragWrap: widget.dragWrap,
                     ),
@@ -423,7 +469,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                   Positioned(
                     left: 0, right: 0, top: hh, height: th,
                     child: MealTabs(
-                      key: ValueKey('tabs-$place'), meals: meals, selected: meal, fade: _FadeProduct(p, _dayFade), onTap: _switchMeal,
+                      key: ValueKey('tabs-$place'), meals: meals, selected: meal, fade: _FadeProduct(p, _dayFade, _arrive), onTap: _switchMeal,
                     ),
                   ),
                 if (sw > 0)
@@ -432,7 +478,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                     child: ValueListenableBuilder<int?>(
                       valueListenable: _station,
                       builder: (_, _, _) => StationRow(
-                        fade: _FadeProduct(p, _dayFade), name: _stationName(meal), dayLabel: dayCell(fx, _day), open: _stationsSheet != null,
+                        fade: _FadeProduct(p, _dayFade, _arrive), name: ok ? _stationName(meal) : '', dayLabel: dayCell(fx, _day), open: _stationsSheet != null,
                         topRule: th > 0, onStations: _openStations, onDay: _openHours,
                       ),
                     ),
@@ -459,7 +505,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     if (_header == null || _headerOpen != widget.bandOpen) {
       _headerOpen = widget.bandOpen;
       _header = HallHeader(
-        fx: fx, place: place, top: widget.top, day: _dayN, progress: widget.progress, scroll: _scrollY, dayFade: _dayFade, band: widget.band, bandOpen: widget.bandOpen,
+        fx: fx, place: place, top: widget.top, day: _dayN, net: net, progress: widget.progress, scroll: _scrollY, dayFade: _dayFade, band: widget.band, bandOpen: widget.bandOpen,
         onStatus: hasHours ? _openHours : null,
       );
     }
@@ -475,21 +521,23 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
 
 /// Two animations multiplied: the container's incoming fade and the day change's fade.
 class _FadeProduct extends Animation<double> with AnimationLocalListenersMixin, AnimationLocalStatusListenersMixin {
-  _FadeProduct(this.p, this.day);
-  final Animation<double> p, day;
+  _FadeProduct(this.p, this.day, this.arrive);
+  final Animation<double> p, day, arrive;
   @override
-  double get value => (incomingOpacity(p.value) * day.value).clamp(0.0, 1.0);
+  double get value => (incomingOpacity(p.value) * day.value * arrive.value).clamp(0.0, 1.0);
   @override
   AnimationStatus get status => AnimationStatus.forward;
   @override
   void didRegisterListener() {
     p.addListener(notifyListeners);
     day.addListener(notifyListeners);
+    arrive.addListener(notifyListeners);
   }
 
   @override
   void didUnregisterListener() {
     p.removeListener(notifyListeners);
     day.removeListener(notifyListeners);
+    arrive.removeListener(notifyListeners);
   }
 }

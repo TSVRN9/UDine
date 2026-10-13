@@ -24,5 +24,6 @@ export 'score_badge.dart';
 export 'sheet.dart';
 export 'sheet_option.dart';
 export 'screen_header.dart';
+export 'spinner.dart';
 export 'stepper.dart';
 export 'tab_bar.dart';

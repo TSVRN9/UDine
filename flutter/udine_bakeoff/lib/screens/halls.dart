@@ -3,8 +3,10 @@ import '../logic/busy.dart';
 import '../logic/fixture.dart';
 import '../logic/hours.dart';
 import '../logic/status.dart';
+import '../logic/net.dart';
 import '../motion/container_math.dart';
 import '../motion/container_transform.dart';
+import '../state/net.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
 import 'hall_menu.dart';
@@ -29,12 +31,45 @@ class HallsList extends StatefulWidget {
   State<HallsList> createState() => _HallsListState();
 }
 
-class _HallsListState extends State<HallsList> {
+class _HallsListState extends State<HallsList> with SingleTickerProviderStateMixin {
   final _scroll = ScrollController();
+  // M2 `fillBands(true)`: what arrives late (hours after a slow load or a retry, busy) fades in over `settle`; at boot it is simply there
+  late final _arrive = AnimationController(vsync: this, value: 1, duration: M2Motion.settle.duration);
+  Net? _net;
+  late final Net _ok = Net(widget.fx);
+  bool? _hk, _lk;
+
+  Net get net => _net ?? _ok;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final n = NetScope.maybeOf(context) ?? _ok;
+    if (n != _net) {
+      _net?.removeListener(_onNet);
+      _net = n..addListener(_onNet);
+      _hk = n.hoursKnown;
+      _lk = n.liveKnown;
+    }
+  }
+
+  void _onNet() {
+    final n = net, late = (n.hoursKnown && _hk == false) || (n.liveKnown && _lk == false);
+    _hk = n.hoursKnown;
+    _lk = n.liveKnown;
+    if (late && mounted) {
+      final a = reducedMotion(context) ? M2Motion.rmFade : M2Motion.settle;
+      _arrive.value = 0;
+      _arrive.duration = a.duration;
+      _arrive.animateTo(1, curve: a.curve);
+    }
+  }
   final _keys = <String, GlobalKey>{};
 
   @override
   void dispose() {
+    _net?.removeListener(_onNet);
+    _arrive.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -45,12 +80,12 @@ class _HallsListState extends State<HallsList> {
     final compact = isCafe(key);
     final path = photoOf(key, p.name);
     final hh = headerHeight(widget.top), off = bandOff(key, widget.top);
-    final busy = compact ? null : busyView(fx.busy[key]!);
+    final busy = compact || !net.liveKnown ? null : busyView(fx.busy[key]!);
     return Opacity(
       key: _keys.putIfAbsent(key, GlobalKey.new),
       opacity: widget.hidden == key ? 0 : 1,
       child: Band(
-        name: p.name, compact: compact, status: statusText(fx.hours[key]!, now),
+        name: p.name, compact: compact, status: net.hoursKnown ? statusText(fx.hours[key]!, now) : null, fade: _arrive,
         busy: busy == null ? null : BusyRow(lamps: busy.lamps, word: busy.word),
         photo: path == null ? null : Positioned(left: 0, right: 0, top: -off, height: hh, child: Photo(path: path, pos: compact ? 0.5 : photoPos[key]!)),
         letter: compact ? null : HallLetter(letter: key, x: hallLx[key]!),
@@ -78,6 +113,7 @@ class _HallsListState extends State<HallsList> {
           controller: _scroll,
           physics: const ClampingScrollPhysics(),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Stack(children: [
             Container(
               color: M2Color.dm,
               padding: EdgeInsets.fromLTRB(M2Space.gutter, top + M2Layout.headerPadTop, M2Space.gutter, M2Layout.headPadBottom),
@@ -86,6 +122,17 @@ class _HallsListState extends State<HallsList> {
                 Padding(padding: const EdgeInsets.only(top: M2Layout.titleGap), child: Semantics(header: true, child: Text(mealLabel[clockMeal(DateTime.parse(fx.clock))]!, style: M2Text.hallTitle.style(M2Color.white)))),
               ]),
             ),
+            // the date line keeps the date and adds what the network did
+            if (net.mode == NetMode.offline || net.mode == NetMode.fail)
+              Positioned(
+                right: M2Space.gutter, top: top + M2Layout.netTop,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text(net.mode == NetMode.offline ? "You're offline" : "Couldn't connect", style: M2Text.date.normal().style(M2Color.onDm)),
+                  if (net.mode == NetMode.fail)
+                    Padding(padding: const EdgeInsets.only(top: M2Layout.netGap), child: Button(kind: ButtonKind.outline, label: 'Try again', onTap: () { Haptics.light(); net.retry(); })),
+                ]),
+              ),
+            ]),
             ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where((k) => !isCafe(k))) _cell(k, now)])),
             if (places.any(isCafe)) ColoredBox(color: M2Color.dm, child: Column(children: [for (final k in places.where(isCafe)) _cell(k, now)])),
             Padding(
@@ -102,10 +149,10 @@ class _HallsListState extends State<HallsList> {
                         Text(fx.areas[i], style: M2Text.rowName.style(M2Color.ink)),
                         Padding(
                           padding: const EdgeInsets.only(top: M2Layout.areaMetaGap),
-                          child: Builder(builder: (_) {
+                          child: !net.hoursKnown ? const SizedBox.shrink() : Builder(builder: (_) {
                             final ps = fx.places.where((p) => p.area == i).toList();
                             final open = ps.where((p) => isOpenNow(fx.hours[p.key]!, now)).length;
-                            return Text('$open of ${ps.length} open now', style: M2Text.meta.style(M2Color.slate));
+                            return FadeTransition(opacity: _arrive, child: Text('$open of ${ps.length} open now', style: M2Text.meta.style(M2Color.slate)));
                           }),
                         ),
                       ])),

@@ -24,11 +24,14 @@ class Band extends StatelessWidget {
   final Widget? busy, photo, letter;
   final bool compact, ghost;
   final VoidCallback? onTap;
-  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.ghost = false, this.onTap});
+  /// the status and busy fade in on this when they arrive late (a slow load or a retry)
+  final Animation<double>? fade;
+  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.ghost = false, this.onTap, this.fade});
 
   @override
   Widget build(BuildContext context) {
     final h = compact ? M2Layout.bandCompact : M2Size.band;
+    Widget late(Widget c) => fade == null ? c : FadeTransition(opacity: fade!, child: c);
     final body = SizedBox(
       height: h,
       child: ClipRect(
@@ -44,9 +47,9 @@ class Band extends StatelessWidget {
               if (status != null && status!.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.only(top: compact ? M2Layout.statusGapPin : M2Layout.statusGapBand),
-                  child: Text(status!, style: (compact ? M2Text.statusSm : M2Text.status).style(M2Color.onDmSoft)),
+                  child: late(Text(status!, style: (compact ? M2Text.statusSm : M2Text.status).style(M2Color.onDmSoft))),
                 ),
-              ?busy,
+              if (busy != null) late(busy!),
             ]),
           ),
         ]),

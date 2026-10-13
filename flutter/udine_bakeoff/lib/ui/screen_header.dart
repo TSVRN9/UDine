@@ -10,17 +10,18 @@ class ScreenHeader extends StatelessWidget {
   final double bottomPad;
   final VoidCallback? onBack;
   final bool page, dateLeft;
+  final Color barColor;
   /// `dateLeft`: the date alone on the left, as You's header has it (`.yhead .date`); otherwise the mark left and the date right.
   const ScreenHeader.title({super.key, required this.top, required String this.title, this.date, this.mark, this.bottomPad = M2Layout.headPadBottom, this.dateLeft = false})
-      : page = false, onBack = null;
-  const ScreenHeader.page({super.key, required this.top, required String this.title, required this.onBack})
+      : page = false, onBack = null, barColor = M2Color.vm;
+  const ScreenHeader.page({super.key, required this.top, required String this.title, required this.onBack, this.barColor = M2Color.vm})
       : page = true, date = null, mark = null, bottomPad = 0, dateLeft = false;
 
   @override
   Widget build(BuildContext context) {
     if (page) {
       return Container(
-        color: M2Color.vm, height: top + M2Layout.barH, padding: EdgeInsets.only(top: top, left: M2Layout.backLeft),
+        color: barColor, height: top + M2Layout.barH, padding: EdgeInsets.only(top: top, left: M2Layout.backLeft),
         child: Row(children: [
           BackButton(onTap: onBack, shadow: false),
           Expanded(child: Padding(padding: const EdgeInsets.only(left: M2Layout.pageTitleGap, right: M2Space.action), child: Text(title!, maxLines: 1, overflow: TextOverflow.ellipsis, style: M2Text.section.style(M2Color.white)))),

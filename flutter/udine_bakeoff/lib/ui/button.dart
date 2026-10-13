@@ -26,11 +26,12 @@ class Button extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = switch (_size) { ButtonSize.large => M2Layout.btnL, ButtonSize.medium => M2Layout.btnM, ButtonSize.tap => M2Size.tap };
+    final big = _size == ButtonSize.large && (kind == ButtonKind.gold || kind == ButtonKind.outline); // `.evbtn`: 52 tall, 17 dp
     final (bg, fg, ring, style, pad) = switch (kind) {
       ButtonKind.primary => (M2Color.vm, M2Color.white, null, M2Text.action.bold(), 0.0),
       ButtonKind.line => (null, M2Color.vm, M2Color.vm, M2Text.action.bold(), 0.0),
-      ButtonKind.gold => (M2Color.gold, M2Color.dm, null, M2Text.button.bold(), M2Layout.gbtnPad),
-      ButtonKind.outline => (null, M2Color.white, M2Color.outline, M2Text.link, M2Layout.obtnPad),
+      ButtonKind.gold => (M2Color.gold, M2Color.dm, null, big ? M2Text.action.bold() : M2Text.button.bold(), M2Layout.gbtnPad),
+      ButtonKind.outline => (null, M2Color.white, M2Color.outline, big ? M2Text.action : M2Text.link, M2Layout.obtnPad),
       ButtonKind.outlineDark => (null, M2Color.vm, M2Color.vm, M2Text.link, M2Layout.obtnPad),
       ButtonKind.directions => (null, M2Color.vm, M2Color.vm, M2Text.link, M2Layout.dirbPad),
     };

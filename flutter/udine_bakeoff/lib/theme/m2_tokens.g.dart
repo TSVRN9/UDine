@@ -562,6 +562,7 @@ abstract final class M2Felt {
   static const frameInset = 2.5;
   static const frameStitchRadius = 3.0;
   static const frameStitchWidth = 1.5;
+  static const framePad = 7.0;
 }
 
 /// The chenille letter's text x in its 200 dp box, per hall.

@@ -139,4 +139,8 @@ abstract final class M2Layout {
   static const firstScreen = 14; // list items drawn while the container opens (a screenful and a half)
   static const rowTall = 79.0, noteRow = 53.0, ghostRows = 14; // typical heights for a guess at an unbuilt row; the rows a meal change copies
   static const factsFrame = 2.0, factsPadX = 12.0, factsPadTop = 4.0, factsPadBottom = 6.0; // `.facts` border 2, padding 4 12 6
+  static const kvTop = 15.0;
+  /// `.netl`: the offline / couldn't-connect line sits 40 under the status bar, its button 6 under it
+  static const netTop = 40.0;
+  static const netGap = 6.0; // `p.kv` margin-top 1em under a 4 dp h3 margin: the larger collapses
 }

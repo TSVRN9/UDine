@@ -25,7 +25,7 @@ void main() {
     expect(schedule(fx, 'W', 0).days[2].right, 'No menu posted');
     final s = schedule(fx, 'W', 4);
     expect(s.days[4].right, 'Holiday hours');
-    expect(s.days[4].event, (title: 'Indigenous Peoples Day Hours', href: 'https://www.umassdining.com/hours'));
+    expect(s.days[4].event, (title: 'Indigenous Peoples Day Hours', href: 'https://www.umassdining.com/hours', index: 0));
     expect(s.days[4].meals, isEmpty);
     expect(schedule(fx, 'W', 0).days[4].right, 'Holiday hours');
   });

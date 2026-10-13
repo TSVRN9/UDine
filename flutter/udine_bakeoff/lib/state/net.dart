@@ -68,6 +68,7 @@ class Net extends ChangeNotifier {
 /// The network for a subtree.
 class NetScope extends InheritedNotifier<Net> {
   const NetScope({super.key, required Net net, required super.child}) : super(notifier: net);
+  static Net? maybeOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<NetScope>()?.notifier;
   static Net of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<NetScope>()!.notifier!;
   static Net read(BuildContext context) => context.getInheritedWidgetOfExactType<NetScope>()!.notifier!;
 }

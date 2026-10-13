@@ -6,7 +6,9 @@ import '../logic/fixture.dart';
 import '../logic/hours.dart';
 import '../logic/schedule.dart';
 import '../motion/container_math.dart';
+import '../logic/net.dart';
 import '../motion/container_transform.dart';
+import '../state/net.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
 
@@ -80,6 +82,7 @@ class HallHeader extends StatefulWidget {
   final String place;
   final double top;
   final ValueListenable<int> day;
+  final Net net;
   final Animation<double> progress;
 
   /// scroll offset d = clamp(y, 0, HH - CH)
@@ -94,6 +97,7 @@ class HallHeader extends StatefulWidget {
     required this.place,
     required this.top,
     required this.day,
+    required this.net,
     required this.progress,
     required this.scroll,
     required this.dayFade,
@@ -183,7 +187,7 @@ class HallHeaderState extends State<HallHeader> {
     final busy = compact ? null : busyView(fx.busy[place]!);
     _bandGrade = const IgnorePointer(child: BandGrade());
     _ghost = Band(
-      ghost: true, compact: compact, name: name, status: statusLine(fx, place, 0),
+      ghost: true, compact: compact, name: name, status: w.net.hoursKnown ? statusLine(fx, place, 0) : '',
       busy: busy == null ? null : BusyRow(lamps: busy.lamps, word: busy.word),
       letter: compact ? null : HallLetter(letter: place, x: hallLx[place]!),
     );
@@ -263,9 +267,13 @@ class HallHeaderState extends State<HallHeader> {
               AnimatedBuilder(
                 animation: Listenable.merge([p, w.scroll, w.dayFade]),
                 // the status text is the only part of this row a day change touches
-                child: ValueListenableBuilder<int>(
-                  valueListenable: day,
-                  builder: (_, d, _) => _StatusLine(text: statusLine(w.fx, place, d), onTap: w.onStatus),
+                child: ListenableBuilder(
+                  listenable: Listenable.merge([day, w.net]),
+                  // hours are not known until they arrive; another day's span only with its menu
+                  builder: (_, _) => _StatusLine(
+                    text: !w.net.hoursKnown || (day.value > 0 && w.net.menuState(place, day.value) != MenuState.ok) ? '' : statusLine(w.fx, place, day.value),
+                    onTap: w.onStatus,
+                  ),
                 ),
                 builder: (_, ch) {
                   final o = incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd));
@@ -276,7 +284,7 @@ class HallHeaderState extends State<HallHeader> {
                 AnimatedBuilder(
                   animation: Listenable.merge([p, w.scroll, w.dayFade]),
                   // another day: no live data, but the room stays so the name never moves
-                  child: ValueListenableBuilder<int>(valueListenable: day, builder: (_, d, ch) => ExcludeSemantics(excluding: d != 0, child: Opacity(opacity: d == 0 ? 1 : 0, child: ch)), child: IgnorePointer(child: _busy)),
+                  child: ListenableBuilder(listenable: Listenable.merge([day, w.net]), builder: (_, _) { final on = day.value == 0 && w.net.liveKnown; return ExcludeSemantics(excluding: !on, child: Opacity(opacity: on ? 1 : 0, child: IgnorePointer(child: _busy))); }),
                   builder: (_, ch) => Opacity(opacity: (incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd)) * w.dayFade.value).clamp(0.0, 1.0), child: ch),
                 ),
             ]),
@@ -286,7 +294,7 @@ class HallHeaderState extends State<HallHeader> {
               left: M2Space.gutter, right: M2Space.gutter, bottom: M2Layout.histBottom, height: M2Layout.histH,
               child: AnimatedBuilder(
                 animation: Listenable.merge([p, w.scroll, w.dayFade]),
-                child: ValueListenableBuilder<int>(valueListenable: day, builder: (_, d, ch) => Opacity(opacity: d == 0 ? 1 : 0, child: ch), child: IgnorePointer(child: _board)),
+                child: ListenableBuilder(listenable: Listenable.merge([day, w.net]), builder: (_, _) => Opacity(opacity: day.value == 0 && w.net.liveKnown ? 1 : 0, child: IgnorePointer(child: _board))),
                 builder: (_, ch) => Opacity(opacity: (incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd)) * w.dayFade.value).clamp(0.0, 1.0), child: ch),
               ),
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../state/net.dart';
 import '../logic/fixture.dart';
 import '../logic/schedule.dart';
 import '../theme/tokens.dart';
@@ -16,7 +17,10 @@ class HoursSheet extends StatefulWidget {
   final int chosen;
   final ValueChanged<int> onPick;
   final VoidCallback onClosed;
-  const HoursSheet({super.key, required this.handle, required this.top, required this.fx, required this.place, required this.chosen, required this.onPick, required this.onClosed});
+  final Net net;
+  /// a holiday's row opens its event
+  final ValueChanged<int> onEvent;
+  const HoursSheet({super.key, required this.handle, required this.top, required this.fx, required this.place, required this.chosen, required this.onPick, required this.onClosed, required this.net, required this.onEvent});
   @override
   State<HoursSheet> createState() => _HoursSheetState();
 }
@@ -41,7 +45,7 @@ class _HoursSheetState extends State<HoursSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final w = widget, s = schedule(w.fx, w.place, w.chosen);
+    final w = widget, s = schedule(w.fx, w.place, w.chosen, mode: w.net.mode, hours: w.net.hoursKnown);
     Widget day(SchedDay d) {
       final open = d.current && (d.meals.isNotEmpty || d.event != null);
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -55,7 +59,7 @@ class _HoursSheetState extends State<HoursSheet> {
             decoration: const BoxDecoration(border: Border(left: BorderSide(width: M2Layout.optionEdge, color: M2Color.vm))),
             child: d.event != null
                 ? Press(
-                    overlay: M2Color.pressRow, label: d.event!.title, onTap: () => launchUrl(Uri.parse(d.event!.href), mode: LaunchMode.externalApplication).catchError((_) => false),
+                    overlay: M2Color.pressRow, label: d.event!.title, onTap: () => w.onEvent(d.event!.index),
                     child: SizedBox(height: M2Layout.evRowH, child: Row(children: [Expanded(child: Text(d.event!.title, style: M2Text.link.style(M2Color.dm))), const Chevron()])),
                   )
                 : Column(children: [

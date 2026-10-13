@@ -113,7 +113,7 @@ String generate(Map<String, dynamic> j, {String source = 'design-tokens/m2.json'
   out.writeln('abstract final class M2Felt {');
   for (final e in (j['felt'] as Map).entries) {
     final v = e.value as Map;
-    for (final f in ['radius', 'inset', 'stitchRadius', 'stitchWidth']) {
+    for (final f in v.keys.cast<String>()) {
       out.writeln('  static const ${e.key}${_cap(f)} = ${_num(v[f])};');
     }
   }

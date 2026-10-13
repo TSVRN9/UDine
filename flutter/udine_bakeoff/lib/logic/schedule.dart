@@ -11,7 +11,7 @@ class SchedDay {
   final bool current;
   final List<({String label, String window})> meals;
   /// the hours event that replaces the day's windows (a holiday), opened by its first link
-  final ({String title, String href})? event;
+  final ({String title, String href, int index})? event;
   const SchedDay(this.i, this.label, this.right, this.current, this.meals, this.event);
 }
 
@@ -60,7 +60,7 @@ Schedule schedule(Fixture fx, String place, int chosen, {NetMode mode = NetMode.
               ]
             : const <({String label, String window})>[];
         final event = menus != null && cur && ev != null
-            ? (title: ev.hoursTitle ?? ev.title, href: (ev.links.where((l) => l[0] == 'Holiday hours').firstOrNull ?? ev.links.first)[1])
+            ? (title: ev.hoursTitle ?? ev.title, href: (ev.links.where((l) => l[0] == 'Holiday hours').firstOrNull ?? ev.links.first)[1], index: fx.events.indexOf(ev))
             : null;
         return SchedDay(i, dayLong(fx, i), right, cur, meals, event);
       }(),
