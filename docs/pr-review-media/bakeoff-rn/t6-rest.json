@@ -1,10 +1,10 @@
 {
-  "sha": "9593c357f690b2a127c4a5689522da6132356f12",
+  "sha": "1ab0b73edfc6d62bde98c27d68a431500c895a8f",
   "branch": "bakeoff/rn",
-  "worktree": "/tmp/claude-1000/wt-rn",
-  "route": "bakeoff?hall=W&dish=golden%20bbq%20chicken%20thigh",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/bakeoff-rn",
+  "route": "bakeoff?reset=1&hall=W&dish=golden%20bbq%20chicken%20thigh",
   "device": "Agent_Emulator_Narrow",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-12T12:58:06Z"
+  "ts": "2026-10-13T02:12:43Z"
 }
