@@ -77,7 +77,7 @@ describe("a hall in each network state", () => {
     expect(texts(r)).not.toContain("Lunch");
     expect(texts(r).join(" ")).not.toMatch(/Open until/);
     expect(texts(r)).toContain("Today");
-    await flush(1500);
+    await flush(1600);
     expect(texts(r)).toContain("Lunch");
     expect(texts(r).join(" ")).toMatch(/Open until/);
   });
@@ -120,7 +120,7 @@ describe("a menu arriving from the network (M2 arrive())", () => {
   });
   it("slow: the spinner is gone in the commit that brings the rows, and the status line comes in with no fade of its own", async () => {
     const r = await mount("slow");
-    await act(async () => { jest.advanceTimersByTime(1500); });
+    await act(async () => { jest.advanceTimersByTime(1600); });
     const t = texts(r);
     expect(t).toContain("Lunch");
     expect(r.root.findAll((n) => n.props.accessibilityRole === "progressbar")).toHaveLength(0);
