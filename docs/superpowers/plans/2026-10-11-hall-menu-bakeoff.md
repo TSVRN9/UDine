@@ -904,6 +904,23 @@ Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions
     - Cause: the per-row SVGs (+, badges, chevrons) rasterising again on remount.
     - Each open also logs 20 Reanimated/RNSVG "unmounted tag" warnings from `topSvgLayout` events.
   - Next round: row SVGs to Views/images, and a render count across the day change.
+- **Flutter, Task 12 (1 REWORK round, MERGE-equivalent at 8cd06d5):**
+  - It was built with the RN audit's lessons from the start.
+  - The review still found:
+    - goldens that disagreed with M2 while claiming "within 1 px": diet top 10 dp, brand row 3 dp, no sheet-bottom floor, weight 600 instead of 700;
+    - missing press scales;
+    - a duplicated sheet row;
+    - an eager 60-row flip at the end of the open;
+    - perf guards with no failing test.
+  - After rework, positions are asserted against M2's own DOM (`q3.js`), and a layout-token mutation fails them.
+- **Flutter, Task 13 (1 small REWORK round, MERGE-equivalent at b3110f2):**
+  - The review found:
+    - the wrong `net.slow` token, 1500 where M2 has 1600; RN owns the JSON;
+    - a dead duplicate of `menuState`;
+    - three behaviours with surviving mutations.
+  - The new tests exposed a real bug: the station name stayed blank after a late menu arrival.
+  - It also found RN's café title block about 20 dp high.
+- **Both stacks:** every task needed at least one REWORK. Measured tests plus mutation checks, not the agent's own "matches M2" claims, are what got each one to parity.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
