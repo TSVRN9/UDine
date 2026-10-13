@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine_bakeoff/logic/net.dart';
 import 'package:udine_bakeoff/logic/schedule.dart';
 import 'support.dart';
 
 void main() {
+  netCases();
   test('lists the 15 days in date order, the chosen one open with each meal\'s window', () {
     final s = schedule(fx, 'W', 0);
     expect(s.days, hasLength(15));
@@ -44,4 +46,23 @@ void main() {
     expect(statusLine(fx, 'W', 2), '');
   });
   test('Directions hands the phone the café\'s lat,long', () => expect(mapsUri('42.39,-72.52').toString(), 'https://www.google.com/maps/search/?api=1&query=42.39%2C-72.52'));
+}
+
+void netCases() {
+  test('offline: days past tomorrow say Not saved and open nothing; today and tomorrow are as ever', () {
+    final s = schedule(fx, 'W', 5, mode: NetMode.offline);
+    expect(s.days[5].right, 'Not saved');
+    expect(s.days[5].meals, isEmpty);
+    expect(s.days[3].right, 'Not saved');
+    expect(s.days[1].right, isNot('Not saved'));
+    expect(schedule(fx, 'W', 0, mode: NetMode.offline).days[0].meals, isNotEmpty);
+  });
+  test('failed: no row has hours and none opens', () {
+    final s = schedule(fx, 'W', 0, mode: NetMode.fail, hours: false);
+    expect([for (final d in s.days) d.right], everyElement(''));
+    expect([for (final d in s.days) d.meals.length], everyElement(0));
+  });
+  test('slow, before Halls\' hours arrive: the chosen day has no span', () {
+    expect(schedule(fx, 'W', 0, mode: NetMode.slow, hours: false).days[0].right, '');
+  });
 }

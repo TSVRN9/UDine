@@ -1,6 +1,7 @@
 import 'fixture.dart';
 import 'hours.dart';
 import 'menu_view.dart';
+import 'net.dart';
 import 'status.dart';
 import 'where.dart';
 
@@ -35,7 +36,7 @@ String statusLine(Fixture fx, String place, int i) {
 }
 
 /// M2 schedHTML: the address, then the days in date order with the chosen one open in place.
-Schedule schedule(Fixture fx, String place, int chosen) {
+Schedule schedule(Fixture fx, String place, int chosen, {NetMode mode = NetMode.ok, bool hours = true}) {
   final p = fx.places.firstWhere((q) => q.key == place), g = fx.hours[place]!.general, cafe = isCafe(place);
   final isos = dayIsos(fx), menu = hasMenu(fx, place);
   final list = menu ? isos : [isos.first]; // a café without a dish menu has no days to pick, only today's hours
@@ -43,10 +44,12 @@ Schedule schedule(Fixture fx, String place, int chosen) {
   final days = [
     for (var i = 0; i < list.length; i++)
       () {
-        if (!menu) return SchedDay(i, 'Today', g != null ? _span(g.openTime, g.closeTime) : '', true, const [], null);
-        final menus = fx.days[list[i]]?[place], cur = i == chosen;
+        if (!menu) return SchedDay(i, 'Today', hours && g != null ? _span(g.openTime, g.closeTime) : '', true, const [], null);
+        // M2: offline, the days past tomorrow are not saved; failed, nothing is known, so no row has hours and none opens
+        final saved = !(mode == NetMode.offline && i > 1) && mode != NetMode.fail;
+        final menus = saved ? (fx.days[list[i]]?[place]) : null, cur = i == chosen;
         final ev = fx.events.where((e) => eventOn(fx, e, place, i)).firstOrNull;
-        final right = menus == null ? 'No menu posted' : ev != null ? 'Holiday hours' : cur && g != null ? _span(g.openTime, g.closeTime) : '';
+        final right = mode == NetMode.offline && i > 1 ? 'Not saved' : mode == NetMode.fail ? '' : menus == null ? 'No menu posted' : ev != null ? 'Holiday hours' : cur && g != null && hours ? _span(g.openTime, g.closeTime) : '';
         final meals = menus != null && cur && ev == null
             ? [
                 for (final m in mealOrder.where(menus.containsKey))
