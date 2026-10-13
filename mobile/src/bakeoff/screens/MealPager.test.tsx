@@ -62,10 +62,11 @@ describe("MealPager wiring: a data change right after a commit cannot wedge the 
   });
 });
 
-// every row drawn beyond the screen is a native node and its JS (A53 profile: the mount after an open and a day change are layout and commit of the rows): 300 dp ahead, about five rows
-describe("MealPager draws a short way past the screen", () => {
-  it("passes the list a 300 dp draw distance", () => {
+// rows are mounted on the JS thread (a batch costs about 150 ms there on the A53), so the list must be drawn as far past the screen as a fast fling travels in that
+// time: 3000 dp/s x 0.2 s = 600 dp. At 300 dp a fling on the A53 showed blank area below the last row for two frames.
+describe("MealPager draws far enough past the screen for a fast fling", () => {
+  it("passes the list a 600 dp draw distance", () => {
     act(() => { renderer.create(<Host data={["a", "b"]} />); });
-    expect((globalThis as any).__flProps.drawDistance).toBe(300);
+    expect((globalThis as any).__flProps.drawDistance).toBe(600);
   });
 });
