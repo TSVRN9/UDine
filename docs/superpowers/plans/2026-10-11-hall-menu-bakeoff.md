@@ -953,6 +953,19 @@ Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions
     - The commit frame fell to 50–54 ms, but 250–294 ms of JS re-render remains, followed by a 185–234 ms quiet gap and a cleanup frame.
     - The 20 RNSVG/Reanimated warnings per open are gone.
   - **Remaining RN cost is JS render time** (open tap and day change). Splitting it needs a Hermes CPU profile.
+- **RN profiling round (Hermes CPU profile on the A53, 78aca1e):**
+  - **Top JS costs:**
+    - hall-open tap: about 200 ms synchronous, of which `toLocaleDateString` is 52 ms across 25 JNI calls and Reanimated shareables 37;
+    - post-settle mount: about 445 ms;
+    - day pick: a 310 ms flushSync plus an 80 ms cleanup.
+  - **One fix iteration:** Intl replaced by tables, one animated style per Press, the sheets mounted after the list, draw distance 600 → 300.
+  - **JS after the fix:** tap 205 → 175 ms, mount 445 → 320, day pick about 500 → 410.
+  - **SurfaceFlinger:**
+    - day pick 0.82–0.95 → 0.74–0.79 s, longest gap 250 → 117 ms;
+    - **hall-open jank unchanged at about 16%** (Flutter 3.2%). What remains is UI-thread Fabric mount and compose, about 25 ms a frame through the animation, not JS.
+  - **Layout after the re-shoot** (RN vs M2): café line 492/492, meta 508.7/509, Lunch 72.7/73 (with an RN-only −2 glyph nudge: Android sets Oswald 2 dp lower than CSS at an equal box), You 164/164, event gaps 34.6/28/12 against 35/28/12.
+  - **For the scorecard:** RN reached Flutter's layout fidelity. For motion it needed four perf rounds, two phone traces and a Hermes profile, and the hall open is still about 5x Flutter's janky rate.
+  - **Follow-up:** check fling blanking at draw distance 300 on the phone.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
