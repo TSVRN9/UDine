@@ -2,6 +2,8 @@ import { act } from "react";
 import renderer from "react-test-renderer";
 import { HallHeader } from "./HallHeader";
 import { HallMenu } from "./HallMenu";
+import { HoursSheet } from "./HoursSheet";
+import { StationSwitcher } from "./StationSwitcher";
 import { getNet, startNet } from "../state/net";
 import { loadFixture } from "../logic/fixture";
 import type { PlaceKey } from "../logic/types";
@@ -207,5 +209,27 @@ describe("a hall's list while the container opens", () => {
     t.phase = "closing";
     act(() => { r.update(<HallMenu t={t} H={800} place="W" name="Worcester" scrollY={{ get: () => 0, set: () => {} } as never} ghost={null} onBack={() => {}} />); });
     expect(rows(r)).toBeGreaterThan(0);
+  });
+});
+
+// the two sheets are not needed until a tap: they mount after the list has, in a commit of their own (A53 profile: list and sheets in one 390 ms task)
+describe("a hall that opens from a band", () => {
+  it("mounts its sheets after its list, not in the commit that mounts the list", async () => {
+    act(() => startNet("ok"));
+    const el = (phase: string) => {
+      const t = { style: new Proxy({}, { get: () => ({}) }), phase, rect: { current: null }, dragBack: {}, ready: () => {}, open: () => {}, close: () => {}, progress: { get: () => 1 } } as never;
+      return <HallMenu t={t} H={800} place="W" name="Worcester" scrollY={{ get: () => 0, set: () => {} } as never} ghost={null} onBack={() => {}} />;
+    };
+    let r!: renderer.ReactTestRenderer;
+    act(() => { r = renderer.create(el("opening")); });
+    live.push(r);
+    expect(r.root.findAllByType(HoursSheet)).toHaveLength(0);
+    act(() => { r.update(el("open")); });
+    expect(texts(r)).toContain("Lunch");
+    expect(r.root.findAllByType(HoursSheet)).toHaveLength(0);
+    expect(r.root.findAllByType(StationSwitcher)).toHaveLength(0);
+    await flush(60);
+    expect(r.root.findAllByType(HoursSheet)).toHaveLength(1);
+    expect(r.root.findAllByType(StationSwitcher)).toHaveLength(1);
   });
 });

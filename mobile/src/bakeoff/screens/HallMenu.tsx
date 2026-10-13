@@ -94,6 +94,14 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // while it opens, the first rows are a static slice behind the (not yet mounted) list; the list reports its first rows and the slice goes
   const [sliceOn] = useState(!(at || t.phase === "open"));
   const [listUp, setListUp] = useState(false);
+  // the two sheets mount after the list has: nothing on screen needs them until a tap (a tap before then mounts them and presents on arrival)
+  const [sheetsUp, setSheetsUp] = useState(!!at || t.phase === "open");
+  const wantSheet = useRef<"hours" | "stations" | null>(null);
+  useEffect(() => {
+    if (!listUp || sheetsUp) return;
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setSheetsUp(true)));
+    return () => cancelAnimationFrame(id);
+  }, [listUp, sheetsUp]);
   // the network (M2 `menuState`, `hoursKnown`, `liveKnown`): the menu for this place and day may be loading, unsaved offline, or failed; then
   // there are no meals, no stations and no list, but the day cell, the name and the status line keep their rooms
   const net = useNet(), hk = hoursKnown(net), lk = liveKnown(net);
@@ -197,8 +205,13 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
   // ---- sheets
   const hoursRef = useRef<BottomSheetModal>(null), stRef = useRef<BottomSheetModal>(null);
   const sched = useMemo(() => schedule(fx, place, day, { mode: net.mode, hours: hk }), [place, day, net.mode, hk]);
-  const openHours = () => { setSheet("hours"); hoursRef.current?.present(); thud(); };
-  const openStations = () => { if (!view.sections.length) return; setSheet("stations"); stRef.current?.present(); thud(); };
+  useEffect(() => {
+    if (!sheetsUp || !wantSheet.current) return;
+    (wantSheet.current === "hours" ? hoursRef : stRef).current?.present();
+    wantSheet.current = null;
+  }, [sheetsUp]);
+  const openHours = () => { setSheet("hours"); if (sheetsUp) hoursRef.current?.present(); else { wantSheet.current = "hours"; setSheetsUp(true); } thud(); };
+  const openStations = () => { if (!view.sections.length) return; setSheet("stations"); if (sheetsUp) stRef.current?.present(); else { wantSheet.current = "stations"; setSheetsUp(true); } thud(); };
   useEffect(() => {
     if (!__DEV__ || at || !(dev.sheet || dev.y || dev.dish)) return;
     const id = setTimeout(() => {
@@ -275,8 +288,8 @@ export function HallMenu({ t, H, place, name, scrollY, ghost, onBack, at, onPush
       <Animated.View pointerEvents="box-none" style={[{ position: "absolute", top, left: m2.space.line, height: BAR, justifyContent: "center" }, t.style.incoming]}>
         <BackButton onPress={onBack} />
       </Animated.View>
-      {warm ? <HoursSheet ref={hoursRef} s={sched} maxHeight={winH * 0.86} onPick={(i) => dc.pickDay(i, day, () => hoursRef.current?.dismiss())} onDismiss={onDismiss} /> : null}
-      {warm ? <StationSwitcher
+      {warm && sheetsUp ? <HoursSheet ref={hoursRef} s={sched} maxHeight={winH * 0.86} onPick={(i) => dc.pickDay(i, day, () => hoursRef.current?.dismiss())} onDismiss={onDismiss} /> : null}
+      {warm && sheetsUp ? <StationSwitcher
         ref={stRef} maxHeight={winH * 0.86} onDismiss={onDismiss} current={Math.min(cur, view.sections.length - 1)}
         title={`${name} ${mealWord(meal)}${day ? ", " + dayCell(fx, day) : ""}`}
         stations={view.sections.map((s) => ({ name: s.name, count: s.dishes.length }))}
