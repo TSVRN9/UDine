@@ -761,7 +761,11 @@ the round-9 states. Compare screenshots with M2's.
    - **Cold first add, tap → stepper / bar:** RN 136–176 / 235–277 ms. Flutter 79–120 / 138–147 ms; M2's target for the bar is 136 ms.
    - **Cold first hall open:** RN smooth after a 117–167 ms wait. Flutter is 45% janky, frames 33–84 ms apart; fix in progress.
    - **Flutter cold launch:** a white window for about 1 s; fix in progress.
-   - **RN fast fling:** recycled rows draw stale diet badges for about 0.25 s, and the list is half blank for 33 ms; fix in progress.
+   - **RN fast fling (fixed at ce72a61):**
+     - **Stale badges:** recycled rows drew stale diet badges because `ListRow` kept the previous dish's measured end in state. Fixed, with a red test.
+     - **Draw distance:** back to 600. A JS row batch takes about 150 ms on the A53, and a fling covers about 600 dp in that time.
+     - **A53 fling:** 0.0% janky, with no misplaced badge or blank frame mid-fling.
+     - **Hall open:** 19.0% (15.0–24.4) at draw distance 600.
 3. **Design fidelity and agent adherence:**
    - Both stacks needed at least one REWORK on every task.
    - Both reached M2 within about 1 dp, measured against M2's own DOM.
