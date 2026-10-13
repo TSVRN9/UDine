@@ -1,10 +1,10 @@
 {
-  "sha": "6e87c6c87bb10d1ffffc49ef85e9fef89d9ea25d",
+  "sha": "1565f42cbaec766daede2b9ffdb8a5620cd09f3d",
   "branch": "bakeoff/rn",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/bakeoff-rn",
-  "route": "release APK built at 6e87c6c (assembleRelease, x86_64, EXPO_PUBLIC_BAKEOFF=1, no EXPO_PUBLIC_PERF, Hermes bytecode, embedded bundle, versionName 1.0.0+6e87c6c), installed on the emulator only, driven by adb input (hall open; tap Dinner at 1.2 s); screenrecord 540x960, 10 fps frames, strip numbered from the recording's start, f1 = 0 ms; not screenshot.sh (dev client)",
+  "route": "release APK built at 1565f42 (assembleRelease, x86_64, EXPO_PUBLIC_BAKEOFF=1, no EXPO_PUBLIC_PERF, Hermes bytecode, embedded bundle, versionName 1.0.0+1565f42), installed on the emulator only, driven by adb input (hall open; tap Dinner at 1.2 s); screenrecord 540x960, 10 fps frames, strip numbered from the recording's start, f1 = 0 ms; not screenshot.sh (dev client)",
   "device": "Agent_Emulator_Narrow",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-13T02:26:07Z"
+  "ts": "2026-10-13T03:31:34Z"
 }
