@@ -49,4 +49,13 @@ describe("DishRow (Review Focus 5)", () => {
     act(() => { v.root.findAll((n) => typeof n.props.onPress === "function")[0].props.onPress(); });
     expect(onOpen).toHaveBeenCalledWith(scored);
   });
+  // `.row .m{display:flex;align-items:baseline;flex-wrap:wrap}` with `.sc{align-self:center}`: the numbers sit on the baseline line, only the badges centre
+  it("the meta line aligns on baselines and only the score badges centre", () => {
+    const v = mount(scored, { health: true, carbon: true }, ["Milk"]);
+    const flat = (n: renderer.ReactTestInstance) => Object.assign({}, ...[n.props.style].flat(9).filter(Boolean));
+    const meta = v.root.findAll((n) => typeof n.type === "string" && flat(n).flexWrap === "wrap")[0];
+    expect(flat(meta).alignItems).toBe("baseline");
+    const sc = v.root.findAll((n) => typeof n.type === "string" && flat(n).gap === 6)[0];
+    expect(flat(sc).alignSelf).toBe("center");
+  });
 });

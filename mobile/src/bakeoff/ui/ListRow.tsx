@@ -28,7 +28,7 @@ export function ListRow({ name, marks, meta, trailing, lane, onPress, here }: { 
           {marks && end ? <View style={{ position: "absolute", left: end.x - (slotW || m2.size.slotW) + m2.space.markNudgeX, top: end.y + m2.space.markNudgeY }}>{marks}</View> : null}
           {marks && !slotW ? <Text v="rowName" style={{ position: "absolute", opacity: 0 }} onLayout={(e) => { slotW = e.nativeEvent.layout.width; }}>{SLOT}</Text> : null}
         </View>
-        {meta ? <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: m2.space.metaCol, rowGap: m2.space.line, marginTop: m2.space.metaTop }}>{meta}</View> : null}
+        {meta ? <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: m2.space.metaCol, rowGap: m2.space.line, marginTop: m2.space.metaTop }}>{meta}</View> : null}
       </View>
       {lane ? <View style={{ width: m2.size.lane, alignItems: "flex-end" }}>{trailing}</View> : trailing}
       <View pointerEvents="none" style={{ position: "absolute", left: m2.space.gutter, right: 0, bottom: 0, height: 1, backgroundColor: m2.color.hair }} />
