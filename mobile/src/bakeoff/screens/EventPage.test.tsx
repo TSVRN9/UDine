@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import renderer from "react-test-renderer";
 import { m2 } from "../../lib/theme";
 import { loadFixture } from "../logic/fixture";
+import { EVENT_PHOTO } from "../photos";
 import { EventPage } from "./EventPage";
 
 jest.mock("../ui/motion", () => ({
@@ -22,5 +23,14 @@ describe("the event page's date", () => {
     const date = r.root.findAll((n) => typeof n.type === "string" && n.props.style && StyleSheet.flatten(n.props.style).paddingTop === m2.space.eventDate)[0];
     expect(StyleSheet.flatten(date.props.style).lineHeight).toBe(m2.type.pstat.line);
     expect(m2.type.pstat.line).toBeGreaterThan(m2.type.barNum.line);
+  });
+  // `<span class="evpatch">` (ring is a box-shadow: no room) then `<p class="pstat">`: the UA 16 px top margin and the 12 px padding both stand
+  it("sits 16 + 12 under a banner whose ring takes no room", () => {
+    const i = loadFixture().events.findIndex((e) => e.links.length && EVENT_PHOTO[e.title]);
+    let r!: renderer.ReactTestRenderer;
+    act(() => { r = renderer.create(<EventPage i={i} progress={{ get: () => 0, set: () => {} } as never} onPop={() => {}} />); });
+    const st = (f: (s: Record<string, unknown>) => boolean) => r.root.findAll((n) => typeof n.type === "string" && n.props.style && f(StyleSheet.flatten(n.props.style) as Record<string, unknown>))[0];
+    expect(StyleSheet.flatten(st((s) => s.paddingTop === m2.space.eventDate).props.style)).toMatchObject({ marginTop: 16, paddingTop: 12 });
+    expect(StyleSheet.flatten(st((s) => s.backgroundColor === m2.color.white && s.padding === 3).props.style)).toMatchObject({ margin: -3 });
   });
 });
