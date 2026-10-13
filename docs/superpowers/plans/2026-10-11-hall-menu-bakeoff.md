@@ -892,6 +892,18 @@ Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions
   MERGE-equivalent review all passed. It was found only when the perf round ran the app. A source-scan test now fails on
   any `timed()` callback without `"worklet"`. **Lesson: for RN, green jest plus review isn't enough for motion changes;
   the device has to run them before a verdict.** That costs RN on the scorecard's adherence line.
+- **RN, after the perf fix (43fd627, A53):**
+  - **Hall open fixed:**
+    - janky frames 50% → 16.3%; p90/p99 200/250 → 53/129 ms;
+    - first frame 187 → 39–51 ms;
+    - progress at the second frame 0.91 → about 0.02, then about 30 interpolated frames;
+    - rows fade in during the open, with no jump at the list handover and no black frame.
+  - **Other motions** improved or held: close 12 → 7.7%, drag-back 15 → 9.5%, Log/Undo 18.8 → 12.5%.
+  - **Day change not fixed:**
+    - 238–335 ms of JS, an 86–114 ms gap, then a 90–177 ms commit frame.
+    - Cause: the per-row SVGs (+, badges, chevrons) rasterising again on remount.
+    - Each open also logs 20 Reanimated/RNSVG "unmounted tag" warnings from `topSvgLayout` events.
+  - Next round: row SVGs to Views/images, and a render count across the day change.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
