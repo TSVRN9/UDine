@@ -1,0 +1,27 @@
+{
+ "recording": "dragcancel.mp4",
+ "sha": "ba09747",
+ "build": {
+  "sha": "ba09747",
+  "apk": "flutter build apk --profile --target-platform android-x64",
+  "launch": "am start --ez enable-impeller false (Skia)"
+ },
+ "device": {
+  "avd": "Agent_Emulator_Narrow",
+  "serial": "emulator-5556",
+  "wm_size": "1080x1920",
+  "wm_density": 480,
+  "dp": "360x640",
+  "gpu": "swangle_indirect (coordinator-booted)",
+  "android": "15 (API 35) x86_64",
+  "note": "software GL: judge order and layout, not cadence"
+ },
+ "route": "Worcester hall at list top",
+ "gesture": "input draganddrop 700->850 (50 dp) over 1.2 s",
+ "input_log": [
+  "T drag-down-50dp 1791875003.931688582"
+ ],
+ "observed": "tracks 50 dp and springs back; hall stays. (A 100 dp drag, 700->1000, commits the close: the commit threshold is lower than half)",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
+}

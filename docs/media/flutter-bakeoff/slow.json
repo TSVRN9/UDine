@@ -1,8 +1,8 @@
 {
  "recording": "slow.mp4",
- "sha": "b3110f2",
+ "sha": "ba09747",
  "build": {
-  "sha": "b3110f2",
+  "sha": "ba09747",
   "apk": "flutter build apk --profile --target-platform android-x64 --dart-define=BAKEOFF_NET=slow",
   "launch": "am start --ez enable-impeller false (Skia)"
  },
@@ -19,10 +19,10 @@
  "route": "cold launch > Halls > Worcester",
  "gesture": "am start; 5 s; tap Worcester band",
  "input_log": [
-  "T launch 1791864782.383015791",
-  "T tap-hall 1791864787.435330157"
+  "T launch 1791875080.947681906",
+  "T tap-hall 1791875085.976591259"
  ],
- "observed": "Halls names first, hours and busy fade in after the load; hall spinner after 400 ms; tabs, station and list fade in from 0 on arrival",
- "frames": "extracted at the encoder's real rate (screenrecord emits on change); strip labels give ms from the first frame",
- "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)"
+ "observed": "hours and busy fade in after the load; hall spinner after 400 ms; tabs, station and list fade in from 0. The ~1.1 s blank white at the start (frames ~30-53) is the cold launch before the first Flutter frame; no splash colour is set",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
 }

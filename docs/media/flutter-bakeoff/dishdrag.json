@@ -1,0 +1,29 @@
+{
+ "recording": "dishdrag.mp4",
+ "sha": "ba09747",
+ "build": {
+  "sha": "ba09747",
+  "apk": "flutter build apk --profile --target-platform android-x64",
+  "launch": "am start --ez enable-impeller false (Skia)"
+ },
+ "device": {
+  "avd": "Agent_Emulator_Narrow",
+  "serial": "emulator-5556",
+  "wm_size": "1080x1920",
+  "wm_density": 480,
+  "dp": "360x640",
+  "gpu": "swangle_indirect (coordinator-booted)",
+  "android": "15 (API 35) x86_64",
+  "note": "software GL: judge order and layout, not cadence"
+ },
+ "route": "Worcester dish sheet",
+ "gesture": "draganddrop up to the top detent; down to mid; down toward dismissal",
+ "input_log": [
+  "T up 1791874653.012180359",
+  "T down-to-mid 1791874655.199771899",
+  "T dismiss 1791874657.339057997"
+ ],
+ "observed": "sheet tracks to top, back to mid. The third leg did not dismiss (it began at the content scrolled with the sheet at mid: the drag moved the sheet down and it settled back); dishdrop and dishdismiss show dismissal",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
+}

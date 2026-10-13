@@ -1,0 +1,29 @@
+{
+ "recording": "platedetents.mp4",
+ "sha": "ba09747",
+ "build": {
+  "sha": "ba09747",
+  "apk": "flutter build apk --profile --target-platform android-x64",
+  "launch": "am start --ez enable-impeller false (Skia)"
+ },
+ "device": {
+  "avd": "Agent_Emulator_Narrow",
+  "serial": "emulator-5556",
+  "wm_size": "1080x1920",
+  "wm_density": 480,
+  "dp": "360x640",
+  "gpu": "swangle_indirect (coordinator-booted)",
+  "android": "15 (API 35) x86_64",
+  "note": "software GL: judge order and layout, not cadence"
+ },
+ "route": "Worcester plate (2 items) > plate sheet",
+ "gesture": "input draganddrop up 800->160; down 200->900 (to mid); down 800->1700 (to bar)",
+ "input_log": [
+  "T up 1791874569.074245142",
+  "T down-mid 1791874571.497582240",
+  "T down-close 1791874573.922815879"
+ ],
+ "observed": "sheet follows the finger to the top detent, back to mid, then to the bar",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
+}

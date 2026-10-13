@@ -1,8 +1,8 @@
 {
  "recording": "mealtab.mp4",
- "sha": "b3110f2",
+ "sha": "ba09747",
  "build": {
-  "sha": "b3110f2",
+  "sha": "ba09747",
   "apk": "flutter build apk --profile --target-platform android-x64",
   "launch": "am start --ez enable-impeller false (Skia)"
  },
@@ -16,12 +16,12 @@
   "android": "15 (API 35) x86_64",
   "note": "software GL: judge order and layout, not cadence"
  },
- "route": "Worcester Fri 9 > Dinner",
- "gesture": "tap Dinner tab",
+ "route": "Worcester Lunch > Dinner",
+ "gesture": "tap Dinner",
  "input_log": [
-  "T tap-dinner 1791864906.383294420"
+  "T tap-dinner 1791874753.355810060"
  ],
- "observed": "tabs underline moves, list fades through",
- "frames": "extracted at the encoder's real rate (screenrecord emits on change); strip labels give ms from the first frame",
- "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)"
+ "observed": "underline fades with the labels and lands under Dinner; list fades through. M2 has no content swipe between meals: tabs change by tap only (no swipe recording is intended)",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
 }

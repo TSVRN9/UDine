@@ -1,0 +1,28 @@
+{
+ "recording": "stepper.mp4",
+ "sha": "ba09747",
+ "build": {
+  "sha": "ba09747",
+  "apk": "flutter build apk --profile --target-platform android-x64",
+  "launch": "am start --ez enable-impeller false (Skia)"
+ },
+ "device": {
+  "avd": "Agent_Emulator_Narrow",
+  "serial": "emulator-5556",
+  "wm_size": "1080x1920",
+  "wm_density": 480,
+  "dp": "360x640",
+  "gpu": "swangle_indirect (coordinator-booted)",
+  "android": "15 (API 35) x86_64",
+  "note": "software GL: judge order and layout, not cadence"
+ },
+ "route": "Worcester plate, first item",
+ "gesture": "tap minus at 1; tap minus at 1/2",
+ "input_log": [
+  "T minus1 1791874594.847450207",
+  "T minus2 1791874596.271658035"
+ ],
+ "observed": "1 -> 1/2 (figure swaps), then the last half leaves: the row's stepper shrinks away to a + and the plate drops that item",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
+}

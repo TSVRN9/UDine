@@ -1,0 +1,28 @@
+{
+ "recording": "menufling.mp4",
+ "sha": "ba09747",
+ "build": {
+  "sha": "ba09747",
+  "apk": "flutter build apk --profile --target-platform android-x64",
+  "launch": "am start --ez enable-impeller false (Skia)"
+ },
+ "device": {
+  "avd": "Agent_Emulator_Narrow",
+  "serial": "emulator-5556",
+  "wm_size": "1080x1920",
+  "wm_density": 480,
+  "dp": "360x640",
+  "gpu": "swangle_indirect (coordinator-booted)",
+  "android": "15 (API 35) x86_64",
+  "note": "software GL: judge order and layout, not cadence"
+ },
+ "route": "Worcester Dinner list",
+ "gesture": "two input swipes up at 1000 px in 100 ms",
+ "input_log": [
+  "T fling 1791874815.468708826",
+  "T fling-back 1791874818.520178270"
+ ],
+ "observed": "header collapses into the bar, pinned station row follows the scroll",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
+}

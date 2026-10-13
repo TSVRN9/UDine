@@ -1,8 +1,8 @@
 {
  "recording": "platesheet.mp4",
- "sha": "eed06d0",
+ "sha": "ba09747",
  "build": {
-  "sha": "eed06d0",
+  "sha": "ba09747",
   "apk": "flutter build apk --profile --target-platform android-x64",
   "launch": "am start --ez enable-impeller false (Skia)"
  },
@@ -16,13 +16,12 @@
   "android": "15 (API 35) x86_64",
   "note": "software GL: judge order and layout, not cadence"
  },
- "route": "Hampshire plate (2 items) > plate sheet > Log",
- "gesture": "tap plate bar; 2 s; tap Log",
+ "route": "Worcester plate sheet > Log > receipt times out",
+ "gesture": "tap Log; wait 5 s",
  "input_log": [
-  "T tap-bar 1791865180.614211017",
-  "T log 1791865182.636488834"
+  "T tap-log 1791875028.483254215"
  ],
- "observed": "sheet away, receipt, receipt times out; empty dark bar lingers ~0.55 s before leaving",
- "frames": "extracted at the encoder's real rate (screenrecord emits on change); strip labels give ms from the first frame",
- "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)"
+ "observed": "receipt with Undo, then the empty bar leaves in the frame after the timeout (fix fcd19e8)",
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
 }

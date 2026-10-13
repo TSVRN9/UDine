@@ -1,8 +1,8 @@
 {
  "recording": "retryhalls.mp4",
- "sha": "b3110f2",
+ "sha": "ba09747",
  "build": {
-  "sha": "b3110f2",
+  "sha": "ba09747",
   "apk": "flutter build apk --profile --target-platform android-x64 --dart-define=BAKEOFF_NET=fail",
   "launch": "am start --ez enable-impeller false (Skia)"
  },
@@ -17,11 +17,11 @@
   "note": "software GL: judge order and layout, not cadence"
  },
  "route": "Halls (failed) > Try again",
- "gesture": "tap Try again (965,330)",
+ "gesture": "tap Try again",
  "input_log": [
-  "T tap-retry 1791864817.291457959"
+  "T tap-retry 1791875102.807064201"
  ],
  "observed": "failure copy leaves at once, hours and busy fade in",
- "frames": "extracted at the encoder's real rate (screenrecord emits on change); strip labels give ms from the first frame",
- "black_frames": "none (the cold-launch splash in slow.mp4 is Android's, before the app)"
+ "frames": "extracted at the encoder's real rate; strip labels are ms from the first frame",
+ "black_frames": "none"
 }
