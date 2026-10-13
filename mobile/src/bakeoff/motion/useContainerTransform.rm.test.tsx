@@ -36,6 +36,17 @@ describe("the container transform with mockReduced motion", () => {
     expect(t().progress.get()).toBe(1);
     expect(mockTimings).toEqual([{ to: 1, token: expect.objectContaining({ d: 120 }) }]);
   });
+  it("keeps the tapped band in the list: nothing stands in for it until the crossfade covers it", () => {
+    mockReduced = true;
+    const t = mount();
+    act(() => { t().open(band); });
+    expect(t.latest().phase).not.toBe("closed");
+    expect(t.latest().sourceHidden).toBe(false);
+    mockReduced = false;
+    const n = mount();
+    act(() => { n().open(band); });
+    expect(n.latest().sourceHidden).toBe(true);
+  });
   it("closes by fading out where it is, and only then collapses", () => {
     mockReduced = true;
     const t = mount();

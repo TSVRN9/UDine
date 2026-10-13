@@ -14,8 +14,8 @@ import { ensureNet } from "../../bakeoff/state/net";
 import { parseNet } from "../../bakeoff/logic/net";
 import { applyDevParams, hydrate } from "../../bakeoff/state/store";
 
-// dev only: the root layout's background-task registration warns on every cold start, and its toast covers the tab bar in screenshots
-if (__DEV__) LogBox.ignoreLogs(["No task registered for key"]);
+// dev only: the root layout's background-task registration warns on every cold start, and so does Reanimated when the device asks for reduced motion (which the bake-off follows on purpose); the toasts cover the tab bar in screenshots
+if (__DEV__) LogBox.ignoreLogs(["No task registered for key", "[Reanimated] Reduced motion setting is enabled"]);
 
 export default function BakeoffLayout() {
   const { bottom } = useSafeAreaInsets();

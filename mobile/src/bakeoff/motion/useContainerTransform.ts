@@ -138,5 +138,6 @@ export function useContainerTransform(height: number, scrollY?: SharedValue<numb
   const crossfade = useAnimatedStyle(() => ({ opacity: fade.get() }));
   const scrim = useAnimatedStyle(() => ({ opacity: m2Motion.scrim * progress.value }));
 
-  return { phase: machine.phase, progress, rect, open, show, close, ready, dragBack, style: { container, layer, photo, grad, outgoing, incoming, scrim, crossfade } };
+  // the tapped band leaves the list while the container stands in for it; with reduced motion nothing stands in, the crossfade covers the list
+  return { phase: machine.phase, sourceHidden: machine.phase !== "closed" && !reduced, progress, rect, open, show, close, ready, dragBack, style: { container, layer, photo, grad, outgoing, incoming, scrim, crossfade } };
 }
