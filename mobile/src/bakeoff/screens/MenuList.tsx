@@ -42,7 +42,7 @@ export const MenuItem = memo(function MenuItem({ it, row }: { it: Item; row: Row
       return (
         <View style={{ paddingHorizontal: m2.space.gutter, paddingTop: m2.space.cafeBodyTop }}>
           {it.description ? <Text v="desc" color={m2.color.ink}>{it.description}</Text> : null}
-          <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: m2.space.group, marginBottom: m2.space.line }}>Menu</Text>
+          <Text v="section" color={m2.color.dm} accessibilityRole="header" style={{ marginTop: m2.space.group, marginBottom: m2.space.kvTop }}>Menu</Text>
           <Text v="sched" color={m2.color.slate}>{`${it.name} doesn't list its menu in the app.`}</Text>
         </View>
       );
