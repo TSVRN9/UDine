@@ -20,7 +20,7 @@ export function ScreenHeader({ date, title, brand, variant = "halls", children }
       ) : (
         <View style={{ height: m2.size.titleRow, justifyContent: "flex-end" }}><Text v="headDate" color={m2.color.onDm}>{date}</Text></View>
       )}
-      <Text v="hallTitle" color={m2.color.white} accessibilityRole="header" style={{ marginTop: m2.space.titleTop }}>{title}</Text>
+      <Text v="hallTitle" color={m2.color.white} accessibilityRole="header" style={{ marginTop: m2.space.titleTop, top: m2.space.titleInk }}>{title}</Text>
       {children}
     </View>
   );

@@ -18,7 +18,7 @@ describe("ScreenHeader", () => {
     expect(texts(r)).toEqual(["UDine", "Thursday, October 8", "Lunch"]);
     const line = r.root.findAll((n) => typeof n.type === "string" && flat(n).height === 30)[0];
     expect(flat(line)).toMatchObject({ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" });
-    expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.accessibilityRole === "header")[0])).toMatchObject({ marginTop: 2, fontSize: 52 });
+    expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.accessibilityRole === "header")[0])).toMatchObject({ marginTop: 2, top: -2, fontSize: 52 });
   });
   it("its brand is 22 on Oswald's normal 32.6 line and its date 15 on the normal 18.2, baseline-aligned on the 30 dp row", () => {
     const r = make(<ScreenHeader brand="UDine" date="Thursday, October 8" title="Lunch" />);
