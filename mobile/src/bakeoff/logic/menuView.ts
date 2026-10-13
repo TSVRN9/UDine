@@ -77,18 +77,15 @@ export const isOneMeal = (fx: Fixture, place: PlaceKey): boolean =>
 /** Whether a place posts dishes on any day: halls and most cafés do, 11 cafés only describe themselves. */
 export const hasMenu = (fx: Fixture, place: PlaceKey): boolean => Object.values(fx.days).some((d) => d[place]);
 export const dayIsos = (fx: Fixture): string[] => Object.keys(fx.days);
-// formatted once per day and shape: on Hermes each toLocaleDateString is a JNI round trip (about 10 ms each in the release profile, PR #544)
-const fmtCache = new Map<string, string>();
-const fmtD = (iso: string, o: Intl.DateTimeFormatOptions) => {
-  const k = iso + JSON.stringify(o);
-  let s = fmtCache.get(k);
-  if (s === undefined) { s = new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", ...o }); fmtCache.set(k, s); }
-  return s;
-};
+// from tables, not Intl: on Hermes every toLocaleDateString is a JNI round trip (about 10 ms each, the first of each shape landing on the hall-open tap on the A53)
+const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const utc = (iso: string) => new Date(iso + "T12:00:00Z");
+const weekdayShort = (iso: string) => WEEKDAY[utc(iso).getUTCDay()].slice(0, 3);
 /** The day cell: "Today", "Fri 9". */
-export const dayCell = (fx: Fixture, i: number): string => (i === 0 ? "Today" : `${fmtD(dayIsos(fx)[i], { weekday: "short" })} ${new Date(dayIsos(fx)[i] + "T12:00:00Z").getUTCDate()}`);
+export const dayCell = (fx: Fixture, i: number): string => (i === 0 ? "Today" : `${weekdayShort(dayIsos(fx)[i])} ${utc(dayIsos(fx)[i]).getUTCDate()}`);
 /** "Saturday, October 10". */
-export const dayFull = (fx: Fixture, i: number): string => fmtD(dayIsos(fx)[i], { weekday: "long", month: "long", day: "numeric" });
+export const dayFull = (fx: Fixture, i: number): string => (() => { const d = utc(dayIsos(fx)[i]); return `${WEEKDAY[d.getUTCDay()]}, ${MONTH[d.getUTCMonth()]} ${d.getUTCDate()}`; })();
 /** The schedule's rows: "Today", "Tomorrow", then the full date. */
 export const dayLong = (fx: Fixture, i: number): string => (i === 0 ? "Today" : i === 1 ? "Tomorrow" : dayFull(fx, i));
 

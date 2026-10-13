@@ -16,25 +16,37 @@ const TINT: Record<Tint, string> = { row: m2.color.pressRow, onDm: m2.color.pres
  * rows and bands lays a state layer of the surface's own colour over the children (it never paints the Pressable, so a caller's ground
  * stays), fading in on `press` and out on `settle`.
  */
-export function Press({ feedback = "scale", tint = "row", style, onPressIn, onPressOut, children, ...p }: Omit<PressableProps, "children"> & {
+export function Press({ feedback = "scale", ...p }: PressProps) {
+  return feedback === "tint" ? <TintPress {...p} /> : <ScalePress {...p} />;
+}
+
+type PressProps = Omit<PressableProps, "children"> & {
   feedback?: "scale" | "tint";
   tint?: Tint;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
-}) {
+};
+
+// one animated style each, not both: a list mounts a Press per row, and every useAnimatedStyle is shareables built on the JS thread (about 2 ms each on the A53)
+function useDown(onPressIn: PressableProps["onPressIn"], onPressOut: PressableProps["onPressOut"]) {
   const down = useSharedValue(0);
-  const scale = useAnimatedStyle(() => ({ transform: [{ scale: 1 - down.get() * (1 - m2Motion.press.scale) }] }));
-  const layer = useAnimatedStyle(() => ({ opacity: down.get() }));
   const run = (to: 0 | 1) => { down.set(timed(to, to ? m2Motion.press : m2Motion.settle)); };
+  return { down, onPressIn: ((e) => { run(1); onPressIn?.(e); }) as PressableProps["onPressIn"], onPressOut: ((e) => { run(0); onPressOut?.(e); }) as PressableProps["onPressOut"] };
+}
+
+function ScalePress({ tint: _tint, style, onPressIn, onPressOut, children, ...p }: Omit<PressProps, "feedback">) {
+  const d = useDown(onPressIn, onPressOut);
+  const scale = useAnimatedStyle(() => ({ transform: [{ scale: 1 - d.down.get() * (1 - m2Motion.press.scale) }] }));
+  return <AnimatedPressable {...p} onPressIn={d.onPressIn} onPressOut={d.onPressOut} style={[style, scale]}>{children}</AnimatedPressable>;
+}
+
+function TintPress({ tint = "row", style, onPressIn, onPressOut, children, ...p }: Omit<PressProps, "feedback">) {
+  const d = useDown(onPressIn, onPressOut);
+  const layer = useAnimatedStyle(() => ({ opacity: d.down.get() }));
   return (
-    <AnimatedPressable
-      {...p}
-      onPressIn={(e) => { run(1); onPressIn?.(e); }}
-      onPressOut={(e) => { run(0); onPressOut?.(e); }}
-      style={feedback === "scale" ? [style, scale] : style}
-    >
+    <AnimatedPressable {...p} onPressIn={d.onPressIn} onPressOut={d.onPressOut} style={style}>
       {children}
-      {feedback === "tint" ? <Animated.View pointerEvents="none" style={[fill, { backgroundColor: TINT[tint] }, layer]} /> : null}
+      <Animated.View pointerEvents="none" style={[fill, { backgroundColor: TINT[tint] }, layer]} />
     </AnimatedPressable>
   );
 }
