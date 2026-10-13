@@ -921,6 +921,27 @@ Method and files: `~/.cache/udine-scratch/phone/phone-measure.sh` (the 9 motions
   - The new tests exposed a real bug: the station name stayed blank after a late menu arrival.
   - It also found RN's café title block about 20 dp high.
 - **Both stacks:** every task needed at least one REWORK. Measured tests plus mutation checks, not the agent's own "matches M2" claims, are what got each one to parity.
+- **Flutter vs RN on the A53 (Flutter e0a8a41 profile with Impeller/Vulkan; RN 43fd627 release):**
+  - **Method:** gfxinfo can't see Flutter's SurfaceView, so the like-for-like numbers are SurfaceFlinger `--latency` present intervals on each app's layer. Janky means an interval over 1.5 vsync at 60 Hz.
+  - **Janky %, RN vs Flutter:**
+
+    | Motion | RN 43fd627 | Flutter |
+    |---|---|---|
+    | hall open | 14.6 (p99 234 ms) | 3.2 (p99 33 ms) |
+    | plate | 2.4 (p99 117) | 1.1 (p99 17) |
+    | Log/Undo | 4.2 | 0.0 |
+    | meal | 5.7 | 3.8 |
+
+    Close, drag-back, edge, fling and the dish sheet are about equal.
+  - **Hall open:** both draw the first frame in about 40 ms and run about 30 interpolated frames. RN still has a 53–66 ms list-mount frame after settle.
+  - **Day change:** Flutter runs a 15–23 ms UI pass with continuous frames, and the pick-to-done time is 0.53–0.60 s. RN is still 0.68–1.09 s, with two gaps.
+  - **Cold add, tap to stepper:** Flutter about 80 ms; RN about 185–215 ms.
+  - **Meal tab:** Flutter's 447 ms is the full 450 ms shared axis, which isn't comparable with RN's tap-to-change figure.
+  - **Caveats:**
+    - Flutter's first hall open after a cold start is choppy (frames 33–67 ms apart for about 0.5 s), and warm opens are smooth. RN's cold open wasn't checked.
+    - One Flutter day pick in six had a 397 ms gap.
+    - Files: `~/.cache/udine-scratch/phone/flutter-a53.md`.
+  - **Not yet measured:** RN's row-SVG fix for the day change, which is in progress.
 - **RN, Task 5:** in the Metro dev build there is a 400–600 ms JS stall between a meal or day tap and the commit.
   The cause is the shape of the work: the whole FlashList remounts, and the fixture is filtered on the JS thread.
   Some of it is likely to survive Hermes release, so Task 9 must measure it on a phone. Flutter has no equivalent
