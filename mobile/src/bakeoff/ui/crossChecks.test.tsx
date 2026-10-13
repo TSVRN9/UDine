@@ -2,6 +2,10 @@ import { act } from "react";
 import { StyleSheet } from "react-native";
 import renderer from "react-test-renderer";
 import { m2 } from "../../lib/theme";
+import { Sheet } from "./Sheet";
+import { StationSwitcher } from "../screens/StationSwitcher";
+import { HoursSheet } from "../screens/HoursSheet";
+import { DietPrefs } from "../screens/DietPrefs";
 
 let mockBottom = 0;
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: mockBottom, left: 0, right: 0 }) }));
@@ -15,10 +19,6 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetScrollView: (p: any) => { (globalThis as any).__content = p.contentContainerStyle; return <>{p.children}</>; },
   };
 });
-import { Sheet } from "./Sheet";
-import { StationSwitcher } from "../screens/StationSwitcher";
-import { HoursSheet } from "../screens/HoursSheet";
-import { DietPrefs } from "../screens/DietPrefs";
 
 const make = (el: React.ReactElement) => { let r!: renderer.ReactTestRenderer; act(() => { r = renderer.create(el); }); return r; };
 const flat = (n: renderer.ReactTestInstance) => (StyleSheet.flatten(n.props.style) ?? {}) as Record<string, unknown>;

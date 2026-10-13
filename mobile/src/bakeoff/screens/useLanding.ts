@@ -47,7 +47,7 @@ export function useLanding({ at, items, warm, showAll, setShowAll, pager, refres
         setTimeout(go, L.poll);
       };
       go();
-      setGoto(null);
+      setGoto(null); // eslint-disable-line react-hooks/set-state-in-effect -- the request is consumed here, once the loop owns it
       return;
     }
     if (!showAll) setShowAll(true);
