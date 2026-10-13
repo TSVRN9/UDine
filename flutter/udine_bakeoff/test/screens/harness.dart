@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:udine_bakeoff/screens/hall_menu.dart';
 import 'package:udine_bakeoff/shell_api.dart';
+import 'package:udine_bakeoff/state/net.dart';
 import 'package:udine_bakeoff/state/seed.dart';
 import 'package:udine_bakeoff/state/store.dart';
 import 'package:udine_bakeoff/ui/sheet.dart';
@@ -28,8 +29,9 @@ class FakeShell implements ShellApi {
   void openDish(DishCtx ctx) => dishes.add(ctx);
   @override
   void pushHall(HallTarget target) => halls.add(target);
+  final pages = <Widget Function(BuildContext, VoidCallback)>[];
   @override
-  void pushPage(Widget Function(BuildContext context, VoidCallback pop) build) {}
+  void pushPage(Widget Function(BuildContext context, VoidCallback pop) build) => pages.add(build);
 }
 
 Store freshStore([String seed = '']) {
@@ -40,13 +42,16 @@ Store freshStore([String seed = '']) {
 }
 
 /// A hall screen at rest at a phone's width, the status inset M2 floors at 24, under a store and a fake shell.
-Widget hallApp({required Store store, required FakeShell shell, String place = 'W', int day = 0, String? meal, double w = 390, double h = 844, HallTarget? land, Key? key}) => Directionality(
+Widget hallApp({required Store store, required FakeShell shell, String place = 'W', int day = 0, String? meal, double w = 390, double h = 844, HallTarget? land, Key? key, Net? net, bool reduced = false}) => Directionality(
       textDirection: TextDirection.ltr,
       child: MediaQuery(
-        data: MediaQueryData(size: Size(w, h), padding: const EdgeInsets.only(top: 24, bottom: 0)),
+        data: MediaQueryData(size: Size(w, h), padding: const EdgeInsets.only(top: 24, bottom: 0), disableAnimations: reduced),
         child: StoreScope(
           store: store,
-          child: ShellScope(api: shell, child: SizedBox(width: w, height: h, child: HallMenu(key: key, fx: fx, place: place, top: 24, height: h, day: day, meal: meal, land: land, onBack: () {}))),
+          child: NetScope(
+            net: net ?? Net(fx),
+            child: ShellScope(api: shell, child: SizedBox(width: w, height: h, child: HallMenu(key: key, fx: fx, place: place, top: 24, height: h, day: day, meal: meal, land: land, onBack: () {}))),
+          ),
         ),
       ),
     );

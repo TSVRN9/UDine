@@ -217,7 +217,7 @@ class _EventNote extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: M2Size.evrow),
           padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter, vertical: M2Space.evrow),
           decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: M2Color.hair))),
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.topLeft, // (`align-items: baseline`: the title sits at the padding, the row's minimum is empty room below)
           child: ExcludeSemantics(child: Text(title, style: M2Text.link.style(M2Color.dm))),
         ),
       );
@@ -232,7 +232,7 @@ class _CafeBody extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Space.cafeBodyTop, M2Space.gutter, 0),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (description.isNotEmpty) Text(description, style: M2Text.desc.style(M2Color.ink)),
-          Padding(padding: const EdgeInsets.only(top: M2Space.group, bottom: M2Layout.secTitleGap), child: Semantics(header: true, child: Text('Menu', style: M2Text.section.style(M2Color.dm)))),
+          Padding(padding: const EdgeInsets.only(top: M2Space.group), child: Semantics(header: true, child: Text('Menu', style: M2Text.section.style(M2Color.dm)))),
           Padding(padding: const EdgeInsets.only(top: M2Layout.kvTop), child: Text("$name doesn't list its menu in the app.", style: M2Text.ing.style(M2Color.slate))),
         ]),
       );

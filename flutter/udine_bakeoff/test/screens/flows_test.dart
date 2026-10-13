@@ -12,6 +12,7 @@ import 'package:udine_bakeoff/screens/hall_menu.dart';
 import 'package:udine_bakeoff/screens/halls.dart';
 import 'package:udine_bakeoff/screens/plate_sheet.dart';
 import 'package:udine_bakeoff/shell.dart';
+import 'package:udine_bakeoff/state/net.dart';
 import 'package:udine_bakeoff/state/store.dart';
 import 'package:udine_bakeoff/theme/tokens.dart';
 import 'package:udine_bakeoff/ui/ui.dart';
@@ -21,7 +22,7 @@ import 'harness.dart';
 
 final haptics = <String>[];
 
-Future<Store> boot(WidgetTester t, {String seed = '', bool reduced = false, double w = 390}) async {
+Future<Store> boot(WidgetTester t, {String seed = '', bool reduced = false, double w = 390, Net? net}) async {
   Photos.enabled = false;
   sized(t, w: w);
   final store = freshStore(seed);
@@ -31,7 +32,7 @@ Future<Store> boot(WidgetTester t, {String seed = '', bool reduced = false, doub
     return null;
   });
   addTearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
-  await t.pumpWidget(reduced ? MediaQuery(data: const MediaQueryData(size: Size(390, 844), disableAnimations: true), child: BakeoffApp(fx: fx, store: store)) : BakeoffApp(fx: fx, store: store));
+  await t.pumpWidget(reduced ? MediaQuery(data: const MediaQueryData(size: Size(390, 844), disableAnimations: true), child: BakeoffApp(fx: fx, store: store, net: net)) : BakeoffApp(fx: fx, store: store, net: net));
   await t.pumpAndSettle();
   return store;
 }
