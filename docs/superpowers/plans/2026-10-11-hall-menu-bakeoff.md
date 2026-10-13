@@ -759,8 +759,11 @@ the round-9 states. Compare screenshots with M2's.
 
    - **Day pick, time to settled:** RN 768–969 ms (14–27% janky). Flutter 551–568 ms (3–6% janky).
    - **Cold first add, tap → stepper / bar:** RN 136–176 / 235–277 ms. Flutter 79–120 / 138–147 ms; M2's target for the bar is 136 ms.
-   - **Cold first hall open:** RN smooth after a 117–167 ms wait. Flutter is 45% janky, frames 33–84 ms apart; fix in progress.
-   - **Flutter cold launch:** a white window for about 1 s; fix in progress.
+   - **Cold first hall open:**
+     - **RN:** smooth after a 117–167 ms wait.
+     - **Flutter:** SurfaceFlinger at ba09747 said 45% janky, frames 33–84 ms apart. A screenrecord re-check at dd835ea (5 cold vs 5 warm) found only 1–4 gaps over 25 ms per cold open, longest 29–45 ms, slightly worse than warm.
+     - The two methods disagree. The photo prefetch made no measurable difference. Not traced further.
+   - **Flutter cold launch:** about 0.8–1 s of launch window before the first frame. It is now maroon instead of the theme default (black on the A53). The time to first frame is unchanged.
    - **RN fast fling (fixed at ce72a61):**
      - **Stale badges:** recycled rows drew stale diet badges because `ListRow` kept the previous dish's measured end in state. Fixed, with a red test.
      - **Draw distance:** back to 600. A JS row batch takes about 150 ms on the A53, and a fling covers about 600 dp in that time.
