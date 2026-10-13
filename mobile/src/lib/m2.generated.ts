@@ -90,7 +90,7 @@ export const m2 = {
     },
     brand: {
       size: 22,
-      line: 26,
+      line: 32.6,
       font: "Oswald_600SemiBold",
       tabular: true
     },
@@ -366,7 +366,7 @@ export const m2 = {
     },
     headDate: {
       size: 15,
-      line: 20,
+      line: 18.2,
       font: "LibreFranklin_400Regular",
       tabular: false
     },

@@ -20,9 +20,10 @@ describe("ScreenHeader", () => {
     expect(flat(line)).toMatchObject({ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" });
     expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.accessibilityRole === "header")[0])).toMatchObject({ marginTop: 2, fontSize: 52 });
   });
-  it("its date is 15 on a 20 dp line: it sets the baseline row the brand shares", () => {
+  it("its brand is 22 on Oswald's normal 32.6 line and its date 15 on the normal 18.2, baseline-aligned on the 30 dp row", () => {
     const r = make(<ScreenHeader brand="UDine" date="Thursday, October 8" title="Lunch" />);
-    expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.children === "Thursday, October 8")[0])).toMatchObject({ fontSize: 15, lineHeight: 20 });
+    expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.children === "Thursday, October 8")[0])).toMatchObject({ fontSize: 15, lineHeight: 18.2 });
+    expect(flat(r.root.findAll((n) => (n.type as unknown) === "Text" && n.props.children === "UDine")[0])).toMatchObject({ fontSize: 22, lineHeight: 32.6 });
   });
   it("You: the date alone at the foot of its 30 dp line, 18 under the title", () => {
     const r = make(<ScreenHeader variant="you" date="Thursday, October 8" title="You" />);
