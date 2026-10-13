@@ -3,6 +3,17 @@ const { defineConfig } = require("eslint/config");
 const expoConfig = require("eslint-config-expo/flat");
 const globals = require("globals");
 
+const COLOUR = "Bake-off: colours come from m2.color via the kit.";
+const MOTION = "Bake-off: motion comes from m2Motion.";
+const TYPE = "Bake-off: type comes from the kit's Text.";
+const MOTION_KEYS = "duration|delay|stiffness|damping|mass";
+const TYPE_KEYS = "fontSize|lineHeight|letterSpacing";
+const SIZE = "Bake-off: sizes, gaps and radii come from m2.space / m2.size / m2.radius.";
+const OPACITY = "Bake-off: opacities come from m2.opacity.";
+const TIMING = "Bake-off: time with the kit's timed(to, token), which takes an m2Motion token.";
+const SIZE_KEYS = "width|height|minWidth|minHeight|maxWidth|maxHeight|top|bottom|left|right|start|end|padding(Top|Bottom|Left|Right|Horizontal|Vertical)?|margin(Top|Bottom|Left|Right|Horizontal|Vertical)?|gap|rowGap|columnGap|border(Top|Bottom|Left|Right)?(Left|Right)?Radius|border(Top|Bottom|Left|Right)?Width";
+const OPACITY_KEYS = "opacity";
+
 module.exports = defineConfig([
   expoConfig,
   {
@@ -112,6 +123,42 @@ module.exports = defineConfig([
     // useHook(); return null; }`), not production code -- not actionable.
     files: ["src/lib/favoriteFoodAlerts.test.tsx"],
     rules: { "react-hooks/globals": "off" },
+  },
+  {
+    // Bake-off (docs/briefs/hall-menu-bakeoff.md): the kit (src/bakeoff/ui) and the screens take colour, size, radius, opacity, motion and
+    // type from tokens (design-tokens/m2.json -> theme.ts `m2`, motion.ts `m2Motion`), never a literal. 0 and 1 are structure (a hairline,
+    // an edge at 0, a full opacity); SVG props (JSX attributes) are drawing, not layout. The logic layer, tests and the generated tokens are exempt.
+    files: ["src/app/bakeoff/**/*.{ts,tsx}", "src/bakeoff/**/*.{ts,tsx}"],
+    ignores: ["src/bakeoff/logic/**", "src/bakeoff/ui/motion.ts", "**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: "Literal[value=/^\\s*#[0-9a-fA-F]{3,8}\\s*$/]", message: COLOUR },
+        { selector: "Literal[value=/^\\s*(rgb|hsl)a?\\(/i]", message: COLOUR },
+        { selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b|(rgb|hsl)a?\\(/i]", message: COLOUR },
+        // quoted and computed keys too (`{ "fontSize": 14 }`, `{ ["duration"]: 240 }`), negative literals, and a literal anywhere in the value (`top + 44`, `a ? 14 : 16`)
+        ...["name", "value"].flatMap((k) => [
+          // (a quoted key is itself a Literal under its Property: it is excluded by name)
+          { selector: `Property[key.${k}=/^(${MOTION_KEYS})$/] Literal:not([value=/^(${MOTION_KEYS})$/])`, message: MOTION },
+          { selector: `Property[key.${k}=/^(${TYPE_KEYS})$/] Literal[value>1]`, message: TYPE },
+          { selector: `Property[key.${k}=/^(${TYPE_KEYS})$/] UnaryExpression > Literal`, message: TYPE },
+          { selector: `Property[key.${k}=/^(${SIZE_KEYS})$/] Literal[value>1]`, message: SIZE },
+          { selector: `Property[key.${k}=/^(${SIZE_KEYS})$/] UnaryExpression > Literal`, message: SIZE },
+          { selector: `Property[key.${k}=/^(${OPACITY_KEYS})$/] Literal:not([value=0]):not([value=1]):not([value=/^(${OPACITY_KEYS})$/])`, message: OPACITY },
+        ]),
+        { selector: "CallExpression[callee.property.name=bezier] > Literal.arguments", message: MOTION },
+        { selector: "CallExpression[callee.name=bezier] > Literal.arguments", message: MOTION },
+        { selector: "CallExpression[callee.property.name=bezier] > UnaryExpression.arguments", message: MOTION },
+        // a timing call takes a motion token through the kit's `timed`, so a duration never travels without its easing
+        { selector: "CallExpression[callee.name=/^(withTiming|withSpring|withDelay)$/]", message: TIMING },
+        { selector: "CallExpression[callee.property.name=/^(duration|delay|springify)$/] > Literal.arguments", message: MOTION },
+      ],
+    },
+  },
+  {
+    // build-time node scripts (scripts/gen-tokens.js)
+    files: ["scripts/**/*.js"],
+    languageOptions: { globals: globals.node },
   },
   {
     // TS test files get jest globals for free from @types/jest (tsconfig's "types": ["jest"]),

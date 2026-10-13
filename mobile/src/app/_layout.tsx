@@ -1,11 +1,13 @@
+import "../bakeoff/devLogs";
 import {
   LibreFranklin_400Regular,
   LibreFranklin_500Medium,
   LibreFranklin_600SemiBold,
+  LibreFranklin_700Bold,
 } from "@expo-google-fonts/libre-franklin";
 import { Oswald_500Medium, Oswald_600SemiBold, Oswald_700Bold } from "@expo-google-fonts/oswald";
 import { useFonts } from "expo-font";
-import { Stack, type ErrorBoundaryProps } from "expo-router";
+import { Redirect, Stack, type ErrorBoundaryProps } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -58,6 +60,7 @@ export default function RootLayout() {
     LibreFranklin_400Regular,
     LibreFranklin_500Medium,
     LibreFranklin_600SemiBold,
+    LibreFranklin_700Bold,
   });
 
   useEffect(() => {
@@ -99,6 +102,7 @@ export default function RootLayout() {
         -- see grabRouteFor), cafe/[name], logs, and event-detail draw their own canvas-style
         headers. */}
         <Stack.Screen name="index" />
+        <Stack.Screen name="bakeoff" />
         <Stack.Screen name="halls/[slug]" />
         <Stack.Screen name="cafe/[name]" />
         <Stack.Screen name="logs" />
@@ -110,6 +114,7 @@ export default function RootLayout() {
         <Stack.Screen name="newsletter" options={{ headerShown: true, title: "Newsletter" }} />
         {/* export needs no entry at all: it draws its own chrome and inherits headerShown: false. */}
       </Stack>
+      {process.env.EXPO_PUBLIC_BAKEOFF === "1" ? <Redirect href="/bakeoff" /> : null}
     </GestureHandlerRootView>
   );
 }

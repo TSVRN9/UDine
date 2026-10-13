@@ -2,7 +2,8 @@
 // or curve is never hand-copied twice. Source of truth: Prototype.dc.html's <style> block (plus
 // MenuLoading.dc.html's spinner); motion.test.ts asserts every spec-anchored value here against it.
 import { Easing as RNEasing } from "react-native";
-import { Easing as ReanimatedEasing } from "react-native-reanimated";
+import { Easing as ReanimatedEasing, type WithTimingConfig } from "react-native-reanimated";
+import { m2Curves, m2MotionData } from "./m2.generated";
 
 /** The one cubic-bezier every eased transition in the artboard shares (`.pane`/`.knob`/`.sheet`/
  * `.strip`/`.layer`/`.toastbox`). Raw control points, not a built `Easing` object: RN's `Easing`
@@ -91,3 +92,65 @@ export const toastActionDwell = 6000;
 
 /** How far a toast travels while it fades in/out: `toastStyle`'s `translateY(12px)` in Prototype.dc.html. */
 export const toastRise = 12;
+
+/**
+ * Bake-off motion (docs/briefs/hall-menu-bakeoff.md): M2 round 9c's `MO`, `SPRING` and `PUSH_E` from src.html, generated from
+ * `design-tokens/m2.json` (`pnpm tokens`). The data carries easings as bezier control points or a name; `m2Motion` is that data with each `e`
+ * built once, here, into the function the kit's `timed` hands to Reanimated. `emphasized` is M2's two-segment path (EMPH), not one bezier.
+ */
+const emphSeg = m2Curves.emphasized;
+/** cubic-bezier(0, 0, 0, 1) (M3 standard decelerate, `fadeThrough.e`) in closed form: x = t^3, y = 3t^2 - 2t^3. Reanimated's own
+ * Easing.bezier overshoots on this degenerate curve (measured f = 8.3 on device). */
+export function standardDecelerate(x: number): number {
+  "worklet";
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const t = Math.cbrt(x);
+  return t * t * (3 - 2 * t);
+}
+
+export function emphasized(x: number): number {
+  "worklet";
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const s = x <= 0.166666 ? emphSeg[0] : emphSeg[1];
+  const bez = (a: number, b: number, c: number, d: number, t: number) => {
+    const u = 1 - t;
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+  };
+  let lo = 0;
+  let hi = 1;
+  let t = 0.5;
+  for (let i = 0; i < 30; i++) {
+    t = (lo + hi) / 2;
+    if (bez(s[0], s[2], s[4], s[6], t) < x) lo = t;
+    else hi = t;
+  }
+  return bez(s[1], s[3], s[5], s[7], t);
+}
+
+/** What `timed` gives Reanimated's `withTiming` as its `easing`. */
+export type Curve = NonNullable<WithTimingConfig["easing"]>;
+/** A motion token that moves something: how long, and on what curve. `timed` takes nothing else. */
+export interface Timing { readonly d: number; readonly e: Curve; /** plays under the system's reduced-motion setting (only `rmFade`) */ readonly always?: boolean }
+
+const named: Record<string, Curve> = { emphasized, linear: ReanimatedEasing.linear };
+function build(e: string | readonly number[]): Curve {
+  if (typeof e === "string") return named[e];
+  const [a, b, c, d] = e;
+  // the degenerate standard decelerate has a closed form (see standardDecelerate)
+  return a === 0 && b === 0 && c === 0 && d === 1 ? standardDecelerate : ReanimatedEasing.bezier(a, b, c, d);
+}
+type Built<T> = { [K in keyof T]: T[K] extends { readonly e: unknown } ? Omit<T[K], "e"> & { readonly e: Curve } : T[K] };
+
+export const m2Motion = Object.fromEntries(
+  Object.entries(m2MotionData).map(([k, v]) => [k, v && typeof v === "object" && "e" in v ? { ...v, e: build(v.e as string | readonly number[]) } : v]),
+) as Built<typeof m2MotionData>;
+
+/** M2's `SPRING.sheet` (stiffness k, damping ratio z) as the stiffness / damping / mass a spring takes: c = 2 sqrt(k m) z, with m = 1. */
+export const m2SheetSpring = { stiffness: m2Motion.spring.sheet.k, damping: 2 * Math.sqrt(m2Motion.spring.sheet.k) * m2Motion.spring.sheet.z, mass: 1 } as const;
+
+/** Linear, and M2's `settle` and push curves as Reanimated easings. */
+export const m2Linear = named.linear;
+export const m2SettleEasing = m2Motion.settle.e;
+export const m2PushEasing = m2Motion.push.e;

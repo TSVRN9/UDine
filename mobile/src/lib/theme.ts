@@ -124,3 +124,10 @@ export function buttonColors(variant: ButtonVariant): {
       return { backgroundColor: "transparent", color: withOpacity(colors.ink900, 65), borderColor: "transparent" };
   }
 }
+
+/**
+ * Bake-off tokens (docs/briefs/hall-menu-bakeoff.md): M2 round 9c's `:root`, type rules, spacing and score ramps. Generated from
+ * `design-tokens/m2.json` (stack-neutral, shared with the Flutter bake-off) by `pnpm tokens`; only src/bakeoff reads it. Sizes are M2's px as dp,
+ * unscaled (the meal row is laid out for 360dp at 14).
+ */
+export { m2 } from "./m2.generated";

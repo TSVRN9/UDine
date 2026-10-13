@@ -1,0 +1,75 @@
+# EAS reads this instead of .gitignore, and ignores nested .gitignore files. It is the root .gitignore plus mobile/.gitignore, except that the git-ignored bake-off photos (mobile/assets/bakeoff) ship in builds.
+node_modules/
+.env
+.env.local
+dist/
+build/
+.expo/
+*.apk
+.pnpm-store/
+.svelte-kit/
+.vercel/
+
+# Playwright
+/web/test-results/
+/web/playwright-report/
+/web/blob-report/
+
+# Firebase service-account keys (FCM V1) — full Firebase admin/messaging access, never commit
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+firebase-service-account*.json
+/udine-*.json
+
+# Supabase CLI local session/cache
+supabase/.temp/
+
+# Agent session scratch — never commit. Exceptions: agent definitions, skills, and the project
+# hooks config (.claude/settings.json runs scripts/pr-gate.sh) travel with the repo like any doc.
+.claude/*
+!.claude/agents/
+!.claude/skills/
+!.claude/settings.json
+.scratch/
+
+# UMass-owned photos and anything embedding them (see docs/design/explorations/2026-10-ui-overhaul/README.md)
+docs/design/explorations/**/local/
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.env
+.env*.local
+*.tsbuildinfo
+example
+/mobile/ios
+/mobile/android
+google-service-account.json
+
+# supabase/.gitignore and web/.gitignore (EAS reads only this root file, never nested ignores)
+/supabase/.branches
+/supabase/.temp
+/supabase/.env.keys
+/supabase/.env.local
+/supabase/.env.*.local
+/web/node_modules
+/web/.output
+/web/.vercel
+/web/.netlify
+/web/.wrangler
+/web/.svelte-kit
+/web/build
