@@ -21,7 +21,7 @@ export function ListRow({ name, marks, meta, trailing, lane, onPress, here }: { 
     <Press feedback="tint" onPress={onPress} style={{ minHeight: m2.size.row, flexDirection: "row", alignItems: "center", paddingVertical: m2.space.rowY, paddingLeft: m2.space.gutter, paddingRight: m2.space.part }}>
       {here ? <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: m2.color.here }} /> : null}
       <View style={{ flex: 1, minWidth: 0, marginRight: m2.space.part }}>
-        <View>
+        <View style={marks ? { paddingBottom: m2.space.markLine } : undefined}>
           <Text v="rowName" onTextLayout={marks ? (e) => { const l = e.nativeEvent.lines[e.nativeEvent.lines.length - 1]; if (l) { const e = { x: l.x + l.width, y: l.y }; ends.set(name, e); setEnd(e); } } : undefined}>
             {marks ? name + SLOT : name}
           </Text>

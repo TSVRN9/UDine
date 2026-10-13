@@ -58,4 +58,18 @@ describe("DishRow (Review Focus 5)", () => {
     const sc = v.root.findAll((n) => typeof n.type === "string" && flat(n).gap === 6)[0];
     expect(flat(sc).alignSelf).toBe("center");
   });
+  // M2 `.row .n` is 20 a line, 22 on the line that holds the inline `.tags` (measured in the prototype: .n 22 / 42 against 20 / 40)
+  it("a name that wears a diet badge is 2 taller below its text, one that does not is not", () => {
+    const flat = (n: renderer.ReactTestInstance) => Object.assign({}, ...[n.props.style].flat(9).filter(Boolean));
+    const veg = all.find((d) => d.diet & 3)!;
+    const pad = (d: Dish) => {
+      const v = mount(d);
+      const t = v.root.findAll((n) => (n.type as unknown) === "Text" && typeof n.props.children === "string" && n.props.children.startsWith(d.name))[0];
+      let n = t.parent;
+      while (n && typeof n.type !== "string") n = n.parent;
+      return flat(n!).paddingBottom;
+    };
+    expect(pad(veg)).toBe(2);
+    expect(pad(unscored)).toBeUndefined();
+  });
 });
