@@ -75,6 +75,62 @@ void main() {
     test('servings must be positive', () => expect(() => s.changeServings('e0', 0), throwsArgumentError));
   });
 
+  LogEntry mk(String id, String at) => LogEntry.fromJson({'id': id, 'loggedAt': at, 'source': jsonDecode(sources[1]), 'servings': 1, 'nutrition': jsonDecode(nut)});
+  Future<num> serv(String id) async => (await db.rawQuery('SELECT servings FROM log_entries WHERE id=?', [id])).single['servings']! as num;
+  Future<List<String>> ids() async => [for (final r in await db.rawQuery('SELECT id FROM log_entries ORDER BY rowid')) r['id']! as String];
+
+  group('Undo after the world moved on: safe subset, never throws, never loses data', () {
+    test('delete meal -> add entry (reuses rowid) -> Undo: meal and new entry both exist', () async {
+      await db.delete('log_entries');
+      for (final i in [0, 1]) {
+        await db.insert('log_entries', {'id': 'm$i', 'logged_at': stamps[0], 'source_json': sources[1], 'servings': 1, 'nutrition_json': nut});
+      }
+      final undo = await s.deleteMeal((await s.mealsForDay('2026-10-01')).single);
+      await s.addEntry(mk('new', stamps[3]));
+      await undo();
+      expect((await ids())..sort(), ['m0', 'm1', 'new']);
+    });
+    test('delete -> same id re-added -> Undo leaves the existing row', () async {
+      final undo = await s.deleteEntry('e0');
+      await s.addEntry(mk('e0', stamps[3]));
+      await undo();
+      expect((await s.allEntries()).firstWhere((e) => e.id == 'e0').source, isA<OffSource>());
+    });
+    test('changeServings -> delete -> Undo: row stays deleted', () async {
+      final undo = await s.changeServings('e1', 4);
+      await s.deleteEntry('e1');
+      await undo();
+      expect(await ids(), isNot(contains('e1')));
+    });
+    test('edit A -> edit B -> Undo A: stays B', () async {
+      final a = await s.changeServings('e1', 2);
+      await s.changeServings('e1', 3);
+      await a();
+      expect(await serv('e1'), 3);
+    });
+    test('add -> edit -> Undo add: row stays', () async {
+      final undo = await s.addEntry(mk('n', stamps[0]));
+      await s.changeServings('n', 5);
+      await undo();
+      expect(await ids(), contains('n'));
+      expect(await serv('n'), 5);
+    });
+    test('favorites: remove -> re-add differently -> Undo keeps the newer row', () async {
+      final undo = await s.removeFavorite(const DishFavorite('Pizza'));
+      await db.insert('favorites', {'key': 'dish:Pizza', 'favorite_json': '{"type":"dish","dishName":"Pizza","x":1}'});
+      await undo();
+      expect((await db.query('favorites', where: "key='dish:Pizza'")).single['favorite_json'], contains('"x":1'));
+    });
+  });
+
+  test('allEntries orders by logged_at, not id', () async {
+    await db.delete('log_entries');
+    for (final e in [('a', stamps[3]), ('b', stamps[0]), ('c', stamps[2])]) {
+      await db.insert('log_entries', {'id': e.$1, 'logged_at': e.$2, 'source_json': sources[1], 'servings': 1, 'nutrition_json': nut});
+    }
+    expect((await s.allEntries()).map((e) => e.id), ['b', 'c', 'a']);
+  });
+
   test('RN-written rows (all four sources) read back and re-write unchanged', () async {
     final before = await dump(db);
     for (final e in await s.allEntries()) {
@@ -198,7 +254,8 @@ void main() {
         }
         final out = kind.endsWith('json') ? await s.exportJson() : await s.exportCsv();
         final name = kind.replaceFirst(RegExp(r'_(json|csv)$'), '');
-        expect(out['${name == 'entries' ? 'entries' : name}.${kind.split('_').last}'], expected);
+        final base = {'entries': 'udine-export'}[name] ?? 'udine-${name.replaceAll('_', '-')}';
+        expect(out['$base.${kind.split('_').last}'], expected);
       });
     }
   });

@@ -30,17 +30,36 @@ class UdineStore {
   UdineStore(this.db);
   final Database db;
 
-  // ---- generic: snapshot-based Undo, byte-identical because it re-inserts the raw rows ----
+  // ---- generic: snapshot-based Undo. Undo restores what the action changed and never touches any other row:
+  // if the world moved on it does the safe subset and never throws data away or throws. ----
+
+  Future<List<Map<String, Object?>>> _rows(DatabaseExecutor x, String table, String keyCol, List<String> keys) async => keys.isEmpty
+      ? []
+      : x.rawQuery('SELECT rowid AS _rowid, * FROM $table WHERE $keyCol IN (${List.filled(keys.length, '?').join(',')})', keys);
+
+  static bool _same(Map<String, Object?> a, Map<String, Object?> b) => a.keys.where((k) => k != '_rowid').every((k) => a[k] == b[k]);
 
   Future<Undo> _change(String table, String keyCol, List<String> keys, Future<void> Function(DatabaseExecutor tx) action) async {
-    final ph = List.filled(keys.length, '?').join(',');
-    final before = keys.isEmpty ? <Map<String, Object?>>[] : await db.rawQuery('SELECT rowid AS _rowid, * FROM $table WHERE $keyCol IN ($ph)', keys);
+    final before = await _rows(db, table, keyCol, keys);
     await db.transaction(action);
+    final after = await _rows(db, table, keyCol, keys);
     return () => db.transaction((tx) async {
-          if (keys.isNotEmpty) await tx.rawDelete('DELETE FROM $table WHERE $keyCol IN ($ph)', keys);
-          for (final r in before) {
-            final row = {...r};
-            row['rowid'] = row.remove('_rowid');
+          for (final k in keys) {
+            final was = before.where((r) => r[keyCol] == k).firstOrNull;
+            final wrote = after.where((r) => r[keyCol] == k).firstOrNull;
+            final now = (await _rows(tx, table, keyCol, [k])).firstOrNull;
+            if (wrote != null) {
+              // Remove what the action wrote only if it is still exactly that; an edited row is left alone (and so is the old one).
+              if (now == null || !_same(now, wrote)) continue;
+              await tx.rawDelete('DELETE FROM $table WHERE $keyCol = ?', [k]);
+            } else if (now != null) {
+              continue; // the key was re-created since: leave the existing row
+            }
+            if (was == null) continue;
+            final row = {...was};
+            final rowid = row.remove('_rowid');
+            final free = (await tx.rawQuery('SELECT 1 FROM $table WHERE rowid = ?', [rowid])).isEmpty;
+            if (free) row['rowid'] = rowid;
             await tx.insert(table, row);
           }
         });
@@ -83,11 +102,15 @@ class UdineStore {
       });
 
   /// Touches only the servings column; source/nutrition bytes stay as written.
-  Future<Undo> changeServings(String id, num servings) {
+  /// Undo is compare-and-set: it restores the old value only if the row still exists with the servings this edit set.
+  Future<Undo> changeServings(String id, num servings) async {
     if (!(servings > 0)) throw ArgumentError.value(servings, 'servings', 'must be > 0; use deleteEntry to remove');
-    return _change('log_entries', 'id', [id], (tx) async {
-      await tx.rawUpdate('UPDATE log_entries SET servings = ? WHERE id = ?', [servings, id]);
-    });
+    final old = (await db.rawQuery('SELECT servings FROM log_entries WHERE id = ?', [id])).firstOrNull?['servings'];
+    await db.rawUpdate('UPDATE log_entries SET servings = ? WHERE id = ?', [servings, id]);
+    return () async {
+      if (old == null) return;
+      await db.rawUpdate('UPDATE log_entries SET servings = ? WHERE id = ? AND servings = ?', [old, id, servings]);
+    };
   }
 
   Future<Undo> deleteEntry(String id) => deleteEntries([id]);
@@ -174,18 +197,18 @@ class UdineStore {
   // ---- export: every device-local user table, through core/export.dart ----
 
   Future<Map<String, String>> exportJson() async => {
-        'entries.json': exportEntriesAsJson(await allEntries()),
-        'ranked_dishes.json': exportRankedDishesAsJson(await rankedDishes()),
-        'ranked_foods.json': exportRankedFoodsAsJson(await rankedFoods()),
-        'favorites.json': exportFavoritesAsJson(await favorites()),
-        'custom_foods.json': exportCustomFoodsAsJson(await customFoods()),
+        'udine-export.json': exportEntriesAsJson(await allEntries()),
+        'udine-ranked-dishes.json': exportRankedDishesAsJson(await rankedDishes()),
+        'udine-ranked-foods.json': exportRankedFoodsAsJson(await rankedFoods()),
+        'udine-favorites.json': exportFavoritesAsJson(await favorites()),
+        'udine-custom-foods.json': exportCustomFoodsAsJson(await customFoods()),
       };
 
   Future<Map<String, String>> exportCsv() async => {
-        'entries.csv': exportEntriesAsCsv(await allEntries()),
-        'ranked_dishes.csv': exportRankedDishesAsCsv(await rankedDishes()),
-        'ranked_foods.csv': exportRankedFoodsAsCsv(await rankedFoods()),
-        'favorites.csv': exportFavoritesAsCsv(await favorites()),
-        'custom_foods.csv': exportCustomFoodsAsCsv(await customFoods()),
+        'udine-export.csv': exportEntriesAsCsv(await allEntries()),
+        'udine-ranked-dishes.csv': exportRankedDishesAsCsv(await rankedDishes()),
+        'udine-ranked-foods.csv': exportRankedFoodsAsCsv(await rankedFoods()),
+        'udine-favorites.csv': exportFavoritesAsCsv(await favorites()),
+        'udine-custom-foods.csv': exportCustomFoodsAsCsv(await customFoods()),
       };
 }
