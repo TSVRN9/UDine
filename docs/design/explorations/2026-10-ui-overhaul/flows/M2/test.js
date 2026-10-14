@@ -837,7 +837,9 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.equal(await ev(() => { const d = Object.values(DISH).find(x => !x.day && x.h === 'W' && x.meal === 'dinner' && /^Mayu/.test(x.n)); return buildOf(d); }), null, 'Mayu oil beside the ramen does not build');
     });
     await scen('packaged and saved foods: after the menus, no letters, per 100 g; sheets; save, edit, delete + Undo; You; export; tracking off', async () => {
-      await go('?state=search'); await type('clif');
+      await go('?state=search'); await page.locator('#q').fill('clif'); await page.waitForTimeout(60);
+      assert.equal(await page.locator('#sres [data-key=pk-wait] .spin').count(), 1, 'packaged, in flight: the indicator in its slot');
+      await page.waitForTimeout(900);
       const gs = await groups(); assert.deepEqual(gs.filter(k => ['g-now', 'g-cafes', 'g-later', 'g-yours', 'g-pack'].includes(k)), ['g-yours', 'g-pack'], 'nothing served: Your foods, then Packaged');
       const yours = await grpRows('g-yours'), pack = await grpRows('g-pack');
       assert.deepEqual(yours, [{ n: 'Clif Bar Chocolate Chip', m: '250cal6gprotein', tags: 0, add: 1 }], 'a saved packaged food: its own serving, a + and no place');
@@ -852,6 +854,12 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
         ['Clif bar', '100 g', 0, true], 'a packaged sheet: name, serving, Add to plate; no where, no grades, no star');
       await page.locator('#isbody [data-act=dadd]').tap(); await page.waitForTimeout(900);
       assert.deepEqual(await ev(() => [S.plates[0].items[0].n, S.foods.some(f => f.n === 'Clif bar')]), ['Clif bar', true], 'added, and saved to Your foods');
+      await ev(() => { if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(900);
+      assert.equal(await page.locator('#psbody .prow .m').first().textContent(), '368 cal per 100 g', 'on the plate, the serving says what it is'); await ev(() => psheet.to('closed')); await page.waitForTimeout(600);
+      await go('?state=search&pack=fail'); await type('clif');
+      assert.equal(await page.locator('#sres [data-key=pk-fail]').textContent(), "Packaged foods didn't load.Try again", 'packaged failed: what happened, and Try again');
+      await go('?state=search'); await type('clif');
+      await page.locator('#sres .row[data-food^="p"] .add').first().tap(); await page.waitForTimeout(900);
       // a custom food from Search is saved too
       await type('overnight oats'); await page.locator('#sres [data-act=custom]').first().tap(); await page.waitForTimeout(500);
       await page.locator('#cc').fill('310'); await page.locator('#cp').fill('11'); await page.locator('#cform .btn').tap(); await page.waitForTimeout(700);
@@ -927,7 +935,9 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.equal(await page.locator('#mlist .cbody h3').first().textContent(), 'Menus');
       assert.deepEqual(await ev(() => [...document.querySelectorAll('#mlist [data-pdf] .a')].map(e => e.textContent)), ['Lunch', 'Lite fare', 'Dinner', 'Dessert'], 'one row per PDF, in the feed order');
       assert.equal(await page.locator('#mlist [data-act=custom]').count(), 1, 'Add a custom food stays');
-      await page.locator('#mlist [data-pdf]', { hasText: 'Lunch' }).tap(); await page.waitForTimeout(1400);
+      await page.locator('#mlist [data-pdf]', { hasText: 'Lunch' }).tap(); await page.waitForTimeout(250);
+      assert.deepEqual(await ev(() => [NAV.at(-1).el.querySelectorAll('.spin').length, NAV.at(-1).el.querySelectorAll('img.pdfp').length]), [1, 0], 'loading: the indicator, no pages yet');
+      await page.waitForTimeout(1150);
       assert.deepEqual(await ev(() => { const p = NAV.at(-1).el; return [p.dataset.p, p.querySelector('.pbar .o').textContent, p.querySelectorAll('img.pdfp').length]; }), ['pdf', 'Lunch menu', 2], 'pushed: "Lunch menu", its two pages');
       assert(await ev(() => [...document.querySelectorAll('.page[data-p=pdf] img.pdfp')].every(i => i.naturalWidth > 0 && Math.abs(i.getBoundingClientRect().width - (frame.clientWidth - 32)) < 1)), 'pages drawn at the screen width, 16 px gutters');
       await open('?net=offline');
@@ -962,6 +972,8 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.deepEqual(await ev(() => { const a = document.querySelector('.page[data-p=favs] [data-act=alerts]'); return [a.getAttribute('aria-checked'), a.querySelector('.cb').textContent, document.querySelector('.page[data-p=favs] [data-act=asettings]').textContent]; }), ['false', 'Notifications are off for UDine', 'Open Settings'], 'denied');
       assert((await page.locator('.page[data-p=favs] [data-act=asettings]').boundingBox()).height >= 44);
       assert.deepEqual(await run(7 * 60 + 15), [], 'denied: nothing posts');
+      await favs('&alerts=revoked');
+      assert.deepEqual(await ev(() => { const a = document.querySelector('.page[data-p=favs] [data-act=alerts]'); return [a.getAttribute('aria-checked'), a.querySelector('.cb').textContent]; }), ['false', 'Notifications are off for UDine'], 'revoked in system settings: the denied state');
       r = await favs('&alerts=blocked'); await r.tap(); await page.waitForTimeout(300);
       assert.equal(await page.locator('.ossheet').count(), 0, 'blocked: the OS will not ask again');
       assert.equal(await page.locator('.page[data-p=favs] [data-act=alerts] .cb').textContent(), 'Notifications are off for UDine');
@@ -974,7 +986,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.deepEqual(await ev(() => [S.hall, S.mmeal, document.querySelector('#mlist .row.here .n')?.textContent.replace('★', '')]), ['W', 'lunch', 'Beef Brisket Noodle Bowl'], 'tapping it opens the hall at that meal, at the dish');
     });
   };
-  if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11 }[process.env.RED] || round7)(); console.log(results.join('\n')); await browser.close(); return; }
+  if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11 }[process.env.RED] || round7)(); console.log(results.join('\n')); console.log(`${NCHK} checks`); await browser.close(); return; }
 
   // Round 5: the rack has one seam colour. Every seam between the Halls header, the hall bands and the pinned cafés is
   // deep maroon (the stack's own container), never the chalk of #halls behind it. Checked at three widths, at rest, after a
