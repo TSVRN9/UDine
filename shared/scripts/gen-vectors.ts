@@ -297,8 +297,97 @@ const favoriteMatch: Case[] = [
   fav("mixed favorites: only the dish ones match", [{ type: "location", hallTid: 1 }, dish("Chicken Parm")], [it("Chicken Parm", 1, "lunch")]),
 ];
 
+// --- export ---------------------------------------------------------------------------------------
+const nut = (o: Json = {}): Json => ({
+  servingSize: "1 slice",
+  calories: 250,
+  caloriesFromFat: 90,
+  totalFatG: 10,
+  satFatG: 4.5,
+  transFatG: 0,
+  cholesterolMg: 20,
+  sodiumMg: 480,
+  totalCarbG: 30,
+  dietaryFiberG: 2,
+  sugarsG: 3.5,
+  proteinG: 12,
+  ...o,
+});
+const entry = (id: string, loggedAt: string, source: Json, servings: number, nutrition: Json): Json => ({ id, loggedAt, source, servings, nutrition });
+const ENTRIES: Json[] = [
+  entry("e1", "2026-09-15T12:30:00.000Z", { type: "umass-menu", dishName: "Mac & Cheese", hallTid: 1 }, 1, nut()),
+  entry("e2", "2026-09-15T18:05:10.000Z", { type: "off", barcode: "0123456789012", productName: 'Say "Cheese", Please' }, 0.5, nut({ calories: 99.5, proteinG: 3.25, totalFatDv: 15, satFatDv: null })),
+  entry("e3", "2026-09-16T08:00:00.000Z", { type: "usda", fdcId: "171077", productName: "Line one\nline two, \"quoted\"" }, 2, nut({ calories: 0, proteinG: 0.1 })),
+  entry("e4", "2026-09-16T19:45:00.000Z", { type: "custom", customFoodId: "c1", productName: "=SUM(A1)" }, 1.5, nut({ sodiumDv: 20, proteinDv: 0 })),
+  entry("e5", "2026-09-17T07:15:00.000Z", { type: "umass-menu", dishName: "+Plus @home -dash", hallTid: 3 }, 3, nut()),
+  entry("e6", "2026-09-17T13:00:00.000Z", { type: "umass-menu", dishName: "Crêpes à la façon, 北京烤鸭 \u{1F355}", hallTid: 4 }, 1, nut({ calories: 1234.5678 })),
+  entry("e7", "2026-09-17T13:01:00.000Z", { type: "off", barcode: "1", productName: "tab\there \u0001 ctrl \\ slash \u2028" }, 1, nut()),
+];
+const RANKED_DISHES = [
+  { dishName: "Mac & Cheese", hallTid: 1, rating: 1516, comparisonCount: 3 },
+  { dishName: 'Say "Cheese", Please', hallTid: 2, rating: 1483.7234567, comparisonCount: 1 },
+  { dishName: "-Dash\nNewline", hallTid: 3, rating: 1500.5, comparisonCount: 0 },
+  { dishName: "Crêpes 北京", hallTid: 4, rating: 1e-7, comparisonCount: 12 },
+];
+const RANKED_FOODS = [
+  { dishName: "Mac & Cheese", rating: 1516, comparisonCount: 3 },
+  { dishName: '"Quoted", comma', rating: 1484.25, comparisonCount: 4 },
+  { dishName: "@mention\n\u{1F355}", rating: 1500, comparisonCount: 0 },
+];
+const FAVORITES = [
+  { type: "dish", dishName: "Mac & Cheese" },
+  { type: "dish", dishName: '=cmd|"x", y' },
+  { type: "location", hallTid: 2 },
+  { type: "dish", dishName: "Crêpes\n北京" },
+];
+const CUSTOM_FOODS = [
+  { id: "c1", name: "Mom's Chili, extra", servingSize: "1 cup (240 g)", nutrition: nut(), ingredients: 'beans, "secret" spice,\nlove' },
+  { id: "c2", name: "=Bare", servingSize: "1", nutrition: nut({ calories: 12.5, proteinDv: 4 }) },
+  { id: "c3", name: "北京烤鸭 \u{1F355}", servingSize: "", nutrition: nut(), ingredients: "-minus start" },
+];
+const exp = (kind: string, name: string, input: unknown): Case => ({ kind, name, input });
+const exportCases: Case[] = [
+  ...(
+    [
+      ["entries", ENTRIES],
+      ["ranked_dishes", RANKED_DISHES],
+      ["ranked_foods", RANKED_FOODS],
+      ["favorites", FAVORITES],
+      ["custom_foods", CUSTOM_FOODS],
+    ] as [string, unknown[]][]
+  ).flatMap(([base, rows]) =>
+    ["json", "csv"].flatMap((fmt) => [
+      exp(`${base}_${fmt}`, "representative rows with quotes, commas, newlines, unicode, formula prefixes", rows),
+      exp(`${base}_${fmt}`, "no rows", []),
+    ]),
+  ),
+  ...["json", "csv"].map((fmt) =>
+    exp(`ranked_foods_${fmt}`, "number formatting: huge, tiny and fractional ratings", [
+      { dishName: "a", rating: 1e20, comparisonCount: 0 },
+      { dishName: "b", rating: 1e21, comparisonCount: 1 },
+      { dishName: "c", rating: 123456789012345680000, comparisonCount: 2 },
+      { dishName: "d", rating: -1e21, comparisonCount: 3 },
+      { dishName: "e", rating: 0.00001, comparisonCount: 4 },
+      { dishName: "f", rating: 1.5e-5, comparisonCount: 5 },
+      { dishName: "g", rating: 0.000001, comparisonCount: 6 },
+      { dishName: "h", rating: 1e-7, comparisonCount: 7 },
+      { dishName: "i", rating: 0.1 + 0.2, comparisonCount: 8 },
+      { dishName: "j", rating: 2 ** 53, comparisonCount: 9 },
+      { dishName: "k", rating: -0, comparisonCount: 10 },
+    ]),
+  ),
+  exp("entries_csv", "single umass-menu entry", [ENTRIES[0]]),
+  exp("entries_json", "single usda entry", [ENTRIES[2]]),
+];
+
 // --- write ----------------------------------------------------------------------------------------
 const FILES: Record<string, { about: string }> = {
+  "export.json": {
+    about:
+      "Device-data exporters (storage.ts export*AsJson / export*AsCsv). kind=<rows>_<json|csv>, rows being entries (LogEntry[]), ranked_dishes, ranked_foods, favorites or custom_foods: input is the row array -> the exported string, byte for byte. " +
+      "JSON is 2-space-indented JSON.stringify of the rows (integral numbers print without a decimal point). CSV is a header line then one line per row joined by LF with no trailing newline; every field is double-quoted with embedded quotes doubled, " +
+      "and a field whose text starts with = + - or @ gets a tab inserted after the opening quote. Input key order is the output key order.",
+  },
   "foodpro.json": {
     about:
       "foodpro-menu-ajax parsing. kind=parse: input {html, category, mealPeriod, hallTid, isoDate} -> MenuItem[] (parseCategoryItems). " +
@@ -326,7 +415,7 @@ const FILES: Record<string, { about: string }> = {
   },
 };
 
-const CASES: Record<string, Case[]> = { "foodpro.json": foodpro, "hours.json": hours, "match-query.json": matchQuery, "favorite-match.json": favoriteMatch };
+const CASES: Record<string, Case[]> = { "foodpro.json": foodpro, "hours.json": hours, "match-query.json": matchQuery, "favorite-match.json": favoriteMatch, "export.json": exportCases };
 for (const [file, { about }] of Object.entries(FILES)) {
   const cases = CASES[file];
   const adapters = ADAPTERS[file];
