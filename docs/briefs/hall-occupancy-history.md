@@ -82,4 +82,4 @@ Rationale:
 ## Tasks
 
 1. Migration + `record-occupancy` + pgTAP + deno tests + the CLAUDE.md residency row (the table ships here) — files: `supabase/migrations/<ts>_occupancy_history.sql`, `supabase/functions/record-occupancy/`, `supabase/tests/database/` — lanes: supabase test db, deno test — blocked by: none — PR:
-2. `@udine/shared` `occupancy.ts` + tests (can wait for the UI that reads it) — files: `shared/src/occupancy.ts` — lanes: shared — blocked by: none — PR:
+2. ~~`@udine/shared` `occupancy.ts`~~ Dart instead (the Flutter app is the only consumer): `app/lib/core/occupancy.dart` + `app/test/core/occupancy_test.dart` — lanes: flutter — blocked by: none — PR: flutter/core-occupancy
