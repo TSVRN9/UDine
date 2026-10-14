@@ -1,4 +1,4 @@
-# M2 round 11: packaged foods, favourite alerts, café PDF menus
+# M2 round 11: packaged foods, favourite alerts, café PDF menus, offline search
 
 Goal: three things today's RN app does, but M2 doesn't design, get one concept each in M2 before any
 Flutter code. They are: finding packaged foods and reusing your own custom foods, being told when a
@@ -58,6 +58,20 @@ concept must answer:
 - and what offline does.
 
 Find which cafés publish a PDF today from the live retail feed and record the list in NOTES.
+
+**4. Offline search** (owner, 2026-10-13: "I'd like there to be offline search"). The app saves menus
+per place and day (today and tomorrow offline; `flutter-port-menu-data`). M2's Search doesn't model
+offline or failed, and `?net=fail` is ignored there. The concept must answer:
+- what Search says when the results come only from saved menus, and which places and days that covers;
+- how a place or day with nothing saved shows up (absent, or named as not saved);
+- what failed (online but UMass unreachable) looks like, next to Halls' "Couldn't connect";
+- and how packaged-food lookup (item 1) reads offline, since it needs the network.
+
+**5. Bowl decisions (owner, 2026-10-13), applied to M2 as built:**
+- synthetic bases read "Salad Bar" and "Deli Bar", replacing "Your salad from the Salad Bar" and "Your
+  sandwich from the Deli Bar";
+- the "Cold Bar" base is removed, and no by-the-pound bar gets a base (Harvest Market, Roots);
+- Noodle Bowl bases are checked against every recorded day, as in `flutter-port-bowls`.
 
 Annotations: none.
 States: listed per concept in `CONCEPT.md` round 11, each with a `test.js` scenario.
