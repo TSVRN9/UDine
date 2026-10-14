@@ -62,6 +62,14 @@ const foodpro: Case[] = [
     "2026-09-15",
   ),
   parse(
+    "thousands comma is not understood: '1,074mg' reads as 1",
+    `<a data-sodium="1,074mg" data-calories="1,200" data-dish-name="Comma" href="#inline">x</a>`,
+    "x",
+    "lunch",
+    2,
+    "2026-09-15",
+  ),
+  parse(
     "allergen and diet lists: split on comma, trimmed, empties dropped",
     `<a data-allergens=" Milk ,, Eggs , " data-clean-diet-str="None" data-dish-name="Lists" href="#inline">x</a>`,
     "x",

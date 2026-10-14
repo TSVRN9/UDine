@@ -737,6 +737,42 @@
     },
     {
       "kind": "parse",
+      "name": "thousands comma is not understood: '1,074mg' reads as 1",
+      "input": {
+        "html": "<a data-sodium=\"1,074mg\" data-calories=\"1,200\" data-dish-name=\"Comma\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 2,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Comma",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 2,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 1,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 1,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
       "name": "allergen and diet lists: split on comma, trimmed, empties dropped",
       "input": {
         "html": "<a data-allergens=\" Milk ,, Eggs , \" data-clean-diet-str=\"None\" data-dish-name=\"Lists\" href=\"#inline\">x</a>",
