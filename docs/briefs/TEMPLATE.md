@@ -4,7 +4,7 @@ Goal: <one paragraph — what the user can do afterwards that they can't today>
 
 ## Spec
 
-UI: <artboard filenames from docs/design/README.md, or "none">
+UI: <artboard filenames from docs/design/README.md, or for app/ an M2 citation (`M2 R<n> §<k>`, src.html function), or "none">
 Annotations: <canvas.json annotation ids that carry motion/state notes, or "none">
 States: <every reachable state a screenshot must show — 0 / 0.5 / max, each variant, empty, loading, error>
 Routes: <screenshot.sh route(s) + gesture, e.g. `halls/franklin --record 2 --swipe 200 700 200 300`>

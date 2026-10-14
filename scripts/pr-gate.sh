@@ -65,12 +65,13 @@ touched '^(mobile|shared)/'    && echo "  cd mobile && npx tsc --noEmit && TZ=Am
 if touched '^mobile/src/app/' || git diff --name-only --diff-filter=A "$BASE" "$HEAD_REF" | grep -q '^mobile/src/'; then
   echo "  cd mobile && npx expo export --platform android --output-dir /tmp/udine-export   # bundle lane (#435)"
 fi
-touched '^supabase/functions/' && echo "  deno test --node-modules-dir=none --allow-env supabase/functions"
+touched '^app/'                && echo "  cd app && flutter analyze && flutter test --concurrency=2"
+touched '^supabase/functions/' && echo "  deno test --node-modules-dir=none --allow-env --allow-read=shared/vectors supabase/functions"
 touched '^supabase/(migrations|tests)/' && echo "  supabase start && supabase test db"
 
 # --- owner-gated merge ---------------------------------------------------------------
 echo
-if touched '^supabase/|^shared/src/sync\.ts|privacySettings|/auth[A-Za-z]*\.(ts|tsx)$|auth-status'; then
+if touched '^supabase/|^app/lib/core/store/|^shared/src/sync\.ts|privacySettings|/auth[A-Za-z]*\.(ts|tsx)$|auth-status'; then
   echo "OWNER-GATED MERGE: diff touches supabase/, auth, sync, or the residency table. Reviewer posts a verdict; the owner merges."
 fi
 
@@ -83,7 +84,7 @@ RENDERED=()
 # result live 2026-09-14 (PR #476 review) -- one early run under-detected the changed-file set.
 # A here-string feeds an already-fully-buffered value, not a live subprocess, so there is nothing
 # left running upstream for a short-circuiting grep to SIGPIPE.
-for f in $(printf '%s\n' "${FILES[@]}" | grep -E '^mobile/src/.*\.tsx$|^mobile/src/lib/motion\.ts$' | grep -Ev '\.test\.tsx?$' | sort -u); do
+for f in $(printf '%s\n' "${FILES[@]}" | grep -E '^mobile/src/.*\.tsx$|^mobile/src/lib/motion\.ts$|^app/lib/.*\.dart$' | grep -Ev '\.test\.tsx?$|^app/lib/(core|data)/' | sort -u); do
   base_diff="$(git diff "$BASE" "$HEAD_REF" -- "$f")"
   if grep -E '^[-+][^-+]' <<<"$base_diff" | grep -Evq '^[-+][[:space:]]*(//|/\*|\*|\*/|$)'; then
     RENDERED+=("$f")
@@ -98,7 +99,7 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
   # screenshots: any PNG in the diff under docs/pr-review-media, or in this branch's dir
   mapfile -t PNGS < <( { printf '%s\n' "${FILES[@]}" | grep -E '^docs/pr-review-media/.*\.png$'; ls docs/pr-review-media/"$SLUG"/*.png 2>/dev/null; } | sort -u)
   if [[ ${#PNGS[@]} -eq 0 ]]; then
-    fail "no screenshot: run mobile/scripts/screenshot.sh <route> (it writes docs/pr-review-media/$SLUG/) and commit the PNG + .json"
+    fail "no screenshot: run mobile/scripts/screenshot.sh (or app/tool/screenshot.sh for app/) <route> (it writes docs/pr-review-media/$SLUG/) and commit the PNG + .json"
   else
     declare -A SEEN=()
     # In PR mode ($PR set), a sidecar must be read from HEAD_REF's own git content, not the local
@@ -132,12 +133,18 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
   lit="$(git diff "$BASE" "$HEAD_REF" -- mobile/src ':(exclude)mobile/src/lib/motion.ts' ':(exclude)*.test.*' | grep -En '^\+.*(duration:\s*[0-9]|Easing\.(bezier|ease|linear|in|out|inOut)\b)' || true)"
   [[ -n "$lit" ]] && fail "duration/easing literal outside mobile/src/lib/motion.ts:"$'\n'"$lit"
 
+  # Dart: Duration/Curves/Cubic/raw Color(0x literals only in theme/ (tokens), motion/ and ui/ (the kit);
+  # app/test/literals_test.dart polices those three itself, so screens and everything else go through them
+  dlit="$(git diff "$BASE" "$HEAD_REF" -- app/lib ':(exclude)app/lib/theme' ':(exclude)app/lib/motion' ':(exclude)app/lib/ui' ':(exclude)app/lib/core' ':(exclude)app/lib/data' ':(exclude)*_test.dart' | grep -En '^\+.*(\bDuration\(|\bCurves\.|\bCubic\(|\bColor\(0x)' || true)"
+  [[ -n "$dlit" ]] && fail "Duration/Curves/Cubic/Color(0x literal outside app/lib/{theme,motion,ui} (use the M2 tokens/kit):"$'\n'"$dlit"
+
   # parity test present for components with an artboard row
   # Matches any artboardXxx() helper in mobile/src/lib/artboard.ts (artboardStyle,
   # artboardTransitions, artboardEnclosingStyle, artboardNthStyle, artboardPanelGap, and whatever
   # gets added next) -- a hardcoded name list here already missed two real helpers once (#515).
   added="$(git diff "$BASE" "$HEAD_REF" -- '*.test.ts' '*.test.tsx' | grep -E '^\+.*\bartboard[A-Za-z]*\(' || true)"
   for f in "${RENDERED[@]}"; do
+    [[ "$f" == app/* ]] && continue
     rel="${f#mobile/src/}"
     if grep -Fq "\`$rel\`" docs/design/README.md && [[ -z "$added" ]]; then
       art="$(grep -F "\`$rel\`" docs/design/README.md | head -1 | awk -F'|' '{print $3}' | tr -d ' `')"
@@ -145,7 +152,7 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
     fi
   done
 else
-  echo "Rendered output: unchanged (no non-test .tsx under mobile/src)"
+  echo "Rendered output: unchanged (no non-test .tsx under mobile/src or .dart under app/lib)"
 fi
 
 # --- PR body template ----------------------------------------------------------------
