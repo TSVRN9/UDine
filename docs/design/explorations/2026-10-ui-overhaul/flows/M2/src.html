@@ -890,7 +890,7 @@ MD.forEach((D,day)=>Object.entries(D).forEach(([h,ms])=>Object.entries(ms).forEa
     // Search groups a family once, under its key, with each variant's own refs (a variant's + adds that variant)
     const B=isCafe(h)?CBYK:BYK, g=(B[meal][f.key] ||= {k:f.key, n:f.name, refs:{}, vars:[], words:norm(f.name)});
     g.refs[h] ||= d0;
-    for(const x of f.vars){ let v=g.vars.find(y=>y.v===x.v); if(!v){ v={v:x.v, k:x.d.k, refs:{}}; g.vars.push(v); g.words+=' '+x.d.k; } v.refs[h] ||= x.d;
+    for(const x of f.vars){ let v=g.vars.find(y=>y.v===x.v); if(!v){ v={v:x.v, chip:x.chip, k:x.d.k, refs:{}}; g.vars.push(v); g.words+=' '+x.d.k; } v.refs[h] ||= x.d;
       const o=B[meal][x.d.k]; if(o){ delete o.refs[h]; if(!Object.keys(o.refs).length) delete B[meal][x.d.k]; } }
     if(f.axis==='size') g.vars.sort((a,b)=>parseInt(a.v)-parseInt(b.v)); }
 }))));
@@ -1148,7 +1148,7 @@ function ctl(q, ghost){ return q ? `<div class="step" data-q="${q}"><button clas
   : `<button class="add${ghost?' ghost':''}" aria-label="Add">${IC.plus}</button>`; }
 // The meta line is groups that wrap whole: the numbers, then the scores (opt-in, You tab), then where. A wrapped line starts flush.
 const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${f1(d.p)}g</b> protein</span>${scoresHTML(d)}`;
-const varMeta = v => `<span class="mg vt">${esc(v)}</span>`;   // round 12: a family's row leads with the variant it stands for
+const varMeta = v => `<span class="mg vt">${esc(v)}</span>`;   // round 12: a family's row leads with the variant it stands for, in its chip's word ("16 oz", "Almond"): a whole milk name ("Almond Milk") pushed the numbers to their own line at 360, beside the stepper-wide lane
 // Mark set. Glyphs are drawn, never emoji. Round 8: plant based is a sprout (stem, two leaves), vegetarian a single leaf:
 // two silhouettes, not one leaf filled or outlined. Those two are the only marks shown inline on rows.
 const GL = {
@@ -1425,7 +1425,7 @@ function renderMenuList(){
       const sy = !day && S.track && synOf(0,k,meal,si);
       html += `<h3 class="sth" data-st="${si}">${esc(s[0])}</h3>` + (sy ? `<button class="row syn" data-syn="${si}"><div class="tx"><div class="n">${esc(sy.label)}</div></div>${IC.rchev}</button>` : '') + rows.map(d=>{
         const pm=plateMeal(d), f=!day&&findItem(pm,d.k,k), F=FAM.get(d.id);
-        return `<div class="row" data-id="${d.id}"${F?` data-vars="${F.f.vars.map(x=>x.d.id).join(' ')}"`:''}><div class="tx"><div class="n">${nameHTML(F?F.f.name:d.n, dietMark(d)+(S.fav.has(favKey(d))?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${S.reveal?contHTML(d):''}${F?varMeta(F.x.v):''}${meta(d)}</div></div>${day?'':ctl(f&&f.it.qty, !f && wouldSplit(pm,[k]))}</div>`;}).join('');
+        return `<div class="row" data-id="${d.id}"${F?` data-vars="${F.f.vars.map(x=>x.d.id).join(' ')}"`:''}><div class="tx"><div class="n">${nameHTML(F?F.f.name:d.n, dietMark(d)+(S.fav.has(favKey(d))?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${S.reveal?contHTML(d):''}${F?varMeta(F.x.chip):''}${meta(d)}</div></div>${day?'':ctl(f&&f.it.qty, !f && wouldSplit(pm,[k]))}</div>`;}).join('');
     });
   }
   $('#mlist').innerHTML = html + '<div class="pad-b"></div>';
@@ -1701,7 +1701,7 @@ let CG={};
 function cafeResults(){ const toks=qToks(); if((!toks.length && !S.lenses.size) || S.scope) return [];
   CG={}; for(const m of [S.smeal,'all','grab']) for(const g of Object.values(CBYK[m]||{})){ const hs=Object.keys(g.refs).filter(h=>placeOn(h) && savedMenu(h,0)); if(!hs.length) continue;
     const G=(CG[g.k] ||= {k:g.k,n:g.n,refs:{},...(g.vars?{vars:[],words:g.words}:{})}); for(const h of hs) G.refs[h] ||= g.refs[h];
-    for(const v of g.vars||[]){ let V=G.vars.find(y=>y.v===v.v); if(!V){ V={v:v.v,k:v.k,refs:{}}; G.vars.push(V); } for(const h of hs) if(v.refs[h]) V.refs[h] ||= v.refs[h]; } }
+    for(const v of g.vars||[]){ let V=G.vars.find(y=>y.v===v.v); if(!V){ V={v:v.v,chip:v.chip,k:v.k,refs:{}}; G.vars.push(V); } for(const h of hs) if(v.refs[h]) V.refs[h] ||= v.refs[h]; } }
   return results(Object.values(CG)); }
 const sGroup = row => (row.dataset.cg ? CG : BYK[S.smeal])[row.dataset.k];
 function results(groups=Object.values(BYK[S.smeal]||{})){
@@ -1777,12 +1777,12 @@ function renderSearch(){
   html += prefNote([...r0,...c0,...l0].map(x=>x.d), S.sreveal);
   if(r.length && (pl2.length||lt.length||cr.length||(!S.q&&!S.lenses.size))) html+=`<div class="sgrp" data-key="g-now">${ML[S.smeal]} now</div>`;
   const nowRow = ({g,d,vi}, cg) => { const V=vi>=0?g.vars[vi]:g, hs=Object.keys(V.refs).sort((a,b)=>PORD(a)-PORD(b)), f=findItem(S.smeal,V.k,cg?hs[0]:null);
-    return `<div class="row" data-k="${esc(g.k)}"${cg?' data-cg="1"':''}${vi>=0?` data-v="${vi}"`:''} data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${rv(d)}${vi>=0?varMeta(V.v):''}${meta(d)}</div></div><div class="lane">${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,hs))}${hallGlyph(hs, 'Served now')}</div></div>`; };
+    return `<div class="row" data-k="${esc(g.k)}"${cg?' data-cg="1"':''}${vi>=0?` data-v="${vi}"`:''} data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${rv(d)}${vi>=0?varMeta(V.chip):''}${meta(d)}</div></div><div class="lane">${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,hs))}${hallGlyph(hs, 'Served now')}</div></div>`; };
   html += r.map(x=>nowRow(x)).join('');
   if(cr.length) html += `<div class="sgrp" data-key="g-cafes">At cafés</div>` + cr.map(x=>nowRow(x,1)).join('');
   // not served now: when it's next served, in words, then the places serving it then
   if(lt.length) html += `<div class="sgrp" data-key="g-later">Later today and tomorrow</div>` + lt.map(({g,d})=>{ const said = g.meal==='all' ? (g.day?'Tomorrow':'Later') : g.day?'Tomorrow '+mealWord(g.meal):MEALN(g.meal);
-    return `<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(famOf(d)?.name||d.n, dietMark(d))}</div><div class="m">${rv(d)}${FAM.get(d.id)?varMeta(FAM.get(d.id).x.v):''}${meta(d)}<span class="mg w"><span class="lnext" aria-hidden="true">${said}</span>${hallGlyph(g.hs, said)}</span></div></div></div>`; }).join('');
+    return `<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(famOf(d)?.name||d.n, dietMark(d))}</div><div class="m">${rv(d)}${FAM.get(d.id)?varMeta(FAM.get(d.id).x.chip):''}${meta(d)}<span class="mg w"><span class="lnext" aria-hidden="true">${said}</span>${hallGlyph(g.hs, said)}</span></div></div></div>`; }).join('');
   // round 11: past the menus, what isn't served anywhere: your foods, packaged foods, and Search UMass Dining, by hand
   let more='';
   if(yours.length) more += `<div class="sgrp" data-key="g-yours">Your foods</div>` + yours.map(foodRow).join('');

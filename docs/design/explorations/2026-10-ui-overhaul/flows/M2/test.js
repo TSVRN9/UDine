@@ -1099,7 +1099,10 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
     await scen('the boba family: five milks in one row at Procrastination Station; Contains and the label follow the milk; the log records the feed item', async () => {
       await cafe('Procrastination Station'); const ns = await names();
       assert.deepEqual([ns.filter(n => n === 'Boba').length, ns.filter(n => /^Boba \w+ Milk$/.test(n)).length], [1, 0], 'one row, "Boba"');
-      assert.match(await meta('Boba'), /^Almond Milk 180 cal/, 'it stands for the first milk in the feed\'s order');
+      assert.match(await meta('Boba'), /^Almond 180 cal/, 'it stands for the first milk in the feed\'s order, in its chip\'s word');
+      await page.setViewportSize({ width: 360, height: 844 }); await page.waitForTimeout(300);
+      assert.equal(await ev(() => { const r = [...document.querySelectorAll('#mlist .row')].find(r => r.querySelector('.n').textContent.startsWith('Boba')); const a = r.querySelector('.m .vt').getBoundingClientRect(), c = r.querySelector('.m .vt + .mg').getBoundingClientRect(); return a.top < c.bottom && c.top < a.bottom && a.right <= c.left; }), true, 'at 360 the token and the calories share a line');
+      await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
       await openRow('Boba'); let s = await sheet();
       assert.deepEqual([s.n, s.chips], ['Boba, Almond Milk', ['Almond*', 'Maple', 'Oat', 'Skim', 'Soy']], 'one chip per milk, labelled by the milk');
       assert.match(s.al, /Tree Nuts/, 'almond milk lists tree nuts');
@@ -1163,7 +1166,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await go('?state=search'); await type('boba');
       const rows = () => ev(() => [...document.querySelectorAll('#sres .row')].map(r => [r.querySelector('.n').textContent.replace('★', ''), r.querySelector('.lane .cnm')?.textContent || '']));
       assert.deepEqual(await rows(), [['Boba', '3 cafés']], '"boba": one row, at three cafés');
-      await type('oat'); assert.match(await meta('Boba'), /^Oat Milk 262 cal/, '"oat" finds Boba, and the row stands for oat');
+      await type('oat'); assert.match(await meta('Boba'), /^Oat 262 cal/, '"oat" finds Boba, and the row stands for oat');
       await page.locator('#sres .row', { has: page.locator('.n', { hasText: /^Boba$/ }) }).locator('.add').tap(); await page.waitForTimeout(500);
       assert.deepEqual(await ev(() => [S.plates[0].items[0].n, Object.keys(S.plates[0].items[0].refs).length]), ['Boba, Oat Milk', 3], 'its + adds oat, at the three cafés');
       await type('cappuccino'); assert.deepEqual((await rows()).map(r => r[0]), ['Cappuccino'], '"cappuccino": one row');
