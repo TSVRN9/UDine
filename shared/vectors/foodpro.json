@@ -1,0 +1,1308 @@
+{
+  "format": "foodpro-menu-ajax parsing. kind=parse: input {html, category, mealPeriod, hallTid, isoDate} -> MenuItem[] (parseCategoryItems). kind=menu: input {hallTid, isoDate, response} where response is the feed's JSON (period wire key -> category -> html) -> the flattened MenuItem[] fetchMenu returns, in wire-key order breakfast, lunch, dinner, 'late night' (period latenight), 'daily offerings' (allday), grabngo, then categories in object order. MenuItem optional keys price and ingredients are omitted when absent. nutrition.*Dv is a number, null (attribute present but blank) or omitted (attribute absent). Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
+  "cases": [
+    {
+      "kind": "parse",
+      "name": "hampshire breakfast: two dishes, entities decoded, blank %DV is null",
+      "input": {
+        "html": "<a data-healthfulness=\"30\" data-carbon-list=\"B\" data-ingredient-list=\"FREIHOFFER&#039;S Country White Bread\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Wheat\" data-recipe-webcode=\"LPR SUS VGT H3 CR2\" data-clean-diet-str=\"Local, Sustainable, Vegetarian\" data-serving-size=\"1 each\" data-calories=\"127\" data-calories-from-fat=\"26\" data-total-fat=\"2.9g\" data-total-fat-dv=\"4\" data-sat-fat=\"0.5g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"50.9mg\" data-cholesterol_dv=\"\" data-sodium=\"237.2mg\" data-sodium-dv=\"10\" data-total-carb=\"20.4g\" data-total-carb-dv=\"16\" data-dietary-fiber=\"1g\" data-dietary-fiber-dv=\"3\" data-sugars=\"3.4g\" data-sugars-dv=\"\" data-protein=\"5.3g\" data-protein-dv=\"9\" data-dish-name=\"French Toast\" href=\"#inline\">French Toast</a><a data-healthfulness=\"30\" data-carbon-list=\"A\" data-ingredient-list=\"Sweet Plantains\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat\" data-recipe-webcode=\"VGT H3 CR1\" data-clean-diet-str=\"Vegetarian\" data-serving-size=\"1 OZ\" data-calories=\"69\" data-calories-from-fat=\"33\" data-total-fat=\"3.7g\" data-total-fat-dv=\"5\" data-sat-fat=\"0.7g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-cholesterol_dv=\"\" data-sodium=\"123.2mg\" data-sodium-dv=\"5\" data-total-carb=\"8.9g\" data-total-carb-dv=\"7\" data-dietary-fiber=\"0.2g\" data-dietary-fiber-dv=\"1\" data-sugars=\"8.2g\" data-sugars-dv=\"\" data-protein=\"0.3g\" data-protein-dv=\"0\" data-dish-name=\"Fried Plantain\" href=\"#inline\">Fried Plantain</a>",
+        "category": "Breakfast Entrees",
+        "mealPeriod": "breakfast",
+        "hallTid": 3,
+        "isoDate": "2026-08-19"
+      },
+      "expected": [
+        {
+          "dishName": "French Toast",
+          "category": "Breakfast Entrees",
+          "mealPeriod": "breakfast",
+          "hallTid": 3,
+          "date": "2026-08-19",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 127,
+            "caloriesFromFat": 26,
+            "totalFatG": 2.9,
+            "satFatG": 0.5,
+            "transFatG": 0,
+            "cholesterolMg": 50.9,
+            "sodiumMg": 237.2,
+            "totalCarbG": 20.4,
+            "dietaryFiberG": 1,
+            "sugarsG": 3.4,
+            "proteinG": 5.3,
+            "totalFatDv": 4,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 10,
+            "totalCarbDv": 16,
+            "dietaryFiberDv": 3,
+            "sugarsDv": null,
+            "proteinDv": 9
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Soy",
+            "Corn",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable",
+            "Vegetarian"
+          ],
+          "ingredients": "FREIHOFFER'S Country White Bread"
+        },
+        {
+          "dishName": "Fried Plantain",
+          "category": "Breakfast Entrees",
+          "mealPeriod": "breakfast",
+          "hallTid": 3,
+          "date": "2026-08-19",
+          "nutrition": {
+            "servingSize": "1 OZ",
+            "calories": 69,
+            "caloriesFromFat": 33,
+            "totalFatG": 3.7,
+            "satFatG": 0.7,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 123.2,
+            "totalCarbG": 8.9,
+            "dietaryFiberG": 0.2,
+            "sugarsG": 8.2,
+            "proteinG": 0.3,
+            "totalFatDv": 5,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 5,
+            "totalCarbDv": 7,
+            "dietaryFiberDv": 1,
+            "sugarsDv": null,
+            "proteinDv": 0
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Soy",
+            "Corn",
+            "Sesame",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Vegetarian"
+          ],
+          "ingredients": "Sweet Plantains"
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "absent %DV attributes are omitted, not null; no ingredient list",
+      "input": {
+        "html": "<a data-serving-size=\"1 each\" data-calories=\"100\" data-calories-from-fat=\"0\" data-total-fat=\"1g\" data-total-fat-dv=\"2\" data-sat-fat=\"0g\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-sodium=\"0mg\" data-total-carb=\"0g\" data-dietary-fiber=\"0g\" data-sugars=\"0g\" data-protein=\"0g\" data-dish-name=\"No DV Dish\" href=\"#inline\">No DV Dish</a>",
+        "category": "x",
+        "mealPeriod": "breakfast",
+        "hallTid": 3,
+        "isoDate": "2026-08-19"
+      },
+      "expected": [
+        {
+          "dishName": "No DV Dish",
+          "category": "x",
+          "mealPeriod": "breakfast",
+          "hallTid": 3,
+          "date": "2026-08-19",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 100,
+            "caloriesFromFat": 0,
+            "totalFatG": 1,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0,
+            "totalFatDv": 2
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "no dishes",
+      "input": {
+        "html": "<h2>Closed today</h2>",
+        "category": "x",
+        "mealPeriod": "breakfast",
+        "hallTid": 3,
+        "isoDate": "2026-08-19"
+      },
+      "expected": []
+    },
+    {
+      "kind": "parse",
+      "name": "retail: meal-price span after the closing tag, legend icons between",
+      "input": {
+        "html": "<li class=\"lightbox-nutrition\"><a data-healthfulness=\"50\" data-carbon-list=\"A\" data-ingredient-list=\"Avocados\" data-allergens=\"\" data-recipe-webcode=\"H VGN VGT H5 CR1\" data-clean-diet-str=\"Halal, Plant Based, Vegetarian\" data-serving-size=\"1/2 each\" data-calories=\"166\" data-calories-from-fat=\"138\" data-total-fat=\"15.3g\" data-total-fat-dv=\"20\" data-sat-fat=\"2.1g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-cholesterol_dv=\"\" data-sodium=\"7.9mg\" data-sodium-dv=\"0\" data-total-carb=\"8.6g\" data-total-carb-dv=\"7\" data-dietary-fiber=\"6.7g\" data-dietary-fiber-dv=\"20\" data-sugars=\"0.3g\" data-sugars-dv=\"\" data-protein=\"1.9g\" data-protein-dv=\"3\" data-dish-name=\"Add Fresh Avocado\" href=\"#inline\">Add Fresh Avocado</a><img src=\"https://umassdining.com/sites/default/files/legends/icon-hal.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-vegan.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-veg.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-cr-a.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><span class=\"meal-price\">$2.50</span></li><li class=\"lightbox-nutrition\"><a data-healthfulness=\"0\" data-carbon-list=\"E\" data-ingredient-list=\"HORMEL Applewood Smoked Bacon (Pork cured with: Water, Salt, Sugar, Smoke Flavoring, Sodium Erythorbate, Sodium Phosphates, Sodium Nitrite)\" data-allergens=\"\" data-recipe-webcode=\"H0 CR5\" data-clean-diet-str=\"None\" data-serving-size=\"1 oz\" data-calories=\"122\" data-calories-from-fat=\"85\" data-total-fat=\"9.4g\" data-total-fat-dv=\"12\" data-sat-fat=\"3.8g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"23.5mg\" data-cholesterol_dv=\"\" data-sodium=\"460mg\" data-sodium-dv=\"20\" data-total-carb=\"0.9g\" data-total-carb-dv=\"1\" data-dietary-fiber=\"0g\" data-dietary-fiber-dv=\"0\" data-sugars=\"0.9g\" data-sugars-dv=\"\" data-protein=\"7.5g\" data-protein-dv=\"13\" data-dish-name=\"Bacon\" href=\"#inline\">Bacon</a><img src=\"https://umassdining.com/sites/default/files/legends/icon-cr-e.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><span class=\"meal-price\">$3.00</span></li>",
+        "category": "Add-ons",
+        "mealPeriod": "lunch",
+        "hallTid": 4671,
+        "isoDate": "2026-08-24"
+      },
+      "expected": [
+        {
+          "dishName": "Add Fresh Avocado",
+          "category": "Add-ons",
+          "mealPeriod": "lunch",
+          "hallTid": 4671,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1/2 each",
+            "calories": 166,
+            "caloriesFromFat": 138,
+            "totalFatG": 15.3,
+            "satFatG": 2.1,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 7.9,
+            "totalCarbG": 8.6,
+            "dietaryFiberG": 6.7,
+            "sugarsG": 0.3,
+            "proteinG": 1.9,
+            "totalFatDv": 20,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 0,
+            "totalCarbDv": 7,
+            "dietaryFiberDv": 20,
+            "sugarsDv": null,
+            "proteinDv": 3
+          },
+          "allergens": [],
+          "dietTags": [
+            "Halal",
+            "Plant Based",
+            "Vegetarian"
+          ],
+          "price": "$2.50",
+          "ingredients": "Avocados"
+        },
+        {
+          "dishName": "Bacon",
+          "category": "Add-ons",
+          "mealPeriod": "lunch",
+          "hallTid": 4671,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 oz",
+            "calories": 122,
+            "caloriesFromFat": 85,
+            "totalFatG": 9.4,
+            "satFatG": 3.8,
+            "transFatG": 0,
+            "cholesterolMg": 23.5,
+            "sodiumMg": 460,
+            "totalCarbG": 0.9,
+            "dietaryFiberG": 0,
+            "sugarsG": 0.9,
+            "proteinG": 7.5,
+            "totalFatDv": 12,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 20,
+            "totalCarbDv": 1,
+            "dietaryFiberDv": 0,
+            "sugarsDv": null,
+            "proteinDv": 13
+          },
+          "allergens": [],
+          "dietTags": [
+            "None"
+          ],
+          "price": "$3.00",
+          "ingredients": "HORMEL Applewood Smoked Bacon (Pork cured with: Water, Salt, Sugar, Smoke Flavoring, Sodium Erythorbate, Sodium Phosphates, Sodium Nitrite)"
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "retail: unpriced item between two priced ones does not inherit a price",
+      "input": {
+        "html": "<h2 class='menu_category_name'>Pizza</h2></ul><li class=\"lightbox-nutrition\"><a data-healthfulness=\"20\" data-carbon-list=\"B\" data-ingredient-list=\"Local Pizza Dough (It&#039;ll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Pizza Sauce (Peeled Ground Tomatoes (Vine-Ripened Fresh Peeled Ground Tomatoes, Extra Heavy Tomato Puree, Salt.), Granulated Sugar, Oregano Leaves (Oregano Leaves ), Kosher Salt (Sea Salt), Ground Black Pepper)\" data-allergens=\"Milk, Gluten, Soy, Wheat\" data-recipe-webcode=\"H LPR SUS VGT WG H2 CR2\" data-clean-diet-str=\"Halal, Local, Sustainable, Vegetarian, Whole Grain\" data-serving-size=\"1/6 PIZZA\" data-calories=\"445\" data-calories-from-fat=\"138\" data-total-fat=\"15.3g\" data-total-fat-dv=\"20\" data-sat-fat=\"8.2g\" data-sat-fat-dv=\"\" data-trans-fat=\"0.4g\" data-cholesterol=\"44.1mg\" data-cholesterol_dv=\"\" data-sodium=\"1074.3mg\" data-sodium-dv=\"47\" data-total-carb=\"57.3g\" data-total-carb-dv=\"44\" data-dietary-fiber=\"5.9g\" data-dietary-fiber-dv=\"18\" data-sugars=\"2.2g\" data-sugars-dv=\"\" data-protein=\"21.9g\" data-protein-dv=\"39\" data-dish-name=\"Cheese Pizza\" href=\"#inline\">Cheese Pizza</a><img src=\"https://umassdining.com/sites/default/files/legends/icon-hal.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-loc.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-sus.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-veg.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-whlgrn.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-cr-b.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><span class=\"meal-price\">$4.50</span></li><li class=\"lightbox-nutrition\"><a data-healthfulness=\"10\" data-carbon-list=\"B\" data-ingredient-list=\"Local Pizza Dough (It&#039;ll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Mascarpone Cheese (Pasteurized Milk and Cream, Citric Acid), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Burrata Cheese (Pasteurized Milk, Pasteurized Cream, Vinegar, Microbial Enzymes, Salt), Fresh Broccoli Florets, Heavy Cream  (Heavy Cream, Milk, Contains &lt;0.5% of: Carrageenan, Mono &amp; Diglycerides, Polysorbate 80), Garlic Confit (Canola Oil  , Garlic Cloves), Crushed Red Pepper\" data-allergens=\"Milk, Gluten, Soy, Corn  , Wheat\" data-recipe-webcode=\"H LPR SUS VGT WG H1 CR2\" data-clean-diet-str=\"Halal, Local, Sustainable, Vegetarian, Whole Grain\" data-serving-size=\"1/6 PIZZA\" data-calories=\"569\" data-calories-from-fat=\"283\" data-total-fat=\"31.4g\" data-total-fat-dv=\"40\" data-sat-fat=\"14.4g\" data-sat-fat-dv=\"\" data-trans-fat=\"0.3g\" data-cholesterol=\"73mg\" data-cholesterol_dv=\"\" data-sodium=\"717.3mg\" data-sodium-dv=\"31\" data-total-carb=\"55.2g\" data-total-carb-dv=\"42\" data-dietary-fiber=\"5g\" data-dietary-fiber-dv=\"15\" data-sugars=\"1.3g\" data-sugars-dv=\"\" data-protein=\"20.1g\" data-protein-dv=\"36\" data-dish-name=\"Cime di Rapa Pizza\" href=\"#inline\">Cime di Rapa Pizza</a><img src=\"https://umassdining.com/sites/default/files/legends/icon-hal.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-loc.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-sus.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-veg.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-whlgrn.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-cr-b.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /></li><li class=\"lightbox-nutrition\"><a data-healthfulness=\"0\" data-carbon-list=\"B\" data-ingredient-list=\"Local Pizza Dough (It&#039;ll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Pizza Sauce (Peeled Ground Tomatoes (Vine-Ripened Fresh Peeled Ground Tomatoes, Extra Heavy Tomato Puree, Salt.), Granulated Sugar, Oregano Leaves (Oregano Leaves ), Kosher Salt (Sea Salt), Ground Black Pepper), Sliced Pepperoni (Pork, Beef, Salt, Contains 2% or less of Water, Spice, Sugar, Extractives of Paprika, Cultured Celery Powder, Sea Salt, Lactic Acid Starter Culture, Natural Flavoring)\" data-allergens=\"Milk, Gluten, Soy, Wheat\" data-recipe-webcode=\"LPR SUS WG H0 CR2\" data-clean-diet-str=\"Local, Sustainable, Whole Grain\" data-serving-size=\"1/6 PIZZA\" data-calories=\"533\" data-calories-from-fat=\"211\" data-total-fat=\"23.4g\" data-total-fat-dv=\"30\" data-sat-fat=\"11.6g\" data-sat-fat-dv=\"\" data-trans-fat=\"0.4g\" data-cholesterol=\"64.4mg\" data-cholesterol_dv=\"\" data-sodium=\"1411.8mg\" data-sodium-dv=\"61\" data-total-carb=\"57.3g\" data-total-carb-dv=\"44\" data-dietary-fiber=\"5.9g\" data-dietary-fiber-dv=\"18\" data-sugars=\"2.2g\" data-sugars-dv=\"\" data-protein=\"25.3g\" data-protein-dv=\"45\" data-dish-name=\"Pepperoni Pizza\" href=\"#inline\">Pepperoni Pizza</a><img src=\"https://umassdining.com/sites/default/files/legends/icon-loc.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-sus.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-whlgrn.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><img src=\"https://umassdining.com/sites/default/files/legends/icon-cr-b.png\" alt=\"\" style=\"width: 16px; height: 16px; margin-left: 5px;\" /><span class=\"meal-price\">$5.00</span></li>",
+        "category": "Pizza",
+        "mealPeriod": "lunch",
+        "hallTid": 4306,
+        "isoDate": "2026-08-24"
+      },
+      "expected": [
+        {
+          "dishName": "Cheese Pizza",
+          "category": "Pizza",
+          "mealPeriod": "lunch",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1/6 PIZZA",
+            "calories": 445,
+            "caloriesFromFat": 138,
+            "totalFatG": 15.3,
+            "satFatG": 8.2,
+            "transFatG": 0.4,
+            "cholesterolMg": 44.1,
+            "sodiumMg": 1074.3,
+            "totalCarbG": 57.3,
+            "dietaryFiberG": 5.9,
+            "sugarsG": 2.2,
+            "proteinG": 21.9,
+            "totalFatDv": 20,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 47,
+            "totalCarbDv": 44,
+            "dietaryFiberDv": 18,
+            "sugarsDv": null,
+            "proteinDv": 39
+          },
+          "allergens": [
+            "Milk",
+            "Gluten",
+            "Soy",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Halal",
+            "Local",
+            "Sustainable",
+            "Vegetarian",
+            "Whole Grain"
+          ],
+          "price": "$4.50",
+          "ingredients": "Local Pizza Dough (It'll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Pizza Sauce (Peeled Ground Tomatoes (Vine-Ripened Fresh Peeled Ground Tomatoes, Extra Heavy Tomato Puree, Salt.), Granulated Sugar, Oregano Leaves (Oregano Leaves ), Kosher Salt (Sea Salt), Ground Black Pepper)"
+        },
+        {
+          "dishName": "Cime di Rapa Pizza",
+          "category": "Pizza",
+          "mealPeriod": "lunch",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1/6 PIZZA",
+            "calories": 569,
+            "caloriesFromFat": 283,
+            "totalFatG": 31.4,
+            "satFatG": 14.4,
+            "transFatG": 0.3,
+            "cholesterolMg": 73,
+            "sodiumMg": 717.3,
+            "totalCarbG": 55.2,
+            "dietaryFiberG": 5,
+            "sugarsG": 1.3,
+            "proteinG": 20.1,
+            "totalFatDv": 40,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 31,
+            "totalCarbDv": 42,
+            "dietaryFiberDv": 15,
+            "sugarsDv": null,
+            "proteinDv": 36
+          },
+          "allergens": [
+            "Milk",
+            "Gluten",
+            "Soy",
+            "Corn",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Halal",
+            "Local",
+            "Sustainable",
+            "Vegetarian",
+            "Whole Grain"
+          ],
+          "ingredients": "Local Pizza Dough (It'll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Mascarpone Cheese (Pasteurized Milk and Cream, Citric Acid), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Burrata Cheese (Pasteurized Milk, Pasteurized Cream, Vinegar, Microbial Enzymes, Salt), Fresh Broccoli Florets, Heavy Cream  (Heavy Cream, Milk, Contains <0.5% of: Carrageenan, Mono & Diglycerides, Polysorbate 80), Garlic Confit (Canola Oil  , Garlic Cloves), Crushed Red Pepper"
+        },
+        {
+          "dishName": "Pepperoni Pizza",
+          "category": "Pizza",
+          "mealPeriod": "lunch",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1/6 PIZZA",
+            "calories": 533,
+            "caloriesFromFat": 211,
+            "totalFatG": 23.4,
+            "satFatG": 11.6,
+            "transFatG": 0.4,
+            "cholesterolMg": 64.4,
+            "sodiumMg": 1411.8,
+            "totalCarbG": 57.3,
+            "dietaryFiberG": 5.9,
+            "sugarsG": 2.2,
+            "proteinG": 25.3,
+            "totalFatDv": 30,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 61,
+            "totalCarbDv": 44,
+            "dietaryFiberDv": 18,
+            "sugarsDv": null,
+            "proteinDv": 45
+          },
+          "allergens": [
+            "Milk",
+            "Gluten",
+            "Soy",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable",
+            "Whole Grain"
+          ],
+          "price": "$5.00",
+          "ingredients": "Local Pizza Dough (It'll Be Dough: Enriched Flour (Wheat Flour, Niacin, Reduced Iron, Thiamine Mononitrate, Riboflavin, Folic Acid), Malted Barley Flour, Filtered Water, Whole Wheat Flour, Salt, Soybean Oil, Cane Sugar, Instant Yeast (Yeast (Saccharomyces Cerevisiae), Sorbitan Monostearate, Ascorbic Acid)), Shredded Mozzarella Cheese (Pasteurized Milk, Cheese Culture, Salt, Vinegar, Microbial Enzymes, Cellulose Powder), Pizza Sauce (Peeled Ground Tomatoes (Vine-Ripened Fresh Peeled Ground Tomatoes, Extra Heavy Tomato Puree, Salt.), Granulated Sugar, Oregano Leaves (Oregano Leaves ), Kosher Salt (Sea Salt), Ground Black Pepper), Sliced Pepperoni (Pork, Beef, Salt, Contains 2% or less of Water, Spice, Sugar, Extractives of Paprika, Cultured Celery Powder, Sea Salt, Lactic Acid Starter Culture, Natural Flavoring)"
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "retail: empty meal-price span is no price",
+      "input": {
+        "html": "<a data-dish-name=\"Mystery Item\" href=\"#inline\">Mystery Item</a><span class=\"meal-price\"></span>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 4306,
+        "isoDate": "2026-08-24"
+      },
+      "expected": [
+        {
+          "dishName": "Mystery Item",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "retail: blank-after-trim meal-price span is no price",
+      "input": {
+        "html": "<a data-dish-name=\"Padded\" href=\"#inline\">Padded</a><span class=\"meal-price\">   </span>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 4306,
+        "isoDate": "2026-08-24"
+      },
+      "expected": [
+        {
+          "dishName": "Padded",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "retail all-day period",
+      "input": {
+        "html": "<a data-healthfulness=\"40\" data-carbon-list=\"None\" data-ingredient-list=\"Fresh Strawberries, Spinach, LITTLE LEAF Local Spring Mix (Arugula, Green Leaf Lettuce, Multiblend Lettuce, Red Chard, Red Leaf Lettuce), Glazed Pecan Halves (Pecans, Sugar, Salt, Vanilla (Water, Alcohol, Sugar &amp; Bean Extractives)), Olympus Greek Feta Cheese  (Pasteurized Sheep Milk, Salt, Cultures, Microbial Rennet), Balsamic Glaze (Balsamic Vinegar of Modena &quot;Aceto Balsamico Di Modena IGP&quot; 70% [Wine Vinegar, Concentrated Grape Must], Glucose Syrup, Sugar, Modified Corn Starch, Xanthan Gum, Contains Sulfites)\" data-allergens=\"Milk, Tree Nuts, Corn  \" data-recipe-webcode=\"LPR SUS VGT H4\" data-clean-diet-str=\"Local, Sustainable, Vegetarian\" data-serving-size=\"1 EACH\" data-calories=\"378\" data-calories-from-fat=\"176\" data-total-fat=\"19.5g\" data-total-fat-dv=\"25\" data-sat-fat=\"5g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-cholesterol_dv=\"\" data-sodium=\"811.2mg\" data-sodium-dv=\"35\" data-total-carb=\"41.5g\" data-total-carb-dv=\"32\" data-dietary-fiber=\"5.1g\" data-dietary-fiber-dv=\"15\" data-sugars=\"30.7g\" data-sugars-dv=\"\" data-protein=\"9.1g\" data-protein-dv=\"16\" data-dish-name=\"Strawberry Pecan Salad\" href=\"#inline\">Strawberry Pecan Salad</a>",
+        "category": "Salad Bar/Dressings",
+        "mealPeriod": "allday",
+        "hallTid": 32,
+        "isoDate": "2026-08-24"
+      },
+      "expected": [
+        {
+          "dishName": "Strawberry Pecan Salad",
+          "category": "Salad Bar/Dressings",
+          "mealPeriod": "allday",
+          "hallTid": 32,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 EACH",
+            "calories": 378,
+            "caloriesFromFat": 176,
+            "totalFatG": 19.5,
+            "satFatG": 5,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 811.2,
+            "totalCarbG": 41.5,
+            "dietaryFiberG": 5.1,
+            "sugarsG": 30.7,
+            "proteinG": 9.1,
+            "totalFatDv": 25,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 35,
+            "totalCarbDv": 32,
+            "dietaryFiberDv": 15,
+            "sugarsDv": null,
+            "proteinDv": 16
+          },
+          "allergens": [
+            "Milk",
+            "Tree Nuts",
+            "Corn"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable",
+            "Vegetarian"
+          ],
+          "ingredients": "Fresh Strawberries, Spinach, LITTLE LEAF Local Spring Mix (Arugula, Green Leaf Lettuce, Multiblend Lettuce, Red Chard, Red Leaf Lettuce), Glazed Pecan Halves (Pecans, Sugar, Salt, Vanilla (Water, Alcohol, Sugar & Bean Extractives)), Olympus Greek Feta Cheese  (Pasteurized Sheep Milk, Salt, Cultures, Microbial Rennet), Balsamic Glaze (Balsamic Vinegar of Modena \"Aceto Balsamico Di Modena IGP\" 70% [Wine Vinegar, Concentrated Grape Must], Glucose Syrup, Sugar, Modified Corn Starch, Xanthan Gum, Contains Sulfites)"
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "retail grab n go period",
+      "input": {
+        "html": "<a data-healthfulness=\"0\" data-carbon-list=\"None\" data-ingredient-list=\"Pillsbury Buttermilk Biscuit   (Enriched Flour Bleached (Wheat Flour, Malted Barley Flour, Niacin, Iron, Thiamin Mononitrate, Riboflavin, Folic Acid), Water, Palm Oil, Buttermilk, Sugar, Baking Soda, Salt, Sodium Aluminum Phosphate, Sodium Acid Pyrophosphate, Palm Kernel Oil), Local Cage Free Eggs, Sausage Patty (Pork, Water, Contains 2% or less of Salt, Spices, Dextrose, Sugar, Yeast Extract, Lime Flavor (Corn Syrup Solids, Lime Juice Solids, Natural Flavor), Flavoring, BHT, TBHQ, Citric Acid, Lactic Acid)\" data-allergens=\"Milk, Eggs, Gluten, Corn  , Wheat\" data-recipe-webcode=\"LPR SUS H0\" data-clean-diet-str=\"Local, Sustainable\" data-serving-size=\"1 each\" data-calories=\"534\" data-calories-from-fat=\"322\" data-total-fat=\"35.7g\" data-total-fat-dv=\"46\" data-sat-fat=\"15.6g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"253.3mg\" data-cholesterol_dv=\"\" data-sodium=\"1038.2mg\" data-sodium-dv=\"45\" data-total-carb=\"34g\" data-total-carb-dv=\"26\" data-dietary-fiber=\"1g\" data-dietary-fiber-dv=\"3\" data-sugars=\"3g\" data-sugars-dv=\"\" data-protein=\"19g\" data-protein-dv=\"34\" data-dish-name=\"Sausage Biscuit w/ Egg\" href=\"#inline\">Sausage Biscuit w/ Egg</a>",
+        "category": "Grab n'Go Hot ",
+        "mealPeriod": "grabngo",
+        "hallTid": 4306,
+        "isoDate": "2026-08-24"
+      },
+      "expected": [
+        {
+          "dishName": "Sausage Biscuit w/ Egg",
+          "category": "Grab n'Go Hot ",
+          "mealPeriod": "grabngo",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 534,
+            "caloriesFromFat": 322,
+            "totalFatG": 35.7,
+            "satFatG": 15.6,
+            "transFatG": 0,
+            "cholesterolMg": 253.3,
+            "sodiumMg": 1038.2,
+            "totalCarbG": 34,
+            "dietaryFiberG": 1,
+            "sugarsG": 3,
+            "proteinG": 19,
+            "totalFatDv": 46,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 45,
+            "totalCarbDv": 26,
+            "dietaryFiberDv": 3,
+            "sugarsDv": null,
+            "proteinDv": 34
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Corn",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable"
+          ],
+          "ingredients": "Pillsbury Buttermilk Biscuit   (Enriched Flour Bleached (Wheat Flour, Malted Barley Flour, Niacin, Iron, Thiamin Mononitrate, Riboflavin, Folic Acid), Water, Palm Oil, Buttermilk, Sugar, Baking Soda, Salt, Sodium Aluminum Phosphate, Sodium Acid Pyrophosphate, Palm Kernel Oil), Local Cage Free Eggs, Sausage Patty (Pork, Water, Contains 2% or less of Salt, Spices, Dextrose, Sugar, Yeast Extract, Lime Flavor (Corn Syrup Solids, Lime Juice Solids, Natural Flavor), Flavoring, BHT, TBHQ, Citric Acid, Lactic Acid)"
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "empty data-dish-name falls back to the link text, entity-decoded",
+      "input": {
+        "html": "<a data-dish-name=\"\" href=\"#inline\">Mac &amp; Cheese</a>",
+        "category": "x",
+        "mealPeriod": "dinner",
+        "hallTid": 1,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Mac & Cheese",
+          "category": "x",
+          "mealPeriod": "dinner",
+          "hallTid": 1,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "entity decoding is a single pass (&amp;amp; becomes &amp;)",
+      "input": {
+        "html": "<a data-dish-name=\"Mac &amp;amp; Cheese\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "dinner",
+        "hallTid": 1,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Mac &amp; Cheese",
+          "category": "x",
+          "mealPeriod": "dinner",
+          "hallTid": 1,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "all entities in a name",
+      "input": {
+        "html": "<a data-dish-name=\"A &amp; B &lt;C&gt; &quot;D&quot; E&#039;s\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "dinner",
+        "hallTid": 1,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "A & B <C> \"D\" E's",
+          "category": "x",
+          "mealPeriod": "dinner",
+          "hallTid": 1,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "no nutrition attributes: every number is 0, serving size is empty",
+      "input": {
+        "html": "<a data-dish-name=\"Bare\" href=\"#inline\">Bare</a>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 2,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Bare",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 2,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "numbers are the first number in the text: '<1g' is 1, 'trace' is 0, negatives keep the sign",
+      "input": {
+        "html": "<a data-calories=\"n/a\" data-total-fat=\"<1g\" data-sat-fat=\"trace\" data-sodium=\"-3.5mg\" data-protein=\"12.25 g\" data-dish-name=\"Odd Numbers\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 2,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Odd Numbers",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 2,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 1,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": -3.5,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 12.25
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "thousands comma is not understood: '1,074mg' reads as 1",
+      "input": {
+        "html": "<a data-sodium=\"1,074mg\" data-calories=\"1,200\" data-dish-name=\"Comma\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 2,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Comma",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 2,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 1,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 1,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "allergen and diet lists: split on comma, trimmed, empties dropped",
+      "input": {
+        "html": "<a data-allergens=\" Milk ,, Eggs , \" data-clean-diet-str=\"None\" data-dish-name=\"Lists\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 2,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Lists",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 2,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [
+            "Milk",
+            "Eggs"
+          ],
+          "dietTags": [
+            "None"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "empty ingredient list is omitted",
+      "input": {
+        "html": "<a data-ingredient-list=\"\" data-dish-name=\"Plain\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 2,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Plain",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 2,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "parse",
+      "name": "%DV: zero is a number, not blank",
+      "input": {
+        "html": "<a data-sodium-dv=\"0\" data-sugars-dv=\"\" data-dish-name=\"Dv\" href=\"#inline\">x</a>",
+        "category": "x",
+        "mealPeriod": "lunch",
+        "hallTid": 2,
+        "isoDate": "2026-09-15"
+      },
+      "expected": [
+        {
+          "dishName": "Dv",
+          "category": "x",
+          "mealPeriod": "lunch",
+          "hallTid": 2,
+          "date": "2026-09-15",
+          "nutrition": {
+            "servingSize": "",
+            "calories": 0,
+            "caloriesFromFat": 0,
+            "totalFatG": 0,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0,
+            "sodiumDv": 0,
+            "sugarsDv": null
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "menu",
+      "name": "wire keys map to periods in fixed order regardless of response key order; unknown keys ignored",
+      "input": {
+        "hallTid": 4306,
+        "isoDate": "2026-08-24",
+        "response": {
+          "daily offerings": {
+            "Salad Bar/Dressings": "<a data-healthfulness=\"40\" data-carbon-list=\"None\" data-ingredient-list=\"Fresh Strawberries, Spinach, LITTLE LEAF Local Spring Mix (Arugula, Green Leaf Lettuce, Multiblend Lettuce, Red Chard, Red Leaf Lettuce), Glazed Pecan Halves (Pecans, Sugar, Salt, Vanilla (Water, Alcohol, Sugar &amp; Bean Extractives)), Olympus Greek Feta Cheese  (Pasteurized Sheep Milk, Salt, Cultures, Microbial Rennet), Balsamic Glaze (Balsamic Vinegar of Modena &quot;Aceto Balsamico Di Modena IGP&quot; 70% [Wine Vinegar, Concentrated Grape Must], Glucose Syrup, Sugar, Modified Corn Starch, Xanthan Gum, Contains Sulfites)\" data-allergens=\"Milk, Tree Nuts, Corn  \" data-recipe-webcode=\"LPR SUS VGT H4\" data-clean-diet-str=\"Local, Sustainable, Vegetarian\" data-serving-size=\"1 EACH\" data-calories=\"378\" data-calories-from-fat=\"176\" data-total-fat=\"19.5g\" data-total-fat-dv=\"25\" data-sat-fat=\"5g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-cholesterol_dv=\"\" data-sodium=\"811.2mg\" data-sodium-dv=\"35\" data-total-carb=\"41.5g\" data-total-carb-dv=\"32\" data-dietary-fiber=\"5.1g\" data-dietary-fiber-dv=\"15\" data-sugars=\"30.7g\" data-sugars-dv=\"\" data-protein=\"9.1g\" data-protein-dv=\"16\" data-dish-name=\"Strawberry Pecan Salad\" href=\"#inline\">Strawberry Pecan Salad</a>"
+          },
+          "brunch": {
+            "Ignored": "<a data-healthfulness=\"30\" data-carbon-list=\"B\" data-ingredient-list=\"FREIHOFFER&#039;S Country White Bread\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Wheat\" data-recipe-webcode=\"LPR SUS VGT H3 CR2\" data-clean-diet-str=\"Local, Sustainable, Vegetarian\" data-serving-size=\"1 each\" data-calories=\"127\" data-calories-from-fat=\"26\" data-total-fat=\"2.9g\" data-total-fat-dv=\"4\" data-sat-fat=\"0.5g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"50.9mg\" data-cholesterol_dv=\"\" data-sodium=\"237.2mg\" data-sodium-dv=\"10\" data-total-carb=\"20.4g\" data-total-carb-dv=\"16\" data-dietary-fiber=\"1g\" data-dietary-fiber-dv=\"3\" data-sugars=\"3.4g\" data-sugars-dv=\"\" data-protein=\"5.3g\" data-protein-dv=\"9\" data-dish-name=\"French Toast\" href=\"#inline\">French Toast</a><a data-healthfulness=\"30\" data-carbon-list=\"A\" data-ingredient-list=\"Sweet Plantains\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat\" data-recipe-webcode=\"VGT H3 CR1\" data-clean-diet-str=\"Vegetarian\" data-serving-size=\"1 OZ\" data-calories=\"69\" data-calories-from-fat=\"33\" data-total-fat=\"3.7g\" data-total-fat-dv=\"5\" data-sat-fat=\"0.7g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-cholesterol_dv=\"\" data-sodium=\"123.2mg\" data-sodium-dv=\"5\" data-total-carb=\"8.9g\" data-total-carb-dv=\"7\" data-dietary-fiber=\"0.2g\" data-dietary-fiber-dv=\"1\" data-sugars=\"8.2g\" data-sugars-dv=\"\" data-protein=\"0.3g\" data-protein-dv=\"0\" data-dish-name=\"Fried Plantain\" href=\"#inline\">Fried Plantain</a>"
+          },
+          "grabngo": {
+            "Grab n'Go Hot ": "<a data-healthfulness=\"0\" data-carbon-list=\"None\" data-ingredient-list=\"Pillsbury Buttermilk Biscuit   (Enriched Flour Bleached (Wheat Flour, Malted Barley Flour, Niacin, Iron, Thiamin Mononitrate, Riboflavin, Folic Acid), Water, Palm Oil, Buttermilk, Sugar, Baking Soda, Salt, Sodium Aluminum Phosphate, Sodium Acid Pyrophosphate, Palm Kernel Oil), Local Cage Free Eggs, Sausage Patty (Pork, Water, Contains 2% or less of Salt, Spices, Dextrose, Sugar, Yeast Extract, Lime Flavor (Corn Syrup Solids, Lime Juice Solids, Natural Flavor), Flavoring, BHT, TBHQ, Citric Acid, Lactic Acid)\" data-allergens=\"Milk, Eggs, Gluten, Corn  , Wheat\" data-recipe-webcode=\"LPR SUS H0\" data-clean-diet-str=\"Local, Sustainable\" data-serving-size=\"1 each\" data-calories=\"534\" data-calories-from-fat=\"322\" data-total-fat=\"35.7g\" data-total-fat-dv=\"46\" data-sat-fat=\"15.6g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"253.3mg\" data-cholesterol_dv=\"\" data-sodium=\"1038.2mg\" data-sodium-dv=\"45\" data-total-carb=\"34g\" data-total-carb-dv=\"26\" data-dietary-fiber=\"1g\" data-dietary-fiber-dv=\"3\" data-sugars=\"3g\" data-sugars-dv=\"\" data-protein=\"19g\" data-protein-dv=\"34\" data-dish-name=\"Sausage Biscuit w/ Egg\" href=\"#inline\">Sausage Biscuit w/ Egg</a>"
+          },
+          "late night": {
+            "Mediterranean": "<a data-serving-size=\"1 each\" data-calories=\"100\" data-calories-from-fat=\"0\" data-total-fat=\"1g\" data-total-fat-dv=\"2\" data-sat-fat=\"0g\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-sodium=\"0mg\" data-total-carb=\"0g\" data-dietary-fiber=\"0g\" data-sugars=\"0g\" data-protein=\"0g\" data-dish-name=\"No DV Dish\" href=\"#inline\">No DV Dish</a>"
+          },
+          "dinner": {
+            "Entrees": "<a data-serving-size=\"1 each\" data-calories=\"100\" data-calories-from-fat=\"0\" data-total-fat=\"1g\" data-total-fat-dv=\"2\" data-sat-fat=\"0g\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-sodium=\"0mg\" data-total-carb=\"0g\" data-dietary-fiber=\"0g\" data-sugars=\"0g\" data-protein=\"0g\" data-dish-name=\"No DV Dish\" href=\"#inline\">No DV Dish</a>"
+          },
+          "lunch": {
+            "Entrees": "<a data-healthfulness=\"30\" data-carbon-list=\"B\" data-ingredient-list=\"FREIHOFFER&#039;S Country White Bread\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Wheat\" data-recipe-webcode=\"LPR SUS VGT H3 CR2\" data-clean-diet-str=\"Local, Sustainable, Vegetarian\" data-serving-size=\"1 each\" data-calories=\"127\" data-calories-from-fat=\"26\" data-total-fat=\"2.9g\" data-total-fat-dv=\"4\" data-sat-fat=\"0.5g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"50.9mg\" data-cholesterol_dv=\"\" data-sodium=\"237.2mg\" data-sodium-dv=\"10\" data-total-carb=\"20.4g\" data-total-carb-dv=\"16\" data-dietary-fiber=\"1g\" data-dietary-fiber-dv=\"3\" data-sugars=\"3.4g\" data-sugars-dv=\"\" data-protein=\"5.3g\" data-protein-dv=\"9\" data-dish-name=\"French Toast\" href=\"#inline\">French Toast</a><a data-healthfulness=\"30\" data-carbon-list=\"A\" data-ingredient-list=\"Sweet Plantains\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat\" data-recipe-webcode=\"VGT H3 CR1\" data-clean-diet-str=\"Vegetarian\" data-serving-size=\"1 OZ\" data-calories=\"69\" data-calories-from-fat=\"33\" data-total-fat=\"3.7g\" data-total-fat-dv=\"5\" data-sat-fat=\"0.7g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-cholesterol_dv=\"\" data-sodium=\"123.2mg\" data-sodium-dv=\"5\" data-total-carb=\"8.9g\" data-total-carb-dv=\"7\" data-dietary-fiber=\"0.2g\" data-dietary-fiber-dv=\"1\" data-sugars=\"8.2g\" data-sugars-dv=\"\" data-protein=\"0.3g\" data-protein-dv=\"0\" data-dish-name=\"Fried Plantain\" href=\"#inline\">Fried Plantain</a>"
+          },
+          "breakfast": {
+            "Entrees": "<a data-healthfulness=\"30\" data-carbon-list=\"B\" data-ingredient-list=\"FREIHOFFER&#039;S Country White Bread\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Wheat\" data-recipe-webcode=\"LPR SUS VGT H3 CR2\" data-clean-diet-str=\"Local, Sustainable, Vegetarian\" data-serving-size=\"1 each\" data-calories=\"127\" data-calories-from-fat=\"26\" data-total-fat=\"2.9g\" data-total-fat-dv=\"4\" data-sat-fat=\"0.5g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"50.9mg\" data-cholesterol_dv=\"\" data-sodium=\"237.2mg\" data-sodium-dv=\"10\" data-total-carb=\"20.4g\" data-total-carb-dv=\"16\" data-dietary-fiber=\"1g\" data-dietary-fiber-dv=\"3\" data-sugars=\"3.4g\" data-sugars-dv=\"\" data-protein=\"5.3g\" data-protein-dv=\"9\" data-dish-name=\"French Toast\" href=\"#inline\">French Toast</a><a data-healthfulness=\"30\" data-carbon-list=\"A\" data-ingredient-list=\"Sweet Plantains\" data-allergens=\"Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat\" data-recipe-webcode=\"VGT H3 CR1\" data-clean-diet-str=\"Vegetarian\" data-serving-size=\"1 OZ\" data-calories=\"69\" data-calories-from-fat=\"33\" data-total-fat=\"3.7g\" data-total-fat-dv=\"5\" data-sat-fat=\"0.7g\" data-sat-fat-dv=\"\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-cholesterol_dv=\"\" data-sodium=\"123.2mg\" data-sodium-dv=\"5\" data-total-carb=\"8.9g\" data-total-carb-dv=\"7\" data-dietary-fiber=\"0.2g\" data-dietary-fiber-dv=\"1\" data-sugars=\"8.2g\" data-sugars-dv=\"\" data-protein=\"0.3g\" data-protein-dv=\"0\" data-dish-name=\"Fried Plantain\" href=\"#inline\">Fried Plantain</a>",
+            "Sides": "<a data-serving-size=\"1 each\" data-calories=\"100\" data-calories-from-fat=\"0\" data-total-fat=\"1g\" data-total-fat-dv=\"2\" data-sat-fat=\"0g\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-sodium=\"0mg\" data-total-carb=\"0g\" data-dietary-fiber=\"0g\" data-sugars=\"0g\" data-protein=\"0g\" data-dish-name=\"No DV Dish\" href=\"#inline\">No DV Dish</a>"
+          }
+        }
+      },
+      "expected": [
+        {
+          "dishName": "French Toast",
+          "category": "Entrees",
+          "mealPeriod": "breakfast",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 127,
+            "caloriesFromFat": 26,
+            "totalFatG": 2.9,
+            "satFatG": 0.5,
+            "transFatG": 0,
+            "cholesterolMg": 50.9,
+            "sodiumMg": 237.2,
+            "totalCarbG": 20.4,
+            "dietaryFiberG": 1,
+            "sugarsG": 3.4,
+            "proteinG": 5.3,
+            "totalFatDv": 4,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 10,
+            "totalCarbDv": 16,
+            "dietaryFiberDv": 3,
+            "sugarsDv": null,
+            "proteinDv": 9
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Soy",
+            "Corn",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable",
+            "Vegetarian"
+          ],
+          "ingredients": "FREIHOFFER'S Country White Bread"
+        },
+        {
+          "dishName": "Fried Plantain",
+          "category": "Entrees",
+          "mealPeriod": "breakfast",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 OZ",
+            "calories": 69,
+            "caloriesFromFat": 33,
+            "totalFatG": 3.7,
+            "satFatG": 0.7,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 123.2,
+            "totalCarbG": 8.9,
+            "dietaryFiberG": 0.2,
+            "sugarsG": 8.2,
+            "proteinG": 0.3,
+            "totalFatDv": 5,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 5,
+            "totalCarbDv": 7,
+            "dietaryFiberDv": 1,
+            "sugarsDv": null,
+            "proteinDv": 0
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Soy",
+            "Corn",
+            "Sesame",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Vegetarian"
+          ],
+          "ingredients": "Sweet Plantains"
+        },
+        {
+          "dishName": "No DV Dish",
+          "category": "Sides",
+          "mealPeriod": "breakfast",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 100,
+            "caloriesFromFat": 0,
+            "totalFatG": 1,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0,
+            "totalFatDv": 2
+          },
+          "allergens": [],
+          "dietTags": []
+        },
+        {
+          "dishName": "French Toast",
+          "category": "Entrees",
+          "mealPeriod": "lunch",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 127,
+            "caloriesFromFat": 26,
+            "totalFatG": 2.9,
+            "satFatG": 0.5,
+            "transFatG": 0,
+            "cholesterolMg": 50.9,
+            "sodiumMg": 237.2,
+            "totalCarbG": 20.4,
+            "dietaryFiberG": 1,
+            "sugarsG": 3.4,
+            "proteinG": 5.3,
+            "totalFatDv": 4,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 10,
+            "totalCarbDv": 16,
+            "dietaryFiberDv": 3,
+            "sugarsDv": null,
+            "proteinDv": 9
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Soy",
+            "Corn",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable",
+            "Vegetarian"
+          ],
+          "ingredients": "FREIHOFFER'S Country White Bread"
+        },
+        {
+          "dishName": "Fried Plantain",
+          "category": "Entrees",
+          "mealPeriod": "lunch",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 OZ",
+            "calories": 69,
+            "caloriesFromFat": 33,
+            "totalFatG": 3.7,
+            "satFatG": 0.7,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 123.2,
+            "totalCarbG": 8.9,
+            "dietaryFiberG": 0.2,
+            "sugarsG": 8.2,
+            "proteinG": 0.3,
+            "totalFatDv": 5,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 5,
+            "totalCarbDv": 7,
+            "dietaryFiberDv": 1,
+            "sugarsDv": null,
+            "proteinDv": 0
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Soy",
+            "Corn",
+            "Sesame",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Vegetarian"
+          ],
+          "ingredients": "Sweet Plantains"
+        },
+        {
+          "dishName": "No DV Dish",
+          "category": "Entrees",
+          "mealPeriod": "dinner",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 100,
+            "caloriesFromFat": 0,
+            "totalFatG": 1,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0,
+            "totalFatDv": 2
+          },
+          "allergens": [],
+          "dietTags": []
+        },
+        {
+          "dishName": "No DV Dish",
+          "category": "Mediterranean",
+          "mealPeriod": "latenight",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 100,
+            "caloriesFromFat": 0,
+            "totalFatG": 1,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0,
+            "totalFatDv": 2
+          },
+          "allergens": [],
+          "dietTags": []
+        },
+        {
+          "dishName": "Strawberry Pecan Salad",
+          "category": "Salad Bar/Dressings",
+          "mealPeriod": "allday",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 EACH",
+            "calories": 378,
+            "caloriesFromFat": 176,
+            "totalFatG": 19.5,
+            "satFatG": 5,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 811.2,
+            "totalCarbG": 41.5,
+            "dietaryFiberG": 5.1,
+            "sugarsG": 30.7,
+            "proteinG": 9.1,
+            "totalFatDv": 25,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 35,
+            "totalCarbDv": 32,
+            "dietaryFiberDv": 15,
+            "sugarsDv": null,
+            "proteinDv": 16
+          },
+          "allergens": [
+            "Milk",
+            "Tree Nuts",
+            "Corn"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable",
+            "Vegetarian"
+          ],
+          "ingredients": "Fresh Strawberries, Spinach, LITTLE LEAF Local Spring Mix (Arugula, Green Leaf Lettuce, Multiblend Lettuce, Red Chard, Red Leaf Lettuce), Glazed Pecan Halves (Pecans, Sugar, Salt, Vanilla (Water, Alcohol, Sugar & Bean Extractives)), Olympus Greek Feta Cheese  (Pasteurized Sheep Milk, Salt, Cultures, Microbial Rennet), Balsamic Glaze (Balsamic Vinegar of Modena \"Aceto Balsamico Di Modena IGP\" 70% [Wine Vinegar, Concentrated Grape Must], Glucose Syrup, Sugar, Modified Corn Starch, Xanthan Gum, Contains Sulfites)"
+        },
+        {
+          "dishName": "Sausage Biscuit w/ Egg",
+          "category": "Grab n'Go Hot ",
+          "mealPeriod": "grabngo",
+          "hallTid": 4306,
+          "date": "2026-08-24",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 534,
+            "caloriesFromFat": 322,
+            "totalFatG": 35.7,
+            "satFatG": 15.6,
+            "transFatG": 0,
+            "cholesterolMg": 253.3,
+            "sodiumMg": 1038.2,
+            "totalCarbG": 34,
+            "dietaryFiberG": 1,
+            "sugarsG": 3,
+            "proteinG": 19,
+            "totalFatDv": 46,
+            "satFatDv": null,
+            "cholesterolDv": null,
+            "sodiumDv": 45,
+            "totalCarbDv": 26,
+            "dietaryFiberDv": 3,
+            "sugarsDv": null,
+            "proteinDv": 34
+          },
+          "allergens": [
+            "Milk",
+            "Eggs",
+            "Gluten",
+            "Corn",
+            "Wheat"
+          ],
+          "dietTags": [
+            "Local",
+            "Sustainable"
+          ],
+          "ingredients": "Pillsbury Buttermilk Biscuit   (Enriched Flour Bleached (Wheat Flour, Malted Barley Flour, Niacin, Iron, Thiamin Mononitrate, Riboflavin, Folic Acid), Water, Palm Oil, Buttermilk, Sugar, Baking Soda, Salt, Sodium Aluminum Phosphate, Sodium Acid Pyrophosphate, Palm Kernel Oil), Local Cage Free Eggs, Sausage Patty (Pork, Water, Contains 2% or less of Salt, Spices, Dextrose, Sugar, Yeast Extract, Lime Flavor (Corn Syrup Solids, Lime Juice Solids, Natural Flavor), Flavoring, BHT, TBHQ, Citric Acid, Lactic Acid)"
+        }
+      ]
+    },
+    {
+      "kind": "menu",
+      "name": "hall with only late night",
+      "input": {
+        "hallTid": 1,
+        "isoDate": "2026-08-21",
+        "response": {
+          "late night": {
+            "Mediterranean": "<a data-serving-size=\"1 each\" data-calories=\"100\" data-calories-from-fat=\"0\" data-total-fat=\"1g\" data-total-fat-dv=\"2\" data-sat-fat=\"0g\" data-trans-fat=\"0g\" data-cholesterol=\"0mg\" data-sodium=\"0mg\" data-total-carb=\"0g\" data-dietary-fiber=\"0g\" data-sugars=\"0g\" data-protein=\"0g\" data-dish-name=\"No DV Dish\" href=\"#inline\">No DV Dish</a>"
+          }
+        }
+      },
+      "expected": [
+        {
+          "dishName": "No DV Dish",
+          "category": "Mediterranean",
+          "mealPeriod": "latenight",
+          "hallTid": 1,
+          "date": "2026-08-21",
+          "nutrition": {
+            "servingSize": "1 each",
+            "calories": 100,
+            "caloriesFromFat": 0,
+            "totalFatG": 1,
+            "satFatG": 0,
+            "transFatG": 0,
+            "cholesterolMg": 0,
+            "sodiumMg": 0,
+            "totalCarbG": 0,
+            "dietaryFiberG": 0,
+            "sugarsG": 0,
+            "proteinG": 0,
+            "totalFatDv": 2
+          },
+          "allergens": [],
+          "dietTags": []
+        }
+      ]
+    },
+    {
+      "kind": "menu",
+      "name": "empty response",
+      "input": {
+        "hallTid": 2,
+        "isoDate": "2026-09-15",
+        "response": {}
+      },
+      "expected": []
+    },
+    {
+      "kind": "menu",
+      "name": "a period key with no categories",
+      "input": {
+        "hallTid": 2,
+        "isoDate": "2026-09-15",
+        "response": {
+          "lunch": {}
+        }
+      },
+      "expected": []
+    }
+  ]
+}
