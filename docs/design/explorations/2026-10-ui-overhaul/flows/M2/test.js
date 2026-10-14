@@ -1035,6 +1035,19 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert(await ev(() => NAV.at(-1).el.querySelector('.pbody').scrollLeft > 0 && NAV.at(-1).el.querySelector('.pbar').getBoundingClientRect().left === frame.getBoundingClientRect().left), 'zoomed where tapped (the pages scroll sideways to keep the point; the bar stays)');
       await dbl(); assert.equal(await w(), w0, 'double-tap again: back to the width of the screen');
     });
+    await scen('a PDF page: the bar (back and title) and the tab bar stay whole and fixed at 1x, 2.5x and scrolled sideways', async () => {
+      await go(); const ci = await ev(() => P.places.findIndex(x => x[0] === 'The Commonwealth Restaurant'));
+      await ev(i => openHall('C', true, null, { cafe: i }), ci); await page.waitForTimeout(300);
+      await page.locator('#mlist [data-pdf]', { hasText: 'Lunch' }).tap(); await page.waitForTimeout(1400);
+      const bars = () => ev(() => { const el = NAV.at(-1).el, r = e => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round).join(); };
+        const back = el.querySelector('.pbar [data-act=pageback]').getBoundingClientRect(), hit = document.elementFromPoint(back.left + back.width / 2, back.top + back.height / 2);
+        return [r(el.querySelector('.pbar')), r(el.querySelector('.pbar [data-act=pageback]')), r(el.querySelector('.pbar .o')), r(document.querySelector('.tbar')), !!hit?.closest('.pbar')]; });
+      const b0 = await bars(); assert.equal(b0[4], true, '1x: the back button is on top');
+      await page.touchscreen.tap(300, 420); await page.waitForTimeout(90); await page.touchscreen.tap(300, 420); await page.waitForTimeout(400);
+      assert.deepEqual(await bars(), b0, '2.5x: the bar, back, title and tab bar are where they were, and back is on top');
+      await ev(() => { const pb = NAV.at(-1).el.querySelector('.pbody'); pb.scrollLeft += 300; NAV.at(-1).el.scrollTop += 400; }); await page.waitForTimeout(200);
+      assert.deepEqual(await bars(), b0, 'scrolled sideways and down: still');
+    });
     await scen('a row with a button under it: the button sits 12 px under the line, one line or two', async () => {
       const gap = async q => { await go('?state=you' + q); await page.locator('#you [data-p=favs]').tap(); await page.waitForTimeout(800);
         await page.locator('.page[data-p=favs] [data-act=alerts]').tap(); await page.waitForTimeout(300); if (await page.locator('.ossheet').count()) { await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300); }

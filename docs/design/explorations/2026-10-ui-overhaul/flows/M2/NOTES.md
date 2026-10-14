@@ -2061,3 +2061,25 @@ built" has the design summary.
 - **Open (unchanged otherwise).** The pho's broths have no heading of their own: the title says "Noodle Bowl" until
   one is picked, then the broth's name. If the owner wants the choice spelled out, the station's own heading
   pattern ("Broths") would be new copy, so it isn't added.
+
+### Round 11b, zoom bar (orchestrator review of `p4/sheet3`)
+- **What the review saw.** `p4/sheet3.png`'s p-zoom panel showed the "Lunch menu" bar cut down to a maroon block,
+  with the PDF drawn where the bar should be. That contact sheet was built before the fix and wasn't regenerated;
+  `p4/p-zoom.png` itself was re-shot after the fix.
+- **The fix,** in commit 376417f5:
+  - the pages scroll sideways inside the page body (`.pbody{overflow-x:auto}`);
+  - the page scrolls only vertically, under its sticky bar;
+  - the tab bar is the frame's and never moves.
+- **New test**, red first: "a PDF page: the bar (back and title) and the tab bar stay whole and fixed at 1x, 2.5x and
+  scrolled sideways".
+  - It compares the rects of the bar, back button, title and tab bar at 1×, at 2.5× after a double-tap, and after
+    scrolling the zoomed pages 300 px sideways and 400 px down.
+  - It also checks that the back button is the topmost element at its centre.
+  - **Red** on the intermediate 11b build that scrolled the whole page sideways (reconstructed as
+    `build/r11/before-zoombar-index.html`; line also in `build/r11/red-r11b.txt`):
+    ```
+    RED    a PDF page: the bar (back and title) and the tab bar stay whole and fixed at 1x, 2.5x and scrolled sideways: 2.5x: the bar, back, title and tab bar are where they were, and back is on top
+    ```
+  - Green now. `RED=11 node test.js` gives 11 scenarios and 135 checks. `node test.js` gives 5,390 checks, all green.
+- **Frames** (`build/r11/p5`, 390 and 360 at dpr 2; `sheet1.png`): `p-zoom.png` (2.5×) and `p-zoom-side.png` (2.5×,
+  scrolled 300 px sideways and 400 px down). The bar is whole and fixed in both, at both widths.

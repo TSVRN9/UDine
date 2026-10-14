@@ -76,6 +76,7 @@ const STATES = [
   ['o-pinned', '?state=search&net=offline', seq(ev(() => { S.pins = ['Green Fields', 'The Commonwealth Restaurant']; renderSearch(); }), typed('caesar'))],
   ['p-pinned-offline', '?net=offline', seq(ev(() => { S.pins = ['The Commonwealth Restaurant']; }), ev(`openHall('C',true,null,{cafe:${cafe('The Commonwealth Restaurant')}})`), wait(300))],
   ['p-zoom', ...commonwealth('', tap('#mlist [data-pdf]', 1400), async p => { await p.touchscreen.tap(120, 300); await p.waitForTimeout(90); await p.touchscreen.tap(120, 300); await p.waitForTimeout(500); })],
+  ['p-zoom-side', ...commonwealth('', tap('#mlist [data-pdf]', 1400), async p => { await p.touchscreen.tap(120, 300); await p.waitForTimeout(90); await p.touchscreen.tap(120, 300); await p.waitForTimeout(500); }, ev(() => { const el = NAV.at(-1).el; el.querySelector('.pbody').scrollLeft += 300; el.scrollTop += 400; }))],
   ['b-harvest', '', seq(ev(`openHall('C',true,null,{cafe:${cafe('Harvest Market')}})`), wait(300), ev(() => { const r = [...document.querySelectorAll('#mlist .sth')].find(h => /Salad Bar/.test(h.textContent)); const sc = document.querySelector('#mscroll'); sc.scrollTop = r.offsetTop - 200; paint(1, sc.scrollTop); }))],
 ];
 // OS-sheet states: the tap that raises it, and the answer
