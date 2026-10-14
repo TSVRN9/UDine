@@ -601,3 +601,299 @@ Oct 1–7 is built from dishes that exist in the Oct 8–22 fixture, with their 
 - a priced Green Fields lunch.
 
 The days and meals are seeded. Today's 8:42 AM breakfast stays as seeded in round 1.
+
+## Round 11: what isn't on a menu, and what you can't reach (concept, before build)
+
+Critique: `CRITIQUE-r11.md`. Brief: `docs/briefs/m2-round-11.md`. Motion: nothing new (table at the end).
+
+**The idea.** Round 10 split UDine into a menu and a ledger. Round 11 is about the edges of both:
+- foods that aren't on any menu;
+- menus that aren't in the feed as dishes;
+- times when the app isn't open;
+- times when UMass can't be reached.
+
+Each gets the treatment the app already uses: **a row says where, never where not; missing data draws nothing; a
+state says what happened and what to do, in the place where it happened.**
+
+### 1. Packaged foods and saved custom foods: Search's list ends where the menus end
+
+```
+ Search, "clif" (390), online, tracking on
+┌────────────────────────────────────────┐
+│ [⌕ clif                             ×] │
+│ [High protein] [Light] [Vegetarian] …  │
+│ Nothing called “clif” is on a menu     │  the menus' answer, as today
+│ today or tomorrow.                     │
+│ Your foods                             │  group: foods you've added that aren't on a menu
+│ Clif Bar Chocolate Chip                │
+│ 250 cal  6g protein                  + │  the lane has no letters: it's not served anywhere
+│ Packaged                               │  group: packaged foods (OpenFoodFacts, USDA)
+│ Clif bar                               │
+│ 368 cal per 100 g                    + │  per 100 g says so, in the meta line
+│ Clif Bar Duos                          │
+│ 404 cal per 100 g                    + │
+│ …                                      │
+│ Search UMass Dining for “clif”         │  text button: the rate-limited lookup, by hand
+│ Add “clif” as a custom food            │  as today
+└────────────────────────────────────────┘
+```
+
+- **One list, ordered by where.**
+  - The served groups stay first, as in round 9: Places, then "Lunch now", "At cafés", and "Later today and tomorrow".
+  - The list then continues past the menus into two groups:
+    - **"Your foods"**: every food you've added that isn't on a menu. That means custom foods you made, and packaged
+      or UMass Dining foods you added from the groups below. All of it lives on the phone.
+    - **"Packaged"**: what OpenFoodFacts and USDA return for the query, the same sources RN searches.
+  - Both groups follow the menus, so a dish being served always comes first. They use Search's existing group
+    headings and rows. No pill or badge.
+- **How they differ visibly from served dishes.** The served groups are named by time; these two by what they are.
+  - A served row's lane holds the hall letters, or the café's name.
+  - A row in these groups has a lane with only the `+`, because it isn't served anywhere. A row says where, never
+    where not.
+  - A packaged hit that has only per-100 g values says so in its meta line ("394 cal per 100 g"). Its `+` adds one
+    100 g serving, and the plate row reads "100 g". Nothing pretends 100 g is a bar.
+- **What isn't shown.** RN's five-row cap and "Load More" are cut: Search already scrolls. The Packaged group shows
+  the first page (20 hits, OFF's page size).
+  - A name is shown once, and a food already in Your foods isn't repeated.
+  - A hit with no calories is left out: there's nothing to record.
+  - A name that doesn't include its brand leads with it ("Clif Bar" + "Chocolate Chip").
+- **Search UMass Dining** (RN's "Search UMass Dining directly", `lookup-dish`, #538).
+  - It is a text button after the groups. It never runs by itself, because its budget is global.
+  - Its answer replaces it, in place (`settle`):
+    - **in flight:** the round-9 activity indicator, after 400 ms, in the button's slot;
+    - **found:** a group headed "UMass Dining", with dishes that aren't on a menu today or tomorrow. A lookup carries
+      nutrition, allergens and diet tags, but no serving time, so the lane has only the `+`;
+    - **none:** "UMass Dining has nothing else called “clif”.";
+    - **failed** (online, but the call didn't come back): "Couldn't reach UMass Dining." with the round-9 outlined
+      **Try again**;
+    - **rate-limited:** "Searching UMass Dining is paused until 1 PM." The budget is global and resets on the hour, so
+      the time is true. No apology.
+- **A packaged food's sheet.** It has no grades, stations, hours or "where", so those draw nothing (round 8's rule).
+  - The sheet is the dish sheet's identity group: the name, the serving ("1 bar (68 g)", or "100 g"), Contains (OFF's
+    allergens, mapped to M2's eleven), Add to plate, the label (%DV from FDA values, as M2 already does when the feed
+    has none), and the ingredients.
+  - It has no star (favourites alert on menus, and a bar is never on one), and no ratings panel.
+- **Saved foods: reused from Search and from You, edited in their own sheet.**
+  - "Add “x” as a custom food" opens the same form as today. Its Add to plate saves the food on the phone as well
+    (as RN does), so tomorrow "Your foods" finds it. Residency: device only.
+  - A packaged or UMass Dining food is saved the same way the first time it's added: its row's `+`, or its sheet's
+    Add to plate. It's your copy, so it can be edited like a custom food.
+  - **Reuse:**
+    - type its name in Search;
+    - or open You → **Your foods** ("3 foods"), a pushed page listing them, newest first.
+  - **Its sheet:** the name, the serving, Add to plate and the label. Where a dish has its star, a custom food has
+    **Edit**, a text button in the same slot.
+  - **Edit:** the sheet's content becomes the form, filled in (in place, `settle`). The form has **Save** and
+    **Delete**.
+    - Save returns to the food's sheet.
+    - Delete puts the sheet away and shows the receipt in the plate bar's slot ("Deleted Chobani", **Undo**). That
+      is round 10's Delete meal.
+    - A logged meal keeps its own snapshot, so editing or deleting a food never changes a past day.
+  - Export includes saved custom foods (CLAUDE.md: every device-local table exports).
+- **Tracking off** (round 10). Your foods, Packaged, Search UMass Dining and "Add … as a custom food" exist to record
+  what you ate, so all of them leave Search, and the Your foods row leaves You. Nothing is deleted. Back on, they
+  return.
+
+```
+ A packaged food's sheet (at rest)           A saved custom food's sheet          Edit (in place)
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│               ────               │ │               ────               │ │               ────               │
+│ Clif bar                         │ │ Chobani                     Edit │ │ Edit food                        │
+│ 100 g                            │ │ 1 serving                        │ │ Name  [Chobani                ]  │
+│ [          Add to plate        ] │ │ [          Add to plate        ] │ │ Calories [140 ]  Protein [12 ]   │
+│ Calories                    368  │ │ Calories                    140  │ │ Carbs    [ 15 ]  Fat     [ 0 ]   │
+│ ...                              │ │ ...                              │ │ [             Save             ] │
+│ (no where, no ratings, no star)  │ └──────────────────────────────────┘ │ Delete                           │
+└──────────────────────────────────┘                                      └──────────────────────────────────┘
+```
+
+### 2. Favourite alerts: the switch lives with the favourites
+
+```
+ You → Favorites (pushed), off              Allowed                                 Notification (the OS's)
+┌────────────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ ‹  Favorites                           │ │ Notify me                    [x] │ │ UDine                        now │
+│ Notify me                          [ ] │ │ When a favorite is on today's    │ │ Beef Brisket Noodle Bowl         │
+│ When a favorite is on today's menu     │ │ menu                             │ │ Lunch from 11 AM at Worcester    │
+│ Beef Brisket Noodle Bowl               │ └──────────────────────────────────┘ └──────────────────────────────────┘
+│ At lunch now at Worcester              │  Denied (or blocked)                    Background work off
+│ Golden BBQ Chicken Thigh               │ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ At lunch now at Worcester              │ │ Notify me                    [ ] │ │ Notify me                    [x] │
+└────────────────────────────────────────┘ │ Notifications are off for UDine  │ │ Background App Refresh is off,   │
+                                           │ [ Open Settings ]                │ │ so UDine can't check menus       │
+                                           └──────────────────────────────────┘ │ [ Open Settings ]                │
+                                                                                └──────────────────────────────────┘
+```
+
+- **Where alerts are turned on.** A check row at the top of the Favorites page: "Notify me", with the line "When a
+  favorite is on today's menu". Favourites are what it watches, so it lives with them. It's a menu feature, not the
+  ledger's, so tracking off keeps it. The You row says "2 dishes, notifying" when it's on.
+- **The OS ask, round 10 §5's pattern.** There is no interstitial: the row says what you're agreeing to, and a tap
+  raises the OS's own permission sheet at once.
+  - **Allowed:** the check fills (`settle`).
+  - **Denied:** the check stays empty. The line reads "Notifications are off for UDine", with the round-9 outlined
+    **Open Settings** button.
+  - **Blocked:** the OS won't ask again (Android after two denials; iOS after one). The tap goes straight to the denied
+    state, with no sheet.
+  - **Revoked in system settings:** checked when You is shown or the app resumes. It's the denied state.
+  - **Background work off:** notifications are allowed, but the OS won't run UDine in the background. On iOS that's
+    Background App Refresh; on Android, a "Restricted" battery setting. The check stays on, because the wish is
+    kept. The line reads "Background App Refresh is off, so UDine can't check menus" (Android: "Battery use is
+    restricted, so UDine can't check menus"), with **Open Settings**.
+- **What the notification says.** The title is the dish's name. The body is M2's "where" sentence, as the dish sheet
+  says it, from the moment it's posted:
+  - "Lunch from 11 AM at Worcester";
+  - "Lunch now, until 4:30 PM, at Worcester and Berkshire";
+  - "Dinner from 4:30 PM at Franklin".
+  - It doesn't repeat itself, and it doesn't say "a favorite of yours": the student starred it.
+- **Tapping it** opens the app on Halls and pushes the hall at that meal, scrolled to the dish and marked. That's the
+  sheet's "where it's served" target, the first place in the answer. Several places are named in the body, and the
+  hall's own row then shows the rest.
+- **One notification per dish per day.** This differs from RN, which posts once per dish, hall and date. Two halls are
+  one notification that names both.
+  - The key is (dish name, the logical day after the 2 AM rollover), kept on the phone. Residency: device only, as RN's
+    `food_sighting_dedup`.
+  - A later run the same day posts nothing more, even if a third hall adds it.
+- **When it posts:**
+  - from 7 AM;
+  - the first time a background run finds the dish on that day's saved menus;
+  - never once the dish's last serving that day has ended. A lunch-only dish first seen at 5 PM is not posted.
+- **Limits, written as limits.** They aren't shown in the UI; the concept states them.
+  - On Android, background work runs at most every 15 minutes (WorkManager's floor), and Doze can delay it further.
+  - On iOS, background fetch is best-effort: the OS chooses when, and a force-quit app may not run at all until it is
+    opened.
+  - So an alert can arrive late, or not at all. The dish sheet, the Favorites page and the Favorites lens stay the
+    reliable answer.
+- The prototype simulates the OS as round 10 does:
+  - `?alerts=allow|deny|blocked|bgoff`;
+  - `?os=ios|android`;
+  - `?notify=1` posts the 7:15 AM run's notification for the seeded favourite, drawn as a neutral system banner.
+
+### 3. Café PDF menus: a café's menus are rows, and a menu is a page
+
+```
+ The Commonwealth Restaurant (390)          Lunch menu (pushed)                  Offline, never opened
+┌────────────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ ‹                                [pin] │ │ ‹  Lunch menu                    │ │ ‹  Lunch menu                    │
+│   photo, own colour, maroon gradient   │ │ ┌──────────────────────────────┐ │ │                                  │
+│ The Commonwealth Restaurant            │ │ │ THE COMMONWEALTH             │ │ │ You're offline, and this menu    │
+│ Open until 9 PM ⌄                      │ │ │ LUNCH MENU                   │ │ │ isn't saved on this phone.       │
+├────────────────────────────────────────┤ │ │ Starters & share plates …    │ │ │                                  │
+│ We proudly welcome you to The          │ │ └──────────────────────────────┘ │ └──────────────────────────────────┘
+│ Commonwealth Restaurant. …             │ │ ┌──────────────────────────────┐ │  Café rows offline:
+│ Menus                                  │ │ │ page 2                       │ │ │ Lunch              Not saved › │
+│ Lunch                                › │ │ └──────────────────────────────┘ │
+│ Lite fare                            › │ └──────────────────────────────────┘
+│ Dinner                               › │
+│ Dessert                              › │
+│ [ Add a custom food ]                  │
+└────────────────────────────────────────┘
+```
+
+- **Which café.** In the live feed on 2026-10-13, three places publish PDFs (NOTES "Round 11" has the list): The
+  Commonwealth Restaurant (four PDFs) and the two babyBerk trucks. The trucks are closed all week and have no address.
+  M2 adds The Commonwealth Restaurant ("North, by Worcester", Worcester Commons top floor) with its UMass photo, and
+  appends it last so no place key moves.
+- **The café page offers each PDF as a row.** The page body keeps round 9's menu-less shape, with the description and
+  then the heading "Menus". Under it is one row per PDF, in the feed's order, named by the link's own words cut to
+  the menu's name: "Lunch", "Lite fare", "Dinner", "Dessert". RN shows only the first. Add a custom food stays under
+  the rows (tracking on).
+- **A menu opens in place, by push.** A row is "anything else that goes somewhere" (round 7), so it pushes a page
+  titled "Lunch menu". The page is the PDF's pages, drawn at the screen's width on chalk, one under another, with the
+  page's own white. Pinch zooms, as any document view does.
+  - Back and the edge swipe pop it. There's no modal, and no hand-off to another app.
+  - The system viewer would cost a context switch and lose the back gesture, and M2 already has a page for documents.
+- **Loading, failed, offline.** These are round 9's states, in the page's body:
+  - **loading:** the indicator after 400 ms, then the pages fade in where they end up (`settle`);
+  - **failed:** "The lunch menu didn't load." with Try again;
+  - **offline:**
+    - a PDF opened before is kept on the phone, as a file per URL, replaced when the feed's URL changes. So it opens
+      offline exactly as online. RN downloads a fresh copy every time;
+    - a PDF never opened shows "You're offline, and this menu isn't saved on this phone." Its row on the café page
+      says "Not saved" in the schedule's slate, as round 9's schedule rows do.
+  - Prefetching every café PDF would be new traffic RN doesn't make, so it's an owner question, not the default.
+
+### 4. Offline search: Search says what it's searching
+
+```
+ Search, offline, "bbq" (390)                Search, failed (online, UMass unreachable)
+┌────────────────────────────────────────┐ ┌────────────────────────────────────────┐
+│ [⌕ bbq                              ×] │ │ [⌕ bbq                              ×] │
+│ [High protein] [Light] [Vegetarian] …  │ │ [High protein] [Light] [Vegetarian] …  │
+│ You're offline. Searching the menus    │ │ Couldn't connect          [Try again]  │  Halls' pair, on chalk
+│ saved on this phone: the halls, today  │ │ Your foods                             │
+│ and tomorrow.                          │ │ …                                      │
+│ Lunch now                              │ │ Packaged                               │  the network is up: OFF still answers
+│ Golden BBQ Chicken Thigh               │ │ …                                      │
+│ 93 cal  9.7g protein           [W]   + │ │ Search UMass Dining for “bbq”          │
+│ Later today and tomorrow               │ └────────────────────────────────────────┘
+│ …                                      │
+│ Your foods                             │
+│ …                                      │
+└────────────────────────────────────────┘
+```
+
+- **What is saved** (flutter-port-menu-data, as RN):
+  - the four halls and their Grab 'N Go, today and tomorrow, prefetched at launch;
+  - a café's day once you've opened it;
+  - hours for the day;
+  - your foods, always.
+  - Search covers only today and tomorrow anyway, so being offline changes which places are searched, not which
+    days.
+- **What Search says.** One line at the top of the results, in the diet line's slot and type, written for what's true
+  right now:
+  - "You're offline. Searching the menus saved on this phone: the halls, today and tomorrow."
+  - With cafés opened today: "…: the halls, today and tomorrow, and Green Fields, today."
+  - It shows in the idle state too, above Events. Events are cached for the day like hours.
+- **A place or day with nothing saved is absent from the dish groups.** A dish that can't be found can't be named.
+  - Places still match by name, because names, photos and hours are bundled or cached.
+  - Opening an unsaved café gives round 9's "You're offline, and the menu for Thursday, October 8 isn't saved on this
+    phone."
+  - The top line names what is searched, so nothing absent is a surprise.
+- **Failed** (online, but UMass Dining is unreachable). It uses Halls' own pair at the top of the results:
+  "Couldn't connect" and the outlined **Try again**.
+  - In round 9's model, failed means nothing was saved this launch, so the menu groups are empty. Places still
+    match.
+  - Packaged foods and Search UMass Dining don't depend on UMass Dining's own site, so they're offered as usual.
+  - Try again re-runs the search in place (`settle`).
+- **Packaged-food lookup offline.** Packaged needs the network, so offline the Packaged group and Search UMass Dining
+  are absent; the top line has already said what is searched.
+  - Your foods still answers. It holds every packaged food you've added, so the protein bar you eat every day is found
+    offline.
+  - "Add “x” as a custom food" stays: it needs nothing from the network.
+- `?net=offline|fail` now reaches Search. `?saved=Green Fields` marks cafés as opened today, for shots. Without it,
+  a café counts as saved once its page was opened online in the session.
+
+### 5. Bowls (owner, 2026-10-13), applied as built
+- **Synthetic bases read "Salad Bar" and "Deli Bar".** The station's name is the bowl's name, so the sheet drops the
+  add-ins heading that would repeat it.
+- **No by-the-pound bar gets a base.** A station whose raw name carries a per-pound price ("Salad Bar $11.50/LB",
+  "Cold Bar Items $11.50/LB") is a list of single dishes. That covers Harvest Market and Roots. The "Cold Bar" base
+  is gone.
+- **Noodle Bowl: exactly one base per station-day, its soup or dish** (rule in NOTES "Round 11", table there).
+  1. A station with one dish: that dish, whatever its calories (Chicken Congee, 49 cal).
+  2. A station of parts: two or more broths ("… Broth", "… Base") with noodles, proteins and toppings is a pho bar
+     with no single dish. Like the Salad Bar, it gets a synthetic base named after its station, "Noodle Bowl". The
+     broth is the first thing you choose.
+  3. Otherwise, a part is a name that, outside its parentheses, says sauce, topping, broth, base or dressing. So
+     "Shrimp Tom Yum Soup (Chicken Broth)" is a soup. The base is the highest-calorie dish among the remaining dishes
+     whose full name says ramen, noodle, soup, stew, congee, bowl, curry or katsu; a word in the parentheses counts,
+     as in "Bun Heo Quay (Crispy Pork Belly Bowl)". If no dish says one of those words, the base is the
+     highest-calorie dish that isn't a part (Masala Dosa, Khoa Soi).
+  - Only that dish builds. Pork belly, Mayu oil and Chicken Katsu beside curry noodles are add-ins, with their own `+`
+    on the row.
+
+### Motion, round 11 (all existing)
+| Interaction | Pattern |
+|---|---|
+| Your foods, Packaged, UMass Dining groups arriving | In place: rows fade up, survivors glide (Search's existing FLIP, `settle`) |
+| Search UMass Dining: in flight → answer | In place (`settle`); indicator after 400 ms |
+| A packaged or saved food | Sheet (`#isheet`), as a dish |
+| Edit / Save in the food's sheet | In place (`settle`) |
+| Delete a saved food | `Sheet.away`, then the receipt in the bar's slot |
+| You → Your foods, You → Favorites | Push |
+| Notify me | In place; the permission sheet is the OS's own |
+| Notification tap | Push of the hall, scrolled to the dish (the "where" target's existing motion) |
+| A café's menu row → its PDF | Push |
+| PDF pages arriving | In place (`settle`) |
+| Search offline line, failed pair, Try again | In place (`settle`) |
