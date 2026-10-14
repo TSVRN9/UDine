@@ -18,6 +18,21 @@ final defaultSlow = Duration(milliseconds: M2Motion.netSlow.round());
 const _bundled = 'assets/recorded/'; // internal flavor only (pubspec.yaml)
 Future<String> _fromBundle(String name) => rootBundle.loadString('$_bundled$name');
 
+/// get_infov2 as M2 reads it: hours and statuses from the Oct 8 capture (M2's NOW is Thursday Oct 8), and the street address and
+/// `map_address` from the Oct 11 one (NOTES "Round 9", "Where"), which Oct 8 lacks. Busy is simulated over the halls (RecordedClient).
+Future<String> recordedLocations(Future<String> Function(String name) read) async {
+  final hours = (jsonDecode(await read('locations-2026-10-08.json')) as List).cast<Map<String, dynamic>>();
+  final where = {for (final l in (jsonDecode(await read('locations-2026-10-11.json')) as List).cast<Map<String, dynamic>>()) l['location_title']: l};
+  for (final l in hours) {
+    final w = where[l['location_title']];
+    if (w != null) {
+      l['address'] = w['address'];
+      l['map_address'] = w['map_address'];
+    }
+  }
+  return jsonEncode(hours);
+}
+
 /// The same Repository the live app uses, with M2's recordings behind the HTTP seam and [RecordedFlags] applied:
 /// `at` replaces the clock, `net` the network. Offline first warms the cache once online (the repository's own launch),
 /// then drops the network, so today and tomorrow are saved and every other day is not.
@@ -25,7 +40,7 @@ Future<String> _fromBundle(String name) => rootBundle.loadString('$_bundled$name
 Future<Repository> recordedRepository(RecordedFlags f, Database db, {Future<String> Function(String name) read = _fromBundle, Duration? slow}) async {
   final client = RecordedClient(
     menus: jsonDecode(await read('menus-2026-10-08-to-22.json')) as Map<String, dynamic>,
-    locations: await read('locations-2026-10-11.json'),
+    locations: await recordedLocations(read),
     events: await read('events-raw.json'),
   );
   final net = NetClient(client, f.net == NetMode.offline ? NetMode.ok : f.net, slow ?? defaultSlow);

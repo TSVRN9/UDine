@@ -1,18 +1,19 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/occupancy.dart';
+import 'package:udine/core/types.dart' show DiningHoursFeed;
 import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
 import 'package:udine/screens/halls/halls_model.dart';
+import 'package:udine/data/recorded/recorded.dart';
 import 'support.dart';
 
 // The recorded capture with M2's busy simulation laid over the four halls (RecordedClient.simulateLive), read the way Repository does.
-final _locations = [for (final l in jsonDecode(RecordedClient.simulateLive(File('assets/recorded/locations-2026-10-11.json').readAsStringSync())) as List) l as Map<String, dynamic>];
-final feed = mapInfoV2(_locations);
-final live = {for (final l in _locations) l['location_title'] as String: ?parseSensorLevels(l)};
+late final List<Map<String, dynamic>> _locations;
+late final DiningHoursFeed feed;
+late final Map<String, SensorLevels> live;
 HoursData hours({bool busy = true}) => HoursData(feed, busy ? live : null);
 
 Map<String, OccupancyRead> reads() => {
@@ -30,13 +31,19 @@ HallsVM vm(DataState<HoursData> s, {List<String> pins = const [], bool cr = fals
     buildHalls(now: now ?? lunch, state: s, reads: r ?? reads(), pins: pins, charlesRiver: cr);
 
 void main() {
+  setUpAll(() async {
+    _locations = [for (final l in jsonDecode(RecordedClient.simulateLive(await recordedLocations(readRecorded))) as List) l as Map<String, dynamic>];
+    feed = mapInfoV2(_locations);
+    live = {for (final l in _locations) l['location_title'] as String: ?parseSensorLevels(l)};
+  });
   test('the date line and the meal read Eastern wall time', () {
     final v = vm(Loaded(hours()));
     expect((v.date, v.title), ('Thursday, October 8', 'Lunch'));
   });
 
   group('busy meter (owner, 2026-10-14)', () {
-    final v = vm(Loaded(hours()));
+    late final HallsVM v;
+    setUpAll(() => v = vm(Loaded(hours())));
     BandVM h(String k) => v.halls.firstWhere((b) => b.key == k);
     test('lamps are the headcount against the day\'s peak; thin curves fall back to the level', () {
       // Worcester 700 of 680: capped, 5. Franklin: every bucket has 2 samples, so its level (a little busy) gives 3. Hampshire 150 of 450: 2.
@@ -93,7 +100,7 @@ void main() {
     test('area rows say "N of M open now" once the hours are known', () {
       final v = vm(Loaded(hours()));
       expect(v.areas.map((a) => a.name), ['Campus Center', 'North, by Worcester', 'Library and academic core', 'Southwest, by Hampshire and Berkshire']);
-      expect(v.areas.map((a) => a.count), ['3 of 12 open now', '1 of 7 open now', '0 of 3 open now', '2 of 5 open now']);
+      expect(v.areas.map((a) => a.count), ['12 of 12 open now', '7 of 7 open now', '4 of 4 open now', '5 of 5 open now']);
     });
     test('a hall closed for the day says so', () {
       final v = vm(Loaded(hours()), now: easternInstant(DateTime.utc(2026, 10, 8, 23, 59, 30)));
@@ -102,8 +109,11 @@ void main() {
   });
 
   group('the Charles River filter reaches pins and area rows', () {
-    final on = vm(Loaded(hours()), pins: ['Charles River Campus', 'Terrace'], cr: true);
-    final off = vm(Loaded(hours()), pins: ['Charles River Campus', 'Terrace'], cr: false);
+    late final HallsVM on, off;
+    setUpAll(() {
+      on = vm(Loaded(hours()), pins: ['Charles River Campus', 'Terrace'], cr: true);
+      off = vm(Loaded(hours()), pins: ['Charles River Campus', 'Terrace'], cr: false);
+    });
     test('off: no pin, no area row, no count', () {
       expect(off.pins.map((b) => b.name), ['Terrace']);
       expect(off.areas, hasLength(4));

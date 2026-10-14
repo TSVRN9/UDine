@@ -21,7 +21,7 @@ void main() {
     // ignore: avoid_print
     if (missing.isNotEmpty) print('skipped: m2_dom.json has no halls.${missing.join(', halls.')} at $w');
     testWidgets('Halls at $w dp matches M2\'s DOM within 1 dp', skip: missing.isNotEmpty, (t) async {
-      await openApp(t, await bootRecorded(t, pins: ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Courtside Café']), w: w.toDouble());
+      await openApp(t, await bootRecorded(t, pins: ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Procrastination Station']), w: w.toDouble());
       await until(t, () => find.byType(Meter).evaluate().isNotEmpty);
       await t.pumpAndSettle();
       List<double> r(Finder f) {

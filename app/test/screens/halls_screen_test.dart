@@ -31,7 +31,7 @@ void main() {
     expect(find.text('Cafés & markets'), findsOneWidget);
     await t.drag(find.byType(SingleChildScrollView), const Offset(0, -3000));
     await t.pump();
-    for (final c in ['3 of 12 open now', '1 of 7 open now', '0 of 3 open now', '2 of 5 open now']) {
+    for (final c in ['12 of 12 open now', '7 of 7 open now', '4 of 4 open now', '5 of 5 open now']) {
       expect(find.text(c), findsOneWidget);
     }
     expect(find.text('Charles River Campus, Newton'), findsNothing);
@@ -42,8 +42,8 @@ void main() {
     await ready(t);
     expect(t.getTopLeft(band('Harvest Market')).dy, lessThan(t.getTopLeft(band('Wasabi')).dy));
     expect(t.getTopLeft(band('Berkshire')).dy, lessThan(t.getTopLeft(band('Harvest Market')).dy));
-    expect(find.text('Open until 9 PM'), findsNWidgets(3)); // Franklin, Hampshire, Harvest Market
-    expect(find.text('Closed for today'), findsOneWidget); // Wasabi
+    expect(find.text('Open until 9 PM'), findsNWidgets(4)); // Franklin, Hampshire, Harvest Market, Wasabi (11 AM to 9 PM on Oct 8)
+    expect(find.text('Closed for today'), findsNothing);
     expect(lamps(t), hasLength(4));
   });
 

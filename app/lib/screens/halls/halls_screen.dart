@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/m2/board.dart' show halls;
+import '../../core/m2/places.dart' show cafeKey, cafeTable;
 import '../../data/repository.dart' show HoursData, Loaded, LoadedOffline;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
@@ -29,6 +31,17 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // decode the photos while Halls is idle, so the first page to open does not decode its own in its opening frames
+    if (_c == null && Photos.enabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final scope = AppScope.of(context);
+        for (final k in [...halls, for (final n in scope.prefs.pins) ?cafeKey(n)]) {
+          final path = photoOf(k, k.startsWith('c') ? cafeTable[int.parse(k.substring(1))].name : '');
+          if (path != null) precacheImage(AssetImage(path), context);
+        }
+      });
+    }
     _c ??= HallsController(AppScope.of(context).repo)..addListener(_onData);
   }
 
@@ -66,6 +79,13 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
     );
   }
 
+  /// The band's window into its page's header photo (M2 `.win`): the photo at header size, offset so the pixels line up when it opens.
+  Widget? _photo(BandVM b) {
+    final path = photoOf(b.key, b.name);
+    if (path == null) return null;
+    return Positioned(left: 0, right: 0, top: -bandOff(b.key, widget.top), height: headerHeight(widget.top), child: Photo(path: path, pos: b.isCafe ? M2Layout.cafePhotoPos : photoPos[b.key]!));
+  }
+
   Widget _band(BandVM b, HallsVM vm) {
     final hider = AppScope.of(context).hider;
     final cafe = b.isCafe;
@@ -76,6 +96,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
         opacity: hider.hides(b.key) ? 0 : 1,
         child: Band(
           name: b.name, compact: cafe, status: b.status, fade: _arrive,
+          photo: _photo(b),
           busy: b.lamps == null ? null : BusyRow(lamps: b.lamps!, word: b.word!),
           letter: cafe ? null : HallLetter(letter: b.key, x: hallLx[b.key]!),
           onTap: () => _open(b),

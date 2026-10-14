@@ -4,11 +4,14 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/m2/places.dart';
+import 'package:udine/data/recorded/recorded.dart';
+import '../../screens/support.dart' show readRecorded;
 import 'support.dart';
 
-final roster = Roster.fromFeed(mapInfoV2([for (final l in jsonDecode(File('assets/recorded/locations-2026-10-11.json').readAsStringSync()) as List) l as Map<String, dynamic>]));
+late final Roster roster;
 
 void main() {
+  setUpAll(() async => roster = Roster.fromFeed(mapInfoV2([for (final l in jsonDecode(await recordedLocations(readRecorded)) as List) l as Map<String, dynamic>])));
   test('the table is M2\'s own: names, areas and buildings of every café, in book order', () {
     final fixture = (jsonDecode(File('test/core/m2/fixture.json').readAsStringSync())['places'] as List).where((p) => (p['key'] as String).startsWith('c')).toList();
     expect(cafeTable, hasLength(fixture.length));
@@ -21,11 +24,17 @@ void main() {
     }
   });
 
-  test('the recorded feed gives every café in the table but Procrastination Station (not in that capture), hours under c<i>, and the four halls', () {
-    expect(roster.cafes.map((p) => p.key), [for (var i = 0; i < cafeTable.length; i++) if (i != 19) 'c$i']);
-    expect(roster.hours.keys.where((k) => !k.startsWith('c')), ['B', 'W', 'F', 'H']);
+  test('the recorded feed gives every café in the table, hours under c<i>, and the four halls', () {
+    expect(roster.cafes.map((p) => p.key), [for (var i = 0; i < cafeTable.length; i++) 'c$i']);
+    expect(roster.hours.keys.where((k) => !k.startsWith('c')), unorderedEquals(['B', 'W', 'F', 'H']));
     expect(roster.cafes.firstWhere((p) => p.name == "Peet's Coffee & Tea").key, 'c18');
-    expect(roster.hours['c10']!.general, isNotNull); // Harvest Market (Wasabi is "Closed" all day in the capture: no window)
+    expect(roster.hours['c5']!.general, isNotNull); // Wasabi, 11 AM to 9 PM on Oct 8
+  });
+
+  test('hours are Oct 8\'s, the address and map pin are Oct 11\'s (NOTES Round 9, "Where")', () {
+    expect(roster.hours['c5']!.general!.openTime, '11:00 AM'); // Wasabi: "Closed" in the Oct 11 capture
+    expect(roster.hours['W']!.mapAddress, '42.3924624,-72.5255959');
+    expect(roster.hours['W']!.address, '667 N Pleasant St');
   });
 
   group('the Charles River filter', () {

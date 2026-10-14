@@ -14,9 +14,8 @@ import 'motion/routes.dart';
 import 'shell/app_scope.dart';
 import 'shell/prefs.dart';
 
-/// `?pins=N` (screenshots; M2's own flag): the first N of M2's five, held in memory and never saved. Procrastination Station is
-/// not in the recorded get_infov2 capture, so Courtside Café stands in as the fifth.
-const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Courtside Café'];
+/// `?pins=N` (screenshots; M2's own flag): the first N of M2's five, held in memory and never saved.
+const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Procrastination Station'];
 
 /// What the app runs on: the device store, the repository (UMass and Supabase live, or M2's recordings with a fixed clock and
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway

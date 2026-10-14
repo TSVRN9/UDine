@@ -16,10 +16,17 @@ class HallPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cafe = band.isCafe;
+    final cafe = band.isCafe, photo = photoOf(band.key, band.name);
     return Stack(children: [
       const Positioned.fill(child: ColoredBox(color: M2Color.chalk)),
-      Positioned(left: 0, right: 0, top: 0, height: headerHeight(top), child: const ColoredBox(color: M2Color.vm)),
+      Positioned(
+        left: 0, right: 0, top: 0, height: headerHeight(top),
+        child: ColoredBox(
+          color: M2Color.vm,
+          // the photo is the shared element: it stays where the band showed it, and its duotone develops into colour as the page opens
+          child: photo == null ? null : Photo(path: photo, pos: cafe ? M2Layout.cafePhotoPos : photoPos[band.key]!, duo: ReverseAnimation(page.progress)),
+        ),
+      ),
       Positioned(
         left: 0, right: 0, top: page.rect.off, height: cafe ? M2Layout.bandCompact : M2Size.band,
         child: AnimatedBuilder(

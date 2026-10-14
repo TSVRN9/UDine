@@ -21,6 +21,11 @@ Backend: none.
 Residency: unchanged. The store upgrade is where `flutter-port-device-data`'s in-place carry-over meets
 real users.
 Rationale:
+- **Store builds need UMass's photos at build time** (owner, 2026-10-14: ship them, never commit them; see
+  `flutter-port-halls`). `app/assets/photos/` is gitignored, so an EAS custom build or Codemagic must fetch
+  the files from somewhere other than git before `flutter build`. Open question for this task: where they
+  live (a private bucket, a CI secret archive) and how the build checks they are present, since a build
+  without them still succeeds and ships bands with no photo.
 - **Predictive back** closes the bake-off departure shared by both stacks: Android gesture navigation
   takes the left 24 dp, so the edge swipe arrived as a plain back with no tracking.
   `android:enableOnBackInvokedCallback` plus Flutter's predictive-back route transitions hand the

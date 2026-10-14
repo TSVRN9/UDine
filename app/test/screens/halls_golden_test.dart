@@ -10,7 +10,7 @@ import 'support.dart';
 // Every Halls state of the brief at 360 and 390 dp, over M2's recordings and the fixed clock. Photos are UMass's and never committed;
 // the bands show their maroon ground, grade and chenille letter. The recorded hours are the Oct 11 capture (a Sunday): most cafés are
 // closed in it, where M2's own Oct 8 render has them open.
-const five = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Courtside Café'];
+const five = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Procrastination Station'];
 
 void main() {
   setUpAll(loadFonts);

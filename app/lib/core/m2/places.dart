@@ -48,6 +48,12 @@ const cafeTable = [
   CafeEntry('Charles River Campus of UMass Amherst', 'Charles River Campus', 4, 'Newton'),
 ];
 
+/// `c<i>` of the café M2 calls `name`, or null.
+String? cafeKey(String name) {
+  final i = cafeTable.indexWhere((c) => c.name == name);
+  return i < 0 ? null : 'c$i';
+}
+
 /// The hall a get_infov2 title names (`Worcester Commons`, `Franklin Dining Commons`), as hours.dart matches it; null for anything else.
 String? hallKeyOfTitle(String title) {
   for (var i = 0; i < diningHalls.length; i++) {

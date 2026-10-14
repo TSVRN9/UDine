@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
@@ -11,6 +10,7 @@ import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/shell/prefs.dart';
+import 'package:udine/ui/ui.dart' show Photos;
 
 /// M2's fixed clock, Thursday October 8, 12:41 Eastern (lunch), wherever the machine is.
 final lunch = easternInstant(DateTime.utc(2026, 10, 8, 12, 41));
@@ -48,10 +48,9 @@ Future<void> until(WidgetTester t, bool Function() done, {int tries = 120, Durat
 }
 
 Future<void> openApp(WidgetTester t, Boot boot, {String route = '/halls', double w = 390, double h = 844, bool reduced = false}) async {
+  Photos.enabled = false; // goldens draw none, whatever a developer has linked into assets/photos
   phone(t, w: w, h: h);
   t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: reduced);
   addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
   await t.pumpWidget(UdineApp(initialRoute: route, boot: boot));
 }
-
-String recordedLocations() => jsonEncode(jsonDecode(File('assets/recorded/locations-2026-10-11.json').readAsStringSync()));

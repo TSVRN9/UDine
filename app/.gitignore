@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# UMass Dining's photos ship in the app (owner, 2026-10-14) but are never committed (public repo): tool/link_photos.sh fills these
+/assets/photos/*
+!/assets/photos/.gitkeep
+!/assets/photos/retail/
+/assets/photos/retail/*
+!/assets/photos/retail/.gitkeep

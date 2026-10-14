@@ -27,6 +27,7 @@ abstract final class M2Layout {
   static const backBtn = 48.0; // `.icon`
   static const backLeft = 4.0; // `#mctl` padding-left
   // the band (M2 `.band`, `.pin`, `.bt`)
+  static const cafePhotoPos = 0.5; // `.ph-C` background-position: 50% 50%
   static const bandCompact = 84.0; // `.band.pin`
   static const seam = 1.0; // `.band` margin-top
   static const statusGapBand = 7.0, statusGapPin = 6.0;
