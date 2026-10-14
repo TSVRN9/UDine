@@ -89,7 +89,7 @@ Rationale:
    build for internal distribution (one of the month's free iOS builds). Neither goes to a store track.
    If signing or `configure_ios_credentials` can't be made to work, switch to Codemagic and record why —
    files: `app/eas.json`, `app/.eas/build/*.yml`, `app/package.json`, `app/app.json` — lanes: the builds
-   themselves — blocked by: every screen brief — PR:
+   themselves — blocked by: roadmap items 1–13 — PR:
 2. **Store builds and the upgrade checks** — release signing on the path the spike chose, the Play
    internal-track check, TestFlight and the tester pass — files: `app/android/`, `app/ios/`, `eas.json`
    or `app/fastlane/` — lanes: flutter, the device checks — blocked by: every other port brief, the
