@@ -17,7 +17,8 @@ class RecordedClient extends http.BaseClient {
     // Halls are keyed Worcester/Franklin/Hampshire/Berkshire in the recording; their location ids are the foodpro tids.
     _ids = {
       'Worcester': 1, 'Franklin': 2, 'Hampshire': 3, 'Berkshire': 4,
-      for (final l in locs) l['location_title'] as String: ?(l['location_id'] as num?)?.toInt(),
+      for (final l in locs)
+        if (l['location_id'] != null) l['location_title'] as String: (l['location_id'] as num).toInt(),
     };
   }
   final Map<String, dynamic> menus;
@@ -33,13 +34,14 @@ class RecordedClient extends http.BaseClient {
         meal: {
           for (final s in stations as List)
             s[0] as String: [
-              for (final i in s[1] as List) _anchor(dishes[i] as Map<String, dynamic>),
+              for (final i in s[1] as List) anchor(dishes[i] as Map<String, dynamic>),
             ].join(),
         },
     });
   }
 
-  static String _anchor(Map<String, dynamic> d) {
+  /// One dish as the feed's `<a data-*>` anchor (plus the retail price span).
+  static String anchor(Map<String, dynamic> d) {
     final attrs = [for (final e in d.entries) if (e.key != 'price') ' data-${e.key}="${_esc(e.value as String)}"'].join();
     final price = d['price'] == null ? '' : '<span class="meal-price">${_esc(d['price'] as String)}</span>';
     return '<a$attrs href="#inline">${_esc(d['dish-name'] as String)}</a>$price';

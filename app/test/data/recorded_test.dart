@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -6,7 +7,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/m2/status.dart';
+import 'package:udine/core/foodpro.dart';
 import 'package:udine/data/recorded/recorded.dart';
+import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
 import 'package:udine/theme/m2_tokens.g.dart';
 
@@ -119,5 +122,82 @@ void main() {
       final r = await repo('/?data=recorded&net=fail');
       expect(kinds(await r.menu(1, '2026-10-08').toList()), 'Loading,Failed');
     });
+  });
+
+  group('every dish round-trips raw JSON -> feed HTML -> MenuItem', () {
+    final dishes = ((jsonDecode(File('$_flows/menus-2026-10-08-to-22.json').readAsStringSync()) as Map)['dishes'] as List).cast<Map<String, dynamic>>();
+
+    num n(String? s) {
+      final m = RegExp(r'-?\d+(\.\d+)?').firstMatch(s ?? '');
+      return m == null ? 0 : double.parse(m[0]!);
+    }
+
+    List<String> csv(String s) => [for (final x in s.split(',').map((x) => x.trim())) if (x.isNotEmpty) x];
+    Dv? dv(Map<String, dynamic> d, String k) => d.containsKey(k) ? Dv((d[k] as String).isEmpty ? null : n(d[k] as String)) : null;
+
+    MenuItem parsed(Map<String, dynamic> d) =>
+        parseCategoryItems(RecordedClient.anchor(d), 'Station', MealPeriod.lunch, 1, '2026-10-08').single;
+
+    void check(Map<String, dynamic> d) {
+      final i = parsed(d), x = i.nutrition;
+      final code = (d['recipe-webcode'] as String).split(RegExp(r'\s+'));
+      final grade = code.where(RegExp(r'^H[0-7]$').hasMatch).map((c) => int.parse(c[1])).firstOrNull;
+      const nut = {
+        'calories': 'calories', 'calories-from-fat': 'caloriesFromFat', 'total-fat': 'totalFatG', 'sat-fat': 'satFatG',
+        'trans-fat': 'transFatG', 'cholesterol': 'cholesterolMg', 'sodium': 'sodiumMg', 'total-carb': 'totalCarbG',
+        'dietary-fiber': 'dietaryFiberG', 'sugars': 'sugarsG', 'protein': 'proteinG',
+      };
+      final got = {
+        'name': i.dishName, 'serving': x.servingSize, 'ingredients': i.ingredients, 'allergens': i.allergens, 'diet': i.dietTags,
+        'codes': i.dietCodes, 'health': i.health, 'carbon': i.carbon, 'price': i.price,
+        'nut': [x.calories, x.caloriesFromFat, x.totalFatG, x.satFatG, x.transFatG, x.cholesterolMg, x.sodiumMg, x.totalCarbG, x.dietaryFiberG, x.sugarsG, x.proteinG],
+        'blank': x.blank,
+        'dv': [x.totalFatDv, x.satFatDv, x.cholesterolDv, x.sodiumDv, x.totalCarbDv, x.dietaryFiberDv, x.sugarsDv, x.proteinDv],
+      };
+      final want = {
+        'name': (d['dish-name'] as String).trim(), 'serving': (d['serving-size'] as String).trim(), // the parser trims attributes
+        'ingredients': (d['ingredient-list'] as String).trim().isEmpty ? null : (d['ingredient-list'] as String).trim(),
+        'allergens': csv(d['allergens']), 'diet': csv(d['clean-diet-str']),
+        'codes': {for (final c in code) if (const {'VGT', 'VGN', 'H', 'LPR', 'SUS'}.contains(c)) c},
+        'health': grade, 'carbon': const ['A', 'B', 'C', 'D', 'E'].contains(d['carbon-list']) ? d['carbon-list'] : null, 'price': d['price'],
+        'nut': [for (final k in nut.keys) n(d[k])],
+        'blank': {
+          for (final e in nut.entries)
+            if (e.key != 'calories' && !RegExp(r'-?\d').hasMatch(d[e.key])) e.value,
+        },
+        'dv': [for (final k in ['total-fat-dv', 'sat-fat-dv', 'cholesterol_dv', 'sodium-dv', 'total-carb-dv', 'dietary-fiber-dv', 'sugars-dv', 'protein-dv']) dv(d, k)],
+      };
+      for (final k in want.keys) {
+        expect(got[k], want[k], reason: '${d['dish-name']}: $k');
+      }
+    }
+
+    test('all 3,106 dishes, every field', () {
+      expect(dishes, hasLength(3106));
+      dishes.forEach(check);
+    });
+
+    for (final (label, pick) in <(String, bool Function(Map<String, dynamic>))>[
+      ('Onions: blank is exactly {transFatG}', (d) => d['dish-name'] == 'Onions' && !RegExp(r'\d').hasMatch(d['trans-fat'])),
+      ('absent cholesterol_dv stays null', (d) => !d.containsKey('cholesterol_dv')),
+      ('priced, H/VGT webcode, allergens, ingredients, carbon', (d) =>
+          d['price'] != null && d['recipe-webcode'].contains('VGT') && (d['recipe-webcode'] as String).split(' ').contains('H') &&
+          d['allergens'] != '' && d['ingredient-list'] != '' && d['carbon-list'] == 'A'),
+    ]) {
+      test('pinned: $label', () {
+        final d = dishes.firstWhere(pick, orElse: () => fail('no such dish'));
+        check(d);
+        final i = parsed(d);
+        if (label.startsWith('Onions')) expect(i.nutrition.blank, {'transFatG'});
+        if (label.startsWith('absent')) expect(i.nutrition.cholesterolDv, isNull);
+        if (label.startsWith('priced')) {
+          expect(i.price, isNotNull);
+          expect(i.dietCodes, containsAll(['VGT', 'H']));
+          expect(i.allergens, isNotEmpty);
+          expect(i.ingredients, isNotNull);
+          expect(i.carbon, 'A');
+        }
+      });
+    }
   });
 }
