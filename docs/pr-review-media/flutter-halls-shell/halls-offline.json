@@ -1,10 +1,10 @@
 {
-  "sha": "68dd7072cea671f94735613b6c6fc0cd9a165ba4",
+  "sha": "1c8904e950ae493aa8cdda15f1e19cf21c839d98",
   "branch": "flutter/halls-shell",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-halls",
   "route": "/halls?data=recorded&at=2026-10-08T12:41&net=offline&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-14T14:59:42Z"
+  "ts": "2026-10-14T15:18:08Z"
 }
