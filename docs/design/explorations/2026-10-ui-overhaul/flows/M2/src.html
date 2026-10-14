@@ -605,6 +605,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .cbody.pdfc .desc{margin-top:24px}
 .dish .fedit{flex:none;margin:-3px -12px -8px auto}   /* centred on the name's first line, as the star is */
 .fdel{display:block;margin:10px auto 0}
+.page[data-p=pdf]{overflow-x:auto}
 .page[data-p=pdf] .pbody{padding:12px 16px 20px}
 .pdfp{display:block;width:100%;height:auto;margin:0 0 12px;background:#fff;box-shadow:0 1px 3px rgba(36,10,14,.2)}
 .cbody .lrow .r{font-size:13px}
@@ -1218,6 +1219,7 @@ function osSheet(done, kind='health'){ const o=document.createElement('div'); o.
    menus: one notification per dish per logical day, from 7 AM, never once the dish's last serving that day has ended. */
 const ALQ = OSQ.get('alerts') || 'allow';
 const ALERTS = {on:false, granted:null, denied:false, seen:new Set()};
+if(ALQ==='revoked') Object.assign(ALERTS, {on:true, granted:false, denied:true});   // turned off in system settings: found when You shows or the app resumes
 const BGOFF = () => ALERTS.on && ALERTS.granted && ALQ==='bgoff';
 function alertRows(){ const den=ALERTS.denied, bg=BGOFF();
   const line = den ? 'Notifications are off for UDine' : bg ? (OS==='ios' ? "Background App Refresh is off, so UDine can't check menus" : "Battery use is restricted, so UDine can't check menus") : "When a favorite is on today's menu";
@@ -2009,7 +2011,7 @@ function renderPSheet(){
   const hs=plateHalls(pl), t=totals(pl);
   const tabs = S.plates.length>1 ? `<div class="ptabs" role="tablist">${S.plates.map((p,i)=>`<button role="tab" data-plate="${i}" aria-selected="${i===S.front}">${esc(plateLabel(p))}</button>`).join('')}</div>`:'';
   $('#psbody').dataset.pid=pl.id; $('#psbody').dataset.n=pl.items.length;
-  const rows = pl.items.map((it,i)=>{ const m=macroOf(it,(hs||[])[0]); return `<div class="prow" data-pi="${i}"><div class="tx"><div class="n">${esc(it.n)}</div>${m.parts&&m.parts.length?`<div class="pw">${esc(withLine(m.parts))}</div>`:''}<div class="m"><b>${fc(m.cal)}</b> cal each</div></div>${ctl(it.qty)}</div>`; }).join('');
+  const rows = pl.items.map((it,i)=>{ const m=macroOf(it,(hs||[])[0]); return `<div class="prow" data-pi="${i}"><div class="tx"><div class="n">${esc(it.n)}</div>${m.parts&&m.parts.length?`<div class="pw">${esc(withLine(m.parts))}</div>`:''}<div class="m"><b>${fc(m.cal)}</b> cal ${m.per100?'per 100 g':'each'}</div></div>${ctl(it.qty)}</div>`; }).join('');
   // Log lives in one place: the bar, which is this sheet's top edge
   $('#psbody').innerHTML = `<div>${tabs}${rows}${factsHTML(t)}
     <button class="custom" data-act="more">${IC.plus.replace('<svg','<svg width="20" height="20" stroke="currentColor" stroke-width="2.4" fill="none"')}Add something else</button>
@@ -2168,6 +2170,10 @@ function pdfBody(ci, j, phase){ const [l,,pages]=PDFS[P.places[ci][0]][j];
   return `<div class="pdfs">${pages.map((src,i)=>`<img class="pdfp" src="${src}" alt="${esc(l)} menu, page ${i+1} of ${pages.length}" draggable="false">`).join('')}</div>`; }
 function openPdf(ci, j){ const l=PDFS[P.places[ci][0]][j][0], kept=pdfSaved(l); openPage('pdf', `${ci}|${j}|${kept||NET?'':'loading'}`);
   if(!kept && !NET) pdfArrive(ci, j); }
+(()=>{ let z=null; const d=t=>Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  document.addEventListener('touchstart',e=>{ const p=e.target.closest('.pdfs'); if(p && e.touches.length===2) z={p, d0:d(e.touches), z0:+(p.style.zoom||1)}; },{passive:true});
+  document.addEventListener('touchmove',e=>{ if(!z || e.touches.length!==2) return; e.preventDefault(); z.p.style.zoom=clamp(z.z0*d(e.touches)/z.d0, 1, 4).toFixed(3); },{passive:false});
+  document.addEventListener('touchend',()=>{ z=null; },{passive:true}); })();
 function pdfArrive(ci, j){ const el=navTop()?.el; setTimeout(()=>{ if(!el.isConnected) return; SAVED.add('pdf:'+PDFS[P.places[ci][0]][j][0]); el.dataset.x=`${ci}|${j}|`;
   const pb=el.querySelector('.pbody'); pb.innerHTML=pdfBody(ci, j); A(pb,[{opacity:0},{opacity:1}],'settle'); if(menuShowing()) relist(); }, 600); }
 
