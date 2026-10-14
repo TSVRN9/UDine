@@ -47,8 +47,8 @@ void main() {
   test('lib has no raw literals the tokens own (theme/ holds them; letter_paths.dart is generated)', () {
     final bad = <String>[];
     for (final f in Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
-      // lib/core/ is pure logic: the rule polices UI motion and colour, not time arithmetic.
-      if (f.path.startsWith('lib/theme/') || f.path.startsWith('lib/core/') || f.path.endsWith('letter_paths.dart')) continue;
+      // lib/core/ and lib/data/ are pure logic: the rule polices UI motion and colour, not time arithmetic (cache ages, timeouts).
+      if (f.path.startsWith('lib/theme/') || f.path.startsWith('lib/core/') || f.path.startsWith('lib/data/') || f.path.endsWith('letter_paths.dart')) continue;
       bad.addAll(violations(f.readAsStringSync(), strict: true).map((v) => '${f.path} $v'));
     }
     expect(bad, isEmpty);

@@ -1,0 +1,3 @@
+tags:
+  live:
+    skip: "hits the real UMass endpoints; run with: flutter test --run-skipped -t live test/data/live_test.dart"
