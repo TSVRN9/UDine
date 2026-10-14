@@ -1,0 +1,5 @@
+# built from UMass-owned photos (see ../../README.md, "What isn't committed"); never commit
+index.html
+assets/
+build/
+tmp-*.png

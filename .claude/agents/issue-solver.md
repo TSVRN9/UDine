@@ -64,8 +64,9 @@ conversation that created the task.
   `mobile/src/lib/motion.ts` — never a literal. States the artboard can't depict come from the
   `canvas.json` annotation the brief names.
 - **`app/` (Flutter) parity source is M2**, not the `.dc.html` artboards:
-  `docs/design/explorations/2026-10-ui-overhaul/flows/M2/` (`test/m2_dom.json` measurements, goldens at
-  360 and 390 dp). Assert spec values in a measurement test against `m2_dom.json`; durations, curves and
+  `docs/design/explorations/2026-10-ui-overhaul/flows/M2/` (`src.html`, `CONCEPT.md`, `NOTES.md`,
+  `vectors.json`); measurements are `app/test/m2_dom.json`, goldens `app/test/goldens/` (kit_360/kit_390;
+  per-screen goldens go there too). Assert spec values in a measurement test against `m2_dom.json`; durations, curves and
   colours come from `app/lib/theme` / `app/lib/motion`, never a literal. Cite `M2 R<n> §<k>` / the
   `src.html` function in the brief's `UI:` line.
 - **No captions.** Rendered text that explains what the UI does is a defect even if the artboard
@@ -83,7 +84,8 @@ conversation that created the task.
   the gate rejects a stale one. Commit the PNG(s) + `.json` under `docs/pr-review-media/<branch>/`.
 - `app/` diffs: `cd app && flutter analyze && flutter test --concurrency=2`; screenshot with
   `app/tool/screenshot.sh <route> [--serial S]` in recorded mode (`?data=recorded&at=2026-10-08T12:41`)
-  and compare to M2's own render at the same width. One heavy job at a time: Gradle, an emulator and
+  and compare to M2's own render at the same width (see pr-reviewer.md §4 for the command; Playwright/Chromium
+  is a heavy job). One heavy job at a time: Gradle, an emulator and
   Playwright never run together. Run `scripts/pr-gate.sh` and `gh pr merge` from the repo root, each in
   its own Bash call. Kill a stuck `flutter_tester` by PID (`pgrep -x flutter_tester`), never `pkill -f`.
 - Long steps (Gradle, `expo run:android`, `supabase start`) run in the foreground: one Bash call,

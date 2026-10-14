@@ -126,8 +126,8 @@ for whoever reads the design, and those belong in `canvas.json`'s `annotations`,
 Allowed: genuine end-user copy (a hint line, an empty-state message), and a screen title. Anything
 addressed to a reviewer goes in the PR body.
 
-`app/` follows M2 (`docs/design/explorations/2026-10-ui-overhaul/flows/M2/`: `test/m2_dom.json`
-measurements, goldens at 360/390), not the artboards above.
+`app/` follows M2 (spec: `docs/design/explorations/2026-10-ui-overhaul/flows/M2/`; measurements
+`app/test/m2_dom.json`, goldens `app/test/goldens/` at 360/390), not the artboards above.
 
 ## Agents
 
