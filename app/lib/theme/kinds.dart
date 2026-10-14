@@ -30,6 +30,8 @@ class M2Type {
   M2Type bold() => M2Type(size, line, family, bold700, tabular: tabular);
   /// The same row at the font's own line height, for a rule where M2's CSS sets none and m2.json carries a fixed one (`brand`).
   M2Type normal() => M2Type(size, null, family, weight, tabular: tabular);
+  /// The same row with another line height (a rule that inherits the body's, where m2.json's row carries a different one).
+  M2Type withLine(double l) => M2Type(size, l, family, weight, tabular: tabular);
   M2Type withSize(double s) => M2Type(s, line == null ? null : line! * s / size, family, weight, tabular: tabular);
 }
 

@@ -30,3 +30,9 @@ String _fmtT(int m) => m >= 1439 ? 'midnight' : m == 720 ? 'noon' : '${(m ~/ 60 
   }
   return (lamps: lamps(b.pct), word: word, extra: extra);
 }
+
+/// The band's word: the level for this hour (UMass's hourly thresholds), hedged when the curve is thin. The meter never is.
+String busyWord(int level, {required bool low}) {
+  final w = const ['Not busy', 'A little busy', 'Busy'][level];
+  return low ? 'Probably ${w.toLowerCase()}' : w;
+}
