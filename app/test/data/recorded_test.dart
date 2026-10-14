@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:udine/core/occupancy.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/m2/status.dart';
@@ -199,5 +200,18 @@ void main() {
         }
       });
     }
+  });
+
+  test('recorded busy at 12:41 reproduces M2 per hall; catalog is empty', () async {
+    final r = await repo('/hall/worcester?data=recorded&at=2026-10-08T12:41');
+    final h = (await r.hours('2026-10-08').toList()).last as Loaded<HoursData>;
+    expect(h.value.locationIds.values, containsAll([1, 2, 3, 4]));
+    final reads = await r.busyReads(h.value);
+    final got = {for (final e in reads.entries) if (e.key.contains('Commons')) e.key.split(' ').first: (e.value.level, e.value.vsUsual, e.value.calmerAt, e.value.confidence)};
+    expect(got['Worcester'], (2, VsUsual.usual, '13:30', Confidence.good));
+    expect(got['Franklin'], (1, VsUsual.usual, null, Confidence.low));
+    expect(got['Hampshire'], (0, VsUsual.quieter, null, Confidence.good));
+    expect(got['Berkshire'], (2, VsUsual.busier, null, Confidence.low));
+    expect((await r.dishCatalog().toList()).last, isA<Loaded<List<DishCatalogEntry>>>());
   });
 }

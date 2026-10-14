@@ -47,6 +47,48 @@ class RecordedClient extends http.BaseClient {
     return '<a$attrs href="#inline">${_esc(d['dish-name'] as String)}</a>$price';
   }
 
+  /// M2's busy simulation (src.html BUSY/TYPICAL, Thursday 12:41), per hall location id: [live] headcount now, [peak] the typical
+  /// headcount over [from, to), [samples] per bucket. Thresholds are 300/600 for all, so levels follow from counts:
+  /// Worcester busy, usual, calmer 13:30, good; Franklin a little busy, low confidence; Hampshire not busy, quieter, good;
+  /// Berkshire busy, busier, low confidence. ponytail: pct, usual_pct and the outlook board have no OccupancyRead field.
+  static const _sim = {
+    1: (live: 700, peak: 680, from: 11 * 60, to: 13 * 60 + 30, shoulder: 450, shoulderTo: 14 * 60 + 30, samples: 6),
+    2: (live: 400, peak: 400, from: 11 * 60, to: 15 * 60, shoulder: 100, shoulderTo: 15 * 60, samples: 2),
+    3: (live: 150, peak: 450, from: 11 * 60, to: 14 * 60, shoulder: 100, shoulderTo: 14 * 60, samples: 6),
+    4: (live: 750, peak: 500, from: 11 * 60, to: 14 * 60, shoulder: 100, shoulderTo: 14 * 60, samples: 2),
+  };
+
+  /// get_infov2 with the four halls' headcount triple replaced by the simulation.
+  static String simulateLive(String locations) {
+    final list = jsonDecode(locations) as List;
+    for (final l in list.cast<Map<String, dynamic>>()) {
+      final sim = _sim[l['location_id']];
+      if (sim != null) {
+        l['business_level'] = sim.live;
+        l['notbusy_level'] = 300;
+        l['moderate_level'] = 600;
+      }
+    }
+    return jsonEncode(list);
+  }
+
+  /// Stand-in for `rpc/occupancy_typical`, shaped per hall by [_sim]; other locations get Worcester's.
+  static String typicalCurveJson(int locationId) {
+    final s = _sim[locationId] ?? _sim[1]!;
+    return jsonEncode([
+      for (var m = 7 * 60; m < 22 * 60; m += 15)
+        () {
+          final n = m >= s.from && m < s.to ? s.peak : m >= s.to && m < s.shoulderTo ? s.shoulder : 100;
+          return {
+            'bucket_start': '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}:00',
+            'median_headcount': n,
+            'median_level': n >= 600 ? 2 : n >= 300 ? 1 : 0,
+            'samples': s.samples,
+          };
+        }(),
+    ]);
+  }
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final u = request.url;
@@ -55,8 +97,10 @@ class RecordedClient extends http.BaseClient {
         final [m, d, y] = u.queryParameters['date']!.split('/');
         return menuJson(int.parse(u.queryParameters['tid']!), '$y-$m-$d');
       }(),
-      '/uapp/get_infov2' => locations,
+      '/uapp/get_infov2' => simulateLive(locations),
       '/uapp/get_beacons_events' => events,
+      '/rest/v1/rpc/occupancy_typical' => typicalCurveJson((jsonDecode((request as http.Request).body) as Map)['p_location_id'] as int),
+      '/rest/v1/dishes' => '[]', // the recorded screens don't read the catalog
       _ => throw StateError('no recording for $u'),
     };
     return http.StreamedResponse(Stream.value(utf8.encode(body)), 200, request: request);
