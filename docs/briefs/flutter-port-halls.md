@@ -82,7 +82,7 @@ Rationale:
 
 1. **Shell, stack and Halls tab** — `main.dart`, the tab shell, the navigation stack, bands and pins with
    live data and the network states — files: `app/lib/main.dart`, `app/lib/shell/`, `app/lib/motion/`,
-   `app/lib/screens/halls/` — lanes: flutter — blocked by: menu-data 1 — PR:
+   `app/lib/screens/halls/` — lanes: flutter — blocked by: menu-data 1, menu-data 1b — PR:
 2. **Cafés page and café page** — the list, the area headers, the café page on the hall page's body (a
    stub body until `flutter-port-hall-menu` lands; it then shares the hall body), the pin button, the
    Charles River filter — files: `app/lib/screens/cafes/` — lanes: flutter — blocked by: 1 — PR:

@@ -46,9 +46,10 @@ Rationale:
 - **Same JSON shapes.** Rows are read and written with the JSON shapes in `shared/src/types.ts`
   (`flutter-port-shared-logic` Task 2 round-trips them), so an RN-written row and a Flutter-written row
   are indistinguishable, and export output doesn't change.
-- **M2's new settings** (tracking on/off, score toggles, Charles River, first run seen, Avoid allergens)
+- **M2's new settings** (tracking on/off, score toggles, Charles River, first run seen)
   are new `preferences_kv` keys. `food_preferences` keeps its shape; fields M2 drops (`macroPresets`) stay
-  in the row unread.
+  in the row unread. M2's Only show and Avoid are written into `food_preferences`'s own fields
+  (`flutter-port-you`), so RN users keep the allergens they set.
 - Rejected: a fresh database plus a one-time import. It's a second copy to keep consistent and a
   migration step that can fail mid-way, for no gain over opening in place.
 - Rejected: `drift`. It's a heavier codegen dependency, and this is five tables of JSON columns.

@@ -56,7 +56,11 @@ log in the old app).
 ### Out of scope
 
 Sign-in, friends, pings, server push, shared stats and server favourite-hall sync (all on
-`archive/full-features`); `/web`; press and the newsletter (owner, 2026-10-13: cut); M2's planner tab.
+`archive/full-features`); `/web`; press and the newsletter (owner, 2026-10-13: cut); M2's planner tab;
+RN's daily ranking allowance, skip and post-log prompt (owner, 2026-10-13: M2's page only).
+
+**Dropped unless the owner says otherwise** (on `main`, in neither M2 nor any answer yet): top-5 foods
+on You, weekly averages on the logs screen, and sharing an event's poster.
 
 ## Acceptance
 
@@ -76,8 +80,9 @@ land, one heavy agent at a time (`host-memory-budget`).
 2. `flutter-port-shared-logic` — Dart core logic and cross-language vectors — blocked by: 1 — PR:
 3. `flutter-port-device-data` — the device store, opened in place from RN's `udine.db` (owner-gated) —
    blocked by: 1, 2 — PR:
-4. `flutter-port-menu-data` — live UMass and Supabase data with on-device cache and network states —
-   blocked by: 2 — PR:
+4. `flutter-port-menu-data` — live UMass and Supabase data with on-device cache and network states, plus
+   the recorded-data mode screenshots use — blocked by: 2, 3 (Task 1 only; device-data is owner-merged,
+   so its Task 1 is on every screen's critical path) — PR:
 5. `flutter-port-halls` — shell, Halls tab, cafés page, café page — blocked by: 4 — PR:
 6. `flutter-port-hall-menu` — hall menu, schedule, day control, stations, dietary line, busy —
    blocked by: 5 — PR:

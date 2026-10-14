@@ -81,8 +81,10 @@ Rationale:
      blocked by: 1 — PR:
 3. **Gate, lanes and agent docs for Dart:**
    - `app/tool/screenshot.sh <route> [--record N] [--swipe x1 y1 x2 y2] [--serial S]`: launches the
-     profile build with `adb shell am start -n com.udinetogether.udine.internal/.MainActivity --es route
-     <route>` (Flutter's `FlutterActivity` reads the `route` extra into
+     profile build with `adb shell am start -n
+     com.udinetogether.udine.internal/com.udinetogether.udine.MainActivity --es route '<route>'` (the
+     flavor suffix changes the package, not the class namespace, so `/.MainActivity` doesn't resolve; the
+     route is single-quoted for the device shell, or its `&` splits the command; Flutter's `FlutterActivity` reads the `route` extra into
      `PlatformDispatcher.defaultRouteName`), captures `screencap`/`screenrecord`, and writes
      `docs/pr-review-media/<branch>/` PNG/MP4 plus a sidecar JSON with the same keys `pr-gate.sh` checks
      today; frame dumps go to `~/.cache/udine-scratch/`, never `/tmp`;
@@ -105,11 +107,16 @@ Rationale:
      lanes: flutter, `pr-gate.sh` on the throwaway commits — blocked by: 2 — PR:
 4. **Internal Android build:**
    - `app/tool/build-internal-android.sh [--install]`: `flutter build apk --flavor internal --profile`
-     (release once `flutter-port-release` lands), signed with the EAS-managed upload keystore that
-     `mobile/scripts/build-internal-android.sh` uses, so it installs over the RN internal build;
-   - **owner action:** fetch the keystore with `eas credentials -p android` into
-     `~/.config/udine/android-upload.jks` plus a `key.properties` outside the repo; the script reads that
-     path and fails with that instruction if it's missing;
+     (release once `flutter-port-release` lands), signed with the same key as the RN internal build, so
+     it installs over it. EAS credentials are per application id, and `mobile/scripts/build-internal-android.sh`
+     builds with `app.json` patched to `.internal`, so that key is EAS's `com.udinetogether.udine.internal`
+     keystore, not the production upload key. The RN internal APK's signer is SHA-256
+     `15b699483827ec7ca7a411537cd7e8b1425ebd6afc39f68f68830cda9f3471df` (`apksigner verify --print-certs`,
+     2026-10-13). The script checks the keystore against that digest before building;
+   - **owner action:** download that keystore (`eas credentials -p android` from `mobile/` with `app.json`
+     temporarily patched to `.internal`, as the RN script does) into `~/.config/udine/android-internal.jks`
+     plus a `key.properties` outside the repo; the script reads that path and fails with this instruction
+     if it's missing or its digest differs;
    - versionName carries the commit sha, as RN's does (`1.0.0+<sha>` became the stale-build guard on
      2026-09-13).
    - files: `app/tool/build-internal-android.sh`, `app/android/app/build.gradle*` — lanes: flutter, the

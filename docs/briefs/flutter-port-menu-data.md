@@ -12,7 +12,7 @@ Roadmap and global decisions: `docs/briefs/flutter-port.md`.
 UI: none of its own. It exposes the states the screens render. Those are M2 R9 §4 ("Network.", NOTES
 "Round 9" Design) and the `?net=slow|offline|fail` behaviour in `src.html`.
 Annotations: none.
-States (as data, each covered by a test):
+States (as data, each covered by a test; the screens show them, in recorded mode, with `?net=`):
 - loading;
 - loaded;
 - loaded from cache while offline;
@@ -65,6 +65,12 @@ Rationale:
   test
 - [ ] The cache is bounded: entries older than yesterday are deleted on launch — evidence: test
 - [ ] The dish catalog delta resumes from the newest `updated_at` already held — evidence: test
+- [ ] A recorded-data mode, in debug and profile builds only, feeds M2's recorded data through the same
+  repository: `docs/design/explorations/2026-10-ui-overhaul/flows/menus-2026-10-08-to-22.json`, the
+  locations and events JSON beside it, and RN's bake-off busy rows. It comes with a fixed clock (`?at=`)
+  and the `?net=slow|offline|fail` simulation (the bake-off's `net.dart` behaviour), so every screen
+  brief's screenshot can be set against M2's render of the same data. Release builds can't reach it —
+  evidence: test (a release-mode build has no route to it)
 - [ ] A live smoke run against the real endpoints (a debug route or a `flutter test` tag that's off by
   default) fetches today for all four halls and one café — evidence: output in the PR
 
@@ -73,6 +79,8 @@ Rationale:
 1. **Fetch and cache** — HTTP client, menu/hours/events fetch on top of `core/` parsers, the
    `preferences_kv` cache, the state model, launch prefetch — files: `app/lib/data/`, `app/test/data/` —
    lanes: flutter — blocked by: shared-logic 2, device-data 1 — PR:
+1b. **Recorded-data mode** — the source switch, fixed clock and `net=` simulation, read from route
+   query flags — files: `app/lib/data/recorded/` — lanes: flutter — blocked by: 1 — PR:
 2. **Supabase reads** — dish catalog delta and `occupancy_typical`, both cached for the day; the curve
    combined with live busy through `core/occupancy.dart` — files: `app/lib/data/` — lanes: flutter —
    blocked by: 1, shared-logic 5 — PR:

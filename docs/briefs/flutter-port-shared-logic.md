@@ -65,7 +65,8 @@ Rationale:
    read them back — files: `shared/vectors/`, `shared/scripts/gen-vectors.ts`, `shared/src/*.test.ts` —
    lanes: shared (test, typecheck, lint) — blocked by: none — PR:
    1b. **Deno reads the vectors** (owner-merged: `supabase/`) — files:
-   `supabase/functions/**/*.test.ts` — lanes: deno test — blocked by: 1 — PR:
+   `supabase/functions/**/*.test.ts`, and the `deno test` line in `ci.yml`'s header gains
+   `--allow-read=shared/vectors` — lanes: deno test — blocked by: 1 — PR:
 2. **Dart: feeds** — `core/types.dart` (field-for-field with `shared/src/types.ts`; JSON keys unchanged),
    `core/foodpro.dart` (with grades and price), `core/hours.dart` (get_infov2 hours plus the
    `business_level`/`moderate_level`/`notbusy_level` triple, `999999` = no sensor), `core/content.dart`
