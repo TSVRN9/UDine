@@ -19,7 +19,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool persistPins = false}) async {
   return (await t.runAsync(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -28,7 +28,7 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     final store = UdineStore(db.db);
     await store.setCharlesRiver(charlesRiver);
     final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net), db.db, read: readRecorded, slow: slow);
-    return Boot(repo, store, await AppPrefs.load(store, pins: pins));
+    return Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins));
   }))!;
 }
 

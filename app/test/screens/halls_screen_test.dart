@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/motion/container_transform.dart';
+import 'package:udine/screens/cafes/cafe_page.dart';
+import 'package:udine/screens/cafes/cafes_page.dart';
 import 'package:udine/screens/halls/hall_page.dart';
 import 'package:udine/shell/shell.dart';
 import 'package:udine/theme/tokens.dart';
@@ -94,9 +96,10 @@ void main() {
       await openApp(t, await bootRecorded(t, pins: ['Harvest Market']));
       await ready(t);
       await t.tap(band('Harvest Market'));
-      await t.pumpAndSettle();
-      expect(find.byType(HallPage), findsOneWidget);
+      await t.pump(const Duration(milliseconds: 700)); // (a café's page shows its spinner until its menu is in: no pumpAndSettle)
+      expect(find.byType(CafePage), findsOneWidget);
       expect(t.getSize(find.byType(Band, skipOffstage: false).last).height, M2Layout.bandCompact);
+      await until(t, () => find.byType(Spinner).evaluate().isEmpty);
     });
 
     testWidgets('an area row pushes a page; the edge swipe and Android back close it', (t) async {
@@ -106,18 +109,20 @@ void main() {
       await t.pump();
       await t.tap(find.text('North, by Worcester'));
       await t.pumpAndSettle();
-      expect(find.byType(AreaPage), findsOneWidget);
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300))); // the page's own hours read
+      expect(find.byType(CafesPage), findsOneWidget);
       final g = await t.startGesture(const Offset(5, 400));
       await g.moveBy(const Offset(30, 0));
       await g.moveBy(const Offset(270, 0));
       await g.up();
       await t.pumpAndSettle();
-      expect(find.byType(AreaPage), findsNothing);
+      expect(find.byType(CafesPage), findsNothing);
       await t.tap(find.text('North, by Worcester'));
       await t.pumpAndSettle();
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
       await t.binding.handlePopRoute();
       await t.pumpAndSettle();
-      expect(find.byType(AreaPage), findsNothing);
+      expect(find.byType(CafesPage), findsNothing);
     });
 
     testWidgets('a tab press mid-stack goes back to the tab at once', (t) async {

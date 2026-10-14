@@ -7,6 +7,8 @@ import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../cafes/cafe_page.dart';
+import '../cafes/cafes_page.dart';
 import 'hall_page.dart';
 import 'halls_controller.dart';
 import 'halls_model.dart';
@@ -70,12 +72,13 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
 
   void _open(BandVM b) {
     final scope = AppScope.of(context);
+    if (!b.isCafe) scope.prefs.lastHall = b.key;
     final box = _keys[b.key]!.currentContext!.findRenderObject()! as RenderBox;
     final o = box.localToGlobal(Offset.zero);
     Nav.openCard<void>(
       context, source: b.key, hider: scope.hider, off: bandOff(b.key, widget.top),
       band: Rect.fromLTWH(o.dx, o.dy + M2Layout.seam, box.size.width, box.size.height - M2Layout.seam), // the seam above a band is not the band
-      builder: (_, page) => HallPage(band: b, page: page, top: widget.top),
+      builder: (_, page) => b.isCafe ? CafePage(cafeKey: b.key, top: widget.top, page: page) : HallPage(band: b, page: page, top: widget.top),
     );
   }
 
@@ -146,7 +149,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
                     for (var i = 0; i < vm.areas.length; i++)
                       LRow(
                         title: vm.areas[i].name, subtitle: vm.areas[i].count, fade: _arrive, last: i == vm.areas.length - 1,
-                        onTap: () => Nav.push<void>(context, (_) => AreaPage(title: vm.areas[i].name, top: top)),
+                        onTap: () => Nav.push<void>(context, (_) => CafesPage(top: top, area: vm.areas[i].area)),
                       ),
                   ]),
                 ),
