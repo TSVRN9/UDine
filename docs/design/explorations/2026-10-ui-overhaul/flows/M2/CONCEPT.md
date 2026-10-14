@@ -1081,3 +1081,14 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
 | A builder's foot after a pick | In place, as an add-in step (`settle`) |
 | Update from the plate | `Sheet.away`, then the plate row changes in place (the bowl's Update) |
 | Search rows when a family collapses | Search's existing FLIP (`settle`) |
+
+### Round 12, as built (where the build departed from the concept above; NOTES "Round 12")
+- **A chosen chip has no check, and its text doesn't get bolder.** It is the tonal fill and the maroon edge alone. With
+  the filter chip's check, choosing "Almond" widened that chip by the check's width, and at 360 and 390 the five milks
+  already wrap to two lines, so a choice could move a chip to the other line under the finger (pass 1).
+- **"Later today and tomorrow" rows lead with their token too** ("8 oz", then the numbers), as the menu's and "At
+  cafés" rows do.
+- **You → Favorites names a family by its name and says where it is now**, places joined with "and" ("At lunch now at
+  Worcester Café, Roots Café and Procrastination Station"). Hall favourites read as before.
+- **Café phos** (Star Ginger's nine, Whitmore's six) are chips like the hall broths, one or two to a line; a name longer
+  than the line wraps inside its chip (NOTES "Open").
