@@ -1,6 +1,6 @@
 // AA for pinned-café strips (round 5: 84 px, maroon gradient): pin all 27, hide the text, and report the worst contrast of white text against the
 // brightest background pixel under each text box (boxes hug the text). Name is Oswald 24/600 = large text (3:1); status 14 px (4.5:1).
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome' });
   const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });

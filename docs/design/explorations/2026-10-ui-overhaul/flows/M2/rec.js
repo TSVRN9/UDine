@@ -2,7 +2,7 @@
 // CSS + WAAPI slowed through CDP Animation.setPlaybackRate), screenshots continuously, and writes
 // build/rec/<ver>/<name>/NN.png + times.json (app-time ms). sheet.py turns them into strips.
 // usage: node rec.js <M1|M2> [name ...]      RM=1: reduced motion, written to build/rec/<ver>rm/
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const fs = require('fs'), path = require('path');
 const VER = process.argv[2] || 'M2', ONLY = process.argv.slice(3);
 const SRC = path.join(__dirname, '..', VER, 'index.html'), OUT = path.join(__dirname, 'build', 'rec', VER + (process.env.RM ? 'rm' : ''));

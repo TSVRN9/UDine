@@ -1,6 +1,6 @@
 // Round 5 screenshots: shot-pins.png (0, 2, 5 pins; 5 also scrolled), shot-dish.png (the where block in four states),
 // shot-search.png (a typed search with now and later rows). node shots5.js [pins|dish|search]
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const { execSync } = require('child_process');
 const ONLY = process.argv[2], D = __dirname, B = D + '/build/s5';
 require('fs').mkdirSync(B, { recursive: true });
