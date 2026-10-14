@@ -1,5 +1,5 @@
-/// The occupancy read M2's header and rows draw. ponytail: occupancy.dart (flutter-port-shared-logic Task 5) derives this from
-/// the sensor and the typical curve; until then it is plain data.
+/// The occupancy read M2's header and rows draw. occupancy.dart derives level, vsUsual and calmerAt (OccupancyRead.calmerAt, null when
+/// confidence is low); pct, label, trend and outlook stay screen-side, so this stays plain data.
 class Busy {
   final int level, pct, usualPct;
   final String label, trend, vsUsual, confidence;
