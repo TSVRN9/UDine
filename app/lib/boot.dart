@@ -13,7 +13,7 @@ import 'data/supabase_source.dart';
 import 'motion/routes.dart';
 import 'shell/app_scope.dart';
 import 'shell/prefs.dart';
-import 'ui/photos.dart' show Photos;
+import 'ui/photo.dart' show Photos;
 
 /// `?pins=N` (screenshots; M2's own flag): the first N of M2's five, held in memory and never saved.
 const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Procrastination Station'];
