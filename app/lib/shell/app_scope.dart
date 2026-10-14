@@ -3,17 +3,20 @@ import 'package:flutter/widgets.dart';
 import '../core/store/store.dart';
 import '../data/repository.dart';
 import '../motion/routes.dart';
+import 'plate_model.dart';
 import 'prefs.dart';
 
 /// What every screen under the shell reads: the repository (live or recorded), the device store, the preferences and which band a
 /// card is open from. The members are the notifiers; the scope itself never changes.
 class AppScope extends InheritedWidget {
-  const AppScope({super.key, required this.repo, required this.store, required this.prefs, required this.hider, required super.child});
+  const AppScope({super.key, required this.repo, required this.store, required this.prefs, required this.hider, required this.plate, required super.child});
   final Repository repo;
   /// null when a newer build owns the database: menus only, nothing is written
   final UdineStore? store;
   final AppPrefs prefs;
   final BandHider hider;
+  /// the plates being built: in memory until Log
+  final PlateModel plate;
 
   static AppScope of(BuildContext context) => context.getInheritedWidgetOfExactType<AppScope>()!;
 

@@ -242,14 +242,20 @@ class PushRoute<T> extends StackRoute<T> {
 
 /// What a card's page is told: the progress it is drawn at (0 = the band, 1 = the page), where the band was, and how to close.
 class CardPage {
-  CardPage({required this.progress, required this.rect, required this.close});
+  CardPage({required this.progress, required this.rect, required this.close, this.dragWrap = _same});
   final Animation<double> progress;
   final BandRect rect;
   final VoidCallback close;
 
+  /// Wraps a page's scrolling list in the back-drag recogniser, as a descendant of the scroll view: at the list's top a drag down is then
+  /// claimed before the list's own drag is (the recogniser the route holds above the page sees the move second).
+  final Widget Function(Widget child) dragWrap;
+
   /// A drag down takes the screen only while this is true (M2: `sc.scrollTop <= 0`); the page sets it from its list.
   bool Function() canDragDown = () => true;
 }
+
+Widget _same(Widget child) => child;
 
 /// M2's expanding card (container transform): the band's rect grows to the screen and the page hangs from its photo; the screen
 /// behind stays put under a 32% scrim. Back is the same frames reversed, and interactive: drag down (only while the page's list is
@@ -285,7 +291,8 @@ class CardRoute<T> extends StackRoute<T> {
 
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
-    final page = CardPage(progress: animation, rect: rect, close: () => navigator?.maybePop());
+    final width = MediaQuery.sizeOf(context).width;
+    final page = CardPage(progress: animation, rect: rect, close: () => navigator?.maybePop(), dragWrap: (child) => _withBack(child, width));
     canDragDown = () => page.canDragDown();
     return builder(context, page);
   }
