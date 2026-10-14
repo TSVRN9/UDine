@@ -3,6 +3,7 @@
 // Times are Eastern wall-clock. The TS reads them in the runtime's zone and assumes it is Eastern; here the zone is
 // explicit, with the US rule (EDT from the second Sunday of March 02:00 to the first Sunday of November 02:00,
 // in force since 2007), so core needs no tz package.
+// ponytail: hard-coded US post-2007 DST rule. A rule change (e.g. DST abolished) or a pre-2007 instant needs tz data.
 import 'date.dart';
 import 'types.dart';
 
@@ -19,9 +20,7 @@ DateTime _wall(DateTime instant) {
   return _shiftHours(u, _isEdt(u) ? -4 : -5);
 }
 
-DateTime _shiftHours(DateTime utc, int hours) => DateTime.fromMillisecondsSinceEpoch(utc.millisecondsSinceEpoch + hours * _hourMs, isUtc: true);
-
-const _hourMs = 3600000;
+DateTime _shiftHours(DateTime utc, int hours) => utc.add(Duration(hours: hours));
 
 /// The instant of an Eastern wall time, resolved as JS's local Date does: the first occurrence of a repeated hour, and
 /// a skipped hour shifts forward.
