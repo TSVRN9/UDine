@@ -67,6 +67,29 @@ void main() {
       expect(bandOpacity(), 1);
     });
 
+    testWidgets('a band tap during a close is taken, the same band and another', (t) async {
+      await openApp(t, await bootRecorded(t));
+      await ready(t);
+      for (final again in ['Hampshire', 'Franklin']) {
+        await t.tap(band('Hampshire'));
+        await t.pumpAndSettle();
+        await t.binding.handlePopRoute();
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 16));
+        await t.pump(const Duration(milliseconds: 150)); // the window is on its way back to the band
+        expect(find.byType(HallPage), findsOneWidget);
+        await t.tap(band(again).first, warnIfMissed: false);
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 16));
+        expect(find.byType(HallPage), findsNWidgets(2), reason: 'the tap on $again opened a second page over the closing one');
+        await t.pumpAndSettle();
+        expect(find.byType(HallPage), findsOneWidget);
+        await t.binding.handlePopRoute();
+        await t.pumpAndSettle();
+        expect(find.byType(HallPage), findsNothing);
+      }
+    });
+
     testWidgets('a pin opens its page the same way, at 84 dp', (t) async {
       await openApp(t, await bootRecorded(t, pins: ['Harvest Market']));
       await ready(t);

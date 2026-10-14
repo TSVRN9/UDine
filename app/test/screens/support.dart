@@ -10,7 +10,6 @@ import 'package:udine/core/hours.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
 import 'package:udine/data/recorded/recorded.dart';
-import 'package:udine/data/repository.dart';
 import 'package:udine/shell/prefs.dart';
 
 /// M2's fixed clock, Thursday October 8, 12:41 Eastern (lunch), wherever the machine is.
