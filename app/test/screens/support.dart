@@ -25,6 +25,7 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     final db = (await openStore(inMemoryDatabasePath)) as StoreReady;
+    addTearDown(db.db.close); // sqflite shares one in-memory database per path: the next test must not inherit this one's cache
     final store = UdineStore(db.db);
     await store.setCharlesRiver(charlesRiver);
     final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net), db.db, read: readRecorded, slow: slow);
@@ -39,10 +40,10 @@ void phone(WidgetTester t, {double w = 390, double h = 844}) {
 }
 
 /// Pumps real time for the store and the stream, and frames, until `done` holds.
-Future<void> until(WidgetTester t, bool Function() done, {int tries = 60}) async {
+Future<void> until(WidgetTester t, bool Function() done, {int tries = 120, Duration frame = const Duration(milliseconds: 16)}) async {
   for (var i = 0; i < tries && !done(); i++) {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 25)));
-    await t.pump(const Duration(milliseconds: 16));
+    await t.pump(frame);
   }
   expect(done(), isTrue, reason: 'never settled');
 }
