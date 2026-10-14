@@ -5,7 +5,7 @@ set -euo pipefail
 # provenance sidecar scripts/pr-gate.sh checks (same keys as mobile/scripts/screenshot.sh).
 #
 #   app/tool/screenshot.sh <route> [--serial S] [--apk PATH] [--record SECS]
-#                          [--swipe X1 Y1 X2 Y2 [MS]] [--settle SECS] [--out PATH]
+#                          [--swipe X1 Y1 X2 Y2 [MS]] [--settle SECS] [--out PATH] [--with-photos]
 #
 # <route> is handed to FlutterActivity as the `route` extra (-> PlatformDispatcher.defaultRouteName),
 # e.g. /kit or '/hall/franklin?data=recorded&at=2026-10-08T12:41&net=ok'. Recorded data assets ship
@@ -18,12 +18,16 @@ set -euo pipefail
 # Until foundation Task 4's same-key internal build lands, a device that already has the RN `.internal` build
 # can't take the Flutter one (signature mismatch): use a test emulator without it; never uninstall on the A53 or the owner's Pixel.
 # Emulators running the Flutter app must be booted with `-gpu host` (swangle_indirect crashes qemu on Impeller launch).
+# UMass Dining's photos must never reach git (the repo is public, owner rule 2026-10-14), and a capture of the app shows them. So every
+# route gets `photos=off` appended (merged into an existing query string) and the capture draws the maroon ground only. `--with-photos`
+# keeps them for looking at, and then the output must be under ~/.cache/udine-scratch/ (pass --out): the script refuses it otherwise,
+# and in particular with the default docs/pr-review-media output.
 # Galaxy A53 (R5CT40V5AME): Do Not Disturb is switched on for the capture and off after.
 
 PKG=com.udinetogether.udine.internal
 ACT=$PKG/com.udinetogether.udine.MainActivity
 ROUTE="${1:?usage: screenshot.sh <route> [flags]}"; shift
-SERIAL="${ANDROID_SERIAL:-}"; APK=""; RECORD=""; SWIPE=(); OUT=""; SETTLE=3
+SERIAL="${ANDROID_SERIAL:-}"; APK=""; RECORD=""; SWIPE=(); OUT=""; SETTLE=3; PHOTOS=off
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --serial) SERIAL="$2"; shift 2 ;;
@@ -32,10 +36,12 @@ while [[ $# -gt 0 ]]; do
     --swipe) SWIPE=("$2" "$3" "$4" "$5"); shift 5; [[ "${1:-}" =~ ^[0-9]+$ ]] && { SWIPE+=("$1"); shift; } ;;
     --out) OUT="$2"; shift 2 ;;
     --settle) SETTLE="$2"; shift 2 ;;
+    --with-photos) PHOTOS=on; shift ;;
     *) echo "unknown flag $1" >&2; exit 2 ;;
   esac
 done
 
+[[ "$PHOTOS" == off ]] && { [[ "$ROUTE" == *\?* ]] && ROUTE="$ROUTE&photos=off" || ROUTE="$ROUTE?photos=off"; }
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 if [[ -z "$SERIAL" ]]; then
@@ -58,6 +64,12 @@ SCRATCH="$HOME/.cache/udine-scratch"; mkdir -p "$SHOT_DIR" "$SCRATCH"
 ROUTE_SLUG="$(sed -E 's#^/##; s#[^A-Za-z0-9]+#-#g; s#-+$##' <<<"$ROUTE" | cut -c1-60)"
 STEM="$SHOT_DIR/${ROUTE_SLUG:-root}-$SERIAL"
 [[ -n "$OUT" ]] && STEM="${OUT%.*}"
+if [[ "$PHOTOS" == on ]]; then
+  case "$(realpath -m "$STEM")" in
+    "$(realpath -m "$SCRATCH")"/*) ;;
+    *) echo "--with-photos output must be under $SCRATCH (pass --out there), never docs/pr-review-media: UMass photos are never committed" >&2; exit 2 ;;
+  esac
+fi
 
 dnd=false
 [[ "$SERIAL" == R5CT40V5AME ]] && dnd=true

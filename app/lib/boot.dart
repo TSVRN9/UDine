@@ -13,6 +13,7 @@ import 'data/supabase_source.dart';
 import 'motion/routes.dart';
 import 'shell/app_scope.dart';
 import 'shell/prefs.dart';
+import 'ui/photos.dart' show Photos;
 
 /// `?pins=N` (screenshots; M2's own flag): the first N of M2's five, held in memory and never saved.
 const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Procrastination Station'];
@@ -35,6 +36,7 @@ class Boot {
 
   /// [dbPath] is a test seam (the device path by default).
   static Future<Boot> open(String route, {String? dbPath}) async {
+    if (photosOff(route)) Photos.enabled = false;
     final flags = recordedFlags(route);
     final pinsFlag = int.tryParse(Uri.parse(route).queryParameters['pins'] ?? '');
     final (cache, store) = await openDb(dbPath: flags != null ? inMemoryDatabasePath : (dbPath ?? await udineDbPath()));
