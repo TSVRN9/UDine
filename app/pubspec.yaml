@@ -81,6 +81,12 @@ flutter:
         - asset: assets/fonts/LibreFranklin_700Bold.ttf
           weight: 700
 
+  # M2's recorded data (symlinks into docs/design): only the internal flavor bundles it, never store.
+  assets:
+    - path: assets/recorded/
+      flavors:
+        - internal
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
