@@ -32,7 +32,30 @@ Rationale:
 - **iOS is first seen here.** The iPhone tester runs `docs/agents/ios-checklist.md` on a TestFlight build.
   That build adds the Flutter screens' gestures, the sheet detents, Health, and the
   `Documents/SQLite/udine.db` carry-over from the current TestFlight build.
-- **Deleting `/mobile`** comes after both stores ship the Flutter build and a week passes with no data
+- **Build path: Expo's EAS with a custom build first, Codemagic as the fallback** (owner, 2026-10-13:
+  "see if it's possible to stick with Expo and custom builds"). EAS Build doesn't document Flutter. A
+  custom build (`.eas/build/*.yml`, named by a profile's `config` in `eas.json`) can mix arbitrary `run:`
+  steps with EAS's own functions, and a fully native, non-RN iOS app has been built this way (Software
+  Mansion, `pmleczek/eas-native-ios-app-example`, with a minimal `package.json`, `app.json` holding the
+  EAS project id, and a symlinked `ios` directory). The Flutter recipe would be:
+  - **Both platforms:** `eas/checkout`, then a `run:` step that installs the pinned Flutter SDK (cached
+    with `eas/save_build_cache`/`eas/restore_build_cache`), then `flutter pub get`.
+  - **iOS:** `flutter build ios --config-only --release`, then `eas/resolve_apple_team_id_from_credentials`,
+    `eas/configure_ios_credentials`, `eas/generate_gymfile_from_template` (scheme `Runner`),
+    `eas/run_fastlane` (it expects an `ios/` directory, which a Flutter project already has), and
+    `eas/find_and_upload_build_artifacts`.
+  - **Android:** `eas/inject_android_credentials` into `android/`, `flutter build appbundle`, and the
+    artifact upload.
+  - **Submit:** `eas submit --path <file>` uploads a prebuilt binary.
+
+  That keeps EAS-managed signing (the same upload key and Apple credentials RN uses today) and
+  `eas submit`. Unproven parts:
+  - signing a store build (the published example builds a simulator app without credentials);
+  - `eas/configure_ios_credentials` against Flutter's `Runner.xcworkspace`;
+  - the time to install Flutter on each build, against the free plan's monthly iOS build quota.
+
+  **Fallback:** Codemagic, whose own docs cover Flutter, signing and both stores, and which has a free
+  tier. comes after both stores ship the Flutter build and a week passes with no data
   loss report. Removed with it:
   - `mobile/`;
   - its lanes in `ci.yml`;
@@ -59,8 +82,14 @@ Rationale:
 
 1. **Predictive back** — files: `app/android/app/src/main/AndroidManifest.xml`, `app/lib/motion/` —
    lanes: flutter, the A53 run — blocked by: halls 1 — PR:
-2. **Store builds and the upgrade checks** — release signing, the EAS or Fastlane path for Flutter, the
-   Play internal-track check, TestFlight and the tester pass — files: `app/android/`, `app/ios/`, `eas.json`
+1b. **Build spike (needs the owner's go-ahead, because it runs `eas build`):** an Android custom build with
+   `eas build -p android --local` (on this machine, no cloud quota, no store upload), then one iOS cloud
+   build for internal distribution (one of the month's free iOS builds). Neither goes to a store track.
+   If signing or `configure_ios_credentials` can't be made to work, switch to Codemagic and record why —
+   files: `app/eas.json`, `app/.eas/build/*.yml`, `app/package.json`, `app/app.json` — lanes: the builds
+   themselves — blocked by: foundation 2, the owner's go-ahead — PR:
+2. **Store builds and the upgrade checks** — release signing on the path the spike chose, the Play
+   internal-track check, TestFlight and the tester pass — files: `app/android/`, `app/ios/`, `eas.json`
    or `app/fastlane/` — lanes: flutter, the device checks — blocked by: every other port brief, the
    owner's go-ahead — PR:
 3. **Remove RN** — files: `mobile/`, `.github/workflows/ci.yml`, `scripts/pr-gate.sh`, `docs/design/`,
