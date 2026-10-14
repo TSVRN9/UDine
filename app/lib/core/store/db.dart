@@ -1,0 +1,98 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
+
+/// Schema version this build knows. 0 is RN's schema (never stamped a version).
+const kUserVersion = 1;
+
+/// RN's schema, copied from mobile/src/lib/db.ts. Never alter these; new
+/// migrations add tables/columns/keys only.
+const _rnSchema = [
+  '''CREATE TABLE IF NOT EXISTS log_entries (
+           id TEXT PRIMARY KEY NOT NULL,
+           logged_at TEXT NOT NULL,
+           source_json TEXT NOT NULL,
+           servings REAL NOT NULL,
+           nutrition_json TEXT NOT NULL
+         )''',
+  '''CREATE TABLE IF NOT EXISTS favorites (
+           key TEXT PRIMARY KEY NOT NULL,
+           favorite_json TEXT NOT NULL
+         )''',
+  '''CREATE TABLE IF NOT EXISTS preferences_kv (
+           key TEXT PRIMARY KEY NOT NULL,
+           value_json TEXT NOT NULL
+         )''',
+  '''CREATE TABLE IF NOT EXISTS custom_foods (
+           id TEXT PRIMARY KEY NOT NULL,
+           food_json TEXT NOT NULL
+         )''',
+  '''CREATE TABLE IF NOT EXISTS food_sighting_dedup (
+           dish_name TEXT NOT NULL,
+           hall_tid INTEGER NOT NULL,
+           sighted_date TEXT NOT NULL,
+           PRIMARY KEY (dish_name, hall_tid, sighted_date)
+         )''',
+];
+
+/// Additive-only steps; index i migrates user_version i -> i+1.
+/// 0 -> 1: stamps the version (RN's tables are created above if missing).
+const _migrations = <List<String>>[[]];
+
+sealed class StoreOpen {}
+
+class StoreReady extends StoreOpen {
+  StoreReady(this.db);
+  final Database db;
+}
+
+/// The file was written by a newer build. Nothing was migrated or written.
+class StoreNewerVersion extends StoreOpen {
+  StoreNewerVersion(this.found, this.supported);
+  final int found;
+  final int supported;
+}
+
+/// expo-sqlite's location, so the Flutter app inherits RN's data in place.
+/// Android: path_provider_android 2.3.1 getApplicationSupportPath() returns
+/// Context.getFilesDir().path (path_provider_android_real.dart), which is
+/// expo-sqlite's `filesDir/SQLite` parent. iOS: Documents/SQLite.
+/// Never sqflite's default databases/ dir.
+Future<String> udineDbPath() async {
+  final base = Platform.isAndroid
+      ? await getApplicationSupportDirectory()
+      : await getApplicationDocumentsDirectory();
+  return p.join(base.path, 'SQLite', 'udine.db');
+}
+
+Future<int> _version(DatabaseExecutor db) async =>
+    (await db.rawQuery('PRAGMA user_version')).first.values.first! as int;
+
+/// Opens [path] in place (SQLite replays any -wal itself; nothing is copied).
+Future<StoreOpen> openStore(String path, {DatabaseFactory? factory}) async {
+  final f = factory ?? databaseFactory;
+  if (File(path).existsSync()) {
+    // Probe read-only first so a newer file is never written, even by a checkpoint.
+    final probe = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
+    final found = await _version(probe);
+    await probe.close();
+    if (found > kUserVersion) return StoreNewerVersion(found, kUserVersion);
+  } else {
+    Directory(p.dirname(path)).createSync(recursive: true);
+  }
+  final db = await f.openDatabase(path);
+  await db.transaction((tx) async {
+    for (final s in _rnSchema) {
+      await tx.execute(s);
+    }
+    for (var v = await _version(tx); v < kUserVersion; v++) {
+      for (final s in _migrations[v]) {
+        await tx.execute(s);
+      }
+      await tx.execute('PRAGMA user_version = ${v + 1}');
+    }
+  });
+  return StoreReady(db);
+}
