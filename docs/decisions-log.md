@@ -1521,9 +1521,11 @@ being ported to Flutter on the M2 design.**
 - **Design fidelity was not the tiebreaker.** Both stacks reached M2 within about 1 dp. Both needed at
   least one REWORK per task. RN also shipped a worklet crash that passed jest and review.
 - **What the decision commits to:**
-  - porting `@udine/shared` (about 2.5k lines) and `mobile/src/lib` (about 8k) to Dart, while the edge
-    functions keep the TypeScript `@udine/shared`, so the logic shared by both sides needs cross-language
-    test vectors;
+  - porting `@udine/shared` (about 2.55k lines) and `mobile/src/lib` (about 4.7k) to Dart; the roughly 11k
+    lines of RN UI are rewritten on M2 either way. The edge functions import no `@udine/shared` module (Deno
+    can't resolve it); they hand-copy foodpro parsing, hours/open status, `matchesQuery` normalization and
+    favorite matching. A Dart port makes a third copy of those four, so they get shared JSON test vectors
+    that the TS, Deno and Dart tests all read;
   - the Flutter app ships under the existing package ID and bundle identifier, and its first launch migrates
     the RN app's device-only data (the log never leaves the device, so a lost migration loses it for good);
   - iOS is still unseen by agents until the new UI is complete (no store-track builds before then).
