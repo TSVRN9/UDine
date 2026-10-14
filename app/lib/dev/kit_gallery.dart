@@ -30,14 +30,17 @@ class KitGallery extends StatelessWidget {
             ScreenHeader.page(top: M2Space.group, title: 'Kit', onBack: _no),
             const Band(name: 'Worcester', status: 'Open until 2:30 PM', busy: BusyRow(lamps: 3, word: 'Busy'), letter: HallLetter(letter: 'W', x: M2Space.group)),
             const Band(name: 'Franklin', status: 'Closed', compact: true),
+            const ColoredBox(color: M2Color.dm, child: Padding(padding: EdgeInsets.all(M2Space.gutter), child: Button(kind: ButtonKind.outline, label: 'Directions'))),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter, vertical: M2Space.group),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Button(kind: ButtonKind.primary, label: 'Add to plate', expand: true),
+                const SizedBox(height: M2Space.part),
+                const Button(kind: ButtonKind.line, label: 'Cancel', expand: true),
+                gap,
                 row([
-                  const Button(kind: ButtonKind.primary, label: 'Add to plate'),
                   const Button(kind: ButtonKind.gold, label: 'Log'),
-                  const Button(kind: ButtonKind.line, label: 'Cancel'),
-                  const Button(kind: ButtonKind.outline, label: 'Directions'),
+                  const Button(kind: ButtonKind.outlineDark, label: 'Directions'),
                   const Button(kind: ButtonKind.directions, label: 'Directions'),
                   const TextAction('Show all', onTap: _no),
                 ]),
@@ -67,9 +70,14 @@ class KitGallery extends StatelessWidget {
               ]),
             ),
             ListRow(name: const TextSpan(text: 'Golden BBQ Chicken Thigh'), label: 'Golden BBQ Chicken Thigh', meta: const Text('240 cal'), control: const AddButton()),
-            const LRow(title: 'Dietary preferences', subtitle: 'None'),
-            CheckRow(label: 'Vegetarian', on: true, onChanged: (_) {}),
-            CheckRow(label: 'Halal', on: false, onChanged: (_) {}, last: true),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
+              child: Column(children: [
+                const LRow(title: 'Dietary preferences', subtitle: 'None'),
+                CheckRow(label: 'Vegetarian', on: true, onChanged: (_) {}),
+                CheckRow(label: 'Halal', on: false, onChanged: (_) {}, last: true),
+              ]),
+            ),
             SheetOption(label: 'Soups', trailing: '12', current: true, onTap: _no),
             SheetOption(label: 'Entrées', trailing: '8', current: false, onTap: _no),
             const Padding(padding: EdgeInsets.all(M2Space.gutter), child: Arrive(child: Facts(cal: 240, p: 28, c: 9, f: 11))),

@@ -10,6 +10,7 @@ class UdineApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => WidgetsApp(
+        debugShowCheckedModeBanner: false,
         color: M2Color.dm,
         initialRoute: initialRoute,
         pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),

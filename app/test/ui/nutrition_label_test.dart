@@ -5,6 +5,7 @@ import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 
 void main() {
+  coverageTest();
   setUpAll(loadFonts);
   testWidgets('the label\'s rows are the heights M2 draws for a full label (title, serving, Calories, 2 thin, rows, sub rows, foot)', (t) async {
     const label = Label('1 thigh (6 oz)', '240', [
@@ -36,5 +37,23 @@ void main() {
       expect(got[i], closeTo(want[i], 0.3), reason: 'child $i'); // (Flutter rounds a line to whole dp: the 12 dp foot is 24, M2's 24.2)
     }
     expect(t.getSize(find.byType(NutritionLabel)).height, closeTo(521.2, 1.5)); // M2's .label box
+  });
+}
+
+void coverageTest() {
+  testWidgets('the carbon note draws no character outside the bundled fonts (U+2082 is in neither), CO2e subscripted instead', (t) async {
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(const Directionality(textDirection: TextDirection.ltr, child: RatingsPanel(health: null, carbon: 'B')));
+    final spans = <String>[];
+    t.renderObject<RenderParagraph>(find.textContaining('kg CO', findRichText: true)).text.visitChildren((s) {
+      if (s is TextSpan && s.text != null) spans.add(s.text!);
+      return true;
+    });
+    final text = spans.join();
+    expect(text.contains('₂'), isFalse);
+    expect(text, contains('CO'));
+    expect(find.descendant(of: find.byType(RatingsPanel), matching: find.text('2')), findsOneWidget);
   });
 }

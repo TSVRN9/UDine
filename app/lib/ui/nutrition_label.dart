@@ -85,6 +85,19 @@ class RatingsPanel extends StatelessWidget {
   final String? carbon;
   const RatingsPanel({super.key, required this.health, required this.carbon});
 
+  /// "CO₂e" with the 2 drawn as a subscript: U+2082 is in neither bundled font, so a literal one falls back to the system font mid-word.
+  /// M2's browser draws the character itself, so m2.json has no value for these; they are the usual subscript proportions.
+  static const _subSize = 0.65, _subDrop = 0.2;
+  Widget _carbonNote(String band) {
+    const t = M2Text.lblThin;
+    final style = t.style(M2Color.ink), sub = M2Type(t.size * _subSize, null, t.family, t.weight).style(M2Color.ink);
+    return Text.rich(TextSpan(style: style, children: [
+      TextSpan(text: '$band kg CO'),
+      WidgetSpan(alignment: PlaceholderAlignment.baseline, baseline: TextBaseline.alphabetic, child: Transform.translate(offset: Offset(0, t.size * _subDrop), child: Text('2', style: sub))),
+      const TextSpan(text: 'e per kg of food'),
+    ]));
+  }
+
   Widget _scale(ScoreKind kind, List<Object> steps, Object value, double stepW) => Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
         for (var i = 0; i < steps.length; i++) ...[
           if (i > 0) const SizedBox(width: M2Layout.scaleGap),
@@ -123,7 +136,7 @@ class RatingsPanel extends StatelessWidget {
             label: 'Carbon rating $carbon',
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Carbon rating', style: b), const SizedBox(width: _rowGap), _scale(ScoreKind.carbon, const ['A', 'B', 'C', 'D', 'E'], carbon!, M2Layout.cscaleW)]),
-              Padding(padding: const EdgeInsets.only(top: M2Layout.gradeNoteTop), child: Text('${carbonBand[carbon]} kg CO₂e per kg of food', style: M2Text.lblThin.style(M2Color.ink))),
+              Padding(padding: const EdgeInsets.only(top: M2Layout.gradeNoteTop), child: _carbonNote(carbonBand[carbon]!)),
             ]),
           ),
         ),
