@@ -81,11 +81,13 @@ Rationale:
   - **Lamps (5):** live headcount as a share of that peak, capped at 100%, lit as M2 lights `pct` (one lamp per
     20%, at least one).
   - **Board:** one bar per hour from opening (as M2's `TYPICAL`), each bar the hour's usual headcount on the same
-    scale. The current hour is lit with the live headcount.
+    scale: the largest `median_headcount` of the hour's four 15-minute buckets, so the peak hour's bar fills. The
+    current hour is lit with the live headcount. Buckets under `minSamples` still draw (confidence changes words,
+    not shape), and the scale's peak is taken over all of them.
   - **The word** (Busy / A little busy / Not busy) still comes from the level for this hour (UMass's hourly
     thresholds), and "Busier/Quieter than usual" from `vsUsual`. So a full meter can read "A little busy" when the
     rush is normal for that hour; that's intended.
-  - **No curve yet** (no rows, or every bucket under `minSamples`): lamps fall back to the level (1, 3 or 5 lit) and
+  - **No curve yet** (no rows, every bucket under `minSamples`, or a peak of 0): lamps fall back to the level (1, 3 or 5 lit) and
     the board is left out. Low confidence never changes the meter, only the words ("Probably…", no "Calmer
     around…"), as M2 does.
   - **Outlook:** M2's 30/60/90-minute outlook becomes the next hours' bars of the typical curve. There's no separate
