@@ -82,4 +82,31 @@ void main() {
     expect(occupancyDow(DateTime.utc(2026, 11, 1, 16, 20)), 0);
     expect(occupancyDow(noon), 3);
   });
+
+  group('meter lamps (owner, 2026-10-14): live headcount against the day\'s typical peak', () {
+    int lamps(List<OccupancyBucket> typical, int n) => occupancyRead(typical: typical, live: at(n), now: noon)!.lamps;
+    final curve = [b('11:00:00', 100, 0), b('12:00:00', 400, 1), b('13:00:00', 200, 0, 1)];
+
+    test('one lamp per 20% of the peak, at least one', () {
+      expect([0, 79, 80, 81, 160, 320, 321, 400].map((n) => lamps(curve, n)), [1, 1, 1, 2, 2, 4, 5, 5]);
+    });
+    test('capped at the peak', () => expect(lamps(curve, 4000), 5));
+    test('the peak is taken over every bucket, low-sample ones included', () {
+      final c = [b('12:00:00', 200, 0, 6), b('13:00:00', 1000, 2, 1)];
+      expect(lamps(c, 500), 3);
+    });
+    test('no usable curve falls back to the level: 1, 3 or 5 lamps', () {
+      final noRows = <OccupancyBucket>[];
+      final thin = [b('12:00:00', 700, 2, 3), b('12:15:00', 700, 2, 1)];
+      final zero = [b('12:00:00', 0, 0)];
+      for (final c in [noRows, thin, zero]) {
+        expect([lamps(c, 10), lamps(c, 300), lamps(c, 600)], [1, 3, 5]);
+      }
+    });
+    test('low confidence changes the words only, never the meter', () {
+      final sure = [b('12:00:00', 400, 1, 6)];
+      final unsure = [b('12:00:00', 400, 1, 6), b('12:15:00', 100, 0, 2)];
+      expect(occupancyRead(typical: unsure, live: at(300), now: noon)!.lamps, lamps(sure, 300));
+    });
+  });
 }

@@ -1,4 +1,5 @@
 import 'hours.dart';
+import 'm2/busy.dart' show lamps;
 
 /// One `occupancy_typical(p_location_id, p_dow)` row: a 15-minute Eastern wall-clock bucket, medians over the trailing six
 /// weeks of that weekday. `bucket_start` arrives as a Postgres `time` ("12:15:00").
@@ -34,7 +35,12 @@ const _vsBand = 0.25;
 const _vsMinPeople = 10;
 
 class OccupancyRead {
-  const OccupancyRead({required this.level, required this.vsUsual, required this.usuallyClearsAt, required this.confidence});
+  const OccupancyRead({required this.level, required this.vsUsual, required this.usuallyClearsAt, required this.confidence, required this.lamps});
+
+  /// Lit lamps of the band meter and the header board, 1-5 (owner, 2026-10-14): the live headcount as a share of the day's typical
+  /// peak, capped at the peak. No usable curve (no rows, every bucket under [minSamples], a peak of 0) falls back to the level:
+  /// 1, 3 or 5. Confidence never changes it.
+  final int lamps;
 
   /// 0 not busy, 1 moderate, 2 busy, for this hour (the thresholds are hourly).
   final int level;
@@ -78,8 +84,11 @@ OccupancyRead? occupancyRead({required List<OccupancyBucket> typical, required S
         : diff > 0 ? VsUsual.busier : VsUsual.quieter;
   }
   final sure = cur != null && cur.samples >= minSamples && (clears == null || clears.samples >= minSamples);
+  final peak = typical.fold(0, (m, b) => b.medianHeadcount > m ? b.medianHeadcount : m);
+  final curveUsable = peak > 0 && typical.any((b) => b.samples >= minSamples);
   return OccupancyRead(
     level: level,
+    lamps: curveUsable ? lamps(live.count * 100 / peak) : const [1, 3, 5][level],
     vsUsual: vs,
     usuallyClearsAt: clears == null ? null : easternInstant(DateTime.utc(wall.year, wall.month, wall.day, 0, clears.minuteOfDay)),
     confidence: sure ? Confidence.good : Confidence.low,
