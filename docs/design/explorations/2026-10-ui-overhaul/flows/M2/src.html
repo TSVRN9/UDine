@@ -368,7 +368,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .lenses::-webkit-scrollbar{display:none}
 .chip{flex:none;height:44px;padding:0 14px;border-radius:8px;box-shadow:inset 0 0 0 1.5px rgba(110,98,102,.4);font-size:15px;font-weight:500;color:var(--ink);white-space:nowrap;display:flex;align-items:center;gap:6px}
 .chip[aria-pressed=true],.chip[aria-checked=true]{background:var(--tint);color:var(--dm);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--vm)}
-.chip[aria-pressed=true]:not(:has(.gl)):not([data-act=unscope])::before,.chip[aria-checked=true]::before{flex:none;content:"";width:10px;height:5px;margin:0 2px 3px 0;border:solid currentColor;border-width:0 0 2px 2px;transform:rotate(-45deg)}   /* a filter chip, selected: tonal with a check (M3), never a filled button */
+.chip[aria-pressed=true]:not(:has(.gl)):not([data-act=unscope])::before{flex:none;content:"";width:10px;height:5px;margin:0 2px 3px 0;border:solid currentColor;border-width:0 0 2px 2px;transform:rotate(-45deg)}   /* a filter chip, selected: tonal with a check (M3), never a filled button */
 .chip .x{font-size:18px;line-height:1}
 #search{display:flex;flex-direction:column}
 #search>*{flex-shrink:0}
@@ -564,6 +564,8 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
    name wraps inside its chip */
 .vpick{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .vpick .chip{height:auto;min-height:44px;max-width:100%;padding:10px 14px;white-space:normal;text-align:left;line-height:1.25}
+.vpick .chip[aria-checked=true]{font-weight:500}   /* chosen is the tonal fill and edge alone: no check, no bolder text, so a chip never changes width and the group never reflows */
+.dish .vpick+.dsv{margin-top:8px}
 .mks-s{display:inline-flex;align-items:center;gap:8px;height:30px}
 .mks-s .tile{width:24px;height:30px}
 .dish .dal{margin:8px 0 0;font-size:15px;line-height:1.4;color:var(--ink)}
@@ -1977,7 +1979,7 @@ function pageContent(p, x){
     return ['Your foods', fs.length ? fs.map(f=>`<button class="lrow" data-food="${esc(f.id)}"><div><div class="a">${esc(f.n)}</div><div class="b">${fc(f.cal)} cal, ${esc(f.srv)}</div></div>${IC.rchev}</button>`).join('') : `<p class="empty" style="padding-left:0">Foods you add that aren't on a menu are kept here.</p>`]; }
   if(p==='pdf'){ const [ci,j,ph]=x.split('|'); return [PDFS[P.places[+ci][0]][+j][0]+' menu', pdfBody(+ci, +j, ph)]; }
   if(p==='favs'){ const f=[...S.fav]; return ['Favorites', alertRows() + (f.length? f.map(k=>{ const g=BYK.lunch[k]||Object.values(BYK).map(b=>b[k]).find(Boolean); const s=servedNow(k);
-      return `<div class="lrow"><div><div class="a">${esc(g?g.n:dishName(k))}</div><div class="b">${s.length?'At lunch now at '+hallLabel(s):'Not on lunch today'}</div></div></div>`; }).join('')
+      return `<div class="lrow"><div><div class="a">${esc(g?g.n:dishName(k))}</div><div class="b">${s.length?'At lunch now at '+(g?hallLabel(s):andList(s.map(PN))):'Not on lunch today'}</div></div></div>`; }).join('')
       : `<p class="empty" style="padding-left:0">Star a dish from its details and it shows up here, with where it's served today.</p>`)]; }
   if(p==='day'){ return [isoFull(x), dayBlock(x)]; }
   if(p==='diet') return ['Dietary preferences', `<h2 class="h3 dh">Only show</h2>${[['veg','Vegetarian'],['plant','Plant based'],['halal','Halal']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.diet[k]}" data-diet="${k}">${l}<i></i></button>`).join('')}

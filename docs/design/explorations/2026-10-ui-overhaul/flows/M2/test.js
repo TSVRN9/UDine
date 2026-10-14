@@ -1103,7 +1103,10 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await openRow('Boba'); let s = await sheet();
       assert.deepEqual([s.n, s.chips], ['Boba, Almond Milk', ['Almond*', 'Maple', 'Oat', 'Skim', 'Soy']], 'one chip per milk, labelled by the milk');
       assert.match(s.al, /Tree Nuts/, 'almond milk lists tree nuts');
+      const widths = () => ev(() => [...document.querySelectorAll('#isbody .vpick [role=radio]')].map(c => { const b = c.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width)].join(); }));
+      const w0 = await widths();
       await chip('Oat'); s = await sheet();
+      assert.deepEqual(await widths(), w0, 'choosing never moves or resizes a chip (pass 1)');
       assert.deepEqual([s.n, s.cal, /Tree Nuts/.test(s.al)], ['Boba, Oat Milk', '262', false], 'oat: its own name, label and Contains');
       const oat = await ev(() => DS.d.id);
       await page.locator('#isbody .dadd').tap(); await page.waitForTimeout(1000);
