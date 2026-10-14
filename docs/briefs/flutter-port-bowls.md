@@ -19,17 +19,23 @@ UI (M2, `docs/design/explorations/2026-10-ui-overhaul/flows/M2/`): CONCEPT R10 �
   with the foot reading Update.
 - **Which dishes build:**
   - natural bases at halls (Noodle Bowl, Pasta Bar, Omelet);
-  - synthetic bases (owner, round 10) for an unpriced Salad Bar, Cold Bar or Deli Bar. These are named
-    "Your salad from the Salad Bar", "Your salad from the Cold Bar" and "Your sandwich from the Deli Bar",
-    have no nutrition of their own, and keep Add disabled at 0;
+  - synthetic bases (owner, round 10) for an unpriced Salad Bar or Deli Bar. They are named "Salad Bar"
+    and "Deli Bar" (owner, 2026-10-13, replacing round 10's "Your salad from the Salad Bar" wording;
+    M2 is updated to match), have no nutrition of their own, and keep Add disabled at 0. Harvest Market's
+    by-the-pound bars get no base (owner, 2026-10-13);
   - a café dish whose place and meal have an Add-ons or Toppings station, using that station's dishes
     that have nutrition.
 
-**Open (owner) — blocks this brief:**
-1. The synthetic base names above, as worded.
-2. Whether Harvest Market's by-the-pound bars ("Salad Bar $11.50/LB", "Cold Bar Items $11.50/LB") get a
-   synthetic base.
-3. Whether Harvest's Hot Bar Items, Indian Bar and Asian Bar stay single dishes (M2's current answer).
+**Settled (owner, 2026-10-13):**
+- synthetic bases are named "Salad Bar" and "Deli Bar";
+- no by-the-pound bar gets a base: Harvest Market's Salad Bar, Cold Bar, Hot Bar Items, Indian Bar and
+  Asian Bar, and Roots' Cold Bar, all stay single dishes. Round 10's "Cold Bar" base is gone;
+- **a Noodle Bowl station's bowl is named after its base soup or dish** ("Beef Brisket Noodle Bowl"),
+  because the rest of the station are toppings. This is round 10's natural-base rule. The name is
+  dynamic, so base detection has to be right for every Noodle Bowl station on every day. Round 10 detects
+  the base as a dish of at least 120 cal whose name has no sauce, topping, broth or dressing. A soup base
+  with "broth" in its name would fail that test, so the rule is checked against the recorded 15 days
+  (Acceptance) and corrected if needed.
 
 Annotations: none.
 States:
@@ -60,6 +66,9 @@ Rationale:
 
 - [ ] `M2/vectors.json` bowl cases (which dishes build, base detection, synthetic bases, café add-ins
   with nutrition only, price sums, item keys) pass — evidence: test
+- [ ] Every Noodle Bowl station on every day in `menus-2026-10-08-to-22.json` resolves exactly one base,
+  and that base is its soup or dish, not a topping. The PR lists each station-day's base. Any station-day
+  that doesn't resolve is fixed in the rule (and in M2's `buildOf`) with a vector case — evidence: test
 - [ ] Goldens at 360 and 390 for every state above, and M2 DOM measurements for the add-in rows and the
   pinned foot within 1 dp — evidence: test
 - [ ] Device screenshots of each state next to M2's own render — evidence: screenshot
