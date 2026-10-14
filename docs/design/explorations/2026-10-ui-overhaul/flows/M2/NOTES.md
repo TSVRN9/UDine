@@ -1916,7 +1916,7 @@ b-salad-sheet).
 - `CRITIQUE-r11.md`, `CONCEPT.md` (Round 11), `src.html`, `build.py`, `test.js`, `vectors.js`, `vectors.json`, `shots11.js`.
 - New data, committed: `../locations-2026-10-13.json` (the live get_infov2) and `../packaged-2026-10-13.json`. The PDFs
   are in `local/pdf/` (gitignored).
-- Shots: `build/r11/p1` (all 47 states, `sheet1.png` to `sheet9.png`) and `build/r11/p2` (pass 2, `check.png`). The
+- Shots: `build/r11/p1` (all 49 states, `sheet1.png` to `sheet9.png`) and `build/r11/p2` (pass 2, `check.png`). The
   baseline is in `build/r11/before-*`. `build/` is under `~/.cache/udine-scratch/flows/M2/` and isn't committed.
 
 ### Open (for the owner)
