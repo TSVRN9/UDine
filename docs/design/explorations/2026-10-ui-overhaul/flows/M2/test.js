@@ -766,16 +766,16 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.deepEqual(await ev(() => [plateLabel(S.plates[0]), macroOf(S.plates[0].items[0]).price]), ['Green Fields lunch', '$19.00']);
       // the synthetic Salad Bar base totals only what was chosen
       await go('?state=menu&hall=B'); await page.locator('#mtabs .mts button[data-meal=dinner]').tap(); await page.waitForTimeout(700);
-      const sr = page.locator('#mlist .row.syn').first(); assert.equal(await sr.locator('.n').textContent(), 'Your salad from the Salad Bar');
+      const sr = page.locator('#mlist .row.syn').first(); assert.equal(await sr.locator('.n').textContent(), 'Salad Bar');   // round 11: named after the station
       await sr.tap(); await page.waitForTimeout(800);
       assert.deepEqual(await ev(() => [document.querySelector('#bfoot .l2 b').textContent, document.querySelector('#bfoot [data-act=badd]').disabled]), ['0', true], 'nothing chosen: 0, and nothing to add');
       const picked = await ev(() => { const rows = [...document.querySelectorAll('#isbody .brow')].slice(0, 3); rows.forEach(r => r.querySelector('.add').click()); return rows.reduce((a, r) => a + DISH[r.dataset.bp].cal, 0); });
       assert.equal(+await page.locator('#bfoot .l2 b').first().textContent(), Math.round(picked), 'the salad is only the sum of its items');
       await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1000);
-      assert.deepEqual(await ev(() => [S.plates[0].items[0].n, Math.round(macroOf(S.plates[0].items[0]).cal)]), ['Your salad from the Salad Bar', Math.round(picked)]);
+      assert.deepEqual(await ev(() => [S.plates[0].items[0].n, Math.round(macroOf(S.plates[0].items[0]).cal)]), ['Salad Bar', Math.round(picked)]);
       assert(await page.locator('#mlist .row:not(.syn) .add').count() > 10, 'its singles keep their own +');
       // and the Deli Bar
-      await go('?state=menu&hall=F'); assert.equal(await page.locator('#mlist .row.syn .n', { hasText: 'Your sandwich from the Deli Bar' }).count(), 1);
+      await go('?state=menu&hall=F'); assert.equal(await page.locator('#mlist .row.syn .n', { hasText: /^Deli Bar$/ }).count(), 1);
     });
     await scen('Health: allow, deny, revoked; writes on log, follows edits and deletes; nothing while tracking is off', async () => {
       const toHealth = async q => { await go('?state=you' + q); };
@@ -814,7 +814,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
     const type = async q => { await page.locator('#q').fill(q); await page.waitForTimeout(900); };
     const groups = () => ev(() => [...document.querySelectorAll('#sres .sgrp')].map(g => g.dataset.key));
     const grpRows = key => ev(k => { const out = []; let el = document.querySelector(`#sres .sgrp[data-key="${k}"]`); if (!el) return out;
-      for (el = el.nextElementSibling; el && !el.classList.contains('sgrp'); el = el.nextElementSibling) if (el.classList.contains('row')) out.push({ n: el.querySelector('.n').textContent, m: el.querySelector('.m').textContent.replace(/\s+/g, ' ').trim(), tags: el.querySelectorAll('.lane .tags').length, add: el.querySelectorAll('.lane .add').length }); return out; }, key);
+      for (el = el.nextElementSibling; el && !el.classList.contains('sgrp'); el = el.nextElementSibling) if (el.classList.contains('row')) out.push({ n: el.querySelector('.n').textContent, m: el.querySelector('.m').textContent.replace(/\s+/g, ''), tags: el.querySelectorAll('.lane .tags').length, add: el.querySelectorAll('.lane .add').length }); return out; }, key);
     await scen('bowls: Salad Bar and Deli Bar; no by-the-pound base; exactly one Noodle Bowl base per hall station-day', async () => {
       await go('?state=menu&hall=B'); await page.locator('#mtabs .mts button[data-meal=dinner]').tap(); await page.waitForTimeout(700);
       assert.equal(await page.locator('#mlist .row.syn .n').first().textContent(), 'Salad Bar', 'the synthetic base reads "Salad Bar"');
@@ -840,9 +840,9 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await go('?state=search'); await type('clif');
       const gs = await groups(); assert.deepEqual(gs.filter(k => ['g-now', 'g-cafes', 'g-later', 'g-yours', 'g-pack'].includes(k)), ['g-yours', 'g-pack'], 'nothing served: Your foods, then Packaged');
       const yours = await grpRows('g-yours'), pack = await grpRows('g-pack');
-      assert.deepEqual(yours, [{ n: 'Clif Bar Chocolate Chip', m: '250 cal 6g protein', tags: 0, add: 1 }], 'a saved packaged food: its own serving, a + and no place');
+      assert.deepEqual(yours, [{ n: 'Clif Bar Chocolate Chip', m: '250cal6gprotein', tags: 0, add: 1 }], 'a saved packaged food: its own serving, a + and no place');
       assert(pack.length >= 5, 'packaged hits');
-      assert.deepEqual(pack[0], { n: 'Clif bar', m: '368 cal per 100 g', tags: 0, add: 1 }, 'per-100 g values say so');
+      assert.deepEqual(pack[0], { n: 'Clif bar', m: '368calper100g', tags: 0, add: 1 }, 'per-100 g values say so');
       assert.equal(new Set(pack.map(r => r.n.toLowerCase())).size, pack.length, 'a name once');
       assert(!pack.some(r => r.n === 'Clif Bar Chocolate Chip'), 'a food already in Your foods is not repeated');
       await type('bbq'); const g2 = await groups(); assert(g2.indexOf('g-now') >= 0 && (g2.indexOf('g-pack') < 0 || g2.indexOf('g-pack') > g2.indexOf('g-now')), 'served dishes come first');
@@ -899,7 +899,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
     });
     await scen('offline search: says what it searches; unsaved cafés absent; Your foods offline; failed: Couldn\'t connect, Packaged still answers, Try again', async () => {
       await go('?state=search&net=offline');
-      assert.equal(await page.locator('#sres .netnote').textContent(), "You're offline. Searching the menus saved on this phone: the halls, today and tomorrow.", 'the line, idle');
+      assert.equal(await page.locator('#search .netnote').textContent(), "You're offline. Searching the menus saved on this phone: the halls, today and tomorrow.", 'the line, idle');
       await type('caesar'); assert.equal(await page.locator('#sres .row[data-cg]').count(), 0, 'a café never opened is not searched');
       await type('bbq'); assert((await groups()).includes('g-now'), "the halls' saved menus are");
       await type('clif'); const gs = await groups();
@@ -907,17 +907,17 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.equal(await page.locator('#sres [data-act=lookup]').count(), 0, 'no Search UMass Dining offline'); assert(await page.locator('#sres [data-act=custom]').count() > 0, 'a custom food needs nothing');
       await type('green fields'); assert.equal(await page.locator('#sres .prow2', { hasText: 'Green Fields' }).count(), 1, 'places still match by name');
       await go('?state=search&net=offline&saved=Green%20Fields');
-      assert.equal(await page.locator('#sres .netnote').textContent(), "You're offline. Searching the menus saved on this phone: the halls, today and tomorrow, and Green Fields, today.");
+      assert.equal(await page.locator('#search .netnote').textContent(), "You're offline. Searching the menus saved on this phone: the halls, today and tomorrow, and Green Fields, today.");
       await type('caesar'); assert(await page.locator('#sres .row[data-cg]').count() > 0, 'a saved café is searched');
       await go(); const gf = await ev(() => P.places.findIndex(x => x[0] === 'Green Fields'));
       await go('?net=offline'); await ev(i => openHall('C', true, null, { cafe: i }), gf); await page.waitForTimeout(300);
       assert.equal(await page.locator('#mlist .empty').textContent(), "You're offline, and the menu for Thursday, October 8 isn't saved on this phone.", 'an unsaved café, opened offline');
       await go('?state=search&net=fail'); await type('bbq');
-      assert.equal(await page.locator('#sres .netfail span').textContent(), "Couldn't connect"); assert.equal(await page.locator('#sres .netfail [data-act=retry]').textContent(), 'Try again');
+      assert.equal(await page.locator('#search .netfail span').textContent(), "Couldn't connect"); assert.equal(await page.locator('#search .netfail [data-act=retry]').textContent(), 'Try again');
       assert(!(await groups()).includes('g-now'), 'failed: no menus');
       await type('clif'); assert((await groups()).includes('g-pack'), 'failed: Packaged still answers'); assert.equal(await page.locator('#sres [data-act=lookup]').count(), 1);
-      await type('bbq'); await page.locator('#sres .netfail [data-act=retry]').tap(); await page.waitForTimeout(600);
-      assert((await groups()).includes('g-now'), 'Try again: the menus are back'); assert.equal(await page.locator('#sres .netfail').count(), 0);
+      await type('bbq'); await page.locator('#search .netfail [data-act=retry]').tap(); await page.waitForTimeout(600);
+      assert((await groups()).includes('g-now'), 'Try again: the menus are back'); assert.equal(await page.locator('#search .netfail').count(), 0);
     });
     await scen('café PDFs: The Commonwealth Restaurant, four menus as rows, a pushed page of pages; offline and failed', async () => {
       await go(); const ci = await ev(() => P.places.findIndex(x => x[0] === 'The Commonwealth Restaurant'));
@@ -971,7 +971,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await go('?notify=1'); await page.waitForTimeout(400);
       assert.deepEqual(await ev(() => [...document.querySelectorAll('.osnote b, .osnote span.t')].map(e => e.textContent)), ['Beef Brisket Noodle Bowl', 'Lunch from 11 AM at Worcester and Berkshire'], 'the notification: the dish, then where and when');
       await page.locator('.osnote').tap(); await page.waitForTimeout(1500);
-      assert.deepEqual(await ev(() => [S.hall, S.mmeal, document.querySelector('#mlist .row.here .n')?.textContent]), ['W', 'lunch', 'Beef Brisket Noodle Bowl'], 'tapping it opens the hall at that meal, at the dish');
+      assert.deepEqual(await ev(() => [S.hall, S.mmeal, document.querySelector('#mlist .row.here .n')?.textContent.replace('★', '')]), ['W', 'lunch', 'Beef Brisket Noodle Bowl'], 'tapping it opens the hall at that meal, at the dish');
     });
   };
   if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11 }[process.env.RED] || round7)(); console.log(results.join('\n')); await browser.close(); return; }
@@ -1132,7 +1132,7 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   assert(await page.locator('.page[data-p=cafes]').isVisible(), 'area row opens cafés');
   const openRows = await page.locator('.page[data-p=cafes] .lrow').count();
   await page.locator('[data-act=opennow]').tap(); await page.waitForTimeout(150);
-  assert.equal(await page.locator('[data-act=opennow]').getAttribute('aria-pressed'), 'false'); assert(await page.locator('.page[data-p=cafes] .lrow').count() >= openRows, 'Open now off never hides places'); assert.equal(openRows, 28, 'all 28 Amherst cafés (Terrace too, round 9b) are open at 12:41');
+  assert.equal(await page.locator('[data-act=opennow]').getAttribute('aria-pressed'), 'false'); assert(await page.locator('.page[data-p=cafes] .lrow').count() >= openRows, 'Open now off never hides places'); assert.equal(openRows, 29, 'all 29 Amherst cafés (Terrace too, round 9b; The Commonwealth Restaurant, round 11) are open at 12:41');
   await page.locator('.page[data-p=cafes] .lrow', { hasText: 'Wasabi' }).tap(); await page.waitForTimeout(450);
   assert.equal(await page.evaluate(() => [S.cafe != null, document.querySelector('#menu').classList.contains('cafe')].join()), 'true,true', 'café detail (the hall screen, café mode)');
   assert.match(await page.locator('#mts').textContent(), /Open until 9 PM/);
