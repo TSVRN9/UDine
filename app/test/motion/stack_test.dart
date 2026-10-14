@@ -260,6 +260,29 @@ void main() {
     expect(h.hider.hides('band-Base'), isTrue);
   });
 
+  testWidgets('back during an open (Android back) turns it round from where it had got to, ends at rest, and shows the band again', (tester) async {
+    final h = Harness(tester);
+    await h.boot();
+    await tester.tap(find.byKey(const Key('band-Base')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 120));
+    final at = h.p;
+    expect(at, inExclusiveRange(0.2, 0.95));
+    expect(h.hider.hides('band-Base'), isTrue);
+    await h.nav.maybePop(); // what Android back does (this harness has no WidgetsApp to route it)
+    await tester.pump();
+    expect(h.p, lessThanOrEqualTo(at), reason: 'the close starts where the open had got to, with no jump to 1');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(h.p, lessThan(at)); // closing, from where it was: no jump to 1 first
+    await tester.pumpAndSettle();
+    expect(h.p, 0.0);
+    expect(h.nav.canPop(), isFalse);
+    expect(find.text('Base'), findsOneWidget);
+    expect(find.text('C1', skipOffstage: false), findsNothing);
+    expect(h.hider.hides('band-Base'), isFalse);
+  });
+
   testWidgets('the clock starts after the first drawn frame: a long first frame does not skip the curve', (tester) async {
     final h = Harness(tester);
     await h.boot();

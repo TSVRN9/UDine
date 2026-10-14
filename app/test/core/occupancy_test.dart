@@ -103,6 +103,10 @@ void main() {
         expect([lamps(c, 10), lamps(c, 300), lamps(c, 600)], [1, 3, 5]);
       }
     });
+    test('a thin curve is not trusted for the share: 250 people against a thin peak of 100 is level 0, one lamp, not five', () {
+      expect(lamps([b('12:00:00', 100, 0, 1), b('12:15:00', 80, 0, 2)], 250), 1);
+      expect(lamps([b('12:00:00', 100, 0, 4)], 250), 5); // one trusted bucket makes the curve usable
+    });
     test('low confidence changes the words only, never the meter', () {
       final sure = [b('12:00:00', 400, 1, 6)];
       final unsure = [b('12:00:00', 400, 1, 6), b('12:15:00', 100, 0, 2)];

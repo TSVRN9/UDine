@@ -45,7 +45,7 @@ void main() {
   });
 
   test('nothing in the shell or the screens reaches the store: every write path is closed', () {
-    final reach = RegExp(r'\.store\b|UdineStore|openStore|udineDbPath');
+    final reach = RegExp(r'\.store\b|UdineStore|openStore|udineDbPath|openDatabase|sqflite|databaseFactory');
     final bad = <String>[];
     for (final d in ['lib/shell', 'lib/screens', 'lib/motion']) {
       for (final f in Directory(d).listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
