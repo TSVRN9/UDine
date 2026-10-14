@@ -40,6 +40,6 @@ with a picker. The brief is `docs/briefs/m2-round-12.md`. References are to RN o
     dish sheet would miss most of them.
 11. **Blank calories read as 0.** "20 oz Chai" has no calories in the feed; `build.py` stores 0 (`or 0`), so it draws
     "0 cal" next to the 16 oz's 211. A picker puts the two numbers side by side. This predates round 12.
-12. **One item can't be told apart by name.** Harvest Market's hot bar lists "Yellow Cheddar Macaroni & Cheese (8 oz)"
-    twice, 4 oz (185 cal) and 8 oz (370 cal). The variant is in the serving size, not the name, so a name rule can't
-    group it, and both share one key.
+12. **A size in a name isn't always the serving.** Harvest Market's hot bar lists "Yellow Cheddar Macaroni & Cheese (8 oz)"
+    alone, so it is no family, but its record is a 4 oz serving (185 cal) on most days and an 8 oz one (370 cal) on
+    Oct 18. A picker labelled by the name's token trusts the name; the serving line under it is the record's.

@@ -40,7 +40,18 @@
 //   "packaged": {"query", "yours": [name], "shown": [[name, calPer100g]]},   // the recorded OFF answer as the Packaged group
 //              // shows it: a name once, no hit without calories, nothing already in Your foods, the brand leading a name
 //              // that lacks it
-//   "saved": [ {"net": "offline"|"fail", "savedCafes": [name], "place", "day", "saved"} ]   // which menus Search can read
+//   "saved": [ {"net": "offline"|"fail", "savedCafes": [name], "place", "day", "saved"} ],  // which menus Search can read
+//   // round 12: variant families (variantOf / famsAt in src.html; NOTES "Round 12")
+//   "variants": {
+//     "families": [ {"day", "place", "meal", "station", "name", "axis": "size"|"milk",
+//                    "variants": [[token, feed dish name, cal]]} ],   // every family, each meal of each day; the first variant is the
+//              // default (sizes smallest first, milks in the feed's order). The row is named "name"; a variant reads "name, token".
+//     "nearMiss": [ {"place", "station", "names": [feed names], "reason", "days"} ],   // every item the rule reads a token in but
+//              // leaves alone, and every set of names one word apart that isn't a family (reason says which), over Oct 8-22
+//     "shown": [[feed name, how it reads on the sheet, the plate and in history]],
+//     "search": [ {"query", "rows": [ {"name", "variant": token | null, "dish": the dish its + adds, "places": [place keys]} ]} ],
+//              // Search's now groups (halls, then "At cafés"): a family is one row; what was typed picks its variant
+//     "alerts": [ {"favorite": family key, "clock", "posted": [[title, body]]} ] }   // a starred family alerts once, by its name
 // }
 const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const fs = require('fs');
@@ -162,8 +173,45 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
   out.saved = await p.evaluate(cases => cases.map(([net, cafes, place, day]) => { const n0 = NET, s0 = new Set(SAVED); NET = net; SAVED.clear(); cafes.forEach(c => SAVED.add(c));
     const k = HALLS.includes(place) ? place : 'c' + P.places.findIndex(x => x[0] === place), v = savedMenu(k, day); NET = n0; SAVED.clear(); s0.forEach(c => SAVED.add(c));
     return { net, savedCafes: cafes, place: k, day, saved: v }; }), SAVEDCASES);
+  // ---- round 12: variant families. The rule is the page's own (variantOf, famsAt); this only reports what it decides.
+  out.variants = await p.evaluate(() => {
+    const families = variantFamilies().sort((a, b) => a.place.localeCompare(b.place) || a.station.localeCompare(b.station) || a.name.localeCompare(b.name) || a.day.localeCompare(b.day) || a.meal.localeCompare(b.meal));
+    const miss = new Map(), put = (place, station, names, reason, day) => { const k = [place, station, names.join(' ; '), reason].join('|');
+      if (!miss.has(k)) miss.set(k, { place, station, names, reason, days: new Set() }); miss.get(k).days.add(day); };
+    MD.forEach((D, day) => Object.entries(D).forEach(([h, ms]) => Object.entries(ms).forEach(([meal, ss]) => ss.forEach(([st, xs], si) => {
+      const ds = xs.map((_, di) => DISH[did(day, h, meal, si, di)]);
+      const names = [...new Set(ds.map(d => d.n))];
+      for (const d of ds) { const v = variantOf(d.n); if (!v || famOf(d)) continue;
+        const reason = isPartsSt(st) ? 'an Add-ons or Toppings station: a builder\'s part' : !v.name ? 'nothing left once the milk is taken out'
+          : ds.filter(x => x.n === d.n).length > 1 ? 'the same name twice (the size is in the serving, not the name)' : 'the only ' + v.axis + ' of it at this station';
+        put(PN(h), st, [d.n], reason, DAYS[day]); }
+      // names one word apart (one word swapped, or one more word) that the rule didn't make a family
+      const T = names.map(n => n.split(/\s+/));
+      const sets = new Map();
+      for (let a = 0; a < T.length; a++) for (let b = a + 1; b < T.length; b++) { const A = T[a], B = T[b]; let at = -1, ok = true;
+        if (A.length === B.length) { for (let i = 0; i < A.length; i++) if (A[i].toLowerCase() !== B[i].toLowerCase()) { if (at >= 0) { ok = false; break; } at = i; } }
+        else { const [S0, L] = A.length < B.length ? [A, B] : [B, A]; if (L.length - S0.length !== 1) ok = false; else { let i = 0; while (i < S0.length && S0[i].toLowerCase() === L[i].toLowerCase()) i++; if (S0.slice(i).join(' ').toLowerCase() !== L.slice(i + 1).join(' ').toLowerCase()) ok = false; else at = i; } }
+        if (!ok || at < 0) continue;
+        const da = ds.find(d => d.n === names[a]), db = ds.find(d => d.n === names[b]), fa = famOf(da), fb = famOf(db); if (fa && fa === fb) continue;
+        const tpl = (A.length >= B.length ? A : B).map((w, i) => i === at ? '_' : w).join(' ');
+        (sets.get(tpl) || sets.set(tpl, new Set()).get(tpl)).add(names[a]).add(names[b]); }
+      for (const [tpl, ns] of sets) { const sized = [...ns].some(n => variantOf(n));
+        put(PN(h), st, [...ns].sort(), isPartsSt(st) ? 'one word apart at an Add-ons or Toppings station' : sized ? 'one word apart beside the size: a different drink or dish' : 'one word apart: a different dish', DAYS[day]); }
+    }))));
+    const nearMiss = [...miss.values()].map(x => ({ place: x.place, station: x.station, names: x.names, reason: x.reason, days: x.days.size }))
+      .sort((a, b) => a.reason.localeCompare(b.reason) || a.place.localeCompare(b.place) || a.station.localeCompare(b.station) || a.names[0].localeCompare(b.names[0]));
+    const shown = ['16 oz Cappuccino', '20 oz Cappuccino', 'Boba Oat Milk', '8 oz Clam Chowder', 'Coconut Mango Acai Bowl (16oz)', 'Berry Acai Bowl (8 oz)', '24 oz Iced Coffee', '20 oz Cold Brew', '1% Milk', 'MAPLELINE Skim Milk']
+      .map(n => [n, shownName(n)]);
+    const search = ['boba', 'oat', 'cappuccino', '20 oz latte', 'minestrone'].map(q => { S.q = q; const r = [...results(), ...cafeResults()].map(({ g, d, vi }) => ({ name: g.n, variant: vi >= 0 ? g.vars[vi].v : null, dish: d.n, places: Object.keys((vi >= 0 ? g.vars[vi] : g).refs).sort((a, b) => PORD(a) - PORD(b)) })); S.q = ''; return { query: q, rows: r }; });
+    ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(['f:boba']);
+    const alerts = [7 * 60 + 15, 12 * 60 + 41].map(m => ({ favorite: 'f:boba', clock: `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`, posted: alertRun(m).map(n => [n.title, n.body]) }));
+    S.fav = new Set();
+    return { families, nearMiss, shown, search, alerts };
+  });
+  { const v = out.variants, distinct = new Set(v.families.map(f => [f.place, f.station, f.name].join('|'))).size;
+    if (distinct !== 52 || v.families.length !== 322) throw new Error('variant families: ' + distinct + ' / ' + v.families.length); }
   if (errs.length) throw new Error(errs.join('\n'));
   fs.writeFileSync(__dirname + '/vectors.json', JSON.stringify(out, null, 1) + '\n');
-  console.log(`vectors.json: ${out.where.length} where (${WHERE.length} dishes x ${CLOCKS.length} clocks), ${out.plate.length} plate sequences, ${out.scores.length} scores (${unscored.length} unscored with a number), ${out.price.length} prices, ${out.bowlbase.length} Noodle Bowl bases, ${out.synthetic.length} synthetic bars, ${out.alerts.length} alert sequences, ${out.packaged.shown.length} packaged, ${out.saved.length} saved`);
+  console.log(`vectors.json: ${out.where.length} where (${WHERE.length} dishes x ${CLOCKS.length} clocks), ${out.plate.length} plate sequences, ${out.scores.length} scores (${unscored.length} unscored with a number), ${out.price.length} prices, ${out.bowlbase.length} Noodle Bowl bases, ${out.synthetic.length} synthetic bars, ${out.alerts.length} alert sequences, ${out.packaged.shown.length} packaged, ${out.saved.length} saved, ${new Set(out.variants.families.map(f => [f.place, f.station, f.name].join('|'))).size} variant families (${out.variants.families.length} station-meals), ${out.variants.nearMiss.length} near-misses`);
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
