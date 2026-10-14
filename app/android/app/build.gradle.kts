@@ -25,6 +25,8 @@ android {
         versionName = flutter.versionName
     }
 
+    buildFeatures { resValues = true }   // AGP 8+ disables resValue() by default; the flavors' app_name needs it
+
     flavorDimensions += "channel"
     productFlavors {
         create("store") {

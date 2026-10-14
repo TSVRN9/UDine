@@ -8,6 +8,7 @@ Hermes under the hood — `docs/apk-reverse-engineering.md`). Two clients, one b
 ```
 /web        SvelteKit
 /mobile     React Native (Expo)
+/app        Flutter (flavors store/internal); replaces /mobile at release
 /shared     @udine/shared — types, API clients, macro math, ranking. Both apps depend on it; parity comes from sharing code.
 /supabase   migrations, edge functions, pgTAP tests (supabase/tests/database/)
 /docs       decisions-log.md (backend audit trail), auth-status.md (auth posture + re-verification), adr/, agents/
@@ -24,6 +25,10 @@ installing over it means uninstalling first, which wipes device-local plate/log 
 `pnpm build:internal-android -- --install` from `/mobile` builds and installs a separate
 "UDine (internal)" package (`com.udinetogether.udine.internal`) side by side instead — see
 `mobile/scripts/build-internal-android.sh`'s own header for why each step exists.
+
+Flutter (`/app`): `cd app && flutter analyze && flutter test --concurrency=2`;
+`app/tool/screenshot.sh <route> [--serial S]` captures the internal profile build (recorded data:
+`?data=recorded&at=2026-10-08T12:41`).
 
 ## CI is local-only
 
@@ -89,7 +94,7 @@ doesn't add — in `docs/apk-reverse-engineering.md`'s "FoodPro Web INA" section
 Official-app parity is the baseline; UDine adds macro tracking, Beli-style pairwise dish ranking
 (also derives favorite halls), favorited-food-spotted-elsewhere push, friends + "come eat with me"
 pings, data export, no-account core usage. **Cut:** FAQ, staff directory (#50). **Not v1:** BLE beacon
-check-ins, porting `umassapi2`, SMS verification, digital signage. Newsletter/press/events stay.
+check-ins, porting `umassapi2`, SMS verification, digital signage. Events stay; press and newsletter cut (owner, 2026-10-13).
 
 Build order: vertical slice (browse → log → today's macros) in both apps first; then filters/favorites/
 content; then auth, ranking, export; then friends, pings, push.
@@ -120,6 +125,9 @@ it. This holds even when an artboard contains such a string: artboards sometimes
 for whoever reads the design, and those belong in `canvas.json`'s `annotations`, not in the app.
 Allowed: genuine end-user copy (a hint line, an empty-state message), and a screen title. Anything
 addressed to a reviewer goes in the PR body.
+
+`app/` follows M2 (spec: `docs/design/explorations/2026-10-ui-overhaul/flows/M2/`; measurements
+`app/test/m2_dom.json`, goldens `app/test/goldens/` at 360/390), not the artboards above.
 
 ## Agents
 

@@ -1,0 +1,10 @@
+{
+  "sha": "eb4a2bca7fde994803efe04b943612078373279b",
+  "branch": "flutter/gate-and-screenshots",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-gate",
+  "route": "/kit",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-14T04:37:01Z"
+}
