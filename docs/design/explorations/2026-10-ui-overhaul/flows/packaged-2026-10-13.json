@@ -1,0 +1,354 @@
+{
+ "_source": "OpenFoodFacts, recorded 2026-10-13 22:10 EDT. search: search.openfoodfacts.org/search?q=clif%20bar&page_size=20 (cgi/search.pl, the endpoint RN calls, answered 503 at the time). product: world.openfoodfacts.org/api/v2/product/0722252068484.json. Trimmed to the fields M2 reads. ODbL.",
+ "search": {
+  "q": "clif bar",
+  "count": 10000,
+  "hits": [
+   {
+    "code": "36346363",
+    "product_name": "Clif bar",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "saturated-fat_100g": 2.2058823529412,
+     "carbohydrates_100g": 63.235294117647,
+     "energy-kcal_100g": 367.64705882353,
+     "sodium_100g": 0.26470588235294,
+     "fat_100g": 8.8235294117647,
+     "sugars_100g": 25,
+     "fiber_100g": 7.3529411764706,
+     "proteins_100g": 14.705882352941
+    }
+   },
+   {
+    "code": "0072225210120",
+    "product_name": "Clif Bar",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "carbohydrates_100g": 41,
+     "fat_100g": 7,
+     "proteins_100g": 11
+    }
+   },
+   {
+    "code": "0722252179821",
+    "product_name": "clif bar",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {}
+   },
+   {
+    "code": "72225210120",
+    "product_name": "Clif Bar",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "carbohydrates_100g": 41,
+     "fat_100g": 7,
+     "proteins_100g": 11
+    }
+   },
+   {
+    "code": "0722252301147",
+    "product_name": "Clif Bar Duos",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "fat_100g": 12.765957446809,
+     "proteins_100g": 12.765957446809,
+     "sugars_100g": 23.404255319149,
+     "energy-kcal_100g": 404.25531914894,
+     "sodium_100g": 0.28723404255319196,
+     "saturated-fat_100g": 2.1276595744681,
+     "carbohydrates_100g": 61.702127659574
+    }
+   },
+   {
+    "code": "0722252068484",
+    "product_name": "Clif Bar Chocolate Chip",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "carbohydrates_100g": 63.2,
+     "energy-kcal_100g": 368,
+     "fat_100g": 8.82,
+     "fiber_100g": 7.35,
+     "proteins_100g": 14.7,
+     "saturated-fat_100g": 2.94,
+     "sodium_100g": 0.191,
+     "sugars_100g": 25
+    }
+   },
+   {
+    "code": "3111282128126",
+    "product_name": "Clif bar mini chocolate chip",
+    "brands": [
+     "Clif bar"
+    ],
+    "nutriments": {
+     "proteins_100g": 4,
+     "energy-kcal_100g": 100,
+     "carbohydrates_100g": 18,
+     "fat_100g": 2,
+     "sugars_100g": 9,
+     "fiber_100g": 2,
+     "saturated-fat_100g": 0.5
+    }
+   },
+   {
+    "code": "0722252387646",
+    "product_name": "Clif Bar Peanut Butter Banana",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "carbohydrates_100g": 60.7,
+     "energy-kcal_100g": 394,
+     "fat_100g": 11.8,
+     "fiber_100g": 7.79,
+     "proteins_100g": 14.7,
+     "saturated-fat_100g": 3.09,
+     "sodium_100g": 0.329,
+     "sugars_100g": 25
+    }
+   },
+   {
+    "code": "0722252102003",
+    "product_name": "Clif Bar Cool Mint Chocolate",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "carbohydrates_100g": 63.235294117647,
+     "energy-kcal_100g": 367.64705882353,
+     "fat_100g": 8.8235294117647,
+     "fiber_100g": 7.3529411764706,
+     "proteins_100g": 14.705882352941,
+     "saturated-fat_100g": 2.9411764705882,
+     "sodium_100g": 0.20588235294118,
+     "sugars_100g": 25
+    }
+   },
+   {
+    "code": "0722252301208",
+    "product_name": "Clif Bar Crunchy Peanut Butter",
+    "brands": [
+     "CLIF BAR"
+    ],
+    "nutriments": {
+     "fiber_100g": 5.9,
+     "fat_100g": 10.29,
+     "carbohydrates_100g": 58.82,
+     "sugars_100g": 27.94,
+     "saturated-fat_100g": 1.47,
+     "sodium_100g": 0.338,
+     "energy-kcal_100g": 382,
+     "proteins_100g": 16.18
+    }
+   },
+   {
+    "code": "0722252139900",
+    "product_name": "Clif Bar Dark Chocolate Mocha",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "fat_100g": 7.3529411764706,
+     "sugars_100g": 27.941176470588,
+     "proteins_100g": 13.235294117647,
+     "energy-kcal_100g": 367.64705882353,
+     "sodium_100g": 0.382352941176468,
+     "carbohydrates_100g": 64.705882352941,
+     "saturated-fat_100g": 2.2058823529412
+    }
+   },
+   {
+    "code": "0722252128164",
+    "product_name": "Clif bar minis - coffee collection",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "saturated-fat_100g": 0,
+     "carbohydrates_100g": 64.285714285714,
+     "energy-kcal_100g": 357.14285714286,
+     "sodium_100g": 0.321428571428572,
+     "fat_100g": 7.1428571428571,
+     "sugars_100g": 28.571428571429,
+     "proteins_100g": 14.285714285714
+    }
+   },
+   {
+    "code": "0722252387578",
+    "product_name": "CLIF bar white chocolate macadamia nut",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "carbohydrates_100g": 54,
+     "energy-kcal_100g": 387,
+     "fat_100g": 11,
+     "fiber_100g": 7.4,
+     "proteins_100g": 14,
+     "saturated-fat_100g": 2.1,
+     "sodium_100g": 0.344,
+     "sugars_100g": 25
+    }
+   },
+   {
+    "code": "0722252131096",
+    "product_name": "Clif bar",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "carbohydrates_100g": 54,
+     "energy-kcal_100g": 387,
+     "fat_100g": 11,
+     "fiber_100g": 7.4,
+     "proteins_100g": 14,
+     "saturated-fat_100g": 2.1,
+     "sodium_100g": 0.0964,
+     "sugars_100g": 25
+    }
+   },
+   {
+    "code": "0722252386410",
+    "product_name": "Clif Bar Mini White Chocolate Macadamia Nut",
+    "brands": [
+     "Clif Bar"
+    ],
+    "nutriments": {
+     "saturated-fat_100g": 1.7857142857143,
+     "carbohydrates_100g": 60.714285714286,
+     "energy-kcal_100g": 392.85714285714,
+     "sodium_100g": 0.339285714285712,
+     "fat_100g": 10.714285714286,
+     "proteins_100g": 14.285714285714,
+     "fiber_100g": 7.1428571428571,
+     "sugars_100g": 25
+    }
+   },
+   {
+    "code": "0722252144034",
+    "product_name": "Clif Bar Cool Mint Chocolate Energy Bars Nutritional Supplement",
+    "brands": [
+     "Clif Bar & Company"
+    ],
+    "nutriments": {
+     "fat_100g": 6.62,
+     "sugars_100g": 29.4,
+     "carbohydrates_100g": 64.7,
+     "saturated-fat_100g": 1.47,
+     "sodium_100g": 0.23500000000000001,
+     "proteins_100g": 14.7,
+     "fiber_100g": 5.88,
+     "energy-kcal_100g": 368
+    }
+   },
+   {
+    "code": "0722252160812",
+    "product_name": "clif bar",
+    "brands": [
+     "Clif"
+    ],
+    "nutriments": {
+     "proteins_100g": 16.176470588235,
+     "sugars_100g": 27.941176470588,
+     "fat_100g": 10.294117647059,
+     "carbohydrates_100g": 58.823529411765,
+     "saturated-fat_100g": 1.4705882352941,
+     "sodium_100g": 0.33823529411765196,
+     "energy-kcal_100g": 382.35294117647
+    }
+   },
+   {
+    "code": "0722252315779",
+    "product_name": "Clif bar",
+    "brands": [
+     "Clif"
+    ],
+    "nutriments": {
+     "sodium_100g": 0.33823529411765196,
+     "energy-kcal_100g": 382.35294117647,
+     "carbohydrates_100g": 58.823529411765,
+     "saturated-fat_100g": 1.4705882352941,
+     "sugars_100g": 27.941176470588,
+     "proteins_100g": 16.176470588235,
+     "fat_100g": 10.294117647059
+    }
+   },
+   {
+    "code": "0722252381330",
+    "product_name": "Clif bar, clif kid, z organic twisted fruit & veggie rope, mango mania",
+    "brands": [
+     "Clif",
+     "  Clif Bar & Company"
+    ],
+    "nutriments": {
+     "fiber_100g": 16.7,
+     "fat_100g": 0,
+     "sugars_100g": 61.11,
+     "carbohydrates_100g": 83.33,
+     "sodium_100g": 0.083,
+     "saturated-fat_100g": 0,
+     "proteins_100g": 0,
+     "energy-kcal_100g": 278
+    }
+   },
+   {
+    "code": "0722252380029",
+    "product_name": "Clif bar organic twisted fruit bars mixed berry",
+    "brands": [
+     "Clif",
+     "  Clif Bar And Company"
+    ],
+    "nutriments": {
+     "saturated-fat_100g": 0,
+     "sodium_100g": 0.0254,
+     "proteins_100g": 0,
+     "energy-kcal_100g": 350,
+     "fat_100g": 0,
+     "fiber_100g": 5,
+     "sugars_100g": 75,
+     "carbohydrates_100g": 80
+    }
+   }
+  ]
+ },
+ "product": {
+  "code": "0722252068484",
+  "product_name": "Chocolate Chip",
+  "brands": "Clif Bar",
+  "serving_size": "1 bar (68 g)",
+  "allergens_tags": [
+   "en:soybeans"
+  ],
+  "ingredients_text": "organic rolled oats, organic brown rice syrup, soy rice crisps, organic roasted soybeans, organic tapioca syrup, organic cane syrup, unsweetened chocolate, chicory fiber, organic soy flour, sunflower and/or soybean oil, natural flavors, salt, organic cinnamon, mixed tocopherols",
+  "nutriments": {
+   "carbohydrates_100g": 63.2352941176471,
+   "carbohydrates_serving": 43,
+   "energy-kcal_100g": 367.647058823529,
+   "energy-kcal_serving": 250,
+   "fat_100g": 8.82352941176471,
+   "fat_serving": 6,
+   "fiber_100g": 7.35294117647059,
+   "fiber_serving": 5,
+   "proteins_100g": 8.82352941176471,
+   "proteins_serving": 6,
+   "saturated-fat_100g": 2.94117647058824,
+   "saturated-fat_serving": 2,
+   "sodium_100g": 0.191176470588235,
+   "sodium_serving": 0.13,
+   "sugars_100g": 25,
+   "sugars_serving": 17
+  }
+ }
+}
