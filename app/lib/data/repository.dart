@@ -8,8 +8,10 @@ import '../core/content.dart';
 import '../core/date.dart';
 import '../core/foodpro.dart';
 import '../core/hours.dart';
+import '../core/occupancy.dart';
 import '../core/types.dart';
 import 'source.dart';
+import 'supabase_source.dart';
 import 'states.dart';
 
 export 'states.dart';
@@ -17,9 +19,28 @@ export 'states.dart';
 /// get_infov2 plus the live headcount triple per location title. [busy] is null unless the response was fetched
 /// just now: it is never read from, or written to, the cache.
 class HoursData {
-  const HoursData(this.feed, this.busy);
+  const HoursData(this.feed, this.busy, [this.locationIds = const {}]);
   final DiningHoursFeed feed;
   final Map<String, SensorLevels>? busy;
+
+  /// get_infov2 `location_id` per title (the id `occupancy_typical` is keyed by); filled with [busy], live only.
+  final Map<String, int> locationIds;
+}
+
+/// One row of public.dishes (shared/src/dishes.ts's DishCatalogEntry).
+class DishCatalogEntry {
+  const DishCatalogEntry({required this.dishName, required this.nutrition, required this.allergens, required this.dietTags, required this.updatedAt});
+  final String dishName, updatedAt;
+  final NutritionFacts nutrition;
+  final List<String> allergens, dietTags;
+
+  factory DishCatalogEntry.fromRow(Map<String, dynamic> r) => DishCatalogEntry(
+    dishName: r['dish_name'] as String,
+    nutrition: NutritionFacts.fromJson(r['nutrition'] as Map<String, dynamic>),
+    allergens: [for (final a in r['allergens'] as List) a as String],
+    dietTags: [for (final a in r['diet_tags'] as List) a as String],
+    updatedAt: r['updated_at'] as String,
+  );
 }
 
 /// A café's menu: foodpro items when it has any, else its standing menu from get_infov2 (cafeMenu.ts's waterfall).
@@ -63,9 +84,10 @@ String addDays(String iso, int days) {
 /// menu_cache:* rows are never touched. Raw responses are stored and re-parsed on read, so parser fixes apply to old
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
-  Repository(this.source, this.db, {DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
+  Repository(this.source, this.db, {this.supabase, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
     : now = now ?? DateTime.now;
   final UmassSource source;
+  final SupabaseSource? supabase;
   final Database db;
   final DateTime Function() now;
   final Duration stillLoadingAfter;
@@ -109,7 +131,7 @@ class Repository {
     ],
     parse: (raw, live) {
       final list = [for (final l in raw as List) l as Map<String, dynamic>];
-      return HoursData(mapInfoV2(list), live ? _busy(list) : null);
+      return HoursData(mapInfoV2(list), live ? _busy(list) : null, live ? _locationIds(list) : const {});
     },
   );
 
@@ -138,6 +160,120 @@ class Repository {
   Map<String, SensorLevels> _busy(List<Map<String, dynamic>> list) => {
     for (final l in list) l['location_title'] as String: ?parseSensorLevels(l),
   };
+
+  Map<String, int> _locationIds(List<Map<String, dynamic>> list) => {
+    for (final l in list)
+      if (parseSensorLevels(l) != null && l['location_id'] is int) l['location_title'] as String: l['location_id'] as int,
+  };
+
+  static const _dishesKey = 'dishes:v2';
+
+  Future<Map<String, dynamic>?> _kv(String key) async {
+    final rows = await db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [key]);
+    if (rows.isEmpty) return null;
+    try {
+      return jsonDecode(rows.first['value_json']! as String) as Map<String, dynamic>;
+    } catch (_) {
+      return null; // unreadable entry: treat as unsaved
+    }
+  }
+
+  Future<void> _putKv(String key, Object value) => db.insert('preferences_kv', {
+    'key': key,
+    'value_json': jsonEncode({'fetchedAt': now().toUtc().toIso8601String(), 'raw': value}),
+  }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+  /// Saved on the same (rollover-adjusted) day as now.
+  bool _fetchedToday(Map<String, dynamic> e) => effectiveTodayIso(DateTime.parse(e['fetchedAt'] as String).toLocal(), defaultRolloverHour) == today;
+
+  /// The dish catalog: the saved rows, then (at most once a day) a paged delta from the newest `updated_at` held, merged
+  /// by dish_name. Raw rows are saved under `dishes:v2` (RN's dish_catalog:v1 is left alone).
+  Stream<DataState<List<DishCatalogEntry>>> dishCatalog() async* {
+    final src = supabase!;
+    final e = await _kv(_dishesKey);
+    final byName = <String, Map<String, dynamic>>{};
+    try {
+      for (final r in (e?['raw'] as List? ?? const [])) {
+        byName[(r as Map<String, dynamic>)['dish_name'] as String] = r;
+      }
+    } catch (_) {
+      byName.clear();
+    }
+    List<DishCatalogEntry> view() => [for (final r in byName.values) DishCatalogEntry.fromRow(r)];
+    final saved = byName.isNotEmpty;
+    if (saved) {
+      yield Loaded(view());
+      if (_fetchedToday(e!)) return;
+    } else {
+      yield Loading();
+    }
+    String? newest;
+    for (final r in byName.values) {
+      final u = r['updated_at'] as String;
+      if (newest == null || DateTime.parse(u).isAfter(DateTime.parse(newest))) newest = u;
+    }
+    try {
+      for (var off = 0;; off += dishPageSize) {
+        final page = await src.dishPage(off, updatedSince: newest);
+        for (final r in page) {
+          byName[r['dish_name'] as String] = r;
+        }
+        if (page.length < dishPageSize) break;
+      }
+      await _putKv(_dishesKey, byName.values.toList());
+      yield Loaded(view());
+    } on Unreachable {
+      yield saved ? LoadedOffline(view()) : NotSaved();
+    } catch (err) {
+      if (!saved) yield Failed(err);
+    }
+  }
+
+  /// `occupancy_typical` for one location and weekday: saved per (location, dow) and good for the rest of the day, an
+  /// older copy standing in when the refresh fails. No answer at all is an empty curve (level only), never an error.
+  Future<List<OccupancyBucket>> typicalCurve(int locationId, int dow) async {
+    final key = 'occupancy:v1:$locationId|$dow';
+    final e = await _kv(key);
+    List<OccupancyBucket>? parse(Object? raw) {
+      try {
+        return [for (final b in raw as List) OccupancyBucket.fromJson(b as Map<String, dynamic>)];
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final saved = e == null ? null : parse(e['raw']);
+    if (saved != null && _fetchedToday(e!)) return saved;
+    try {
+      final raw = await supabase!.occupancyTypical(locationId, dow);
+      final fresh = parse(raw);
+      if (fresh != null) {
+        await _putKv(key, raw);
+        return fresh;
+      }
+    } catch (_) {}
+    return saved ?? const [];
+  }
+
+  /// Live busy x typical curve per location title. Absent entirely without a live reading (offline, no sensor): the live
+  /// reading is never read from the cache, only the curve is.
+  Future<Map<String, OccupancyRead>> busyReads(HoursData h) async {
+    final live = h.busy;
+    if (live == null) return const {};
+    final at = now();
+    final dow = occupancyDow(at);
+    final out = <String, OccupancyRead>{};
+    await Future.wait([
+      for (final MapEntry(:key, :value) in live.entries)
+        () async {
+          final id = h.locationIds[key];
+          final curve = id == null || supabase == null ? const <OccupancyBucket>[] : await typicalCurve(id, dow);
+          final r = occupancyRead(typical: curve, live: value, now: at);
+          if (r != null) out[key] = r;
+        }(),
+    ]);
+    return out;
+  }
 
   final _loggedCorrupt = <String>{};
 
