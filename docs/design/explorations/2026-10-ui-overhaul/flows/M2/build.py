@@ -86,6 +86,9 @@ CAFES = {  # name -> (area, building); Newton campus, babyBerk trucks, Terrace a
     # Charles River is the Newton campus: area 4, shown only when You's Charles River Campus toggle is on. Both go last, so no
     # earlier place's key (c<i>) moves.
     'Terrace': (3, 'Fieldstone Apartments'), 'Charles River Campus of UMass Amherst': (4, 'Newton'),
+    # round 11: the one café open this week whose menu is PDFs (get_infov2 2026-10-13; the babyBerk trucks are closed all week
+    # and have no address). Last, so no earlier key moves: c29.
+    'The Commonwealth Restaurant': (1, 'Worcester Commons'),
 }
 SHORT = {'Charles River Campus of UMass Amherst': 'Charles River Campus'}   # the name the app shows
 places = []
@@ -93,7 +96,7 @@ for n, (area, bld) in CAFES.items():
     x = locs[n]
     items = json.loads(x['menu']) if x.get('menu') else []
     places.append([SHORT.get(n, n).replace('’', "'"), area, bld, mins(x['opening_hours']), mins(x['closing_hours']), x['accepted_payment'], x['short_description'].strip(), items])
-assert len(places) == 29
+assert len(places) == 30
 TITLE = {SHORT.get(n, n).replace('’', "'"): n for n in CAFES}   # place name -> the feed's location_title
 HALLLOC = {'W': 'Worcester Commons', 'F': 'Franklin Dining Commons', 'H': 'Hampshire Dining Commons', 'B': 'Berkshire Dining Commons'}
 hours = {h: [mins(locs[n]['opening_hours']), mins(locs[n]['closing_hours'])] for h, n in HALLLOC.items()}
@@ -204,11 +207,44 @@ for h, HNm in {'W': 'Worcester', 'F': 'Franklin', 'H': 'Hampshire', 'B': 'Berksh
     RIMG['grab:' + h] = rimg(HNm + " Grab 'N Go"); assert RIMG['grab:' + h]
 PLACES = {'areas': AREAS, 'places': places, 'hours': hours, 'grab': grab, 'events': events}
 
+# ---- café PDF menus (round 11): get_infov2's retail menu HTML, as shared/src/content.ts parseRetailMenuHtml reads it, but
+# every <a> (RN takes the first only), host-gated to umassdining.com. Labels are the link's own words cut to the menu's
+# name ("Click here for the Lite Fare Menu" -> "Lite fare"). The PDFs themselves live in local/pdf (gitignored, UMass's);
+# their pages are rasterized into build/pdf and embedded, like the photos.
+import subprocess
+L13 = {x['location_title']: x for x in json.load(open(os.path.join(D, '..', 'locations-2026-10-13.json')))}
+LOCAL = os.path.join(D, '..', '..', 'local', 'pdf')
+PDFS = {}
+for p in places:
+    x = L13.get(TITLE[p[0]]) or {}
+    html = ''.join(x.get(k) or '' for k in ('breakfast_menu', 'lunch_menu', 'dinner_menu'))
+    for url, text in re.findall(r'<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>', html, re.I | re.S):
+        if not re.search(r'\.pdf(?:[?#]|$)', url, re.I) or not re.match(r'https://(www\.)?umassdining\.com/', url): continue
+        m = re.search(r'for the (.+?) Menu', re.sub(r'<[^>]+>', '', text), re.I)
+        label = (m.group(1) if m else 'Menu').capitalize()
+        src = os.path.join(LOCAL, label.replace(' ', '-') + '.pdf'); out = os.path.join(D, 'build', 'pdf', label.replace(' ', '-'))
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        subprocess.run(['pdftoppm', '-scale-to-x', '1074', '-scale-to-y', '-1', '-jpeg', '-jpegopt', 'quality=72', src, out], check=True)
+        pages = sorted(f for f in os.listdir(os.path.dirname(out)) if f.startswith(os.path.basename(out) + '-'))
+        PDFS.setdefault(p[0], []).append([label, url, ['data:image/jpeg;base64,' + base64.b64encode(open(os.path.join(os.path.dirname(out), f), 'rb').read()).decode() for f in pages]])
+assert list(PDFS) == ['The Commonwealth Restaurant'] and [x[0] for x in PDFS['The Commonwealth Restaurant']] == ['Lunch', 'Lite fare', 'Dinner', 'Dessert'], {k: [x[0] for x in v] for k, v in PDFS.items()}
+assert [len(x[2]) for x in PDFS['The Commonwealth Restaurant']] == [2, 1, 2, 1]
+
+# ---- packaged foods (round 11): OpenFoodFacts, recorded (packaged-2026-10-13.json says how). A hit keeps its name, brand
+# and per-100 g numbers; the product record has per-serving numbers. Nothing is invented.
+PK = json.load(open(os.path.join(D, '..', 'packaged-2026-10-13.json')))
+def offnut(n, sfx):
+    g = lambda k: n.get(k + sfx)
+    return {'cal': g('energy-kcal'), 'p': g('proteins'), 'c': g('carbohydrates'), 'f': g('fat'), 'sat': g('saturated-fat'), 'trans': g('trans-fat'),
+            'chol': None if g('cholesterol') is None else g('cholesterol') * 1000, 'sod': None if g('sodium') is None else g('sodium') * 1000, 'fib': g('fiber'), 'sug': g('sugars')}
+PACK = {'q': PK['search']['q'], 'hits': [[h['product_name'], (h.get('brands') or [''])[0].strip(), offnut(h['nutriments'], '_100g')] for h in PK['search']['hits']],
+        'product': [PK['product']['product_name'], PK['product']['brands'], PK['product']['serving_size'], offnut(PK['product']['nutriments'], '_serving'), PK['product']['allergens_tags'], PK['product']['ingredients_text']]}
+
 src = open(os.path.join(D, 'src.html')).read()
 src = src.replace('__PLACES__', json.dumps(PLACES, separators=(',', ':'), ensure_ascii=False))
 src = src.replace('__RIMG__', json.dumps(RIMG, separators=(',', ':')))
 J = lambda v: json.dumps(v, separators=(',', ':'), ensure_ascii=False)
-for k, v in {'__DISHES__': DISHES, '__MD__': MD, '__DAYS__': DAYS, '__WIN__': WIN, '__ADDR__': ADDR, '__ALG__': ALG}.items():
+for k, v in {'__DISHES__': DISHES, '__MD__': MD, '__DAYS__': DAYS, '__WIN__': WIN, '__ADDR__': ADDR, '__ALG__': ALG, '__PDFS__': PDFS, '__PACK__': PACK}.items():
     assert k in src, k
     src = src.replace(k, J(v))
 for name, key in [('worcester', 'W'), ('franklin', 'F'), ('hampshire', 'H'), ('berkshire', 'B'), ('worcester-food', 'S'), ('ev-ipd', 'EV_ipd'), ('ev-oct', 'EV_oct'), ('ev-pg', 'EV_pg'), ('ev-sust', 'EV_sust')]:

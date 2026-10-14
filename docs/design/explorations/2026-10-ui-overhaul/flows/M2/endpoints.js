@@ -1,7 +1,7 @@
 // Endpoint check for the hall transition: the frames where a pop could hide.
 //  halls-before vs progress=0 (per hall), progress=1 vs menu at rest, halls after close vs before; also with reduced motion.
 // Writes build/ep/*.png; endpoints.py diffs the pairs.
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const fs = require('fs'); fs.mkdirSync(__dirname + '/build/ep', { recursive: true });
 const U = 'file://' + __dirname + '/index.html';
 (async () => {

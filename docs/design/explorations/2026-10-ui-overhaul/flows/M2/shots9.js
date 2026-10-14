@@ -1,6 +1,6 @@
 // Round 9 review shots: node shots9.js [out-dir] [filter]. Each state at 390 and 360 (dpr 2), joined into one sheet per
 // state as build/r9/<out>/<name>.png (390 left, 360 right).
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const { execSync } = require('child_process');
 const D = __dirname, OUT = D + '/build/r9/' + (process.argv[2] || 'p1'), ONLY = process.argv[3];
 require('fs').mkdirSync(OUT, { recursive: true });

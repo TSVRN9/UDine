@@ -1,6 +1,6 @@
 // AA check: hides the text, screenshots, and reports the worst contrast of white text over the brightest
 // background pixel under each text box (bands on Halls, each expanded hall header). Run: node contrast.js && python3 contrast.py
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const fs = require('fs'); fs.mkdirSync(__dirname + '/build/ct', { recursive: true });
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome' });

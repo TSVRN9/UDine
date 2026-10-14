@@ -20,17 +20,29 @@
 //            | ["step", plate index, dish, +1|-1]    // +1: 1 -> 2, 1/2 -> 1; -1: 2 -> 1 -> 1/2 -> removed (an empty plate goes)
 //            | ["custom", meal, name, {cal,p,c,f}]
 //            | ["bowl", meal, place key, base dish | null, station, [[part dish, qty]…]] ],
-//              // round 10: a bowl is one plate item, base + parts summed. A null base is a synthetic one ("Your salad from the
-//              // Salad Bar") that carries no nutrition of its own; station names its bar. Another bowl of the same base and
+//              // round 10: a bowl is one plate item, base + parts summed. A null base is a synthetic one (round 11: "Salad Bar", named for
+//              // its station) that carries no nutrition of its own; station names its bar. Another bowl of the same base and
 //              // parts adds to that item's qty; the plain base dish (an "add") is always a separate item.
 //     "plates": [ {"meal", "halls": [place keys] | null, "label", "items": [[dish, qty]], "totals": {"cal","p","c","f"}} ],
 //     "front": index } ],
 //   "scores": [ {"dish", "health": 0..7 | null, "carbon": "A".."E" | null, "rawHealthfulness": number | null} ],
 //              // every distinct (dish, scores, raw) in the 15 days. health is the H0..H7 code; a raw number without
 //              // one is unscored (null) and draws nothing. carbon is the CR letter; none draws nothing.
-//   "price": [ {"dish", "place", "feedPrice", "shown"} ]   // the sheet shows a price only for a café serving
+//   "price": [ {"dish", "place", "feedPrice", "shown"} ],  // the sheet shows a price only for a café serving
+//   // round 11
+//   "bowlbase": [ {"day", "place", "meal", "base", "synthetic"} ],   // every hall Noodle Bowl station-day, Oct 8-22: exactly one base,
+//              // its soup or dish (synthetic: a pho bar of parts, whose row is the station, "Noodle Bowl", and whose bowl takes the name of
+//              // the one broth picked from "choices"; round 11b). The rule is baseOf; phoOf builds the pho.
+//   "synthetic": [ {"day", "place", "meal", "station", "label"} ],  // every station-day with a synthetic base: unpriced Salad Bar
+//              // and Deli Bar (never by the pound), and the halls' pho bars. A station not listed has none.
+//   "alerts": [ {"favorites": [dish], "runs": [ {"clock", "posted": [[title, body]]} ]} ],   // alertRun, allowed, runs in
+//              // order on Oct 8 sharing one dedup: one per dish per day, from 7 AM, not once its last serving today ended
+//   "packaged": {"query", "yours": [name], "shown": [[name, calPer100g]]},   // the recorded OFF answer as the Packaged group
+//              // shows it: a name once, no hit without calories, nothing already in Your foods, the brand leading a name
+//              // that lacks it
+//   "saved": [ {"net": "offline"|"fail", "savedCafes": [name], "place", "day", "saved"} ]   // which menus Search can read
 // }
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const fs = require('fs');
 const CLOCK = '2026-10-08T12:41:00-04:00';
 const at = m => `2026-10-08T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00-04:00`;
@@ -60,8 +72,19 @@ const PLATES = [
   { name: 'bowl: Noodle Bowl (a natural base) next to the plain dish', ops: [['bowl', 'lunch', 'W', 'Beef Brisket Noodle Bowl', 'Noodle Bowl', [['Hard Boiled Egg', 1], ['Steamed Bok Choy', 1]]], ['add', 'lunch', 'Beef Brisket Noodle Bowl', ['W']], ['bowl', 'lunch', 'W', 'Beef Brisket Noodle Bowl', 'Noodle Bowl', [['Hard Boiled Egg', 1], ['Steamed Bok Choy', 1]]]] },
   { name: 'bowl: a café dish with its Add-ons (prices sum)', ops: [['bowl', 'lunch', 'Green Fields', 'Create Your Own Salad', 'Add-ons', [['Add Fresh Avocado', 1], ['Grilled Diced Chicken', 2]]]] },
   { name: 'bowl: the Salad Bar (a synthetic base: only its parts)', ops: [['bowl', 'dinner', 'B', null, 'Salad Bar', [['Chickpeas', 1], ['Cucumbers', 1], ['Cheese Feta', .5]]]] },
+  { name: 'bowl: a pho bar (round 11b): named after the broth picked, the rest its parts', ops: [['bowl', 'lunch', 'H', null, 'Noodle Bowl', [['Green Curry Pho Broth (Anchovies)', 1], ['Pho Noodles', 1], ['Chicken for Pho', 1]]]] },
+  { name: "bowl: a café's pho builder (Whitmore Café): the pho picked, with the café's add-ons", ops: [['bowl', 'lunch', 'Whitmore Café', null, 'Noodle Bowl', [['Chicken Pho w/Vegetable Broth', 1], ['Hard Boiled Eggs', 1]]]] },
   { name: 'lunch and dinner are different plates', ops: [['add', 'lunch', 'Golden BBQ Chicken Thigh', ['W']], ['add', 'dinner', 'Korean BBQ Chicken', ['B']]] },
 ];
+// round 11: favourite alerts, each a sequence of background runs on Oct 8 (minutes after midnight)
+const ALERTS = [
+  [['Beef Brisket Noodle Bowl', 'Golden BBQ Chicken Thigh'], [6 * 60 + 50, 7 * 60 + 15, 7 * 60 + 30]],   // before 7 AM; the first run; dedup
+  [['Beef Brisket Noodle Bowl'], [17 * 60]],                                                              // lunch only, first seen at 5 PM
+  [['Green Chile Posole'], [15 * 60 + 45, 16 * 60 + 31]],                                                 // now (lunch); dinner is the same day
+  [['Korean BBQ Chicken', 'Chewy M&M Bar'], [12 * 60 + 41]],                                              // later today; tomorrow only
+];
+const SAVEDCASES = [['offline', [], 'W', 0], ['offline', [], 'W', 1], ['offline', [], 'W', 2], ['offline', [], 'Green Fields', 0], ['offline', ['Green Fields'], 'Green Fields', 0],
+  ['offline', ['Green Fields'], 'Green Fields', 1], ['fail', [], 'W', 0]];
 const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green Fields'], ['Bacon, Egg & Cheese on English Muffin', 'Worcester Café'], ['California Roll', 'Wasabi'], ['Baby Spinach', 'Roots Café'],
   ['Golden BBQ Chicken Thigh', 'W'], ["Plant Based Chic'n Broccoli Supreme w/Pasta", 'F']];
 
@@ -99,10 +122,10 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
         else if (op[0] === 'step') { const pl = S.plates[op[1]], it = pl.items.find(i => i.n === op[2]); stepItem(pl, it, op[3]); }
         else if (op[0] === 'custom') addDish(op[1], 'custom:' + norm(op[2]), {}, op[2], op[3]);
         else if (op[0] === 'bowl') { const [, meal, pl, base, st, parts] = op, h = keyOf(pl), at = d => d.h === h && !d.day && (d.meal === meal || plateMeal(d) === meal);
-          const part = n => Object.values(DISH).find(d => at(d) && d.n === n && stName(MD[0][h][d.meal][d.si][0]) === st) || (() => { throw new Error('no part ' + n + ' at ' + st); })();
+          const part = n => Object.values(DISH).find(d => at(d) && d.n === n && (stName(MD[0][h][d.meal][d.si][0]) === st || (!base && /^(Add-ons|Toppings)$/.test(MD[0][h][d.meal][d.si][0].trim())))) || (() => { throw new Error('no part ' + n + ' at ' + st); })();
           let bd;
           if (base) { const b = Object.values(DISH).find(d => at(d) && d.n === base); if (!b || !buildOf(b)) throw new Error('not a build base: ' + base); bd = bowlDish(b, parts.map(([n, q]) => [part(n), q]), null, h); }
-          else { const p0 = part(parts[0][0]), y = synOf(0, h, p0.meal, p0.si); if (!y) throw new Error('not a synthetic bar: ' + st); bd = bowlDish(null, parts.map(([n, q]) => [part(n), q]), y, h); }
+          else { const p0 = part(parts[0][0]), y = synOf(0, h, p0.meal, p0.si); if (!y) throw new Error('not a synthetic bar: ' + st); bd = synBowl(y, parts.map(([n, q]) => [part(n), q]), h); }
           addDish(meal, bd.k, { [h]: bd }, bd.n); resolved.push(['bowl', meal, h, base, st, parts]); continue; }
         resolved.push(op);
       }
@@ -127,8 +150,20 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
     if (!d) throw new Error('no ' + n + ' at ' + place); DS = { d, refs: { [h]: d } }; renderDish();
     return { dish: n, place: PN(h), feedPrice: d.price, shown: document.querySelector('#isbody .pr')?.textContent || null }; }, [n, place]));
   if (out.price.some(x => !!x.shown !== (x.place !== 'Worcester' && x.place !== 'Franklin' && !!x.feedPrice))) throw new Error('price rule: ' + JSON.stringify(out.price));
+  // ---- round 11
+  out.bowlbase = await p.evaluate(() => noodleBases().map(x => { if (x.n !== 1) throw new Error('not one base: ' + JSON.stringify(x)); const y = x.syn && synOf(DAYS.indexOf(x.day), x.h, x.meal, MD[DAYS.indexOf(x.day)][x.h][x.meal].findIndex(([st]) => stName(st) === 'Noodle Bowl'));
+    return { day: x.day, place: x.h, meal: x.meal, base: x.base, synthetic: x.syn, ...(y ? { choices: y.choices.map(d => d.n) } : {}) }; }));
+  out.synthetic = await p.evaluate(() => { const out = []; MD.forEach((D, day) => Object.entries(D).forEach(([k, ms]) => Object.entries(ms).forEach(([meal, ss]) => ss.forEach(([st], si) => { const y = synOf(day, k, meal, si); if (y) out.push({ day: DAYS[day], place: k, meal, station: st, label: y.label }); })))); return out; });
+  out.alerts = [];
+  for (const [fav, runs] of ALERTS) out.alerts.push(await p.evaluate(([fav, runs]) => { ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(fav.map(norm));
+    const f = m => `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
+    const r = { favorites: fav, runs: runs.map(m => ({ clock: f(m), posted: alertRun(m).map(n => [n.title, n.body]) })) }; S.fav = new Set(); return r; }, [fav, runs]));
+  out.packaged = await p.evaluate(() => { S.q = 'clif'; const r = { query: S.q, yours: S.foods.map(f => f.n), shown: packHits().map(f => [f.n, f.cal]) }; S.q = ''; return r; });
+  out.saved = await p.evaluate(cases => cases.map(([net, cafes, place, day]) => { const n0 = NET, s0 = new Set(SAVED); NET = net; SAVED.clear(); cafes.forEach(c => SAVED.add(c));
+    const k = HALLS.includes(place) ? place : 'c' + P.places.findIndex(x => x[0] === place), v = savedMenu(k, day); NET = n0; SAVED.clear(); s0.forEach(c => SAVED.add(c));
+    return { net, savedCafes: cafes, place: k, day, saved: v }; }), SAVEDCASES);
   if (errs.length) throw new Error(errs.join('\n'));
   fs.writeFileSync(__dirname + '/vectors.json', JSON.stringify(out, null, 1) + '\n');
-  console.log(`vectors.json: ${out.where.length} where (${WHERE.length} dishes x ${CLOCKS.length} clocks), ${out.plate.length} plate sequences, ${out.scores.length} scores (${unscored.length} unscored with a number), ${out.price.length} prices`);
+  console.log(`vectors.json: ${out.where.length} where (${WHERE.length} dishes x ${CLOCKS.length} clocks), ${out.plate.length} plate sequences, ${out.scores.length} scores (${unscored.length} unscored with a number), ${out.price.length} prices, ${out.bowlbase.length} Noodle Bowl bases, ${out.synthetic.length} synthetic bars, ${out.alerts.length} alert sequences, ${out.packaged.shown.length} packaged, ${out.saved.length} saved`);
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
