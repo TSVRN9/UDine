@@ -1,0 +1,7332 @@
+{
+ "date": "2026-10-08 (Thursday)",
+ "halls": {
+  "Worcester": {
+   "breakfast": [
+    {
+     "station": "Breakfast Entrees",
+     "dishes": [
+      {
+       "name": "Apple Cinnamon Pancakes",
+       "serving": "1 EACH",
+       "cal": 93.0,
+       "protein": 2.3,
+       "carbs": 17.4,
+       "fat": 1.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "BUSH's Baked Beans",
+       "serving": "2 1/2 OZ",
+       "cal": 63.0,
+       "protein": 2.7,
+       "carbs": 12.9,
+       "fat": 0.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Chinese Twist Cruller",
+       "serving": "2 piece",
+       "cal": 26.0,
+       "protein": 0.5,
+       "carbs": 3.4,
+       "fat": 1.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Hard Boiled Egg",
+       "serving": "2 EACH",
+       "cal": 111.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Make Your Own Waffles",
+       "serving": "1 EACH",
+       "cal": 222.0,
+       "protein": 4.4,
+       "carbs": 44.5,
+       "fat": 2.2,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pork Sausage Links",
+       "serving": "2 each",
+       "cal": 88.0,
+       "protein": 3.6,
+       "carbs": 0.0,
+       "fat": 8.2,
+       "diet": "None",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Red Potato Home Fries",
+       "serving": "3 OZ",
+       "cal": 65.0,
+       "protein": 1.6,
+       "carbs": 13.4,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Tomatoes w/Feta & Spinach",
+       "serving": "2 OZ",
+       "cal": 61.0,
+       "protein": 2.0,
+       "carbs": 1.8,
+       "fat": 5.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Sauteed Mushrooms",
+       "serving": "2 OZ",
+       "cal": 35.0,
+       "protein": 1.6,
+       "carbs": 2.3,
+       "fat": 3.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Scrambled Eggs",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Southwest Tofu Scramble",
+       "serving": "3 oz",
+       "cal": 113.0,
+       "protein": 11.1,
+       "carbs": 3.2,
+       "fat": 6.6,
+       "diet": "Halal, Plant Based, Vegetarian",
+       "allergens": "Soy"
+      }
+     ]
+    },
+    {
+     "station": "Breakfast Pastries",
+     "dishes": [
+      {
+       "name": "Gingerbread Bundt",
+       "serving": "1 Slice",
+       "cal": 197.0,
+       "protein": 2.2,
+       "carbs": 26.3,
+       "fat": 9.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Mini Apple Danish",
+       "serving": "1 Each",
+       "cal": 121.0,
+       "protein": 2.0,
+       "carbs": 14.1,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Omelet WOR",
+     "dishes": [
+      {
+       "name": "American Cheese",
+       "serving": "1/2 OZ",
+       "cal": 46.0,
+       "protein": 2.5,
+       "carbs": 0.5,
+       "fat": 4.1,
+       "diet": "Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Diced Tomatoes",
+       "serving": "1 OZ",
+       "cal": 5.0,
+       "protein": 0.2,
+       "carbs": 1.0,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Fresh Green Peppers",
+       "serving": "1/2 OZ",
+       "cal": 3.0,
+       "protein": 0.1,
+       "carbs": 0.7,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Omelet Bar",
+       "serving": "5 oz",
+       "cal": 91.0,
+       "protein": 8.8,
+       "carbs": 0.0,
+       "fat": 6.3,
+       "diet": "Local",
+       "allergens": "Eggs, Corn  "
+      },
+      {
+       "name": "Onions",
+       "serving": "1 oz",
+       "cal": 11.0,
+       "protein": 0.3,
+       "carbs": 2.4,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Shredded Cheddar Cheese",
+       "serving": "1 OZ",
+       "cal": 115.0,
+       "protein": 6.5,
+       "carbs": 0.9,
+       "fat": 9.4,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Sliced Mushrooms",
+       "serving": "1 OZ",
+       "cal": 6.0,
+       "protein": 0.9,
+       "carbs": 0.9,
+       "fat": 0.1,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Chicken Congee",
+       "serving": "3 oz",
+       "cal": 280.0,
+       "protein": 6.5,
+       "carbs": 61.4,
+       "fat": 0.2,
+       "diet": "None",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Hot Oatmeal",
+       "serving": "4 OZL",
+       "cal": 91.0,
+       "protein": 3.2,
+       "carbs": 16.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Chocolate Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 222.0,
+       "protein": 3.9,
+       "carbs": 24.8,
+       "fat": 11.7,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Plant Based Vanilla Ice Cream",
+       "serving": "4 oz",
+       "cal": 179.0,
+       "protein": 0.7,
+       "carbs": 24.9,
+       "fat": 8.3,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Strawberry Plant Based Soft Serve",
+       "serving": "4 oz",
+       "cal": 187.0,
+       "protein": 0.7,
+       "carbs": 27.8,
+       "fat": 7.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Vanilla Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 169.0,
+       "protein": 2.6,
+       "carbs": 26.1,
+       "fat": 5.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Display Station",
+     "dishes": [
+      {
+       "name": "Cauliflower & Potato Curry",
+       "serving": "3 OZ",
+       "cal": 43.0,
+       "protein": 0.9,
+       "carbs": 6.8,
+       "fat": 1.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Coriander Chutney",
+       "serving": "1 oz",
+       "cal": 14.0,
+       "protein": 0.0,
+       "carbs": 0.9,
+       "fat": 0.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "DANNON Nonfat Plain Yogurt",
+       "serving": "2 OZ",
+       "cal": 42.0,
+       "protein": 5.3,
+       "carbs": 2.7,
+       "fat": 1.2,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Hot Mango Pickle",
+       "serving": "1/2 oz",
+       "cal": 18.0,
+       "protein": 0.0,
+       "carbs": 1.8,
+       "fat": 1.3,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Masala Chai",
+       "serving": "4 oz",
+       "cal": 39.0,
+       "protein": 1.1,
+       "carbs": 6.0,
+       "fat": 1.2,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Mixed Vegetable Paratha",
+       "serving": "1/2 each",
+       "cal": 155.0,
+       "protein": 4.0,
+       "carbs": 26.0,
+       "fat": 4.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Latino 2  WOR",
+     "dishes": [
+      {
+       "name": "Black Beans",
+       "serving": "3 OZ",
+       "cal": 80.0,
+       "protein": 3.6,
+       "carbs": 12.7,
+       "fat": 1.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Fried Plantain",
+       "serving": "1 OZ",
+       "cal": 69.0,
+       "protein": 0.3,
+       "carbs": 8.9,
+       "fat": 3.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Huevos Rancheros",
+       "serving": "1 EACH",
+       "cal": 202.0,
+       "protein": 9.1,
+       "carbs": 10.8,
+       "fat": 13.8,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Soy, Corn  "
+      }
+     ]
+    }
+   ],
+   "grabngo": [
+    {
+     "station": "Grab n'Go Breakfast",
+     "dishes": [
+      {
+       "name": "1% Milk",
+       "serving": "1 EACH",
+       "cal": 100.0,
+       "protein": 8.0,
+       "carbs": 11.8,
+       "fat": 2.3,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Chicken Congee",
+       "serving": "4 oz",
+       "cal": 374.0,
+       "protein": 8.6,
+       "carbs": 81.9,
+       "fat": 0.2,
+       "diet": "None",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Corned Beef Hash",
+       "serving": "2 OZ",
+       "cal": 64.0,
+       "protein": 2.1,
+       "carbs": 4.0,
+       "fat": 4.4,
+       "diet": "None",
+       "allergens": ""
+      },
+      {
+       "name": "Hard Boiled Egg",
+       "serving": "2 EACH",
+       "cal": 111.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Hot Oatmeal",
+       "serving": "4 OZL",
+       "cal": 91.0,
+       "protein": 3.2,
+       "carbs": 16.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Lowfat Chocolate Milk",
+       "serving": "1 EACH",
+       "cal": 172.0,
+       "protein": 6.8,
+       "carbs": 27.5,
+       "fat": 4.3,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Mini Apple Danish",
+       "serving": "1 EACH",
+       "cal": 121.0,
+       "protein": 2.0,
+       "carbs": 14.1,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "O'Brien Potatoes",
+       "serving": "3 OZ",
+       "cal": 72.0,
+       "protein": 1.5,
+       "carbs": 12.0,
+       "fat": 2.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Orange Juice",
+       "serving": "1 EACH",
+       "cal": 120.0,
+       "protein": 0.0,
+       "carbs": 29.0,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Scrambled Eggs",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      }
+     ]
+    },
+    {
+     "station": "Grab n'Go Hot",
+     "dishes": [
+      {
+       "name": "Beef Nachos",
+       "serving": "1 each",
+       "cal": 391.0,
+       "protein": 15.2,
+       "carbs": 28.5,
+       "fat": 23.1,
+       "diet": "None",
+       "allergens": "Milk, Soy, Corn  "
+      },
+      {
+       "name": "Chewy M&M Bar",
+       "serving": "1 Each",
+       "cal": 266.0,
+       "protein": 1.6,
+       "carbs": 37.8,
+       "fat": 12.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Peanuts, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Chunky Salsa",
+       "serving": "2 OZL",
+       "cal": 19.0,
+       "protein": 0.0,
+       "carbs": 5.7,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "General Tso Chicken",
+       "serving": "4 oz",
+       "cal": 209.0,
+       "protein": 6.9,
+       "carbs": 18.7,
+       "fat": 12.0,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "General Tso Pulmuone Tofu",
+       "serving": "4 oz",
+       "cal": 148.0,
+       "protein": 6.1,
+       "carbs": 12.2,
+       "fat": 8.2,
+       "diet": "Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Guacamole",
+       "serving": "1 each",
+       "cal": 119.0,
+       "protein": 1.0,
+       "carbs": 5.0,
+       "fat": 9.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Jasmine Rice",
+       "serving": "3 OZ",
+       "cal": 92.0,
+       "protein": 1.7,
+       "carbs": 20.7,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Plant Based Chorizo Nachos",
+       "serving": "1 each",
+       "cal": 357.0,
+       "protein": 9.4,
+       "carbs": 45.5,
+       "fat": 15.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Milk, Soy, Corn  "
+      },
+      {
+       "name": "Queso Sauce",
+       "serving": "1 oz",
+       "cal": 80.0,
+       "protein": 3.9,
+       "carbs": 2.1,
+       "fat": 6.1,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Sliced Jalapeno",
+       "serving": "1 oz",
+       "cal": 5.0,
+       "protein": 0.9,
+       "carbs": 0.9,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sour Cream",
+       "serving": "1 each",
+       "cal": 60.0,
+       "protein": 1.0,
+       "carbs": 1.0,
+       "fat": 5.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Triple Choc Chip Cookies",
+       "serving": "1 EACH",
+       "cal": 120.0,
+       "protein": 1.0,
+       "carbs": 17.0,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    }
+   ],
+   "lunch": [
+    {
+     "station": "Miscellaneous",
+     "dishes": [
+      {
+       "name": "Local Roasted Sweet Potatoes",
+       "serving": "4 oz",
+       "cal": 164.0,
+       "protein": 1.7,
+       "carbs": 22.0,
+       "fat": 8.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Red Pepper & Smoked Gouda Bisque",
+       "serving": "5 oz",
+       "cal": 176.0,
+       "protein": 4.1,
+       "carbs": 10.5,
+       "fat": 12.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Golden BBQ Chicken Thigh",
+       "serving": "1 each",
+       "cal": 93.0,
+       "protein": 13.3,
+       "carbs": 2.4,
+       "fat": 2.9,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Halal Burger Patty",
+       "serving": "1 each",
+       "cal": 144.0,
+       "protein": 12.6,
+       "carbs": 0.0,
+       "fat": 10.2,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Hand Cut Sweet Potato Fries",
+       "serving": "3 oz",
+       "cal": 178.0,
+       "protein": 0.9,
+       "carbs": 17.3,
+       "fat": 11.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Oatmeal Raisin Cookie",
+       "serving": "1 each",
+       "cal": 110.0,
+       "protein": 2.0,
+       "carbs": 18.0,
+       "fat": 3.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Roasted Zucchini",
+       "serving": "2 1/2 OZ",
+       "cal": 25.0,
+       "protein": 0.5,
+       "carbs": 4.8,
+       "fat": 0.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Chocolate Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 222.0,
+       "protein": 3.9,
+       "carbs": 24.8,
+       "fat": 11.7,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Plant Based Vanilla Ice Cream",
+       "serving": "4 oz",
+       "cal": 179.0,
+       "protein": 0.7,
+       "carbs": 24.9,
+       "fat": 8.3,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Strawberry Plant Based Soft Serve",
+       "serving": "4 oz",
+       "cal": 187.0,
+       "protein": 0.7,
+       "carbs": 27.8,
+       "fat": 7.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Vanilla Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 169.0,
+       "protein": 2.6,
+       "carbs": 26.1,
+       "fat": 5.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Zebra Brownies",
+       "serving": "1 PIECE",
+       "cal": 172.0,
+       "protein": 1.4,
+       "carbs": 23.6,
+       "fat": 7.9,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Noodle Bowl",
+     "dishes": [
+      {
+       "name": "Bean Sprouts",
+       "serving": "1/2 OZ",
+       "cal": 2.0,
+       "protein": 0.2,
+       "carbs": 0.2,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Beef Brisket Noodle Bowl",
+       "serving": "1 bowl",
+       "cal": 218.0,
+       "protein": 12.3,
+       "carbs": 39.9,
+       "fat": 1.6,
+       "diet": "Local",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Chopped Cilantro",
+       "serving": "1/8 oz",
+       "cal": 1.0,
+       "protein": 0.1,
+       "carbs": 0.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Hard Boiled Egg",
+       "serving": "2 EACH",
+       "cal": 111.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Scallions",
+       "serving": "1/2 OZ",
+       "cal": 5.0,
+       "protein": 0.3,
+       "carbs": 1.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Steamed Bok Choy",
+       "serving": "3 oz",
+       "cal": 11.0,
+       "protein": 1.3,
+       "carbs": 1.9,
+       "fat": 0.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Street Food",
+     "dishes": [
+      {
+       "name": "Braised Pulmuone Tofu",
+       "serving": "4 oz",
+       "cal": 123.0,
+       "protein": 9.2,
+       "carbs": 8.8,
+       "fat": 6.1,
+       "diet": "Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Mee Goreng",
+       "serving": "4 oz",
+       "cal": 107.0,
+       "protein": 4.3,
+       "carbs": 19.8,
+       "fat": 1.3,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Stir Fry Green Vegetables",
+       "serving": "3 oz",
+       "cal": 34.0,
+       "protein": 1.9,
+       "carbs": 3.4,
+       "fat": 1.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Spring Rolls",
+       "serving": "2 EACH",
+       "cal": 158.0,
+       "protein": 1.1,
+       "carbs": 5.6,
+       "fat": 15.3,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Yellow Curry Kabocha Squash w/Pork Belly (Fish)",
+       "serving": "3 oz",
+       "cal": 194.0,
+       "protein": 3.0,
+       "carbs": 3.8,
+       "fat": 18.3,
+       "diet": "Local",
+       "allergens": "Fish, Gluten, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Tandoor",
+     "dishes": [
+      {
+       "name": "Baked Salmon w/Paprika Ginger Eggplant Sauce",
+       "serving": "4 oz",
+       "cal": 155.0,
+       "protein": 13.1,
+       "carbs": 6.6,
+       "fat": 8.1,
+       "diet": "Halal, Local",
+       "allergens": "Fish"
+      },
+      {
+       "name": "Chickpea Salad w/Teardrop Peppers & Artichoke Hearts",
+       "serving": "2 oz",
+       "cal": 115.0,
+       "protein": 3.4,
+       "carbs": 6.7,
+       "fat": 8.4,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Creamy Cucumber Salad",
+       "serving": "2 oz",
+       "cal": 26.0,
+       "protein": 1.6,
+       "carbs": 2.6,
+       "fat": 1.2,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Cumin Basmati Rice",
+       "serving": "3 OZ",
+       "cal": 138.0,
+       "protein": 2.5,
+       "carbs": 24.5,
+       "fat": 2.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Kachumbari Salad",
+       "serving": "2 oz",
+       "cal": 13.0,
+       "protein": 0.4,
+       "carbs": 2.7,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Okra & Onions",
+       "serving": "3 oz",
+       "cal": 92.0,
+       "protein": 1.3,
+       "carbs": 6.7,
+       "fat": 7.0,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Tear Drop Peppers",
+       "serving": "1 oz",
+       "cal": 25.0,
+       "protein": 0.0,
+       "carbs": 6.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Mediterranean",
+     "dishes": [
+      {
+       "name": "Baked Italian Sausage w/Potatoes & Onions",
+       "serving": "4 oz",
+       "cal": 199.0,
+       "protein": 12.4,
+       "carbs": 6.7,
+       "fat": 13.5,
+       "diet": "Local",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Basil Cream Pesto Sauce",
+       "serving": "2 OZ",
+       "cal": 203.0,
+       "protein": 3.4,
+       "carbs": 3.4,
+       "fat": 19.8,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Fettuccini Pasta",
+       "serving": "4 OZ",
+       "cal": 149.0,
+       "protein": 5.2,
+       "carbs": 31.3,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Fresh Grated Parmesan Cheese",
+       "serving": "1/4 OZ",
+       "cal": 28.0,
+       "protein": 1.8,
+       "carbs": 1.3,
+       "fat": 1.6,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Herb Roasted Tomatoes",
+       "serving": "1 each",
+       "cal": 22.0,
+       "protein": 0.2,
+       "carbs": 0.9,
+       "fat": 2.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Rigatoni Pasta",
+       "serving": "4 OZ",
+       "cal": 154.0,
+       "protein": 5.4,
+       "carbs": 32.4,
+       "fat": 0.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Rigatoni w/Broccolini & Ricotta",
+       "serving": "4 oz",
+       "cal": 155.0,
+       "protein": 5.1,
+       "carbs": 23.2,
+       "fat": 5.3,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Seasons",
+     "dishes": [
+      {
+       "name": "Baked Pakora",
+       "serving": "1 each",
+       "cal": 23.0,
+       "protein": 1.0,
+       "carbs": 4.0,
+       "fat": 0.3,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Coriander Chutney",
+       "serving": "1 oz",
+       "cal": 14.0,
+       "protein": 0.0,
+       "carbs": 0.9,
+       "fat": 0.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Cucumber & Yogurt Raita Jain",
+       "serving": "1 OZ",
+       "cal": 12.0,
+       "protein": 1.0,
+       "carbs": 1.1,
+       "fat": 0.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Family Pulav (Vegetable Rice) Jain",
+       "serving": "3 OZ",
+       "cal": 113.0,
+       "protein": 1.9,
+       "carbs": 16.3,
+       "fat": 4.3,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Fresh Red Onions",
+       "serving": "1/4 OZ",
+       "cal": 4.0,
+       "protein": 0.1,
+       "carbs": 0.8,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "GF Penne Pasta",
+       "serving": "4 OZ",
+       "cal": 203.0,
+       "protein": 4.1,
+       "carbs": 43.5,
+       "fat": 1.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Kidney Bean Curry Rasoi",
+       "serving": "3 oz",
+       "cal": 108.0,
+       "protein": 4.0,
+       "carbs": 13.6,
+       "fat": 4.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Marinara Jain",
+       "serving": "2 oz",
+       "cal": 23.0,
+       "protein": 0.9,
+       "carbs": 3.6,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Paneer Jalfrezi (Cheese)",
+       "serving": "4 oz",
+       "cal": 214.0,
+       "protein": 12.6,
+       "carbs": 7.0,
+       "fat": 15.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Sauteed Cabbage w/Coconut",
+       "serving": "3 OZ",
+       "cal": 86.0,
+       "protein": 1.3,
+       "carbs": 6.0,
+       "fat": 6.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Tamarind Date Chutney",
+       "serving": "1 oz",
+       "cal": 28.0,
+       "protein": 0.0,
+       "carbs": 7.6,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Latino 1  WOR",
+     "dishes": [
+      {
+       "name": "Arroz Blanco",
+       "serving": "3 OZ",
+       "cal": 130.0,
+       "protein": 1.6,
+       "carbs": 18.5,
+       "fat": 4.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Black Beans",
+       "serving": "3 OZ",
+       "cal": 80.0,
+       "protein": 3.6,
+       "carbs": 12.7,
+       "fat": 1.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Carrots & Chayote w/Lemon",
+       "serving": "3 OZ",
+       "cal": 40.0,
+       "protein": 0.9,
+       "carbs": 6.4,
+       "fat": 1.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Esquites (Mexican Corn Salad)",
+       "serving": "2 oz",
+       "cal": 79.0,
+       "protein": 2.8,
+       "carbs": 9.8,
+       "fat": 4.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Soy, Corn  "
+      },
+      {
+       "name": "Homemade Guacamole",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 0.1,
+       "carbs": 5.7,
+       "fat": 10.9,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Pork Adobada (Chicken)",
+       "serving": "4 oz",
+       "cal": 116.0,
+       "protein": 8.1,
+       "carbs": 8.0,
+       "fat": 6.0,
+       "diet": "Local",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Queso Fresco",
+       "serving": "1/2 oz",
+       "cal": 47.0,
+       "protein": 2.8,
+       "carbs": 0.5,
+       "fat": 3.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Sibley's Pico de Gallo",
+       "serving": "1 OZ",
+       "cal": 6.0,
+       "protein": 0.2,
+       "carbs": 1.4,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sour Cream",
+       "serving": "1 OZ",
+       "cal": 61.0,
+       "protein": 1.0,
+       "carbs": 1.0,
+       "fat": 5.1,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    }
+   ],
+   "dinner": [
+    {
+     "station": "Miscellaneous",
+     "dishes": [
+      {
+       "name": "Kumamoto Style Ramen Broth (Pork, Chicken & Seafood)",
+       "serving": "4 oz",
+       "cal": 8.0,
+       "protein": 0.3,
+       "carbs": 0.5,
+       "fat": 0.5,
+       "diet": "None",
+       "allergens": "Fish, Shellfish, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Red Pepper & Smoked Gouda Bisque",
+       "serving": "5 oz",
+       "cal": 176.0,
+       "protein": 4.1,
+       "carbs": 10.5,
+       "fat": 12.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Golden BBQ Chicken Thigh",
+       "serving": "1 each",
+       "cal": 93.0,
+       "protein": 13.3,
+       "carbs": 2.4,
+       "fat": 2.9,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Halal Burger Patty",
+       "serving": "1 each",
+       "cal": 144.0,
+       "protein": 12.6,
+       "carbs": 0.0,
+       "fat": 10.2,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Hand Cut Sweet Potato Fries",
+       "serving": "3 oz",
+       "cal": 178.0,
+       "protein": 0.9,
+       "carbs": 17.3,
+       "fat": 11.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Roasted Butternut Squash",
+       "serving": "3 oz",
+       "cal": 61.0,
+       "protein": 0.8,
+       "carbs": 9.7,
+       "fat": 2.8,
+       "diet": "Halal, Local, Plant Based, Halal\r5",
+       "allergens": ""
+      },
+      {
+       "name": "Steamed Broccoli",
+       "serving": "3 OZ",
+       "cal": 29.0,
+       "protein": 2.6,
+       "carbs": 2.1,
+       "fat": 1.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Blueberry Buckle",
+       "serving": "2 OZ",
+       "cal": 146.0,
+       "protein": 2.0,
+       "carbs": 27.2,
+       "fat": 3.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Chocolate Malva Pudding",
+       "serving": "1 3/4 OZ",
+       "cal": 147.0,
+       "protein": 2.4,
+       "carbs": 21.0,
+       "fat": 6.2,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Chocolate Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 222.0,
+       "protein": 3.9,
+       "carbs": 24.8,
+       "fat": 11.7,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Plant Based Vanilla Ice Cream",
+       "serving": "4 oz",
+       "cal": 179.0,
+       "protein": 0.7,
+       "carbs": 24.9,
+       "fat": 8.3,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Strawberry Plant Based Soft Serve",
+       "serving": "4 oz",
+       "cal": 187.0,
+       "protein": 0.7,
+       "carbs": 27.8,
+       "fat": 7.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Vanilla Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 169.0,
+       "protein": 2.6,
+       "carbs": 26.1,
+       "fat": 5.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Breads",
+     "dishes": [
+      {
+       "name": "Local Whole Wheat Bread",
+       "serving": "1 PIECE",
+       "cal": 57.0,
+       "protein": 1.2,
+       "carbs": 8.5,
+       "fat": 2.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Noodle Bowl",
+     "dishes": [
+      {
+       "name": "Baby Bok Choy",
+       "serving": "1 oz",
+       "cal": 4.0,
+       "protein": 0.4,
+       "carbs": 0.6,
+       "fat": 0.1,
+       "diet": "None",
+       "allergens": ""
+      },
+      {
+       "name": "Bean Sprouts",
+       "serving": "1/2 OZ",
+       "cal": 2.0,
+       "protein": 0.2,
+       "carbs": 0.2,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Chashu Pork Topping",
+       "serving": "1 oz",
+       "cal": 88.0,
+       "protein": 1.9,
+       "carbs": 3.0,
+       "fat": 7.3,
+       "diet": "None",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Hard Boiled Egg",
+       "serving": "1/2 each",
+       "cal": 35.0,
+       "protein": 2.8,
+       "carbs": 0.3,
+       "fat": 2.4,
+       "diet": "None",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Kumamoto Style Ramen (Pork & Chicken)",
+       "serving": "1 BOWL",
+       "cal": 383.0,
+       "protein": 10.4,
+       "carbs": 46.4,
+       "fat": 23.1,
+       "diet": "Local",
+       "allergens": "Fish, Shellfish, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Mayu (Black Garlic Oil)",
+       "serving": "1 oz",
+       "cal": 215.0,
+       "protein": 0.3,
+       "carbs": 1.6,
+       "fat": 22.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Roasted Zucchini",
+       "serving": "3 OZ",
+       "cal": 38.0,
+       "protein": 0.8,
+       "carbs": 7.2,
+       "fat": 1.1,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Scallions",
+       "serving": "1/2 OZ",
+       "cal": 5.0,
+       "protein": 0.3,
+       "carbs": 1.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Sushi",
+     "dishes": [
+      {
+       "name": "California Roll",
+       "serving": "1 roll",
+       "cal": 222.0,
+       "protein": 5.9,
+       "carbs": 47.3,
+       "fat": 0.8,
+       "diet": "None",
+       "allergens": "Eggs, Fish, Shellfish, Soy, Corn  , Sesame "
+      },
+      {
+       "name": "Purple Sweet Potato Tempura Sushi Roll",
+       "serving": "1 roll",
+       "cal": 228.0,
+       "protein": 3.7,
+       "carbs": 47.9,
+       "fat": 1.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Spicy Tuna Roll",
+       "serving": "1 Roll",
+       "cal": 269.0,
+       "protein": 11.5,
+       "carbs": 45.0,
+       "fat": 4.2,
+       "diet": "Halal",
+       "allergens": "Eggs, Fish, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Teriyaki Pulmuone Tofu Roll",
+       "serving": "1 roll",
+       "cal": 241.0,
+       "protein": 7.9,
+       "carbs": 44.8,
+       "fat": 3.0,
+       "diet": "Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Sushi Roll",
+       "serving": "1 roll",
+       "cal": 196.0,
+       "protein": 3.6,
+       "carbs": 42.9,
+       "fat": 0.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      }
+     ]
+    },
+    {
+     "station": "Street Food",
+     "dishes": [
+      {
+       "name": "Kimchi Fried Rice",
+       "serving": "4 oz",
+       "cal": 158.0,
+       "protein": 5.0,
+       "carbs": 19.6,
+       "fat": 6.4,
+       "diet": "Halal, Local",
+       "allergens": "Eggs, Fish, Shellfish, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Korean BBQ Pulmuone Tofu",
+       "serving": "4 OZ",
+       "cal": 63.0,
+       "protein": 1.9,
+       "carbs": 11.7,
+       "fat": 0.9,
+       "diet": "Local, Vegetarian",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Korean Gochujang BBQ Ribs",
+       "serving": "1 each",
+       "cal": 291.0,
+       "protein": 17.1,
+       "carbs": 7.6,
+       "fat": 21.0,
+       "diet": "Local",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Stir Fry Green Vegetables",
+       "serving": "3 oz",
+       "cal": 34.0,
+       "protein": 1.9,
+       "carbs": 3.4,
+       "fat": 1.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Spring Rolls",
+       "serving": "2 EACH",
+       "cal": 158.0,
+       "protein": 1.1,
+       "carbs": 5.6,
+       "fat": 15.3,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Tandoor",
+     "dishes": [
+      {
+       "name": "Babaganoush",
+       "serving": "2 oz",
+       "cal": 93.0,
+       "protein": 2.8,
+       "carbs": 5.1,
+       "fat": 7.5,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Chicken Shawarma",
+       "serving": "3 OZ",
+       "cal": 106.0,
+       "protein": 15.1,
+       "carbs": 1.6,
+       "fat": 4.1,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Citrus Yogurt w/Sumac",
+       "serving": "1 oz",
+       "cal": 27.0,
+       "protein": 2.4,
+       "carbs": 1.4,
+       "fat": 1.3,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Lavash Bread",
+       "serving": "1 PIECE",
+       "cal": 50.0,
+       "protein": 1.7,
+       "carbs": 9.8,
+       "fat": 0.4,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Roasted Onions & Peppers",
+       "serving": "3 oz",
+       "cal": 35.0,
+       "protein": 0.9,
+       "carbs": 5.8,
+       "fat": 1.1,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sweet Onion Salad",
+       "serving": "2 oz",
+       "cal": 22.0,
+       "protein": 0.6,
+       "carbs": 5.2,
+       "fat": 0.1,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Tahini Sauce",
+       "serving": "1 oz",
+       "cal": 60.0,
+       "protein": 2.2,
+       "carbs": 2.3,
+       "fat": 5.1,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Turmeric Basmati Rice",
+       "serving": "3 OZ",
+       "cal": 312.0,
+       "protein": 6.1,
+       "carbs": 62.2,
+       "fat": 2.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Mediterranean",
+     "dishes": [
+      {
+       "name": "Basil Cream Pesto Sauce",
+       "serving": "2 OZ",
+       "cal": 203.0,
+       "protein": 3.4,
+       "carbs": 3.4,
+       "fat": 19.8,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Fettuccini Pasta",
+       "serving": "4 OZ",
+       "cal": 149.0,
+       "protein": 5.2,
+       "carbs": 31.3,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Fresh Grated Parmesan Cheese",
+       "serving": "1/4 OZ",
+       "cal": 28.0,
+       "protein": 1.8,
+       "carbs": 1.3,
+       "fat": 1.6,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Garlic Parmesan Chicken Leg",
+       "serving": "1 EACH",
+       "cal": 150.0,
+       "protein": 16.9,
+       "carbs": 3.4,
+       "fat": 7.4,
+       "diet": "Halal",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Rigatoni Pasta",
+       "serving": "4 OZ",
+       "cal": 154.0,
+       "protein": 5.4,
+       "carbs": 32.4,
+       "fat": 0.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Tortellini w/Creamy Tuscan Tomato Sauce",
+       "serving": "3 oz",
+       "cal": 168.0,
+       "protein": 5.3,
+       "carbs": 19.2,
+       "fat": 7.9,
+       "diet": "None",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Seasons",
+     "dishes": [
+      {
+       "name": "Carrots",
+       "serving": "1/2 OZ",
+       "cal": 5.0,
+       "protein": 0.2,
+       "carbs": 1.3,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Corn",
+       "serving": "3 oz",
+       "cal": 73.0,
+       "protein": 2.8,
+       "carbs": 16.0,
+       "fat": 1.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Diced Avocado",
+       "serving": "1 oz",
+       "cal": 47.0,
+       "protein": 0.6,
+       "carbs": 2.4,
+       "fat": 4.4,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Eggplant Donburi Jain",
+       "serving": "6 oz",
+       "cal": 271.0,
+       "protein": 4.7,
+       "carbs": 43.9,
+       "fat": 7.3,
+       "diet": "Local, Plant Based",
+       "allergens": "Soy, Corn  , Sesame "
+      },
+      {
+       "name": "GF Penne Pasta",
+       "serving": "4 OZ",
+       "cal": 203.0,
+       "protein": 4.1,
+       "carbs": 43.5,
+       "fat": 1.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Gluten Free Unagi Sauce",
+       "serving": "1 oz",
+       "cal": 61.0,
+       "protein": 0.8,
+       "carbs": 13.9,
+       "fat": 0.1,
+       "diet": "Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Japanese Pickled Cucumbers",
+       "serving": "2 oz",
+       "cal": 16.0,
+       "protein": 0.4,
+       "carbs": 3.9,
+       "fat": 0.1,
+       "diet": "Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Marinara Jain",
+       "serving": "2 oz",
+       "cal": 23.0,
+       "protein": 0.9,
+       "carbs": 3.6,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Nori",
+       "serving": "1/4 oz",
+       "cal": 24.0,
+       "protein": 2.4,
+       "carbs": 2.4,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Pickled Ginger",
+       "serving": "1/2 oz",
+       "cal": 10.0,
+       "protein": 0.0,
+       "carbs": 2.5,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Plain Sushi Rice",
+       "serving": "4 oz",
+       "cal": 145.0,
+       "protein": 3.2,
+       "carbs": 31.3,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sauteed Spinach w/Sesame Seeds",
+       "serving": "3 OZ",
+       "cal": 36.0,
+       "protein": 2.5,
+       "carbs": 3.2,
+       "fat": 2.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  , Sesame "
+      },
+      {
+       "name": "Scallions",
+       "serving": "1/2 OZ",
+       "cal": 5.0,
+       "protein": 0.3,
+       "carbs": 1.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Toasted Yellow Sesame Seeds",
+       "serving": "1/2 tsp",
+       "cal": 0.0,
+       "protein": 0.0,
+       "carbs": 0.0,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      }
+     ]
+    },
+    {
+     "station": "Latino 1  WOR",
+     "dishes": [
+      {
+       "name": "Arroz Blanco",
+       "serving": "3 OZ",
+       "cal": 130.0,
+       "protein": 1.6,
+       "carbs": 18.5,
+       "fat": 4.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Corn w/Red Peppers",
+       "serving": "3 oz",
+       "cal": 76.0,
+       "protein": 2.4,
+       "carbs": 13.7,
+       "fat": 2.4,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Esquites (Mexican Corn Salad)",
+       "serving": "2 oz",
+       "cal": 79.0,
+       "protein": 2.8,
+       "carbs": 9.8,
+       "fat": 4.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Soy, Corn  "
+      },
+      {
+       "name": "Homemade Guacamole",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 0.1,
+       "carbs": 5.7,
+       "fat": 10.9,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Mole Amarillo Chicken",
+       "serving": "1 each",
+       "cal": 212.0,
+       "protein": 16.3,
+       "carbs": 15.0,
+       "fat": 8.7,
+       "diet": "Local",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Pinto Beans",
+       "serving": "3 OZ",
+       "cal": 68.0,
+       "protein": 2.8,
+       "carbs": 10.6,
+       "fat": 1.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Sibley's Pico de Gallo",
+       "serving": "1 OZ",
+       "cal": 6.0,
+       "protein": 0.2,
+       "carbs": 1.4,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    }
+   ],
+   "late night": [
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Cajun Chicken Thigh",
+       "serving": "1 EACH",
+       "cal": 100.0,
+       "protein": 16.1,
+       "carbs": 0.0,
+       "fat": 3.4,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Halal Burger Patty",
+       "serving": "1 each",
+       "cal": 144.0,
+       "protein": 12.6,
+       "carbs": 0.0,
+       "fat": 10.2,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Roasted Butternut Squash",
+       "serving": "3 oz",
+       "cal": 61.0,
+       "protein": 0.8,
+       "carbs": 9.7,
+       "fat": 2.8,
+       "diet": "Halal, Local, Plant Based, Halal\r5",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Chocolate Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 222.0,
+       "protein": 3.9,
+       "carbs": 24.8,
+       "fat": 11.7,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Plant Based Vanilla Ice Cream",
+       "serving": "4 oz",
+       "cal": 179.0,
+       "protein": 0.7,
+       "carbs": 24.9,
+       "fat": 8.3,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Strawberry Plant Based Soft Serve",
+       "serving": "4 oz",
+       "cal": 187.0,
+       "protein": 0.7,
+       "carbs": 27.8,
+       "fat": 7.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Vanilla Soft Serve Ice Cream",
+       "serving": "4 oz",
+       "cal": 169.0,
+       "protein": 2.6,
+       "carbs": 26.1,
+       "fat": 5.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Display Station",
+     "dishes": [
+      {
+       "name": "Bacon Jalapeno Quesadilla",
+       "serving": "1 EACH",
+       "cal": 217.0,
+       "protein": 10.6,
+       "carbs": 14.4,
+       "fat": 12.6,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Homemade Guacamole",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 0.1,
+       "carbs": 5.7,
+       "fat": 10.9,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Pinto Beans",
+       "serving": "3 OZ",
+       "cal": 68.0,
+       "protein": 2.8,
+       "carbs": 10.6,
+       "fat": 1.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Plant Based Chorizo & Jalapeno Quesadilla",
+       "serving": "1 EACH",
+       "cal": 90.0,
+       "protein": 3.8,
+       "carbs": 13.2,
+       "fat": 2.5,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Shredded Cheddar Cheese",
+       "serving": "1 OZ",
+       "cal": 115.0,
+       "protein": 6.5,
+       "carbs": 0.9,
+       "fat": 9.4,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Shredded Lettuce",
+       "serving": "1 OZ",
+       "cal": 4.0,
+       "protein": 0.3,
+       "carbs": 0.8,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sibley's Pico de Gallo",
+       "serving": "1 OZ",
+       "cal": 6.0,
+       "protein": 0.2,
+       "carbs": 1.4,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sour Cream",
+       "serving": "1 OZ",
+       "cal": 61.0,
+       "protein": 1.0,
+       "carbs": 1.0,
+       "fat": 5.1,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Yellow Rice",
+       "serving": "3 oz",
+       "cal": 103.0,
+       "protein": 1.7,
+       "carbs": 19.3,
+       "fat": 1.3,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Mediterranean",
+     "dishes": [
+      {
+       "name": "Fresh Grated Parmesan Cheese",
+       "serving": "1/4 OZ",
+       "cal": 28.0,
+       "protein": 1.8,
+       "carbs": 1.3,
+       "fat": 1.6,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    }
+   ]
+  },
+  "Franklin": {
+   "breakfast": [
+    {
+     "station": "Breakfast Entrees",
+     "dishes": [
+      {
+       "name": "Apple Cinnamon Pancakes",
+       "serving": "1 EACH",
+       "cal": 93.0,
+       "protein": 2.3,
+       "carbs": 17.4,
+       "fat": 1.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "BUSH's Baked Beans",
+       "serving": "2 1/2 OZ",
+       "cal": 63.0,
+       "protein": 2.7,
+       "carbs": 12.9,
+       "fat": 0.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Chicken Congee",
+       "serving": "3 oz",
+       "cal": 280.0,
+       "protein": 6.5,
+       "carbs": 61.4,
+       "fat": 0.2,
+       "diet": "None",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Chinese Twist Cruller",
+       "serving": "2 piece",
+       "cal": 26.0,
+       "protein": 0.5,
+       "carbs": 3.4,
+       "fat": 1.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Hard Boiled Egg",
+       "serving": "2 EACH",
+       "cal": 111.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Hot Oatmeal",
+       "serving": "4 OZL",
+       "cal": 91.0,
+       "protein": 3.2,
+       "carbs": 16.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Omelet Station",
+       "serving": "5 oz",
+       "cal": 303.0,
+       "protein": 21.7,
+       "carbs": 2.3,
+       "fat": 23.4,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Corn  "
+      },
+      {
+       "name": "Red Potato Home Fries",
+       "serving": "3 OZ",
+       "cal": 65.0,
+       "protein": 1.6,
+       "carbs": 13.4,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Tomatoes w/Feta & Spinach",
+       "serving": "2 OZ",
+       "cal": 61.0,
+       "protein": 2.0,
+       "carbs": 1.8,
+       "fat": 5.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Sauteed Mushrooms",
+       "serving": "2 OZ",
+       "cal": 35.0,
+       "protein": 1.6,
+       "carbs": 2.3,
+       "fat": 3.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Scrambled Eggs",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Smoked Bacon Slices",
+       "serving": "2 slices",
+       "cal": 276.0,
+       "protein": 17.0,
+       "carbs": 2.1,
+       "fat": 21.2,
+       "diet": "\n",
+       "allergens": ""
+      },
+      {
+       "name": "Southwest Tofu Scramble",
+       "serving": "3 oz",
+       "cal": 113.0,
+       "protein": 11.1,
+       "carbs": 3.2,
+       "fat": 6.6,
+       "diet": "Halal, Plant Based, Vegetarian",
+       "allergens": "Soy"
+      }
+     ]
+    },
+    {
+     "station": "Breakfast Pastries",
+     "dishes": [
+      {
+       "name": "Gingerbread Bundt",
+       "serving": "1 Slice",
+       "cal": 197.0,
+       "protein": 2.2,
+       "carbs": 26.3,
+       "fat": 9.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Mini Apple Danish",
+       "serving": "1 Each",
+       "cal": 121.0,
+       "protein": 2.0,
+       "carbs": 14.1,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "GF Hot Breakfast",
+     "dishes": [
+      {
+       "name": "Gluten Free Waffles",
+       "serving": "1 EACH",
+       "cal": 224.0,
+       "protein": 6.4,
+       "carbs": 46.4,
+       "fat": 0.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Red Potato Home Fries",
+       "serving": "3 OZ",
+       "cal": 65.0,
+       "protein": 1.6,
+       "carbs": 13.4,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Scrambled Eggs",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      }
+     ]
+    }
+   ],
+   "lunch": [
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Red Pepper & Smoked Gouda Bisque",
+       "serving": "5 oz",
+       "cal": 176.0,
+       "protein": 4.1,
+       "carbs": 10.5,
+       "fat": 12.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Entrees",
+     "dishes": [
+      {
+       "name": "Herbed Roasted Chicken Legs",
+       "serving": "1 EACH",
+       "cal": 101.0,
+       "protein": 13.5,
+       "carbs": 0.4,
+       "fat": 4.9,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Sausage Pepperonata",
+       "serving": "3 oz",
+       "cal": 142.0,
+       "protein": 10.0,
+       "carbs": 3.5,
+       "fat": 9.2,
+       "diet": "Local",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Starches",
+     "dishes": [
+      {
+       "name": "Fresh Corn on the Cob",
+       "serving": "1/2 each",
+       "cal": 31.0,
+       "protein": 1.2,
+       "carbs": 6.8,
+       "fat": 0.5,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Lyonnaise Potatoes",
+       "serving": "3 OZ",
+       "cal": 88.0,
+       "protein": 1.6,
+       "carbs": 13.8,
+       "fat": 3.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Vegetables",
+     "dishes": [
+      {
+       "name": "Braised Collards in Tomato Onion Gravy",
+       "serving": "3 oz",
+       "cal": 31.0,
+       "protein": 2.4,
+       "carbs": 5.0,
+       "fat": 0.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Spiced Cauliflower & Chickpeas",
+       "serving": "3 oz",
+       "cal": 53.0,
+       "protein": 2.6,
+       "carbs": 7.1,
+       "fat": 1.8,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Grilled Cheese Sandwich",
+       "serving": "1/2 Sandwich",
+       "cal": 153.0,
+       "protein": 5.5,
+       "carbs": 19.4,
+       "fat": 6.4,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Grilled Chicken Breast",
+       "serving": "3 oz",
+       "cal": 105.0,
+       "protein": 18.9,
+       "carbs": 0.1,
+       "fat": 3.0,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal SPARE Beef Burger",
+       "serving": "1 Each",
+       "cal": 130.0,
+       "protein": 12.0,
+       "carbs": 2.0,
+       "fat": 8.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Sweet Potato Fries",
+       "serving": "3 OZ",
+       "cal": 194.0,
+       "protein": 0.9,
+       "carbs": 16.9,
+       "fat": 13.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Vegetarian Line",
+     "dishes": [
+      {
+       "name": "Baked General Tso's Pulmuone Tofu",
+       "serving": "3 oz",
+       "cal": 115.0,
+       "protein": 8.8,
+       "carbs": 10.8,
+       "fat": 4.4,
+       "diet": "Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Ginger & Tomato Salad",
+       "serving": "2 oz",
+       "cal": 11.0,
+       "protein": 0.4,
+       "carbs": 2.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Jasmine Rice",
+       "serving": "3 OZ",
+       "cal": 92.0,
+       "protein": 1.7,
+       "carbs": 20.7,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Plant Based Cheese Pizza",
+       "serving": "1 slice",
+       "cal": 159.0,
+       "protein": 4.2,
+       "carbs": 24.2,
+       "fat": 5.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Plant Based Steak & Cheese Pizza",
+       "serving": "1 slice",
+       "cal": 184.0,
+       "protein": 5.6,
+       "carbs": 26.2,
+       "fat": 6.4,
+       "diet": "Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Quinoa, Corn & Avocado Salad",
+       "serving": "2 oz",
+       "cal": 37.0,
+       "protein": 1.3,
+       "carbs": 6.8,
+       "fat": 0.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Szechuan Broccoli",
+       "serving": "3 oz",
+       "cal": 138.0,
+       "protein": 1.5,
+       "carbs": 28.7,
+       "fat": 2.3,
+       "diet": "Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pasta Bar",
+     "dishes": [
+      {
+       "name": "Cavatappi Pasta",
+       "serving": "4 oz",
+       "cal": 140.0,
+       "protein": 5.9,
+       "carbs": 29.5,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Fettuccini Pasta",
+       "serving": "4 OZ",
+       "cal": 149.0,
+       "protein": 5.2,
+       "carbs": 31.3,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Tomato Cream Basil Sauce",
+       "serving": "2 OZ",
+       "cal": 119.0,
+       "protein": 2.3,
+       "carbs": 3.8,
+       "fat": 10.8,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Tortellini w/Basil Pesto & Grape Tomatoes",
+       "serving": "4 oz",
+       "cal": 212.0,
+       "protein": 6.6,
+       "carbs": 27.2,
+       "fat": 8.9,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Deli Bar",
+     "dishes": [
+      {
+       "name": "American Cheese",
+       "serving": "1/2 OZ",
+       "cal": 46.0,
+       "protein": 2.5,
+       "carbs": 0.5,
+       "fat": 4.1,
+       "diet": "Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Chicken Salad",
+       "serving": "2 OZ",
+       "cal": 69.0,
+       "protein": 9.6,
+       "carbs": 1.9,
+       "fat": 2.6,
+       "diet": "Halal",
+       "allergens": "Eggs, Soy, Corn  "
+      },
+      {
+       "name": "Deli Beef",
+       "serving": "2 OZ",
+       "cal": 61.0,
+       "protein": 11.1,
+       "carbs": 0.0,
+       "fat": 2.0,
+       "diet": "None",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Deli Ham",
+       "serving": "2 oz",
+       "cal": 67.0,
+       "protein": 9.3,
+       "carbs": 1.3,
+       "fat": 2.7,
+       "diet": "None",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Homemade Spicy Hummus",
+       "serving": "2 OZ",
+       "cal": 95.0,
+       "protein": 3.9,
+       "carbs": 9.6,
+       "fat": 5.1,
+       "diet": "Halal, Plant Based, Halal\r6",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Provolone Cheese",
+       "serving": "1/2 OZ",
+       "cal": 47.0,
+       "protein": 3.4,
+       "carbs": 0.0,
+       "fat": 4.1,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Turkey Breast",
+       "serving": "2 OZ",
+       "cal": 61.0,
+       "protein": 13.2,
+       "carbs": 0.0,
+       "fat": 1.0,
+       "diet": "Halal",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Oatmeal Raisin Cookie",
+       "serving": "1 each",
+       "cal": 110.0,
+       "protein": 2.0,
+       "carbs": 18.0,
+       "fat": 3.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Zebra Brownies",
+       "serving": "1 PIECE",
+       "cal": 172.0,
+       "protein": 1.4,
+       "carbs": 23.6,
+       "fat": 7.9,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Stir Fry Station",
+     "dishes": [
+      {
+       "name": "Plant-Based Condiments Bar w/Almonds",
+       "serving": "2 OZ",
+       "cal": 229.0,
+       "protein": 5.0,
+       "carbs": 11.5,
+       "fat": 17.8,
+       "diet": "Plant Based",
+       "allergens": "Tree Nuts, Soy, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Pizza",
+     "dishes": [
+      {
+       "name": "Cheese Pizza",
+       "serving": "1 SLICE",
+       "cal": 203.0,
+       "protein": 9.4,
+       "carbs": 29.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pepperoni Pizza",
+       "serving": "1 SLICE",
+       "cal": 217.0,
+       "protein": 9.9,
+       "carbs": 29.0,
+       "fat": 7.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Gluten Free",
+     "dishes": [
+      {
+       "name": "Burger Bar",
+       "serving": "1 each",
+       "cal": 464.0,
+       "protein": 20.7,
+       "carbs": 47.7,
+       "fat": 21.9,
+       "diet": "Local",
+       "allergens": "Milk, Soy, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Latino FRK HMP",
+     "dishes": [
+      {
+       "name": "Esquites (Mexican Corn Salad)",
+       "serving": "2 oz",
+       "cal": 79.0,
+       "protein": 2.8,
+       "carbs": 9.8,
+       "fat": 4.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Soy, Corn  "
+      },
+      {
+       "name": "Latin Toppings",
+       "serving": "3 oz",
+       "cal": 130.0,
+       "protein": 4.9,
+       "carbs": 3.6,
+       "fat": 10.6,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Pollo (Chicken) in Poblano Sauce",
+       "serving": "1 each",
+       "cal": 79.0,
+       "protein": 7.5,
+       "carbs": 1.7,
+       "fat": 4.3,
+       "diet": "Halal, Local",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Refried Black Beans",
+       "serving": "1 oz",
+       "cal": 25.0,
+       "protein": 1.5,
+       "carbs": 4.3,
+       "fat": 0.1,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Yellow Rice",
+       "serving": "3 oz",
+       "cal": 103.0,
+       "protein": 1.7,
+       "carbs": 19.3,
+       "fat": 1.3,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Zucchini, Corn & Peppers",
+       "serving": "2 OZ",
+       "cal": 45.0,
+       "protein": 1.1,
+       "carbs": 7.0,
+       "fat": 2.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Express",
+     "dishes": [
+      {
+       "name": "Brown Rice",
+       "serving": "3 1/2 OZ",
+       "cal": 123.0,
+       "protein": 2.7,
+       "carbs": 25.9,
+       "fat": 0.9,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Chicken, Pork & Shrimp Wonton Soup",
+       "serving": "5 oz",
+       "cal": 206.0,
+       "protein": 11.8,
+       "carbs": 24.4,
+       "fat": 9.3,
+       "diet": "Local",
+       "allergens": "Eggs, Fish, Shellfish, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Jasmine Rice",
+       "serving": "3 OZ",
+       "cal": 93.0,
+       "protein": 1.7,
+       "carbs": 20.8,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based, \n",
+       "allergens": ""
+      },
+      {
+       "name": "Mei Fun Noodles",
+       "serving": "4 OZ",
+       "cal": 178.0,
+       "protein": 4.9,
+       "carbs": 33.6,
+       "fat": 2.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Sesame Ginger Baby Bok Choy",
+       "serving": "3 OZ",
+       "cal": 24.0,
+       "protein": 1.3,
+       "carbs": 2.4,
+       "fat": 1.3,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Szechuan Pork Belly w/Cabbage & Caul",
+       "serving": "4 oz",
+       "cal": 355.0,
+       "protein": 5.8,
+       "carbs": 13.6,
+       "fat": 30.9,
+       "diet": "Local",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Spring Rolls",
+       "serving": "2 EACH",
+       "cal": 158.0,
+       "protein": 1.1,
+       "carbs": 5.6,
+       "fat": 15.3,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    }
+   ],
+   "grabngo": [
+    {
+     "station": "Grab n'Go Hot",
+     "dishes": [
+      {
+       "name": "Breaded Chicken Sandwich",
+       "serving": "1 each",
+       "cal": 561.0,
+       "protein": 22.6,
+       "carbs": 54.8,
+       "fat": 29.1,
+       "diet": "LPS",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Chewy M&M Bar",
+       "serving": "1 Each",
+       "cal": 266.0,
+       "protein": 1.6,
+       "carbs": 37.8,
+       "fat": 12.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Peanuts, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "STOUFFER'S Macaroni and Cheese",
+       "serving": "3 oz",
+       "cal": 116.0,
+       "protein": 4.5,
+       "carbs": 11.9,
+       "fat": 5.6,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Steamed Broccoli",
+       "serving": "3 OZ",
+       "cal": 21.0,
+       "protein": 2.6,
+       "carbs": 2.1,
+       "fat": 0.8,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Triple Choc Chip Cookies",
+       "serving": "1 EACH",
+       "cal": 120.0,
+       "protein": 1.0,
+       "carbs": 17.0,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Zesty Orange Chicken & Rice",
+       "serving": "1 Box",
+       "cal": 556.0,
+       "protein": 17.0,
+       "carbs": 62.0,
+       "fat": 26.3,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Zesty Orange Tofu & Rice",
+       "serving": "1 box",
+       "cal": 492.0,
+       "protein": 12.3,
+       "carbs": 58.0,
+       "fat": 22.9,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Grab n'Go Cold",
+     "dishes": [
+      {
+       "name": "Buffalo Chicken Wrap",
+       "serving": "1 EACH",
+       "cal": 355.0,
+       "protein": 17.6,
+       "carbs": 37.9,
+       "fat": 14.4,
+       "diet": "None",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Eggplant Wrap",
+       "serving": "1 each",
+       "cal": 429.0,
+       "protein": 15.2,
+       "carbs": 49.7,
+       "fat": 18.9,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "GF Ham & American Cheese Whole Grain Bread",
+       "serving": "1 EACH",
+       "cal": 125.0,
+       "protein": 13.9,
+       "carbs": 4.2,
+       "fat": 6.5,
+       "diet": "None",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "GF Ham & Swiss Sandwich",
+       "serving": "1 EACH",
+       "cal": 134.0,
+       "protein": 16.1,
+       "carbs": 3.7,
+       "fat": 6.5,
+       "diet": "None",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "GF Peanut Butter & Strawberry Jam Sandwich",
+       "serving": "1 EACH",
+       "cal": 268.0,
+       "protein": 7.3,
+       "carbs": 29.5,
+       "fat": 15.5,
+       "diet": "Vegetarian",
+       "allergens": "Peanuts, Corn  "
+      },
+      {
+       "name": "GF Tuna Salad Sandwich",
+       "serving": "1 EACH",
+       "cal": 100.0,
+       "protein": 9.2,
+       "carbs": 6.1,
+       "fat": 4.5,
+       "diet": "Halal",
+       "allergens": "Eggs, Fish, Soy, Corn  "
+      },
+      {
+       "name": "GF Turkey & Provolone on Whole Grain Bread",
+       "serving": "1 each",
+       "cal": 127.0,
+       "protein": 16.8,
+       "carbs": 3.8,
+       "fat": 5.5,
+       "diet": "Halal",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Gluten Free Turkey Sandwich",
+       "serving": "1 EACH",
+       "cal": 283.0,
+       "protein": 14.4,
+       "carbs": 45.4,
+       "fat": 6.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Tossed Salad",
+       "serving": "1 EACH",
+       "cal": 31.0,
+       "protein": 1.7,
+       "carbs": 6.3,
+       "fat": 0.4,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Turkey Bacon Wrap",
+       "serving": "1 EACH",
+       "cal": 391.0,
+       "protein": 27.6,
+       "carbs": 37.3,
+       "fat": 14.6,
+       "diet": "None",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Vegetarian Hummus Wrap",
+       "serving": "1 each",
+       "cal": 429.0,
+       "protein": 17.0,
+       "carbs": 48.1,
+       "fat": 20.4,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    }
+   ],
+   "dinner": [
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Red Pepper & Smoked Gouda Bisque",
+       "serving": "5 oz",
+       "cal": 176.0,
+       "protein": 4.1,
+       "carbs": 10.5,
+       "fat": 12.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Entrees",
+     "dishes": [
+      {
+       "name": "Cabbage Parmesan",
+       "serving": "4 oz",
+       "cal": 112.0,
+       "protein": 4.5,
+       "carbs": 6.5,
+       "fat": 8.0,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Creamy Tuscan Chicken",
+       "serving": "1 each",
+       "cal": 203.0,
+       "protein": 9.3,
+       "carbs": 2.7,
+       "fat": 17.0,
+       "diet": "Local",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Starches",
+     "dishes": [
+      {
+       "name": "Lemon Rice Pilaf",
+       "serving": "3 OZ",
+       "cal": 92.0,
+       "protein": 1.7,
+       "carbs": 19.2,
+       "fat": 0.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Local Roasted Sweet Potatoes",
+       "serving": "4 oz",
+       "cal": 163.0,
+       "protein": 1.7,
+       "carbs": 22.3,
+       "fat": 7.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Vegetables",
+     "dishes": [
+      {
+       "name": "Agrodolce Honeynut Squash",
+       "serving": "3 OZ",
+       "cal": 62.0,
+       "protein": 0.6,
+       "carbs": 15.2,
+       "fat": 0.6,
+       "diet": "Local, Vegetarian",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Garlic Zucchini w/Tomatoes",
+       "serving": "3 oz",
+       "cal": 40.0,
+       "protein": 0.8,
+       "carbs": 6.6,
+       "fat": 1.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Grilled Cheese Sandwich",
+       "serving": "1/2 Sandwich",
+       "cal": 153.0,
+       "protein": 5.5,
+       "carbs": 19.4,
+       "fat": 6.4,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Grilled Chicken Breast",
+       "serving": "3 oz",
+       "cal": 105.0,
+       "protein": 18.9,
+       "carbs": 0.1,
+       "fat": 3.0,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal SPARE Beef Burger",
+       "serving": "1 Each",
+       "cal": 130.0,
+       "protein": 12.0,
+       "carbs": 2.0,
+       "fat": 8.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Sweet Potato Fries",
+       "serving": "3 OZ",
+       "cal": 194.0,
+       "protein": 0.9,
+       "carbs": 16.9,
+       "fat": 13.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Vegetarian Line",
+     "dishes": [
+      {
+       "name": "Edamame & Mushroom",
+       "serving": "3 OZ",
+       "cal": 87.0,
+       "protein": 6.2,
+       "carbs": 5.5,
+       "fat": 5.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Ginger & Tomato Salad",
+       "serving": "2 oz",
+       "cal": 11.0,
+       "protein": 0.4,
+       "carbs": 2.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Pan Fried Vegetarian Potsticker",
+       "serving": "1 each",
+       "cal": 70.0,
+       "protein": 1.3,
+       "carbs": 10.7,
+       "fat": 2.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Quinoa, Corn & Avocado Salad",
+       "serving": "2 oz",
+       "cal": 37.0,
+       "protein": 1.3,
+       "carbs": 6.8,
+       "fat": 0.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Sauteed Broccoli",
+       "serving": "2 1/2 OZ",
+       "cal": 22.0,
+       "protein": 2.2,
+       "carbs": 1.7,
+       "fat": 1.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sweet Chili Dumpling Sauce",
+       "serving": "1 OZ",
+       "cal": 37.0,
+       "protein": 0.4,
+       "carbs": 5.3,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Sweet Chili Tofu Baked",
+       "serving": "4 OZ",
+       "cal": 202.0,
+       "protein": 5.8,
+       "carbs": 20.7,
+       "fat": 10.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Vegetable Fried Rice",
+       "serving": "4 OZ",
+       "cal": 250.0,
+       "protein": 4.5,
+       "carbs": 45.0,
+       "fat": 4.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pasta Bar",
+     "dishes": [
+      {
+       "name": "Cavatappi Pasta",
+       "serving": "4 oz",
+       "cal": 140.0,
+       "protein": 5.9,
+       "carbs": 29.5,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Cavatappi w/Tomato Cream & Spinach",
+       "serving": "3 oz",
+       "cal": 148.0,
+       "protein": 4.5,
+       "carbs": 18.8,
+       "fat": 6.8,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Fettuccini Pasta",
+       "serving": "4 OZ",
+       "cal": 149.0,
+       "protein": 5.2,
+       "carbs": 31.3,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Tomato Cream Basil Sauce",
+       "serving": "2 OZ",
+       "cal": 119.0,
+       "protein": 2.3,
+       "carbs": 3.8,
+       "fat": 10.8,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Blueberry Buckle",
+       "serving": "2 OZ",
+       "cal": 146.0,
+       "protein": 2.0,
+       "carbs": 27.2,
+       "fat": 3.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Chocolate Malva Pudding",
+       "serving": "1 3/4 OZ",
+       "cal": 147.0,
+       "protein": 2.4,
+       "carbs": 21.0,
+       "fat": 6.2,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Local Whole Wheat Bread",
+       "serving": "1 PIECE",
+       "cal": 57.0,
+       "protein": 1.2,
+       "carbs": 8.5,
+       "fat": 2.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Stir Fry Station",
+     "dishes": [
+      {
+       "name": "Plant-Based Condiments Bar w/Almonds",
+       "serving": "2 OZ",
+       "cal": 229.0,
+       "protein": 5.0,
+       "carbs": 11.5,
+       "fat": 17.8,
+       "diet": "Plant Based",
+       "allergens": "Tree Nuts, Soy, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Pizza",
+     "dishes": [
+      {
+       "name": "Cheese Pizza",
+       "serving": "1 SLICE",
+       "cal": 203.0,
+       "protein": 9.4,
+       "carbs": 29.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pepperoni Pizza",
+       "serving": "1 SLICE",
+       "cal": 217.0,
+       "protein": 9.9,
+       "carbs": 29.0,
+       "fat": 7.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Sushi",
+     "dishes": [
+      {
+       "name": "California Roll",
+       "serving": "1 roll",
+       "cal": 222.0,
+       "protein": 5.9,
+       "carbs": 47.3,
+       "fat": 0.8,
+       "diet": "None",
+       "allergens": "Eggs, Fish, Shellfish, Soy, Corn  , Sesame "
+      },
+      {
+       "name": "Shrimp Sushi Roll",
+       "serving": "1 roll",
+       "cal": 216.0,
+       "protein": 7.4,
+       "carbs": 43.2,
+       "fat": 0.9,
+       "diet": "Halal",
+       "allergens": "Shellfish, Sesame "
+      },
+      {
+       "name": "Vegetable Sushi Roll",
+       "serving": "1 roll",
+       "cal": 196.0,
+       "protein": 3.6,
+       "carbs": 42.9,
+       "fat": 0.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      }
+     ]
+    },
+    {
+     "station": "Gluten Free",
+     "dishes": [
+      {
+       "name": "Diced Tomatoes",
+       "serving": "1 OZ",
+       "cal": 5.0,
+       "protein": 0.2,
+       "carbs": 1.0,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Local Roasted Sweet Potatoes",
+       "serving": "3 oz",
+       "cal": 121.0,
+       "protein": 1.3,
+       "carbs": 16.3,
+       "fat": 5.8,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "McAtee Family Three Bean Turkey Chili",
+       "serving": "5 oz",
+       "cal": 160.0,
+       "protein": 11.1,
+       "carbs": 14.3,
+       "fat": 6.2,
+       "diet": "Local",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Scallions",
+       "serving": "1/2 OZ",
+       "cal": 5.0,
+       "protein": 0.3,
+       "carbs": 1.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Shredded Cheddar Cheese",
+       "serving": "1 OZ",
+       "cal": 115.0,
+       "protein": 6.5,
+       "carbs": 0.9,
+       "fat": 9.4,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Sour Cream",
+       "serving": "1 OZ",
+       "cal": 61.0,
+       "protein": 1.0,
+       "carbs": 1.0,
+       "fat": 5.1,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Latino FRK HMP",
+     "dishes": [
+      {
+       "name": "Beef Nacho Bar",
+       "serving": "1 EACH",
+       "cal": 158.0,
+       "protein": 5.3,
+       "carbs": 17.5,
+       "fat": 8.2,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Latin Toppings",
+       "serving": "3 oz",
+       "cal": 130.0,
+       "protein": 4.9,
+       "carbs": 3.6,
+       "fat": 10.6,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Plant Based Chorizo Crumbles",
+       "serving": "1 oz",
+       "cal": 48.0,
+       "protein": 4.3,
+       "carbs": 3.4,
+       "fat": 2.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Queso Sauce",
+       "serving": "1 oz",
+       "cal": 80.0,
+       "protein": 3.9,
+       "carbs": 2.1,
+       "fat": 6.1,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "VIOLIFE Plant Based Cheddar Cheese",
+       "serving": "1 oz",
+       "cal": 81.0,
+       "protein": 0.0,
+       "carbs": 6.1,
+       "fat": 7.1,
+       "diet": "Halal, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Warm Charred Corn Salsa",
+       "serving": "1 oz",
+       "cal": 24.0,
+       "protein": 0.7,
+       "carbs": 4.2,
+       "fat": 0.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Express",
+     "dishes": [
+      {
+       "name": "Brown Rice",
+       "serving": "3 1/2 OZ",
+       "cal": 123.0,
+       "protein": 2.7,
+       "carbs": 25.9,
+       "fat": 0.9,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Jasmine Rice",
+       "serving": "3 OZ",
+       "cal": 93.0,
+       "protein": 1.7,
+       "carbs": 20.8,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based, \n",
+       "allergens": ""
+      },
+      {
+       "name": "Stir Fried Vegetables",
+       "serving": "3 OZ",
+       "cal": 32.0,
+       "protein": 1.5,
+       "carbs": 1.9,
+       "fat": 2.3,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Teriyaki Salmon w/Sesame Seeds",
+       "serving": "1 each",
+       "cal": 140.0,
+       "protein": 13.7,
+       "carbs": 1.4,
+       "fat": 8.9,
+       "diet": "Local",
+       "allergens": "Fish, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Teriyaki Tofu w/Sesame Seeds",
+       "serving": "4 oz",
+       "cal": 231.0,
+       "protein": 13.7,
+       "carbs": 8.1,
+       "fat": 16.6,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Spring Rolls",
+       "serving": "2 EACH",
+       "cal": 158.0,
+       "protein": 1.1,
+       "carbs": 5.6,
+       "fat": 15.3,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Yaki Udon",
+       "serving": "4 oz",
+       "cal": 59.0,
+       "protein": 1.9,
+       "carbs": 10.7,
+       "fat": 1.1,
+       "diet": "Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    }
+   ]
+  },
+  "Hampshire": {
+   "breakfast": [
+    {
+     "station": "Breakfast Entrees",
+     "dishes": [
+      {
+       "name": "Apple Cinnamon Pancakes",
+       "serving": "1 EACH",
+       "cal": 93.0,
+       "protein": 2.3,
+       "carbs": 17.4,
+       "fat": 1.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "BUSH's Baked Beans",
+       "serving": "2 1/2 OZ",
+       "cal": 63.0,
+       "protein": 2.7,
+       "carbs": 12.9,
+       "fat": 0.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Hard Boiled Egg",
+       "serving": "2 EACH",
+       "cal": 111.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Hot Oatmeal",
+       "serving": "4 OZL",
+       "cal": 91.0,
+       "protein": 3.2,
+       "carbs": 16.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Make Your Own Waffles",
+       "serving": "1 EACH",
+       "cal": 222.0,
+       "protein": 4.4,
+       "carbs": 44.5,
+       "fat": 2.2,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Omelet Station",
+       "serving": "5 oz",
+       "cal": 303.0,
+       "protein": 21.7,
+       "carbs": 2.3,
+       "fat": 23.4,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Corn  "
+      },
+      {
+       "name": "Red Potato Home Fries",
+       "serving": "3 OZ",
+       "cal": 65.0,
+       "protein": 1.6,
+       "carbs": 13.4,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Tomatoes w/Feta & Spinach",
+       "serving": "2 OZ",
+       "cal": 61.0,
+       "protein": 2.0,
+       "carbs": 1.8,
+       "fat": 5.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Sauteed Mushrooms",
+       "serving": "2 OZ",
+       "cal": 35.0,
+       "protein": 1.6,
+       "carbs": 2.3,
+       "fat": 3.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Scrambled Eggs",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Smoked Bacon Slices",
+       "serving": "2 slices",
+       "cal": 276.0,
+       "protein": 17.0,
+       "carbs": 2.1,
+       "fat": 21.2,
+       "diet": "\n",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Breakfast Pastries",
+     "dishes": [
+      {
+       "name": "Gingerbread Bundt",
+       "serving": "1 Slice",
+       "cal": 197.0,
+       "protein": 2.2,
+       "carbs": 26.3,
+       "fat": 9.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Mini Apple Danish",
+       "serving": "1 Each",
+       "cal": 121.0,
+       "protein": 2.0,
+       "carbs": 14.1,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Beans",
+       "serving": "3 OZ",
+       "cal": 80.0,
+       "protein": 3.6,
+       "carbs": 12.7,
+       "fat": 1.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Fried Plantain",
+       "serving": "1 OZ",
+       "cal": 69.0,
+       "protein": 0.3,
+       "carbs": 8.9,
+       "fat": 3.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Huevos Rancheros",
+       "serving": "1 EACH",
+       "cal": 202.0,
+       "protein": 9.1,
+       "carbs": 10.8,
+       "fat": 13.8,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Soy, Corn  "
+      }
+     ]
+    }
+   ],
+   "grabngo": [
+    {
+     "station": "Grab n'Go Breakfast",
+     "dishes": [
+      {
+       "name": "1% Milk",
+       "serving": "1 EACH",
+       "cal": 100.0,
+       "protein": 8.0,
+       "carbs": 11.8,
+       "fat": 2.3,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Bacon Breakfast Sandwich (English Muffin)",
+       "serving": "1 each",
+       "cal": 337.0,
+       "protein": 19.0,
+       "carbs": 24.4,
+       "fat": 17.8,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Breakfast Burrito w/Bacon",
+       "serving": "1 each",
+       "cal": 284.0,
+       "protein": 18.6,
+       "carbs": 15.8,
+       "fat": 16.6,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Hot Oatmeal",
+       "serving": "4 OZL",
+       "cal": 34.0,
+       "protein": 1.2,
+       "carbs": 6.1,
+       "fat": 0.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Lowfat Chocolate Milk",
+       "serving": "1 EACH",
+       "cal": 172.0,
+       "protein": 6.8,
+       "carbs": 27.5,
+       "fat": 4.3,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Mini Apple Danish",
+       "serving": "1 EACH",
+       "cal": 121.0,
+       "protein": 2.0,
+       "carbs": 14.1,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Orange Juice",
+       "serving": "1 EACH",
+       "cal": 120.0,
+       "protein": 0.0,
+       "carbs": 29.0,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Worcester Breakfast Sandwich",
+       "serving": "1 EACH",
+       "cal": 221.0,
+       "protein": 11.9,
+       "carbs": 23.5,
+       "fat": 8.9,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Yogurt Strawberry",
+       "serving": "2 OZ",
+       "cal": 30.0,
+       "protein": 2.2,
+       "carbs": 4.3,
+       "fat": 0.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    }
+   ],
+   "lunch": [
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Tomato Bisque Soup",
+       "serving": "5 OZL",
+       "cal": 113.0,
+       "protein": 1.9,
+       "carbs": 11.3,
+       "fat": 6.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Entrees",
+     "dishes": [
+      {
+       "name": "French Onion Braised Chicken",
+       "serving": "1 each",
+       "cal": 176.0,
+       "protein": 18.5,
+       "carbs": 5.4,
+       "fat": 8.6,
+       "diet": "Local",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Hot Sausage, Onions & Peppers",
+       "serving": "3 1/2 oz",
+       "cal": 177.0,
+       "protein": 7.4,
+       "carbs": 4.1,
+       "fat": 14.6,
+       "diet": "Local",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Starches",
+     "dishes": [
+      {
+       "name": "Lyonnaise Potatoes",
+       "serving": "3 OZ",
+       "cal": 88.0,
+       "protein": 1.6,
+       "carbs": 13.8,
+       "fat": 3.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Margherita Eggplant w/Pesto",
+       "serving": "4 OZ",
+       "cal": 140.0,
+       "protein": 4.9,
+       "carbs": 5.0,
+       "fat": 11.8,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk"
+      }
+     ]
+    },
+    {
+     "station": "Vegetables",
+     "dishes": [
+      {
+       "name": "Maple Roasted Sweet Potatoes",
+       "serving": "3 OZ",
+       "cal": 100.0,
+       "protein": 1.3,
+       "carbs": 17.7,
+       "fat": 2.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Steamed Broccoli",
+       "serving": "3 OZ",
+       "cal": 29.0,
+       "protein": 2.6,
+       "carbs": 2.1,
+       "fat": 1.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "BBQ Pulled Pork on Brioche",
+       "serving": "1/2 each",
+       "cal": 251.0,
+       "protein": 12.7,
+       "carbs": 31.7,
+       "fat": 8.5,
+       "diet": "Local",
+       "allergens": "Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Cajun Chicken Thigh",
+       "serving": "1 EACH",
+       "cal": 100.0,
+       "protein": 16.1,
+       "carbs": 0.0,
+       "fat": 3.4,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Grilled Chicken Breast",
+       "serving": "3 oz",
+       "cal": 105.0,
+       "protein": 18.9,
+       "carbs": 0.1,
+       "fat": 3.0,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal SPARE Beef Burger",
+       "serving": "1 Each",
+       "cal": 130.0,
+       "protein": 12.0,
+       "carbs": 2.0,
+       "fat": 8.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Local Roasted Sweet Potatoes",
+       "serving": "4 oz",
+       "cal": 164.0,
+       "protein": 1.7,
+       "carbs": 22.0,
+       "fat": 8.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Cauliflower",
+       "serving": "3 oz",
+       "cal": 34.0,
+       "protein": 1.6,
+       "carbs": 4.1,
+       "fat": 1.8,
+       "diet": "Halal, Plant Based, Vegetarian",
+       "allergens": ""
+      },
+      {
+       "name": "Sweet Potato Fries",
+       "serving": "3 OZ",
+       "cal": 194.0,
+       "protein": 0.9,
+       "carbs": 16.9,
+       "fat": 13.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Turkey Burger Patty",
+       "serving": "1 each",
+       "cal": 186.0,
+       "protein": 17.7,
+       "carbs": 0.4,
+       "fat": 11.3,
+       "diet": "None",
+       "allergens": "Soy, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Vegetarian Line",
+     "dishes": [
+      {
+       "name": "Cajun Red Beans & Rice",
+       "serving": "3 oz",
+       "cal": 48.0,
+       "protein": 1.2,
+       "carbs": 9.1,
+       "fat": 0.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Plant Based Cheese Pizza",
+       "serving": "1 slice",
+       "cal": 159.0,
+       "protein": 4.2,
+       "carbs": 24.2,
+       "fat": 5.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Plant Based Chorizo & Jalapeno Quesadilla",
+       "serving": "1 EACH",
+       "cal": 90.0,
+       "protein": 3.8,
+       "carbs": 13.2,
+       "fat": 2.5,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Plant Based Steak & Cheese Pizza",
+       "serving": "1 slice",
+       "cal": 184.0,
+       "protein": 5.6,
+       "carbs": 26.2,
+       "fat": 6.4,
+       "diet": "Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pasta Bar",
+     "dishes": [
+      {
+       "name": "Chickpea Salad w/Tomatoes & Feta",
+       "serving": "2 oz",
+       "cal": 96.0,
+       "protein": 3.4,
+       "carbs": 6.3,
+       "fat": 6.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Greek-Styled Ravioli",
+       "serving": "4 oz",
+       "cal": 283.0,
+       "protein": 11.9,
+       "carbs": 34.7,
+       "fat": 13.6,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Homemade Red Pepper Hummus",
+       "serving": "2 oz",
+       "cal": 78.0,
+       "protein": 3.0,
+       "carbs": 8.9,
+       "fat": 3.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Linguini Pasta",
+       "serving": "4 OZ",
+       "cal": 142.0,
+       "protein": 6.0,
+       "carbs": 29.8,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Marinated Olives, Tomatoes & Artichokes",
+       "serving": "2 oz",
+       "cal": 80.0,
+       "protein": 0.4,
+       "carbs": 2.8,
+       "fat": 7.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Meatball Sauce",
+       "serving": "2 oz",
+       "cal": 97.0,
+       "protein": 5.1,
+       "carbs": 3.6,
+       "fat": 7.1,
+       "diet": "None",
+       "allergens": "Milk, Eggs"
+      },
+      {
+       "name": "Penne Pasta",
+       "serving": "4 OZ",
+       "cal": 147.0,
+       "protein": 6.2,
+       "carbs": 30.9,
+       "fat": 0.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Penne w/Meatballs & Creamy Tom Sauce (Beef & Pork)",
+       "serving": "4 oz",
+       "cal": 192.0,
+       "protein": 8.1,
+       "carbs": 20.6,
+       "fat": 9.4,
+       "diet": "None",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Red Pepper Pesto Pasta Salad",
+       "serving": "2 OZ",
+       "cal": 158.0,
+       "protein": 5.5,
+       "carbs": 19.5,
+       "fat": 4.0,
+       "diet": "None",
+       "allergens": "Milk, Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Summer Squash, Tomato & Basil",
+       "serving": "3 oz",
+       "cal": 25.0,
+       "protein": 1.0,
+       "carbs": 4.5,
+       "fat": 0.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Oatmeal Raisin Cookie",
+       "serving": "1 each",
+       "cal": 110.0,
+       "protein": 2.0,
+       "carbs": 18.0,
+       "fat": 3.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Zebra Brownies",
+       "serving": "1 PIECE",
+       "cal": 172.0,
+       "protein": 1.4,
+       "carbs": 23.6,
+       "fat": 7.9,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Noodle Bowl",
+     "dishes": [
+      {
+       "name": "Beef for Pho",
+       "serving": "1 oz",
+       "cal": 30.0,
+       "protein": 5.6,
+       "carbs": 0.0,
+       "fat": 1.0,
+       "diet": "None",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Chicken Pho Broth (Fish)",
+       "serving": "8 oz",
+       "cal": 24.0,
+       "protein": 0.9,
+       "carbs": 2.9,
+       "fat": 1.4,
+       "diet": "Local",
+       "allergens": "Fish, Corn  "
+      },
+      {
+       "name": "Chicken for Pho",
+       "serving": "1 oz",
+       "cal": 28.0,
+       "protein": 6.4,
+       "carbs": 0.0,
+       "fat": 0.3,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Green Curry Pho Broth (Anchovies)",
+       "serving": "8 oz",
+       "cal": 249.0,
+       "protein": 2.3,
+       "carbs": 13.6,
+       "fat": 20.4,
+       "diet": "Halal",
+       "allergens": "Milk, Fish, Corn  "
+      },
+      {
+       "name": "Pho Noodles",
+       "serving": "1 1/2 oz",
+       "cal": 11.0,
+       "protein": 0.2,
+       "carbs": 2.7,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy"
+      },
+      {
+       "name": "Pho Toppings",
+       "serving": "2 oz",
+       "cal": 34.0,
+       "protein": 3.0,
+       "carbs": 2.9,
+       "fat": 1.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Soy"
+      },
+      {
+       "name": "Vegetarian Pho Base",
+       "serving": "8 oz",
+       "cal": 24.0,
+       "protein": 0.0,
+       "carbs": 3.8,
+       "fat": 1.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Soy, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Pizza",
+     "dishes": [
+      {
+       "name": "Cheese Pizza",
+       "serving": "1 SLICE",
+       "cal": 203.0,
+       "protein": 9.4,
+       "carbs": 29.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pepperoni Pizza",
+       "serving": "1 SLICE",
+       "cal": 217.0,
+       "protein": 9.9,
+       "carbs": 29.0,
+       "fat": 7.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Vegetable Pizza",
+       "serving": "1 SLICE",
+       "cal": 202.0,
+       "protein": 9.5,
+       "carbs": 29.5,
+       "fat": 5.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Sushi",
+     "dishes": [
+      {
+       "name": "California Roll",
+       "serving": "1 roll",
+       "cal": 222.0,
+       "protein": 5.9,
+       "carbs": 47.3,
+       "fat": 0.8,
+       "diet": "None",
+       "allergens": "Eggs, Fish, Shellfish, Soy, Corn  , Sesame "
+      },
+      {
+       "name": "Purple Sweet Potato Tempura Sushi Roll",
+       "serving": "1 roll",
+       "cal": 228.0,
+       "protein": 3.7,
+       "carbs": 47.9,
+       "fat": 1.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Teriyaki Pulmuone Tofu Roll",
+       "serving": "1 roll",
+       "cal": 241.0,
+       "protein": 7.9,
+       "carbs": 44.8,
+       "fat": 3.0,
+       "diet": "Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Sushi Roll",
+       "serving": "1 roll",
+       "cal": 196.0,
+       "protein": 3.6,
+       "carbs": 42.9,
+       "fat": 0.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      }
+     ]
+    },
+    {
+     "station": "Gluten Free",
+     "dishes": [
+      {
+       "name": "GF Avocado Toast Bar (Bacon)",
+       "serving": "1 each",
+       "cal": 227.0,
+       "protein": 11.8,
+       "carbs": 3.9,
+       "fat": 18.7,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Latino FRK HMP",
+     "dishes": [
+      {
+       "name": "Black Beans",
+       "serving": "3 OZ",
+       "cal": 80.0,
+       "protein": 3.6,
+       "carbs": 12.7,
+       "fat": 1.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Chopped Cilantro",
+       "serving": "1/8 oz",
+       "cal": 1.0,
+       "protein": 0.1,
+       "carbs": 0.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Queso Fresco",
+       "serving": "1/2 oz",
+       "cal": 47.0,
+       "protein": 2.8,
+       "carbs": 0.5,
+       "fat": 3.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Red Rice",
+       "serving": "2 OZ",
+       "cal": 199.0,
+       "protein": 3.5,
+       "carbs": 41.1,
+       "fat": 0.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Roasted Ancho Chili Butternut",
+       "serving": "3 OZ",
+       "cal": 85.0,
+       "protein": 1.5,
+       "carbs": 12.0,
+       "fat": 4.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Salsa Verde con Aguacate",
+       "serving": "1 OZ",
+       "cal": 29.0,
+       "protein": 0.1,
+       "carbs": 1.8,
+       "fat": 2.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Tamale Corn Cakes",
+       "serving": "1 each",
+       "cal": 152.0,
+       "protein": 2.4,
+       "carbs": 16.7,
+       "fat": 9.2,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Street Food",
+     "dishes": [
+      {
+       "name": "Baked Sweet & Sour Tofu",
+       "serving": "4 oz",
+       "cal": 179.0,
+       "protein": 4.4,
+       "carbs": 25.7,
+       "fat": 6.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Mei Fun Noodles",
+       "serving": "4 OZ",
+       "cal": 178.0,
+       "protein": 4.9,
+       "carbs": 33.6,
+       "fat": 2.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Mussaman Curry (Chicken)",
+       "serving": "4 oz",
+       "cal": 137.0,
+       "protein": 3.4,
+       "carbs": 8.8,
+       "fat": 9.7,
+       "diet": "Halal",
+       "allergens": "Fish, Soy, Corn  "
+      },
+      {
+       "name": "Stir Fried Vegetables w/Sesame",
+       "serving": "3 OZ",
+       "cal": 54.0,
+       "protein": 2.5,
+       "carbs": 2.7,
+       "fat": 3.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Fried Rice",
+       "serving": "4 OZ",
+       "cal": 137.0,
+       "protein": 2.8,
+       "carbs": 19.5,
+       "fat": 5.1,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    }
+   ],
+   "dinner": [
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Red Pepper & Smoked Gouda Bisque",
+       "serving": "5 oz",
+       "cal": 176.0,
+       "protein": 4.1,
+       "carbs": 10.5,
+       "fat": 12.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Entrees",
+     "dishes": [
+      {
+       "name": "Creamy Tuscan Chicken",
+       "serving": "3 each",
+       "cal": 610.0,
+       "protein": 28.0,
+       "carbs": 8.2,
+       "fat": 50.9,
+       "diet": "Local",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Stuffed Mushroom w/Spin & Blue Cheese",
+       "serving": "1 each",
+       "cal": 103.0,
+       "protein": 4.6,
+       "carbs": 9.3,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Starches",
+     "dishes": [
+      {
+       "name": "Lemon Rice Pilaf",
+       "serving": "3 OZ",
+       "cal": 92.0,
+       "protein": 1.7,
+       "carbs": 19.2,
+       "fat": 0.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Local Roasted Sweet Potatoes",
+       "serving": "4 oz",
+       "cal": 163.0,
+       "protein": 1.7,
+       "carbs": 22.3,
+       "fat": 7.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Vegetables",
+     "dishes": [
+      {
+       "name": "Steamed Broccoli",
+       "serving": "3 OZ",
+       "cal": 29.0,
+       "protein": 2.6,
+       "carbs": 2.1,
+       "fat": 1.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Wilted Swiss Chard",
+       "serving": "3 oz",
+       "cal": 42.0,
+       "protein": 2.1,
+       "carbs": 4.7,
+       "fat": 2.3,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "BBQ Pulled Pork on Brioche",
+       "serving": "1/2 each",
+       "cal": 251.0,
+       "protein": 12.7,
+       "carbs": 31.7,
+       "fat": 8.5,
+       "diet": "Local",
+       "allergens": "Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Cajun Chicken Thigh",
+       "serving": "1 EACH",
+       "cal": 100.0,
+       "protein": 16.1,
+       "carbs": 0.0,
+       "fat": 3.4,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Grilled Chicken Breast",
+       "serving": "3 oz",
+       "cal": 105.0,
+       "protein": 18.9,
+       "carbs": 0.1,
+       "fat": 3.0,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal SPARE Beef Burger",
+       "serving": "1 Each",
+       "cal": 130.0,
+       "protein": 12.0,
+       "carbs": 2.0,
+       "fat": 8.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Herb Roasted Mushrooms",
+       "serving": "3 oz",
+       "cal": 36.0,
+       "protein": 2.8,
+       "carbs": 2.5,
+       "fat": 3.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Local Roasted Sweet Potatoes",
+       "serving": "4 oz",
+       "cal": 164.0,
+       "protein": 1.7,
+       "carbs": 22.0,
+       "fat": 8.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sweet Potato Fries",
+       "serving": "3 OZ",
+       "cal": 194.0,
+       "protein": 0.9,
+       "carbs": 16.9,
+       "fat": 13.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Vegetarian Line",
+     "dishes": [
+      {
+       "name": "Brussel Sprouts w/Almonds",
+       "serving": "2 OZ",
+       "cal": 105.0,
+       "protein": 2.5,
+       "carbs": 4.9,
+       "fat": 9.1,
+       "diet": "Halal, Local, Vegetarian, \n",
+       "allergens": "Milk, Tree Nuts, Corn  "
+      },
+      {
+       "name": "Plant Based Pasta Supreme",
+       "serving": "4 OZ",
+       "cal": 164.0,
+       "protein": 6.8,
+       "carbs": 26.0,
+       "fat": 4.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Potato & Cheese Pierogi",
+       "serving": "3 EACH",
+       "cal": 189.0,
+       "protein": 5.5,
+       "carbs": 32.9,
+       "fat": 3.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Sauteed Kale",
+       "serving": "3 oz",
+       "cal": 56.0,
+       "protein": 3.6,
+       "carbs": 8.0,
+       "fat": 2.2,
+       "diet": "Halal, Local, Plant Based, Halal\r6",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Pasta Bar",
+     "dishes": [
+      {
+       "name": "Chickpea Salad w/Tomatoes & Feta",
+       "serving": "2 oz",
+       "cal": 96.0,
+       "protein": 3.4,
+       "carbs": 6.3,
+       "fat": 6.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Gnocchi w/Mushroom & Pea Cream Sauce",
+       "serving": "4 OZ",
+       "cal": 209.0,
+       "protein": 6.1,
+       "carbs": 22.9,
+       "fat": 10.2,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Homemade Red Pepper Hummus",
+       "serving": "2 oz",
+       "cal": 78.0,
+       "protein": 3.0,
+       "carbs": 8.9,
+       "fat": 3.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Italian Rstd Mushrooms & Vegetables",
+       "serving": "3 oz",
+       "cal": 46.0,
+       "protein": 1.7,
+       "carbs": 5.2,
+       "fat": 3.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Linguini Pasta",
+       "serving": "4 OZ",
+       "cal": 142.0,
+       "protein": 6.0,
+       "carbs": 29.8,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Marinated Olives, Tomatoes & Artichokes",
+       "serving": "2 oz",
+       "cal": 80.0,
+       "protein": 0.4,
+       "carbs": 2.8,
+       "fat": 7.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Meatball Sauce",
+       "serving": "2 oz",
+       "cal": 97.0,
+       "protein": 5.1,
+       "carbs": 3.6,
+       "fat": 7.1,
+       "diet": "None",
+       "allergens": "Milk, Eggs"
+      },
+      {
+       "name": "Penne Pasta",
+       "serving": "4 OZ",
+       "cal": 147.0,
+       "protein": 6.2,
+       "carbs": 30.9,
+       "fat": 0.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Red Pepper Pesto Pasta Salad",
+       "serving": "2 OZ",
+       "cal": 158.0,
+       "protein": 5.5,
+       "carbs": 19.5,
+       "fat": 4.0,
+       "diet": "None",
+       "allergens": "Milk, Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Tortellini w/Basil Pesto & Grape Tomatoes",
+       "serving": "4 oz",
+       "cal": 212.0,
+       "protein": 6.6,
+       "carbs": 27.2,
+       "fat": 8.9,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Blueberry Buckle",
+       "serving": "2 OZ",
+       "cal": 146.0,
+       "protein": 2.0,
+       "carbs": 27.2,
+       "fat": 3.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Chocolate Malva Pudding",
+       "serving": "1 3/4 OZ",
+       "cal": 147.0,
+       "protein": 2.4,
+       "carbs": 21.0,
+       "fat": 6.2,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Breads",
+     "dishes": [
+      {
+       "name": "Local Whole Wheat Bread",
+       "serving": "1 PIECE",
+       "cal": 57.0,
+       "protein": 1.2,
+       "carbs": 8.5,
+       "fat": 2.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Noodle Bowl",
+     "dishes": [
+      {
+       "name": "Vietnamese Pork & Shrimp Noodle Bowl",
+       "serving": "1 bowl",
+       "cal": 243.0,
+       "protein": 17.2,
+       "carbs": 8.7,
+       "fat": 15.9,
+       "diet": "None",
+       "allergens": "Eggs, Fish, Shellfish, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pizza",
+     "dishes": [
+      {
+       "name": "Cheese Pizza",
+       "serving": "1 SLICE",
+       "cal": 203.0,
+       "protein": 9.4,
+       "carbs": 29.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pepperoni Pizza",
+       "serving": "1 SLICE",
+       "cal": 217.0,
+       "protein": 9.9,
+       "carbs": 29.0,
+       "fat": 7.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Vegetable Pizza",
+       "serving": "1 SLICE",
+       "cal": 202.0,
+       "protein": 9.5,
+       "carbs": 29.5,
+       "fat": 5.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Sushi",
+     "dishes": [
+      {
+       "name": "California Roll",
+       "serving": "1 roll",
+       "cal": 222.0,
+       "protein": 5.9,
+       "carbs": 47.3,
+       "fat": 0.8,
+       "diet": "None",
+       "allergens": "Eggs, Fish, Shellfish, Soy, Corn  , Sesame "
+      },
+      {
+       "name": "Teriyaki Chicken Roll",
+       "serving": "1 roll",
+       "cal": 234.0,
+       "protein": 9.8,
+       "carbs": 44.2,
+       "fat": 1.4,
+       "diet": "None",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Teriyaki Pulmuone Tofu Roll",
+       "serving": "1 roll",
+       "cal": 241.0,
+       "protein": 7.9,
+       "carbs": 44.8,
+       "fat": 3.0,
+       "diet": "Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Sushi Roll",
+       "serving": "1 roll",
+       "cal": 196.0,
+       "protein": 3.6,
+       "carbs": 42.9,
+       "fat": 0.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      }
+     ]
+    },
+    {
+     "station": "Gluten Free",
+     "dishes": [
+      {
+       "name": "Broccoli Flowerettes",
+       "serving": "2 1/2 OZ",
+       "cal": 22.0,
+       "protein": 2.2,
+       "carbs": 1.8,
+       "fat": 1.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "GF Butternut Ravioli w/Sausage & Kale",
+       "serving": "3 oz",
+       "cal": 176.0,
+       "protein": 7.6,
+       "carbs": 17.6,
+       "fat": 8.2,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Corn  "
+      },
+      {
+       "name": "GF Garlic Bread",
+       "serving": "1 each",
+       "cal": 147.0,
+       "protein": 1.9,
+       "carbs": 20.4,
+       "fat": 6.3,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "GF Greek-Styled Ravioli",
+       "serving": "4 oz",
+       "cal": 172.0,
+       "protein": 7.7,
+       "carbs": 19.0,
+       "fat": 7.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Latino FRK HMP",
+     "dishes": [
+      {
+       "name": "Fried Plantain",
+       "serving": "1 OZ",
+       "cal": 69.0,
+       "protein": 0.3,
+       "carbs": 8.9,
+       "fat": 3.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Latin Toppings",
+       "serving": "3 oz",
+       "cal": 130.0,
+       "protein": 4.9,
+       "carbs": 3.6,
+       "fat": 10.6,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Puerto Rican Beans",
+       "serving": "3 oz",
+       "cal": 126.0,
+       "protein": 2.9,
+       "carbs": 10.8,
+       "fat": 8.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Puerto Rican Rice & Pigeon Peas",
+       "serving": "3 oz",
+       "cal": 77.0,
+       "protein": 1.8,
+       "carbs": 15.0,
+       "fat": 0.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Puerto Rican Roast Chicken",
+       "serving": "1 each",
+       "cal": 150.0,
+       "protein": 13.7,
+       "carbs": 1.8,
+       "fat": 9.6,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Street Food",
+     "dishes": [
+      {
+       "name": "Chicken Tikka Masala",
+       "serving": "4 oz",
+       "cal": 180.0,
+       "protein": 10.6,
+       "carbs": 5.0,
+       "fat": 13.0,
+       "diet": "Halal",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Chole Chickpea Curry",
+       "serving": "3 OZ",
+       "cal": 66.0,
+       "protein": 2.8,
+       "carbs": 10.3,
+       "fat": 2.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Naan",
+       "serving": "1/2 EACH",
+       "cal": 115.0,
+       "protein": 3.5,
+       "carbs": 22.0,
+       "fat": 1.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Potato & Pea Samosa",
+       "serving": "1 each",
+       "cal": 83.0,
+       "protein": 1.0,
+       "carbs": 8.0,
+       "fat": 5.6,
+       "diet": "Vegetarian, Halal\r3",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Sauteed Cabbage w/Coconut",
+       "serving": "3 OZ",
+       "cal": 86.0,
+       "protein": 1.3,
+       "carbs": 6.0,
+       "fat": 6.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Vegetable Pulao",
+       "serving": "3 oz",
+       "cal": 144.0,
+       "protein": 2.5,
+       "carbs": 25.1,
+       "fat": 3.5,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    }
+   ]
+  },
+  "Berkshire": {
+   "grabngo": [
+    {
+     "station": "Grab n'Go Breakfast",
+     "dishes": [
+      {
+       "name": "Breakfast Burrito",
+       "serving": "1 each",
+       "cal": 348.0,
+       "protein": 15.9,
+       "carbs": 39.4,
+       "fat": 13.8,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Corned Beef Hash",
+       "serving": "2 OZ",
+       "cal": 64.0,
+       "protein": 2.1,
+       "carbs": 4.0,
+       "fat": 4.4,
+       "diet": "None",
+       "allergens": ""
+      },
+      {
+       "name": "GF Bacon Breakfast Bagel Sandwich",
+       "serving": "1 each",
+       "cal": 317.0,
+       "protein": 17.0,
+       "carbs": 20.9,
+       "fat": 18.0,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Soy, Corn  "
+      },
+      {
+       "name": "GF Breakfast Bagel Sandwich",
+       "serving": "1 EACH",
+       "cal": 201.0,
+       "protein": 9.9,
+       "carbs": 20.0,
+       "fat": 9.1,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Eggs, Soy, Corn  "
+      },
+      {
+       "name": "Hot Oatmeal",
+       "serving": "4 OZL",
+       "cal": 34.0,
+       "protein": 1.2,
+       "carbs": 6.1,
+       "fat": 0.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Wheat"
+      },
+      {
+       "name": "Mini Apple Danish",
+       "serving": "1 EACH",
+       "cal": 121.0,
+       "protein": 2.0,
+       "carbs": 14.1,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Mocha Scuffin",
+       "serving": "1 EACH",
+       "cal": 225.0,
+       "protein": 2.9,
+       "carbs": 23.6,
+       "fat": 13.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "O'Brien Potatoes",
+       "serving": "3 OZ",
+       "cal": 72.0,
+       "protein": 1.5,
+       "carbs": 12.0,
+       "fat": 2.2,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sausage Breakfast Burrito",
+       "serving": "1 each",
+       "cal": 466.0,
+       "protein": 21.2,
+       "carbs": 39.9,
+       "fat": 24.0,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Scrambled Eggs",
+       "serving": "3 OZ",
+       "cal": 112.0,
+       "protein": 10.7,
+       "carbs": 0.0,
+       "fat": 7.7,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Strawberry Yogurt Parfait",
+       "serving": "1 each",
+       "cal": 294.0,
+       "protein": 10.8,
+       "carbs": 53.3,
+       "fat": 4.9,
+       "diet": "None",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Grab n'Go Hot",
+     "dishes": [
+      {
+       "name": "Chewy M&M Bar",
+       "serving": "1 Each",
+       "cal": 266.0,
+       "protein": 1.6,
+       "carbs": 37.8,
+       "fat": 12.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Peanuts, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Mashed Potatoes",
+       "serving": "3 OZ",
+       "cal": 74.0,
+       "protein": 1.9,
+       "carbs": 11.7,
+       "fat": 2.3,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Penne w/Basil Pesto Cream & Sun Dried Tomatoes",
+       "serving": "3 oz",
+       "cal": 146.0,
+       "protein": 5.1,
+       "carbs": 21.4,
+       "fat": 5.2,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Philly Cheese Steak Grinder",
+       "serving": "1 each",
+       "cal": 423.0,
+       "protein": 22.7,
+       "carbs": 36.1,
+       "fat": 21.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Roast Turkey",
+       "serving": "3 OZ",
+       "cal": 98.0,
+       "protein": 17.4,
+       "carbs": 0.8,
+       "fat": 2.3,
+       "diet": "None",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Butternut Squash",
+       "serving": "3 oz",
+       "cal": 61.0,
+       "protein": 0.8,
+       "carbs": 9.7,
+       "fat": 2.8,
+       "diet": "Halal, Local, Plant Based, Halal\r5",
+       "allergens": ""
+      },
+      {
+       "name": "Triple Choc Chip Cookies",
+       "serving": "1 EACH",
+       "cal": 120.0,
+       "protein": 1.0,
+       "carbs": 17.0,
+       "fat": 6.0,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Turkey Gravy",
+       "serving": "2 OZL",
+       "cal": 80.0,
+       "protein": 1.3,
+       "carbs": 5.6,
+       "fat": 5.7,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Grab n'Go Cold",
+     "dishes": [
+      {
+       "name": "Buffalo Chicken Wrap",
+       "serving": "1 each",
+       "cal": 364.0,
+       "protein": 21.4,
+       "carbs": 38.1,
+       "fat": 12.5,
+       "diet": "None",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Chicken Caesar Salad",
+       "serving": "1 each",
+       "cal": 107.0,
+       "protein": 15.3,
+       "carbs": 5.3,
+       "fat": 2.4,
+       "diet": "None",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Fruit Salad",
+       "serving": "1 each",
+       "cal": 75.0,
+       "protein": 0.0,
+       "carbs": 20.3,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "GF Peanut Butter & Strawberry Jam Sandwich",
+       "serving": "1 EACH",
+       "cal": 293.0,
+       "protein": 5.4,
+       "carbs": 41.4,
+       "fat": 14.4,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Peanuts, Corn  , Sesame "
+      },
+      {
+       "name": "Gluten Free Turkey Sandwich",
+       "serving": "1 EACH",
+       "cal": 283.0,
+       "protein": 14.4,
+       "carbs": 45.4,
+       "fat": 6.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Tossed Salad",
+       "serving": "1 EACH",
+       "cal": 31.0,
+       "protein": 1.7,
+       "carbs": 6.3,
+       "fat": 0.4,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Tuna on White",
+       "serving": "1 EACH",
+       "cal": 271.0,
+       "protein": 14.5,
+       "carbs": 38.2,
+       "fat": 6.9,
+       "diet": "Halal",
+       "allergens": "Milk, Eggs, Fish, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    }
+   ],
+   "lunch": [
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Red Pepper & Smoked Gouda Bisque",
+       "serving": "5 oz",
+       "cal": 176.0,
+       "protein": 4.1,
+       "carbs": 10.5,
+       "fat": 12.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Entrees",
+     "dishes": [
+      {
+       "name": "French Onion Braised Chicken",
+       "serving": "1 each",
+       "cal": 176.0,
+       "protein": 18.5,
+       "carbs": 5.4,
+       "fat": 8.6,
+       "diet": "Local",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Hot Sausage, Onions & Peppers",
+       "serving": "3 1/2 oz",
+       "cal": 177.0,
+       "protein": 7.4,
+       "carbs": 4.1,
+       "fat": 14.6,
+       "diet": "Local",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Starches",
+     "dishes": [
+      {
+       "name": "Herb Buttered Red Potatoes",
+       "serving": "3 OZ",
+       "cal": 74.0,
+       "protein": 1.6,
+       "carbs": 12.8,
+       "fat": 2.0,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Margherita Eggplant w/Pesto",
+       "serving": "4 OZ",
+       "cal": 140.0,
+       "protein": 4.9,
+       "carbs": 5.0,
+       "fat": 11.8,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk"
+      }
+     ]
+    },
+    {
+     "station": "Vegetables",
+     "dishes": [
+      {
+       "name": "Sauteed Kale",
+       "serving": "3 oz",
+       "cal": 56.0,
+       "protein": 3.6,
+       "carbs": 8.0,
+       "fat": 2.2,
+       "diet": "Halal, Local, Plant Based, Halal\r6",
+       "allergens": ""
+      },
+      {
+       "name": "Steamed Broccoli",
+       "serving": "3 OZ",
+       "cal": 29.0,
+       "protein": 2.6,
+       "carbs": 2.1,
+       "fat": 1.7,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Grilled Chicken Breast",
+       "serving": "1 oz",
+       "cal": 35.0,
+       "protein": 6.3,
+       "carbs": 0.0,
+       "fat": 1.0,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Grilled Chicken Thighs",
+       "serving": "1 each",
+       "cal": 89.0,
+       "protein": 13.3,
+       "carbs": 0.0,
+       "fat": 3.7,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Halal SPARE Beef Burger",
+       "serving": "1 Each",
+       "cal": 130.0,
+       "protein": 12.0,
+       "carbs": 2.0,
+       "fat": 8.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Hand Cut Sweet Potato Fries",
+       "serving": "3 oz",
+       "cal": 178.0,
+       "protein": 0.9,
+       "carbs": 17.3,
+       "fat": 11.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "International",
+     "dishes": [
+      {
+       "name": "Green Curry Thai Pulmuone Tofu",
+       "serving": "4 oz",
+       "cal": 165.0,
+       "protein": 7.1,
+       "carbs": 5.9,
+       "fat": 12.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Soy"
+      },
+      {
+       "name": "Honey Lemongrass Chicken",
+       "serving": "4 each",
+       "cal": 305.0,
+       "protein": 28.3,
+       "carbs": 21.5,
+       "fat": 11.7,
+       "diet": "Local",
+       "allergens": "Fish, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pad Thai w/Peanuts",
+       "serving": "3 oz",
+       "cal": 214.0,
+       "protein": 4.2,
+       "carbs": 25.1,
+       "fat": 11.3,
+       "diet": "Halal, Local",
+       "allergens": "Eggs, Fish, Peanuts, Corn  "
+      },
+      {
+       "name": "Stir Fry Green Vegetables",
+       "serving": "3 oz",
+       "cal": 34.0,
+       "protein": 1.9,
+       "carbs": 3.4,
+       "fat": 1.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Fried Rice",
+       "serving": "4 OZ",
+       "cal": 137.0,
+       "protein": 2.8,
+       "carbs": 19.5,
+       "fat": 5.1,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Spring Rolls",
+       "serving": "2 EACH",
+       "cal": 158.0,
+       "protein": 1.1,
+       "carbs": 5.6,
+       "fat": 15.3,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pasta Bar",
+     "dishes": [
+      {
+       "name": "Cheese Rigatoni w/Plant Based Nasoya Bolognese Sauce",
+       "serving": "4 OZ",
+       "cal": 206.0,
+       "protein": 10.2,
+       "carbs": 26.0,
+       "fat": 7.0,
+       "diet": "Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Linguini Pasta",
+       "serving": "4 OZ",
+       "cal": 142.0,
+       "protein": 6.0,
+       "carbs": 29.8,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Penne Pasta",
+       "serving": "4 OZ",
+       "cal": 147.0,
+       "protein": 6.2,
+       "carbs": 30.9,
+       "fat": 0.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Plant Based Bolognese Sauce",
+       "serving": "2 OZ",
+       "cal": 75.0,
+       "protein": 5.0,
+       "carbs": 5.0,
+       "fat": 3.7,
+       "diet": "Local, Plant Based",
+       "allergens": "Soy, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Deli Bar",
+     "dishes": [
+      {
+       "name": "American Cheese",
+       "serving": "1/2 OZ",
+       "cal": 46.0,
+       "protein": 2.5,
+       "carbs": 0.5,
+       "fat": 4.1,
+       "diet": "Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Chicken Salad",
+       "serving": "2 OZ",
+       "cal": 67.0,
+       "protein": 5.4,
+       "carbs": 2.5,
+       "fat": 3.9,
+       "diet": "Halal",
+       "allergens": "Eggs, Soy, Corn  "
+      },
+      {
+       "name": "Deli Beef",
+       "serving": "2 OZ",
+       "cal": 61.0,
+       "protein": 11.1,
+       "carbs": 0.0,
+       "fat": 2.0,
+       "diet": "None",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Homemade Mid Eastern Hummus",
+       "serving": "2 oz",
+       "cal": 94.0,
+       "protein": 3.6,
+       "carbs": 10.4,
+       "fat": 4.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Provolone Cheese",
+       "serving": "1/2 OZ",
+       "cal": 47.0,
+       "protein": 3.4,
+       "carbs": 0.0,
+       "fat": 4.1,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Tuna Salad",
+       "serving": "2 OZ",
+       "cal": 80.0,
+       "protein": 8.8,
+       "carbs": 2.0,
+       "fat": 4.0,
+       "diet": "Halal",
+       "allergens": "Eggs, Fish, Soy, Corn  "
+      },
+      {
+       "name": "Turkey Breast",
+       "serving": "2 OZ",
+       "cal": 61.0,
+       "protein": 13.2,
+       "carbs": 0.0,
+       "fat": 1.0,
+       "diet": "Halal",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Lemon Cooler Cookies",
+       "serving": "1 each",
+       "cal": 81.0,
+       "protein": 0.8,
+       "carbs": 12.9,
+       "fat": 2.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Zebra Brownies",
+       "serving": "1 PIECE",
+       "cal": 172.0,
+       "protein": 1.4,
+       "carbs": 23.6,
+       "fat": 7.9,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Noodle Bowl",
+     "dishes": [
+      {
+       "name": "Beef Brisket Noodle Bowl",
+       "serving": "1 bowl",
+       "cal": 220.0,
+       "protein": 12.5,
+       "carbs": 40.3,
+       "fat": 1.7,
+       "diet": "Local",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pizza",
+     "dishes": [
+      {
+       "name": "Cheese Pizza",
+       "serving": "1 SLICE",
+       "cal": 203.0,
+       "protein": 9.4,
+       "carbs": 29.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pepperoni Pizza",
+       "serving": "1 SLICE",
+       "cal": 217.0,
+       "protein": 9.9,
+       "carbs": 29.0,
+       "fat": 7.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Display Station",
+     "dishes": [
+      {
+       "name": "Grilled Kielbasa",
+       "serving": "2 OZ",
+       "cal": 125.0,
+       "protein": 5.6,
+       "carbs": 1.4,
+       "fat": 10.4,
+       "diet": "None",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Potato & Cheese Pierogi",
+       "serving": "3 EACH",
+       "cal": 217.0,
+       "protein": 5.6,
+       "carbs": 33.7,
+       "fat": 6.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Sauerkraut Topping",
+       "serving": "2 OZ",
+       "cal": 9.0,
+       "protein": 0.0,
+       "carbs": 1.9,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sour Cream",
+       "serving": "1 OZ",
+       "cal": 61.0,
+       "protein": 1.0,
+       "carbs": 1.0,
+       "fat": 5.1,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Sweet & Sour Braised Red Cabbage",
+       "serving": "3 oz",
+       "cal": 58.0,
+       "protein": 1.0,
+       "carbs": 15.1,
+       "fat": 0.1,
+       "diet": "Local, Plant Based",
+       "allergens": ""
+      }
+     ]
+    }
+   ],
+   "dinner": [
+    {
+     "station": "Soups",
+     "dishes": [
+      {
+       "name": "Green Chile Posole",
+       "serving": "5 oz",
+       "cal": 62.0,
+       "protein": 1.9,
+       "carbs": 9.4,
+       "fat": 2.2,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Roasted Red Pepper & Smoked Gouda Bisque",
+       "serving": "5 oz",
+       "cal": 176.0,
+       "protein": 4.1,
+       "carbs": 10.5,
+       "fat": 12.9,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Entrees",
+     "dishes": [
+      {
+       "name": "Baked Italian Sausage w/Potatoes & Onions",
+       "serving": "4 oz",
+       "cal": 199.0,
+       "protein": 12.4,
+       "carbs": 6.7,
+       "fat": 13.5,
+       "diet": "Local",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Creamy Tuscan Chicken",
+       "serving": "1 each",
+       "cal": 203.0,
+       "protein": 9.3,
+       "carbs": 2.7,
+       "fat": 17.0,
+       "diet": "Local",
+       "allergens": "Milk, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Starches",
+     "dishes": [
+      {
+       "name": "Garlic Bread Knots",
+       "serving": "1 each",
+       "cal": 120.0,
+       "protein": 3.0,
+       "carbs": 18.0,
+       "fat": 4.5,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Lasagna Rollete w/ Rsted Tomatoes & Basil Pesto",
+       "serving": "1 each",
+       "cal": 287.0,
+       "protein": 9.9,
+       "carbs": 24.7,
+       "fat": 16.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Rigatoni w/Broccolini & Ricotta",
+       "serving": "4 oz",
+       "cal": 155.0,
+       "protein": 5.1,
+       "carbs": 23.2,
+       "fat": 5.3,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Gluten, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Vegetables",
+     "dishes": [
+      {
+       "name": "Basil Parmesan Roasted Tomatoes",
+       "serving": "1 each",
+       "cal": 30.0,
+       "protein": 0.8,
+       "carbs": 0.9,
+       "fat": 2.7,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Beans & Greens (Fish)",
+       "serving": "3 oz",
+       "cal": 123.0,
+       "protein": 5.8,
+       "carbs": 9.2,
+       "fat": 7.3,
+       "diet": "Halal, Local",
+       "allergens": "Milk, Fish, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Grill Station",
+     "dishes": [
+      {
+       "name": "Black Bean Burger",
+       "serving": "1 each",
+       "cal": 160.0,
+       "protein": 7.0,
+       "carbs": 19.0,
+       "fat": 7.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Grilled Chicken Breast",
+       "serving": "1 oz",
+       "cal": 35.0,
+       "protein": 6.3,
+       "carbs": 0.0,
+       "fat": 1.0,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Grilled Chicken Thighs",
+       "serving": "1 each",
+       "cal": 89.0,
+       "protein": 13.3,
+       "carbs": 0.0,
+       "fat": 3.7,
+       "diet": "Halal",
+       "allergens": ""
+      },
+      {
+       "name": "Halal French Fries",
+       "serving": "3 OZ",
+       "cal": 193.0,
+       "protein": 1.8,
+       "carbs": 17.7,
+       "fat": 13.2,
+       "diet": "Halal, Plant Based",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Halal SPARE Beef Burger",
+       "serving": "1 Each",
+       "cal": 130.0,
+       "protein": 12.0,
+       "carbs": 2.0,
+       "fat": 8.0,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Hand Cut Sweet Potato Fries",
+       "serving": "3 oz",
+       "cal": 178.0,
+       "protein": 0.9,
+       "carbs": 17.3,
+       "fat": 11.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "International",
+     "dishes": [
+      {
+       "name": "Egg & Tomato Stir Fry",
+       "serving": "4 oz",
+       "cal": 102.0,
+       "protein": 5.1,
+       "carbs": 3.6,
+       "fat": 7.6,
+       "diet": "Local, Vegetarian",
+       "allergens": "Eggs, Corn  , Sesame "
+      },
+      {
+       "name": "Korean BBQ Chicken",
+       "serving": "3 OZ",
+       "cal": 342.0,
+       "protein": 7.2,
+       "carbs": 5.5,
+       "fat": 32.3,
+       "diet": "Local",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Korean Fried Rice w/Nasyoa Kimchi",
+       "serving": "3 oz",
+       "cal": 290.0,
+       "protein": 6.1,
+       "carbs": 53.4,
+       "fat": 3.7,
+       "diet": "None",
+       "allergens": "Fish, Shellfish, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Pulmuone Tofu w/Ssamjang Sauce",
+       "serving": "4 OZ",
+       "cal": 136.0,
+       "protein": 11.1,
+       "carbs": 6.8,
+       "fat": 7.7,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Stir Fry Green Vegetables",
+       "serving": "3 oz",
+       "cal": 34.0,
+       "protein": 1.9,
+       "carbs": 3.4,
+       "fat": 1.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Spring Rolls",
+       "serving": "2 EACH",
+       "cal": 158.0,
+       "protein": 1.1,
+       "carbs": 5.6,
+       "fat": 15.3,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pasta Bar",
+     "dishes": [
+      {
+       "name": "Linguini Pasta",
+       "serving": "4 OZ",
+       "cal": 142.0,
+       "protein": 6.0,
+       "carbs": 29.8,
+       "fat": 0.7,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Marinara Sauce",
+       "serving": "2 OZL",
+       "cal": 27.0,
+       "protein": 0.9,
+       "carbs": 3.2,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Penne Pasta",
+       "serving": "4 OZ",
+       "cal": 147.0,
+       "protein": 6.2,
+       "carbs": 30.9,
+       "fat": 0.8,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Wheat"
+      },
+      {
+       "name": "Tomato Cream Basil Sauce",
+       "serving": "2 OZ",
+       "cal": 119.0,
+       "protein": 2.3,
+       "carbs": 3.8,
+       "fat": 10.8,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Tortellini w/Basil Pesto & Grape Tomatoes",
+       "serving": "4 oz",
+       "cal": 212.0,
+       "protein": 6.6,
+       "carbs": 27.2,
+       "fat": 8.9,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Salad Bar/Dressings",
+     "dishes": [
+      {
+       "name": "Alfalfa Sprouts",
+       "serving": "1/10 OZ",
+       "cal": 1.0,
+       "protein": 0.1,
+       "carbs": 0.1,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Banana Peppers",
+       "serving": "1/2 oz",
+       "cal": 3.0,
+       "protein": 0.0,
+       "carbs": 0.5,
+       "fat": 0.0,
+       "diet": "Plant Based, \n",
+       "allergens": ""
+      },
+      {
+       "name": "Cannellini Bean Salad w/Red Onion & Olives",
+       "serving": "2 oz",
+       "cal": 90.0,
+       "protein": 2.5,
+       "carbs": 8.3,
+       "fat": 5.9,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Carrots Sticks",
+       "serving": "1/2 OZ",
+       "cal": 5.0,
+       "protein": 0.2,
+       "carbs": 1.3,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Celery Sticks",
+       "serving": "1/2 OZ",
+       "cal": 2.0,
+       "protein": 0.1,
+       "carbs": 0.4,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Cheese Feta",
+       "serving": "1 OZ",
+       "cal": 78.0,
+       "protein": 4.7,
+       "carbs": 0.2,
+       "fat": 6.5,
+       "diet": "Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Chickpeas",
+       "serving": "1 OZ",
+       "cal": 34.0,
+       "protein": 1.8,
+       "carbs": 5.6,
+       "fat": 0.5,
+       "diet": "Halal, Plant Based, \n",
+       "allergens": ""
+      },
+      {
+       "name": "Chopped Walnuts",
+       "serving": "1/2 OZ",
+       "cal": 93.0,
+       "protein": 2.2,
+       "carbs": 1.9,
+       "fat": 9.2,
+       "diet": "Halal, Plant Based, \n",
+       "allergens": "Tree Nuts"
+      },
+      {
+       "name": "Craisins",
+       "serving": "1 OZ",
+       "cal": 92.0,
+       "protein": 0.0,
+       "carbs": 23.4,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based, Halal\r4",
+       "allergens": ""
+      },
+      {
+       "name": "Cucumbers",
+       "serving": "2 OZ",
+       "cal": 9.0,
+       "protein": 0.4,
+       "carbs": 2.1,
+       "fat": 0.1,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Grape Tomatoes",
+       "serving": "1 1/2 OZ",
+       "cal": 8.0,
+       "protein": 0.5,
+       "carbs": 3.6,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Green Olives",
+       "serving": "1 OZ",
+       "cal": 45.0,
+       "protein": 0.0,
+       "carbs": 3.0,
+       "fat": 3.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Green Peppers",
+       "serving": "1/4 OZ",
+       "cal": 2.0,
+       "protein": 0.1,
+       "carbs": 0.5,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Homemade Mid Eastern Hummus",
+       "serving": "2 oz",
+       "cal": 94.0,
+       "protein": 3.6,
+       "carbs": 10.4,
+       "fat": 4.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Kale & Carrot Salad w/ Pepitas & Tahini",
+       "serving": "2 oz",
+       "cal": 48.0,
+       "protein": 1.3,
+       "carbs": 3.0,
+       "fat": 3.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Sesame "
+      },
+      {
+       "name": "Marinated Olives, Tomatoes & Artichokes",
+       "serving": "2 oz",
+       "cal": 80.0,
+       "protein": 0.4,
+       "carbs": 2.8,
+       "fat": 7.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Olive Tapenade",
+       "serving": "1 oz",
+       "cal": 66.0,
+       "protein": 0.3,
+       "carbs": 1.3,
+       "fat": 6.6,
+       "diet": "Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Onions",
+       "serving": "1/4 OZ",
+       "cal": 3.0,
+       "protein": 0.1,
+       "carbs": 0.6,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Parmesan Cheese",
+       "serving": "1/2 oz",
+       "cal": 56.0,
+       "protein": 3.5,
+       "carbs": 0.5,
+       "fat": 4.6,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Pita Chips",
+       "serving": "1 OZ",
+       "cal": 123.0,
+       "protein": 2.6,
+       "carbs": 13.5,
+       "fat": 6.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Pulmuone Tofu",
+       "serving": "1 OZ",
+       "cal": 40.0,
+       "protein": 4.3,
+       "carbs": 0.7,
+       "fat": 2.3,
+       "diet": "Halal, Plant Based, \n",
+       "allergens": "Soy"
+      },
+      {
+       "name": "Radishes",
+       "serving": "1/2 OZ",
+       "cal": 3.0,
+       "protein": 0.1,
+       "carbs": 0.6,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based, Halal\r5",
+       "allergens": ""
+      },
+      {
+       "name": "Romaine Lettuce",
+       "serving": "1 OZ",
+       "cal": 5.0,
+       "protein": 0.3,
+       "carbs": 0.9,
+       "fat": 0.1,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sliced Eggs",
+       "serving": "1 OZ",
+       "cal": 37.0,
+       "protein": 3.6,
+       "carbs": 0.0,
+       "fat": 2.6,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Eggs"
+      },
+      {
+       "name": "Sliced Mushrooms",
+       "serving": "1/2 OZ",
+       "cal": 3.0,
+       "protein": 0.4,
+       "carbs": 0.5,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Spinach Leaves",
+       "serving": "1 OZ",
+       "cal": 7.0,
+       "protein": 0.8,
+       "carbs": 1.0,
+       "fat": 0.1,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sunflower Seeds",
+       "serving": "1/2 oz",
+       "cal": 91.0,
+       "protein": 3.0,
+       "carbs": 2.5,
+       "fat": 7.1,
+       "diet": "Halal, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Tuna",
+       "serving": "1 oz",
+       "cal": 41.0,
+       "protein": 7.1,
+       "carbs": 0.0,
+       "fat": 1.3,
+       "diet": "Halal, \n",
+       "allergens": "Fish"
+      }
+     ]
+    },
+    {
+     "station": "Desserts",
+     "dishes": [
+      {
+       "name": "Blueberry Buckle",
+       "serving": "2 OZ",
+       "cal": 146.0,
+       "protein": 2.0,
+       "carbs": 27.2,
+       "fat": 3.9,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Local Whole Wheat Bread",
+       "serving": "1 PIECE",
+       "cal": 57.0,
+       "protein": 1.2,
+       "carbs": 8.5,
+       "fat": 2.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Gluten, Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Breads",
+     "dishes": [
+      {
+       "name": "Hawaiian Roll",
+       "serving": "1 EACH",
+       "cal": 113.0,
+       "protein": 3.2,
+       "carbs": 20.3,
+       "fat": 1.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Gluten, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Noodle Bowl",
+     "dishes": [
+      {
+       "name": "Chicken Pho Broth (Fish)",
+       "serving": "8 oz",
+       "cal": 24.0,
+       "protein": 0.9,
+       "carbs": 2.9,
+       "fat": 1.4,
+       "diet": "Local",
+       "allergens": "Fish, Corn  "
+      },
+      {
+       "name": "Chicken for Pho",
+       "serving": "1 oz",
+       "cal": 28.0,
+       "protein": 6.4,
+       "carbs": 0.0,
+       "fat": 0.3,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Green Curry Pho Broth (Anchovies)",
+       "serving": "8 oz",
+       "cal": 249.0,
+       "protein": 2.3,
+       "carbs": 13.6,
+       "fat": 20.4,
+       "diet": "Halal",
+       "allergens": "Milk, Fish, Corn  "
+      },
+      {
+       "name": "Pho Noodles",
+       "serving": "1 1/2 oz",
+       "cal": 11.0,
+       "protein": 0.2,
+       "carbs": 2.7,
+       "fat": 0.0,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy"
+      },
+      {
+       "name": "Pho Toppings",
+       "serving": "2 oz",
+       "cal": 34.0,
+       "protein": 3.0,
+       "carbs": 2.9,
+       "fat": 1.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Soy"
+      },
+      {
+       "name": "Vegetarian Pho Base",
+       "serving": "8 oz",
+       "cal": 24.0,
+       "protein": 0.0,
+       "carbs": 3.8,
+       "fat": 1.4,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Soy, Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Pizza",
+     "dishes": [
+      {
+       "name": "Cheese Pizza",
+       "serving": "1 SLICE",
+       "cal": 203.0,
+       "protein": 9.4,
+       "carbs": 29.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pepperoni Pizza",
+       "serving": "1 SLICE",
+       "cal": 217.0,
+       "protein": 9.9,
+       "carbs": 29.0,
+       "fat": 7.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Sushi",
+     "dishes": [
+      {
+       "name": "California Roll",
+       "serving": "1 roll",
+       "cal": 222.0,
+       "protein": 5.9,
+       "carbs": 47.3,
+       "fat": 0.8,
+       "diet": "None",
+       "allergens": "Eggs, Fish, Shellfish, Soy, Corn  , Sesame "
+      },
+      {
+       "name": "Shrimp Sushi Roll",
+       "serving": "1 roll",
+       "cal": 217.0,
+       "protein": 8.8,
+       "carbs": 41.8,
+       "fat": 1.0,
+       "diet": "Local",
+       "allergens": "Shellfish, Sesame "
+      },
+      {
+       "name": "Teriyaki Chicken Roll",
+       "serving": "1 roll",
+       "cal": 234.0,
+       "protein": 9.8,
+       "carbs": 44.2,
+       "fat": 1.4,
+       "diet": "None",
+       "allergens": "Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Vegetable Sushi Roll",
+       "serving": "1 roll",
+       "cal": 196.0,
+       "protein": 3.6,
+       "carbs": 42.9,
+       "fat": 0.6,
+       "diet": "Halal, Plant Based",
+       "allergens": "Sesame "
+      }
+     ]
+    },
+    {
+     "station": "Display Station",
+     "dishes": [
+      {
+       "name": "Ancho Lime Pulled Chicken",
+       "serving": "3 oz",
+       "cal": 104.0,
+       "protein": 13.6,
+       "carbs": 1.5,
+       "fat": 4.5,
+       "diet": "Local",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Corn Tostada",
+       "serving": "1 EACH",
+       "cal": 53.0,
+       "protein": 0.7,
+       "carbs": 7.3,
+       "fat": 2.3,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Pickled Red Onions",
+       "serving": "1 oz",
+       "cal": 11.0,
+       "protein": 0.3,
+       "carbs": 2.6,
+       "fat": 0.0,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Plant Based Chorizo Crumbles",
+       "serving": "1 oz",
+       "cal": 48.0,
+       "protein": 4.3,
+       "carbs": 3.4,
+       "fat": 2.9,
+       "diet": "Halal, Plant Based",
+       "allergens": "Soy, Corn  "
+      },
+      {
+       "name": "Queso Fresco",
+       "serving": "1/2 oz",
+       "cal": 47.0,
+       "protein": 2.8,
+       "carbs": 0.5,
+       "fat": 3.8,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk"
+      },
+      {
+       "name": "Refried Black Beans",
+       "serving": "1 oz",
+       "cal": 25.0,
+       "protein": 1.5,
+       "carbs": 4.3,
+       "fat": 0.1,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Salsa Verde con Aguacate",
+       "serving": "1 OZ",
+       "cal": 29.0,
+       "protein": 0.1,
+       "carbs": 1.8,
+       "fat": 2.6,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": ""
+      },
+      {
+       "name": "Sour Cream",
+       "serving": "1 OZ",
+       "cal": 61.0,
+       "protein": 1.0,
+       "carbs": 1.0,
+       "fat": 5.1,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Corn  "
+      },
+      {
+       "name": "Yellow Rice",
+       "serving": "3 oz",
+       "cal": 103.0,
+       "protein": 1.7,
+       "carbs": 19.3,
+       "fat": 1.3,
+       "diet": "Halal, Local, Plant Based",
+       "allergens": "Corn  "
+      }
+     ]
+    }
+   ],
+   "late night": [
+    {
+     "station": "Miscellaneous",
+     "dishes": [
+      {
+       "name": "Cajun Spiced Chicken",
+       "serving": "3 oz",
+       "cal": 102.0,
+       "protein": 18.6,
+       "carbs": 0.0,
+       "fat": 2.9,
+       "diet": "Halal",
+       "allergens": "Corn  "
+      }
+     ]
+    },
+    {
+     "station": "Breakfast Entrees",
+     "dishes": [
+      {
+       "name": "Bacon Cheddar Baked Eggs",
+       "serving": "3 oz",
+       "cal": 131.0,
+       "protein": 8.0,
+       "carbs": 7.5,
+       "fat": 7.5,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Corn  "
+      },
+      {
+       "name": "Butterfinger Pancakes (Peanuts)",
+       "serving": "2 EACH",
+       "cal": 228.0,
+       "protein": 5.6,
+       "carbs": 41.2,
+       "fat": 5.1,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Peanuts, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Canadian Bacon",
+       "serving": "1 OZ",
+       "cal": 31.0,
+       "protein": 5.8,
+       "carbs": 0.4,
+       "fat": 0.7,
+       "diet": "None",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Red Potato Home Fries",
+       "serving": "3 OZ",
+       "cal": 72.0,
+       "protein": 1.6,
+       "carbs": 13.3,
+       "fat": 1.7,
+       "diet": "Halal, Plant Based, \n",
+       "allergens": ""
+      }
+     ]
+    },
+    {
+     "station": "Entrees",
+     "dishes": [
+      {
+       "name": "BBQ Chicken Wings",
+       "serving": "3 EACH",
+       "cal": 317.0,
+       "protein": 17.3,
+       "carbs": 17.1,
+       "fat": 18.6,
+       "diet": "None",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "BBQ Pork Ribs",
+       "serving": "3 OZ",
+       "cal": 120.0,
+       "protein": 5.6,
+       "carbs": 9.1,
+       "fat": 6.8,
+       "diet": "Local",
+       "allergens": "Corn  "
+      },
+      {
+       "name": "Brazilian Collard Greens w/Bacon",
+       "serving": "3 oz",
+       "cal": 115.0,
+       "protein": 6.4,
+       "carbs": 5.2,
+       "fat": 8.0,
+       "diet": "Local",
+       "allergens": ""
+      },
+      {
+       "name": "Buffalo Chicken Wings",
+       "serving": "3 EACH",
+       "cal": 282.0,
+       "protein": 17.4,
+       "carbs": 0.0,
+       "fat": 23.4,
+       "diet": "Local",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "Cornbread Loaf",
+       "serving": "1 SLICE",
+       "cal": 99.0,
+       "protein": 1.8,
+       "carbs": 10.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Corn  , Wheat"
+      },
+      {
+       "name": "Fried Plantain",
+       "serving": "1 OZ",
+       "cal": 69.0,
+       "protein": 0.3,
+       "carbs": 8.9,
+       "fat": 3.7,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Sesame , Wheat"
+      },
+      {
+       "name": "STOUFFER'S Alfredo Sauce",
+       "serving": "2 oz",
+       "cal": 102.0,
+       "protein": 2.8,
+       "carbs": 3.7,
+       "fat": 8.4,
+       "diet": "Vegetarian",
+       "allergens": "Milk, Soy, Corn  "
+      },
+      {
+       "name": "Shrimp Fried Rice",
+       "serving": "4 oz",
+       "cal": 143.0,
+       "protein": 3.5,
+       "carbs": 20.5,
+       "fat": 4.4,
+       "diet": "Halal, Local",
+       "allergens": "Eggs, Shellfish, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Southern Macaroni & Cheese",
+       "serving": "4 oz",
+       "cal": 159.0,
+       "protein": 6.3,
+       "carbs": 17.4,
+       "fat": 7.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Pizza",
+     "dishes": [
+      {
+       "name": "Cheese Pizza",
+       "serving": "1 SLICE",
+       "cal": 203.0,
+       "protein": 9.4,
+       "carbs": 29.6,
+       "fat": 5.4,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Pepperoni Pizza",
+       "serving": "1 SLICE",
+       "cal": 217.0,
+       "protein": 9.9,
+       "carbs": 29.0,
+       "fat": 7.0,
+       "diet": "Local",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      },
+      {
+       "name": "Vegetable Pizza",
+       "serving": "1 SLICE",
+       "cal": 202.0,
+       "protein": 9.5,
+       "carbs": 29.5,
+       "fat": 5.5,
+       "diet": "Halal, Local, Vegetarian",
+       "allergens": "Milk, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    },
+    {
+     "station": "Display Station",
+     "dishes": [
+      {
+       "name": "Pearl Sugar Waffle Sundae",
+       "serving": "1 EACH",
+       "cal": 798.0,
+       "protein": 7.9,
+       "carbs": 115.7,
+       "fat": 34.5,
+       "diet": "Halal, Vegetarian",
+       "allergens": "Milk, Eggs, Gluten, Soy, Corn  , Wheat"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
