@@ -8,6 +8,7 @@ import 'types.dart';
 /// int saturation) and switches to exponent form below 1e-4.
 String jsNum(num v) {
   if (v is int) return v.toString();
+  if (v == 0) return '0'; // JS String(-0) is "0"; Dart prints "-0.0".
   if (v == v.truncateToDouble() && v.abs() < 1e21) return v.toString().replaceFirst(RegExp(r"\.0$"), "");
   final a = v.abs();
   if (a >= 1e21 || a < 1e-6) return v.toString();

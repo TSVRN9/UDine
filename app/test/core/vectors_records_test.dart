@@ -16,6 +16,7 @@ List<Map<String, dynamic>> cases(String file) {
 List<Map<String, dynamic>> rows(Object? l) => List<Map<String, dynamic>>.from(l as List);
 
 void main() {
+  negativeZero();
   group('match-query.json', () {
     for (final c in cases('match-query')) {
       test('${c['name']}', () {
@@ -58,3 +59,9 @@ void main() {
     }
   });
 }
+
+// -0 can't travel through export.json (JSON.stringify(-0) is "0"), so pin it here: JS String(-0) is "0".
+void negativeZero() => test('jsNum(-0.0) prints "0" like JS String(-0); CSV gets no formula-guard tab', () {
+      expect(jsNum(-0.0), '0');
+      expect(exportRankedFoodsAsCsv([RankedFood(dishName: 'Tofu', rating: -0.0, comparisonCount: 1)]).contains('-0'), isFalse);
+    });
