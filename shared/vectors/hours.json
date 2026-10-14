@@ -1,0 +1,7277 @@
+{
+  "format": "get_infov2 hours. kind=map_info_v2: input is the raw array -> {halls, retail} (mapInfoV2). kind=street_address / map_address: input string or null -> string or null. kind=status: input {hours: DiningHallHours, now} -> {mealPeriod, openStatus, effective}; now is an absolute instant (ISO 8601 with offset), and the wall clock it is read in is America/New_York (get_infov2 times are Eastern wall-clock; DST days are included). openStatus is {open:true, closesAt} or {open:false, opensAt} with opensAt null when nothing opens later today; closesAt/opensAt are UTC instants (ISO 8601 'Z'). effective maps each of breakfast/lunch/dinner/latenight to the window effectiveMealWindow returns, or null. Windows are {openTime, closeTime} strings exactly as published, except effective windows synthesized from `general`, which are re-formatted as 'H:MM AM/PM'. Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
+  "cases": [
+    {
+      "kind": "map_info_v2",
+      "name": "real get_infov2 sample: 4 commons keyed by tid, Worcester Café stays retail",
+      "input": [
+        {
+          "location_title": "Berkshire Dining Commons",
+          "opening_hours": "Closed",
+          "closing_hours": "Closed",
+          "breakfast_open_time": "",
+          "breakfast_close_time": "",
+          "lunch_open_time": "",
+          "lunch_close_time": "",
+          "dinner_open_time": "",
+          "dinner_close_time": "",
+          "address": "<p>121 Southwest Cir<br/>Amherst, MA 01003</p>",
+          "map_address": "42.3828621,-72.530198"
+        },
+        {
+          "location_title": "Worcester Commons",
+          "opening_hours": "Closed",
+          "closing_hours": "Closed",
+          "breakfast_open_time": "",
+          "breakfast_close_time": "",
+          "lunch_open_time": "",
+          "lunch_close_time": "",
+          "dinner_open_time": "",
+          "dinner_close_time": ""
+        },
+        {
+          "location_title": "Franklin Dining Commons",
+          "opening_hours": "Closed",
+          "closing_hours": "Closed",
+          "breakfast_open_time": "",
+          "breakfast_close_time": "",
+          "lunch_open_time": "",
+          "lunch_close_time": "",
+          "dinner_open_time": "",
+          "dinner_close_time": ""
+        },
+        {
+          "location_title": "Hampshire Dining Commons",
+          "opening_hours": "07:00 AM",
+          "closing_hours": "09:00 PM",
+          "breakfast_open_time": null,
+          "breakfast_close_time": null,
+          "lunch_open_time": null,
+          "lunch_close_time": null,
+          "dinner_open_time": null,
+          "dinner_close_time": null,
+          "address": "<p>141 Southwest Cir<br />Amherst, MA 01003</p>",
+          "map_address": "42.383790,-72.530519"
+        },
+        {
+          "location_title": "Roots Café",
+          "opening_hours": "Closed",
+          "closing_hours": "Closed",
+          "breakfast_open_time": "",
+          "breakfast_close_time": "",
+          "lunch_open_time": "",
+          "lunch_close_time": "",
+          "dinner_open_time": "",
+          "dinner_close_time": ""
+        },
+        {
+          "location_title": "Paciugo",
+          "opening_hours": "11:00 AM",
+          "closing_hours": "06:00 PM",
+          "breakfast_open_time": null,
+          "breakfast_close_time": null,
+          "lunch_open_time": null,
+          "lunch_close_time": null,
+          "dinner_open_time": null,
+          "dinner_close_time": null
+        },
+        {
+          "location_title": "Worcester Café",
+          "opening_hours": "Closed",
+          "closing_hours": "Closed",
+          "breakfast_open_time": "",
+          "breakfast_close_time": "",
+          "lunch_open_time": "",
+          "lunch_close_time": "",
+          "dinner_open_time": "",
+          "dinner_close_time": ""
+        }
+      ],
+      "expected": {
+        "halls": [
+          {
+            "hallTid": 4,
+            "breakfast": null,
+            "lunch": null,
+            "dinner": null,
+            "latenight": null,
+            "general": null,
+            "address": "121 Southwest Cir",
+            "mapAddress": "42.3828621,-72.530198"
+          },
+          {
+            "hallTid": 1,
+            "breakfast": null,
+            "lunch": null,
+            "dinner": null,
+            "latenight": null,
+            "general": null,
+            "address": null,
+            "mapAddress": null
+          },
+          {
+            "hallTid": 2,
+            "breakfast": null,
+            "lunch": null,
+            "dinner": null,
+            "latenight": null,
+            "general": null,
+            "address": null,
+            "mapAddress": null
+          },
+          {
+            "hallTid": 3,
+            "breakfast": null,
+            "lunch": null,
+            "dinner": null,
+            "latenight": null,
+            "general": {
+              "openTime": "07:00 AM",
+              "closeTime": "09:00 PM"
+            },
+            "address": "141 Southwest Cir",
+            "mapAddress": "42.383790,-72.530519"
+          }
+        ],
+        "retail": [
+          {
+            "name": "Roots Café",
+            "hours": null,
+            "breakfastMenu": null,
+            "lunchMenu": null,
+            "dinnerMenu": null
+          },
+          {
+            "name": "Paciugo",
+            "hours": {
+              "openTime": "11:00 AM",
+              "closeTime": "06:00 PM"
+            },
+            "breakfastMenu": null,
+            "lunchMenu": null,
+            "dinnerMenu": null
+          },
+          {
+            "name": "Worcester Café",
+            "hours": null,
+            "breakfastMenu": null,
+            "lunchMenu": null,
+            "dinnerMenu": null
+          }
+        ]
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "retail location: id, menus, description, address, payment carried through; empty menus are null",
+      "input": [
+        {
+          "location_title": "People's Organic Coffee",
+          "opening_hours": "07:00 AM",
+          "closing_hours": "04:00 PM",
+          "breakfast_menu": "<p>Bacon Croissant</p><p>Turkey &amp; Bacon</p>",
+          "lunch_menu": "",
+          "dinner_menu": "",
+          "location_id": 32,
+          "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+          "short_description_v2": "<p>Located on the main concourse of the Campus Center.</p>",
+          "address": "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>",
+          "map_address": "42.3915402,-72.5292962"
+        }
+      ],
+      "expected": {
+        "halls": [],
+        "retail": [
+          {
+            "name": "People's Organic Coffee",
+            "hours": {
+              "openTime": "07:00 AM",
+              "closeTime": "04:00 PM"
+            },
+            "locationId": 32,
+            "breakfastMenu": "<p>Bacon Croissant</p><p>Turkey &amp; Bacon</p>",
+            "lunchMenu": null,
+            "dinnerMenu": null,
+            "description": "<p>Located on the main concourse of the Campus Center.</p>",
+            "address": "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>",
+            "mapAddress": "42.3915402,-72.5292962",
+            "acceptedPayment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "degenerate retail address and map_address pass through untouched",
+      "input": [
+        {
+          "location_title": "babyBerk",
+          "opening_hours": "07:00 PM",
+          "closing_hours": "01:00 PM",
+          "breakfast_menu": "<p><a href=\"https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf\" target=\"_blank\">Baby Berk Menu</a></p>",
+          "lunch_menu": "",
+          "dinner_menu": "",
+          "location_id": 61,
+          "short_description_v2": "<p>Food truck.</p>",
+          "address": "<p><br/>,  </p>",
+          "map_address": ","
+        }
+      ],
+      "expected": {
+        "halls": [],
+        "retail": [
+          {
+            "name": "babyBerk",
+            "hours": {
+              "openTime": "07:00 PM",
+              "closeTime": "01:00 PM"
+            },
+            "locationId": 61,
+            "breakfastMenu": "<p><a href=\"https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf\" target=\"_blank\">Baby Berk Menu</a></p>",
+            "lunchMenu": null,
+            "dinnerMenu": null,
+            "description": "<p>Food truck.</p>",
+            "address": "<p><br/>,  </p>",
+            "mapAddress": ","
+          }
+        ]
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "location_id absent: locationId omitted",
+      "input": [
+        {
+          "location_title": "People's Organic Coffee",
+          "opening_hours": "07:00 AM",
+          "closing_hours": "04:00 PM",
+          "breakfast_menu": "<p>Bacon Croissant</p><p>Turkey &amp; Bacon</p>",
+          "lunch_menu": "",
+          "dinner_menu": "",
+          "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+          "short_description_v2": "<p>Located on the main concourse of the Campus Center.</p>",
+          "address": "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>",
+          "map_address": "42.3915402,-72.5292962"
+        }
+      ],
+      "expected": {
+        "halls": [],
+        "retail": [
+          {
+            "name": "People's Organic Coffee",
+            "hours": {
+              "openTime": "07:00 AM",
+              "closeTime": "04:00 PM"
+            },
+            "breakfastMenu": "<p>Bacon Croissant</p><p>Turkey &amp; Bacon</p>",
+            "lunchMenu": null,
+            "dinnerMenu": null,
+            "description": "<p>Located on the main concourse of the Campus Center.</p>",
+            "address": "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>",
+            "mapAddress": "42.3915402,-72.5292962",
+            "acceptedPayment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "location_id not a number: locationId omitted",
+      "input": [
+        {
+          "location_title": "People's Organic Coffee",
+          "opening_hours": "07:00 AM",
+          "closing_hours": "04:00 PM",
+          "breakfast_menu": "<p>Bacon Croissant</p><p>Turkey &amp; Bacon</p>",
+          "lunch_menu": "",
+          "dinner_menu": "",
+          "location_id": "32",
+          "accepted_payment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP",
+          "short_description_v2": "<p>Located on the main concourse of the Campus Center.</p>",
+          "address": "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>",
+          "map_address": "42.3915402,-72.5292962"
+        }
+      ],
+      "expected": {
+        "halls": [],
+        "retail": [
+          {
+            "name": "People's Organic Coffee",
+            "hours": {
+              "openTime": "07:00 AM",
+              "closeTime": "04:00 PM"
+            },
+            "breakfastMenu": "<p>Bacon Croissant</p><p>Turkey &amp; Bacon</p>",
+            "lunchMenu": null,
+            "dinnerMenu": null,
+            "description": "<p>Located on the main concourse of the Campus Center.</p>",
+            "address": "<p>1 Campus Center Way<br/>Amherst, MA 01003</p>",
+            "mapAddress": "42.3915402,-72.5292962",
+            "acceptedPayment": "Cash, Credit Cards, UCard, Dining Dollars, YCMP"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "per-meal fields omitted entirely, not null",
+      "input": [
+        {
+          "location_title": "Paciugo",
+          "opening_hours": "11:00 AM",
+          "closing_hours": "06:00 PM"
+        }
+      ],
+      "expected": {
+        "halls": [],
+        "retail": [
+          {
+            "name": "Paciugo",
+            "hours": {
+              "openTime": "11:00 AM",
+              "closeTime": "06:00 PM"
+            },
+            "breakfastMenu": null,
+            "lunchMenu": null,
+            "dinnerMenu": null
+          }
+        ]
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "commons with per-meal windows; a window with an unparseable time (Midnight) is null",
+      "input": [
+        {
+          "location_title": "Franklin Dining Commons",
+          "opening_hours": "7:00 AM",
+          "closing_hours": "9:00 PM",
+          "breakfast_open_time": "7:00 AM",
+          "breakfast_close_time": "10:30 AM",
+          "lunch_open_time": "10:30 AM",
+          "lunch_close_time": "2:00 PM",
+          "dinner_open_time": "5:00 pm",
+          "dinner_close_time": "Midnight"
+        }
+      ],
+      "expected": {
+        "halls": [
+          {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:30 AM"
+            },
+            "lunch": {
+              "openTime": "10:30 AM",
+              "closeTime": "2:00 PM"
+            },
+            "dinner": null,
+            "latenight": null,
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "address": null,
+            "mapAddress": null
+          }
+        ],
+        "retail": []
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "commons match is startsWith(hall name) && includes('Commons'): a Commons-titled sub-location also becomes the hall; a leading 'The' makes it retail",
+      "input": [
+        {
+          "location_title": "Worcester Commons Grab n Go",
+          "opening_hours": "Closed",
+          "closing_hours": "Closed"
+        },
+        {
+          "location_title": "The Berkshire Dining Commons",
+          "opening_hours": "Closed",
+          "closing_hours": "Closed"
+        },
+        {
+          "location_title": "Hampshire Café",
+          "opening_hours": "8:00 AM",
+          "closing_hours": "2:00 PM"
+        }
+      ],
+      "expected": {
+        "halls": [
+          {
+            "hallTid": 1,
+            "breakfast": null,
+            "lunch": null,
+            "dinner": null,
+            "latenight": null,
+            "general": null,
+            "address": null,
+            "mapAddress": null
+          }
+        ],
+        "retail": [
+          {
+            "name": "The Berkshire Dining Commons",
+            "hours": null,
+            "breakfastMenu": null,
+            "lunchMenu": null,
+            "dinnerMenu": null
+          },
+          {
+            "name": "Hampshire Café",
+            "hours": {
+              "openTime": "8:00 AM",
+              "closeTime": "2:00 PM"
+            },
+            "breakfastMenu": null,
+            "lunchMenu": null,
+            "dinnerMenu": null
+          }
+        ]
+      }
+    },
+    {
+      "kind": "map_info_v2",
+      "name": "empty feed",
+      "input": [],
+      "expected": {
+        "halls": [],
+        "retail": []
+      }
+    },
+    {
+      "kind": "street_address",
+      "name": "\"<p>121 Southwest Cir<br/>Amherst, MA 01003</p>\"",
+      "input": "<p>121 Southwest Cir<br/>Amherst, MA 01003</p>",
+      "expected": "121 Southwest Cir"
+    },
+    {
+      "kind": "street_address",
+      "name": "\"<p>141 Southwest Cir<br />Amherst, MA 01003</p>\"",
+      "input": "<p>141 Southwest Cir<br />Amherst, MA 01003</p>",
+      "expected": "141 Southwest Cir"
+    },
+    {
+      "kind": "street_address",
+      "name": "\"<p>1 Campus Center Way<BR>Amherst</p>\"",
+      "input": "<p>1 Campus Center Way<BR>Amherst</p>",
+      "expected": "1 Campus Center Way"
+    },
+    {
+      "kind": "street_address",
+      "name": "\"<p><br/>,  </p>\"",
+      "input": "<p><br/>,  </p>",
+      "expected": null
+    },
+    {
+      "kind": "street_address",
+      "name": "\"<p></p>\"",
+      "input": "<p></p>",
+      "expected": null
+    },
+    {
+      "kind": "street_address",
+      "name": "\"plain text\"",
+      "input": "plain text",
+      "expected": "plain text"
+    },
+    {
+      "kind": "street_address",
+      "name": "\"\"",
+      "input": "",
+      "expected": null
+    },
+    {
+      "kind": "street_address",
+      "name": "null",
+      "input": null,
+      "expected": null
+    },
+    {
+      "kind": "map_address",
+      "name": "\"42.383790,-72.530519\"",
+      "input": "42.383790,-72.530519",
+      "expected": "42.383790,-72.530519"
+    },
+    {
+      "kind": "map_address",
+      "name": "\"  42.3,-72.5  \"",
+      "input": "  42.3,-72.5  ",
+      "expected": "42.3,-72.5"
+    },
+    {
+      "kind": "map_address",
+      "name": "\"-33,151\"",
+      "input": "-33,151",
+      "expected": "-33,151"
+    },
+    {
+      "kind": "map_address",
+      "name": "\"42.38,\"",
+      "input": "42.38,",
+      "expected": null
+    },
+    {
+      "kind": "map_address",
+      "name": "\",\"",
+      "input": ",",
+      "expected": null
+    },
+    {
+      "kind": "map_address",
+      "name": "\"42.38 -72.53\"",
+      "input": "42.38 -72.53",
+      "expected": null
+    },
+    {
+      "kind": "map_address",
+      "name": "\"+42.38,-72.53\"",
+      "input": "+42.38,-72.53",
+      "expected": null
+    },
+    {
+      "kind": "map_address",
+      "name": "\"42.,-72.5\"",
+      "input": "42.,-72.5",
+      "expected": null
+    },
+    {
+      "kind": "map_address",
+      "name": "\"\"",
+      "input": "",
+      "expected": null
+    },
+    {
+      "kind": "map_address",
+      "name": "null",
+      "input": null,
+      "expected": null
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "lunch only 11-2 @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T18:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T00:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "contiguous breakfast/lunch plus dinner @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "10:30 AM"
+          },
+          "lunch": {
+            "openTime": "10:30 AM",
+            "closeTime": "2:00 PM"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T17:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "1:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T17:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "1:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T17:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "1:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T17:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "1:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T17:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "1:00 PM"
+          },
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-1 (fallback clamped to general) @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 PM"
+          }
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-16T03:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T15:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T00:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T00:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T00:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T00:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T00:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T00:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "overlapping lunch 11-3 and dinner 2-8 @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "3:00 PM"
+          },
+          "dinner": {
+            "openTime": "2:00 PM",
+            "closeTime": "8:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "nothing published @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": null
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-15T14:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "malformed: Midnight word and open equals close @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null,
+          "general": {
+            "openTime": "8:00 AM",
+            "closeTime": "10:00 AM"
+          }
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "Midnight"
+          },
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "5:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 00:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 06:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T06:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-09-15T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 07:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T07:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 09:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T09:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "breakfast",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 10:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T10:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 11:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T11:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 12:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 13:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T13:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 14:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T14:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 16:30 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T16:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 17:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T17:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 20:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T20:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "dinner",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-09-16T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 21:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T21:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 23:00 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T23:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "leading-zero and lowercase times @ 2026-09-15 23:59 America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "07:00 AM",
+            "closeTime": "09:00 PM"
+          }
+        },
+        "now": "2026-09-15T23:59:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": null
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "07:00 am",
+            "closeTime": "10:00 AM"
+          },
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-03-08T00:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-03-08T00:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-03-08T06:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-03-08T01:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-03-08T01:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-03-08T03:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-03-08T03:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-03-08T12:00:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-03-08T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-03-09T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-11-01T00:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-11-01T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-11-01T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-11-01T01:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-11-01T01:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-11-01T01:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-11-01T01:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-11-01T03:00:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-11-01T03:00:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general overnight 7 AM to 1 AM @ 2026-11-01T12:00:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "1:00 AM"
+          }
+        },
+        "now": "2026-11-01T12:00:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-11-02T06:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "9:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-03-08T00:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-03-08T00:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-03-08T06:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-03-08T01:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-03-08T01:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-03-08T03:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-03-08T03:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-03-08T12:00:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-03-08T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T21:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-11-01T00:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-11-01T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "latenight",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-11-01T05:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-11-01T01:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-11-01T01:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T22:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-11-01T01:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-11-01T01:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T22:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-11-01T03:00:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-11-01T03:00:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T22:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "dinner plus overnight late night 11 PM-1 AM @ 2026-11-01T12:00:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          },
+          "general": null
+        },
+        "now": "2026-11-01T12:00:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T22:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": {
+            "openTime": "5:00 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": {
+            "openTime": "11:00 PM",
+            "closeTime": "1:00 AM"
+          }
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-03-08T00:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-03-08T00:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-03-08T01:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-03-08T01:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-03-08T03:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-03-08T03:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-03-08T11:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-03-08T12:00:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-03-08T12:00:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-03-09T01:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-11-01T00:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-11-01T00:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-11-01T01:30:00-04:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-11-01T01:30:00-04:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-11-01T01:30:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-11-01T01:30:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-11-01T03:00:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-11-01T03:00:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "closed",
+        "openStatus": {
+          "open": false,
+          "opensAt": "2026-11-01T12:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null
+        }
+      }
+    },
+    {
+      "kind": "status",
+      "name": "general only 7-9 (standard meal fallback) @ 2026-11-01T12:00:00-05:00 (DST) America/New_York",
+      "input": {
+        "hours": {
+          "hallTid": 1,
+          "breakfast": null,
+          "lunch": null,
+          "dinner": null,
+          "latenight": null,
+          "general": {
+            "openTime": "7:00 AM",
+            "closeTime": "9:00 PM"
+          }
+        },
+        "now": "2026-11-01T12:00:00-05:00"
+      },
+      "expected": {
+        "mealPeriod": "lunch",
+        "openStatus": {
+          "open": true,
+          "closesAt": "2026-11-02T02:00:00.000Z"
+        },
+        "effective": {
+          "breakfast": {
+            "openTime": "7:00 AM",
+            "closeTime": "11:00 AM"
+          },
+          "lunch": {
+            "openTime": "11:00 AM",
+            "closeTime": "4:30 PM"
+          },
+          "dinner": {
+            "openTime": "4:30 PM",
+            "closeTime": "9:00 PM"
+          },
+          "latenight": null
+        }
+      }
+    }
+  ]
+}
