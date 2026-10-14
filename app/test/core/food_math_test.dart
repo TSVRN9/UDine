@@ -131,4 +131,18 @@ void main() {
       expect(localeCompare('x 1', 'x1'), lessThan(0));
     });
   });
+
+  group('stable ordering past Dart\'s short-list insertion sort (TS expected orders)', () {
+    final foods = [for (var i = 0; i < 60; i++) RankedFood(dishName: 'f$i', rating: 1500 + i % 3, comparisonCount: 0)];
+    test('rankFoods keeps input order within equal ratings', () {
+      expect([for (final f in rankFoods(foods)) f.dishName], ['f2', 'f5', 'f8', 'f11', 'f14', 'f17', 'f20', 'f23', 'f26', 'f29', 'f32', 'f35', 'f38', 'f41', 'f44', 'f47', 'f50', 'f53', 'f56', 'f59', 'f1', 'f4', 'f7', 'f10', 'f13', 'f16', 'f19', 'f22', 'f25', 'f28', 'f31', 'f34', 'f37', 'f40', 'f43', 'f46', 'f49', 'f52', 'f55', 'f58', 'f0', 'f3', 'f6', 'f9', 'f12', 'f15', 'f18', 'f21', 'f24', 'f27', 'f30', 'f33', 'f36', 'f39', 'f42', 'f45', 'f48', 'f51', 'f54', 'f57']);
+    });
+    test('rankDishes keeps input order within equal ratings', () {
+      final dishes = [for (var i = 0; i < 60; i++) RankedDish(dishName: 'f$i', hallTid: 1 + i % 4, rating: 1500 + i % 3, comparisonCount: 0)];
+      expect([for (final f in rankDishes(dishes)) f.dishName], ['f2', 'f5', 'f8', 'f11', 'f14', 'f17', 'f20', 'f23', 'f26', 'f29', 'f32', 'f35', 'f38', 'f41', 'f44', 'f47', 'f50', 'f53', 'f56', 'f59', 'f1', 'f4', 'f7', 'f10', 'f13', 'f16', 'f19', 'f22', 'f25', 'f28', 'f31', 'f34', 'f37', 'f40', 'f43', 'f46', 'f49', 'f52', 'f55', 'f58', 'f0', 'f3', 'f6', 'f9', 'f12', 'f15', 'f18', 'f21', 'f24', 'f27', 'f30', 'f33', 'f36', 'f39', 'f42', 'f45', 'f48', 'f51', 'f54', 'f57']);
+    });
+    test('sortStationNames on 48 names matches TS', () {
+      expect(sortStationNames(['Grill x', 'Grab n\'Go 1', 'Latino 2', 'Soups 3', 'Beta 4 x', 'Pizza 5', 'Zeta 6', 'Express', 'Desserts 8 x', 'GF Pasta 9', 'Salad Bar 10', 'alpha 0', 'Grill 1 x', 'Grab n\'Go 2', 'Latino', 'Soups 4', 'Beta 5 x', 'Pizza 6', 'Zeta 7', 'Express 8', 'Desserts 9 x', 'GF Pasta', 'Salad Bar 0', 'alpha 1', 'Grill 2 x', 'Grab n\'Go 3', 'Latino 4', 'Soups 5', 'Beta x', 'Pizza 7', 'Zeta 8', 'Express 9', 'Desserts 10 x', 'GF Pasta 0', 'Salad Bar 1', 'alpha', 'Grill 3 x', 'Grab n\'Go 4', 'Latino 5', 'Soups 6', 'Beta 7 x', 'Pizza 8', 'Zeta', 'Express 10', 'Desserts 0 x', 'GF Pasta 1', 'Salad Bar 2', 'alpha 3']), ['Grill 1 x', 'Grill 2 x', 'Grill 3 x', 'Grill x', 'Pizza 5', 'Pizza 6', 'Pizza 7', 'Pizza 8', 'Latino', 'Latino 2', 'Latino 4', 'Latino 5', 'Express', 'Express 10', 'Express 8', 'Express 9', 'GF Pasta', 'GF Pasta 0', 'GF Pasta 1', 'GF Pasta 9', 'Salad Bar 0', 'Salad Bar 1', 'Salad Bar 10', 'Salad Bar 2', 'Soups 3', 'Soups 4', 'Soups 5', 'Soups 6', 'Desserts 0 x', 'Desserts 10 x', 'Desserts 8 x', 'Desserts 9 x', 'Grab n\'Go 1', 'Grab n\'Go 2', 'Grab n\'Go 3', 'Grab n\'Go 4', 'alpha', 'alpha 0', 'alpha 1', 'alpha 3', 'Beta 4 x', 'Beta 5 x', 'Beta 7 x', 'Beta x', 'Zeta', 'Zeta 6', 'Zeta 7', 'Zeta 8']);
+    });
+  });
 }

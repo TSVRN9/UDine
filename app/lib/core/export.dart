@@ -3,9 +3,35 @@ import 'dart:convert';
 
 import 'types.dart';
 
-String _json(Object? v) => const JsonEncoder.withIndent('  ').convert(v);
+/// Number.prototype.toString: plain shortest digits for integral values below 1e21 and for 1e-6 <= |v| < 1e21,
+/// exponent form ("1e+21", "1e-7") outside that. Dart's toString differs for big integral values (".0" suffix,
+/// int saturation) and switches to exponent form below 1e-4.
+String jsNum(num v) {
+  if (v is int) return v.toString();
+  if (v == v.truncateToDouble() && v.abs() < 1e21) return v.toString().replaceFirst(RegExp(r"\.0$"), "");
+  final a = v.abs();
+  if (a >= 1e21 || a < 1e-6) return v.toString();
+  final s = v.toString();
+  if (!s.contains('e')) return s;
+  // 1e-6 <= |v| < 1e-4: expand "d.ddde-5" to plain decimal digits.
+  final m = RegExp(r'^(-?)(\d)(?:\.(\d+))?e-(\d+)$').firstMatch(s)!;
+  return '${m[1]}0.${'0' * (int.parse(m[4]!) - 1)}${m[2]}${m[3] ?? ''}';
+}
 
-String _num(num v) => jsonNum(v).toString();
+String _enc(Object? v, String ind) {
+  final inner = '$ind  ';
+  return switch (v) {
+    null => 'null',
+    num() => v.isFinite ? jsNum(v) : 'null',
+    List() => v.isEmpty ? '[]' : '[\n${v.map((e) => '$inner${_enc(e, inner)}').join(',\n')}\n$ind]',
+    Map() => v.isEmpty ? '{}' : '{\n${v.entries.map((e) => '$inner${jsonEncode(e.key)}: ${_enc(e.value, inner)}').join(',\n')}\n$ind}',
+    _ => jsonEncode(v),
+  };
+}
+
+String _json(Object? v) => _enc(v, '');
+
+String _num(num v) => jsNum(v);
 
 /// Quote and escape one field; a leading = + - @ gets a tab prefix against spreadsheet formula injection.
 String _field(Object value) {

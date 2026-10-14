@@ -706,6 +706,130 @@
       "expected": "id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients"
     },
     {
+      "kind": "ranked_foods_json",
+      "name": "number formatting: huge, tiny and fractional ratings",
+      "input": [
+        {
+          "dishName": "a",
+          "rating": 100000000000000000000,
+          "comparisonCount": 0
+        },
+        {
+          "dishName": "b",
+          "rating": 1e+21,
+          "comparisonCount": 1
+        },
+        {
+          "dishName": "c",
+          "rating": 123456789012345680000,
+          "comparisonCount": 2
+        },
+        {
+          "dishName": "d",
+          "rating": -1e+21,
+          "comparisonCount": 3
+        },
+        {
+          "dishName": "e",
+          "rating": 0.00001,
+          "comparisonCount": 4
+        },
+        {
+          "dishName": "f",
+          "rating": 0.000015,
+          "comparisonCount": 5
+        },
+        {
+          "dishName": "g",
+          "rating": 0.000001,
+          "comparisonCount": 6
+        },
+        {
+          "dishName": "h",
+          "rating": 1e-7,
+          "comparisonCount": 7
+        },
+        {
+          "dishName": "i",
+          "rating": 0.30000000000000004,
+          "comparisonCount": 8
+        },
+        {
+          "dishName": "j",
+          "rating": 9007199254740992,
+          "comparisonCount": 9
+        },
+        {
+          "dishName": "k",
+          "rating": 0,
+          "comparisonCount": 10
+        }
+      ],
+      "expected": "[\n  {\n    \"dishName\": \"a\",\n    \"rating\": 100000000000000000000,\n    \"comparisonCount\": 0\n  },\n  {\n    \"dishName\": \"b\",\n    \"rating\": 1e+21,\n    \"comparisonCount\": 1\n  },\n  {\n    \"dishName\": \"c\",\n    \"rating\": 123456789012345680000,\n    \"comparisonCount\": 2\n  },\n  {\n    \"dishName\": \"d\",\n    \"rating\": -1e+21,\n    \"comparisonCount\": 3\n  },\n  {\n    \"dishName\": \"e\",\n    \"rating\": 0.00001,\n    \"comparisonCount\": 4\n  },\n  {\n    \"dishName\": \"f\",\n    \"rating\": 0.000015,\n    \"comparisonCount\": 5\n  },\n  {\n    \"dishName\": \"g\",\n    \"rating\": 0.000001,\n    \"comparisonCount\": 6\n  },\n  {\n    \"dishName\": \"h\",\n    \"rating\": 1e-7,\n    \"comparisonCount\": 7\n  },\n  {\n    \"dishName\": \"i\",\n    \"rating\": 0.30000000000000004,\n    \"comparisonCount\": 8\n  },\n  {\n    \"dishName\": \"j\",\n    \"rating\": 9007199254740992,\n    \"comparisonCount\": 9\n  },\n  {\n    \"dishName\": \"k\",\n    \"rating\": 0,\n    \"comparisonCount\": 10\n  }\n]"
+    },
+    {
+      "kind": "ranked_foods_csv",
+      "name": "number formatting: huge, tiny and fractional ratings",
+      "input": [
+        {
+          "dishName": "a",
+          "rating": 100000000000000000000,
+          "comparisonCount": 0
+        },
+        {
+          "dishName": "b",
+          "rating": 1e+21,
+          "comparisonCount": 1
+        },
+        {
+          "dishName": "c",
+          "rating": 123456789012345680000,
+          "comparisonCount": 2
+        },
+        {
+          "dishName": "d",
+          "rating": -1e+21,
+          "comparisonCount": 3
+        },
+        {
+          "dishName": "e",
+          "rating": 0.00001,
+          "comparisonCount": 4
+        },
+        {
+          "dishName": "f",
+          "rating": 0.000015,
+          "comparisonCount": 5
+        },
+        {
+          "dishName": "g",
+          "rating": 0.000001,
+          "comparisonCount": 6
+        },
+        {
+          "dishName": "h",
+          "rating": 1e-7,
+          "comparisonCount": 7
+        },
+        {
+          "dishName": "i",
+          "rating": 0.30000000000000004,
+          "comparisonCount": 8
+        },
+        {
+          "dishName": "j",
+          "rating": 9007199254740992,
+          "comparisonCount": 9
+        },
+        {
+          "dishName": "k",
+          "rating": 0,
+          "comparisonCount": 10
+        }
+      ],
+      "expected": "dishName,rating,comparisonCount\n\"a\",\"100000000000000000000\",\"0\"\n\"b\",\"1e+21\",\"1\"\n\"c\",\"123456789012345680000\",\"2\"\n\"d\",\"\t-1e+21\",\"3\"\n\"e\",\"0.00001\",\"4\"\n\"f\",\"0.000015\",\"5\"\n\"g\",\"0.000001\",\"6\"\n\"h\",\"1e-7\",\"7\"\n\"i\",\"0.30000000000000004\",\"8\"\n\"j\",\"9007199254740992\",\"9\"\n\"k\",\"0\",\"10\""
+    },
+    {
       "kind": "entries_csv",
       "name": "single umass-menu entry",
       "input": [

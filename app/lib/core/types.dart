@@ -9,8 +9,9 @@ enum HallMealPeriod { breakfast, lunch, dinner, latenight }
 /// TS MealStatus: HallMealPeriod | "closed".
 enum MealStatus { breakfast, lunch, dinner, latenight, closed }
 
-/// JSON.stringify prints 127.0 as 127; Dart prints 127.0. Integral doubles go out as ints.
-num jsonNum(num v) => v.isFinite && v == v.truncate() ? v.toInt() : v;
+/// JSON.stringify prints 127.0 as 127; Dart prints 127.0. Integral doubles go out as ints (past 2^53 they stay doubles;
+/// export.dart's jsNum prints those the way JS does).
+num jsonNum(num v) => v.isFinite && v == v.truncate() && v.abs() < 9007199254740992 ? v.toInt() : v;
 
 /// A %DV value that is a number, present-but-blank (`Dv(null)`, JSON null) or absent (a null `Dv?`, key omitted).
 class Dv {

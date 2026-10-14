@@ -361,6 +361,21 @@ const exportCases: Case[] = [
       exp(`${base}_${fmt}`, "no rows", []),
     ]),
   ),
+  ...["json", "csv"].map((fmt) =>
+    exp(`ranked_foods_${fmt}`, "number formatting: huge, tiny and fractional ratings", [
+      { dishName: "a", rating: 1e20, comparisonCount: 0 },
+      { dishName: "b", rating: 1e21, comparisonCount: 1 },
+      { dishName: "c", rating: 123456789012345680000, comparisonCount: 2 },
+      { dishName: "d", rating: -1e21, comparisonCount: 3 },
+      { dishName: "e", rating: 0.00001, comparisonCount: 4 },
+      { dishName: "f", rating: 1.5e-5, comparisonCount: 5 },
+      { dishName: "g", rating: 0.000001, comparisonCount: 6 },
+      { dishName: "h", rating: 1e-7, comparisonCount: 7 },
+      { dishName: "i", rating: 0.1 + 0.2, comparisonCount: 8 },
+      { dishName: "j", rating: 2 ** 53, comparisonCount: 9 },
+      { dishName: "k", rating: -0, comparisonCount: 10 },
+    ]),
+  ),
   exp("entries_csv", "single umass-menu entry", [ENTRIES[0]]),
   exp("entries_json", "single usda entry", [ENTRIES[2]]),
 ];
