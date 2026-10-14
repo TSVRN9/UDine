@@ -23,14 +23,25 @@ UI: M2 R11 §1 (`CONCEPT.md` "Round 11", section 1), plus NOTES "Round 11" and "
   - failed: "Couldn't reach UMass Dining." with Try again;
   - rate-limited: "Searching UMass Dining is paused until 1 PM.". The budget is global and resets on the UTC
     hour, so the time shown is true.
+- **The Packaged group:**
+  - the first page is 20 hits, with no "Load More" and no five-row cap;
+  - a name shows once, and a food already in Your foods isn't repeated;
+  - a hit with no calories is left out;
+  - a name that doesn't include its brand leads with it ("Clif Bar" + "Chocolate Chip");
+  - a per-100 g food's `+` adds one 100 g serving, and the plate row reads "368 cal per 100 g";
+  - failed: "Packaged foods didn't load." with Try again, under the Packaged heading.
+- **The UMass Dining group (found)** lists only dishes not on a menu today or tomorrow; its lane has only `+`.
 - **A packaged food's sheet:** name and serving, Contains, Add to plate, the label and ingredients. No "where",
   grades, ratings or star.
 - **A saved food's sheet** has Edit where a dish has its star. Edit turns the sheet into the form, with Save and
-  Delete. Delete shows a "Deleted <name>" receipt with Undo.
-- **You → Your foods** lists every saved food.
+  Delete. Delete closes the sheet (`Sheet.away`), then shows a "Deleted <name>" receipt with Undo in the plate
+  bar's slot. A logged meal keeps its own snapshot, so editing or deleting a food never changes a past day.
+- **You → Your foods:** its row reads "3 foods"; the page lists every saved food, newest first.
 - **Owner's answer:** packaged and lookup foods are saved to Your foods when added (owner, 2026-10-14).
 - **Tracking off** hides all of it.
-- **Offline:** Packaged is absent, and Your foods still answers (M2 R11 §4).
+- **Offline:** Packaged and "Search UMass Dining" are absent; Your foods still answers, and "Add “x” as a custom
+  food" stays (M2 R11 §4). Search failed (online, UMass unreachable) is `flutter-port-search` Task 3's state:
+  "Couldn't connect" with Try again, with Packaged and Search UMass Dining still offered.
 
 Annotations: none.
 States:
@@ -66,8 +77,9 @@ Rationale:
 - [ ] OFF and USDA mapping match TS on `shared/vectors/packaged.json` — evidence: test (shared + flutter lanes)
 - [ ] Each lookup state renders as M2 shows, including the rate-limit time from the server's reset — evidence:
   test + goldens
-- [ ] Adding a packaged or lookup food saves it to Your foods; Edit/Delete/Undo restore exactly; custom foods
-  stay in RN's `custom_foods` rows — evidence: test
+- [ ] Adding a packaged or lookup food saves it to Your foods; Edit/Delete/Undo restore exactly; editing or
+  deleting a food leaves past days' logged snapshots unchanged; custom foods stay in RN's `custom_foods` rows —
+  evidence: test
 - [ ] `saved_foods` is exported (JSON, CSV) — evidence: test
 - [ ] Goldens at 360/390 for every state above, M2 DOM measurements within 1 dp, device screenshots
   (photos off) — evidence: test + screenshot
@@ -77,8 +89,8 @@ Rationale:
 1. **Clients and vectors:** Dart OFF/USDA clients and mapping, `lookup-dish` client, and
    `shared/vectors/packaged.json` (generated from TS) — files: `shared/scripts/`, `shared/vectors/`,
    `app/lib/data/` — lanes: shared, flutter — blocked by: none — PR:
-2. **Store:** the `saved_foods` table, Your foods in `UdineStore`, export — files: `app/lib/core/store/` —
-   lanes: flutter — blocked by: 1 — PR:
+2. **Store:** the `saved_foods` table, Your foods in `UdineStore`, export — files: `app/lib/core/store/`,
+   `app/lib/core/export.dart` — lanes: flutter — blocked by: 1, device-data 2 — PR:
 3. **UI:** Search groups, lookup states, packaged and saved sheets, Edit/Delete/Undo, You → Your foods — files:
    `app/lib/screens/search/`, `app/lib/screens/you/` — lanes: flutter — blocked by: 2, search 1,
-   dish-and-plate 1 — PR:
+   dish-and-plate 1, dish-and-plate 3 (Edit reuses the custom-food form), you 1, you 3 (tracking off) — PR:
