@@ -55,6 +55,10 @@ Rationale:
   with custom `PageRoute`s. A router package isn't needed: the only deep links are screenshot routes.
 - **A band tap during a close** is taken, not swallowed (README departure). M2's `xfOn` guard covers only
   the drag-back touchstart (`src.html` around 1455).
+- **Photos ship, but never in git** (owner, 2026-10-14: "Ship UMass's photos anyway", against the explorations README's note;
+  the owner takes the risk). `app/assets/photos/` is gitignored and filled by `app/tool/link_photos.sh`; a checkout without
+  them builds and runs with the bands' duotone ground. Goldens draw none. Bands and pins draw M2's own treatment
+  (`Photo`: grayscale, multiply, screen) and nothing else.
 - Owner-accepted departures carried over unchanged:
   - `bold700`;
   - 44 dp targets on the status line;

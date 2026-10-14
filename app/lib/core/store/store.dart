@@ -23,7 +23,7 @@ class Meal {
 }
 
 /// M2 tracking/score/campus/first-run settings: new preferences_kv keys, prefixed so they never meet RN's.
-const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen';
+const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins';
 
 /// Repositories over an opened db, reading and writing RN's exact rows and JSON shapes.
 class UdineStore {
@@ -182,6 +182,9 @@ class UdineStore {
   Future<void> setTracking(bool v) => _setKv(kTrackKey, v);
   Future<bool> charlesRiver() async => await _kv(kCharlesRiverKey) as bool? ?? false;
   Future<void> setCharlesRiver(bool v) => _setKv(kCharlesRiverKey, v);
+  /// Pinned cafés by name, in the order pinned (M2 `S.pins`).
+  Future<List<String>> pins() async => List<String>.from(await _kv(kPinsKey) as List? ?? []);
+  Future<void> setPins(List<String> v) => _setKv(kPinsKey, v);
   Future<bool> firstRunSeen() async => await _kv(kFirstRunSeenKey) as bool? ?? false;
   Future<void> setFirstRunSeen(bool v) => _setKv(kFirstRunSeenKey, v);
 

@@ -24,3 +24,7 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     net: NetMode.values.asNameMap()[q['net']] ?? NetMode.ok,
   );
 }
+
+/// `?photos=off` (screenshots): draw no UMass photos, so a capture can be committed. Same gate as recorded mode: a release build
+/// folds it away and can never reach it.
+bool photosOff(String route, {bool available = recordedAvailable}) => available && Uri.parse(route).queryParameters['photos'] == 'off';

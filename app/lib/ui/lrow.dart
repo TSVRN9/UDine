@@ -11,7 +11,11 @@ class LRow extends StatelessWidget {
   final Widget? trailing;
   final bool chevron, last;
   final VoidCallback? onTap;
-  const LRow({super.key, required this.title, this.subtitle, this.trailing, this.chevron = true, this.last = false, this.onTap});
+  /// the subtitle fades in on this when it arrives late (a slow load or a retry)
+  final Animation<double>? fade;
+  const LRow({super.key, required this.title, this.subtitle, this.trailing, this.chevron = true, this.last = false, this.onTap, this.fade});
+  Text get meta => Text(subtitle!, style: M2Text.meta.style(M2Color.slate));
+
   @override
   Widget build(BuildContext context) => Press(
         overlay: M2Color.pressRow, onTap: onTap, label: [title, ?subtitle].join(', '),
@@ -23,8 +27,8 @@ class LRow extends StatelessWidget {
             child: Row(children: [
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: M2Text.rowName.style(M2Color.ink)),
-                  if (subtitle != null) Padding(padding: const EdgeInsets.only(top: M2Layout.areaMetaGap), child: Text(subtitle!, style: M2Text.meta.style(M2Color.slate))),
+                  Text(title, style: M2Text.rowName.withLine(M2Layout.areaNameLine).style(M2Color.ink)),
+                  if (subtitle != null) Padding(padding: const EdgeInsets.only(top: M2Layout.areaMetaGap), child: fade == null ? meta : FadeTransition(opacity: fade!, child: meta)),
                 ]),
               ),
               const SizedBox(width: M2Space.panel),

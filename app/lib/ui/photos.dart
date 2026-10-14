@@ -1,7 +1,7 @@
 import '../theme/tokens.dart';
 
-// UMass Dining's photos are never committed and not bundled yet (menu-data brief). A missing file draws
-// nothing (the band's maroon ground shows), so a checkout without them still builds and tests.
+// UMass Dining's photos ship in the app (owner, 2026-10-14) but are never committed: app/assets/photos/ is gitignored and filled by
+// app/tool/link_photos.sh. A missing file draws nothing (the band's maroon ground shows), so a checkout without them still builds and tests.
 const hallPhoto = {'W': 'worcester.jpg', 'F': 'franklin.jpg', 'H': 'hampshire.jpg', 'B': 'berkshire.jpg'};
 /// A café's own location-card photo, by name (M2 `RIMG`); a café without one has the plain maroon header (M2 `nophoto`).
 const cafePhoto = {
@@ -19,7 +19,7 @@ const cafePhoto = {
 /// The asset path for a place's photo, or null.
 String? photoOf(String key, String name) {
   final f = key.startsWith('c') ? cafePhoto[name] : hallPhoto[key];
-  return f == null ? null : 'assets/bakeoff/${key.startsWith('c') ? 'retail/' : ''}$f';
+  return f == null ? null : 'assets/photos/${key.startsWith('c') ? 'retail/' : ''}$f';
 }
 
 /// Background-position x of the photo in a hall header (src.html .ph-W/F/H/B), as a fraction.

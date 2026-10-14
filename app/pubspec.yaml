@@ -83,6 +83,9 @@ flutter:
 
   # M2's recorded data (symlinks into docs/design): only the internal flavor bundles it, never store.
   assets:
+    # UMass Dining's photos: gitignored, filled by tool/link_photos.sh; the folders are kept by .gitkeep so a checkout without them builds
+    - assets/photos/
+    - assets/photos/retail/
     - path: assets/recorded/
       flavors:
         - internal

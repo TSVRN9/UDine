@@ -180,6 +180,12 @@ void main() {
       await s.setAvoid(['milk']);
       expect(await raw(), '{"allergensToAvoid":["milk"],"requiredDietTags":[]}');
     });
+    test('pinned cafés: empty by default, kept in the order pinned, beside RN keys', () async {
+      expect(await s.pins(), isEmpty);
+      await s.setPins(['Wasabi', 'Tamales']);
+      expect(await s.pins(), ['Wasabi', 'Tamales']);
+      expect(await raw(), rn);
+    });
     test('M2 keys default, round-trip, and sit beside RN keys', () async {
       expect([await s.tracking(), await s.charlesRiver(), await s.firstRunSeen(), await s.scores()], [true, false, false, (healthfulness: false, carbon: false)]);
       await s.setTracking(false);

@@ -46,6 +46,16 @@ void main() {
     test('no data flag, no switch', () => expect(recordedFlags('/hall/worcester?net=fail'), isNull));
   });
 
+  group('photos=off', () {
+    test('the flag turns photos off, wherever it sits in the query', () {
+      expect(photosOff('/halls?photos=off'), isTrue);
+      expect(photosOff('/halls?data=recorded&photos=off&at=2026-10-08T12:41'), isTrue);
+      expect(photosOff('/halls?data=recorded'), isFalse);
+      expect(photosOff('/halls?photos=on'), isFalse);
+    });
+    test('a release build cannot reach it', () => expect(photosOff('/halls?photos=off', available: false), isFalse));
+  });
+
   group('release guard', () {
     test('the gate is const and tracks kReleaseMode', () {
       expect(recordedAvailable, !kReleaseMode);
