@@ -912,3 +912,23 @@ state says what happened and what to do, in the place where it happened.**
   the title.
 - **Pinch zoom on a PDF.** The prototype's viewport is fixed (`maximum-scale=1`), as an app's is. The PDF page
   therefore has its own two-finger zoom (1× to 4×, CSS `zoom` on the pages), standing in for the platform's.
+- **Round 11b (owner's answers, 2026-10-14).**
+  - **A pho is named after its broth.** It replaces item 5's synthetic "Noodle Bowl" bowl name; the row in the list
+    still reads "Noodle Bowl", because it is the thing you add.
+    - In the sheet, the broths come first. A broth's `+` picks it, and picking another puts the first back: one broth
+      at a time, at 1, with no ½.
+    - The title changes in place to the broth's name, and the bowl goes on the plate under that name, "with" its
+      parts.
+    - With no broth picked, the title is the station's ("Noodle Bowl"), the foot reads 0, and Add is disabled, as on
+      the Salad Bar with nothing chosen. A pho has no base until a broth is picked.
+  - **Whitmore Café and Star Ginger follow the halls' rule.** Each has one pho builder. Its choices are the station's
+    phos (or Star Ginger's three ramens on Oct 14), the choice names the bowl, and the café's Add-ons are the toppings,
+    under their own heading. A café pho bar (Charles River, Oct 9 and 16) picks its broth. No single pho builds on
+    its own any more.
+  - **Pinned cafés are prefetched** at app open: today's menu and its PDFs. Unpinned cafés are saved once opened. So:
+    - offline Search names a pinned café among the saved menus;
+    - a pinned café's PDFs never say "Not saved".
+  - **PDF zoom** is pinch (1× to 4×) and double-tap (2.5× at the point tapped, and back). The pages scroll sideways
+    under a bar that stays.
+  - **A row with a button under it** (Notify me, Write to Health) hangs the button 12 px under the line's last line,
+    whether the line is one line or two.

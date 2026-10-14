@@ -1968,3 +1968,96 @@ viewed at both widths.
 - **USDA** wasn't reachable from this host, so the Packaged group shows only OpenFoodFacts.
 - **OpenFoodFacts' `cgi/search.pl` was down** (503) during this round. RN should consider moving to
   `search.openfoodfacts.org`, which RN doesn't call today. This is a port question, not M2's.
+
+
+## Round 11b: the owner's answers and the frame review (2026-10-14)
+
+Owner answers 1-4 and the orchestrator's frame review (fixes a-c), applied on the same branch. CONCEPT "Round 11, as
+built" has the design summary.
+
+### What changed
+- **Pho is named after its broth** (owner 1). `phoOf` builds the pho; `synBowl` names it after the chosen base.
+  - The sheet lists the broths first. A broth's `+` picks it and puts back any other, at 1 (no ½), and the title
+    changes in place.
+  - The plate item is "Green Curry Pho Broth (Anchovies) with Pho Noodles, Chicken for Pho" (288 cal), and reopens
+    with Update and its 3 choices.
+  - **The no-broth decision.** Until a broth is picked, the title is the station's ("Noodle Bowl"), the foot reads 0
+    and Add is disabled, like a Salad Bar with nothing chosen. A pho has no base until its broth is picked, and the
+    toppings alone aren't a pho.
+  - The list row still reads "Noodle Bowl" (orchestrator: the row is the thing you add; the heading names the
+    station).
+- **Café pho builders** (owner 2). A café Noodle Bowl beside an Add-ons or Toppings station (Whitmore Café, Star
+  Ginger) gets one builder. Its choices are the station's dishes, and its toppings are the café's add-ons with
+  nutrition, under the station's own heading ("Add-ons"). Prices sum: Chicken Pho w/Vegetable Broth $11.50 plus Hard
+  Boiled Eggs $1.75.
+  - The add-ons are checked first. Whitmore's phos are each named "… Broth", so the pho-bar test alone would have
+    taken every pho for a broth.
+  - A café pho bar with no add-ons (Charles River, Oct 9 and 16) picks its broth.
+  - No pho builds on its own (`buildOf` is null for each).
+- **Saved packaged and lookup foods** (owner 3): as built in round 11, unchanged.
+- **Pinned cafés are prefetched** (owner 4). `savedMenu` and `pdfSaved` count a pinned café as saved for today, menu
+  and PDFs. Offline Search's line names it ("…, and Green Fields, today."), and a pinned café's PDF rows never say
+  "Not saved".
+- **PDF zoom** (orchestrator): pinch (1× to 4×) and double-tap (2.5× at the point tapped, double-tap again for 1×).
+  - The zoom sets the pages' width: CSS `zoom` keeps an auto-width block at its container's width, so the pinch
+    built in round 11 couldn't have worked.
+  - The pages scroll sideways inside the page body, so the bar stays put. The first build scrolled the whole page
+    sideways, bar and all (caught in `p4/p-zoom`, fixed).
+  - Double-tap's zoom is instant: no motion token was added.
+- **a. Gap under a row's line** (`a-bgoff-*` 8 px vs `a-denied`/`a-revoked` 20 px). A row with a button under it
+  (`.hrow`) now aligns to its top. The button hangs a fixed 12 px under the line's last line, whether the line is one
+  line or two. The Health row uses the same rule.
+- **b. A café's collapsed header** (the title sat a line below the back and pin row in `p-rows` and
+  `p-offline-rows`). **This predates round 11 and isn't a layout fault.** Those frames were taken at scroll 200, inside
+  the header's 230 px collapse range, so the name was still travelling into the bar.
+  - Measured on Green Fields at 390, on round 10's build and on this one alike: at scroll 200 the name's centre is at
+    74 px against the back button's 50 px. At scroll 300 (fully collapsed) it's at 51 against 50, inline as in a
+    hall.
+  - The shots now scroll to 300. Crops: `p4/hdr-r10-200.png`, `hdr-r11-200.png`, `hdr-r10-300.png`,
+    `hdr-r11-300.png`.
+- **c. Events offline.** `o-idle` shows the events carousel offline, which assumes the last events list is cached on
+  the phone. The Flutter data layer (`flutter-port-menu-data`) caches menus and hours but not events. Events need a
+  day cache like hours (`events:v2:<date>`), or offline Search will lose its Events row.
+
+### Tests (`round11`, now 10 scenarios; RED first)
+- **New scenarios:**
+  - "pho: named after the broth picked; Add waits for one; one broth at a time; Whitmore and Star Ginger build one
+    pho";
+  - "pinned cafés are saved: their menu and PDFs open offline";
+  - "a PDF page: double-tap zooms in where tapped, and again back out";
+  - "a row with a button under it: the button sits 12 px under the line, one line or two" (Notify me denied,
+    background off on iOS and Android, and Health denied).
+- **Red:** `RED=11 SRC=build/r11/before-r11b-index.html` (round 11 as first delivered) gives these four RED, and the
+  first six stay green (`build/r11/red-r11b.txt`):
+  ```
+  RED    pho: … Whitmore and Star Ginger build one pho: a broth names the bowl
+  RED    pinned cafés are saved: their menu and PDFs open offline: a pinned café is saved
+  RED    a PDF page: double-tap zooms in where tapped, and again back out: double-tap: 2.5x
+  RED    a row with a button under it: the button sits 12 px under the line, one line or two: &alerts=deny: 12 px from the line to Open Settings
+  ```
+- **Changed after the red run:** the zoom check reads the page body's sideways scroll and that the bar stays, instead
+  of the page's.
+- **Now:**
+  - `RED=11 node test.js` gives 10 green scenarios, 132 checks;
+  - `node test.js` gives 5,211 checks, all green;
+  - `RM=1 node test.js` gives 3,494, all green.
+- **One flake.** One normal run before that failed once in round 9b's "its pin is kept but not drawn" (0 pinned bands
+  instead of 1).
+  - The same build passed it on the next normal run and under `RM=1`. It passes on its own too (pins stored, page
+    loaded: 1 band).
+  - Nothing in round 11b writes `udine-m2` asynchronously: every `save()` is on a tap. I couldn't reproduce it.
+- `vectors.json`: 15 plate sequences, 120 synthetic station-days (97 + the 23 café pho builders), and 82 bases.
+- **Vectors:**
+  - `bowlbase` gains `choices` (the broths) on the 15 synthetic pho bars;
+  - `plate` gains a pho bar bowl ("Green Curry Pho Broth (Anchovies)" with Pho Noodles and Chicken for Pho) and
+    Whitmore's pho builder (Chicken Pho w/Vegetable Broth with Hard Boiled Eggs);
+  - `synthetic` now also lists the café pho builders.
+
+### Shots (`build/r11/p4`, 390 left and 360 right at dpr 2; `sheet1.png` to `sheet3.png`)
+- Re-shot or new: a-denied, a-revoked, a-bgoff-ios, a-bgoff-android, p-rows, p-offline-rows, b-pho, b-pho-none,
+  b-pho-sheet, b-pho-plate, b-whitmore, b-starginger, o-pinned, p-pinned-offline and p-zoom, plus the header crops.
+  All were viewed at both widths. The one flaw found (zoom scrolled the bar away) is fixed, and `p-zoom` was
+  re-shot.
+- **Open (unchanged otherwise).** The pho's broths have no heading of their own: the title says "Noodle Bowl" until
+  one is picked, then the broth's name. If the owner wants the choice spelled out, the station's own heading
+  pattern ("Broths") would be new copy, so it isn't added.
