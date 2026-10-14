@@ -957,7 +957,7 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
 │ 20 oz Cold Brew                        │ │ …                                │ │ …                                │
 │ 1 cal  0g protein                    + │ ├──────────────────────────────────┤ ├──────────────────────────────────┤
 │ Boba                                   │ │ 0 cal  0g protein        [ Add ] │ │ 0 cal  0g protein        [ Add ] │
-│ Almond Milk   180 cal  0.3g protein  + │ └──────────────────────────────────┘ └──────────────────────────────────┘
+│ Almond   180 cal  0.3g protein       + │ └──────────────────────────────────┘ └──────────────────────────────────┘
 └────────────────────────────────────────┘
   a lone size (Cold Brew, the iced drinks) is a dish: it keeps the feed's name
 ```
@@ -984,8 +984,8 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
 
 ### 2. The row: one row, standing for its default
 - **One row per family**, where its first member was in the feed's order. The other members' rows are gone.
-- **The name is the family's** ("Cappuccino", "Boba"). The meta line leads with the default's token as its own group
-  ("16 oz", "Almond Milk"), then that variant's numbers and scores. A row says what its `+` adds; a range ("180 to
+- **The name is the family's** ("Cappuccino", "Boba"). The meta line leads with the default's token as its own group,
+  in its chip's word ("16 oz", "Almond"; round 12 frame review), then that variant's numbers and scores. A row says what its `+` adds; a range ("180 to
   275 cal") couldn't, and the data has ranges that run backwards (Caramel Macchiato: 152 cal at 16 oz, 27 at 20 oz).
 - **`+` adds the default in one tap**, as a row always does, and its stepper counts the default. Another variant,
   picked in the sheet, goes on the plate as its own item; the row doesn't count it. That is round 10's bowl rule: a
@@ -1067,7 +1067,7 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
 - **A family matches once.** "boba" gives one row, "Boba", in "At cafés", with the three cafés in its lane. It matches
   on any member's name, so "oat" finds Boba too. "Later today and tomorrow" lists a family once as well.
 - **What you typed picks the row's variant.** "oat" or "boba oat" makes the row stand for Boba, Oat Milk (its meta
-  says "Oat Milk", its `+` adds it); "20 oz latte" makes Latte stand for its 20 oz. Otherwise the row is the default.
+  says "Oat", its `+` adds it); "20 oz latte" makes Latte stand for its 20 oz. Otherwise the row is the default.
 - **Favouriting stars the family.** The star in the sheet is the same whichever chip is chosen: you like boba, and
   every milk is served wherever one is. The Favorites lens, the Favorites page and the row's star all read the family.
 - **Alerts match the family.** A run posts once per family per day when any member is on a menu, titled with the

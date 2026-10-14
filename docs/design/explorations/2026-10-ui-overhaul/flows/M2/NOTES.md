@@ -2349,7 +2349,7 @@ bar (none chosen, chosen with parts), Whitmore's and Star Ginger's pho builders,
   beside Harvest Market's family. Added after: the chip rects check (pass 1). Each scenario's red was already recorded.
 - **Older tests changed:** round 11b's pho scenario picks a broth, and a café's first pho, by its chip instead of its
   add-in row, and "one broth at a time" counts chosen chips.
-- **Now:** `RED=12 node test.js` gives 6 green scenarios, 73 checks. `node test.js` gives 5,116 checks and `RM=1 node
+- **Now:** `RED=12 node test.js` gives 6 green scenarios, 74 checks (after the frame-review fix below). `node test.js` gives 5,296 checks and `RM=1 node
   test.js` gives 3,631, all green.
 
 ### Vectors (`vectors.js` -> `vectors.json`; the shape is in its header)
@@ -2380,3 +2380,23 @@ bar (none chosen, chosen with parts), Whitmore's and Star Ginger's pho builders,
   8's "missing data draws nothing" says it shouldn't. It predates round 12; the picker makes it visible.
 - **A café's add-ons apply to every dish at that meal** (round 10's café rule), so Roots Café's lunch boba builds with "Add
   Bacon Quesadilla". Not round 12's, but the picker opens those builders more often.
+
+### Round 12, orchestrator frame review of `p3`
+- **The defect.** At 360, a boba row put "Almond Milk" on a line of its own, with the numbers under it (`m-proc`, `s-boba`,
+  `s-oat`). It wasn't a stray break: the row's text column is 210 px at 360, because the control lane is kept as wide as
+  the stepper so that `+` → stepper never rewraps the name (`.row>.add{margin-left:66px}`). The token group (76 px), the
+  10 px group gap and the numbers group (132 px) came to 218 px, so round 8's whole-group wrap moved the numbers down. "16
+  oz" is 36 px, so sizes never wrapped.
+- **The fix.** The row's token is now the chip's own word ("Almond", "Oat", "16 oz"), the word the picker uses: 48 + 10 +
+  132 = 190 px. The sheet's name and the plate keep the full form ("Boba, Almond Milk"). The concept's row frame read
+  "Almond Milk"; this replaces it.
+- **Test** (red first, against the build before the fix: `RED … it stands for the first milk in the feed's order, in its
+  chip's word`): at 360, Procrastination Station's Boba row has its token and its calories on one line (their boxes overlap
+  vertically, and the token sits to the left). Search's "oat" row expects "Oat 262 cal".
+- **Shots:** `build/r12/p4` (`m-proc`, `s-boba`, `s-oat`, `s-oatmeal`, `z-wcafe`; `sheet.png`).
+- **Check counts.** The full suite read 5,390 checks at round 11b and reads 5,296 on the final run, though round 12 adds about 74 and
+  removes none. The difference is sampled frames, not coverage: round 7's motion checks assert per rendered frame, and the
+  count moves by hundreds between runs (round 12's builds gave 5,461, then 5,116 an hour later with only a CSS change between, then
+  5,296 after this fix). Reduced motion, which asserts no sampled frames, rose: 3,494 at round 11b, 3,631 now. No
+  scenario or assert was removed. Worcester Café and the soup cafés show fewer rows, since a family is one row, so a check
+  that walks every row there walks fewer duplicates.
