@@ -1,0 +1,419 @@
+{
+  "format": "Token-AND dish-name search (matchesQuery). kind=match: input {name, query} -> boolean. Both strings are lowercased and every run of characters outside [a-z0-9] (including all non-ASCII letters) becomes one space; the query splits on spaces into tokens; true iff there is at least one token and each token is a substring of the normalized name. Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
+  "cases": [
+    {
+      "kind": "match",
+      "name": "\"White Cheese Pizza\" / \"white pizza\"",
+      "input": {
+        "name": "White Cheese Pizza",
+        "query": "white pizza"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"White Cheese Pizza\" / \"pizza white\"",
+      "input": {
+        "name": "White Cheese Pizza",
+        "query": "pizza white"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"White Kidney Beans\" / \"white pizza\"",
+      "input": {
+        "name": "White Kidney Beans",
+        "query": "white pizza"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"white cheese pizza\" / \"WHITE PIZZA\"",
+      "input": {
+        "name": "white cheese pizza",
+        "query": "WHITE PIZZA"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"White Cheese Pizza\" / \"pizza, white\"",
+      "input": {
+        "name": "White Cheese Pizza",
+        "query": "pizza, white"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"White Cheese Pizza\" / \"white  pizza\"",
+      "input": {
+        "name": "White Cheese Pizza",
+        "query": "white  pizza"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Grandma's Lasagna\" / \"lasagna\"",
+      "input": {
+        "name": "Grandma's Lasagna",
+        "query": "lasagna"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Grandma's Lasagna\" / \"grandmas\"",
+      "input": {
+        "name": "Grandma's Lasagna",
+        "query": "grandmas"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Grandma's Lasagna\" / \"grandma s\"",
+      "input": {
+        "name": "Grandma's Lasagna",
+        "query": "grandma s"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Grandma's Lasagna\" / \"pizza\"",
+      "input": {
+        "name": "Grandma's Lasagna",
+        "query": "pizza"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Anything\" / \"\"",
+      "input": {
+        "name": "Anything",
+        "query": ""
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Anything\" / \"   \"",
+      "input": {
+        "name": "Anything",
+        "query": "   "
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Anything\" / \"!!!\"",
+      "input": {
+        "name": "Anything",
+        "query": "!!!"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Anything\" / \"???\"",
+      "input": {
+        "name": "Anything",
+        "query": "???"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"\" / \"pizza\"",
+      "input": {
+        "name": "",
+        "query": "pizza"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"\" / \"\"",
+      "input": {
+        "name": "",
+        "query": ""
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Chicken Parm\" / \"chick\"",
+      "input": {
+        "name": "Chicken Parm",
+        "query": "chick"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Chicken Parm\" / \"ken par\"",
+      "input": {
+        "name": "Chicken Parm",
+        "query": "ken par"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Chicken Parm\" / \"chicken chicken\"",
+      "input": {
+        "name": "Chicken Parm",
+        "query": "chicken chicken"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Mac & Cheese\" / \"mac cheese\"",
+      "input": {
+        "name": "Mac & Cheese",
+        "query": "mac cheese"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Mac & Cheese\" / \"mac & cheese\"",
+      "input": {
+        "name": "Mac & Cheese",
+        "query": "mac & cheese"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Mac & Cheese\" / \"macandcheese\"",
+      "input": {
+        "name": "Mac & Cheese",
+        "query": "macandcheese"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Mac-n-Cheese\" / \"mac n cheese\"",
+      "input": {
+        "name": "Mac-n-Cheese",
+        "query": "mac n cheese"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Mac-n-Cheese\" / \"macn\"",
+      "input": {
+        "name": "Mac-n-Cheese",
+        "query": "macn"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Soup (Tomato)\" / \"tomato soup\"",
+      "input": {
+        "name": "Soup (Tomato)",
+        "query": "tomato soup"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Soup (Tomato)\" / \"(tomato)\"",
+      "input": {
+        "name": "Soup (Tomato)",
+        "query": "(tomato)"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Cheese Pizza\" / \"cheesepizza\"",
+      "input": {
+        "name": "Cheese Pizza",
+        "query": "cheesepizza"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Pizza 2 Go\" / \"2\"",
+      "input": {
+        "name": "Pizza 2 Go",
+        "query": "2"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Pizza 2 Go\" / \"pizza2\"",
+      "input": {
+        "name": "Pizza 2 Go",
+        "query": "pizza2"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Route 66 Burger\" / \"66\"",
+      "input": {
+        "name": "Route 66 Burger",
+        "query": "66"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Jalapeño Poppers\" / \"jalapeno\"",
+      "input": {
+        "name": "Jalapeño Poppers",
+        "query": "jalapeno"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Jalapeño Poppers\" / \"jalape\"",
+      "input": {
+        "name": "Jalapeño Poppers",
+        "query": "jalape"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Jalapeño Poppers\" / \"poppers\"",
+      "input": {
+        "name": "Jalapeño Poppers",
+        "query": "poppers"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Crème Brûlée\" / \"creme brulee\"",
+      "input": {
+        "name": "Crème Brûlée",
+        "query": "creme brulee"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Crème Brûlée\" / \"brûlée\"",
+      "input": {
+        "name": "Crème Brûlée",
+        "query": "brûlée"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Café Mocha\" / \"cafe mocha\"",
+      "input": {
+        "name": "Café Mocha",
+        "query": "cafe mocha"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Café Mocha\" / \"mocha\"",
+      "input": {
+        "name": "Café Mocha",
+        "query": "mocha"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Açaí Bowl\" / \"bowl\"",
+      "input": {
+        "name": "Açaí Bowl",
+        "query": "bowl"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"日本 Ramen\" / \"ramen\"",
+      "input": {
+        "name": "日本 Ramen",
+        "query": "ramen"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"日本 Ramen\" / \"日本\"",
+      "input": {
+        "name": "日本 Ramen",
+        "query": "日本"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Dish\\twith\\ttabs\" / \"with tabs\"",
+      "input": {
+        "name": "Dish\twith\ttabs",
+        "query": "with tabs"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Line\\nBreak Soup\" / \"line soup\"",
+      "input": {
+        "name": "Line\nBreak Soup",
+        "query": "line soup"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"Dotted.Name\" / \"dotted name\"",
+      "input": {
+        "name": "Dotted.Name",
+        "query": "dotted name"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"ÀLA CARTE\" / \"a la carte\"",
+      "input": {
+        "name": "ÀLA CARTE",
+        "query": "a la carte"
+      },
+      "expected": true
+    },
+    {
+      "kind": "match",
+      "name": "\"İstanbul Kebab\" / \"istanbul\"",
+      "input": {
+        "name": "İstanbul Kebab",
+        "query": "istanbul"
+      },
+      "expected": false
+    },
+    {
+      "kind": "match",
+      "name": "\"Straße Fries\" / \"strasse\"",
+      "input": {
+        "name": "Straße Fries",
+        "query": "strasse"
+      },
+      "expected": false
+    }
+  ]
+}

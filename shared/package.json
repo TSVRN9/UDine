@@ -9,7 +9,8 @@
   "scripts": {
     "lint": "eslint .",
     "test": "TZ=America/New_York node --experimental-strip-types --test src/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "vectors": "TZ=America/New_York node --experimental-strip-types scripts/gen-vectors.ts"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "^2.112.3"
