@@ -25,6 +25,19 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "channel"
+    productFlavors {
+        create("store") {
+            dimension = "channel"
+            resValue("string", "app_name", "UDine")
+        }
+        create("internal") {
+            dimension = "channel"
+            applicationIdSuffix = ".internal"
+            resValue("string", "app_name", "UDine (internal)")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
