@@ -52,7 +52,8 @@ Rationale:
   `eas submit`. Unproven parts:
   - signing a store build (the published example builds a simulator app without credentials);
   - `eas/configure_ios_credentials` against Flutter's `Runner.xcworkspace`;
-  - the time to install Flutter on each build, against the free plan's monthly iOS build quota.
+  - the time to install Flutter on each build. The owner notes (2026-10-13) that iOS builds are capped by
+    count, not billed by the minute, so that time costs wall clock, not quota.
 
   **Fallback:** Codemagic, whose own docs cover Flutter, signing and both stores, and which has a free
   tier. comes after both stores ship the Flutter build and a week passes with no data
@@ -82,12 +83,13 @@ Rationale:
 
 1. **Predictive back** — files: `app/android/app/src/main/AndroidManifest.xml`, `app/lib/motion/` —
    lanes: flutter, the A53 run — blocked by: halls 1 — PR:
-1b. **Build spike (needs the owner's go-ahead, because it runs `eas build`):** an Android custom build with
+1b. **Build spike, run once the Flutter app is done (owner, 2026-10-13: "Try it out after flutter is
+   done"):** an Android custom build with
    `eas build -p android --local` (on this machine, no cloud quota, no store upload), then one iOS cloud
    build for internal distribution (one of the month's free iOS builds). Neither goes to a store track.
    If signing or `configure_ios_credentials` can't be made to work, switch to Codemagic and record why —
    files: `app/eas.json`, `app/.eas/build/*.yml`, `app/package.json`, `app/app.json` — lanes: the builds
-   themselves — blocked by: foundation 2, the owner's go-ahead — PR:
+   themselves — blocked by: roadmap items 1–13 — PR:
 2. **Store builds and the upgrade checks** — release signing on the path the spike chose, the Play
    internal-track check, TestFlight and the tester pass — files: `app/android/`, `app/ios/`, `eas.json`
    or `app/fastlane/` — lanes: flutter, the device checks — blocked by: every other port brief, the
