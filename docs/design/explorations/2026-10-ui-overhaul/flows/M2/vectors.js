@@ -30,7 +30,7 @@
 //              // one is unscored (null) and draws nothing. carbon is the CR letter; none draws nothing.
 //   "price": [ {"dish", "place", "feedPrice", "shown"} ]   // the sheet shows a price only for a café serving
 // }
-const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core');
+const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const fs = require('fs');
 const CLOCK = '2026-10-08T12:41:00-04:00';
 const at = m => `2026-10-08T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00-04:00`;
