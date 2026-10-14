@@ -2169,7 +2169,7 @@
      "label": "Berkshire dinner",
      "items": [
       [
-       "Your salad from the Salad Bar",
+       "Salad Bar",
        1,
        {
         "parts": [
@@ -16684,6 +16684,1462 @@
    "place": "Franklin",
    "feedPrice": "$0.08",
    "shown": null
+  }
+ ],
+ "bowlbase": [
+  {
+   "day": "2026-10-08",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Beef Brisket Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-08",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Kumamoto Style Ramen (Pork & Chicken)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-08",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-08",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Vietnamese Pork & Shrimp Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-08",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Beef Brisket Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-08",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-09",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Chicken Katsu",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-09",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Chicken Katsu",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-09",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Tonkotsu Ramen (Fish)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-09",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Chicken Congee",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-09",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Chicken, Pork & Shrimp Wonton Soup",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-11",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-11",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-11",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Chicken Congee",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-11",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-11",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-11",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-12",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Bun Bo Hue (Vietnamese Beef Noodle Bowl)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-12",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Pork & Tofu Kimchi Stew",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-12",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-12",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Pork & Shrimp Wonton Soup",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-12",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Japanese Curry Noodles",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-12",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Sapporo Miso Ramen (Pork)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-13",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Sapporo Miso Ramen (Pork)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-13",
+   "place": "W",
+   "meal": "dinner",
+   "base": "GF Japanese Curry Rice Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-13",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Sapporo Miso Ramen (Pork)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-13",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Tantanmen Ramen Bar",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-13",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Bun Bo Hue (Vietnamese Beef Noodle Bowl)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-13",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Hainanese Chicken Rice",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-14",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-14",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Korean Black Bean Noodles",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-14",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Beef Brisket Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-14",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Japanese Curry Noodles",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-14",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Bun Heo Quay (Crispy Pork Belly Bowl)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-14",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Masala Dosa",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-15",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Beef Brisket Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-15",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Tantanmen Ramen Bar",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-15",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-15",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Bun Bo Hue (Vietnamese Beef Noodle Bowl)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-15",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Tonkotsu Ramen (Fish)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-15",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-16",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Chicken Katsu",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-16",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Hot Pot (Chicken, Beef, Pork, Shellfish)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-16",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Tantanmen Ramen Bar",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-16",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Tonkotsu Ramen (Fish)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-16",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Chicken Congee",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-16",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Chicken, Pork & Shrimp Wonton Soup",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-17",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Tantanmen Ramen Bar",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-17",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Chicken Shoyu Ramen Bar (Fish, Shellfish)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-17",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Chicken Congee",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-17",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Tom Kha Gai (Coconut Lemongrass Soup)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-17",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Tantanmen Ramen Bar",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-17",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Tantanmen Ramen Bar",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-18",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-18",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-18",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Chicken Congee",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-18",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-18",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-18",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-19",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Shrimp Tom Yum Soup (Chicken Broth)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-19",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Spicy Nagoya Style Ramen (Pork, Chicken, Seafood)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-19",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-19",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Bun Thang Hanoi (Hanoi-Style Chicken Pork Soup)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-19",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Chicken, Pork & Shrimp Wonton Soup",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-19",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Tonkotsu Ramen (Fish)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-20",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Tonkotsu Ramen (Fish)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-20",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Khoa Soi",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-20",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Shoyu Ramen Bar (Fish, Chicken)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-20",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Tantanmen Ramen Bar",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-20",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-20",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Hainanese Chicken Rice",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-21",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Beef Brisket Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-21",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-21",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Beef Brisket Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-21",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Taiwanese Beef Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-21",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Chinese Grilled Cold Noodles (Pork & Peanuts)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-22",
+   "place": "W",
+   "meal": "lunch",
+   "base": "Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp)",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-22",
+   "place": "W",
+   "meal": "dinner",
+   "base": "Hakka Rice Noodles",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-22",
+   "place": "H",
+   "meal": "lunch",
+   "base": "Noodle Bowl",
+   "synthetic": true
+  },
+  {
+   "day": "2026-10-22",
+   "place": "H",
+   "meal": "dinner",
+   "base": "Chicken and Rice Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-22",
+   "place": "B",
+   "meal": "lunch",
+   "base": "Vietnamese Pork & Shrimp Noodle Bowl",
+   "synthetic": false
+  },
+  {
+   "day": "2026-10-22",
+   "place": "B",
+   "meal": "dinner",
+   "base": "Laksa Noodle Bowl (Shrimp, Fish, Eggs, Almonds,Tofu)",
+   "synthetic": false
+  }
+ ],
+ "synthetic": [
+  {
+   "day": "2026-10-08",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "H",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "W",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "W",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "H",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-11",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "H",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-17",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-17",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-17",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-17",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-17",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-17",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-17",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "W",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "W",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "c28",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "c28",
+   "meal": "dinner",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "H",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-18",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-19",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-19",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-19",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-20",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-20",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-20",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-21",
+   "place": "W",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-21",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-21",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-21",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-22",
+   "place": "F",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-22",
+   "place": "H",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-22",
+   "place": "B",
+   "meal": "lunch",
+   "station": "Deli Bar",
+   "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-22",
+   "place": "B",
+   "meal": "dinner",
+   "station": "Salad Bar/Dressings",
+   "label": "Salad Bar"
+  }
+ ],
+ "alerts": [
+  {
+   "favorites": [
+    "Beef Brisket Noodle Bowl",
+    "Golden BBQ Chicken Thigh"
+   ],
+   "runs": [
+    {
+     "clock": "6:50 AM",
+     "posted": []
+    },
+    {
+     "clock": "7:15 AM",
+     "posted": [
+      [
+       "Beef Brisket Noodle Bowl",
+       "Lunch from 11 AM at Worcester and Berkshire"
+      ],
+      [
+       "Golden BBQ Chicken Thigh",
+       "Lunch from 11 AM at Worcester"
+      ]
+     ]
+    },
+    {
+     "clock": "7:30 AM",
+     "posted": []
+    }
+   ]
+  },
+  {
+   "favorites": [
+    "Beef Brisket Noodle Bowl"
+   ],
+   "runs": [
+    {
+     "clock": "5:00 PM",
+     "posted": []
+    }
+   ]
+  },
+  {
+   "favorites": [
+    "Green Chile Posole"
+   ],
+   "runs": [
+    {
+     "clock": "3:45 PM",
+     "posted": [
+      [
+       "Green Chile Posole",
+       "Lunch now, until 4:30 PM, at Worcester, Franklin, Hampshire and Berkshire"
+      ]
+     ]
+    },
+    {
+     "clock": "4:31 PM",
+     "posted": []
+    }
+   ]
+  },
+  {
+   "favorites": [
+    "Korean BBQ Chicken",
+    "Chewy M&M Bar"
+   ],
+   "runs": [
+    {
+     "clock": "12:41 PM",
+     "posted": [
+      [
+       "Korean BBQ Chicken",
+       "Dinner from 4:30 PM at Berkshire"
+      ],
+      [
+       "Chewy M&M Bar",
+       "Grab 'N Go now, until 4 PM, at Franklin"
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "packaged": {
+  "query": "clif",
+  "yours": [
+   "Clif Bar Chocolate Chip",
+   "Chobani"
+  ],
+  "shown": [
+   [
+    "Clif bar",
+    368
+   ],
+   [
+    "Clif Bar Duos",
+    404
+   ],
+   [
+    "Clif bar mini chocolate chip",
+    100
+   ],
+   [
+    "Clif Bar Peanut Butter Banana",
+    394
+   ],
+   [
+    "Clif Bar Cool Mint Chocolate",
+    368
+   ],
+   [
+    "Clif Bar Crunchy Peanut Butter",
+    382
+   ],
+   [
+    "Clif Bar Dark Chocolate Mocha",
+    368
+   ],
+   [
+    "Clif bar minis - coffee collection",
+    357
+   ],
+   [
+    "CLIF bar white chocolate macadamia nut",
+    387
+   ],
+   [
+    "Clif Bar Mini White Chocolate Macadamia Nut",
+    393
+   ],
+   [
+    "Clif Bar Cool Mint Chocolate Energy Bars Nutritional Supplement",
+    368
+   ],
+   [
+    "Clif bar, clif kid, z organic twisted fruit & veggie rope, mango mania",
+    278
+   ],
+   [
+    "Clif bar organic twisted fruit bars mixed berry",
+    350
+   ]
+  ]
+ },
+ "saved": [
+  {
+   "net": "offline",
+   "savedCafes": [],
+   "place": "W",
+   "day": 0,
+   "saved": true
+  },
+  {
+   "net": "offline",
+   "savedCafes": [],
+   "place": "W",
+   "day": 1,
+   "saved": true
+  },
+  {
+   "net": "offline",
+   "savedCafes": [],
+   "place": "W",
+   "day": 2,
+   "saved": false
+  },
+  {
+   "net": "offline",
+   "savedCafes": [],
+   "place": "c3",
+   "day": 0,
+   "saved": false
+  },
+  {
+   "net": "offline",
+   "savedCafes": [
+    "Green Fields"
+   ],
+   "place": "c3",
+   "day": 0,
+   "saved": true
+  },
+  {
+   "net": "offline",
+   "savedCafes": [
+    "Green Fields"
+   ],
+   "place": "c3",
+   "day": 1,
+   "saved": false
+  },
+  {
+   "net": "fail",
+   "savedCafes": [],
+   "place": "W",
+   "day": 0,
+   "saved": false
   }
  ]
 }

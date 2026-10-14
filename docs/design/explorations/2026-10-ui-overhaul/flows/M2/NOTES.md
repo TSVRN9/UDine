@@ -1649,3 +1649,297 @@ bottom scroll padding equal to the foot.
   over the day's totals and meals. Before, the title switched between "Today" and "UDine / You", although the tab is
   always "You".
 - Shot: `build/r9/p10/you-title.png` (on at 390 and 360, then off).
+
+
+## Round 11: what isn't on a menu, and what you can't reach
+
+Brief: `docs/briefs/m2-round-11.md`, Task 1. Critique: `CRITIQUE-r11.md`. Concept: `CONCEPT.md`, "Round 11", written and
+committed before the build. Items 1-4 are designs; item 5 applies the owner's bowl decisions of 2026-10-13.
+
+### Data (`build.py`)
+- **The Commonwealth Restaurant** is appended as `c29` (area 1, "North, by Worcester", building "Worcester Commons"), so no
+  earlier key moves. Its hours (11 AM to 9 PM), payment and description come from the Oct 8 capture. Its address and
+  map pin come from the Oct 11 snapshot, and its photo is UMass's location card. Places now number 30, and 29 Amherst
+  cafés are open at 12:41.
+- **Café PDF menus** come from `locations-2026-10-13.json`, the live `uapp/get_infov2` fetched for this round
+  (2026-10-13 22:00 EDT, committed beside the earlier snapshots).
+  - Every `<a>` in a retail menu's HTML is read; `parseRetailMenuHtml` reads only the first. Links are host-gated to
+    umassdining.com.
+  - The label is the link's own words, cut to the menu's name: "Click here for the Lite Fare Menu" becomes "Lite fare".
+  - **Places publishing a PDF in the live feed today:**
+
+    | Place | PDFs | Hours this week | In M2 |
+    |---|---|---|---|
+    | The Commonwealth Restaurant | Lunch (2 pages), Lite Fare (1), Dinner (2), Dessert (1) | Mon-Fri 11 AM-9 PM, Sat 4-9 PM, Sun closed | yes, `c29` |
+    | babyBerk (food truck) | "Baby Berk Menu" (1 poster page) | closed every day | no: closed, no address (`map_address` is ",") |
+    | babyBerk 2 (food truck) | "Baby Berk 2 Menu" (1 poster page) | closed every day | no, same |
+
+  - All six PDFs downloaded (HTTP 200, `application/pdf`). The four Commonwealth PDFs are kept in `local/pdf/`
+    (gitignored, UMass's). `build.py` rasterizes their pages with `pdftoppm` at 1074 px wide into `build/pdf/` and
+    embeds them, like the photos.
+  - The Lunch PDF's second page is the dessert and beverage list. That is the PDF as UMass publishes it.
+- **Packaged foods** come from `packaged-2026-10-13.json`, recorded from OpenFoodFacts:
+  - the search "clif bar" (20 hits);
+  - the product 0722252068484 (Clif Bar Chocolate Chip, 1 bar (68 g), 250 cal), trimmed to the fields M2 reads.
+  - The endpoint RN calls, `cgi/search.pl`, answered 503 ("Page temporarily unavailable") twice at 22:05, so the
+    search was recorded from `search.openfoodfacts.org`, which answered.
+  - USDA FoodData Central couldn't be reached from this host (DNS failed for `api.nal.usda.gov`), so no USDA answer is
+    recorded. The Packaged group would show it the same way.
+  - A query the recording doesn't cover answers nothing. That is a prototype limit, not a design.
+- **Search UMass Dining** isn't called: `lookup-dish` spends a global budget. The prototype answers from the recorded
+  days a dish is served that aren't today or tomorrow. "laksa" finds Laksa Noodle Bowl (Berkshire, Oct 22), which is a
+  real UMass dish with its real nutrition.
+- **Seeded "Your foods"** (seeded, not recorded): Chobani, a custom food with round 10's vector numbers (140 cal, 12 g
+  protein); and the recorded Clif Bar Chocolate Chip, as if added before.
+- The page is 6.9 MB, up from 5.6 MB; the PDF pages are most of the difference.
+
+### Design (as built; motion all existing)
+**1. Packaged and saved foods.**
+- **Search order.** Search's list continues past the menus:
+  - Places, then the diet line, then "Lunch now", "At cafés", "Later today and tomorrow";
+  - then **Your foods**, **Packaged**, and **Search UMass Dining for “x”** (a text button);
+  - then "Add “x” as a custom food".
+- **Rows.** These rows use Search's row. The lane holds only `+`, because the food isn't served anywhere. A per-100 g hit
+  reads "368 cal per 100 g", and its `+` adds one 100 g serving.
+- **Packaged hits.** A name is shown once, a hit with no calories is dropped, and a food already in Your foods isn't
+  repeated. A name that lacks its brand's first word leads with the brand.
+- **Saving.** Adding any of them saves it to Your foods (`saveFood`), and the row moves into Your foods (Search's FLIP).
+  A new custom food is saved too.
+- **The sheet** (`openFood`). It has the identity group, Contains (OFF's tags mapped to M2's eleven), Add to plate, the
+  label (%DV from FDA values) and the ingredients. There's no "where", no grades and no star.
+  - A saved food has **Edit** in the star's slot. It turns the sheet into the form in place, with **Save** and
+    **Delete**.
+  - Delete puts the sheet away and shows "Deleted Chobani" with Undo in the bar's slot.
+- **You.** A **Your foods** row ("2 foods"), with tracking on, opens a pushed page, newest first.
+- **Export.** JSON gains `foods`; CSV appends a second table after the log.
+- **Tracking off** removes Your foods, Packaged, Search UMass Dining, the custom food and the You row. `S.foods` is
+  kept.
+- **Search UMass Dining states, in its slot** (`?lookup=found|none|offline|limited`):
+  - the indicator after 400 ms, in a 52 px slot the size of the button, so nothing below moves;
+  - found: a "UMass Dining" group;
+  - none: "UMass Dining has nothing else called “laksa”.";
+  - failed: "Couldn't reach UMass Dining." with Try again;
+  - rate-limited: "Searching UMass Dining is paused until 1 PM."
+- `?pack=fail`: "Packaged foods didn't load." with Try again, under the Packaged heading. The concept doesn't name this
+  state; it follows critique point 7 (OFF's own outage).
+
+**2. Favourite alerts.**
+- **The switch.** "Notify me", with "When a favorite is on today's menu", heads the Favorites page above a hairline.
+- **The OS ask** (`?alerts=allow|deny|blocked|bgoff`):
+  - a tap raises the OS's own sheet (drawn neutral, as round 10's);
+  - denied or blocked: "Notifications are off for UDine" with **Open Settings**. Blocked raises no sheet;
+  - background off: checked, with "Background App Refresh is off, so UDine can't check menus" (iOS) or "Battery use is
+    restricted, so UDine can't check menus" (Android), and Open Settings.
+- **`alertRun(now)`** is the background run:
+  - one notification per dish per logical day, keyed (dish, day), with every place in one body;
+  - nothing before 7 AM;
+  - nothing once the dish's last serving today has ended.
+  - The body is the sheet's "where" sentence: "Lunch from 11 AM at Worcester and Berkshire".
+- `?notify=1` shows the 7:15 AM run's banner. A tap pushes Worcester at lunch, scrolled to the dish, with the row marked.
+
+**3. Café PDF menus.**
+- **The café page.** The Commonwealth Restaurant's body is "Menus", then four rows (Lunch, Lite fare, Dinner, Dessert),
+  Add a custom food, and the description last. Pass 1 moved the description after the rows: first, it pushed every
+  row below the fold.
+- **A row pushes "Lunch menu"**: the pages at the screen's width, 16 px gutters, on chalk.
+  - Online, the first open loads for 600 ms (the indicator after 400 ms), then the pages fade in. After that the menu
+    is kept (`SAVED`).
+  - Offline: never-opened rows say "Not saved", and the page says "You're offline, and this menu isn't saved on this
+    phone."
+  - `?saved=pdf:Lunch` marks one as opened before.
+  - Failed: "The lunch menu didn't load." with Try again.
+- **Zoom.** Pinch-zoom is the platform's; in the prototype it is the browser's. At 1× the menu's text is about 6 px.
+  That is the PDF's own letter page drawn at phone width, and it is why zoom matters (Open).
+
+**4. Offline search.**
+- **What is saved** (`savedMenu(place, day)`): halls today and tomorrow; a café's today once opened online (or
+  `?saved=Green Fields`); nothing under `fail`.
+- **Search, offline.** A line above Events and the results: "You're offline. Searching the menus saved on this phone:
+  the halls, today and tomorrow" plus ", and Green Fields, today" when one is saved.
+  - Unsaved cafés' dishes are absent from "At cafés" and "Later". Places still match.
+  - Packaged and Search UMass Dining are absent. Your foods answers, and the custom food stays.
+  - No match reads "Nothing called “clif” is on a saved menu."
+- **Search, failed.** "Couldn't connect" and an outlined Try again (Halls' pair). No menu groups and no Events.
+  Packaged and Search UMass Dining still answer. Try again brings the menus back.
+- **The hall screen.** An unsaved café opened offline now says round 9's "You're offline, and the menu for Thursday,
+  October 8 isn't saved on this phone." Before round 11, every place's today and tomorrow counted as saved. The
+  schedule's "Not saved" follows `savedMenu`.
+
+**5. Bowls.**
+- **Synthetic bases.** `synOf` names a synthetic base after its station: "Salad Bar", "Deli Bar", "Noodle Bowl".
+  "Cold Bar" is gone, and a station whose raw name carries "/LB" gets none (Harvest Market, Roots).
+  - The 97 synthetic station-days are listed in `vectors.json` `synthetic`: Berkshire's Salad Bar and Deli Bar,
+    Franklin's Deli Bar, the hall pho bars, and Charles River's two.
+  - A synthetic sheet drops the add-ins heading that repeated its title, and its parts start 16 px under the title.
+- **Noodle Bowl, `baseOf`.** Exactly one base per hall station-day:
+  - the only dish;
+  - none for a pho bar (two or more broths: synthetic "Noodle Bowl");
+  - otherwise the highest-calorie non-part whose name says ramen, noodle, soup, stew, congee, bowl, curry or katsu.
+    Part words are tested outside the parentheses, so the Tom Yum soup counts;
+  - else the highest-calorie non-part.
+  - `buildOf` builds only that dish.
+  - Pasta Bar and Omelet keep round 10's rule.
+
+**All 82 hall Noodle Bowl station-days, Oct 8-22 (Oct 10: no menus; "–": no Noodle Bowl that meal; Franklin has none):**
+
+| Day | W lunch | W dinner | H lunch | H dinner | B lunch | B dinner |
+|---|---|---|---|---|---|---|
+| 10-08 | Beef Brisket Noodle Bowl | Kumamoto Style Ramen (Pork & Chicken) | *Noodle Bowl* (pho bar) | Vietnamese Pork & Shrimp Noodle Bowl | Beef Brisket Noodle Bowl | *Noodle Bowl* (pho bar) |
+| 10-09 | Chicken Katsu | – | Chicken Katsu | Tonkotsu Ramen (Fish) | Chicken Congee | Chicken, Pork & Shrimp Wonton Soup |
+| 10-11 | *Noodle Bowl* (pho bar) | *Noodle Bowl* (pho bar) | Chicken Congee | *Noodle Bowl* (pho bar) | *Noodle Bowl* (pho bar) | *Noodle Bowl* (pho bar) |
+| 10-12 | Bun Bo Hue (Vietnamese Beef Noodle Bowl) | Pork & Tofu Kimchi Stew | Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp) | Pork & Shrimp Wonton Soup | Japanese Curry Noodles | Sapporo Miso Ramen (Pork) |
+| 10-13 | Sapporo Miso Ramen (Pork) | GF Japanese Curry Rice Bowl | Sapporo Miso Ramen (Pork) | Tantanmen Ramen Bar | Bun Bo Hue (Vietnamese Beef Noodle Bowl) | Hainanese Chicken Rice |
+| 10-14 | Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp) | Korean Black Bean Noodles | Beef Brisket Noodle Bowl | Japanese Curry Noodles | Bun Heo Quay (Crispy Pork Belly Bowl) | Masala Dosa |
+| 10-15 | Beef Brisket Noodle Bowl | Tantanmen Ramen Bar | *Noodle Bowl* (pho bar) | Bun Bo Hue (Vietnamese Beef Noodle Bowl) | Tonkotsu Ramen (Fish) | Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp) |
+| 10-16 | Chicken Katsu | Hot Pot (Chicken, Beef, Pork, Shellfish) | Tantanmen Ramen Bar | Tonkotsu Ramen (Fish) | Chicken Congee | Chicken, Pork & Shrimp Wonton Soup |
+| 10-17 | Tantanmen Ramen Bar | Chicken Shoyu Ramen Bar (Fish, Shellfish) | Chicken Congee | Tom Kha Gai (Coconut Lemongrass Soup) | Tantanmen Ramen Bar | Tantanmen Ramen Bar |
+| 10-18 | *Noodle Bowl* (pho bar) | *Noodle Bowl* (pho bar) | Chicken Congee | *Noodle Bowl* (pho bar) | *Noodle Bowl* (pho bar) | *Noodle Bowl* (pho bar) |
+| 10-19 | Shrimp Tom Yum Soup (Chicken Broth) | Spicy Nagoya Style Ramen (Pork, Chicken, Seafood) | Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp) | Bun Thang Hanoi (Hanoi-Style Chicken Pork Soup) | Chicken, Pork & Shrimp Wonton Soup | Tonkotsu Ramen (Fish) |
+| 10-20 | Tonkotsu Ramen (Fish) | Khoa Soi | Shoyu Ramen Bar (Fish, Chicken) | Tantanmen Ramen Bar | Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp) | Hainanese Chicken Rice |
+| 10-21 | Beef Brisket Noodle Bowl | *Noodle Bowl* (pho bar) | Beef Brisket Noodle Bowl | – | Taiwanese Beef Noodle Bowl | Chinese Grilled Cold Noodles (Pork & Peanuts) |
+| 10-22 | Bun Rieu-Vietnamese Noodle Bowl (Pork, Crab, Shrimp) | Hakka Rice Noodles | *Noodle Bowl* (pho bar) | Chicken and Rice Bowl | Vietnamese Pork & Shrimp Noodle Bowl | Laksa Noodle Bowl (Shrimp, Fish, Eggs, Almonds,Tofu) |
+
+- **What this fixes.** Round 10 got 28 of the 82 station-days wrong (`CRITIQUE-r11.md` #24):
+  - no base on the 15 pho bars, the three single 49 cal congees, Hampshire's Oct 9 katsu curry, and Worcester's Oct 19
+    Tom Yum;
+  - two bases where a topping (Mayu oil, braised pork belly, crispy pork belly) passed 120 cal.
+- **Café Noodle Bowl stations** follow the café rule, not this one: a dish builds when its place and meal have an
+  Add-ons or Toppings station.
+  - **Whitmore Café** (6 a day) and **Star Ginger** (9 a day; 3 ramens on Oct 14) list finished, priced phos. Each one
+    builds with the café's own add-ons, so a station offers several bases. They are alternatives on a café menu, not
+    a bar of parts. Checked over every recorded day.
+  - **Charles River's "Noodle Bowl"** builds nothing on any day, because it has no add-on station. It holds:
+    - grilled cheese on Oct 8 and 15;
+    - a pho bar on Oct 9 and 16;
+    - curry noodles on Oct 12;
+    - mashed-potato bowls on Oct 13;
+    - a ramen on Oct 14.
+
+### Review passes (`build/r11/p1`, `p2`: 390 left and 360 right at dpr 2, from `shots11.js`; contact sheets `p1/sheet1.png` to `sheet9.png`)
+**Pass 1: 9 flaws.**
+1. Search UMass Dining's indicator was taller than the button, so the custom-food button jumped 16 px. The slot is now
+   52 px in every state.
+2. The Favorites page ran "Notify me" straight into the first favourite, as one list. It is now set off by a hairline
+   and 8 px.
+3. The background-off line ran into the checkbox at 390. Check-row text now keeps 12 px clear.
+4. The café page's long description pushed every menu row below the fold at 360. The rows now come first and the
+   description last.
+5. Collapsed, "The Commonwealth Restaurant" ran under the pin at 360. The compact bar's name scale is now capped to clear
+   the back button and the pin (`fitName`).
+6. The PDF page's offline and failed copy sat at 36 px, not on the 20 px text edge. Fixed to 20 px.
+7. The synthetic sheet's first part sat 4 px under the title once the heading was dropped. It is now 16 px.
+8. Search's no-match line carried the paragraph's default 16 px margin, which opened a 47 px gap above "Your foods".
+   The margin is removed.
+9. Edit sat 5 px above the name's first line. It is now centred on it, as the star is (crop `p2/crop-edit.png`).
+
+**Pass 2: clean** for the re-shot states (`p2/check.png`: s1-clif, l-loading, a-bgoff-ios, p-cafe, p-rows,
+b-salad-sheet).
+
+### Tests (`test.js`, `round11`; `RED=11` runs it alone)
+- **Bowls:**
+  - Berkshire's "Salad Bar" and its sheet, which has no repeated heading;
+  - Franklin's "Deli Bar";
+  - no synthetic base on a by-the-pound or Cold Bar station on any day;
+  - `noodleBases()`: 82 hall station-days, each with exactly one base, 12 of them checked by name, 15 synthetic pho bars,
+    and never a topping;
+  - Hampshire's pho bar today has its "Noodle Bowl" row, and Mayu oil doesn't build.
+- **Packaged and saved foods:**
+  - "clif" gives Your foods, then Packaged, with no letters in the lane, "368 cal per 100 g", unique names and no
+    repeat of Your foods;
+  - served dishes come first ("bbq");
+  - the packaged sheet has no where, grades, star or Edit, and adding saves the food;
+  - a custom food is saved;
+  - You → Your foods: "4 foods", newest first;
+  - Edit → Save changes the label to 150; Delete shows "Deleted Chobani", and Undo restores it;
+  - export includes `foods`;
+  - tracking off removes all of it.
+- **Search UMass Dining:** the button sits just before the custom food; the indicator replaces it in flight; then the
+  found group and its sheet (no "where"), none, failed (a 44 px Try again) and rate-limited copy.
+- **Offline search:**
+  - the line, idle;
+  - an unsaved café is absent, and the halls are searched;
+  - Your foods answers, with no Packaged and no lookup;
+  - places still match;
+  - the saved-café line, and its dishes found;
+  - an unsaved café's page says so;
+  - failed: the pair, no menus, Packaged still answering, and Try again restoring the menus.
+- **Café PDFs:**
+  - The Commonwealth Restaurant is `c29` in area 1;
+  - "Menus" with four rows in feed order, and the custom food;
+  - the pushed "Lunch menu" has 2 pages at frame width − 32;
+  - offline: "Not saved" on each row, and the page copy; a saved menu opens offline;
+  - failed: copy, then Try again loads it;
+  - Search finds the café.
+- **Favourite alerts:**
+  - the row's copy, and the OS sheet on a tap;
+  - `alertRun`: nothing at 6:50; two at 7:15 with every place named; nothing at 7:30; the brisket not at 5 PM;
+  - denied: copy and a 44 px Open Settings, and nothing posts;
+  - blocked: no sheet;
+  - background off, on Android and iOS;
+  - `?notify=1`: the banner's title and body, and a tap opens Worcester at lunch with the brisket marked.
+- **Red:** `RED=11 SRC=build/r11/before-index.html` (round 10's build) gives all six RED:
+  ```
+  RED    bowls: … exactly one Noodle Bowl base per hall station-day: the synthetic base reads "Salad Bar"
+  RED    packaged and saved foods: …: nothing served: Your foods, then Packaged
+  RED    Search UMass Dining: in flight, found, none, failed, rate-limited: locator.textContent: Timeout 30000ms exceeded.
+  RED    offline search: …: locator.textContent: Timeout 30000ms exceeded.
+  RED    café PDFs: …: The Commonwealth Restaurant is a place
+  RED    favourite alerts: …: locator.textContent: Timeout 30000ms exceeded.
+  ```
+  The selectors for the offline line moved from `#sres` to `#search` (the line sits above Events). The noted whitespace
+  in a meta line is compared without spaces. Both changes were made after the red run. RED=11 re-run on round 10 after
+  the build is still six RED.
+- **Older tests changed:**
+  - round 10's synthetic names are now "Salad Bar" and "Deli Bar";
+  - Cafés & markets has 29 Amherst places open at 12:41.
+  - The harnesses (`test.js`, `vectors.js`, `rec.js`, `shots*.js` and others) now load the hoisted
+    `node_modules/.pnpm/node_modules/playwright-core`. The pinned `playwright-core@1.63.0` path no longer exists on this
+    host (1.62.1 is installed, with the same Chromium 1234).
+- **Now:** `node test.js` gives 5,237 checks and `RM=1 node test.js` gives 3,407, all green.
+- **Found by the suite:** round 7's "dish sheet from Search" sampler failed at first, because the packaged answer
+  arriving re-rendered Search under the open sheet. When the answer adds nothing, the waiting slot is now removed in
+  place and the list is left alone.
+
+### Vectors (`vectors.js` -> `vectors.json`; the shape is documented in its header)
+- `bowlbase`: the 82 station-days above, `{day, place, meal, base, synthetic}`.
+- `synthetic`: 97 station-days with a synthetic base, with the raw station name.
+- `alerts`: 4 run sequences:
+  - before 7 AM, first run and dedup;
+  - lunch only, first seen at 5 PM;
+  - now, then the same day's dinner, not posted again;
+  - later today, and Grab 'N Go now.
+- `packaged`: the recorded "clif" answer as the Packaged group shows it (13 rows), and the two saved foods.
+- `saved`: 7 cases of `savedMenu` (offline halls days 0-2, an unsaved and a saved café, failed).
+- Everything from rounds 9 and 10 is unchanged, except that the bowl comment names "Salad Bar".
+
+### Files
+- `CRITIQUE-r11.md`, `CONCEPT.md` (Round 11), `src.html`, `build.py`, `test.js`, `vectors.js`, `vectors.json`, `shots11.js`.
+- New data, committed: `../locations-2026-10-13.json` (the live get_infov2) and `../packaged-2026-10-13.json`. The PDFs
+  are in `local/pdf/` (gitignored).
+- Shots: `build/r11/p1` (all 47 states, `sheet1.png` to `sheet9.png`) and `build/r11/p2` (pass 2, `check.png`). The
+  baseline is in `build/r11/before-*`. `build/` is under `~/.cache/udine-scratch/flows/M2/` and isn't committed.
+
+### Open (for the owner)
+- **The synthetic row repeats its station heading.**
+  - "Deli Bar" sits under the heading "Deli Bar", and "Noodle Bowl" under "Noodle Bowl" (`p1/b-deli.png`,
+    `b-pho.png`). The row is the base you add, named as you decided.
+  - The alternative is to make the station heading itself the row that opens the builder. It would sit on a heading,
+    not a dish row.
+- **A pho bar's bowl reads "Noodle Bowl".** It has three broths, so no single soup can name it. It follows the Salad Bar
+  pattern.
+  - The other choice is to name the bowl after the broth picked first ("Chicken Pho Broth (Fish) with …"). That needs
+    the base to change as parts are picked.
+  - The pho bars are 15 of the 82 station-days.
+- **Café Noodle Bowls** (Whitmore, Star Ginger) offer every pho as its own base with the café's add-ons. Should they
+  follow the halls' one-base rule? Their dishes are priced and complete, so I left them.
+- **Prefetching café PDFs**, or pinned cafés' menus, so they're there offline. That is traffic RN doesn't make, so it
+  isn't the default.
+- **A PDF at phone width is unreadable without zoom** (~6 px text). The design relies on pinch zoom.
+  - Another option is a "fit text" first view that starts zoomed to one column. It's not built, and it means a
+    double-tap zoom gesture M2 doesn't have yet.
+  - Or hand off to the system viewer, which loses the back gesture and the offline copy.
+- **"Your foods" saves every packaged or UMass Dining food you add.** RN saves only custom foods, and its log keeps
+  the rest.
+- **USDA** wasn't reachable from this host, so the Packaged group shows only OpenFoodFacts.
+- **OpenFoodFacts' `cgi/search.pl` was down** (503) during this round. RN should consider moving to
+  `search.openfoodfacts.org`, which RN doesn't call today. This is a port question, not M2's.
