@@ -104,5 +104,5 @@ specify. Rejected:
    — lanes: M2 `test.js` (Playwright: a heavy job, never alongside Gradle or an emulator) — blocked by:
    none — PR:
 2. **Flutter briefs from the approved round** — `flutter-port-packaged-foods`,
-   `flutter-port-favorite-alerts`, `flutter-port-cafe-pdf` — files: `docs/briefs/` — lanes: none —
-   blocked by: 1, owner approval — PR:
+   `flutter-port-favorite-alerts`, `flutter-port-cafe-pdf` (written 2026-10-14 after the owner approved #562) —
+   files: `docs/briefs/` — lanes: none — blocked by: 1, owner approval — PR:

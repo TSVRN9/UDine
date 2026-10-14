@@ -95,6 +95,9 @@ land, one heavy agent at a time (`host-memory-budget`).
 11. `flutter-port-health` — Health Connect and Apple Health writes (M2 R10 §5) — blocked by: 9 — PR:
 12. `m2-round-11` — design round: packaged-food lookup and saved custom foods, favourite alerts, café
     PDF menus (owner, 2026-10-13: design in M2 first) — blocked by: none — PR:
-13. Builds of round 11 — briefs written once round 11 is approved — blocked by: 12 — PR:
+13. Builds of round 11 (approved 2026-10-14, #562): `flutter-port-packaged-foods`, `flutter-port-favorite-alerts`,
+    `flutter-port-cafe-pdf`; offline Search is `flutter-port-search` Task 3 — blocked by: 12 — PR:
+13b. `m2-round-12` — design round: variant pickers (sizes, milk options; the pho broth pick-one), then its
+    Flutter changes in the dish-sheet, plate, bowls and search briefs — blocked by: none — PR:
 14. `flutter-port-release` — predictive back, iOS tester pass, store builds, delete `/mobile` — blocked
     by: 1–13 — PR:
