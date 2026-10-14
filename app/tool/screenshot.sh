@@ -5,7 +5,7 @@ set -euo pipefail
 # provenance sidecar scripts/pr-gate.sh checks (same keys as mobile/scripts/screenshot.sh).
 #
 #   app/tool/screenshot.sh <route> [--serial S] [--apk PATH] [--record SECS]
-#                          [--swipe X1 Y1 X2 Y2 [MS]] [--out PATH]
+#                          [--swipe X1 Y1 X2 Y2 [MS]] [--settle SECS] [--out PATH]
 #
 # <route> is handed to FlutterActivity as the `route` extra (-> PlatformDispatcher.defaultRouteName),
 # e.g. /kit or '/hall/franklin?data=recorded&at=2026-10-08T12:41&net=ok'. Recorded data assets ship
@@ -23,7 +23,7 @@ set -euo pipefail
 PKG=com.udinetogether.udine.internal
 ACT=$PKG/com.udinetogether.udine.MainActivity
 ROUTE="${1:?usage: screenshot.sh <route> [flags]}"; shift
-SERIAL="${ANDROID_SERIAL:-}"; APK=""; RECORD=""; SWIPE=(); OUT=""
+SERIAL="${ANDROID_SERIAL:-}"; APK=""; RECORD=""; SWIPE=(); OUT=""; SETTLE=3
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --serial) SERIAL="$2"; shift 2 ;;
@@ -31,6 +31,7 @@ while [[ $# -gt 0 ]]; do
     --record) RECORD="$2"; shift 2 ;;
     --swipe) SWIPE=("$2" "$3" "$4" "$5"); shift 5; [[ "${1:-}" =~ ^[0-9]+$ ]] && { SWIPE+=("$1"); shift; } ;;
     --out) OUT="$2"; shift 2 ;;
+    --settle) SETTLE="$2"; shift 2 ;;
     *) echo "unknown flag $1" >&2; exit 2 ;;
   esac
 done
@@ -68,7 +69,7 @@ trap '$dnd && "${A[@]}" shell cmd notification set_dnd off || true' EXIT
 # Single-quote the route for the device shell, or its `&` splits the command.
 "${A[@]}" shell "am start -W -n $ACT --es route '$ROUTE'" | tee "$SCRATCH/am-start.log"
 grep -q 'Status: ok' "$SCRATCH/am-start.log" || { echo "launch failed" >&2; exit 1; }
-sleep 3   # first frame is drawn once `am start -W` returns; this lets the route settle
+sleep "$SETTLE"   # first frame is drawn once `am start -W` returns; this lets the route settle (--settle 0 catches a loading state)
 
 if [[ -n "$RECORD" ]]; then
   "${A[@]}" shell "screenrecord --time-limit $RECORD /sdcard/udine-shot.mp4" &
