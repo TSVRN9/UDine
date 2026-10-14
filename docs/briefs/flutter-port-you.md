@@ -82,6 +82,9 @@ Rationale:
   with tests in each.
 - **Dietary preferences map onto RN's `food_preferences`.** M2's Only show and Avoid are written into the
   existing row's fields, so RN users keep the allergens they set. A field M2 drops stays untouched.
+  Only show and Avoid write the UMass feed's exact strings (e.g. diet tag "Plant Based" with a capital B,
+  allergens as the feed spells them; M2's src.html takes them from the feed via `__ALG__`), never M2's
+  display labels, so RN users' saved values show as checked and filters match.
 
 ## Acceptance
 
