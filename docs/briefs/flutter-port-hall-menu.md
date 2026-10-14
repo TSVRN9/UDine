@@ -73,7 +73,11 @@ Rationale:
   the curve has too few samples (`confidence` low), "Calmer around…" is left out rather than guessed.
 - **Late night.** A reading before midnight can't get a clearing time from today's curve (`occupancyRead` only looks
   later today); while the hall is open past midnight, also consider the next weekday's early buckets (a second
-  RPC call, `p_dow`+1). Reviewer of #558 flagged it; decide in this task.
+  RPC call, `p_dow`+1). Reviewer of #558 flagged it; deferred to Task 3.
+- **M2's busy UI needs an owner decision.** M2's busy UI (pct, usual_pct lamps, outlook board, calmer_at, src.html
+  BUSY/TYPICAL) was designed around UMass's old `busy` object, which upstream dropped (hall-occupancy-history.md).
+  Our data is level-for-this-hour, vsUsual vs the typical curve, the curve itself, and usuallyClearsAt. Mapping the
+  lamps/board onto that needs an owner design decision before Task 3 builds it.
 
 ## Acceptance
 
