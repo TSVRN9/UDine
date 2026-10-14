@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/board.dart';
 import 'package:udine/core/m2/dish_sheet.dart';
+import 'package:udine/core/foodpro.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/ui/label_model.dart';
 import 'support.dart';
@@ -43,7 +44,7 @@ void main() {
     test('plant based wins over vegetarian; halal, local and sustainable follow in M2\'s order', () {
       MenuItem withTags(List<String> tags) => MenuItem(
           dishName: 'x', category: '', mealPeriod: MealPeriod.lunch, hallTid: 1, date: today, nutrition: dish('Golden BBQ Chicken Thigh').nutrition,
-          allergens: const [], dietTags: tags);
+          allergens: const [], dietTags: tags.where((t) => t != 'Sustainable').toList(), dietCodes: {if (tags.contains('Sustainable')) 'SUS'});
       expect(sheetMarks(withTags(['Vegetarian', 'Plant Based', 'Halal', 'Local', 'Sustainable']), off)!.marks, ['plant', 'halal', 'local', 'sus']);
       expect(sheetMarks(withTags(['Vegetarian']), off)!.marks, ['veg']);
     });
@@ -65,6 +66,34 @@ void main() {
       expect(labelRows(dish('Golden BBQ Chicken Thigh')).rows[0].right, startsWith('Fat cal.'));
       expect(labelRows(dish('Golden BBQ Chicken Thigh')).serving, '1 each');
     });
+  });
+
+  test('a blank nutrient reads "–" with no %DV, from the real parser (Green Chile Posole in the capture)', () {
+    final posole = ((jsonDecode(File('../docs/design/explorations/2026-10-ui-overhaul/flows/menus-2026-10-08-to-22.json').readAsStringSync()) as Map)['dishes'] as List)
+        .cast<Map<String, dynamic>>().firstWhere((d) => d['dish-name'] == 'Green Chile Posole');
+    final attrs = [for (final e in posole.entries) 'data-${e.key}="${e.value}"'].join(' ');
+    final item = parseCategoryItems('<a $attrs>Green Chile Posole</a>', 'Soup', MealPeriod.lunch, 1, '2026-10-08').single;
+    final rows = {for (final r in labelRows(item).rows) r.name: r};
+    expect(rows['Saturated Fat']!.value, '–');
+    expect(rows['Saturated Fat']!.right, '');
+    for (final n in ['Trans Fat', 'Cholesterol', 'Dietary Fiber', 'Total Sugars']) {
+      expect(rows[n]!.value, '–', reason: n);
+    }
+    expect(rows['Total Fat']!.value, '2.2g');
+    expect(rows['Sodium']!.right, '23%');
+    expect(labelRows(item).rows[0].right, 'Fat cal. 20');
+    // the figures themselves stay 0, so plate and log sums are unchanged
+    expect(item.nutrition.satFatG, 0);
+    expect(item.nutrition.toJson().containsKey('blank'), isFalse);
+  });
+
+  test('diet marks union the tags with recipe-webcode codes, through the real parser', () {
+    MenuItem parse(String tags, String webcode) => parseCategoryItems(
+        '<a data-dish-name="X" data-clean-diet-str="$tags" data-recipe-webcode="$webcode" data-calories="1">X</a>', 'C', MealPeriod.lunch, 1, '2026-10-08').single;
+    expect(parse('', 'VGT SUS H4').diet, 1 | 16);
+    expect(parse('Halal, Plant Based', 'H VGN LPR').diet, 2 | 4 | 8);
+    expect(parse('Local', '').diet, 8);
+    expect(parse('', 'HX CR1').diet, 0);
   });
 
   test('fc groups thousands and f1 drops a trailing .0', () {

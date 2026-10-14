@@ -19,11 +19,9 @@ String dishKey(String name) => name.toLowerCase().replaceAll(RegExp('[’\']'), 
 extension M2MenuItem on MenuItem {
   String get key => dishKey(dishName);
 
-  /// 1 veg, 2 plant, 4 halal, 8 local, 16 sustainable, from the feed's diet tags.
-  /// ponytail: 'Sustainable' is not a tag the feed's data-clean-diet-str emits (M2 reads SUS from recipe-webcode);
-  /// flutter-port-menu-data must add it when it builds MenuItems from the live feed.
-  int get diet => const {'Vegetarian': 1, 'Plant Based': 2, 'Halal': 4, 'Local': 8, 'Sustainable': 16}
-      .entries.fold(0, (bits, e) => dietTags.contains(e.key) ? bits | e.value : bits);
+  /// 1 veg, 2 plant, 4 halal, 8 local, 16 sustainable: the diet tags unioned with recipe-webcode's codes, as M2 does.
+  int get diet => const [('Vegetarian', 'VGT', 1), ('Plant Based', 'VGN', 2), ('Halal', 'H', 4), ('Local', 'LPR', 8), (null, 'SUS', 16)]
+      .fold(0, (bits, e) => dietTags.contains(e.$1) || dietCodes.contains(e.$2) ? bits | e.$3 : bits);
 
   /// The plate's per-serving macros as M2 sums them: calories whole, grams to a tenth.
   Macro get macro => Macro(nutrition.calories.round(), _r1(nutrition.proteinG), _r1(nutrition.totalCarbG), _r1(nutrition.totalFatG));

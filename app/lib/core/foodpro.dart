@@ -48,6 +48,12 @@ String? _priceAfter(String html, int from) {
   return p == null || p.isEmpty ? null : p;
 }
 
+const _dietCodes = {'VGT', 'VGN', 'H', 'LPR', 'SUS'};
+
+Set<String> _codes(String webcode) => {for (final c in webcode.split(RegExp(r'\s+'))) if (_dietCodes.contains(c)) c};
+
+bool _blank(String s) => !RegExp(r'-?\d').hasMatch(s);
+
 /// H0..H7 from recipe-webcode. data-healthfulness alone is not trusted; H0 is a real 0.
 int? _grade(String webcode) {
   for (final c in webcode.split(RegExp(r'\s+'))) {
@@ -92,12 +98,22 @@ List<MenuItem> parseCategoryItems(String html, String category, MealPeriod mealP
         dietaryFiberDv: _dv(a, 'data-dietary-fiber-dv'),
         sugarsDv: _dv(a, 'data-sugars-dv'),
         proteinDv: _dv(a, 'data-protein-dv'),
+        blank: {
+          for (final (field, attr) in const [
+            ('caloriesFromFat', 'data-calories-from-fat'), ('totalFatG', 'data-total-fat'), ('satFatG', 'data-sat-fat'),
+            ('transFatG', 'data-trans-fat'), ('cholesterolMg', 'data-cholesterol'), ('sodiumMg', 'data-sodium'),
+            ('totalCarbG', 'data-total-carb'), ('dietaryFiberG', 'data-dietary-fiber'), ('sugarsG', 'data-sugars'),
+            ('proteinG', 'data-protein'),
+          ])
+            if (_blank(_attr(a, attr))) field,
+        },
       ),
       allergens: _csv(_attr(a, 'data-allergens')),
       dietTags: _csv(_attr(a, 'data-clean-diet-str')),
       price: price,
       ingredients: ingredients == null || ingredients.isEmpty ? null : ingredients,
       health: _grade(_attr(a, 'data-recipe-webcode')),
+      dietCodes: _codes(_attr(a, 'data-recipe-webcode')),
       carbon: const ['A', 'B', 'C', 'D', 'E'].contains(carbon) ? carbon : null,
     ));
   }

@@ -20,31 +20,29 @@ double restingSnap({required double calBottom, required double grab, required do
 const _fda = {'fat': 78, 'sat': 20, 'chol': 300, 'sod': 2300, 'carb': 275, 'fiber': 28, 'protein': 50};
 
 /// M2 `labelHTML`: Nutrition Facts rows with %DV (the menu's own when published, else computed from FDA values).
-/// A dish whose every figure is 0 is the feed's "not reported" (it publishes empty attributes, which parse to 0), so its rows
-/// read "–" and it has no Fat cal. row.
+/// A figure the feed left empty reads "–" with no %DV (M2 `g`/`pc`), and an empty fat-calories figure drops the Fat cal. row.
 Label labelRows(MenuItem d) {
   final n = d.nutrition;
-  final none = [n.calories, n.caloriesFromFat, n.totalFatG, n.satFatG, n.transFatG, n.cholesterolMg, n.sodiumMg, n.totalCarbG, n.dietaryFiberG, n.sugarsG, n.proteinG].every((x) => x == 0);
-  String g(num x, [String u = 'g']) => none ? '–' : '${f1(x)}$u';
-  String pc(num x, Dv? dv, int? base) {
-    final p = none ? null : dv?.value ?? (base != null ? (x / base * 100).round() : null);
+  String g(String f, num x, [String u = 'g']) => n.blank.contains(f) ? '–' : '${f1(x)}$u';
+  String pc(String f, num x, Dv? dv, int? base) {
+    final p = dv?.value?.round() ?? (base != null && !n.blank.contains(f) ? (x / base * 100).round() : null);
     return p == null ? '' : '$p%';
   }
 
-  LabelRow row(LabelKind kind, String name, num x, String u, Dv? dv, String? fdaKey, {bool last = false}) =>
-      LabelRow(kind, '$name ${g(x, u)}', name, g(x, u), pc(x, dv, fdaKey == null ? null : _fda[fdaKey]), last: last);
+  LabelRow row(LabelKind kind, String name, String f, num x, String u, Dv? dv, String? fdaKey, {bool last = false}) =>
+      LabelRow(kind, '$name ${g(f, x, u)}', name, g(f, x, u), pc(f, x, dv, fdaKey == null ? null : _fda[fdaKey]), last: last);
   final serving = n.servingSize.trim().toLowerCase();
   return Label(serving.isEmpty ? null : serving, fc(n.calories.round()), [
-    if (!none) LabelRow(LabelKind.thin, '', '', '', 'Fat cal. ${fc(n.caloriesFromFat)}'),
+    if (!n.blank.contains('caloriesFromFat')) LabelRow(LabelKind.thin, '', '', '', 'Fat cal. ${fc(n.caloriesFromFat)}'),
     const LabelRow(LabelKind.thin, '', '', '', '% Daily Value*'),
-    row(LabelKind.row, 'Total Fat', n.totalFatG, 'g', n.totalFatDv, 'fat'),
-    row(LabelKind.sub, 'Saturated Fat', n.satFatG, 'g', n.satFatDv, 'sat'),
-    row(LabelKind.sub, 'Trans Fat', n.transFatG, 'g', null, null),
-    row(LabelKind.row, 'Cholesterol', n.cholesterolMg, 'mg', n.cholesterolDv, 'chol'),
-    row(LabelKind.row, 'Sodium', n.sodiumMg, 'mg', n.sodiumDv, 'sod'),
-    row(LabelKind.row, 'Total Carbohydrate', n.totalCarbG, 'g', n.totalCarbDv, 'carb'),
-    row(LabelKind.sub, 'Dietary Fiber', n.dietaryFiberG, 'g', n.dietaryFiberDv, 'fiber'),
-    row(LabelKind.sub, 'Total Sugars', n.sugarsG, 'g', null, null),
-    row(LabelKind.row, 'Protein', n.proteinG, 'g', n.proteinDv, 'protein', last: true),
+    row(LabelKind.row, 'Total Fat', 'totalFatG', n.totalFatG, 'g', n.totalFatDv, 'fat'),
+    row(LabelKind.sub, 'Saturated Fat', 'satFatG', n.satFatG, 'g', n.satFatDv, 'sat'),
+    row(LabelKind.sub, 'Trans Fat', 'transFatG', n.transFatG, 'g', null, null),
+    row(LabelKind.row, 'Cholesterol', 'cholesterolMg', n.cholesterolMg, 'mg', n.cholesterolDv, 'chol'),
+    row(LabelKind.row, 'Sodium', 'sodiumMg', n.sodiumMg, 'mg', n.sodiumDv, 'sod'),
+    row(LabelKind.row, 'Total Carbohydrate', 'totalCarbG', n.totalCarbG, 'g', n.totalCarbDv, 'carb'),
+    row(LabelKind.sub, 'Dietary Fiber', 'dietaryFiberG', n.dietaryFiberG, 'g', n.dietaryFiberDv, 'fiber'),
+    row(LabelKind.sub, 'Total Sugars', 'sugarsG', n.sugarsG, 'g', null, null),
+    row(LabelKind.row, 'Protein', 'proteinG', n.proteinG, 'g', n.proteinDv, 'protein', last: true),
   ]);
 }

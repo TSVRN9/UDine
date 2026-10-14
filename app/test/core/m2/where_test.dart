@@ -45,6 +45,12 @@ void main() {
     expect(nowGroups('16:30'), isEmpty);
   });
 
+  test('a window is open from its open minute, not a minute after', () {
+    String? st(String hhmm) => whereAnswer(board, 'Golden BBQ Chicken Thigh', at(hhmm)).where((g) => g.meal == 'lunch' && g.open == '11:00 AM').firstOrNull?.st;
+    expect(st('10:59'), 'later');
+    expect(st('11:00'), 'now');
+  });
+
   test('the instant is read as Eastern wall time whatever zone it is expressed in', () {
     final a = whereAnswer(board, 'Golden BBQ Chicken Thigh', DateTime.parse('2026-10-08T12:41:00-04:00'));
     final b = whereAnswer(board, 'Golden BBQ Chicken Thigh', DateTime.parse('2026-10-08T16:41:00Z'));
