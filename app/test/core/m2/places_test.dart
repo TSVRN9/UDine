@@ -25,7 +25,7 @@ void main() {
     expect(roster.cafes.map((p) => p.key), [for (var i = 0; i < cafeTable.length; i++) if (i != 19) 'c$i']);
     expect(roster.hours.keys.where((k) => !k.startsWith('c')), ['B', 'W', 'F', 'H']);
     expect(roster.cafes.firstWhere((p) => p.name == "Peet's Coffee & Tea").key, 'c18');
-    expect(roster.hours['c5']!.general, isNotNull); // Wasabi
+    expect(roster.hours['c10']!.general, isNotNull); // Harvest Market (Wasabi is "Closed" all day in the capture: no window)
   });
 
   group('the Charles River filter', () {
