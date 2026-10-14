@@ -1,0 +1,771 @@
+{
+  "format": "Device-data exporters (storage.ts export*AsJson / export*AsCsv). kind=<rows>_<json|csv>, rows being entries (LogEntry[]), ranked_dishes, ranked_foods, favorites or custom_foods: input is the row array -> the exported string, byte for byte. JSON is 2-space-indented JSON.stringify of the rows (integral numbers print without a decimal point). CSV is a header line then one line per row joined by LF with no trailing newline; every field is double-quoted with embedded quotes doubled, and a field whose text starts with = + - or @ gets a tab inserted after the opening quote. Input key order is the output key order. Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
+  "cases": [
+    {
+      "kind": "entries_json",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "id": "e1",
+          "loggedAt": "2026-09-15T12:30:00.000Z",
+          "source": {
+            "type": "umass-menu",
+            "dishName": "Mac & Cheese",
+            "hallTid": 1
+          },
+          "servings": 1,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        },
+        {
+          "id": "e2",
+          "loggedAt": "2026-09-15T18:05:10.000Z",
+          "source": {
+            "type": "off",
+            "barcode": "0123456789012",
+            "productName": "Say \"Cheese\", Please"
+          },
+          "servings": 0.5,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 99.5,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 3.25,
+            "totalFatDv": 15,
+            "satFatDv": null
+          }
+        },
+        {
+          "id": "e3",
+          "loggedAt": "2026-09-16T08:00:00.000Z",
+          "source": {
+            "type": "usda",
+            "fdcId": "171077",
+            "productName": "Line one\nline two, \"quoted\""
+          },
+          "servings": 2,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 0,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 0.1
+          }
+        },
+        {
+          "id": "e4",
+          "loggedAt": "2026-09-16T19:45:00.000Z",
+          "source": {
+            "type": "custom",
+            "customFoodId": "c1",
+            "productName": "=SUM(A1)"
+          },
+          "servings": 1.5,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12,
+            "sodiumDv": 20,
+            "proteinDv": 0
+          }
+        },
+        {
+          "id": "e5",
+          "loggedAt": "2026-09-17T07:15:00.000Z",
+          "source": {
+            "type": "umass-menu",
+            "dishName": "+Plus @home -dash",
+            "hallTid": 3
+          },
+          "servings": 3,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        },
+        {
+          "id": "e6",
+          "loggedAt": "2026-09-17T13:00:00.000Z",
+          "source": {
+            "type": "umass-menu",
+            "dishName": "Crêpes à la façon, 北京烤鸭 🍕",
+            "hallTid": 4
+          },
+          "servings": 1,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 1234.5678,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        },
+        {
+          "id": "e7",
+          "loggedAt": "2026-09-17T13:01:00.000Z",
+          "source": {
+            "type": "off",
+            "barcode": "1",
+            "productName": "tab\there \u0001 ctrl \\ slash  "
+          },
+          "servings": 1,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        }
+      ],
+      "expected": "[\n  {\n    \"id\": \"e1\",\n    \"loggedAt\": \"2026-09-15T12:30:00.000Z\",\n    \"source\": {\n      \"type\": \"umass-menu\",\n      \"dishName\": \"Mac & Cheese\",\n      \"hallTid\": 1\n    },\n    \"servings\": 1,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 250,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12\n    }\n  },\n  {\n    \"id\": \"e2\",\n    \"loggedAt\": \"2026-09-15T18:05:10.000Z\",\n    \"source\": {\n      \"type\": \"off\",\n      \"barcode\": \"0123456789012\",\n      \"productName\": \"Say \\\"Cheese\\\", Please\"\n    },\n    \"servings\": 0.5,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 99.5,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 3.25,\n      \"totalFatDv\": 15,\n      \"satFatDv\": null\n    }\n  },\n  {\n    \"id\": \"e3\",\n    \"loggedAt\": \"2026-09-16T08:00:00.000Z\",\n    \"source\": {\n      \"type\": \"usda\",\n      \"fdcId\": \"171077\",\n      \"productName\": \"Line one\\nline two, \\\"quoted\\\"\"\n    },\n    \"servings\": 2,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 0,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 0.1\n    }\n  },\n  {\n    \"id\": \"e4\",\n    \"loggedAt\": \"2026-09-16T19:45:00.000Z\",\n    \"source\": {\n      \"type\": \"custom\",\n      \"customFoodId\": \"c1\",\n      \"productName\": \"=SUM(A1)\"\n    },\n    \"servings\": 1.5,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 250,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12,\n      \"sodiumDv\": 20,\n      \"proteinDv\": 0\n    }\n  },\n  {\n    \"id\": \"e5\",\n    \"loggedAt\": \"2026-09-17T07:15:00.000Z\",\n    \"source\": {\n      \"type\": \"umass-menu\",\n      \"dishName\": \"+Plus @home -dash\",\n      \"hallTid\": 3\n    },\n    \"servings\": 3,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 250,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12\n    }\n  },\n  {\n    \"id\": \"e6\",\n    \"loggedAt\": \"2026-09-17T13:00:00.000Z\",\n    \"source\": {\n      \"type\": \"umass-menu\",\n      \"dishName\": \"Crêpes à la façon, 北京烤鸭 🍕\",\n      \"hallTid\": 4\n    },\n    \"servings\": 1,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 1234.5678,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12\n    }\n  },\n  {\n    \"id\": \"e7\",\n    \"loggedAt\": \"2026-09-17T13:01:00.000Z\",\n    \"source\": {\n      \"type\": \"off\",\n      \"barcode\": \"1\",\n      \"productName\": \"tab\\there \\u0001 ctrl \\\\ slash  \"\n    },\n    \"servings\": 1,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 250,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12\n    }\n  }\n]"
+    },
+    {
+      "kind": "entries_json",
+      "name": "no rows",
+      "input": [],
+      "expected": "[]"
+    },
+    {
+      "kind": "entries_csv",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "id": "e1",
+          "loggedAt": "2026-09-15T12:30:00.000Z",
+          "source": {
+            "type": "umass-menu",
+            "dishName": "Mac & Cheese",
+            "hallTid": 1
+          },
+          "servings": 1,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        },
+        {
+          "id": "e2",
+          "loggedAt": "2026-09-15T18:05:10.000Z",
+          "source": {
+            "type": "off",
+            "barcode": "0123456789012",
+            "productName": "Say \"Cheese\", Please"
+          },
+          "servings": 0.5,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 99.5,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 3.25,
+            "totalFatDv": 15,
+            "satFatDv": null
+          }
+        },
+        {
+          "id": "e3",
+          "loggedAt": "2026-09-16T08:00:00.000Z",
+          "source": {
+            "type": "usda",
+            "fdcId": "171077",
+            "productName": "Line one\nline two, \"quoted\""
+          },
+          "servings": 2,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 0,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 0.1
+          }
+        },
+        {
+          "id": "e4",
+          "loggedAt": "2026-09-16T19:45:00.000Z",
+          "source": {
+            "type": "custom",
+            "customFoodId": "c1",
+            "productName": "=SUM(A1)"
+          },
+          "servings": 1.5,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12,
+            "sodiumDv": 20,
+            "proteinDv": 0
+          }
+        },
+        {
+          "id": "e5",
+          "loggedAt": "2026-09-17T07:15:00.000Z",
+          "source": {
+            "type": "umass-menu",
+            "dishName": "+Plus @home -dash",
+            "hallTid": 3
+          },
+          "servings": 3,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        },
+        {
+          "id": "e6",
+          "loggedAt": "2026-09-17T13:00:00.000Z",
+          "source": {
+            "type": "umass-menu",
+            "dishName": "Crêpes à la façon, 北京烤鸭 🍕",
+            "hallTid": 4
+          },
+          "servings": 1,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 1234.5678,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        },
+        {
+          "id": "e7",
+          "loggedAt": "2026-09-17T13:01:00.000Z",
+          "source": {
+            "type": "off",
+            "barcode": "1",
+            "productName": "tab\there \u0001 ctrl \\ slash  "
+          },
+          "servings": 1,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        }
+      ],
+      "expected": "id,loggedAt,dishName,servings,calories,proteinG,totalCarbG,totalFatG\n\"e1\",\"2026-09-15T12:30:00.000Z\",\"Mac & Cheese\",\"1\",\"250\",\"12\",\"30\",\"10\"\n\"e2\",\"2026-09-15T18:05:10.000Z\",\"Say \"\"Cheese\"\", Please\",\"0.5\",\"99.5\",\"3.25\",\"30\",\"10\"\n\"e3\",\"2026-09-16T08:00:00.000Z\",\"Line one\nline two, \"\"quoted\"\"\",\"2\",\"0\",\"0.1\",\"30\",\"10\"\n\"e4\",\"2026-09-16T19:45:00.000Z\",\"\t=SUM(A1)\",\"1.5\",\"250\",\"12\",\"30\",\"10\"\n\"e5\",\"2026-09-17T07:15:00.000Z\",\"\t+Plus @home -dash\",\"3\",\"250\",\"12\",\"30\",\"10\"\n\"e6\",\"2026-09-17T13:00:00.000Z\",\"Crêpes à la façon, 北京烤鸭 🍕\",\"1\",\"1234.5678\",\"12\",\"30\",\"10\"\n\"e7\",\"2026-09-17T13:01:00.000Z\",\"tab\there \u0001 ctrl \\ slash  \",\"1\",\"250\",\"12\",\"30\",\"10\""
+    },
+    {
+      "kind": "entries_csv",
+      "name": "no rows",
+      "input": [],
+      "expected": "id,loggedAt,dishName,servings,calories,proteinG,totalCarbG,totalFatG"
+    },
+    {
+      "kind": "ranked_dishes_json",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "dishName": "Mac & Cheese",
+          "hallTid": 1,
+          "rating": 1516,
+          "comparisonCount": 3
+        },
+        {
+          "dishName": "Say \"Cheese\", Please",
+          "hallTid": 2,
+          "rating": 1483.7234567,
+          "comparisonCount": 1
+        },
+        {
+          "dishName": "-Dash\nNewline",
+          "hallTid": 3,
+          "rating": 1500.5,
+          "comparisonCount": 0
+        },
+        {
+          "dishName": "Crêpes 北京",
+          "hallTid": 4,
+          "rating": 1e-7,
+          "comparisonCount": 12
+        }
+      ],
+      "expected": "[\n  {\n    \"dishName\": \"Mac & Cheese\",\n    \"hallTid\": 1,\n    \"rating\": 1516,\n    \"comparisonCount\": 3\n  },\n  {\n    \"dishName\": \"Say \\\"Cheese\\\", Please\",\n    \"hallTid\": 2,\n    \"rating\": 1483.7234567,\n    \"comparisonCount\": 1\n  },\n  {\n    \"dishName\": \"-Dash\\nNewline\",\n    \"hallTid\": 3,\n    \"rating\": 1500.5,\n    \"comparisonCount\": 0\n  },\n  {\n    \"dishName\": \"Crêpes 北京\",\n    \"hallTid\": 4,\n    \"rating\": 1e-7,\n    \"comparisonCount\": 12\n  }\n]"
+    },
+    {
+      "kind": "ranked_dishes_json",
+      "name": "no rows",
+      "input": [],
+      "expected": "[]"
+    },
+    {
+      "kind": "ranked_dishes_csv",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "dishName": "Mac & Cheese",
+          "hallTid": 1,
+          "rating": 1516,
+          "comparisonCount": 3
+        },
+        {
+          "dishName": "Say \"Cheese\", Please",
+          "hallTid": 2,
+          "rating": 1483.7234567,
+          "comparisonCount": 1
+        },
+        {
+          "dishName": "-Dash\nNewline",
+          "hallTid": 3,
+          "rating": 1500.5,
+          "comparisonCount": 0
+        },
+        {
+          "dishName": "Crêpes 北京",
+          "hallTid": 4,
+          "rating": 1e-7,
+          "comparisonCount": 12
+        }
+      ],
+      "expected": "dishName,hallTid,rating,comparisonCount\n\"Mac & Cheese\",\"1\",\"1516\",\"3\"\n\"Say \"\"Cheese\"\", Please\",\"2\",\"1483.7234567\",\"1\"\n\"\t-Dash\nNewline\",\"3\",\"1500.5\",\"0\"\n\"Crêpes 北京\",\"4\",\"1e-7\",\"12\""
+    },
+    {
+      "kind": "ranked_dishes_csv",
+      "name": "no rows",
+      "input": [],
+      "expected": "dishName,hallTid,rating,comparisonCount"
+    },
+    {
+      "kind": "ranked_foods_json",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "dishName": "Mac & Cheese",
+          "rating": 1516,
+          "comparisonCount": 3
+        },
+        {
+          "dishName": "\"Quoted\", comma",
+          "rating": 1484.25,
+          "comparisonCount": 4
+        },
+        {
+          "dishName": "@mention\n🍕",
+          "rating": 1500,
+          "comparisonCount": 0
+        }
+      ],
+      "expected": "[\n  {\n    \"dishName\": \"Mac & Cheese\",\n    \"rating\": 1516,\n    \"comparisonCount\": 3\n  },\n  {\n    \"dishName\": \"\\\"Quoted\\\", comma\",\n    \"rating\": 1484.25,\n    \"comparisonCount\": 4\n  },\n  {\n    \"dishName\": \"@mention\\n🍕\",\n    \"rating\": 1500,\n    \"comparisonCount\": 0\n  }\n]"
+    },
+    {
+      "kind": "ranked_foods_json",
+      "name": "no rows",
+      "input": [],
+      "expected": "[]"
+    },
+    {
+      "kind": "ranked_foods_csv",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "dishName": "Mac & Cheese",
+          "rating": 1516,
+          "comparisonCount": 3
+        },
+        {
+          "dishName": "\"Quoted\", comma",
+          "rating": 1484.25,
+          "comparisonCount": 4
+        },
+        {
+          "dishName": "@mention\n🍕",
+          "rating": 1500,
+          "comparisonCount": 0
+        }
+      ],
+      "expected": "dishName,rating,comparisonCount\n\"Mac & Cheese\",\"1516\",\"3\"\n\"\"\"Quoted\"\", comma\",\"1484.25\",\"4\"\n\"\t@mention\n🍕\",\"1500\",\"0\""
+    },
+    {
+      "kind": "ranked_foods_csv",
+      "name": "no rows",
+      "input": [],
+      "expected": "dishName,rating,comparisonCount"
+    },
+    {
+      "kind": "favorites_json",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "type": "dish",
+          "dishName": "Mac & Cheese"
+        },
+        {
+          "type": "dish",
+          "dishName": "=cmd|\"x\", y"
+        },
+        {
+          "type": "location",
+          "hallTid": 2
+        },
+        {
+          "type": "dish",
+          "dishName": "Crêpes\n北京"
+        }
+      ],
+      "expected": "[\n  {\n    \"type\": \"dish\",\n    \"dishName\": \"Mac & Cheese\"\n  },\n  {\n    \"type\": \"dish\",\n    \"dishName\": \"=cmd|\\\"x\\\", y\"\n  },\n  {\n    \"type\": \"location\",\n    \"hallTid\": 2\n  },\n  {\n    \"type\": \"dish\",\n    \"dishName\": \"Crêpes\\n北京\"\n  }\n]"
+    },
+    {
+      "kind": "favorites_json",
+      "name": "no rows",
+      "input": [],
+      "expected": "[]"
+    },
+    {
+      "kind": "favorites_csv",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "type": "dish",
+          "dishName": "Mac & Cheese"
+        },
+        {
+          "type": "dish",
+          "dishName": "=cmd|\"x\", y"
+        },
+        {
+          "type": "location",
+          "hallTid": 2
+        },
+        {
+          "type": "dish",
+          "dishName": "Crêpes\n北京"
+        }
+      ],
+      "expected": "type,dishName,hallTid\n\"dish\",\"Mac & Cheese\",\"\"\n\"dish\",\"\t=cmd|\"\"x\"\", y\",\"\"\n\"location\",\"\",\"2\"\n\"dish\",\"Crêpes\n北京\",\"\""
+    },
+    {
+      "kind": "favorites_csv",
+      "name": "no rows",
+      "input": [],
+      "expected": "type,dishName,hallTid"
+    },
+    {
+      "kind": "custom_foods_json",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "id": "c1",
+          "name": "Mom's Chili, extra",
+          "servingSize": "1 cup (240 g)",
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          },
+          "ingredients": "beans, \"secret\" spice,\nlove"
+        },
+        {
+          "id": "c2",
+          "name": "=Bare",
+          "servingSize": "1",
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 12.5,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12,
+            "proteinDv": 4
+          }
+        },
+        {
+          "id": "c3",
+          "name": "北京烤鸭 🍕",
+          "servingSize": "",
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          },
+          "ingredients": "-minus start"
+        }
+      ],
+      "expected": "[\n  {\n    \"id\": \"c1\",\n    \"name\": \"Mom's Chili, extra\",\n    \"servingSize\": \"1 cup (240 g)\",\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 250,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12\n    },\n    \"ingredients\": \"beans, \\\"secret\\\" spice,\\nlove\"\n  },\n  {\n    \"id\": \"c2\",\n    \"name\": \"=Bare\",\n    \"servingSize\": \"1\",\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 12.5,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12,\n      \"proteinDv\": 4\n    }\n  },\n  {\n    \"id\": \"c3\",\n    \"name\": \"北京烤鸭 🍕\",\n    \"servingSize\": \"\",\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 250,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 12\n    },\n    \"ingredients\": \"-minus start\"\n  }\n]"
+    },
+    {
+      "kind": "custom_foods_json",
+      "name": "no rows",
+      "input": [],
+      "expected": "[]"
+    },
+    {
+      "kind": "custom_foods_csv",
+      "name": "representative rows with quotes, commas, newlines, unicode, formula prefixes",
+      "input": [
+        {
+          "id": "c1",
+          "name": "Mom's Chili, extra",
+          "servingSize": "1 cup (240 g)",
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          },
+          "ingredients": "beans, \"secret\" spice,\nlove"
+        },
+        {
+          "id": "c2",
+          "name": "=Bare",
+          "servingSize": "1",
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 12.5,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12,
+            "proteinDv": 4
+          }
+        },
+        {
+          "id": "c3",
+          "name": "北京烤鸭 🍕",
+          "servingSize": "",
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          },
+          "ingredients": "-minus start"
+        }
+      ],
+      "expected": "id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients\n\"c1\",\"Mom's Chili, extra\",\"1 cup (240 g)\",\"250\",\"12\",\"30\",\"10\",\"beans, \"\"secret\"\" spice,\nlove\"\n\"c2\",\"\t=Bare\",\"1\",\"12.5\",\"12\",\"30\",\"10\",\"\"\n\"c3\",\"北京烤鸭 🍕\",\"\",\"250\",\"12\",\"30\",\"10\",\"\t-minus start\""
+    },
+    {
+      "kind": "custom_foods_csv",
+      "name": "no rows",
+      "input": [],
+      "expected": "id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients"
+    },
+    {
+      "kind": "entries_csv",
+      "name": "single umass-menu entry",
+      "input": [
+        {
+          "id": "e1",
+          "loggedAt": "2026-09-15T12:30:00.000Z",
+          "source": {
+            "type": "umass-menu",
+            "dishName": "Mac & Cheese",
+            "hallTid": 1
+          },
+          "servings": 1,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 250,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 12
+          }
+        }
+      ],
+      "expected": "id,loggedAt,dishName,servings,calories,proteinG,totalCarbG,totalFatG\n\"e1\",\"2026-09-15T12:30:00.000Z\",\"Mac & Cheese\",\"1\",\"250\",\"12\",\"30\",\"10\""
+    },
+    {
+      "kind": "entries_json",
+      "name": "single usda entry",
+      "input": [
+        {
+          "id": "e3",
+          "loggedAt": "2026-09-16T08:00:00.000Z",
+          "source": {
+            "type": "usda",
+            "fdcId": "171077",
+            "productName": "Line one\nline two, \"quoted\""
+          },
+          "servings": 2,
+          "nutrition": {
+            "servingSize": "1 slice",
+            "calories": 0,
+            "caloriesFromFat": 90,
+            "totalFatG": 10,
+            "satFatG": 4.5,
+            "transFatG": 0,
+            "cholesterolMg": 20,
+            "sodiumMg": 480,
+            "totalCarbG": 30,
+            "dietaryFiberG": 2,
+            "sugarsG": 3.5,
+            "proteinG": 0.1
+          }
+        }
+      ],
+      "expected": "[\n  {\n    \"id\": \"e3\",\n    \"loggedAt\": \"2026-09-16T08:00:00.000Z\",\n    \"source\": {\n      \"type\": \"usda\",\n      \"fdcId\": \"171077\",\n      \"productName\": \"Line one\\nline two, \\\"quoted\\\"\"\n    },\n    \"servings\": 2,\n    \"nutrition\": {\n      \"servingSize\": \"1 slice\",\n      \"calories\": 0,\n      \"caloriesFromFat\": 90,\n      \"totalFatG\": 10,\n      \"satFatG\": 4.5,\n      \"transFatG\": 0,\n      \"cholesterolMg\": 20,\n      \"sodiumMg\": 480,\n      \"totalCarbG\": 30,\n      \"dietaryFiberG\": 2,\n      \"sugarsG\": 3.5,\n      \"proteinG\": 0.1\n    }\n  }\n]"
+    }
+  ]
+}
