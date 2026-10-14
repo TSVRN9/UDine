@@ -87,7 +87,7 @@ function tokensForMatch(s: string): string[] {
 /** Token-AND match: every token of `query` must be a substring of `name`, both normalized the same
  * way. FoodPro's search.aspx only narrows the candidate set (see fetchFoodProCandidates) -- this is
  * the real "does this dish actually match what the user typed" filter. */
-function matchesQueryTokens(name: string, query: string): boolean {
+export function matchesQueryTokens(name: string, query: string): boolean {
   const normalizedName = normalizeForMatch(name);
   return tokensForMatch(query).every((token) => normalizedName.includes(token));
 }

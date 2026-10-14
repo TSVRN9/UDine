@@ -33,12 +33,13 @@
 #                                            # Expo Router for the whole app (#435); only a bundle
 #                                            # sees that. Run for any diff under mobile/src/app/ or
 #                                            # adding files to mobile/src.
-#   deno test --node-modules-dir=none --allow-env supabase/functions
+#   deno test --node-modules-dir=none --allow-env --allow-read=shared/vectors supabase/functions
 #                                            # --node-modules-dir=none: without it, deno test
 #                                            # detects pnpm-workspace.yaml and rewrites
 #                                            # package.json. --allow-env: push.test.ts transitively
 #                                            # imports npm:web-push, which reads an env var at
-#                                            # module load.
+#                                            # module load. --allow-read=shared/vectors: the *.vectors
+#                                            # tests read shared/vectors/*.json (run from the repo root).
 #   cd web && npx playwright test           # e2e (needs `npx playwright install chromium` once).
 #                                            # Add --headed or --debug to watch/step through it;
 #                                            # `npx playwright show-report` opens the last HTML report.
@@ -139,7 +140,7 @@ jobs:
           deno-version: v2.x
       # Recursively picks up every *.test.ts under supabase/functions/ (Deno's default test file
       # pattern) — future functions' tests are covered automatically, no per-function wiring here.
-      - run: deno test --node-modules-dir=none --allow-env supabase/functions
+      - run: deno test --node-modules-dir=none --allow-env --allow-read=shared/vectors supabase/functions
 
   e2e:
     runs-on: ubuntu-latest
