@@ -6,15 +6,7 @@
 const { matchesQueryTokens } = await import("./index.ts");
 import { defineVectorTests } from "../_shared/testing/vectors.ts";
 
-// Cases where matchesQueryTokens disagrees with the vector. Not fixed here: owner decides which side is right.
-const KNOWN_DIVERGENT: Record<string, string> = {
-  "\"Anything\" / \"\"": "expected false for a query with no alphanumeric token (empty, blank, punctuation-only, or only non-ASCII letters); Deno's [].every() is vacuously true, TS requires at least one token",
-  "\"Anything\" / \"   \"": "expected false for a query with no alphanumeric token (empty, blank, punctuation-only, or only non-ASCII letters); Deno's [].every() is vacuously true, TS requires at least one token",
-  "\"Anything\" / \"!!!\"": "expected false for a query with no alphanumeric token (empty, blank, punctuation-only, or only non-ASCII letters); Deno's [].every() is vacuously true, TS requires at least one token",
-  "\"Anything\" / \"???\"": "expected false for a query with no alphanumeric token (empty, blank, punctuation-only, or only non-ASCII letters); Deno's [].every() is vacuously true, TS requires at least one token",
-  "\"\" / \"\"": "expected false for a query with no alphanumeric token (empty, blank, punctuation-only, or only non-ASCII letters); Deno's [].every() is vacuously true, TS requires at least one token",
-  "\"\u65e5\u672c Ramen\" / \"\u65e5\u672c\"": "expected false for a query with no alphanumeric token (empty, blank, punctuation-only, or only non-ASCII letters); Deno's [].every() is vacuously true, TS requires at least one token",
-};
+const KNOWN_DIVERGENT: Record<string, string> = {};
 
 defineVectorTests("matchesQueryTokens", "match-query.json", ["match"], (c) => {
   const got = matchesQueryTokens(c.input.name, c.input.query);

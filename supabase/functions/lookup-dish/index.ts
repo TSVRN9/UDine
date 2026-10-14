@@ -89,7 +89,8 @@ function tokensForMatch(s: string): string[] {
  * the real "does this dish actually match what the user typed" filter. */
 export function matchesQueryTokens(name: string, query: string): boolean {
   const normalizedName = normalizeForMatch(name);
-  return tokensForMatch(query).every((token) => normalizedName.includes(token));
+  const tokens = tokensForMatch(query);
+  return tokens.length > 0 && tokens.every((token) => normalizedName.includes(token));
 }
 
 /** Same shape as populate-dishes/populate-retail-dishes' own DishNutrition/RetailDishNutrition --

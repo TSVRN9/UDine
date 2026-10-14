@@ -5,7 +5,7 @@
 // check-favorited-foods/index.ts for HALL_NAMES and the dish-name parser).
 //
 // This is intentionally a much smaller subset than shared/src/hours.ts: no Date-object windows, no
-// midnight-crossing/chaining (see currentlyOpenUntil's ponytail note), no currentMealPeriod (the
+// effective-window synthesis, no currentMealPeriod (the
 // caller gets meal period for free from foodpro-menu-ajax's own response keys -- see
 // check-favorited-foods/index.ts). Everything here operates on minutes-since-midnight integers
 // instead of Date objects, since the Edge Runtime's local clock is UTC (not Eastern, unlike the
@@ -31,6 +31,8 @@ export interface HallHours {
   breakfast: TimeWindow | null;
   lunch: TimeWindow | null;
   dinner: TimeWindow | null;
+  /** Never set by mapHallHours (get_infov2 has no latenight fields); accepted for parity with shared/src/hours.ts. */
+  latenight?: TimeWindow | null;
   general: TimeWindow | null;
 }
 
@@ -132,27 +134,45 @@ function easternMinutesNow(): number {
  * (e.g. a semester feed publishing both a meal window and general hours for the same span), reports
  * the LATEST close among them, matching shared/src/hours.ts's openStatus.
  *
- * ponytail: same-day window containment only -- no midnight-crossing/chaining like
- * shared/src/hours.ts's resolveWindow (a window where close <= open is treated as unparseable and
- * skipped, same as shared/src/hours.ts's own "openTime === closeTime" trust-boundary fallback).
- * get_infov2 has no latenight fields at all (see shared/src/hours.ts's own doc comment) -- no real
- * hall's published window crosses midnight today. Upgrade path: port resolveWindow's
- * crossesMidnight handling here if a genuine overnight window shows up server-side.
+ * Mirrors shared/src/hours.ts's resolveWindow + openStatus on a minutes axis (today = 0..1439): a
+ * window with close <= open crosses midnight (today's occurrence ends at close+1440; yesterday's
+ * tail ends at close), open === close is unparseable and skipped, and closesAt chains through
+ * contiguous/overlapping windows (open <= closesAt < close) until nothing extends it.
  */
 export function currentlyOpenUntil(hours: HallHours): string | null {
   const now = easternMinutesNow();
-  const windows = [hours.breakfast, hours.lunch, hours.dinner, hours.general].filter((w): w is TimeWindow => w !== null);
-
-  let closeMinutes: number | null = null;
-  for (const w of windows) {
+  const resolved: { open: number; close: number; contains: boolean }[] = [];
+  for (const w of [hours.breakfast, hours.lunch, hours.dinner, hours.latenight, hours.general]) {
+    if (!w) continue;
     const open = parseTimeOfDay(w.openTime);
     const close = parseTimeOfDay(w.closeTime);
-    if (open === null || close === null || close <= open) continue;
-    if (now >= open && now < close && (closeMinutes === null || close > closeMinutes)) {
-      closeMinutes = close;
+    if (open === null || close === null || open === close) continue;
+    if (close > open) {
+      resolved.push({ open, close, contains: now >= open && now < close });
+    } else if (now >= open) {
+      resolved.push({ open, close: close + 1440, contains: true });
+    } else if (now < close) {
+      resolved.push({ open: open - 1440, close, contains: true });
+    } else {
+      resolved.push({ open, close: close + 1440, contains: false });
     }
   }
-  return closeMinutes === null ? null : minutesToLabel(closeMinutes);
+
+  let closesAt: number | null = null;
+  for (const r of resolved) {
+    if (r.contains && (closesAt === null || r.close > closesAt)) closesAt = r.close;
+  }
+  if (closesAt === null) return null;
+  for (let extended = true; extended; ) {
+    extended = false;
+    for (const r of resolved) {
+      if (r.open <= closesAt && r.close > closesAt) {
+        closesAt = r.close;
+        extended = true;
+      }
+    }
+  }
+  return minutesToLabel(closesAt);
 }
 
 const GET_INFOV2_URL = "https://www.umassdining.com/uapp/get_infov2";
