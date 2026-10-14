@@ -48,6 +48,14 @@ const cafeTable = [
   CafeEntry('Charles River Campus of UMass Amherst', 'Charles River Campus', 4, 'Newton'),
 ];
 
+/// The hall a get_infov2 title names (`Worcester Commons`, `Franklin Dining Commons`), as hours.dart matches it; null for anything else.
+String? hallKeyOfTitle(String title) {
+  for (var i = 0; i < diningHalls.length; i++) {
+    if (title.startsWith(diningHalls[i].name) && title.contains('Commons')) return halls[i];
+  }
+  return null;
+}
+
 /// The feed spells a title with ’ and ‘; M2 spells names with '.
 String straight(String s) => s.replaceAll('’', "'").replaceAll('‘', "'");
 
@@ -67,6 +75,9 @@ class Roster {
   const Roster(this.cafes, this.hours);
   final List<Place> cafes;
   final Map<String, DiningHallHours> hours;
+
+  /// Before the hours are known: every café of the table, by name and area, with no hours.
+  static final table = Roster([for (var i = 0; i < cafeTable.length; i++) Place(key: 'c$i', name: cafeTable[i].name, area: cafeTable[i].area, building: cafeTable[i].building)], const {});
 
   factory Roster.fromFeed(DiningHoursFeed feed) {
     final byTitle = {for (final r in feed.retail) straight(r.name): r};
