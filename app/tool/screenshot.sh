@@ -15,6 +15,8 @@ set -euo pipefail
 # daemon BEFORE touching the device: Gradle and an emulator never run together (host memory rule).
 # With --record, frames are extracted to ~/.cache/udine-scratch/, never /tmp; a final-frame PNG
 # is committed next to the MP4 so the gate has an image to open.
+# Until foundation Task 4's same-key internal build lands, a device that already has the RN `.internal` build
+# can't take the Flutter one (signature mismatch): use a test emulator without it; never uninstall on the A53 or the owner's Pixel.
 # Galaxy A53 (R5CT40V5AME): Do Not Disturb is switched on for the capture and off after.
 
 PKG=com.udinetogether.udine.internal
