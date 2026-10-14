@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter/widgets.dart' show Widget;
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
@@ -23,36 +23,42 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 class Boot {
   Boot(this.repo, this.store, this.prefs);
   final Repository repo;
-  final UdineStore store;
+
+  /// The device store; null when the file was written by a newer build (menus only, below).
+  final UdineStore? store;
   final AppPrefs prefs;
   final hider = BandHider();
 
-  static Future<Boot> open(String route) async {
+  /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
+  /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
+  bool get menusOnly => store == null;
+
+  /// [dbPath] is a test seam (the device path by default).
+  static Future<Boot> open(String route, {String? dbPath}) async {
     final flags = recordedFlags(route);
     final pinsFlag = int.tryParse(Uri.parse(route).queryParameters['pins'] ?? '');
-    final db = await _db(memory: flags != null);
-    final store = UdineStore(db);
+    final (cache, store) = await openDb(dbPath: flags != null ? inMemoryDatabasePath : (dbPath ?? await udineDbPath()));
     final Repository repo;
     if (flags != null) {
       // `at` is Eastern wall-clock time, as M2 reads it, wherever the device is
       final a = flags.at;
-      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net), db);
+      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net), cache);
     } else {
       final client = http.Client();
-      repo = Repository(UmassSource(client), db, supabase: SupabaseSource(client));
+      repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client));
     }
     final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
     if (flags == null) repo.launch(); // warm today and tomorrow; never throws
     return Boot(repo, store, prefs);
   }
 
-  static Future<Database> _db({required bool memory}) async {
-    final path = memory ? inMemoryDatabasePath : await udineDbPath();
-    final r = await openStore(path);
-    if (r is StoreReady) return r.db;
-    // A newer build wrote this file: touch nothing, run on a throwaway store (the device-data brief owns what the user sees).
-    debugPrint('udine.db was written by a newer build; running on an in-memory store');
-    return (await openStore(inMemoryDatabasePath) as StoreReady).db;
+  /// The database the repository caches in, and the user store over it (null when a newer build owns the file).
+  @visibleForTesting
+  static Future<(Database, UdineStore?)> openDb({required String dbPath}) async {
+    final r = await openStore(dbPath);
+    if (r is StoreReady) return (r.db, UdineStore(r.db));
+    debugPrint('udine.db was written by a newer build: menus only, nothing is written to it');
+    return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
   }
 
   Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, child: child);

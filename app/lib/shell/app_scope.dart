@@ -10,7 +10,8 @@ import 'prefs.dart';
 class AppScope extends InheritedWidget {
   const AppScope({super.key, required this.repo, required this.store, required this.prefs, required this.hider, required super.child});
   final Repository repo;
-  final UdineStore store;
+  /// null when a newer build owns the database: menus only, nothing is written
+  final UdineStore? store;
   final AppPrefs prefs;
   final BandHider hider;
 
