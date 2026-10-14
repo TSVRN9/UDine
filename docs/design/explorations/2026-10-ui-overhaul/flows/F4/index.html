@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#f2f2f7">
+<title>UDine Tray</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f2f7;--cell:#fff;--label:#000;--sec:#6c6c70;--tint:#881c1c;--sep:#c6c6c8;--track:#e3e3e8;
+  --tintbg:#f1e4e4;--press:#d1d1d6;--step:#eeeef0;--onTray:#fff;--onTray2:rgba(255,255,255,.8);
+  --st:max(env(safe-area-inset-top,0px),12px);--sb:env(safe-area-inset-bottom,0px);
+  --font:-apple-system,"SF Pro Text","SF Pro Display",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#d9d9de;font-family:var(--font);color:var(--label);-webkit-font-smoothing:antialiased}
+body{display:grid;place-items:center;overflow:hidden}
+input{-webkit-user-select:text;user-select:text}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+#app{position:relative;width:390px;height:844px;overflow:hidden;background:var(--bg);border-radius:48px;box-shadow:0 30px 80px rgba(0,0,0,.25);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;isolation:isolate}
+@media (max-width:500px){
+  body{display:block;position:fixed;inset:0;background:var(--bg)}
+  #app{position:fixed;inset:0;width:auto;height:auto;border-radius:0;box-shadow:none}
+}
+/* header */
+#hdr{position:absolute;left:0;right:0;top:0;padding-top:var(--st);z-index:3;background:var(--bg);will-change:transform}
+#titles{position:relative;height:52px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 14px),transparent)}
+.ttl{position:absolute;left:0;top:6px;height:44px;line-height:44px;font-size:28px;font-weight:700;letter-spacing:-.6px;white-space:nowrap;transform-origin:50% 60%;will-change:transform,opacity}
+#rrow{display:flex;align-items:center;gap:8px;padding:2px 16px 8px;height:54px}
+#ruler{position:relative;flex:1;height:44px;overflow:hidden;border-radius:22px;background:#e9e9ee;touch-action:none;cursor:grab;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}
+#rtrack{position:absolute;left:0;top:0;height:44px;will-change:transform}
+.band{position:absolute;top:5px;height:34px;border-radius:17px;background:var(--track);display:flex;align-items:center;justify-content:center;gap:5px;
+  font-size:15px;font-weight:600;color:#3a3a3e;white-space:nowrap;transition:background-color .2s,box-shadow .2s,color .2s}
+.band small{font-size:13px;font-weight:400;color:#545458}
+.band.on{background:#fff;color:#000;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
+.now{position:absolute;bottom:2px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--tint)}
+#needle{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;pointer-events:none}
+#needle::before,#needle::after{content:"";position:absolute;left:0;width:2px;height:7px;border-radius:1px;background:var(--tint)}
+#needle::before{top:0}#needle::after{bottom:0}
+.glass{width:44px;height:44px;border-radius:22px;background:#fff;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.1);transition:transform .3s cubic-bezier(.34,1.3,.64,1),background-color .15s}
+.glass:active,.glass.pr{transform:scale(.92);transition-duration:.12s}
+.glass.on{background:var(--tint);color:#fff}
+.glass svg{width:22px;height:22px}
+/* pager */
+#pager{position:absolute;left:0;right:0;bottom:0;overflow:hidden;z-index:1;will-change:transform}
+#ptrack{position:absolute;inset:0;will-change:transform}
+.page{position:absolute;top:0;bottom:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  touch-action:pan-y;scroll-snap-type:y proximity;scroll-padding-top:6px;padding:6px 16px 0}
+.page::-webkit-scrollbar{display:none}
+.page.fade{transition:opacity .22s cubic-bezier(.2,0,0,1)}
+.st h2{margin:0;padding:14px 4px 8px;font-size:20px;line-height:25px;font-weight:700;letter-spacing:-.4px;scroll-snap-align:start}
+.st:first-child h2{padding-top:4px}
+.grp{background:var(--cell);border-radius:22px;overflow:hidden}
+.row{position:relative;display:flex;align-items:center;min-height:64px;padding:9px 8px 9px 16px;gap:8px;cursor:pointer;transition:background-color .25s cubic-bezier(.25,.1,.25,1)}
+.row+.row::before{content:"";position:absolute;left:16px;right:0;top:0;height:.5px;background:var(--sep)}
+.row.pr{background:var(--press);transition:none}
+.row.ghosted{opacity:.3}
+.rt{flex:1;min-width:0}
+.nm{font-size:17px;line-height:22px;letter-spacing:-.41px}
+.nm .fav{display:inline-block;width:14px;height:14px;margin-left:6px;vertical-align:-1px;color:var(--tint)}
+.mc{font-size:15px;line-height:20px;color:var(--sec);margin-top:1px}
+.ctl{position:relative;width:44px;height:44px;flex:none}
+.row.has .ctl{width:96px}
+.add{position:absolute;right:0;top:0;width:44px;height:44px;display:grid;place-items:center;transition:transform .28s cubic-bezier(.34,1.3,.64,1),opacity .15s}
+.add i{width:30px;height:30px;border-radius:15px;background:var(--tintbg);color:var(--tint);display:grid;place-items:center}
+.add svg{width:16px;height:16px}
+.stp{position:absolute;right:0;top:0;width:96px;height:44px;border-radius:22px;background:var(--step);display:flex;align-items:center;transform-origin:100% 50%;
+  transition:transform .28s cubic-bezier(.34,1.3,.64,1),opacity .15s;opacity:0;transform:scale(.5);pointer-events:none}
+.stp button{width:44px;height:44px;display:grid;place-items:center;color:#000}
+.stp button:active{opacity:.45}
+.stp b{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--tint);font-variant-numeric:tabular-nums}
+.row.has .add{opacity:0;transform:scale(.4)}
+.row.has .stp{opacity:1;transform:none;pointer-events:auto}
+.closed{padding:80px 20px 0;text-align:center}
+.closed p{font-size:17px;line-height:22px;margin:0 0 20px}
+.closed .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.pill{height:44px;padding:0 20px;border-radius:22px;background:#fff;font-size:17px;font-weight:600;color:var(--tint);box-shadow:0 1px 3px rgba(0,0,0,.08);transition:transform .3s cubic-bezier(.34,1.3,.64,1)}
+.pill:active{transform:scale(.96);transition-duration:.12s}
+/* plain pages */
+.plain h3{margin:22px 4px 8px;font-size:20px;font-weight:700;letter-spacing:-.4px}
+.plain .date{margin:4px 4px 0;font-size:15px;color:var(--sec)}
+.li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:10px 16px;position:relative;font-size:17px;letter-spacing:-.41px}
+.li+.li::before{content:"";position:absolute;left:16px;right:0;top:0;height:.5px;background:var(--sep)}
+.li span:last-child{color:var(--sec);text-align:right;flex:none}
+.li.tap{cursor:pointer;color:var(--tint);width:100%;text-align:left}
+.li.tap:active{background:var(--press)}
+.li small{display:block;font-size:15px;color:var(--sec)}
+.tot{display:grid;grid-template-columns:1fr 1fr}
+.tot .li{border:0}
+.tot .li+.li::before{display:none}
+.h2h{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.h2h button{min-height:88px;border-radius:22px;background:#fff;padding:14px;text-align:left;font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.41px;transition:transform .3s cubic-bezier(.34,1.3,.64,1),background-color .15s}
+.h2h button:active{transform:scale(.96);background:var(--press);transition-duration:.12s}
+.h2h small{display:block;font-weight:400;font-size:15px;color:var(--sec);margin-top:4px}
+.empty{padding:14px 16px;font-size:15px;color:var(--sec)}
+/* station rail */
+#rail{position:absolute;left:0;right:0;bottom:0;height:48px;z-index:4;touch-action:none;cursor:grab;will-change:transform,opacity;
+  background:rgba(242,242,247,.86);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent)}
+#rtrk{position:absolute;left:0;top:0;height:48px;display:flex;white-space:nowrap;will-change:transform}
+.chip{height:48px;line-height:46px;padding:0 13px;font-size:15px;font-weight:600;color:var(--sec);transition:color .12s}
+.chip.on{color:#000}
+#rdot{position:absolute;left:50%;top:3px;width:18px;height:3px;margin-left:-9px;border-radius:2px;background:var(--tint)}
+/* dim */
+#dim{position:absolute;inset:0;z-index:5;background:#000;opacity:0;pointer-events:none;will-change:opacity}
+/* tray */
+#tray{position:absolute;left:6px;right:6px;top:0;z-index:6;border-radius:30px 30px 0 0;background:var(--tint);color:var(--onTray);touch-action:none;will-change:transform;
+  box-shadow:0 -6px 28px rgba(80,10,10,.22),inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(0,0,0,.08)}
+#tray.hot{background:#9a2424}
+.grab{position:absolute;left:50%;top:6px;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:rgba(255,255,255,.45)}
+#tc{position:absolute;left:0;right:0;top:0;padding:16px 12px 0 16px;will-change:opacity}
+.toks{display:flex;flex-wrap:wrap;gap:6px;max-height:78px;overflow:hidden;margin-bottom:10px}
+.toks:empty{display:none}
+.tok{height:36px;max-width:170px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:18px;background:#fff;color:#000;font-size:15px;font-weight:500;
+  transition:transform .32s cubic-bezier(.34,1.4,.64,1),opacity .2s}
+.tok span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok b{color:var(--tint);font-weight:700;flex:none}
+.tok.pending{opacity:0;transform:scale(.4)}
+.tok.bump{transform:scale(1.08)}
+.tok.gone,.ti.gone{opacity:0;transform:translateY(-26px) scale(.92);transition:transform .3s cubic-bezier(.2,0,0,1),opacity .25s}
+.sum{display:flex;align-items:center;gap:12px;min-height:52px}
+.sum .t{flex:1;min-width:0}
+.sum .a{font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.41px;font-variant-numeric:tabular-nums}
+.sum .b{font-size:15px;line-height:20px;color:var(--onTray2);font-variant-numeric:tabular-nums}
+.tb{height:44px;min-width:44px;padding:0 22px;border-radius:22px;background:#fff;color:var(--tint);font-size:17px;font-weight:600;flex:none;display:grid;place-items:center;
+  transition:transform .3s cubic-bezier(.34,1.3,.64,1)}
+.tb:active,.tb.pr{transform:scale(.94);transition-duration:.12s}
+.tb.ghost{background:rgba(255,255,255,.16);color:#fff;padding:0}
+.tb svg{width:22px;height:22px}
+.ok{display:inline-block;width:18px;height:18px;vertical-align:-3px;margin-right:6px}
+#tx{position:absolute;left:0;right:0;top:0;display:flex;flex-direction:column;padding:22px 12px 0;opacity:0;pointer-events:none;will-change:opacity}
+#tray.open #tx{pointer-events:auto}
+#tray.open #tc{pointer-events:none}
+.xh{padding:0 6px 12px}
+.xh h2{margin:0;font-size:28px;line-height:34px;font-weight:700;letter-spacing:-.6px}
+.xh p{margin:2px 0 0;font-size:15px;color:var(--onTray2)}
+.tlist{flex:0 1 auto;min-height:0;color:#000;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;border-radius:22px}
+.tlist .grp{border-radius:22px}
+.ti{will-change:transform}
+.ti .row{cursor:default}
+.ti .stp{opacity:1;transform:none;pointer-events:auto;position:static}
+.srch{display:flex;align-items:center;gap:8px;height:44px;margin:10px 0 0;padding:0 14px;border-radius:22px;background:rgba(255,255,255,.16)}
+.srch svg{width:18px;height:18px;flex:none;opacity:.85}
+.srch input{flex:1;min-width:0;height:44px;border:0;background:none;color:#fff;font:inherit;font-size:17px;outline:none}
+.srch input::placeholder{color:rgba(255,255,255,.78)}
+.xt{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:14px 6px 4px}
+.xt div{font-size:13px;color:var(--onTray2)}
+.xt b{display:block;font-size:17px;color:#fff;font-weight:600;font-variant-numeric:tabular-nums;margin-top:1px}
+.xd{padding:6px 6px 12px;font-size:15px;color:var(--onTray2)}
+.logbig{height:52px;border-radius:26px;background:#fff;color:var(--tint);font-size:17px;font-weight:700;margin-bottom:calc(var(--sb) + 10px);flex:none;
+  transition:transform .3s cubic-bezier(.34,1.3,.64,1)}
+.logbig:active{transform:scale(.97);transition-duration:.12s}
+.logbig:disabled{opacity:.5}
+.cust{display:flex;gap:8px;padding:10px 12px 12px 16px;align-items:center}
+.cust input{width:96px;height:44px;border-radius:12px;border:0;background:var(--step);font:inherit;font-size:17px;padding:0 10px}
+/* lift */
+#layer{position:absolute;inset:0;z-index:8;pointer-events:none}
+.card{position:absolute;left:0;top:0;background:#fff;border-radius:20px;padding:12px 16px;box-shadow:0 18px 40px rgba(0,0,0,.22),0 2px 6px rgba(0,0,0,.1);will-change:transform}
+.card .mc{white-space:normal}
+.fly{position:absolute;left:0;top:0;width:22px;height:22px;border-radius:11px;background:var(--tint);box-shadow:0 0 0 3px #fff,0 4px 10px rgba(0,0,0,.25);will-change:transform}
+#heart{position:absolute;right:16px;top:calc(var(--st) + 112px);z-index:7;width:64px;height:64px;border-radius:32px;background:#fff;color:var(--tint);display:grid;place-items:center;
+  box-shadow:0 6px 20px rgba(0,0,0,.16);opacity:0;transform:scale(.5);pointer-events:none;transition:transform .3s cubic-bezier(.34,1.4,.64,1),opacity .18s}
+#heart svg{width:28px;height:28px}
+#heart.show{opacity:1;transform:none}
+#heart.hot{transform:scale(1.18);background:var(--tint);color:#fff}
+/* filter menu */
+#fmenu{position:absolute;right:16px;top:calc(var(--st) + 108px);z-index:9;width:230px;background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,.2);
+  overflow:hidden;transform-origin:92% 0;transform:scale(.3);opacity:0;pointer-events:none;transition:transform .34s cubic-bezier(.34,1.25,.64,1),opacity .16s}
+#fmenu.show{transform:none;opacity:1;pointer-events:auto}
+#fmenu button{display:flex;width:100%;align-items:center;justify-content:space-between;height:48px;padding:0 16px;font-size:17px;position:relative}
+#fmenu button+button::before{content:"";position:absolute;left:16px;right:0;top:0;height:.5px;background:var(--sep)}
+#fmenu button:active{background:var(--press)}
+#fmenu svg{width:18px;height:18px;color:var(--tint);opacity:0}
+#fmenu .on svg{opacity:1}
+:focus-visible{outline:3px solid #2f6fde;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hdr">
+    <div id="titles"></div>
+    <div id="rrow">
+      <div id="ruler" role="slider" aria-label="Meal" tabindex="0"><div id="rtrack"></div><div id="needle"></div></div>
+      <button class="glass" id="fbtn" aria-label="Filters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+    </div>
+  </header>
+  <div id="pager"><div id="ptrack"></div></div>
+  <div id="rail" aria-label="Stations"><div id="rtrk"></div><i id="rdot"></i></div>
+  <div id="dim"></div>
+  <div id="tray">
+    <i class="grab"></i>
+    <div id="tc"></div>
+    <div id="tx"></div>
+  </div>
+  <div id="heart" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.2C1 8.6 3 5 6.6 5c2.1 0 3.6 1.2 5.4 3.2C13.8 6.2 15.3 5 17.4 5 21 5 23 8.6 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg></div>
+  <div id="fmenu" role="menu"></div>
+  <div id="layer"></div>
+</div>
+<script>
+const DATA = {"Worcester":{"breakfast":[["Breakfast Entrees",[["Apple Cinnamon Pancakes",93,2.3,17.4,1.8,"VH","1 EACH"],["BUSH's Baked Beans",63,2.7,12.9,0.2,"PVHG","2 1/2 OZ"],["Chinese Twist Cruller",26,0.5,3.4,1.2,"PVH","2 piece"],["Hard Boiled Egg",111,10.7,0.0,7.7,"VHG","2 EACH"],["Make Your Own Waffles",222,4.4,44.5,2.2,"VH","1 EACH"],["Pork Sausage Links",88,3.6,0.0,8.2,"G","2 each"],["Red Potato Home Fries",65,1.6,13.4,0.7,"PVHG","3 OZ"],["Roasted Tomatoes w/Feta & Spinach",61,2.0,1.8,5.5,"VHG","2 OZ"],["Sauteed Mushrooms",35,1.6,2.3,3.0,"PVHG","2 OZ"],["Scrambled Eggs",112,10.7,0.0,7.7,"VHG","3 OZ"],["Southwest Tofu Scramble",113,11.1,3.2,6.6,"PVHG","3 oz"]]],["Breakfast Pastries",[["Gingerbread Bundt",197,2.2,26.3,9.5,"VH","1 Slice"],["Mini Apple Danish",121,2.0,14.1,6.0,"VH","1 Each"]]],["Omelet",[["American Cheese",46,2.5,0.5,4.1,"VG","1/2 OZ"],["Diced Tomatoes",5,0.2,1.0,0.0,"PVHG","1 OZ"],["Fresh Green Peppers",3,0.1,0.7,0.0,"PVHG","1/2 OZ"],["Omelet Bar",91,8.8,0.0,6.3,"G","5 oz"],["Onions",11,0.3,2.4,0.0,"PVHG","1 oz"],["Shredded Cheddar Cheese",115,6.5,0.9,9.4,"VHG","1 OZ"],["Sliced Mushrooms",6,0.9,0.9,0.1,"PVHG","1 OZ"]]],["Soups",[["Chicken Congee",280,6.5,61.4,0.2,"G","3 oz"],["Hot Oatmeal",91,3.2,16.2,1.6,"PVH","4 OZL"]]],["Desserts",[["Chocolate Soft Serve Ice Cream",222,3.9,24.8,11.7,"VHG","4 oz"],["Plant Based Vanilla Ice Cream",179,0.7,24.9,8.3,"PVHG","4 oz"],["Strawberry Plant Based Soft Serve",187,0.7,27.8,7.9,"PVHG","4 oz"],["Vanilla Soft Serve Ice Cream",169,2.6,26.1,5.9,"VHG","4 oz"]]],["Display Station",[["Cauliflower & Potato Curry",43,0.9,6.8,1.7,"PVHG","3 OZ"],["Coriander Chutney",14,0.0,0.9,0.9,"PVHG","1 oz"],["DANNON Nonfat Plain Yogurt",42,5.3,2.7,1.2,"VHG","2 OZ"],["Hot Mango Pickle",18,0.0,1.8,1.3,"PVHG","1/2 oz"],["Masala Chai",39,1.1,6.0,1.2,"VHG","4 oz"],["Mixed Vegetable Paratha",155,4.0,26.0,4.0,"VH","1/2 each"]]],["Latino 2",[["Black Beans",80,3.6,12.7,1.7,"PVHG","3 OZ"],["Fried Plantain",69,0.3,8.9,3.7,"V","1 OZ"],["Huevos Rancheros",202,9.1,10.8,13.8,"VHG","1 EACH"]]]],"lunch":[["Miscellaneous",[["Local Roasted Sweet Potatoes",164,1.7,22.0,8.0,"PVHG","4 oz"]]],["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Roasted Red Pepper & Smoked Gouda Bisque",176,4.1,10.5,12.9,"VH","5 oz"]]],["Grill Station",[["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["Golden BBQ Chicken Thigh",93,13.3,2.4,2.9,"HG","1 each"],["Halal Burger Patty",144,12.6,0.0,10.2,"HG","1 each"],["Halal French Fries",193,1.8,17.7,13.2,"PVH","3 OZ"],["Hand Cut Sweet Potato Fries",178,0.9,17.3,11.7,"V","3 oz"],["Oatmeal Raisin Cookie",110,2.0,18.0,3.5,"VH","1 each"],["Roasted Zucchini",25,0.5,4.8,0.8,"PVHG","2 1/2 OZ"]]],["Desserts",[["Chocolate Soft Serve Ice Cream",222,3.9,24.8,11.7,"VHG","4 oz"],["Plant Based Vanilla Ice Cream",179,0.7,24.9,8.3,"PVHG","4 oz"],["Strawberry Plant Based Soft Serve",187,0.7,27.8,7.9,"PVHG","4 oz"],["Vanilla Soft Serve Ice Cream",169,2.6,26.1,5.9,"VHG","4 oz"],["Zebra Brownies",172,1.4,23.6,7.9,"VH","1 PIECE"]]],["Noodle Bowl",[["Bean Sprouts",2,0.2,0.2,0.0,"PVHG","1/2 OZ"],["Beef Brisket Noodle Bowl",218,12.3,39.9,1.6,"","1 bowl"],["Chopped Cilantro",1,0.1,0.1,0.0,"PVHG","1/8 oz"],["Hard Boiled Egg",111,10.7,0.0,7.7,"VHG","2 EACH"],["Scallions",5,0.3,1.1,0.0,"PVHG","1/2 OZ"],["Steamed Bok Choy",11,1.3,1.9,0.2,"PVHG","3 oz"]]],["Street Food",[["Braised Pulmuone Tofu",123,9.2,8.8,6.1,"PV","4 oz"],["Mee Goreng",107,4.3,19.8,1.3,"VH","4 oz"],["Stir Fry Green Vegetables",34,1.9,3.4,1.9,"PVH","3 oz"],["Vegetable Spring Rolls",158,1.1,5.6,15.3,"V","2 EACH"],["Yellow Curry Kabocha Squash w/Pork Belly (Fish)",194,3.0,3.8,18.3,"","3 oz"]]],["Tandoor",[["Baked Salmon w/Paprika Ginger Eggplant Sauce",155,13.1,6.6,8.1,"HG","4 oz"],["Chickpea Salad w/Teardrop Peppers & Artichoke Hearts",115,3.4,6.7,8.4,"VHG","2 oz"],["Creamy Cucumber Salad",26,1.6,2.6,1.2,"VHG","2 oz"],["Cumin Basmati Rice",138,2.5,24.5,2.8,"PVHG","3 OZ"],["Kachumbari Salad",13,0.4,2.7,0.0,"PVHG","2 oz"],["Okra & Onions",92,1.3,6.7,7.0,"V","3 oz"],["Tear Drop Peppers",25,0.0,6.1,0.0,"PVHG","1 oz"]]],["Mediterranean",[["Baked Italian Sausage w/Potatoes & Onions",199,12.4,6.7,13.5,"G","4 oz"],["Basil Cream Pesto Sauce",203,3.4,3.4,19.8,"VG","2 OZ"],["Fettuccini Pasta",149,5.2,31.3,0.7,"PVH","4 OZ"],["Fresh Grated Parmesan Cheese",28,1.8,1.3,1.6,"VHG","1/4 OZ"],["Herb Roasted Tomatoes",22,0.2,0.9,2.0,"PVHG","1 each"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Rigatoni Pasta",154,5.4,32.4,0.8,"VH","4 OZ"],["Rigatoni w/Broccolini & Ricotta",155,5.1,23.2,5.3,"VH","4 oz"]]],["Seasons",[["Baked Pakora",23,1.0,4.0,0.3,"PVHG","1 each"],["Coriander Chutney",14,0.0,0.9,0.9,"PVHG","1 oz"],["Cucumber & Yogurt Raita Jain",12,1.0,1.1,0.5,"VHG","1 OZ"],["Family Pulav (Vegetable Rice) Jain",113,1.9,16.3,4.3,"PVHG","3 OZ"],["Fresh Red Onions",4,0.1,0.8,0.0,"PVHG","1/4 OZ"],["GF Penne Pasta",203,4.1,43.5,1.0,"PVHG","4 OZ"],["Kidney Bean Curry Rasoi",108,4.0,13.6,4.7,"VHG","3 oz"],["Marinara Jain",23,0.9,3.6,0.0,"PVHG","2 oz"],["Paneer Jalfrezi (Cheese)",214,12.6,7.0,15.5,"VHG","4 oz"],["Sauteed Cabbage w/Coconut",86,1.3,6.0,6.7,"PVH","3 OZ"],["Tamarind Date Chutney",28,0.0,7.6,0.0,"PVHG","1 oz"]]],["Latino 1",[["Arroz Blanco",130,1.6,18.5,4.8,"PVHG","3 OZ"],["Black Beans",80,3.6,12.7,1.7,"PVHG","3 OZ"],["Carrots & Chayote w/Lemon",40,0.9,6.4,1.6,"PVHG","3 OZ"],["Esquites (Mexican Corn Salad)",79,2.8,9.8,4.0,"VHG","2 oz"],["Homemade Guacamole",112,0.1,5.7,10.9,"PVHG","3 OZ"],["Pork Adobada (Chicken)",116,8.1,8.0,6.0,"G","4 oz"],["Queso Fresco",47,2.8,0.5,3.8,"VHG","1/2 oz"],["Sibley's Pico de Gallo",6,0.2,1.4,0.0,"PVHG","1 OZ"],["Sour Cream",61,1.0,1.0,5.1,"VHG","1 OZ"]]]],"dinner":[["Miscellaneous",[["Kumamoto Style Ramen Broth (Pork, Chicken & Seafood)",8,0.3,0.5,0.5,"","4 oz"]]],["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Roasted Red Pepper & Smoked Gouda Bisque",176,4.1,10.5,12.9,"VH","5 oz"]]],["Grill Station",[["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["Golden BBQ Chicken Thigh",93,13.3,2.4,2.9,"HG","1 each"],["Halal Burger Patty",144,12.6,0.0,10.2,"HG","1 each"],["Halal French Fries",193,1.8,17.7,13.2,"PVH","3 OZ"],["Hand Cut Sweet Potato Fries",178,0.9,17.3,11.7,"V","3 oz"],["Roasted Butternut Squash",61,0.8,9.7,2.8,"PVHG","3 oz"],["Steamed Broccoli",29,2.6,2.1,1.7,"PVHG","3 OZ"]]],["Desserts",[["Blueberry Buckle",146,2.0,27.2,3.9,"PVH","2 OZ"],["Chocolate Malva Pudding",147,2.4,21.0,6.2,"VH","1 3/4 OZ"],["Chocolate Soft Serve Ice Cream",222,3.9,24.8,11.7,"VHG","4 oz"],["Plant Based Vanilla Ice Cream",179,0.7,24.9,8.3,"PVHG","4 oz"],["Strawberry Plant Based Soft Serve",187,0.7,27.8,7.9,"PVHG","4 oz"],["Vanilla Soft Serve Ice Cream",169,2.6,26.1,5.9,"VHG","4 oz"]]],["Breads",[["Local Whole Wheat Bread",57,1.2,8.5,2.0,"PVH","1 PIECE"]]],["Noodle Bowl",[["Baby Bok Choy",4,0.4,0.6,0.1,"G","1 oz"],["Bean Sprouts",2,0.2,0.2,0.0,"PVHG","1/2 OZ"],["Chashu Pork Topping",88,1.9,3.0,7.3,"","1 oz"],["Hard Boiled Egg",35,2.8,0.3,2.4,"G","1/2 each"],["Kumamoto Style Ramen (Pork & Chicken)",383,10.4,46.4,23.1,"","1 BOWL"],["Mayu (Black Garlic Oil)",215,0.3,1.6,22.9,"PVHG","1 oz"],["Roasted Zucchini",38,0.8,7.2,1.1,"PVHG","3 OZ"],["Scallions",5,0.3,1.1,0.0,"PVHG","1/2 OZ"]]],["Sushi",[["California Roll",222,5.9,47.3,0.8,"G","1 roll"],["Purple Sweet Potato Tempura Sushi Roll",228,3.7,47.9,1.8,"PVH","1 roll"],["Spicy Tuna Roll",269,11.5,45.0,4.2,"H","1 Roll"],["Teriyaki Pulmuone Tofu Roll",241,7.9,44.8,3.0,"PV","1 roll"],["Vegetable Sushi Roll",196,3.6,42.9,0.6,"PVHG","1 roll"]]],["Street Food",[["Kimchi Fried Rice",158,5.0,19.6,6.4,"H","4 oz"],["Korean BBQ Pulmuone Tofu",63,1.9,11.7,0.9,"V","4 OZ"],["Korean Gochujang BBQ Ribs",291,17.1,7.6,21.0,"","1 each"],["Stir Fry Green Vegetables",34,1.9,3.4,1.9,"PVH","3 oz"],["Vegetable Spring Rolls",158,1.1,5.6,15.3,"V","2 EACH"]]],["Tandoor",[["Babaganoush",93,2.8,5.1,7.5,"PVHG","2 oz"],["Chicken Shawarma",106,15.1,1.6,4.1,"HG","3 OZ"],["Citrus Yogurt w/Sumac",27,2.4,1.4,1.3,"VHG","1 oz"],["Lavash Bread",50,1.7,9.8,0.4,"PVH","1 PIECE"],["Roasted Onions & Peppers",35,0.9,5.8,1.1,"PVHG","3 oz"],["Sweet Onion Salad",22,0.6,5.2,0.1,"PVHG","2 oz"],["Tahini Sauce",60,2.2,2.3,5.1,"PVHG","1 oz"],["Turmeric Basmati Rice",312,6.1,62.2,2.7,"PVHG","3 OZ"]]],["Mediterranean",[["Basil Cream Pesto Sauce",203,3.4,3.4,19.8,"VG","2 OZ"],["Fettuccini Pasta",149,5.2,31.3,0.7,"PVH","4 OZ"],["Fresh Grated Parmesan Cheese",28,1.8,1.3,1.6,"VHG","1/4 OZ"],["Garlic Parmesan Chicken Leg",150,16.9,3.4,7.4,"HG","1 EACH"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Rigatoni Pasta",154,5.4,32.4,0.8,"VH","4 OZ"],["Tortellini w/Creamy Tuscan Tomato Sauce",168,5.3,19.2,7.9,"","3 oz"]]],["Seasons",[["Carrots",5,0.2,1.3,0.0,"PVHG","1/2 OZ"],["Corn",73,2.8,16.0,1.2,"PVHG","3 oz"],["Diced Avocado",47,0.6,2.4,4.4,"PVHG","1 oz"],["Eggplant Donburi Jain",271,4.7,43.9,7.3,"PVG","6 oz"],["GF Penne Pasta",203,4.1,43.5,1.0,"PVHG","4 OZ"],["Gluten Free Unagi Sauce",61,0.8,13.9,0.1,"PVG","1 oz"],["Japanese Pickled Cucumbers",16,0.4,3.9,0.1,"PVG","2 oz"],["Marinara Jain",23,0.9,3.6,0.0,"PVHG","2 oz"],["Nori",24,2.4,2.4,0.0,"PVHG","1/4 oz"],["Pickled Ginger",10,0.0,2.5,0.0,"PVHG","1/2 oz"],["Plain Sushi Rice",145,3.2,31.3,0.0,"PVHG","4 oz"],["Sauteed Spinach w/Sesame Seeds",36,2.5,3.2,2.0,"PVHG","3 OZ"],["Scallions",5,0.3,1.1,0.0,"PVHG","1/2 OZ"],["Toasted Yellow Sesame Seeds",0,0.0,0.0,0.0,"PVHG","1/2 tsp"]]],["Latino 1",[["Arroz Blanco",130,1.6,18.5,4.8,"PVHG","3 OZ"],["Corn w/Red Peppers",76,2.4,13.7,2.4,"PVHG","3 oz"],["Esquites (Mexican Corn Salad)",79,2.8,9.8,4.0,"VHG","2 oz"],["Homemade Guacamole",112,0.1,5.7,10.9,"PVHG","3 OZ"],["Mole Amarillo Chicken",212,16.3,15.0,8.7,"G","1 each"],["Pinto Beans",68,2.8,10.6,1.8,"PVHG","3 OZ"],["Sibley's Pico de Gallo",6,0.2,1.4,0.0,"PVHG","1 OZ"]]]],"late night":[["Grill Station",[["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["Cajun Chicken Thigh",100,16.1,0.0,3.4,"HG","1 EACH"],["Halal Burger Patty",144,12.6,0.0,10.2,"HG","1 each"],["Halal French Fries",193,1.8,17.7,13.2,"PVH","3 OZ"],["Roasted Butternut Squash",61,0.8,9.7,2.8,"PVHG","3 oz"]]],["Desserts",[["Chocolate Soft Serve Ice Cream",222,3.9,24.8,11.7,"VHG","4 oz"],["Plant Based Vanilla Ice Cream",179,0.7,24.9,8.3,"PVHG","4 oz"],["Strawberry Plant Based Soft Serve",187,0.7,27.8,7.9,"PVHG","4 oz"],["Vanilla Soft Serve Ice Cream",169,2.6,26.1,5.9,"VHG","4 oz"]]],["Display Station",[["Bacon Jalapeno Quesadilla",217,10.6,14.4,12.6,"","1 EACH"],["Homemade Guacamole",112,0.1,5.7,10.9,"PVHG","3 OZ"],["Pinto Beans",68,2.8,10.6,1.8,"PVHG","3 OZ"],["Plant Based Chorizo & Jalapeno Quesadilla",90,3.8,13.2,2.5,"PVH","1 EACH"],["Shredded Cheddar Cheese",115,6.5,0.9,9.4,"VHG","1 OZ"],["Shredded Lettuce",4,0.3,0.8,0.0,"PVHG","1 OZ"],["Sibley's Pico de Gallo",6,0.2,1.4,0.0,"PVHG","1 OZ"],["Sour Cream",61,1.0,1.0,5.1,"VHG","1 OZ"],["Yellow Rice",103,1.7,19.3,1.3,"PVHG","3 oz"]]],["Mediterranean",[["Fresh Grated Parmesan Cheese",28,1.8,1.3,1.6,"VHG","1/4 OZ"]]]]},"Franklin":{"breakfast":[["Breakfast Entrees",[["Apple Cinnamon Pancakes",93,2.3,17.4,1.8,"VH","1 EACH"],["BUSH's Baked Beans",63,2.7,12.9,0.2,"PVHG","2 1/2 OZ"],["Chicken Congee",280,6.5,61.4,0.2,"G","3 oz"],["Chinese Twist Cruller",26,0.5,3.4,1.2,"PVH","2 piece"],["Hard Boiled Egg",111,10.7,0.0,7.7,"VHG","2 EACH"],["Hot Oatmeal",91,3.2,16.2,1.6,"PVH","4 OZL"],["Omelet Station",303,21.7,2.3,23.4,"G","5 oz"],["Red Potato Home Fries",65,1.6,13.4,0.7,"PVHG","3 OZ"],["Roasted Tomatoes w/Feta & Spinach",61,2.0,1.8,5.5,"VHG","2 OZ"],["Sauteed Mushrooms",35,1.6,2.3,3.0,"PVHG","2 OZ"],["Scrambled Eggs",112,10.7,0.0,7.7,"VHG","3 OZ"],["Smoked Bacon Slices",276,17.0,2.1,21.2,"G","2 slices"],["Southwest Tofu Scramble",113,11.1,3.2,6.6,"PVHG","3 oz"]]],["Breakfast Pastries",[["Gingerbread Bundt",197,2.2,26.3,9.5,"VH","1 Slice"],["Mini Apple Danish",121,2.0,14.1,6.0,"VH","1 Each"]]],["GF Hot Breakfast",[["Gluten Free Waffles",224,6.4,46.4,0.8,"PVHG","1 EACH"],["Red Potato Home Fries",65,1.6,13.4,0.7,"PVHG","3 OZ"],["Scrambled Eggs",112,10.7,0.0,7.7,"VHG","3 OZ"]]]],"lunch":[["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Roasted Red Pepper & Smoked Gouda Bisque",176,4.1,10.5,12.9,"VH","5 oz"]]],["Entrees",[["Herbed Roasted Chicken Legs",101,13.5,0.4,4.9,"HG","1 EACH"],["Sausage Pepperonata",142,10.0,3.5,9.2,"G","3 oz"]]],["Starches",[["Fresh Corn on the Cob",31,1.2,6.8,0.5,"PVHG","1/2 each"],["Lyonnaise Potatoes",88,1.6,13.8,3.2,"PVHG","3 OZ"]]],["Vegetables",[["Braised Collards in Tomato Onion Gravy",31,2.4,5.0,0.8,"PVHG","3 oz"],["Spiced Cauliflower & Chickpeas",53,2.6,7.1,1.8,"PVHG","3 oz"]]],["Grill Station",[["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["French Fries",193,1.8,17.7,13.2,"V","3 OZ"],["Grilled Cheese Sandwich",153,5.5,19.4,6.4,"V","1/2 Sandwich"],["Grilled Chicken Breast",105,18.9,0.1,3.0,"HG","3 oz"],["Halal SPARE Beef Burger",130,12.0,2.0,8.0,"HG","1 Each"],["Sweet Potato Fries",194,0.9,16.9,13.7,"V","3 OZ"]]],["Vegetarian Line",[["Baked General Tso's Pulmuone Tofu",115,8.8,10.8,4.4,"PV","3 oz"],["Ginger & Tomato Salad",11,0.4,2.1,0.0,"PVHG","2 oz"],["Jasmine Rice",92,1.7,20.7,0.0,"PVHG","3 OZ"],["Plant Based Cheese Pizza",159,4.2,24.2,5.0,"PVH","1 slice"],["Plant Based Steak & Cheese Pizza",184,5.6,26.2,6.4,"PV","1 slice"],["Quinoa, Corn & Avocado Salad",37,1.3,6.8,0.9,"PVHG","2 oz"],["Szechuan Broccoli",138,1.5,28.7,2.3,"PV","3 oz"]]],["Pasta Bar",[["Cavatappi Pasta",140,5.9,29.5,0.7,"PVH","4 oz"],["Fettuccini Pasta",149,5.2,31.3,0.7,"PVH","4 OZ"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Tomato Cream Basil Sauce",119,2.3,3.8,10.8,"VHG","2 OZ"],["Tortellini w/Basil Pesto & Grape Tomatoes",212,6.6,27.2,8.9,"V","4 oz"]]],["Deli Bar",[["American Cheese",46,2.5,0.5,4.1,"VG","1/2 OZ"],["Chicken Salad",69,9.6,1.9,2.6,"HG","2 OZ"],["Deli Beef",61,11.1,0.0,2.0,"G","2 OZ"],["Deli Ham",67,9.3,1.3,2.7,"G","2 oz"],["Homemade Spicy Hummus",95,3.9,9.6,5.1,"PVHG","2 OZ"],["Provolone Cheese",47,3.4,0.0,4.1,"VHG","1/2 OZ"],["Turkey Breast",61,13.2,0.0,1.0,"HG","2 OZ"]]],["Desserts",[["Oatmeal Raisin Cookie",110,2.0,18.0,3.5,"VH","1 each"],["Zebra Brownies",172,1.4,23.6,7.9,"VH","1 PIECE"]]],["Stir Fry Station",[["Plant-Based Condiments Bar w/Almonds",229,5.0,11.5,17.8,"PVG","2 OZ"]]],["Pizza",[["Cheese Pizza",203,9.4,29.6,5.4,"VH","1 SLICE"],["Pepperoni Pizza",217,9.9,29.0,7.0,"","1 SLICE"]]],["Gluten Free",[["Burger Bar",464,20.7,47.7,21.9,"G","1 each"]]],["Latino",[["Esquites (Mexican Corn Salad)",79,2.8,9.8,4.0,"VHG","2 oz"],["Latin Toppings",130,4.9,3.6,10.6,"VHG","3 oz"],["Pollo (Chicken) in Poblano Sauce",79,7.5,1.7,4.3,"HG","1 each"],["Refried Black Beans",25,1.5,4.3,0.1,"PVHG","1 oz"],["Yellow Rice",103,1.7,19.3,1.3,"PVHG","3 oz"],["Zucchini, Corn & Peppers",45,1.1,7.0,2.0,"PVHG","2 OZ"]]],["Express",[["Brown Rice",123,2.7,25.9,0.9,"PVHG","3 1/2 OZ"],["Chicken, Pork & Shrimp Wonton Soup",206,11.8,24.4,9.3,"","5 oz"],["Jasmine Rice",93,1.7,20.8,0.0,"PVHG","3 OZ"],["Mei Fun Noodles",178,4.9,33.6,2.4,"VH","4 OZ"],["Sesame Ginger Baby Bok Choy",24,1.3,2.4,1.3,"PVHG","3 OZ"],["Szechuan Pork Belly w/Cabbage & Caul",355,5.8,13.6,30.9,"","4 oz"],["Vegetable Spring Rolls",158,1.1,5.6,15.3,"V","2 EACH"]]]],"dinner":[["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Roasted Red Pepper & Smoked Gouda Bisque",176,4.1,10.5,12.9,"VH","5 oz"]]],["Entrees",[["Cabbage Parmesan",112,4.5,6.5,8.0,"VHG","4 oz"],["Creamy Tuscan Chicken",203,9.3,2.7,17.0,"G","1 each"]]],["Starches",[["Lemon Rice Pilaf",92,1.7,19.2,0.2,"PVHG","3 OZ"],["Local Roasted Sweet Potatoes",163,1.7,22.3,7.7,"PVHG","4 oz"]]],["Vegetables",[["Agrodolce Honeynut Squash",62,0.6,15.2,0.6,"VG","3 OZ"],["Roasted Garlic Zucchini w/Tomatoes",40,0.8,6.6,1.8,"PVHG","3 oz"]]],["Grill Station",[["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["French Fries",193,1.8,17.7,13.2,"V","3 OZ"],["Grilled Cheese Sandwich",153,5.5,19.4,6.4,"V","1/2 Sandwich"],["Grilled Chicken Breast",105,18.9,0.1,3.0,"HG","3 oz"],["Halal SPARE Beef Burger",130,12.0,2.0,8.0,"HG","1 Each"],["Sweet Potato Fries",194,0.9,16.9,13.7,"V","3 OZ"]]],["Vegetarian Line",[["Edamame & Mushroom",87,6.2,5.5,5.2,"PVHG","3 OZ"],["Ginger & Tomato Salad",11,0.4,2.1,0.0,"PVHG","2 oz"],["Pan Fried Vegetarian Potsticker",70,1.3,10.7,2.7,"PVH","1 each"],["Quinoa, Corn & Avocado Salad",37,1.3,6.8,0.9,"PVHG","2 oz"],["Sauteed Broccoli",22,2.2,1.7,1.2,"PVHG","2 1/2 OZ"],["Sweet Chili Dumpling Sauce",37,0.4,5.3,1.6,"PVH","1 OZ"],["Sweet Chili Tofu Baked",202,5.8,20.7,10.4,"PVH","4 OZ"],["Vegetable Fried Rice",250,4.5,45.0,4.2,"PVH","4 OZ"]]],["Pasta Bar",[["Cavatappi Pasta",140,5.9,29.5,0.7,"PVH","4 oz"],["Cavatappi w/Tomato Cream & Spinach",148,4.5,18.8,6.8,"V","3 oz"],["Fettuccini Pasta",149,5.2,31.3,0.7,"PVH","4 OZ"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Tomato Cream Basil Sauce",119,2.3,3.8,10.8,"VHG","2 OZ"]]],["Desserts",[["Blueberry Buckle",146,2.0,27.2,3.9,"PVH","2 OZ"],["Chocolate Malva Pudding",147,2.4,21.0,6.2,"VH","1 3/4 OZ"],["Local Whole Wheat Bread",57,1.2,8.5,2.0,"PVH","1 PIECE"]]],["Stir Fry Station",[["Plant-Based Condiments Bar w/Almonds",229,5.0,11.5,17.8,"PVG","2 OZ"]]],["Pizza",[["Cheese Pizza",203,9.4,29.6,5.4,"VH","1 SLICE"],["Pepperoni Pizza",217,9.9,29.0,7.0,"","1 SLICE"]]],["Sushi",[["California Roll",222,5.9,47.3,0.8,"G","1 roll"],["Shrimp Sushi Roll",216,7.4,43.2,0.9,"HG","1 roll"],["Vegetable Sushi Roll",196,3.6,42.9,0.6,"PVHG","1 roll"]]],["Gluten Free",[["Diced Tomatoes",5,0.2,1.0,0.0,"PVHG","1 OZ"],["Local Roasted Sweet Potatoes",121,1.3,16.3,5.8,"PVHG","3 oz"],["McAtee Family Three Bean Turkey Chili",160,11.1,14.3,6.2,"G","5 oz"],["Scallions",5,0.3,1.1,0.0,"PVHG","1/2 OZ"],["Shredded Cheddar Cheese",115,6.5,0.9,9.4,"VHG","1 OZ"],["Sour Cream",61,1.0,1.0,5.1,"VHG","1 OZ"]]],["Latino",[["Beef Nacho Bar",158,5.3,17.5,8.2,"","1 EACH"],["Latin Toppings",130,4.9,3.6,10.6,"VHG","3 oz"],["Plant Based Chorizo Crumbles",48,4.3,3.4,2.9,"PVHG","1 oz"],["Queso Sauce",80,3.9,2.1,6.1,"VG","1 oz"],["VIOLIFE Plant Based Cheddar Cheese",81,0.0,6.1,7.1,"PVHG","1 oz"],["Warm Charred Corn Salsa",24,0.7,4.2,0.9,"PVHG","1 oz"]]],["Express",[["Brown Rice",123,2.7,25.9,0.9,"PVHG","3 1/2 OZ"],["Jasmine Rice",93,1.7,20.8,0.0,"PVHG","3 OZ"],["Stir Fried Vegetables",32,1.5,1.9,2.3,"PVH","3 OZ"],["Teriyaki Salmon w/Sesame Seeds",140,13.7,1.4,8.9,"","1 each"],["Teriyaki Tofu w/Sesame Seeds",231,13.7,8.1,16.6,"V","4 oz"],["Vegetable Spring Rolls",158,1.1,5.6,15.3,"V","2 EACH"],["Vegetable Yaki Udon",59,1.9,10.7,1.1,"PV","4 oz"]]]]},"Hampshire":{"breakfast":[["Breakfast Entrees",[["Apple Cinnamon Pancakes",93,2.3,17.4,1.8,"VH","1 EACH"],["BUSH's Baked Beans",63,2.7,12.9,0.2,"PVHG","2 1/2 OZ"],["Hard Boiled Egg",111,10.7,0.0,7.7,"VHG","2 EACH"],["Hot Oatmeal",91,3.2,16.2,1.6,"PVH","4 OZL"],["Make Your Own Waffles",222,4.4,44.5,2.2,"VH","1 EACH"],["Omelet Station",303,21.7,2.3,23.4,"G","5 oz"],["Red Potato Home Fries",65,1.6,13.4,0.7,"PVHG","3 OZ"],["Roasted Tomatoes w/Feta & Spinach",61,2.0,1.8,5.5,"VHG","2 OZ"],["Sauteed Mushrooms",35,1.6,2.3,3.0,"PVHG","2 OZ"],["Scrambled Eggs",112,10.7,0.0,7.7,"VHG","3 OZ"],["Smoked Bacon Slices",276,17.0,2.1,21.2,"G","2 slices"]]],["Breakfast Pastries",[["Gingerbread Bundt",197,2.2,26.3,9.5,"VH","1 Slice"],["Mini Apple Danish",121,2.0,14.1,6.0,"VH","1 Each"]]],["Grill Station",[["Black Beans",80,3.6,12.7,1.7,"PVHG","3 OZ"],["Fried Plantain",69,0.3,8.9,3.7,"V","1 OZ"],["Huevos Rancheros",202,9.1,10.8,13.8,"VHG","1 EACH"]]]],"lunch":[["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Tomato Bisque Soup",113,1.9,11.3,6.9,"VHG","5 OZL"]]],["Entrees",[["French Onion Braised Chicken",176,18.5,5.4,8.6,"G","1 each"],["Hot Sausage, Onions & Peppers",177,7.4,4.1,14.6,"G","3 1/2 oz"]]],["Starches",[["Lyonnaise Potatoes",88,1.6,13.8,3.2,"PVHG","3 OZ"],["Margherita Eggplant w/Pesto",140,4.9,5.0,11.8,"VG","4 OZ"]]],["Vegetables",[["Maple Roasted Sweet Potatoes",100,1.3,17.7,2.9,"PVHG","3 OZ"],["Steamed Broccoli",29,2.6,2.1,1.7,"PVHG","3 OZ"]]],["Grill Station",[["BBQ Pulled Pork on Brioche",251,12.7,31.7,8.5,"","1/2 each"],["Cajun Chicken Thigh",100,16.1,0.0,3.4,"HG","1 EACH"],["French Fries",193,1.8,17.7,13.2,"V","3 OZ"],["Grilled Chicken Breast",105,18.9,0.1,3.0,"HG","3 oz"],["Halal SPARE Beef Burger",130,12.0,2.0,8.0,"HG","1 Each"],["Local Roasted Sweet Potatoes",164,1.7,22.0,8.0,"PVHG","4 oz"],["Roasted Cauliflower",34,1.6,4.1,1.8,"PVHG","3 oz"],["Sweet Potato Fries",194,0.9,16.9,13.7,"V","3 OZ"],["Turkey Burger Patty",186,17.7,0.4,11.3,"G","1 each"]]],["Vegetarian Line",[["Cajun Red Beans & Rice",48,1.2,9.1,0.4,"PVHG","3 oz"],["Plant Based Cheese Pizza",159,4.2,24.2,5.0,"PVH","1 slice"],["Plant Based Chorizo & Jalapeno Quesadilla",90,3.8,13.2,2.5,"PVH","1 EACH"],["Plant Based Steak & Cheese Pizza",184,5.6,26.2,6.4,"PV","1 slice"]]],["Pasta Bar",[["Chickpea Salad w/Tomatoes & Feta",96,3.4,6.3,6.5,"VHG","2 oz"],["Greek-Styled Ravioli",283,11.9,34.7,13.6,"V","4 oz"],["Homemade Red Pepper Hummus",78,3.0,8.9,3.8,"PVHG","2 oz"],["Linguini Pasta",142,6.0,29.8,0.7,"PVH","4 OZ"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Marinated Olives, Tomatoes & Artichokes",80,0.4,2.8,7.6,"PVHG","2 oz"],["Meatball Sauce",97,5.1,3.6,7.1,"G","2 oz"],["Penne Pasta",147,6.2,30.9,0.8,"PVH","4 OZ"],["Penne w/Meatballs & Creamy Tom Sauce (Beef & Pork)",192,8.1,20.6,9.4,"","4 oz"],["Red Pepper Pesto Pasta Salad",158,5.5,19.5,4.0,"","2 OZ"],["Summer Squash, Tomato & Basil",25,1.0,4.5,0.6,"PVHG","3 oz"]]],["Desserts",[["Oatmeal Raisin Cookie",110,2.0,18.0,3.5,"VH","1 each"],["Zebra Brownies",172,1.4,23.6,7.9,"VH","1 PIECE"]]],["Noodle Bowl",[["Beef for Pho",30,5.6,0.0,1.0,"G","1 oz"],["Chicken Pho Broth (Fish)",24,0.9,2.9,1.4,"G","8 oz"],["Chicken for Pho",28,6.4,0.0,0.3,"HG","1 oz"],["Green Curry Pho Broth (Anchovies)",249,2.3,13.6,20.4,"HG","8 oz"],["Pho Noodles",11,0.2,2.7,0.0,"PVHG","1 1/2 oz"],["Pho Toppings",34,3.0,2.9,1.4,"PVHG","2 oz"],["Vegetarian Pho Base",24,0.0,3.8,1.4,"PVHG","8 oz"]]],["Pizza",[["Cheese Pizza",203,9.4,29.6,5.4,"VH","1 SLICE"],["Pepperoni Pizza",217,9.9,29.0,7.0,"","1 SLICE"],["Vegetable Pizza",202,9.5,29.5,5.5,"VH","1 SLICE"]]],["Sushi",[["California Roll",222,5.9,47.3,0.8,"G","1 roll"],["Purple Sweet Potato Tempura Sushi Roll",228,3.7,47.9,1.8,"PVH","1 roll"],["Teriyaki Pulmuone Tofu Roll",241,7.9,44.8,3.0,"PV","1 roll"],["Vegetable Sushi Roll",196,3.6,42.9,0.6,"PVHG","1 roll"]]],["Gluten Free",[["GF Avocado Toast Bar (Bacon)",227,11.8,3.9,18.7,"G","1 each"]]],["Latino",[["Black Beans",80,3.6,12.7,1.7,"PVHG","3 OZ"],["Chopped Cilantro",1,0.1,0.1,0.0,"PVHG","1/8 oz"],["Queso Fresco",47,2.8,0.5,3.8,"VHG","1/2 oz"],["Red Rice",199,3.5,41.1,0.6,"PVHG","2 OZ"],["Roasted Ancho Chili Butternut",85,1.5,12.0,4.2,"PVHG","3 OZ"],["Salsa Verde con Aguacate",29,0.1,1.8,2.6,"PVHG","1 OZ"],["Tamale Corn Cakes",152,2.4,16.7,9.2,"VH","1 each"]]],["Street Food",[["Baked Sweet & Sour Tofu",179,4.4,25.7,6.4,"PVH","4 oz"],["Mei Fun Noodles",178,4.9,33.6,2.4,"VH","4 OZ"],["Mussaman Curry (Chicken)",137,3.4,8.8,9.7,"HG","4 oz"],["Stir Fried Vegetables w/Sesame",54,2.5,2.7,3.9,"PVH","3 OZ"],["Vegetable Fried Rice",137,2.8,19.5,5.1,"VH","4 OZ"]]]],"dinner":[["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Roasted Red Pepper & Smoked Gouda Bisque",176,4.1,10.5,12.9,"VH","5 oz"]]],["Entrees",[["Creamy Tuscan Chicken",610,28.0,8.2,50.9,"G","3 each"],["Stuffed Mushroom w/Spin & Blue Cheese",103,4.6,9.3,5.4,"VHG","1 each"]]],["Starches",[["Lemon Rice Pilaf",92,1.7,19.2,0.2,"PVHG","3 OZ"],["Local Roasted Sweet Potatoes",163,1.7,22.3,7.7,"PVHG","4 oz"]]],["Vegetables",[["Steamed Broccoli",29,2.6,2.1,1.7,"PVHG","3 OZ"],["Wilted Swiss Chard",42,2.1,4.7,2.3,"PVHG","3 oz"]]],["Grill Station",[["BBQ Pulled Pork on Brioche",251,12.7,31.7,8.5,"","1/2 each"],["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["Cajun Chicken Thigh",100,16.1,0.0,3.4,"HG","1 EACH"],["French Fries",193,1.8,17.7,13.2,"V","3 OZ"],["Grilled Chicken Breast",105,18.9,0.1,3.0,"HG","3 oz"],["Halal SPARE Beef Burger",130,12.0,2.0,8.0,"HG","1 Each"],["Herb Roasted Mushrooms",36,2.8,2.5,3.0,"PVHG","3 oz"],["Local Roasted Sweet Potatoes",164,1.7,22.0,8.0,"PVHG","4 oz"],["Sweet Potato Fries",194,0.9,16.9,13.7,"V","3 OZ"]]],["Vegetarian Line",[["Brussel Sprouts w/Almonds",105,2.5,4.9,9.1,"VHG","2 OZ"],["Plant Based Pasta Supreme",164,6.8,26.0,4.6,"PVH","4 OZ"],["Potato & Cheese Pierogi",189,5.5,32.9,3.7,"VH","3 EACH"],["Sauteed Kale",56,3.6,8.0,2.2,"PVHG","3 oz"]]],["Pasta Bar",[["Chickpea Salad w/Tomatoes & Feta",96,3.4,6.3,6.5,"VHG","2 oz"],["Gnocchi w/Mushroom & Pea Cream Sauce",209,6.1,22.9,10.2,"VH","4 OZ"],["Homemade Red Pepper Hummus",78,3.0,8.9,3.8,"PVHG","2 oz"],["Italian Rstd Mushrooms & Vegetables",46,1.7,5.2,3.2,"PVHG","3 oz"],["Linguini Pasta",142,6.0,29.8,0.7,"PVH","4 OZ"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Marinated Olives, Tomatoes & Artichokes",80,0.4,2.8,7.6,"PVHG","2 oz"],["Meatball Sauce",97,5.1,3.6,7.1,"G","2 oz"],["Penne Pasta",147,6.2,30.9,0.8,"PVH","4 OZ"],["Red Pepper Pesto Pasta Salad",158,5.5,19.5,4.0,"","2 OZ"],["Tortellini w/Basil Pesto & Grape Tomatoes",212,6.6,27.2,8.9,"V","4 oz"]]],["Desserts",[["Blueberry Buckle",146,2.0,27.2,3.9,"PVH","2 OZ"],["Chocolate Malva Pudding",147,2.4,21.0,6.2,"VH","1 3/4 OZ"]]],["Breads",[["Local Whole Wheat Bread",57,1.2,8.5,2.0,"PVH","1 PIECE"]]],["Noodle Bowl",[["Vietnamese Pork & Shrimp Noodle Bowl",243,17.2,8.7,15.9,"","1 bowl"]]],["Pizza",[["Cheese Pizza",203,9.4,29.6,5.4,"VH","1 SLICE"],["Pepperoni Pizza",217,9.9,29.0,7.0,"","1 SLICE"],["Vegetable Pizza",202,9.5,29.5,5.5,"VH","1 SLICE"]]],["Sushi",[["California Roll",222,5.9,47.3,0.8,"G","1 roll"],["Teriyaki Chicken Roll",234,9.8,44.2,1.4,"","1 roll"],["Teriyaki Pulmuone Tofu Roll",241,7.9,44.8,3.0,"PV","1 roll"],["Vegetable Sushi Roll",196,3.6,42.9,0.6,"PVHG","1 roll"]]],["Gluten Free",[["Broccoli Flowerettes",22,2.2,1.8,1.2,"PVHG","2 1/2 OZ"],["GF Butternut Ravioli w/Sausage & Kale",176,7.6,17.6,8.2,"G","3 oz"],["GF Garlic Bread",147,1.9,20.4,6.3,"VHG","1 each"],["GF Greek-Styled Ravioli",172,7.7,19.0,7.2,"VG","4 oz"]]],["Latino",[["Fried Plantain",69,0.3,8.9,3.7,"V","1 OZ"],["Latin Toppings",130,4.9,3.6,10.6,"VHG","3 oz"],["Puerto Rican Beans",126,2.9,10.8,8.0,"PVHG","3 oz"],["Puerto Rican Rice & Pigeon Peas",77,1.8,15.0,0.7,"PVHG","3 oz"],["Puerto Rican Roast Chicken",150,13.7,1.8,9.6,"HG","1 each"]]],["Street Food",[["Chicken Tikka Masala",180,10.6,5.0,13.0,"HG","4 oz"],["Chole Chickpea Curry",66,2.8,10.3,2.0,"PVHG","3 OZ"],["Naan",115,3.5,22.0,1.5,"VH","1/2 EACH"],["Potato & Pea Samosa",83,1.0,8.0,5.6,"VH","1 each"],["Sauteed Cabbage w/Coconut",86,1.3,6.0,6.7,"PVH","3 OZ"],["Vegetable Pulao",144,2.5,25.1,3.5,"PVHG","3 oz"]]]]},"Berkshire":{"lunch":[["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Roasted Red Pepper & Smoked Gouda Bisque",176,4.1,10.5,12.9,"VH","5 oz"]]],["Entrees",[["French Onion Braised Chicken",176,18.5,5.4,8.6,"G","1 each"],["Hot Sausage, Onions & Peppers",177,7.4,4.1,14.6,"G","3 1/2 oz"]]],["Starches",[["Herb Buttered Red Potatoes",74,1.6,12.8,2.0,"VHG","3 OZ"],["Margherita Eggplant w/Pesto",140,4.9,5.0,11.8,"VG","4 OZ"]]],["Vegetables",[["Sauteed Kale",56,3.6,8.0,2.2,"PVHG","3 oz"],["Steamed Broccoli",29,2.6,2.1,1.7,"PVHG","3 OZ"]]],["Grill Station",[["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["Grilled Chicken Breast",35,6.3,0.0,1.0,"HG","1 oz"],["Grilled Chicken Thighs",89,13.3,0.0,3.7,"HG","1 each"],["Halal French Fries",193,1.8,17.7,13.2,"PVH","3 OZ"],["Halal SPARE Beef Burger",130,12.0,2.0,8.0,"HG","1 Each"],["Hand Cut Sweet Potato Fries",178,0.9,17.3,11.7,"V","3 oz"]]],["International",[["Green Curry Thai Pulmuone Tofu",165,7.1,5.9,12.4,"PVHG","4 oz"],["Honey Lemongrass Chicken",305,28.3,21.5,11.7,"","4 each"],["Pad Thai w/Peanuts",214,4.2,25.1,11.3,"HG","3 oz"],["Stir Fry Green Vegetables",34,1.9,3.4,1.9,"PVH","3 oz"],["Vegetable Fried Rice",137,2.8,19.5,5.1,"VH","4 OZ"],["Vegetable Spring Rolls",158,1.1,5.6,15.3,"V","2 EACH"]]],["Pasta Bar",[["Cheese Rigatoni w/Plant Based Nasoya Bolognese Sauce",206,10.2,26.0,7.0,"V","4 OZ"],["Linguini Pasta",142,6.0,29.8,0.7,"PVH","4 OZ"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Penne Pasta",147,6.2,30.9,0.8,"PVH","4 OZ"],["Plant Based Bolognese Sauce",75,5.0,5.0,3.7,"PVG","2 OZ"]]],["Deli Bar",[["American Cheese",46,2.5,0.5,4.1,"VG","1/2 OZ"],["Chicken Salad",67,5.4,2.5,3.9,"HG","2 OZ"],["Deli Beef",61,11.1,0.0,2.0,"G","2 OZ"],["Homemade Mid Eastern Hummus",94,3.6,10.4,4.6,"PVHG","2 oz"],["Provolone Cheese",47,3.4,0.0,4.1,"VHG","1/2 OZ"],["Tuna Salad",80,8.8,2.0,4.0,"HG","2 OZ"],["Turkey Breast",61,13.2,0.0,1.0,"HG","2 OZ"]]],["Desserts",[["Lemon Cooler Cookies",81,0.8,12.9,2.9,"PVH","1 each"],["Zebra Brownies",172,1.4,23.6,7.9,"VH","1 PIECE"]]],["Noodle Bowl",[["Beef Brisket Noodle Bowl",220,12.5,40.3,1.7,"","1 bowl"]]],["Pizza",[["Cheese Pizza",203,9.4,29.6,5.4,"VH","1 SLICE"],["Pepperoni Pizza",217,9.9,29.0,7.0,"","1 SLICE"]]],["Display Station",[["Grilled Kielbasa",125,5.6,1.4,10.4,"G","2 OZ"],["Potato & Cheese Pierogi",217,5.6,33.7,6.5,"VH","3 EACH"],["Sauerkraut Topping",9,0.0,1.9,0.0,"PVHG","2 OZ"],["Sour Cream",61,1.0,1.0,5.1,"VHG","1 OZ"],["Sweet & Sour Braised Red Cabbage",58,1.0,15.1,0.1,"PVG","3 oz"]]]],"dinner":[["Soups",[["Green Chile Posole",62,1.9,9.4,2.2,"PVHG","5 oz"],["Roasted Red Pepper & Smoked Gouda Bisque",176,4.1,10.5,12.9,"VH","5 oz"]]],["Entrees",[["Baked Italian Sausage w/Potatoes & Onions",199,12.4,6.7,13.5,"G","4 oz"],["Creamy Tuscan Chicken",203,9.3,2.7,17.0,"G","1 each"]]],["Starches",[["Garlic Bread Knots",120,3.0,18.0,4.5,"PVH","1 each"],["Lasagna Rollete w/ Rsted Tomatoes & Basil Pesto",287,9.9,24.7,16.7,"V","1 each"],["Rigatoni w/Broccolini & Ricotta",155,5.1,23.2,5.3,"VH","4 oz"]]],["Vegetables",[["Basil Parmesan Roasted Tomatoes",30,0.8,0.9,2.7,"VHG","1 each"],["Beans & Greens (Fish)",123,5.8,9.2,7.3,"HG","3 oz"]]],["Grill Station",[["Black Bean Burger",160,7.0,19.0,7.0,"PVHG","1 each"],["Grilled Chicken Breast",35,6.3,0.0,1.0,"HG","1 oz"],["Grilled Chicken Thighs",89,13.3,0.0,3.7,"HG","1 each"],["Halal French Fries",193,1.8,17.7,13.2,"PVH","3 OZ"],["Halal SPARE Beef Burger",130,12.0,2.0,8.0,"HG","1 Each"],["Hand Cut Sweet Potato Fries",178,0.9,17.3,11.7,"V","3 oz"]]],["International",[["Egg & Tomato Stir Fry",102,5.1,3.6,7.6,"VG","4 oz"],["Korean BBQ Chicken",342,7.2,5.5,32.3,"","3 OZ"],["Korean Fried Rice w/Nasyoa Kimchi",290,6.1,53.4,3.7,"","3 oz"],["Pulmuone Tofu w/Ssamjang Sauce",136,11.1,6.8,7.7,"PVH","4 OZ"],["Stir Fry Green Vegetables",34,1.9,3.4,1.9,"PVH","3 oz"],["Vegetable Spring Rolls",158,1.1,5.6,15.3,"V","2 EACH"]]],["Pasta Bar",[["Linguini Pasta",142,6.0,29.8,0.7,"PVH","4 OZ"],["Marinara Sauce",27,0.9,3.2,1.6,"PVHG","2 OZL"],["Penne Pasta",147,6.2,30.9,0.8,"PVH","4 OZ"],["Tomato Cream Basil Sauce",119,2.3,3.8,10.8,"VHG","2 OZ"],["Tortellini w/Basil Pesto & Grape Tomatoes",212,6.6,27.2,8.9,"V","4 oz"]]],["Salad Bar/Dressings",[["Alfalfa Sprouts",1,0.1,0.1,0.0,"PVHG","1/10 OZ"],["Banana Peppers",3,0.0,0.5,0.0,"PVG","1/2 oz"],["Cannellini Bean Salad w/Red Onion & Olives",90,2.5,8.3,5.9,"PVHG","2 oz"],["Carrots Sticks",5,0.2,1.3,0.0,"PVHG","1/2 OZ"],["Celery Sticks",2,0.1,0.4,0.0,"PVHG","1/2 OZ"],["Cheese Feta",78,4.7,0.2,6.5,"VG","1 OZ"],["Chickpeas",34,1.8,5.6,0.5,"PVHG","1 OZ"],["Chopped Walnuts",93,2.2,1.9,9.2,"PVHG","1/2 OZ"],["Craisins",92,0.0,23.4,0.0,"PVHG","1 OZ"],["Cucumbers",9,0.4,2.1,0.1,"PVHG","2 OZ"],["Grape Tomatoes",8,0.5,3.6,0.0,"PVHG","1 1/2 OZ"],["Green Olives",45,0.0,3.0,3.0,"PVHG","1 OZ"],["Green Peppers",2,0.1,0.5,0.0,"PVHG","1/4 OZ"],["Homemade Mid Eastern Hummus",94,3.6,10.4,4.6,"PVHG","2 oz"],["Kale & Carrot Salad w/ Pepitas & Tahini",48,1.3,3.0,3.4,"PVHG","2 oz"],["Marinated Olives, Tomatoes & Artichokes",80,0.4,2.8,7.6,"PVHG","2 oz"],["Olive Tapenade",66,0.3,1.3,6.6,"PVG","1 oz"],["Onions",3,0.1,0.6,0.0,"PVHG","1/4 OZ"],["Parmesan Cheese",56,3.5,0.5,4.6,"VHG","1/2 oz"],["Pita Chips",123,2.6,13.5,6.6,"PVH","1 OZ"],["Pulmuone Tofu",40,4.3,0.7,2.3,"PVHG","1 OZ"],["Radishes",3,0.1,0.6,0.0,"PVHG","1/2 OZ"],["Romaine Lettuce",5,0.3,0.9,0.1,"PVHG","1 OZ"],["Sliced Eggs",37,3.6,0.0,2.6,"VHG","1 OZ"],["Sliced Mushrooms",3,0.4,0.5,0.0,"PVHG","1/2 OZ"],["Spinach Leaves",7,0.8,1.0,0.1,"PVHG","1 OZ"],["Sunflower Seeds",91,3.0,2.5,7.1,"PVHG","1/2 oz"],["Tuna",41,7.1,0.0,1.3,"HG","1 oz"]]],["Desserts",[["Blueberry Buckle",146,2.0,27.2,3.9,"PVH","2 OZ"],["Local Whole Wheat Bread",57,1.2,8.5,2.0,"PVH","1 PIECE"]]],["Breads",[["Hawaiian Roll",113,3.2,20.3,1.6,"PVH","1 EACH"]]],["Noodle Bowl",[["Chicken Pho Broth (Fish)",24,0.9,2.9,1.4,"G","8 oz"],["Chicken for Pho",28,6.4,0.0,0.3,"HG","1 oz"],["Green Curry Pho Broth (Anchovies)",249,2.3,13.6,20.4,"HG","8 oz"],["Pho Noodles",11,0.2,2.7,0.0,"PVHG","1 1/2 oz"],["Pho Toppings",34,3.0,2.9,1.4,"PVHG","2 oz"],["Vegetarian Pho Base",24,0.0,3.8,1.4,"PVHG","8 oz"]]],["Pizza",[["Cheese Pizza",203,9.4,29.6,5.4,"VH","1 SLICE"],["Pepperoni Pizza",217,9.9,29.0,7.0,"","1 SLICE"]]],["Sushi",[["California Roll",222,5.9,47.3,0.8,"G","1 roll"],["Shrimp Sushi Roll",217,8.8,41.8,1.0,"G","1 roll"],["Teriyaki Chicken Roll",234,9.8,44.2,1.4,"","1 roll"],["Vegetable Sushi Roll",196,3.6,42.9,0.6,"PVHG","1 roll"]]],["Display Station",[["Ancho Lime Pulled Chicken",104,13.6,1.5,4.5,"G","3 oz"],["Corn Tostada",53,0.7,7.3,2.3,"PVHG","1 EACH"],["Pickled Red Onions",11,0.3,2.6,0.0,"PVHG","1 oz"],["Plant Based Chorizo Crumbles",48,4.3,3.4,2.9,"PVHG","1 oz"],["Queso Fresco",47,2.8,0.5,3.8,"VHG","1/2 oz"],["Refried Black Beans",25,1.5,4.3,0.1,"PVHG","1 oz"],["Salsa Verde con Aguacate",29,0.1,1.8,2.6,"PVHG","1 OZ"],["Sour Cream",61,1.0,1.0,5.1,"VHG","1 OZ"],["Yellow Rice",103,1.7,19.3,1.3,"PVHG","3 oz"]]]],"late night":[["Miscellaneous",[["Cajun Spiced Chicken",102,18.6,0.0,2.9,"HG","3 oz"]]],["Breakfast Entrees",[["Bacon Cheddar Baked Eggs",131,8.0,7.5,7.5,"G","3 oz"],["Butterfinger Pancakes (Peanuts)",228,5.6,41.2,5.1,"VH","2 EACH"],["Canadian Bacon",31,5.8,0.4,0.7,"G","1 OZ"],["Red Potato Home Fries",72,1.6,13.3,1.7,"PVHG","3 OZ"]]],["Entrees",[["BBQ Chicken Wings",317,17.3,17.1,18.6,"","3 EACH"],["BBQ Pork Ribs",120,5.6,9.1,6.8,"G","3 OZ"],["Brazilian Collard Greens w/Bacon",115,6.4,5.2,8.0,"G","3 oz"],["Buffalo Chicken Wings",282,17.4,0.0,23.4,"","3 EACH"],["Cornbread Loaf",99,1.8,10.6,5.4,"VH","1 SLICE"],["Fried Plantain",69,0.3,8.9,3.7,"V","1 OZ"],["STOUFFER'S Alfredo Sauce",102,2.8,3.7,8.4,"VG","2 oz"],["Shrimp Fried Rice",143,3.5,20.5,4.4,"H","4 oz"],["Southern Macaroni & Cheese",159,6.3,17.4,7.4,"VH","4 oz"]]],["Pizza",[["Cheese Pizza",203,9.4,29.6,5.4,"VH","1 SLICE"],["Pepperoni Pizza",217,9.9,29.0,7.0,"","1 SLICE"],["Vegetable Pizza",202,9.5,29.5,5.5,"VH","1 SLICE"]]],["Display Station",[["Pearl Sugar Waffle Sundae",798,7.9,115.7,34.5,"VH","1 EACH"]]]]}};
+const HALLS = ['Worcester','Franklin','Hampshire','Berkshire'];
+const PAGES = ['Today', ...HALLS, 'Cafés'];
+const MEALS = ['breakfast','lunch','dinner','late night'];
+const MEAL_NAME = {breakfast:'Breakfast',lunch:'Lunch',dinner:'Dinner','late night':'Late night'};
+// meal hours, minutes after midnight
+const HOURS = {
+  Worcester:{breakfast:[420,660],lunch:[660,960],dinner:[990,1260],'late night':[1260,1440]},
+  Franklin:{breakfast:[420,660],lunch:[660,900],dinner:[990,1140]},
+  Hampshire:{breakfast:[420,660],lunch:[660,930],dinner:[990,1260]},
+  Berkshire:{lunch:[660,900],dinner:[990,1260],'late night':[1260,1440]},
+};
+const NOW = 760; // Thursday 12:40 PM
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const app = $('#app');
+let armed = false; addEventListener('pointerdown', () => armed = true, true);
+const buzz = p => { try { armed && navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const r1 = x => Math.round(x * 10) / 10;
+const fmtN = x => (Math.round(x * 10) / 10).toLocaleString('en-US');
+const fmtCal = x => Math.round(x).toLocaleString('en-US');
+const fmtQ = q => { const w = Math.floor(q), h = q - w >= .5; return (w ? w : '') + (h ? '½' : '') || '0'; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtT = m => { m = ((m % 1440) + 1440) % 1440; let h = Math.floor(m / 60), mm = m % 60; const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + (mm ? ':' + String(mm).padStart(2, '0') : '') + ' ' + ap; };
+const fmtSpan = ([a, b]) => { const f = m => { let h = Math.floor(m / 60) % 24, mm = m % 60; h = h % 12 || 12; return h + (mm ? ':' + String(mm).padStart(2, '0') : ''); }; return f(a) + '–' + f(b); };
+const svg = {
+  plus:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
+  minus:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8h10"/></svg>',
+  plus16:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
+  heart:'<svg class="fav" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.2C1 8.6 3 5 6.6 5c2.1 0 3.6 1.2 5.4 3.2C13.8 6.2 15.3 5 17.4 5 21 5 23 8.6 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 20 20"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+};
+
+/* ---------- physics ---------- */
+// Damped spring, SwiftUI-style (response s, dampingFraction). Units: whatever px-like unit the caller uses; v in units/s.
+function spring({from, to, v = 0, response = .42, damping = .86, onUpdate, onDone}) {
+  if (RM) { onUpdate(to); onDone && onDone(); return {stop() {}, x: to}; }
+  let x = from, vel = v, alive = true, last = performance.now(), id;
+  const k = (2 * Math.PI / response) ** 2, c = 4 * Math.PI * damping / response;
+  const h = {stop() { alive = false; cancelAnimationFrame(id); }, get x() { return x; }, get v() { return vel; }};
+  function tick(now) {
+    if (!alive) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const n = Math.max(1, Math.ceil(dt / .004)), s = dt / n;
+    for (let i = 0; i < n; i++) { vel += (-k * (x - to) - c * vel) * s; x += vel * s; }
+    if (Math.abs(vel) < 4 && Math.abs(x - to) < .35) { x = to; onUpdate(x); alive = false; onDone && onDone(); return; }
+    onUpdate(x); id = requestAnimationFrame(tick);
+  }
+  id = requestAnimationFrame(tick);
+  return h;
+}
+// iOS-style momentum projection (decelerationRate .998 per ms)
+const project = (v, rate = .998) => (v / 1000) * rate / (1 - rate);
+// iOS rubber band
+const rubber = (over, dim, c = .55) => Math.sign(over) * (1 - 1 / (Math.abs(over) * c / dim + 1)) * dim;
+function tracker() {
+  const s = [];
+  return {
+    add(x, y) { const t = performance.now(); s.push([x, y, t]); while (s.length > 2 && t - s[0][2] > 90) s.shift(); },
+    v() { if (s.length < 2) return [0, 0]; const a = s[0], b = s[s.length - 1]; if (performance.now() - b[2] > 70) return [0, 0];
+      const dt = Math.max(.008, (b[2] - a[2]) / 1000); return [(b[0] - a[0]) / dt, (b[1] - a[1]) / dt]; }
+  };
+}
+const G = {lock: false, lifted: null, noClickUntil: 0};
+addEventListener('click', e => { if (performance.now() < G.noClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('touchmove', e => { if (G.lock || G.lifted) e.preventDefault(); }, {passive: false});
+document.addEventListener('contextmenu', e => e.preventDefault());
+// One-finger pan with axis lock. Handlers get (dx, dy, ev); end gets (vx, vy).
+function gesture(el, o) {
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0 || G.lock || G.lifted) return;
+    if (o.skip && o.skip(e)) return;
+    const id = e.pointerId, sx = e.clientX, sy = e.clientY, tr = tracker(); tr.add(sx, sy);
+    let active = false, dead = false;
+    o.down && o.down(e);
+    const mv = ev => {
+      if (ev.pointerId !== id) return;
+      const dx = ev.clientX - sx, dy = ev.clientY - sy; tr.add(ev.clientX, ev.clientY);
+      if (!active) {
+        if (dead || G.lifted) return;
+        if (Math.hypot(dx, dy) < (o.slop || 8)) return;
+        if (o.axis === 'x' && Math.abs(dy) > Math.abs(dx)) { dead = true; return; }
+        if (o.axis === 'y' && Math.abs(dx) > Math.abs(dy) * 1.2) { dead = true; return; }
+        if (o.start && o.start(e) === false) { dead = true; return; }
+        active = true; G.lock = true; try { el.setPointerCapture(id); } catch (_) {}
+      }
+      o.move(dx, dy, ev);
+    };
+    const up = ev => {
+      if (ev.pointerId !== id) return;
+      removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      o.release && o.release();
+      if (active) { G.lock = false; G.noClickUntil = performance.now() + 80; const [vx, vy] = tr.v(); o.end(vx, vy); }
+      else if (!dead && ev.type === 'pointerup' && o.tap) o.tap(ev);
+    };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  });
+}
+const appRect = () => app.getBoundingClientRect();
+
+/* ---------- state ---------- */
+const S = {
+  page: 1, mealT: NOW, meal: 'lunch',
+  tray: new Map(), // key -> {d, hall, meal, q}
+  favs: new Set(), filters: new Set(),
+  log: [], logged: null,
+};
+function dishAt(key) { const [h, m, s, i] = key.split('|'); return DATA[h][m][+s][1][+i]; }
+{ // breakfast already logged this morning
+  const bf = DATA.Worcester.breakfast;
+  bf.forEach((st, si) => st[1].forEach((d, di) => {
+    if (['Make Your Own Waffles', 'Hard Boiled Egg', 'Pork Sausage Links'].includes(d[0]))
+      S.log.push({key: `Worcester|breakfast|${si}|${di}`, d, hall: 'Worcester', meal: 'breakfast', q: 1, at: '8:12 AM'});
+  }));
+}
+const sumOf = list => list.reduce((a, e) => (a.cal += e.d[1] * e.q, a.p += e.d[2] * e.q, a.c += e.d[3] * e.q, a.f += e.d[4] * e.q, a.n += e.q, a), {cal: 0, p: 0, c: 0, f: 0, n: 0});
+const mealAt = (hall, t) => { const h = HOURS[hall]; for (const m of MEALS) if (h[m] && t >= h[m][0] && t < h[m][1]) return m; return null; };
+
+/* ---------- layout ---------- */
+let W, H, HDR, RAIL = 48;
+const pager = $('#pager'), ptrack = $('#ptrack'), hdr = $('#hdr');
+function measure() {
+  const r = appRect(); W = r.width; H = r.height; HDR = hdr.offsetHeight;
+  pager.style.top = HDR + 'px';
+  [...ptrack.children].forEach((p, i) => { p.style.left = i * W + 'px'; p.style.width = W + 'px'; });
+}
+
+/* ---------- pages ---------- */
+const pageEls = PAGES.map((name, i) => {
+  const el = document.createElement('div'); el.className = 'page' + (i === 0 || i === 5 ? ' plain' : ' fade'); el.dataset.i = i; ptrack.append(el);
+  return el;
+});
+function passes(d) {
+  for (const f of S.filters) {
+    if (f === 'P' && !d[5].includes('P')) return false;
+    if (f === 'V' && !d[5].includes('V')) return false;
+    if (f === 'H' && !d[5].includes('H')) return false;
+    if (f === 'G' && !d[5].includes('G')) return false;
+    if (f === 'F' && !S.favs.has(d[0])) return false;
+  }
+  return true;
+}
+function renderHall(hi) {
+  const hall = HALLS[hi], el = pageEls[hi + 1], meal = S.meal;
+  const sts = DATA[hall][meal];
+  if (!sts) {
+    const open = HALLS.filter(h => DATA[h][meal]);
+    el.innerHTML = `<div class="closed"><p>${hall} is closed for ${MEAL_NAME[meal].toLowerCase()}.</p><div class="btns">${open.map(h => `<button class="pill" data-go="${HALLS.indexOf(h) + 1}">${h}</button>`).join('')}</div></div>`;
+    el._st = []; return;
+  }
+  let html = '';
+  sts.forEach(([name, dishes], si) => {
+    const rows = dishes.map((d, di) => {
+      if (!passes(d)) return '';
+      const key = `${hall}|${meal}|${si}|${di}`, q = S.tray.get(key)?.q || 0;
+      return `<div class="row${q ? ' has' : ''}" data-k="${key}" role="button" tabindex="0" aria-label="Add ${esc(d[0])}">
+<div class="rt"><div class="nm">${esc(d[0])}${S.favs.has(d[0]) ? svg.heart : ''}</div><div class="mc">${fmtCal(d[1])} cal, ${fmtN(d[2])} g protein</div></div>
+<div class="ctl"><span class="add" aria-hidden="true"><i>${svg.plus}</i></span><span class="stp"><button class="dec" aria-label="Remove one ${esc(d[0])}">${svg.minus}</button><b>${fmtQ(q)}</b><button class="inc" aria-label="Add one more">${svg.plus16}</button></span></div></div>`;
+    }).join('');
+    if (rows) html += `<section class="st" data-si="${si}"><h2>${esc(name)}</h2><div class="grp">${rows}</div></section>`;
+  });
+  el.innerHTML = (html || `<div class="closed"><p>Nothing here matches your filters.</p><div class="btns"><button class="pill" data-clearf>Clear filters</button></div></div>`) + '<div class="spacer"></div>';
+  el._st = [...el.querySelectorAll('.st')];
+  sizeSpacer(el);
+}
+function sizeSpacer(el) {
+  const sp = el.querySelector('.spacer'); if (!sp) return;
+  const last = el._st[el._st.length - 1];
+  const vh = H - HDR, lastH = last ? last.offsetHeight : 0;
+  sp.style.height = Math.max(RAIL + trayRest() + 24, vh - lastH - 6) + 'px';
+}
+function renderAllHalls() { HALLS.forEach((_, i) => renderHall(i)); bindRail(); }
+function syncRow(key) {
+  const q = S.tray.get(key)?.q || 0;
+  document.querySelectorAll(`.page .row[data-k="${CSS.escape(key)}"]`).forEach(r => { r.classList.toggle('has', q > 0); r.querySelector('.stp b').textContent = fmtQ(q); });
+}
+
+/* ---------- titles (hall strip) ---------- */
+const titles = $('#titles');
+const titleEls = PAGES.map((n, i) => { const b = document.createElement('button'); b.className = 'ttl'; b.textContent = n; b.dataset.go = i; titles.append(b); return b; });
+let titleW = [];
+function placeTitles(pos) {
+  if (!titleW.length) titleW = titleEls.map(t => t.offsetWidth);
+  const SP = Math.min(158, W * .4);
+  titleEls.forEach((t, i) => {
+    const d = i - pos, a = Math.min(1, Math.abs(d));
+    const s = 1 - .34 * a, x = W / 2 + d * SP - titleW[i] / 2;
+    t.style.transform = `translate3d(${x}px,0,0) scale(${s})`;
+    t.style.opacity = Math.abs(d) > 1.7 ? 0 : 1 - .42 * Math.min(1, Math.abs(d));
+    t.style.color = a > .5 ? '#3a3a3e' : '#000';
+    t.tabIndex = Math.abs(d) <= 1 ? 0 : -1;
+  });
+}
+titles.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) goPage(+b.dataset.go); });
+
+/* ---------- pager ---------- */
+let pos = 1, pSpring = null, boundPage = -1;
+function setPos(p) {
+  pos = p;
+  ptrack.style.transform = `translate3d(${-p * W}px,0,0)`;
+  placeTitles(p);
+  // ruler and rail belong to hall pages; fade them toward Today / Cafés
+  const hallness = clamp(Math.min(p - 0, 5 - p), 0, 1);
+  $('#rrow').style.opacity = hallness;
+  $('#rrow').style.pointerEvents = hallness > .5 ? '' : 'none';
+  railFade = hallness; applyRail();
+  const near = Math.round(p);
+  if (near !== boundPage) { boundPage = near; onPageChange(near); }
+}
+function goPage(i, v = 0) {
+  i = clamp(i, 0, PAGES.length - 1);
+  pSpring && pSpring.stop();
+  pSpring = spring({from: pos * W, to: i * W, v, response: .4, damping: .9, onUpdate: x => setPos(x / W), onDone: () => { pSpring = null; S.page = i; } });
+}
+let pBase = 1;
+gesture(pager, {
+  axis: 'x',
+  start() { if (G.lifted) return false; cancelPress(); pSpring && pSpring.stop(); pBase = pos; },
+  move(dx) {
+    let p = pBase - dx / W; const N = PAGES.length - 1;
+    if (p < 0) p = -rubber(-p * W, W) / W; else if (p > N) p = N + rubber((p - N) * W, W) / W;
+    setPos(p);
+  },
+  end(vx) {
+    const from = Math.round(pBase);
+    let t = Math.round(pos - project(vx, .99) / W * 1.0);
+    t = clamp(t, from - 1, from + 1);
+    goPage(t, -vx);
+  },
+});
+function onPageChange(i) {
+  buzz(6);
+  if (i >= 1 && i <= 4) { renderRuler(); bindRail(); }
+  if (i === 0) renderToday();
+}
+
+/* ---------- meal ruler (time scrub) ---------- */
+const ruler = $('#ruler'), rtrack = $('#rtrack');
+const PX = .62, T0 = 400; // px per minute, track origin = 6:40 AM
+let rT = NOW, rSpring = null;
+function curHall() { const i = clamp(Math.round(pos), 1, 4); return HALLS[i - 1]; }
+function renderRuler() {
+  const hall = curHall(), hrs = HOURS[hall];
+  rtrack.style.width = (1460 - T0) * PX + 'px';
+  rtrack.innerHTML = MEALS.filter(m => hrs[m]).map(m => {
+    const [a, b] = hrs[m];
+    return `<button class="band" data-m="${m}" style="left:${(a - T0) * PX + 2}px;width:${(b - a) * PX - 4}px" tabindex="-1">${MEAL_NAME[m]}<small>${fmtSpan(hrs[m])}</small></button>`;
+  }).join('') + `<i class="now" style="left:${(NOW - T0) * PX}px"></i>`;
+  setT(rT, true);
+}
+function setT(t, force) {
+  rT = t;
+  const vw = ruler.clientWidth;
+  rtrack.style.transform = `translate3d(${vw / 2 - (t - T0) * PX}px,0,0)`;
+  const m = mealAt(curHall(), clamp(t, 420, 1439));
+  if (m && m !== S.meal) { S.meal = m; buzz(8); mealChanged(); }
+  else if (force) rtrack.querySelectorAll('.band').forEach(b => b.classList.toggle('on', b.dataset.m === S.meal));
+}
+function mealChanged() {
+  rtrack.querySelectorAll('.band').forEach(b => b.classList.toggle('on', b.dataset.m === S.meal));
+  ruler.setAttribute('aria-valuetext', MEAL_NAME[S.meal]);
+  pageEls.slice(1, 5).forEach(p => { p.style.opacity = 0; });
+  clearTimeout(mealChanged.t);
+  mealChanged.t = setTimeout(() => {
+    renderAllHalls();
+    pageEls.slice(1, 5).forEach(p => { p.scrollTop = 0; p.style.opacity = 1; });
+    bindRail();
+  }, RM ? 0 : 120);
+}
+function snapsFor(hall) { const h = HOURS[hall]; return MEALS.filter(m => h[m]).map(m => (h[m][0] <= NOW && NOW < h[m][1]) ? NOW : (h[m][0] + h[m][1]) / 2); }
+function goT(t, v = 0) {
+  rSpring && rSpring.stop();
+  rSpring = spring({from: rT * PX, to: t * PX, v: v * PX, response: .38, damping: .88, onUpdate: x => setT(x / PX), onDone: () => rSpring = null});
+}
+let rBase;
+gesture(ruler, {
+  axis: 'x', slop: 4,
+  start() { rSpring && rSpring.stop(); rBase = rT; },
+  move(dx) {
+    let t = rBase - dx / PX; const lo = 430, hi = 1430;
+    if (t < lo) t = lo - rubber(lo - t, 300); if (t > hi) t = hi + rubber(t - hi, 300);
+    setT(t);
+  },
+  end(vx) {
+    const proj = rT - project(vx) / PX, snaps = snapsFor(curHall());
+    const t = snaps.reduce((a, b) => Math.abs(b - proj) < Math.abs(a - proj) ? b : a);
+    goT(t, -vx / PX);
+  },
+  tap(e) { const b = e.target.closest('.band'); if (!b) return; const s = snapsFor(curHall()); const hrs = HOURS[curHall()][b.dataset.m]; goT(s.find(x => x >= hrs[0] && x < hrs[1])); },
+});
+ruler.addEventListener('keydown', e => {
+  const s = snapsFor(curHall()), i = s.findIndex(x => mealAt(curHall(), x) === S.meal);
+  if (e.key === 'ArrowRight') goT(s[Math.min(s.length - 1, i + 1)]); if (e.key === 'ArrowLeft') goT(s[Math.max(0, i - 1)]);
+});
+
+/* ---------- station rail ---------- */
+const rail = $('#rail'), rtrk = $('#rtrk');
+let R = {el: null, s: [], c: [], r: 0, idx: -1, driving: false}, railFade = 1, railSpring = null;
+function bindRail() {
+  const i = clamp(Math.round(pos), 1, 4), el = pageEls[i];
+  R.el = el;
+  const sts = el._st || [];
+  rtrk.innerHTML = sts.map((s, k) => `<button class="chip" data-c="${k}" tabindex="-1">${esc(s.querySelector('h2').textContent)}</button>`).join('');
+  const chips = [...rtrk.children];
+  R.c = chips.map(c => c.offsetLeft + c.offsetWidth / 2);
+  const M = el.scrollHeight - el.clientHeight;
+  R.s = sts.map(s => Math.min(M, s.offsetTop - 6));
+  R.idx = -1; R.chips = chips;
+  rail.style.visibility = sts.length ? '' : 'hidden';
+  syncRailFromScroll();
+}
+function yToR(y) {
+  const s = R.s, c = R.c; if (!s.length) return 0;
+  if (y <= s[0]) return c[0];
+  for (let i = 0; i < s.length - 1; i++) if (y < s[i + 1]) return c[i] + (y - s[i]) / Math.max(1, s[i + 1] - s[i]) * (c[i + 1] - c[i]);
+  return c[c.length - 1];
+}
+function rToY(r) {
+  const s = R.s, c = R.c; if (!s.length) return 0;
+  if (r <= c[0]) return s[0];
+  for (let i = 0; i < c.length - 1; i++) if (r < c[i + 1]) return s[i] + (r - c[i]) / (c[i + 1] - c[i]) * (s[i + 1] - s[i]);
+  return s[s.length - 1];
+}
+function setRail(r) {
+  R.r = r;
+  rtrk.style.transform = `translate3d(${W / 2 - r}px,0,0)`;
+  let best = 0; R.c.forEach((c, i) => { if (Math.abs(c - r) < Math.abs(R.c[best] - r)) best = i; });
+  if (best !== R.idx) {
+    if (R.driving && R.idx !== -1) buzz(5);
+    R.idx = best; R.chips.forEach((ch, i) => ch.classList.toggle('on', i === best));
+  }
+}
+function syncRailFromScroll() { if (!R.driving && R.el) setRail(yToR(R.el.scrollTop)); }
+pageEls.slice(1, 5).forEach(p => p.addEventListener('scroll', () => { if (p === R.el) syncRailFromScroll(); }, {passive: true}));
+function driveTo(r, v = 0) {
+  railSpring && railSpring.stop();
+  R.driving = true; R.el.style.scrollSnapType = 'none';
+  railSpring = spring({from: R.r, to: r, v, response: .46, damping: .92,
+    onUpdate: x => { setRail(x); R.el.scrollTop = rToY(clamp(x, R.c[0], R.c[R.c.length - 1])); },
+    onDone: () => { railSpring = null; R.driving = false; requestAnimationFrame(() => R.el.style.scrollSnapType = ''); }});
+}
+let railBase;
+gesture(rail, {
+  axis: 'x', slop: 4,
+  start() { if (!R.c.length) return false; railSpring && railSpring.stop(); R.driving = true; R.el.style.scrollSnapType = 'none'; railBase = R.r; },
+  move(dx) {
+    const lo = R.c[0], hi = R.c[R.c.length - 1];
+    let r = railBase - dx;
+    const rr = r < lo ? lo - rubber(lo - r, 200) : r > hi ? hi + rubber(r - hi, 200) : r;
+    setRail(rr); R.el.scrollTop = rToY(clamp(rr, lo, hi));
+  },
+  end(vx) {
+    const proj = R.r - project(vx, .996);
+    const t = R.c.reduce((a, b) => Math.abs(b - proj) < Math.abs(a - proj) ? b : a);
+    driveTo(t, -vx);
+  },
+  tap(e) { const c = e.target.closest('.chip'); if (c) { buzz(5); driveTo(R.c[+c.dataset.c]); } },
+});
+
+/* ---------- rows: tap, step, long-press lift ---------- */
+let press = null;
+function cancelPress() { if (press) { clearTimeout(press.t1); clearTimeout(press.t2); press.row.classList.remove('pr'); press = null; } }
+ptrack.addEventListener('pointerdown', e => {
+  const row = e.target.closest('.row'); if (!row || e.target.closest('.dec,.inc') || G.lock || G.lifted) return;
+  const sx = e.clientX, sy = e.clientY, id = e.pointerId;
+  press = {row, t1: setTimeout(() => row.classList.add('pr'), 50), t2: setTimeout(() => lift(row, sx, sy, id), 340)};
+  const mv = ev => { if (ev.pointerId === id && press && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 9) cancelPress(); };
+  const up = ev => { if (ev.pointerId !== id) return; removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); cancelPress(); };
+  addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+});
+ptrack.addEventListener('click', e => {
+  const go = e.target.closest('[data-go]'); if (go) return goPage(+go.dataset.go);
+  if (e.target.closest('[data-clearf]')) { S.filters.clear(); renderFilters(); renderAllHalls(); return; }
+  const row = e.target.closest('.row'); if (!row) return;
+  const key = row.dataset.k;
+  if (e.target.closest('.dec')) return addKey(key, -1);
+  if (e.target.closest('.inc')) return addKey(key, 1, row.querySelector('.inc'));
+  addKey(key, 1, row.querySelector('.ctl'));
+});
+ptrack.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('row')) { e.preventDefault(); addKey(e.target.dataset.k, 1, e.target.querySelector('.ctl')); } });
+
+function addKey(key, n, fromEl, opts = {}) {
+  const [hall, meal] = key.split('|');
+  const cur = S.tray.get(key);
+  let q = (cur?.q || 0) + n;
+  if (n < 0 && q > 0 && q < 1 && !opts.half) q = 0;
+  q = Math.max(0, q);
+  if (q === 0) S.tray.delete(key); else S.tray.set(key, cur ? Object.assign(cur, {q}) : {key, d: key.startsWith('custom|') ? opts.d : dishAt(key), hall, meal, q});
+  if (S.logged) { S.logged = null; clearTimeout(logTimer); }
+  syncRow(key);
+  buzz(n > 0 ? 10 : [6, 30, 6]);
+  renderTray(n > 0 ? key : null, fromEl, opts);
+}
+
+/* lift: the dish detaches from the list and follows the finger */
+const layer = $('#layer'), heart = $('#heart'), trayEl = $('#tray');
+function lift(row, sx, sy, id) {
+  if (G.lock) return;
+  cancelPress();
+  const key = row.dataset.k, d = dishAt(key), rr = row.getBoundingClientRect(), a = appRect();
+  const card = document.createElement('div'); card.className = 'card';
+  card.style.width = rr.width + 'px';
+  card.innerHTML = `<div class="nm">${esc(d[0])}</div><div class="mc">${fmtCal(d[1])} cal, ${fmtN(d[2])} g protein, ${fmtN(d[3])} g carbs, ${fmtN(d[4])} g fat</div><div class="mc">${esc(d[6].toLowerCase())}</div>`;
+  layer.append(card);
+  const ox = sx - rr.left, oy = sy - rr.top, x0 = rr.left - a.left, y0 = rr.top - a.top;
+  let x = x0, y = y0, s = 1, rot = 0;
+  const paint = () => card.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${s})`;
+  paint();
+  spring({from: 1, to: 1.04, response: .25, damping: .6, onUpdate: v => { s = v; paint(); }});
+  row.classList.add('ghosted'); heart.classList.add('show');
+  G.lifted = {row}; buzz(14);
+  const tr = tracker(); tr.add(sx, sy);
+  const trayTop = () => trayEl.getBoundingClientRect().top;
+  const hr = () => heart.getBoundingClientRect();
+  let over = null;
+  const mv = ev => {
+    if (ev.pointerId !== id) return;
+    tr.add(ev.clientX, ev.clientY);
+    x = ev.clientX - ox - a.left; y = ev.clientY - oy - a.top;
+    rot = clamp(tr.v()[0] / 300, -5, 5);
+    s = 1.04 - .34 * clamp((ev.clientY - (trayTop() - 170)) / 170, 0, 1); // shrinks toward token size as it nears the tray
+    paint();
+    const h = hr(), inHeart = Math.hypot(ev.clientX - (h.left + 32), ev.clientY - (h.top + 32)) < 56;
+    const inTray = ev.clientY > trayTop() - 30;
+    const o = inHeart ? 'heart' : inTray ? 'tray' : null;
+    if (o !== over) { over = o; heart.classList.toggle('hot', o === 'heart'); trayEl.classList.toggle('hot', o === 'tray'); if (o) buzz(8); }
+  };
+  const up = ev => {
+    if (ev.pointerId !== id) return;
+    removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+    G.noClickUntil = performance.now() + 120;
+    const [vx, vy] = tr.v();
+    heart.classList.remove('show', 'hot'); trayEl.classList.remove('hot');
+    const landY = ev.clientY + project(vy, .99);
+    const done = () => { card.remove(); row.classList.remove('ghosted'); G.lifted = null; };
+    if (over === 'heart') {
+      S.favs.has(d[0]) ? S.favs.delete(d[0]) : S.favs.add(d[0]); buzz([10, 40, 10]);
+      document.querySelectorAll('.page .row').forEach(r => { if (dishAt(r.dataset.k)[0] === d[0]) { const nm = r.querySelector('.nm'); nm.innerHTML = esc(d[0]) + (S.favs.has(d[0]) ? svg.heart : ''); } });
+      springBack();
+    } else if (over === 'tray' || (vy > 450 && landY > trayTop() - 60)) {
+      // throw onto the tray: card shrinks into its token
+      const prevV = trayV;
+      addKey(key, 1, null, {silent: true});
+      const tok = $(`#tc .tok[data-k="${CSS.escape(key)}"]`);
+      const tb = (tok || trayEl).getBoundingClientRect();
+      const tx = tb.left - a.left + tb.width / 2 - rr.width / 2, ty = tb.top - a.top - (restH - prevV) + tb.height / 2 - card.offsetHeight / 2;
+      let left = 2;
+      const fin = () => { if (--left) return; done(); tok && tok.classList.remove('pending'); landTray(vy); };
+      spring({from: x, to: tx, v: vx, response: .32, damping: 1, onUpdate: v => { x = v; paint(); }, onDone: fin});
+      spring({from: y, to: ty, v: vy, response: .34, damping: .95, onUpdate: v => { y = v; s = clamp(.25 + .79 * Math.min(1, Math.abs(v - ty) / 260), .25, 1.04); card.style.opacity = clamp(Math.abs(v - ty) / 120, 0, 1); paint(); }, onDone: fin});
+    } else springBack();
+    function springBack() {
+      let left = 2; const fin = () => { if (!--left) done(); };
+      spring({from: x, to: x0, v: vx, response: .36, damping: .82, onUpdate: v => { x = v; paint(); }, onDone: fin});
+      spring({from: y, to: y0, v: vy, response: .36, damping: .82, onUpdate: v => { y = v; rot *= .85; s = 1 + (s - 1) * .85; paint(); }, onDone: fin});
+    }
+  };
+  addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+}
+
+/* ---------- tray ---------- */
+const tc = $('#tc'), tx = $('#tx'), dim = $('#dim');
+let trayV = 0, trayOpen = false, tSpring = null, restH = 80;
+const trayMax = () => H - (parseFloat(getComputedStyle(hdr).paddingTop) || 12) - 52;
+let EXP = 0; // expanded visible height: fits what the tray holds, up to trayMax
+const trayExp = () => EXP || (renderTx(), EXP);
+function trayRest() { return restH; }
+trayEl.style.height = '2000px';
+function setTray(v) {
+  trayV = v;
+  trayEl.style.transform = `translate3d(0,${H - v}px,0)`;
+  const p = clamp((v - restH) / (trayExp() - restH), 0, 1);
+  tc.style.opacity = clamp(1 - p * 2.6, 0, 1);
+  tx.style.opacity = clamp((p - .3) / .55, 0, 1);
+  tx.style.transform = `translate3d(0,${(1 - p) * 30}px,0)`;
+  tx.querySelectorAll('.ti').forEach((el, i) => el.style.transform = `translate3d(0,${(1 - p) * 26 * (i + 1)}px,0)`);
+  dim.style.opacity = p * .32; dim.style.pointerEvents = p > .5 ? 'auto' : 'none';
+  hdr.style.transform = pager.style.transform = `translate3d(0,${-p * 18}px,0)`;
+  railLift = v; applyRail(p);
+  trayEl.classList.toggle('open', p > .6);
+}
+let railLift = 0;
+function applyRail(p = clamp((trayV - restH) / (trayExp() - restH), 0, 1)) {
+  rail.style.transform = `translate3d(0,${-railLift}px,0)`;
+  rail.style.opacity = railFade * clamp(1 - p * 3, 0, 1);
+  rail.style.pointerEvents = railFade > .5 && p < .1 ? '' : 'none';
+}
+function trayTo(v, vel = 0, resp = .48, damp = .82) {
+  tSpring && tSpring.stop();
+  tSpring = spring({from: trayV, to: v, v: vel, response: resp, damping: damp, onUpdate: setTray, onDone: () => tSpring = null});
+}
+function openTray(o, vel = 0) {
+  trayOpen = o;
+  if (o) { renderTx(); buzz(8); } else { tx.querySelector('input')?.blur(); }
+  trayTo(o ? trayExp() : restH, vel);
+}
+function landTray(vy = 300) { if (!trayOpen) trayTo(restH, -Math.min(900, 200 + Math.abs(vy) * .4), .42, .55); buzz(12); }
+let tBase;
+gesture(trayEl, {
+  axis: 'y', slop: 6,
+  skip(e) { if (e.target.closest('input')) return true; const l = e.target.closest('.tlist'); return l && l.scrollHeight > l.clientHeight + 2; },
+  start() { tSpring && tSpring.stop(); tBase = trayV; },
+  move(dx, dy) {
+    let v = tBase - dy; const lo = restH, hi = trayExp();
+    if (v > hi) v = hi + rubber(v - hi, H); if (v < lo) v = lo - rubber(lo - v, 160);
+    setTray(v);
+  },
+  end(vx, vy) {
+    const proj = trayV - vy * .18;
+    const o = Math.abs(proj - trayExp()) < Math.abs(proj - restH);
+    trayOpen = o; if (o) renderTx();
+    trayTo(o ? trayExp() : restH, -vy);
+    if (o) buzz(8);
+  },
+  tap(e) { if (!trayOpen && !e.target.closest('button')) openTray(true); },
+});
+dim.addEventListener('click', () => openTray(false));
+
+function trayItems() { return [...S.tray.values()]; }
+function renderTray(newKey, fromEl, opts = {}) {
+  const items = trayItems(), sum = sumOf(items), today = sumOf(S.log);
+  const prevRest = restH;
+  if (S.logged) {
+    tc.innerHTML = `<div class="sum"><div class="t"><div class="a"><span class="ok">${svg.check}</span>Logged ${S.logged.n} ${S.logged.n === 1 ? 'item' : 'items'}</div><div class="b">Today <span id="roll">${fmtCal(S.logged.before)}</span> cal</div></div><button class="tb ghost" id="undo" style="padding:0 18px">Undo</button></div>`;
+  } else if (!items.length) {
+    tc.innerHTML = `<div class="sum"><div class="t"><div class="a">Today</div><div class="b">${fmtCal(today.cal)} cal, ${fmtN(today.p)} g protein</div></div><button class="tb ghost" id="tsearch" aria-label="Search all halls">${svg.search}</button></div>`;
+  } else {
+    const shown = items.slice(-5).reverse(), more = items.length - shown.length;
+    tc.innerHTML = `<div class="toks">${shown.map(it => `<span class="tok${it.key === newKey && (fromEl || opts.silent) ? ' pending' : ''}" data-k="${esc(it.key)}"><span>${esc(it.d[0])}</span>${it.q !== 1 ? `<b>×${fmtQ(it.q)}</b>` : ''}</span>`).join('')}${more ? `<span class="tok"><span>${more} more</span></span>` : ''}</div>
+<div class="sum"><div class="t"><div class="a">${fmtQ(sum.n)} ${sum.n === 1 ? 'item' : 'items'}, ${fmtCal(sum.cal)} cal</div><div class="b">${fmtN(sum.p)} g protein</div></div><button class="tb" id="tlog">Log</button></div>`;
+  }
+  restH = tc.offsetHeight + 8 + sbPx();
+  renderTx();
+  if (!G.lifted && !trayOpen && !G.lock) trayTo(restH, 0, .44, .78);
+  pageEls.slice(1, 5).forEach(sizeSpacer);
+  // flight from the row's control into the token
+  if (newKey && fromEl && !opts.silent) {
+    const tok = tc.querySelector(`.tok[data-k="${CSS.escape(newKey)}"]`);
+    if (!tok) return;
+    if (RM || trayOpen) { tok.classList.remove('pending'); return; }
+    if (!tok.classList.contains('pending')) { tok.classList.add('bump'); setTimeout(() => tok.classList.remove('bump'), 140); }
+    const a = appRect(), f = fromEl.getBoundingClientRect(), t = tok.getBoundingClientRect();
+    const g = document.createElement('div'); g.className = 'fly'; layer.append(g);
+    const sx = f.left - a.left + f.width - 26, sy = f.top - a.top + f.height / 2;
+    const ex = t.left - a.left + t.width / 2, ey = t.top - a.top + t.height / 2 - (restH - trayV);
+    let x = sx, y = sy, k = 2;
+    const paint = () => g.style.transform = `translate3d(${x - 11}px,${y - 11}px,0)`;
+    paint();
+    const fin = () => { if (--k) return; g.remove(); tok.classList.remove('pending'); landTray(500); };
+    spring({from: sx, to: ex, v: (ex - sx) * .6, response: .5, damping: 1, onUpdate: v => { x = v; paint(); }, onDone: fin});
+    spring({from: sy, to: ey, v: -Math.max(500, (ey - sy) * .9), response: .5, damping: .92, onUpdate: v => { y = v; paint(); }, onDone: fin});
+  }
+}
+function sbPx() { const t = document.createElement('div'); t.style.cssText = 'position:absolute;height:var(--sb)'; app.append(t); const h = t.offsetHeight; t.remove(); return h; }
+tc.addEventListener('click', e => {
+  if (e.target.closest('#tlog')) return logTray();
+  if (e.target.closest('#undo')) return undoLog();
+  if (e.target.closest('#tsearch')) { openTray(true); setTimeout(() => tx.querySelector('input')?.focus(), RM ? 0 : 320); }
+});
+
+/* expanded tray */
+let query = '';
+function renderTx() {
+  const items = trayItems(), sum = sumOf(items), today = sumOf(S.log);
+  const hallMeal = it => it.hall === 'custom' ? 'Custom food' : `${it.hall}, ${MEAL_NAME[it.meal].toLowerCase()}`;
+  let list;
+  if (query) {
+    const ql = query.toLowerCase(), res = [];
+    HALLS.forEach(h => (DATA[h][S.meal] || []).forEach(([st, ds], si) => ds.forEach((d, di) => { if (d[0].toLowerCase().includes(ql)) res.push({key: `${h}|${S.meal}|${si}|${di}`, d, h}); })));
+    list = res.length
+      ? `<div class="grp">${res.slice(0, 30).map(r => `<div class="row" data-add="${esc(r.key)}" role="button" tabindex="0"><div class="rt"><div class="nm">${esc(r.d[0])}</div><div class="mc">${r.h}, ${fmtCal(r.d[1])} cal</div></div><span class="add" style="position:static"><i>${svg.plus}</i></span></div>`).join('')}</div>`
+      : `<div class="grp"><div class="empty">No dishes match “${esc(query)}” at ${MEAL_NAME[S.meal].toLowerCase()}.</div><div class="cust"><input id="ccal" inputmode="numeric" placeholder="Calories" aria-label="Calories"><button class="pill" id="cadd" style="background:var(--tint);color:#fff">Add as custom food</button></div></div>`;
+  } else if (items.length) {
+    list = `<div class="grp">${items.map(it => `<div class="ti"><div class="row"><div class="rt"><div class="nm">${esc(it.d[0])}</div><div class="mc">${hallMeal(it)}, ${fmtCal(it.d[1] * it.q)} cal</div></div><span class="stp"><button data-dec="${esc(it.key)}" aria-label="Less">${svg.minus}</button><b>${fmtQ(it.q)}</b><button data-inc="${esc(it.key)}" aria-label="More">${svg.plus16}</button></span></div></div>`).join('')}</div>`;
+  } else list = `<div class="grp"><div class="empty">Your tray is empty.</div></div>`;
+  const keepFocus = document.activeElement && document.activeElement.id === 'q';
+  const caret = keepFocus ? document.activeElement.selectionStart : 0;
+  tx.innerHTML = `<div class="xh"><h2>${query ? 'Add something else' : 'Your tray'}</h2><p>${items.length ? `${fmtQ(sum.n)} ${sum.n === 1 ? 'item' : 'items'}, ${fmtCal(sum.cal)} cal` : `Today ${fmtCal(today.cal)} cal`}</p></div>
+<div class="tlist">${list}</div>
+<label class="srch">${svg.search}<input id="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Add something else" value="${esc(query)}"></label>
+<div class="xt"><div>Calories<b>${fmtCal(sum.cal)}</b></div><div>Protein<b>${fmtN(sum.p)} g</b></div><div>Carbs<b>${fmtN(sum.c)} g</b></div><div>Fat<b>${fmtN(sum.f)} g</b></div></div>
+<div class="xd">Today after logging: ${fmtCal(today.cal + sum.cal)} cal, ${fmtN(today.p + sum.p)} g protein</div>
+<button class="logbig" id="xlog" ${items.length ? '' : 'disabled'}>${items.length ? `Log ${fmtQ(sum.n)} ${sum.n === 1 ? 'item' : 'items'}` : 'Log'}</button>`;
+  tx.style.height = 'auto';
+  EXP = Math.min(trayMax(), tx.scrollHeight);
+  tx.style.height = EXP + 'px';
+  if (trayOpen && !G.lock && Math.abs(trayV - EXP) > 1) trayTo(EXP);
+  if (keepFocus) { const q = tx.querySelector('#q'); q.focus(); q.setSelectionRange(caret, caret); }
+  const p = clamp((trayV - restH) / (trayExp() - restH), 0, 1);
+  tx.querySelectorAll('.ti').forEach((el, i) => el.style.transform = `translate3d(0,${(1 - p) * 26 * (i + 1)}px,0)`);
+}
+tx.addEventListener('input', e => { if (e.target.id === 'q') { query = e.target.value.trim(); renderTx(); } });
+tx.addEventListener('click', e => {
+  const dec = e.target.closest('[data-dec]'), inc = e.target.closest('[data-inc]'), add = e.target.closest('[data-add]');
+  if (dec) { const it = S.tray.get(dec.dataset.dec); const n = it.q > 1 ? -1 : it.q === 1 ? -.5 : -.5; addKey(dec.dataset.dec, n, null, {half: true}); }
+  else if (inc) { const it = S.tray.get(inc.dataset.inc); addKey(inc.dataset.inc, it.q < 1 ? .5 : 1); }
+  else if (add) { query = ''; addKey(add.dataset.add, 1); }
+  else if (e.target.closest('#cadd')) {
+    const cal = +(tx.querySelector('#ccal').value || 0), name = query;
+    query = ''; addKey('custom|' + name, 1, null, {d: [name, cal, 0, 0, 0, '', '1 serving']});
+    S.tray.get('custom|' + name).hall = 'custom'; renderTx(); renderTray();
+  }
+  else if (e.target.closest('#xlog')) logTray();
+});
+
+/* log */
+let logTimer;
+function logTray() {
+  const items = trayItems(); if (!items.length) return;
+  const before = sumOf(S.log).cal;
+  buzz([12, 50, 24]);
+  const entries = items.map(it => ({...it, at: '12:40 PM'}));
+  // plates slide off the tray
+  const els = [...tc.querySelectorAll('.tok'), ...tx.querySelectorAll('.ti')];
+  els.forEach((el, i) => { el.style.transitionDelay = (RM ? 0 : i * 35) + 'ms'; el.classList.add('gone'); });
+  setTimeout(() => {
+    S.log.push(...entries);
+    S.logged = {n: sumOf(entries).n, before, after: sumOf(S.log).cal, entries};
+    S.tray.clear(); query = '';
+    entries.forEach(e => syncRow(e.key));
+    trayOpen = false;
+    renderTray();
+    trayTo(restH, 0, .5, .8);
+    roll(before, S.logged.after);
+    renderToday();
+    clearTimeout(logTimer);
+    logTimer = setTimeout(() => { if (S.logged) { S.logged = null; renderTray(); } }, 6000);
+  }, RM ? 0 : 180 + els.length * 35);
+}
+function roll(a, b) {
+  const el = () => document.getElementById('roll'); const t0 = performance.now(), dur = RM ? 0 : 900;
+  const step = now => { const k = dur ? Math.min(1, (now - t0) / dur) : 1, e = 1 - Math.pow(1 - k, 3); if (el()) el().textContent = fmtCal(a + (b - a) * e); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function undoLog() {
+  const L = S.logged; if (!L) return;
+  S.log.splice(S.log.length - L.entries.length, L.entries.length);
+  L.entries.forEach(e => { S.tray.set(e.key, {...e}); syncRow(e.key); });
+  S.logged = null; clearTimeout(logTimer); buzz(10); renderTray(); renderToday();
+}
+
+/* ---------- Today page ---------- */
+const PAIRS = [['Golden BBQ Chicken Thigh', 'Worcester', 'Black Bean Burger', 'Worcester'], ['Beef Brisket Noodle Bowl', 'Worcester', 'Mee Goreng', 'Worcester'], ['Make Your Own Waffles', 'Worcester', 'Hard Boiled Egg', 'Worcester']];
+let pairI = 0;
+function renderToday() {
+  const t = sumOf(S.log), el = pageEls[0];
+  const byMeal = {}; S.log.forEach(e => (byMeal[e.meal] = byMeal[e.meal] || []).push(e));
+  const pair = PAIRS[pairI];
+  el.innerHTML = `<p class="date">Thursday, October 8</p>
+<div class="grp tot" style="margin-top:12px"><div class="li"><span>Calories</span><span>${fmtCal(t.cal)}</span></div><div class="li"><span>Protein</span><span>${fmtN(t.p)} g</span></div><div class="li"><span>Carbs</span><span>${fmtN(t.c)} g</span></div><div class="li"><span>Fat</span><span>${fmtN(t.f)} g</span></div></div>
+${MEALS.filter(m => byMeal[m]).map(m => `<h3>${MEAL_NAME[m]}</h3><div class="grp">${byMeal[m].map(e => `<div class="li"><span>${esc(e.d[0])}${e.q !== 1 ? ' ×' + fmtQ(e.q) : ''}<small>${e.hall === 'custom' ? 'Custom food' : e.hall}, ${e.at}</small></span><span>${fmtCal(e.d[1] * e.q)} cal</span></div>`).join('')}</div>`).join('')}
+<h3>Which was better?</h3>
+${pair ? `<div class="h2h"><button data-pick>${esc(pair[0])}<small>${pair[1]}</small></button><button data-pick>${esc(pair[2])}<small>${pair[3]}</small></button></div>` : `<div class="grp"><div class="li"><span>Your halls</span><span>Worcester, Hampshire, Franklin, Berkshire</span></div></div>`}
+<h3>Your data</h3>
+<div class="grp"><button class="li tap" data-exp="csv">Export log as CSV</button><button class="li tap" data-exp="json">Export log as JSON</button></div>
+<div style="height:${RAIL + 140}px"></div>`;
+}
+pageEls[0].addEventListener('click', e => {
+  if (e.target.closest('[data-pick]')) { buzz(10); pairI++; renderToday(); return; }
+  const x = e.target.closest('[data-exp]'); if (!x) return;
+  const rows = S.log.map(e => ({date: '2026-10-08', time: e.at, hall: e.hall, meal: e.meal, dish: e.d[0], servings: e.q, cal: r1(e.d[1] * e.q), protein_g: r1(e.d[2] * e.q), carbs_g: r1(e.d[3] * e.q), fat_g: r1(e.d[4] * e.q)}));
+  const body = x.dataset.exp === 'json' ? JSON.stringify(rows, null, 2) : [Object.keys(rows[0]).join(','), ...rows.map(r => Object.values(r).map(v => /[",]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v).join(','))].join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], {type: 'text/plain'})); a.download = 'udine-log-2026-10-08.' + x.dataset.exp; a.click();
+});
+function renderCafes() {
+  pageEls[5].innerHTML = `<h3 style="margin-top:4px">Cafés</h3><div class="grp">
+<div class="li"><span>Blue Wall<small>Campus Center</small></span><span>Open until 8 PM</span></div>
+<div class="li"><span>Harvest Market<small>Worcester Commons</small></span><span>Open now</span></div>
+<div class="li"><span>People's Organic Coffee<small>Franklin Patio</small></span><span>Open until 4 PM</span></div>
+<div class="li"><span>Grab 'N Go<small>Worcester, Franklin, Hampshire, Berkshire</small></span><span>Until 7 PM</span></div></div>
+<h3>Events</h3><div class="grp"><div class="empty">No events posted this week.</div></div>
+<h3>Newsletter</h3><div class="grp"><div class="empty">The October issue isn't out yet.</div></div><div style="height:${RAIL + 140}px"></div>`;
+}
+
+/* ---------- filters ---------- */
+const fmenu = $('#fmenu'), fbtn = $('#fbtn');
+const FOPTS = [['P', 'Plant based'], ['V', 'Vegetarian'], ['H', 'Halal'], ['G', 'No gluten'], ['F', 'Favorites']];
+function renderFilters() {
+  fmenu.innerHTML = FOPTS.map(([k, n]) => `<button role="menuitemcheckbox" aria-checked="${S.filters.has(k)}" class="${S.filters.has(k) ? 'on' : ''}" data-f="${k}">${n}${svg.check}</button>`).join('');
+  fbtn.classList.toggle('on', S.filters.size > 0);
+}
+fbtn.addEventListener('click', e => { e.stopPropagation(); fmenu.classList.toggle('show'); buzz(6); });
+fmenu.addEventListener('click', e => { e.stopPropagation(); const b = e.target.closest('[data-f]'); if (!b) return; const k = b.dataset.f; S.filters.has(k) ? S.filters.delete(k) : S.filters.add(k); buzz(6); renderFilters(); renderAllHalls(); });
+app.addEventListener('pointerdown', e => { if (fmenu.classList.contains('show') && !e.target.closest('#fmenu,#fbtn')) fmenu.classList.remove('show'); });
+[fbtn].forEach(b => b.addEventListener('pointerdown', () => b.classList.add('pr')));
+addEventListener('pointerup', () => document.querySelectorAll('.glass.pr').forEach(b => b.classList.remove('pr')));
+addEventListener('pointercancel', () => document.querySelectorAll('.glass.pr').forEach(b => b.classList.remove('pr')));
+
+/* ---------- boot ---------- */
+function boot() {
+  measure(); renderFilters(); renderCafes(); renderToday();
+  renderAllHalls();
+  setPos(1); renderRuler();
+  renderTray();
+  setTray(restH);
+  bindRail();
+  const st = new URLSearchParams(location.search).get('state');
+  if (st) applyState(st);
+}
+function applyState(st) {
+  const k = name => { for (const h of ['Worcester']) { const sts = DATA[h].lunch; for (let si = 0; si < sts.length; si++) for (let di = 0; di < sts[si][1].length; di++) if (sts[si][1][di][0] === name) return `${h}|lunch|${si}|${di}`; } };
+  const fill = () => { const g = k('Golden BBQ Chicken Thigh'), b = k('Beef Brisket Noodle Bowl');
+    S.tray.set(g, {key: g, d: dishAt(g), hall: 'Worcester', meal: 'lunch', q: 2}); S.tray.set(b, {key: b, d: dishAt(b), hall: 'Worcester', meal: 'lunch', q: 1});
+    syncRow(g); syncRow(b); renderTray(); tSpring && tSpring.stop(); setTray(restH);
+    const sec = [...pageEls[1].querySelectorAll('.st h2')].find(h => h.textContent === 'Noodle Bowl'); pageEls[1].scrollTop = sec.parentElement.offsetTop - 6; };
+  if (st === 'filled') fill();
+  if (st === 'open') { fill(); trayOpen = true; renderTx(); setTray(trayExp()); }
+  if (st === 'logged') { fill(); S.log.push(...trayItems().map(it => ({...it, at: '12:40 PM'}))); const after = sumOf(S.log).cal; S.logged = {n: 3, before: after, after, entries: trayItems()}; S.tray.clear(); renderAllHalls(); renderTray(); setTray(restH); renderToday(); }
+  if (st === 'today') { applyState('logged'); setPos(0); }
+  if (st === 'dinner') { setT(snapsFor('Worcester')[2]); }
+  if (st === 'late-franklin') { setT(snapsFor('Worcester')[3]); setTimeout(() => setPos(2), 200); }
+  if (st === 'search') { fill(); trayOpen = true; query = 'chicken'; renderTx(); setTray(trayExp()); }
+  if (st === 'lift') {
+    fill();
+    const row = pageEls[1].querySelector(`.row[data-k="${CSS.escape(k('Hard Boiled Egg'))}"]`);
+    const r = row.getBoundingClientRect();
+    lift(row, r.left + 100, r.top + 30, 99);
+    const ev = new PointerEvent('pointermove', {pointerId: 99, clientX: r.left + 140, clientY: appRect().top + H - 130});
+    dispatchEvent(ev);
+  }
+  if (st === 'filter') { S.filters.add('P'); renderFilters(); renderAllHalls(); fmenu.classList.add('show'); }
+}
+addEventListener('resize', () => { measure(); setPos(pos); renderRuler(); renderAllHalls(); renderTray(); setTray(trayOpen ? trayExp() : restH); });
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { titleW = []; placeTitles(pos); bindRail(); });
+boot();
+</script>
+</body>
+</html>

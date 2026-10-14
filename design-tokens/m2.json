@@ -1,0 +1,1181 @@
+{
+ "$comment": "UDine M2 design tokens: the single source for the React Native (mobile/src/lib/m2.generated.ts) and Flutter (tokens.dart) bake-off stacks. Units: px = dp, ms, unitless ratios, rgba(r,g,b,a) strings. Every token path two levels deep has a `trace` entry naming the M2 rule it comes from (~/.cache/udine-scratch/flows/M2/src.html, CONCEPT.md). Generated TS: `pnpm tokens` in /mobile; mobile/src/lib/m2.generated.test.ts fails when it is stale. Easings: a bezier array [x1,y1,x2,y2] is a cubic-bezier; a name (\"emphasized\") resolves through `curves` (emphasized is the M3 two-segment path in `curves.emphasized`), \"linear\" is linear, and [0,0,0,1] is the standard decelerate. `rnOnly` lists the tokens only the React Native stack needs (no M2 rule): Flutter may ignore them. A timing token with `always` plays under the OS reduced-motion setting.",
+ "version": 1,
+ "rnOnly": [
+  "motion.sheetRetry",
+  "motion.landing",
+  "motion.pushWatchdog",
+  "space.markNudgeX",
+  "space.markNudgeY",
+  "size.slotW",
+  "ratio.descender"
+ ],
+ "color": {
+  "dm": "#3b0a0f",
+  "vm": "#881c1c",
+  "gold": "#c99a2e",
+  "chalk": "#f8f9fb",
+  "ink": "#24171a",
+  "slate": "#6e6266",
+  "tint": "#f3e4e4",
+  "hair": "rgba(36,23,26,0.12)",
+  "white": "#ffffff",
+  "onDm": "rgba(255,255,255,0.8)",
+  "onDmSoft": "rgba(255,255,255,0.86)",
+  "divider": "rgba(255,255,255,0.14)",
+  "pressRow": "rgba(36,23,26,0.06)",
+  "here": "rgba(136,28,28,0.07)",
+  "ghost": "rgba(136,28,28,0.45)",
+  "dotOff": "rgba(255,255,255,0.35)",
+  "outline": "rgba(255,255,255,0.7)",
+  "spinTrack": "rgba(136,28,28,0.18)",
+  "stitchGold": "rgba(201,154,46,0.95)",
+  "felt": "#5a1820",
+  "scrim": "rgb(36,10,14)",
+  "pressOnDm": "rgba(255,255,255,0.08)",
+  "pressBand": "rgba(59,10,15,0.22)",
+  "grab": "rgba(36,23,26,0.22)",
+  "stitch": "rgba(59,10,15,0.75)",
+  "lampOff": "rgba(255,255,255,0.22)",
+  "boardOff": "rgba(255,255,255,0.12)",
+  "boardOn": "rgba(255,255,255,0.55)",
+  "duoTint": "#c4434b",
+  "swRule": "rgba(255,255,255,0.12)",
+  "onDmQuiet": "rgba(255,255,255,0.6)"
+ },
+ "grade": {
+  "carbon": {
+   "A": {
+    "tile": "#0d6d3a",
+    "ink": "#0d6d3a"
+   },
+   "B": {
+    "tile": "#9bcb3b",
+    "ink": "#3d5c0a"
+   },
+   "C": {
+    "tile": "#dbe11d",
+    "ink": "#4f5208"
+   },
+   "D": {
+    "tile": "#bcbdc0",
+    "ink": "#45464a"
+   },
+   "E": {
+    "tile": "#818285",
+    "ink": "#2f3033"
+   }
+  },
+  "health": {
+   "tiles": [
+    "#cfe0f2",
+    "#b4cbe3",
+    "#98b5d4",
+    "#7da0c5",
+    "#618ab7",
+    "#4675a8",
+    "#2a5f99",
+    "#0f4a8a"
+   ],
+   "ink": "#0f3a66"
+  }
+ },
+ "font": {
+  "body": {
+   "family": "Libre Franklin",
+   "weight": 400
+  },
+  "bodyMd": {
+   "family": "Libre Franklin",
+   "weight": 500
+  },
+  "bodySb": {
+   "family": "Libre Franklin",
+   "weight": 600
+  },
+  "num": {
+   "family": "Oswald",
+   "weight": 500
+  },
+  "numSb": {
+   "family": "Oswald",
+   "weight": 600
+  },
+  "numB": {
+   "family": "Oswald",
+   "weight": 700
+  },
+  "bodyB": {
+   "family": "Libre Franklin",
+   "weight": 700
+  }
+ },
+ "fontMetrics": {
+  "Libre Franklin": {
+   "normalLine": 1.212
+  },
+  "Oswald": {
+   "normalLine": 1.482
+  }
+ },
+ "type": {
+  "mealTab": {
+   "font": "bodyMd",
+   "size": 14,
+   "line": 17
+  },
+  "tabBar": {
+   "font": "bodySb",
+   "size": 12,
+   "line": 15
+  },
+  "brand": {
+   "font": "numSb",
+   "size": 22,
+   "line": "normal",
+   "tabular": true
+  },
+  "date": {
+   "font": "body",
+   "size": 15,
+   "line": "normal"
+  },
+  "hallTitle": {
+   "font": "numSb",
+   "size": 52,
+   "line": 55,
+   "tabular": true
+  },
+  "bandName": {
+   "font": "numSb",
+   "size": 32,
+   "line": 32,
+   "tabular": true
+  },
+  "pinName": {
+   "font": "numSb",
+   "size": 24,
+   "line": 24,
+   "tabular": true
+  },
+  "menuName": {
+   "font": "numSb",
+   "size": 40,
+   "line": 40,
+   "tabular": true
+  },
+  "status": {
+   "font": "body",
+   "size": 15,
+   "line": "normal"
+  },
+  "statusSm": {
+   "font": "body",
+   "size": 14,
+   "line": "normal"
+  },
+  "note": {
+   "font": "body",
+   "size": 14,
+   "line": 18
+  },
+  "section": {
+   "font": "numSb",
+   "size": 22,
+   "line": 26,
+   "tabular": true
+  },
+  "station": {
+   "font": "numSb",
+   "size": 20,
+   "line": 20,
+   "tabular": true
+  },
+  "stationHead": {
+   "font": "numSb",
+   "size": 22,
+   "line": "normal",
+   "tabular": true
+  },
+  "day": {
+   "font": "numSb",
+   "size": 20,
+   "line": 20,
+   "tabular": true
+  },
+  "rowName": {
+   "font": "bodySb",
+   "size": 16,
+   "line": 20
+  },
+  "meta": {
+   "font": "body",
+   "size": 13,
+   "line": "normal"
+  },
+  "metaNum": {
+   "font": "num",
+   "size": 15,
+   "line": "normal",
+   "tabular": true
+  },
+  "stepper": {
+   "font": "numSb",
+   "size": 20,
+   "line": 24,
+   "tabular": true
+  },
+  "letter": {
+   "font": "numB",
+   "size": 18,
+   "line": 18,
+   "tabular": true
+  },
+  "tile": {
+   "font": "numSb",
+   "size": 14,
+   "line": 14,
+   "tabular": true
+  },
+  "button": {
+   "font": "bodySb",
+   "size": 16,
+   "line": 20
+  },
+  "link": {
+   "font": "bodySb",
+   "size": 15,
+   "line": "normal"
+  },
+  "empty": {
+   "font": "body",
+   "size": 16,
+   "line": 23
+  },
+  "desc": {
+   "font": "body",
+   "size": 16,
+   "line": 24
+  },
+  "sched": {
+   "font": "body",
+   "size": 15,
+   "line": 22
+  },
+  "schedHead": {
+   "font": "numSb",
+   "size": 28,
+   "line": 32,
+   "tabular": true
+  },
+  "dayRow": {
+   "font": "bodyMd",
+   "size": 17,
+   "line": 22
+  },
+  "dishName": {
+   "font": "numSb",
+   "size": 28,
+   "line": 32,
+   "tabular": true
+  },
+  "price": {
+   "font": "numSb",
+   "size": 20,
+   "line": 20,
+   "tabular": true
+  },
+  "mark": {
+   "font": "numSb",
+   "size": 16,
+   "line": 16,
+   "tabular": true
+  },
+  "sheetHead": {
+   "font": "numSb",
+   "size": 20,
+   "line": 24,
+   "tabular": true
+  },
+  "sheetHeadSm": {
+   "font": "numSb",
+   "size": 17,
+   "line": 20,
+   "tabular": true
+  },
+  "chip": {
+   "font": "numSb",
+   "size": 18,
+   "line": 18,
+   "tabular": true
+  },
+  "action": {
+   "font": "bodySb",
+   "size": 17,
+   "line": 22
+  },
+  "labelTitle": {
+   "font": "numB",
+   "size": 30,
+   "line": 33,
+   "tabular": true
+  },
+  "calNum": {
+   "font": "numB",
+   "size": 44,
+   "line": 44,
+   "tabular": true
+  },
+  "dv": {
+   "font": "numSb",
+   "size": 16,
+   "line": "normal",
+   "tabular": true
+  },
+  "lbl": {
+   "font": "body",
+   "size": 15,
+   "line": 21
+  },
+  "lblLg": {
+   "font": "body",
+   "size": 18,
+   "line": "normal"
+  },
+  "lblThin": {
+   "font": "body",
+   "size": 13,
+   "line": "normal"
+  },
+  "lblFoot": {
+   "font": "body",
+   "size": 12,
+   "line": 16
+  },
+  "scaleNum": {
+   "font": "num",
+   "size": 14,
+   "line": 14,
+   "tabular": true
+  },
+  "ing": {
+   "font": "body",
+   "size": 15,
+   "line": 22.5
+  },
+  "barNum": {
+   "font": "numSb",
+   "size": 26,
+   "line": 26,
+   "tabular": true
+  },
+  "pstat": {
+   "font": "numSb",
+   "size": 26,
+   "line": "normal",
+   "tabular": true
+  },
+  "factRow": {
+   "font": "bodySb",
+   "size": 15,
+   "line": "normal"
+  },
+  "factNum": {
+   "font": "numSb",
+   "size": 20,
+   "line": "normal",
+   "tabular": true
+  },
+  "mealCal": {
+   "font": "numSb",
+   "size": 18,
+   "line": 22,
+   "tabular": true
+  },
+  "headDate": {
+   "font": "body",
+   "size": 15,
+   "line": "normal"
+  },
+  "lblRow": {
+   "font": "body",
+   "size": 15,
+   "line": "normal"
+  }
+ },
+ "space": {
+  "line": 4,
+  "part": 8,
+  "panel": 12,
+  "action": 16,
+  "gutter": 20,
+  "group": 24,
+  "bandTextTop": 16,
+  "pinTextTop": 14,
+  "stateTop": 28,
+  "paragraph": 16,
+  "stateGap": 16,
+  "sectionTop": 22,
+  "dayTop": 20,
+  "kvTop": 15,
+  "yheadBottom": 18,
+  "cafeBodyTop": 20,
+  "dietGroupTop": 28,
+  "eventTop": 16,
+  "eventBottom": 20,
+  "eventDate": 12,
+  "eventLinks": 12,
+  "markStart": 10,
+  "markGap": 6,
+  "obtn": 14,
+  "dirb": 16,
+  "gbtn": 18,
+  "gbtnTight": 14,
+  "netBtnTop": 6,
+  "headTop": 10,
+  "lrowSub": 2,
+  "netTop": 40,
+  "titleTop": 2,
+  "titleInk": -2,
+  "stationHeadBottom": 6,
+  "evrow": 14,
+  "bandStatusTop": 7,
+  "pinStatusTop": 6,
+  "scoreGap": 6,
+  "tileRide": 1,
+  "ingmoreTop": 2,
+  "factsBottom": 6,
+  "calTop": 2,
+  "nrTop": 7,
+  "nrBottom": 5,
+  "lsPad": 6,
+  "lfBottom": 2,
+  "schedNameTop": 2,
+  "schedGap": 6,
+  "schedPayTop": 10,
+  "mwsStart": 32,
+  "mwsBottom": 10,
+  "barL2Top": 2,
+  "barNumGap": 2,
+  "metaTop": 3,
+  "markLine": 2,
+  "ptab": 10,
+  "peekInset": 10,
+  "dotsTop": 5,
+  "dotsGap": 5,
+  "scaleGap": 3,
+  "scaleOn": 2,
+  "stepPad": 7,
+  "grPad": 10,
+  "gsTop": 6,
+  "ghostMargin": 2,
+  "lampGap": 2,
+  "bzTop": 6,
+  "bzRow": 5,
+  "histBottom": 10,
+  "dayGap": 6,
+  "chipGap": 10,
+  "letterRise": 6,
+  "rowY": 6,
+  "markNudgeX": 6,
+  "markNudgeY": 2,
+  "metaCol": 10,
+  "mealTabPad": 6,
+  "mtsGap": 5,
+  "tabGap": 3,
+  "dayBlock": 20,
+  "mealY": 12,
+  "h3Top": 22
+ },
+ "radius": {
+  "patch": 4,
+  "thumb": 5,
+  "card": 6,
+  "button": 8,
+  "sheet": 16,
+  "pill": 999,
+  "image": 2,
+  "check": 6,
+  "dot": 3,
+  "stepBar": 2
+ },
+ "size": {
+  "tabBar": 56,
+  "row": 64,
+  "tabs": 48,
+  "stationRow": 50,
+  "band": 112,
+  "tap": 44,
+  "tile": [
+   18,
+   22.5
+  ],
+  "tileSheet": [
+   24,
+   30
+  ],
+  "tileScale": [
+   26,
+   32.5
+  ],
+  "indicator": 3,
+  "indicatorTop": -1,
+  "patch": 20,
+  "letterPatch": 28,
+  "mark": 30,
+  "ring": 3,
+  "btn": 52,
+  "gbtn": 48,
+  "gbtnMin": 84,
+  "keyline": 1.5,
+  "lrow": 56,
+  "icon": 48,
+  "titleRow": 30,
+  "chevron": 18,
+  "chevronSm": 16,
+  "backIcon": 24,
+  "check": 26,
+  "checkBorder": 2,
+  "chevronStatus": 14,
+  "chevronStroke": 2,
+  "evrow": 52,
+  "listFoot": 120,
+  "pin": 84,
+  "frame": 2,
+  "heavy": 7,
+  "calRule": 4,
+  "dvMin": 30,
+  "ingmore": 40,
+  "listRow": 48,
+  "curBar": 4,
+  "mealItem": 32,
+  "bar": 52,
+  "posterFoot": 56,
+  "peek": 5,
+  "dot": 5,
+  "chooseBack": 48,
+  "spin": 28,
+  "spinStroke": 3,
+  "mstate": 160,
+  "stepHealth": 14,
+  "stepCarbon": 17,
+  "stepBar": 4,
+  "add": 48,
+  "lampW": 5,
+  "lampH": 12,
+  "bzMax": 230,
+  "letterBox": 200,
+  "letterFont": 210,
+  "nameBottom": 50,
+  "lane": 114,
+  "slotW": 26,
+  "edgeShadow": 10,
+  "grabW": 40,
+  "grabH": 5,
+  "stepQ": 26,
+  "stroke": 2.2,
+  "strokeBold": 2.4,
+  "sbMin": 10,
+  "glyph": 20,
+  "tick": 16,
+  "rowGlyph": 12,
+  "markGlyph": 16,
+  "nameBottomCafe": 22
+ },
+ "opacity": {
+  "disabled": 0.4,
+  "edgeShadow": 0.3
+ },
+ "gradient": {
+  "band": {
+   "stops": [
+    "rgba(59,10,15,0.82)",
+    "rgba(59,10,15,0.55)",
+    "rgba(59,10,15,0)"
+   ],
+   "locations": [
+    0,
+    0.45,
+    0.75
+   ],
+   "angle": "left to right"
+  },
+  "headTop": {
+   "stops": [
+    "rgba(59,10,15,0.6)",
+    "rgba(59,10,15,0)"
+   ],
+   "locations": [
+    0,
+    1
+   ],
+   "height": {
+    "statusBar": 0,
+    "plus": 80
+   },
+   "angle": "top to bottom"
+  },
+  "headBottom": {
+   "stops": [
+    "rgba(59,10,15,0)",
+    "rgba(59,10,15,0.5)",
+    "rgba(59,10,15,0.74)",
+    "rgba(59,10,15,0.93)"
+   ],
+   "locations": [
+    0,
+    0.3,
+    0.5,
+    0.76
+   ],
+   "height": 240,
+   "angle": "top to bottom"
+  }
+ },
+ "shadow": {
+  "push": [
+   {
+    "x": -1,
+    "y": 0,
+    "blur": 0,
+    "color": "rgba(36,10,14,0.08)"
+   },
+   {
+    "x": -10,
+    "y": 0,
+    "blur": 28,
+    "color": "rgba(36,10,14,0.16)"
+   }
+  ]
+ },
+ "edge": {
+  "swipe": 24
+ },
+ "curves": {
+  "emphasized": [
+   [
+    0,
+    0,
+    0.05,
+    0,
+    0.133333,
+    0.06,
+    0.166666,
+    0.4
+   ],
+   [
+    0.166666,
+    0.4,
+    0.208333,
+    0.82,
+    0.25,
+    1,
+    1,
+    1
+   ]
+  ]
+ },
+ "motion": {
+  "press": {
+   "d": 90,
+   "e": [
+    0.2,
+    0,
+    0,
+    1
+   ],
+   "scale": 0.97
+  },
+  "settle": {
+   "d": 200,
+   "e": [
+    0.2,
+    0,
+    0,
+    1
+   ]
+  },
+  "cont": {
+   "d": 500,
+   "e": "emphasized"
+  },
+  "contFade": 0.3,
+  "contBack": {
+   "d": 400,
+   "e": "emphasized"
+  },
+  "fadeThrough": {
+   "d": 250,
+   "e": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "scale": 0.97,
+   "z": 8
+  },
+  "fadeThroughOut": {
+   "d": 250,
+   "e": "linear"
+  },
+  "sharedX": {
+   "d": 450,
+   "e": "emphasized",
+   "at": 0.35,
+   "dist": 30,
+   "inAt": 0.6
+  },
+  "sharedXFade": {
+   "d": 450,
+   "e": "linear"
+  },
+  "scroll": {
+   "d": 500,
+   "e": "emphasized"
+  },
+  "exit": {
+   "d": 150,
+   "e": [
+    0.3,
+    0,
+    0.8,
+    0.2
+   ]
+  },
+  "scrim": 0.32,
+  "plateScrim": 0.5,
+  "dragBack": {
+   "dist": 480,
+   "commit": 0.82,
+   "flick": 0.5
+  },
+  "push": {
+   "e": [
+    0.32,
+    0.72,
+    0,
+    1
+   ],
+   "shift": 0.3,
+   "dim": 0.1,
+   "commit": 0.5
+  },
+  "pushIn": {
+   "d": 500,
+   "e": [
+    0.32,
+    0.72,
+    0,
+    1
+   ]
+  },
+  "pushOut": {
+   "d": 400,
+   "e": [
+    0.32,
+    0.72,
+    0,
+    1
+   ]
+  },
+  "rmFade": {
+   "d": 120,
+   "e": "linear",
+   "always": true
+  },
+  "spin": {
+   "d": 900,
+   "e": "linear"
+  },
+  "spring": {
+   "sheet": {
+    "k": 300,
+    "z": 0.84
+   }
+  },
+  "lane": {
+   "from": 0.42,
+   "out": 0.4
+  },
+  "receipt": {
+   "d": 5000
+  },
+  "plateSwipe": {
+   "commit": 70,
+   "flick": 0.5,
+   "shift": 60,
+   "rubber": 0.25
+  },
+  "pushWatchdog": {
+   "d": 3000
+  },
+  "net": {
+   "slow": 1600,
+   "spinner": {
+    "delay": 400,
+    "snap": 1
+   }
+  },
+  "sheetRetry": {
+   "every": 80,
+   "max": 12
+  },
+  "landing": {
+   "poll": 40,
+   "tries": 40,
+   "stable": 2,
+   "above": 8
+  }
+ },
+ "collapse": {
+  "parallax": 0.45,
+  "fadeEnd": 0.3,
+  "solidStart": 0.3,
+  "solidSpan": 0.55,
+  "letterEnd": 0.55,
+  "nameDx": 44,
+  "nameSize": 22,
+  "nameDrop": 38
+ },
+ "trace": {
+  "color.dm": ":root --dm",
+  "color.vm": ":root --vm",
+  "color.gold": ":root --gold",
+  "color.chalk": ":root --chalk",
+  "color.ink": ":root --ink",
+  "color.slate": ":root --slate",
+  "color.tint": ":root --tint",
+  "color.hair": ":root --hair",
+  "color.white": "#fff (.tbar, .field, .btn)",
+  "color.onDm": ".hhead .date rgba(255,255,255,.8)",
+  "color.onDmSoft": ".bt .st rgba(255,255,255,.86)",
+  "color.divider": ".dayc box-shadow inset 1px rgba(255,255,255,.14)",
+  "color.pressRow": ".row.down background rgba(36,23,26,.06)",
+  "color.here": ".row.here rgba(136,28,28,.07)",
+  "color.ghost": ".add.ghost inset 1.5px rgba(136,28,28,.45)",
+  "color.dotOff": "#bar .dots i rgba(255,255,255,.35)",
+  "color.outline": ".obtn border 1.5px rgba(255,255,255,.7)",
+  "color.spinTrack": ".spin border 3px rgba(136,28,28,.18)",
+  "color.stitchGold": ".evpatch::after dashed rgba(201,154,46,.95)",
+  "color.felt": "#bar .peek #5a1820",
+  "color.scrim": "#scrim / #pscrim rgb(36,10,14); opacity is motion.scrim / motion.plateScrim",
+  "color.pressOnDm": ".evcard.down, .swbtn.down, .dayc.down, .pin.down rgba(255,255,255,.08)",
+  "color.pressBand": ".press rgba(59,10,15,.22) over the band photo",
+  "color.grab": ".grab::before rgba(36,23,26,.22)",
+  "color.stitch": ".tg::after, .mk::after, .hchip .hl::after dashed rgba(59,10,15,.75)",
+  "color.lampOff": ".meter i rgba(255,255,255,.22)",
+  "color.boardOff": "histSVG unlit lamp rgba(255,255,255,.12)",
+  "color.boardOn": "histSVG lit lamp rgba(255,255,255,.55)",
+  "color.duoTint": ".duo .t #c4434b (multiply)",
+  "color.swRule": "#mswitch border-top rgba(255,255,255,.12)",
+  "color.onDmQuiet": "#mts .sch stroke rgba(255,255,255,.6)",
+  "grade.carbon": "CRC ramp A..E (src.html): [tile, ink]",
+  "grade.health": "HFC ramp 0..7 (src.html): tiles and the figure ink",
+  "font.body": "body 400",
+  "font.bodyMd": ".mts button 500",
+  "font.bodySb": ".row .n 600",
+  "font.num": ".row .m b Oswald 500",
+  "font.numSb": ".brand Oswald 600",
+  "font.numB": ".let text Oswald 700",
+  "fontMetrics.Libre Franklin": "hhea (ascender - descender + lineGap) / unitsPerEm of the shipped TTF: what `line-height: normal` is (typeLines test reads the TTFs)",
+  "fontMetrics.Oswald": "hhea (ascender - descender + lineGap) / unitsPerEm of the shipped TTF: what `line-height: normal` is (typeLines test reads the TTFs)",
+  "type.mealTab": ".mts button 14px/500 (selected 600)",
+  "type.tabBar": ".tbar button 12px/600",
+  "type.brand": ".brand 600 22px Oswald (no line-height: normal; the 30px .r1 row baseline-aligns it with the date)",
+  "type.date": ".dsv, .pstat span, #days .day .r 15px (no line-height)",
+  "type.hallTitle": ".hhead h1 600 52px/1.05",
+  "type.bandName": ".bt .nm 600 32px/1",
+  "type.pinName": ".pin .bt .nm 24px",
+  "type.menuName": ".mt .nm 40px",
+  "type.status": ".bt .st 15px (no line-height)",
+  "type.statusSm": ".pin .bt .st, .bz 14px (no line-height)",
+  "type.note": ".dietnote 14px/1.35",
+  "type.section": ".sec h2 600 22px/1.2",
+  "type.station": ".swbtn .o 600 20px/1",
+  "type.stationHead": ".sth 600 22px Oswald (no line-height)",
+  "type.day": ".dayc .o 600 20px/1",
+  "type.rowName": ".row .n 600 16px/1.25",
+  "type.meta": ".row .m 13px (no line-height)",
+  "type.metaNum": ".row .m b 500 15px Oswald (no line-height)",
+  "type.stepper": ".step .q 600 20px Oswald",
+  "type.letter": ".hchip 600 18px/1, .hl 700 18px/1",
+  "type.tile": ".tile text 600 14px Oswald",
+  "type.button": ".btn 700 17px / .gbtn 700 16px",
+  "type.link": ".tbtn 600 15px (no line-height)",
+  "type.empty": ".empty 16px/1.45",
+  "type.desc": ".cbody .desc 16px/1.5",
+  "type.sched": ".scha p 15px/1.4",
+  "type.schedHead": ".sched .schn 600 28px/1.15",
+  "type.dayRow": "#days .day 500 17px",
+  "type.dishName": ".dish .dn 600 28px/1.15",
+  "type.price": ".pr 600 20px/1",
+  "type.mark": ".mk 600 16px/1",
+  "type.sheetHead": ".wt 600 20px/1.2",
+  "type.sheetHeadSm": ".wl.more .wt 600 17px/1.2",
+  "type.chip": ".hchip 600 18px/1",
+  "type.action": ".evbtn 17px",
+  "type.labelTitle": ".label .lt 700 30px/1.1",
+  "type.calNum": ".facts .cal b 700 44px/1",
+  "type.dv": ".label .lr .dv 600 16px Oswald (no line-height)",
+  "type.lbl": ".dish .dal 15px/1.4 (the dish sheet's Contains line); the nutrition label's rows are lblRow",
+  "type.lblLg": ".facts .cal span 700 18px (no line-height)",
+  "type.lblThin": ".label .lr.thin 13px (no line-height)",
+  "type.lblFoot": ".label .lf 12px/1.35",
+  "type.scaleNum": ".sscale i 500 14px/1",
+  "type.ing": ".ing p 15px/1.5",
+  "type.barNum": "#bar .l2 b 600 26px/1",
+  "type.pstat": ".pstat b 600 26px Oswald (no line-height: the normal line, taller than barNum's 1)",
+  "type.factRow": ".facts .nr 600 15px (no line-height)",
+  "type.factNum": ".facts .nr b 600 20px Oswald (no line-height)",
+  "type.mealCal": ".lrow .mc b 600 18px Oswald",
+  "space.line": "CONCEPT.md sheet scale: 4 within a line group",
+  "space.part": "8 between the parts of a group",
+  "space.panel": "12 label to ratings panel; .lrow gap",
+  "space.action": "16 before the action",
+  "space.gutter": "20: .sec, .bt left, .row padding-left",
+  "space.group": "24 between groups",
+  "space.bandTextTop": ".bt{top:16px}",
+  "space.pinTextTop": ".pin .bt{top:14px}",
+  "space.stateTop": ".mst{padding:28px 20px 8px}",
+  "space.paragraph": "UA p{margin:1em 0} around .mst .empty (not reset in M2)",
+  "space.stateGap": ".mst .empty{padding:0 0 16px}",
+  "space.sectionTop": ".sec{padding:22px 20px 0}",
+  "space.dayTop": "dayBlock: the Today .sec carries style=padding-top:20px (inline, over .sec 22)",
+  "space.kvTop": ".kv p default margin 15px collapsing with .h3 margin-bottom 4 (the larger wins)",
+  "space.yheadBottom": ".yhead{padding:calc(var(--st) + 10px) 20px 18px}",
+  "space.cafeBodyTop": ".cbody{padding:20px 20px 0}",
+  "space.dietGroupTop": ".dh~.dh{margin-top:28px}",
+  "space.eventTop": ".evband{padding:16px 20px 20px}: top",
+  "space.eventBottom": ".evband{padding:16px 20px 20px}: bottom",
+  "space.eventDate": ".evband .pstat{padding:12px 0 0}",
+  "space.eventLinks": ".stack{gap:12px}",
+  "radius.card": ".evpatch 6",
+  "radius.button": ".btn 8",
+  "radius.sheet": ".sheet 16",
+  "radius.pill": "full",
+  "size.tabBar": ".tbar button{height:56px}",
+  "size.row": ".row{min-height:64px}",
+  "size.tabs": "#mtabs{height:48px}",
+  "size.stationRow": ".sth{height:50px}",
+  "size.band": ".band{height:112px}",
+  "size.tap": ".tbtn, .obtn, .step{height:44px}",
+  "size.tile": ".tile 18 x 22.5",
+  "size.tileSheet": ".mks-s .tile 24 x 30",
+  "size.tileScale": ".sscale .tile 26 x 32.5",
+  "opacity.disabled": "#bfoot .gbtn[disabled]{opacity:.45}; disabled tab .4 (tbar)",
+  "opacity.edgeShadow": ".dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3",
+  "gradient.band": ".lgrad",
+  "gradient.headTop": ".tgrad (height st + 80)",
+  "gradient.headBottom": ".bgrad{height:240px;linear-gradient(0, .5 at 30%, .74 at 50%, .93 at 76%)} (src.html:215)",
+  "shadow.push": ".pushing box-shadow (src.html:54)",
+  "edge.swipe": "touchstart edge guard: x < 24 (src.html:1455, 1767)",
+  "curves.emphasized": "EMPH: the M3 emphasized path, two cubic segments",
+  "motion.press": "MO.press",
+  "motion.settle": "MO.settle",
+  "motion.cont": "MO.cont",
+  "motion.contFade": "paint: fout = 1 - clamp(p/.3)",
+  "motion.contBack": "MO.contBack",
+  "motion.fadeThrough": "MO.fadeThrough",
+  "motion.sharedX": "MO.sharedX",
+  "motion.scroll": "MO.scroll",
+  "motion.exit": "MO.exit (150, .3 0 .8 .2)",
+  "motion.scrim": "MO.scrim",
+  "motion.plateScrim": "#pscrim max opacity .5",
+  "motion.dragBack": "MO.dragBack",
+  "motion.push": "MO.push",
+  "motion.pushIn": "push in: MO.cont timing on MO.push.e",
+  "motion.pushOut": "push out: MO.contBack timing on MO.push.e",
+  "motion.rmFade": "MO.rmFade; `always`: it plays under the system's reduced-motion setting (it is what reduced motion is replaced by)",
+  "motion.spin": ".spin animation 900ms linear infinite",
+  "motion.spring": "SPRING.sheet",
+  "motion.lane": "setCtl",
+  "motion.receipt": "receipt timer",
+  "motion.plateSwipe": "#bar pointerup",
+  "motion.pushWatchdog": "RN only: no M2 equivalent",
+  "motion.net": "SLOW = 1600 (src.html:1204), spinIn 1ms 400ms",
+  "collapse.parallax": "paint: phw translate d*.45",
+  "collapse.fadeEnd": "paint: fade = 1 - clamp(c/.3)",
+  "collapse.solidStart": "paint: msolid clamp((c-.3)/.55)",
+  "collapse.solidSpan": "paint: msolid span .55",
+  "collapse.letterEnd": "paint: mlet 1 - clamp(c/.55)",
+  "collapse.nameDx": "paint: mtn translate 44*c",
+  "collapse.nameSize": "NS: the name is 22 px in the compact bar",
+  "collapse.nameDrop": "measureXF: NB = (ST + 38) - ...",
+  "motion.sharedXFade": "MaterialSharedAxis opacity ramps: linear, over sharedX.at (out) and sharedX.inAt (in) of this duration",
+  "motion.fadeThroughOut": "the outgoing leg of a fade through: linear, over sharedX.at of fadeThrough.d (the incoming leg is fadeThrough.e)",
+  "size.indicator": ".tbar .ind{height:3px}",
+  "size.indicatorTop": ".tbar .ind{top:-1px}: over the hairline",
+  "felt.patch": ".tg, .hchip .hl: gold felt, radius 4, ::after inset 2 radius 2 border 1px dashed (stitch)",
+  "felt.mark": ".mk: radius 5, ::after inset 3 radius 3",
+  "felt.frame": ".page[data-p=event] .evpatch: padding 7, radius 6, ::after inset 2.5 radius 3 border 1.5px dashed stitchGold",
+  "size.patch": ".tg{width:20px;height:20px}",
+  "size.letterPatch": ".hchip .hl{width:28px;height:28px}",
+  "size.mark": ".mk{height:30px}",
+  "space.markStart": ".mk{padding:0 12px 0 10px}: the 10",
+  "space.markGap": ".mk{gap:6px}",
+  "size.ring": ".evpatch{box-shadow:0 0 0 3px #fff}",
+  "radius.image": ".page[data-p=event] .evpatch img{border-radius:2px}",
+  "size.btn": ".btn{height:52px}, .evbtn",
+  "size.gbtn": ".gbtn{height:48px}",
+  "size.gbtnMin": ".gbtn{min-width:84px}",
+  "size.keyline": ".btn.line / .obtn / .dirb border 1.5px",
+  "space.obtn": ".obtn{padding:0 14px}",
+  "space.dirb": ".dirb{padding:0 16px}",
+  "space.gbtn": ".gbtn{padding:0 18px}",
+  "space.gbtnTight": "the choose bar: .gbtn style=\"min-width:0;padding:0 14px\" (src.html:1994)",
+  "space.netBtnTop": ".netl .obtn{margin-top:6px}",
+  "size.lrow": ".lrow{min-height:56px}, .check",
+  "size.icon": ".icon{width:48px;height:48px}",
+  "size.titleRow": ".hhead .r1{height:30px}",
+  "size.chevron": ".dayc svg 18 / the Halls area rows",
+  "size.chevronSm": ".chev{16px}",
+  "size.backIcon": ".icon svg{24px}",
+  "space.headTop": ".hhead{padding-top:calc(var(--st) + 10px)}",
+  "space.lrowSub": ".lrow .b{margin-top:2px}",
+  "space.netTop": ".netl{top:calc(var(--st) + 40px)}",
+  "space.titleTop": ".hhead h1{margin:2px 0 0}",
+  "space.titleInk": "RN only: Android sets the 52/55 Oswald line with its glyphs 2 dp below where CSS centres them in .hhead h1 (measured Lunch ink 75.0 vs 73.0 at an equal box top); a relative offset, no layout",
+  "size.check": ".check i{width:26px;height:26px}",
+  "size.checkBorder": ".check i box-shadow inset 2px slate",
+  "radius.check": ".check i{border-radius:6px}",
+  "size.chevronStatus": "#mts .sch{width:14px;height:14px}",
+  "size.chevronStroke": "#mts .sch stroke-width:2",
+  "space.stationHeadBottom": ".sth{padding:0 20px 6px}",
+  "space.evrow": ".evrow{padding:14px 20px}",
+  "size.evrow": ".evrow{min-height:52px}",
+  "size.listFoot": ".pad-b{height:calc(150px + var(--sb))}: drawn 120",
+  "size.pin": ".band.pin{height:84px}",
+  "space.bandStatusTop": ".bt .st{margin-top:7px}",
+  "space.pinStatusTop": ".pin .bt .st{margin-top:6px}",
+  "space.scoreGap": ".sc{gap:6px}",
+  "space.tileRide": ".row .m .sc{margin-block:-1px}",
+  "space.ingmoreTop": ".dish .ingmore{margin-top:2px}",
+  "space.factsBottom": ".facts{padding:4px 12px 6px}",
+  "space.calTop": ".facts .cal{padding:2px 0 4px}, .label .lt",
+  "space.nrTop": ".facts .nr{padding:7px 0 5px}",
+  "space.nrBottom": ".facts .nr bottom; .label .lr{padding:5px 0 4px} top",
+  "space.lsPad": ".label .ls{padding:6px 0}, .label .lf{padding:6px 0 2px} top",
+  "space.lfBottom": ".label .lf{padding:6px 0 2px} bottom",
+  "space.schedNameTop": ".sched .schn{margin:2px 0 0}",
+  "space.schedGap": ".schw{margin:6px 0 0}, .sh1 margin-bottom 6, .gs{margin:6px 0 0}",
+  "space.schedPayTop": ".schp{margin:10px 0 0}",
+  "space.mwsStart": "#days .mws{padding-left:36px} less its 4px border",
+  "space.mwsBottom": "#days .mws{padding:0 20px 10px 36px}",
+  "space.barL2Top": "#bar .l2{margin-top:2px}",
+  "space.barNumGap": "#bar .l2 b{margin-right:2px}",
+  "space.metaTop": ".row .m{margin-top:3px}, .prow .m",
+  "space.markLine": ".row .n with its inline .tags: that line box is 22, the name's own 20 (measured .n 22 / 42 vs 20 / 40 in M2), below the text",
+  "space.ptab": ".ptabs button{padding:0 10px}",
+  "space.peekInset": "#bar .peek{left:10px;right:10px}",
+  "space.dotsTop": "#bar .dots{top:5px}",
+  "space.dotsGap": "#bar .dots{gap:5px}",
+  "space.scaleGap": ".sscale{gap:3px}",
+  "space.scaleOn": ".sscale i.on{padding:0 2px}",
+  "space.stepPad": ".sscale i{padding-bottom:7px}",
+  "space.grPad": ".gr{padding:10px 0}",
+  "space.gsTop": ".gs{margin:6px 0 0}",
+  "space.ghostMargin": ".add.ghost{margin:2px}",
+  "space.lampGap": ".meter{gap:2px}",
+  "space.bzTop": ".bt .bz{margin-top:6px}",
+  "space.bzRow": ".mt .bz{row-gap:5px}",
+  "space.histBottom": ".hist{bottom:10px}",
+  "space.dayGap": ".dayc{gap:6px}",
+  "space.chipGap": ".hchip{gap:10px}",
+  "space.letterRise": ".band .let{top:-6px}",
+  "space.rowY": ".row{padding:6px 8px 6px 20px}",
+  "space.markNudgeX": "RN only: where an inline patch lands against the last word",
+  "space.markNudgeY": "RN only: where an inline patch lands against the last word",
+  "space.metaCol": ".row .m{gap:4px 10px}",
+  "space.mealTabPad": ".mts button{padding:0 6px}",
+  "space.mtsGap": "#mts{gap:5px}",
+  "space.tabGap": ".tbar button{gap:3px}",
+  "size.frame": ".facts{border:2px solid var(--dm)}",
+  "size.heavy": ".facts .cal{border-bottom:7px}, .label .ls",
+  "size.calRule": ".label .cal{border-bottom:4px}",
+  "size.dvMin": ".label .lr .dv{min-width:3ch}",
+  "size.ingmore": ".dish .ingmore{height:40px}",
+  "size.listRow": "#stidx button, #days .day{min-height:48px}",
+  "size.curBar": "#stidx button.cur{border-left:4px}",
+  "size.mealItem": "drawn: .meal .it line (no M2 min-height)",
+  "size.bar": ".pbar{height:calc(var(--st) + 52px)}",
+  "size.posterFoot": ".page[data-p=event] .pbody{padding-bottom:56px}",
+  "size.peek": "#bar .peek{height:5px}",
+  "size.dot": "#bar .dots i{width:5px;height:5px}",
+  "size.chooseBack": "choose .txt{min-height:48px}",
+  "size.spin": ".spin{width:28px;height:28px}",
+  "size.spinStroke": ".spin{border:3px}",
+  "size.mstate": ".mstate{height:160px}",
+  "size.stepHealth": ".hscale i{width:14px}",
+  "size.stepCarbon": ".sscale i{width:17px}",
+  "size.stepBar": ".sscale i::after{height:4px}",
+  "size.add": ".add{width:48px;height:48px}",
+  "size.lampW": ".meter i{width:5px}",
+  "size.lampH": ".meter i{height:12px}",
+  "size.bzMax": ".mt .bz{max-width:230px}",
+  "size.letterBox": ".let{width:200px;height:200px}",
+  "size.letterFont": ".let text{font:700 210px Oswald}",
+  "size.nameBottom": ".mt{bottom:50px}",
+  "size.lane": ".lane{width:114px}",
+  "size.slotW": "RN only: the inline mark slot before it is measured",
+  "size.edgeShadow": ".dish.stuck .dhd shadow 0 10px 14px -8px",
+  "size.grabW": ".grab::before{width:40px}",
+  "size.grabH": ".grab::before{height:5px}",
+  "size.stepQ": ".step .q{min-width:26px}",
+  "size.stroke": ".icon svg{stroke-width:2.2}",
+  "size.strokeBold": ".swbtn svg{stroke-width:2.4}",
+  "radius.dot": "#bar .dots i{border-radius:3px}, .grab::before",
+  "radius.stepBar": ".sscale i::after{border-radius:2px}",
+  "space.dayBlock": ".schd{margin:20px 0 0}",
+  "motion.sheetRetry": "RN only: a sheet that opens scrolled retries its scrollTo every 80 ms, up to 12 times, until a scroll event shows it took",
+  "motion.landing": "RN only: toDish polls the list every 40 ms (40 tries) for two equal passes and lands 8 above the pinned rows (M2 `toDish`: scrollTop = offsetTop - pinned - 8)",
+  "ratio.descender": "RN only: Oswald's descenders reach below a line box of 1 x its size (M2 `line-height: 1`) and Android clips text to its view: the room a tight line gets below it",
+  "radius.patch": ".tg 4",
+  "radius.thumb": ".thumb 5",
+  "type.headDate": ".hhead .date 15px (no line-height: normal; baseline-aligned in the 30px .r1 row)",
+  "type.lblRow": ".label .lr, .gr, .ls 15px (no line-height); `lbl` is `.dish .dal` at 1.4",
+  "space.mealY": ".meal{padding:12px 0;border-bottom:1px solid var(--hair)}",
+  "letterX.W": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "letterX.F": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "letterX.H": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "letterX.B": "LX: the letter's text x in the 200px box (src.html:750, owner round 10)",
+  "font.bodyB": "#stidx button.cur, #days .day.cur: font-weight 700",
+  "space.h3Top": ".h3{margin:22px 0 4px} (declared after .dh{margin-top:12px}, so it wins: the first group is 22)",
+  "size.sbMin": ":root --sb: max(10px, env(safe-area-inset-bottom)) (src.html:31)",
+  "size.glyph": ".add svg, .step svg{width:20px;height:20px}",
+  "size.tick": ".check[aria-checked=true] i::after: 16 dp tick",
+  "size.rowGlyph": ".tg .gl{width:12px;height:12px}",
+  "size.markGlyph": ".gl{width:16px;height:16px}",
+  "size.nameBottomCafe": "#menu.cafe .mt{bottom:22px} (src.html:~296)"
+ },
+ "felt": {
+  "patch": {
+   "radius": 4,
+   "inset": 2,
+   "stitchRadius": 2,
+   "stitchWidth": 1
+  },
+  "mark": {
+   "radius": 5,
+   "inset": 3,
+   "stitchRadius": 3,
+   "stitchWidth": 1
+  },
+  "frame": {
+   "radius": 6,
+   "inset": 2.5,
+   "stitchRadius": 3,
+   "stitchWidth": 1.5,
+   "pad": 7
+  }
+ },
+ "ratio": {
+  "descender": 0.3
+ },
+ "letterX": {
+  "W": 72,
+  "F": 99,
+  "H": 88,
+  "B": 91
+ }
+}
