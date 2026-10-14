@@ -82,7 +82,18 @@ When rendered output changed, one line each in the verdict:
    margin/padding/gap value the artboard specifies numerically, not just when centering is claimed.
 5. **Captions** — rendered text explaining the UI is a finding even if the artboard has it.
 
-Need a state the author didn't capture? Run `mobile/scripts/screenshot.sh` yourself (`--wait-for`
+**Diffs under `app/` (Flutter)** — the parity source is M2, not the `.dc.html` artboards:
+`docs/design/explorations/2026-10-ui-overhaul/flows/M2/` (`test/m2_dom.json` measurements, goldens at
+360 and 390 dp). Items 1-5 apply with these substitutions: compare the PNG from `app/tool/screenshot.sh
+<route>` (recorded mode: `?data=recorded&at=2026-10-08T12:41`) next to M2's own render at the same
+width; values come from the `m2_dom.json` measurement tests and the 360/390 goldens, not copied
+numbers; durations/curves/colours come from `app/lib/theme` / `app/lib/motion` (the gate flags
+literals). Lanes: `cd app && flutter analyze && flutter test --concurrency=2`. One heavy job at a
+time: Gradle, an emulator and Playwright never run together (host memory). Run `gh pr merge` and
+`scripts/pr-gate.sh` from the repo root, each in its own Bash call. Kill a stuck `flutter_tester` by
+PID (`pgrep -x flutter_tester`), never `pkill -f`.
+
+Need a state the author didn't capture? Run `mobile/scripts/screenshot.sh` (`app/tool/screenshot.sh` for `app/`) yourself (`--wait-for`
 on live-data screens, `--stress long-names` for wrapping claims). Couldn't render → say so and
 ESCALATE. **An unverified claim about the diff's own rendered behavior is a blocking finding**,
 never a footnote (e753e24 shipped through a gate that had noticed the risk).

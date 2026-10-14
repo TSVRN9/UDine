@@ -63,6 +63,11 @@ conversation that created the task.
   `artboardTransitions()` (`mobile/src/lib/artboard.ts`); durations/easings come from
   `mobile/src/lib/motion.ts` — never a literal. States the artboard can't depict come from the
   `canvas.json` annotation the brief names.
+- **`app/` (Flutter) parity source is M2**, not the `.dc.html` artboards:
+  `docs/design/explorations/2026-10-ui-overhaul/flows/M2/` (`test/m2_dom.json` measurements, goldens at
+  360 and 390 dp). Assert spec values in a measurement test against `m2_dom.json`; durations, curves and
+  colours come from `app/lib/theme` / `app/lib/motion`, never a literal. Cite `M2 R<n> §<k>` / the
+  `src.html` function in the brief's `UI:` line.
 - **No captions.** Rendered text that explains what the UI does is a defect even if the artboard
   has the same string; it goes in the PR body.
 - Budget: ~50 tool calls without a green suite → stop and report what you learned (may need
@@ -76,6 +81,11 @@ conversation that created the task.
   `--stress long-names` for wrapping/overflow claims, `mobile/scripts/measure-alignment.py` for
   any alignment claim). Capture **after your last code commit** — the sidecar records the sha and
   the gate rejects a stale one. Commit the PNG(s) + `.json` under `docs/pr-review-media/<branch>/`.
+- `app/` diffs: `cd app && flutter analyze && flutter test --concurrency=2`; screenshot with
+  `app/tool/screenshot.sh <route> [--serial S]` in recorded mode (`?data=recorded&at=2026-10-08T12:41`)
+  and compare to M2's own render at the same width. One heavy job at a time: Gradle, an emulator and
+  Playwright never run together. Run `scripts/pr-gate.sh` and `gh pr merge` from the repo root, each in
+  its own Bash call. Kill a stuck `flutter_tester` by PID (`pgrep -x flutter_tester`), never `pkill -f`.
 - Long steps (Gradle, `expo run:android`, `supabase start`) run in the foreground: one Bash call,
   timeout raised to 600000 ms, `timeout 600 bash -c 'until CHECK; do sleep 10; done'` if you need
   a wait. Backgrounding is blocked; ending your turn to wait means nothing wakes you.

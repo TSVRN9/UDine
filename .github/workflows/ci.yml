@@ -43,6 +43,11 @@
 #   cd web && npx playwright test           # e2e (needs `npx playwright install chromium` once).
 #                                            # Add --headed or --debug to watch/step through it;
 #                                            # `npx playwright show-report` opens the last HTML report.
+#   cd app && flutter analyze && flutter test --concurrency=2
+#                                            # Flutter lane (job flutter-tests): analyzer, the literals/
+#                                            # tokens-currency tests, M2 DOM measurements and goldens.
+#                                            # Run for any diff under app/. Kill a stuck flutter_tester by
+#                                            # PID (pgrep -x flutter_tester), never pkill -f.
 #   supabase start && supabase test db      # pgTAP RLS/schema tests (issue #27) — needs Docker and
 #                                            # the Supabase CLI (`npx supabase`). Runs against a
 #                                            # local, throwaway Postgres with all migrations
@@ -116,6 +121,17 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter mobile test
+
+  flutter-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get && flutter analyze && flutter test --concurrency=2
+        working-directory: app
 
   mobile-bundle:
     runs-on: ubuntu-latest
