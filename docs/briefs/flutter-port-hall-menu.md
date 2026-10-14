@@ -74,10 +74,22 @@ Rationale:
 - **Late night.** A reading before midnight can't get a clearing time from today's curve (`occupancyRead` only looks
   later today); while the hall is open past midnight, also consider the next weekday's early buckets (a second
   RPC call, `p_dow`+1). Reviewer of #558 flagged it; deferred to Task 3.
-- **M2's busy UI needs an owner decision.** M2's busy UI (pct, usual_pct lamps, outlook board, calmer_at, src.html
-  BUSY/TYPICAL) was designed around UMass's old `busy` object, which upstream dropped (hall-occupancy-history.md).
-  Our data is level-for-this-hour, vsUsual vs the typical curve, the curve itself, and usuallyClearsAt. Mapping the
-  lamps/board onto that needs an owner design decision before Task 3 builds it.
+- **Busy meter and board: headcount against today's peak** (owner, 2026-10-14). M2 drew its lamps and board from
+  UMass's old `busy` percentage, which upstream dropped (hall-occupancy-history.md). The scale is now our own
+  headcount:
+  - **Scale:** today's peak, the highest `median_headcount` in the hall's typical curve for this weekday.
+  - **Lamps (5):** live headcount as a share of that peak, capped at 100%, lit as M2 lights `pct` (one lamp per
+    20%, at least one).
+  - **Board:** one bar per hour from opening (as M2's `TYPICAL`), each bar the hour's usual headcount on the same
+    scale. The current hour is lit with the live headcount.
+  - **The word** (Busy / A little busy / Not busy) still comes from the level for this hour (UMass's hourly
+    thresholds), and "Busier/Quieter than usual" from `vsUsual`. So a full meter can read "A little busy" when the
+    rush is normal for that hour; that's intended.
+  - **No curve yet** (no rows, or every bucket under `minSamples`): lamps fall back to the level (1, 3 or 5 lit) and
+    the board is left out. Low confidence never changes the meter, only the words ("Probably…", no "Calmer
+    around…"), as M2 does.
+  - **Outlook:** M2's 30/60/90-minute outlook becomes the next hours' bars of the typical curve. There's no separate
+    forecast.
 
 ## Acceptance
 
