@@ -5,6 +5,7 @@ import { matchFavoritedDishes } from "../src/favoriteMatch.ts";
 import { currentMealPeriod, effectiveMealWindow, mapInfoV2, openStatus, parseMapAddress, parseStreetAddress } from "../src/hours.ts";
 import type { InfoV2Location } from "../src/hours.ts";
 import { matchesQuery } from "../src/search.ts";
+import * as storage from "../src/storage.ts";
 import type { DiningHallHours, Favorite, HallMealPeriod, MealPeriod, MenuItem } from "../src/types.ts";
 import { fetchMenu, parseCategoryItems } from "../src/umassDining.ts";
 
@@ -54,9 +55,24 @@ export const matchQuery = (i: { name: string; query: string }): unknown => match
 
 export const favoriteMatch = (i: { favorites: Favorite[]; menuItems: MenuItem[] }): unknown => jsonify(matchFavoritedDishes(i.favorites, i.menuItems));
 
+/** One adapter per exporter: rows in, the exact exported string out. */
+const exporter = (fn: (rows: never) => string) => (i: never): unknown => fn(i);
+
 export const ADAPTERS: Record<string, Record<string, (input: never) => unknown>> = {
   "foodpro.json": { parse: foodproParse, menu: foodproMenu },
   "hours.json": { map_info_v2: hoursMap, street_address: streetAddress, map_address: mapAddress, status: hoursStatus },
   "match-query.json": { match: matchQuery },
   "favorite-match.json": { match: favoriteMatch },
+  "export.json": {
+    entries_json: exporter(storage.exportEntriesAsJson),
+    entries_csv: exporter(storage.exportEntriesAsCsv),
+    ranked_dishes_json: exporter(storage.exportRankedDishesAsJson),
+    ranked_dishes_csv: exporter(storage.exportRankedDishesAsCsv),
+    ranked_foods_json: exporter(storage.exportRankedFoodsAsJson),
+    ranked_foods_csv: exporter(storage.exportRankedFoodsAsCsv),
+    favorites_json: exporter(storage.exportFavoritesAsJson),
+    favorites_csv: exporter(storage.exportFavoritesAsCsv),
+    custom_foods_json: exporter(storage.exportCustomFoodsAsJson),
+    custom_foods_csv: exporter(storage.exportCustomFoodsAsCsv),
+  },
 };
