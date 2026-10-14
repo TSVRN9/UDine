@@ -71,6 +71,9 @@ Rationale:
 - **Busy needs both halves.** Live `business_level` against its hourly thresholds says "busy for this
   hour". Only the typical curve can say when it's calmer (`docs/briefs/hall-occupancy-history.md`). If
   the curve has too few samples (`confidence` low), "Calmer around…" is left out rather than guessed.
+- **Late night.** A reading before midnight can't get a clearing time from today's curve (`occupancyRead` only looks
+  later today); while the hall is open past midnight, also consider the next weekday's early buckets (a second
+  RPC call, `p_dow`+1). Reviewer of #558 flagged it; decide in this task.
 
 ## Acceptance
 

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:udine/core/hours.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/m2/status.dart';
@@ -199,5 +200,14 @@ void main() {
         }
       });
     }
+  });
+
+  test('recorded mode answers the Supabase reads: a deterministic curve, an empty catalog', () async {
+    final r = await repo('/hall/worcester?data=recorded&at=2026-10-13T12:00');
+    final h = (await r.hours('2026-10-13').toList()).last as Loaded<HoursData>;
+    expect(h.value.locationIds['Worcester Commons'], 1);
+    final busy = HoursData(h.value.feed, {'Worcester Commons': const SensorLevels(count: 800, notBusy: 300, moderate: 600)}, h.value.locationIds);
+    expect((await r.busyReads(busy))['Worcester Commons']!.calmerAt, '13:00');
+    expect((await r.dishCatalog().toList()).last, isA<Loaded<List<DishCatalogEntry>>>());
   });
 }

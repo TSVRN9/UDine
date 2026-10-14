@@ -47,6 +47,19 @@ class RecordedClient extends http.BaseClient {
     return '<a$attrs href="#inline">${_esc(d['dish-name'] as String)}</a>$price';
   }
 
+  /// Stand-in for `rpc/occupancy_typical`, the same for every location and weekday: a lunch peak (11:00-13:00 busy), a
+  /// shoulder to 14:00, quiet after, six samples each. ponytail: it is a full-confidence curve so recorded screenshots show
+  /// "Calmer around 13:00"; the no-curve/low-confidence path is the repository tests' job, not a screenshot's.
+  static String typicalCurveJson() => jsonEncode([
+    for (var m = 7 * 60; m < 22 * 60; m += 15)
+      {
+        'bucket_start': '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}:00',
+        'median_headcount': m >= 11 * 60 && m < 13 * 60 ? 600 : m >= 13 * 60 && m < 14 * 60 ? 400 : 60,
+        'median_level': m >= 11 * 60 && m < 13 * 60 ? 2 : m >= 13 * 60 && m < 14 * 60 ? 1 : 0,
+        'samples': 6,
+      },
+  ]);
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final u = request.url;
@@ -57,6 +70,8 @@ class RecordedClient extends http.BaseClient {
       }(),
       '/uapp/get_infov2' => locations,
       '/uapp/get_beacons_events' => events,
+      '/rest/v1/rpc/occupancy_typical' => typicalCurveJson(),
+      '/rest/v1/dishes' => '[]', // the recorded screens don't read the catalog
       _ => throw StateError('no recording for $u'),
     };
     return http.StreamedResponse(Stream.value(utf8.encode(body)), 200, request: request);

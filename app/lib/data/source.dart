@@ -38,18 +38,23 @@ class UmassSource {
 
   Future<Object?> events() => _json(Uri.https(_host, 'uapp/get_beacons_events'));
 
-  Future<Object?> _json(Uri uri) async {
-    final http.Response res;
-    try {
-      res = await client.get(uri).timeout(timeout);
-    } on SocketException catch (e) {
-      throw Unreachable(e);
-    } on http.ClientException catch (e) {
-      throw Unreachable(e);
-    } on TimeoutException catch (e) {
-      throw Unreachable(e);
-    }
-    if (res.statusCode != 200) throw BadStatus(uri, res.statusCode);
-    return jsonDecode(utf8.decode(res.bodyBytes));
+  Future<Object?> _json(Uri uri) => sendJson(client, timeout, 'GET', uri);
+}
+
+/// One JSON request, with the network failures mapped to [Unreachable] and a non-200 to [BadStatus].
+Future<Object?> sendJson(http.Client client, Duration timeout, String method, Uri uri, {Map<String, String>? headers, String? body}) async {
+  final http.Response res;
+  try {
+    final req = http.Request(method, uri)..headers.addAll(headers ?? const {});
+    if (body != null) req.body = body;
+    res = await http.Response.fromStream(await client.send(req).timeout(timeout));
+  } on SocketException catch (e) {
+    throw Unreachable(e);
+  } on http.ClientException catch (e) {
+    throw Unreachable(e);
+  } on TimeoutException catch (e) {
+    throw Unreachable(e);
   }
+  if (res.statusCode != 200) throw BadStatus(uri, res.statusCode);
+  return jsonDecode(utf8.decode(res.bodyBytes));
 }

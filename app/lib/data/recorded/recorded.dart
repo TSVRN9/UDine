@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../theme/m2_tokens.g.dart';
 import '../repository.dart';
 import '../source.dart';
+import '../supabase_source.dart';
 import 'flags.dart';
 import 'recorded_client.dart';
 
@@ -29,7 +30,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {Future<Stri
   );
   final net = NetClient(client, f.net == NetMode.offline ? NetMode.ok : f.net, slow ?? defaultSlow);
   final at = f.at;
-  final repo = Repository(UmassSource(net), db, now: at == null ? null : () => at);
+  final repo = Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: at == null ? null : () => at);
   if (f.net == NetMode.offline) {
     await repo.launch();
     net.mode = NetMode.offline;
