@@ -932,3 +932,152 @@ state says what happened and what to do, in the place where it happened.**
     under a bar that stays.
   - **A row with a button under it** (Notify me, Write to Health) hangs the button 12 px under the line's last line,
     whether the line is one line or two.
+
+## Round 12: one item, its sizes or milks picked in its sheet (concept, before build)
+
+Critique: `CRITIQUE-r12.md`. Brief: `docs/briefs/m2-round-12.md`. The rule and every family and near-miss it finds:
+NOTES "Round 12". Motion: nothing new (table at the end).
+
+**The idea.** A pick-one is a row of chips under the item's name in its sheet, and it is the same control wherever M2
+asks you to pick exactly one: a size, a milk, a pho's broth. The list shows the item once. The sheet is where you
+choose. Everything under the chips (the name, price, serving, marks, Contains, the action, "where", the label, the
+ratings, the ingredients) is the picked variant's own, so what you read is what you log.
+
+```
+ Worcester Café, all day (390)              Its sheet: a size (the builder)        After 20 oz (in place)
+┌────────────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ Beverages                              │ │               ────               │ │               ────               │
+│ Cappuccino                             │ │ Cappuccino, 16 oz            ☆   │ │ Cappuccino, 20 oz            ☆   │ the name follows
+│ 16 oz   0 cal  0g protein            + │ │ (✓16 oz)(20 oz)                  │ │ (16 oz)(✓20 oz)                  │ the pick-one
+│ Caramel Macchiato                      │ │                                  │ │                                  │
+│ 16 oz   152 cal  0.8g protein        + │ │ $5.00  16 ozl                    │ │ $5.50  20 ozl                    │ price, serving
+│ Chai                                   │ │ Toppings and Add-ons             │ │ Toppings and Add-ons             │ the builder,
+│ 16 oz   211 cal  0g protein          + │ │ Butter                        +  │ │ Butter                        +  │ unchanged
+│ …  (nine size families)                │ │ …                                │ │ …                                │
+│ 20 oz Cold Brew                        │ │ …                                │ │ …                                │
+│ 1 cal  0g protein                    + │ ├──────────────────────────────────┤ ├──────────────────────────────────┤
+│ Boba                                   │ │ 0 cal  0g protein        [ Add ] │ │ 0 cal  0g protein        [ Add ] │
+│ Almond Milk   180 cal  0.3g protein  + │ └──────────────────────────────────┘ └──────────────────────────────────┘
+└────────────────────────────────────────┘
+  a lone size (Cold Brew, the iced drinks) is a dish: it keeps the feed's name
+```
+
+### 1. Which items group (NOTES "Round 12" has the rule's whole output)
+- **Within one place, day, meal and station.** Never across stations, places or days: Boba at Procrastination
+  Station, Roots and Worcester Café is three families, one per café (Search shows them as one row; §5).
+- **Only by a variant token, and only when it is all that differs.** Two kinds are in the feed:
+  - **a size:** a leading "16 oz " ("16 oz Cappuccino"), or a trailing "(8 oz)" or "(8oz)" ("Coconut Mango Acai Bowl
+    (8oz)");
+  - **a milk:** "<name> <kind> Milk", where the kind is one the feed uses: Almond, Maple, Oat, Skim, Soy, Whole, 1%
+    ("Boba Oat Milk"). "Maple" is the feed's word (probably the Mapleline dairy; NOTES "Open").
+- **A family is two or more items at the station with the same remaining name and different tokens.** What remains
+  is the family's name ("Cappuccino", "Boba"). An item whose token has no sibling ("20 oz Cold Brew", "8 oz Spicy
+  Lentil & Veggie Soup" at Franklin) is a dish as it always was, under the feed's own name.
+- **Not grouped, by rule:**
+  - an Add-ons or Toppings station: its items are a builder's parts ("MAPLELINE Skim Milk", "MAPLELINE Whole Milk");
+  - a milk with nothing left once the milk is taken out ("1% Milk");
+  - names that differ by any other word, even with a size in front ("20 oz Iced Latte" and "20 oz Latte"; "12 oz
+    Decaf Coffee" and "12 oz Regular Coffee"; a Coconut and a Yogurt smoothie). Those are different drinks, so they
+    stay rows. NOTES lists every one.
+- **The order and the default.** Sizes run smallest first, and the default is the smallest. Milks keep the feed's
+  order, and the default is the first (Almond). The default is what a row stands for.
+
+### 2. The row: one row, standing for its default
+- **One row per family**, where its first member was in the feed's order. The other members' rows are gone.
+- **The name is the family's** ("Cappuccino", "Boba"). The meta line leads with the default's token as its own group
+  ("16 oz", "Almond Milk"), then that variant's numbers and scores. A row says what its `+` adds; a range ("180 to
+  275 cal") couldn't, and the data has ranges that run backwards (Caramel Macchiato: 152 cal at 16 oz, 27 at 20 oz).
+- **`+` adds the default in one tap**, as a row always does, and its stepper counts the default. Another variant,
+  picked in the sheet, goes on the plate as its own item; the row doesn't count it. That is round 10's bowl rule: a
+  row counts its plain dish, and what the sheet makes lives on the plate.
+- **Dietary preferences:** a family is hidden only when every member is. Otherwise the row stands for the first member
+  your preferences allow.
+- A diet mark or star on the row is the default's mark and the family's star (§6).
+
+### 3. The picker: chips under the name
+- **The control is M2's own chip** (Cafés & markets' "Open now", Search's lenses): 44 px, an 8 px corner, tonal with a
+  check when chosen. In a single-select chip group, as MDC's `ChipGroup`, which wraps by default, so every option is
+  on screen. They sit 8 px under the name (a part of the identity group, round 7's spacing scale).
+- **Exactly one is chosen.** A chip tap chooses it; there is no "none" for a size or a milk.
+- **The labels are the tokens**: "16 oz", "20 oz"; "Almond", "Maple", "Oat", "Skim", "Soy". The name above says what
+  they are ("Boba, Oat Milk"), so the group has **no heading**.
+- **The name follows the pick**, in place: "Cappuccino, 16 oz" becomes "Cappuccino, 20 oz". It is the plate's name
+  for it, and it stays pinned at the top when the sheet is scrolled, so the label far below always says whose it is.
+- **Everything below follows the pick**, in place, without moving the sheet: price and serving, marks and scores,
+  Contains, Add (to plate), "where" (the variant's own servings), the label, the ratings panel and the ingredients.
+  The chip fills (`settle`) and the content under it crossfades from .4 (`settle`), as a plate tab does.
+- **In a builder** (most families, critique #10) the picker chooses the base. Chosen add-ins stay chosen across a
+  size change, so a 16 oz with oat milk becomes a 20 oz with oat milk. The foot sums the new base.
+- **Tracking off** keeps the picker. It chooses which label you read; only Add is gone (round 10).
+
+### 4. Pick-one everywhere: the pho's broth
+- **The pho bar's broths move out of the add-in rows into the same chips**, under the name. Their labels are the feed's
+  full names, because the parentheses carry allergens: "Chicken Pho Broth (Fish)", "Green Curry Pho Broth
+  (Anchovies)", "Tantanmen Ramen Broth", "Vegetarian Pho Base".
+- **Round 11b holds otherwise.** With no broth chosen, the name is the station's ("Noodle Bowl"), no chip is chosen, the
+  foot reads 0 and Add waits. A chip names the bowl. The toppings stay add-in rows with `+` and ½.
+- **Café pho builders** (Whitmore, Star Ginger) choose their pho the same way: the station's phos are the chips, and the
+  café's add-ons stay rows under "Add-ons". A chip's text wraps inside it when a name is longer than the line
+  ("Pulmuone Tofu Pho w/Spicy Green Curry Broth").
+- **This answers round 11's "Broth heading".** No heading, for the same reason a size has none: the chips' own words
+  say what is being chosen, and a heading would describe the control.
+
+```
+ Hampshire, lunch: the pho bar              A broth chosen
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│               ────               │ │               ────               │
+│ Noodle Bowl                      │ │ Green Curry Pho Broth (Anchovies)│
+│ (Chicken Pho Broth (Fish))       │ │ (Chicken Pho Broth (Fish))       │
+│ (Green Curry Pho Broth           │ │ (✓Green Curry Pho Broth          │
+│   (Anchovies))                   │ │   (Anchovies))                   │
+│ (Tantanmen Ramen Broth)          │ │ (Tantanmen Ramen Broth)          │
+│ (Vegetarian Pho Base)            │ │ (Vegetarian Pho Base)            │
+│ Pho Noodles        11 cal     +  │ │ Pho Noodles        11 cal   [−1+]│
+│ Chicken for Pho    28 cal     +  │ │ Chicken for Pho    28 cal   [−1+]│
+├──────────────────────────────────┤ ├──────────────────────────────────┤
+│ 0 cal  0g protein        [ Add ] │ │ 288 cal  …               [ Add ] │
+└──────────────────────────────────┘ └──────────────────────────────────┘
+   Add disabled until a broth is chosen
+```
+
+### 5. On the plate, in history, and what is logged
+- **The plate names the variant**: "Cappuccino, 20 oz", "Boba, Oat Milk", "Clam Chowder, 12 oz". A built one keeps its
+  second line ("with PACIFIC Almond Milk").
+- **Its stepper is its own.** Two variants of a family are two plate items, as two bowls are.
+- **Tapping it reopens the sheet on that variant**, with its chip chosen, and the action reads **Update**, as a bowl's
+  does. Choosing another size and Update changes the item in place, keeping its quantity; if that variant is already on
+  the plate, the two merge (the bowl's twin rule).
+- **The log records the feed's item**: the variant's own dish name ("20 oz Cappuccino"), its id and its own nutrition,
+  so it is exact and RN-shaped (an `umass-menu` item named as the feed names it). The display name is computed
+  when drawn, so a past meal reads "Cappuccino, 20 oz" with nothing new stored, and an export carries the feed's
+  name.
+
+```
+ The plate                                   A logged meal
+┌────────────────────────────────────────┐ ┌────────────────────────────────────────┐
+│ Worcester Café lunch, 2 items          │ │ Lunch at Worcester Café   12:41 PM     │
+│ Cappuccino, 20 oz             [− 1 +]  │ │ Cappuccino, 20 oz             [− 1 +]  │
+│ 0 cal each                             │ │ 0 cal each                             │
+│ Boba, Oat Milk                [− 1 +]  │ │ Boba, Oat Milk                [− 1 +]  │
+│ 262 cal each                           │ │ 262 cal each                           │
+└────────────────────────────────────────┘ └────────────────────────────────────────┘
+```
+
+### 6. Search, favourites and alerts
+- **A family matches once.** "boba" gives one row, "Boba", in "At cafés", with the three cafés in its lane. It matches
+  on any member's name, so "oat" finds Boba too. "Later today and tomorrow" lists a family once as well.
+- **What you typed picks the row's variant.** "oat" or "boba oat" makes the row stand for Boba, Oat Milk (its meta
+  says "Oat Milk", its `+` adds it); "20 oz latte" makes Latte stand for its 20 oz. Otherwise the row is the default.
+- **Favouriting stars the family.** The star in the sheet is the same whichever chip is chosen: you like boba, and
+  every milk is served wherever one is. The Favorites lens, the Favorites page and the row's star all read the family.
+- **Alerts match the family.** A run posts once per family per day when any member is on a menu, titled with the
+  family's name ("Boba") and the sheet's "where" sentence for it ("Now, until 4 PM, at Worcester Café").
+
+### Motion, round 12 (all existing)
+| Interaction | Pattern |
+|---|---|
+| A chip chosen | In place: the chip fills (`settle`) |
+| The sheet after a pick | In place: the name changes; the content under the chips crossfades from .4 (`settle`); the sheet doesn't move |
+| A builder's foot after a pick | In place, as an add-in step (`settle`) |
+| Update from the plate | `Sheet.away`, then the plate row changes in place (the bowl's Update) |
+| Search rows when a family collapses | Search's existing FLIP (`settle`) |
