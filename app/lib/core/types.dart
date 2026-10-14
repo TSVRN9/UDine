@@ -60,11 +60,16 @@ class NutritionFacts {
     this.dietaryFiberDv,
     this.sugarsDv,
     this.proteinDv,
+    this.blank = const {},
   });
 
   final String servingSize;
   final num calories, caloriesFromFat, totalFatG, satFatG, transFatG, cholesterolMg, sodiumMg;
   final num totalCarbG, dietaryFiberG, sugarsG, proteinG;
+  /// Not in the TS type and not in toJson/fromJson: the figures the feed left empty (data-sat-fat=""), by field name
+  /// ("satFatG"), which the numbers above read as 0. Only the nutrition label tells blank from a real 0; plate and log sums
+  /// keep treating blanks as 0, as TS does.
+  final Set<String> blank;
   final Dv? totalFatDv, satFatDv, cholesterolDv, sodiumDv, totalCarbDv, dietaryFiberDv, sugarsDv, proteinDv;
 
   factory NutritionFacts.fromJson(Map<String, dynamic> j) => NutritionFacts(
@@ -130,6 +135,7 @@ class MenuItem {
     this.ingredients,
     this.health,
     this.carbon,
+    this.dietCodes = const {},
   });
 
   final String dishName, category, date; // date: YYYY-MM-DD
@@ -145,6 +151,9 @@ class MenuItem {
 
   /// Not in the TS type or its JSON: carbon letter A-E from data-carbon-list.
   final String? carbon;
+
+  /// Not in the TS type or its JSON: the diet codes in recipe-webcode (VGT, VGN, H, LPR, SUS), which M2 unions with dietTags.
+  final Set<String> dietCodes;
 
   factory MenuItem.fromJson(Map<String, dynamic> j) => MenuItem(
         dishName: j['dishName'] as String,
