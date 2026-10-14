@@ -27,7 +27,7 @@ class LRow extends StatelessWidget {
             child: Row(children: [
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: M2Text.rowName.style(M2Color.ink)),
+                  Text(title, style: M2Text.rowName.withLine(M2Layout.areaNameLine).style(M2Color.ink)),
                   if (subtitle != null) Padding(padding: const EdgeInsets.only(top: M2Layout.areaMetaGap), child: fade == null ? meta : FadeTransition(opacity: fade!, child: meta)),
                 ]),
               ),
