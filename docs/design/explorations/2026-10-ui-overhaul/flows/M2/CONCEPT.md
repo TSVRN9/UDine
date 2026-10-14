@@ -897,3 +897,18 @@ state says what happened and what to do, in the place where it happened.**
 | A café's menu row → its PDF | Push |
 | PDF pages arriving | In place (`settle`) |
 | Search offline line, failed pair, Try again | In place (`settle`) |
+
+### Round 11, as built (where the build departed from the concept above; NOTES "Round 11")
+- **The You row for Favorites is unchanged** ("2 dishes"). It doesn't add "notifying". The switch's state is on the
+  Favorites page, where it's changed, and a second status line on You would describe rather than act.
+- **The café page puts the menus first.** The order is: "Menus", the four rows, Add a custom food, then the
+  description. With the description first (the frame above), every row was below the fold at 360.
+- **Packaged search can fail on its own** (`?pack=fail`): "Packaged foods didn't load." with Try again, under the
+  Packaged heading. OpenFoodFacts' own outage during this round (critique #7) showed it's a normal state.
+- **A per-100 g item on the plate** reads "368 cal per 100 g", not "100 g". It is the plate row's own "cal each" line
+  with the unit in place of "each".
+- **Revoked** is simulated with `?alerts=revoked`: stored on, no longer allowed. It shows the denied state.
+- **A synthetic sheet** has no add-ins heading, because its title is the station's name. Its parts start 16 px under
+  the title.
+- **Pinch zoom on a PDF.** The prototype's viewport is fixed (`maximum-scale=1`), as an app's is. The PDF page
+  therefore has its own two-finger zoom (1× to 4×, CSS `zoom` on the pages), standing in for the platform's.

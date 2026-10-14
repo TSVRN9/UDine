@@ -1748,7 +1748,8 @@ committed before the build. Items 1-4 are designs; item 5 applies the owner's bo
     phone."
   - `?saved=pdf:Lunch` marks one as opened before.
   - Failed: "The lunch menu didn't load." with Try again.
-- **Zoom.** Pinch-zoom is the platform's; in the prototype it is the browser's. At 1× the menu's text is about 6 px.
+- **Zoom.** Pinch-zoom is the platform's. The prototype's viewport is fixed (`maximum-scale=1`), so the PDF page has
+  its own two-finger zoom, 1× to 4× (CSS `zoom`; the page scrolls both ways). At 1× the menu's text is about 6 px.
   That is the PDF's own letter page drawn at phone width, and it is why zoom matters (Open).
 
 **4. Offline search.**
@@ -1832,8 +1833,23 @@ committed before the build. Items 1-4 are designs; item 5 applies the owner's bo
    The margin is removed.
 9. Edit sat 5 px above the name's first line. It is now centred on it, as the star is (crop `p2/crop-edit.png`).
 
-**Pass 2: clean** for the re-shot states (`p2/check.png`: s1-clif, l-loading, a-bgoff-ios, p-cafe, p-rows,
-b-salad-sheet).
+**Pass 2** (`p2/check.png`: s1-clif, l-loading, a-bgoff-ios, p-cafe, p-rows, b-salad-sheet) confirmed the fixes.
+Coordinator-style review then found gaps between concept and build. They are recorded in CONCEPT "Round 11, as built"
+and fixed here:
+- the plate row for a per-100 g item read "368 cal each", and now reads "368 cal per 100 g" (`p3/s1-plate`);
+- `?alerts=revoked` had no simulation (`p3/a-revoked`);
+- a PDF couldn't be zoomed in the prototype, and now has two-finger zoom;
+- `?pack=fail`, the packaged in-flight slot and the PDF loading state had no assertions, and now have them.
+
+**Pass 3: clean.** All 51 states were re-shot from the final build (`build/r11/p3`, `sheet1.png` to `sheet9.png`) and
+viewed at both widths.
+- Three pass-1 fixes reach older screens: check-row padding, Search's empty-line margin and the compact bar's name cap.
+  Those screens were re-shot with `shots9.js` into `build/r11/reg` (`sheet1.png`, `sheet2.png`): You on (top and
+  scrolled), first run (rest and scrolled), Dietary preferences, Charles River on, Worcester, Franklin and Worcester
+  Café collapsed, and Search with tracking off. Nothing wraps or shifts.
+- **Not recorded: motion strips.** Round 11 adds no motion. The one new composition is a row gliding from Packaged
+  into Your foods on `+`, which is Search's existing FLIP. A `rec.js` strip of it, and of the notification tap's push,
+  is left for the coordinator if wanted (Open).
 
 ### Tests (`test.js`, `round11`; `RED=11` runs it alone)
 - **Bowls:**
@@ -1895,7 +1911,13 @@ b-salad-sheet).
   - The harnesses (`test.js`, `vectors.js`, `rec.js`, `shots*.js` and others) now load the hoisted
     `node_modules/.pnpm/node_modules/playwright-core`. The pinned `playwright-core@1.63.0` path no longer exists on this
     host (1.62.1 is installed, with the same Chromium 1234).
-- **Now:** `node test.js` gives 5,237 checks and `RM=1 node test.js` gives 3,407, all green.
+- **Added after the red run** (they go green directly; each scenario's red was already recorded):
+  - the packaged in-flight slot;
+  - `?pack=fail`;
+  - the per-100 g plate row;
+  - `?alerts=revoked`;
+  - the PDF loading state.
+- **Now:** `RED=11 node test.js` (round 11 alone) gives 108 checks; it now prints its count. `node test.js` gives 5,105 checks and `RM=1 node test.js` gives 3,611, all green (counts vary between runs because sampled frames are counted; the earlier run gave 5,237 and 3,407). `vectors.json` is unchanged by these fixes.
 - **Found by the suite:** round 7's "dish sheet from Search" sampler failed at first, because the packaged answer
   arriving re-rendered Search under the open sheet. When the answer adds nothing, the waiting slot is now removed in
   place and the list is left alone.
@@ -1916,7 +1938,8 @@ b-salad-sheet).
 - `CRITIQUE-r11.md`, `CONCEPT.md` (Round 11), `src.html`, `build.py`, `test.js`, `vectors.js`, `vectors.json`, `shots11.js`.
 - New data, committed: `../locations-2026-10-13.json` (the live get_infov2) and `../packaged-2026-10-13.json`. The PDFs
   are in `local/pdf/` (gitignored).
-- Shots: `build/r11/p1` (all 49 states, `sheet1.png` to `sheet9.png`) and `build/r11/p2` (pass 2, `check.png`). The
+- Shots: `build/r11/p1` (pass 1), `build/r11/p2` (`check.png`), `build/r11/p3` (final, all 51 states, `sheet1.png` to
+  `sheet9.png`), `build/r11/reg` (older screens). The
   baseline is in `build/r11/before-*`. `build/` is under `~/.cache/udine-scratch/flows/M2/` and isn't committed.
 
 ### Open (for the owner)
@@ -1930,6 +1953,8 @@ b-salad-sheet).
   - The other choice is to name the bowl after the broth picked first ("Chicken Pho Broth (Fish) with …"). That needs
     the base to change as parts are picked.
   - The pho bars are 15 of the 82 station-days.
+- **Motion strips** for the Packaged → Your foods glide and the notification tap weren't recorded. Both are existing
+  motion (Search's FLIP, the "where" push).
 - **Café Noodle Bowls** (Whitmore, Star Ginger) offer every pho as its own base with the café's add-ons. Should they
   follow the halls' one-base rule? Their dishes are priced and complete, so I left them.
 - **Prefetching café PDFs**, or pinned cafés' menus, so they're there offline. That is traffic RN doesn't make, so it
