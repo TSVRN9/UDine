@@ -1,11 +1,12 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Schema version this build knows. 0 is RN's schema (never stamped a version).
-const kUserVersion = 1;
+const kUserVersion = 1; // == _migrations.length
 
 /// RN's schema, copied from mobile/src/lib/db.ts. Never alter these; new
 /// migrations add tables/columns/keys only.
@@ -71,28 +72,42 @@ Future<int> _version(DatabaseExecutor db) async =>
     (await db.rawQuery('PRAGMA user_version')).first.values.first! as int;
 
 /// Opens [path] in place (SQLite replays any -wal itself; nothing is copied).
-Future<StoreOpen> openStore(String path, {DatabaseFactory? factory}) async {
+/// The newer-version probe is a normal read-only open: it reads user_version
+/// through the WAL and changes no data, though SQLite may create -shm.
+/// [migrations]/[onOpen] are test seams.
+Future<StoreOpen> openStore(
+  String path, {
+  DatabaseFactory? factory,
+  @visibleForTesting List<List<String>> migrations = _migrations,
+  @visibleForTesting void Function(Database)? onOpen,
+}) async {
   final f = factory ?? databaseFactory;
+  final target = migrations.length;
   if (File(path).existsSync()) {
-    // Probe read-only first so a newer file is never written, even by a checkpoint.
     final probe = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
     final found = await _version(probe);
     await probe.close();
-    if (found > kUserVersion) return StoreNewerVersion(found, kUserVersion);
+    if (found > target) return StoreNewerVersion(found, target);
   } else {
     Directory(p.dirname(path)).createSync(recursive: true);
   }
   final db = await f.openDatabase(path);
-  await db.transaction((tx) async {
-    for (final s in _rnSchema) {
-      await tx.execute(s);
-    }
-    for (var v = await _version(tx); v < kUserVersion; v++) {
-      for (final s in _migrations[v]) {
+  onOpen?.call(db);
+  try {
+    await db.transaction((tx) async {
+      for (final s in _rnSchema) {
         await tx.execute(s);
       }
-      await tx.execute('PRAGMA user_version = ${v + 1}');
-    }
-  });
+      for (var v = await _version(tx); v < target; v++) {
+        for (final s in migrations[v]) {
+          await tx.execute(s);
+        }
+        await tx.execute('PRAGMA user_version = ${v + 1}');
+      }
+    });
+  } catch (_) {
+    await db.close();
+    rethrow;
+  }
   return StoreReady(db);
 }
