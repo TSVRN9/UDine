@@ -985,6 +985,64 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await page.locator('.osnote').tap(); await page.waitForTimeout(1500);
       assert.deepEqual(await ev(() => [S.hall, S.mmeal, document.querySelector('#mlist .row.here .n')?.textContent.replace('★', '')]), ['W', 'lunch', 'Beef Brisket Noodle Bowl'], 'tapping it opens the hall at that meal, at the dish');
     });
+    // ---- round 11b (owner, 2026-10-14): pho is named after its broth; cafés' pho builders; pinned cafés saved; row gaps
+    await scen('pho: named after the broth picked; Add waits for one; one broth at a time; Whitmore and Star Ginger build one pho', async () => {
+      await go('?state=menu&hall=H'); await page.locator('#mlist .row.syn', { hasText: /^Noodle Bowl$/ }).tap(); await page.waitForTimeout(800);
+      const st = () => ev(() => [document.querySelector('#isbody .dn').textContent, document.querySelector('#bfoot [data-act=badd]').disabled, +document.querySelector('#bfoot .l2 b').textContent]);
+      assert.deepEqual(await st(), ['Noodle Bowl', true, 0], 'no broth yet: the station names it, and Add waits');
+      const pick = n => ev(n => [...document.querySelectorAll('#isbody .brow')].find(r => r.querySelector('.n').textContent.startsWith(n)).querySelector('.add,.inc').click(), n);
+      await pick('Chicken Pho Broth'); await page.waitForTimeout(200);
+      assert.deepEqual(await st(), ['Chicken Pho Broth (Fish)', false, 24], 'a broth names the bowl');
+      await pick('Green Curry Pho Broth'); await page.waitForTimeout(200);
+      assert.deepEqual(await st(), ['Green Curry Pho Broth (Anchovies)', false, 249], 'another broth replaces it');
+      assert.equal(await ev(() => [...document.querySelectorAll('#isbody .brow .step')].length), 1, 'one broth at a time');
+      await pick('Pho Noodles'); await pick('Chicken for Pho'); await page.waitForTimeout(200);
+      assert.equal((await st())[2], 288, '249 + 11 + 28');
+      await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1000);
+      assert.deepEqual(await ev(() => { const it = S.plates[0].items[0], m = macroOf(it); return [it.n, m.parts.map(([x]) => x.n)]; }), ['Green Curry Pho Broth (Anchovies)', ['Pho Noodles', 'Chicken for Pho']], 'on the plate: the broth, with its parts');
+      await ev(() => { if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(800);
+      await page.locator('#psbody .prow .n').first().tap(); await page.waitForTimeout(900);
+      assert.deepEqual(await ev(() => [document.querySelector('#isbody .dn').textContent, document.querySelector('#bfoot [data-act=badd]').textContent, DS.build.sel.size]), ['Green Curry Pho Broth (Anchovies)', 'Update', 3], 'reopened to edit');
+      for (const cafe of ['Whitmore Café', 'Star Ginger']) {
+        await go(); const ci = await ev(n => P.places.findIndex(x => x[0] === n), cafe);
+        await ev(i => openHall('C', true, null, { cafe: i }), ci); await page.waitForTimeout(400);
+        assert.equal(await ev(() => [...document.querySelectorAll('#mlist .row')].filter(r => /Pho|Ramen/.test(r.querySelector('.n').textContent) && buildOf(DISH[r.dataset.id])).length), 0, cafe + ': no pho builds on its own');
+        await page.locator('#mlist .row.syn', { hasText: /^Noodle Bowl$/ }).tap(); await page.waitForTimeout(800);
+        assert.deepEqual(await ev(() => [document.querySelector('#isbody .dn').textContent, document.querySelector('#bfoot [data-act=badd]').disabled, [...document.querySelectorAll('#isbody .bh')].map(h => h.textContent)]), ['Noodle Bowl', true, ['Add-ons']], cafe + ': one builder, its add-ons under their own heading');
+        const first = await ev(() => { const r = document.querySelector('#isbody .brow'); r.querySelector('.add').click(); return DISH[r.dataset.bp]; }); await page.waitForTimeout(200);
+        assert.deepEqual(await ev(() => [document.querySelector('#isbody .dn').textContent, document.querySelector('#isbody .bsv .pr').textContent]), [first.n, first.price], cafe + ': the pho picked names it, at its price');
+      }
+    });
+    await scen('pinned cafés are saved: their menu and PDFs open offline', async () => {
+      await go(); await ev(() => localStorage.setItem('udine-m2', JSON.stringify({ pins: ['Green Fields', 'The Commonwealth Restaurant'] })));
+      await page.goto(URL + '?state=search&net=offline'); await page.waitForTimeout(500);
+      assert.equal(await page.locator('#search .netnote').textContent(), "You're offline. Searching the menus saved on this phone: the halls, today and tomorrow, and Green Fields, today.", 'a pinned café is saved');
+      await type('caesar'); assert(await page.locator('#sres .row[data-cg]').count() > 0, "and searched");
+      const ci = await ev(() => P.places.findIndex(x => x[0] === 'The Commonwealth Restaurant'));
+      await ev(i => openHall('C', true, null, { cafe: i }), ci); await page.waitForTimeout(400);
+      assert.equal(await page.locator('#mlist [data-pdf] .r').count(), 0, "a pinned café's PDFs are never 'Not saved'");
+      await page.locator('#mlist [data-pdf]', { hasText: 'Dinner' }).tap(); await page.waitForTimeout(900);
+      assert.equal(await page.locator('.page[data-p=pdf] img.pdfp').count(), 2, 'and open offline');
+      await ev(() => localStorage.removeItem('udine-m2'));
+    });
+    await scen('a PDF page: double-tap zooms in where tapped, and again back out', async () => {
+      await go(); const ci = await ev(() => P.places.findIndex(x => x[0] === 'The Commonwealth Restaurant'));
+      await ev(i => openHall('C', true, null, { cafe: i }), ci); await page.waitForTimeout(300);
+      await page.locator('#mlist [data-pdf]', { hasText: 'Lunch' }).tap(); await page.waitForTimeout(1400);
+      const w = () => ev(() => Math.round(document.querySelector('.page[data-p=pdf] img.pdfp').getBoundingClientRect().width));
+      const w0 = await w(); const dbl = async () => { await page.touchscreen.tap(200, 400); await page.waitForTimeout(90); await page.touchscreen.tap(200, 400); await page.waitForTimeout(400); };
+      await dbl(); assert.equal(await w(), Math.round(w0 * 2.5), 'double-tap: 2.5x');
+      assert(await ev(() => NAV.at(-1).el.querySelector('.pbody').scrollLeft > 0 && NAV.at(-1).el.querySelector('.pbar').getBoundingClientRect().left === frame.getBoundingClientRect().left), 'zoomed where tapped (the pages scroll sideways to keep the point; the bar stays)');
+      await dbl(); assert.equal(await w(), w0, 'double-tap again: back to the width of the screen');
+    });
+    await scen('a row with a button under it: the button sits 12 px under the line, one line or two', async () => {
+      const gap = async q => { await go('?state=you' + q); await page.locator('#you [data-p=favs]').tap(); await page.waitForTimeout(800);
+        await page.locator('.page[data-p=favs] [data-act=alerts]').tap(); await page.waitForTimeout(300); if (await page.locator('.ossheet').count()) { await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300); }
+        return ev(() => { const cb = document.querySelector('.page[data-p=favs] [data-act=alerts] .cb').getBoundingClientRect(), b = document.querySelector('.page[data-p=favs] [data-act=asettings]').getBoundingClientRect(); return Math.round(b.top - cb.bottom); }); };
+      for (const q of ['&alerts=deny', '&alerts=bgoff&os=ios', '&alerts=bgoff']) assert.equal(await gap(q), 12, q + ': 12 px from the line to Open Settings');
+      await go('?state=you&health=deny'); await page.locator('#you [data-act=health]').tap(); await page.waitForTimeout(300); await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300);
+      assert.equal(await ev(() => Math.round(document.querySelector('#you [data-act=hsettings]').getBoundingClientRect().top - document.querySelector('#you [data-act=health] .cb').getBoundingClientRect().bottom)), 12, "Health's denied row reads the same");
+    });
   };
   if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11 }[process.env.RED] || round7)(); console.log(results.join('\n')); console.log(`${NCHK} checks`); await browser.close(); return; }
 

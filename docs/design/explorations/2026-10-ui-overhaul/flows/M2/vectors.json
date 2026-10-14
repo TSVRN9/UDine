@@ -2202,6 +2202,122 @@
    "front": 0
   },
   {
+   "name": "bowl: a pho bar (round 11b): named after the broth picked, the rest its parts",
+   "ops": [
+    [
+     "bowl",
+     "lunch",
+     "H",
+     null,
+     "Noodle Bowl",
+     [
+      [
+       "Green Curry Pho Broth (Anchovies)",
+       1
+      ],
+      [
+       "Pho Noodles",
+       1
+      ],
+      [
+       "Chicken for Pho",
+       1
+      ]
+     ]
+    ]
+   ],
+   "plates": [
+    {
+     "meal": "lunch",
+     "halls": [
+      "H"
+     ],
+     "label": "Hampshire lunch",
+     "items": [
+      [
+       "Green Curry Pho Broth (Anchovies)",
+       1,
+       {
+        "parts": [
+         [
+          "Pho Noodles",
+          1
+         ],
+         [
+          "Chicken for Pho",
+          1
+         ]
+        ],
+        "cal": 288,
+        "price": null
+       }
+      ]
+     ],
+     "totals": {
+      "cal": 288,
+      "p": 8.9,
+      "c": 16.3,
+      "f": 20.7
+     }
+    }
+   ],
+   "front": 0
+  },
+  {
+   "name": "bowl: a café's pho builder (Whitmore Café): the pho picked, with the café's add-ons",
+   "ops": [
+    [
+     "bowl",
+     "lunch",
+     "c20",
+     null,
+     "Noodle Bowl",
+     [
+      [
+       "Chicken Pho w/Vegetable Broth",
+       1
+      ],
+      [
+       "Hard Boiled Eggs",
+       1
+      ]
+     ]
+    ]
+   ],
+   "plates": [
+    {
+     "meal": "lunch",
+     "halls": [
+      "c20"
+     ],
+     "label": "Whitmore Café lunch",
+     "items": [
+      [
+       "Chicken Pho w/Vegetable Broth",
+       1,
+       {
+        "parts": [
+         [
+          "Hard Boiled Eggs",
+          1
+         ]
+        ],
+        "cal": 201,
+        "price": "$13.25"
+       }
+      ]
+     ],
+     "totals": {
+      "cal": 201,
+      "p": 18.4,
+      "c": 15,
+      "f": 8.3
+     }
+    }
+   ],
+   "front": 0
+  },
+  {
    "name": "lunch and dinner are different plates",
    "ops": [
     [
@@ -16706,7 +16822,12 @@
    "place": "H",
    "meal": "lunch",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-08",
@@ -16727,7 +16848,12 @@
    "place": "B",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-09",
@@ -16769,14 +16895,24 @@
    "place": "W",
    "meal": "lunch",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-11",
    "place": "W",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-11",
@@ -16790,21 +16926,36 @@
    "place": "H",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-11",
    "place": "B",
    "meal": "lunch",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-11",
    "place": "B",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-12",
@@ -16951,7 +17102,12 @@
    "place": "H",
    "meal": "lunch",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-15",
@@ -17063,14 +17219,24 @@
    "place": "W",
    "meal": "lunch",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-18",
    "place": "W",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-18",
@@ -17084,21 +17250,36 @@
    "place": "H",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-18",
    "place": "B",
    "meal": "lunch",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-18",
    "place": "B",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-19",
@@ -17196,7 +17377,12 @@
    "place": "W",
    "meal": "dinner",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-21",
@@ -17238,7 +17424,12 @@
    "place": "H",
    "meal": "lunch",
    "base": "Noodle Bowl",
-   "synthetic": true
+   "synthetic": true,
+   "choices": [
+    "Chicken Pho Broth (Fish)",
+    "Green Curry Pho Broth (Anchovies)",
+    "Vegetarian Pho Base"
+   ]
   },
   {
    "day": "2026-10-22",
@@ -17327,6 +17518,27 @@
    "label": "Deli Bar"
   },
   {
+   "day": "2026-10-08",
+   "place": "c20",
+   "meal": "all",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "c7",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-08",
+   "place": "c7",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
    "day": "2026-10-09",
    "place": "F",
    "meal": "lunch",
@@ -17364,6 +17576,13 @@
   {
    "day": "2026-10-09",
    "place": "c28",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c28",
    "meal": "dinner",
    "station": "Salad Bar/Dressings",
    "label": "Salad Bar"
@@ -17374,6 +17593,27 @@
    "meal": "dinner",
    "station": "Deli Bar",
    "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c20",
+   "meal": "all",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c7",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-09",
+   "place": "c7",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
   },
   {
    "day": "2026-10-11",
@@ -17489,6 +17729,13 @@
   },
   {
    "day": "2026-10-12",
+   "place": "c20",
+   "meal": "all",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-12",
    "place": "F",
    "meal": "lunch",
    "station": "Deli Bar",
@@ -17509,6 +17756,20 @@
    "label": "Salad Bar"
   },
   {
+   "day": "2026-10-12",
+   "place": "c7",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-12",
+   "place": "c7",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
    "day": "2026-10-13",
    "place": "c28",
    "meal": "lunch",
@@ -17535,6 +17796,13 @@
    "meal": "dinner",
    "station": "Deli Bar",
    "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "c20",
+   "meal": "all",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
   },
   {
    "day": "2026-10-13",
@@ -17558,6 +17826,20 @@
    "label": "Salad Bar"
   },
   {
+   "day": "2026-10-13",
+   "place": "c7",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-13",
+   "place": "c7",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
    "day": "2026-10-14",
    "place": "c28",
    "meal": "lunch",
@@ -17584,6 +17866,13 @@
    "meal": "dinner",
    "station": "Deli Bar",
    "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "c20",
+   "meal": "all",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
   },
   {
    "day": "2026-10-14",
@@ -17607,6 +17896,20 @@
    "label": "Salad Bar"
   },
   {
+   "day": "2026-10-14",
+   "place": "c7",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-14",
+   "place": "c7",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
    "day": "2026-10-15",
    "place": "c28",
    "meal": "lunch",
@@ -17633,6 +17936,13 @@
    "meal": "dinner",
    "station": "Deli Bar",
    "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "c20",
+   "meal": "all",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
   },
   {
    "day": "2026-10-15",
@@ -17663,6 +17973,20 @@
    "label": "Salad Bar"
   },
   {
+   "day": "2026-10-15",
+   "place": "c7",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-15",
+   "place": "c7",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
    "day": "2026-10-16",
    "place": "c28",
    "meal": "lunch",
@@ -17679,6 +18003,13 @@
   {
    "day": "2026-10-16",
    "place": "c28",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c28",
    "meal": "dinner",
    "station": "Salad Bar/Dressings",
    "label": "Salad Bar"
@@ -17689,6 +18020,13 @@
    "meal": "dinner",
    "station": "Deli Bar",
    "label": "Deli Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c20",
+   "meal": "all",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
   },
   {
    "day": "2026-10-16",
@@ -17710,6 +18048,20 @@
    "meal": "dinner",
    "station": "Salad Bar/Dressings",
    "label": "Salad Bar"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c7",
+   "meal": "lunch",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
+  },
+  {
+   "day": "2026-10-16",
+   "place": "c7",
+   "meal": "dinner",
+   "station": "Noodle Bowl",
+   "label": "Noodle Bowl"
   },
   {
    "day": "2026-10-17",

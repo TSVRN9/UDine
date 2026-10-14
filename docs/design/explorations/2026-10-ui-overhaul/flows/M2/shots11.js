@@ -47,12 +47,12 @@ const STATES = [
   ['a-landed', '?notify=1', tap('.osnote', 1500)],
   // 3. café PDF menus
   ['p-cafe', ...commonwealth('')],
-  ['p-rows', ...commonwealth('', ev(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = 200; paint(1, 200); }))],
+  ['p-rows', ...commonwealth('', ev(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = 300; paint(1, 300); }))],
   ['p-loading', ...commonwealth('', tap('#mlist [data-pdf]', 250))],
   ['p-lunch', ...commonwealth('', tap('#mlist [data-pdf]', 1400))],
   ['p-lunch-2', ...commonwealth('', tap('#mlist [data-pdf]', 1400), ev(() => { NAV.at(-1).el.scrollTop = 99999; }))],
   ['p-dessert', ...commonwealth('', tap('#mlist [data-pdf="3"]', 1400))],
-  ['p-offline-rows', ...commonwealth('?net=offline&saved=pdf:Lunch', ev(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = 200; paint(1, 200); }))],
+  ['p-offline-rows', ...commonwealth('?net=offline&saved=pdf:Lunch', ev(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = 300; paint(1, 300); }))],
   ['p-offline-page', ...commonwealth('?net=offline', tap('#mlist [data-pdf]', 900))],
   ['p-fail', ...commonwealth('?net=fail', tap('#mlist [data-pdf]', 900))],
   // 4. offline search
@@ -69,6 +69,13 @@ const STATES = [
   ['b-deli', '?state=menu&hall=F', ev(() => { const r = document.querySelector('#mlist .row.syn'); const sc = document.querySelector('#mscroll'); sc.scrollTop = r.offsetTop - 260; paint(1, sc.scrollTop); })],
   ['b-pho', '?state=menu&hall=H', ev(() => { const r = document.querySelector('#mlist .row.syn'); const sc = document.querySelector('#mscroll'); sc.scrollTop = r.offsetTop - 260; paint(1, sc.scrollTop); })],
   ['b-pho-sheet', '?state=menu&hall=H', seq(tap('#mlist .row.syn'), ...['Chicken Pho Broth', 'Pho Noodles', 'Chicken for Pho'].map(n => async p => { await p.locator('#isbody .brow', { hasText: n }).locator('.add').tap(); await p.waitForTimeout(300); }))],
+  ['b-pho-none', '?state=menu&hall=H', tap('#mlist .row.syn')],
+  ['b-pho-plate', '?state=menu&hall=H', seq(tap('#mlist .row.syn'), ...['Green Curry Pho Broth', 'Pho Noodles', 'Chicken for Pho'].map(n => async p => { await p.locator('#isbody .brow', { hasText: n }).locator('.add').tap(); await p.waitForTimeout(300); }), tap('#bfoot [data-act=badd]', 1100), ev(() => { if (plateOpen()) psheet.to('mid'); }), wait(900))],
+  ['b-whitmore', '', seq(ev(`openHall('C',true,null,{cafe:${cafe('Whitmore Café')}})`), wait(300), ev(() => { const r = document.querySelector('#mlist .row.syn'); const sc = document.querySelector('#mscroll'); sc.scrollTop = r.offsetTop - 260; paint(1, sc.scrollTop); }), tap('#mlist .row.syn'), ...['Chicken Pho w/Vegetable Broth', 'Hard Boiled Eggs'].map(n => async p => { await p.locator('#isbody .brow', { hasText: n }).locator('.add').tap(); await p.waitForTimeout(300); }), ev(() => isheet.to('top')), wait(600))],
+  ['b-starginger', '', seq(ev(`openHall('C',true,null,{cafe:${cafe('Star Ginger')}})`), wait(300), tap('#mlist .row.syn'))],
+  ['o-pinned', '?state=search&net=offline', seq(ev(() => { S.pins = ['Green Fields', 'The Commonwealth Restaurant']; renderSearch(); }), typed('caesar'))],
+  ['p-pinned-offline', '?net=offline', seq(ev(() => { S.pins = ['The Commonwealth Restaurant']; }), ev(`openHall('C',true,null,{cafe:${cafe('The Commonwealth Restaurant')}})`), wait(300))],
+  ['p-zoom', ...commonwealth('', tap('#mlist [data-pdf]', 1400), async p => { await p.touchscreen.tap(120, 300); await p.waitForTimeout(90); await p.touchscreen.tap(120, 300); await p.waitForTimeout(500); })],
   ['b-harvest', '', seq(ev(`openHall('C',true,null,{cafe:${cafe('Harvest Market')}})`), wait(300), ev(() => { const r = [...document.querySelectorAll('#mlist .sth')].find(h => /Salad Bar/.test(h.textContent)); const sc = document.querySelector('#mscroll'); sc.scrollTop = r.offsetTop - 200; paint(1, sc.scrollTop); }))],
 ];
 // OS-sheet states: the tap that raises it, and the answer

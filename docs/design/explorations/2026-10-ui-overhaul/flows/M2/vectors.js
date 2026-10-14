@@ -31,7 +31,8 @@
 //   "price": [ {"dish", "place", "feedPrice", "shown"} ],  // the sheet shows a price only for a café serving
 //   // round 11
 //   "bowlbase": [ {"day", "place", "meal", "base", "synthetic"} ],   // every hall Noodle Bowl station-day, Oct 8-22: exactly one base,
-//              // its soup or dish (synthetic: a pho bar of parts, whose base is the station, "Noodle Bowl"). The rule is baseOf.
+//              // its soup or dish (synthetic: a pho bar of parts, whose row is the station, "Noodle Bowl", and whose bowl takes the name of
+//              // the one broth picked from "choices"; round 11b). The rule is baseOf; phoOf builds the pho.
 //   "synthetic": [ {"day", "place", "meal", "station", "label"} ],  // every station-day with a synthetic base: unpriced Salad Bar
 //              // and Deli Bar (never by the pound), and the halls' pho bars. A station not listed has none.
 //   "alerts": [ {"favorites": [dish], "runs": [ {"clock", "posted": [[title, body]]} ]} ],   // alertRun, allowed, runs in
@@ -71,6 +72,8 @@ const PLATES = [
   { name: 'bowl: Noodle Bowl (a natural base) next to the plain dish', ops: [['bowl', 'lunch', 'W', 'Beef Brisket Noodle Bowl', 'Noodle Bowl', [['Hard Boiled Egg', 1], ['Steamed Bok Choy', 1]]], ['add', 'lunch', 'Beef Brisket Noodle Bowl', ['W']], ['bowl', 'lunch', 'W', 'Beef Brisket Noodle Bowl', 'Noodle Bowl', [['Hard Boiled Egg', 1], ['Steamed Bok Choy', 1]]]] },
   { name: 'bowl: a café dish with its Add-ons (prices sum)', ops: [['bowl', 'lunch', 'Green Fields', 'Create Your Own Salad', 'Add-ons', [['Add Fresh Avocado', 1], ['Grilled Diced Chicken', 2]]]] },
   { name: 'bowl: the Salad Bar (a synthetic base: only its parts)', ops: [['bowl', 'dinner', 'B', null, 'Salad Bar', [['Chickpeas', 1], ['Cucumbers', 1], ['Cheese Feta', .5]]]] },
+  { name: 'bowl: a pho bar (round 11b): named after the broth picked, the rest its parts', ops: [['bowl', 'lunch', 'H', null, 'Noodle Bowl', [['Green Curry Pho Broth (Anchovies)', 1], ['Pho Noodles', 1], ['Chicken for Pho', 1]]]] },
+  { name: "bowl: a café's pho builder (Whitmore Café): the pho picked, with the café's add-ons", ops: [['bowl', 'lunch', 'Whitmore Café', null, 'Noodle Bowl', [['Chicken Pho w/Vegetable Broth', 1], ['Hard Boiled Eggs', 1]]]] },
   { name: 'lunch and dinner are different plates', ops: [['add', 'lunch', 'Golden BBQ Chicken Thigh', ['W']], ['add', 'dinner', 'Korean BBQ Chicken', ['B']]] },
 ];
 // round 11: favourite alerts, each a sequence of background runs on Oct 8 (minutes after midnight)
@@ -119,10 +122,10 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
         else if (op[0] === 'step') { const pl = S.plates[op[1]], it = pl.items.find(i => i.n === op[2]); stepItem(pl, it, op[3]); }
         else if (op[0] === 'custom') addDish(op[1], 'custom:' + norm(op[2]), {}, op[2], op[3]);
         else if (op[0] === 'bowl') { const [, meal, pl, base, st, parts] = op, h = keyOf(pl), at = d => d.h === h && !d.day && (d.meal === meal || plateMeal(d) === meal);
-          const part = n => Object.values(DISH).find(d => at(d) && d.n === n && stName(MD[0][h][d.meal][d.si][0]) === st) || (() => { throw new Error('no part ' + n + ' at ' + st); })();
+          const part = n => Object.values(DISH).find(d => at(d) && d.n === n && (stName(MD[0][h][d.meal][d.si][0]) === st || (!base && /^(Add-ons|Toppings)$/.test(MD[0][h][d.meal][d.si][0].trim())))) || (() => { throw new Error('no part ' + n + ' at ' + st); })();
           let bd;
           if (base) { const b = Object.values(DISH).find(d => at(d) && d.n === base); if (!b || !buildOf(b)) throw new Error('not a build base: ' + base); bd = bowlDish(b, parts.map(([n, q]) => [part(n), q]), null, h); }
-          else { const p0 = part(parts[0][0]), y = synOf(0, h, p0.meal, p0.si); if (!y) throw new Error('not a synthetic bar: ' + st); bd = bowlDish(null, parts.map(([n, q]) => [part(n), q]), y, h); }
+          else { const p0 = part(parts[0][0]), y = synOf(0, h, p0.meal, p0.si); if (!y) throw new Error('not a synthetic bar: ' + st); bd = synBowl(y, parts.map(([n, q]) => [part(n), q]), h); }
           addDish(meal, bd.k, { [h]: bd }, bd.n); resolved.push(['bowl', meal, h, base, st, parts]); continue; }
         resolved.push(op);
       }
@@ -148,7 +151,8 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
     return { dish: n, place: PN(h), feedPrice: d.price, shown: document.querySelector('#isbody .pr')?.textContent || null }; }, [n, place]));
   if (out.price.some(x => !!x.shown !== (x.place !== 'Worcester' && x.place !== 'Franklin' && !!x.feedPrice))) throw new Error('price rule: ' + JSON.stringify(out.price));
   // ---- round 11
-  out.bowlbase = await p.evaluate(() => noodleBases().map(x => { if (x.n !== 1) throw new Error('not one base: ' + JSON.stringify(x)); return { day: x.day, place: x.h, meal: x.meal, base: x.base, synthetic: x.syn }; }));
+  out.bowlbase = await p.evaluate(() => noodleBases().map(x => { if (x.n !== 1) throw new Error('not one base: ' + JSON.stringify(x)); const y = x.syn && synOf(DAYS.indexOf(x.day), x.h, x.meal, MD[DAYS.indexOf(x.day)][x.h][x.meal].findIndex(([st]) => stName(st) === 'Noodle Bowl'));
+    return { day: x.day, place: x.h, meal: x.meal, base: x.base, synthetic: x.syn, ...(y ? { choices: y.choices.map(d => d.n) } : {}) }; }));
   out.synthetic = await p.evaluate(() => { const out = []; MD.forEach((D, day) => Object.entries(D).forEach(([k, ms]) => Object.entries(ms).forEach(([meal, ss]) => ss.forEach(([st], si) => { const y = synOf(day, k, meal, si); if (y) out.push({ day: DAYS[day], place: k, meal, station: st, label: y.label }); })))); return out; });
   out.alerts = [];
   for (const [fav, runs] of ALERTS) out.alerts.push(await p.evaluate(([fav, runs]) => { ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(fav.map(norm));

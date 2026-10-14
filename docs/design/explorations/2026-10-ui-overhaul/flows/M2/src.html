@@ -540,6 +540,9 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .hrow{padding-left:0}
 .hrow .check{border-bottom:0}
 .hrow .obtn.dk{color:var(--vm);border-color:var(--vm);margin:0 0 14px}
+.hrow:has(.obtn) .check{min-height:0;padding-top:10px;align-items:flex-start}   /* round 11b: the button hangs 12 px under the line's last line, one line or two */
+.hrow:has(.obtn) .check i{margin-top:5px}
+.hrow .check+.obtn.dk{margin-top:12px}
 .yhead .date.brand{font:600 22px Oswald,sans-serif;color:var(--gold)}
 .lgone{display:flex;align-items:center;gap:8px;min-height:64px;border-bottom:1px solid var(--hair)}
 .lgone .tx{flex:1;min-width:0}.lgone .n{font-weight:500;color:var(--slate)}
@@ -605,8 +608,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .cbody.pdfc .desc{margin-top:24px}
 .dish .fedit{flex:none;margin:-3px -12px -8px auto}   /* centred on the name's first line, as the star is */
 .fdel{display:block;margin:10px auto 0}
-.page[data-p=pdf]{overflow-x:auto}
-.page[data-p=pdf] .pbody{padding:12px 16px 20px}
+.page[data-p=pdf] .pbody{padding:12px 16px 20px;overflow-x:auto}   /* zoomed pages scroll sideways under a bar that stays */
 .pdfp{display:block;width:100%;height:auto;margin:0 0 12px;background:#fff;box-shadow:0 1px 3px rgba(36,10,14,.2)}
 .cbody .lrow .r{font-size:13px}
 .osnote{position:absolute;z-index:75;left:8px;right:8px;top:calc(var(--st) + 6px);display:block;text-align:left;padding:12px 14px;border-radius:18px;background:rgba(244,244,244,.98);color:#111;box-shadow:0 6px 24px rgba(0,0,0,.25);font-family:system-ui,-apple-system,Roboto,sans-serif}
@@ -1012,8 +1014,20 @@ function baseOf(day,h,meal,si){ const ds=stDishes(day,h,meal,si); if(ds.length==
   const c=ds.filter(d=>!isPart(d.n)), w=c.filter(d=>DISHW.test(d.n));
   return (w.length?w:c).reduce((a,b)=>!a||b.cal>a.cal?b:a, null); }
 const perLB = st => /\/\s*LB\b/i.test(st);   // "Salad Bar $11.50/LB", "Cold Bar Items $11.50/LB": by the pound, single dishes
+// a pho builder (owner, 2026-10-14): one base is chosen from the station's choices and names the bowl; the rest are toppings.
+// A hall pho bar's choices are its broths. A café's Noodle Bowl beside an Add-ons or Toppings station (Whitmore Café, Star
+// Ginger) chooses one of the station's dishes, with the café's add-ons as toppings; a café pho bar chooses its broth.
+const isBroth = d => /\b(broth|base)\b/i.test(outside(d.n));
+function phoOf(day,h,meal,si,ds){ const y={label:'Noodle Bowl', head:'Noodle Bowl', h, meal, si, day, pho:true}, br=ds.filter(isBroth);
+  const bar = br.length>=2 ? {...y, choices:br, parts:[...br, ...ds.filter(d=>!isBroth(d))]} : null;
+  if(!isCafe(h)) return baseOf(day,h,meal,si) ? null : bar;
+  // a café's add-ons first: Whitmore's "Beef Pho w/Spicy Green Curry Broth" names a broth but is a whole pho
+  const ss=MD[day][h][meal], add=ss.map((s2,j)=>[s2[0].trim(),j]).filter(([n])=>/^(Add-ons|Toppings)$/.test(n)), tops=add.flatMap(([,j])=>stDishes(day,h,meal,j).filter(x=>x.cal>0));
+  return tops.length ? {...y, choices:ds, parts:[...ds, ...tops], topHead:[...new Set(add.map(([n])=>n))].join(' and ')} : bar; }
+// a synthetic bowl from what's chosen: a pho takes its chosen base's name; a bar has none
+function synBowl(y, sel, h){ const c=y.pho && sel.find(([x])=>y.choices.includes(x)); return bowlDish(c?c[0]:null, sel.filter(e=>e!==c), y, h); }
 function synOf(day,h,meal,si){ const st=MD[day][h][meal][si][0], nm=stName(st), ds=stDishes(day,h,meal,si);
-  if(nm==='Noodle Bowl') return !isCafe(h) && !baseOf(day,h,meal,si) ? {label:nm, head:nm, h, meal, si, day, parts:ds} : null;
+  if(nm==='Noodle Bowl') return phoOf(day,h,meal,si,ds);
   if(!/^(Salad Bar|Deli Bar)$/.test(nm) || perLB(st)) return null;
   if(ds.filter(d=>d.price).length > ds.length*.1) return null;   // a bar of finished, priced dishes isn't a build
   return {label:nm, head:nm, h, meal, si, day, parts:ds}; }
@@ -1288,7 +1302,8 @@ let hallsLoaded = NET!=='slow';
 // prefetched at launch; a café's day once its page was opened online; a PDF menu once opened online. ?saved=Green Fields,pdf:Lunch
 // marks things opened before, for shots and tests.
 const SAVED = new Set((new URLSearchParams(location.search).get('saved')||'').split(',').map(x=>x.trim()).filter(Boolean));
-const savedMenu = (k, day) => NET==='fail' ? false : NET!=='offline' ? true : !isCafe(k) ? day<=1 : day===0 && SAVED.has(PN(k));
+// round 11b (owner): pinned cafés are prefetched at launch too, today's menu and PDFs
+const savedMenu = (k, day) => NET==='fail' ? false : NET!=='offline' ? true : !isCafe(k) ? day<=1 : day===0 && (SAVED.has(PN(k)) || S.pins.includes(PN(k)));
 const hoursKnown = () => NET!=='fail' && hallsLoaded;
 const liveKnown = () => (NET===''||NET==='slow') && hallsLoaded;
 function menuState(k, day){
@@ -1366,7 +1381,7 @@ function renderMenuList(){
 }
 // a café without a dish menu: what it is, and a custom food (its where, payment and hours are in the schedule)
 function cafeBody(i){ const v=P.places[i], pd=PDFS[v[0]];   // round 11: a café whose menus are PDFs lists them, one row each
-  return `<div class="cbody${pd?' pdfc':''}">${v[6]&&!pd?`<p class="desc">${esc(v[6])}</p>`:''}${pd ? `<h3 class="h3">Menus</h3>${pd.map(([l],j)=>`<button class="lrow" data-pdf="${j}"><div><div class="a">${esc(l)}</div></div><span class="mc">${NET==='offline'&&!pdfSaved(l)?'<span class="r off">Not saved</span>':''}${IC.rchev}</span></button>`).join('')}`
+  return `<div class="cbody${pd?' pdfc':''}">${v[6]&&!pd?`<p class="desc">${esc(v[6])}</p>`:''}${pd ? `<h3 class="h3">Menus</h3>${pd.map(([l],j)=>`<button class="lrow" data-pdf="${j}"><div><div class="a">${esc(l)}</div></div><span class="mc">${NET==='offline'&&!pdfSaved(v[0],l)?'<span class="r off">Not saved</span>':''}${IC.rchev}</span></button>`).join('')}`
     : `<h3 class="h3">Menu</h3><p class="kv">${esc(v[0])} doesn't list its menu in the app.</p>`}<button class="btn" data-act="custom" data-name="">Add a custom food</button>${v[6]&&pd?`<p class="desc">${esc(v[6])}</p>`:''}</div>`; }
 
 /* ---------- the schedule (round 9): where the place is, and when it serves ----------
@@ -1691,7 +1706,7 @@ function renderSearch(){
   $('#qclear').classList.toggle('hide',!S.q);
   const menus=NET!=='fail', r0=menus?results():[], c0=menus?cafeResults():[], pl=S.plates[S.front], ph=pl&&pl.meal===S.smeal?plateHalls(pl):null, pl2=placeHits(), l0=menus?laterHits():[];
   // round 11: offline, Search says what it searches; failed, Halls' own pair. Both sit above Events and the results.
-  const sv=P.places.map((x,i)=>'c'+i).filter(k=>DISHMENU.has(k) && placeOn(k) && SAVED.has(PN(k))).map(PN);
+  const sv=P.places.map((x,i)=>'c'+i).filter(k=>DISHMENU.has(k) && placeOn(k) && (SAVED.has(PN(k)) || S.pins.includes(PN(k)))).map(PN);
   $('#snet').innerHTML = NET==='offline' ? `<p class="netnote">You're offline. Searching the menus saved on this phone: the halls, today and tomorrow${sv.length?`, and ${esc(andList(sv))}, today`:''}.</p>`
     : NET==='fail' ? `<div class="netfail"><span>Couldn't connect</span><button class="btn line" data-act="retry">Try again</button></div>` : '';
   const led=S.track && !!S.q, online=NET!=='offline', yours=led?yourHits():[];
@@ -2028,9 +2043,9 @@ function openDish(d, src, refs, edit, plain){
   DS={d, refs: refs || {[d.h]:d}, build: B ? {...B, sel:new Map(edit?edit.sel:[]), edit:edit&&edit.ref} : null};
   $('#q').blur(); renderDish(); $('#isbody').scrollTop=0; IS.mid=DS.build ? buildMid() : dishMid(); isheet.to('mid'); }
 // a bowl on the plate reopens its builder with its parts chosen; the foot reads Update
-function openBowl(m, pl, it){ const B = m.base ? buildOf(m.base) : {head:m.syn.head, parts:m.syn.parts, base:null, syn:m.syn, h:m.h, meal:m.syn.meal};
-  const d = m.base || {id:'syn', n:m.syn.label, k:'syn', h:m.h, meal:m.syn.meal, day:0, d:0, srv:'', algs:[], alg:'', nut:null, cal:0,p:0,c:0,f:0};
-  openDish(d, null, it.refs, {build:B, sel:m.parts.map(([x,q])=>[x.id,q]), ref:{pl,it}}); }
+function openBowl(m, pl, it){ const B = m.syn ? {head:m.syn.head, parts:m.syn.parts, base:null, syn:m.syn, h:m.h, meal:m.syn.meal} : buildOf(m.base);
+  const d = m.syn ? {id:'syn', n:m.syn.label, k:'syn', h:m.h, meal:m.syn.meal, day:0, d:0, srv:'', algs:[], alg:'', nut:null, cal:0,p:0,c:0,f:0} : m.base;
+  openDish(d, null, it.refs, {build:B, sel:[...(m.syn&&m.base?[[m.base.id,1]]:[]), ...m.parts.map(([x,q])=>[x.id,q])], ref:{pl,it}}); }
 // a synthetic base ("Your salad from the Salad Bar"): its sheet is only the builder
 function openSyn(y){ openDish({id:'syn', n:y.label, k:'syn', h:y.h, meal:y.meal, day:0, d:0, srv:'', algs:[], alg:'', nut:null, cal:0,p:0,c:0,f:0}, null, null, {build:{head:y.head, parts:y.parts, base:null, syn:y, h:y.h, meal:y.meal}, sel:[]}); }
 // price (round 9): the serving's, so only a café serving has one, wherever the sheet was opened from. It leads the serving line.
@@ -2044,22 +2059,25 @@ function renderDish(){ if(DS.build) return renderBuild(); const d=DS.d, N=nutObj
 }
 // the builder (round 10): the dish's identity, its station's add-ins with the row's stepper, then where, the label and the
 // ratings, all summed live; the action is pinned to the sheet's foot in the plate bar's material
-const bowlNow = () => { const B=DS.build; return bowlDish(B.base, [...B.sel].filter(([,q])=>q>0).map(([id,q])=>[DISH[id],q]), B.syn, B.h); };
+const bowlNow = () => { const B=DS.build, sel=[...B.sel].filter(([,q])=>q>0).map(([id,q])=>[DISH[id],q]); return B.syn ? synBowl(B.syn, sel, B.h) : bowlDish(B.base, sel, null, B.h); };
 function renderBuild(){ const B=DS.build, bd=bowlNow(), base=B.base, mk=base?marksHTML(base)+scoresHTML(base,'mks-s'):'';
   $('#isbody').innerHTML=`<div class="dish build"><div class="dhd"><h2 class="dn">${esc(bd.n)}</h2>${base?`<button class="icon favb" data-act="fav" data-k="${esc(base.k)}" aria-pressed="${S.fav.has(base.k)}" aria-label="Favorite">${IC.star}</button>`:''}</div>
     <p class="dsv bsv">${bd.price&&isCafe(B.h)?`<b class="pr">${esc(bd.price)}</b>`:''}${esc(base?base.srv:'')}</p>${mk?`<div class="mks">${mk}</div>`:''}<p class="dal bal"${bd.algs.length?'':' hidden'}><b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>
-    ${B.syn?'':`<h3 class="bh">${esc(B.head)}</h3>`}<div class="bparts${B.syn?' syn':''}">${B.parts.map(x=>`<div class="brow" data-bp="${x.id}"><div class="tx"><div class="n">${nameHTML(x.n, dietMark(x))}</div><div class="m"><span class="mg"><b>${fc(x.cal)}</b> cal${isCafe(B.h)&&x.price?`<span class="gap"></span><b>${esc(x.price)}</b>`:''}</span></div></div>${ctl(B.sel.get(x.id)||0)}</div>`).join('')}</div>
+    ${B.syn?'':`<h3 class="bh">${esc(B.head)}</h3>`}<div class="bparts${B.syn?' syn':''}">${B.parts.map((x,i)=>`${B.syn&&B.syn.topHead&&i===B.syn.choices.length?`<h3 class="bh">${esc(B.syn.topHead)}</h3>`:''}<div class="brow" data-bp="${x.id}"><div class="tx"><div class="n">${nameHTML(x.n, dietMark(x))}</div><div class="m"><span class="mg"><b>${fc(x.cal)}</b> cal${isCafe(B.h)&&x.price?`<span class="gap"></span><b>${esc(x.price)}</b>`:''}</span></div></div>${ctl(B.sel.get(x.id)||0)}</div>`).join('')}</div>
     ${base?whereHTML(base.k):''}<div class="blab">${labelHTML(nutObj(bd.nut), bd.cal, '')}</div>${base?gradesHTML(base.hf, base.cr):''}
     ${base&&base.ing?`<h3 class="ingh">Ingredients</h3><div class="ing" id="ing"><p>${esc(base.ing)}</p></div><button class="tbtn ingmore" data-act="ing" aria-expanded="false">Show all</button>`:''}</div>`;
   const ing=$('#ing'); if(ing && ing.scrollHeight<=ing.clientHeight+1){ ing.classList.add('open'); ing.nextElementSibling.remove(); }
   footHTML(bd); }
-function footHTML(bd){ const f=$('#bfoot'), B=DS.build, none=!B.base && !bd.parts.length;
+function footHTML(bd){ const f=$('#bfoot'), B=DS.build, none = B.syn&&B.syn.pho ? !bd.base : !B.base && !bd.parts.length;   // a pho waits for its base
   f.innerHTML=`<div class="txt"><div class="l2"><b class="num">${fc(bd.cal)}</b><span>cal</span><b class="num">${f1(bd.p)}g</b><span>protein</span></div></div><button class="gbtn" data-act="badd"${none?' disabled':''}>${B.edit?'Update':'Add'}</button>`;
   f.classList.remove('hide'); isheet.onSet(isheet.y); }
 // a part's stepper changes the bowl in place: its control, the foot, the price, Contains and the label
-function stepPart(id, dir){ const B=DS.build, q=B.sel.get(id)||0, n = dir>0 ? (q===.5?1:q+1) : q>1 ? q-1 : q===1 ? .5 : 0;
+function stepPart(id, dir){ const B=DS.build, q=B.sel.get(id)||0, ch=B.syn&&B.syn.pho&&B.syn.choices.includes(DISH[id]);
+  // a pho's base is one of its choices, one at a time: + picks it (and puts the last one back), − puts it back
+  const n = ch ? (dir>0 ? 1 : 0) : dir>0 ? (q===.5?1:q+1) : q>1 ? q-1 : q===1 ? .5 : 0;
+  if(ch && n) for(const x of B.syn.choices) if(x.id!==id && B.sel.has(x.id)){ B.sel.delete(x.id); setCtl($(`#isbody .brow[data-bp="${x.id}"]`), 0); }
   if(n) B.sel.set(id,n); else B.sel.delete(id); const row=$(`#isbody .brow[data-bp="${id}"]`); setCtl(row, n);
-  const bd=bowlNow(); footHTML(bd); $('#isbody .blab').innerHTML=labelHTML(nutObj(bd.nut), bd.cal, '');
+  const bd=bowlNow(); footHTML(bd); if(ch) $('#isbody .dn').textContent=bd.n; $('#isbody .blab').innerHTML=labelHTML(nutObj(bd.nut), bd.cal, '');
   const pr=$('#isbody .bsv .pr'); if(pr) pr.textContent=bd.price||''; else if(bd.price&&isCafe(B.h)) $('#isbody .bsv').insertAdjacentHTML('afterbegin',`<b class="pr">${esc(bd.price)}</b>`);
   const al=$('#isbody .bal'); al.hidden=!bd.algs.length; al.innerHTML=`<b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}`;
   A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle'); buzz(dir>0?6:4); }
@@ -2162,18 +2180,25 @@ function deleteFood(){ const f=FS.f, idx=S.foods.indexOf(f); FS=null;
 /* ---------- café PDF menus (round 11): a café's menus are rows; a menu is a pushed page of its pages ----------
    A PDF opened online is kept on the phone (one file per URL), so it opens offline as it did online. Never opened and offline:
    the page says so, and its row says "Not saved". ?net=fail: it didn't load, with Try again. */
-const pdfSaved = l => SAVED.has('pdf:'+l);
+const pdfSaved = (place, l) => SAVED.has('pdf:'+l) || S.pins.includes(place);
 function pdfBody(ci, j, phase){ const [l,,pages]=PDFS[P.places[ci][0]][j];
-  if(NET==='offline' && !pdfSaved(l)) return `<div class="mst"><p class="empty">You're offline, and this menu isn't saved on this phone.</p></div>`;
+  if(NET==='offline' && !pdfSaved(P.places[ci][0], l)) return `<div class="mst"><p class="empty">You're offline, and this menu isn't saved on this phone.</p></div>`;
   if(NET==='fail') return `<div class="mst"><p class="empty">The ${esc(l.toLowerCase())} menu didn't load.</p><button class="btn line" data-act="pdfretry">Try again</button></div>`;
   if(phase==='loading') return `<div class="mstate"><i class="spin" role="progressbar" aria-label="Loading the menu"></i></div>`;
   return `<div class="pdfs">${pages.map((src,i)=>`<img class="pdfp" src="${src}" alt="${esc(l)} menu, page ${i+1} of ${pages.length}" draggable="false">`).join('')}</div>`; }
-function openPdf(ci, j){ const l=PDFS[P.places[ci][0]][j][0], kept=pdfSaved(l); openPage('pdf', `${ci}|${j}|${kept||NET?'':'loading'}`);
+function openPdf(ci, j){ const l=PDFS[P.places[ci][0]][j][0], kept=pdfSaved(P.places[ci][0], l); openPage('pdf', `${ci}|${j}|${kept||NET?'':'loading'}`);
   if(!kept && !NET) pdfArrive(ci, j); }
 (()=>{ let z=null; const d=t=>Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
-  document.addEventListener('touchstart',e=>{ const p=e.target.closest('.pdfs'); if(p && e.touches.length===2) z={p, d0:d(e.touches), z0:+(p.style.zoom||1)}; },{passive:true});
-  document.addEventListener('touchmove',e=>{ if(!z || e.touches.length!==2) return; e.preventDefault(); z.p.style.zoom=clamp(z.z0*d(e.touches)/z.d0, 1, 4).toFixed(3); },{passive:false});
-  document.addEventListener('touchend',()=>{ z=null; },{passive:true}); })();
+  document.addEventListener('touchstart',e=>{ const p=e.target.closest('.pdfs'); if(p && e.touches.length===2) z={p, d0:d(e.touches), z0:+(p.dataset.z||1)}; },{passive:true});
+  document.addEventListener('touchmove',e=>{ if(!z || e.touches.length!==2) return; e.preventDefault(); pdfZoom(z.p, clamp(z.z0*d(e.touches)/z.d0, 1, 4)); },{passive:false});
+  let last=null;   // double-tap: 2.5x at the point tapped, and back
+  document.addEventListener('touchend',e=>{ if(z){ z=null; return; } const p=e.target.closest('.pdfs'), t=e.changedTouches[0]; if(!p || e.touches.length) return;
+    if(last && e.timeStamp-last.t<300 && Math.hypot(t.clientX-last.x, t.clientY-last.y)<30){ pdfZoom(p, +(p.dataset.z||1)>1 ? 1 : 2.5, t.clientX, t.clientY); last=null; } else last={t:e.timeStamp, x:t.clientX, y:t.clientY}; },{passive:true}); })();
+// the pages' width is the zoom; the page scrolls both ways, and the point under (x, y) stays put
+function pdfZoom(p, k, x, y){ const pg=p.closest('.page'), r=pg.getBoundingClientRect(), pr=p.getBoundingClientRect(), z0=+(p.dataset.z||1);
+  if(x==null){ x=r.left+r.width/2; y=r.top+r.height/2; }
+  const px=(x-pr.left)/z0, py=(y-pr.top)/z0; p.dataset.z=k; p.style.width=(k*100)+'%';
+  const pr2=p.getBoundingClientRect(); p.parentElement.scrollLeft+=pr2.left+px*k-x; pg.scrollTop+=pr2.top+py*k-y; }
 function pdfArrive(ci, j){ const el=navTop()?.el; setTimeout(()=>{ if(!el.isConnected) return; SAVED.add('pdf:'+PDFS[P.places[ci][0]][j][0]); el.dataset.x=`${ci}|${j}|`;
   const pb=el.querySelector('.pbody'); pb.innerHTML=pdfBody(ci, j); A(pb,[{opacity:0},{opacity:1}],'settle'); if(menuShowing()) relist(); }, 600); }
 
