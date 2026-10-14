@@ -56,7 +56,7 @@ Rationale:
      `docs/superpowers/plans/2026-10-11-hall-menu-bakeoff.md`, `docs/briefs/flutter-port*.md`,
      `docs/briefs/m2-round-11.md`, `docs/briefs/hall-menu-bakeoff.md`, and the decisions-log entries for the
      verdict;
-   - take `design-tokens/m2.json` from `bakeoff/rn`;
+   - take `design-tokens/m2.json` and `docs/agents/ios-checklist.md` from `bakeoff/rn`;
    - do **not** take the design branch's `CLAUDE.md`, `supabase/` or `docs/briefs/hall-occupancy-history.md`
      (they're older than `main`'s);
    - the owner pushes the branch (agents can't push new branches).
