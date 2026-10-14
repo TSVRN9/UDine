@@ -1,0 +1,95 @@
+// The bake-off fixture (15 days of menus, hours, busy reads, events) turned into core types, and M2's behaviour vectors.
+// The vectors are read in place from the design folder, the file M2's vectors.js writes, so they cannot drift from it.
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:udine/core/m2/board.dart';
+import 'package:udine/core/m2/busy.dart';
+import 'package:udine/core/types.dart';
+
+const today = '2026-10-08';
+
+final vectors = jsonDecode(File('../docs/design/explorations/2026-10-ui-overhaul/flows/M2/vectors.json').readAsStringSync()) as Map<String, dynamic>;
+final _raw = jsonDecode(File('test/core/m2/fixture.json').readAsStringSync()) as Map<String, dynamic>;
+
+const _mealPeriod = {
+  'breakfast': MealPeriod.breakfast, 'lunch': MealPeriod.lunch, 'dinner': MealPeriod.dinner,
+  'late': MealPeriod.latenight, 'all': MealPeriod.allday, 'grab': MealPeriod.grabngo,
+};
+
+Dv? _dv(Object? v) => v == null ? null : Dv(v as num);
+
+MenuItem _item(Map<String, dynamic> j, String iso, String place, String meal, String station) {
+  final n = j['nutrition'] as Map<String, dynamic>;
+  num x(String k) => (n[k] as num?) ?? 0;
+  const bits = {1: 'Vegetarian', 2: 'Plant Based', 4: 'Halal', 8: 'Local', 16: 'Sustainable'};
+  final p = j['price'] as num?;
+  return MenuItem(
+    dishName: j['name'], category: station, mealPeriod: _mealPeriod[meal]!, hallTid: halls.indexOf(place) + 1, date: iso,
+    nutrition: NutritionFacts(
+      servingSize: j['serving'], calories: j['cal'], caloriesFromFat: x('fatCal'), totalFatG: x('fat'), satFatG: x('sat'),
+      transFatG: x('trans'), cholesterolMg: x('chol'), sodiumMg: x('sod'), totalCarbG: x('carb'), dietaryFiberG: x('fiber'),
+      sugarsG: x('sugar'), proteinG: x('protein'),
+      totalFatDv: _dv(n['fatDv']), satFatDv: _dv(n['satDv']), sodiumDv: _dv(n['sodDv']), totalCarbDv: _dv(n['carbDv']),
+      dietaryFiberDv: _dv(n['fiberDv']), proteinDv: _dv(n['proteinDv']),
+    ),
+    allergens: List<String>.from(j['allergens']),
+    dietTags: [for (final e in bits.entries) if (j['diet'] & e.key != 0) e.value],
+    price: p == null ? null : '\$${p.toStringAsFixed(2)}',
+    ingredients: j['ingredients'],
+    health: j['health'],
+    carbon: j['carbon'],
+  );
+}
+
+TimeWindow? _win(Object? j) => j == null ? null : TimeWindow(openTime: (j as Map)['openTime'], closeTime: j['closeTime']);
+
+DiningHallHours _hours(Map<String, dynamic> j) => DiningHallHours(
+      hallTid: j['hallTid'], breakfast: _win(j['breakfast']), lunch: _win(j['lunch']), dinner: _win(j['dinner']),
+      latenight: _win(j['latenight']), general: _win(j['general']),
+    );
+
+/// The fixture's dishes in `dishes` order, station-less, and the Board built from them.
+final List<MenuItem> dishes = [for (final d in _raw['dishes'] as List) _item(d, today, 'W', 'lunch', '')];
+
+final board = () {
+  final all = _raw['dishes'] as List;
+  return Board(
+    clock: DateTime.parse(_raw['clock']),
+    places: [
+      for (final p in _raw['places'] as List)
+        Place(
+          key: p['key'], name: p['name'], area: p['area'], building: p['building'], description: p['description'],
+          payment: p['payment'], address: p['address'], mapAddress: p['mapAddress'],
+        ),
+    ],
+    hours: {for (final e in (_raw['hours'] as Map).entries) e.key: _hours(e.value)},
+    grab: {for (final e in (_raw['grab'] as Map).entries) e.key: _win(e.value)!},
+    days: {
+      for (final MapEntry(key: iso, value: places) in (_raw['days'] as Map).entries)
+        iso: {
+          for (final MapEntry(key: pk, value: meals) in (places as Map).entries)
+            pk: {
+              for (final MapEntry(key: mk, value: sts) in (meals as Map).entries)
+                mk: [for (final s in sts as List) Station(s[0], [for (final i in s[1] as List) _item(all[i], iso, pk, mk, s[0])])],
+            },
+        },
+    },
+    events: [
+      for (final e in _raw['events'] as List)
+        HoursEvent(
+          title: e['title'], scope: e['scope'], expires: e['expires'], hoursTitle: e['hoursTitle'],
+          links: [for (final l in e['links'] as List) (l as List).cast<String>()],
+        ),
+    ],
+  );
+}();
+
+final Map<String, Busy> busy = {
+  for (final e in (_raw['busy'] as Map).entries)
+    e.key: Busy(
+      level: e.value['level'], label: e.value['label'], pct: e.value['pct'], usualPct: e.value['usual_pct'], trend: e.value['trend'],
+      vsUsual: e.value['vs_usual'], calmerAt: e.value['calmer_at'], confidence: e.value['confidence'],
+      outlook: [for (final o in e.value['outlook'] as List) (inMinutes: o['in'] as int, pct: o['pct'] as int?)],
+    ),
+};

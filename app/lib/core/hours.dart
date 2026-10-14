@@ -15,7 +15,7 @@ bool _isEdt(DateTime utc) =>
     !utc.isBefore(DateTime.utc(utc.year, 3, _nthSunday(utc.year, 3, 2), 7)) && utc.isBefore(DateTime.utc(utc.year, 11, _nthSunday(utc.year, 11, 1), 6));
 
 /// Eastern wall-clock fields of an instant, as a UTC-flagged DateTime ("wall time").
-DateTime _wall(DateTime instant) {
+DateTime easternWall(DateTime instant) {
   final u = instant.toUtc();
   return _shiftHours(u, _isEdt(u) ? -4 : -5);
 }
@@ -24,7 +24,7 @@ DateTime _shiftHours(DateTime utc, int hours) => utc.add(Duration(hours: hours))
 
 /// The instant of an Eastern wall time, resolved as JS's local Date does: the first occurrence of a repeated hour, and
 /// a skipped hour shifts forward.
-DateTime _fromWall(DateTime wall) {
+DateTime easternInstant(DateTime wall) {
   final edt = _shiftHours(wall, 4);
   return _isEdt(edt) ? edt : _shiftHours(wall, 5);
 }
@@ -124,7 +124,7 @@ const _noSensor = 999999;
 
 /// [time] on [nowWall]'s Eastern calendar day (+ [dayOffset]) as an instant.
 DateTime _at(DateTime nowWall, (int, int) time, [int dayOffset = 0]) =>
-    _fromWall(DateTime.utc(nowWall.year, nowWall.month, nowWall.day + dayOffset, time.$1, time.$2));
+    easternInstant(DateTime.utc(nowWall.year, nowWall.month, nowWall.day + dayOffset, time.$1, time.$2));
 
 typedef _Resolved = ({bool contains, DateTime open, DateTime close, bool valid});
 
@@ -133,7 +133,7 @@ typedef _Resolved = ({bool contains, DateTime open, DateTime close, bool valid})
 _Resolved _resolve(DateTime now, TimeWindow w) {
   final o = _timeOfDay(w.openTime), c = _timeOfDay(w.closeTime);
   if (o == null || c == null || o == c) return (contains: false, open: now, close: now, valid: false);
-  final wall = _wall(now);
+  final wall = easternWall(now);
   final crosses = c.$1 * 60 + c.$2 <= o.$1 * 60 + o.$2;
   final open = _at(wall, o), close = _at(wall, c, crosses ? 1 : 0);
   if (!now.isBefore(open) && now.isBefore(close)) return (contains: true, open: open, close: close, valid: true);
@@ -154,7 +154,7 @@ final _standard = {
 
 /// "H:MM AM/PM" of an instant's Eastern wall time.
 String formatTimeOfDay(DateTime instant) {
-  final w = _wall(instant);
+  final w = easternWall(instant);
   final h = w.hour % 12 == 0 ? 12 : w.hour % 12;
   return '$h:${w.minute.toString().padLeft(2, '0')} ${w.hour >= 12 ? 'PM' : 'AM'}';
 }
