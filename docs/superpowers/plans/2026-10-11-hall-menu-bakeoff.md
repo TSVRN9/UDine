@@ -728,21 +728,21 @@ the round-9 states. Compare screenshots with M2's.
 
 **Files:** `docs/decisions-log.md` (new entry)
 
-- [ ] Fill in the spec's five criteria with the evidence from Tasks 9 and 14:
+- [x] Fill in the spec's five criteria with the evidence from Tasks 9 and 14:
   - the owner's feel ratings;
   - the dropped-frame table;
   - REWORK counts and the owner-found defects the reviewer missed;
   - iOS-only defects (RN);
   - lines of code and a port estimate.
-- [ ] The owner records the verdict. If RN adherence was poor, run the NativeWind/Uniwind variant first
+- [x] The owner records the verdict. If RN adherence was poor, run the NativeWind/Uniwind variant first
   (spec).
-- [ ] Commit `docs(decisions): hall-menu bake-off verdict`.
+- [x] Commit `docs(decisions): hall-menu bake-off verdict`.
 
 ---
 
 **Scorecard draft (2026-10-13; the owner's feel rating decides):**
 
-1. **Feel:** pending. Both final builds are installed on the A53, as "UDine (internal)" (RN) and "udine_bakeoff" (Flutter).
+1. **Feel (owner, 2026-10-13, A53 and Pixel 7):** Flutter is "noticeably smoother during animations"; RN drops frames and has more delay after a tap. **Verdict: Flutter** (`docs/decisions-log.md`).
 2. **Frame timing,** Galaxy A53, 60 Hz, SurfaceFlinger presents, 5 runs. Each cell is janky %, then the max frame interval in ms.
 
    | Motion | RN 78aca1e | Flutter ba09747 |

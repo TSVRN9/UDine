@@ -1501,3 +1501,31 @@ just hasn't been populated yet."
 No `public.dishes`/`populate-retail-dishes` change recommended by this pass -- it's a research-only
 follow-up confirming PR #481's gap list and characterizing (not fully explaining) Terrace's pattern,
 not a new architecture decision.
+
+## Hall-menu bake-off verdict: Flutter (2026-10-13)
+
+The owner tried both final builds side by side, on the Galaxy A53 and on their Pixel 7 (RN `1.0.0+ce72a61` as
+"UDine (internal)", Flutter `dd835ea` as "udine_bakeoff"). They found Flutter "noticeably smoother during
+animations" and RN visibly dropping frames, with more delay after a tap. **Flutter wins; the mobile app is
+being ported to Flutter on the M2 design.**
+
+- **The numbers agree with the feel.** On the A53: hall open 17–19% janky on RN vs 3.2% on Flutter; day pick
+  0.77–0.97 s vs 0.55–0.57 s; cold first add, tap to plate bar, 235–277 ms vs 138–147 ms (M2's target is
+  136 ms). The full scorecard is in `docs/superpowers/plans/2026-10-11-hall-menu-bakeoff.md`, Task 15.
+- **Why RN's gap has no cheap workaround.** After four perf rounds, two Perfetto traces and a Hermes CPU
+  profile, the hall-open jank was UI-thread Fabric mount and compose (about 25 ms a frame), not JS. The
+  remaining tap delay was JS render time (about 175 ms on the open, about 410 ms on a day pick). The
+  workarounds considered were pre-mounting every hall offscreen, drawing rows with Skia, or pre-rendering
+  every day. Each costs per-screen hand-tuning that every later agent would have to preserve, and none was
+  shown to close the gap.
+- **Design fidelity was not the tiebreaker.** Both stacks reached M2 within about 1 dp. Both needed at
+  least one REWORK per task. RN also shipped a worklet crash that passed jest and review.
+- **What the decision commits to:**
+  - porting `@udine/shared` (about 2.5k lines) and `mobile/src/lib` (about 8k) to Dart, while the edge
+    functions keep the TypeScript `@udine/shared`, so the logic shared by both sides needs cross-language
+    test vectors;
+  - the Flutter app ships under the existing package ID and bundle identifier, and its first launch migrates
+    the RN app's device-only data (the log never leaves the device, so a lost migration loses it for good);
+  - iOS is still unseen by agents until the new UI is complete (no store-track builds before then).
+- **Rejected:** keeping RN with the workarounds above, and a NativeWind/Uniwind variant. Adherence was not
+  RN's problem; motion cost was.
