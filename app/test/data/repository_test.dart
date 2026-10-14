@@ -69,7 +69,7 @@ void main() {
       expect(net.calls.single.toString(), 'https://www.umassdining.com/foodpro-menu-ajax?tid=2&date=10%2F13%2F2026');
     });
 
-    test('offline after one online launch: today and tomorrow of every hall from cache, zero network calls', () async {
+    test('offline after one online launch: every hall renders today and tomorrow from cache; a final copy asks for nothing', () async {
       await repo.launch();
       net.calls.clear();
       net.online = false;
@@ -80,7 +80,8 @@ void main() {
           expect((got.single as Loaded<List<MenuItem>>).value, hasLength(4));
         }
       }
-      expect(net.calls, isEmpty);
+      // today was fetched on its own day (final): no request. Tomorrow's prefetch isn't final: tried, failed quietly.
+      expect(net.calls.where((u) => u.queryParameters['date'] == '10/13/2026'), isEmpty);
     });
 
     test('a day that was never saved reports NotSaved offline', () async {
@@ -90,19 +91,19 @@ void main() {
     });
 
     test('stale copy while unreachable: Loaded (saved) then LoadedOffline', () async {
-      await run(repo.menu(2, '2026-10-13'));
+      await run(repo.menu(2, '2026-10-14'));
       clock = clock.add(const Duration(hours: 7));
       net.online = false;
-      final got = await run(repo.menu(2, '2026-10-13'));
+      final got = await run(repo.menu(2, '2026-10-14'));
       expect(kinds(got), 'Loaded,LoadedOffline');
       expect((got.last as LoadedOffline<List<MenuItem>>).value, hasLength(4));
     });
 
     test('stale copy is refreshed behind the saved render', () async {
-      await run(repo.menu(2, '2026-10-13'));
+      await run(repo.menu(2, '2026-10-14'));
       clock = clock.add(const Duration(hours: 7));
       net.calls.clear();
-      expect(kinds(await run(repo.menu(2, '2026-10-13'))), 'Loaded,Loaded');
+      expect(kinds(await run(repo.menu(2, '2026-10-14'))), 'Loaded,Loaded');
       expect(net.calls, hasLength(1));
     });
 
@@ -116,10 +117,76 @@ void main() {
     });
 
     test('server error with a saved copy keeps the saved render', () async {
-      await run(repo.menu(2, '2026-10-13'));
+      await run(repo.menu(2, '2026-10-14'));
       clock = clock.add(const Duration(hours: 7));
       net.status = 503;
+      expect(kinds(await run(repo.menu(2, '2026-10-14'))), 'Loaded');
+    });
+
+    test('unreachable within 6h of the save stays quietly Loaded', () async {
+      await run(repo.menu(2, '2026-10-14'));
+      net.online = false;
+      expect(kinds(await run(repo.menu(2, '2026-10-14'))), 'Loaded');
+    });
+
+    test('a final copy (fetched on its own day, non-empty) is served with no request', () async {
+      await run(repo.menu(2, '2026-10-13'));
+      net.calls.clear();
       expect(kinds(await run(repo.menu(2, '2026-10-13'))), 'Loaded');
+      expect(net.calls, isEmpty);
+    });
+
+    test('before the 2 AM rollover a copy is not yet final for that date', () async {
+      clock = DateTime(2026, 10, 14, 1); // still 10-13; a fetch of 10-14 now predates its day
+      await run(repo.menu(2, '2026-10-14'));
+      clock = DateTime(2026, 10, 14, 1, 30);
+      net.calls.clear();
+      expect(kinds(await run(repo.menu(2, '2026-10-14'))), 'Loaded,Loaded');
+    });
+
+    test('a copy prefetched the day before refreshes behind the saved render on the day', () async {
+      await run(repo.menu(2, '2026-10-14')); // fetched 10-13 12:00
+      clock = DateTime(2026, 10, 14, 8);
+      net.calls.clear();
+      expect(kinds(await run(repo.menu(2, '2026-10-14'))), 'Loaded,Loaded');
+      expect(net.calls, hasLength(1));
+      net.calls.clear(); // that refresh was fetched on the day: now final
+      expect(kinds(await run(repo.menu(2, '2026-10-14'))), 'Loaded');
+      expect(net.calls, isEmpty);
+    });
+
+    Future<void> seed(String key, Map<String, dynamic> raw, DateTime at) => db.insert('preferences_kv', {
+      'key': key,
+      'value_json': jsonEncode({'fetchedAt': at.toUtc().toIso8601String(), 'raw': raw}),
+    });
+
+    test('an empty saved menu is never rendered or final: Loading, then refreshed', () async {
+      await seed('menu:v2:2|2026-10-13', {}, clock);
+      final got = await run(repo.menu(2, '2026-10-13'));
+      expect(kinds(got), 'Loading,Loaded');
+      expect((got.last as Loaded<List<MenuItem>>).value, hasLength(4));
+    });
+
+    test('an empty saved menu with the network down is NotSaved', () async {
+      await seed('menu:v2:2|2026-10-13', {}, clock);
+      net.online = false;
+      expect(kinds(await run(repo.menu(2, '2026-10-13'))), 'Loading,NotSaved');
+    });
+
+    test('an empty answer never overwrites a non-empty saved copy, and is not emitted over its render', () async {
+      await run(repo.menu(2, '2026-10-14'));
+      final before = await db.query('preferences_kv', where: "key = 'menu:v2:2|2026-10-14'");
+      clock = DateTime(2026, 10, 14, 8);
+      final glitchy = Repository(UmassSource(MockClient((_) async => http.Response('[]', 200))), db, now: () => clock);
+      final got = await run(glitchy.menu(2, '2026-10-14'));
+      expect(kinds(got), 'Loaded');
+      expect((got.single as Loaded<List<MenuItem>>).value, hasLength(4));
+      expect(await db.query('preferences_kv', where: "key = 'menu:v2:2|2026-10-14'"), before);
+    });
+
+    test('a corrupt row is treated as unsaved', () async {
+      await db.insert('preferences_kv', {'key': 'menu:v2:2|2026-10-13', 'value_json': 'not json'});
+      expect(kinds(await run(repo.menu(2, '2026-10-13'))), 'Loading,Loaded');
     });
 
     test('slow response reports StillLoading, then the result', () async {
@@ -199,7 +266,7 @@ void main() {
 
   group('launch', () {
     test(
-      'prefetches today and tomorrow for the four halls, plus hours; a second launch inside the window asks for nothing but hours',
+      'prefetches today and tomorrow for the four halls, plus hours; a second launch asks again only for the non-final tomorrow and hours',
       () async {
         await repo.launch();
         final menus = net.calls
@@ -213,7 +280,8 @@ void main() {
         expect(net.calls.where((u) => u.path == '/uapp/get_infov2'), hasLength(1));
         net.calls.clear();
         await repo.launch();
-        expect(net.calls.map((u) => u.path), ['/uapp/get_infov2']);
+        expect(net.calls.where((u) => u.path == '/foodpro-menu-ajax').map((u) => u.queryParameters['date']).toSet(), {'10/14/2026'});
+        expect(net.calls.where((u) => u.path == '/uapp/get_infov2'), hasLength(1));
       },
     );
 

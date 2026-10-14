@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint, kReleaseMode;
 import 'package:sqflite/sqflite.dart';
 
 import '../core/content.dart';
@@ -42,6 +43,12 @@ CafeMenu resolveCafeMenu(List<MenuItem> items, RetailLocationHours loc) => items
 
 const _busyKeys = ['busy', 'business_level', 'notbusy_level', 'moderate_level'];
 
+/// When [date] starts: the 2 AM rollover, local. A copy fetched at or after it is final (RN's isMenuCacheFinal).
+DateTime _dayStart(String date) {
+  final d = DateTime.parse(date);
+  return DateTime(d.year, d.month, d.day, defaultRolloverHour);
+}
+
 String _menuKey(int id, String date) => 'menu:v2:$id|$date';
 String _hoursKey(String date) => 'hours:v2:$date';
 
@@ -63,7 +70,7 @@ class Repository {
   final DateTime Function() now;
   final Duration stillLoadingAfter;
 
-  /// A saved menu this young is served without asking the network (menuPrefetch.ts's 6h).
+  /// A saved copy older than this, when the refresh can't reach the network, is reported as LoadedOffline (menuPrefetch.ts's 6h).
   static const menuFresh = Duration(hours: 6);
 
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
@@ -73,7 +80,9 @@ class Repository {
     key: _menuKey(locationId, date),
     fetch: () => source.menu(locationId, date),
     parse: (raw, _) => parseMenuResponse(locationId, date, raw is Map<String, dynamic> ? raw : const {}),
-    fresh: (age) => age < menuFresh,
+    quietWithin: menuFresh,
+    isEmpty: (items) => items.isEmpty,
+    isFinal: (items, fetchedAt) => items.isNotEmpty && !fetchedAt.isBefore(_dayStart(date)),
   );
 
   Stream<DataState<CafeMenu>> cafeMenu(RetailLocationHours loc, String date) {
@@ -102,12 +111,10 @@ class Repository {
       final list = [for (final l in raw as List) l as Map<String, dynamic>];
       return HoursData(mapInfoV2(list), live ? _busy(list) : null);
     },
-    fresh: (_) => false,
   );
 
   /// Events aren't saved: nothing in the brief asks for them offline.
-  Stream<DataState<List<DiningEvent>>> events() =>
-      _load(fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>), fresh: (_) => false);
+  Stream<DataState<List<DiningEvent>>> events() => _load(fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
 
   /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours.
   /// Per-item failures are swallowed; this never throws.
@@ -132,30 +139,44 @@ class Repository {
     for (final l in list) l['location_title'] as String: ?parseSensorLevels(l),
   };
 
+  final _loggedCorrupt = <String>{};
+
   Stream<DataState<T>> _load<T>({
     String? key,
     required Future<Object?> Function() fetch,
     Object? Function(Object? raw)? strip,
     required T Function(Object? raw, bool live) parse,
-    required bool Function(Duration age) fresh,
+    bool Function(T value)? isEmpty,
+    bool Function(T value, DateTime fetchedAt)? isFinal,
+    Duration quietWithin = Duration.zero,
   }) {
     final c = StreamController<DataState<T>>();
     () async {
       Timer? slow;
       try {
+        // A saved copy is usable only if non-empty (RN: an empty copy is never rendered, never final).
         T? saved;
+        var savedAge = Duration.zero;
         if (key != null) {
           final rows = await db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [key]);
           if (rows.isNotEmpty) {
             try {
               final e = jsonDecode(rows.first['value_json']! as String) as Map<String, dynamic>;
-              saved = parse(e['raw'], false);
-              c.add(Loaded(saved as T));
-              if (fresh(now().difference(DateTime.parse(e['fetchedAt'] as String)))) {
-                return;
+              final value = parse(e['raw'], false);
+              final fetchedAt = DateTime.parse(e['fetchedAt'] as String);
+              if (isEmpty == null || !isEmpty(value)) {
+                saved = value;
+                savedAge = now().difference(fetchedAt);
+                c.add(Loaded(value));
+                if (isFinal != null && isFinal(value, fetchedAt)) {
+                  return;
+                }
               }
-            } catch (_) {
+            } catch (e) {
               saved = null; // unreadable entry: treat as unsaved
+              if (_loggedCorrupt.add(key) && !kReleaseMode) {
+                debugPrint('corrupt cache row $key: $e');
+              }
             }
           }
         }
@@ -167,6 +188,9 @@ class Repository {
           final raw = await fetch();
           final value = parse(raw, true);
           slow?.cancel();
+          if (saved != null && isEmpty != null && isEmpty(value)) {
+            return; // a later empty answer is the glitch, never news: keep the render and the saved copy
+          }
           c.add(Loaded(value));
           if (key != null) {
             await db.insert('preferences_kv', {
@@ -176,7 +200,11 @@ class Repository {
           }
         } on Unreachable {
           slow?.cancel();
-          c.add(saved != null ? LoadedOffline(saved) : NotSaved());
+          if (saved == null) {
+            c.add(NotSaved());
+          } else if (savedAge >= quietWithin) {
+            c.add(LoadedOffline(saved));
+          }
         } catch (e) {
           slow?.cancel();
           if (saved == null) {
