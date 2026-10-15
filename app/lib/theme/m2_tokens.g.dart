@@ -102,6 +102,7 @@ abstract final class M2Text {
   static const menuName = M2Type(40.0, 40.0, 'Oswald', FontWeight.w600, tabular: true);
   /// .bt .st 15px (no line-height)
   static const status = M2Type(15.0, null, 'LibreFranklin', FontWeight.w400);
+  static const placeStatus = M2Type(15.0, null, 'LibreFranklin', FontWeight.w500);
   /// .pin .bt .st, .bz 14px (no line-height)
   static const statusSm = M2Type(14.0, null, 'LibreFranklin', FontWeight.w400);
   /// .dietnote 14px/1.35

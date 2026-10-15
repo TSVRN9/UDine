@@ -8,8 +8,6 @@ import '../halls/hall_page.dart';
 import 'cafes_model.dart';
 import 'hours_feed.dart';
 
-const _status = M2Type(15, null, 'LibreFranklin', FontWeight.w500), _statusOff = M2Type(15, null, 'LibreFranklin', FontWeight.w400);
-
 /// Cafés & markets (M2 `pageContent('cafes')`): the maroon bar, the Open now chip (on, as M2 starts), then every area under a sticky
 /// header, nearest area first, each place a row with its photo, building and status. `area` scrolls that area's header to the top, as
 /// the Halls row it was pushed from names it. A row pushes the café's page.
@@ -100,7 +98,7 @@ class _CafesPageState extends State<CafesPage> {
     return LRow(
       leading: Thumb(path: photoOf(p.key, p.name)),
       title: p.name, subtitle: p.building, last: last,
-      trailing: r.status == null ? const SizedBox.shrink() : Text(r.status!, style: (r.open ? _status : _statusOff).style(r.open ? M2Color.vm : M2Color.slate)),
+      trailing: r.status == null ? const SizedBox.shrink() : Text(r.status!, style: (r.open ? M2Text.placeStatus : M2Text.status).style(r.open ? M2Color.vm : M2Color.slate)),
       onTap: () => Nav.push<void>(context, (_) => HallMenuPage(place: p.key, top: widget.top)),
     );
   }
