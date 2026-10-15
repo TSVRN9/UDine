@@ -1,10 +1,10 @@
 {
-  "sha": "762424a2440233a4fb6e1c1ce57d14a8753fbf2f",
+  "sha": "0a94b84c1781991b9ef1cc5f6aa3bf60740a7428",
   "branch": "flutter/events",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-events",
   "route": "/event/0?data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T15:49:55Z"
+  "ts": "2026-10-15T15:59:32Z"
 }
