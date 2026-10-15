@@ -18,6 +18,7 @@ import 'data/repository.dart';
 import 'data/source.dart';
 import 'data/supabase_source.dart';
 import 'motion/routes.dart';
+import 'screens/hall/hall_controller.dart' show mealsOfItems;
 import 'shell/app_scope.dart';
 import 'shell/plate_model.dart';
 import 'shell/prefs.dart';
@@ -80,20 +81,32 @@ class Boot {
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
   }
 
-  /// `/plate?seed=benchmark` (a screenshot route): M2's benchmark plate, Beef Brisket Noodle Bowl x1 and Golden BBQ Chicken Thigh x2,
-  /// added the way Search adds them (the brisket serves Worcester and Berkshire, the thigh only Worcester, which narrows the plate).
+  /// `/plate?seed=` (screenshot routes), added the way Search adds them. `benchmark`: M2's plate, Beef Brisket Noodle Bowl x1 and Golden BBQ
+  /// Chicken Thigh x2 (the brisket serves Worcester and Berkshire, the thigh only Worcester, which narrows the plate). `one`: the thigh
+  /// alone. `choose`: the brisket alone, so Log asks Worcester or Berkshire. `split`: the benchmark plate and, as M2's `?state=split`,
+  /// the first dish of Franklin's fourth lunch station, which starts a second plate.
   Future<void> seedPlate(String route) async {
-    final u = Uri.parse(route);
-    if (u.path != '/plate' || u.queryParameters['seed'] != 'benchmark') return;
-    Future<MenuItem?> lunch(String place, String name) async {
+    final u = Uri.parse(route), seed = u.queryParameters['seed'];
+    if (u.path != '/plate' || !const {'benchmark', 'one', 'choose', 'split'}.contains(seed)) return;
+    Future<List<MenuItem>> lunch(String place) async {
       final s = await repo.menu(halls.indexOf(place) + 1, repo.today).firstWhere((s) => s is Loaded<List<MenuItem>>);
-      return (s as Loaded<List<MenuItem>>).value.where((d) => d.mealPeriod == MealPeriod.lunch && d.key == dishKey(name)).firstOrNull;
+      return [for (final d in (s as Loaded<List<MenuItem>>).value) if (d.mealPeriod == MealPeriod.lunch) d];
     }
+    Future<MenuItem?> dish(String place, String name) async => (await lunch(place)).where((d) => d.key == dishKey(name)).firstOrNull;
     const brisket = 'Beef Brisket Noodle Bowl', thigh = 'Golden BBQ Chicken Thigh';
-    final b = {for (final h in ['W', 'B']) h: ?await lunch(h, brisket)}, t = {'W': ?await lunch('W', thigh)};
+    final b = {for (final h in ['W', 'B']) h: ?await dish(h, brisket)}, t = {'W': ?await dish('W', thigh)};
+    if (seed == 'one') {
+      plate.add('lunch', thigh, t);
+      return;
+    }
     plate.add('lunch', brisket, b);
+    if (seed == 'choose') return;
     plate.add('lunch', thigh, t);
     plate.add('lunch', thigh, t);
+    if (seed == 'split') {
+      final f = mealsOfItems(await lunch('F'))['lunch']![3].dishes.first;
+      plate.add('lunch', f.dishName, {'F': f});
+    }
   }
 
   Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, child: child);
