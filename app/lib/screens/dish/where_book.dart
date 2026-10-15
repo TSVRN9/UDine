@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 import '../../core/m2/board.dart';
@@ -10,7 +8,8 @@ import '../hall/hall_controller.dart' show mealsOfItems;
 /// What "where it's served" reads: the board of the place the sheet was opened from, plus every hall's menu for today and tomorrow
 /// (the repository's cache, warmed at launch). [board] is null until those are in; a menu that is not saved or did not load simply
 /// leaves that hall out, as the answer only ever names places that are known to serve the dish.
-/// The halls come first (their cache is warm), then every café that posts a menu: [board] is replaced once for each, and [complete]
+/// The halls come first (their cache is warm), then every café that posts a menu, all through the repository's one prefetch (a place-day
+/// anyone has had is not asked for again; at most four requests at once; offline, only what is saved): [board] is replaced once for each, and [complete]
 /// says the cafés are in.
 class WhereBook extends ChangeNotifier {
   WhereBook(this.repo, this.base, [this.cafeIds = const {}]) {
@@ -23,21 +22,21 @@ class WhereBook extends ChangeNotifier {
   Board? board;
   bool complete = false;
   bool _disposed = false;
-  final _subs = <StreamSubscription<void>>[];
 
   Future<void> _load() async {
     final isos = base.days.keys.take(2).toList();
     if (base.hours.isEmpty) return; // no hours yet: no windows to answer with
     final days = {for (final iso in isos) iso: {...?base.days[iso]}};
-    Future<void> one(String key, int tid, String iso) async {
-      if (days[iso]!.containsKey(key)) return;
-      final done = Completer<DataState<List<MenuItem>>>();
-      final sub = repo.menu(tid, iso).listen((s) => s is Loading || s is StillLoading || done.isCompleted ? null : done.complete(s));
-      _subs.add(sub);
-      final s = await done.future;
-      await sub.cancel();
-      final items = switch (s) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
-      if (items != null && items.isNotEmpty) days[iso]![key] = mealsOfItems(items);
+
+    Future<void> fetch(Map<String, int> ids) async {
+      final want = [for (final iso in isos) for (final e in ids.entries) if (!days[iso]!.containsKey(e.key)) (e.value, iso)];
+      final got = await repo.prefetchMenus(want, stopped: () => _disposed);
+      for (final iso in isos) {
+        for (final e in ids.entries) {
+          final items = got[(e.value, iso)];
+          if (items != null && items.isNotEmpty) days[iso]!.putIfAbsent(e.key, () => mealsOfItems(items));
+        }
+      }
     }
 
     void publish() {
@@ -46,9 +45,9 @@ class WhereBook extends ChangeNotifier {
       notifyListeners();
     }
 
-    await Future.wait([for (final iso in isos) for (var i = 0; i < diningHalls.length; i++) one(halls[i], diningHalls[i].tid, iso)]);
+    await fetch({for (var i = 0; i < diningHalls.length; i++) halls[i]: diningHalls[i].tid});
     publish();
-    await Future.wait([for (final iso in isos) for (final e in cafeIds.entries) if (base.hours.containsKey(e.key)) one(e.key, e.value, iso)]);
+    await fetch({for (final e in cafeIds.entries) if (base.hours.containsKey(e.key)) e.key: e.value});
     complete = true;
     publish();
   }
@@ -56,9 +55,6 @@ class WhereBook extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    for (final s in _subs) {
-      s.cancel(); // a load still running stops with the sheet
-    }
     super.dispose();
   }
 }
