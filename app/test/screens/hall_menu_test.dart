@@ -7,6 +7,7 @@ import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/screens/hall/meal_tabs.dart';
 import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
+import 'package:udine/screens/hall/hall_route.dart';
 import 'package:udine/shell/app_scope.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart' hide Stepper;
@@ -220,6 +221,9 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Worcester lunch'), findsOneWidget);
     expect(find.byType(SheetOption), findsWidgets);
+    bool current(String name) => t.widget<SheetOption>(find.byWidgetPredicate((w) => w is SheetOption && w.label == name)).current;
+    expect(current('Miscellaneous'), isTrue); // the station the list is at
+    expect(current('Desserts'), isFalse);
     expect(find.descendant(of: find.byType(SheetOption), matching: find.text('Desserts')), findsOneWidget);
     await t.tap(find.descendant(of: find.byType(SheetOption), matching: find.text('Desserts')));
     await t.pumpAndSettle();
@@ -227,6 +231,12 @@ void main() {
     expect(dish('Chocolate Soft Serve Ice Cream'), findsOneWidget);
     expect(t.widget<StationRow>(find.byType(StationRow)).name, 'Desserts');
     await drain(t);
+  });
+
+  test('a café index outside the table is no launch route (the halls tab opens), not a RangeError', () {
+    expect(hallLaunchRoute('/cafe/999', 0), isNull);
+    expect(hallLaunchRoute('/cafe/-1', 0), isNull);
+    expect(hallLaunchRoute('/cafe/3', 0), isNotNull);
   });
 
   test('every meal M2 keeps is a tab key', () => expect(mealOrder, ['breakfast', 'lunch', 'dinner', 'late', 'all', 'grab']));

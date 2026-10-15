@@ -1,3 +1,6 @@
+import 'dart:async' show scheduleMicrotask;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'haptics.dart';
@@ -29,10 +32,41 @@ class SheetHandle {
   void to(double px, {double v0 = 0}) => _s?._springTo(px, v0: v0);
 }
 
+/// M2's `rubber(x, d)`: how far a drag `x` past the top detent moves the sheet, for a frame `d` tall; it approaches `d` and never reaches it.
+double sheetRubber(double x, double d) => (1 - 1 / (x * M2Motion.sheetReleaseRubber / d + 1)) * d;
+
+/// The inverse of [sheetRubber]: the drag that has moved the sheet `y` past the top.
+double _unrubber(double y, double d) => y <= 0 ? 0 : d / M2Motion.sheetReleaseRubber * (1 / (1 - y / d) - 1);
+
+/// M2 `release`: the height (dp) a sheet released at `px` going `v` dp/s upward settles at. The finger's velocity is projected
+/// `sheetReleaseProject` seconds ahead and the nearest detent wins (top, then mid, then closed on a tie, as M2 loops them); a mid
+/// within `sheetReleaseMidTop` of the top is no detent, and short of the top by more than `sheetReleaseCloseBelowTop` it closes.
+double sheetReleaseTarget({required double px, required double v, required double min, required double max, double? mid}) {
+  final proj = px + v.clamp(-M2Motion.sheetReleaseVMax, M2Motion.sheetReleaseVMax) * M2Motion.sheetReleaseProject;
+  final detents = [max, ?mid, min]; // M2's loop order: the first of equals wins
+  var best = 0;
+  for (var i = 1; i < detents.length; i++) {
+    if ((detents[i] - proj).abs() < (detents[best] - proj).abs()) best = i;
+  }
+  if (mid != null && best == 1 && mid >= max - M2Motion.sheetReleaseMidTop) return proj < max - M2Motion.sheetReleaseCloseBelowTop ? min : max;
+  return detents[best];
+}
+
+/// Holds the body still while the sheet is being pulled past its top (the finger belongs to the rubber band then, not the scroll).
+class _HoldPhysics extends ScrollPhysics {
+  const _HoldPhysics(this.held, {super.parent});
+  final bool Function() held;
+  @override
+  _HoldPhysics applyTo(ScrollPhysics? ancestor) => _HoldPhysics(held, parent: buildParent(ancestor));
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) => held() ? 0 : super.applyPhysicsToUserOffset(position, offset);
+}
+
 /// M2's `Sheet()` on Flutter's `DraggableScrollableSheet`: a bottom sheet with detents closed / mid / top, a scrim that follows it,
 /// and the body's scroll handed to the drag at the top. Opening and closing run M2's spring (k 300, ζ .84) through the
-/// controller; a drag and its snap are the framework's (it snaps by the fling's direction at 1600 dp/s, where M2 projects the
-/// finger's velocity and springs: a recorded departure, as is the missing rubber band past the top, which the framework clamps).
+/// controller, and so does a drag's release: the finger's velocity is projected and the sheet springs to the nearest detent (M2
+/// `release`), where the framework would snap linearly. A drag that starts below the top and goes past it rubber-bands (M2 `drag`),
+/// which the framework clamps; the overshoot is drawn here, as a shift of the whole sheet.
 class M2Sheet extends StatefulWidget {
   final SheetHandle handle;
   /// the top detent's distance from the frame's top (status inset + 8)
@@ -72,7 +106,12 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   bool _opened = false, _closed = false, _measured = false;
   double? _leaveBelow;
   VoidCallback? _leave;
-  double _lastDetent = -1;
+  // the finger on the sheet: M2's one pointer stream, kept beside the framework's drag (which moves the sheet) for the two things it cannot do
+  int? _pointer;
+  VelocityTracker? _vt;
+  double _g0 = 0, _lastY = 0, _pastTop = 0;
+  bool _below = false;
+  final _over = ValueNotifier<double>(0); // how far the rubber band has taken the sheet past its top, in dp
 
   @override
   void initState() {
@@ -95,6 +134,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     _spring.dispose();
     _dsc.removeListener(_onSize);
     _dsc.dispose();
+    _over.dispose();
     super.dispose();
   }
 
@@ -137,8 +177,9 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   ScrollController? _sc;
 
   void _jump(double px) {
-    _px = px;
-    if (_dsc.isAttached && _h > 0) _dsc.jumpTo((px / _h).clamp(0.0, 1.0));
+    if (_dsc.isAttached && _h > 0) _dsc.jumpTo((px.clamp(0.0, _max) / _h).clamp(0.0, 1.0));
+    _px = px; // (after the jump: its listener writes the clamped height)
+    _over.value = px > _max ? px - _max : 0;
     widget.onSize?.call(px);
   }
 
@@ -200,16 +241,50 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
 
   bool _onScroll(ScrollNotification n) {
     if (n is ScrollStartNotification && n.dragDetails != null) _spring.stop(); // the finger takes the sheet
-    if (n is ScrollEndNotification) {
-      final px = _dsc.isAttached ? _dsc.size * _h : _px;
-      final detent = (px - _midPx).abs() < 2 ? _midPx : (px - _max).abs() < 2 ? _max : -1.0;
-      if (detent >= 0 && detent != _lastDetent) Haptics.selection();
-      _lastDetent = detent;
-    }
     return false;
   }
 
-  Widget _scroll(ScrollController sc) => CustomScrollView(controller: sc, physics: widget.physics, key: _bodyKey, slivers: [if (widget.header != null) PinnedHeaderSliver(child: widget.header!), ...widget.slivers, SliverToBoxAdapter(child: SizedBox(height: _pad))]);
+  void _down(PointerDownEvent e) {
+    if (_pointer != null) return;
+    _pointer = e.pointer;
+    _vt = VelocityTracker.withKind(e.kind)..addPosition(e.timeStamp, e.position);
+    _lastY = e.position.dy;
+    _g0 = _dsc.isAttached ? _dsc.size * _h + _over.value : _px;
+    _pastTop = _unrubber(_over.value, _h); // (a sheet caught on its way back from the rubber band)
+    _below = _g0 < _max - 2; // M2: from the top, the body scrolls; from below, the finger has the sheet whatever it does
+  }
+
+  void _move(PointerMoveEvent e) {
+    if (e.pointer != _pointer) return;
+    _vt!.addPosition(e.timeStamp, e.position);
+    final up = _lastY - e.position.dy;
+    _lastY = e.position.dy;
+    final atTop = _dsc.isAttached && _dsc.size * _h >= _max - 0.5;
+    // (the framework's drag stops at the top; what the finger does past it is the rubber band's)
+    if (_below && (_pastTop > 0 || (atTop && up > 0))) {
+      _pastTop = (_pastTop + up).clamp(0.0, double.infinity);
+      _over.value = sheetRubber(_pastTop, _h);
+    }
+  }
+
+  void _up(PointerEvent e) {
+    if (e.pointer != _pointer) return;
+    _pointer = null;
+    final v = e is PointerUpEvent ? -_vt!.getVelocity().pixelsPerSecond.dy : 0.0; // dp/s, upward
+    final px = (_dsc.isAttached ? _dsc.size * _h : _px) + _over.value;
+    _pastTop = 0;
+    if ((px - _g0).abs() < 0.5) return; // (a tap, or the body scrolled)
+    // after the framework's own release has run: it is what this replaces
+    scheduleMicrotask(() {
+      if (!mounted) return;
+      _jump(px); // (stops the framework's snap)
+      final to = sheetReleaseTarget(px: px, v: v, min: widget.min, max: _max, mid: _measured ? _midPx : null);
+      if (to > widget.min + 0.5) Haptics.selection();
+      _springTo(to, v0: v.clamp(-M2Motion.sheetReleaseVMax, M2Motion.sheetReleaseVMax));
+    });
+  }
+
+  Widget _scroll(ScrollController sc) => CustomScrollView(controller: sc, physics: _HoldPhysics(() => _pastTop > 0, parent: widget.physics), key: _bodyKey, slivers: [if (widget.header != null) PinnedHeaderSliver(child: widget.header!), ...widget.slivers, SliverToBoxAdapter(child: SizedBox(height: _pad))]);
 
   @override
   Widget build(BuildContext context) {
@@ -223,8 +298,9 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
       }
       final minFrac = _h == 0 ? 0.0 : widget.min / _h, maxFrac = _h == 0 ? 1.0 : _max / _h;
       final midFrac = _h == 0 ? 0.0 : _midPx / _h;
-      final snaps = [if (_measured && midFrac > minFrac + 0.001 && midFrac < maxFrac - 0.001) midFrac];
-      return Stack(children: [
+      return Listener(
+        onPointerDown: _down, onPointerMove: _move, onPointerUp: _up, onPointerCancel: _up,
+        child: Stack(children: [
         if (widget.scrim)
           Positioned.fill(
             child: AnimatedBuilder(
@@ -243,8 +319,14 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
               },
             ),
           ),
-        DraggableScrollableSheet(
-          controller: _dsc, expand: true, snap: true, snapSizes: snaps, minChildSize: minFrac, maxChildSize: maxFrac, initialChildSize: widget.startOpen ? 0 : minFrac,
+        ValueListenableBuilder<double>(
+          valueListenable: _over,
+          builder: (_, over, sheet) => Stack(fit: StackFit.expand, children: [
+            Positioned(left: 0, right: 0, bottom: 0, height: over, child: ColoredBox(color: widget.color)), // (what the lifted sheet leaves bare)
+            Transform.translate(offset: Offset(0, -over), child: sheet),
+          ]),
+          child: DraggableScrollableSheet(
+          controller: _dsc, expand: true, minChildSize: minFrac, maxChildSize: maxFrac, initialChildSize: widget.startOpen ? 0 : minFrac,
           builder: (context, sc) {
             _sc = sc;
             return NotificationListener<ScrollNotification>(
@@ -257,8 +339,10 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
               ),
             );
           },
+          ),
         ),
-      ]);
+      ]),
+      );
     });
   }
 }
