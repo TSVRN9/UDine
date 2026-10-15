@@ -43,23 +43,33 @@ void main() {
   for (final w in [360, 390]) {
     Map<String, dynamic> m() => (_dom![w.toString()] as Map).cast<String, dynamic>();
 
-    void checkBar(WidgetTester t, Map<String, dynamic> b, {bool plateText = true}) {
-      _near('bar', t.getRect(bar), b['bar'], w);
-      if (plateText) {
-        _near('l1', t.getRect(inBar(find.textContaining(RegExp(r'items?$'))).first), b['l1'], w, block: true);
-        _near('cal', t.getRect(inBar(find.text('404'))), b['cal'], w);
-        _near('gbtn', t.getRect(find.descendant(of: bar, matching: find.widgetWithText(Button, 'Log'))), b['gbtn'], w, block: true);
-      }
+    // M2's `?state=plate` boots with the bar already part of an open sheet (its top is 253, not the 709 slot), so the bar's insides are
+    // compared by where they sit in the bar; the slot itself is checked on the receipt and the two-plate bar, which boot closed.
+    void checkBar(WidgetTester t, Map<String, dynamic> b, {bool absolute = false}) {
+      final r = t.getRect(bar), top = absolute ? 0.0 : r.top - ((b['bar'] as List)[1] as num);
+      Rect up(Rect x) => x.shift(Offset(0, -top));
+      _near('bar', absolute ? r : Rect.fromLTWH(r.left, ((b['bar'] as List)[1] as num).toDouble(), r.width, r.height), b['bar'], w);
+      _near('l1', up(t.getRect(inBar(find.textContaining(RegExp(r'items?$'))).first)), b['l1'], w, block: true);
+      // (M2's rect for the number is its inline box, the font's 39; the line is 26: compare where they are centred)
+      final cal = up(t.getRect(inBar(find.text('404')))), want = (b['cal'] as List).cast<num>();
+      if ((cal.center.dy - (want[1] + want[3] / 2)).abs() > 1.0) _misses.add('cal centre ours ${cal.center.dy}, M2 ${want[1] + want[3] / 2} at $w dp');
+      if ((cal.left - want[0]).abs() > 1.0) _misses.add('cal left ours ${cal.left}, M2 ${want[0]} at $w dp');
+      _near('gbtn', up(t.getRect(find.descendant(of: bar, matching: find.widgetWithText(Button, 'Log')))), b['gbtn'], w, block: true);
     }
 
-    testWidgets('the bar with the benchmark plate at $w dp matches M2 within 1 dp', skip: _dom == null, (t) async {
-      await openPlate(t, w: w.toDouble());
+    testWidgets('the bar with the benchmark plate at $w dp matches M2 within 1 dp', (t) async {
+      final bt = await openPlate(t, w: w.toDouble());
       checkBar(t, (m()['bar'] as Map).cast<String, dynamic>());
+      // the two-plate bar boots closed: its slot and its dots
+      final b2 = await servings(t, bt, 'Golden BBQ Chicken Thigh', ['W']);
+      bt.plate.add('dinner', 'Golden BBQ Chicken Thigh', b2);
+      await t.pumpAndSettle();
+      _near('split bar', t.getRect(bar), (m()['split'] as Map)['bar'], w);
       _flush();
       await drain(t);
     });
 
-    testWidgets('the sheet at mid and at the top at $w dp matches M2 within 1 dp', skip: _dom == null, (t) async {
+    testWidgets('the sheet at mid and at the top at $w dp matches M2 within 1 dp', (t) async {
       await openPlate(t, w: w.toDouble());
       final h = plateHandle(t), region = 844 - t.getSize(find.byType(M2TabBar)).height;
       await t.tap(inBar(find.textContaining(RegExp(r'items?$'))));
@@ -79,7 +89,22 @@ void main() {
       await drain(t);
     });
 
-    testWidgets('the receipt at $w dp matches M2 within 1 dp', skip: _dom == null, (t) async {
+    testWidgets('the Log at bar at $w dp matches M2 within 1 dp (by where it sits in the bar)', (t) async {
+      final b = await openPlate(t, w: w.toDouble(), route: '/halls');
+      b.plate.add('lunch', 'Beef Brisket Noodle Bowl', await servings(t, b, 'Beef Brisket Noodle Bowl', ['W', 'B']));
+      await t.pumpAndSettle();
+      await t.tap(inBar(find.text('Log')));
+      await t.pumpAndSettle();
+      final c = (m()['choose'] as Map).cast<String, dynamic>(), top = t.getRect(bar).top - ((c['bar'] as List)[1] as num);
+      final btns = c['btns'] as List;
+      for (final (i, name) in ['Worcester', 'Berkshire'].indexed) {
+        _near('log at $name', t.getRect(find.descendant(of: bar, matching: find.widgetWithText(Button, name))).shift(Offset(0, -top)), btns[i], w);
+      }
+      _flush();
+      await drain(t);
+    });
+
+    testWidgets('the receipt at $w dp matches M2 within 1 dp', (t) async {
       final b = await openPlate(t, w: w.toDouble());
       await t.tap(inBar(find.text('Log')));
       await logged(t, b);
