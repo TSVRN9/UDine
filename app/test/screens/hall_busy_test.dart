@@ -118,7 +118,7 @@ void main() {
 
     // M2's `histSVG` (src.html) draws one column per hour of `TYPICAL[h]` = [start, [pct...]], lit = max(1, ceil(pct / 20)), pct being a share of capacity.
     // The recording derives its curve from those arrays (RecordedClient), so the columns are M2's hours one for one: Worcester 7 AM to midnight (17),
-    // Hampshire to 9 PM (14), the live column at 12 (index 5). Ours is a share of today's peak (owner, 2026-10-15), M2's a share of capacity: the same
+    // Hampshire to 9 PM (14), the live column at 12 (index 5). Ours is a share of today's peak, M2's a share of capacity: the same
     // shape, re-quantized, so `peak` below is M2's pct against the array's own maximum. Franklin and Berkshire have thin curves, so no board.
     const m2 = {
       'worcester': (7, [15, 25, 30, 22, 30, 62, 86, 70, 40, 30, 45, 70, 82, 60, 40, 30, 22], [1, 2, 2, 2, 2, 4, 5, 4, 2, 2, 3, 4, 5, 3, 2, 2, 2], [1, 2, 2, 2, 2, 4, 5, 5, 3, 2, 3, 5, 5, 4, 3, 2, 2]),

@@ -318,6 +318,29 @@ void main() {
       },
     );
 
+    test('the next weekday\'s curve is fetched only when the hall is open past midnight, and its early buckets can clear', () async {
+      HoursData open(String close) {
+        final h = hoursWithBusy(800);
+        final list = locations();
+        (list.firstWhere((l) => l['location_title'] == 'Worcester Commons') as Map<String, dynamic>)
+          ..['opening_hours'] = '7:00 AM'
+          ..['closing_hours'] = close;
+        return HoursData(mapInfoV2([for (final l in list) l as Map<String, dynamic>]), h.busy, h.locationIds);
+      }
+
+      clock = DateTime.utc(2026, 10, 15, 3, 30); // Wed 11:30 PM EDT
+      net.curve = [
+        {'bucket_start': '23:30:00', 'median_headcount': 700, 'median_level': 2, 'samples': 6},
+        {'bucket_start': '00:30:00', 'median_headcount': 100, 'median_level': 0, 'samples': 6},
+      ];
+      await repo.busyReads(open('12:00 AM'));
+      expect([for (final b in net.bodies) (jsonDecode(b) as Map)['p_dow']], [3]);
+      net.bodies.clear();
+      final r = (await repo.busyReads(open('2:00 AM')))['Worcester Commons']!;
+      expect([for (final b in net.bodies) (jsonDecode(b) as Map)['p_dow']], [4]); // dow 3 is saved for the day
+      expect(r.calmerAt, '00:30');
+    });
+
     test('RPC failure: level only, no calmerAt, no error', () async {
       net.rpcFails = true;
       final r = (await repo.busyReads(

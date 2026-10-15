@@ -47,4 +47,12 @@ void main() {
     expect(openSpan(DiningHallHours(hallTid: 2, general: w('7:15 AM', '8:30 PM'))), (7, 21));
     expect(openSpan(const DiningHallHours(hallTid: 3)), isNull);
   });
+
+  test('opensPastMidnight: a window that closes after midnight, not one that closes at it', () {
+    TimeWindow w(String o, String c) => TimeWindow(openTime: o, closeTime: c);
+    expect(opensPastMidnight(DiningHallHours(hallTid: 1, general: w('7:00 AM', '2:00 AM'))), isTrue);
+    expect(opensPastMidnight(DiningHallHours(hallTid: 1, general: w('7:00 AM', '12:00 AM'))), isFalse);
+    expect(opensPastMidnight(DiningHallHours(hallTid: 1, general: w('7:00 AM', '9:00 PM'))), isFalse);
+    expect(opensPastMidnight(const DiningHallHours(hallTid: 1)), isFalse);
+  });
 }
