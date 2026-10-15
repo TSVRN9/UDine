@@ -55,7 +55,7 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
     }
   }
 
-  double get _pageWidth => MediaQuery.sizeOf(context).width - 2 * M2Space.gutter;
+  double get _pageWidth => MediaQuery.sizeOf(context).width - 2 * M2Layout.pdfGutter;
 
   void _load() {
     final run = ++_run, cache = widget.cache, width = _pageWidth;
@@ -151,7 +151,7 @@ class _PdfZoomViewState extends State<PdfZoomView> {
   }
 
   double _height(double w) {
-    final pw = w - 2 * M2Space.gutter;
+    final pw = w - 2 * M2Layout.pdfGutter;
     return M2Layout.pdfBodyTop + [for (final p in widget.pages) pw * p.aspect + M2Layout.pdfPageGap].fold(0.0, (a, b) => a + b) + M2Layout.pdfBodyBottom;
   }
 
@@ -169,7 +169,7 @@ class _PdfZoomViewState extends State<PdfZoomView> {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (_, c) {
-          final pw = c.maxWidth - 2 * M2Space.gutter;
+          final pw = c.maxWidth - 2 * M2Layout.pdfGutter;
           return GestureDetector(
             onDoubleTapDown: (d) => _tap = d.localPosition,
             onDoubleTap: () => _toggle(c.biggest),
@@ -180,7 +180,7 @@ class _PdfZoomViewState extends State<PdfZoomView> {
               child: SizedBox(
                 width: c.maxWidth,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.pdfBodyTop, M2Space.gutter, M2Layout.pdfBodyBottom),
+                  padding: const EdgeInsets.fromLTRB(M2Layout.pdfGutter, M2Layout.pdfBodyTop, M2Layout.pdfGutter, M2Layout.pdfBodyBottom),
                   child: Column(children: [
                     for (var i = 0; i < widget.pages.length; i++)
                       Padding(

@@ -74,7 +74,7 @@ void main() {
     expect(find.byType(Spinner), findsNothing);
     final pages = find.byType(Image);
     expect(pages, findsNWidgets(2));
-    expect(t.getSize(pages.first), Size(390 - 2 * M2Space.gutter, (390 - 2 * M2Space.gutter) * letter));
+    expect(t.getSize(pages.first), Size(390 - 2 * M2Layout.pdfGutter, (390 - 2 * M2Layout.pdfGutter) * letter));
     expect(requests, 1);
   });
 
