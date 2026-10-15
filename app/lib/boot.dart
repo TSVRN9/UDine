@@ -28,8 +28,8 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway
 /// in-memory store so a capture never reads or leaves anything on the device.
 class Boot {
-  Boot(this.repo, this.store, this.prefs, {this.pdfPages = pdfxPages});
-  final PdfPages pdfPages;
+  Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen});
+  final PdfOpen pdfOpen;
   final Repository repo;
 
   /// The device store; null when the file was written by a newer build (menus only, below).
@@ -76,5 +76,5 @@ class Boot {
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfPages: pdfPages, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, child: child);
 }

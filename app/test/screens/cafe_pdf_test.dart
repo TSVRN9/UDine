@@ -39,13 +39,14 @@ void main() {
   });
   tearDown(() => dir.deleteSync(recursive: true));
 
-  Future<void> open(WidgetTester t, {String label = 'Click here for the Lunch Menu', double w = 390, int pagesCount = 2}) async {
+  Future<SyntheticPdf> open(WidgetTester t, {String label = 'Click here for the Lunch Menu', double w = 390, int pagesCount = 2, bool reduced = false}) async {
     phone(t, w: w);
     final pages = await syntheticPages(t, count: pagesCount);
     await t.pumpWidget(Directionality(
       textDirection: TextDirection.ltr,
-      child: MediaQuery(data: MediaQueryData(size: Size(w, 844)), child: PdfMenuPage(top: 24, url: lunchUrl, label: label, cache: cache, pages: pages)),
+      child: MediaQuery(data: MediaQueryData(size: Size(w, 844), disableAnimations: reduced), child: PdfMenuPage(top: 24, url: lunchUrl, label: label, cache: cache, open: pages.call)),
     ));
+    return pages;
   }
 
   Future<void> loaded(WidgetTester t) async {
@@ -123,11 +124,72 @@ void main() {
     phone(t);
     await t.pumpWidget(Directionality(
       textDirection: TextDirection.ltr,
-      child: MediaQuery(data: const MediaQueryData(size: Size(390, 844)), child: PdfMenuPage(top: 24, url: lunchUrl, label: 'Lunch', cache: cache, pages: (_, _) async => throw StateError('corrupt'))),
+      child: MediaQuery(data: const MediaQueryData(size: Size(390, 844)), child: PdfMenuPage(top: 24, url: lunchUrl, label: 'Lunch', cache: cache, open: (_) async => throw StateError('corrupt'))),
     ));
     await t.pump();
     await t.pump();
     expect(find.text("The lunch menu didn't load."), findsOneWidget);
+  });
+
+  testWidgets('pages are drawn as they near the screen, not all at open, and each once', (t) async {
+    final pdf = await open(t, pagesCount: 6);
+    await loaded(t);
+    expect(pdf.rendered, containsAll([0, 1]));
+    expect(pdf.rendered, isNot(contains(5)), reason: 'a page far below the screen is not drawn yet');
+    await t.drag(find.byType(PdfZoomView), const Offset(0, -6000));
+    await t.pumpAndSettle();
+    expect(pdf.rendered..sort(), [0, 1, 2, 3, 4, 5]);
+    await t.drag(find.byType(PdfZoomView), const Offset(0, 6000));
+    await t.pumpAndSettle();
+    expect(pdf.rendered, hasLength(6), reason: 'scrolling back draws nothing again');
+  });
+
+  testWidgets('a page whose render failed is asked for again when the view next moves, not left a blank card', (t) async {
+    phone(t);
+    final pdf = await syntheticPages(t, count: 2)..failOnce.add(0);
+    await t.runAsync(() => cache.fetch(lunchUrl));
+    await t.pumpWidget(Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(data: const MediaQueryData(size: Size(390, 844)), child: PdfMenuPage(top: 24, url: lunchUrl, label: 'Lunch', cache: cache, open: pdf.call)),
+    ));
+    await t.pump();
+    await t.pump();
+    expect(find.byType(Image), findsOneWidget, reason: 'page 0 failed, page 1 drew');
+    await t.drag(find.byType(PdfZoomView), const Offset(0, -40));
+    await t.pumpAndSettle();
+    expect(pdf.rendered, [0, 1, 0]);
+    expect(find.byType(Image), findsNWidgets(2));
+  });
+
+  testWidgets('a document whose close fails does not raise when the page goes', (t) async {
+    final pdf = await open(t);
+    pdf.closeFails = true;
+    await loaded(t);
+    await t.pumpWidget(const SizedBox());
+    await t.pump();
+  });
+
+  testWidgets("Try again asks the repository to forget its offline window first", (t) async {
+    status = 500;
+    var forgot = 0;
+    phone(t);
+    final pages = await syntheticPages(t);
+    await t.pumpWidget(Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(data: const MediaQueryData(size: Size(390, 844)), child: PdfMenuPage(top: 24, url: lunchUrl, label: 'Lunch', cache: cache, open: pages.call, onRetry: () => forgot++)),
+    ));
+    await until(t, () => find.text('Try again').evaluate().isNotEmpty);
+    status = 200;
+    await t.tap(find.text('Try again'));
+    await loaded(t);
+    expect(forgot, 1);
+  });
+
+  testWidgets('the document is closed when the page goes', (t) async {
+    final pdf = await open(t);
+    await loaded(t);
+    await t.pumpWidget(const SizedBox());
+    expect(pdf.docs.single.closed, isTrue);
   });
 
   group('zoom', () {
@@ -173,6 +235,59 @@ void main() {
       await t.tapAt(p);
       await t.pumpAndSettle();
       expect(scale(t), 1);
+    });
+
+    Future<void> doubleTap(WidgetTester t, Offset p) async {
+      await t.tapAt(p);
+      await t.pump(const Duration(milliseconds: 60));
+      await t.tapAt(p);
+    }
+
+    testWidgets('double-tap zoom runs over settle (200 ms), not at once, and lands on 2.5x', (t) async {
+      await open(t);
+      await loaded(t);
+      await doubleTap(t, const Offset(250, 500));
+      await t.pump(); // the tween's first frame
+      await t.pump(const Duration(milliseconds: 60));
+      expect(scale(t), allOf(greaterThan(1.0), lessThan(2.5)), reason: 'mid-flight');
+      await t.pump(const Duration(milliseconds: 200));
+      expect(scale(t), 2.5);
+      await doubleTap(t, const Offset(250, 500));
+      await t.pump(); // the tween's first frame
+      await t.pump(const Duration(milliseconds: 60));
+      expect(scale(t), allOf(greaterThan(1.0), lessThan(2.5)), reason: 'and back');
+      await t.pumpAndSettle();
+      expect(scale(t), 1);
+    });
+
+    testWidgets('a pinch that starts mid-animation takes over: the animation stops', (t) async {
+      await open(t);
+      await loaded(t);
+      await doubleTap(t, const Offset(250, 500));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 60));
+      final a = await t.startGesture(const Offset(150, 500), pointer: 1), b = await t.startGesture(const Offset(240, 500), pointer: 2);
+      for (var i = 1; i <= 4; i++) {
+        await a.moveBy(const Offset(0, 12));
+        await b.moveBy(const Offset(0, 12));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      final held = scale(t);
+      await t.pump(const Duration(milliseconds: 300));
+      expect(scale(t), closeTo(held, 0.01), reason: 'the tween no longer drives it');
+      expect(held, lessThan(2.5));
+      await a.up();
+      await b.up();
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('under reduced motion the double-tap zoom snaps', (t) async {
+      await open(t, reduced: true);
+      await loaded(t);
+      await doubleTap(t, const Offset(250, 500));
+      await t.pump(const Duration(milliseconds: 16));
+      expect(scale(t), 2.5);
+      await t.pumpAndSettle();
     });
 
     testWidgets('the bar is the same rect at 1x, at 2.5x, and scrolled sideways and down at 2.5x', (t) async {
