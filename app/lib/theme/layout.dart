@@ -1,4 +1,5 @@
 import 'package:flutter/painting.dart';
+import 'kinds.dart';
 
 // Layout numbers the token file does not carry, each named for the M2 rule (src.html) it is copied from. A number that
 // is in design-tokens/m2.json lives there (m2_tokens.g.dart), not here.
@@ -120,6 +121,10 @@ abstract final class M2Layout {
   static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 44.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore` (40 in M2: 44 here, a touch target)
   static const dishMidGuess = 0.55; // the resting height before the label is measured (a fraction of the frame)
   static const plateLabelGap = 12.0; // `.sh1` gap
+  // the plate label's heading (`.sh1 h2` at 28 dp, line 1.1) and its item list (`p.kv`, 15 dp at 1.5): the engine rounds a fractional
+  // line up to whole dp, so the list takes the 22 below its 22.5 and the heading's 30.8 reads 31; both stay within 1 dp of M2
+  static const plateLabelHead = M2Type(28.0, 30.8, 'Oswald', FontWeight.w600, tabular: true);
+  static const plateKv = M2Type(15.0, 22.0, 'LibreFranklin', FontWeight.w400);
   static const hereLead = 8.0; // `toDish`: the serving rests 8 under the pinned rows
   // the favourite star (`.dish .favb`: a 48 dp `.icon` pulled back 6 up, 12 down and 12 right; `.star` is the row's mark)
   static const favBox = 48.0, favGlyph = 24.0, favStroke = 2.2, favGap = 8.0, favUp = -6.0, favDown = -12.0, favOut = 12.0;

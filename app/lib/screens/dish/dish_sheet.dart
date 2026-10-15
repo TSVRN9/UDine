@@ -12,7 +12,7 @@ import 'where_book.dart';
 /// Opens the dish sheet (M2 `openDish`) above everything, the tab bar included, over whatever it was opened from, which stays where it
 /// was. `refs` are the places an Add counts for (the serving at this place by default; every place serving it from Search).
 /// `onServe` runs once a where-served tap has the sheet half-way out: the opener decides between scrolling its own list and pushing
-/// the place.
+/// the place. `cafeIds` (café key -> location id) lets "where" name cafés too.
 SheetHandle openDishSheet(
   BuildContext context, {
   required MenuItem dish,
@@ -23,9 +23,10 @@ SheetHandle openDishSheet(
   required void Function(String place, WhereGroup group) onServe,
   List<String> avoid = const [],
   Map<String, MenuItem>? refs,
+  Map<String, int> cafeIds = const {},
   VoidCallback? onClosed,
 }) {
-  final book = WhereBook(AppScope.of(context).repo, fx);
+  final book = WhereBook(AppScope.of(context).repo, fx, cafeIds);
   return ShellScope.of(context).pushSheet((handle, done) => DishSheet(
         handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe,
         onClosed: () {
@@ -234,6 +235,7 @@ class _Ingredients extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = M2Text.ing.style(M2Color.ink);
+    // (the engine rounds each 22.5 dp line up to 23, so a long list reads up to half a dp per line taller than M2's)
     final a = resolveAnim(context, M2Motion.settle);
     return LayoutBuilder(builder: (context, c) {
       final tp = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.ltr, maxLines: M2Layout.ingLines.toInt())..layout(maxWidth: c.maxWidth);
