@@ -45,14 +45,18 @@ class _HallPageState extends State<HallPage> {
 
 /// A place's menu as a page of its own (no band to grow from): a launch route, or a push.
 class HallMenuPage extends StatelessWidget {
-  const HallMenuPage({super.key, required this.place, required this.top, this.day = 0, this.meal});
+  const HallMenuPage({super.key, required this.place, required this.top, this.day = 0, this.meal, this.dish, this.landOn});
   final String place;
   final double top;
   final int day;
   final String? meal;
+  /// a dish's name: its sheet opens over the menu once the menu is in (the `dish` of a launch route)
+  final String? dish;
+  /// a dish's key: the menu arrives scrolled to it, the row tinted (where it's served)
+  final String? landOn;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (_, c) => HallMenu(place: place, top: top, height: c.maxHeight, day: day, meal: meal, onBack: () => Navigator.of(context).maybePop()),
+        builder: (_, c) => HallMenu(place: place, top: top, height: c.maxHeight, day: day, meal: meal, dish: dish, landOn: landOn, onBack: () => Navigator.of(context).maybePop()),
       );
 }

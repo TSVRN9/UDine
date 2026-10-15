@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/m2/menu_view.dart' show Prefs;
 import '../core/store/store.dart';
+import '../core/types.dart' show DishFavorite;
 
 /// The stored Avoid list and "Only show" tags (`food_preferences`) as the menu filters on them. A tag the menu has no filter for is ignored.
 Prefs dietPrefs(List<String> avoid, List<String> onlyShow) {
@@ -13,7 +14,7 @@ Prefs dietPrefs(List<String> avoid, List<String> onlyShow) {
 /// frame so nothing pops in (with no store, as when a newer build owns the database, they live in memory and nothing is written); a write lands in `preferences_kv` and in the notifier at once. `pins` given at load (the `?pins=N`
 /// screenshot route) are held in memory and never saved.
 class AppPrefs extends ChangeNotifier {
-  AppPrefs._(this._store, this._charlesRiver, this._pins, this._memoryPins, this.scores, this.diet);
+  AppPrefs._(this._store, this._charlesRiver, this._pins, this._memoryPins, this.scores, this.diet, this._favorites);
   final UdineStore? _store;
   bool _charlesRiver;
   List<String> _pins;
@@ -31,9 +32,15 @@ class AppPrefs extends ChangeNotifier {
   bool get charlesRiver => _charlesRiver;
   List<String> get pins => _pins;
 
+  /// Favourite dishes, by the name the feed spells them (RN's `dish` favourites, which matching reads exactly). Device-only.
+  final Set<String> _favorites;
+  Set<String> get favorites => _favorites;
+  bool isFavorite(String dishName) => _favorites.contains(dishName);
+
   static Future<AppPrefs> load(UdineStore? store, {List<String>? pins}) async {
     final sc = await store?.scores();
-    return AppPrefs._(store, await store?.charlesRiver() ?? false, pins ?? await store?.pins() ?? const [], pins != null, (health: sc?.healthfulness ?? false, carbon: sc?.carbon ?? false), dietPrefs(await store?.avoid() ?? const [], await store?.onlyShow() ?? const []));
+    return AppPrefs._(store, await store?.charlesRiver() ?? false, pins ?? await store?.pins() ?? const [], pins != null, (health: sc?.healthfulness ?? false, carbon: sc?.carbon ?? false), dietPrefs(await store?.avoid() ?? const [], await store?.onlyShow() ?? const []),
+        {for (final f in await store?.favorites() ?? const []) if (f is DishFavorite) f.dishName});
   }
 
   Future<void> setCharlesRiver(bool v) {
@@ -46,5 +53,13 @@ class AppPrefs extends ChangeNotifier {
     _pins = v;
     notifyListeners();
     return _memoryPins ? Future.value() : _store?.setPins(v) ?? Future.value();
+  }
+
+  Future<void> toggleFavorite(String dishName) {
+    final on = _favorites.add(dishName);
+    if (!on) _favorites.remove(dishName);
+    notifyListeners();
+    final f = DishFavorite(dishName);
+    return (on ? _store?.addFavorite(f) : _store?.removeFavorite(f)) ?? Future.value();
   }
 }

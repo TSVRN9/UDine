@@ -91,11 +91,13 @@ class RatingsPanel extends StatelessWidget {
   Widget _carbonNote(String band) {
     const t = M2Text.lblThin;
     final style = t.style(M2Color.ink), sub = M2Type(t.size * _subSize, null, t.family, t.weight).style(M2Color.ink);
-    return Text.rich(TextSpan(style: style, children: [
+    // M2's `.gs` measures 18 dp where the 13 dp line is 16: Chrome draws the U+2082 from a fallback font whose line is taller, and the
+    // box grows to it (the measured 134 dp panel; m2dom-dish.js re-measures `.gs` to confirm it is the subscript)
+    return ConstrainedBox(constraints: const BoxConstraints(minHeight: M2Layout.gradeNoteH), child: Text.rich(TextSpan(style: style, children: [
       TextSpan(text: '$band kg CO'),
       WidgetSpan(alignment: PlaceholderAlignment.baseline, baseline: TextBaseline.alphabetic, child: Transform.translate(offset: Offset(0, t.size * _subDrop), child: Text('2', style: sub))),
       const TextSpan(text: 'e per kg of food'),
-    ]));
+    ])));
   }
 
   Widget _scale(ScoreKind kind, List<Object> steps, Object value, double stepW) => Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [

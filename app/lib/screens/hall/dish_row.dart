@@ -19,8 +19,10 @@ class DishRow extends StatelessWidget {
   /// null: another day's dish, which carries no control (it cannot go on today's plate)
   final RowCode? code;
   final bool here;
+  /// a favourite dish carries a star after its name
+  final bool favorite;
   final VoidCallback onOpen, onAdd, onInc, onDec;
-  const DishRow({super.key, required this.dish, required this.scores, this.contains = const [], this.code, this.here = false, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec});
+  const DishRow({super.key, required this.dish, required this.scores, this.contains = const [], this.code, this.here = false, this.favorite = false, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec});
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +54,7 @@ class DishRow extends StatelessWidget {
     return ListRow(
       label: '${d.dishName}, ${fc(d.nutrition.calories)} calories, ${f1(d.nutrition.proteinG)} grams protein',
       here: here, onTap: onOpen,
-      name: Badge.name(d.dishName, M2Text.rowName.style(M2Color.ink), badge: badge),
+      name: Badge.name(d.dishName, M2Text.rowName.style(M2Color.ink), badge: badge, star: favorite ? const StarMark() : null),
       meta: meta,
       control: code == null ? null : RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec),
     );

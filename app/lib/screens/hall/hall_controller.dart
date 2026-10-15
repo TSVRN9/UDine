@@ -102,18 +102,28 @@ class HallController extends ChangeNotifier {
     return feed.retail.where((r) => straight(r.name) == title).firstOrNull;
   }
 
+  /// Every café's location id by place key (`c3`), for the cafés the feed has one for (where a dish is served names them).
+  Map<String, int> get cafeIds {
+    final feed = _hoursValue?.feed;
+    if (feed == null) return const {};
+    final byTitle = {for (final r in feed.retail) straight(r.name): r.locationId};
+    return {for (var i = 0; i < cafeTable.length; i++) 'c$i': ?byTitle[straight(cafeTable[i].title)]};
+  }
+
   String get name => cafe ? cafeTable[int.parse(place.substring(1))].name : diningHalls[halls.indexOf(place)].name;
 
   /// The place's hours, once known.
   DiningHallHours? get placeHours => roster?.hours[place];
 
-  /// The hall's Grab 'N Go window (its own get_infov2 entry, the hall's name and Grab ‘N Go).
-  TimeWindow? get grab {
+  /// A hall's Grab 'N Go window (its own get_infov2 entry, the hall's name and Grab ‘N Go).
+  TimeWindow? grabOf(String hall) {
     final feed = _hoursValue?.feed;
-    if (feed == null || cafe) return null;
-    final title = '$name Grab \'N Go';
+    if (feed == null || isCafe(hall)) return null;
+    final title = '${diningHalls[halls.indexOf(hall)].name} Grab \'N Go';
     return feed.retail.where((r) => straight(r.name) == title).firstOrNull?.hours;
   }
+
+  TimeWindow? get grab => grabOf(place);
 
   int? get _tid => cafe ? cafeLocationId : diningHalls[halls.indexOf(place)].tid;
 
@@ -225,7 +235,7 @@ class HallController extends ChangeNotifier {
       clock: repo.now(),
       places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1, address: r?.hours[halls[i]]?.address, mapAddress: r?.hours[halls[i]]?.mapAddress), ...?r?.cafes],
       hours: r?.hours ?? const {},
-      grab: {place: ?grab},
+      grab: {for (final h in halls) h: ?grabOf(h)}, // every hall's, for where a dish is served
       days: {for (var i = 0; i < isos.length; i++) isos[i]: {if (items(i) case final it? when it.isNotEmpty) place: mealsOfItems(it)}},
       events: events,
     );

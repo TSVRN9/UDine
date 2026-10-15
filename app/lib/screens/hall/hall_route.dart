@@ -9,8 +9,8 @@ import '../cafes/cafes_page.dart';
 import '../cafes/pdf_page.dart';
 import '../halls/hall_page.dart';
 
-/// `/hall/worcester?meal=lunch&day=2026-10-10` or `/cafe/3` (a café's index) as a launch route (screenshots, deep links): the hall's menu already open, with no band
-/// to grow from. Null for any other route, or a café index outside the table. `meal` is M2's key, `day` a date within the 15 days from today.
+/// `/hall/worcester?meal=lunch&day=2026-10-10&dish=Golden BBQ Chicken Thigh` or `/cafe/3` (a café's index) as a launch route (screenshots, deep links): the hall's menu already open, with no band
+/// to grow from. Null for any other route, or a café index outside the table. `meal` is M2's key, `day` a date within the 15 days from today, `dish` a dish's name whose sheet opens over the menu.
 Route<void>? hallLaunchRoute(String route, double top) {
   final u = Uri.parse(route);
   if (u.path == '/cafes') {
@@ -46,7 +46,7 @@ Route<void>? hallLaunchRoute(String route, double top) {
     builder: (context) {
       final iso = u.queryParameters['day'], today = AppScope.of(context).repo.today;
       final day = iso == null ? 0 : (DateTime.parse(iso).difference(DateTime.parse(today)).inDays).clamp(0, 14);
-      return HallMenuPage(place: place, top: top, day: day, meal: u.queryParameters['meal']);
+      return HallMenuPage(place: place, top: top, day: day, meal: u.queryParameters['meal'], dish: u.queryParameters['dish']);
     },
   );
 }
