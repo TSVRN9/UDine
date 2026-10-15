@@ -35,6 +35,7 @@ class LogBook extends ChangeNotifier {
 
   /// Edits shown and not yet written (queued or running).
   int _pending = 0;
+  bool _dirty = false;
 
   /// Reads the file, in turn behind every write already queued. If another edit has been shown since, what was read is stale and is
   /// dropped: that edit's own write (or its own failure's reload) brings the screen to what the file holds.
@@ -42,7 +43,10 @@ class LogBook extends ChangeNotifier {
     final read = _tail.then((_) => _store.allEntries());
     _tail = read.then<void>((_) {}, onError: (_) {});
     final entries = await read;
-    if (_pending > 0) return;
+    if (_pending > 0) {
+      _dirty = true; // what was read is stale, but it was asked for: read again once the writes have settled
+      return;
+    }
     _meals = loggedMeals(entries);
     notifyListeners();
   }
@@ -50,7 +54,14 @@ class LogBook extends ChangeNotifier {
   Future<T> _queue<T>(Future<T> Function() write) {
     _pending++;
     final r = _tail.then((_) => write());
-    _tail = r.then<void>((_) => _pending--, onError: (_) => _pending--);
+    void settled() {
+      if (--_pending == 0 && _dirty) {
+        _dirty = false;
+        reload().catchError((Object _) {});
+      }
+    }
+
+    _tail = r.then<void>((_) => settled(), onError: (_) => settled());
     return r;
   }
 
