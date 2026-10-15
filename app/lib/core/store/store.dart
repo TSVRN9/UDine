@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../date.dart';
 import '../export.dart';
-import '../../data/packaged.dart';
+import '../packaged_food.dart';
 import '../types.dart';
 
 /// Puts back exactly the rows (rowid and bytes) an operation removed or changed.

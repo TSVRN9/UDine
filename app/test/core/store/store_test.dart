@@ -7,7 +7,7 @@ import 'package:udine/core/export.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
 import 'package:udine/core/types.dart';
-import 'package:udine/data/packaged.dart';
+import 'package:udine/core/packaged_food.dart';
 
 const nut = '{"servingSize":"1 cup","calories":210,"caloriesFromFat":54,"totalFatG":6,"satFatG":1.5,"transFatG":0,"cholesterolMg":10,"sodiumMg":340,"totalCarbG":30,"dietaryFiberG":3,"sugarsG":4,"proteinG":9.5,"sodiumDv":14}';
 // All four RN LogEntry sources, as RN's JSON.stringify writes them.
