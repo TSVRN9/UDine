@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import '../event/event_page.dart' show openEvent;
 
 import '../../motion/routes.dart';
 import '../../theme/tokens.dart';
@@ -67,6 +68,6 @@ class HallMenuPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (_, c) => HallMenu(place: place, top: top, height: c.maxHeight, day: day, meal: meal, dish: dish, landOn: landOn, onBack: () => Navigator.of(context).maybePop()),
+        builder: (_, c) => HallMenu(place: place, top: top, height: c.maxHeight, day: day, meal: meal, dish: dish, landOn: landOn, onBack: () => Navigator.of(context).maybePop(), onEvent: (i) => openEvent(context, i, top)),
       );
 }

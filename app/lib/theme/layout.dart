@@ -196,4 +196,15 @@ abstract final class M2Layout {
   static const laterGapX = 16.0, nextToTags = 12.0; // `.row.later .m` column-gap; `.lnext` margin-right 2 + `.mg` gap 4 + `.mg .lnext+.tags` margin-left 6
   static const customMin = 52.0, customMargin = 8.0, customPadX = 16.0, customGap = 10.0, customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom`
   static const customPlus = 20.0; // `.custom` svg
+  // Events (`.sdisc`, `.evc`, `.evcard`, `.evcap`)
+  static const evBandTop = 4.0, evBandBottom = 16.0; // `.sdisc` padding 4 0 16
+  static const evHeadTop = 10.0; // `.sdisc h2` padding 10 20 0
+  static const evcTop = 12.0, evcBottom = 4.0, evcStart = 20.0, evcGap = 12.0, evcTail = 8.0; // `.evc` padding 12 0 4 20, gap 12, `::after` 8
+  static const evCardW = 280.0, evCardInset = 4.0; // `.evc .evcard` flex-basis; `.evpatch::after` inset 4
+  static const evCapTop = 10.0, evCapGap = 10.0; // `.evcap` margin-top, gap
+  static const evBanner = 1024 / 432; // `.evpatch` aspect-ratio
+  static const evTitle = M2Type(15.0, 19.5, 'LibreFranklin', FontWeight.w600); // `.evtt` 600 15/1.3
+  static const evTag = M2Type(15.0, 19.5, 'Oswald', FontWeight.w600, tabular: true); // `.evtag` 600 15/1.3
+  static const evTitleColor = Color.fromRGBO(255, 255, 255, 0.92); // `.evtt`
+  static const clear = Color(0x00000000);
 }
