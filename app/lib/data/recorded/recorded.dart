@@ -58,7 +58,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
   final client = RecordedClient(
     menus: jsonDecode(await read('menus-2026-10-08-to-22.json')) as Map<String, dynamic>,
     locations: await recordedLocations(read),
-    events: await read('events-raw.json'),
+    events: f.noEvents ? '{"events":[]}' : await read('events-raw.json'),
     pdf: readPdf,
   );
   final net = NetClient(client, f.net == NetMode.offline ? NetMode.ok : f.net, slow ?? defaultSlow);

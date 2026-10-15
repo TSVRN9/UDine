@@ -52,6 +52,8 @@ void main() {
     test('saved=pdf:Lunch names the menus opened before; other saved entries are not PDFs', () {
       expect(recordedFlags('/?data=recorded&saved=pdf:Lunch,Green Fields,pdf:Dinner')!.savedPdfs, {'Lunch', 'Dinner'});
       expect(recordedFlags('/?data=recorded')!.savedPdfs, isEmpty);
+      expect(recordedFlags('/?data=recorded&events=0')!.noEvents, isTrue); // M2's `?events=0`
+      expect(recordedFlags('/?data=recorded')!.noEvents, isFalse);
     });
     test('avoid=Milk,Eggs and only=Halal set the Avoid list and "Only show" tags for a capture', () {
       final f = recordedFlags('/?data=recorded&avoid=Milk,Eggs&only=Halal')!;
