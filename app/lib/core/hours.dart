@@ -183,6 +183,32 @@ MealStatus currentMealPeriod(DiningHallHours hours, DateTime now) {
   return MealStatus.closed;
 }
 
+/// The day's opening span as whole hours [start, end): the first window's open to the last window's close, any close at or before its open
+/// being midnight (the next day's hours belong to the next day's curve). Null when the hall publishes no valid window.
+(int, int)? openSpan(DiningHallHours hours) {
+  int? lo, hi;
+  for (final w in [hours.breakfast, hours.lunch, hours.dinner, hours.latenight, hours.general]) {
+    final o = w == null ? null : _timeOfDay(w.openTime), c = w == null ? null : _timeOfDay(w.closeTime);
+    if (o == null || c == null || o == c) continue;
+    final open = o.$1 * 60 + o.$2, close = c.$1 * 60 + c.$2;
+    final end = close <= open ? 1440 : close;
+    if (lo == null || open < lo) lo = open;
+    if (hi == null || end > hi) hi = end;
+  }
+  return lo == null ? null : (lo ~/ 60, (hi! + 59) ~/ 60);
+}
+
+/// Whether any published window closes after midnight (a close at midnight itself does not): the hall's "calmer" reading then looks into the next weekday.
+bool opensPastMidnight(DiningHallHours hours) {
+  for (final w in [hours.breakfast, hours.lunch, hours.dinner, hours.latenight, hours.general]) {
+    final o = w == null ? null : _timeOfDay(w.openTime), c = w == null ? null : _timeOfDay(w.closeTime);
+    if (o == null || c == null) continue;
+    final close = c.$1 * 60 + c.$2;
+    if (close > 0 && close <= o.$1 * 60 + o.$2) return true;
+  }
+  return false;
+}
+
 /// Whether the doors are open: any published window (including `general`) covering [now]. closesAt is the latest
 /// close of the covering windows, chained through contiguous or overlapping ones.
 OpenStatus openStatus(DiningHallHours hours, DateTime now) {

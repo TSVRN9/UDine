@@ -268,7 +268,11 @@ class Repository {
         () async {
           final id = h.locationIds[key];
           final curve = id == null || supabase == null ? const <OccupancyBucket>[] : await typicalCurve(id, dow);
-          final r = occupancyRead(typical: curve, live: value, now: at);
+          // a hall open past midnight also reads the next weekday's early buckets for its clearing time
+          final tid = diningHalls.where((d) => key.startsWith(d.name) && key.contains('Commons')).firstOrNull?.tid;
+          final hh = h.feed.halls.where((x) => x.hallTid == tid).firstOrNull;
+          final next = curve.isNotEmpty && id != null && hh != null && opensPastMidnight(hh) ? await typicalCurve(id, (dow + 1) % 7) : const <OccupancyBucket>[];
+          final r = occupancyRead(typical: curve, tomorrow: next, live: value, now: at);
           if (r != null) out[key] = r;
         }(),
     ]);

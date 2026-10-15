@@ -6,6 +6,7 @@ import '../../motion/container_math.dart';
 import '../../motion/container_transform.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'busy.dart';
 
 double _clamp(double x) => x < 0
     ? 0
@@ -26,6 +27,8 @@ class HallHeader extends StatefulWidget {
   final double top;
   /// the status line's text: '' while the hours are not known (the line keeps its room)
   final ValueListenable<String> status;
+  /// today's busy at a hall; null (another day, offline, loading) keeps the row's room and draws nothing
+  final ValueListenable<HallBusyView?>? busy;
   final Animation<double> progress;
 
   /// scroll offset d = clamp(y, 0, HH - CH)
@@ -44,6 +47,7 @@ class HallHeader extends StatefulWidget {
     required this.progress,
     required this.scroll,
     required this.dayFade,
+    this.busy,
     this.band,
     this.ghost,
     this.onStatus,
@@ -59,7 +63,7 @@ class HallHeaderState extends State<HallHeader> {
   double _drop = 0; // NB: how far the collapsed name falls into the compact bar
   double? _madeFor;
   late Widget? _photo;
-  late Widget _grades, _title, _busy, _bandGrade;
+  late Widget _grades, _title, _bandGrade;
   Widget? _letter;
   late M2Type _nameStyle;
 
@@ -73,6 +77,8 @@ class HallHeaderState extends State<HallHeader> {
     final drop = widget.top + M2Layout.nameBarTop - (bottom - r);
     if ((drop - _drop).abs() > 0.05) setState(() => _drop = drop);
   }
+
+  void _remeasure() => WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _measure() : null);
 
   @override
   void initState() {
@@ -112,9 +118,6 @@ class HallHeaderState extends State<HallHeader> {
     _letter = compact ? null : IgnorePointer(child: Stack(children: [HallLetter(letter: place, x: hallLx[place]!, top: top + M2Layout.letterTop)]));
     _bandGrade = const IgnorePointer(child: BandGrade());
     _title = Semantics(header: true, child: Text(name, style: nameStyle.style(M2Color.white), maxLines: 1));
-    // The busy row's room (`flutter-port-hall-menu` Task 3 draws it, and it then takes the height of its own content). Until then it is held
-    // at the height M2 measures for a hall whose row has its "Calmer around" line (39 dp), so the name sits where M2's does.
-    _busy = compact ? const SizedBox.shrink() : const ExcludeSemantics(child: Opacity(opacity: 0, child: IgnorePointer(child: BusyRow(lamps: 0, word: 'Busy', extra: 'Calmer around', header: true))));
   }
 
   @override
@@ -125,6 +128,17 @@ class HallHeaderState extends State<HallHeader> {
     final w = widget, place = w.place, compact = isCafe(place), band = w.band, p = w.progress;
     final ns = M2Collapse.nameSize / _nameStyle.size;
     double c() => (w.scroll.value.clamp(0.0, r)) / r;
+    // M2 `fin * fade`: the status line, busy row and board leave with the scroll and come with the container
+    Widget faded(Widget child) => AnimatedBuilder(
+          animation: Listenable.merge([p, w.scroll, w.dayFade]), child: child,
+          builder: (_, ch) {
+            final o = incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd));
+            return Opacity(opacity: (o * w.dayFade.value).clamp(0.0, 1.0), child: IgnorePointer(ignoring: o <= 0.5, child: ch));
+          },
+        );
+    // The busy row's room: M2 keeps it (invisible) when there is no live reading, held at the 39 dp of a hall with its "Calmer around" line.
+    const room = ExcludeSemantics(child: Opacity(opacity: 0, child: IgnorePointer(child: BusyRow(lamps: 0, word: 'Busy', extra: 'Calmer around', header: true))));
+    final busy = w.busy ?? const AlwaysStoppedAnimation<HallBusyView?>(null);
     return SizedBox(
       key: _head,
       height: hh,
@@ -164,6 +178,14 @@ class HallHeaderState extends State<HallHeader> {
               child: AnimatedBuilder(animation: p, child: w.ghost, builder: (_, ch) => Opacity(key: const ValueKey('fade-ghost'), opacity: outgoingOpacity(p.value).clamp(0.0, 1.0), child: ch)),
             ),
           ],
+          if (!compact)
+            Positioned(
+              left: M2Space.gutter, right: M2Space.gutter, bottom: M2Layout.histBottom, height: M2Layout.histH,
+              child: faded(ValueListenableBuilder<HallBusyView?>(
+                valueListenable: busy,
+                builder: (_, v, _) => v?.board == null ? const SizedBox.shrink() : Arrive(key: const ValueKey('busy-board'), child: BusyBoard(view: v!)),
+              )),
+            ),
           // the title block: name (it travels into the bar), status line, busy row; all fade in after the container's early fade
           Positioned(
             left: M2Space.gutter, bottom: compact ? M2Layout.titleBottomCafe : M2Layout.titleBottom,
@@ -185,21 +207,26 @@ class HallHeaderState extends State<HallHeader> {
                   );
                 },
               ),
-              AnimatedBuilder(
-                animation: Listenable.merge([p, w.scroll, w.dayFade]),
-                // the status text is the only part of this row a day change touches
-                child: ValueListenableBuilder<String>(
-                  valueListenable: w.status,
-                  builder: (_, text, _) => _StatusLine(text: text, onTap: w.onStatus),
-                ),
-                builder: (_, ch) {
-                  final o = incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd));
-                  return Opacity(opacity: (o * w.dayFade.value).clamp(0.0, 1.0), child: IgnorePointer(ignoring: o <= 0.5, child: ch));
-                },
-              ),
+              // the status text is the only part of this row a day change touches
+              faded(ValueListenableBuilder<String>(
+                valueListenable: w.status,
+                builder: (_, text, _) => _StatusLine(text: text, onTap: w.onStatus),
+              )),
               // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
               if (compact) const SizedBox(height: M2Layout.busyTopHeader),
-              if (!compact) _busy,
+              if (!compact)
+                // the row takes its own height as it lands: the name settles over `settle` (at once under reduced motion) and the row fades in
+                faded(ValueListenableBuilder<HallBusyView?>(
+                  valueListenable: busy,
+                  builder: (_, v, _) {
+                    final row = v == null ? room : Arrive(key: const ValueKey('busy-live'), child: BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true));
+                    if (reducedMotion(context)) {
+                      _remeasure(); // (AnimatedSize cannot run for no time)
+                      return row;
+                    }
+                    return AnimatedSize(alignment: Alignment.topLeft, duration: M2Motion.settle.duration, curve: M2Motion.settle.curve, onEnd: _remeasure, child: row);
+                  },
+                )),
             ]),
           ),
         ]),

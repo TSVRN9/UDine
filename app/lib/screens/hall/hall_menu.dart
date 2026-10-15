@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
+import '../../core/hours.dart' show openSpan;
+import '../../core/occupancy.dart';
 import '../../core/m2/places.dart' show Roster;
 import '../../core/m2/schedule.dart' show statusLine;
 import '../../data/repository.dart' show resolveCafeMenu;
@@ -18,6 +20,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'hall_controller.dart';
 import 'hall_header.dart';
+import 'busy.dart';
 import 'meal_list.dart';
 import 'meal_pager.dart';
 import 'meal_tabs.dart';
@@ -70,6 +73,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   late final AnimationController _arrive = AnimationController(vsync: this, value: 1, duration: M2Motion.settle.duration);
   MenuState _seen = MenuState.ok;
   final _status = ValueNotifier<String>('');
+  final _busy = ValueNotifier<HallBusyView?>(null);
+  OccupancyRead? _busyRead;
   final _keys = ListKeys();
   final _listKey = GlobalKey(), _pagerKey = GlobalKey<SharedAxisLayerState>();
   List<ListItem> _items = const [];
@@ -130,10 +135,17 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     _jumpC.dispose();
     _station.dispose();
     _status.dispose();
+    _busy.dispose();
     super.dispose();
   }
 
   void _syncStatus() {
+    // busy is live: today's, and only while the reading is
+    final r = _day == 0 ? c.busy : null;
+    if (!identical(r, _busyRead)) {
+      _busyRead = r;
+      _busy.value = r == null ? null : HallBusyView.of(r, span: c.placeHours == null ? null : openSpan(c.placeHours!));
+    }
     final h = c.placeHours;
     final iso = _iso;
     // hours are not known until they arrive; another day's span only with its menu
@@ -403,7 +415,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
               offset: Offset(0, -d),
               child: Stack(clipBehavior: Clip.none, children: [
                 HallHeader(
-                  key: const ValueKey('header'), place: place, name: c.name, top: top, status: _status, progress: p, scroll: _scrollY, dayFade: kAlwaysCompleteAnimation, band: widget.band,
+                  key: const ValueKey('header'), place: place, name: c.name, top: top, status: _status, busy: _busy, progress: p, scroll: _scrollY, dayFade: kAlwaysCompleteAnimation, band: widget.band,
                   ghost: widget.ghost, onStatus: widget.onStatus == null || _status.value.isEmpty ? null : widget.onStatus,
                 ),
                 if (th > 0)

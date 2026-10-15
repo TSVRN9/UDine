@@ -113,4 +113,50 @@ void main() {
       expect(occupancyRead(typical: unsure, live: at(300), now: noon)!.lamps, lamps(sure, 300));
     });
   });
+
+  group('header board: the usual headcount per hour against the day\'s peak', () {
+    OccupancyRead read(List<OccupancyBucket> typical) => occupancyRead(typical: typical, live: at(300), now: noon)!;
+    final day = [
+      for (final (t, n) in [('11:00:00', 40), ('11:15:00', 80), ('11:30:00', 60), ('11:45:00', 20), ('12:00:00', 400), ('12:15:00', 200), ('13:00:00', 81), ('13:15:00', 79)]) b(t, n, 0),
+    ];
+    test('one column per hour holding buckets: the hour\'s highest bucket as a share of the peak, 20% a lamp, at least one', () {
+      final r = read(day);
+      expect([for (final c in r.board!) (c.hour, c.lamps)], [(11, 1), (12, 5), (13, 2)]);
+      expect(r.nowHour, 12);
+    });
+    test('no usable curve, no board', () {
+      expect(read(const []).board, isNull);
+      expect(read([b('12:00:00', 700, 2, 3), b('12:15:00', 700, 2, 1)]).board, isNull);
+      expect(read([b('12:00:00', 0, 0)]).board, isNull);
+    });
+    test('buckets under the sample floor still draw: the board is the hour\'s highest bucket, whatever its samples', () {
+      final r = read([b('11:00:00', 10, 0), b('12:00:00', 400, 1), b('13:00:00', 400, 1, 3), b('13:15:00', 300, 1, 1)]);
+      expect([for (final c in r.board!) (c.hour, c.lamps)], [(11, 1), (12, 5), (13, 5)]);
+    });
+    test('low confidence keeps the board', () {
+      final r = read([b('12:00:00', 400, 1, 6), b('12:15:00', 100, 0, 2)]);
+      expect(r.confidence, Confidence.low);
+      expect(r.board, hasLength(1));
+    });
+  });
+
+  group('late night: "Calmer around" reads the next weekday\'s early buckets', () {
+    // Wed 2026-10-14 11:30 PM EDT -> bucket 23:30.
+    final night = DateTime.utc(2026, 10, 15, 3, 30);
+    final today = [b('23:00:00', 700, 2), b('23:30:00', 700, 2), b('23:45:00', 700, 2)];
+    final tomorrow = [b('00:00:00', 650, 2), b('00:15:00', 640, 2), b('00:30:00', 100, 0), b('01:00:00', 20, 0)];
+    test('a clearing time after midnight comes from tomorrow\'s curve', () {
+      final r = occupancyRead(typical: today, tomorrow: tomorrow, live: at(700), now: night)!;
+      expect(r.usuallyClearsAt, DateTime.utc(2026, 10, 15, 4, 30)); // 12:30 AM Thu EDT
+      expect(r.calmerAt, '00:30');
+    });
+    test('today\'s own later bucket wins when it clears first, and without a next-day curve there is none', () {
+      expect(occupancyRead(typical: [b('23:30:00', 700, 2), b('23:45:00', 100, 0)], tomorrow: tomorrow, live: at(700), now: night)!.calmerAt, '23:45');
+      expect(occupancyRead(typical: today, live: at(700), now: night)!.usuallyClearsAt, isNull);
+    });
+    test('thin next-day samples are low confidence and drop calmerAt', () {
+      final thin = [b('00:30:00', 100, 0, 2)];
+      expect(occupancyRead(typical: today, tomorrow: thin, live: at(700), now: night)!.calmerAt, isNull);
+    });
+  });
 }

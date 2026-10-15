@@ -25,6 +25,10 @@ void main() {
       } else {
         await openHall(t, boot, route, w: w);
       }
+      // today's busy at a hall lands after its list (the curve is a second read): the capture waits for it
+      if (route.startsWith('/hall/') && !route.contains('day=') && net == NetMode.ok && !raw) {
+        await until(t, () => find.byType(Meter).evaluate().isNotEmpty && t.widget<Meter>(find.byType(Meter)).lit > 0);
+      }
       await act?.call(t);
       if (settle) await t.pumpAndSettle();
       await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/hall_${name}_$n.png'));
@@ -44,6 +48,10 @@ void main() {
 
     const base = '/hall/worcester?meal=lunch';
     testWidgets('Worcester lunch, $n dp', (t) => shot(t, 'lunch', base));
+    // the other three halls at 12:41: M2's lamps and words for each (a thin curve has no board)
+    for (final h in ['franklin', 'hampshire', 'berkshire']) {
+      testWidgets('$h lunch, busy, $n dp', (t) => shot(t, 'busy_$h', '/hall/$h?meal=lunch'));
+    }
     testWidgets('header collapsed, $n dp', (t) => shot(t, 'collapsed', base, act: (t) => scrollTo(t, 520)));
     for (final m in ['breakfast', 'dinner', 'late', 'grab']) {
       testWidgets('$m tab, $n dp', (t) => shot(t, 'tab_$m', '/hall/worcester?meal=$m'));

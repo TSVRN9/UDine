@@ -29,6 +29,10 @@ void main() {
       });
     }
   });
+  test('busyExtra: the clearing time wins, else busier or quieter than usual, else nothing', () {
+    expect([busyExtra('13:30', 'busier'), busyExtra(null, 'busier'), busyExtra(null, 'quieter'), busyExtra(null, 'usual'), busyExtra(null, null)],
+        ['Calmer around 1:30 PM', 'Busier than usual', 'Quieter than usual', '', '']);
+  });
   test('Cafés & markets counts: the fixture has 5 places in Southwest (M2 shot-pins.png predates Terrace and shows 4 of 4), all open at the clock', () {
     final counts = [for (var a = 0; a < 4; a++) board.places.where((p) => p.area == a).toList()];
     expect(counts.map((c) => c.length).toList(), [12, 7, 4, 5]);
