@@ -1,5 +1,10 @@
 // What a screen sees for one load. A repository call returns a stream of these: Loading (-> StillLoading if slow)
 // then one of Loaded / LoadedOffline / NotSaved / Failed. Retry = call the repository again.
+import '../theme/m2_tokens.g.dart';
+
+/// The slow threshold: M2's spinner delay, so StillLoading arrives when the spinner would show.
+final stillLoadingDelay = Duration(milliseconds: M2Motion.netSpinnerDelay.round());
+
 sealed class DataState<T> {
   const DataState();
 }
