@@ -38,12 +38,12 @@ class PlateLabelSheet extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: M2Layout.sheetTitleTop, bottom: M2Layout.sheetTitleBottom),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                  Semantics(header: true, child: Text('Your plate', style: M2Text.schedHead.style(M2Color.dm))),
+                  Semantics(header: true, child: Text('Your plate', style: M2Layout.plateLabelHead.style(M2Color.dm))),
                   const SizedBox(width: M2Layout.plateLabelGap),
                   Expanded(child: Text(plateLabel(fx, plate), textAlign: TextAlign.right, style: M2Text.date.style(M2Color.slate))),
                 ]),
               ),
-              Text(items, style: M2Text.ing.style(M2Color.slate)),
+              Text(items, style: M2Layout.plateKv.style(M2Color.slate)),
               Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: plateLabelRows(plate))),
             ]),
           ),

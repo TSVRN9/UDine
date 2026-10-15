@@ -100,6 +100,14 @@ class HallController extends ChangeNotifier {
     return feed.retail.where((r) => straight(r.name) == title).firstOrNull;
   }
 
+  /// Every café's location id by place key (`c3`), for the cafés the feed has one for (where a dish is served names them).
+  Map<String, int> get cafeIds {
+    final feed = _hoursValue?.feed;
+    if (feed == null) return const {};
+    final byTitle = {for (final r in feed.retail) straight(r.name): r.locationId};
+    return {for (var i = 0; i < cafeTable.length; i++) if (byTitle[straight(cafeTable[i].title)] case final id?) 'c$i': id};
+  }
+
   String get name => cafe ? cafeTable[int.parse(place.substring(1))].name : diningHalls[halls.indexOf(place)].name;
 
   /// The place's hours, once known.

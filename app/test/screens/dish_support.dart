@@ -12,9 +12,9 @@ import 'support.dart';
 String dishRoute(String name, {String place = 'worcester', String meal = 'lunch', String? day}) =>
     '/hall/$place?meal=$meal${day == null ? '' : '&day=$day'}&dish=${Uri.encodeQueryComponent(name)}';
 
-/// Waits for the dish sheet and its "where" answer (the halls' menus come from the cache), then lets it settle.
+/// Waits for the dish sheet and its whole "where" answer (halls from the cache, cafés fetched), then lets it settle.
 Future<void> sheetUp(WidgetTester t) async {
-  await until(t, () => find.byType(DishSheet).evaluate().isNotEmpty && find.byType(HallChip).evaluate().isNotEmpty);
+  await until(t, () => find.byType(DishSheet).evaluate().isNotEmpty && t.widget<DishSheet>(find.byType(DishSheet)).book.complete);
   await t.pumpAndSettle();
 }
 

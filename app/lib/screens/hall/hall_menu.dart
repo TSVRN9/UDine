@@ -202,7 +202,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   }
 
   void _openDish(MenuItem d) => openDishSheet(
-        context, dish: d, place: place, meal: _effectiveMeal, day: _day, fx: fx, avoid: _prefs.avoid, onServe: (p, g) => _serve(d, p, g),
+        context, dish: d, place: place, meal: _effectiveMeal, day: _day, fx: fx, avoid: _prefs.avoid, cafeIds: c.cafeIds, onServe: (p, g) => _serve(d, p, g),
       );
 
   /// A where-served tap, with the sheet half-way out: the place and day already showing bring the dish up where it is (revealed first
