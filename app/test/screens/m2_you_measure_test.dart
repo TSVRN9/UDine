@@ -21,11 +21,11 @@ final _dom = _file.existsSync() ? jsonDecode(_file.readAsStringSync()) as Map<St
 const _why = 'test/m2_dom_you.json is missing: run ~/.cache/udine-scratch/flutter/m2dom-you.js (phase 1 had no Chromium)';
 
 final _misses = <String>[];
-void _near(String what, Rect got, Object? want, int w, {bool block = false}) {
+void _near(String what, Rect got, Object? want, int w, {bool block = false, bool origin = false}) {
   if (want == null) return;
   final v = (want as List).cast<num>(), g = [got.left, got.top, got.width, got.height];
   for (var i = 0; i < 4; i++) {
-    if (block && i == 2) continue;
+    if ((block && i == 2) || (origin && i > 1)) continue;
     if ((g[i] - v[i]).abs() > 1.0) _misses.add('$what[${const ['left', 'top', 'width', 'height'][i]}] ours $g, M2 $v at $w dp');
   }
 }
@@ -35,6 +35,10 @@ void _flush() {
   _misses.clear();
   expect(m, isEmpty, reason: m.join('\n'));
 }
+
+// M2 draws a day's sections 20 dp further in: `dayBlock` (its `.sec` carries 20) is reused inside `.pbody` (20), so the padding doubles. Every
+// other page body, and You, sit at 20; the day page is built at 20, so M2's x is 20 less and its width 40 more.
+Object? _day(Object? r) => r is List ? [r[0] - 20, r[1], r[2] + 40, r[3]] : r;
 
 Object? _at(Object? list, int i) => list is List && i < list.length ? list[i] : null;
 
@@ -52,7 +56,7 @@ void main() {
       await openYou(t, b, w: w.toDouble());
       final y = m('you');
       _near('title', t.getRect(find.text('You').first), y['h1'], w, block: true);
-      _near('date', t.getRect(find.text('Thursday, October 8')), y['date'], w, block: true);
+      _near('date', t.getRect(find.text('Thursday, October 8')), y['date'], w, origin: true);
       _near('Today', t.getRect(find.text('Today')), _at(y['h2'], 0), w, block: true);
       _near('facts', t.getRect(find.byType(Facts)), _at(y['facts'], 0), w);
       _near('Meals', t.getRect(find.text('Meals')), _at(y['h2'], 1), w, block: true);
@@ -69,10 +73,10 @@ void main() {
       final b = await bootYou(t);
       await openYou(t, b, w: w.toDouble(), route: '/you/day/2026-10-07');
       final d = m('day');
-      _near('facts', t.getRect(find.byType(Facts)), _at(d['facts'], 0), w);
+      _near('facts', t.getRect(find.byType(Facts)), _day(_at(d['facts'], 0)), w);
       final rows = find.byType(LRow);
       for (var i = 0; i < 2; i++) {
-        _near('row $i', t.getRect(rows.at(i)), _at(d['lrows'], i), w);
+        _near('row $i', t.getRect(rows.at(i)), _day(_at(d['lrows'], i)), w);
       }
       _flush();
       await drain(t);
@@ -89,7 +93,7 @@ void main() {
         _near('prow $i', t.getRect(rows.at(i)), _at(s['prow'], i), w, block: true);
       }
       _near('facts', t.getRect(find.descendant(of: find.byType(Facts).last, matching: find.byType(Container)).first), s['facts'], w, block: true);
-      _near('Full label', t.getRect(find.text('Full label')), _at(s['tbtn'], 0), w, block: true);
+      _near('Full label', t.getRect(find.widgetWithText(TextAction, 'Full label')), _at(s['tbtn'], 0), w, block: true);
       final row = rows.first;
       for (var i = 0; i < 2; i++) {
         await t.tap(find.descendant(of: row, matching: find.bySemanticsLabel('Less')));
@@ -97,7 +101,7 @@ void main() {
       }
       final r = m('removed');
       _near('Removed', t.getRect(find.textContaining('Removed')), r['lgoneTx'], w, block: true);
-      _near('Undo', t.getRect(find.text('Undo')), r['lgoneBtn'], w, block: true);
+      _near('Undo', t.getRect(find.widgetWithText(TextAction, 'Undo')), r['lgoneBtn'], w);
       _flush();
       await drain(t);
     }, skip: _dom == null);

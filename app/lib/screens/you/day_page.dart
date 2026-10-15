@@ -27,9 +27,9 @@ class DayPage extends StatelessWidget {
             listenable: book,
             builder: (context, _) => SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.only(top: M2Layout.pbodyTop, left: M2Layout.pageSecInset - M2Space.gutter, right: M2Layout.pageSecInset - M2Space.gutter),
+              padding: const EdgeInsets.only(top: M2Layout.pbodyTop),
               child: Column(children: [
-                DayBlock(meals: book.meals, day: day, title: null, titleOf: (m) => mealTitle(m, fx), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
+                DayBlock(meals: book.meals, day: day, title: null, titleOf: (m) => mealTitle(m, fx, book.cafeIds), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
                 SizedBox(height: M2Layout.pbodyBottom + M2Layout.listFoot + safeBottom(context)),
               ]),
             ),

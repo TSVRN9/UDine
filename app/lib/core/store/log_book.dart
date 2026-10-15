@@ -18,6 +18,14 @@ class LogBook extends ChangeNotifier {
 
   List<LoggedMeal> get meals => _meals;
 
+  /// Café key to get_infov2 location id, from the saved hours (the shell sets it once they are in): how a café's meal is named.
+  Map<String, int> get cafeIds => _cafeIds;
+  Map<String, int> _cafeIds = const {};
+  set cafeIds(Map<String, int> v) {
+    _cafeIds = v;
+    notifyListeners();
+  }
+
   /// The effective day of the app's clock.
   String get today => effectiveTodayIso((_now ?? DateTime.now)(), defaultRolloverHour);
 

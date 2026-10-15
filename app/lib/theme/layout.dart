@@ -181,7 +181,6 @@ abstract final class M2Layout {
   static const pinGlyphStroke = 2.2; // `.icon svg` stroke-width
   // You's sections and the day page (`.sec`, `.lgone`, `.lrow .mc b`, `.empty`, `.pbody > .sec`)
   static const secHeadBottom = 4.0; // `.sec h2{margin:0 0 4px}` (secTop above is `.sec`'s padding-top)
-  static const pageSecInset = 40.0; // a day page's sections sit in `.pbody` (20) and carry their own `.sec` 20: M2 draws them 40 in
   static const lgoneMin = 64.0, lgoneGap = 8.0; // `.lgone`
   static const lgoneName = M2Type(16.0, null, 'LibreFranklin', FontWeight.w500); // `.lgone .n`: the row's name at 500
   static const mealCalNum = M2Type(18.0, null, 'Oswald', FontWeight.w600, tabular: true); // `.lrow .mc b`

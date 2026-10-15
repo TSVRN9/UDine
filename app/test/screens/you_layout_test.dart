@@ -27,12 +27,12 @@ void main() {
       await drain(t);
     });
 
-    testWidgets('a day: its sections sit 40 in (`.pbody` 20 and `.sec` 20), 8 + 20 under the bar at $w dp', (t) async {
+    testWidgets('a day: its sections sit at the 20 gutter like every page body, 8 + 20 under the bar at $w dp', (t) async {
       final b = await bootYou(t);
       await openYou(t, b, w: w, route: '/you/day/2026-10-07');
       final bar = t.getRect(find.byType(ScreenHeader)), facts = t.getRect(find.byType(Facts));
       expect(facts.top, closeTo(bar.bottom + M2Layout.pbodyTop + M2Layout.todayTop, 0.5));
-      expect((facts.left, facts.width), (M2Layout.pageSecInset, w - 2 * M2Layout.pageSecInset));
+      expect((facts.left, facts.width), (M2Space.gutter, w - 2 * M2Space.gutter));
       expect(t.getTopLeft(find.text('Meals')).dy, closeTo(facts.bottom + M2Layout.secTop, 0.5));
       await drain(t);
     });

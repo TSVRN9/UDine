@@ -25,7 +25,7 @@ void main() {
 
   test('the time, meal window and hall of a meal', () {
     final m = loggedMeals([e('a', '2026-10-07T12:41:00.000', tid: 4)]).single;
-    expect((m.time, m.meal, m.hall), ('12:41 PM', 'lunch', 'B'));
+    expect((m.time, m.meal, m.place(const {})), ('12:41 PM', 'lunch', 'B'));
     expect(loggedMeals([e('a', '2026-10-07T08:05:00.000')]).single.time, '8:05 AM');
     expect(loggedMeals([e('a', '2026-10-07T00:30:00.000')]).single.time, '12:30 AM');
     expect(loggedMeals([e('a', '2026-10-07T00:30:00.000')]).single.meal, 'late');
@@ -33,17 +33,26 @@ void main() {
     expect(loggedMeals([e('a', '2026-10-07T08:05:00.000')]).single.meal, 'breakfast');
   });
 
-  test('a plate of only custom and packaged foods has no hall; so does a tid that is not one of the four', () {
-    expect(loggedMeals([e('a', '2026-10-07T12:00:00.000', source: const CustomSource(customFoodId: 'x', productName: 'Chili'))]).single.hall, isNull);
-    expect(loggedMeals([e('a', '2026-10-07T12:00:00.000', tid: 99)]).single.hall, isNull);
+  test('a plate of only custom foods has no place, and neither does an id nothing lists', () {
+    expect(loggedMeals([e('a', '2026-10-07T12:00:00.000', source: const CustomSource(customFoodId: 'x', productName: 'Chili'))]).single.place(const {}), isNull);
+    expect(loggedMeals([e('a', '2026-10-07T12:00:00.000', tid: 99)]).single.place(const {'c3': 7}), isNull);
+    expect(loggedMeals([e('a', '2026-10-07T12:00:00.000', tid: -5)]).single.place(const {'c3': 7}), isNull); // RN's hashed id for a café the feed gave none
   });
 
-  test('titles and the delete receipt say the hall when there is one', () {
+  test('a café meal is named by its location id, as the plate\'s Log writes it', () {
+    final ids = {'c3': 71, 'c5': 88};
+    final m = loggedMeals([e('a', '2026-10-07T12:41:00.000', tid: 88)]).single;
+    expect(m.place(ids), 'c5');
+    expect(mealTitle(m, board, ids), 'Lunch at Wasabi');
+    expect(deletedLine(m, board, ids), 'Deleted Wasabi lunch');
+  });
+
+  test('titles and the delete receipt say the hall when there is one, and nothing when no place resolves', () {
     final w = loggedMeals([e('a', '2026-10-07T12:41:00.000')]).single, none = loggedMeals([e('a', '2026-10-07T12:41:00.000', tid: 99)]).single;
-    expect(mealTitle(w, board), 'Lunch at Worcester');
-    expect(deletedLine(w, board), 'Deleted Worcester lunch');
-    expect(mealTitle(none, board), 'Lunch');
-    expect(deletedLine(none, board), 'Deleted lunch');
+    expect(mealTitle(w, board, const {}), 'Lunch at Worcester');
+    expect(deletedLine(w, board, const {}), 'Deleted Worcester lunch');
+    expect(mealTitle(none, board, const {}), 'Lunch');
+    expect(deletedLine(none, board, const {}), 'Deleted lunch');
   });
 
   test('totals are each row times its servings, per meal and per day', () {

@@ -80,7 +80,7 @@ class _MealSheetState extends State<MealSheet> {
     } catch (_) {
       return;
     }
-    widget.onDeleted(deletedLine(m, widget.fx), undo);
+    widget.onDeleted(deletedLine(m, widget.fx, widget.book.cafeIds), undo);
   }
 
   Future<void> _ungone() async {
@@ -111,7 +111,7 @@ class _MealSheetState extends State<MealSheet> {
                       Padding(
                         padding: const EdgeInsets.only(top: M2Layout.sheetTitleTop, bottom: M2Layout.sheetTitleBottom),
                         child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                          Expanded(child: Semantics(header: true, child: Text(mealTitle(m, widget.fx), style: M2Layout.plateLabelHead.style(M2Color.dm)))),
+                          Expanded(child: Semantics(header: true, child: Text(mealTitle(m, widget.fx, widget.book.cafeIds), style: M2Layout.plateLabelHead.style(M2Color.dm)))),
                           const SizedBox(width: M2Layout.plateLabelGap),
                           Text(m.time, textAlign: TextAlign.right, style: M2Text.date.style(M2Color.slate)),
                         ]),
@@ -122,7 +122,7 @@ class _MealSheetState extends State<MealSheet> {
                         for (final it in m.items) PlateRow(key: ValueKey(it.id), item: PlateItem(it.id, it.name, it.qty, const {}, null), cal: it.calEach, onInc: () => _step(m, it, 1), onDec: () => _step(m, it, -1)),
                         if (_gone != null) GoneRow(name: _gone!.item.name, onUndo: _ungone),
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: M2Layout.factsMargin),
+                          padding: const EdgeInsets.only(top: M2Layout.labelTop), // (`.dish .facts{margin:24px 0 0}` wins over `.sheet .facts{margin:16px 0}`: a meal is a `.dish`)
                           child: Facts(cal: m.total.cal, p: m.total.p, c: m.total.c, f: m.total.f),
                         ),
                         Padding(

@@ -38,7 +38,7 @@ class YouScreen extends StatelessWidget {
                   child: Text(newerDatabase, style: M2Text.empty.style(M2Color.slate)),
                 )
               else ...[
-                DayBlock(meals: meals, day: today, title: 'Today', titleOf: (m) => mealTitle(m, fx), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
+                DayBlock(meals: meals, day: today, title: 'Today', titleOf: (m) => mealTitle(m, fx, book.cafeIds), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
                 if (earlier.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, 0),

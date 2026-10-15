@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../core/m2/history.dart' show cafeIdsOf;
+import '../data/repository.dart' show DataState, HoursData, Loaded, LoadedOffline;
 import '../motion/fade_through.dart';
+import 'app_scope.dart';
 import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
@@ -60,8 +65,27 @@ class ShellState extends State<Shell> implements ShellApi {
     if (mounted) setState(() => _sheets.remove(s));
   }
 
+  StreamSubscription<DataState<HoursData>>? _hours;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // the café ids the saved hours carry name a café's past meals (You); a failure or no hours leaves them as "Lunch"
+    final scope = AppScope.of(context), book = scope.log;
+    if (_hours == null && book != null) {
+      _hours = scope.repo.hours(scope.repo.today).listen((s) {
+        if (s is Loaded<HoursData>) {
+          book.cafeIds = cafeIdsOf(s.value.feed);
+        } else if (s is LoadedOffline<HoursData>) {
+          book.cafeIds = cafeIdsOf(s.value.feed);
+        }
+      }, onError: (Object _) {});
+    }
+  }
+
   @override
   void dispose() {
+    _hours?.cancel();
     _tab.dispose();
     super.dispose();
   }

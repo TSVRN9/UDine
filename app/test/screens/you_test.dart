@@ -2,6 +2,9 @@
 // inline Removed row, the Deleted receipt, and the newer-database message. The store-level guarantees are in test/core/store/log_book_test.dart.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
+import 'package:udine/core/m2/history.dart' show cafeIdsOf;
+import 'package:udine/core/types.dart';
+import 'package:udine/data/repository.dart' show HoursData, Loaded;
 import 'package:udine/screens/plate/plate_bar.dart';
 import 'package:udine/screens/plate/plate_row.dart';
 import 'package:udine/screens/you/day_page.dart';
@@ -68,6 +71,21 @@ void main() {
       final b = await bootYou(t);
       await openYou(t, b, route: '/you/day/2026-10-07');
       expect(find.byType(DayPage), findsOneWidget);
+      await drain(t);
+    });
+
+    testWidgets('a café meal is titled by the location id the saved hours give it; an id nothing lists stays "Lunch"', (t) async {
+      final b = await bootRecorded(t);
+      final ids = await t.runAsync(() async => cafeIdsOf(((await b.repo.hours(b.repo.today).firstWhere((s) => s is Loaded<HoursData>)) as Loaded<HoursData>).value.feed));
+      expect(ids!['c5'], isNotNull, reason: 'the recorded hours carry Wasabi\'s id');
+      LogEntry at(String id, String when, int tid) => LogEntry(id: id, loggedAt: when, source: UmassMenuSource(dishName: 'Sushi', hallTid: tid), servings: 1, nutrition: seedToday.first.nutrition);
+      await t.runAsync(() async {
+        await b.store!.addEntries([at('w', '2026-10-08T12:30:00.000', ids['c5']!), at('x', '2026-10-08T18:30:00.000', -7)]);
+        await b.log!.reload();
+      });
+      await openYou(t, b);
+      await until(t, () => find.text('Lunch at Wasabi').evaluate().isNotEmpty);
+      expect(find.text('Dinner'), findsOneWidget);
       await drain(t);
     });
 
