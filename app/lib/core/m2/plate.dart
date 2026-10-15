@@ -88,7 +88,7 @@ Macro macroOf(PlateItem it, [String? hall]) => it.custom ?? (hall != null ? it.r
   return (cal: cal, p: pr, c: c, f: f, n: n);
 }
 
-String _hallLabel(Board fx, List<String>? hs) {
+String hallLabel(Board fx, List<String>? hs) {
   if (hs == null) return '';
   final n = hs.map((h) => placeName(fx, h)).toList();
   return n.length == 1 ? n[0] : n.length == 4 && !hs.any(isCafe) ? 'Any hall' : '${n.sublist(0, n.length - 1).join(', ')} or ${n.last}';
@@ -96,7 +96,7 @@ String _hallLabel(Board fx, List<String>? hs) {
 
 String plateLabel(Board fx, Plate p) {
   final hs = plateHalls(p);
-  return hs != null ? '${_hallLabel(fx, hs)} ${mealLabel[p.meal]!.toLowerCase()}' : mealLabel[p.meal]!;
+  return hs != null ? '${hallLabel(fx, hs)} ${mealLabel[p.meal]!.toLowerCase()}' : mealLabel[p.meal]!;
 }
 
 /// M2 `plateMeal`: a café's all-day or Grab 'N Go menu goes on the plate of the meal the clock is in.

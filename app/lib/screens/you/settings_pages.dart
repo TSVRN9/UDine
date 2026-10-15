@@ -1,12 +1,15 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/m2/board.dart' show MenuItem, M2MenuItem, dishKey, halls;
 import '../../core/m2/menu_view.dart' show allergens;
+import '../../core/m2/plate.dart' show hallLabel;
 import '../../core/m2/rank.dart';
 import '../../core/ranking.dart';
 import '../../core/types.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../plate/plate_sheet.dart' show plateBoard;
 
 /// A pushed page of You (`.page`): the maroon bar with its title, then the body on chalk.
 class SettingsPage extends StatelessWidget {
@@ -70,23 +73,50 @@ class DietPage extends StatelessWidget {
   }
 }
 
-/// Favorites: the dishes starred, newest last, as the device holds them.
-class FavoritesPage extends StatelessWidget {
+/// Favorites: the dishes starred, each with where it is at lunch today (the halls whose menu carries it, read through the repository's
+/// background prefetch, as Search does; a hall that did not answer is left out).
+class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key, required this.top});
   final double top;
   @override
+  State<FavoritesPage> createState() => _FavoritesPageState();
+}
+
+class _FavoritesPageState extends State<FavoritesPage> {
+  Map<String, List<String>>? _lunch; // dish key -> the halls (W F H B) serving it at lunch today
+
+  @override
+  void initState() {
+    super.initState();
+    final repo = AppScope.of(context).repo, day = repo.today;
+    repo.prefetchMenus([for (var t = 1; t <= halls.length; t++) (t, day)]).then((got) {
+      final at = <String, List<String>>{};
+      for (var t = 1; t <= halls.length; t++) {
+        for (final d in got[(t, day)] ?? const <MenuItem>[]) {
+          if (d.mealPeriod == MealPeriod.lunch) (at[d.key] ??= []).add(halls[t - 1]);
+        }
+      }
+      if (mounted) setState(() => _lunch = at);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final prefs = AppScope.of(context).prefs;
+    final scope = AppScope.of(context), prefs = scope.prefs, fx = plateBoard(scope.repo.now());
     return SettingsPage(
-      top: top,
+      top: widget.top,
       title: 'Favorites',
       child: ListenableBuilder(
         listenable: prefs,
         builder: (context, _) {
           final f = prefs.favorites.toList();
-          return f.isEmpty
-              ? const _Empty("Star a dish from its details and it shows up here, with where it's served today.")
-              : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final (i, n) in f.indexed) LRow(title: n, chevron: false, last: i == f.length - 1)]);
+          if (f.isEmpty) return const _Empty("Star a dish from its details and it shows up here, with where it's served today.");
+          String? line(String n) {
+            final at = _lunch?[dishKey(n)];
+            return _lunch == null ? null : at == null ? 'Not on lunch today' : 'At lunch now at ${hallLabel(fx, at)}';
+          }
+
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final (i, n) in f.indexed) LRow(title: n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
         },
       ),
     );

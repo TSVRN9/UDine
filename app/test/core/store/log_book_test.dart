@@ -133,4 +133,17 @@ void main() {
     expect(book.meals.expand((m) => m.items).map((i) => i.id), contains('n'));
     expect(shown('a'), 2);
   });
+
+  test('a pick and an export run in turn behind a pending edit, and a re-read asked meanwhile still lands', () async {
+    await db.insert('log_entries', {'id': 'n', 'logged_at': '2026-10-08T12:41:00.000', 'source_json': src('Pizza'), 'servings': 1, 'nutrition_json': nut});
+    final edit = book.setServings(book.meals.first.items.first, 2);
+    final reread = book.reload();
+    final picked = book.pick(const LoggedDish('Burger', 2), const LoggedDish('Posole', 1));
+    final out = book.exportFiles(json: true);
+    await Future.wait([edit, reread, picked, out]);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect((await out)['udine-export.json'], contains('"servings": 2'), reason: 'the export ran after the edit wrote');
+    expect(book.meals.expand((m) => m.items).map((i) => i.id), contains('n'));
+    expect((await UdineStore(db).rankedDishes()).length, 2);
+  });
 }

@@ -156,6 +156,20 @@ void main() {
   });
 
   group('Favorites', () {
+    testWidgets('each starred dish says where it is at lunch today: the halls that serve it, or that it is not on lunch today', (t) async {
+      final b = await bootYou(t);
+      await t.runAsync(() async {
+        await b.prefs.toggleFavorite('Beef Brisket Noodle Bowl'); // Worcester and Berkshire, M2's recorded lunch
+        await b.prefs.toggleFavorite('Golden BBQ Chicken Thigh'); // Worcester only
+        await b.prefs.toggleFavorite('Cheese Soufflé Not On Any Menu');
+      });
+      await openYou(t, b, route: '/you/favs');
+      await until(t, () => find.text('At lunch now at Worcester or Berkshire').evaluate().isNotEmpty);
+      expect(find.text('At lunch now at Worcester'), findsOneWidget);
+      expect(find.text('Not on lunch today'), findsOneWidget);
+      await drain(t);
+    });
+
     testWidgets('lists the starred dishes; with none, the empty line', (t) async {
       final b = await bootYou(t);
       await openYou(t, b, route: '/you/favs');
