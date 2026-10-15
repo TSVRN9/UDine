@@ -7,7 +7,7 @@ import 'package:udine/screens/search/events.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
-import 'search_screen_test.dart' show finish, openSearch, settle, type;
+import 'search_screen_test.dart' show finish, focused, openSearch, settle, type;
 import 'support.dart';
 
 Future<void> openEventsApp(WidgetTester t, String route) async {
@@ -89,6 +89,30 @@ void main() {
     await openSearch(t);
     await until(t, () => find.byType(EventCard).evaluate().isNotEmpty);
     expect(find.byType(Image), findsNothing);
+    await finish(t);
+  });
+
+  testWidgets('coming back from the event page, or from a hall opened from its card, leaves the field unfocused (no keyboard)', (t) async {
+    await openSearch(t);
+    await until(t, () => find.byType(EventCard).evaluate().isNotEmpty);
+    expect(focused(t), isTrue); // Search opens in its field
+    await t.tap(find.byType(EventCard).first);
+    await t.pumpAndSettle();
+    await t.tap(find.byType(BackButton));
+    await t.pumpAndSettle();
+    expect(focused(t), isFalse);
+    expect(t.view.viewInsets.bottom, 0);
+    await type(t, 'worcester');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(t);
+    await t.tap(find.byType(Band).first);
+    await t.pump();
+    await until(t, () => find.byType(HallMenu).evaluate().isNotEmpty);
+    await settle(t);
+    await t.tap(find.byType(BackButton).first);
+    await settle(t);
+    expect(find.byType(HallMenu), findsNothing);
+    expect(focused(t), isFalse);
     await finish(t);
   });
 }

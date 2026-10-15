@@ -65,7 +65,10 @@ class _EventsIdleState extends State<EventsIdle> {
             padding: const EdgeInsets.fromLTRB(M2Layout.evcStart, M2Layout.evcTop, 0, M2Layout.evcBottom),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               for (final (i, e) in live) ...[
-                SizedBox(width: w, child: EventCard(event: e, today: today, onTap: () => widget.onOpen != null ? widget.onOpen!(i) : openEvent(context, i, widget.top))),
+                SizedBox(width: w, child: EventCard(event: e, today: today, onTap: () {
+                  FocusManager.instance.primaryFocus?.unfocus(); // the route restores the focus it left, so Search must not be holding the field
+                  widget.onOpen != null ? widget.onOpen!(i) : openEvent(context, i, widget.top);
+                })),
                 if (e != live.last.$2) const SizedBox(width: M2Layout.evcGap),
               ],
               if (!one) const SizedBox(width: M2Layout.evcTail + M2Layout.evcGap),
