@@ -138,6 +138,16 @@ void main() {
     expect(calls, hasLength(1));
   });
 
+  test('fetches run through the pool when there is one', () async {
+    var ran = 0;
+    cache.pool = <T>(job) {
+      ran++;
+      return job();
+    };
+    await cache.open(lunch).drain<void>();
+    expect(ran, 1);
+  });
+
   test('prune keeps the listed URLs and drops the rest (a changed URL leaves nothing behind)', () async {
     await cache.open(lunch).drain<void>();
     await cache.open(dinner).drain<void>();

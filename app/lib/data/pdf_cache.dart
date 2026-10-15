@@ -7,6 +7,9 @@ import '../core/content.dart' show isUmassDiningHost;
 import 'source.dart';
 import 'states.dart';
 
+/// Runs a network job. The repository's `_pooled` when one is wired in (shared slots and offline window), else the job itself.
+typedef Pool = Future<T> Function<T>(Future<T> Function() job);
+
 /// Café menu PDFs kept on the phone: one file per URL under [dir] (the app support directory's `pdf/`). A saved file is the answer, with no
 /// request: a changed URL is simply another file, and [prune] drops the ones the feed no longer lists.
 class PdfCache {
@@ -14,6 +17,8 @@ class PdfCache {
   final Directory dir;
   final http.Client client;
   final Duration timeout, stillLoadingAfter;
+
+  Pool pool = <T>(job) => job();
 
   /// FNV-1a over the URL's UTF-16 units: stable across runs (String.hashCode is not) and short enough for any file system.
   String _name(String url) {
@@ -59,7 +64,7 @@ class PdfCache {
 
   Future<File> _fetch(String url) async {
     if (!isUmassDiningHost(url)) throw ArgumentError.value(url, 'url', 'not a umassdining.com link');
-    final bytes = await sendBytes(client, timeout, 'GET', Uri.parse(url));
+    final bytes = await pool(() => sendBytes(client, timeout, 'GET', Uri.parse(url)));
     if (bytes.length < 5 || String.fromCharCodes(bytes.take(5)) != '%PDF-') throw FormatException('not a PDF', url);
     dir.createSync(recursive: true);
     final f = file(url), tmp = File('${f.path}.part');

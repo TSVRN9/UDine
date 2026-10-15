@@ -16,8 +16,8 @@ void main() {
     final n = w.toInt();
 
     /// Opens `route` (or a place by a push), runs `act`, and compares the screen with `hall_<name>_<n>.png`.
-    Future<void> shot(WidgetTester t, String name, String route, {NetMode net = NetMode.ok, bool health = false, bool carbon = false, String? place, Future<void> Function(WidgetTester)? act, bool settle = true, bool raw = false}) async {
-      final boot = await bootRecorded(t, net: net, health: health, carbon: carbon);
+    Future<void> shot(WidgetTester t, String name, String route, {NetMode net = NetMode.ok, bool health = false, bool carbon = false, List<String> avoid = const [], String? place, Future<void> Function(WidgetTester)? act, bool settle = true, bool raw = false}) async {
+      final boot = await bootRecorded(t, net: net, health: health, carbon: carbon, avoid: avoid);
       if (raw) {
         await openApp(t, boot, route: route, w: w);
       } else if (place != null) {
@@ -100,5 +100,31 @@ void main() {
     testWidgets('offline with the day saved, $n dp', (t) => shot(t, 'offline', base, net: NetMode.offline));
     testWidgets('offline, the day not saved, $n dp', (t) => shot(t, 'offline_unsaved', '/hall/worcester?meal=lunch&day=2026-10-12', net: NetMode.offline));
     testWidgets('failed, $n dp', (t) => shot(t, 'failed', base, net: NetMode.fail));
+
+    // the schedule sheet: opened by the day cell, at rest (the days' menus landed)
+    Future<void> openSched(WidgetTester t) async {
+      await t.tap(find.descendant(of: find.byType(StationRow), matching: find.byType(Press)).at(1));
+      await drain(t);
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('the schedule on today, $n dp', (t) => shot(t, 'sched_today', base, act: openSched));
+    testWidgets('the schedule on a later day (Sat Oct 17), $n dp', (t) => shot(t, 'sched_later', '/hall/worcester?meal=lunch&day=2026-10-17', act: openSched));
+    testWidgets('the schedule on a holiday-hours day (Mon Oct 12), $n dp', (t) => shot(t, 'sched_holiday', '/hall/worcester?meal=lunch&day=2026-10-12', act: openSched));
+    testWidgets('the schedule of a café with dishes (Green Fields), $n dp', (t) => shot(t, 'sched_cafe', '', place: 'c3', act: openSched));
+
+    // the dietary line: hiding, revealed, hidden again
+    const milkEggs = ['Milk', 'Eggs'];
+    testWidgets('the dietary line hiding 22, $n dp', (t) => shot(t, 'diet_hiding', base, avoid: milkEggs));
+    testWidgets('the dietary line revealed, $n dp', (t) => shot(t, 'diet_revealed', base, avoid: milkEggs, act: (t) async {
+          await t.tap(find.text('Show all', findRichText: true));
+          await t.pumpAndSettle();
+        }));
+    testWidgets('the dietary line hidden again, $n dp', (t) => shot(t, 'diet_hidden_again', base, avoid: milkEggs, act: (t) async {
+          await t.tap(find.text('Show all', findRichText: true));
+          await t.pumpAndSettle();
+          await t.tap(find.text('Hide them', findRichText: true));
+          await t.pumpAndSettle();
+        }));
   }
 }

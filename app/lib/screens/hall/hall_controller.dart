@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/places.dart';
 import '../../core/occupancy.dart';
+import '../../core/m2/schedule.dart' show NetMode;
 import '../../core/stations.dart' show normalizeStationName;
 import '../../core/types.dart';
 import '../../core/content.dart' show RetailMenuPdf;
@@ -164,6 +165,7 @@ class HallController extends ChangeNotifier {
 
   /// Try again: the same calls again.
   void retry(int day) {
+    repo.retryNetwork();
     _subs.remove(day)?.cancel();
     menus.remove(day);
     if (hours is Failed || hours is NotSaved) _loadHours();
@@ -185,6 +187,16 @@ class HallController extends ChangeNotifier {
       NotSaved() => MenuState.offline,
       Failed() => MenuState.fail,
     };
+  }
+
+  /// The day as the schedule says it (`schedule(modeOf:)`): loaded, still loading, not saved on the phone, or didn't load.
+  NetMode netOf(int day) => switch (state(day)) { MenuState.ok => NetMode.ok, MenuState.loading => NetMode.slow, MenuState.offline => NetMode.offline, MenuState.fail => NetMode.fail };
+
+  /// Starts every day of the range (the schedule says which have a menu): the repository answers from the phone first.
+  void loadAll() {
+    for (var i = 0; i < isos.length; i++) {
+      load(i);
+    }
   }
 
   List<MenuItem>? items(int day) => switch (menus[day]) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
@@ -211,7 +223,7 @@ class HallController extends ChangeNotifier {
     final r = roster;
     return Board(
       clock: repo.now(),
-      places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1), ...?r?.cafes],
+      places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1, address: r?.hours[halls[i]]?.address, mapAddress: r?.hours[halls[i]]?.mapAddress), ...?r?.cafes],
       hours: r?.hours ?? const {},
       grab: {place: ?grab},
       days: {for (var i = 0; i < isos.length; i++) isos[i]: {if (items(i) case final it? when it.isNotEmpty) place: mealsOfItems(it)}},

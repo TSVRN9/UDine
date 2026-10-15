@@ -87,7 +87,9 @@ String addDays(String iso, int days) {
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
   Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
-    : now = now ?? DateTime.now;
+    : now = now ?? DateTime.now {
+    pdfs?.pool = _pooled; // PDFs take the same slots and honour the same offline window as the menus
+  }
   final UmassSource source;
   final SupabaseSource? supabase;
 
@@ -99,6 +101,51 @@ class Repository {
 
   /// A saved copy older than this, when the refresh can't reach the network, is reported as LoadedOffline (menuPrefetch.ts's 6h).
   static const menuFresh = Duration(hours: 6);
+
+  /// Every network fetch of `_load` goes through [_pooled]: at most this many in flight at once (a 15-day schedule open is 15 fetches).
+  static const maxInFlight = 4;
+
+  /// After a fetch fails Unreachable, later fetches skip the network for this long and resolve from the phone.
+  // ponytail: one window for every feed and place, cleared by any success or [retryNetwork]; per-host backoff if a feed can be down while others are up.
+  static const offlineWindow = Duration(seconds: 30);
+
+  int _inFlight = 0;
+  final _waiting = <Completer<void>>[];
+  DateTime? _offlineUntil;
+
+  /// "Try again": the next fetch asks the network whatever the last one said.
+  void retryNetwork() => _offlineUntil = null;
+
+  /// Runs [fetch] when one of the [maxInFlight] slots is free. Inside the offline window it does not run: it throws Unreachable
+  /// as the network would, so the caller's offline path (saved copy, NotSaved) answers. Unreachable starts the window; any
+  /// answer ends it.
+  Future<T> _pooled<T>(Future<T> Function() fetch) async {
+    if (_inFlight >= maxInFlight) {
+      final turn = Completer<void>();
+      _waiting.add(turn);
+      await turn.future; // a finishing fetch hands its slot over
+    } else {
+      _inFlight++;
+    }
+    try {
+      final until = _offlineUntil;
+      if (until != null && now().isBefore(until)) throw const _SkippedOffline(); // (does not extend the window)
+      final v = await fetch();
+      _offlineUntil = null;
+      return v;
+    } on _SkippedOffline {
+      throw const Unreachable('offline window');
+    } on Unreachable {
+      _offlineUntil = now().add(offlineWindow);
+      rethrow;
+    } finally {
+      if (_waiting.isEmpty) {
+        _inFlight--;
+      } else {
+        _waiting.removeAt(0).complete();
+      }
+    }
+  }
 
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
 
@@ -382,7 +429,7 @@ class Repository {
           slow = Timer(stillLoadingAfter, () => c.add(StillLoading()));
         }
         try {
-          final raw = await fetch();
+          final raw = await _pooled(fetch);
           final value = parse(raw, true);
           slow?.cancel();
           if (saved != null && isEmpty != null && isEmpty(value)) {
@@ -415,4 +462,8 @@ class Repository {
     }();
     return c.stream;
   }
+}
+
+class _SkippedOffline implements Exception {
+  const _SkippedOffline();
 }

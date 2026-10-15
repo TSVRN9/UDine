@@ -53,6 +53,12 @@ void main() {
       expect(recordedFlags('/?data=recorded&saved=pdf:Lunch,Green Fields,pdf:Dinner')!.savedPdfs, {'Lunch', 'Dinner'});
       expect(recordedFlags('/?data=recorded')!.savedPdfs, isEmpty);
     });
+    test('avoid=Milk,Eggs and only=Halal set the Avoid list and "Only show" tags for a capture', () {
+      final f = recordedFlags('/?data=recorded&avoid=Milk,Eggs&only=Halal')!;
+      expect(f.avoid, ['Milk', 'Eggs']);
+      expect(f.onlyShow, ['Halal']);
+      expect(recordedFlags('/?data=recorded')!.avoid, isEmpty);
+    });
     test('no data flag, no switch', () => expect(recordedFlags('/hall/worcester?net=fail'), isNull));
   });
 

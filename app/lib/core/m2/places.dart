@@ -1,6 +1,7 @@
 // The cafés and markets M2 lists, with their areas and buildings: a port of build.py's AREAS, CAFES and SHORT (get_infov2 carries
 // neither). A café's key is `c<index in this table>`, so Terrace is c27 and Charles River c28. babyBerk, the Grab 'N Go entries and
 // The Commonwealth Restaurant are not in the table, so they are never listed. Checked against the fixture's places and vectors.json.
+import '../hours.dart' show parseMapAddress, parseStreetAddress;
 import '../types.dart';
 import 'board.dart';
 
@@ -96,7 +97,7 @@ class Roster {
       final key = 'c$i';
       cafes.add(Place(
         key: key, name: e.name, area: e.area, building: e.building, description: r.description ?? '', payment: r.acceptedPayment ?? '',
-        address: r.address, mapAddress: r.mapAddress,
+        address: parseStreetAddress(r.address), mapAddress: parseMapAddress(r.mapAddress),
       ));
       hours[key] = DiningHallHours(hallTid: 0, general: r.hours);
     }

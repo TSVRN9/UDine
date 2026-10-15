@@ -48,6 +48,11 @@ class Boot {
     final flags = recordedFlags(route);
     final pinsQuery = Uri.parse(route).queryParameters['pins'], pinsFlag = int.tryParse(pinsQuery ?? '');
     final (cache, store) = await openDb(dbPath: flags != null ? inMemoryDatabasePath : (dbPath ?? await udineDbPath()));
+    if (flags != null) {
+      await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
+      if (flags.avoid.isNotEmpty) await store?.setAvoid(flags.avoid);
+      if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
+    }
     final prefs = await AppPrefs.load(store, pins: pinsFlag != null ? _fivePins.take(pinsFlag).toList() : flags != null && pinsQuery != null ? pinsQuery.split(',') : null);
     final Repository repo;
     if (flags != null) {
@@ -58,7 +63,6 @@ class Boot {
       final client = http.Client();
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));
     }
-    if (flags != null) await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
     if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
     return Boot(repo, store, prefs);
   }
