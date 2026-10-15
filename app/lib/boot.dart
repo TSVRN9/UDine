@@ -57,7 +57,7 @@ class Boot {
     final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
     if (flags == null) repo.launch(); // warm today and tomorrow; never throws
     final boot = Boot(repo, store, prefs);
-    await boot.seedPlate(route);
+    if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
     return boot;
   }
 

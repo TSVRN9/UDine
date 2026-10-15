@@ -42,6 +42,7 @@ class ShellState extends State<Shell> implements ShellApi {
   final _tab = ValueNotifier<int>(0);
   final _tabBar = GlobalKey();
   final _flights = <_Flight>[];
+  bool Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
   final _sheets = <_Sheet>[];
 
@@ -55,6 +56,9 @@ class ShellState extends State<Shell> implements ShellApi {
   @override
   void openPlace(String place, {required String meal, required int day, required String dish}) =>
       Nav.push<void>(navigator.currentContext!, (_) => HallMenuPage(place: place, top: safeTop(context), day: day, meal: meal, landOn: dish));
+
+  @override
+  void handleBack(bool Function()? handler) => _plateBack = handler;
 
   @override
   void openSearch({required String meal}) => _select(1);
@@ -104,6 +108,8 @@ class ShellState extends State<Shell> implements ShellApi {
     final n = navigator.currentState;
     if (_sheets.isNotEmpty) {
       _sheets.last.handle.close();
+    } else if (_plateBack?.call() ?? false) {
+      return;
     } else if (n != null && n.canPop()) {
       n.pop();
     } else {

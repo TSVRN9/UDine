@@ -84,22 +84,19 @@ class PlateModel extends ChangeNotifier {
     final plate = _s.plates[_s.front],
         at = place ?? plateHalls(plate)?.firstOrNull;
     try {
-      final now = _clock, loggedAt = nowLocalIso(now);
+      final now = _clock, loggedAt = nowLocalIso(now), day = effectiveTodayIso(now, defaultRolloverHour);
       final rows = logEntries(plate, place: at, loggedAt: loggedAt);
+      // (M2 logPlate: the day's total is read before the rows go in, so nothing that can fail runs after they commit; a Log whose rows
+      // are in always ends in a receipt and an Undo)
+      final before = computeDailyTotals(day, await rd(day)).calories;
       final undo = await w(rows);
-      final day = effectiveTodayIso(now, defaultRolloverHour);
-      final dayCal = computeDailyTotals(
-        day,
-        await rd(day),
-      ).calories;
+      final dayCal = before + rows.fold<num>(0, (a, e) => a + e.nutrition.calories * e.servings);
+      // ponytail: the plate is taken out by id, as it was when Log was tapped; an item added to it during the write is neither logged
+      // nor brought back by Undo (a few ms wide; snapshot-compare the plate and keep the difference if it ever shows)
       final index = _s.plates.indexWhere((p) => p.id == plate.id);
       if (index >= 0) {
         final plates = [..._s.plates]..removeAt(index);
-        _s = PlateState(
-          plates,
-          _s.front.clamp(0, plates.isEmpty ? 0 : plates.length - 1),
-          _s.nextId,
-        );
+        _s = PlateState(plates, _s.front.clamp(0, plates.isEmpty ? 0 : plates.length - 1), _s.nextId);
       }
       _receipt = Receipt._(
         plate,

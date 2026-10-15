@@ -144,7 +144,6 @@ abstract final class M2Layout {
   static const customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom` inset 1.5px rgba(136,28,28,.5)
   static const barHide = 1.1; // `#bar{transform:translateY(110%)}` until a plate is on it
   static const twobTop = 6.0; // `.twob`
-  static const receiptTodayGap = 6.0; // the receipt's `Today <n> cal`: `.l2` spacing as the plate's
   static const tossPadX = 12.0, tossPadY = 4.0, tossArc = 72.0; // the calorie tag in flight: its pill and how high its path bows (unmeasured: no M2 source)
   // You and its pages (`.yhead`, `.pbody`, `.dh`)
   static const youHeadBottom = 18.0; // `.yhead` padding-bottom
