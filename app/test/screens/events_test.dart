@@ -56,7 +56,8 @@ void main() {
     expect(find.text('See the menu'), findsOneWidget);
     expect(find.text('Holiday hours'), findsOneWidget);
     final kinds = [for (final b in t.widgetList<Button>(find.byType(Button))) b.kind];
-    expect(kinds, [ButtonKind.gold, ButtonKind.outline]);
+    expect(kinds, [ButtonKind.gold, ButtonKind.outline, ButtonKind.outline]);
+    expect(find.text('Open the flyer'), findsOneWidget);
     expect(find.text('Mon, Oct 12'), findsOneWidget);
     await t.tap(find.byType(BackButton));
     await t.pumpAndSettle();
