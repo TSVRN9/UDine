@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'boot.dart';
 import 'dev/kit_gallery.dart';
+import 'screens/plate/plate_sheet.dart';
 import 'shell/shell.dart';
 import 'theme/tokens.dart';
 
@@ -22,7 +23,7 @@ class UdineApp extends StatelessWidget {
       pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),
       onGenerateRoute: (s) => PageRouteBuilder<void>(
         settings: s,
-        pageBuilder: (_, _, _) => !kReleaseMode && Uri.parse(s.name ?? '/').path == '/kit' ? const KitGallery() : b == null ? const ColoredBox(color: M2Color.dm) : b.wrap(Shell(initialRoute: s.name ?? '/')),
+        pageBuilder: (_, _, _) => !kReleaseMode && Uri.parse(s.name ?? '/').path == '/kit' ? const KitGallery() : b == null ? const ColoredBox(color: M2Color.dm) : b.wrap(Shell(initialRoute: s.name ?? '/', plateBar: const PlateSheet())),
       ),
     );
   }
