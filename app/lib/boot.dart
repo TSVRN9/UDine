@@ -36,7 +36,7 @@ class Boot {
   final UdineStore? store;
   final AppPrefs prefs;
   final hider = BandHider();
-  final plate = PlateModel();
+  late final plate = PlateModel(write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now);
 
   /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.

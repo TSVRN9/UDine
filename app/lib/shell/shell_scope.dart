@@ -10,6 +10,12 @@ abstract class ShellApi {
   /// Pushes a place's menu (a hall or a café, `W` or `c3`) onto the stack at a day and meal, already scrolled to the dish named by
   /// `dish` (its `key`): where a where-served tap goes.
   void openPlace(String place, {required String meal, required int day, required String dish});
+
+  /// Goes to the Search tab (the plate's Add something else) for a plate of `meal`.
+  void openSearch({required String meal});
+
+  /// Flies `text` from `from` (global) to the You tab, where a logged plate lands.
+  void toss({required Offset from, required String text});
 }
 
 class ShellScope extends InheritedWidget {

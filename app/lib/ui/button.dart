@@ -15,7 +15,9 @@ class Button extends StatelessWidget {
   final VoidCallback? onTap;
   /// full width (`.btn`) rather than the label's width
   final bool expand;
-  const Button({super.key, required this.kind, required this.label, this.onTap, this.size, this.expand = false});
+  /// the choose bar's `.gbtn` (`min-width:0;padding:0 14px`): as wide as its label
+  final bool compact;
+  const Button({super.key, required this.kind, required this.label, this.onTap, this.size, this.expand = false, this.compact = false});
 
   ButtonSize get _size => size ?? switch (kind) {
         ButtonKind.primary || ButtonKind.line => ButtonSize.large,
@@ -39,8 +41,8 @@ class Button extends StatelessWidget {
     final body = Container(
       height: h,
       width: expand ? double.infinity : null,
-      constraints: kind == ButtonKind.gold ? const BoxConstraints(minWidth: M2Layout.gbtnMinW) : null,
-      padding: EdgeInsets.symmetric(horizontal: pad),
+      constraints: kind == ButtonKind.gold && !compact ? const BoxConstraints(minWidth: M2Layout.gbtnMinW) : null,
+      padding: EdgeInsets.symmetric(horizontal: compact ? M2Layout.logAtPad : pad),
       alignment: Alignment.center,
       decoration: BoxDecoration(color: bg, borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)), border: ring == null || inset ? null : Border.all(color: ring, width: M2Layout.rule)),
       // `.dirb`'s ring is an inset box-shadow: drawn over the box, taking no room from the padding (the other rings are borders)
