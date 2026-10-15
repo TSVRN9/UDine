@@ -167,7 +167,7 @@ class _PlateSheetState extends State<PlateSheet>
 
     c.addListener(check);
     check();
-    await ready.future.timeout(Duration(milliseconds: M2Motion.netSlow.round()), onTimeout: () {});
+    await ready.future.timeout(msOf(M2Motion.netSlow), onTimeout: () {});
     c.removeListener(check);
     if (!mounted) return c.dispose();
     openDishSheet(

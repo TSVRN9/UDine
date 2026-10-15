@@ -10,6 +10,7 @@ import '../core/m2/plate.dart';
 import '../core/store/store.dart' show Undo;
 import '../core/types.dart' show LogEntry;
 import '../theme/tokens.dart';
+import '../ui/motion.dart' show msOf;
 
 /// What Log wrote and where the plate was: the receipt, and the way back.
 /// What went wrong the last time the user asked for a write: Log (the plate is kept) or Undo (the rows and the receipt are kept).
@@ -84,7 +85,7 @@ class PlateModel extends ChangeNotifier {
 
   void _arm() {
     _timer?.cancel();
-    _timer = Timer(Duration(milliseconds: M2Motion.receiptD), () {
+    _timer = Timer(msOf(M2Motion.receiptD), () {
       _receipt = null;
       _failure = null;
       notifyListeners();
