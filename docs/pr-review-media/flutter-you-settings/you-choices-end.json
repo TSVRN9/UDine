@@ -1,10 +1,10 @@
 {
-  "sha": "47fcee515afd6b9d4806eaf4b0379f2ee0b27238",
+  "sha": "cb1bd8edbe282d53f51d3cdb805d15b2c01ad7a4",
   "branch": "flutter/you-settings",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-you-settings",
   "route": "/you?data=recorded&at=2026-10-08T12:41&history=none&scores=health,carbon&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T15:30:41Z"
+  "ts": "2026-10-15T15:35:13Z"
 }
