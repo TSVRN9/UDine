@@ -10,6 +10,8 @@ import '../core/foodpro.dart';
 import '../core/hours.dart';
 import '../core/occupancy.dart';
 import '../core/types.dart';
+import '../core/m2/places.dart' show cafeTable, straight;
+import 'pdf_cache.dart';
 import 'source.dart';
 import 'supabase_source.dart';
 import 'states.dart';
@@ -84,10 +86,13 @@ String addDays(String iso, int days) {
 /// menu_cache:* rows are never touched. Raw responses are stored and re-parsed on read, so parser fixes apply to old
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
-  Repository(this.source, this.db, {this.supabase, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
+  Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
     : now = now ?? DateTime.now;
   final UmassSource source;
   final SupabaseSource? supabase;
+
+  /// Café menu PDFs on the phone; null where there is nowhere to keep them.
+  final PdfCache? pdfs;
   final Database db;
   final DateTime Function() now;
   final Duration stillLoadingAfter;
@@ -183,16 +188,51 @@ class Repository {
   /// Events aren't saved: nothing in the brief asks for them offline.
   Stream<DataState<List<DiningEvent>>> events() => _load(fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
 
-  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours.
-  /// Per-item failures are swallowed; this never throws.
-  Future<void> launch() async {
+  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours, and the PDFs of the
+  /// [pins]' menus (pinned cafés only: owner, round 11). Per-item failures are swallowed; this never throws.
+  Future<void> launch({List<String> pins = const []}) async {
     final t = today;
     await prune(t);
     await Future.wait([
       for (final d in [t, addDays(t, 1)])
         for (final h in diningHalls) menu(h.tid, d).drain<void>(),
-      hours(t).drain<void>(),
+      _warmHours(t, pins),
     ]);
+  }
+
+  Future<void> _warmHours(String date, List<String> pins) async {
+    HoursData? last;
+    await for (final s in hours(date)) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    if (last != null) await prefetchPdfs(last.feed, pins);
+  }
+
+  /// Saves the PDFs of the [pins]' menus and drops saved ones no café lists any more. One failing PDF doesn't stop the rest.
+  Future<void> prefetchPdfs(DiningHoursFeed feed, List<String> pins) async {
+    final cache = pdfs;
+    if (cache == null) return;
+    final byTitle = {for (final r in feed.retail) straight(r.name): r};
+    List<String> urls(Iterable<RetailLocationHours> cafes) => [
+      for (final r in cafes)
+        if (resolveCafeMenu(const [], r) case StandingCafeMenu(menu: RetailMenuPdf(:final links))) for (final l in links) l.url,
+    ];
+    // a pin is M2's name for a café; the feed's title is the table's, or the name itself for a café the table doesn't list yet
+    final titles = {for (final e in cafeTable) if (pins.contains(e.name)) straight(e.title), ...pins.map(straight)};
+    final pinned = [for (final t in titles) ?byTitle[t]];
+    try {
+      await cache.prune(urls(feed.retail).toSet());
+    } catch (e) {
+      if (!kReleaseMode) debugPrint('pdf prune: $e');
+    }
+    for (final u in urls(pinned)) {
+      if (cache.file(u).existsSync()) continue;
+      try {
+        await cache.fetch(u);
+      } catch (e) {
+        if (!kReleaseMode) debugPrint('pdf prefetch $u: $e');
+      }
+    }
   }
 
   /// Deletes menu:v2:/hours:v2: entries dated before yesterday. Keys end in their YYYY-MM-DD.
