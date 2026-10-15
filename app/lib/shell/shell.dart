@@ -6,6 +6,7 @@ import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
 import '../screens/halls/halls_screen.dart';
+import '../screens/search/events.dart';
 import '../screens/search/search_screen.dart';
 import '../core/m2/search.dart' show Lens;
 import '../theme/tokens.dart';
@@ -65,7 +66,7 @@ class ShellState extends State<Shell> implements ShellApi {
           valueListenable: _tab,
           builder: (_, i, _) => FadeThroughTabs(index: i, children: [
             HallsScreen(top: top),
-            SearchScreen(top: top, tab: _tab, query: searchLaunch(widget.initialRoute)?.$1 ?? '', lenses: searchLaunch(widget.initialRoute)?.$2 ?? const {}),
+            SearchScreen(top: top, tab: _tab, query: searchLaunch(widget.initialRoute)?.$1 ?? '', lenses: searchLaunch(widget.initialRoute)?.$2 ?? const {}, idle: EventsIdle(top: top)),
             const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
           ]),
         ),
