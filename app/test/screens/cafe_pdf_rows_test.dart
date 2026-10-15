@@ -1,5 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:udine/boot.dart';
+import 'package:udine/data/pdf_cache.dart';
+import 'package:udine/data/repository.dart';
+import 'package:udine/data/source.dart';
+import 'package:udine/shell/prefs.dart';
 import 'package:udine/data/recorded/flags.dart';
 import 'package:udine/screens/cafes/pdf_page.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
@@ -77,4 +88,79 @@ void main() {
     await until(t, () => find.text('Add a custom food').evaluate().isNotEmpty);
     expect(find.text('Menus'), findsNothing);
   });
+
+  for (final viaRow in [true, false]) {
+    testWidgets(
+      "${viaRow ? "a row's page" : 'the /cafe/29/menu/0 page'}: Try again forgets the repository's offline window, so a deliberate retry is attempted",
+      (t) async {
+        var pdfStatus = 500, menusReachable = true, pdfRequests = 0;
+        final pdf = await syntheticPages(t);
+        final boot = (await t.runAsync(() async {
+          sqfliteFfiInit();
+          final db = await databaseFactoryFfi.openDatabase(
+            inMemoryDatabasePath,
+          );
+          addTearDown(db.close);
+          await db.execute(
+            'CREATE TABLE preferences_kv (key TEXT PRIMARY KEY NOT NULL, value_json TEXT NOT NULL)',
+          );
+          final client = MockClient((req) async {
+            if (req.url.path.endsWith('.pdf')) {
+              pdfRequests++;
+              return http.Response.bytes(
+                utf8.encode('%PDF-1.4\n%synthetic\n'),
+                pdfStatus,
+              );
+            }
+            if (!menusReachable) {
+              throw const SocketException('Network is unreachable');
+            }
+            return http.Response.bytes(
+              utf8.encode(
+                req.url.path == '/uapp/get_infov2'
+                    ? await readRecorded('locations-2026-10-11.json')
+                    : '{}',
+              ),
+              200,
+            );
+          });
+          final dir = Directory.systemTemp.createTempSync('rows_retry_test');
+          addTearDown(() => dir.deleteSync(recursive: true));
+          final repo = Repository(
+            UmassSource(client),
+            db,
+            now: () => lunch,
+            pdfs: PdfCache(dir, client),
+          );
+          return Boot(repo, null, await AppPrefs.load(null), pdfOpen: pdf.call);
+        }))!;
+        await openApp(t, boot, route: viaRow ? '/cafe/29' : '/cafe/29/menu/0');
+        if (viaRow) {
+          await until(t, () => find.text('Menus').evaluate().isNotEmpty);
+          await drain(t);
+          await t.pumpAndSettle();
+          await t.tap(find.text('Lunch').hitTestable());
+        }
+        await until(
+          t,
+          () => find.text("The lunch menu didn't load.").evaluate().isNotEmpty,
+        );
+        await t.pumpAndSettle(); // the page has finished sliding in
+        menusReachable = false;
+        await t.runAsync(
+          () => boot.repo.menu(2, '2026-10-08').drain<void>(),
+        ); // a menu finds no route: the pool's 30 s offline window opens
+        pdfStatus = 200;
+        final before = pdfRequests;
+        await t.tap(find.text('Try again'));
+        await until(t, () => find.byType(PdfZoomView).evaluate().isNotEmpty);
+        expect(
+          pdfRequests,
+          before + 1,
+          reason: 'the retry reached the network',
+        );
+        await drain(t);
+      },
+    );
+  }
 }
