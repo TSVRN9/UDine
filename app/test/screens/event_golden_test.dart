@@ -5,11 +5,11 @@ import '../fonts.dart';
 import 'search_screen_test.dart' show finish, settle;
 import 'support.dart';
 
-// The event page at 360 and 390 dp, with both buttons (id 0, merged hours) and with the flyer alone (id 1). Photos are never drawn.
+// The event page at 360 and 390 dp, with Holiday hours and Share (id 0, merged hours) and with Share alone (id 1). Photos are never drawn.
 void main() {
   setUpAll(loadFonts);
   for (final w in [360.0, 390.0]) {
-    for (final (id, name, text) in [(0, 'hours', 'Holiday hours'), (1, 'flyer', 'Open the flyer')]) {
+    for (final (id, name, text) in [(0, 'hours', 'Holiday hours'), (1, 'flyer', 'Share the flyer')]) {
       testWidgets('the event page with $name, ${w.toInt()} dp', (t) async {
         await openApp(t, await bootRecorded(t), route: '/event/$id', w: w);
         await until(t, () => find.text(text).evaluate().isNotEmpty);
