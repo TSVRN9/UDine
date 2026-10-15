@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
+import '../../core/hours.dart' show openSpan;
 import '../../core/occupancy.dart';
 import '../../core/m2/schedule.dart' show statusLine;
 import '../../motion/container_math.dart';
@@ -139,7 +140,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final r = _day == 0 ? c.busy : null;
     if (!identical(r, _busyRead)) {
       _busyRead = r;
-      _busy.value = r == null ? null : HallBusyView.of(r);
+      _busy.value = r == null ? null : HallBusyView.of(r, span: c.placeHours == null ? null : openSpan(c.placeHours!));
     }
     final h = c.placeHours;
     final iso = _iso;

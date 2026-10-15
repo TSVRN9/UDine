@@ -78,6 +78,8 @@ class HallHeaderState extends State<HallHeader> {
     if ((drop - _drop).abs() > 0.05) setState(() => _drop = drop);
   }
 
+  void _remeasure() => WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _measure() : null);
+
   @override
   void initState() {
     super.initState();
@@ -181,7 +183,7 @@ class HallHeaderState extends State<HallHeader> {
               left: M2Space.gutter, right: M2Space.gutter, bottom: M2Layout.histBottom, height: M2Layout.histH,
               child: faded(ValueListenableBuilder<HallBusyView?>(
                 valueListenable: busy,
-                builder: (_, v, _) => v?.board == null ? const SizedBox.shrink() : BusyBoard(view: v!),
+                builder: (_, v, _) => v?.board == null ? const SizedBox.shrink() : Arrive(key: const ValueKey('busy-board'), child: BusyBoard(view: v!)),
               )),
             ),
           // the title block: name (it travels into the bar), status line, busy row; all fade in after the container's early fade
@@ -213,9 +215,17 @@ class HallHeaderState extends State<HallHeader> {
               // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
               if (compact) const SizedBox(height: M2Layout.busyTopHeader),
               if (!compact)
+                // the row takes its own height as it lands: the name settles over `settle` (at once under reduced motion) and the row fades in
                 faded(ValueListenableBuilder<HallBusyView?>(
                   valueListenable: busy,
-                  builder: (_, v, _) => v == null ? room : BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true),
+                  builder: (_, v, _) {
+                    final row = v == null ? room : Arrive(key: const ValueKey('busy-live'), child: BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true));
+                    if (reducedMotion(context)) {
+                      _remeasure(); // (AnimatedSize cannot run for no time)
+                      return row;
+                    }
+                    return AnimatedSize(alignment: Alignment.topLeft, duration: M2Motion.settle.duration, curve: M2Motion.settle.curve, onEnd: _remeasure, child: row);
+                  },
                 )),
             ]),
           ),

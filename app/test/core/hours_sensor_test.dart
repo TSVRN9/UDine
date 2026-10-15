@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/hours.dart';
+import 'package:udine/core/types.dart' show DiningHallHours, TimeWindow;
 
 const _flows = '../docs/design/explorations/2026-10-ui-overhaul/flows';
 
@@ -38,5 +39,12 @@ void main() {
     expect(parseSensorLevels({'business_level': 3, 'notbusy_level': 5, 'moderate_level': 999999}), isNull);
     expect(parseSensorLevels({'business_level': '3', 'notbusy_level': 5, 'moderate_level': 9}), isNull);
     expect(parseSensorLevels({'business_level': 3, 'notbusy_level': 5, 'moderate_level': 9})!.count, 3);
+  });
+
+  test('openSpan: first open to last close of the day\'s windows, in whole hours; a close past midnight is midnight', () {
+    TimeWindow w(String o, String c) => TimeWindow(openTime: o, closeTime: c);
+    expect(openSpan(DiningHallHours(hallTid: 1, breakfast: w('7:00 AM', '11:00 AM'), latenight: w('9:00 PM', '12:00 AM'))), (7, 24));
+    expect(openSpan(DiningHallHours(hallTid: 2, general: w('7:15 AM', '8:30 PM'))), (7, 21));
+    expect(openSpan(const DiningHallHours(hallTid: 3)), isNull);
   });
 }

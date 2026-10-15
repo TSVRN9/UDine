@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../../core/m2/busy.dart';
+import '../../core/m2/busy.dart' as m2;
 import '../../core/occupancy.dart';
 import '../../theme/tokens.dart';
 
@@ -12,11 +12,15 @@ class HallBusyView {
   final List<({int hour, int lamps})>? board;
   const HallBusyView({required this.lamps, required this.word, required this.extra, required this.board, required this.nowHour});
 
-  factory HallBusyView.of(OccupancyRead r) => HallBusyView(
+  /// [span] (whole hours [start, end) from [openSpan]) lays the board across the opening hours, as M2's `TYPICAL` does; an hour the curve holds no
+  /// bucket for is a bucket of nobody, the meter's one lamp. Without a span the board is the hours the curve holds.
+  factory HallBusyView.of(OccupancyRead r, {(int, int)? span}) => HallBusyView(
         lamps: r.lamps,
-        word: busyWord(r.level, low: r.confidence == Confidence.low),
-        extra: busyExtra(r.calmerAt, switch (r.vsUsual) { VsUsual.busier => 'busier', VsUsual.quieter => 'quieter', _ => null }),
-        board: r.board,
+        word: m2.busyWord(r.level, low: r.confidence == Confidence.low),
+        extra: m2.busyExtra(r.calmerAt, switch (r.vsUsual) { VsUsual.busier => 'busier', VsUsual.quieter => 'quieter', _ => null }),
+        board: span == null || r.board == null
+            ? r.board
+            : [for (var h = span.$1; h < span.$2; h++) (hour: h, lamps: r.board!.where((c) => c.hour == h).firstOrNull?.lamps ?? m2.lamps(0))],
         nowHour: r.nowHour,
       );
 }
