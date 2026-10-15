@@ -1,6 +1,7 @@
 // One-off custom food (flutter-port-dish-and-plate Task 3): the form sheet, its entry from a menu-less café and from `/custom`, and what
 // an invalid or a valid form does. The form's geometry against M2's DOM is `m2_custom_measure_test.dart`.
 import 'package:flutter/widgets.dart';
+import 'package:udine/ui/ui.dart' show Button;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
 import 'package:udine/core/m2/board.dart' show Macro, clockMeal;
@@ -101,6 +102,22 @@ void main() {
     testWidgets('with no name the cursor starts at Name', (t) async {
       await openForm(t);
       expect(t.widget<EditableText>(field('Name')).focusNode.hasFocus, isTrue);
+      await drain(t);
+    });
+
+    testWidgets('with the keyboard up the focused field and the whole button are above it (and still are when another field is focused)', (t) async {
+      await openForm(t, route: '/custom?name=Chobani&cal=140&p=12&c=15&f=0');
+      const kb = 480.0; // (a tall keyboard on a short phone: the button's bottom is at about 442)
+      t.view.viewInsets = const FakeViewPadding(bottom: kb);
+      addTearDown(t.view.resetViewInsets);
+      await t.pumpAndSettle();
+      final limit = t.view.physicalSize.height - kb;
+      expect(t.getBottomLeft(find.byType(Button)).dy, lessThanOrEqualTo(limit));
+      t.widget<EditableText>(field('Fat (g)')).focusNode.requestFocus();
+      await t.pumpAndSettle();
+      expect(t.getBottomLeft(find.byType(Button)).dy, lessThanOrEqualTo(limit));
+      expect(t.getBottomLeft(field('Fat (g)')).dy, lessThanOrEqualTo(limit));
+      expect(t.getTopLeft(field('Name')).dy, greaterThan(0));
       await drain(t);
     });
 

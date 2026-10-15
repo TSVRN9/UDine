@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -88,11 +90,62 @@ class _CustomFoodSheetState extends State<CustomFoodSheet> {
       _cFocus = FocusNode(),
       _fFocus = FocusNode();
 
+  final _btn = GlobalKey();
+  double _inset = 0;
+  late final _nodes = [_nameFocus, _calFocus, _pFocus, _cFocus, _fFocus];
+
+  /// With the keyboard up, scrolls the sheet (never at rest) so the whole button shows above it; where that would push the focused field
+  /// off the top, the field wins. The sheet is as tall as the frame, so the keyboard covers its lower part and the scroll view cannot
+  /// know: the visible area ends where the keyboard begins.
+  void _reveal() {
+    if (!mounted || _inset <= 0) return;
+    final b = _btn.currentContext,
+        pos = b == null ? null : Scrollable.maybeOf(b)?.position;
+    if (b == null || pos == null) return;
+    final limit = MediaQuery.sizeOf(context).height - _inset,
+        bb = b.findRenderObject()! as RenderBox;
+    var d =
+        bb.localToGlobal(Offset(0, bb.size.height)).dy +
+        M2Layout.formGap -
+        limit;
+    final f = _nodes
+        .where((n) => n.hasPrimaryFocus)
+        .firstOrNull
+        ?.context
+        ?.findRenderObject();
+    if (f is RenderBox && f.attached) {
+      final top =
+          (Scrollable.maybeOf(b)!.context.findRenderObject()! as RenderBox)
+              .localToGlobal(Offset.zero)
+              .dy;
+      d = math.min(d, f.localToGlobal(Offset.zero).dy - top);
+      d = math.max(
+        d,
+        f.localToGlobal(Offset(0, f.size.height)).dy + M2Layout.formGap - limit,
+      );
+    }
+    if (d <= 0) return;
+    final a = resolveAnim(context, M2Motion.settle);
+    pos.animateTo(
+      (pos.pixels + d).clamp(pos.minScrollExtent, pos.maxScrollExtent),
+      duration: a.duration,
+      curve: a.curve,
+    );
+  }
+
+  void _onFocus() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
+
   @override
   void initState() {
     super.initState();
+    for (final n in _nodes) {
+      n.addListener(_onFocus);
+    }
     // M2 focuses at once, or iOS will not raise the keyboard: with a name the cursor starts at Calories, else at Name
-    WidgetsBinding.instance.addPostFrameCallback((_) => (widget.name.isEmpty ? _nameFocus : _calFocus).requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => (widget.name.isEmpty ? _nameFocus : _calFocus).requestFocus(),
+    );
   }
 
   @override
@@ -100,7 +153,7 @@ class _CustomFoodSheetState extends State<CustomFoodSheet> {
     for (final x in [_name, _cal, _p, _c, _f]) {
       x.dispose();
     }
-    for (final x in [_nameFocus, _calFocus, _pFocus, _cFocus, _fFocus]) {
+    for (final x in _nodes) {
       x.dispose();
     }
     super.dispose();
@@ -126,6 +179,11 @@ class _CustomFoodSheetState extends State<CustomFoodSheet> {
   @override
   Widget build(BuildContext context) {
     const decimal = TextInputType.numberWithOptions(decimal: true);
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    if (inset != _inset) {
+      _inset = inset;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
+    }
     return M2Sheet(
       handle: widget.handle,
       top: safeTop(context) + M2Layout.sheetTop,
@@ -133,95 +191,104 @@ class _CustomFoodSheetState extends State<CustomFoodSheet> {
       mid: (m) => m.height,
       header: const SheetGrab(),
       slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              M2Space.gutter,
-              0,
-              M2Space.gutter,
-              MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: M2Layout.sheetTitleTop,
-                    // (`.sh1`'s 6 below collapses into the first label's 12 above: no bottom)
-                  ),
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      'Custom food',
-                      style: M2Layout.plateLabelHead.style(M2Color.dm),
-                    ),
-                  ),
+        SliverLayoutBuilder(
+          builder: (_, c) => SliverToBoxAdapter(
+            child: ConstrainedBox(
+              // (room to scroll the form clear of the keyboard: the sheet is as tall as the frame)
+              constraints: BoxConstraints(
+                minHeight: inset > 0 ? c.viewportMainAxisExtent + inset : 0,
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  M2Space.gutter,
+                  0,
+                  M2Space.gutter,
+                  MediaQuery.viewInsetsOf(context).bottom,
                 ),
-                _Field(
-                  'Name',
-                  _name,
-                  focus: _nameFocus,
-                  action: TextInputAction.next,
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: _Field(
-                        'Calories',
-                        _cal,
-                        focus: _calFocus,
-                        type: decimal,
-                        action: TextInputAction.next,
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: M2Layout.sheetTitleTop,
+                        // (`.sh1`'s 6 below collapses into the first label's 12 above: no bottom)
+                      ),
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Custom food',
+                          style: M2Layout.plateLabelHead.style(M2Color.dm),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: M2Layout.formGap),
-                    Expanded(
-                      child: _Field(
-                        'Protein (g)',
-                        _p,
-                        focus: _pFocus,
-                        type: decimal,
-                        action: TextInputAction.next,
+                    _Field(
+                      'Name',
+                      _name,
+                      focus: _nameFocus,
+                      action: TextInputAction.next,
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _Field(
+                            'Calories',
+                            _cal,
+                            focus: _calFocus,
+                            type: decimal,
+                            action: TextInputAction.next,
+                          ),
+                        ),
+                        const SizedBox(width: M2Layout.formGap),
+                        Expanded(
+                          child: _Field(
+                            'Protein (g)',
+                            _p,
+                            focus: _pFocus,
+                            type: decimal,
+                            action: TextInputAction.next,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _Field(
+                            'Carbs (g)',
+                            _c,
+                            focus: _cFocus,
+                            type: decimal,
+                            action: TextInputAction.next,
+                          ),
+                        ),
+                        const SizedBox(width: M2Layout.formGap),
+                        Expanded(
+                          child: _Field(
+                            'Fat (g)',
+                            _f,
+                            focus: _fFocus,
+                            type: decimal,
+                            action: TextInputAction.done,
+                            onSubmit: _submit,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: M2Layout.formBtnTop),
+                      child: Button(
+                        key: _btn,
+                        kind: ButtonKind.primary,
+                        label: 'Add to plate',
+                        expand: true,
+                        onTap: _submit,
                       ),
                     ),
                   ],
                 ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _Field(
-                        'Carbs (g)',
-                        _c,
-                        focus: _cFocus,
-                        type: decimal,
-                        action: TextInputAction.next,
-                      ),
-                    ),
-                    const SizedBox(width: M2Layout.formGap),
-                    Expanded(
-                      child: _Field(
-                        'Fat (g)',
-                        _f,
-                        focus: _fFocus,
-                        type: decimal,
-                        action: TextInputAction.done,
-                        onSubmit: _submit,
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: M2Layout.formBtnTop),
-                  child: Button(
-                    kind: ButtonKind.primary,
-                    label: 'Add to plate',
-                    expand: true,
-                    onTap: _submit,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -273,7 +340,7 @@ class _Field extends StatelessWidget {
           child: EditableText(
             controller: controller,
             focusNode: focus,
-           
+
             keyboardType: type,
             textInputAction: action,
             style: M2Layout.formInput.style(M2Color.ink),
