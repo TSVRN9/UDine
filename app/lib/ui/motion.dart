@@ -71,3 +71,6 @@ class Spring {
 
   void dispose() => stop();
 }
+
+/// A token's milliseconds as a Duration (receipt time, the slow-network wait), for the screens and the shell, which hold no raw durations.
+Duration msOf(num ms) => Duration(milliseconds: (ms).round());
