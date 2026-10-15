@@ -85,6 +85,16 @@ void main() {
       },
     );
 
+    test('a zero-calorie hit with a name of its own is left out too', () {
+      final hits = mapOffSearch({
+        'products': [
+          {'code': '1', 'product_name': 'Mystery Bar', 'nutriments': {}},
+          {'code': '2', 'product_name': 'Real Bar', 'nutriments': {'energy-kcal_100g': 200}},
+        ],
+      }).results;
+      expect(packagedGroup(hits).map((f) => f.displayName), ['Real Bar']);
+    });
+
     test(
       'a name that lacks its brand leads with it; one that has it does not',
       () {
