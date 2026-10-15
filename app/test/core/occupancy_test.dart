@@ -129,6 +129,11 @@ void main() {
       expect(read([b('12:00:00', 700, 2, 3), b('12:15:00', 700, 2, 1)]).board, isNull);
       expect(read([b('12:00:00', 0, 0)]).board, isNull);
     });
+    test('an hour with no usable bucket (every bucket under the sample floor) is 0, unlit, not one lamp; a quiet measured hour is 1', () {
+      final r = read([b('11:00:00', 10, 0), b('12:00:00', 400, 1), b('13:00:00', 400, 1, 3), b('13:15:00', 300, 1, 1)]);
+      expect([for (final c in r.board!) (c.hour, c.lamps)], [(11, 1), (12, 5), (13, 0)]);
+      expect(r.lamps, 4, reason: 'the peak and the meter still use every bucket');
+    });
     test('low confidence keeps the board', () {
       final r = read([b('12:00:00', 400, 1, 6), b('12:15:00', 100, 0, 2)]);
       expect(r.confidence, Confidence.low);

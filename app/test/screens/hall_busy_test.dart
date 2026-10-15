@@ -117,14 +117,14 @@ void main() {
     }
 
     // M2's `histSVG` draws TYPICAL[h]: a column per hour from opening to close (Worcester 7 AM to midnight, 17; Hampshire to 9 PM, 14), the live
-    // column at the clock's hour. An hour the curve has no bucket for (the recording stops at 10 PM) is a bucket of nobody: one lamp.
+    // column at the clock's hour. An hour with no usable bucket (the recording stops at 10 PM) is unlit.
     for (final (slug, cols) in [('worcester', 17), ('hampshire', 14)]) {
       testWidgets('$slug board spans its opening hours at $n dp', (t) async {
         await openHall(t, await bootRecorded(t), '/hall/$slug?meal=lunch', w: w);
         await until(t, () => find.byType(BusyBoard).evaluate().isNotEmpty);
         final v = t.widget<BusyBoard>(find.byType(BusyBoard)).view;
         expect((v.board!.length, v.board!.first.hour, v.board!.indexWhere((c) => c.hour == v.nowHour)), (cols, 7, 5));
-        if (slug == 'worcester') expect([for (final c in v.board!.skip(15)) c.lamps], [1, 1]);
+        if (slug == 'worcester') expect([for (final c in v.board!.skip(15)) c.lamps], [0, 0]);
         await drain(t);
       });
     }

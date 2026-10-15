@@ -42,7 +42,7 @@ class OccupancyRead {
   /// 1, 3 or 5. Confidence never changes it.
   final int lamps;
 
-  /// The header board (owner, 2026-10-15): one column per hour the curve holds buckets for, its highest bucket as a share of the day's peak, in the
+  /// The header board (owner, 2026-10-15; lamps 0 = no usable bucket for the hour, drawn unlit): one column per hour the curve holds buckets for, its highest bucket as a share of the day's peak, in the
   /// meter's lamps. Null exactly when the meter falls back to the level (no usable curve). Confidence never changes it.
   final List<({int hour, int lamps})>? board;
 
@@ -104,11 +104,13 @@ OccupancyRead? occupancyRead({required List<OccupancyBucket> typical, required S
   );
 }
 
+/// Lamps 0 is an hour with no usable bucket (every bucket under [minSamples]): unlit, not a quiet hour.
 List<({int hour, int lamps})> _board(List<OccupancyBucket> typical, int peak) {
   final top = <int, int>{};
   for (final b in typical) {
     final h = b.minuteOfDay ~/ 60;
-    if (b.medianHeadcount > (top[h] ?? -1)) top[h] = b.medianHeadcount;
+    final n = b.samples >= minSamples ? b.medianHeadcount : -1;
+    top[h] = n > (top[h] ?? -1) ? n : (top[h] ?? -1);
   }
-  return [for (final h in top.keys.toList()..sort()) (hour: h, lamps: lamps(top[h]! * 100 / peak))];
+  return [for (final h in top.keys.toList()..sort()) (hour: h, lamps: top[h]! < 0 ? 0 : lamps(top[h]! * 100 / peak))];
 }
