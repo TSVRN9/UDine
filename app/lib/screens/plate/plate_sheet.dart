@@ -45,7 +45,6 @@ class _PlateSheetState extends State<PlateSheet>
     with SingleTickerProviderStateMixin {
   final _handle = SheetHandle();
   final _px = ValueNotifier<double>(M2Layout.barMin);
-  final _cal = GlobalKey();
   late final AppScope _scope = AppScope.of(context);
   late final AnimationController _in = AnimationController(
     vsync: this,
@@ -109,21 +108,14 @@ class _PlateSheetState extends State<PlateSheet>
   }
 
   Future<void> _log({String? place}) async {
-    final m = _m, p = _front;
-    if (p == null || !m.canLog) return;
-    final cal = totals(p, place).cal,
-        box = _cal.currentContext?.findRenderObject() as RenderBox?;
-    final from = box == null || !box.attached
-        ? null
-        : box.localToGlobal(box.size.center(Offset.zero));
-    final shell = ShellScope.of(context), rm = reducedMotion(context);
+    final m = _m;
+    if (_front == null || !m.canLog) return;
     final ok = await m.log(place: place);
     if (!mounted) return;
     setState(() => _choose = false);
     if (!ok) return;
     Haptics.log();
     _handle.to(M2Layout.barMin);
-    if (from != null && !rm) shell.toss(from: from, text: '+${fc(cal)}');
   }
 
   void _onLog() {
@@ -133,6 +125,18 @@ class _PlateSheetState extends State<PlateSheet>
       setState(() => _choose = true);
     } else {
       _log();
+    }
+  }
+
+  Future<void> _retry() async {
+    final wasLog = _m.failure == PlateFailure.log, m = _m;
+    final ok = await m.retry();
+    if (!mounted || !ok) return;
+    if (wasLog) {
+      Haptics.log();
+      _handle.to(M2Layout.barMin);
+    } else {
+      Haptics.light();
     }
   }
 
@@ -320,11 +324,12 @@ class _PlateSheetState extends State<PlateSheet>
                   model: _m,
                   fx: fx,
                   choose: _choose,
-                  calKey: _cal,
+                  
                   onLog: _onLog,
                   onLogAt: (h) => _log(place: h),
                   onUnchoose: () => setState(() => _choose = false),
                   onUndo: _undo,
+                onRetry: _retry,
                   onOpen: _open,
                 ),
                 slivers: [
