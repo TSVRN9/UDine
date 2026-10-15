@@ -101,7 +101,7 @@ Widget buildItem(BuildContext context, ListItem it, {required Board fx, required
         ])),
       );
     case ItemKind.note:
-      return _DietNote(line: it.text!, revealed: reveal, onTap: () => actions.onReveal(!reveal));
+      return DietNote(line: it.text!, revealed: reveal, onTap: () => actions.onReveal(!reveal));
     case ItemKind.head:
       return _StationHead(key: keys?.station(it.si) ?? ValueKey(it.id), name: it.text!);
     case ItemKind.dish:
@@ -165,11 +165,11 @@ class _StationHead extends StatelessWidget {
 }
 
 /// `.dietnote`: the one line over a list that says what it hides (counted), and Show all / Hide them.
-class _DietNote extends StatelessWidget {
+class DietNote extends StatelessWidget {
   final String line;
   final bool revealed;
   final VoidCallback onTap;
-  const _DietNote({required this.line, required this.revealed, required this.onTap});
+  const DietNote({super.key, required this.line, required this.revealed, required this.onTap});
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.noteH, M2Layout.rowPadRight, M2Layout.noteH),
