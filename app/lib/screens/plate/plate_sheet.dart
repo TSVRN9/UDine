@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../core/types.dart' show diningHalls;
@@ -8,7 +10,9 @@ import '../../shell/plate_model.dart';
 import '../../shell/shell_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../../data/repository.dart' show HoursData, Loaded, LoadedOffline;
 import '../dish/dish_sheet.dart';
+import '../hall/hall_controller.dart';
 import '../dish/full_label.dart';
 import 'plate_bar.dart';
 import 'plate_row.dart';
@@ -62,11 +66,22 @@ class _PlateSheetState extends State<PlateSheet>
   void initState() {
     super.initState();
     _m.addListener(_onModel);
+    _shell = ShellScope.of(context)..handleBack(_back);
+  }
+
+  late final ShellApi _shell;
+
+  /// Android back: an open sheet goes back into the bar, and nothing else moves.
+  bool _back() {
+    if (!_handle.attached || _handle.px <= M2Layout.barMin + 1) return false;
+    _handle.to(M2Layout.barMin);
+    return true;
   }
 
   @override
   void dispose() {
     _m.removeListener(_onModel);
+    _shell.handleBack(null);
     _in.dispose();
     _px.dispose();
     super.dispose();
@@ -134,23 +149,26 @@ class _PlateSheetState extends State<PlateSheet>
     }
   }
 
-  void _openDish(Plate p, PlateItem it, Board fx) {
+  /// A plate row's dish, over the plate. Its "where" needs the hours, grab windows and café ids a place's own page reads, so they come
+  /// from that place's controller (cached hours answer at once; if they are slow the sheet opens without them).
+  Future<void> _openDish(Plate p, PlateItem it) async {
     if (it.custom != null) return;
-    final place = plateHalls(p)?.firstOrNull ?? it.refs.keys.first,
-        dish = it.refs[place] ?? it.refs.values.first;
+    final place = plateHalls(p)?.firstOrNull ?? it.refs.keys.first, dish = it.refs[place] ?? it.refs.values.first;
+    final c = HallController(_scope.repo, place), ready = Completer<void>();
+    void check() {
+      if (c.hours is Loaded<HoursData> || c.hours is LoadedOffline<HoursData>) {
+        if (!ready.isCompleted) ready.complete();
+      }
+    }
+
+    c.addListener(check);
+    check();
+    await ready.future.timeout(Duration(milliseconds: M2Motion.netSlow.round()), onTimeout: () {});
+    c.removeListener(check);
+    if (!mounted) return c.dispose();
     openDishSheet(
-      context,
-      dish: dish,
-      place: place,
-      meal: p.meal,
-      day: 0,
-      fx: fx,
-      refs: it.refs,
-      onServe: (to, g) => _handle.away(
-        () => ShellScope.of(
-          context,
-        ).openPlace(to, meal: g.meal, day: g.day, dish: dish.key),
-      ),
+      context, dish: dish, place: place, meal: p.meal, day: 0, fx: c.board, cafeIds: c.cafeIds, refs: it.refs, onClosed: c.dispose,
+      onServe: (to, g) => _handle.away(() => ShellScope.of(context).openPlace(to, meal: g.meal, day: g.day, dish: dish.key)),
     );
   }
 
@@ -219,7 +237,7 @@ class _PlateSheetState extends State<PlateSheet>
                 key: ValueKey('${p.id}/${it.key}'),
                 item: it,
                 cal: macroOf(it, hs?.firstOrNull).cal,
-                onOpen: it.custom == null ? () => _openDish(p, it, fx) : null,
+                onOpen: it.custom == null ? () => _openDish(p, it) : null,
                 onInc: () {
                   m.step(p.id, it.key, 1);
                   Haptics.add();
@@ -350,30 +368,16 @@ class _PlateTab extends StatelessWidget {
   const _PlateTab({required this.label, required this.on, required this.onTap});
   @override
   Widget build(BuildContext context) => Press(
-    scale: true,
-    label: label,
-    onTap: onTap,
-    child: Container(
-      height: M2Size.tap,
-      padding: const EdgeInsets.symmetric(horizontal: M2Layout.plateTabPad),
-      alignment: Alignment.center,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Text(
-            label,
-            style: M2Text.link.style(on ? M2Color.dm : M2Color.slate),
-          ),
-          if (on)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: M2Layout.plateTabUnderBottom - M2Layout.plateTabUnder,
-              height: M2Layout.plateTabUnder,
-              child: const ColoredBox(color: M2Color.vm),
+        scale: true, label: label, onTap: onTap,
+        child: SizedBox(
+          height: M2Size.tap,
+          child: Stack(children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: M2Layout.plateTabPad),
+              child: Center(child: Text(label, style: M2Text.link.style(on ? M2Color.dm : M2Color.slate))),
             ),
-        ],
-      ),
-    ),
-  );
+            if (on) const Positioned(left: M2Layout.plateTabPad, right: M2Layout.plateTabPad, bottom: M2Layout.plateTabUnderBottom, height: M2Layout.plateTabUnder, child: ColoredBox(color: M2Color.vm)),
+          ]),
+        ),
+      );
 }

@@ -139,6 +139,15 @@ void main() {
       expect(m.state.plates, hasLength(1));
     });
 
+    test('a day total that cannot be read writes nothing and keeps the plate (the rows never commit without a receipt)', () async {
+      final bad = PlateModel(write: store.addEntries, readDay: (_) => throw StateError('no day'), now: () => clock);
+      benchmark(bad);
+      expect(await bad.log(), isFalse);
+      expect((await store.allEntries()).map((e) => e.id), ['old']);
+      expect(bad.state.plates, hasLength(1));
+      expect(bad.receipt, isNull);
+    });
+
     test('no store: nothing is logged', () async {
       final none = PlateModel(now: () => clock);
       benchmark(none);
@@ -214,11 +223,20 @@ void main() {
       expect(m.failed, isTrue);
     });
 
-    test('Undo restores rows byte for byte for the RN reader', () async {
+    test('Log writes the RN column shapes: source and nutrition as JSON text, servings a number, logged_at the local stamp', () async {
       benchmark(m);
       await m.log();
-      final written = [for (final r in await raw(store)) if (r['id'] != 'old') jsonEncode(r)];
+      final written = [for (final r in await raw(store)) if (r['id'] != 'old') r];
       expect(written, hasLength(2));
+      final plate = m.receipt!.plate;
+      for (var i = 0; i < 2; i++) {
+        final r = written[i], it = plate.items[i];
+        expect(r['logged_at'], nowLocalIso(clock));
+        expect(r['servings'], it.qty);
+        expect(jsonDecode(r['source_json']! as String), {'type': 'umass-menu', 'dishName': it.name, 'hallTid': 1});
+        expect(jsonDecode(r['nutrition_json']! as String), it.refs['W']!.nutrition.toJson());
+        expect((r['id']! as String), matches(RegExp('^${RegExp.escape(nowLocalIso(clock))}-$i-[0-9a-z]+\$')));
+      }
       await m.undo();
       expect((await raw(store)).map((r) => r['id']), ['old']);
     });
