@@ -25,8 +25,8 @@ Future<void> finish(WidgetTester t) async {
   }
 }
 
-Future<void> openSearch(WidgetTester t, {String route = '/search', double w = 390}) async {
-  await openApp(t, await bootRecorded(t), route: route, w: w);
+Future<void> openSearch(WidgetTester t, {String route = '/search', double w = 390, bool reduced = false}) async {
+  await openApp(t, await bootRecorded(t), route: route, w: w, reduced: reduced);
   await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining('Nothing called').evaluate().isNotEmpty || find.textContaining('No dishes').evaluate().isNotEmpty);
   await settle(t);
 }
@@ -142,6 +142,41 @@ void main() {
     await t.tap(find.byType(AddButton).first);
     await t.pump(const Duration(milliseconds: 10));
     expect(t.getTopLeft(row), at);
+    await finish(t);
+  });
+
+  testWidgets('a route-seeded query has its caret at the end, and a +, the keyboard opening or a lens never selects it all', (t) async {
+    await openSearch(t, route: '/search?q=brisket');
+    TextSelection sel() => t.widget<EditableText>(find.byType(EditableText)).controller.selection;
+    expect(sel(), const TextSelection.collapsed(offset: 7));
+    t.view.viewInsets = const FakeViewPadding(bottom: 600); // the keyboard comes up: dependencies change
+    await settle(t);
+    expect(sel(), const TextSelection.collapsed(offset: 7));
+    await t.tap(find.byType(AddButton).first);
+    await settle(t);
+    expect(sel(), const TextSelection.collapsed(offset: 7));
+    await t.tap(find.text('Light'));
+    await settle(t);
+    expect(sel(), const TextSelection.collapsed(offset: 7));
+    t.view.resetViewInsets();
+    await finish(t);
+  });
+
+  testWidgets('reduced motion: a surviving row does not travel, a new one still fades', (t) async {
+    await openSearch(t, reduced: true);
+    await type(t, 'green');
+    final row = find.byWidgetPredicate((w) => w is DishRow && w.dish.dishName == 'Green Chile Posole');
+    await t.enterText(find.byType(EditableText), 'green chile');
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 10));
+    final early = t.getTopLeft(row).dy;
+    await settle(t);
+    expect(early, t.getTopLeft(row).dy, reason: 'no vertical offset under reduced motion');
+    await t.enterText(find.byType(EditableText), 'brisket');
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 10));
+    final fade = find.ancestor(of: find.byType(DishRow).first, matching: find.byType(Opacity));
+    expect(t.widget<Opacity>(fade.first).opacity, lessThan(1));
     await finish(t);
   });
 
