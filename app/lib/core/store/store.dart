@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../date.dart';
 import '../export.dart';
+import '../../data/packaged.dart';
 import '../types.dart';
 
 /// Puts back exactly the rows (rowid and bytes) an operation removed or changed.
@@ -147,6 +148,24 @@ class UdineStore {
         await tx.rawDelete('DELETE FROM custom_foods WHERE id = ?', [id]);
       });
 
+  // ---- saved foods: packaged and lookup foods added to the plate (Your foods, with custom_foods) ----
+
+  /// Newest first.
+  Future<List<PackagedFood>> savedFoods() async =>
+      [for (final r in await db.rawQuery('SELECT food_json FROM saved_foods ORDER BY rowid DESC')) PackagedFood.fromJson(jsonDecode(r['food_json']! as String) as Map<String, dynamic>)];
+
+  /// Saving a food that is already saved edits it where it is.
+  Future<Undo> saveFood(PackagedFood f) => _change('saved_foods', 'id', [f.id], (tx) async {
+        await tx.rawInsert(
+          'INSERT INTO saved_foods (id, food_json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET food_json = excluded.food_json',
+          [f.id, jsonEncode(f.toJson())],
+        );
+      });
+
+  Future<Undo> removeSavedFood(String id) => _change('saved_foods', 'id', [id], (tx) async {
+        await tx.rawDelete('DELETE FROM saved_foods WHERE id = ?', [id]);
+      });
+
   // ---- preferences_kv ----
 
   Future<Object?> _kv(String key) async {
@@ -205,6 +224,7 @@ class UdineStore {
         'udine-ranked-foods.json': exportRankedFoodsAsJson(await rankedFoods()),
         'udine-favorites.json': exportFavoritesAsJson(await favorites()),
         'udine-custom-foods.json': exportCustomFoodsAsJson(await customFoods()),
+        'udine-saved-foods.json': exportSavedFoodsAsJson(await savedFoods()),
       };
 
   Future<Map<String, String>> exportCsv() async => {
@@ -213,5 +233,6 @@ class UdineStore {
         'udine-ranked-foods.csv': exportRankedFoodsAsCsv(await rankedFoods()),
         'udine-favorites.csv': exportFavoritesAsCsv(await favorites()),
         'udine-custom-foods.csv': exportCustomFoodsAsCsv(await customFoods()),
+        'udine-saved-foods.csv': exportSavedFoodsAsCsv(await savedFoods()),
       };
 }
