@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 
 import '../../motion/routes.dart';
-import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../hall/hall_menu.dart';
 import 'halls_model.dart';
@@ -56,17 +55,4 @@ class HallMenuPage extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (_, c) => HallMenu(place: place, top: top, height: c.maxHeight, day: day, meal: meal, onBack: () => Navigator.of(context).maybePop()),
       );
-}
-
-/// A pushed page, until `flutter-port-cafes` builds the area's list: the maroon bar with Back and the area's name.
-class AreaPage extends StatelessWidget {
-  const AreaPage({super.key, required this.title, required this.top});
-  final String title;
-  final double top;
-
-  @override
-  Widget build(BuildContext context) => Column(children: [
-        ScreenHeader.page(top: top, title: title, onBack: () => Navigator.of(context).maybePop()),
-        const Expanded(child: ColoredBox(color: M2Color.chalk, child: SizedBox.expand())),
-      ]);
 }

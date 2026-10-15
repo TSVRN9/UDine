@@ -8,12 +8,12 @@ import 'press.dart';
 class LRow extends StatelessWidget {
   final String title;
   final String? subtitle;
-  final Widget? trailing;
+  final Widget? trailing, leading;
   final bool chevron, last;
   final VoidCallback? onTap;
   /// the subtitle fades in on this when it arrives late (a slow load or a retry)
   final Animation<double>? fade;
-  const LRow({super.key, required this.title, this.subtitle, this.trailing, this.chevron = true, this.last = false, this.onTap, this.fade});
+  const LRow({super.key, required this.title, this.subtitle, this.trailing, this.leading, this.chevron = true, this.last = false, this.onTap, this.fade});
   Text get meta => Text(subtitle!, style: M2Text.meta.style(M2Color.slate));
 
   @override
@@ -25,6 +25,7 @@ class LRow extends StatelessWidget {
           decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: M2Color.hair))),
           child: ExcludeSemantics(
             child: Row(children: [
+              if (leading != null) ...[leading!, const SizedBox(width: M2Layout.thumbGap)],
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(title, style: M2Text.rowName.withLine(M2Layout.areaNameLine).style(M2Color.ink)),

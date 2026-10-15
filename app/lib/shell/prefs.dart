@@ -12,6 +12,9 @@ class AppPrefs extends ChangeNotifier {
   List<String> _pins;
   final bool _memoryPins;
 
+  /// The hall opened last (`W F H B`), for the cafés page's nearest-first order. In memory only, as M2's `S.lastHall`.
+  String? lastHall;
+
   /// "Show on dishes" (You): which score tiles a row draws. Read once at launch; You writes them.
   ({bool health, bool carbon}) scores;
 
