@@ -156,6 +156,7 @@ void main() {
       await openPlace(t, await bootRecorded(t), 'c3'); // Green Fields
       await openSchedule(t);
       expect(inSheet(find.text('Green Fields')), findsOneWidget);
+      expect(inSheet(find.text('1 Campus Center Way')), findsOneWidget); // the street line, not the feed's HTML blob
       expect(inSheet(find.text('Blue Wall, Campus Center')), findsOneWidget);
       expect(find.byType(SheetOption), findsNWidgets(15));
       await drain(t);
