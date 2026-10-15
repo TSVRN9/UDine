@@ -147,7 +147,7 @@ class _CustomFoodSheetState extends State<CustomFoodSheet> {
                 Padding(
                   padding: const EdgeInsets.only(
                     top: M2Layout.sheetTitleTop,
-                    bottom: M2Layout.sheetTitleBottom,
+                    // (`.sh1`'s 6 below collapses into the first label's 12 above: no bottom)
                   ),
                   child: Semantics(
                     header: true,
