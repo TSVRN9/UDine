@@ -152,13 +152,8 @@ abstract final class M2Layout {
   static const checkMarkW = 10.0, checkMarkH = 5.0, checkMarkStroke = 2.0, checkMarkRight = 2.0, checkMarkLift = 3.0; // `.chip[aria-pressed=true]::before`
   static const areaHeadTop = 16.0, areaHeadBottom = 6.0; // `.ahd` padding 16 0 6
   static const thumbW = 64.0, thumbH = 34.0, thumbGap = 12.0; // `.thumb`, `.lrow .lt`
-  static const placeStatusGap = 12.0; // `.lrow` gap
   static const h3Gap = 24.0; // `.cbody .h3` margin-top
   static const h3Bottom = 4.0; // `.h3` margin-bottom
   static const namesRowMin = 48.0; // `.cbody .lrow` min-height
   static const pinGlyphStroke = 2.2; // `.icon svg` stroke-width
-  static const statusAboveBottom = 7.0; // `#mts` padding-bottom 12 less its margin-bottom -5: the status text ends 7 dp above `.mt{bottom}`
-  static const statusUnderName = 7.0; // `#mts` (padding 12, margin -5 -12) puts the status text 7 dp under the name's line box
-  static const nameInset = 40.0; // `fitName`: the name may use the width less 40
-  static const tabLabelPad = 12.0; // `.mts button` padding 0 6, both sides
 }

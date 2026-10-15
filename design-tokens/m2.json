@@ -169,6 +169,11 @@
    "size": 15,
    "line": "normal"
   },
+  "placeStatus": {
+   "font": "bodyMd",
+   "size": 15,
+   "line": "normal"
+  },
   "statusSm": {
    "font": "body",
    "size": 14,
