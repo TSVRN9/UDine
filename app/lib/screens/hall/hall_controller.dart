@@ -105,7 +105,7 @@ class HallController extends ChangeNotifier {
     final feed = _hoursValue?.feed;
     if (feed == null) return const {};
     final byTitle = {for (final r in feed.retail) straight(r.name): r.locationId};
-    return {for (var i = 0; i < cafeTable.length; i++) if (byTitle[straight(cafeTable[i].title)] case final id?) 'c$i': id};
+    return {for (var i = 0; i < cafeTable.length; i++) 'c$i': ?byTitle[straight(cafeTable[i].title)]};
   }
 
   String get name => cafe ? cafeTable[int.parse(place.substring(1))].name : diningHalls[halls.indexOf(place)].name;
