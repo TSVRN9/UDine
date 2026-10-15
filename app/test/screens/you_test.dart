@@ -1,6 +1,5 @@
 // You and the past logs as a user meets them (flutter-port-you Task 1): Today and Earlier, a day, a meal's sheet with its steppers, the
 // inline Removed row, the Deleted receipt, and the newer-database message. The store-level guarantees are in test/core/store/log_book_test.dart.
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
 import 'package:udine/screens/plate/plate_bar.dart';
@@ -8,8 +7,6 @@ import 'package:udine/screens/plate/plate_row.dart';
 import 'package:udine/screens/you/day_page.dart';
 import 'package:udine/screens/you/meal_sheet.dart';
 import 'package:udine/screens/you/you_screen.dart';
-import 'package:udine/shell/prefs.dart';
-import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'plate_support.dart';

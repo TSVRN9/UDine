@@ -1,6 +1,5 @@
 // Every You state of the brief at 360 and 390 dp over M2's fixed clock (Thursday Oct 8, 12:41) and a made-up history (you_support.dart).
 // Photos are UMass's and never committed: nothing here draws one.
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/app.dart';
 import 'package:udine/boot.dart';

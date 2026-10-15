@@ -52,26 +52,34 @@ class _MealSheetState extends State<MealSheet> {
     final q = it.qty;
     if (dir > 0) {
       Haptics.add();
-      widget.book.setServings(it, q == 0.5 ? 1 : q + 1);
+      _quiet(widget.book.setServings(it, q == 0.5 ? 1 : q + 1));
     } else if (q > 1) {
       Haptics.remove();
-      widget.book.setServings(it, q - 1);
+      _quiet(widget.book.setServings(it, q - 1));
     } else if (q == 1) {
       Haptics.remove();
-      widget.book.setServings(it, 0.5);
+      _quiet(widget.book.setServings(it, 0.5));
     } else if (m.items.length == 1) {
       _delete(m);
     } else {
       Haptics.remove();
-      widget.book.remove(it).then((undo) {
+      _quiet(widget.book.remove(it).then((undo) {
         if (mounted) setState(() => _gone = (item: it, undo: undo));
-      });
+      }));
     }
   }
 
+  /// A write that fails has already been read back by the book, so the rows show what the store holds; nothing more to do here.
+  void _quiet(Future<void> f) => f.catchError((Object _) {});
+
   Future<void> _delete(LoggedMeal m) async {
     Haptics.remove();
-    final undo = await widget.book.deleteMeal(m);
+    final Undo undo;
+    try {
+      undo = await widget.book.deleteMeal(m);
+    } catch (_) {
+      return;
+    }
     widget.onDeleted(deletedLine(m, widget.fx), undo);
   }
 
@@ -79,7 +87,7 @@ class _MealSheetState extends State<MealSheet> {
     final g = _gone!;
     Haptics.light();
     setState(() => _gone = null);
-    await g.undo();
+    await g.undo().catchError((Object _) {});
   }
 
   void _fullLabel() {

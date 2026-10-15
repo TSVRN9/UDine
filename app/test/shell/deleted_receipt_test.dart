@@ -1,6 +1,5 @@
 // The "Deleted <hall> lunch" receipt in the plate bar's slot (flutter-port-you Task 1): it lives like Log's receipt, with the same Undo,
 // the same timeout, and a dish added to a plate ends it. The log is re-read after Log and Undo so You is never behind.
-import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/board.dart';
 import 'package:udine/shell/plate_model.dart';
@@ -17,14 +16,12 @@ void main() {
     expect((undone, m.deleted), (1, null));
   });
 
-  test('times out like the Log receipt', () {
-    fakeAsync((a) {
-      final m = PlateModel()..showDeleted('Deleted lunch', () async {});
-      a.elapse(Duration(milliseconds: M2Motion.receiptD - 1));
-      expect(m.deleted, isNotNull);
-      a.elapse(const Duration(milliseconds: 2));
-      expect(m.deleted, isNull);
-    });
+  testWidgets('times out like the Log receipt', (t) async {
+    final m = PlateModel()..showDeleted('Deleted lunch', () async {});
+    await t.pump(Duration(milliseconds: M2Motion.receiptD - 1));
+    expect(m.deleted, isNotNull);
+    await t.pump(const Duration(milliseconds: 2));
+    expect(m.deleted, isNull);
   });
 
   test('a dish added to a plate ends it', () {

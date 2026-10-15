@@ -3,7 +3,6 @@ import 'package:udine/boot.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/screens/you/day_page.dart';
 import 'package:udine/screens/you/you_screen.dart';
-import 'plate_support.dart';
 import 'support.dart';
 
 NutritionFacts _n(num cal, num p, num c, num f) => NutritionFacts(
