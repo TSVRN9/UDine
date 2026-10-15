@@ -20,4 +20,19 @@ void main() {
     await t.runAsync(() => boot.seedPlate('/halls'));
     expect(boot.plate.state.plates, isEmpty);
   });
+
+  testWidgets('seed=one is the thigh alone; seed=choose the brisket alone (Worcester or Berkshire); seed=split the benchmark plate and a Franklin plate', (t) async {
+    var boot = await bootRecorded(t);
+    await t.runAsync(() => boot.seedPlate('/plate?seed=one'));
+    expect(boot.plate.state.plates.single.items.map((i) => [i.name, i.qty]), [['Golden BBQ Chicken Thigh', 1]]);
+    boot = await bootRecorded(t);
+    await t.runAsync(() => boot.seedPlate('/plate?seed=choose'));
+    expect(plateHalls(boot.plate.state.plates.single), ['W', 'B']);
+    boot = await bootRecorded(t);
+    await t.runAsync(() => boot.seedPlate('/plate?seed=split'));
+    expect(boot.plate.state.plates, hasLength(2));
+    expect(plateHalls(boot.plate.state.plates[0]), ['W']);
+    expect(plateHalls(boot.plate.state.plates[1]), ['F']);
+    expect(boot.plate.state.front, 1);
+  });
 }
