@@ -8,11 +8,13 @@ enum NetMode { ok, slow, offline, fail }
 const recordedAvailable = !kReleaseMode;
 
 class RecordedFlags {
-  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false)});
+  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const []});
   final DateTime? at;
   final NetMode net;
   /// `scores=health,carbon`: the You switches a capture has no screen to set yet.
   final ({bool health, bool carbon}) scores;
+  /// `avoid=Milk,Eggs` and `only=Halal`: You's Avoid list and "Only show" tags, likewise.
+  final List<String> avoid, onlyShow;
 }
 
 /// Reads `?data=recorded&at=2026-10-08T12:41&net=slow|offline|fail` from a route. Null = the live path.
@@ -25,6 +27,8 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     at: q['at'] == null ? null : DateTime.parse(q['at']!),
     net: NetMode.values.asNameMap()[q['net']] ?? NetMode.ok,
     scores: (health: (q['scores'] ?? '').split(',').contains('health'), carbon: (q['scores'] ?? '').split(',').contains('carbon')),
+    avoid: [for (final a in (q['avoid'] ?? '').split(',')) if (a.isNotEmpty) a],
+    onlyShow: [for (final a in (q['only'] ?? '').split(',')) if (a.isNotEmpty) a],
   );
 }
 

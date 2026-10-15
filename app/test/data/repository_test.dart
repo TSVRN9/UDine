@@ -19,11 +19,20 @@ class Fake {
   int? status;
   Completer<void>? gate;
   final calls = <Uri>[];
+  Duration delay = Duration.zero;
+  int inFlight = 0, maxInFlight = 0;
 
   late final client = MockClient((req) async {
     calls.add(req.url);
-    if (!online) throw const SocketException('Network is unreachable');
-    await gate?.future;
+    inFlight++;
+    if (inFlight > maxInFlight) maxInFlight = inFlight;
+    try {
+      await Future<void>.delayed(delay);
+      if (!online) throw const SocketException('Network is unreachable');
+      await gate?.future;
+    } finally {
+      inFlight--;
+    }
     if (status != null) return http.Response('boom', status!);
     final body = switch (req.url.path) {
       '/foodpro-menu-ajax' => ajaxBody(),
@@ -297,6 +306,71 @@ void main() {
         '10/13/2026',
         '10/14/2026',
       });
+    });
+  });
+
+  group('the network pool', () {
+    final days = [for (var i = 0; i < 15; i++) '2026-10-${(13 + i).toString().padLeft(2, '0')}'];
+    Future<void> loadAll() => Future.wait([for (final d in days) repo.menu(2, d).drain<void>()]);
+
+    test('15 days asked for at once never have more than 4 requests in flight, and all 15 are answered', () async {
+      net.delay = const Duration(milliseconds: 20);
+      final got = await Future.wait([for (final d in days) run(repo.menu(2, d))]);
+      expect(net.maxInFlight, lessThanOrEqualTo(4));
+      expect(net.calls, hasLength(15));
+      expect([for (final g in got) kinds(g)], everyElement('Loading,Loaded'));
+    });
+
+    test('once a fetch has failed Unreachable, the others resolve from the phone without asking the network', () async {
+      net.online = false;
+      await run(repo.menu(2, days[0]));
+      expect(net.calls, hasLength(1));
+      await loadAll();
+      expect(net.calls, hasLength(1)); // an offline schedule open adds no request
+      expect(kinds(await run(repo.menu(2, days[5]))), 'Loading,NotSaved');
+    });
+
+    test('a saved copy still renders offline inside the window', () async {
+      await run(repo.menu(2, days[1]));
+      clock = clock.add(const Duration(hours: 7));
+      net.online = false;
+      await run(repo.menu(2, days[0]));
+      expect(kinds(await run(repo.menu(2, days[1]))), 'Loaded,LoadedOffline');
+    });
+
+    test('after the window the network is tried again, and a success ends the offline stretch', () async {
+      net.online = false;
+      await run(repo.menu(2, days[0]));
+      net.online = true;
+      await run(repo.menu(2, days[1]));
+      expect(net.calls, hasLength(1)); // still inside the window
+      clock = clock.add(Repository.offlineWindow + const Duration(seconds: 1));
+      expect(kinds(await run(repo.menu(2, days[1]))), 'Loading,Loaded');
+      expect(net.calls, hasLength(2));
+      net.online = false;
+      await run(repo.menu(2, days[2])); // fails again: window restarts
+      net.online = true;
+      await run(repo.menu(2, days[3]));
+      expect(net.calls, hasLength(3));
+    });
+
+    test('a skipped fetch does not extend the window', () async {
+      net.online = false;
+      await run(repo.menu(2, days[0]));
+      clock = clock.add(const Duration(seconds: 20));
+      await run(repo.menu(2, days[1])); // skipped
+      clock = clock.add(const Duration(seconds: 11)); // 31 s after the failure
+      net.online = true;
+      expect(kinds(await run(repo.menu(2, days[2]))), 'Loading,Loaded');
+    });
+
+    test('an explicit retry asks again at once', () async {
+      net.online = false;
+      await run(repo.menu(2, days[0]));
+      net.online = true;
+      repo.retryNetwork();
+      expect(kinds(await run(repo.menu(2, days[0]))), 'Loading,Loaded');
+      expect(net.calls, hasLength(2));
     });
   });
 
