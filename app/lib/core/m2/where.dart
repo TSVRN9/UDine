@@ -23,10 +23,11 @@ String _fmtMin(int m) => '${((m ~/ 60 + 11) % 12) + 1}:${(m % 60).toString().pad
 
 /// The window a place serves a meal, whatever the clock says: probe effectiveMealWindow at the place's own opening time.
 (String, String)? mealWindow(Board fx, String place, String meal, DateTime now) {
-  final h = fx.hours[place]!;
+  final h = fx.hours[place];
+  if (h == null) return null; // a place whose hours are not known serves no window
   if (!isCafe(place) && meal == 'grab') {
-    final g = fx.grab[place]!;
-    return (g.openTime, g.closeTime);
+    final g = fx.grab[place];
+    return g == null ? null : (g.openTime, g.closeTime);
   }
   if (meal == 'all' || meal == 'grab') return h.general == null ? null : (h.general!.openTime, h.general!.closeTime);
   if (h.general == null) return null;

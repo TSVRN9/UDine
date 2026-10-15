@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../motion/fade_through.dart';
 import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
+import '../screens/halls/hall_page.dart';
 import '../screens/halls/halls_screen.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
@@ -41,6 +42,10 @@ class ShellState extends State<Shell> implements ShellApi {
     setState(() => _sheets.add(s));
     return s.handle;
   }
+
+  @override
+  void openPlace(String place, {required String meal, required int day, required String dish}) =>
+      Nav.push<void>(navigator.currentContext!, (_) => HallMenuPage(place: place, top: safeTop(context), day: day, meal: meal, landOn: dish));
 
   void _remove(_Sheet s) {
     if (mounted) setState(() => _sheets.remove(s));

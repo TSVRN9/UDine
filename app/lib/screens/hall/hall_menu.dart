@@ -12,6 +12,7 @@ import '../../data/repository.dart' show resolveCafeMenu;
 import '../cafes/cafe_body.dart';
 import '../cafes/pdf_rows.dart';
 import '../cafes/cafes_model.dart' show NoMenuBody, cafeBody;
+import '../../core/m2/where.dart' show WhereGroup;
 import '../../motion/container_math.dart';
 import '../../motion/container_transform.dart';
 import '../../shell/app_scope.dart';
@@ -19,6 +20,7 @@ import '../../shell/plate_model.dart';
 import '../../shell/shell_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../dish/dish_sheet.dart';
 import 'hall_controller.dart';
 import 'hall_header.dart';
 import 'busy.dart';
@@ -28,8 +30,8 @@ import 'meal_tabs.dart';
 import 'schedule_sheet.dart';
 import 'station_switcher.dart';
 
-/// A dish row's tap, for the dish sheet (`flutter-port-dish-and-plate`): the serving that was tapped, the place and meal it is on
-/// and the day showing (an index into the 15, 0 today).
+/// A host's own handling of a dish row's tap, in place of the dish sheet (a test seam): the serving that was tapped, the place and
+/// meal it is on and the day showing (an index into the 15, 0 today).
 typedef DishTap = void Function(MenuItem dish, {required String place, required String meal, required int day});
 
 /// The hall screen (M2 `#menu`): the header over the photo, the meal tabs and the station row pinned under it, and the list. One
@@ -51,13 +53,17 @@ class HallMenu extends StatefulWidget {
   final String? meal;
   final VoidCallback onBack;
   final DishTap? onOpenDish;
+  /// a dish's name: its sheet opens over the menu once the menu is in
+  final String? dish;
+  /// a dish's key: the menu arrives scrolled to it, the row tinted
+  final String? landOn;
   final ValueChanged<int>? onEvent;
   /// Wraps the scrolling list in the container's back-drag recogniser, a descendant of the scroll view so that, at the top, a drag
   /// down is claimed before the list's own (M2 decides the axis itself, on its first move).
   final Widget Function(Widget child)? dragWrap;
   const HallMenu({
     super.key, required this.place, required this.top, required this.height, this.progress = kAlwaysCompleteAnimation, this.band, this.ghost,
-    this.day = 0, this.meal, required this.onBack, this.onOpenDish, this.onEvent, this.dragWrap,
+    this.day = 0, this.meal, required this.onBack, this.onOpenDish, this.dish, this.landOn, this.onEvent, this.dragWrap,
   });
   @override
   State<HallMenu> createState() => HallMenuState();
@@ -69,6 +75,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   PlateModel? _plate;
   // "Show all" (M2 `S.reveal`): kept across days, reset only by leaving the page; the preferences themselves are never written
   bool _reveal = false;
+  // the dish a where-served tap landed on (a list item's id), and what is still to do once the menu is in
+  String? _here, _pendingLand, _pendingDish;
   HallController? _c;
   final _sc = ScrollController();
   final _scrollY = ValueNotifier<double>(0);
@@ -128,6 +136,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         ..addListener(_onData)
         ..load(_day);
       _syncStatus();
+      _pendingLand = widget.landOn;
+      _pendingDish = widget.dish;
       _plate = scope.plate..addListener(_onPlate);
     }
   }
@@ -179,6 +189,57 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       if (!mounted) return;
       _updateStation(); // the station the new rows start at
       if (_day == 0 && _state == MenuState.ok) _syncFront();
+      _land();
+    });
+  }
+
+  /// The menu is in: land on the dish a where-served tap named, and open the sheet a launch route named.
+  void _land() {
+    if (_state != MenuState.ok) return;
+    final land = _pendingLand, name = _pendingDish;
+    _pendingLand = _pendingDish = null;
+    if (land != null) _bring(land, instant: true);
+    final d = name == null ? null : _find(dishKey(name), _effectiveMeal);
+    if (d != null) _openDish(d);
+  }
+
+  MenuItem? _find(String key, String meal) {
+    for (final s in fx.days[_iso]?[place]?[meal] ?? const <Station>[]) {
+      for (final d in s.dishes) {
+        if (d.key == key) return d;
+      }
+    }
+    return null;
+  }
+
+  void _openDish(MenuItem d) => openDishSheet(
+        context, dish: d, place: place, meal: _effectiveMeal, day: _day, fx: fx, avoid: _prefs.avoid, cafeIds: c.cafeIds, onServe: (p, g) => _serve(d, p, g),
+      );
+
+  /// A where-served tap, with the sheet half-way out: the place and day already showing bring the dish up where it is (revealed first
+  /// if your preferences hide it); any other pushes that place at that day and meal, already at the dish.
+  void _serve(MenuItem d, String p, WhereGroup g) {
+    if (!mounted) return;
+    if (p == place && g.day == _day) {
+      _bring(d.key, meal: g.meal);
+    } else {
+      ShellScope.of(context).openPlace(p, meal: g.meal, day: g.day, dish: d.key);
+    }
+  }
+
+  /// M2 `toDish`: tint the serving and scroll it to just under the pinned rows, on its meal.
+  void _bring(String key, {String? meal, bool instant = false}) {
+    final m = meal ?? _effectiveMeal, d = _find(key, m);
+    if (d == null) return;
+    if (m != _effectiveMeal) _switchMeal(m);
+    if (!prefOK(_prefs, d)) _reveal = true;
+    setState(() => _here = null);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final i = _items.indexWhere((x) => x.kind == ItemKind.dish && x.dish!.key == key);
+      if (i < 0) return;
+      setState(() => _here = _items[i].id);
+      WidgetsBinding.instance.addPostFrameCallback((_) => mounted && _sc.hasClients ? _scrollTo(_keys.dish, i, lead: M2Layout.hereLead, instant: instant) : null);
     });
   }
 
@@ -259,7 +320,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         left: 0, right: 0, top: _hh + _th + _sw + lo - _sc.offset,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           for (var i = fi; i < _items.length && i < fi + M2Layout.ghostRows; i++)
-            buildItem(context, _items[i], fx: fx, plate: plate, scores: scope.prefs.scores, place: place, day: _day, meal: _effectiveMeal, reveal: _reveal, keys: null, actions: a),
+            buildItem(context, _items[i], fx: fx, plate: plate, scores: scope.prefs.scores, place: place, day: _day, meal: _effectiveMeal, reveal: _reveal, keys: null, actions: a, favorites: scope.prefs.favorites, here: _here),
         ]),
       ),
     ]);
@@ -286,7 +347,10 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     Haptics.selection();
     final ghost = _captureGhost();
     _pagerKey.currentState?.run((to - from).sign, ghost);
-    setState(() => _meal = meal);
+    setState(() {
+      _meal = meal;
+      _here = null;
+    });
     if (_day == 0) _syncFront();
     WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _updateStation() : null);
   }
@@ -378,9 +442,14 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     Haptics.selection();
     final i = _items.indexWhere((x) => x.kind == ItemKind.head && x.si == si);
     if (i < 0) return;
-    // the head's exact offset once it is built; until then the estimate, which the walk toward it corrects as rows are built
-    double target() => ((_topOf(_keys.station(si)) ?? _estimate(i)) - _pin).clamp(0.0, _sc.position.maxScrollExtent);
-    if (reducedMotion(context)) {
+    _scrollTo(_keys.station(si), i);
+  }
+
+  /// Scrolls item `i` (whose row is `key`) to just under the pinned rows, `lead` clear of them: the row's exact offset once it is
+  /// built, until then the estimate, which the walk toward it corrects as rows are built.
+  void _scrollTo(GlobalKey key, int i, {double lead = 0, bool instant = false}) {
+    double target() => ((_topOf(key) ?? _estimate(i)) - _pin - lead).clamp(0.0, _sc.position.maxScrollExtent);
+    if (instant || reducedMotion(context)) {
       _sc.jumpTo(target());
       WidgetsBinding.instance.addPostFrameCallback((_) => mounted && _sc.hasClients ? _sc.jumpTo(target()) : null);
       return;
@@ -403,7 +472,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final plate = AppScope.of(context).plate;
     String pm() => plateMeal(fx, place, _effectiveMeal, fx.clock);
     return MealActions(
-      onOpen: (d) => widget.onOpenDish?.call(d, place: place, meal: _effectiveMeal, day: _day),
+      onOpen: (d) => widget.onOpenDish != null ? widget.onOpenDish!(d, place: place, meal: _effectiveMeal, day: _day) : _openDish(d),
       onAdd: (d) {
         plate.add(pm(), d.dishName, {place: d});
         Haptics.add();
@@ -472,10 +541,10 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                   if (_cafe && !_dishMenu) SliverToBoxAdapter(child: wrap(_standing())),
                   if (_items.isNotEmpty)
                     ListenableBuilder(
-                      listenable: scope.plate,
+                      listenable: Listenable.merge([scope.plate, scope.prefs]),
                       builder: (_, _) => MealSliver(
                         sliverKey: _listKey, fx: fx, items: _items, plate: scope.plate.state, scores: scope.prefs.scores, place: place, day: _day, meal: meal, reveal: _reveal,
-                        keys: _keys, actions: _actions, dragWrap: widget.dragWrap,
+                        keys: _keys, actions: _actions, dragWrap: widget.dragWrap, favorites: scope.prefs.favorites, here: _here,
                       ),
                     ),
                   // the list is at least a screen (`#mlist{min-height:100%}`) and then the room that clears the plate bar

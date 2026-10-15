@@ -1,4 +1,5 @@
 import 'package:flutter/painting.dart';
+import 'kinds.dart';
 
 // Layout numbers the token file does not carry, each named for the M2 rule (src.html) it is copied from. A number that
 // is in design-tokens/m2.json lives there (m2_tokens.g.dart), not here.
@@ -113,11 +114,21 @@ abstract final class M2Layout {
   static const dvMin = 38.0; // `.label .lr .dv` min-width: 3ch of 16 dp Oswald
   static const labelTitleTop = 2.0, labelTitleBottom = 4.0, servingPad = 6.0, calPadTop = 2.0, calPadBottom = 4.0;
   static const scaleGap = 3.0, scaleOnPad = 2.0, scaleNumBar = 7.0, scaleBar = 4.0, scaleBarInset = 1.0, hscaleW = 14.0, cscaleW = 17.0;
-  static const ratingPad = 10.0, gradeNoteTop = 6.0;
+  static const ratingPad = 10.0, gradeNoteTop = 6.0, gradeNoteH = 18.0;
   // the dish sheet (`.dish`)
   static const dishHeadTop = 4.0, dishHeadBottom = 4.0; // `.dhd` padding 0 20 4, `.dn` margin 4 0 0
   static const dsvTop = 4.0, dalTop = 8.0, dadd = 16.0, whereTop = 24.0, wlGap = 16.0, wtBottom = 8.0, labelTop = 24.0, gradesTop = 12.0; // `.dsv`, `.dal`, `.dadd`, `.where`, `.wl+.wl`, `.wt`, `.facts`, `.facts.grades`
   static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 44.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore` (40 in M2: 44 here, a touch target)
+  static const dishMidGuess = 0.55; // the resting height before the label is measured (a fraction of the frame)
+  static const plateLabelGap = 12.0; // `.sh1` gap
+  // the plate label's heading (`.sh1 h2` at 28 dp, line 1.1) and its item list (`p.kv`, 15 dp at 1.5): the engine rounds a fractional
+  // line up to whole dp, so the list takes the 22 below its 22.5 and the heading's 30.8 reads 31; both stay within 1 dp of M2
+  static const plateLabelHead = M2Type(28.0, 30.8, 'Oswald', FontWeight.w600, tabular: true);
+  static const plateKv = M2Type(15.0, 22.0, 'LibreFranklin', FontWeight.w400);
+  static const hereLead = 8.0; // `toDish`: the serving rests 8 under the pinned rows
+  // the favourite star (`.dish .favb`: a 48 dp `.icon` pulled back 6 up and 12 right; `.star` is the row's mark)
+  static const favBox = 48.0, favGlyph = 24.0, favStroke = 2.2, favGap = 8.0, favUp = -6.0, favOut = 12.0;
+  static const starRow = 16.0, starLeft = 4.0, starBaseline = 14.0; // `.star` 13 dp ★ + margin-left 4: the drawn star is 16 dp wide, whose ink is 13
   static const shadowBlur = 14.0, shadowSpread = -8.0, shadowDy = 10.0, stuckAt = 4.0; // `.dish.stuck .dhd`
   // the plate bar and sheet (`#bar`, `.prow`, `.ptabs`, `.facts`)
   static const barMin = 68.0, barPadTop = 8.0, barPadRight = 12.0, barGap = 12.0, barL2Top = 2.0, barNumGap = 2.0, barUnitGap = 12.0; // `#bar .in`, `.l2`
