@@ -50,3 +50,7 @@ app.*.map.json
 !/assets/photos/retail/
 /assets/photos/retail/*
 !/assets/photos/retail/.gitkeep
+
+# UMass Dining's café menu PDFs for recorded mode (public repo: never committed): tool/link_pdfs.sh fills this
+/assets/recorded/pdf/*
+!/assets/recorded/pdf/.gitkeep

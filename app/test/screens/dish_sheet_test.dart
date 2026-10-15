@@ -52,6 +52,24 @@ void main() {
     await drain(t);
   });
 
+  testWidgets('the favourite star takes a tap anywhere in its 48 x 48 dp box, its glyph where M2 draws it', (t) async {
+    final boot = await bootRecorded(t);
+    await openHall(t, boot, base);
+    final name = t.widget<DishRow>(find.byType(DishRow).first).dish.dishName;
+    await tapRow(t, 0);
+    final box = t.getRect(find.descendant(of: find.byType(FavoriteStar), matching: find.byType(Press)));
+    expect((box.width, box.height), (48.0, 48.0));
+    for (final p in [box.topLeft + const Offset(2, 2), box.topRight + const Offset(-2, 2), box.bottomLeft + const Offset(2, -2), box.bottomRight + const Offset(-2, -2)]) {
+      await t.tapAt(p);
+      await t.pumpAndSettle();
+      expect(boot.prefs.isFavorite(name), isTrue, reason: 'a tap at $p of $box');
+      await t.tapAt(box.center);
+      await t.pumpAndSettle();
+      expect(boot.prefs.isFavorite(name), isFalse);
+    }
+    await drain(t);
+  });
+
   testWidgets('Add to plate puts the dish on the plate and puts the sheet away; reopened, the button says Add another', (t) async {
     final boot = await bootRecorded(t);
     await openHall(t, boot, base);

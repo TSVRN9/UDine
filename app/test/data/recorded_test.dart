@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:udine/core/content.dart';
 import 'package:udine/core/occupancy.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/core/m2/plate.dart';
@@ -48,6 +49,12 @@ void main() {
       expect(recordedFlags('/?data=recorded&scores=carbon')!.scores, (health: false, carbon: true));
       expect(recordedFlags('/?data=recorded')!.scores, (health: false, carbon: false));
     });
+    test('avoid=Milk,Eggs and only=Halal set the Avoid list and "Only show" tags for a capture', () {
+      final f = recordedFlags('/?data=recorded&avoid=Milk,Eggs&only=Halal')!;
+      expect(f.avoid, ['Milk', 'Eggs']);
+      expect(f.onlyShow, ['Halal']);
+      expect(recordedFlags('/?data=recorded')!.avoid, isEmpty);
+    });
     test('no data flag, no switch', () => expect(recordedFlags('/hall/worcester?net=fail'), isNull));
   });
 
@@ -72,6 +79,10 @@ void main() {
       final y = File('pubspec.yaml').readAsStringSync();
       expect(RegExp(r'- path: assets/recorded/\n\s+flavors:\n\s+- internal\n').hasMatch(y), isTrue);
       expect(RegExp(r'^\s+- assets/recorded', multiLine: true).hasMatch(y), isFalse);
+    });
+    test('the PDFs are internal-flavor only, and gitignored', () {
+      expect(RegExp(r'- path: assets/recorded/pdf/\n\s+flavors:\n\s+- internal\n').hasMatch(File('pubspec.yaml').readAsStringSync()), isTrue);
+      expect(File('.gitignore').readAsStringSync(), contains('/assets/recorded/pdf/*'));
     });
   });
 
@@ -235,5 +246,58 @@ void main() {
     expect(got['Hampshire'], (0, VsUsual.quieter, null, Confidence.good));
     expect(got['Berkshire'], (2, VsUsual.busier, null, Confidence.low));
     expect((await r.dishCatalog().toList()).last, isA<Loaded<List<DishCatalogEntry>>>());
+  });
+
+  group('recorded PDFs', () {
+    const commonwealth = 'The Commonwealth Restaurant';
+    late Directory dir;
+    final asked = <String>[];
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('recorded_pdf_test');
+      asked.clear();
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    // synthetic stand-ins: the real PDFs are UMass's and never in the repo
+    Future<List<int>> fake(String file) async {
+      asked.add(file);
+      return utf8.encode('%PDF-1.4\n%$file\n');
+    }
+
+    Future<List<String>> links(Repository r) async {
+      final last = (await r.hours('2026-10-08').toList()).last;
+      final feed = (last is Loaded<HoursData> ? last.value : (last as LoadedOffline<HoursData>).value).feed;
+      final menu = resolveCafeMenu(const [], feed.retail.firstWhere((c) => c.name == commonwealth)) as StandingCafeMenu;
+      return [for (final l in (menu.menu as RetailMenuPdf).links) l.url];
+    }
+
+    Future<Repository> rec(String route, {List<String> pins = const []}) =>
+        recordedRepository(recordedFlags(route)!, db, read: _read, readPdf: fake, pins: pins, pdfDir: dir);
+
+    test('The Commonwealth lists its four PDFs, each served from its own local file', () async {
+      final r = await rec('/cafe/c29?data=recorded&at=2026-10-08T12:41');
+      final urls = await links(r);
+      expect(urls, hasLength(4));
+      for (final u in urls) {
+        expect(await r.pdfs!.open(u).toList(), [isA<Loading<File>>(), isA<Loaded<File>>()]);
+      }
+      expect(asked, ['Lunch.pdf', 'Lite-fare.pdf', 'Dinner.pdf', 'Dessert.pdf']);
+    });
+
+    test('offline: a pinned café opens its PDFs, an unpinned one says not saved', () async {
+      final pinned = await rec('/?data=recorded&at=2026-10-08T12:41&net=offline', pins: [commonwealth]);
+      for (final u in await links(pinned)) {
+        expect(await pinned.pdfs!.open(u).toList(), [isA<Loaded<File>>()]);
+      }
+      final other = Directory.systemTemp.createTempSync('recorded_pdf_test2');
+      addTearDown(() => other.deleteSync(recursive: true));
+      final bare = await recordedRepository(recordedFlags('/?data=recorded&at=2026-10-08T12:41&net=offline')!, db, read: _read, readPdf: fake, pdfDir: other);
+      expect((await bare.pdfs!.open((await links(pinned)).first).toList()).last, isA<NotSaved<File>>());
+    });
+
+    test('a checkout without the local PDFs fails the menu, not the app', () async {
+      final r = await recordedRepository(recordedFlags('/?data=recorded&at=2026-10-08T12:41')!, db, read: _read, readPdf: (f) async => throw 'not linked', pdfDir: dir);
+      expect((await r.pdfs!.open((await links(r)).first).toList()).last, isA<Failed<File>>());
+    });
   });
 }

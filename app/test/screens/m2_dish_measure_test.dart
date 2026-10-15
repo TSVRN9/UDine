@@ -2,9 +2,8 @@
 // on, measured with ~/.cache/udine-scratch/flutter/m2dom.js on src.html at dpr 1) against ours, within 1 dp. Each rect is
 // [left, top, width, height]; a block's width is the column's, not the text's, so those compare left, top and height only.
 //
-// States the file has no numbers for yet (a café price, avoided allergens, an unscored dish, ingredients open, favourite on, the plate's
-// label, a later group in "where") are measured by ~/.cache/udine-scratch/flutter/m2dom-dish.js into test/m2_dom_dish.json; until
-// that file exists they are skipped.
+// The other states (a café price, an avoided allergen, no marks, the favourite on, ingredients open, two places, tomorrow, the row star and
+// the plate's label) read test/m2_dom_dish.json, measured by m2dom-dish.js against the round-11 build.
 import 'dart:convert';
 import 'dart:io';
 
@@ -20,7 +19,7 @@ import 'dish_support.dart';
 import 'support.dart';
 
 final _dom = jsonDecode(File('test/m2_dom.json').readAsStringSync()) as Map<String, dynamic>;
-final _more = File('test/m2_dom_dish.json').existsSync() ? jsonDecode(File('test/m2_dom_dish.json').readAsStringSync()) as Map<String, dynamic> : null;
+final _more = jsonDecode(File('test/m2_dom_dish.json').readAsStringSync()) as Map<String, dynamic>;
 
 const route = '/hall/worcester?meal=lunch&dish=Golden+BBQ+Chicken+Thigh';
 
@@ -93,8 +92,6 @@ void main() {
     });
   }
 
-  // The states below wait for the numbers M2's own page gives (m2dom-dish.js, not run in phase 1: no Chromium). Their bodies are written
-  // against that file's keys and have never run.
   const states = {
     'cafe': 'a café dish with its price (Buffalo Chicken Salad, Green Fields)',
     'avoid': 'an avoided allergen in Contains',
@@ -109,19 +106,15 @@ void main() {
   for (final w in [360, 390]) {
     for (final MapEntry(key: key, value: what) in states.entries) {
       testWidgets('$what at $w dp matches M2 within 1 dp', (t) async {
-        if (_more == null) {
-          markTestSkipped('no M2 numbers yet: test/m2_dom_dish.json comes from ~/.cache/udine-scratch/flutter/m2dom-dish.js against the round-11 build');
-          return;
-        }
-        final m = (_more!['$w'] as Map<String, dynamic>)[key] as Map<String, dynamic>;
+        final m = (_more['$w'] as Map<String, dynamic>)[key] as Map<String, dynamic>;
         final boot = await bootRecorded(t, health: true, carbon: true);
+        final items = await lunchDishes(t, boot, 1, '2026-10-08'); // (before the page: the sheet's prefetch holds the repository's slots)
         // (M2's first café dish with a price today: the Terrace's breakfast sandwich)
         final route = key == 'cafe' ? '/cafe/27?meal=breakfast&dish=${Uri.encodeQueryComponent('Bacon, Egg & Cheese on English Muffin')}'
             : key == 'whereTomorrow' ? dishRoute('Tofu Scramble', meal: 'breakfast', day: '2026-10-09') : '/hall/worcester?meal=lunch';
         await openHall(t, boot, route, w: w.toDouble(), h: key == 'rowFav' ? 3000 : 844);
         final hall = t.state<HallMenuState>(find.byType(HallMenu));
         final ctx = t.element(find.byType(HallMenu));
-        final items = await lunchDishes(t, boot, 1, '2026-10-08');
         MenuItem named(String n) => items.firstWhere((d) => d.dishName == n);
         void sheetOf(MenuItem d, {List<String> avoid = const []}) => openDishSheet(ctx, dish: d, place: 'W', meal: 'lunch', day: 0, fx: hall.fx, avoid: avoid, onServe: (_, _) {});
         switch (key) {
@@ -171,9 +164,9 @@ void main() {
           final g = rect(t, find.byType(RatingsPanel)), h = rect(t, find.text('Ingredients')), more = rect(t, find.ancestor(of: find.text('Show less'), matching: find.byType(Press)));
           final mg = (m['grades'] as List).cast<num>(), mh = (m['ingh'] as List).cast<num>(), mm = (m['ingmore'] as List).cast<num>(), mi = (m['ing'] as List).cast<num>();
           expect(h[1] - (g[1] + g[3]), closeTo(mh[1] - (mg[1] + mg[3]), 1.0), reason: 'grades to Ingredients');
-          // the engine rounds each 22.5 dp line of ingredients up to 23: allow half a dp per line, and no more
-          final lines = (mi[3] / 22.5).round(), slack = 0.5 * lines + 1;
-          expect(more[1] - h[1], closeTo(mm[1] - mh[1] + slack / 2, slack / 2 + 1), reason: 'Ingredients to Show less (the button is 44 here, 40 in M2: same top)');
+          // the engine rounds each 22.5 dp line of ingredients up to 23, so ours is between 0 and half a dp per line longer than M2's
+          final lines = (mi[3] / 22.5).round();
+          expect(more[1] - h[1], closeTo(mm[1] - mh[1] + 0.25 * lines, 0.25 * lines + 1), reason: 'Ingredients to Show less (the button is 44 here, 40 in M2: same top)');
           expect(more[1] - h[1], greaterThan(mi[3]), reason: 'every line is showing');
         } else {
           compareSheet(t, w, m);

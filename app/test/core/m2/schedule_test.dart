@@ -44,6 +44,12 @@ void main() {
     expect(statusLine(board, 'W', 9), '7 AM to midnight');
     expect(statusLine(board, 'W', 2), '');
   });
+  test('modeOf says each day\'s own state: loading and failed rows have no hours and do not open, unsaved ones say Not saved, loaded ones are as ever', () {
+    final s = schedule(board, 'W', 0, modeOf: (i) => switch (i) { 0 || 1 => NetMode.ok, 2 => NetMode.slow, 3 => NetMode.fail, _ => NetMode.offline });
+    expect([for (final d in s.days.take(6)) d.right], ['7 AM to midnight', '', '', '', 'Not saved', 'Not saved']);
+    expect(s.days[0].meals, isNotEmpty);
+    expect(schedule(board, 'W', 3, modeOf: (i) => i == 3 ? NetMode.fail : NetMode.ok).days[3].meals, isEmpty);
+  });
   test('Directions hands the phone the café\'s lat,long', () => expect(mapsUri('42.39,-72.52').toString(), 'https://www.google.com/maps/search/?api=1&query=42.39%2C-72.52'));
 }
 

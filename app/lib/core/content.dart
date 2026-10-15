@@ -46,9 +46,19 @@ sealed class ParsedRetailMenu {
   const ParsedRetailMenu();
 }
 
-class RetailMenuPdf extends ParsedRetailMenu {
-  const RetailMenuPdf({required this.url, required this.label});
+class PdfLink {
+  const PdfLink(this.url, this.label);
   final String url, label;
+}
+
+/// A café that lists its menus as PDFs: the first link as [url]/[label], every later one in [more] (RN shows only the first).
+class RetailMenuPdf extends ParsedRetailMenu {
+  const RetailMenuPdf({required this.url, required this.label, this.more = const []});
+  final String url, label;
+  final List<PdfLink> more;
+
+  /// Every link, in the feed's order.
+  List<PdfLink> get links => [PdfLink(url, label), ...more];
 }
 
 class RetailMenuItem {
@@ -83,23 +93,24 @@ RetailMenuItem _item(String line) {
   return m == null ? RetailMenuItem(line, null) : RetailMenuItem(m[1]!.trim(), m[2]);
 }
 
-/// A retail `*_menu` fragment as a safe shape: a PDF link (umassdining.com hosts only), an item list, or nothing.
+/// A retail `*_menu` fragment as a safe shape: its PDF links (umassdining.com hosts only), an item list, or nothing.
 /// The raw HTML never reaches a widget.
 ParsedRetailMenu parseRetailMenuHtml(String? html) {
   if (html == null || html.isEmpty) return const RetailMenuEmpty();
 
-  final link = RegExp(r'<a\b[^>]*\shref="([^"]*)"[^>]*>([\s\S]*?)</a>', caseSensitive: false).firstMatch(html);
-  if (link != null) {
+  final pdfs = <PdfLink>[];
+  for (final link in RegExp(r'<a\b[^>]*\shref="([^"]*)"[^>]*>([\s\S]*?)</a>', caseSensitive: false).allMatches(html)) {
     final href = link[1]!;
     // The .pdf shape alone proves nothing: the viewer renders whatever Content-Type the server sends.
     if (RegExp(r'\.pdf(?:[?#]|$)', caseSensitive: false).hasMatch(href) && isUmassDiningHost(href)) {
       final url = sanitizeLinkUrl(href);
       if (url.isNotEmpty) {
         final label = htmlToText(link[2]);
-        return RetailMenuPdf(url: url, label: label.isEmpty ? 'Menu' : label);
+        pdfs.add(PdfLink(url, label.isEmpty ? 'Menu' : label));
       }
     }
   }
+  if (pdfs.isNotEmpty) return RetailMenuPdf(url: pdfs.first.url, label: pdfs.first.label, more: pdfs.sublist(1));
 
   // A <strong>/<b> block is a section label, not a dish.
   final items = _extractItems(html.replaceAll(RegExp(r'<(strong|b)\b[^>]*>[\s\S]*?</\1>', caseSensitive: false), ''));

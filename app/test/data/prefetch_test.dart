@@ -11,7 +11,8 @@ import 'package:udine/data/source.dart';
 import 'fixtures.dart';
 
 // The one path every place's menus come in by (Search opening, the dish sheet's "where it's served"): each place-day is asked of the
-// network at most once, never more than `cap` requests are in flight, and with the network known to be down nothing is asked.
+// network at most once, the repository's pool keeps at most four requests in flight, and with the network known to be down (the pool's
+// offline window) nothing is asked.
 void main() {
   sqfliteFfiInit();
   late Database db;
@@ -45,10 +46,10 @@ void main() {
   });
   tearDown(() => db.close());
 
-  test('never more than the cap in flight, and every place-day comes back', () async {
-    final got = await repo.prefetchMenus(pairs, cap: 4);
+  test('every place-day comes back, with never more than the repository pool\'s four in flight', () async {
+    final got = await repo.prefetchMenus(pairs);
     expect(calls, hasLength(pairs.length));
-    expect(peak, inInclusiveRange(2, 4));
+    expect(peak, inInclusiveRange(2, Repository.maxInFlight));
     expect(got.length, pairs.length);
     expect(got[(1, '2026-10-13')], isNotEmpty);
     expect(got[(4, '2026-10-13')], isEmpty);
@@ -84,7 +85,7 @@ void main() {
 
   test('a prefetch that is told to stop asks for nothing more', () async {
     var stop = false;
-    final f = repo.prefetchMenus(pairs, cap: 2, stopped: () => stop);
+    final f = repo.prefetchMenus(pairs, stopped: () => stop);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     stop = true;
     await f;

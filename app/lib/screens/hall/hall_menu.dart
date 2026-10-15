@@ -7,7 +7,7 @@ import '../../core/m2/plate.dart';
 import '../../core/hours.dart' show openSpan;
 import '../../core/occupancy.dart';
 import '../../core/m2/places.dart' show Roster;
-import '../../core/m2/schedule.dart' show statusLine;
+import '../../core/m2/schedule.dart' show schedule, statusLine;
 import '../../data/repository.dart' show resolveCafeMenu;
 import '../cafes/cafe_body.dart';
 import '../cafes/cafes_model.dart' show NoMenuBody, cafeBody;
@@ -26,6 +26,7 @@ import 'busy.dart';
 import 'meal_list.dart';
 import 'meal_pager.dart';
 import 'meal_tabs.dart';
+import 'schedule_sheet.dart';
 import 'station_switcher.dart';
 
 /// A host's own handling of a dish row's tap, in place of the dish sheet (a test seam): the serving that was tapped, the place and
@@ -36,8 +37,9 @@ typedef DishTap = void Function(MenuItem dish, {required String place, required 
 /// `progress` (the container transform's open; whole at rest and when pushed) and the scroll offset drive every animated property,
 /// as M2's `paint(p, y)`. A hall and a café with dishes alike (a café has no letter and no busy row); it is the whole body a café page
 /// hosts. `place` is `W F H B` or `c<i>`; the body loads its own hours and menus from the app's repository.
+/// The status line and the day cell open the schedule, whose day rows change the day (M2 `changeDay`).
 ///
-/// Hooks for what comes next: `onStatus` and `onDay` (the schedule and the day control), `onEvent`.
+/// Hooks for what comes next: `onOpenDish`, `onEvent`.
 class HallMenu extends StatefulWidget {
   final String place;
   final double top, height;
@@ -49,7 +51,6 @@ class HallMenu extends StatefulWidget {
   final int day;
   final String? meal;
   final VoidCallback onBack;
-  final VoidCallback? onStatus, onDay;
   final DishTap? onOpenDish;
   /// a dish's name: its sheet opens over the menu once the menu is in
   final String? dish;
@@ -61,16 +62,17 @@ class HallMenu extends StatefulWidget {
   final Widget Function(Widget child)? dragWrap;
   const HallMenu({
     super.key, required this.place, required this.top, required this.height, this.progress = kAlwaysCompleteAnimation, this.band, this.ghost,
-    this.day = 0, this.meal, required this.onBack, this.onStatus, this.onDay, this.onOpenDish, this.dish, this.landOn, this.onEvent, this.dragWrap,
+    this.day = 0, this.meal, required this.onBack, this.onOpenDish, this.dish, this.landOn, this.onEvent, this.dragWrap,
   });
   @override
   State<HallMenu> createState() => HallMenuState();
 }
 
 class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
-  late final int _day = widget.day; // Task 2 (the day control) changes it
+  late int _day = widget.day;
   late String _meal;
   PlateModel? _plate;
+  // "Show all" (M2 `S.reveal`): kept across days, reset only by leaving the page; the preferences themselves are never written
   bool _reveal = false;
   // the dish a where-served tap landed on (a list item's id), and what is still to do once the menu is in
   String? _here, _pendingLand, _pendingDish;
@@ -79,6 +81,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   final _scrollY = ValueNotifier<double>(0);
   // M2 `arrive()`: when a menu that was loading or failed lands, tabs, station name and list fade in from nothing over `settle`
   late final AnimationController _arrive = AnimationController(vsync: this, value: 1, duration: M2Motion.settle.duration);
+  // M2 `changeDay`: everything that says the day fades out in place, then the new day fades in (the list from .97); `_dayIn` while the
+  // second leg runs, which is when the list scales. `_flash` is "Show all"'s list flash.
+  late final AnimationController _dayFade = AnimationController(vsync: this, value: 1, animationBehavior: AnimationBehavior.preserve); // (reduced motion is rmFade at its own length, not the framework's shortcut)
+  late final AnimationController _flash = AnimationController(vsync: this, value: 1, animationBehavior: AnimationBehavior.preserve);
+  bool _dayIn = false;
   MenuState _seen = MenuState.ok;
   final _status = ValueNotifier<String>('');
   final _busy = ValueNotifier<HallBusyView?>(null);
@@ -89,14 +96,15 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   late final AnimationController _jumpC = AnimationController(vsync: this);
   final _station = ValueNotifier<int?>(null);
   SheetHandle? _stationsSheet;
-  // the dietary preferences (Task 2 reads them from You); nothing is hidden until then
-  final Prefs _prefs = noPrefs;
+  // the dietary preferences You writes (device-only); read here as menus filter on them
+  Prefs get _prefs => AppScope.of(context).prefs.diet;
 
   String get place => widget.place;
   HallController get c => _c!;
   Board get fx => c.board;
   bool get _cafe => isCafe(place);
   String get _iso => c.isos[_day];
+  String get iso0 => c.isos.first;
   bool get _dishMenu => c.hasMenu;
   MenuState get _state => _dishMenu ? c.state(_day) : MenuState.ok;
   // a café that posts one menu a day has no tab row (its day cell leads the station row), once its menu is known
@@ -139,6 +147,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     _sc.dispose();
     _scrollY.dispose();
     _arrive.dispose();
+    _dayFade.dispose();
+    _flash.dispose();
     _plate?.removeListener(_onPlate);
     _c?.removeListener(_onData);
     _c?.dispose();
@@ -344,6 +354,63 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _updateStation() : null);
   }
 
+  // ---- day change: fade through. Everything that says the day fades out where it is over the first 35%, the new day is drawn and
+  // fades in where it ends up (the list from .97); old and new never overlap, the grounds stay, the header never moves.
+  Future<void> changeDay(int i) async {
+    if (i == _day) return;
+    final rm = reducedMotion(context), f = M2Motion.fadeThrough;
+    void swap() {
+      final y = _sc.hasClients ? _sc.offset.clamp(0.0, _r) : 0.0;
+      c.load(i);
+      setState(() => _day = i);
+      _syncStatus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_sc.hasClients) _sc.jumpTo(y.clamp(0.0, _sc.position.maxScrollExtent));
+        _updateStation();
+        if (i == 0 && _state == MenuState.ok) _syncFront();
+      });
+    }
+
+    if (rm) {
+      swap();
+      _dayIn = true;
+      _dayFade.duration = M2Motion.rmFade.duration;
+      await _dayFade.forward(from: 0);
+      _dayIn = false;
+      return;
+    }
+    _dayIn = false;
+    _dayFade.duration = f.duration * M2Motion.sharedXAt;
+    await _dayFade.animateBack(0, curve: M2Motion.fadeThroughOut.curve); // out: linear to nothing
+    if (!mounted) return;
+    swap();
+    _dayIn = true;
+    _dayFade.duration = f.duration - f.duration * M2Motion.sharedXAt;
+    await _dayFade.animateTo(1, curve: f.curve);
+    _dayIn = false;
+  }
+
+  // ---- the schedule: the status line's and the day cell's one sheet
+  void _openSchedule() {
+    if (!fx.hours.containsKey(place) || iso0.isEmpty) return;
+    Haptics.selection();
+    c.loadAll();
+    ShellScope.of(context).pushSheet((h, done) => ScheduleSheet(
+          handle: h, top: widget.top + M2Layout.sheetTop, data: c, onClosed: done,
+          schedule: () => schedule(c.board, place, _day, modeOf: c.netOf),
+          onEvent: (i) => h.away(() => widget.onEvent?.call(i)),
+          onPick: (i) {
+            if (i == _day) {
+              h.close();
+              return;
+            }
+            Haptics.selection();
+            h.away(() => changeDay(i));
+          },
+        ));
+  }
+
   // ---- stations
   void _openStations() {
     if (_stationsSheet != null) {
@@ -431,6 +498,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       onReveal: (on) {
         Haptics.selection();
         setState(() => _reveal = on);
+        final a = resolveAnim(context, M2Motion.settle);
+        _flash
+          ..duration = a.duration
+          ..value = M2Motion.revealFlash
+          ..animateTo(1, curve: a.curve);
       },
     );
   }
@@ -444,15 +516,21 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     _seen = st;
     _items = menuOpen ? mealItems(fx, _prefs, place, c.name, _day, meal, _reveal, state: st) : const [];
     final wrap = widget.dragWrap ?? (Widget c) => c;
-    final fade = _FadeProduct(p, _arrive);
+    final fade = _FadeProduct(p, _dayFade, _arrive);
     return ColoredBox(
       color: M2Color.chalk,
       child: Stack(children: [
         // the list: the header's room above it, then the day's meal
         Positioned.fill(
           child: AnimatedBuilder(
-            animation: Listenable.merge([p, _arrive]),
-            builder: (_, c) => Opacity(key: const ValueKey('fade-list'), opacity: (incomingOpacity(p.value) * _arrive.value).clamp(0.0, 1.0), child: c),
+            animation: Listenable.merge([p, _arrive, _dayFade, _flash]),
+            builder: (_, c) => Opacity(
+              key: const ValueKey('fade-list'), opacity: (incomingOpacity(p.value) * _arrive.value * _dayFade.value * _flash.value).clamp(0.0, 1.0),
+              child: Transform.scale(
+                key: const ValueKey('day-scale'), alignment: Alignment(0, (_pin + (h - _pin) / 2) / h * 2 - 1),
+                scale: _dayIn && !reducedMotion(context) ? M2Motion.fadeThroughScale + (1 - M2Motion.fadeThroughScale) * _dayFade.value : 1.0, child: c,
+              ),
+            ),
             child: SharedAxisLayer(
               key: _pagerKey,
               child: CustomScrollView(
@@ -484,8 +562,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
               offset: Offset(0, -d),
               child: Stack(clipBehavior: Clip.none, children: [
                 HallHeader(
-                  key: const ValueKey('header'), place: place, name: c.name, top: top, status: _status, busy: _busy, progress: p, scroll: _scrollY, dayFade: kAlwaysCompleteAnimation, band: widget.band,
-                  ghost: widget.ghost, onStatus: widget.onStatus == null || _status.value.isEmpty ? null : widget.onStatus,
+                  key: const ValueKey('header'), place: place, name: c.name, top: top, status: _status, busy: _busy, progress: p, scroll: _scrollY, dayFade: _dayFade, band: widget.band,
+                  ghost: widget.ghost, onStatus: _status.value.isEmpty ? null : _openSchedule,
                 ),
                 if (th > 0)
                   Positioned(
@@ -499,7 +577,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                       valueListenable: _station,
                       builder: (_, _, _) => StationRow(
                         fade: fade, name: ok ? _stationName(meal) : '', dayLabel: dayCell(fx, _day), open: _stationsSheet != null,
-                        topRule: th > 0, onStations: _openStations, onDay: widget.onDay,
+                        topRule: th > 0, onStations: _openStations, onDay: _openSchedule,
                       ),
                     ),
                   ),
@@ -555,23 +633,25 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   }
 }
 
-/// Two animations multiplied: the container's incoming fade and the menu arriving's.
+/// Three animations multiplied: the container's incoming fade, the day change's and the menu arriving's.
 class _FadeProduct extends Animation<double> with AnimationLocalListenersMixin, AnimationLocalStatusListenersMixin {
-  _FadeProduct(this.p, this.arrive);
-  final Animation<double> p, arrive;
+  _FadeProduct(this.p, this.day, this.arrive);
+  final Animation<double> p, day, arrive;
   @override
-  double get value => (incomingOpacity(p.value) * arrive.value).clamp(0.0, 1.0);
+  double get value => (incomingOpacity(p.value) * day.value * arrive.value).clamp(0.0, 1.0);
   @override
   AnimationStatus get status => AnimationStatus.forward;
   @override
   void didRegisterListener() {
     p.addListener(notifyListeners);
+    day.addListener(notifyListeners);
     arrive.addListener(notifyListeners);
   }
 
   @override
   void didUnregisterListener() {
     p.removeListener(notifyListeners);
+    day.removeListener(notifyListeners);
     arrive.removeListener(notifyListeners);
   }
 }
