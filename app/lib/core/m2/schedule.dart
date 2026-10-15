@@ -63,7 +63,7 @@ Schedule schedule(Board fx, String place, int chosen, {NetMode mode = NetMode.ok
               ]
             : const <({String label, String window})>[];
         final event = menus != null && cur && ev != null
-            ? (title: ev.hoursTitle ?? ev.title, href: (ev.links.where((l) => l[0] == 'Holiday hours').firstOrNull ?? ev.links.first)[1], index: fx.events.indexOf(ev))
+            ? (title: ev.hoursTitle ?? ev.title, href: (ev.links.where((l) => l[0] == 'Holiday hours').firstOrNull ?? ev.links.firstOrNull)?[1] ?? '', index: fx.events.indexOf(ev))
             : null;
         return SchedDay(i, dayLong(fx, i), right, cur, meals, event);
       }(),
