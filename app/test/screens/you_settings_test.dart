@@ -20,23 +20,23 @@ void main() {
   setUpAll(loadFonts);
 
   group('the rows', () {
-    testWidgets('under Earlier: Favorites, Dietary preferences, Which was better?, Export, then Campus and Show on dishes', (t) async {
+    testWidgets('under Earlier: Favorites, Dietary preferences, Export, then Campus and Show on dishes; Which was better? is shelved', (t) async {
       final b = await bootYou(t);
       await openYou(t, b);
-      for (final s in ['Favorites', 'None yet', 'Dietary preferences', 'Everything', 'Which was better?', '8 dishes logged', 'Export my data', '3 days', 'Campus', 'Charles River Campus', 'Show on dishes', 'Healthfulness', 'Carbon rating']) {
+      for (final s in ['Favorites', 'None yet', 'Dietary preferences', 'Everything', 'Export my data', '3 days', 'Campus', 'Charles River Campus', 'Show on dishes', 'Healthfulness', 'Carbon rating']) {
         await t.ensureVisible(find.text(s));
         expect(find.text(s), findsOneWidget, reason: s);
       }
-      final y = [for (final s in ['Earlier', 'Favorites', 'Dietary preferences', 'Which was better?', 'Export my data', 'Charles River Campus', 'Healthfulness', 'Carbon rating']) t.getTopLeft(find.text(s)).dy];
+      expect(find.text('Which was better?'), findsNothing); // shelved (owner, 2026-10-15): its page stays behind /you/rank
+      final y = [for (final s in ['Earlier', 'Favorites', 'Dietary preferences', 'Export my data', 'Charles River Campus', 'Healthfulness', 'Carbon rating']) t.getTopLeft(find.text(s)).dy];
       expect(y, orderedEquals([...y]..sort()));
       await drain(t);
     });
 
-    testWidgets('with nothing logged there is no Export row; Which was better? counts none', (t) async {
+    testWidgets('with nothing logged there is no Export row', (t) async {
       final b = await bootYou(t, History.none);
       await openYou(t, b);
-      await t.ensureVisible(find.text('Which was better?'));
-      expect(find.text('0 dishes logged'), findsOneWidget);
+      await t.ensureVisible(find.text('Dietary preferences'));
       expect(find.text('Export my data'), findsNothing);
       await drain(t);
     });

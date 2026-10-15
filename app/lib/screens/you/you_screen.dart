@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/m2/history.dart';
 import '../../core/m2/menu_view.dart' show isoFull, prefSummary;
-import '../../core/m2/rank.dart' show rankPool;
 import '../../core/store/log_book.dart';
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
@@ -16,7 +15,7 @@ import 'you_parts.dart';
 
 /// You: the date and the title, then Today (its totals and meals) and Earlier (one row per logged day, newest first; a row pushes the day).
 /// On a database a newer build wrote there is no log to show, and the one line says so. Then the choices: Favorites, Dietary preferences,
-/// "Which was better?" and Export, Campus, Show on dishes. The "Track what I eat" and Health rows go above them (Task 3 and `flutter-port-health`).
+/// and Export, Campus, Show on dishes. The "Track what I eat" and Health rows go above them (Task 3 and `flutter-port-health`).
 class YouScreen extends StatelessWidget {
   const YouScreen({super.key, required this.top});
   final double top;
@@ -76,7 +75,7 @@ class _Choices extends StatelessWidget {
     final rows = <(String, String, WidgetBuilder)>[
       ('Favorites', favs == 0 ? 'None yet' : '$favs ${favs == 1 ? 'dish' : 'dishes'}', (_) => FavoritesPage(top: top)),
       ('Dietary preferences', prefSummary(prefs.diet), (_) => DietPage(top: top)),
-      if (book != null) ('Which was better?', '${rankPool(meals).length} dishes logged', (_) => RankPage(top: top)),
+      // "Which was better?" is shelved (owner, 2026-10-15): RankPage stays behind the `/you/rank` route until it comes back here
       if (days > 0) ('Export my data', '$days ${days == 1 ? 'day' : 'days'}', (_) => ExportPage(top: top)),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

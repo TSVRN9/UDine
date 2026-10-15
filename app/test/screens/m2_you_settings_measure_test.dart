@@ -44,18 +44,19 @@ void main() {
       await openYou(t, b, w: wd);
       await t.ensureVisible(find.text('Show on dishes'));
       final y = m('you'), lr = y['lrows'] as List, nl = lr.length; // the last five are the choices: Favorites, Your foods, Dietary, Which, Export
-      final ours = [for (final s in ['Favorites', 'Dietary preferences', 'Which was better?', 'Export my data']) t.getRect(find.widgetWithText(LRow, s))];
-      final theirs = [lr[nl - 5], lr[nl - 3], lr[nl - 2], lr[nl - 1]];
-      for (var i = 0; i < 4; i++) {
+      // M2's Which was better? row (lr[nl - 2]) is shelved in the app, so Export sits one row higher than M2's
+      final ours = [for (final s in ['Favorites', 'Dietary preferences', 'Export my data']) t.getRect(find.widgetWithText(LRow, s))];
+      final theirs = [lr[nl - 5], lr[nl - 3], lr[nl - 1]];
+      for (var i = 0; i < 3; i++) {
         _near('row $i', ours[i], [theirs[i][0], ours[i].top, theirs[i][2], theirs[i][3]], w);
       }
       // M2's Track/Health section (secs[3]) sits between Earlier and the choices; with it absent, its end is where Earlier's list ends
       final earlierEnd = t.getRect(find.widgetWithText(LRow, 'Tuesday, October 6')).bottom, secs = y['secs'] as List;
       expect(ours[0].top - earlierEnd, closeTo(_n(lr, nl - 5, 1) - (_n(secs, 3, 1) + _n(secs, 3, 3)), 1.0), reason: 'the choices under Earlier');
-      expect(ours[3].top - ours[2].top, closeTo(_n(lr, nl - 1, 1) - _n(lr, nl - 2, 1), 1.0));
+      expect(ours[2].top - ours[1].top, closeTo(_n(lr, nl - 2, 1) - _n(lr, nl - 3, 1), 1.0));
       final h2 = y['h2'] as List, ck = y['checks'] as List;
       final campus = t.getRect(find.text('Campus')), show = t.getRect(find.text('Show on dishes'));
-      expect(campus.top - ours[3].bottom, closeTo(_n(h2, 3, 1) - (_n(lr, nl - 1, 1) + _n(lr, nl - 1, 3)), 1.0), reason: 'Campus under the last row');
+      expect(campus.top - ours[2].bottom, closeTo(_n(h2, 3, 1) - (_n(lr, nl - 1, 1) + _n(lr, nl - 1, 3)), 1.0), reason: 'Campus under the last row');
       final ch = t.getRect(find.widgetWithText(CheckRow, 'Charles River Campus'));
       expect(ch.top - campus.top, closeTo(_n(ck, 2, 1) - _n(h2, 3, 1), 1.0), reason: 'the check under Campus');
       expect(show.top - ch.bottom, closeTo(_n(h2, 4, 1) - (_n(ck, 2, 1) + _n(ck, 2, 3)), 1.0), reason: 'Show on dishes under Campus');

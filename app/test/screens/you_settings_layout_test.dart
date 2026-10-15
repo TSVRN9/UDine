@@ -57,7 +57,7 @@ void main() {
       final b = await bootYou(t);
       await openYou(t, b, w: w);
       await t.ensureVisible(find.text('Show on dishes'));
-      for (final s in ['Favorites', 'Dietary preferences', 'Which was better?', 'Export my data']) {
+      for (final s in ['Favorites', 'Dietary preferences', 'Export my data']) {
         final rect = t.getRect(find.widgetWithText(LRow, s));
         expect((rect.left, rect.width), (20.0, w - 2 * 20.0));
         expect(rect.height, greaterThanOrEqualTo(56.0));
