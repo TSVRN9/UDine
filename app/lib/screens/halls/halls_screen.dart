@@ -81,13 +81,6 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
     );
   }
 
-  /// The band's window into its page's header photo (M2 `.win`): the photo at header size, offset so the pixels line up when it opens.
-  Widget? _photo(BandVM b) {
-    final path = photoOf(b.key, b.name);
-    if (path == null) return null;
-    return Positioned(left: 0, right: 0, top: -bandOff(b.key, widget.top), height: headerHeight(widget.top), child: Photo(path: path, pos: b.isCafe ? M2Layout.cafePhotoPos : photoPos[b.key]!));
-  }
-
   Widget _band(BandVM b, HallsVM vm) {
     final hider = AppScope.of(context).hider;
     final cafe = b.isCafe;
@@ -98,7 +91,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
         opacity: hider.hides(b.key) ? 0 : 1,
         child: Band(
           name: b.name, compact: cafe, status: b.status, fade: _arrive,
-          photo: _photo(b),
+          photo: bandPhoto(b, widget.top),
           busy: b.lamps == null ? null : BusyRow(lamps: b.lamps!, word: b.word!),
           letter: cafe ? null : HallLetter(letter: b.key, x: hallLx[b.key]!),
           onTap: () => _open(b),

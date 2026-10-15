@@ -44,16 +44,24 @@ List<HoursEvent> hoursEvents(List<DiningEvent> feed) {
     if (t.endsWith(' Hours') && byTitle.containsKey(t.substring(0, t.length - 6))) continue;
     final h = byTitle['$t Hours'];
     out.add(HoursEvent(
-      title: t, scope: h != null ? halls.join() : '', expires: expires(e), hoursTitle: h?.title.trim(),
+      title: t, scope: h != null ? halls.join() : '', expires: expires(e), hoursTitle: h?.title.trim(), image: e.featuredImage,
       links: [
         if (e.pdfLink.isNotEmpty) [h != null ? 'See the menu' : 'Open the flyer', e.pdfLink],
         if (e.externalLink.isNotEmpty) ['Open the link', e.externalLink],
         if (h != null) ['Holiday hours', h.externalLink.isNotEmpty ? h.externalLink : h.pdfLink],
+        // a merged event's "See the menu" opens its day in the app, so the flyer it names keeps a button of its own (not M2's: its link is the flyer)
+        if (h != null && e.pdfLink.isNotEmpty) ['Open the flyer', e.pdfLink],
       ],
     ));
   }
   return out..sort((a, b) => a.expires - b.expires);
 }
+
+/// Every hall's Grab 'N Go window (its own get_infov2 entry, the hall's name and Grab 'N Go), for the halls that have one.
+Map<String, TimeWindow> grabsOf(DiningHoursFeed feed) => {
+      for (var i = 0; i < halls.length; i++)
+        halls[i]: ?feed.retail.where((r) => straight(r.name) == "${diningHalls[i].name} Grab 'N Go").firstOrNull?.hours,
+    };
 
 /// One place's menu on live data: today's hours (cached for the day; a café's menu is keyed by the location id they carry), then the
 /// menu of each day asked for, cache first. The body reads [board], the shape `core/m2` works on, and [state] per day.
@@ -104,9 +112,7 @@ class HallController extends ChangeNotifier {
   }
 
   /// Every café's location id by place key (`c3`), for the cafés the feed has one for (where a dish is served names them).
-  Map<String, int> get cafeIds {
-    return cafeIdsOf(_hoursValue?.feed);
-  }
+  Map<String, int> get cafeIds => _hoursValue == null ? const {} : cafeIdsOf(_hoursValue!.feed);
 
   String get name => cafe ? cafeTable[int.parse(place.substring(1))].name : diningHalls[halls.indexOf(place)].name;
 
@@ -114,12 +120,7 @@ class HallController extends ChangeNotifier {
   DiningHallHours? get placeHours => roster?.hours[place];
 
   /// A hall's Grab 'N Go window (its own get_infov2 entry, the hall's name and Grab ‘N Go).
-  TimeWindow? grabOf(String hall) {
-    final feed = _hoursValue?.feed;
-    if (feed == null || isCafe(hall)) return null;
-    final title = '${diningHalls[halls.indexOf(hall)].name} Grab \'N Go';
-    return feed.retail.where((r) => straight(r.name) == title).firstOrNull?.hours;
-  }
+  TimeWindow? grabOf(String hall) => _hoursValue == null || isCafe(hall) ? null : grabsOf(_hoursValue!.feed)[hall];
 
   TimeWindow? get grab => grabOf(place);
 

@@ -140,7 +140,7 @@ abstract final class M2Layout {
   static const midFrac = 0.36; // the plate sheet's resting line: 36% of the frame down
   static const factCalBottom = 7.0, factRowTop = 7.0, factRowBottom = 5.0; // `.facts .cal`, `.nr`
   static const peekRadius = 3.0; // `.peek` border-radius 3 3 0 0
-  static const customH = 52.0, customPadX = 16.0, customGap = 10.0; // `.custom`, its plus is `glyph`
+  static const customPadX = 16.0, customGap = 10.0; // `.custom`, its plus is `glyph`
   static const customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom` inset 1.5px rgba(136,28,28,.5)
   static const buzzLogGap = 72.0; // M2 `buzz([12,60,24])`: a 12 ms pulse, 60 ms off, then a 24 ms one: the second starts 72 ms after the first
   static const barHide = 1.1; // `#bar{transform:translateY(110%)}` until a plate is on it
@@ -184,8 +184,40 @@ abstract final class M2Layout {
   static const lgoneMin = 64.0, lgoneGap = 8.0; // `.lgone`
   static const lgoneName = M2Type(16.0, null, 'LibreFranklin', FontWeight.w500); // `.lgone .n`: the row's name at 500
   static const mealCalNum = M2Type(18.0, null, 'Oswald', FontWeight.w600, tabular: true); // `.lrow .mc b`
+
+  // Search (`.shead`, `.field`, `.lenses`, `.sgrp`, `.prow2`, `.hcards`, `.hcard`, `.ht`, `.cnm`, `.empty`, `.custom`)
+  static const searchHeadTop = 12.0, searchHeadBottom = 14.0; // `.shead` padding: calc(var(--st) + 12px) 20px 14px
+  static const fieldH = 52.0, fieldPadL = 16.0, fieldPadR = 4.0, fieldGap = 10.0, fieldIcon = 20.0, fieldIconStroke = 2.2; // `.field`, `.field svg`
+  static const fieldText = M2Type(17.0, null, 'LibreFranklin', FontWeight.w500); // `.field input`
+  static const fieldHint = M2Type(17.0, null, 'LibreFranklin', FontWeight.w400); // `::placeholder`: slate, weight 400
+  static const clearBox = 48.0, clearGlyph = 24.0, clearStroke = 2.2; // `.icon`
+  static const lensesTop = 12.0, lensesBottom = 12.0, lensGap = 8.0; // `.lenses` padding 12 20, gap 8
+  static const lensGlyph = 16.0, lensGlyphGap = 4.0; // `.chip .gl` (margin-right -2 on the chip's 6 gap)
+  static const groupTop = 14.0, groupBottom = 2.0; // `.sgrp` padding 14 20 2
   static const emptyTop = 28.0, emptyBottom = 8.0; // `.empty` padding 28 20 8
   // Which was better? and Export (`.vs`, `.vs .or`, `.stack`)
   static const vsMin = 96.0, vsPad = 16.0, vsGap = 12.0, vsTop = 12.0; // `.vs button` min-height 96, padding 16; `.vs, .stack` gap 12, margin-top 12
   static const vsName = M2Type(22.0, 25.3, 'Oswald', FontWeight.w600, tabular: true); // `.vs button`: 600 22/1.15 Oswald
+  static const placeRowMin = 60.0, placeRowPadV = 8.0, placeRowGap = 12.0, placeTextTop = 2.0; // `.prow2`
+  static const placeStatus = M2Type(14.0, null, 'LibreFranklin', FontWeight.w500); // `.prow2 .r`
+  static const cardH = 76.0, cardTextTop = 13.0, cardMeterGap = 10.0; // `.band.hcard`, `.hcard .bt`, `.st` gap
+  static const cardsTop = 4.0, cardsBottom = 8.0; // `.hcards` margin
+  static const laneMin = 66.0; // `.lane` min-height
+  static const tagSize = 18.0, tagGap = 2.0, tagRight = 14.0, tagRightCafe = 4.0, tagCafeMax = 110.0, tagCafeLeft = 4.0; // `.row .tags .ht`, `.tags`, `.lane .tags`
+  static const tagLetter = M2Type(12.0, 12.0, 'Oswald', FontWeight.w600); // `.row .tags .ht`: 12 dp
+  static const tagCafe = M2Type(13.0, 16.9, 'LibreFranklin', FontWeight.w400); // `.tags .cnm`: 13 dp at 1.3
+  static const laterGapX = 16.0, nextToTags = 12.0; // `.row.later .m` column-gap; `.lnext` margin-right 2 + `.mg` gap 4 + `.mg .lnext+.tags` margin-left 6
+  static const customMin = 52.0, customMargin = 8.0; // `.custom` min-height and margin (its padding, gap and ring are above)
+  static const customPlus = 20.0; // `.custom` svg
+  // Events (`.sdisc`, `.evc`, `.evcard`, `.evcap`)
+  static const evBandTop = 4.0, evBandBottom = 16.0; // `.sdisc` padding 4 0 16
+  static const evHeadTop = 10.0; // `.sdisc h2` padding 10 20 0
+  static const evcTop = 12.0, evcBottom = 4.0, evcStart = 20.0, evcGap = 12.0, evcTail = 8.0; // `.evc` padding 12 0 4 20, gap 12, `::after` 8
+  static const evCardW = 280.0, evCardInset = 4.0; // `.evc .evcard` flex-basis; `.evpatch::after` inset 4
+  static const evCapTop = 10.0, evCapGap = 10.0; // `.evcap` margin-top, gap
+  static const evBanner = 1024 / 432; // `.evpatch` aspect-ratio
+  static const evTitle = M2Type(15.0, 19.5, 'LibreFranklin', FontWeight.w600); // `.evtt` 600 15/1.3
+  static const evTag = M2Type(15.0, 19.5, 'Oswald', FontWeight.w600, tabular: true); // `.evtag` 600 15/1.3
+  static const evTitleColor = Color.fromRGBO(255, 255, 255, 0.92); // `.evtt`
+  static const clear = Color(0x00000000);
 }

@@ -1,0 +1,2421 @@
+{
+  "format": "Packaged-food search mapping (openFoodFacts.ts, usdaFoodData.ts); the HTTP answer is fed in, no network. kind=off_search: input {query, page?, response} where response is cgi/search.pl's JSON -> {results: [{barcode, productName, nutrition, ingredients?, allergens?}], hasMore} (searchProducts; hits missing code or product_name are dropped). kind=off_product: input {barcode, response} (api/v2/product JSON) -> {barcode, productName, servingSize, nutrition} or null (lookupBarcode). kind=usda_search: input {dataType: generic (Foundation, SR Legacy) | branded, query, page?, response} where response is FDC /foods/search JSON -> {results: [{fdcId, productName, nutrition, ingredients?}], hasMore} (searchFoods / searchBrandedFoods). nutrition is NutritionFacts: OFF prefers *_serving over *_100g per field (serving size 'per 100g' when energy-kcal_serving is absent), sodium grams -> mg; USDA is always 'per 100g'. A zero is a value, not a fallback. Out of scope here (Dart-only, tested in app/test/data/packaged_test.dart): brand-leading names, dropping zero-calorie hits, name dedupe. Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
+  "cases": [
+    {
+      "kind": "off_search",
+      "name": "recorded 'clif bar' page 1 of 10000 hits: per-100g fallback, missing nutriments are 0",
+      "input": {
+        "query": "x",
+        "response": {
+          "count": 10000,
+          "products": [
+            {
+              "code": "36346363",
+              "product_name": "Clif bar",
+              "nutriments": {
+                "saturated-fat_100g": 2.2058823529412,
+                "carbohydrates_100g": 63.235294117647,
+                "energy-kcal_100g": 367.64705882353,
+                "sodium_100g": 0.26470588235294,
+                "fat_100g": 8.8235294117647,
+                "sugars_100g": 25,
+                "fiber_100g": 7.3529411764706,
+                "proteins_100g": 14.705882352941
+              }
+            },
+            {
+              "code": "0072225210120",
+              "product_name": "Clif Bar",
+              "nutriments": {
+                "carbohydrates_100g": 41,
+                "fat_100g": 7,
+                "proteins_100g": 11
+              }
+            },
+            {
+              "code": "0722252179821",
+              "product_name": "clif bar",
+              "nutriments": {}
+            },
+            {
+              "code": "72225210120",
+              "product_name": "Clif Bar",
+              "nutriments": {
+                "carbohydrates_100g": 41,
+                "fat_100g": 7,
+                "proteins_100g": 11
+              }
+            },
+            {
+              "code": "0722252301147",
+              "product_name": "Clif Bar Duos",
+              "nutriments": {
+                "fat_100g": 12.765957446809,
+                "proteins_100g": 12.765957446809,
+                "sugars_100g": 23.404255319149,
+                "energy-kcal_100g": 404.25531914894,
+                "sodium_100g": 0.28723404255319196,
+                "saturated-fat_100g": 2.1276595744681,
+                "carbohydrates_100g": 61.702127659574
+              }
+            },
+            {
+              "code": "0722252068484",
+              "product_name": "Clif Bar Chocolate Chip",
+              "nutriments": {
+                "carbohydrates_100g": 63.2,
+                "energy-kcal_100g": 368,
+                "fat_100g": 8.82,
+                "fiber_100g": 7.35,
+                "proteins_100g": 14.7,
+                "saturated-fat_100g": 2.94,
+                "sodium_100g": 0.191,
+                "sugars_100g": 25
+              }
+            },
+            {
+              "code": "3111282128126",
+              "product_name": "Clif bar mini chocolate chip",
+              "nutriments": {
+                "proteins_100g": 4,
+                "energy-kcal_100g": 100,
+                "carbohydrates_100g": 18,
+                "fat_100g": 2,
+                "sugars_100g": 9,
+                "fiber_100g": 2,
+                "saturated-fat_100g": 0.5
+              }
+            },
+            {
+              "code": "0722252387646",
+              "product_name": "Clif Bar Peanut Butter Banana",
+              "nutriments": {
+                "carbohydrates_100g": 60.7,
+                "energy-kcal_100g": 394,
+                "fat_100g": 11.8,
+                "fiber_100g": 7.79,
+                "proteins_100g": 14.7,
+                "saturated-fat_100g": 3.09,
+                "sodium_100g": 0.329,
+                "sugars_100g": 25
+              }
+            },
+            {
+              "code": "0722252102003",
+              "product_name": "Clif Bar Cool Mint Chocolate",
+              "nutriments": {
+                "carbohydrates_100g": 63.235294117647,
+                "energy-kcal_100g": 367.64705882353,
+                "fat_100g": 8.8235294117647,
+                "fiber_100g": 7.3529411764706,
+                "proteins_100g": 14.705882352941,
+                "saturated-fat_100g": 2.9411764705882,
+                "sodium_100g": 0.20588235294118,
+                "sugars_100g": 25
+              }
+            },
+            {
+              "code": "0722252301208",
+              "product_name": "Clif Bar Crunchy Peanut Butter",
+              "nutriments": {
+                "fiber_100g": 5.9,
+                "fat_100g": 10.29,
+                "carbohydrates_100g": 58.82,
+                "sugars_100g": 27.94,
+                "saturated-fat_100g": 1.47,
+                "sodium_100g": 0.338,
+                "energy-kcal_100g": 382,
+                "proteins_100g": 16.18
+              }
+            },
+            {
+              "code": "0722252139900",
+              "product_name": "Clif Bar Dark Chocolate Mocha",
+              "nutriments": {
+                "fat_100g": 7.3529411764706,
+                "sugars_100g": 27.941176470588,
+                "proteins_100g": 13.235294117647,
+                "energy-kcal_100g": 367.64705882353,
+                "sodium_100g": 0.382352941176468,
+                "carbohydrates_100g": 64.705882352941,
+                "saturated-fat_100g": 2.2058823529412
+              }
+            },
+            {
+              "code": "0722252128164",
+              "product_name": "Clif bar minis - coffee collection",
+              "nutriments": {
+                "saturated-fat_100g": 0,
+                "carbohydrates_100g": 64.285714285714,
+                "energy-kcal_100g": 357.14285714286,
+                "sodium_100g": 0.321428571428572,
+                "fat_100g": 7.1428571428571,
+                "sugars_100g": 28.571428571429,
+                "proteins_100g": 14.285714285714
+              }
+            },
+            {
+              "code": "0722252387578",
+              "product_name": "CLIF bar white chocolate macadamia nut",
+              "nutriments": {
+                "carbohydrates_100g": 54,
+                "energy-kcal_100g": 387,
+                "fat_100g": 11,
+                "fiber_100g": 7.4,
+                "proteins_100g": 14,
+                "saturated-fat_100g": 2.1,
+                "sodium_100g": 0.344,
+                "sugars_100g": 25
+              }
+            },
+            {
+              "code": "0722252131096",
+              "product_name": "Clif bar",
+              "nutriments": {
+                "carbohydrates_100g": 54,
+                "energy-kcal_100g": 387,
+                "fat_100g": 11,
+                "fiber_100g": 7.4,
+                "proteins_100g": 14,
+                "saturated-fat_100g": 2.1,
+                "sodium_100g": 0.0964,
+                "sugars_100g": 25
+              }
+            },
+            {
+              "code": "0722252386410",
+              "product_name": "Clif Bar Mini White Chocolate Macadamia Nut",
+              "nutriments": {
+                "saturated-fat_100g": 1.7857142857143,
+                "carbohydrates_100g": 60.714285714286,
+                "energy-kcal_100g": 392.85714285714,
+                "sodium_100g": 0.339285714285712,
+                "fat_100g": 10.714285714286,
+                "proteins_100g": 14.285714285714,
+                "fiber_100g": 7.1428571428571,
+                "sugars_100g": 25
+              }
+            },
+            {
+              "code": "0722252144034",
+              "product_name": "Clif Bar Cool Mint Chocolate Energy Bars Nutritional Supplement",
+              "nutriments": {
+                "fat_100g": 6.62,
+                "sugars_100g": 29.4,
+                "carbohydrates_100g": 64.7,
+                "saturated-fat_100g": 1.47,
+                "sodium_100g": 0.23500000000000001,
+                "proteins_100g": 14.7,
+                "fiber_100g": 5.88,
+                "energy-kcal_100g": 368
+              }
+            },
+            {
+              "code": "0722252160812",
+              "product_name": "clif bar",
+              "nutriments": {
+                "proteins_100g": 16.176470588235,
+                "sugars_100g": 27.941176470588,
+                "fat_100g": 10.294117647059,
+                "carbohydrates_100g": 58.823529411765,
+                "saturated-fat_100g": 1.4705882352941,
+                "sodium_100g": 0.33823529411765196,
+                "energy-kcal_100g": 382.35294117647
+              }
+            },
+            {
+              "code": "0722252315779",
+              "product_name": "Clif bar",
+              "nutriments": {
+                "sodium_100g": 0.33823529411765196,
+                "energy-kcal_100g": 382.35294117647,
+                "carbohydrates_100g": 58.823529411765,
+                "saturated-fat_100g": 1.4705882352941,
+                "sugars_100g": 27.941176470588,
+                "proteins_100g": 16.176470588235,
+                "fat_100g": 10.294117647059
+              }
+            },
+            {
+              "code": "0722252381330",
+              "product_name": "Clif bar, clif kid, z organic twisted fruit & veggie rope, mango mania",
+              "nutriments": {
+                "fiber_100g": 16.7,
+                "fat_100g": 0,
+                "sugars_100g": 61.11,
+                "carbohydrates_100g": 83.33,
+                "sodium_100g": 0.083,
+                "saturated-fat_100g": 0,
+                "proteins_100g": 0,
+                "energy-kcal_100g": 278
+              }
+            },
+            {
+              "code": "0722252380029",
+              "product_name": "Clif bar organic twisted fruit bars mixed berry",
+              "nutriments": {
+                "saturated-fat_100g": 0,
+                "sodium_100g": 0.0254,
+                "proteins_100g": 0,
+                "energy-kcal_100g": 350,
+                "fat_100g": 0,
+                "fiber_100g": 5,
+                "sugars_100g": 75,
+                "carbohydrates_100g": 80
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "36346363",
+            "productName": "Clif bar",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 367.64705882353,
+              "caloriesFromFat": 0,
+              "totalFatG": 8.8235294117647,
+              "satFatG": 2.2058823529412,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 264.70588235294,
+              "totalCarbG": 63.235294117647,
+              "dietaryFiberG": 7.3529411764706,
+              "sugarsG": 25,
+              "proteinG": 14.705882352941
+            }
+          },
+          {
+            "barcode": "0072225210120",
+            "productName": "Clif Bar",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 7,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 41,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 11
+            }
+          },
+          {
+            "barcode": "0722252179821",
+            "productName": "clif bar",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "72225210120",
+            "productName": "Clif Bar",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 7,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 41,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 11
+            }
+          },
+          {
+            "barcode": "0722252301147",
+            "productName": "Clif Bar Duos",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 404.25531914894,
+              "caloriesFromFat": 0,
+              "totalFatG": 12.765957446809,
+              "satFatG": 2.1276595744681,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 287.23404255319195,
+              "totalCarbG": 61.702127659574,
+              "dietaryFiberG": 0,
+              "sugarsG": 23.404255319149,
+              "proteinG": 12.765957446809
+            }
+          },
+          {
+            "barcode": "0722252068484",
+            "productName": "Clif Bar Chocolate Chip",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 368,
+              "caloriesFromFat": 0,
+              "totalFatG": 8.82,
+              "satFatG": 2.94,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 191,
+              "totalCarbG": 63.2,
+              "dietaryFiberG": 7.35,
+              "sugarsG": 25,
+              "proteinG": 14.7
+            }
+          },
+          {
+            "barcode": "3111282128126",
+            "productName": "Clif bar mini chocolate chip",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 100,
+              "caloriesFromFat": 0,
+              "totalFatG": 2,
+              "satFatG": 0.5,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 18,
+              "dietaryFiberG": 2,
+              "sugarsG": 9,
+              "proteinG": 4
+            }
+          },
+          {
+            "barcode": "0722252387646",
+            "productName": "Clif Bar Peanut Butter Banana",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 394,
+              "caloriesFromFat": 0,
+              "totalFatG": 11.8,
+              "satFatG": 3.09,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 329,
+              "totalCarbG": 60.7,
+              "dietaryFiberG": 7.79,
+              "sugarsG": 25,
+              "proteinG": 14.7
+            }
+          },
+          {
+            "barcode": "0722252102003",
+            "productName": "Clif Bar Cool Mint Chocolate",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 367.64705882353,
+              "caloriesFromFat": 0,
+              "totalFatG": 8.8235294117647,
+              "satFatG": 2.9411764705882,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 205.88235294118002,
+              "totalCarbG": 63.235294117647,
+              "dietaryFiberG": 7.3529411764706,
+              "sugarsG": 25,
+              "proteinG": 14.705882352941
+            }
+          },
+          {
+            "barcode": "0722252301208",
+            "productName": "Clif Bar Crunchy Peanut Butter",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 382,
+              "caloriesFromFat": 0,
+              "totalFatG": 10.29,
+              "satFatG": 1.47,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 338,
+              "totalCarbG": 58.82,
+              "dietaryFiberG": 5.9,
+              "sugarsG": 27.94,
+              "proteinG": 16.18
+            }
+          },
+          {
+            "barcode": "0722252139900",
+            "productName": "Clif Bar Dark Chocolate Mocha",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 367.64705882353,
+              "caloriesFromFat": 0,
+              "totalFatG": 7.3529411764706,
+              "satFatG": 2.2058823529412,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 382.352941176468,
+              "totalCarbG": 64.705882352941,
+              "dietaryFiberG": 0,
+              "sugarsG": 27.941176470588,
+              "proteinG": 13.235294117647
+            }
+          },
+          {
+            "barcode": "0722252128164",
+            "productName": "Clif bar minis - coffee collection",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 357.14285714286,
+              "caloriesFromFat": 0,
+              "totalFatG": 7.1428571428571,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 321.428571428572,
+              "totalCarbG": 64.285714285714,
+              "dietaryFiberG": 0,
+              "sugarsG": 28.571428571429,
+              "proteinG": 14.285714285714
+            }
+          },
+          {
+            "barcode": "0722252387578",
+            "productName": "CLIF bar white chocolate macadamia nut",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 387,
+              "caloriesFromFat": 0,
+              "totalFatG": 11,
+              "satFatG": 2.1,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 344,
+              "totalCarbG": 54,
+              "dietaryFiberG": 7.4,
+              "sugarsG": 25,
+              "proteinG": 14
+            }
+          },
+          {
+            "barcode": "0722252131096",
+            "productName": "Clif bar",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 387,
+              "caloriesFromFat": 0,
+              "totalFatG": 11,
+              "satFatG": 2.1,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 96.4,
+              "totalCarbG": 54,
+              "dietaryFiberG": 7.4,
+              "sugarsG": 25,
+              "proteinG": 14
+            }
+          },
+          {
+            "barcode": "0722252386410",
+            "productName": "Clif Bar Mini White Chocolate Macadamia Nut",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 392.85714285714,
+              "caloriesFromFat": 0,
+              "totalFatG": 10.714285714286,
+              "satFatG": 1.7857142857143,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 339.285714285712,
+              "totalCarbG": 60.714285714286,
+              "dietaryFiberG": 7.1428571428571,
+              "sugarsG": 25,
+              "proteinG": 14.285714285714
+            }
+          },
+          {
+            "barcode": "0722252144034",
+            "productName": "Clif Bar Cool Mint Chocolate Energy Bars Nutritional Supplement",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 368,
+              "caloriesFromFat": 0,
+              "totalFatG": 6.62,
+              "satFatG": 1.47,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 235.00000000000003,
+              "totalCarbG": 64.7,
+              "dietaryFiberG": 5.88,
+              "sugarsG": 29.4,
+              "proteinG": 14.7
+            }
+          },
+          {
+            "barcode": "0722252160812",
+            "productName": "clif bar",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 382.35294117647,
+              "caloriesFromFat": 0,
+              "totalFatG": 10.294117647059,
+              "satFatG": 1.4705882352941,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 338.23529411765196,
+              "totalCarbG": 58.823529411765,
+              "dietaryFiberG": 0,
+              "sugarsG": 27.941176470588,
+              "proteinG": 16.176470588235
+            }
+          },
+          {
+            "barcode": "0722252315779",
+            "productName": "Clif bar",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 382.35294117647,
+              "caloriesFromFat": 0,
+              "totalFatG": 10.294117647059,
+              "satFatG": 1.4705882352941,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 338.23529411765196,
+              "totalCarbG": 58.823529411765,
+              "dietaryFiberG": 0,
+              "sugarsG": 27.941176470588,
+              "proteinG": 16.176470588235
+            }
+          },
+          {
+            "barcode": "0722252381330",
+            "productName": "Clif bar, clif kid, z organic twisted fruit & veggie rope, mango mania",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 278,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 83,
+              "totalCarbG": 83.33,
+              "dietaryFiberG": 16.7,
+              "sugarsG": 61.11,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "0722252380029",
+            "productName": "Clif bar organic twisted fruit bars mixed berry",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 350,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 25.4,
+              "totalCarbG": 80,
+              "dietaryFiberG": 5,
+              "sugarsG": 75,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": true
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "per-serving values win when energy-kcal_serving exists; the serving size is carried; sodium is grams in OFF, mg out; ingredients and allergens",
+      "input": {
+        "query": "x",
+        "response": {
+          "count": 1,
+          "products": [
+            {
+              "code": "0722252068484",
+              "product_name": "Chocolate Chip",
+              "brands": "Clif Bar",
+              "serving_size": "1 bar (68 g)",
+              "allergens_tags": [
+                "en:soybeans"
+              ],
+              "ingredients_text": "organic rolled oats, organic brown rice syrup, soy rice crisps, organic roasted soybeans, organic tapioca syrup, organic cane syrup, unsweetened chocolate, chicory fiber, organic soy flour, sunflower and/or soybean oil, natural flavors, salt, organic cinnamon, mixed tocopherols",
+              "nutriments": {
+                "carbohydrates_100g": 63.2352941176471,
+                "carbohydrates_serving": 43,
+                "energy-kcal_100g": 367.647058823529,
+                "energy-kcal_serving": 250,
+                "fat_100g": 8.82352941176471,
+                "fat_serving": 6,
+                "fiber_100g": 7.35294117647059,
+                "fiber_serving": 5,
+                "proteins_100g": 8.82352941176471,
+                "proteins_serving": 6,
+                "saturated-fat_100g": 2.94117647058824,
+                "saturated-fat_serving": 2,
+                "sodium_100g": 0.191176470588235,
+                "sodium_serving": 0.13,
+                "sugars_100g": 25,
+                "sugars_serving": 17,
+                "trans-fat_serving": 0.5,
+                "cholesterol_100g": 0.02
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "0722252068484",
+            "productName": "Chocolate Chip",
+            "nutrition": {
+              "servingSize": "1 bar (68 g)",
+              "calories": 250,
+              "caloriesFromFat": 0,
+              "totalFatG": 6,
+              "satFatG": 2,
+              "transFatG": 0.5,
+              "cholesterolMg": 0.02,
+              "sodiumMg": 130,
+              "totalCarbG": 43,
+              "dietaryFiberG": 5,
+              "sugarsG": 17,
+              "proteinG": 6
+            },
+            "ingredients": "organic rolled oats, organic brown rice syrup, soy rice crisps, organic roasted soybeans, organic tapioca syrup, organic cane syrup, unsweetened chocolate, chicory fiber, organic soy flour, sunflower and/or soybean oil, natural flavors, salt, organic cinnamon, mixed tocopherols",
+            "allergens": [
+              "Soybeans"
+            ]
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "serving data present but serving_size absent: empty serving size",
+      "input": {
+        "query": "x",
+        "response": {
+          "count": 1,
+          "products": [
+            {
+              "code": "1",
+              "product_name": "A",
+              "nutriments": {
+                "energy-kcal_serving": 90
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "1",
+            "productName": "A",
+            "nutrition": {
+              "servingSize": "",
+              "calories": 90,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "serving data without energy-kcal_serving is per 100g, mixing in the per-serving fields that exist",
+      "input": {
+        "query": "x",
+        "response": {
+          "count": 1,
+          "products": [
+            {
+              "code": "1",
+              "product_name": "A",
+              "serving_size": "30 g",
+              "nutriments": {
+                "fat_serving": 2,
+                "fat_100g": 9,
+                "energy-kcal_100g": 400
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "1",
+            "productName": "A",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 400,
+              "caloriesFromFat": 0,
+              "totalFatG": 2,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "a zero per-serving value is a value, not a fallback",
+      "input": {
+        "query": "x",
+        "response": {
+          "count": 1,
+          "products": [
+            {
+              "code": "1",
+              "product_name": "A",
+              "serving_size": "1 bar",
+              "nutriments": {
+                "energy-kcal_serving": 0,
+                "energy-kcal_100g": 400,
+                "fat_serving": 0,
+                "fat_100g": 9
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "1",
+            "productName": "A",
+            "nutrition": {
+              "servingSize": "1 bar",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "hits without a code or a name are dropped; empty ingredients are omitted; allergen tags are cleaned",
+      "input": {
+        "query": "x",
+        "response": {
+          "count": 4,
+          "products": [
+            {
+              "product_name": "No code"
+            },
+            {
+              "code": "2"
+            },
+            {
+              "code": "3",
+              "product_name": "Nuts",
+              "ingredients_text": "",
+              "allergens_tags": [
+                "en:tree-nuts",
+                "fr:lait",
+                "milk",
+                "en:",
+                "en:soy_beans"
+              ],
+              "nutriments": {
+                "energy-kcal_100g": 1
+              }
+            },
+            {
+              "code": "4",
+              "product_name": "Bare"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "3",
+            "productName": "Nuts",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 1,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            },
+            "allergens": [
+              "Tree Nuts",
+              "Lait",
+              "Milk",
+              "",
+              "Soy Beans"
+            ]
+          },
+          {
+            "barcode": "4",
+            "productName": "Bare",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "count says more pages: hasMore",
+      "input": {
+        "query": "x",
+        "page": 2,
+        "response": {
+          "count": 41,
+          "products": [
+            {
+              "code": "1",
+              "product_name": "A"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "1",
+            "productName": "A",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": true
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "count says no more pages",
+      "input": {
+        "query": "x",
+        "page": 2,
+        "response": {
+          "count": 40,
+          "products": [
+            {
+              "code": "1",
+              "product_name": "A"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "1",
+            "productName": "A",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "count absent, short page: no more",
+      "input": {
+        "query": "x",
+        "response": {
+          "products": [
+            {
+              "code": "1",
+              "product_name": "A"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "1",
+            "productName": "A",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "count absent, products absent",
+      "input": {
+        "query": "x",
+        "response": {}
+      },
+      "expected": {
+        "results": [],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "count absent, a full page of 20: more",
+      "input": {
+        "query": "x",
+        "response": {
+          "products": [
+            {
+              "code": "c0",
+              "product_name": "P0"
+            },
+            {
+              "code": "c1",
+              "product_name": "P1"
+            },
+            {
+              "code": "c2",
+              "product_name": "P2"
+            },
+            {
+              "code": "c3",
+              "product_name": "P3"
+            },
+            {
+              "code": "c4",
+              "product_name": "P4"
+            },
+            {
+              "code": "c5",
+              "product_name": "P5"
+            },
+            {
+              "code": "c6",
+              "product_name": "P6"
+            },
+            {
+              "code": "c7",
+              "product_name": "P7"
+            },
+            {
+              "code": "c8",
+              "product_name": "P8"
+            },
+            {
+              "code": "c9",
+              "product_name": "P9"
+            },
+            {
+              "code": "c10",
+              "product_name": "P10"
+            },
+            {
+              "code": "c11",
+              "product_name": "P11"
+            },
+            {
+              "code": "c12",
+              "product_name": "P12"
+            },
+            {
+              "code": "c13",
+              "product_name": "P13"
+            },
+            {
+              "code": "c14",
+              "product_name": "P14"
+            },
+            {
+              "code": "c15",
+              "product_name": "P15"
+            },
+            {
+              "code": "c16",
+              "product_name": "P16"
+            },
+            {
+              "code": "c17",
+              "product_name": "P17"
+            },
+            {
+              "code": "c18",
+              "product_name": "P18"
+            },
+            {
+              "code": "c19",
+              "product_name": "P19"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "c0",
+            "productName": "P0",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c1",
+            "productName": "P1",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c2",
+            "productName": "P2",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c3",
+            "productName": "P3",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c4",
+            "productName": "P4",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c5",
+            "productName": "P5",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c6",
+            "productName": "P6",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c7",
+            "productName": "P7",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c8",
+            "productName": "P8",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c9",
+            "productName": "P9",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c10",
+            "productName": "P10",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c11",
+            "productName": "P11",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c12",
+            "productName": "P12",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c13",
+            "productName": "P13",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c14",
+            "productName": "P14",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c15",
+            "productName": "P15",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c16",
+            "productName": "P16",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c17",
+            "productName": "P17",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c18",
+            "productName": "P18",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c19",
+            "productName": "P19",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": true
+      }
+    },
+    {
+      "kind": "off_search",
+      "name": "count absent, a full page of 20 where some are dropped: not full, no more",
+      "input": {
+        "query": "x",
+        "response": {
+          "products": [
+            {
+              "product_name": "no code"
+            },
+            {
+              "code": "c1",
+              "product_name": "P1"
+            },
+            {
+              "code": "c2",
+              "product_name": "P2"
+            },
+            {
+              "code": "c3",
+              "product_name": "P3"
+            },
+            {
+              "code": "c4",
+              "product_name": "P4"
+            },
+            {
+              "code": "c5",
+              "product_name": "P5"
+            },
+            {
+              "code": "c6",
+              "product_name": "P6"
+            },
+            {
+              "code": "c7",
+              "product_name": "P7"
+            },
+            {
+              "code": "c8",
+              "product_name": "P8"
+            },
+            {
+              "code": "c9",
+              "product_name": "P9"
+            },
+            {
+              "code": "c10",
+              "product_name": "P10"
+            },
+            {
+              "code": "c11",
+              "product_name": "P11"
+            },
+            {
+              "code": "c12",
+              "product_name": "P12"
+            },
+            {
+              "code": "c13",
+              "product_name": "P13"
+            },
+            {
+              "code": "c14",
+              "product_name": "P14"
+            },
+            {
+              "code": "c15",
+              "product_name": "P15"
+            },
+            {
+              "code": "c16",
+              "product_name": "P16"
+            },
+            {
+              "code": "c17",
+              "product_name": "P17"
+            },
+            {
+              "code": "c18",
+              "product_name": "P18"
+            },
+            {
+              "code": "c19",
+              "product_name": "P19"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "barcode": "c1",
+            "productName": "P1",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c2",
+            "productName": "P2",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c3",
+            "productName": "P3",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c4",
+            "productName": "P4",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c5",
+            "productName": "P5",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c6",
+            "productName": "P6",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c7",
+            "productName": "P7",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c8",
+            "productName": "P8",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c9",
+            "productName": "P9",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c10",
+            "productName": "P10",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c11",
+            "productName": "P11",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c12",
+            "productName": "P12",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c13",
+            "productName": "P13",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c14",
+            "productName": "P14",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c15",
+            "productName": "P15",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c16",
+            "productName": "P16",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c17",
+            "productName": "P17",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c18",
+            "productName": "P18",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          },
+          {
+            "barcode": "c19",
+            "productName": "P19",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "off_product",
+      "name": "recorded product 0722252068484",
+      "input": {
+        "barcode": "0722252068484",
+        "response": {
+          "status": 1,
+          "product": {
+            "code": "0722252068484",
+            "product_name": "Chocolate Chip",
+            "brands": "Clif Bar",
+            "serving_size": "1 bar (68 g)",
+            "allergens_tags": [
+              "en:soybeans"
+            ],
+            "ingredients_text": "organic rolled oats, organic brown rice syrup, soy rice crisps, organic roasted soybeans, organic tapioca syrup, organic cane syrup, unsweetened chocolate, chicory fiber, organic soy flour, sunflower and/or soybean oil, natural flavors, salt, organic cinnamon, mixed tocopherols",
+            "nutriments": {
+              "carbohydrates_100g": 63.2352941176471,
+              "carbohydrates_serving": 43,
+              "energy-kcal_100g": 367.647058823529,
+              "energy-kcal_serving": 250,
+              "fat_100g": 8.82352941176471,
+              "fat_serving": 6,
+              "fiber_100g": 7.35294117647059,
+              "fiber_serving": 5,
+              "proteins_100g": 8.82352941176471,
+              "proteins_serving": 6,
+              "saturated-fat_100g": 2.94117647058824,
+              "saturated-fat_serving": 2,
+              "sodium_100g": 0.191176470588235,
+              "sodium_serving": 0.13,
+              "sugars_100g": 25,
+              "sugars_serving": 17
+            }
+          }
+        }
+      },
+      "expected": {
+        "barcode": "0722252068484",
+        "productName": "Chocolate Chip",
+        "servingSize": "1 bar (68 g)",
+        "nutrition": {
+          "servingSize": "1 bar (68 g)",
+          "calories": 250,
+          "caloriesFromFat": 0,
+          "totalFatG": 6,
+          "satFatG": 2,
+          "transFatG": 0,
+          "cholesterolMg": 0,
+          "sodiumMg": 130,
+          "totalCarbG": 43,
+          "dietaryFiberG": 5,
+          "sugarsG": 17,
+          "proteinG": 6
+        }
+      }
+    },
+    {
+      "kind": "off_product",
+      "name": "status 0 is no product",
+      "input": {
+        "barcode": "0",
+        "response": {
+          "status": 0
+        }
+      },
+      "expected": null
+    },
+    {
+      "kind": "off_product",
+      "name": "status 1 without a product is no product",
+      "input": {
+        "barcode": "0",
+        "response": {
+          "status": 1
+        }
+      },
+      "expected": null
+    },
+    {
+      "kind": "off_product",
+      "name": "bare product: name 'Unknown product', empty serving, zeros",
+      "input": {
+        "barcode": "5",
+        "response": {
+          "status": 1,
+          "product": {}
+        }
+      },
+      "expected": {
+        "barcode": "5",
+        "productName": "Unknown product",
+        "servingSize": "",
+        "nutrition": {
+          "servingSize": "",
+          "calories": 0,
+          "caloriesFromFat": 0,
+          "totalFatG": 0,
+          "satFatG": 0,
+          "transFatG": 0,
+          "cholesterolMg": 0,
+          "sodiumMg": 0,
+          "totalCarbG": 0,
+          "dietaryFiberG": 0,
+          "sugarsG": 0,
+          "proteinG": 0
+        }
+      }
+    },
+    {
+      "kind": "usda_search",
+      "name": "generic: Foundation food: always per 100g; kcal row picked over kJ; findNutrient is a name substring match",
+      "input": {
+        "dataType": "generic",
+        "query": "x",
+        "response": {
+          "currentPage": 1,
+          "totalPages": 3,
+          "foods": [
+            {
+              "fdcId": 171688,
+              "description": "Apples, raw",
+              "foodNutrients": [
+                {
+                  "nutrientName": "Protein",
+                  "unitName": "G",
+                  "value": 3.5
+                },
+                {
+                  "nutrientName": "Total lipid (fat)",
+                  "unitName": "G",
+                  "value": 1.25
+                },
+                {
+                  "nutrientName": "Carbohydrate, by difference",
+                  "unitName": "G",
+                  "value": 20
+                },
+                {
+                  "nutrientName": "Energio",
+                  "unitName": "KCAL",
+                  "value": 1
+                },
+                {
+                  "nutrientName": "Energy",
+                  "unitName": "kJ",
+                  "value": 650
+                },
+                {
+                  "nutrientName": "Energy",
+                  "unitName": "kcal",
+                  "value": 155
+                },
+                {
+                  "nutrientName": "Sugars, total including NLEA",
+                  "unitName": "G",
+                  "value": 6
+                },
+                {
+                  "nutrientName": "Fiber, total dietary",
+                  "unitName": "G",
+                  "value": 2.4
+                },
+                {
+                  "nutrientName": "Sodium, Na",
+                  "unitName": "MG",
+                  "value": 321
+                },
+                {
+                  "nutrientName": "Cholesterol",
+                  "unitName": "MG",
+                  "value": 12
+                },
+                {
+                  "nutrientName": "Fatty acids, total saturated",
+                  "unitName": "G",
+                  "value": 0.5
+                },
+                {
+                  "nutrientName": "Fatty acids, total trans",
+                  "unitName": "G",
+                  "value": 0.1
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "fdcId": "171688",
+            "productName": "Apples, raw",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 155,
+              "caloriesFromFat": 0,
+              "totalFatG": 1.25,
+              "satFatG": 0.5,
+              "transFatG": 0.1,
+              "cholesterolMg": 12,
+              "sodiumMg": 321,
+              "totalCarbG": 20,
+              "dietaryFiberG": 2.4,
+              "sugarsG": 6,
+              "proteinG": 3.5
+            }
+          }
+        ],
+        "hasMore": true
+      }
+    },
+    {
+      "kind": "usda_search",
+      "name": "branded: branded food with ingredients; fdcId becomes a string",
+      "input": {
+        "dataType": "branded",
+        "query": "x",
+        "page": 2,
+        "response": {
+          "currentPage": 2,
+          "totalPages": 2,
+          "foods": [
+            {
+              "fdcId": 1234567,
+              "description": "CHOCOLATE CHIP BAR",
+              "ingredients": "OATS, SUGAR",
+              "foodNutrients": [
+                {
+                  "nutrientName": "Protein",
+                  "unitName": "G",
+                  "value": 3.5
+                },
+                {
+                  "nutrientName": "Total lipid (fat)",
+                  "unitName": "G",
+                  "value": 1.25
+                },
+                {
+                  "nutrientName": "Carbohydrate, by difference",
+                  "unitName": "G",
+                  "value": 20
+                },
+                {
+                  "nutrientName": "Energio",
+                  "unitName": "KCAL",
+                  "value": 1
+                },
+                {
+                  "nutrientName": "Energy",
+                  "unitName": "kJ",
+                  "value": 650
+                },
+                {
+                  "nutrientName": "Energy",
+                  "unitName": "kcal",
+                  "value": 155
+                },
+                {
+                  "nutrientName": "Sugars, total including NLEA",
+                  "unitName": "G",
+                  "value": 6
+                },
+                {
+                  "nutrientName": "Fiber, total dietary",
+                  "unitName": "G",
+                  "value": 2.4
+                },
+                {
+                  "nutrientName": "Sodium, Na",
+                  "unitName": "MG",
+                  "value": 321
+                },
+                {
+                  "nutrientName": "Cholesterol",
+                  "unitName": "MG",
+                  "value": 12
+                },
+                {
+                  "nutrientName": "Fatty acids, total saturated",
+                  "unitName": "G",
+                  "value": 0.5
+                },
+                {
+                  "nutrientName": "Fatty acids, total trans",
+                  "unitName": "G",
+                  "value": 0.1
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "fdcId": "1234567",
+            "productName": "CHOCOLATE CHIP BAR",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 155,
+              "caloriesFromFat": 0,
+              "totalFatG": 1.25,
+              "satFatG": 0.5,
+              "transFatG": 0.1,
+              "cholesterolMg": 12,
+              "sodiumMg": 321,
+              "totalCarbG": 20,
+              "dietaryFiberG": 2.4,
+              "sugarsG": 6,
+              "proteinG": 3.5
+            },
+            "ingredients": "OATS, SUGAR"
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "usda_search",
+      "name": "generic: energy only in kJ is 0 calories; empty ingredients omitted; no description is 'Unknown food'",
+      "input": {
+        "dataType": "generic",
+        "query": "x",
+        "response": {
+          "foods": [
+            {
+              "fdcId": 9,
+              "ingredients": "",
+              "foodNutrients": [
+                {
+                  "nutrientName": "Energy",
+                  "unitName": "kJ",
+                  "value": 650
+                },
+                {
+                  "nutrientName": "Protein"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "fdcId": "9",
+            "productName": "Unknown food",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "usda_search",
+      "name": "generic: no foodNutrients, no paging fields: one page, no more",
+      "input": {
+        "dataType": "generic",
+        "query": "x",
+        "response": {
+          "foods": [
+            {
+              "fdcId": 10,
+              "description": "Water"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "fdcId": "10",
+            "productName": "Water",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 0
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "usda_search",
+      "name": "branded: no foods, current page past total pages",
+      "input": {
+        "dataType": "branded",
+        "query": "x",
+        "page": 5,
+        "response": {
+          "currentPage": 5,
+          "totalPages": 4
+        }
+      },
+      "expected": {
+        "results": [],
+        "hasMore": false
+      }
+    },
+    {
+      "kind": "usda_search",
+      "name": "generic: first matching row wins (a second Protein row is ignored)",
+      "input": {
+        "dataType": "generic",
+        "query": "x",
+        "response": {
+          "foods": [
+            {
+              "fdcId": 11,
+              "description": "Dup",
+              "foodNutrients": [
+                {
+                  "nutrientName": "Protein",
+                  "unitName": "G",
+                  "value": 1
+                },
+                {
+                  "nutrientName": "Protein, total",
+                  "unitName": "G",
+                  "value": 99
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "results": [
+          {
+            "fdcId": "11",
+            "productName": "Dup",
+            "nutrition": {
+              "servingSize": "per 100g",
+              "calories": 0,
+              "caloriesFromFat": 0,
+              "totalFatG": 0,
+              "satFatG": 0,
+              "transFatG": 0,
+              "cholesterolMg": 0,
+              "sodiumMg": 0,
+              "totalCarbG": 0,
+              "dietaryFiberG": 0,
+              "sugarsG": 0,
+              "proteinG": 1
+            }
+          }
+        ],
+        "hasMore": false
+      }
+    }
+  ]
+}

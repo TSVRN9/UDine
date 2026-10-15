@@ -6,6 +6,7 @@ import '../../core/m2/places.dart' show cafeTable;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../cafes/cafes_page.dart';
+import '../event/event_page.dart' show EventScreen;
 import '../cafes/pdf_page.dart';
 import '../halls/hall_page.dart';
 
@@ -26,6 +27,10 @@ Route<void>? hallLaunchRoute(String route, double top) {
     final n = int.tryParse(u.pathSegments[1]), m = int.tryParse(u.pathSegments[3]);
     if (n == null || m == null || n < 0 || n >= cafeTable.length || m < 0) return null;
     return BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => PdfMenuByIndex(place: 'c$n', index: m, top: top));
+  }
+  if (u.pathSegments.length == 2 && u.pathSegments[0] == 'event') {
+    final n = int.tryParse(u.pathSegments[1]);
+    return n == null || n < 0 ? null : BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => EventScreen(index: n, top: top));
   }
   if (u.pathSegments.length != 2) return null;
   final seg = u.pathSegments[1];

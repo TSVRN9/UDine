@@ -27,6 +27,9 @@ class AppScope extends InheritedWidget {
   /// the OS share sheet (tests hand in a recorder)
   final ShareFiles share;
 
+  /// a newer build owns the database: nothing is written, so nothing that records (a custom food) is offered
+  bool get menusOnly => store == null;
+
   static AppScope of(BuildContext context) => context.getInheritedWidgetOfExactType<AppScope>()!;
 
   @override

@@ -15,6 +15,9 @@ import '../screens/halls/halls_screen.dart';
 import '../screens/you/day_page.dart';
 import '../screens/you/settings_pages.dart';
 import '../screens/you/you_screen.dart';
+import '../screens/search/events.dart';
+import '../screens/search/search_screen.dart';
+import '../core/m2/search.dart' show Lens;
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
 import 'shell_scope.dart';
@@ -41,7 +44,7 @@ class _Sheet {
 }
 
 class ShellState extends State<Shell> implements ShellApi {
-  late final _tab = ValueNotifier<int>(Uri.parse(widget.initialRoute).path.startsWith('/you') ? 2 : 0);
+  late final _tab = ValueNotifier<int>(searchLaunch(widget.initialRoute) != null ? 1 : Uri.parse(widget.initialRoute).path.startsWith('/you') ? 2 : 0);
   bool Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
   final _sheets = <_Sheet>[];
@@ -107,7 +110,7 @@ class ShellState extends State<Shell> implements ShellApi {
           valueListenable: _tab,
           builder: (_, i, _) => FadeThroughTabs(index: i, children: [
             HallsScreen(top: top),
-            const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
+            SearchScreen(top: top, tab: _tab, query: searchLaunch(widget.initialRoute)?.$1 ?? '', lenses: searchLaunch(widget.initialRoute)?.$2 ?? const {}, idle: EventsIdle(top: top)),
             YouScreen(top: top),
           ]),
         ),
@@ -172,4 +175,13 @@ class ShellState extends State<Shell> implements ShellApi {
       ),
     );
   }
+}
+
+/// `/search`, `/search?q=pizza`, `/search?lens=halal,protein`: Search at launch (screenshots, deep links), with its query and lenses; null for any
+/// other route.
+(String, Set<Lens>)? searchLaunch(String route) {
+  final u = Uri.parse(route);
+  if (u.path != '/search') return null;
+  final names = Lens.values.asNameMap();
+  return (u.queryParameters['q'] ?? '', {for (final l in (u.queryParameters['lens'] ?? '').split(',')) ?names[l]});
 }
