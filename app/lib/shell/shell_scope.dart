@@ -6,6 +6,10 @@ import '../ui/sheet.dart';
 abstract class ShellApi {
   /// Mounts a sheet; `build` receives its handle and the callback that removes it once it has closed.
   SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build);
+
+  /// Pushes a place's menu (a hall or a café, `W` or `c3`) onto the stack at a day and meal, already scrolled to the dish named by
+  /// `dish` (its `key`): where a where-served tap goes.
+  void openPlace(String place, {required String meal, required int day, required String dish});
 }
 
 class ShellScope extends InheritedWidget {
