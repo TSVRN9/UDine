@@ -1,10 +1,10 @@
 {
-  "sha": "4cb5a6654d4947e746f3b7598972b09032bef084",
+  "sha": "ce7947f4da941a023c0165dbd28c4d22b360109d",
   "branch": "flutter/cafe-pdf-ui",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-cafe-pdf-ui",
   "route": "/cafe/29?data=recorded&at=2026-10-08T12:41&net=offline&saved=pdf:Lunch&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T07:18:41Z"
+  "ts": "2026-10-15T07:25:22Z"
 }
