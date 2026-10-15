@@ -27,10 +27,14 @@ class FilterChipButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected ? M2Color.tint : null,
                 borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)),
+              ),
+              // `.chip`'s ring is an inset box-shadow: drawn over the box, taking no room from the padding
+              foregroundDecoration: BoxDecoration(
+                borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)),
                 border: Border.all(color: selected ? M2Color.vm : M2Layout.chipRing, width: M2Layout.rule),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (glyph != null) ...[MarkGlyph(glyph!, color: selected ? M2Color.dm : M2Color.ink, size: M2Layout.lensGlyph), const SizedBox(width: M2Layout.chipGap)]
+                if (glyph != null) ...[MarkGlyph(glyph!, color: selected ? M2Color.dm : M2Color.ink, size: M2Layout.lensGlyph, vein: selected ? M2Color.tint : M2Color.white), const SizedBox(width: M2Layout.lensGlyphGap)]
                 else if (selected) ...[const _Check(), const SizedBox(width: M2Layout.chipGap)],
                 Text(label, style: (selected ? _on : _off).style(selected ? M2Color.dm : M2Color.ink), maxLines: 1),
               ]),

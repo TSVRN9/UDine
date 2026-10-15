@@ -125,6 +125,10 @@ class SearchIndex {
   late final Set<String> hasMenu;
 }
 
+/// A standing-menu line longer than this is a paragraph the retail parser did not split into items, not an item to find a café by.
+// ponytail: parser follow-up (Peet's, Carney, Argo parse to one long line); drop the guard when it splits them.
+const maxItemName = 40;
+
 const _hallWords = ' dining commons hall', _grabWords = " grab n go grab and go";
 
 /// M2's results for the typed text and lenses. `favorites` are dish names; `plate` decides which hall a row speaks for (`rep`) and
@@ -189,7 +193,7 @@ SearchResult runSearch(SearchIndex ix, {required String query, Set<Lens> lenses 
     for (final p in ix.fx.places) {
       if (!isCafe(p.key) || !placeOn(p, charlesRiver: ix.charlesRiver)) continue;
       final byName = hit(searchWords('${p.name} ${p.building} ${areaNames[p.area]}'));
-      final item = byName || ix.hasMenu.contains(p.key) ? null : ix.standing[p.key]?.where((n) => hit(searchWords(n))).firstOrNull;
+      final item = byName || ix.hasMenu.contains(p.key) ? null : ix.standing[p.key]?.where((n) => n.length <= maxItemName && hit(searchWords(n))).firstOrNull;
       if (byName || item != null) places.add(CafeHit(p.key, item));
     }
   }

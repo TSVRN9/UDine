@@ -96,6 +96,55 @@ void main() {
     await finish(t);
   });
 
+  testWidgets('Search on the keyboard adds the first row, again steps it, and the keyboard stays up', (t) async {
+    await openSearch(t);
+    await type(t, 'brisket');
+    await t.testTextInput.receiveAction(TextInputAction.search);
+    await settle(t);
+    expect(plateOf(t).state.plates.single.items.single.qty, 1);
+    await t.testTextInput.receiveAction(TextInputAction.search);
+    await settle(t);
+    expect(plateOf(t).state.plates.single.items.single.qty, 2);
+    expect(focused(t), isTrue);
+    await finish(t);
+  });
+
+  testWidgets('typing: a row that survives glides to its new place over settle, a new one fades in', (t) async {
+    await openSearch(t);
+    await type(t, 'green');
+    final row = find.byWidgetPredicate((w) => w is DishRow && w.dish.dishName == 'Green Chile Posole');
+    expect(row, findsOneWidget);
+    final before = t.getTopLeft(row).dy;
+    await t.enterText(find.byType(EditableText), 'green chile');
+    await t.pump(); // the new text is laid out: the row is already where it will rest
+    await t.pump(const Duration(milliseconds: 10));
+    final early = t.getTopLeft(row).dy;
+    await settle(t);
+    final rest = t.getTopLeft(row).dy;
+    expect(rest, lessThan(before), reason: 'the places above it are gone');
+    expect(early, greaterThan(rest + 1), reason: 'it has not yet arrived');
+    expect(early, lessThanOrEqualTo(before + 1), reason: 'and it began where it was');
+    await finish(t);
+  });
+
+  testWidgets('typing: a row that was not there fades up, and a plate change moves nothing', (t) async {
+    await openSearch(t);
+    await type(t, 'green');
+    await t.enterText(find.byType(EditableText), 'brisket');
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 10));
+    final row = find.byType(DishRow).first;
+    final fade = find.ancestor(of: row, matching: find.byType(Opacity));
+    expect(t.widget<Opacity>(fade.first).opacity, lessThan(1));
+    await settle(t);
+    expect(fade, findsNothing, reason: 'arrived: no fade layer left');
+    final at = t.getTopLeft(row);
+    await t.tap(find.byType(AddButton).first);
+    await t.pump(const Duration(milliseconds: 10));
+    expect(t.getTopLeft(row), at);
+    await finish(t);
+  });
+
   testWidgets('no match: the line and the solid custom-food button', (t) async {
     await openSearch(t);
     await type(t, 'zzzq');

@@ -8,9 +8,11 @@ import 'thumb.dart';
 class PlaceRow extends StatelessWidget {
   final String name, detail, status;
   final bool open;
+  /// a line that is a matched item, not a building: kept to one line
+  final bool clampDetail;
   final String? photo;
   final VoidCallback? onTap;
-  const PlaceRow({super.key, required this.name, required this.detail, required this.status, required this.open, this.photo, this.onTap});
+  const PlaceRow({super.key, required this.name, required this.detail, required this.status, required this.open, this.clampDetail = false, this.photo, this.onTap});
 
   @override
   Widget build(BuildContext context) => Press(
@@ -26,7 +28,7 @@ class PlaceRow extends StatelessWidget {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(name, style: M2Text.rowName.normal().style(M2Color.ink)),
-                    Padding(padding: const EdgeInsets.only(top: M2Layout.placeTextTop), child: Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: M2Text.meta.style(M2Color.slate))),
+                    Padding(padding: const EdgeInsets.only(top: M2Layout.placeTextTop), child: Text(detail, maxLines: clampDetail ? 1 : null, overflow: clampDetail ? TextOverflow.ellipsis : TextOverflow.clip, style: M2Text.meta.style(M2Color.slate))),
                   ]),
                 ),
                 const SizedBox(width: M2Layout.placeRowGap),
