@@ -1,7 +1,7 @@
 // Port of the exporters in shared/src/storage.ts; shared/vectors/export.json is the byte-equality contract.
 import 'dart:convert';
 
-import '../data/packaged.dart';
+import 'packaged_food.dart';
 import 'types.dart';
 
 /// Number.prototype.toString: plain shortest digits for integral values below 1e21 and for 1e-6 <= |v| < 1e21,
