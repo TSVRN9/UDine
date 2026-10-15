@@ -19,7 +19,7 @@ const _bundled = 'assets/recorded/'; // internal flavor only (pubspec.yaml)
 Future<String> _fromBundle(String name) => rootBundle.loadString('$_bundled$name');
 
 /// get_infov2 as M2 reads it: hours and statuses from the Oct 8 capture (M2's NOW is Thursday Oct 8), and the street address and
-/// `map_address` from the Oct 11 one (NOTES "Round 9", "Where"), which Oct 8 lacks. Busy is simulated over the halls (RecordedClient).
+/// `map_address` and `short_description_v2` from the Oct 11 one (NOTES "Round 9", "Where"), which Oct 8 lacks. Busy is simulated over the halls (RecordedClient).
 Future<String> recordedLocations(Future<String> Function(String name) read) async {
   final hours = (jsonDecode(await read('locations-2026-10-08.json')) as List).cast<Map<String, dynamic>>();
   final where = {for (final l in (jsonDecode(await read('locations-2026-10-11.json')) as List).cast<Map<String, dynamic>>()) l['location_title']: l};
@@ -28,6 +28,7 @@ Future<String> recordedLocations(Future<String> Function(String name) read) asyn
     if (w != null) {
       l['address'] = w['address'];
       l['map_address'] = w['map_address'];
+      l['short_description_v2'] = w['short_description_v2'];
     }
   }
   return jsonEncode(hours);

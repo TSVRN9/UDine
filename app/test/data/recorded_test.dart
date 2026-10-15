@@ -100,6 +100,13 @@ void main() {
       expect(e.value, isNotEmpty);
     });
 
+    test("a café's description (short_description_v2) is in recorded mode", () async {
+      final r = await repo('/?data=recorded&at=2026-10-08T12:41');
+      final h = (await r.hours('2026-10-08').toList()).last as Loaded<HoursData>;
+      final peoples = h.value.feed.retail.firstWhere((l) => l.name.startsWith("People"));
+      expect(peoples.description, contains('Campus Center'));
+    });
+
     test('the fixed clock drives open status', () async {
       final noon = await repo('/?data=recorded&at=2026-10-08T12:41');
       final early = await repo('/?data=recorded&at=2026-10-08T06:00');

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/motion/container_transform.dart';
+import 'package:udine/screens/cafes/cafes_page.dart';
 import 'package:udine/screens/halls/hall_page.dart';
 import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/shell/shell.dart';
@@ -137,18 +138,20 @@ void main() {
       await t.pump();
       await t.tap(find.text('North, by Worcester'));
       await t.pumpAndSettle();
-      expect(find.byType(AreaPage), findsOneWidget);
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300))); // the page's own hours read
+      expect(find.byType(CafesPage), findsOneWidget);
       final g = await t.startGesture(const Offset(5, 400));
       await g.moveBy(const Offset(30, 0));
       await g.moveBy(const Offset(270, 0));
       await g.up();
       await t.pumpAndSettle();
-      expect(find.byType(AreaPage), findsNothing);
+      expect(find.byType(CafesPage), findsNothing);
       await t.tap(find.text('North, by Worcester'));
       await t.pumpAndSettle();
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
       await t.binding.handlePopRoute();
       await t.pumpAndSettle();
-      expect(find.byType(AreaPage), findsNothing);
+      expect(find.byType(CafesPage), findsNothing);
     });
 
     testWidgets('a tab press mid-stack goes back to the tab at once', (t) async {

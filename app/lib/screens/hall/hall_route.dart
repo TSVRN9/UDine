@@ -4,12 +4,22 @@ import '../../core/types.dart' show diningHalls;
 import '../../core/m2/board.dart' show halls;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
+import '../cafes/cafes_page.dart';
 import '../halls/hall_page.dart';
 
 /// `/hall/worcester?meal=lunch&day=2026-10-10` or `/cafe/3` (a café's index) as a launch route (screenshots, deep links): the hall's menu already open, with no band
 /// to grow from. Null for any other route. `meal` is M2's key, `day` a date within the 15 days from today.
 Route<void>? hallLaunchRoute(String route, double top) {
   final u = Uri.parse(route);
+  if (u.path == '/cafes') {
+    return BaseRoute<void>(
+      settings: RouteSettings(name: route),
+      builder: (context) {
+        AppScope.of(context).prefs.lastHall = 'W'; // M2's own `?state=cafes` opens with Worcester the last hall
+        return CafesPage(top: top, area: int.tryParse(u.queryParameters['area'] ?? ''));
+      },
+    );
+  }
   if (u.pathSegments.length != 2) return null;
   final seg = u.pathSegments[1];
   final String place;
