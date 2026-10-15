@@ -636,6 +636,8 @@ abstract final class M2Motion {
   static const scrim = 0.32;
   /// #pscrim max opacity .5
   static const plateScrim = 0.5;
+  /// prefshow/prefhide: the list flashes from this opacity back to whole over settle
+  static const revealFlash = 0.4;
   /// MO.dragBack
   static const dragBackDist = 480.0;
   /// MO.dragBack

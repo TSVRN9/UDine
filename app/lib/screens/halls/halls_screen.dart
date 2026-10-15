@@ -134,7 +134,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
                         if (vm.retry)
                           Padding(
                             padding: const EdgeInsets.only(top: M2Layout.netGap),
-                            child: Button(kind: ButtonKind.outline, label: 'Try again', onTap: () { Haptics.light(); _c!.load(); }),
+                            child: Button(kind: ButtonKind.outline, label: 'Try again', onTap: () { Haptics.light(); _c!.retry(); }),
                           ),
                       ]),
                     ),

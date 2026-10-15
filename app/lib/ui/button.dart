@@ -26,6 +26,7 @@ class Button extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = switch (_size) { ButtonSize.large => M2Layout.btnL, ButtonSize.medium => M2Layout.btnM, ButtonSize.tap => M2Size.tap };
+    final inset = kind == ButtonKind.directions;
     final big = _size == ButtonSize.large && (kind == ButtonKind.gold || kind == ButtonKind.outline); // `.evbtn`: 52 tall, 17 dp
     final (bg, fg, ring, style, pad) = switch (kind) {
       ButtonKind.primary => (M2Color.vm, M2Color.white, null, M2Text.action.bold(), 0.0),
@@ -41,7 +42,9 @@ class Button extends StatelessWidget {
       constraints: kind == ButtonKind.gold ? const BoxConstraints(minWidth: M2Layout.gbtnMinW) : null,
       padding: EdgeInsets.symmetric(horizontal: pad),
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: bg, borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)), border: ring == null ? null : Border.all(color: ring, width: M2Layout.rule)),
+      decoration: BoxDecoration(color: bg, borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)), border: ring == null || inset ? null : Border.all(color: ring, width: M2Layout.rule)),
+      // `.dirb`'s ring is an inset box-shadow: drawn over the box, taking no room from the padding (the other rings are borders)
+      foregroundDecoration: ring == null || !inset ? null : BoxDecoration(borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)), border: Border.all(color: ring, width: M2Layout.rule)),
       child: Text(label, style: style.style(fg), maxLines: 1),
     );
     return Press(scale: true, label: label, onTap: onTap, child: expand ? body : IntrinsicWidth(child: body));
