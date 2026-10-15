@@ -40,6 +40,7 @@
 //   "packaged": {"query", "yours": [name], "shown": [[name, calPer100g]]},   // the recorded OFF answer as the Packaged group
 //              // shows it: a name once, no hit without calories, nothing already in Your foods, the brand leading a name
 //              // that lacks it
+//   "search": see the block that builds it (flutter-port-search)
 //   "saved": [ {"net": "offline"|"fail", "savedCafes": [name], "place", "day", "saved"} ]   // which menus Search can read
 // }
 const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
@@ -163,6 +164,26 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
     const k = HALLS.includes(place) ? place : 'c' + P.places.findIndex(x => x[0] === place), v = savedMenu(k, day); NET = n0; SAVED.clear(); s0.forEach(c => SAVED.add(c));
     return { net, savedCafes: cafes, place: k, day, saved: v }; }), SAVEDCASES);
   if (errs.length) throw new Error(errs.join('\n'));
+const SEARCH = [
+  { q: '' }, { q: 'green' }, { q: 'pancakes' }, { q: 'apple' }, { q: 'organic' }, { q: 'worcester' }, { q: 'hal' }, { q: 'brisket' }, { q: 'chicken' }, { q: 'pizza' }, { q: 'zzzq' },
+  { q: '', lens: ['protein'] }, { q: '', lens: ['light'] }, { q: '', lens: ['veg'] }, { q: '', lens: ['plant'] }, { q: '', lens: ['halal'] }, { q: '', lens: ['lowc'] }, { q: '', lens: ['fav'] },
+  { q: 'chicken', lens: ['protein', 'halal'] }, { q: 'charles', newton: true }, { q: 'charles' }, { q: 'Chorizo Jalapeno Quesadilla', newton: true },
+];
+  // flutter-port-search: Search's groups for a typed text and lenses (the Charles River toggle on a case with "newton"), read back from #sres:
+  // "search": [ {"q", "lens"?, "newton"?, "groups": [ {"title": null | "Places" | "Lunch now" | "At cafés" | "Later today and tomorrow", "rows": ["hall:W", "grab:W", "cafe:c3", "dish:<key>", "cafe-dish:<key>", "later:<key>", "empty:<text>"]} ]} ]
+  out.search = await p.evaluate(cases => cases.map(c => {
+    const n0 = S.newton; S.newton = !!c.newton; S.lenses = new Set(c.lens || []); S.q = c.q; document.querySelector('#q').value = c.q; renderLenses(); renderSearch();
+    const g = []; let cur = { title: null, rows: [] };
+    for (const e of document.querySelector('#sres').children) {
+      if (e.classList.contains('sgrp')) { g.push(cur); cur = { title: e.textContent, rows: [] }; }
+      else if (e.classList.contains('hcards')) cur.rows.push(...[...e.querySelectorAll('.hcard')].map(x => 'hall:' + x.dataset.h));
+      else if (e.classList.contains('prow2')) cur.rows.push(e.dataset.act === 'cafe' ? 'cafe:c' + e.dataset.c : 'grab:' + e.dataset.h);
+      else if (e.classList.contains('row')) cur.rows.push((e.classList.contains('later') ? 'later:' : e.dataset.cg ? 'cafe-dish:' : 'dish:') + e.dataset.k);
+      else if (e.classList.contains('empty')) cur.rows.push('empty:' + e.textContent);
+    }
+    g.push(cur); S.newton = n0; S.lenses = new Set(); S.q = ''; document.querySelector('#q').value = '';
+    return { ...c, groups: g.filter(x => x.title || x.rows.length) };
+  }), SEARCH);
   fs.writeFileSync(__dirname + '/vectors.json', JSON.stringify(out, null, 1) + '\n');
   console.log(`vectors.json: ${out.where.length} where (${WHERE.length} dishes x ${CLOCKS.length} clocks), ${out.plate.length} plate sequences, ${out.scores.length} scores (${unscored.length} unscored with a number), ${out.price.length} prices, ${out.bowlbase.length} Noodle Bowl bases, ${out.synthetic.length} synthetic bars, ${out.alerts.length} alert sequences, ${out.packaged.shown.length} packaged, ${out.saved.length} saved`);
   await b.close();

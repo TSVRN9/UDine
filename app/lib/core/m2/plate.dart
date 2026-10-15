@@ -41,6 +41,9 @@ bool _canJoin(Plate p, String meal, List<String>? hs) {
   return ph == null || hs == null || ph.any(hs.contains);
 }
 
+/// M2 `wouldSplit`: a plate exists and none of them can take the dish (its + would start another).
+bool wouldSplit(PlateState s, String meal, List<String> places) => s.plates.isNotEmpty && !s.plates.any((p) => _canJoin(p, meal, places));
+
 PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom]) {
   final key = custom != null ? 'custom:${dishKey(name)}' : dishKey(name);
   final hs = custom != null ? null : refs.keys.toList();
@@ -122,5 +125,5 @@ String plateMeal(Board fx, String place, String meal, DateTime now) =>
 double rowCode(PlateState s, String meal, String key, String place) {
   final f = findItem(s, meal, key, place);
   if (f != null) return f.item.qty;
-  return s.plates.isNotEmpty && !s.plates.any((p) => _canJoin(p, meal, [place])) ? -1 : 0;
+  return wouldSplit(s, meal, [place]) ? -1 : 0;
 }
