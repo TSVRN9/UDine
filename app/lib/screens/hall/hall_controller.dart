@@ -43,7 +43,7 @@ List<HoursEvent> hoursEvents(List<DiningEvent> feed) {
     if (t.endsWith(' Hours') && byTitle.containsKey(t.substring(0, t.length - 6))) continue;
     final h = byTitle['$t Hours'];
     out.add(HoursEvent(
-      title: t, scope: h != null ? halls.join() : '', expires: expires(e), hoursTitle: h?.title.trim(),
+      title: t, scope: h != null ? halls.join() : '', expires: expires(e), hoursTitle: h?.title.trim(), image: e.featuredImage,
       links: [
         if (e.pdfLink.isNotEmpty) [h != null ? 'See the menu' : 'Open the flyer', e.pdfLink],
         if (e.externalLink.isNotEmpty) ['Open the link', e.externalLink],
