@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
-import 'boxes.dart';
 import 'press.dart';
 import 'svg_path.dart';
 
@@ -23,23 +22,21 @@ class _StarPainter extends CustomPainter {
   bool shouldRepaint(_StarPainter o) => o.stroke != stroke || o.fill != fill || o.width != width;
 }
 
-/// The favourite button on the dish sheet (`.favb`): a 48 dp target around a 24 dp star, centred on the name's first line and no
-/// taller than it (its margins pull it back 6 up and 12 down). Gold when on.
+/// The favourite button on the dish sheet (`.favb`): a 48 dp target around a 24 dp star, gold when on. The sheet places it so its glyph
+/// is centred on the name's first line, where M2's margins pull it (6 up of the name's row), over the sheet rather than in its header:
+/// the whole 48 dp box takes the tap, which a header 36 dp tall would cut.
 class FavoriteStar extends StatelessWidget {
   final bool on;
   final VoidCallback onTap;
   const FavoriteStar({super.key, required this.on, required this.onTap});
   @override
-  Widget build(BuildContext context) => NegMargin(
-        top: M2Layout.favUp, bottom: M2Layout.favDown,
-        child: Semantics(
-          toggled: on,
-          child: Press(
-            scale: true, label: 'Favorite', onTap: onTap,
-            child: SizedBox(
-              width: M2Layout.favBox, height: M2Layout.favBox,
-              child: Center(child: CustomPaint(size: const Size.square(M2Layout.favGlyph), painter: _StarPainter(on ? M2Color.gold : M2Color.vm, on ? M2Color.gold : null, M2Layout.favStroke))),
-            ),
+  Widget build(BuildContext context) => Semantics(
+        toggled: on,
+        child: Press(
+          scale: true, label: 'Favorite', onTap: onTap,
+          child: SizedBox(
+            width: M2Layout.favBox, height: M2Layout.favBox,
+            child: Center(child: CustomPaint(size: const Size.square(M2Layout.favGlyph), painter: _StarPainter(on ? M2Color.gold : M2Color.vm, on ? M2Color.gold : null, M2Layout.favStroke))),
           ),
         ),
       );

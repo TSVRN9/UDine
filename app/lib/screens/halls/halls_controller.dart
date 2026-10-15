@@ -20,6 +20,12 @@ class HallsController extends ChangeNotifier {
   int _run = 0;
   bool _disposed = false;
 
+  /// Try again: the network is asked at once, whatever the last answer said.
+  void retry() {
+    repo.retryNetwork();
+    load();
+  }
+
   void load() {
     _sub?.cancel();
     final run = ++_run;

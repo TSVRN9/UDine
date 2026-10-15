@@ -10,6 +10,8 @@ import '../core/foodpro.dart';
 import '../core/hours.dart';
 import '../core/occupancy.dart';
 import '../core/types.dart';
+import '../core/m2/places.dart' show cafeTable, straight;
+import 'pdf_cache.dart';
 import 'source.dart';
 import 'supabase_source.dart';
 import 'states.dart';
@@ -84,16 +86,64 @@ String addDays(String iso, int days) {
 /// menu_cache:* rows are never touched. Raw responses are stored and re-parsed on read, so parser fixes apply to old
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
-  Repository(this.source, this.db, {this.supabase, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
+  Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
     : now = now ?? DateTime.now;
   final UmassSource source;
   final SupabaseSource? supabase;
+
+  /// Café menu PDFs on the phone; null where there is nowhere to keep them.
+  final PdfCache? pdfs;
   final Database db;
   final DateTime Function() now;
   final Duration stillLoadingAfter;
 
   /// A saved copy older than this, when the refresh can't reach the network, is reported as LoadedOffline (menuPrefetch.ts's 6h).
   static const menuFresh = Duration(hours: 6);
+
+  /// Every network fetch of `_load` goes through [_pooled]: at most this many in flight at once (a 15-day schedule open is 15 fetches).
+  static const maxInFlight = 4;
+
+  /// After a fetch fails Unreachable, later fetches skip the network for this long and resolve from the phone.
+  // ponytail: one window for every feed and place, cleared by any success or [retryNetwork]; per-host backoff if a feed can be down while others are up.
+  static const offlineWindow = Duration(seconds: 30);
+
+  int _inFlight = 0;
+  final _waiting = <Completer<void>>[];
+  DateTime? _offlineUntil;
+
+  /// "Try again": the next fetch asks the network whatever the last one said.
+  void retryNetwork() => _offlineUntil = null;
+
+  /// Runs [fetch] when one of the [maxInFlight] slots is free. Inside the offline window it does not run: it throws Unreachable
+  /// as the network would, so the caller's offline path (saved copy, NotSaved) answers. Unreachable starts the window; any
+  /// answer ends it.
+  Future<T> _pooled<T>(Future<T> Function() fetch) async {
+    if (_inFlight >= maxInFlight) {
+      final turn = Completer<void>();
+      _waiting.add(turn);
+      await turn.future; // a finishing fetch hands its slot over
+    } else {
+      _inFlight++;
+    }
+    try {
+      final until = _offlineUntil;
+      if (until != null && now().isBefore(until)) throw const _SkippedOffline(); // (does not extend the window)
+      final v = await fetch();
+      _offlineUntil = null;
+      return v;
+    } on _SkippedOffline {
+      throw const Unreachable('offline window');
+    } on Unreachable {
+      _offlineUntil = now().add(offlineWindow);
+      rethrow;
+    } finally {
+      if (_waiting.isEmpty) {
+        _inFlight--;
+      } else {
+        _waiting.removeAt(0).complete();
+      }
+    }
+  }
 
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
 
@@ -110,59 +160,29 @@ class Repository {
 
   /// Menus fetched in this session by place-day (an empty one included: it is never final on disk, but it is not asked for again).
   final _fetched = <String, List<MenuItem>>{};
-  DateTime? _unreachableAt;
-  final _gate = _Gate(4);
-
-  /// How long after the network was found down nothing is asked of it.
-  static const offlineQuiet = Duration(seconds: 30);
-  bool get _recentlyOffline => _unreachableAt != null && now().difference(_unreachableAt!) < offlineQuiet;
-
-  /// The saved copy of a place-day, whatever its age, or null.
-  Future<List<MenuItem>?> savedMenu(int locationId, String date) async {
-    final rows = await db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [_menuKey(locationId, date)]);
-    if (rows.isEmpty) return null;
-    try {
-      final e = jsonDecode(rows.first['value_json']! as String) as Map<String, dynamic>;
-      final items = parseMenuResponse(locationId, date, e['raw'] is Map<String, dynamic> ? e['raw'] as Map<String, dynamic> : const {});
-      return items.isEmpty ? null : items;
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Every (location id, date) given, once, through the one door Search and the dish sheet share: a place-day this session has had is
-  /// not asked for again, a saved final one asks for nothing (both as [menu] does), at most [cap] requests are in flight at once, and
-  /// once the network is known to be down (an [Unreachable] in the last [offlineQuiet]) only what is saved answers. A place-day with no
-  /// answer is left out. [stopped] is checked before each one starts.
-  Future<Map<(int, String), List<MenuItem>>> prefetchMenus(Iterable<(int, String)> days, {int? cap, bool Function()? stopped}) async {
-    if (cap != null) _gate.limit = cap;
-    final out = <(int, String), List<MenuItem>>{};
-    await Future.wait([
-      for (final d in days)
-        () async {
-          final key = _menuKey(d.$1, d.$2);
-          final had = _fetched[key];
-          if (had != null) {
-            out[d] = had;
-            return;
-          }
-          await _gate.acquire();
-          try {
-            if (stopped?.call() ?? false) return;
-            List<MenuItem>? got;
-            if (_recentlyOffline) {
-              got = await savedMenu(d.$1, d.$2);
-            } else {
-              await for (final s in menu(d.$1, d.$2)) {
-                if (s case Loaded(:final value) || LoadedOffline(:final value)) got = value;
-              }
-            }
-            if (got != null) out[d] = got;
-          } finally {
-            _gate.release();
-          }
-        }(),
-    ]);
+  /// not asked for again, a saved final one asks for nothing (both as [menu] does), and every fetch goes through [_pooled], so at most
+  /// [maxInFlight] are in flight and, once the network is known to be down, none are asked and what is saved answers. A place-day with
+  /// no answer is left out. They start [maxInFlight] at a time, and [stopped] is checked before each wave.
+  Future<Map<(int, String), List<MenuItem>>> prefetchMenus(Iterable<(int, String)> days, {bool Function()? stopped}) async {
+    final out = <(int, String), List<MenuItem>>{}, todo = days.toList();
+    Future<void> one((int, String) d) async {
+      final had = _fetched[_menuKey(d.$1, d.$2)];
+      if (had != null) {
+        out[d] = had;
+        return;
+      }
+      List<MenuItem>? got;
+      await for (final s in menu(d.$1, d.$2)) {
+        if (s case Loaded(:final value) || LoadedOffline(:final value)) got = value;
+      }
+      if (got != null) out[d] = got;
+    }
+
+    for (var i = 0; i < todo.length; i += maxInFlight) {
+      if (stopped?.call() ?? false) break;
+      await Future.wait([for (final d in todo.skip(i).take(maxInFlight)) one(d)]);
+    }
     return out;
   }
 
@@ -197,16 +217,51 @@ class Repository {
   /// Events aren't saved: nothing in the brief asks for them offline.
   Stream<DataState<List<DiningEvent>>> events() => _load(fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
 
-  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours.
-  /// Per-item failures are swallowed; this never throws.
-  Future<void> launch() async {
+  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours, and the PDFs of the
+  /// [pins]' menus (pinned cafés only: owner, round 11). Per-item failures are swallowed; this never throws.
+  Future<void> launch({List<String> pins = const []}) async {
     final t = today;
     await prune(t);
     await Future.wait([
       for (final d in [t, addDays(t, 1)])
         for (final h in diningHalls) menu(h.tid, d).drain<void>(),
-      hours(t).drain<void>(),
+      _warmHours(t, pins),
     ]);
+  }
+
+  Future<void> _warmHours(String date, List<String> pins) async {
+    HoursData? last;
+    await for (final s in hours(date)) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    if (last != null) await prefetchPdfs(last.feed, pins);
+  }
+
+  /// Saves the PDFs of the [pins]' menus and drops saved ones no café lists any more. One failing PDF doesn't stop the rest.
+  Future<void> prefetchPdfs(DiningHoursFeed feed, List<String> pins) async {
+    final cache = pdfs;
+    if (cache == null) return;
+    final byTitle = {for (final r in feed.retail) straight(r.name): r};
+    List<String> urls(Iterable<RetailLocationHours> cafes) => [
+      for (final r in cafes)
+        if (resolveCafeMenu(const [], r) case StandingCafeMenu(menu: RetailMenuPdf(:final links))) for (final l in links) l.url,
+    ];
+    // a pin is M2's name for a café; the feed's title is the table's, or the name itself for a café the table doesn't list yet
+    final titles = {for (final e in cafeTable) if (pins.contains(e.name)) straight(e.title), ...pins.map(straight)};
+    final pinned = [for (final t in titles) ?byTitle[t]];
+    try {
+      await cache.prune(urls(feed.retail).toSet());
+    } catch (e) {
+      if (!kReleaseMode) debugPrint('pdf prune: $e');
+    }
+    for (final u in urls(pinned)) {
+      if (cache.file(u).existsSync()) continue;
+      try {
+        await cache.fetch(u);
+      } catch (e) {
+        if (!kReleaseMode) debugPrint('pdf prefetch $u: $e');
+      }
+    }
   }
 
   /// Deletes menu:v2:/hours:v2: entries dated before yesterday. Keys end in their YYYY-MM-DD.
@@ -385,7 +440,7 @@ class Repository {
           slow = Timer(stillLoadingAfter, () => c.add(StillLoading()));
         }
         try {
-          final raw = await fetch();
+          final raw = await _pooled(fetch);
           final value = parse(raw, true);
           onFetched?.call(value);
           slow?.cancel();
@@ -400,7 +455,6 @@ class Repository {
             }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
         } on Unreachable {
-          _unreachableAt = now();
           slow?.cancel();
           if (saved == null) {
             c.add(NotSaved());
@@ -422,28 +476,6 @@ class Repository {
   }
 }
 
-/// At most `limit` holders at a time, the rest waiting in order.
-class _Gate {
-  _Gate(this.limit);
-  int limit;
-  int _held = 0;
-  final _waiting = <Completer<void>>[];
-
-  Future<void> acquire() async {
-    if (_held < limit) {
-      _held++;
-      return;
-    }
-    final c = Completer<void>();
-    _waiting.add(c);
-    await c.future;
-  }
-
-  void release() {
-    if (_waiting.isNotEmpty) {
-      _waiting.removeAt(0).complete(); // the slot passes on
-    } else {
-      _held--;
-    }
-  }
+class _SkippedOffline implements Exception {
+  const _SkippedOffline();
 }

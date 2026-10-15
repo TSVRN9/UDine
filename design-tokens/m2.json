@@ -750,6 +750,7 @@
   },
   "scrim": 0.32,
   "plateScrim": 0.5,
+  "revealFlash": 0.4,
   "dragBack": {
    "dist": 480,
    "commit": 0.82,
@@ -994,6 +995,7 @@
   "motion.exit": "MO.exit (150, .3 0 .8 .2)",
   "motion.scrim": "MO.scrim",
   "motion.plateScrim": "#pscrim max opacity .5",
+  "motion.revealFlash": "prefshow/prefhide: the list flashes from this opacity back to whole over settle",
   "motion.dragBack": "MO.dragBack",
   "motion.push": "MO.push",
   "motion.pushIn": "push in: MO.cont timing on MO.push.e",

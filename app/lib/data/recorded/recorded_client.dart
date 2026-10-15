@@ -12,7 +12,7 @@ String _esc(String s) =>
 /// [menus] is menus-2026-10-08-to-22.json (`dishes` + `days[day][place][meal] = [[station, [dish idx]]]`),
 /// [locations] the get_infov2 capture, [events] get_beacons_events.
 class RecordedClient extends http.BaseClient {
-  RecordedClient({required this.menus, required this.locations, required this.events}) {
+  RecordedClient({required this.menus, required this.locations, required this.events, this.pdf}) {
     final locs = jsonDecode(locations) as List;
     // Halls are keyed Worcester/Franklin/Hampshire/Berkshire in the recording; their location ids are the foodpro tids.
     _ids = {
@@ -23,6 +23,12 @@ class RecordedClient extends http.BaseClient {
   }
   final Map<String, dynamic> menus;
   final String locations, events;
+
+  /// The recorded PDF named [pdfFiles]' value (`Lunch.pdf`), from the gitignored local copies (tool/link_pdfs.sh); null = none linked.
+  final Future<List<int>> Function(String file)? pdf;
+
+  /// Which local file answers a PDF URL: the menu's name in the URL, ignoring case and spacing ("LITE FARE" -> `Lite-fare.pdf`).
+  static const pdfFiles = {'litefare': 'Lite-fare.pdf', 'lunch': 'Lunch.pdf', 'dinner': 'Dinner.pdf', 'dessert': 'Dessert.pdf'};
   late final Map<String, int> _ids;
 
   /// ponytail: one MenuItem-shaped HTML fragment per station; Procrastination Station has no location id in get_infov2, so it has no menu.
@@ -97,6 +103,15 @@ class RecordedClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final u = request.url;
+    if (u.path.toLowerCase().endsWith('.pdf')) {
+      final name = Uri.decodeComponent(u.path).toLowerCase().replaceAll(RegExp('[^a-z]'), '');
+      final file = pdfFiles.entries.where((e) => name.contains(e.key)).firstOrNull?.value;
+      List<int>? bytes;
+      try {
+        bytes = file == null || pdf == null ? null : await pdf!(file);
+      } catch (_) {} // not linked: the same 404 as a menu with no recording
+      return http.StreamedResponse(Stream.value(bytes ?? utf8.encode('no recording')), bytes == null ? 404 : 200, request: request);
+    }
     final body = switch (u.path) {
       '/foodpro-menu-ajax' => () {
         final [m, d, y] = u.queryParameters['date']!.split('/');

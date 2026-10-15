@@ -1,12 +1,16 @@
+import 'dart:io' show Directory;
+
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter/widgets.dart' show Widget;
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'core/hours.dart';
 import 'core/store/db.dart';
 import 'core/store/store.dart';
 import 'data/recorded/recorded.dart';
+import 'data/pdf_cache.dart';
 import 'data/repository.dart';
 import 'data/source.dart';
 import 'data/supabase_source.dart';
@@ -42,18 +46,22 @@ class Boot {
     final flags = recordedFlags(route);
     final pinsFlag = int.tryParse(Uri.parse(route).queryParameters['pins'] ?? '');
     final (cache, store) = await openDb(dbPath: flags != null ? inMemoryDatabasePath : (dbPath ?? await udineDbPath()));
+    if (flags != null) {
+      await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
+      if (flags.avoid.isNotEmpty) await store?.setAvoid(flags.avoid);
+      if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
+    }
+    final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
     final Repository repo;
     if (flags != null) {
       // `at` is Eastern wall-clock time, as M2 reads it, wherever the device is
       final a = flags.at;
-      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net), cache);
+      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net), cache, pins: prefs.pins);
     } else {
       final client = http.Client();
-      repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client));
+      repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));
     }
-    if (flags != null) await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
-    final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
-    if (flags == null) repo.launch(); // warm today and tomorrow; never throws
+    if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
     return Boot(repo, store, prefs);
   }
 

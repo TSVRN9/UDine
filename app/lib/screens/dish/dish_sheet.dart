@@ -62,6 +62,14 @@ class DishSheet extends StatefulWidget {
 class _DishSheetState extends State<DishSheet> {
   final _cal = GlobalKey();
   bool _stuck = false, _ingOpen = false;
+  /// the sheet's height now (the star rides its pinned header)
+  final _px = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _px.dispose();
+    super.dispose();
+  }
 
   MenuItem get d => widget.dish;
 
@@ -124,13 +132,11 @@ class _DishSheetState extends State<DishSheet> {
             }
             return false;
           },
-          child: M2Sheet(
-            handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), header: const SheetGrab(),
+          child: LayoutBuilder(builder: (context, frame) => Stack(children: [
+            Positioned.fill(child: M2Sheet(
+            handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), header: const SheetGrab(), onSize: (v) => _px.value = v,
             slivers: [
-              PinnedHeaderSliver(child: _Head(name: d.dishName, stuck: _stuck, favorite: scope.prefs.isFavorite(d.dishName), onFavorite: () {
-                Haptics.light();
-                scope.prefs.toggleFavorite(d.dishName);
-              })),
+              PinnedHeaderSliver(child: _Head(name: d.dishName, stuck: _stuck)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
@@ -183,20 +189,32 @@ class _DishSheetState extends State<DishSheet> {
                 ),
               ),
             ],
-          ),
+          )),
+            ValueListenableBuilder<double>(
+              valueListenable: _px,
+              builder: (_, px, _) => Positioned(
+                top: frame.maxHeight - px + M2Layout.grabH + M2Layout.favUp, right: M2Space.gutter - M2Layout.favOut,
+                child: FavoriteStar(on: scope.prefs.isFavorite(d.dishName), onTap: () => _favorite(scope)),
+              ),
+            ),
+          ])),
         );
       },
     );
   }
+
+  void _favorite(AppScope scope) {
+    Haptics.light();
+    scope.prefs.toggleFavorite(d.dishName).catchError((Object e) => debugPrint('favorite not saved: $e'));
+  }
 }
 
-/// `.dhd`: the name over the label as it scrolls, with the favourite star. Padding-bottom 4 under the name and margin-bottom -4, so the
+/// `.dhd`: the name over the label as it scrolls, with room at its right for the favourite star. Padding-bottom 4 under the name and margin-bottom -4, so the
 /// next row starts at the name's own bottom while the ground (and, once something passes under it, its edge) reaches 4 under it.
 class _Head extends StatelessWidget {
   final String name;
-  final bool stuck, favorite;
-  final VoidCallback onFavorite;
-  const _Head({required this.name, required this.stuck, required this.favorite, required this.onFavorite});
+  final bool stuck;
+  const _Head({required this.name, required this.stuck});
   @override
   Widget build(BuildContext context) => Stack(clipBehavior: Clip.none, children: [
         Positioned(
@@ -219,7 +237,7 @@ class _Head extends StatelessWidget {
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: Padding(padding: const EdgeInsets.only(top: M2Layout.dishHeadTop), child: Semantics(header: true, child: Text(name, style: M2Text.dishName.style(M2Color.dm))))),
             const SizedBox(width: M2Layout.favGap),
-            FavoriteStar(on: favorite, onTap: onFavorite),
+            const SizedBox(width: M2Layout.favBox), // (the star itself is drawn over the sheet)
           ]),
         ),
       ]);

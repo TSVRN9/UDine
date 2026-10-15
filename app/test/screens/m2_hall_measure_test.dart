@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/screens/hall/meal_tabs.dart';
+import 'package:udine/screens/hall/schedule_sheet.dart';
 import 'package:udine/screens/hall/hall_header.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
@@ -84,6 +85,35 @@ void main() {
         await drain(t);
       });
     }
+
+    testWidgets('with Milk and Eggs avoided, the dietary line and every row left are the height M2 draws them at $w dp', (t) async {
+      final want = [for (final r in m['rowsHiding'] as List) if (r[0] != 'pad-b') (r[1] as num).toDouble()];
+      await openHall(t, await bootRecorded(t, avoid: const ['Milk', 'Eggs']), '/hall/worcester?meal=lunch', w: w.toDouble(), h: 8000);
+      final got = listHeights(t);
+      expect(got.length, want.length);
+      expect([for (var i = 0; i < want.length; i++) if ((want[i] - got[i]).abs() > 0.6) '#$i: M2 ${want[i]}, here ${got[i]}'], isEmpty);
+      await drain(t);
+    });
+
+    // The schedule sheet's own rects, measured by ~/.cache/udine-scratch/flutter/m2dom-t2.js into m2_dom.json's `sched` per width.
+    // Skipped until m2_dom.json has `sched` (m2dom-t2.js needs Chromium and has not been run); it runs by itself once the key lands.
+    testWidgets('the schedule sheet at $w dp is where M2 draws it: name, address, Directions, the day rows and the open day', skip: m['sched'] == null, (t) async {
+      final sc = m['sched'] as Map<String, dynamic>;
+      await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch', w: w.toDouble());
+      await t.tap(find.text('Today').first);
+      await drain(t);
+      await t.pumpAndSettle();
+      final sheet = find.byType(ScheduleSheet);
+      near('schn', r(t, find.descendant(of: sheet, matching: find.text('Worcester'))), sc['schn']);
+      near('dirb', r(t, find.ancestor(of: find.text('Directions'), matching: find.byType(Press))), sc['dirb']);
+      final days = find.byType(SheetOption);
+      expect(days, findsNWidgets((sc['days'] as List).length));
+      for (var i = 0; i < (sc['days'] as List).length; i++) {
+        near('day $i', r(t, days.at(i)), sc['days'][i]);
+      }
+      near('mw', r(t, find.descendant(of: sheet, matching: find.text('Breakfast'))), sc['mwFirst'], block: true);
+      await drain(t);
+    });
   }
 }
 

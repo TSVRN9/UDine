@@ -108,7 +108,7 @@ abstract final class M2Layout {
   static const sheetTitleTop = 2.0, sheetTitleBottom = 6.0; // `.sh1` margin 2 0 6
   static const optionH = 48.0, optionEdge = 4.0, optionCount = 16.0; // `#stidx button`, `#days .day`, `.c`
   static const schedNameTop = 2.0, schedRowTop = 6.0, schedPayTop = 10.0, schedDescTop = 20.0, schedDaysTop = 16.0; // `.schn`, `.schw`, `.schp`, `.schd`, `#days`
-  static const mwsPadBottom = 10.0, mwsPadLeft = 36.0, mwsTop = -4.0, evRowH = 44.0; // `#days .mws`
+  static const mwsPadBottom = 10.0, mwsPadLeft = 36.0, mwsTop = -4.0, evRowH = 44.0, mwRowH = 21.75; // `#days .mws`, `.mw` (line-height 1.45 x 15: not the whole-dp 22 the type token rounds to)
   static const landingSlack = 12.0; // `openSched`: the chosen day ends 12 dp above the sheet's lower edge
   // the nutrition label and ratings panel (`.label`, `.grades`, `.sscale`)
   static const dvMin = 38.0; // `.label .lr .dv` min-width: 3ch of 16 dp Oswald
@@ -126,8 +126,8 @@ abstract final class M2Layout {
   static const plateLabelHead = M2Type(28.0, 30.8, 'Oswald', FontWeight.w600, tabular: true);
   static const plateKv = M2Type(15.0, 22.0, 'LibreFranklin', FontWeight.w400);
   static const hereLead = 8.0; // `toDish`: the serving rests 8 under the pinned rows
-  // the favourite star (`.dish .favb`: a 48 dp `.icon` pulled back 6 up, 12 down and 12 right; `.star` is the row's mark)
-  static const favBox = 48.0, favGlyph = 24.0, favStroke = 2.2, favGap = 8.0, favUp = -6.0, favDown = -12.0, favOut = 12.0;
+  // the favourite star (`.dish .favb`: a 48 dp `.icon` pulled back 6 up and 12 right; `.star` is the row's mark)
+  static const favBox = 48.0, favGlyph = 24.0, favStroke = 2.2, favGap = 8.0, favUp = -6.0, favOut = 12.0;
   static const starRow = 16.0, starLeft = 4.0, starBaseline = 14.0; // `.star` 13 dp ★ + margin-left 4: the drawn star is 16 dp wide, whose ink is 13
   static const shadowBlur = 14.0, shadowSpread = -8.0, shadowDy = 10.0, stuckAt = 4.0; // `.dish.stuck .dhd`
   // the plate bar and sheet (`#bar`, `.prow`, `.ptabs`, `.facts`)
