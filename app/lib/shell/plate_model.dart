@@ -43,9 +43,12 @@ class Receipt {
 class PlateModel extends ChangeNotifier {
   /// `write` and `readDay` are the device store's `addEntries` and `entriesForDay` (null when a newer build owns the database: nothing
   /// is written and the bar never shows); `now` is the app's clock.
-  PlateModel({this.write, this.readDay, DateTime Function()? now}) : _now = now; // ignore: prefer_initializing_formals
+  PlateModel({this.write, this.readDay, DateTime Function()? now, this.changed}) : _now = now; // ignore: prefer_initializing_formals
   final Future<Undo> Function(List<LogEntry> rows)? write;
   final Future<List<LogEntry>> Function(String day)? readDay;
+
+  /// Runs once the log has changed under Log or Undo (You re-reads it); a failure here never fails the write.
+  final Future<void> Function()? changed;
   final DateTime Function()? _now;
   PlateState _s = emptyPlates;
   PlateState get state => _s;
@@ -58,6 +61,28 @@ class PlateModel extends ChangeNotifier {
 
   /// The receipt the bar shows after Log, until it times out, Undo runs or a dish is added.
   Receipt? get receipt => _receipt;
+
+  ({String text, Undo undo})? _gone;
+
+  /// The receipt of a deleted past meal (M2 `receipt('Deleted …')`), in the same slot, with the same Undo and the same timeout.
+  ({String text, Undo undo})? get deleted => _gone;
+
+  void showDeleted(String text, Undo undo) {
+    _drop();
+    _failure = null;
+    _failed = false;
+    _gone = (text: text, undo: undo);
+    _arm();
+    notifyListeners();
+  }
+
+  Future<void> _changed() async {
+    try {
+      await changed?.call();
+    } catch (e) {
+      debugPrint('udine: re-reading the log failed: $e');
+    }
+  }
 
   /// The last Log or Undo could not write; cleared by the next add, Log or Undo.
   bool get failed => _failed;
@@ -81,12 +106,14 @@ class PlateModel extends ChangeNotifier {
     _timer?.cancel();
     _timer = null;
     _receipt = null;
+    _gone = null;
   }
 
   void _arm() {
     _timer?.cancel();
     _timer = Timer(msOf(M2Motion.receiptD), () {
       _receipt = null;
+      _gone = null;
       _failure = null;
       notifyListeners();
     });
@@ -109,6 +136,7 @@ class PlateModel extends ChangeNotifier {
       // are in always ends in a receipt and an Undo)
       final before = computeDailyTotals(day, await rd(day)).calories;
       final undo = await w(rows);
+      await _changed();
       final dayCal = before + rows.fold<num>(0, (a, e) => a + e.nutrition.calories * e.servings);
       // ponytail: the plate is taken out by id, as it was when Log was tapped; an item added to it during the write is neither logged
       // nor brought back by Undo (a few ms wide; snapshot-compare the plate and keep the difference if it ever shows)
@@ -142,7 +170,8 @@ class PlateModel extends ChangeNotifier {
 
   /// Takes the receipt's rows out and puts its plate back where it was. Nothing happens once the receipt has gone.
   Future<bool> undo() async {
-    final r = _receipt;
+    final r = _receipt, g = _gone;
+    if (g != null && r == null) return _undoDeleted(g);
     if (r == null || _busy) return false;
     _busy = true;
     _timer?.cancel();
@@ -150,6 +179,7 @@ class PlateModel extends ChangeNotifier {
     _failure = null;
     try {
       await r._undo();
+      await _changed();
       // (a dish added while this ran ended the receipt, but the rows are out: the plate goes back either way)
       final at = r.index.clamp(0, _s.plates.length);
       _s = PlateState([..._s.plates]..insert(at, r.plate), at, _s.nextId);
@@ -160,6 +190,29 @@ class PlateModel extends ChangeNotifier {
       _failed = true;
       _failure = PlateFailure.undo;
       if (identical(_receipt, r)) _arm();
+      return false;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> _undoDeleted(({String text, Undo undo}) g) async {
+    if (_busy) return false;
+    _busy = true;
+    _timer?.cancel();
+    _failed = false;
+    _failure = null;
+    try {
+      await g.undo();
+      _gone = null;
+      _timer = null;
+      return true;
+    } catch (e, st) {
+      debugPrint('udine: Undo failed, the meal stays deleted: $e\n$st');
+      _failed = true;
+      _failure = PlateFailure.undo;
+      if (identical(_gone, g)) _arm();
       return false;
     } finally {
       _busy = false;

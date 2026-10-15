@@ -10,6 +10,7 @@ import 'core/hours.dart';
 import 'core/m2/board.dart' show dishKey, halls, MenuItem, M2MenuItem;
 import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
+import 'core/store/log_book.dart';
 import 'core/store/store.dart';
 import 'data/recorded/recorded.dart';
 import 'data/pdf_cache.dart';
@@ -39,7 +40,9 @@ class Boot {
   final UdineStore? store;
   final AppPrefs prefs;
   final hider = BandHider();
-  late final plate = PlateModel(write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now);
+  /// The log You reads (null with no store: menus only). Held in memory, read once at launch and again after anything writes to it.
+  late final LogBook? log = store == null ? null : LogBook(store!, now: repo.now);
+  late final plate = PlateModel(write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now, changed: log?.reload);
 
   /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
@@ -68,6 +71,7 @@ class Boot {
     }
     if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
     final boot = Boot(repo, store, prefs);
+    await boot.log?.reload();
     if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
     return boot;
   }
@@ -109,5 +113,5 @@ class Boot {
     }
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, child: child);
 }

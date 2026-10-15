@@ -6,6 +6,8 @@ import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
 import '../screens/halls/halls_screen.dart';
+import '../screens/you/day_page.dart';
+import '../screens/you/you_screen.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
 import 'shell_scope.dart';
@@ -32,7 +34,7 @@ class _Sheet {
 }
 
 class ShellState extends State<Shell> implements ShellApi {
-  final _tab = ValueNotifier<int>(0);
+  late final _tab = ValueNotifier<int>(Uri.parse(widget.initialRoute).path.startsWith('/you') ? 2 : 0);
   bool Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
   final _sheets = <_Sheet>[];
@@ -71,10 +73,17 @@ class ShellState extends State<Shell> implements ShellApi {
           builder: (_, i, _) => FadeThroughTabs(index: i, children: [
             HallsScreen(top: top),
             const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
-            const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
+            YouScreen(top: top),
           ]),
         ),
       );
+
+  /// `/you/day/2026-10-07` opens that day over You at launch (a screenshot route).
+  Route<void>? _youLaunch(String route, double top) {
+    final s = Uri.parse(route).pathSegments;
+    if (s.length != 3 || s[0] != 'you' || s[1] != 'day') return null;
+    return BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => DayPage(top: top, day: s[2]));
+  }
 
   void _select(int i) {
     Haptics.selection();
@@ -110,7 +119,7 @@ class ShellState extends State<Shell> implements ShellApi {
               Positioned.fill(
                 child: Navigator(
                   key: navigator,
-                  onGenerateInitialRoutes: (_, name) => [_tabs(const RouteSettings(name: '/'), top), ?hallLaunchRoute(widget.initialRoute, top)],
+                  onGenerateInitialRoutes: (_, name) => [_tabs(const RouteSettings(name: '/'), top), ?hallLaunchRoute(widget.initialRoute, top), ?_youLaunch(widget.initialRoute, top)],
                   onGenerateRoute: (s) => _tabs(s, top),
                 ),
               ),

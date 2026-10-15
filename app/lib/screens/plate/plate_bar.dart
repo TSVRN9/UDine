@@ -81,14 +81,18 @@ class _PlateBarState extends State<PlateBar>
   @override
   Widget build(BuildContext context) {
     final r = m.receipt,
+        g = m.deleted,
         f = m.failure,
         s = m.state,
         plate = s.front < s.plates.length ? s.plates[s.front] : null;
-    final many = s.plates.length > 1 && r == null && f == null;
+    final many = s.plates.length > 1 && r == null && g == null && f == null;
+    final idle = r == null && g == null && f == null && !widget.choose;
     final Widget body = f != null
         ? _failed(f)
         : r != null
         ? _receipt(r)
+        : g != null
+        ? _deleted(g.text)
         : plate == null
         ? const SizedBox(height: M2Layout.barMin)
         : widget.choose
@@ -97,9 +101,9 @@ class _PlateBarState extends State<PlateBar>
     final curve = M2Motion.settle.curve;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: r == null && f == null && !widget.choose ? widget.onOpen : null,
-      onHorizontalDragUpdate: r == null && f == null && !widget.choose ? _drag : null,
-      onHorizontalDragEnd: r == null && f == null && !widget.choose ? _end : null,
+      onTap: idle ? widget.onOpen : null,
+      onHorizontalDragUpdate: idle ? _drag : null,
+      onHorizontalDragEnd: idle ? _end : null,
       child: ColoredBox(
         color: M2Color.dm,
         child: Stack(
@@ -118,7 +122,7 @@ class _PlateBarState extends State<PlateBar>
                   ),
                 );
               },
-              child: Arrive(key: ValueKey((r != null, f)), child: body),
+              child: Arrive(key: ValueKey((r != null, g != null, f)), child: body),
             ),
             if (many)
               Positioned(
@@ -268,6 +272,12 @@ class _PlateBarState extends State<PlateBar>
         ),
       ],
     ),
+    Button(kind: ButtonKind.outline, label: 'Undo', onTap: widget.onUndo),
+  );
+
+  /// A deleted past meal's receipt: its line and Undo, with no day total under it (M2 `receipt(text)`).
+  Widget _deleted(String text) => _frame(
+    Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: M2Text.meta.style(M2Color.onDm)),
     Button(kind: ButtonKind.outline, label: 'Undo', onTap: widget.onUndo),
   );
 
