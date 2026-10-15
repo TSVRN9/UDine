@@ -54,10 +54,13 @@ class _ScheduleSheetState extends State<ScheduleSheet> {
                   )
                 : Column(children: [
                     for (final m in d.meals)
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Text(m.label, style: M2Text.sched.style(M2Color.ink)),
-                        Text(m.window, style: M2Text.sched.style(M2Color.slate)),
-                      ]),
+                      SizedBox(
+                        height: M2Layout.mwRowH,
+                        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Text(m.label, style: M2Text.sched.style(M2Color.ink)),
+                          Text(m.window, style: M2Text.sched.style(M2Color.slate)),
+                        ]),
+                      ),
                   ]),
           ),
         ),

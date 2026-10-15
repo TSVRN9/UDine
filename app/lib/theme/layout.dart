@@ -107,7 +107,7 @@ abstract final class M2Layout {
   static const sheetTitleTop = 2.0, sheetTitleBottom = 6.0; // `.sh1` margin 2 0 6
   static const optionH = 48.0, optionEdge = 4.0, optionCount = 16.0; // `#stidx button`, `#days .day`, `.c`
   static const schedNameTop = 2.0, schedRowTop = 6.0, schedPayTop = 10.0, schedDescTop = 20.0, schedDaysTop = 16.0; // `.schn`, `.schw`, `.schp`, `.schd`, `#days`
-  static const mwsPadBottom = 10.0, mwsPadLeft = 36.0, mwsTop = -4.0, evRowH = 44.0; // `#days .mws`
+  static const mwsPadBottom = 10.0, mwsPadLeft = 36.0, mwsTop = -4.0, evRowH = 44.0, mwRowH = 21.75; // `#days .mws`, `.mw` (line-height 1.45 x 15: not the whole-dp 22 the type token rounds to)
   static const landingSlack = 12.0; // `openSched`: the chosen day ends 12 dp above the sheet's lower edge
   // the nutrition label and ratings panel (`.label`, `.grades`, `.sscale`)
   static const dvMin = 38.0; // `.label .lr .dv` min-width: 3ch of 16 dp Oswald
