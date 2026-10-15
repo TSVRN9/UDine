@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/store/store.dart';
+import '../core/types.dart' show DishFavorite;
 
 /// The device-only preferences the shell's screens read: pinned cafés and the Charles River Campus toggle. Loaded before the first
 /// frame so nothing pops in (with no store, as when a newer build owns the database, they live in memory and nothing is written); a write lands in `preferences_kv` and in the notifier at once. `pins` given at load (the `?pins=N`
 /// screenshot route) are held in memory and never saved.
 class AppPrefs extends ChangeNotifier {
-  AppPrefs._(this._store, this._charlesRiver, this._pins, this._memoryPins, this.scores);
+  AppPrefs._(this._store, this._charlesRiver, this._pins, this._memoryPins, this.scores, this._favorites);
   final UdineStore? _store;
   bool _charlesRiver;
   List<String> _pins;
@@ -21,9 +22,15 @@ class AppPrefs extends ChangeNotifier {
   bool get charlesRiver => _charlesRiver;
   List<String> get pins => _pins;
 
+  /// Favourite dishes, by the name the feed spells them (RN's `dish` favourites, which matching reads exactly). Device-only.
+  final Set<String> _favorites;
+  Set<String> get favorites => _favorites;
+  bool isFavorite(String dishName) => _favorites.contains(dishName);
+
   static Future<AppPrefs> load(UdineStore? store, {List<String>? pins}) async {
     final sc = await store?.scores();
-    return AppPrefs._(store, await store?.charlesRiver() ?? false, pins ?? await store?.pins() ?? const [], pins != null, (health: sc?.healthfulness ?? false, carbon: sc?.carbon ?? false));
+    return AppPrefs._(store, await store?.charlesRiver() ?? false, pins ?? await store?.pins() ?? const [], pins != null, (health: sc?.healthfulness ?? false, carbon: sc?.carbon ?? false),
+        {for (final f in await store?.favorites() ?? const []) if (f is DishFavorite) f.dishName});
   }
 
   Future<void> setCharlesRiver(bool v) {
@@ -36,5 +43,13 @@ class AppPrefs extends ChangeNotifier {
     _pins = v;
     notifyListeners();
     return _memoryPins ? Future.value() : _store?.setPins(v) ?? Future.value();
+  }
+
+  Future<void> toggleFavorite(String dishName) {
+    final on = _favorites.add(dishName);
+    if (!on) _favorites.remove(dishName);
+    notifyListeners();
+    final f = DishFavorite(dishName);
+    return (on ? _store?.addFavorite(f) : _store?.removeFavorite(f)) ?? Future.value();
   }
 }

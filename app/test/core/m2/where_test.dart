@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/m2/board.dart';
 import 'package:udine/core/m2/where.dart';
 import 'support.dart';
 
@@ -14,6 +15,12 @@ void main() {
         expect([for (var i = 0; i < got.length; i++) whenText(got[i], i > 0 ? got[i - 1] : null)], v['text']);
       });
     }
+  });
+
+  test('a hall whose Grab \'N Go window is not known (the live feed names only the place being viewed) is left out, not a crash', () {
+    final bare = Board(clock: board.clock, places: board.places, hours: board.hours, grab: const {}, days: board.days, events: board.events);
+    final dish = [for (final st in board.days[today]!.values.expand((p) => [?p['grab']]).first) ...st.dishes].first.dishName;
+    expect(() => whereAnswer(bare, dish, board.clock), returnsNormally);
   });
 
   test('leaves Charles River servings out while the toggle is off', () {

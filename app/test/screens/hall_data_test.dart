@@ -14,6 +14,8 @@ import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
 import 'package:udine/data/source.dart';
 import 'package:udine/data/supabase_source.dart';
+import 'package:udine/core/m2/where.dart';
+import 'package:udine/screens/dish/where_book.dart';
 import 'package:udine/screens/hall/hall_controller.dart';
 
 const _flows = '../docs/design/explorations/2026-10-ui-overhaul/flows';
@@ -71,6 +73,35 @@ void main() {
       }
       c.dispose();
     }
+  });
+
+  /// A Worcester controller whose hours and today and tomorrow have landed.
+  Future<HallController> worcester() async {
+    final c = HallController(repo, 'W')..load(0)..load(1);
+    await settled(c, [0, 1]);
+    for (var i = 0; i < 400 && c.placeHours == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    return c;
+  }
+
+  test('the board carries every hall\'s Grab \'N Go window, not only the place being viewed (where a dish is served needs them all)', () async {
+    final c = await worcester();
+    expect(c.board.grab.keys.toSet(), halls.toSet());
+    c.dispose();
+  });
+
+  test('WhereBook adds every hall\'s menus for today and tomorrow to the place\'s board: a dish served at all four halls answers with all four', () async {
+    final c = await worcester();
+    expect(c.board.days[c.isos[0]]!.keys, ['W'], reason: 'the controller itself only has its own place');
+    final book = WhereBook(repo, c.board);
+    for (var i = 0; i < 400 && book.board == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final answer = whereAnswer(book.board!, 'Black Bean Burger', lunch);
+    expect(answer.expand((g) => g.halls).toSet(), halls.toSet());
+    book.dispose();
+    c.dispose();
   });
 
   test('menuView on the live board: halal keeps the halal dishes, an avoided allergen hides and counts, Show all reveals', () async {
