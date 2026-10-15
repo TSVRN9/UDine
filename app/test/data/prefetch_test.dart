@@ -1,3 +1,7 @@
+@Timeout(Duration(seconds: 10))
+library;
+
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -86,17 +90,17 @@ void main() {
   test('a user\'s own fetch is not queued behind a prefetch of 40 place-days: it starts at once (the prefetch may hold two of the four slots), and four stay the most in flight', () async {
     final forty = [for (var id = 10; id < 18; id++) for (final d in days.take(5)) (id, d)];
     final prefetch = repo.prefetchMenus(forty);
-    while (calls.length < Repository.backgroundSlots) {
+    while (calls.length < 2) {
       await Future<void>.delayed(const Duration(milliseconds: 1)); // the prefetch has what it may of the slots
     }
     final mine = repo.menu(1, '2026-10-30').drain<void>();
     await Future.wait([prefetch, mine]);
     final order = [for (final u in calls) u.queryParameters['tid']];
     final at = order.indexOf('1');
-    expect(at, inInclusiveRange(0, Repository.backgroundSlots), reason: 'started as call #$at of ${order.length}: $order');
+    expect(at, inInclusiveRange(0, 2), reason: 'started as call #$at of ${order.length}: $order');
     expect(peak, lessThanOrEqualTo(Repository.maxInFlight));
     expect(order.length, forty.length + 1);
-  });
+  }, timeout: const Timeout(Duration(seconds: 10)));
 
   test('a prefetch that is told to stop asks for nothing more', () async {
     var stop = false;
@@ -105,5 +109,86 @@ void main() {
     stop = true;
     await f;
     expect(calls.length, lessThan(pairs.length));
+  });
+
+  group('the pool\'s policy: foreground before background, background at most 2 of the 4 slots', () {
+    // every request waits to be released by the test, so who started, and when, is exactly what the pool decided
+    final started = <int>[], hold = <int, Completer<void>>{};
+    late Repository pool;
+    setUp(() {
+      started.clear();
+      hold.clear();
+      final c = MockClient((req) async {
+        final tid = int.parse(req.url.queryParameters['tid']!);
+        started.add(tid);
+        await (hold[tid] = Completer<void>()).future;
+        return http.Response(ajaxBody(), 200);
+      });
+      pool = Repository(UmassSource(c), db, now: () => DateTime(2026, 10, 13, 12));
+    });
+    Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 40)); // (the cache lookup before each fetch)
+    void ask(int tid, {bool background = false}) => unawaited(pool.menu(tid, '2026-10-30', background: background).drain<void>());
+    Future<void> release(int tid) async {
+      hold[tid]!.complete();
+      await settle();
+    }
+
+    test('when a slot frees, a waiting foreground job goes before background jobs that queued earlier, even with a background slot free', () async {
+      ask(101, background: true);
+      ask(1);
+      ask(2);
+      ask(3);
+      await settle();
+      expect(started, [101, 1, 2, 3], reason: 'the pool is full, one background job in it');
+      ask(102, background: true); // queued first
+      ask(103, background: true);
+      ask(4); // queued after them
+      await settle();
+      expect(started, [101, 1, 2, 3], reason: 'four in flight: the rest wait');
+      await release(1);
+      expect(started.last, 4, reason: 'foreground 4 before background 102, though a background slot is free: $started');
+      await release(2);
+      expect(started.last, 102, reason: 'no foreground waiting: the oldest background job: $started');
+      await release(3);
+      expect(started, [101, 1, 2, 3, 4, 102], reason: 'two background jobs running: 103 waits for one of them');
+      await release(101);
+      expect(started.last, 103);
+      for (final t in [4, 102, 103]) {
+        await release(t);
+      }
+    }, timeout: const Timeout(Duration(seconds: 5)));
+
+    test('a freed slot is not handed to a background job when background already holds 2', () async {
+      ask(101, background: true);
+      ask(102, background: true);
+      ask(1);
+      ask(2);
+      ask(103, background: true); // waits: the pool is full
+      await settle();
+      expect(started, [101, 102, 1, 2]);
+      await release(1);
+      expect(started, [101, 102, 1, 2], reason: 'a slot is free but two background jobs are running: 103 waits');
+      await release(101);
+      expect(started.last, 103);
+      for (final t in [102, 2, 103]) {
+        await release(t);
+      }
+    }, timeout: const Timeout(Duration(seconds: 5)));
+
+    test('background jobs hold at most 2 slots: a third waits while foreground slots are free, until a background one finishes', () async {
+      ask(101, background: true);
+      ask(102, background: true);
+      ask(103, background: true);
+      await settle();
+      expect(started, [101, 102], reason: 'two slots of four are free, and the third background job still waits');
+      ask(1);
+      await settle();
+      expect(started, [101, 102, 1], reason: 'a foreground fetch starts at once');
+      await release(101);
+      expect(started, [101, 102, 1, 103], reason: 'it starts when a background slot frees');
+      for (final t in [102, 1, 103]) {
+        await release(t);
+      }
+    }, timeout: const Timeout(Duration(seconds: 5)));
   });
 }
