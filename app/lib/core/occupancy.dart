@@ -35,12 +35,19 @@ const _vsBand = 0.25;
 const _vsMinPeople = 10;
 
 class OccupancyRead {
-  const OccupancyRead({required this.level, required this.vsUsual, required this.usuallyClearsAt, required this.confidence, required this.lamps});
+  const OccupancyRead({required this.level, required this.vsUsual, required this.usuallyClearsAt, required this.confidence, required this.lamps, this.board, this.nowHour = 0});
 
   /// Lit lamps of the band meter and the header board, 1-5 (owner, 2026-10-14): the live headcount as a share of the day's typical
   /// peak, capped at the peak. No usable curve (no rows, every bucket under [minSamples], a peak of 0) falls back to the level:
   /// 1, 3 or 5. Confidence never changes it.
   final int lamps;
+
+  /// The header board (owner, 2026-10-15): one column per hour the curve holds buckets for, its highest bucket as a share of the day's peak, in the
+  /// meter's lamps. Null exactly when the meter falls back to the level (no usable curve). Confidence never changes it.
+  final List<({int hour, int lamps})>? board;
+
+  /// The Eastern hour of the read, the board's column that shows the live [lamps].
+  final int nowHour;
 
   /// 0 not busy, 1 moderate, 2 busy, for this hour (the thresholds are hourly).
   final int level;
@@ -88,9 +95,20 @@ OccupancyRead? occupancyRead({required List<OccupancyBucket> typical, required S
   final curveUsable = peak > 0 && typical.any((b) => b.samples >= minSamples);
   return OccupancyRead(
     level: level,
+    board: curveUsable ? _board(typical, peak) : null,
+    nowHour: wall.hour,
     lamps: curveUsable ? lamps(live.count * 100 / peak) : const [1, 3, 5][level],
     vsUsual: vs,
     usuallyClearsAt: clears == null ? null : easternInstant(DateTime.utc(wall.year, wall.month, wall.day, 0, clears.minuteOfDay)),
     confidence: sure ? Confidence.good : Confidence.low,
   );
+}
+
+List<({int hour, int lamps})> _board(List<OccupancyBucket> typical, int peak) {
+  final top = <int, int>{};
+  for (final b in typical) {
+    final h = b.minuteOfDay ~/ 60;
+    if (b.medianHeadcount > (top[h] ?? -1)) top[h] = b.medianHeadcount;
+  }
+  return [for (final h in top.keys.toList()..sort()) (hour: h, lamps: lamps(top[h]! * 100 / peak))];
 }

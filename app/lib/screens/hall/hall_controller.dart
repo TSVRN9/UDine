@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/m2/board.dart';
 import '../../core/m2/places.dart';
+import '../../core/occupancy.dart';
 import '../../core/stations.dart' show normalizeStationName;
 import '../../core/types.dart';
 import '../../data/repository.dart';
@@ -72,6 +73,9 @@ class HallController extends ChangeNotifier {
   StreamSubscription<DataState<HoursData>>? _hoursSub;
   StreamSubscription<DataState<List<DiningEvent>>>? _eventsSub;
   List<HoursEvent> events = const [];
+
+  /// Today's live busy against the typical curve; null at a café, offline, or until the curve is in (busy is never shown stale).
+  OccupancyRead? busy;
   Board? _board;
   bool _disposed = false;
   int _run = 0;
@@ -115,11 +119,26 @@ class HallController extends ChangeNotifier {
     _hoursSub = repo.hours(repo.today).listen((s) {
       if (_disposed || run != _run) return;
       hours = s;
+      busy = null;
+      if (!cafe && s is Loaded<HoursData> && s.value.busy != null) _loadBusy(s.value, run);
       for (final d in _asked) {
         _ensure(d);
       }
       notifyListeners();
     });
+  }
+
+  Future<void> _loadBusy(HoursData h, int run) async {
+    final mine = {for (final e in h.busy!.entries) if (hallKeyOfTitle(e.key) == place) e.key: e.value};
+    OccupancyRead? r;
+    try {
+      r = (await repo.busyReads(HoursData(h.feed, mine, h.locationIds))).values.firstOrNull;
+    } catch (_) {
+      return; // busy is the header's garnish: a store that cannot answer leaves the room empty, never the menu failed
+    }
+    if (_disposed || run != _run) return;
+    busy = r;
+    notifyListeners();
   }
 
   /// Starts the day's menu if it is not running (a café's waits for its location id).
