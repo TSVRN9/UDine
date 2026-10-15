@@ -262,7 +262,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final extras = c == null ? const <Widget>[] : widget.extras?.call(context, c.query.trim()) ?? const <Widget>[];
     final entries = c == null || ix == null
         ? const <SearchEntry>[]
-        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: scope.store != null, hasExtras: extras.isNotEmpty);
+        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: !scope.menusOnly, hasExtras: extras.isNotEmpty);
     final idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;
     return ColoredBox(
       color: M2Color.chalk,

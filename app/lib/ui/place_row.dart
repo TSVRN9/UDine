@@ -26,7 +26,7 @@ class PlaceRow extends StatelessWidget {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(name, style: M2Text.rowName.normal().style(M2Color.ink)),
-                    Padding(padding: const EdgeInsets.only(top: M2Layout.placeTextTop), child: Text(detail, style: M2Text.meta.style(M2Color.slate))),
+                    Padding(padding: const EdgeInsets.only(top: M2Layout.placeTextTop), child: Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: M2Text.meta.style(M2Color.slate))),
                   ]),
                 ),
                 const SizedBox(width: M2Layout.placeRowGap),

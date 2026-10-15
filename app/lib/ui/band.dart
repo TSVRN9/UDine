@@ -46,7 +46,7 @@ class Band extends StatelessWidget {
             left: M2Space.gutter, top: card ? M2Layout.cardTextTop : compact ? M2Space.pinTextTop : M2Space.bandTextTop,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name, style: (small ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
-              if (card)
+              if (card) ...[
                 if ((status != null && status!.isNotEmpty) || busy != null)
                   Padding(
                     padding: const EdgeInsets.only(top: M2Layout.statusGapPin),
@@ -55,8 +55,8 @@ class Band extends StatelessWidget {
                       if (status != null && status!.isNotEmpty && busy != null) const SizedBox(width: M2Layout.cardMeterGap),
                       ?busy,
                     ])),
-                  )
-              else ...[
+                  ),
+              ] else ...[
                 if (status != null && status!.isNotEmpty)
                   Padding(
                     padding: EdgeInsets.only(top: compact ? M2Layout.statusGapPin : M2Layout.statusGapBand),
