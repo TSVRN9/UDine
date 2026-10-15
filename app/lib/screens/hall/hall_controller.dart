@@ -54,6 +54,18 @@ List<HoursEvent> hoursEvents(List<DiningEvent> feed) {
   return out..sort((a, b) => a.expires - b.expires);
 }
 
+/// Every café's location id by place key (`c3`), for the cafés the feed has one for (where a dish is served names them).
+Map<String, int> cafeIdsOf(DiningHoursFeed feed) {
+  final byTitle = {for (final r in feed.retail) straight(r.name): r.locationId};
+  return {for (var i = 0; i < cafeTable.length; i++) 'c$i': ?byTitle[straight(cafeTable[i].title)]};
+}
+
+/// Every hall's Grab 'N Go window (its own get_infov2 entry, the hall's name and Grab 'N Go), for the halls that have one.
+Map<String, TimeWindow> grabsOf(DiningHoursFeed feed) => {
+      for (var i = 0; i < halls.length; i++)
+        halls[i]: ?feed.retail.where((r) => straight(r.name) == "${diningHalls[i].name} Grab 'N Go").firstOrNull?.hours,
+    };
+
 /// One place's menu on live data: today's hours (cached for the day; a café's menu is keyed by the location id they carry), then the
 /// menu of each day asked for, cache first. The body reads [board], the shape `core/m2` works on, and [state] per day.
 /// A hall is keyed `W F H B`, a café `c` and its index.
@@ -103,12 +115,7 @@ class HallController extends ChangeNotifier {
   }
 
   /// Every café's location id by place key (`c3`), for the cafés the feed has one for (where a dish is served names them).
-  Map<String, int> get cafeIds {
-    final feed = _hoursValue?.feed;
-    if (feed == null) return const {};
-    final byTitle = {for (final r in feed.retail) straight(r.name): r.locationId};
-    return {for (var i = 0; i < cafeTable.length; i++) 'c$i': ?byTitle[straight(cafeTable[i].title)]};
-  }
+  Map<String, int> get cafeIds => _hoursValue == null ? const {} : cafeIdsOf(_hoursValue!.feed);
 
   String get name => cafe ? cafeTable[int.parse(place.substring(1))].name : diningHalls[halls.indexOf(place)].name;
 
@@ -116,12 +123,7 @@ class HallController extends ChangeNotifier {
   DiningHallHours? get placeHours => roster?.hours[place];
 
   /// A hall's Grab 'N Go window (its own get_infov2 entry, the hall's name and Grab ‘N Go).
-  TimeWindow? grabOf(String hall) {
-    final feed = _hoursValue?.feed;
-    if (feed == null || isCafe(hall)) return null;
-    final title = '${diningHalls[halls.indexOf(hall)].name} Grab \'N Go';
-    return feed.retail.where((r) => straight(r.name) == title).firstOrNull?.hours;
-  }
+  TimeWindow? grabOf(String hall) => _hoursValue == null || isCafe(hall) ? null : grabsOf(_hoursValue!.feed)[hall];
 
   TimeWindow? get grab => grabOf(place);
 
